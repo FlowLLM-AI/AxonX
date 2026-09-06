@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="2048" height="2048" viewBox="0 0 1024 1024"
+     role="img" aria-labelledby="title description">
+  <title id="title">FlowLLM f logo</title>
+  <desc id="description">A continuous one-stroke mathematical f.</desc>
+  <defs>
+    <linearGradient id="flow-gradient" gradientUnits="userSpaceOnUse"
+                    x1="350" y1="70" x2="560" y2="930">
+      <stop offset="0.00" stop-color="#00DCF7"/>
+      <stop offset="0.28" stop-color="#009DF8"/>
+      <stop offset="0.55" stop-color="#0D5EF7"/>
+      <stop offset="0.78" stop-color="#393AEB"/>
+      <stop offset="1.00" stop-color="#6923E2"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#flow-gradient)"
+     stroke-width="82" stroke-linecap="round"
+     stroke-linejoin="round">
+    <path d="M 742 446 C 625 440, 512 438, 420 448 C 310 456, 215 492, 198 574 C 178 674, 231 778, 314 802 C 385 823, 430 772, 447 694 C 471 580, 454 499, 430 448 C 409 391, 406 299, 431 222 C 460 134, 538 99, 626 111"/>
+  </g>
+</svg>

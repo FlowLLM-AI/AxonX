@@ -1,0 +1,3 @@
+backends:
+  sales: axonx_polars_demo.sales:SalesTask
+config: {}

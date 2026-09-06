@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axonx"
+version = "0.1.0"
+description = "An asynchronous component, job, plugin, and isolated task runtime for Python applications."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+    { name = "FlowLLM AI", email = "FlowLLM-AI@users.noreply.github.com" },
+]
+keywords = ["asyncio", "jobs", "orchestration", "plugins", "task-runner"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+    "croniter>=2",
+    "fastapi>=0.115",
+    "fastmcp>=3.1,<4",
+    "httpx>=0.27,<1",
+    "jsonschema>=4,<5",
+    "loguru>=0.7,<1",
+    "pandas>=2,<4",
+    "pydantic>=2,<3",
+    "PyYAML>=6,<7",
+    "requests>=2.31,<3",
+    "starlette>=0.46",
+    "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mcp>=1.24,<2",
+    "pre-commit",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[project.scripts]
+axonx = "axonx.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/FlowLLM-AI/AxonX"
+Documentation = "https://github.com/FlowLLM-AI/AxonX#readme"
+Issues = "https://github.com/FlowLLM-AI/AxonX/issues"
+Source = "https://github.com/FlowLLM-AI/AxonX"
+
+[tool.setuptools.packages.find]
+include = ["axonx*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = [".", "tests"]
+testpaths = ["tests"]
+
+[tool.setuptools.package-data]
+axonx = ["config/*.yaml"]

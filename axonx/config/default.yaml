@@ -1,0 +1,91 @@
+components:
+  task_manager:
+    default:
+      backend: local
+      max_concurrency: 1
+      cancel_timeout: 5
+      terminate_timeout: 2
+jobs:
+  demo:
+    description: Show the installed AxonX version.
+    steps:
+      - backend: version_step
+      - backend: demo_step
+  submit:
+    description: Submit a task for asynchronous execution.
+    parameters:
+      type: object
+      properties:
+        task:
+          type: string
+          description: Registered task name.
+        manager:
+          type: string
+          description: Task manager name.
+      required: [ task ]
+      additionalProperties: true
+    steps:
+      - backend: submit_task
+  status:
+    description: Get one task run or list all task runs.
+    parameters:
+      type: object
+      properties:
+        run_id: { type: string }
+        manager: { type: string }
+    steps:
+      - backend: task_status
+  wait:
+    description: Wait for a task run to finish.
+    parameters:
+      type: object
+      properties:
+        run_id: { type: string }
+        manager: { type: string }
+        timeout: { type: number, exclusiveMinimum: 0 }
+      required: [ run_id ]
+    steps:
+      - backend: wait_task
+  cancel:
+    description: Cancel a queued or running task.
+    parameters:
+      type: object
+      properties:
+        run_id: { type: string }
+        manager: { type: string }
+      required: [ run_id ]
+    steps:
+      - backend: cancel_task
+  kill:
+    description: Force a queued or running task to stop.
+    parameters:
+      type: object
+      properties:
+        run_id: { type: string }
+        manager: { type: string }
+      required: [ run_id ]
+    steps:
+      - backend: kill_task
+  logs:
+    description: Read output from a task run.
+    parameters:
+      type: object
+      properties:
+        run_id: { type: string }
+        manager: { type: string }
+        limit: { type: integer, minimum: 1 }
+      required: [ run_id ]
+    steps:
+      - backend: task_logs
+  report_task_progress:
+    description: Report task progress from an AxonX worker.
+    parameters:
+      type: object
+      properties:
+        run_id: { type: string }
+        manager: { type: string }
+        step_index: { type: integer, minimum: 0 }
+        task_step: { type: object }
+      required: [ run_id, step_index, task_step ]
+    steps:
+      - backend: report_task_progress
