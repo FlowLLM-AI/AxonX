@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import heapq
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, TypeVar
@@ -60,8 +61,7 @@ class Application(BaseComponent):
         )
 
     def _iter_startup_components(self) -> Iterator[BaseComponent]:
-        for group in self.context.components.values():
-            yield from group.values()
+        yield from self._component_startup_order()
 
         jobs = self.context.jobs.values()
         yield from (job for job in jobs if not job.runs_in_background)
@@ -69,6 +69,46 @@ class Application(BaseComponent):
         # Background runners may execute immediately, so start them only after
         # every dependency and directly callable job is ready.
         yield from (job for job in jobs if job.runs_in_background)
+
+    def _component_startup_order(self) -> list[BaseComponent]:
+        """Order components by declared dependencies and reject invalid graphs."""
+        nodes = {
+            (category, name): component
+            for category, group in self.context.components.items()
+            for name, component in group.items()
+        }
+        positions = {key: index for index, key in enumerate(nodes)}
+        in_degree = dict.fromkeys(nodes, 0)
+        dependants = {key: [] for key in nodes}
+        for key, component in nodes.items():
+            for dependency in component.dependencies:
+                dependency_key = (dependency.ctype, dependency.name)
+                if dependency_key not in nodes:
+                    if dependency.optional:
+                        continue
+                    raise ValueError(
+                        f"Component {key[0]}:{key[1]} depends on missing "
+                        f"{dependency.ctype}:{dependency.name}",
+                    )
+                in_degree[key] += 1
+                dependants[dependency_key].append(key)
+
+        ready = [(positions[key], key) for key, degree in in_degree.items() if degree == 0]
+        heapq.heapify(ready)
+        ordered = []
+        while ready:
+            _, key = heapq.heappop(ready)
+            ordered.append(nodes[key])
+            for dependant in dependants[key]:
+                in_degree[dependant] -= 1
+                if in_degree[dependant] == 0:
+                    heapq.heappush(ready, (positions[dependant], dependant))
+        if len(ordered) != len(nodes):
+            unresolved = [f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree]
+            raise ValueError(
+                f"Components unresolved due to circular dependencies: {', '.join(unresolved)}",
+            )
+        return ordered
 
     async def _start(self) -> None:
         Path(self.config.workspace_dir).expanduser().mkdir(parents=True, exist_ok=True)
