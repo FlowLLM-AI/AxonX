@@ -128,8 +128,10 @@ class BaseComponent(ComponentMixin):
                     errors.append(exc)
                 errors.extend(await self._close_owned(self._owned_components))
                 self.is_started = False
-                if errors:
+                if len(errors) == 1:
                     raise errors[0]
+                if errors:
+                    raise BaseExceptionGroup("Component cleanup failed", errors)
 
     async def _start(self):
         pass

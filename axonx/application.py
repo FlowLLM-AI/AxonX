@@ -105,7 +105,9 @@ class Application(BaseComponent):
                     heapq.heappush(ready, (positions[dependant], dependant))
         if len(ordered) != len(nodes):
             unresolved = [f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree]
-            raise ValueError(f"Circular component dependency: {', '.join(unresolved)}")
+            raise ValueError(
+                f"Components unresolved due to circular dependencies: {', '.join(unresolved)}",
+            )
         return ordered
 
     async def _start(self) -> None:

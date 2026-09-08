@@ -93,7 +93,7 @@ async def test_circular_dependencies_are_rejected():
             },
         )
 
-    with pytest.raises(ValueError, match="Circular component dependency"):
+    with pytest.raises(ValueError, match="unresolved due to circular dependencies"):
         await app.start()
 
 
@@ -173,3 +173,30 @@ async def test_owned_close_failure_does_not_skip_remaining_cleanup():
     assert not parent.is_started
     assert not first.is_started
     assert not second.is_started
+
+
+async def test_multiple_owned_close_failures_are_grouped():
+    class Broken(BaseComponent):
+        component_type = "test_broken"
+
+        def __init__(self, message):
+            super().__init__()
+            self.message = message
+
+        async def _close(self):
+            raise RuntimeError(self.message)
+
+    class Parent(BaseComponent):
+        component_type = "test_parent"
+
+        def __init__(self):
+            super().__init__()
+            self.first = self.bind("first", Broken, default_factory=lambda: Broken("first"))
+            self.second = self.bind("second", Broken, default_factory=lambda: Broken("second"))
+
+    parent = Parent()
+    await parent.start()
+
+    with pytest.raises(ExceptionGroup, match="Component cleanup failed") as exc_info:
+        await parent.close()
+    assert {str(error) for error in exc_info.value.exceptions} == {"first", "second"}
