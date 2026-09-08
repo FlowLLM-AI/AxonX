@@ -95,3 +95,81 @@ async def test_circular_dependencies_are_rejected():
 
     with pytest.raises(ValueError, match="Circular component dependency"):
         await app.start()
+
+
+async def test_independent_components_keep_configuration_order():
+    events = []
+
+    class Probe(BaseComponent):
+        component_type = "test_probe"
+
+        async def _start(self):
+            events.append(self.name)
+
+    with R.preserve(allow_mutation=True):
+        R.register(Probe, "test")
+        app = Application(
+            components={
+                "test_probe": {
+                    "z-last-alphabetically": {"backend": "test"},
+                    "a-first-alphabetically": {"backend": "test"},
+                },
+            },
+        )
+
+    await app.start()
+    assert events == ["z-last-alphabetically", "a-first-alphabetically"]
+    await app.close()
+
+
+async def test_dependency_failure_does_not_close_unstarted_parent():
+    class Provider(BaseComponent):
+        component_type = "test_provider"
+
+    class Consumer(BaseComponent):
+        component_type = "test_consumer"
+
+        def __init__(self):
+            super().__init__()
+            self.provider = self.bind("missing", Provider, optional=False)
+            self.close_count = 0
+
+        async def _close(self):
+            self.close_count += 1
+
+    consumer = Consumer()
+    with pytest.raises(ValueError, match="Missing component dependency"):
+        await consumer.start()
+    assert consumer.close_count == 0
+
+
+async def test_owned_close_failure_does_not_skip_remaining_cleanup():
+    class Owned(BaseComponent):
+        component_type = "test_owned"
+
+        def __init__(self, *, fail_close=False):
+            super().__init__()
+            self.fail_close = fail_close
+
+        async def _close(self):
+            if self.fail_close:
+                raise RuntimeError("close failed")
+
+    class Parent(BaseComponent):
+        component_type = "test_parent"
+
+        def __init__(self, first, second):
+            super().__init__()
+            self.first = self.bind("first", Owned, default_factory=lambda: first)
+            self.second = self.bind("second", Owned, default_factory=lambda: second)
+
+    first = Owned()
+    second = Owned(fail_close=True)
+    parent = Parent(first, second)
+    await parent.start()
+
+    with pytest.raises(RuntimeError, match="close failed"):
+        await parent.close()
+    assert not parent.is_started
+    assert not first.is_started
+    assert not second.is_started

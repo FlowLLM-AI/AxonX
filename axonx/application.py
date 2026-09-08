@@ -77,6 +77,7 @@ class Application(BaseComponent):
             for category, group in self.context.components.items()
             for name, component in group.items()
         }
+        positions = {key: index for index, key in enumerate(nodes)}
         in_degree = dict.fromkeys(nodes, 0)
         dependants = {key: [] for key in nodes}
         for key, component in nodes.items():
@@ -92,16 +93,16 @@ class Application(BaseComponent):
                 in_degree[key] += 1
                 dependants[dependency_key].append(key)
 
-        ready = [key for key, degree in in_degree.items() if degree == 0]
+        ready = [(positions[key], key) for key, degree in in_degree.items() if degree == 0]
         heapq.heapify(ready)
         ordered = []
         while ready:
-            key = heapq.heappop(ready)
+            _, key = heapq.heappop(ready)
             ordered.append(nodes[key])
             for dependant in dependants[key]:
                 in_degree[dependant] -= 1
                 if in_degree[dependant] == 0:
-                    heapq.heappush(ready, dependant)
+                    heapq.heappush(ready, (positions[dependant], dependant))
         if len(ordered) != len(nodes):
             unresolved = [f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree]
             raise ValueError(f"Circular component dependency: {', '.join(unresolved)}")

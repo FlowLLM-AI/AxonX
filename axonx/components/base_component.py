@@ -83,25 +83,37 @@ class BaseComponent(ComponentMixin):
                 raise ValueError(f"Missing component dependency: {dependency.ctype}:{dependency.name}")
             setattr(self, attribute, target)
 
+    async def _close_owned(self, components) -> list[BaseException]:
+        errors = []
+        for component in reversed(components):
+            try:
+                await component.close()
+            except BaseException as exc:
+                errors.append(exc)
+        return errors
+
     async def start(self):
         """Start this component once and clean up a partial failed start."""
         async with self._lifecycle_lock:
             if self.is_started:
                 return
             started_owned = []
+            start_hook_entered = False
             try:
                 await self._resolve_dependencies()
                 for component in self._owned_components:
                     await component.start()
                     started_owned.append(component)
+                start_hook_entered = True
                 await self._start()
             except BaseException:
-                try:
-                    await self._close()
-                except Exception:
-                    self.logger.exception("Startup cleanup failed")
-                for component in reversed(started_owned):
-                    await component.close()
+                if start_hook_entered:
+                    try:
+                        await self._close()
+                    except BaseException:
+                        self.logger.exception("Startup cleanup failed")
+                for error in await self._close_owned(started_owned):
+                    self.logger.error(f"Owned component cleanup failed: {error}")
                 raise
             self.is_started = True
 
@@ -109,12 +121,15 @@ class BaseComponent(ComponentMixin):
         """Close this component once if it has successfully started."""
         async with self._lifecycle_lock:
             if self.is_started:
+                errors = []
                 try:
                     await self._close()
-                finally:
-                    for component in reversed(self._owned_components):
-                        await component.close()
-                    self.is_started = False
+                except BaseException as exc:
+                    errors.append(exc)
+                errors.extend(await self._close_owned(self._owned_components))
+                self.is_started = False
+                if errors:
+                    raise errors[0]
 
     async def _start(self):
         pass
