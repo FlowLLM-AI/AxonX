@@ -3,6 +3,8 @@
 from . import task_management
 from .base_step import BaseStep
 from .common import demo
+from .common import list_machines
+from .common import machine_status
 from .common import version
 
-__all__ = ["BaseStep", "demo", "task_management", "version"]
+__all__ = ["BaseStep", "demo", "list_machines", "machine_status", "task_management", "version"]

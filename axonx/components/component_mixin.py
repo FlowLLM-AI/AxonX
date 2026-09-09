@@ -23,7 +23,14 @@ class ComponentMixin:
         """Return the configured workspace or the current directory."""
         if self.app_context is None:
             return Path.cwd()
-        return Path(self.app_context.app_config.workspace_dir).expanduser()
+        return Path(self.app_config.workspace_dir).expanduser()
+
+    @property
+    def app_config(self):
+        """Return the shared application configuration."""
+        if self.app_context is None:
+            raise RuntimeError("Application config requires an application context")
+        return self.app_context.app_config
 
     def get_component(self, component_type, name="default"):
         """Look up a component instance from the application context."""

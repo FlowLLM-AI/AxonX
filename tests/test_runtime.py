@@ -311,6 +311,8 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
     from axonx.schema import Response
 
     class Client:
+        healthy = True
+
         def __init__(self, source, **options):
             assert source == "https://service.example/mcp"
             assert options["auth"] is None
@@ -331,6 +333,11 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
                 ),
             ]
 
+        async def ping(self):
+            if not self.healthy:
+                raise OSError("unreachable")
+            return True
+
         async def call_tool(self, name, arguments):
             assert (name, arguments) == ("demo", {"value": 1})
             return SimpleNamespace(data=Response(answer="done"))
@@ -338,6 +345,9 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
     monkeypatch.setattr(fastmcp, "Client", Client)
 
     async with McpClient(url="https://service.example") as client:
+        assert await client.health()
+        client.client.healthy = False
+        assert not await client.health()
         jobs = await client.list_jobs()
         response = await client.run_job("demo", value=1)
 

@@ -43,3 +43,7 @@ class BaseClient(BaseComponent, ABC):
     @abstractmethod
     async def list_jobs(self) -> list[JobInfo]:
         """List remotely callable jobs and their schemas."""
+
+    @abstractmethod
+    async def health(self) -> bool:
+        """Return whether the remote service is healthy."""
