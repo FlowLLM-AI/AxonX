@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import pandas as pd
 import requests
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 DEFAULT_BASE_URL = "http://api.waditu.com/dataapi"
 IP_LIMIT_ERROR = "IP数量超限"
@@ -50,6 +52,8 @@ class TushareClient:
         return min(delay * 2, self.max_delay)
 
     def _request(self, api_name: str, fields: str, params: dict[str, Any]) -> tuple[pd.DataFrame, bool]:
+        import pandas as pd
+
         params = {"ts_type_name": self.base_url, **params}
         retry = ip_retry = 0
         delay = ip_delay = min(self.initial_delay, self.max_delay)
@@ -100,6 +104,8 @@ class TushareClient:
         **params: Any,
     ) -> pd.DataFrame:
         """Fetch all pages and remove rows repeated by page overlap."""
+        import pandas as pd
+
         if limit <= 0:
             raise ValueError("limit must be greater than 0")
         if not 0 <= overlap < 1:
