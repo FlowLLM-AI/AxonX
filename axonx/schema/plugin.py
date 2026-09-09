@@ -1,6 +1,6 @@
-"""Validated data declared by an AxonX plugin manifest."""
+"""Validated Task declarations in an AxonX plugin manifest."""
 
-from typing import Annotated, Any
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -8,9 +8,8 @@ NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_len
 
 
 class PluginManifest(BaseModel):
-    """Declarative contributions loaded from a plugin's ``plugin.yaml``."""
+    """Tasks exported by a plugin package."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    backends: dict[NonEmptyString, NonEmptyString] = Field(default_factory=dict)
-    config: dict[str, Any] = Field(default_factory=dict)
+    tasks: dict[NonEmptyString, NonEmptyString] = Field(default_factory=dict)

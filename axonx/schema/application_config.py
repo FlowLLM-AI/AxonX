@@ -52,6 +52,14 @@ class ApplicationConfig(BaseModel):
     jobs: dict[str, JobConfig] = Field(default_factory=dict)
     service: ComponentConfig | None = None
 
+    @field_validator("plugins")
+    @classmethod
+    def validate_plugin_paths(cls, values: list[str]) -> list[str]:
+        """Plugins are configured only by non-empty local project paths."""
+        if any(not isinstance(value, str) or not value.strip() for value in values):
+            raise ValueError("Plugin paths must be non-empty strings")
+        return values
+
     @field_validator("remote_nodes")
     @classmethod
     def validate_remote_nodes(cls, values: list[str]) -> list[str]:

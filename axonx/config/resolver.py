@@ -98,7 +98,11 @@ class ConfigResolver:
         if not self.config_dir.is_dir():
             return {}
         files = sorted(
-            (path for path in self.config_dir.iterdir() if path.is_file() and path.suffix in _SUPPORTED_EXTENSIONS),
+            (
+                path
+                for path in self.config_dir.iterdir()
+                if path.is_file() and path.suffix in _SUPPORTED_EXTENSIONS
+            ),
             key=lambda path: (_SUPPORTED_EXTENSIONS.index(path.suffix), path.name),
         )
         return {path.stem: path for path in reversed(files)}
@@ -130,7 +134,9 @@ class ConfigResolver:
 
         path = Path(name_or_path)
         if path.suffix in _SUPPORTED_EXTENSIONS:
-            candidates = (path,) if path.is_absolute() else (path, self.config_dir / path)
+            candidates = (
+                (path,) if path.is_absolute() else (path, self.config_dir / path)
+            )
             for candidate in candidates:
                 if candidate.is_file():
                     return candidate
@@ -148,7 +154,17 @@ class ConfigResolver:
             return {}
         if not isinstance(config, dict):
             raise ValueError(f"Config root must be a mapping/object: {path}")
-        return expand_env_vars(config)
+        config = expand_env_vars(config)
+        plugins = config.get("plugins")
+        if isinstance(plugins, list):
+            config["plugins"] = [
+                str((path.parent / plugin).resolve())
+                if isinstance(plugin, str)
+                and not Path(plugin).expanduser().is_absolute()
+                else plugin
+                for plugin in plugins
+            ]
+        return config
 
     def _load(
         self,
@@ -163,7 +179,9 @@ class ConfigResolver:
 
         config = self._read(path)
         raw_parents = config.pop("extends", ())
-        parents = (raw_parents,) if isinstance(raw_parents, str) else tuple(raw_parents or ())
+        parents = (
+            (raw_parents,) if isinstance(raw_parents, str) else tuple(raw_parents or ())
+        )
         merged: dict[str, Any] = {}
         next_stack = (*stack, (identity, name_or_path))
 

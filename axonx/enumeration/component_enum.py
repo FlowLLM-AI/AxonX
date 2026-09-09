@@ -14,3 +14,4 @@ class ComponentEnum(StrEnum):
     SERVICE = "service"
     CLIENT = "client"
     MACHINE = "machine"
+    PLUGIN = "plugin"

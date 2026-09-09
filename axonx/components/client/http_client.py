@@ -2,6 +2,8 @@
 
 from typing import Any
 from urllib.parse import quote
+from pathlib import Path
+import hashlib
 
 import httpx
 
@@ -57,3 +59,19 @@ class HttpClient(BaseClient):
             return isinstance(data, dict) and data.get("running") is True
         except (httpx.HTTPError, ValueError):
             return False
+
+    async def install_plugin(self, wheel: Path, token: str | None = None) -> dict:
+        """Upload and install one wheel on a remote AxonX service."""
+        data = wheel.read_bytes()
+        headers = {
+            "content-type": "application/octet-stream",
+            "x-wheel-filename": wheel.name,
+            "x-wheel-sha256": hashlib.sha256(data).hexdigest(),
+        }
+        if token:
+            headers["authorization"] = f"Bearer {token}"
+        response = await self._require_client().post(
+            "/plugins", content=data, headers=headers
+        )
+        response.raise_for_status()
+        return response.json()

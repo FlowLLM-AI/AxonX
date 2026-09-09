@@ -48,9 +48,9 @@ axonx/
     loader.py                 # YAML / JSON 加载、继承与合并
     values.py                 # CLI 值解析与环境变量展开
   plugin/
-    runtime.py                # Plugin 发现、注册与配置合并
-    manifest.py               # plugin.yaml 读取与解析
-    cli.py                    # Plugin 管理命令
+    artifact.py               # 源码 SHA、wheel 构建与元数据读取
+    manifest.py               # Task-only plugin.yaml 解析
+    cli.py                    # build / install / deploy
   utils/
     entry_points.py           # Plugin / Config 共享的 entry-point 发现
     dingtalk_utils.py         # 钉钉机器人通知
@@ -66,10 +66,9 @@ Python 3.11+；本机进程管理目前支持 macOS / Linux。
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
-axonx plugin install plugins/polars-demo --editable
-axonx plugin validate polars-demo
-axonx plugin list
-axonx start --plugins '["polars-demo"]'
+axonx plugin build plugins/polars-demo
+axonx plugin install plugins/polars-demo
+axonx start --plugins '["./plugins/polars-demo"]'
 ```
 
 默认 HTTP 地址 `127.0.0.1:1024`。在另一个终端、同一虚拟环境中运行：
@@ -91,7 +90,7 @@ axonx kill --run-id 返回的ID
 
 ```yaml
 extends: default
-plugins: [polars-demo]
+plugins: [./plugins/polars-demo]
 workspace_dir: .axonx
 service:
   backend: http
@@ -153,7 +152,7 @@ from axonx import Application
 from axonx.config import resolve_app_config
 
 async def example():
-    async with Application(**resolve_app_config(plugins=["polars-demo"])) as app:
+    async with Application(**resolve_app_config(plugins=["./plugins/polars-demo"])) as app:
         response = await app.run_job(
             "submit", task="sales", output="/tmp/sales.parquet"
         )
@@ -196,15 +195,16 @@ Response.success 表示异步 Job 调用是否成功。查询或等待一个失�
 
 ## 插件
 
-使用统一的 `axonx.plugins` entry point，`plugin.yaml` 声明 backend 和可选的应用默认配置。Task 与组件共用注册目录，但 Task 不继承 Component。
+插件通过项目路径配置。`PluginComponent` 对源码计算 SHA-256，在内容变化后构建并安装 wheel；wheel 中的 `axonx.plugins` entry point 用于定位只包含 Task 声明的 `plugin.yaml`。
 
 ```yaml
-backends:
+tasks:
   sales: axonx_polars_demo.sales:SalesTask
-config: {}
 ```
 
-应用仅加载 `plugins` 中显式启用的插件，应用配置覆盖插件默认值。Task 类必须位于已安装的可导入模块，不能定义在函数内部或 `__main__` 中；子进程使用与 Application 相同的 Python 解释器。
+插件只能提供 Task，不参与 Component、Step、Job 注册，也不提供应用默认配置。每次执行都会启动新 Worker 并从已安装文件导入 Task，因此更新插件不会影响正在运行的 Task，后续 Task 无需重启 AxonX 即可使用新版本。
+
+远程节点设置 `components.plugin.default.allow_remote_install: true` 后提供 `POST /plugins`；插件列表通过 `list_plugins` Job 查询。可同时配置 `install_token`。本地使用 `axonx plugin deploy ./plugins/polars-demo --url http://IP:PORT --token TOKEN` 构建、校验 SHA-256 并上传 wheel。
 
 Polars 示例 `SalesTask` 用合成数据完成加载、聚合、写 Parquet，总收入为 75；不提供 input 时无需外部数据。
 

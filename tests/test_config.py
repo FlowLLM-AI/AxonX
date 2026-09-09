@@ -10,6 +10,7 @@ from axonx.config import (
     convert_value,
     deep_merge_config,
     expand_env_vars,
+    resolve_app_config,
 )
 
 
@@ -72,3 +73,21 @@ def test_resolver_rejects_circular_inheritance(tmp_path):
 
     with pytest.raises(ValueError, match="Circular config inheritance"):
         ConfigResolver(tmp_path).load("a")
+
+
+def test_resolver_makes_plugin_paths_relative_to_config(tmp_path):
+    (tmp_path / "app.yaml").write_text("plugins: [./plugins/demo]\n")
+
+    config = ConfigResolver(tmp_path).load("app")
+
+    assert config["plugins"] == [str((tmp_path / "plugins/demo").resolve())]
+
+
+def test_default_config_enables_local_plugin_component():
+    config = resolve_app_config(log_config=False)
+
+    assert config["components"]["plugin"]["default"] == {
+        "backend": "local",
+        "auto_install": True,
+        "allow_remote_install": False,
+    }

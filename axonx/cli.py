@@ -8,12 +8,9 @@ from typing import Any, Sequence
 
 from .application import Application
 from .components.client import HttpClient
-from .components.component_registry import R
 from .components.service import HttpService
 from .config import resolve_app_config
 from .constants import CLI_LOCAL_COMMANDS, CLI_USAGE
-from .enumeration import ComponentEnum
-from .plugin import PluginManager
 from .schema import Command, HttpClientOptions
 from .task import BaseTask
 from .utils.cli_utils import (
@@ -24,10 +21,11 @@ from .utils.cli_utils import (
 
 
 def _installed_tasks() -> dict[str, type[BaseTask]]:
-    """Return built-in and installed-plugin Tasks in one isolated registry."""
-    registry = R.copy()
-    PluginManager.discover_all().register(registry)
-    return registry.get_all(ComponentEnum.TASK)
+    """Return built-in Tasks; configured plugin Tasks run through TaskManager."""
+    from .components.component_registry import R
+    from .enumeration import ComponentEnum
+
+    return R.get_all(ComponentEnum.TASK)
 
 
 def _run_server(command: Command) -> int:

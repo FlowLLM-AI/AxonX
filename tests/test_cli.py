@@ -4,7 +4,6 @@
 # pylint: disable=missing-class-docstring,missing-function-docstring
 
 import json
-import os
 
 import pytest
 from pydantic import ValidationError
@@ -35,7 +34,10 @@ class CliTask(BaseTask):
 def test_local_task_uses_registered_config(monkeypatch, capsys):
     monkeypatch.setattr(cli, "_installed_tasks", lambda: {"sample": CliTask})
 
-    assert cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"]) == 0
+    assert (
+        cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"])
+        == 0
+    )
 
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
 
@@ -91,15 +93,9 @@ def test_exec_without_arguments_lists_available_tasks(monkeypatch, capsys):
     assert capsys.readouterr().out == f"sample\t{__name__}.CliTask\n"
 
 
-def test_local_task_discovers_installed_plugin(tmp_path, capsys):
-    output = tmp_path / "sales.parquet"
-
-    assert cli.main(["exec", "--task", "sales", "--output", str(output)]) == 0
-
-    result = json.loads(capsys.readouterr().out)
-    assert result["pid"] == os.getpid()
-    assert result["revenue"] == 75
-    assert output.exists()
+def test_exec_does_not_discover_unconfigured_plugin(capsys):
+    assert cli.main(["exec", "--task", "sales"]) == 2
+    assert "Unknown Task" in capsys.readouterr().err
 
 
 def test_task_options_are_strict(monkeypatch, capsys):

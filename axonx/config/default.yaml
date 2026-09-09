@@ -1,5 +1,10 @@
 remote_nodes: []
 components:
+  plugin:
+    default:
+      backend: local
+      auto_install: true
+      allow_remote_install: false
   task_manager:
     default:
       backend: local
@@ -10,6 +15,10 @@ components:
     default:
       backend: machine
 jobs:
+  list_plugins:
+    description: List installed Task plugins.
+    steps:
+      - backend: list_plugins_step
   machine_status:
     description: Get local or remote AxonX machine status.
     parameters:

@@ -8,10 +8,9 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, TypeVar
 
-from .components import BaseComponent
+from .components import BaseComponent, R
 from .context import ApplicationContext
 from .components.job import BaseJob
-from .plugin import resolve_plugin_runtime
 from .schema import ApplicationConfig, ComponentConfig
 
 ComponentT = TypeVar("ComponentT", bound=BaseComponent)
@@ -21,8 +20,9 @@ class Application(BaseComponent):
     """Build application components and coordinate their async lifetimes."""
 
     def __init__(self, **config: Any) -> None:
-        runtime = resolve_plugin_runtime(config)
-        self.context = ApplicationContext(runtime.registry, **runtime.config)
+        # Plugins provide tasks only; backends and defaults come from app config.
+        registry = R.copy()
+        self.context = ApplicationContext(registry, **config)
         super().__init__(app_context=self.context)
 
         self._started_components: list[BaseComponent] = []
@@ -31,12 +31,14 @@ class Application(BaseComponent):
 
         for category, group in self.config.components.items():
             self.context.components[category] = {
-                name: self._instantiate(category, name, spec, BaseComponent) for name, spec in group.items()
+                name: self._instantiate(category, name, spec, BaseComponent)
+                for name, spec in group.items()
             }
         self.context.jobs = {
-            name: self._instantiate("job", name, spec, BaseJob) for name, spec in self.config.jobs.items()
+            name: self._instantiate("job", name, spec, BaseJob)
+            for name, spec in self.config.jobs.items()
         }
-        runtime.registry.freeze()
+        registry.freeze()
 
     @property
     def config(self) -> ApplicationConfig:
@@ -94,7 +96,9 @@ class Application(BaseComponent):
                 in_degree[key] += 1
                 dependants[dependency_key].append(key)
 
-        ready = [(positions[key], key) for key, degree in in_degree.items() if degree == 0]
+        ready = [
+            (positions[key], key) for key, degree in in_degree.items() if degree == 0
+        ]
         heapq.heapify(ready)
         ordered = []
         while ready:
@@ -105,7 +109,9 @@ class Application(BaseComponent):
                 if in_degree[dependant] == 0:
                     heapq.heappush(ready, (positions[dependant], dependant))
         if len(ordered) != len(nodes):
-            unresolved = [f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree]
+            unresolved = [
+                f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree
+            ]
             raise ValueError(
                 f"Components unresolved due to circular dependencies: {', '.join(unresolved)}",
             )
@@ -122,7 +128,9 @@ class Application(BaseComponent):
         self._accepting = False
 
         shutdown_task = asyncio.current_task()
-        active_tasks = [task for task in self._active_job_tasks if task is not shutdown_task]
+        active_tasks = [
+            task for task in self._active_job_tasks if task is not shutdown_task
+        ]
         for task in active_tasks:
             task.cancel()
         await asyncio.gather(*active_tasks, return_exceptions=True)

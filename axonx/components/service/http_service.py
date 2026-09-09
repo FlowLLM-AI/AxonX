@@ -1,5 +1,7 @@
 """FastAPI and MCP service component for remotely callable jobs."""
 
+import asyncio
+import hmac
 import json
 import os
 from contextlib import asynccontextmanager
@@ -47,12 +49,14 @@ class HttpService(BaseService):
 
     def build_service(self, app):
         """Build the ASGI application without starting a server."""
-        from fastapi import FastAPI, HTTPException
+        from fastapi import FastAPI, HTTPException, Request
         from fastmcp import FastMCP
         from fastmcp.utilities.lifespan import combine_lifespans
         from starlette.routing import Route
 
-        public_jobs = {name: job for name, job in app.context.jobs.items() if job.is_servable}
+        public_jobs = {
+            name: job for name, job in app.context.jobs.items() if job.is_servable
+        }
 
         @asynccontextmanager
         async def lifespan(_server):
@@ -101,6 +105,41 @@ class HttpService(BaseService):
             except ValueError as exc:
                 raise HTTPException(422, str(exc)) from exc
             return response
+
+        @server.post("/plugins")
+        async def install_plugin(request: Request):
+            plugin = app.context.components.get("plugin", {}).get("default")
+            if plugin is None:
+                raise HTTPException(404, "Plugin component is not configured")
+            if not plugin.allow_remote_install:
+                raise HTTPException(403, "Remote plugin installation is disabled")
+            authorization = request.headers.get("authorization", "")
+            if plugin.install_token and not hmac.compare_digest(
+                authorization,
+                f"Bearer {plugin.install_token}",
+            ):
+                raise HTTPException(401, "Invalid plugin installation token")
+            content_length = request.headers.get("content-length")
+            if content_length and int(content_length) > plugin.max_wheel_bytes:
+                raise HTTPException(413, "Wheel exceeds configured size limit")
+            data = await request.body()
+            try:
+                artifact = await asyncio.to_thread(
+                    plugin.install_wheel,
+                    data,
+                    request.headers.get("x-wheel-sha256", ""),
+                    request.headers.get("x-wheel-filename", ""),
+                )
+            except (RuntimeError, TypeError, ValueError) as exc:
+                raise HTTPException(422, str(exc)) from exc
+            return {
+                "installed": True,
+                "distribution": artifact.distribution,
+                "version": artifact.version,
+                "plugins": artifact.plugin_names,
+                "tasks": artifact.tasks,
+                "sha256": artifact.sha256,
+            }
 
         return server
 

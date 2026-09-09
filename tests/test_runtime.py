@@ -6,7 +6,6 @@
 
 import asyncio
 import os
-from importlib.metadata import EntryPoint
 from pathlib import Path
 import pytest
 from axonx import Application, BaseComponent, BaseStep
@@ -14,16 +13,19 @@ from axonx.config import resolve_app_config
 from axonx.components import R
 from axonx.constants import AXONX_DEFAULT_URL, AXONX_SERVICE_INFO
 from axonx.plugin.manifest import parse_plugin_manifest
-from axonx.plugin.runtime import _load_plugin
 from axonx.enumeration import TaskState
 from axonx.schema import PluginManifest
 from task_fixtures import ProbeTask
 
 
 def application(tmp_path, **manager):
-    config = resolve_app_config(workspace_dir=str(tmp_path), plugins=["polars-demo"])
+    config = resolve_app_config(
+        workspace_dir=str(tmp_path), plugins=["plugins/polars-demo"]
+    )
     config.setdefault("environment", {})["PYTHONPATH"] = str(Path(__file__).parent)
-    config["components"]["task_manager"]["default"].update(cancel_timeout=0.1, terminate_timeout=0.2, **manager)
+    config["components"]["task_manager"]["default"].update(
+        cancel_timeout=0.1, terminate_timeout=0.2, **manager
+    )
     with R.preserve(allow_mutation=True):
         R.register(ProbeTask, "probe")
         return Application(**config)
@@ -48,7 +50,9 @@ def assert_dead(pid):
 
 async def test_polars_submission_via_async_job(tmp_path):
     async with application(tmp_path) as app:
-        response = await app.run_job("submit", task="sales", output=str(tmp_path / "sales.parquet"))
+        response = await app.run_job(
+            "submit", task="sales", output=str(tmp_path / "sales.parquet")
+        )
         assert response.success, response.answer
         run_id = response.answer["run_id"]
         response = await app.run_job("wait", run_id=run_id)
@@ -188,22 +192,23 @@ def test_async_step_rejects_sync_and_task_no_components():
     assert not hasattr(ProbeTask({}), "app_context")
 
 
-def test_plugin_manifest_config():
-    manifest = parse_plugin_manifest("backends: {}\nconfig:\n  jobs: {}\n", plugin_name="test")
+def test_plugin_manifest_tasks_only():
+    manifest = parse_plugin_manifest(
+        "tasks:\n  demo: package.module:Task\n", plugin_name="test"
+    )
     assert isinstance(manifest, PluginManifest)
-    assert manifest.config == {"jobs": {}}
-    with pytest.raises(ValueError, match="application_defaults"):
-        parse_plugin_manifest("application_defaults: {}\n", plugin_name="test")
+    assert manifest.tasks == {"demo": "package.module:Task"}
+    with pytest.raises(ValueError, match="backends"):
+        parse_plugin_manifest("backends: {}\n", plugin_name="test")
 
 
 @pytest.mark.parametrize(
     "text",
     [
-        "backends: []\n",
-        "config: []\n",
-        "backends:\n  '': package.module:Backend\n",
-        "backends:\n  backend: ''\n",
-        "backends:\n  backend: 1\n",
+        "tasks: []\n",
+        "tasks:\n  '': package.module:Task\n",
+        "tasks:\n  task: ''\n",
+        "tasks:\n  task: 1\n",
     ],
 )
 def test_plugin_manifest_rejects_invalid_schema(text):
@@ -211,21 +216,13 @@ def test_plugin_manifest_rejects_invalid_schema(text):
         parse_plugin_manifest(text, plugin_name="test")
 
 
-def test_plugin_manifest_defaults_and_normalizes_backend_strings():
+def test_plugin_manifest_defaults_and_normalizes_task_strings():
     manifest = parse_plugin_manifest(
-        "backends:\n  ' sales ': ' package.module:Backend '\n",
+        "tasks:\n  ' sales ': ' package.module:Task '\n",
         plugin_name="test",
     )
 
-    assert manifest.backends == {"sales": "package.module:Backend"}
-    assert manifest.config == {}
-
-
-def test_plugin_rejects_object_entry_point_targets():
-    entry = EntryPoint(name="old", value="package.module:create_plugin", group="axonx.plugins")
-
-    with pytest.raises(ValueError, match="must target a package containing plugin.yaml"):
-        _load_plugin("old", entry)
+    assert manifest.tasks == {"sales": "package.module:Task"}
 
 
 def test_http_client_discovers_service_from_environment(monkeypatch, capsys):
@@ -252,7 +249,10 @@ async def test_http_service_publishes_service_info(monkeypatch):
 
     assert server.title == "Configured AxonX"
     async with server.router.lifespan_context(server):
-        assert json.loads(os.environ[AXONX_SERVICE_INFO]) == {"host": "127.0.0.2", "port": 4321}
+        assert json.loads(os.environ[AXONX_SERVICE_INFO]) == {
+            "host": "127.0.0.2",
+            "port": 4321,
+        }
         assert app.is_started
 
     assert os.environ[AXONX_SERVICE_INFO] == previous
@@ -405,9 +405,63 @@ async def test_unfinished_history_marked_lost(tmp_path):
     directory = tmp_path / "tasks" / "default" / "old"
     directory.mkdir(parents=True)
     (directory / "run.json").write_text(
-        json.dumps({"id": "old", "task": "probe", "created_at": 1, "state": "running", "pid": os.getpid()}),
+        json.dumps(
+            {
+                "id": "old",
+                "task": "probe",
+                "created_at": 1,
+                "state": "running",
+                "pid": os.getpid(),
+            }
+        ),
     )
     async with application(tmp_path) as app:
         record = await app.get_component("task_manager").status("old")
         assert record.state == "lost"
         assert record.pid == os.getpid()  # recovered PIDs are never signalled
+
+
+async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
+    import httpx
+
+    from axonx.components.service import HttpService
+    from axonx.plugin.artifact import build_wheel, inspect_wheel, source_sha256
+
+    source = Path("plugins/polars-demo").resolve()
+    wheel = build_wheel(source, tmp_path / "build" / source_sha256(source))
+    artifact = inspect_wheel(wheel)
+    app = Application(
+        workspace_dir=str(tmp_path / "workspace"),
+        components={
+            "plugin": {
+                "default": {
+                    "backend": "local",
+                    "allow_remote_install": True,
+                    "install_token": "secret",
+                }
+            }
+        },
+        jobs={"list_plugins": {"steps": [{"backend": "list_plugins_step"}]}},
+    )
+    plugin = app.get_component("plugin")
+    monkeypatch.setattr(plugin, "_install", lambda _artifact: None)
+    server = HttpService().build_service(app)
+
+    async with server.router.lifespan_context(server):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=server), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/plugins",
+                content=wheel.read_bytes(),
+                headers={
+                    "authorization": "Bearer secret",
+                    "x-wheel-filename": wheel.name,
+                    "x-wheel-sha256": artifact.sha256,
+                },
+            )
+            plugins = await client.post("/jobs/list_plugins", json={})
+
+    assert response.status_code == 200
+    assert response.json()["tasks"] == {"sales": "axonx_polars_demo.sales:SalesTask"}
+    assert plugins.json()["answer"][0]["wheel_sha256"] == artifact.sha256
