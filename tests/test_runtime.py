@@ -239,7 +239,7 @@ def test_http_client_discovers_service_from_environment(monkeypatch, capsys):
 
 async def test_http_service_publishes_service_info(monkeypatch):
     import json
-    from axonx.components.service import HttpService
+    from axonx.components import HttpService
 
     previous = '{"host": "previous", "port": 1234}'
     monkeypatch.setenv(AXONX_SERVICE_INFO, previous)
@@ -262,7 +262,7 @@ async def test_http_service_publishes_service_info(monkeypatch):
 async def test_http_and_mcp_expose_the_same_jobs():
     import httpx
     from fastmcp import Client
-    from axonx.components.service import HttpService
+    from axonx.components import HttpService
 
     app = Application(
         jobs={
@@ -424,7 +424,7 @@ async def test_unfinished_history_marked_lost(tmp_path):
 async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     import httpx
 
-    from axonx.components.service import HttpService
+    from axonx.components import HttpService
     from axonx.plugin.artifact import build_wheel, inspect_wheel, source_sha256
 
     source = Path("plugins/polars-demo").resolve()

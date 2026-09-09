@@ -6,15 +6,18 @@ import json
 import os
 from contextlib import asynccontextmanager
 
-from ...constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
-from ...schema import JobInfo, Response
-from .base_service import BaseService
-from ..component_registry import R
+from ..constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
+from ..enumeration import ComponentEnum
+from ..schema import JobInfo, Response
+from .base_component import BaseComponent
+from .component_registry import R
 
 
 @R.register("http")
-class HttpService(BaseService):
+class HttpService(BaseComponent):
     """Expose public jobs over REST and Streamable HTTP MCP."""
+
+    component_type = ComponentEnum.SERVICE
 
     def __init__(
         self,

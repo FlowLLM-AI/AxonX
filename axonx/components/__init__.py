@@ -3,6 +3,7 @@
 from .base_component import BaseComponent
 from .component_mixin import ComponentMixin
 from .component_registry import R, ComponentRegistry
+from .http_service import HttpService
 from .machine_component import MachineComponent
 from .plugin_component import PluginComponent
 
@@ -10,6 +11,7 @@ __all__ = [
     "BaseComponent",
     "ComponentMixin",
     "ComponentRegistry",
+    "HttpService",
     "MachineComponent",
     "PluginComponent",
     "R",

@@ -12,7 +12,7 @@ import pytest
 from axonx import Application
 from axonx.components.client import HttpClient
 from axonx.components.machine_component import MachineComponent
-from axonx.components.service import HttpService
+from axonx.components import HttpService
 from axonx.schema import Response
 
 

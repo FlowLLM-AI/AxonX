@@ -8,7 +8,7 @@ from typing import Any, Sequence
 
 from .application import Application
 from .components.client import HttpClient
-from .components.service import HttpService
+from .components import HttpService
 from .config import resolve_app_config
 from .constants import CLI_LOCAL_COMMANDS, CLI_USAGE
 from .schema import Command, HttpClientOptions

@@ -5,7 +5,7 @@ __version__ = "0.1.0"
 from .components import BaseComponent, R
 from .components.job import BaseJob
 from .components.task_manager import BaseTaskManager, LocalTaskManager
-from .components import service, client
+from .components import client
 from .task import BaseTask, BaseConfig
 from .steps import BaseStep
 from .application import Application
@@ -24,5 +24,4 @@ __all__ = [
     "R",
     "__version__",
     "client",
-    "service",
 ]
