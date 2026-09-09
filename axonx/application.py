@@ -8,7 +8,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, TypeVar
 
-from .components import ApplicationContext, BaseComponent
+from .components import BaseComponent
+from .context import ApplicationContext
 from .components.job import BaseJob
 from .plugin import resolve_plugin_runtime
 from .schema import ApplicationConfig, ComponentConfig

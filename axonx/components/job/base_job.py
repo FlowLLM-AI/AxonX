@@ -7,11 +7,11 @@ from typing import Any
 from jsonschema.validators import validator_for
 
 from ...enumeration import ComponentEnum
+from ...context import RuntimeContext
 from ...schema import ComponentConfig, JobInfo, Response
 from ...steps.base_step import BaseStep
 from ..base_component import BaseComponent
 from ..component_registry import R
-from ..runtime_context import RuntimeContext
 
 _StepSpec = tuple[type[BaseStep], dict[str, Any]]
 
