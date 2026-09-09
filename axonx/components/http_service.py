@@ -57,9 +57,7 @@ class HttpService(BaseComponent):
         from fastmcp.utilities.lifespan import combine_lifespans
         from starlette.routing import Route
 
-        public_jobs = {
-            name: job for name, job in app.context.jobs.items() if job.is_servable
-        }
+        public_jobs = {name: job for name, job in app.context.jobs.items() if job.is_servable}
 
         @asynccontextmanager
         async def lifespan(_server):

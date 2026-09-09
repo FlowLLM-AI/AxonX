@@ -1,5 +1,7 @@
 """Component dependency resolution and lifecycle ordering."""
 
+# pylint: disable=missing-class-docstring,missing-function-docstring
+
 import pytest
 
 from axonx import Application, BaseComponent
@@ -48,9 +50,10 @@ async def test_dependencies_control_startup_and_shutdown_order():
 
     await app.start()
     assert events == ["start:provider", "start:consumer"]
-    assert app.context.components["test_consumer"]["default"].provider is app.context.components[
-        "test_provider"
-    ]["default"]
+    assert (
+        app.context.components["test_consumer"]["default"].provider
+        is app.context.components["test_provider"]["default"]
+    )
 
     await app.close()
     assert events == ["start:provider", "start:consumer", "close:consumer", "close:provider"]
@@ -65,7 +68,7 @@ async def test_missing_required_dependency_is_rejected_before_startup():
 
     with pytest.raises(ValueError, match="depends on missing test_provider:default"):
         await app.start()
-    assert events == []
+    assert not events
 
 
 async def test_circular_dependencies_are_rejected():

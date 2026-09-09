@@ -5,6 +5,7 @@ from __future__ import annotations
 import configparser
 from dataclasses import dataclass
 from email.parser import Parser
+from functools import partial
 import hashlib
 from pathlib import Path
 import subprocess
@@ -35,9 +36,10 @@ class PluginArtifact:
 
 
 def file_sha256(path: Path) -> str:
+    """Return the SHA-256 digest of a file's contents."""
     digest = hashlib.sha256()
     with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        for chunk in iter(partial(stream.read, 1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
 
@@ -52,17 +54,14 @@ def source_sha256(path: Path) -> str:
         item
         for item in root.rglob("*")
         if item.is_file()
-        and not any(
-            part in _IGNORED_PARTS or part.endswith(".egg-info")
-            for part in item.relative_to(root).parts
-        )
+        and not any(part in _IGNORED_PARTS or part.endswith(".egg-info") for part in item.relative_to(root).parts)
     )
     for item in files:
         relative = item.relative_to(root).as_posix().encode()
         digest.update(len(relative).to_bytes(4, "big"))
         digest.update(relative)
         with item.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            for chunk in iter(partial(stream.read, 1024 * 1024), b""):
                 digest.update(chunk)
     return digest.hexdigest()
 
@@ -95,11 +94,7 @@ def build_wheel(source: Path, output: Path, *, use_cache: bool = False) -> Path:
 
 def install_artifact(artifact: PluginArtifact) -> None:
     """Install plugin dependencies without replacing AxonX, then install its wheel."""
-    dependencies = [
-        value
-        for value in artifact.requirements
-        if canonicalize_name(Requirement(value).name) != "axonx"
-    ]
+    dependencies = [value for value in artifact.requirements if canonicalize_name(Requirement(value).name) != "axonx"]
     commands = []
     if dependencies:
         commands.append([sys.executable, "-m", "pip", "install", *dependencies])
@@ -113,13 +108,13 @@ def install_artifact(artifact: PluginArtifact) -> None:
             "--force-reinstall",
             "--no-deps",
             str(artifact.wheel),
-        ]
+        ],
     )
     for command in commands:
         result = subprocess.run(command, check=False, capture_output=True, text=True)
         if result.returncode:
             raise RuntimeError(
-                f"Plugin installation failed: {(result.stderr or result.stdout).strip()}"
+                f"Plugin installation failed: {(result.stderr or result.stdout).strip()}",
             )
 
 
@@ -127,12 +122,8 @@ def inspect_wheel(path: Path) -> PluginArtifact:
     """Read distribution, entry points, and Task manifests without importing code."""
     with ZipFile(path) as archive:
         names = archive.namelist()
-        metadata_files = [
-            name for name in names if name.endswith(".dist-info/METADATA")
-        ]
-        entry_files = [
-            name for name in names if name.endswith(".dist-info/entry_points.txt")
-        ]
+        metadata_files = [name for name in names if name.endswith(".dist-info/METADATA")]
+        entry_files = [name for name in names if name.endswith(".dist-info/entry_points.txt")]
         if len(metadata_files) != 1 or len(entry_files) != 1:
             raise ValueError("Wheel must contain one METADATA and entry_points.txt")
         metadata = Parser().parsestr(archive.read(metadata_files[0]).decode())
@@ -150,12 +141,13 @@ def inspect_wheel(path: Path) -> PluginArtifact:
             if manifest_path not in names:
                 raise ValueError(f"Wheel does not contain {manifest_path}")
             manifest = parse_plugin_manifest(
-                archive.read(manifest_path).decode(), plugin_name=plugin_name
+                archive.read(manifest_path).decode(),
+                plugin_name=plugin_name,
             )
             duplicate = tasks.keys() & manifest.tasks.keys()
             if duplicate:
                 raise ValueError(
-                    f"Duplicate Task names in wheel: {', '.join(sorted(duplicate))}"
+                    f"Duplicate Task names in wheel: {', '.join(sorted(duplicate))}",
                 )
             tasks.update(manifest.tasks)
             plugin_names.append(plugin_name)

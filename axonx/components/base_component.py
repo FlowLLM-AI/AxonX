@@ -6,7 +6,6 @@ from typing import Callable, TypeVar, cast
 from .component_mixin import ComponentMixin
 from ..enumeration import ComponentEnum, component_type_name
 
-
 T = TypeVar("T", bound="BaseComponent")
 
 
@@ -23,8 +22,7 @@ class Dependency:
 
     def __getattr__(self, item):
         raise RuntimeError(
-            f"Dependency {self.ctype}:{self.name} accessed before start() "
-            f"(attribute {item!r})",
+            f"Dependency {self.ctype}:{self.name} accessed before start() " f"(attribute {item!r})",
         )
 
 
@@ -56,16 +54,14 @@ class BaseComponent(ComponentMixin):
 
     @property
     def dependency_bindings(self) -> dict[str, Dependency]:
+        """Return dependency declarations keyed by their bound attribute."""
         bindings = dict(self._binding_specs)
-        bindings.update(
-            (name, value)
-            for name, value in self.__dict__.items()
-            if isinstance(value, Dependency)
-        )
+        bindings.update((name, value) for name, value in self.__dict__.items() if isinstance(value, Dependency))
         return bindings
 
     @property
     def dependencies(self) -> list[Dependency]:
+        """Return all dependency declarations for this component."""
         return list(self.dependency_bindings.values())
 
     async def _resolve_dependencies(self):

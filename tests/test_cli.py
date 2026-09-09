@@ -34,10 +34,7 @@ class CliTask(BaseTask):
 def test_local_task_uses_registered_config(monkeypatch, capsys):
     monkeypatch.setattr(cli, "_installed_tasks", lambda: {"sample": CliTask})
 
-    assert (
-        cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"])
-        == 0
-    )
+    assert cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"]) == 0
 
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
 

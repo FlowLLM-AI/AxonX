@@ -1,5 +1,7 @@
 """Plugin wheel build and installation behavior."""
 
+# pylint: disable=missing-function-docstring
+
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -25,13 +27,13 @@ def test_build_wheel_only_reuses_explicit_cache(monkeypatch, tmp_path):
 
 
 def test_install_artifact_force_reinstalls_plugin_without_dependencies(
-    monkeypatch, tmp_path
+    monkeypatch,
+    tmp_path,
 ):
     commands = []
     monkeypatch.setattr(
         "axonx.plugin.artifact.subprocess.run",
-        lambda command, **_kwargs: commands.append(command)
-        or SimpleNamespace(returncode=0, stderr="", stdout=""),
+        lambda command, **_kwargs: commands.append(command) or SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
     artifact = PluginArtifact(
         distribution="demo",

@@ -31,12 +31,10 @@ class Application(BaseComponent):
 
         for category, group in self.config.components.items():
             self.context.components[category] = {
-                name: self._instantiate(category, name, spec, BaseComponent)
-                for name, spec in group.items()
+                name: self._instantiate(category, name, spec, BaseComponent) for name, spec in group.items()
             }
         self.context.jobs = {
-            name: self._instantiate("job", name, spec, BaseJob)
-            for name, spec in self.config.jobs.items()
+            name: self._instantiate("job", name, spec, BaseJob) for name, spec in self.config.jobs.items()
         }
         registry.freeze()
 
@@ -90,15 +88,12 @@ class Application(BaseComponent):
                     if dependency.optional:
                         continue
                     raise ValueError(
-                        f"Component {key[0]}:{key[1]} depends on missing "
-                        f"{dependency.ctype}:{dependency.name}",
+                        f"Component {key[0]}:{key[1]} depends on missing " f"{dependency.ctype}:{dependency.name}",
                     )
                 in_degree[key] += 1
                 dependants[dependency_key].append(key)
 
-        ready = [
-            (positions[key], key) for key, degree in in_degree.items() if degree == 0
-        ]
+        ready = [(positions[key], key) for key, degree in in_degree.items() if degree == 0]
         heapq.heapify(ready)
         ordered = []
         while ready:
@@ -109,9 +104,7 @@ class Application(BaseComponent):
                 if in_degree[dependant] == 0:
                     heapq.heappush(ready, (positions[dependant], dependant))
         if len(ordered) != len(nodes):
-            unresolved = [
-                f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree
-            ]
+            unresolved = [f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree]
             raise ValueError(
                 f"Components unresolved due to circular dependencies: {', '.join(unresolved)}",
             )
@@ -128,9 +121,7 @@ class Application(BaseComponent):
         self._accepting = False
 
         shutdown_task = asyncio.current_task()
-        active_tasks = [
-            task for task in self._active_job_tasks if task is not shutdown_task
-        ]
+        active_tasks = [task for task in self._active_job_tasks if task is not shutdown_task]
         for task in active_tasks:
             task.cancel()
         await asyncio.gather(*active_tasks, return_exceptions=True)

@@ -20,11 +20,14 @@ from task_fixtures import ProbeTask
 
 def application(tmp_path, **manager):
     config = resolve_app_config(
-        workspace_dir=str(tmp_path), plugins=["plugins/polars-demo"]
+        workspace_dir=str(tmp_path),
+        plugins=["plugins/polars-demo"],
     )
     config.setdefault("environment", {})["PYTHONPATH"] = str(Path(__file__).parent)
     config["components"]["task_manager"]["default"].update(
-        cancel_timeout=0.1, terminate_timeout=0.2, **manager
+        cancel_timeout=0.1,
+        terminate_timeout=0.2,
+        **manager,
     )
     with R.preserve(allow_mutation=True):
         R.register(ProbeTask, "probe")
@@ -51,7 +54,9 @@ def assert_dead(pid):
 async def test_polars_submission_via_async_job(tmp_path):
     async with application(tmp_path) as app:
         response = await app.run_job(
-            "submit", task="sales", output=str(tmp_path / "sales.parquet")
+            "submit",
+            task="sales",
+            output=str(tmp_path / "sales.parquet"),
         )
         assert response.success, response.answer
         run_id = response.answer["run_id"]
@@ -194,7 +199,8 @@ def test_async_step_rejects_sync_and_task_no_components():
 
 def test_plugin_manifest_tasks_only():
     manifest = parse_plugin_manifest(
-        "tasks:\n  demo: package.module:Task\n", plugin_name="test"
+        "tasks:\n  demo: package.module:Task\n",
+        plugin_name="test",
     )
     assert isinstance(manifest, PluginManifest)
     assert manifest.tasks == {"demo": "package.module:Task"}
@@ -412,7 +418,7 @@ async def test_unfinished_history_marked_lost(tmp_path):
                 "created_at": 1,
                 "state": "running",
                 "pid": os.getpid(),
-            }
+            },
         ),
     )
     async with application(tmp_path) as app:
@@ -438,8 +444,8 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
                     "backend": "local",
                     "allow_remote_install": True,
                     "install_token": "secret",
-                }
-            }
+                },
+            },
         },
         jobs={"list_plugins": {"steps": [{"backend": "list_plugins_step"}]}},
     )
@@ -449,7 +455,8 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
 
     async with server.router.lifespan_context(server):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=server), base_url="http://test"
+            transport=httpx.ASGITransport(app=server),
+            base_url="http://test",
         ) as client:
             response = await client.post(
                 "/plugins",

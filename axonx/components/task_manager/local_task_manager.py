@@ -35,18 +35,18 @@ class LocalTaskManager(BaseTaskManager):
     """Run synchronous tasks in isolated local process groups."""
 
     def __init__(
-        self, max_concurrency=1, cancel_timeout=5.0, terminate_timeout=2.0, **kwargs
+        self,
+        max_concurrency=1,
+        cancel_timeout=5.0,
+        terminate_timeout=2.0,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         if not isinstance(max_concurrency, int) or max_concurrency < 1:
             raise ValueError("max_concurrency must be a positive integer")
         if cancel_timeout < 0 or terminate_timeout <= 0:
             raise ValueError("Invalid cancellation timeouts")
-        if (
-            not self.name
-            or Path(self.name).name != self.name
-            or self.name in {".", ".."}
-        ):
+        if not self.name or Path(self.name).name != self.name or self.name in {".", ".."}:
             raise ValueError("Manager name must be a simple directory name")
         self.cancel_timeout = cancel_timeout
         self.terminate_timeout = terminate_timeout
@@ -60,11 +60,9 @@ class LocalTaskManager(BaseTaskManager):
     async def _start(self):
         if os.name != "posix":
             raise NotImplementedError(
-                "LocalTaskManager currently supports macOS and Linux process groups"
+                "LocalTaskManager currently supports macOS and Linux process groups",
             )
-        self.directory = (
-            self.workspace_path.expanduser().resolve() / "tasks" / self.name
-        )
+        self.directory = self.workspace_path.expanduser().resolve() / "tasks" / self.name
         self.directory.mkdir(parents=True, exist_ok=True)
         for path in self.directory.glob("*/run.json"):
             record = TaskRun.model_validate_json(path.read_text())
@@ -110,7 +108,7 @@ class LocalTaskManager(BaseTaskManager):
                 raise ValueError("Task must be defined in an importable module")
             target = f"{cls.__module__}:{cls.__qualname__}"
             task_config = cls.config_class.model_validate(task_config).model_dump(
-                mode="json"
+                mode="json",
             )
         run_id = uuid4().hex
         payload = {
@@ -129,7 +127,8 @@ class LocalTaskManager(BaseTaskManager):
         execution = _Execution()
         self._executions[run_id] = execution
         execution.future = asyncio.create_task(
-            self._run(record, execution), name=f"task:{run_id}"
+            self._run(record, execution),
+            name=f"task:{run_id}",
         )
         return run_id
 
@@ -142,11 +141,7 @@ class LocalTaskManager(BaseTaskManager):
 
     @staticmethod
     def _update_task_step(record, step_index, task_step):
-        if (
-            not isinstance(step_index, int)
-            or isinstance(step_index, bool)
-            or step_index < 0
-        ):
+        if not isinstance(step_index, int) or isinstance(step_index, bool) or step_index < 0:
             raise ValueError("step_index must be a non-negative integer")
         step = TaskStep.model_validate(task_step)
         if step_index > len(record.task_steps):
@@ -160,11 +155,7 @@ class LocalTaskManager(BaseTaskManager):
             raise ValueError("A task step name cannot change")
         if current.percentage is not None and step.percentage is None:
             return
-        if (
-            current.percentage is not None
-            and step.percentage is not None
-            and step.percentage < current.percentage
-        ):
+        if current.percentage is not None and step.percentage is not None and step.percentage < current.percentage:
             return
         record.task_steps[step_index] = step
 
@@ -235,22 +226,15 @@ class LocalTaskManager(BaseTaskManager):
         process = execution.process
         # Cooperate between task-local steps, but a blocking native call has a bounded grace period.
         deadline = asyncio.get_running_loop().time() + self.cancel_timeout
-        while (
-            not waiter.done()
-            and not execution.force.is_set()
-            and asyncio.get_running_loop().time() < deadline
-        ):
+        while not waiter.done() and not execution.force.is_set() and asyncio.get_running_loop().time() < deadline:
             await asyncio.sleep(0.05)
         if not waiter.done():
             self._signal(
-                process, signal.SIGKILL if execution.force.is_set() else signal.SIGTERM
+                process,
+                signal.SIGKILL if execution.force.is_set() else signal.SIGTERM,
             )
             deadline = asyncio.get_running_loop().time() + self.terminate_timeout
-            while (
-                not waiter.done()
-                and not execution.force.is_set()
-                and asyncio.get_running_loop().time() < deadline
-            ):
+            while not waiter.done() and not execution.force.is_set() and asyncio.get_running_loop().time() < deadline:
                 await asyncio.sleep(0.05)
         # Also reap descendants left by an already-exited parent.
         self._signal(process, signal.SIGKILL)
@@ -264,7 +248,8 @@ class LocalTaskManager(BaseTaskManager):
             queued_stop = asyncio.create_task(execution.stop.wait())
             try:
                 await asyncio.wait(
-                    {slot, queued_stop}, return_when=asyncio.FIRST_COMPLETED
+                    {slot, queued_stop},
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
             finally:
                 if not slot.done():
@@ -294,7 +279,8 @@ class LocalTaskManager(BaseTaskManager):
                 waiter = asyncio.create_task(execution.process.wait())
                 stopper = asyncio.create_task(execution.stop.wait())
                 await asyncio.wait(
-                    {waiter, stopper}, return_when=asyncio.FIRST_COMPLETED
+                    {waiter, stopper},
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
                 if execution.stop.is_set():
                     await self._finish_process(execution, waiter)
@@ -305,21 +291,13 @@ class LocalTaskManager(BaseTaskManager):
                 self._progress(record)
                 if not execution.stop.is_set():
                     result_path = directory / "result.json"
-                    result = (
-                        json.loads(result_path.read_text())
-                        if result_path.exists()
-                        else {}
-                    )
-                    if (
-                        record.exit_code != 0
-                        or "error" in result
-                        or "output" not in result
-                    ):
+                    result = json.loads(result_path.read_text()) if result_path.exists() else {}
+                    if record.exit_code != 0 or "error" in result or "output" not in result:
                         raise RuntimeError(
                             result.get(
                                 "error",
                                 f"Worker exited with code {record.exit_code}; see logs",
-                            )
+                            ),
                         )
                     if not isinstance(result["output"], dict):
                         raise TypeError("Task output must be a JSON object")

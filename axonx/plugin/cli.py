@@ -37,7 +37,7 @@ def _print(artifact) -> None:
             },
             ensure_ascii=False,
             indent=2,
-        )
+        ),
     )
 
 
@@ -66,7 +66,8 @@ def _deploy(args) -> int:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="axonx plugin", description="Build and install Task plugins."
+        prog="axonx plugin",
+        description="Build and install Task plugins.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
     for name, handler in (
@@ -76,7 +77,8 @@ def _parser() -> argparse.ArgumentParser:
     ):
         command = commands.add_parser(name)
         command.add_argument(
-            "path", help="Plugin project path containing pyproject.toml."
+            "path",
+            help="Plugin project path containing pyproject.toml.",
         )
         command.add_argument("--output", help="Wheel output directory.")
         command.set_defaults(handler=handler)
@@ -88,6 +90,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def plugin_cli(argv: Sequence[str]) -> int:
+    """Run the plugin subcommand with the supplied arguments."""
     args = _parser().parse_args(list(argv))
     try:
         return args.handler(args)

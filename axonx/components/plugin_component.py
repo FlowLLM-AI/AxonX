@@ -54,6 +54,7 @@ class PluginComponent(BaseComponent):
 
     @property
     def state_path(self) -> Path:
+        """Return the persistent plugin-state path for the active workspace."""
         if self.directory is None:
             raise RuntimeError("Plugin component is not started")
         return self.directory / "state.json"
@@ -71,7 +72,8 @@ class PluginComponent(BaseComponent):
     def _save_state(self):
         temporary = self.state_path.with_suffix(".tmp")
         temporary.write_text(
-            json.dumps(self._state, ensure_ascii=False, indent=2), encoding="utf-8"
+            json.dumps(self._state, ensure_ascii=False, indent=2),
+            encoding="utf-8",
         )
         temporary.replace(self.state_path)
 
@@ -79,7 +81,11 @@ class PluginComponent(BaseComponent):
         install_artifact(artifact)
 
     def _record(
-        self, key: str, artifact: PluginArtifact, *, source_hash: str | None = None
+        self,
+        key: str,
+        artifact: PluginArtifact,
+        *,
+        source_hash: str | None = None,
     ):
         for name in tuple(self._tasks):
             if self._task_owners.get(name) == key:
@@ -114,7 +120,7 @@ class PluginComponent(BaseComponent):
                         source,
                         self.directory / "artifacts" / digest,
                         use_cache=True,
-                    )
+                    ),
                 )
             self._check_tasks(key, artifact)
             if self.auto_install and cached.get("wheel_sha256") != artifact.sha256:
@@ -123,7 +129,10 @@ class PluginComponent(BaseComponent):
             return artifact
 
     def install_wheel(
-        self, data: bytes, expected_sha256: str, filename: str
+        self,
+        data: bytes,
+        expected_sha256: str,
+        filename: str,
     ) -> PluginArtifact:
         """Validate and install one uploaded wheel, then refresh its Task index."""
         if not self.allow_remote_install:
@@ -134,7 +143,9 @@ class PluginComponent(BaseComponent):
             raise ValueError("Invalid wheel filename")
         with self._install_lock:
             with NamedTemporaryFile(
-                suffix=".whl", delete=False, dir=self.directory
+                suffix=".whl",
+                delete=False,
+                dir=self.directory,
             ) as stream:
                 path = Path(stream.name)
                 stream.write(data)
@@ -161,15 +172,12 @@ class PluginComponent(BaseComponent):
         return self._tasks.get(name)
 
     def _check_tasks(self, key: str, artifact: PluginArtifact) -> None:
-        duplicate = {
-            name
-            for name in artifact.tasks
-            if name in self._tasks and self._task_owners.get(name) != key
-        }
+        duplicate = {name for name in artifact.tasks if name in self._tasks and self._task_owners.get(name) != key}
         if duplicate:
             raise ValueError(
-                f"Task provided by multiple plugins: {', '.join(sorted(duplicate))}"
+                f"Task provided by multiple plugins: {', '.join(sorted(duplicate))}",
             )
 
     def status(self) -> list[dict]:
+        """Return persisted status records for all prepared plugins."""
         return list(self._state.values())

@@ -71,7 +71,9 @@ class HttpClient(BaseClient):
         if token:
             headers["authorization"] = f"Bearer {token}"
         response = await self._require_client().post(
-            "/plugins", content=data, headers=headers
+            "/plugins",
+            content=data,
+            headers=headers,
         )
         response.raise_for_status()
         return response.json()
