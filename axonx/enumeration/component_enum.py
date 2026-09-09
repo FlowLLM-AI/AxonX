@@ -13,3 +13,4 @@ class ComponentEnum(StrEnum):
     TASK_MANAGER = "task_manager"
     SERVICE = "service"
     CLIENT = "client"
+    MACHINE = "machine"

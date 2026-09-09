@@ -15,6 +15,11 @@ class BaseStep(ComponentMixin, ABC):
         super().__init__(**kwargs)
         self.context = None
 
+    @property
+    def machine(self):
+        """Return the default machine component when a step needs host information."""
+        return self.get_component(ComponentEnum.MACHINE)
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         if not inspect.iscoroutinefunction(cls.execute):

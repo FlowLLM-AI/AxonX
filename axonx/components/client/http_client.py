@@ -47,3 +47,13 @@ class HttpClient(BaseClient):
         response = await self._require_client().get("/jobs")
         response.raise_for_status()
         return [JobInfo.model_validate(item) for item in response.json()]
+
+    async def health(self) -> bool:
+        """Return whether the remote AxonX service is running."""
+        try:
+            response = await self._require_client().get("/health")
+            response.raise_for_status()
+            data = response.json()
+            return isinstance(data, dict) and data.get("running") is True
+        except (httpx.HTTPError, ValueError):
+            return False

@@ -1,3 +1,4 @@
+remote_nodes: []
 components:
   task_manager:
     default:
@@ -5,7 +6,24 @@ components:
       max_concurrency: 1
       cancel_timeout: 5
       terminate_timeout: 2
+  machine:
+    default:
+      backend: machine
 jobs:
+  machine_status:
+    description: Get local or remote AxonX machine status.
+    parameters:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Optional configured remote AxonX address in IP:PORT format.
+    steps:
+      - backend: machine_status_step
+  list_machines:
+    description: Check the health of all configured remote AxonX machines.
+    steps:
+      - backend: list_machines_step
   demo:
     description: Show the installed AxonX version.
     steps:

@@ -1,5 +1,6 @@
 """Validated application, component, and job configuration models."""
 
+from ipaddress import ip_address
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -45,7 +46,22 @@ class ApplicationConfig(BaseModel):
     workspace_dir: str = ".axonx"
     timezone: str = "Asia/Shanghai"
     plugins: list[str] = Field(default_factory=list)
+    remote_nodes: list[str] = Field(default_factory=list)
     environment: dict[str, str] = Field(default_factory=dict)
     components: dict[str, dict[str, ComponentConfig]] = Field(default_factory=dict)
     jobs: dict[str, JobConfig] = Field(default_factory=dict)
     service: ComponentConfig | None = None
+
+    @field_validator("remote_nodes")
+    @classmethod
+    def validate_remote_nodes(cls, values: list[str]) -> list[str]:
+        """Require each remote AxonX address to use the IP:PORT format."""
+        for value in values:
+            try:
+                host, port = value.rsplit(":", 1)
+                ip_address(host.strip("[]"))
+                if not 1 <= int(port) <= 65535:
+                    raise ValueError
+            except (AttributeError, ValueError) as exc:
+                raise ValueError(f"Invalid remote AxonX address: {value!r}") from exc
+        return values
