@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from axonx.enumeration import TaskType
 from axonx.task import BaseTask, BaseConfig
 
 
@@ -15,11 +16,12 @@ class SalesConfig(BaseConfig):
 class SalesTask(BaseTask):
     """Aggregate synthetic or CSV sales data and write a Parquet result."""
 
-    config: SalesConfig
+    config_cls = SalesConfig
+    task_type = TaskType.ETL
     output_keys = ("output", "rows", "revenue", "pid")
 
     def build_task_steps(self):
-        """Yield data loading, aggregation, and persistence steps."""
+        """Declare data loading, aggregation, and persistence steps."""
         yield self.load
         yield self.aggregate
         yield self.save

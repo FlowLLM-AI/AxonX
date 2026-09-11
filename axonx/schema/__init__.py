@@ -6,7 +6,7 @@ from .command import Command
 from .job import JobInfo
 from .plugin import PluginManifest
 from .response import Response
-from .task_run import TaskRun, TaskStep
+from .task_status import TaskStatus, TaskStep
 
 __all__ = [
     "ApplicationConfig",
@@ -17,6 +17,6 @@ __all__ = [
     "JobInfo",
     "PluginManifest",
     "Response",
-    "TaskRun",
+    "TaskStatus",
     "TaskStep",
 ]

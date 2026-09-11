@@ -2,7 +2,8 @@
 
 from .base_task import BaseConfig, BaseTask
 
-# Import the dependency-free built-in task before AxonX freezes its registry.
 from .common import DemoTask
+from .task_runner import TaskRunner
+from .task_status_manager import TaskStatusManager
 
-__all__ = ["BaseConfig", "BaseTask", "DemoTask"]
+__all__ = ["BaseConfig", "BaseTask", "DemoTask", "TaskRunner", "TaskStatusManager"]

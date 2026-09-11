@@ -27,12 +27,7 @@ class MachineComponent(BaseComponent):
 
     component_type = ComponentEnum.MACHINE
 
-    def __init__(
-        self,
-        timeout: float = 10.0,
-        cpu_sample_interval: float = 0.1,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, timeout: float = 10.0, cpu_sample_interval: float = 0.1, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         if timeout <= 0:
             raise ValueError("timeout must be positive")
@@ -48,7 +43,8 @@ class MachineComponent(BaseComponent):
             return await asyncio.to_thread(self._collect_local_info)
         if address not in self.app_config.remote_nodes:
             raise ValueError(f"Remote AxonX is not configured: {address!r}")
-        async with HttpClient(url=f"http://{address}", timeout=self.timeout) as client:
+        host_ip, host_port = address.rsplit(":", 1)
+        async with HttpClient(host_ip=host_ip, host_port=int(host_port), timeout=self.timeout) as client:
             job_response = await client.run_job("machine_status")
         if not job_response.success or not isinstance(job_response.answer, dict):
             raise ValueError("Remote machine returned an unsuccessful or invalid response")
@@ -59,10 +55,7 @@ class MachineComponent(BaseComponent):
         total_cores = psutil.cpu_count(logical=True) or os.cpu_count() or 0
         memory = psutil.virtual_memory()
         return {
-            "axonx": {
-                "version": self._axonx_version(),
-                "git_commit": self._git_commit(),
-            },
+            "axonx": {"version": self._axonx_version(), "git_commit": self._git_commit()},
             "cpu": {
                 "total_cores": total_cores,
                 # May be unavailable on some virtualized systems.
@@ -131,11 +124,7 @@ class MachineComponent(BaseComponent):
         fields = "index,uuid,name,memory.total,memory.used,memory.free,utilization.gpu"
         try:
             result = subprocess.run(
-                [
-                    "nvidia-smi",
-                    f"--query-gpu={fields}",
-                    "--format=csv,noheader,nounits",
-                ],
+                ["nvidia-smi", f"--query-gpu={fields}", "--format=csv,noheader,nounits"],
                 capture_output=True,
                 check=True,
                 text=True,
@@ -168,7 +157,7 @@ class MachineComponent(BaseComponent):
                         round(used_bytes * 100 / total_bytes, 2) if total_bytes and used_bytes is not None else None
                     ),
                     "usage_percent": MachineComponent._number(usage),
-                },
+                }
             )
         return gpus
 
@@ -176,15 +165,7 @@ class MachineComponent(BaseComponent):
     def _amd_gpu_info() -> list[dict[str, Any]]:
         try:
             result = subprocess.run(
-                [
-                    "rocm-smi",
-                    "--showproductname",
-                    "--showuniqueid",
-                    "--showmeminfo",
-                    "vram",
-                    "--showuse",
-                    "--json",
-                ],
+                ["rocm-smi", "--showproductname", "--showuniqueid", "--showmeminfo", "vram", "--showuse", "--json"],
                 capture_output=True,
                 check=True,
                 text=True,
@@ -219,6 +200,6 @@ class MachineComponent(BaseComponent):
                         round(used_bytes * 100 / total_bytes, 2) if total_bytes and used_bytes is not None else None
                     ),
                     "usage_percent": MachineComponent._number(values.get("GPU use (%)")),
-                },
+                }
             )
         return gpus

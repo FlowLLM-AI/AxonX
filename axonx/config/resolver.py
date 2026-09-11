@@ -123,7 +123,7 @@ class ConfigResolver:
         if built_in is not None:
             return built_in
 
-        entry = unique_entry_point(external_entries, name_or_path, provider="Config")
+        entry = unique_entry_point(external_entries, name_or_path, "Config")
         external = self._external_config_path(name_or_path, entry)
         if external is not None:
             return external

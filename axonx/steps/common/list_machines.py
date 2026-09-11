@@ -14,13 +14,12 @@ class ListMachinesStep(BaseStep):
     async def execute(self):
         assert self.context is not None
         addresses = self.app_config.remote_nodes
-        self.context.response.answer = await asyncio.gather(
-            *(self._check(address) for address in addresses),
-        )
+        self.context.response.answer = await asyncio.gather(*(self._check(address) for address in addresses))
         return self.context.response
 
     @staticmethod
     async def _check(address: str) -> dict:
-        async with HttpClient(url=f"http://{address}", timeout=5) as client:
+        host_ip, host_port = address.rsplit(":", 1)
+        async with HttpClient(host_ip=host_ip, host_port=int(host_port), timeout=5) as client:
             healthy = await client.health()
         return {"address": address, "healthy": healthy}

@@ -140,10 +140,7 @@ def inspect_wheel(path: Path) -> PluginArtifact:
             manifest_path = f"{package.replace('.', '/')}/{PLUGIN_MANIFEST}"
             if manifest_path not in names:
                 raise ValueError(f"Wheel does not contain {manifest_path}")
-            manifest = parse_plugin_manifest(
-                archive.read(manifest_path).decode(),
-                plugin_name=plugin_name,
-            )
+            manifest = parse_plugin_manifest(archive.read(manifest_path).decode(), plugin_name)
             duplicate = tasks.keys() & manifest.tasks.keys()
             if duplicate:
                 raise ValueError(

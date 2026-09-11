@@ -6,6 +6,7 @@
 import os
 import time
 from pathlib import Path
+from axonx.enumeration import TaskType
 from axonx.task import BaseTask, BaseConfig
 
 
@@ -16,7 +17,8 @@ class Config(BaseConfig):
 
 
 class ProbeTask(BaseTask):
-    config: Config
+    config_cls = Config
+    task_type = TaskType.ANALYSIS
     output_keys = ("pid", "value")
 
     def build_task_steps(self):
@@ -28,6 +30,7 @@ class ProbeTask(BaseTask):
         if self.config.marker:
             Path(self.config.marker).write_text(str(os.getpid()), encoding="utf-8")
         print("worker started", flush=True)
+        self.report_progress(25)
         time.sleep(self.config.delay)
         if self.config.fail:
             raise ValueError("intentional failure")

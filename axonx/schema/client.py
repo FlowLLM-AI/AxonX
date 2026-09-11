@@ -1,8 +1,6 @@
 """Validated options shared by every HTTP client construction path."""
 
-from urllib.parse import urlsplit
-
-from pydantic import BaseModel, ConfigDict, PositiveFloat, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, model_validator
 
 from ..constants import AXONX_DEFAULT_REQUEST_TIMEOUT
 
@@ -12,17 +10,13 @@ class HttpClientOptions(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    url: str | None = None
+    host_ip: str | None = Field(default=None, min_length=1)
+    host_port: int | None = Field(default=None, ge=1, le=65535)
     timeout: PositiveFloat = AXONX_DEFAULT_REQUEST_TIMEOUT
 
-    @field_validator("url")
-    @classmethod
-    def validate_url(cls, value: str | None) -> str | None:
-        """Normalize and validate an optional absolute HTTP(S) base URL."""
-        if value is None:
-            return None
-        value = value.rstrip("/")
-        parsed = urlsplit(value)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            raise ValueError("url must be an absolute HTTP(S) URL")
-        return value
+    @model_validator(mode="after")
+    def validate_address(self):
+        """Require host and port together, or neither for automatic discovery."""
+        if (self.host_ip is None) != (self.host_port is None):
+            raise ValueError("host_ip and host_port must be provided together")
+        return self

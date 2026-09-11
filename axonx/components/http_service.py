@@ -65,9 +65,7 @@ class HttpService(BaseComponent):
                 previous_service_info = os.environ.get(AXONX_SERVICE_INFO)
                 service_info = json.dumps({"host": self.host, "port": self.port})
                 os.environ[AXONX_SERVICE_INFO] = service_info
-                self.logger.info(
-                    f"Service started: {AXONX_SERVICE_INFO}={service_info}",
-                )
+                self.logger.info(f"Service started: {AXONX_SERVICE_INFO}={service_info}")
                 try:
                     yield
                 finally:

@@ -11,7 +11,7 @@ import pytest
 from axonx import Application, BaseComponent, BaseStep
 from axonx.config import resolve_app_config
 from axonx.components import R
-from axonx.constants import AXONX_DEFAULT_URL, AXONX_SERVICE_INFO
+from axonx.constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
 from axonx.plugin.manifest import parse_plugin_manifest
 from axonx.enumeration import TaskState
 from axonx.schema import PluginManifest
@@ -19,28 +19,21 @@ from task_fixtures import ProbeTask
 
 
 def application(tmp_path, **manager):
-    config = resolve_app_config(
-        workspace_dir=str(tmp_path),
-        plugins=["plugins/polars-demo"],
-    )
+    config = resolve_app_config(workspace_dir=str(tmp_path), plugins=["plugins/polars-demo"])
     config.setdefault("environment", {})["PYTHONPATH"] = str(Path(__file__).parent)
-    config["components"]["task_manager"]["default"].update(
-        cancel_timeout=0.1,
-        terminate_timeout=0.2,
-        **manager,
-    )
+    config["components"]["task_manager"]["default"].update(**manager)
     with R.preserve(allow_mutation=True):
         R.register(ProbeTask, "probe")
         return Application(**config)
 
 
-async def started(manager, run_id):
+async def started(manager, task_id):
     async with asyncio.timeout(10):
         while True:
-            record = await manager.status(run_id)
-            if record.task_steps:
+            record = await manager.get_status(task_id)
+            if record.state == TaskState.RUNNING and record.steps and record.steps[0].started_at:
                 return record
-            if record.state in {TaskState.FAILED, TaskState.LOST}:
+            if record.state == TaskState.FAILED:
                 pytest.fail(record.error)
             await asyncio.sleep(0.02)
 
@@ -53,58 +46,54 @@ def assert_dead(pid):
 
 async def test_polars_submission_via_async_job(tmp_path):
     async with application(tmp_path) as app:
-        response = await app.run_job(
-            "submit",
-            task="sales",
-            output=str(tmp_path / "sales.parquet"),
-        )
+        response = await app.run_job("submit", task="sales", output=str(tmp_path / "sales.parquet"))
         assert response.success, response.answer
-        run_id = response.answer["run_id"]
-        response = await app.run_job("wait", run_id=run_id)
+        task_id = response.answer["task_id"]
+        assert task_id.startswith("etl#")
+        response = await app.run_job("wait", task_id=task_id)
         record = response.answer
         assert record["state"] == "succeeded", record
         assert record["result"]["revenue"] == 75
         assert record["result"]["pid"] != os.getpid()
-        assert [step["percentage"] for step in record["task_steps"]] == [100, 100, 100]
+        assert [step["name"] for step in record["steps"]] == ["load", "aggregate", "save"]
+        assert all(step["finished_at"] for step in record["steps"])
+        assert all(step["percentage"] == 100 for step in record["steps"])
         assert Path(record["result"]["output"]).exists()
         assert not hasattr(app, "submit")
 
 
-async def test_lazy_steps_failure_and_history(tmp_path):
+async def test_declared_steps_failure_and_history(tmp_path):
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
         ok = await manager.submit("probe")
         record = await manager.wait(ok)
         assert record.result["value"] == 2
-        assert [step.percentage for step in record.task_steps] == [100, 100]
+        assert [step.name for step in record.steps] == ["first", "second"]
+        assert all(step.finished_at for step in record.steps)
+        assert all(step.percentage == 100 for step in record.steps)
         bad = await manager.submit("probe", {"fail": True})
         record = await manager.wait(bad)
         assert record.state == "failed"
-        assert len(record.task_steps) == 1
-        assert record.task_steps[0].percentage is None
+        assert record.steps[0].name == "first"
+        assert record.steps[0].finished_at is not None
+        assert record.steps[0].percentage == 25
         assert "intentional failure" in record.error
         assert "Traceback" in await manager.logs(bad)
+    task_files = list((tmp_path / "tasks" / "default").glob("**/*"))
+    assert [path.name for path in task_files if path.is_file()] == ["state.json"]
     async with application(tmp_path) as app:
-        assert (await app.get_component("task_manager").status(ok)).state == "succeeded"
+        assert (await app.get_component("task_manager").get_status(ok)).state == "succeeded"
 
 
-async def test_progress_job_updates_running_task_step(tmp_path):
+async def test_worker_reports_running_task_progress(tmp_path):
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
-        run_id = await manager.submit("probe", {"delay": 30})
-        running = await started(manager, run_id)
-
-        response = await app.run_job(
-            "report_task_progress",
-            run_id=run_id,
-            step_index=0,
-            task_step={"name": running.task_steps[0].name, "percentage": 25},
-        )
-
-        assert response.success
-        assert response.answer == {"run_id": run_id, "step_index": 0}
-        assert (await manager.status(run_id)).task_steps[0].percentage == 25
-        await manager.cancel(run_id)
+        task_id = await manager.submit("probe", {"delay": 30})
+        await started(manager, task_id)
+        async with asyncio.timeout(10):
+            while (await manager.get_status(task_id)).steps[0].percentage != 25:
+                await asyncio.sleep(0.02)
+        await manager.cancel(task_id)
 
 
 async def test_queue_cancel_and_observer_timeout(tmp_path):
@@ -115,47 +104,40 @@ async def test_queue_cancel_and_observer_timeout(tmp_path):
         queued = await manager.submit("probe", {"marker": str(tmp_path / "never")})
         with pytest.raises(TimeoutError):
             await manager.wait(active, timeout=0.01)
-        assert (await manager.status(active)).state == "running"
+        assert (await manager.get_status(active)).state == "running"
         assert (await manager.cancel(queued)).state == "cancelled"
         assert not (tmp_path / "never").exists()
         assert (await manager.cancel(active)).state == "cancelled"
         assert_dead(running.pid)
 
 
-async def test_kill_and_shutdown(tmp_path):
+async def test_cancel_and_shutdown(tmp_path):
     app = application(tmp_path)
     await app.start()
     manager = app.get_component("task_manager")
     first = await manager.submit("probe", {"delay": 30})
     record = await started(manager, first)
-    killed = await manager.kill(first)
+    killed = await manager.cancel(first)
     assert killed.state == "cancelled"
     assert_dead(record.pid)
     second = await manager.submit("probe", {"delay": 30})
     record = await started(manager, second)
     await app.close()
     assert_dead(record.pid)
-    assert (await manager.status(second)).state == "cancelled"
+    assert (await manager.get_status(second)).state == "cancelled"
     with pytest.raises(RuntimeError):
         await manager.submit("probe")
 
 
-async def test_cancel_immediately_and_escalate(tmp_path):
+async def test_task_id_suffix_and_list(tmp_path):
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
-        queued = await manager.submit("probe")
-        killed = await manager.kill(queued)
-        assert killed.state == "cancelled"
-        manager.cancel_timeout = 10
-        run_id = await manager.submit("probe", {"delay": 30})
-        record = await started(manager, run_id)
-        cancel = asyncio.create_task(manager.cancel(run_id))
-        await asyncio.sleep(0.03)
-        async with asyncio.timeout(3):
-            killed = await manager.kill(run_id)
-            assert killed.state == "cancelled"
-            await cancel
-        assert_dead(record.pid)
+        task_id = await manager.submit("probe", suffix="manual-1")
+        assert task_id.endswith("#manual-1")
+        assert await manager.list_task_ids() == [task_id]
+        await manager.wait(task_id)
+        with pytest.raises(ValueError, match="suffix"):
+            await manager.submit("probe", suffix="bad_suffix")
 
 
 async def test_lifecycle_rollback(tmp_path):
@@ -178,8 +160,7 @@ async def test_lifecycle_rollback(tmp_path):
         R.register(Good, "good")
         R.register(Bad, "bad")
         app = Application(
-            workspace_dir=str(tmp_path),
-            components={"test": {"a": {"backend": "good"}, "b": {"backend": "bad"}}},
+            workspace_dir=str(tmp_path), components={"test": {"a": {"backend": "good"}, "b": {"backend": "bad"}}}
         )
     with pytest.raises(ValueError):
         await app.start()
@@ -198,35 +179,23 @@ def test_async_step_rejects_sync_and_task_no_components():
 
 
 def test_plugin_manifest_tasks_only():
-    manifest = parse_plugin_manifest(
-        "tasks:\n  demo: package.module:Task\n",
-        plugin_name="test",
-    )
+    manifest = parse_plugin_manifest("tasks:\n  demo: package.module:Task\n", "test")
     assert isinstance(manifest, PluginManifest)
     assert manifest.tasks == {"demo": "package.module:Task"}
     with pytest.raises(ValueError, match="backends"):
-        parse_plugin_manifest("backends: {}\n", plugin_name="test")
+        parse_plugin_manifest("backends: {}\n", "test")
 
 
 @pytest.mark.parametrize(
-    "text",
-    [
-        "tasks: []\n",
-        "tasks:\n  '': package.module:Task\n",
-        "tasks:\n  task: ''\n",
-        "tasks:\n  task: 1\n",
-    ],
+    "text", ["tasks: []\n", "tasks:\n  '': package.module:Task\n", "tasks:\n  task: ''\n", "tasks:\n  task: 1\n"]
 )
 def test_plugin_manifest_rejects_invalid_schema(text):
     with pytest.raises(ValueError, match="Plugin 'test' manifest is invalid"):
-        parse_plugin_manifest(text, plugin_name="test")
+        parse_plugin_manifest(text, "test")
 
 
 def test_plugin_manifest_defaults_and_normalizes_task_strings():
-    manifest = parse_plugin_manifest(
-        "tasks:\n  ' sales ': ' package.module:Task '\n",
-        plugin_name="test",
-    )
+    manifest = parse_plugin_manifest("tasks:\n  ' sales ': ' package.module:Task '\n", "test")
 
     assert manifest.tasks == {"sales": "package.module:Task"}
 
@@ -236,10 +205,10 @@ def test_http_client_discovers_service_from_environment(monkeypatch, capsys):
 
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host": "service.internal", "port": 4321}')
     assert HttpClient().url == "http://service.internal:4321"
-    assert HttpClient(url="https://explicit.example/").url == "https://explicit.example"
+    assert HttpClient(host_ip="explicit.example", host_port=8443).url == "http://explicit.example:8443"
 
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host": "missing-port"}')
-    assert HttpClient().url == AXONX_DEFAULT_URL
+    assert HttpClient().url == f"http://{AXONX_DEFAULT_HOST}:{AXONX_DEFAULT_PORT}"
     assert f"Invalid {AXONX_SERVICE_INFO} value" in capsys.readouterr().err
 
 
@@ -255,10 +224,7 @@ async def test_http_service_publishes_service_info(monkeypatch):
 
     assert server.title == "Configured AxonX"
     async with server.router.lifespan_context(server):
-        assert json.loads(os.environ[AXONX_SERVICE_INFO]) == {
-            "host": "127.0.0.2",
-            "port": 4321,
-        }
+        assert json.loads(os.environ[AXONX_SERVICE_INFO]) == {"host": "127.0.0.2", "port": 4321}
         assert app.is_started
 
     assert os.environ[AXONX_SERVICE_INFO] == previous
@@ -274,29 +240,21 @@ async def test_http_and_mcp_expose_the_same_jobs():
         jobs={
             "visible": {
                 "description": "A visible job",
-                "parameters": {
-                    "type": "object",
-                    "properties": {"value": {"type": "string"}},
-                },
+                "parameters": {"type": "object", "properties": {"value": {"type": "string"}}},
             },
             "hidden": {"enable_serve": False},
             "scheduled": {"backend": "interval", "interval": 60},
-        },
+        }
     )
     service = HttpService()
     server = service.build_service(app)
 
     async with server.router.lifespan_context(server):
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=server),
-            base_url="http://test",
-        ) as http_client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as http_client:
             response = await http_client.get("/jobs")
             assert response.status_code == 200
             assert [job["name"] for job in response.json()] == ["visible"]
-            assert response.json()[0]["inputSchema"]["properties"] == {
-                "value": {"type": "string"},
-            }
+            assert response.json()[0]["inputSchema"]["properties"] == {"value": {"type": "string"}}
             assert (await http_client.post("/jobs/hidden", json={})).status_code == 404
             invalid = await http_client.post("/jobs/visible", json={"value": 1})
             assert invalid.status_code == 422
@@ -320,7 +278,7 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
         healthy = True
 
         def __init__(self, source, **options):
-            assert source == "https://service.example/mcp"
+            assert source == "http://service.example:443/mcp"
             assert options["auth"] is None
 
         async def __aenter__(self):
@@ -336,7 +294,7 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
                     description="Demo",
                     inputSchema={"type": "object", "properties": {}},
                     outputSchema=Response.model_json_schema(),
-                ),
+                )
             ]
 
         async def ping(self):
@@ -350,7 +308,7 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
 
     monkeypatch.setattr(fastmcp, "Client", Client)
 
-    async with McpClient(url="https://service.example") as client:
+    async with McpClient(host_ip="service.example", host_port=443) as client:
         assert await client.health()
         client.client.healthy = False
         assert not await client.health()
@@ -364,15 +322,7 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
 
 async def test_concurrent_job_contexts(tmp_path):
     app = Application(
-        workspace_dir=str(tmp_path),
-        jobs={
-            "demo": {
-                "steps": [
-                    {"backend": "version_step"},
-                    {"backend": "demo_step"},
-                ],
-            },
-        },
+        workspace_dir=str(tmp_path), jobs={"demo": {"steps": [{"backend": "version_step"}, {"backend": "demo_step"}]}}
     )
     async with app:
         results = await asyncio.gather(*(app.run_job("demo") for _ in range(5)))
@@ -388,10 +338,10 @@ async def test_submit_invalid_and_status_snapshot(tmp_path):
             await manager.submit("missing")
         with pytest.raises(ValueError):
             await manager.submit("probe", {"unknown": 1})
-        run_id = await manager.submit("probe")
-        record = await manager.wait(run_id)
+        task_id = await manager.submit("probe")
+        record = await manager.wait(task_id)
         record.result["value"] = -1
-        assert (await manager.status(run_id)).result["value"] == 2
+        assert (await manager.get_status(task_id)).result["value"] == 2
         with pytest.raises(KeyError):
             await manager.logs("../../outside")
 
@@ -405,25 +355,30 @@ async def test_fifo_and_distinct_processes(tmp_path):
         assert all(a.finished_at <= b.started_at for a, b in zip(records, records[1:]))
 
 
-async def test_unfinished_history_marked_lost(tmp_path):
+async def test_unfinished_history_is_loaded_without_rewriting(tmp_path):
     import json
 
-    directory = tmp_path / "tasks" / "default" / "old"
+    directory = tmp_path / "tasks" / "default"
     directory.mkdir(parents=True)
-    (directory / "run.json").write_text(
+    (directory / "state.json").write_text(
         json.dumps(
             {
-                "id": "old",
-                "task": "probe",
-                "created_at": 1,
-                "state": "running",
-                "pid": os.getpid(),
-            },
-        ),
+                "version": 1,
+                "tasks": {
+                    "old": {
+                        "task_id": "old",
+                        "task_type": "analysis",
+                        "created_at": "2024-01-01T00:00:00Z",
+                        "state": "running",
+                        "pid": os.getpid(),
+                    }
+                },
+            }
+        )
     )
     async with application(tmp_path) as app:
-        record = await app.get_component("task_manager").status("old")
-        assert record.state == "lost"
+        record = await app.get_component("task_manager").get_status("old")
+        assert record.state == "running"
         assert record.pid == os.getpid()  # recovered PIDs are never signalled
 
 
@@ -439,13 +394,7 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     app = Application(
         workspace_dir=str(tmp_path / "workspace"),
         components={
-            "plugin": {
-                "default": {
-                    "backend": "local",
-                    "allow_remote_install": True,
-                    "install_token": "secret",
-                },
-            },
+            "plugin": {"default": {"backend": "local", "allow_remote_install": True, "install_token": "secret"}}
         },
         jobs={"list_plugins": {"steps": [{"backend": "list_plugins_step"}]}},
     )
@@ -454,10 +403,7 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     server = HttpService().build_service(app)
 
     async with server.router.lifespan_context(server):
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=server),
-            base_url="http://test",
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
             response = await client.post(
                 "/plugins",
                 content=wheel.read_bytes(),

@@ -37,7 +37,7 @@ def _print(artifact) -> None:
             },
             ensure_ascii=False,
             indent=2,
-        ),
+        )
     )
 
 
@@ -57,7 +57,7 @@ def _deploy(args) -> int:
     artifact = _artifact(args.path, args.output)
 
     async def deploy():
-        async with HttpClient(url=args.url, timeout=args.timeout) as client:
+        async with HttpClient(host_ip=args.host_ip, host_port=args.host_port, timeout=args.timeout) as client:
             return await client.install_plugin(artifact.wheel, args.token)
 
     print(json.dumps(asyncio.run(deploy()), ensure_ascii=False, indent=2))
@@ -65,25 +65,16 @@ def _deploy(args) -> int:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="axonx plugin",
-        description="Build and install Task plugins.",
-    )
+    parser = argparse.ArgumentParser(prog="axonx plugin", description="Build and install Task plugins.")
     commands = parser.add_subparsers(dest="command", required=True)
-    for name, handler in (
-        ("build", _build),
-        ("install", _install),
-        ("deploy", _deploy),
-    ):
+    for name, handler in (("build", _build), ("install", _install), ("deploy", _deploy)):
         command = commands.add_parser(name)
-        command.add_argument(
-            "path",
-            help="Plugin project path containing pyproject.toml.",
-        )
+        command.add_argument("path", help="Plugin project path containing pyproject.toml.")
         command.add_argument("--output", help="Wheel output directory.")
         command.set_defaults(handler=handler)
         if name == "deploy":
-            command.add_argument("--url", required=True)
+            command.add_argument("--host-ip", required=True)
+            command.add_argument("--host-port", required=True, type=int)
             command.add_argument("--timeout", type=float, default=60)
             command.add_argument("--token")
     return parser

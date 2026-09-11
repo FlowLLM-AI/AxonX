@@ -7,7 +7,7 @@ import hashlib
 
 import httpx
 
-from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT
+from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT, AXONX_DEFAULT_SCHEME
 from ...schema import HttpClientOptions, JobInfo, Response
 from .base_client import BaseClient
 from ..component_registry import R
@@ -17,10 +17,11 @@ from ..component_registry import R
 class HttpClient(BaseClient):
     """Call AxonX jobs through its JSON REST endpoints."""
 
-    def __init__(self, url=None, timeout=AXONX_DEFAULT_REQUEST_TIMEOUT, **kwargs):
+    def __init__(self, host_ip=None, host_port=None, timeout=AXONX_DEFAULT_REQUEST_TIMEOUT, **kwargs):
         super().__init__(**kwargs)
-        options = HttpClientOptions(url=url, timeout=timeout)
-        self.url = options.url or self._discover_url()
+        options = HttpClientOptions(host_ip=host_ip, host_port=host_port, timeout=timeout)
+        self.host_ip, self.host_port = self._resolve_address(options)
+        self.url = f"{AXONX_DEFAULT_SCHEME}://{self.host_ip}:{self.host_port}"
         self.timeout = options.timeout
         self.client = None
 
@@ -38,10 +39,7 @@ class HttpClient(BaseClient):
         return self.client
 
     async def run_job(self, name: str, **kwargs: Any) -> Response:
-        response = await self._require_client().post(
-            f"/jobs/{quote(name, safe='')}",
-            json=kwargs,
-        )
+        response = await self._require_client().post(f"/jobs/{quote(name, safe='')}", json=kwargs)
         response.raise_for_status()
         return Response.model_validate_json(response.content)
 
@@ -70,10 +68,6 @@ class HttpClient(BaseClient):
         }
         if token:
             headers["authorization"] = f"Bearer {token}"
-        response = await self._require_client().post(
-            "/plugins",
-            content=data,
-            headers=headers,
-        )
+        response = await self._require_client().post("/plugins", content=data, headers=headers)
         response.raise_for_status()
         return response.json()

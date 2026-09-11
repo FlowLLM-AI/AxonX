@@ -32,7 +32,7 @@ class EnvLoader:
         return values
 
     @staticmethod
-    def _apply(values: dict[str, str], *, override: bool) -> dict[str, str]:
+    def _apply(values: dict[str, str], override: bool) -> dict[str, str]:
         loaded = {key: value for key, value in values.items() if override or key not in os.environ}
         os.environ.update(loaded)
         return loaded
@@ -52,17 +52,14 @@ class EnvLoader:
                 env_path = Path(path)
                 if not env_path.is_file():
                     return {}
-                return self._apply(self.parse(env_path), override=override)
+                return self._apply(self.parse(env_path), override)
 
             cwd = Path.cwd()
             directories = (cwd, *cwd.parents[: self.search_depth])
             for directory in directories:
                 env_path = directory / ".env"
                 if env_path.is_file():
-                    self._loaded_values = self._apply(
-                        self.parse(env_path),
-                        override=override,
-                    )
+                    self._loaded_values = self._apply(self.parse(env_path), override)
                     self._loaded = True
                     return dict(self._loaded_values)
             return {}

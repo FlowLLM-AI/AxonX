@@ -8,23 +8,11 @@ class TaskState(StrEnum):
 
     QUEUED = "queued"
     RUNNING = "running"
-    CANCELLING = "cancelling"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELLED = "cancelled"
-    LOST = "lost"
 
     @property
     def is_terminal(self) -> bool:
         """Whether no further execution transition is expected."""
-        return self in _TERMINAL_TASK_STATES
-
-
-_TERMINAL_TASK_STATES = frozenset(
-    {
-        TaskState.SUCCEEDED,
-        TaskState.FAILED,
-        TaskState.CANCELLED,
-        TaskState.LOST,
-    },
-)
+        return self not in {TaskState.QUEUED, TaskState.RUNNING}

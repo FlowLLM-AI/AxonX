@@ -8,9 +8,10 @@ from typing import Any, Sequence
 
 from .application import Application
 from .components.client import HttpClient
-from .components import HttpService
+from .components import HttpService, R
 from .config import resolve_app_config
 from .constants import CLI_LOCAL_COMMANDS, CLI_USAGE
+from .enumeration import ComponentEnum
 from .schema import Command, HttpClientOptions
 from .task import BaseTask
 from .utils.cli_utils import (
@@ -22,9 +23,6 @@ from .utils.cli_utils import (
 
 def _installed_tasks() -> dict[str, type[BaseTask]]:
     """Return built-in Tasks; configured plugin Tasks run through TaskManager."""
-    from .components.component_registry import R
-    from .enumeration import ComponentEnum
-
     return R.get_all(ComponentEnum.TASK)
 
 
@@ -65,9 +63,9 @@ def _run_exec(command: Command) -> int:
         raise ValueError(f"Unknown Task: {name}. Available: {available}")
 
     task = task_class(config)
-    output = task.execute()
-    print_json(output)
-    return task.exit_code(output)
+    task.execute()
+    print_json(task.output)
+    return task.status.exit_code
 
 
 def _run_plugin(command: Command) -> int:

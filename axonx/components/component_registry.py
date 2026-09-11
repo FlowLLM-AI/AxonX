@@ -58,7 +58,7 @@ class ComponentRegistry:
             self._owners[key] = provider
         return cls
 
-    def add(self, name: str, cls: type[T], *, owner: str) -> type[T]:
+    def add(self, name: str, cls: type[T], owner: str) -> type[T]:
         """Register one explicitly owned plugin contribution."""
         return self._do_register(cls, name, owner=owner)
 

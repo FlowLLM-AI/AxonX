@@ -18,7 +18,6 @@ def find_all_entry_points(group: str) -> list[metadata.EntryPoint]:
 def unique_entry_point(
     entries: list[metadata.EntryPoint],
     name: str,
-    *,
     provider: str,
 ) -> metadata.EntryPoint | None:
     """Return the sole matching entry point, rejecting ambiguous providers."""

@@ -22,23 +22,15 @@ _OPTION_RE = re.compile(
 
 
 class CommandParser:
-    """Parse one AxonX command line using a single mutable argument cursor."""
+    """Turn command-line tokens into a validated :class:`Command`."""
 
     def __init__(self, argv: Sequence[str]) -> None:
         self._remaining = list(argv)
 
     def parse(self) -> Command:
-        """Parse client options, action, and action-specific arguments."""
-        client, has_client_options = self._parse_client_options()
-        if not self._remaining:
-            if has_client_options:
-                raise ValueError("Missing command after client options")
-            return Command(action="help")
-
-        raw_action = self._remaining.pop(0)
-        action = "help" if raw_action in {"-h", "--help"} else raw_action
-        if has_client_options and action in CLI_LOCAL_COMMANDS:
-            raise ValueError(f"Client options cannot be used with local command: {action}")
+        """Parse client options, the action, and action-specific arguments."""
+        client, client_options_supplied = self._parse_client_options()
+        action = self._parse_action(client_options_supplied)
 
         if action in CLI_PASSTHROUGH_COMMANDS:
             return Command(
@@ -53,13 +45,30 @@ class CommandParser:
             client=client,
         )
 
+    def _parse_action(self, client_options_supplied: bool) -> str:
+        """Read the command action, defaulting an empty command line to help."""
+        if not self._remaining:
+            if client_options_supplied:
+                raise ValueError("Missing command after client options")
+            return "help"
+
+        raw_action = self._remaining.pop(0)
+        action = "help" if raw_action in {"-h", "--help"} else raw_action
+        if client_options_supplied and action in CLI_LOCAL_COMMANDS:
+            raise ValueError(f"Client options cannot be used with local command: {action}")
+        return action
+
     def _parse_client_options(self) -> tuple[HttpClientOptions, bool]:
         values: dict[str, Any] = {}
         while self._remaining:
             option = self._remaining[0]
-            key = option.removeprefix("--").replace("-", "_")
-            if not option.startswith("--") or key not in CLI_CLIENT_OPTIONS:
+            if not option.startswith("--"):
                 break
+
+            key = option[2:].replace("-", "_")
+            if key not in CLI_CLIENT_OPTIONS:
+                break
+
             self._remaining.pop(0)
             if not self._remaining or self._remaining[0].startswith("--"):
                 raise ValueError(f"Missing value for client option: {option}")
@@ -80,7 +89,9 @@ class CommandParser:
             raw_value = self._remaining.pop(0)
             if raw_value.startswith("--"):
                 raise ValueError(f"Missing value for option: {option}")
-            self._assign(arguments, self._option_path(option), convert_value(raw_value))
+            path = self._option_path(option)
+            value = convert_value(raw_value)
+            self._assign_nested_value(arguments, path, value)
         return arguments
 
     @staticmethod
@@ -90,7 +101,12 @@ class CommandParser:
         return [part.replace("-", "_") for part in option[2:].split(".")]
 
     @staticmethod
-    def _assign(arguments: dict[str, Any], path: list[str], value: Any) -> None:
+    def _assign_nested_value(
+            arguments: dict[str, Any],
+            path: list[str],
+            value: Any,
+    ) -> None:
+        """Assign a value to a possibly dotted option path."""
         current = arguments
         dotted = ".".join(path)
         for key in path[:-1]:
@@ -120,8 +136,8 @@ def print_json(value: Any) -> None:
 
 
 def pop_required_string(
-    arguments: dict[str, Any],
-    name: str,
+        arguments: dict[str, Any],
+        name: str,
 ) -> tuple[str, dict[str, Any]]:
     """Copy arguments and remove one required, non-empty string option."""
     remaining = dict(arguments)

@@ -3,95 +3,82 @@
 from ..base_step import BaseStep
 from ...components import R
 from ...enumeration import ComponentEnum
+from ...utils.cli_utils import pop_required_string
+
+
+def _answer(value):
+    return value.model_dump(mode="json") if hasattr(value, "model_dump") else value
 
 
 class TaskManagementStep(BaseStep):
-    """Dispatch a common task manager operation selected by subclasses."""
+    """Resolve the selected task manager."""
 
-    operation = "status"
-
-    async def execute(self):
-        manager = self.get_component(ComponentEnum.TASK_MANAGER, self.kwargs.get("manager", "default"))
-        args = {**self.kwargs, **self.context}
-        run_id = args.get("run_id")
-        if self.operation == "status":
-            result = await manager.status(run_id)
-        elif self.operation == "wait":
-            result = await manager.wait(run_id, args.get("timeout"))
-        elif self.operation == "logs":
-            result = await manager.logs(run_id, args.get("limit", 65536))
-        else:
-            result = await getattr(manager, self.operation)(run_id)
-        self.context.response.answer = (
-            [item.model_dump(mode="json") for item in result]
-            if isinstance(result, list)
-            else result.model_dump(mode="json") if hasattr(result, "model_dump") else result
+    def manager_and_arguments(self):
+        arguments = {**self.kwargs, **self.context}
+        manager = self.get_component(
+            ComponentEnum.TASK_MANAGER,
+            arguments.pop("manager", "default"),
         )
+        return manager, arguments
 
 
 @R.register("submit_task")
-class SubmitTask(BaseStep):
-    """Submit a Task using ``task`` as identity and all other fields as config."""
+class SubmitTask(TaskManagementStep):
+    """Submit a Task using all remaining fields as its config."""
 
     async def execute(self):
-        arguments = {**self.kwargs, **self.context}
-        manager_name = arguments.pop("manager", "default")
-        try:
-            task_name = arguments.pop("task")
-        except KeyError:
-            raise ValueError("Missing required Task argument: task") from None
-
-        manager = self.get_component(ComponentEnum.TASK_MANAGER, manager_name)
-        run_id = await manager.submit(task_name, arguments)
-        self.context["run_id"] = run_id
-        self.context.response.answer = {"run_id": run_id}
+        manager, arguments = self.manager_and_arguments()
+        task, arguments = pop_required_string(arguments, "task")
+        suffix = arguments.pop("suffix", None)
+        task_id = await manager.submit(task, arguments, suffix=suffix)
+        self.context["task_id"] = task_id
+        self.context.response.answer = {"task_id": task_id}
 
 
-@R.register("task_status")
-class TaskStatus(TaskManagementStep):
-    """Return one task status or all known task statuses."""
+@R.register("list_tasks")
+class ListTasks(TaskManagementStep):
+    """List all known task identifiers."""
 
-    operation = "status"
+    async def execute(self):
+        manager, _ = self.manager_and_arguments()
+        self.context.response.answer = await manager.list_task_ids()
+
+
+@R.register("get_task_status")
+class GetTaskStatus(TaskManagementStep):
+    """Return one task status."""
+
+    async def execute(self):
+        manager, arguments = self.manager_and_arguments()
+        self.context.response.answer = _answer(await manager.get_status(arguments["task_id"]))
 
 
 @R.register("wait_task")
 class WaitTask(TaskManagementStep):
-    """Wait for a task run to reach a terminal state."""
+    """Wait for one task to finish."""
 
-    operation = "wait"
+    async def execute(self):
+        manager, arguments = self.manager_and_arguments()
+        result = await manager.wait(arguments["task_id"], arguments.get("timeout"))
+        self.context.response.answer = _answer(result)
 
 
 @R.register("cancel_task")
 class CancelTask(TaskManagementStep):
-    """Request cooperative task cancellation."""
+    """Cancel one queued or running task."""
 
-    operation = "cancel"
-
-
-@R.register("kill_task")
-class KillTask(TaskManagementStep):
-    """Force a task run to terminate."""
-
-    operation = "kill"
+    async def execute(self):
+        manager, arguments = self.manager_and_arguments()
+        self.context.response.answer = _answer(await manager.cancel(arguments["task_id"]))
 
 
 @R.register("task_logs")
 class TaskLogs(TaskManagementStep):
-    """Read the trailing bytes of a task run log."""
-
-    operation = "logs"
-
-
-@R.register("report_task_progress")
-class ReportTaskProgress(BaseStep):
-    """Accept an internal worker progress update."""
+    """Read the trailing task log bytes."""
 
     async def execute(self):
-        arguments = {**self.kwargs, **self.context}
-        manager = self.get_component(ComponentEnum.TASK_MANAGER, arguments.get("manager", "default"))
-        record = await manager.report_progress(
-            arguments["run_id"],
-            arguments["step_index"],
-            arguments["task_step"],
+        manager, arguments = self.manager_and_arguments()
+        self.context.response.answer = await manager.logs(
+            arguments["task_id"],
+            arguments.get("limit", 65536),
         )
-        self.context.response.answer = {"run_id": record.id, "step_index": arguments["step_index"]}

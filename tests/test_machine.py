@@ -30,18 +30,8 @@ def test_collect_local_machine_info(monkeypatch):
 
     assert component._collect_local_info() == {
         "axonx": {"version": "1.2.3", "git_commit": "abc123"},
-        "cpu": {
-            "total_cores": 8,
-            "physical_cores": 8,
-            "usage_percent": 25.0,
-            "used_cores": 2.0,
-        },
-        "memory": {
-            "total_bytes": 1_000,
-            "used_bytes": 400,
-            "available_bytes": 550,
-            "usage_percent": 40.0,
-        },
+        "cpu": {"total_cores": 8, "physical_cores": 8, "usage_percent": 25.0, "used_cores": 2.0},
+        "memory": {"total_bytes": 1_000, "used_bytes": 400, "available_bytes": 550, "usage_percent": 40.0},
         "gpus": [{"index": 0}],
     }
 
@@ -54,8 +44,7 @@ def test_parse_nvidia_smi_output(monkeypatch):
         lambda command: f"/usr/bin/{command}" if command == "nvidia-smi" else None,
     )
     monkeypatch.setattr(
-        "axonx.components.machine_component.subprocess.run",
-        lambda *args, **kwargs: SimpleNamespace(stdout=output),
+        "axonx.components.machine_component.subprocess.run", lambda *args, **kwargs: SimpleNamespace(stdout=output)
     )
 
     assert MachineComponent._gpu_info() == [
@@ -69,7 +58,7 @@ def test_parse_nvidia_smi_output(monkeypatch):
             "memory_available_bytes": 40960 * 1024**2,
             "memory_usage_percent": 50.0,
             "usage_percent": 75.0,
-        },
+        }
     ]
 
 
@@ -87,12 +76,11 @@ def test_parse_amd_gpu_info(monkeypatch):
                 "VRAM Total Memory (B)": "1000",
                 "VRAM Total Used Memory (B)": "250",
                 "GPU use (%)": "40",
-            },
-        },
+            }
+        }
     )
     monkeypatch.setattr(
-        "axonx.components.machine_component.subprocess.run",
-        lambda *args, **kwargs: SimpleNamespace(stdout=output),
+        "axonx.components.machine_component.subprocess.run", lambda *args, **kwargs: SimpleNamespace(stdout=output)
     )
 
     assert MachineComponent._amd_gpu_info() == [
@@ -106,13 +94,12 @@ def test_parse_amd_gpu_info(monkeypatch):
             "memory_available_bytes": 750,
             "memory_usage_percent": 25.0,
             "usage_percent": 40.0,
-        },
+        }
     ]
 
 
 @pytest.mark.parametrize(
-    "address",
-    ["node.internal:8000", "http://192.168.1.10:8000", "192.168.1.10", "192.168.1.10:0"],
+    "address", ["node.internal:8000", "http://192.168.1.10:8000", "192.168.1.10", "192.168.1.10:0"]
 )
 def test_remote_node_requires_ip_and_port(address):
     with pytest.raises(ValueError, match="Invalid remote AxonX address"):
@@ -129,10 +116,7 @@ async def test_get_remote_machine_status(monkeypatch):
 
     monkeypatch.setattr(HttpClient, "run_job", run_job)
 
-    app = Application(
-        remote_nodes=["192.168.1.10:9000"],
-        components={"machine": {"default": {"backend": "machine"}}},
-    )
+    app = Application(remote_nodes=["192.168.1.10:9000"], components={"machine": {"default": {"backend": "machine"}}})
     component = app.get_component("machine")
     assert await component.get_info("192.168.1.10:9000") == expected
 
@@ -140,17 +124,10 @@ async def test_get_remote_machine_status(monkeypatch):
 async def test_remote_machine_http_failure_is_propagated(monkeypatch):
     async def run_job(client, name, **kwargs):
         request = httpx.Request("POST", f"{client.url}/jobs/{name}")
-        raise httpx.HTTPStatusError(
-            "unavailable",
-            request=request,
-            response=httpx.Response(503, request=request),
-        )
+        raise httpx.HTTPStatusError("unavailable", request=request, response=httpx.Response(503, request=request))
 
     monkeypatch.setattr(HttpClient, "run_job", run_job)
-    app = Application(
-        remote_nodes=["192.168.1.10:9000"],
-        components={"machine": {"default": {"backend": "machine"}}},
-    )
+    app = Application(remote_nodes=["192.168.1.10:9000"], components={"machine": {"default": {"backend": "machine"}}})
     component = app.get_component("machine")
     with pytest.raises(httpx.HTTPStatusError):
         await component.get_info("192.168.1.10:9000")
@@ -182,12 +159,9 @@ async def test_list_machines_checks_health_without_machine_component(monkeypatch
 
 
 async def test_http_client_health():
-    client = HttpClient(url="http://192.168.1.10:9000")
+    client = HttpClient(host_ip="192.168.1.10", host_port=9000)
     client.client = httpx.AsyncClient(
-        base_url=client.url,
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(200, json={"running": True}),
-        ),
+        base_url=client.url, transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"running": True}))
     )
     try:
         assert await client.health()
@@ -216,19 +190,11 @@ async def test_http_service_exposes_machine_jobs(monkeypatch):
     monkeypatch.setattr(HttpClient, "health", health)
     server = HttpService().build_service(app)
     async with server.router.lifespan_context(server):
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=server),
-            base_url="http://test",
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
             local = await client.post("/jobs/machine_status", json={})
-            remote = await client.post(
-                "/jobs/machine_status",
-                json={"address": "192.168.1.10:9000"},
-            )
+            remote = await client.post("/jobs/machine_status", json={"address": "192.168.1.10:9000"})
             machines = await client.post("/jobs/list_machines", json={})
 
     assert local.json()["answer"]["address"] is None
     assert remote.json()["answer"]["address"] == "192.168.1.10:9000"
-    assert machines.json()["answer"] == [
-        {"address": "192.168.1.10:9000", "healthy": True},
-    ]
+    assert machines.json()["answer"] == [{"address": "192.168.1.10:9000", "healthy": True}]

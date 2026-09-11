@@ -4,7 +4,7 @@ from contextlib import AsyncExitStack
 
 from typing import Any
 
-from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT
+from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT, AXONX_DEFAULT_SCHEME
 from ...schema import HttpClientOptions, JobInfo, Response
 from .base_client import BaseClient
 from ..component_registry import R
@@ -14,15 +14,11 @@ from ..component_registry import R
 class McpClient(BaseClient):
     """Call AxonX jobs through the Streamable HTTP MCP endpoint."""
 
-    def __init__(
-        self,
-        url=None,
-        timeout=AXONX_DEFAULT_REQUEST_TIMEOUT,
-        **kwargs,
-    ):
+    def __init__(self, host_ip=None, host_port=None, timeout=AXONX_DEFAULT_REQUEST_TIMEOUT, **kwargs):
         super().__init__(**kwargs)
-        options = HttpClientOptions(url=url, timeout=timeout)
-        base_url = options.url or self._discover_url()
+        options = HttpClientOptions(host_ip=host_ip, host_port=host_port, timeout=timeout)
+        self.host_ip, self.host_port = self._resolve_address(options)
+        base_url = f"{AXONX_DEFAULT_SCHEME}://{self.host_ip}:{self.host_port}"
         self.url = f"{base_url}/mcp"
         self.timeout = options.timeout
         self.client = None
@@ -32,9 +28,7 @@ class McpClient(BaseClient):
         from fastmcp import Client
 
         self._exit_stack = AsyncExitStack()
-        self.client = await self._exit_stack.enter_async_context(
-            Client(self.url, timeout=self.timeout, auth=None),
-        )
+        self.client = await self._exit_stack.enter_async_context(Client(self.url, timeout=self.timeout, auth=None))
 
     async def _close(self):
         if self.client is not None:

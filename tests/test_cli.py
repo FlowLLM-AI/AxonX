@@ -4,14 +4,18 @@
 # pylint: disable=missing-class-docstring,missing-function-docstring
 
 import json
+import threading
 
 import pytest
 from pydantic import ValidationError
 
 from axonx import cli
 from axonx.components.client import HttpClient
-from axonx.schema import Command, HttpClientOptions, Response
+from axonx.enumeration import TaskType
+from axonx.schema import Command, HttpClientOptions, Response, TaskStatus
 from axonx.task import BaseConfig, BaseTask
+from axonx.task.common import DemoTask
+from axonx.task.status_sink import SocketStatusSink
 from axonx.utils.cli_utils import CommandParser
 
 
@@ -21,14 +25,38 @@ class CliConfig(BaseConfig):
 
 
 class CliTask(BaseTask):
-    config: CliConfig
+    config_cls = CliConfig
+    task_type = TaskType.ANALYSIS
     output_keys = ("amount", "dry_run")
 
     def build_task_steps(self):
         yield self.record_config
 
     def record_config(self):
+        self.report_progress(50)
         self.context.update(amount=self.config.amount, dry_run=self.config.dry_run)
+
+
+def test_task_id_is_generated_internally_and_read_only():
+    config = BaseConfig(task_id_suffix="fixed")
+
+    task_id = config.generate_task_id(TaskType.ANALYSIS)
+
+    assert task_id.startswith("analysis#")
+    assert task_id.endswith("#fixed")
+    assert config.task_id == task_id
+    assert config.task_type == TaskType.ANALYSIS
+    assert config.model_dump()["task_id"] == task_id
+    assert config.model_dump(mode="json")["task_type"] == "analysis"
+    assert config.generate_task_id(TaskType.ANALYSIS) == task_id
+    with pytest.raises(ValueError, match="Task type mismatch"):
+        config.generate_task_id(TaskType.ETL)
+    with pytest.raises(ValueError, match="incomplete identity"):
+        BaseConfig(task_id="incomplete").generate_task_id(TaskType.ANALYSIS)
+    with pytest.raises(ValidationError, match="frozen"):
+        config.task_id = "replacement"
+    with pytest.raises(ValidationError, match="frozen"):
+        config.task_type = TaskType.ETL
 
 
 def test_local_task_uses_registered_config(monkeypatch, capsys):
@@ -37,6 +65,77 @@ def test_local_task_uses_registered_config(monkeypatch, capsys):
     assert cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"]) == 0
 
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
+
+
+def test_progress_delivery_runs_on_a_dedicated_thread():
+    caller = threading.get_ident()
+    deliveries = []
+
+    class Stream:
+        def sendall(self, payload):
+            deliveries.append((threading.get_ident(), TaskStatus.model_validate_json(payload)))
+
+        def close(self):
+            pass
+
+    task = CliTask({"amount": 1})
+    with SocketStatusSink(Stream(), task.logger) as sink:
+        task.execute(emit=sink.publish)
+
+    percentages = [status.steps[0].percentage if status.steps else None for _, status in deliveries]
+    assert percentages == [None, None, None, 50, 100, 100]
+    assert deliveries[0][1].steps == []
+    assert deliveries[-1][1].steps[0].finished_at is not None
+    assert deliveries[-1][1].state == "succeeded"
+    assert all(thread_id != caller for thread_id, _ in deliveries)
+
+
+def test_task_rejects_async_steps():
+    class AsyncTask(CliTask):
+        async def async_step(self):
+            pass
+
+        def build_task_steps(self):
+            yield self.async_step
+
+    task = AsyncTask({"amount": 1})
+    with pytest.raises(TypeError, match="must be synchronous"):
+        task.execute()
+    assert task.status.state == "failed"
+
+
+def test_task_steps_stay_on_the_calling_thread():
+    caller = threading.get_ident()
+
+    class ThreadTask(CliTask):
+        output_keys = ("thread_id",)
+
+        def record_config(self):
+            self.context["thread_id"] = threading.get_ident()
+
+    assert ThreadTask({"amount": 1}).execute() == {"thread_id": caller}
+
+
+def test_demo_task_exercises_dynamic_steps_and_outputs():
+    equal = DemoTask({"x": 2, "y": 2})
+    assert equal.execute() == {"result": 4, "branch": "equal", "operands": ["x", "y"]}
+    assert [step.name for step in equal.status.steps] == ["initialize", "add_equal_operands", "finish"]
+
+    different = DemoTask({"x": 2, "y": 3, "code": 7})
+    different.execute()
+    assert [step.name for step in different.status.steps] == ["initialize", "add_x", "add_y", "finish"]
+    assert different.status.state == "failed"
+    assert different.status.exit_code == 7
+
+
+def test_demo_task_exercises_failure_status():
+    task = DemoTask({"x": 1, "y": 2, "fail": True})
+    with pytest.raises(RuntimeError, match="Demo failure requested"):
+        task.execute()
+    assert task.status.state == "failed"
+    assert task.status.error == "RuntimeError: Demo failure requested"
+    assert task.status.steps[-1].name == "fail"
+    assert task.status.steps[-1].percentage == 50
 
 
 def test_submit_forwards_the_same_task_arguments(monkeypatch, capsys):
@@ -54,14 +153,16 @@ def test_submit_forwards_the_same_task_arguments(monkeypatch, capsys):
 
         async def run_job(self, name, **arguments):
             calls.append((name, arguments))
-            return Response(answer={"run_id": "run-1"})
+            return Response(answer={"task_id": "analysis_20240601120000_abcd"})
 
     monkeypatch.setattr(cli, "HttpClient", Client)
 
     status = cli.main(
         [
-            "--url",
-            "http://service:9000",
+            "--host-ip",
+            "service",
+            "--host-port",
+            "9000",
             "--timeout",
             "5",
             "submit",
@@ -71,15 +172,15 @@ def test_submit_forwards_the_same_task_arguments(monkeypatch, capsys):
             "3",
             "--dry-run",
             "true",
-        ],
+        ]
     )
 
     assert status == 0
     assert calls == [
-        ("client", {"url": "http://service:9000", "timeout": 5}),
+        ("client", {"host_ip": "service", "host_port": 9000, "timeout": 5}),
         ("submit", {"task": "sample", "amount": 3, "dry_run": True}),
     ]
-    assert json.loads(capsys.readouterr().out)["answer"] == {"run_id": "run-1"}
+    assert json.loads(capsys.readouterr().out)["answer"] == {"task_id": "analysis_20240601120000_abcd"}
 
 
 def test_exec_without_arguments_lists_available_tasks(monkeypatch, capsys):
@@ -103,19 +204,9 @@ def test_task_options_are_strict(monkeypatch, capsys):
 
 
 def test_command_options_support_nested_fields():
-    command = CommandParser(
-        [
-            "deploy",
-            "--service.port",
-            "2333",
-            "--service.public-host",
-            "example.test",
-        ],
-    ).parse()
+    command = CommandParser(["deploy", "--service.port", "2333", "--service.public-host", "example.test"]).parse()
 
-    assert command.arguments == {
-        "service": {"port": 2333, "public_host": "example.test"},
-    }
+    assert command.arguments == {"service": {"port": 2333, "public_host": "example.test"}}
 
 
 def test_nested_options_reject_scalar_conflicts(capsys):
@@ -125,24 +216,19 @@ def test_nested_options_reject_scalar_conflicts(capsys):
 
 def test_command_uses_validated_http_client_options():
     command = CommandParser(
-        [
-            "--url",
-            "https://service.internal/",
-            "--timeout",
-            "5",
-            "status",
-        ],
+        ["--host-ip", "service.internal", "--host-port", "4321", "--timeout", "5", "status"]
     ).parse()
 
     assert isinstance(command, Command)
     assert isinstance(command.client, HttpClientOptions)
-    assert command.client.url == "https://service.internal"
+    assert command.client.host_ip == "service.internal"
+    assert command.client.host_port == 4321
     assert command.client.timeout == 5
 
     with pytest.raises(ValidationError):
         HttpClientOptions(timeout=True)
     with pytest.raises(ValidationError):
-        HttpClient(url="service.internal")
+        HttpClient(host_ip="service.internal")
 
 
 def test_client_option_names_are_still_valid_actions():

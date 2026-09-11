@@ -5,7 +5,7 @@
 ```text
 Application.run_job(name, **arguments)
   └─ BaseJob → 串行 await BaseStep
-       └─ TaskManager.submit(task, config) → run_id
+       └─ TaskManager.submit(task, config) → task_id
             └─ 独立进程：BaseTask → build_task_steps() → 同步函数
 ```
 
@@ -13,10 +13,10 @@ Application.run_job(name, **arguments)
 
 - `BaseJob` 和 `BaseStep` 可以通过 `get_component(type, name)` 显式访问 component，没有依赖注入或自动依赖排序。
 - 每次 Job 调用创建独立 Step 实例和 RuntimeContext。异步方法不能直接运行阻塞 ETL。
-- `BaseTask` 原名 BaseFlow，仅持有经 Pydantic 校验的配置、进程内 context 和日志。没有 ApplicationContext，不继承 Component。
-- `build_task_steps()` 按需迭代，不提前转成列表；允许 `yield from`、条件分支、循环和 `partial`。Task 内所有同步步骤在同一个进程串行运行，异常立即停止后续步骤。
+- `BaseTask` 原名 BaseFlow，持有经 Pydantic 校验的配置、进程内 context、完整 TaskStatus 和日志。没有 ApplicationContext，不继承 Component。
+- `build_task_steps()` 按需生成 step，允许根据前序 step 的结果决定后续步骤。Worker 每发现一个 step 都会更新并全量上报当前状态；只有任务结束后才能确定最终 step 总数。Task 内所有同步步骤在同一个进程串行运行，异常立即停止后续步骤。
 - Task 的 DataFrame 等大对象留在进程内部。`output_keys` 指定返回字段，输出必须为 JSON 对象，数据集通过文件路径传递。
-- `axonx exec` 在当前进程直接执行 Task；远程提交的每次运行获得独立 `run_id`，对应一个新进程。没有 ProcessJob 中间层。
+- `axonx exec` 在当前进程直接执行 Task；远程提交的每次运行获得独立 `task_id`，对应一个新进程。没有 ProcessJob 中间层。
 
 ## 目录
 
@@ -31,11 +31,14 @@ axonx/
     task_manager/
       base_task_manager.py     # Task 管理接口
       local_task_manager.py    # 本机进程实现
-      worker.py                # 私有进程入口
     service/                   # 可选 HTTP 服务
     client/                    # HTTP 客户端
   task/
     base_task.py               # BaseTask / BaseConfig / Task 内部同步步骤类型
+    task_runner.py             # 主线程同步执行和 step 生命周期
+    task_status_manager.py     # 与传输无关的 TaskStatus 状态机
+    status_sink.py             # Worker 后台状态发送
+    worker.py                  # 私有隔离进程入口
     common/demo_task.py        # 无可选依赖的内置示例 Task
   steps/                       # 异步 Step 及进程管理适配
   enumeration/
@@ -43,7 +46,7 @@ axonx/
   schema/
     application_config.py      # 应用配置协议
     plugin.py                  # plugin.yaml 数据协议
-    task_run.py                # TaskRun
+    task_status.py             # TaskStatus / TaskStep
   config/
     loader.py                 # YAML / JSON 加载、继承与合并
     values.py                 # CLI 值解析与环境变量展开
@@ -76,17 +79,18 @@ axonx start --plugins '["./plugins/polars-demo"]'
 ```bash
 axonx exec --task sales --output /tmp/sales-local.parquet
 axonx submit --task sales --output /tmp/sales.parquet
-axonx status
-axonx status --run-id 返回的ID
-axonx --timeout 3600 wait --run-id 返回的ID
-axonx logs --run-id 返回的ID
-axonx cancel --run-id 返回的ID
-axonx kill --run-id 返回的ID
+axonx list
+axonx status --task-id 返回的ID
+axonx --timeout 3600 wait --task-id 返回的ID
+axonx logs --task-id 返回的ID
+axonx cancel --task-id 返回的ID
 ```
 
-`exec` 自动发现所有已安装插件提供的 Task，并在当前 CLI 进程直接执行。`submit` 使用完全相同的 `--task TASK --field value` 参数形式，返回 ID 后命令即可退出，Task 由常驻服务继续托管。客户端参数放在 command 之前：`axonx --url http://host:port submit --task sales --output /tmp/sales.parquet`。
+`exec` 自动发现所有已安装插件提供的 Task，并在当前 CLI 进程直接执行。`submit` 使用完全相同的 `--task TASK --field value` 参数形式，返回 ID 后命令即可退出，Task 由常驻服务继续托管。客户端参数放在 command 之前：`axonx --host-ip 127.0.0.1 --host-port 1024 submit --task sales --output /tmp/sales.parquet`。
 
-默认配置提供 submit/status/wait/cancel/kill/logs 等 Task 管理 Job；Worker 通过内部 `report_task_progress` Job 实时上报步骤进度。自定义配置可使用 `extends: default` 继承：
+默认配置提供 submit/list/status/wait/cancel/logs 等 Task 管理 Job。`exec` 在当前进程同步执行；`submit` 启动的 Worker 也始终在主线程同步执行 Task step。纯状态机 `TaskStatusManager` 生成完整快照，独立后台线程通过父子进程本地 socket 上报，不阻塞计算步骤。自定义配置可使用 `extends: default` 继承：
+
+每个 Task 必须声明 `task_type`。Task ID 格式为 `{task_type}#{UTC时间}#{suffix}`；框架自动记录每个 step 的开始和完成时间，step 内可调用 `self.report_progress(percentage)` 手动更新百分比。Task step 必须是同步 callable，不能声明为 `async def` 或返回 awaitable；Polars、Torch 等计算并行由各自运行库负责。
 
 ```yaml
 extends: default
@@ -101,8 +105,6 @@ components:
     default:
       backend: local
       max_concurrency: 2
-      cancel_timeout: 5
-      terminate_timeout: 2
 jobs:
   sales_and_wait:
     steps:
@@ -111,7 +113,7 @@ jobs:
       - backend: wait_task
 ```
 
-`axonx sales_and_wait --output /tmp/sales.parquet` 提交后等待，两个异步 Step 通过 RuntimeContext 传递 run_id。若需按序执行多个 Task，可继续配置 submit/wait 步骤，或者编写异步 Step 根据上一 Task 的输出组装下一次配置。
+`axonx sales_and_wait --output /tmp/sales.parquet` 提交后等待，两个异步 Step 通过 RuntimeContext 传递 task_id。若需按序执行多个 Task，可继续配置 submit/wait 步骤，或者编写异步 Step 根据上一 Task 的输出组装下一次配置。
 
 普通 Job 默认通过 REST 和 MCP 同时公开；设置 `enable_serve: false` 可将其限制为应用内部调用。HTTP 服务提供 `GET /jobs`、`POST /jobs/{name}` 和 Streamable HTTP MCP `/mcp`。`interval` 与 `cron` Job 由 Application 生命周期托管，不会公开；interval 首次立即执行，cron 首次等待表达式指定的时间。
 
@@ -137,12 +139,12 @@ jobs:
     backend: interval
     interval: 300
     steps:
-      - backend: task_status
+      - backend: list_tasks
   nightly_status:
     backend: cron
     cron: "0 2 * * *"
     steps:
-      - backend: task_status
+      - backend: list_tasks
 ```
 
 ## Python API
@@ -156,7 +158,7 @@ async def example():
         response = await app.run_job(
             "submit", task="sales", output="/tmp/sales.parquet"
         )
-        record = await app.run_job("wait", run_id=response.answer["run_id"])
+        record = await app.run_job("wait", task_id=response.answer["task_id"])
         print(record.answer)
 ```
 
@@ -165,7 +167,7 @@ async def example():
 ```python
 from axonx.components.client import HttpClient, McpClient
 
-async with McpClient(url="http://127.0.0.1:1024") as client:
+async with McpClient(host_ip="127.0.0.1", host_port=1024) as client:
     jobs = await client.list_jobs()
     response = await client.run_job("status")
 ```
@@ -174,23 +176,22 @@ async with McpClient(url="http://127.0.0.1:1024") as client:
 
 ```python
 manager = self.get_component("task_manager", "default")
-run_id = await manager.submit("sales", {"output": "/tmp/sales.parquet"})
-record = await manager.wait(run_id, timeout=60)
+task_id = await manager.submit("sales", {"output": "/tmp/sales.parquet"})
+record = await manager.wait(task_id, timeout=60)
 ```
 
-所有 Manager 管理方法均为异步。`status()` 返回 TaskRun 列表；`status(id)` / `wait(id)` / `cancel(id)` / `kill(id)` 返回单条快照。`wait()` 超时或调用者取消不会取消 Task。`cancel` 和 `kill` 等待清理完成后返回；`logs` 默认读取最后 64 KiB。
+所有 Manager 管理方法均为异步。`list_task_ids()` 返回 ID 列表；`get_status(id)` / `wait(id)` / `cancel(id)` 返回单条快照。`wait()` 超时或调用者取消不会取消 Task。`cancel` 会立即终止运行中的 Worker 进程组；`logs` 默认读取最后 64 KiB。
 
 Response.success 表示异步 Job 调用是否成功。查询或等待一个失败 Task 仍是成功的查询，任务结果需检查 `answer.state` 和 `answer.error`。
 
 ## 生命周期与状态
 
-状态为 `queued → running → succeeded/failed`；取消经过 `cancelling → cancelled`。
+状态为 `queued → running → succeeded/failed`；取消完成后进入 `cancelled`。
 
 - FIFO 排队，`max_concurrency` 限制同时运行的 Task 数量。
-- `cancel` 移除排队任务；运行中先请求协作取消，在 step 之间检查。超过 `cancel_timeout` 发送 SIGTERM，再超过 `terminate_timeout` 强制结束进程组。
-- `kill` 立即跳过协作等待并强制结束进程组。自行脱离进程组的子进程不在这个保证内。
+- `cancel` 会直接取消排队 Task，并用 SIGKILL 立即终止运行中的 Worker 进程组；Manager 负责将最终状态写为 `cancelled`。自行脱离进程组的子进程不在这个保证内。
 - Application 正常关闭时先停止异步调用和后台 Job，再取消、等待和清理 Manager 中的全部任务。HTTP 服务默认最多等待现有请求 1 秒（`service.shutdown_timeout`），随后进入清理，长时间 wait 请求不会阻止退出。
-- 记录、进度和日志存放在 `<workspace>/tasks/<manager>/<run_id>/`。重启保留历史记录；未完成记录标记 `lost`，不会按旧 PID 杀进程或自动重跑。
+- TaskManager 创建 `queued` 状态并处理排队取消；Worker 通过只在父子进程间继承的本地 socket 全量上报运行状态。状态在关闭时原子写入 `<workspace>/tasks/<manager>/state.json`，日志只保留当前进程内最后 1 MiB。Worker 若异常退出且没有上报终态，Manager 会补记为 `failed`。
 - 当前按一个常驻 Application 独占一个 workspace 使用。服务被 SIGKILL 或机器异常中止不属于正常关闭保证，可能遗留进程；本版没有独立守护执行服务、远程调度或崩溃恢复。
 
 ## 插件
@@ -204,7 +205,7 @@ tasks:
 
 插件只能提供 Task，不参与 Component、Step、Job 注册，也不提供应用默认配置。每次执行都会启动新 Worker 并从已安装文件导入 Task，因此更新插件不会影响正在运行的 Task，后续 Task 无需重启 AxonX 即可使用新版本。
 
-远程节点设置 `components.plugin.default.allow_remote_install: true` 后提供 `POST /plugins`；插件列表通过 `list_plugins` Job 查询。可同时配置 `install_token`。本地使用 `axonx plugin deploy ./plugins/polars-demo --url http://IP:PORT --token TOKEN` 构建、校验 SHA-256 并上传 wheel。
+远程节点设置 `components.plugin.default.allow_remote_install: true` 后提供 `POST /plugins`；插件列表通过 `list_plugins` Job 查询。可同时配置 `install_token`。本地使用 `axonx plugin deploy ./plugins/polars-demo --host-ip IP --host-port PORT --token TOKEN` 构建、校验 SHA-256 并上传 wheel。
 
 Polars 示例 `SalesTask` 用合成数据完成加载、聚合、写 Parquet，总收入为 75；不提供 input 时无需外部数据。
 
