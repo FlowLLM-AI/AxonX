@@ -12,9 +12,6 @@ PLUGIN_MANIFEST = "plugin.yaml"
 # clients created in the same process.
 AXONX_SERVICE_INFO = "AXONX_SERVICE_INFO"
 
-# Inherited descriptor for the private local Task status channel.
-AXONX_TASK_STATUS_FD = "AXONX_TASK_STATUS_FD"
-
 AXONX_DEFAULT_HOST = "127.0.0.1"
 
 AXONX_DEFAULT_PORT = 1024
@@ -28,6 +25,9 @@ AXONX_DEFAULT_REQUEST_TIMEOUT = 60.0
 # Public command-line interface. Keeping command metadata here gives parsing
 # and dispatch one shared vocabulary.
 CLI_CLIENT_OPTIONS = frozenset({"host_ip", "host_port", "timeout"})
+
+# Internal Job argument carrying the original tokens after the command name.
+CLI_RAW_ARGUMENTS = "_axonx_argv"
 
 CLI_LOCAL_COMMANDS = frozenset({"exec", "help", "plugin", "start"})
 

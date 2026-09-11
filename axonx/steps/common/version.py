@@ -10,10 +10,8 @@ class VersionStep(BaseStep):
     """Emit axonx.__version__ as the response answer."""
 
     async def execute(self):
-        assert self.context is not None
         from ... import __version__
 
         self.logger.info(f"[{self.name}] version={__version__}")
-        self.context.response.answer = __version__
-        self.context.response.metadata["version"] = __version__
-        return self.context.response
+        self.response.answer = __version__
+        self.response.metadata["version"] = __version__

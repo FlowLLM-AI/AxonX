@@ -41,10 +41,10 @@ class MachineComponent(BaseComponent):
         """Return local status, or status from one configured remote node."""
         if address is None:
             return await asyncio.to_thread(self._collect_local_info)
-        if address not in self.app_config.remote_nodes:
+        node = next((node for node in self.app_config.remote_nodes if node.address == address), None)
+        if node is None:
             raise ValueError(f"Remote AxonX is not configured: {address!r}")
-        host_ip, host_port = address.rsplit(":", 1)
-        async with HttpClient(host_ip=host_ip, host_port=int(host_port), timeout=self.timeout) as client:
+        async with HttpClient(host_ip=node.host_ip, host_port=node.host_port, timeout=self.timeout) as client:
             job_response = await client.run_job("machine_status")
         if not job_response.success or not isinstance(job_response.answer, dict):
             raise ValueError("Remote machine returned an unsuccessful or invalid response")

@@ -47,7 +47,7 @@ class BaseComponent(ComponentMixin):
         """Declare a dependency on one named component."""
         if not name:
             return None
-        ctype = component_type_name(getattr(base_cls, "component_type", None))
+        ctype = component_type_name(base_cls.component_type)
         if ctype == ComponentEnum.BASE.value:
             raise TypeError(f"{base_cls.__name__} must declare a non-BASE component_type")
         return cast(T, Dependency(ctype, name, default_factory, optional))
@@ -79,7 +79,8 @@ class BaseComponent(ComponentMixin):
                 raise ValueError(f"Missing component dependency: {dependency.ctype}:{dependency.name}")
             setattr(self, attribute, target)
 
-    async def _close_owned(self, components) -> list[BaseException]:
+    @staticmethod
+    async def _close_owned(components) -> list[BaseException]:
         errors = []
         for component in reversed(components):
             try:
@@ -104,6 +105,7 @@ class BaseComponent(ComponentMixin):
                 await self._start()
             except BaseException:
                 if start_hook_entered:
+                    # noinspection PyBroadException
                     try:
                         await self._close()
                     except BaseException:

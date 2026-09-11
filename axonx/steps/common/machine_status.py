@@ -9,8 +9,4 @@ class MachineStatusStep(BaseStep):
     """Collect local status, or remote status when an address is supplied."""
 
     async def execute(self):
-        assert self.context is not None
-        self.context.response.answer = await self.machine.get_info(
-            self.context.get("address"),
-        )
-        return self.context.response
+        self.response.answer = await self.machine.get_info(self.context.get("address"))

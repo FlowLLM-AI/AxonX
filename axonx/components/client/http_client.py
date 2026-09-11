@@ -1,47 +1,42 @@
 """HTTP client for AxonX REST services."""
 
+import hashlib
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
-from pathlib import Path
-import hashlib
 
 import httpx
 
-from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT, AXONX_DEFAULT_SCHEME
-from ...schema import HttpClientOptions, JobInfo, Response
-from .base_client import BaseClient
+from ...schema import JobInfo, Response, TaskStatus
 from ..component_registry import R
+from .base_client import BaseClient
 
 
 @R.register("http")
-class HttpClient(BaseClient):
+class HttpClient(BaseClient[httpx.AsyncClient]):
     """Call AxonX jobs through its JSON REST endpoints."""
-
-    def __init__(self, host_ip=None, host_port=None, timeout=AXONX_DEFAULT_REQUEST_TIMEOUT, **kwargs):
-        super().__init__(**kwargs)
-        options = HttpClientOptions(host_ip=host_ip, host_port=host_port, timeout=timeout)
-        self.host_ip, self.host_port = self._resolve_address(options)
-        self.url = f"{AXONX_DEFAULT_SCHEME}://{self.host_ip}:{self.host_port}"
-        self.timeout = options.timeout
-        self.client = None
 
     async def _start(self):
         self.client = httpx.AsyncClient(base_url=self.url, timeout=self.timeout)
 
     async def _close(self):
-        if self.client is not None:
-            await self.client.aclose()
+        client = self.client
+        if client is not None:
+            await client.aclose()
             self.client = None
-
-    def _require_client(self):
-        if self.client is None:
-            raise RuntimeError("Client is not started")
-        return self.client
 
     async def run_job(self, name: str, **kwargs: Any) -> Response:
         response = await self._require_client().post(f"/jobs/{quote(name, safe='')}", json=kwargs)
         response.raise_for_status()
         return Response.model_validate_json(response.content)
+
+    async def set_status(self, status: TaskStatus) -> Response:
+        """Report one complete Task status snapshot."""
+        return await self.run_job(
+            "set_status",
+            task_id=status.task_id,
+            status=status.model_dump(mode="json"),
+        )
 
     async def list_jobs(self) -> list[JobInfo]:
         response = await self._require_client().get("/jobs")

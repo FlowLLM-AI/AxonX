@@ -13,102 +13,72 @@ from ..constants import (
     CLI_CLIENT_OPTIONS,
     CLI_LOCAL_COMMANDS,
     CLI_PASSTHROUGH_COMMANDS,
+    CLI_RAW_ARGUMENTS,
 )
-from ..schema import Command, HttpClientOptions
+from ..schema import ClientOptions, Command
 
 _OPTION_RE = re.compile(
     r"^--[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)*$",
 )
 
 
-class CommandParser:
-    """Turn command-line tokens into a validated :class:`Command`."""
+def parse_command(argv: Sequence[str]) -> tuple[Command, ClientOptions]:
+    """Parse command-line tokens and client connection options."""
+    tokens = tuple(argv)
+    client, action_index = _parse_client_options(tokens)
+    client_options_supplied = action_index > 0
 
-    def __init__(self, argv: Sequence[str]) -> None:
-        self._remaining = list(argv)
+    if action_index == len(tokens):
+        if client_options_supplied:
+            raise ValueError("Missing command after client options")
+        return Command(action="help", arguments={CLI_RAW_ARGUMENTS: []}), client
 
-    def parse(self) -> Command:
-        """Parse client options, the action, and action-specific arguments."""
-        client, client_options_supplied = self._parse_client_options()
-        action = self._parse_action(client_options_supplied)
+    raw_action = tokens[action_index]
+    action = "help" if raw_action in {"-h", "--help"} else raw_action
+    if client_options_supplied and action in CLI_LOCAL_COMMANDS:
+        raise ValueError(f"Client options cannot be used with local command: {action}")
 
-        if action in CLI_PASSTHROUGH_COMMANDS:
-            return Command(
-                action=action,
-                client=client,
-                passthrough=tuple(self._remaining),
-            )
+    raw_arguments = tokens[action_index + 1:]
+    arguments = {} if action in CLI_PASSTHROUGH_COMMANDS else _parse_arguments(raw_arguments)
+    arguments[CLI_RAW_ARGUMENTS] = list(raw_arguments)
+    return Command(action=action, arguments=arguments), client
 
-        return Command(
-            action=action,
-            arguments=self._parse_arguments(),
-            client=client,
-        )
 
-    def _parse_action(self, client_options_supplied: bool) -> str:
-        """Read the command action, defaulting an empty command line to help."""
-        if not self._remaining:
-            if client_options_supplied:
-                raise ValueError("Missing command after client options")
-            return "help"
+def _parse_client_options(tokens: tuple[str, ...]) -> tuple[ClientOptions, int]:
+    """Parse the leading client options and return the action's index."""
+    values: dict[str, Any] = {}
+    index = 0
 
-        raw_action = self._remaining.pop(0)
-        action = "help" if raw_action in {"-h", "--help"} else raw_action
-        if client_options_supplied and action in CLI_LOCAL_COMMANDS:
-            raise ValueError(f"Client options cannot be used with local command: {action}")
-        return action
+    while index < len(tokens):
+        option = tokens[index]
+        key = option.removeprefix("--").replace("-", "_")
+        if not option.startswith("--") or key not in CLI_CLIENT_OPTIONS:
+            break
+        if index + 1 == len(tokens) or tokens[index + 1].startswith("--"):
+            raise ValueError(f"Missing value for client option: {option}")
+        if key in values:
+            raise ValueError(f"Duplicate client option: {option}")
 
-    def _parse_client_options(self) -> tuple[HttpClientOptions, bool]:
-        values: dict[str, Any] = {}
-        while self._remaining:
-            option = self._remaining[0]
-            if not option.startswith("--"):
-                break
+        values[key] = convert_value(tokens[index + 1])
+        index += 2
 
-            key = option[2:].replace("-", "_")
-            if key not in CLI_CLIENT_OPTIONS:
-                break
+    return ClientOptions.model_validate(values), index
 
-            self._remaining.pop(0)
-            if not self._remaining or self._remaining[0].startswith("--"):
-                raise ValueError(f"Missing value for client option: {option}")
 
-            if key in values:
-                raise ValueError(f"Duplicate client option: {option}")
-            values[key] = convert_value(self._remaining.pop(0))
+def _parse_arguments(tokens: tuple[str, ...]) -> dict[str, Any]:
+    if len(tokens) % 2:
+        raise ValueError("Options must be pairs like --field value")
 
-        return HttpClientOptions.model_validate(values), bool(values)
-
-    def _parse_arguments(self) -> dict[str, Any]:
-        if len(self._remaining) % 2:
-            raise ValueError("Options must be pairs like --field value")
-
-        arguments: dict[str, Any] = {}
-        while self._remaining:
-            option = self._remaining.pop(0)
-            raw_value = self._remaining.pop(0)
-            if raw_value.startswith("--"):
-                raise ValueError(f"Missing value for option: {option}")
-            path = self._option_path(option)
-            value = convert_value(raw_value)
-            self._assign_nested_value(arguments, path, value)
-        return arguments
-
-    @staticmethod
-    def _option_path(option: str) -> list[str]:
+    arguments: dict[str, Any] = {}
+    for option, raw_value in zip(tokens[::2], tokens[1::2], strict=True):
+        if raw_value.startswith("--"):
+            raise ValueError(f"Missing value for option: {option}")
         if not _OPTION_RE.fullmatch(option):
             raise ValueError(f"Invalid option: {option!r}; expected --field value")
-        return [part.replace("-", "_") for part in option[2:].split(".")]
 
-    @staticmethod
-    def _assign_nested_value(
-            arguments: dict[str, Any],
-            path: list[str],
-            value: Any,
-    ) -> None:
-        """Assign a value to a possibly dotted option path."""
-        current = arguments
+        path = tuple(part.replace("-", "_") for part in option[2:].split("."))
         dotted = ".".join(path)
+        current = arguments
         for key in path[:-1]:
             if key in current and not isinstance(current[key], dict):
                 raise ValueError(
@@ -119,7 +89,9 @@ class CommandParser:
         final = path[-1]
         if final in current:
             raise ValueError(f"Duplicate or conflicting option: --{dotted}")
-        current[final] = value
+        current[final] = convert_value(raw_value)
+
+    return arguments
 
 
 def _json_default(value: object) -> str:
@@ -133,19 +105,3 @@ def _json_default(value: object) -> str:
 def print_json(value: Any) -> None:
     """Print one CLI value as readable JSON."""
     print(json.dumps(value, ensure_ascii=False, default=_json_default))
-
-
-def pop_required_string(
-        arguments: dict[str, Any],
-        name: str,
-) -> tuple[str, dict[str, Any]]:
-    """Copy arguments and remove one required, non-empty string option."""
-    remaining = dict(arguments)
-    option = f"--{name.replace('_', '-')}"
-    try:
-        value = remaining.pop(name)
-    except KeyError:
-        raise ValueError(f"Missing required option: {option}") from None
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"{option} must be a non-empty string")
-    return value, remaining

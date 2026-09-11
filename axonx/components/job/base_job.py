@@ -1,12 +1,14 @@
 """Sequential asynchronous jobs."""
 
+import asyncio
 from collections.abc import Iterator, Mapping, Sequence
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 from jsonschema.validators import validator_for
 
 from ...enumeration import ComponentEnum
+from ...constants import CLI_RAW_ARGUMENTS
 from ...context import RuntimeContext
 from ...schema import ComponentConfig, JobInfo, Response
 from ...steps.base_step import BaseStep
@@ -39,15 +41,15 @@ class BaseJob(BaseComponent):
         self._step_configs = tuple(steps)
         self._defaults = dict(defaults or {})
         self.description = description
-        self.parameters = deepcopy(
-            parameters if parameters is not None else {"properties": {}},
-        )
+        schema = parameters if parameters is not None else {"properties": {}}
+        self.parameters: dict[str, Any] = deepcopy(dict(schema))
         self.parameters.setdefault("type", "object")
-        validator_class = validator_for(self.parameters)
+        validator_class = cast(Any, validator_for(self.parameters))
         validator_class.check_schema(self.parameters)
         self._parameter_validator = validator_class(self.parameters)
         self.enable_serve = enable_serve
         self._step_specs: tuple[_StepSpec, ...] = ()
+        self._active_tasks: set[asyncio.Task[Any]] = set()
 
     @property
     def is_servable(self) -> bool:
@@ -66,18 +68,24 @@ class BaseJob(BaseComponent):
 
     def validate_arguments(self, arguments: Mapping[str, Any]) -> None:
         """Raise ``ValueError`` when arguments violate the job schema."""
-        error = next(self._parameter_validator.iter_errors(arguments), None)
-        if error is not None:
-            location = ".".join(map(str, error.absolute_path))
-            prefix = f"{location}: " if location else ""
-            raise ValueError(
-                f"Invalid arguments for job {self.name!r}: {prefix}{error.message}",
-            )
+        public_arguments = {key: value for key, value in arguments.items() if key != CLI_RAW_ARGUMENTS}
+        try:
+            error = next(self._parameter_validator.iter_errors(public_arguments))
+        except StopIteration:
+            return
+        location = ".".join(map(str, error.absolute_path))
+        prefix = f"{location}: " if location else ""
+        raise ValueError(f"Invalid arguments for job {self.name!r}: {prefix}{error.message}")
 
     async def _start(self) -> None:
         self._step_specs = tuple(map(self._resolve_step, self._step_configs))
 
     async def _close(self) -> None:
+        current_task = asyncio.current_task()
+        active_tasks = [task for task in self._active_tasks if task is not current_task]
+        for task in active_tasks:
+            task.cancel()
+        await asyncio.gather(*active_tasks, return_exceptions=True)
         self._step_specs = ()
 
     def _resolve_step(self, raw: ComponentConfig | Mapping[str, Any]) -> _StepSpec:
@@ -92,15 +100,22 @@ class BaseJob(BaseComponent):
             yield step_class(app_context=self.app_context, **deepcopy(options))
 
     async def __call__(self, **arguments: Any) -> Response:
-        context = RuntimeContext(**deepcopy(self._defaults))
-        context.update(arguments)
+        task = asyncio.current_task()
+        if task is not None:
+            self._active_tasks.add(task)
         try:
-            for step in self._build_steps():
-                await step(context)
-                if not context.response.success:
-                    break
-        except Exception as exc:
-            self.logger.exception("Job failed")
-            context.response.success = False
-            context.response.answer = f"{type(exc).__name__}: {exc}"
-        return context.response
+            context = RuntimeContext(**deepcopy(self._defaults))
+            context.update(arguments)
+            try:
+                for step in self._build_steps():
+                    await step(context)
+                    if not context.response.success:
+                        break
+            except Exception as exc:
+                self.logger.exception("Job failed")
+                context.response.success = False
+                context.response.answer = f"{type(exc).__name__}: {exc}"
+            return context.response
+        finally:
+            if task is not None:
+                self._active_tasks.discard(task)

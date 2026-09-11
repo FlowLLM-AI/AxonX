@@ -99,11 +99,17 @@ def test_parse_amd_gpu_info(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "address", ["node.internal:8000", "http://192.168.1.10:8000", "192.168.1.10", "192.168.1.10:0"]
+    "node",
+    [
+        {"host_ip": "node.internal", "host_port": 8000},
+        {"host_ip": "http://192.168.1.10", "host_port": 8000},
+        {"host_ip": "192.168.1.10"},
+        {"host_ip": "192.168.1.10", "host_port": 0},
+    ],
 )
-def test_remote_node_requires_ip_and_port(address):
-    with pytest.raises(ValueError, match="Invalid remote AxonX address"):
-        Application(remote_nodes=[address])
+def test_remote_node_requires_ip_and_port(node):
+    with pytest.raises(ValueError):
+        Application(remote_nodes=[node])
 
 
 async def test_get_remote_machine_status(monkeypatch):
@@ -116,7 +122,10 @@ async def test_get_remote_machine_status(monkeypatch):
 
     monkeypatch.setattr(HttpClient, "run_job", run_job)
 
-    app = Application(remote_nodes=["192.168.1.10:9000"], components={"machine": {"default": {"backend": "machine"}}})
+    app = Application(
+        remote_nodes=[{"host_ip": "192.168.1.10", "host_port": 9000}],
+        components={"machine": {"default": {"backend": "machine"}}},
+    )
     component = app.get_component("machine")
     assert await component.get_info("192.168.1.10:9000") == expected
 
@@ -127,7 +136,10 @@ async def test_remote_machine_http_failure_is_propagated(monkeypatch):
         raise httpx.HTTPStatusError("unavailable", request=request, response=httpx.Response(503, request=request))
 
     monkeypatch.setattr(HttpClient, "run_job", run_job)
-    app = Application(remote_nodes=["192.168.1.10:9000"], components={"machine": {"default": {"backend": "machine"}}})
+    app = Application(
+        remote_nodes=[{"host_ip": "192.168.1.10", "host_port": 9000}],
+        components={"machine": {"default": {"backend": "machine"}}},
+    )
     component = app.get_component("machine")
     with pytest.raises(httpx.HTTPStatusError):
         await component.get_info("192.168.1.10:9000")
@@ -147,7 +159,10 @@ async def test_list_machines_checks_health_without_machine_component(monkeypatch
     monkeypatch.setattr(HttpClient, "health", health)
 
     app = Application(
-        remote_nodes=["192.168.1.10:9000", "192.168.1.11:9001"],
+        remote_nodes=[
+            {"host_ip": "192.168.1.10", "host_port": 9000},
+            {"host_ip": "192.168.1.11", "host_port": 9001},
+        ],
         jobs={"list_machines": {"steps": [{"backend": "list_machines_step"}]}},
     )
     async with app:
@@ -171,7 +186,7 @@ async def test_http_client_health():
 
 async def test_http_service_exposes_machine_jobs(monkeypatch):
     app = Application(
-        remote_nodes=["192.168.1.10:9000"],
+        remote_nodes=[{"host_ip": "192.168.1.10", "host_port": 9000}],
         components={"machine": {"default": {"backend": "machine"}}},
         jobs={
             "machine_status": {"steps": [{"backend": "machine_status_step"}]},

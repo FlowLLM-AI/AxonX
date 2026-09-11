@@ -1,6 +1,7 @@
 """Component contract for managing synchronous Task runs."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 from ...enumeration import ComponentEnum
 from ..base_component import BaseComponent
@@ -13,8 +14,12 @@ class BaseTaskManager(BaseComponent, ABC):
     component_type = ComponentEnum.TASK_MANAGER
 
     @abstractmethod
-    async def submit(self, task: str, config: dict | None = None, *, suffix: str | None = None) -> str:
-        """Submit a task and return its identifier."""
+    async def submit(self, argv: Sequence[str]) -> None:
+        """Start ``axonx exec`` with the supplied arguments."""
+
+    @abstractmethod
+    async def set_status(self, task_id: str, status: TaskStatus) -> None:
+        """Store a complete status reported by a task worker."""
 
     @abstractmethod
     async def list_task_ids(self) -> list[str]:
@@ -22,16 +27,8 @@ class BaseTaskManager(BaseComponent, ABC):
 
     @abstractmethod
     async def get_status(self, task_id: str) -> TaskStatus:
-        """Return one task status snapshot."""
+        """Return one task status."""
 
     @abstractmethod
-    async def cancel(self, task_id: str) -> TaskStatus:
-        """Cancel a queued task or kill its running worker."""
-
-    @abstractmethod
-    async def wait(self, task_id: str, timeout: float | None = None) -> TaskStatus:
-        """Wait for a task without cancelling it on timeout."""
-
-    @abstractmethod
-    async def logs(self, task_id: str, limit: int = 65536) -> str:
-        """Read at most the trailing ``limit`` bytes of a task log."""
+    async def cancel(self, task_id: str) -> bool:
+        """Return whether cancellation was successfully requested."""

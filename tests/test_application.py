@@ -10,10 +10,10 @@ from pydantic import ValidationError
 
 from axonx import Application, BaseComponent, BaseJob, BaseStep
 from axonx.components import R
-from axonx.components.job import CronJob, IntervalJob
+from axonx.components.job import CronJob
 
 
-async def test_lifecycle_order_starts_background_jobs_last():
+async def test_lifecycle_starts_cron_last_and_closes_jobs_first():
     events = []
 
     class Dependency(BaseComponent):
@@ -32,7 +32,10 @@ async def test_lifecycle_order_starts_background_jobs_last():
         async def _close(self):
             events.append("close public job")
 
-    class Runner(IntervalJob):
+    class Runner(CronJob):
+        def __init__(self, **kwargs):
+            super().__init__(cron="* * * * *", **kwargs)
+
         async def _start(self):
             events.append("start background job")
 
@@ -148,7 +151,33 @@ async def test_job_defaults_are_isolated_and_failure_stops_remaining_steps():
     assert calls == ["append", "append", "stop"]
 
 
-async def test_interval_job_recovers_from_failure_and_stops_on_close():
+async def test_base_job_cancels_active_invocations_on_close():
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    class BlockingStep(BaseStep):
+        async def execute(self):
+            started.set()
+            try:
+                await asyncio.Future()
+            finally:
+                cancelled.set()
+
+    with R.preserve(allow_mutation=True):
+        R.register(BlockingStep, "blocking-job")
+        app = Application(jobs={"blocking": {"steps": [{"backend": "blocking-job"}]}})
+
+    await app.start()
+    task = asyncio.create_task(app.run_job("blocking"))
+    async with asyncio.timeout(1):
+        await started.wait()
+    await app.close()
+
+    assert task.cancelled()
+    assert cancelled.is_set()
+
+
+async def test_cron_job_recovers_from_failure_and_stops_on_close():
     attempts = 0
     recovered = asyncio.Event()
 
@@ -160,13 +189,18 @@ async def test_interval_job_recovers_from_failure_and_stops_on_close():
                 raise RuntimeError("first run fails")
             recovered.set()
 
+    class FastCronJob(CronJob):
+        def _next_delay(self):
+            return 0.01
+
     with R.preserve(allow_mutation=True):
         R.register(FlakyStep, "flaky-background")
+        R.register(FastCronJob, "fast-cron")
         app = Application(
             jobs={
                 "ticker": {
-                    "backend": "interval",
-                    "interval": 0.01,
+                    "backend": "fast-cron",
+                    "cron": "* * * * *",
                     "steps": [{"backend": "flaky-background"}],
                 },
             },
@@ -184,7 +218,7 @@ async def test_interval_job_recovers_from_failure_and_stops_on_close():
     assert attempts == attempts_after_close
 
 
-async def test_interval_job_cancels_an_active_invocation_on_close():
+async def test_cron_job_cancels_an_active_invocation_on_close():
     started = asyncio.Event()
     cancelled = asyncio.Event()
 
@@ -196,13 +230,18 @@ async def test_interval_job_cancels_an_active_invocation_on_close():
             finally:
                 cancelled.set()
 
+    class ImmediateCronJob(CronJob):
+        def _next_delay(self):
+            return 0.0
+
     with R.preserve(allow_mutation=True):
         R.register(BlockingStep, "blocking-background")
+        R.register(ImmediateCronJob, "immediate-cron")
         app = Application(
             jobs={
                 "ticker": {
-                    "backend": "interval",
-                    "interval": 1,
+                    "backend": "immediate-cron",
+                    "cron": "* * * * *",
                     "steps": [{"backend": "blocking-background"}],
                 },
             },
@@ -214,13 +253,6 @@ async def test_interval_job_cancels_an_active_invocation_on_close():
     await app.close()
     assert cancelled.is_set()
 
-
-@pytest.mark.parametrize("interval", [True, 0, -1, float("inf"), "1"])
-def test_interval_job_rejects_invalid_delays(interval):
-    with pytest.raises(ValueError, match="positive finite number"):
-        Application(jobs={"ticker": {"backend": "interval", "interval": interval}})
-
-
 def test_cron_job_validates_schedule_and_timezone():
     app = Application(
         timezone="UTC",
@@ -228,7 +260,7 @@ def test_cron_job_validates_schedule_and_timezone():
     )
     job = app.context.jobs["scheduled"]
     assert isinstance(job, CronJob)
-    assert 0 < job._next_delay(True) <= 300
+    assert 0 < job._next_delay() <= 300
 
     with pytest.raises(ValueError, match="Invalid cron expression"):
         Application(jobs={"scheduled": {"backend": "cron", "cron": "invalid"}})

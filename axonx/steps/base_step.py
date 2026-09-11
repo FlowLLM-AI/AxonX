@@ -1,7 +1,7 @@
 """An async step is instantiated separately for each job invocation."""
 
 from abc import ABC, abstractmethod
-import inspect
+
 from ..components.component_mixin import ComponentMixin
 from ..enumeration import ComponentEnum
 
@@ -20,10 +20,20 @@ class BaseStep(ComponentMixin, ABC):
         """Return the default machine component when a step needs host information."""
         return self.get_component(ComponentEnum.MACHINE)
 
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if not inspect.iscoroutinefunction(cls.execute):
-            raise TypeError("Step.execute must be async")
+    @property
+    def plugin(self):
+        """Return the default plugin component."""
+        return self.get_component(ComponentEnum.PLUGIN)
+
+    @property
+    def task_manager(self):
+        """Return the default task manager."""
+        return self.get_component(ComponentEnum.TASK_MANAGER)
+
+    @property
+    def response(self):
+        """Return the current invocation response."""
+        return self.context.response
 
     async def __call__(self, context):
         """Bind the invocation context, execute the step, and return its response."""

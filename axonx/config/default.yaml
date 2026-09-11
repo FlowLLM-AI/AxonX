@@ -8,7 +8,6 @@ components:
   task_manager:
     default:
       backend: local
-      max_concurrency: 1
   machine:
     default:
       backend: machine
@@ -44,63 +43,39 @@ jobs:
         task:
           type: string
           description: Registered task name.
-        manager:
-          type: string
-          description: Task manager name.
-        suffix:
-          type: string
-          pattern: '^[A-Za-z0-9-]{1,32}$'
       required: [ task ]
       additionalProperties: true
     steps:
       - backend: submit_task
   list:
     description: List all task IDs.
+    steps:
+      - backend: list_tasks
+  set_status:
+    description: Store a complete status reported by a task process.
     parameters:
       type: object
       properties:
-        manager: { type: string }
+        task_id: { type: string }
+        status: { type: object }
+      required: [ task_id, status ]
     steps:
-      - backend: list_tasks
+      - backend: set_task_status
   status:
     description: Get one task status.
     parameters:
       type: object
       properties:
         task_id: { type: string }
-        manager: { type: string }
       required: [ task_id ]
     steps:
       - backend: get_task_status
-  wait:
-    description: Wait for a task run to finish.
-    parameters:
-      type: object
-      properties:
-        task_id: { type: string }
-        manager: { type: string }
-        timeout: { type: number, exclusiveMinimum: 0 }
-      required: [ task_id ]
-    steps:
-      - backend: wait_task
   cancel:
     description: Cancel a queued or running task.
     parameters:
       type: object
       properties:
         task_id: { type: string }
-        manager: { type: string }
       required: [ task_id ]
     steps:
       - backend: cancel_task
-  logs:
-    description: Read output from a task run.
-    parameters:
-      type: object
-      properties:
-        task_id: { type: string }
-        manager: { type: string }
-        limit: { type: integer, minimum: 1 }
-      required: [ task_id ]
-    steps:
-      - backend: task_logs

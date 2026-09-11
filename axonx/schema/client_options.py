@@ -1,12 +1,12 @@
-"""Validated options shared by every HTTP client construction path."""
+"""Validated options shared by client construction paths."""
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, model_validator
 
 from ..constants import AXONX_DEFAULT_REQUEST_TIMEOUT
 
 
-class HttpClientOptions(BaseModel):
-    """Connection settings for an AxonX HTTP client."""
+class ClientOptions(BaseModel):
+    """Connection settings for an AxonX client."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 

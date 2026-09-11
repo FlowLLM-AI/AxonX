@@ -1,45 +1,38 @@
 """MCP client for AxonX services."""
 
 from contextlib import AsyncExitStack
+from typing import TYPE_CHECKING, Any
 
-from typing import Any
-
-from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT, AXONX_DEFAULT_SCHEME
-from ...schema import HttpClientOptions, JobInfo, Response
-from .base_client import BaseClient
+from ...schema import JobInfo, Response
 from ..component_registry import R
+from .base_client import BaseClient
+
+if TYPE_CHECKING:
+    from fastmcp import Client
 
 
 @R.register("mcp")
-class McpClient(BaseClient):
+class McpClient(BaseClient["Client"]):
     """Call AxonX jobs through the Streamable HTTP MCP endpoint."""
 
-    def __init__(self, host_ip=None, host_port=None, timeout=AXONX_DEFAULT_REQUEST_TIMEOUT, **kwargs):
-        super().__init__(**kwargs)
-        options = HttpClientOptions(host_ip=host_ip, host_port=host_port, timeout=timeout)
-        self.host_ip, self.host_port = self._resolve_address(options)
-        base_url = f"{AXONX_DEFAULT_SCHEME}://{self.host_ip}:{self.host_port}"
-        self.url = f"{base_url}/mcp"
-        self.timeout = options.timeout
-        self.client = None
-        self._exit_stack = None
+    _url_path = "/mcp"
+    _exit_stack: AsyncExitStack | None = None
 
     async def _start(self):
         from fastmcp import Client
 
-        self._exit_stack = AsyncExitStack()
-        self.client = await self._exit_stack.enter_async_context(Client(self.url, timeout=self.timeout, auth=None))
+        exit_stack = AsyncExitStack()
+        self._exit_stack = exit_stack
+        self.client = await exit_stack.enter_async_context(
+            Client(self.url, timeout=self.timeout, auth=None),
+        )
 
     async def _close(self):
-        if self.client is not None:
-            await self._exit_stack.aclose()
+        exit_stack = self._exit_stack
+        if exit_stack is not None:
+            await exit_stack.aclose()
             self.client = None
             self._exit_stack = None
-
-    def _require_client(self):
-        if self.client is None:
-            raise RuntimeError("Client is not started")
-        return self.client
 
     async def run_job(self, name: str, **kwargs: Any) -> Response:
         result = await self._require_client().call_tool(name, kwargs)
@@ -54,4 +47,5 @@ class McpClient(BaseClient):
         try:
             return await client.ping()
         except Exception:
+            # A health probe represents every transport or protocol failure as False.
             return False

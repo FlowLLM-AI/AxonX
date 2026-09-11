@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from ..enumeration import ComponentEnum, component_type_name
+from ..schema import ApplicationConfig
 from ..utils import get_logger
 
 
@@ -26,7 +27,7 @@ class ComponentMixin:
         return Path(self.app_config.workspace_dir).expanduser()
 
     @property
-    def app_config(self):
+    def app_config(self) -> ApplicationConfig:
         """Return the shared application configuration."""
         if self.app_context is None:
             raise RuntimeError("Application config requires an application context")

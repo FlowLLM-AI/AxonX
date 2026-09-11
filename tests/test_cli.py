@@ -12,11 +12,11 @@ from pydantic import ValidationError
 from axonx import cli
 from axonx.components.client import HttpClient
 from axonx.enumeration import TaskType
-from axonx.schema import Command, HttpClientOptions, Response, TaskStatus
+from axonx.schema import ClientOptions, Command, Response, TaskStatus
 from axonx.task import BaseConfig, BaseTask
 from axonx.task.common import DemoTask
-from axonx.task.status_sink import SocketStatusSink
-from axonx.utils.cli_utils import CommandParser
+from axonx.task.task_status_reporter import HttpTaskStatusReporter
+from axonx.utils.cli_utils import parse_command
 
 
 class CliConfig(BaseConfig):
@@ -59,28 +59,39 @@ def test_task_id_is_generated_internally_and_read_only():
         config.task_type = TaskType.ETL
 
 
+def test_task_status_accepts_an_optional_log_path():
+    status = TaskStatus(task_id="analysis#example", task_type=TaskType.ANALYSIS, log_path="logs/example.log")
+
+    assert status.log_path == "logs/example.log"
+    assert status.model_dump(mode="json")["log_path"] == "logs/example.log"
+
+
 def test_local_task_uses_registered_config(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "_installed_tasks", lambda: {"sample": CliTask})
+    monkeypatch.setattr("axonx.task.task_command_executor.resolve_task", lambda _name: CliTask)
 
     assert cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"]) == 0
 
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
 
 
-def test_progress_delivery_runs_on_a_dedicated_thread():
+def test_progress_delivery_runs_on_a_dedicated_thread(monkeypatch):
     caller = threading.get_ident()
     deliveries = []
 
-    class Stream:
-        def sendall(self, payload):
-            deliveries.append((threading.get_ident(), TaskStatus.model_validate_json(payload)))
+    class Client:
+        async def __aenter__(self):
+            return self
 
-        def close(self):
+        async def __aexit__(self, *_):
             pass
 
+        async def set_status(self, status):
+            deliveries.append((threading.get_ident(), status))
+
+    monkeypatch.setattr("axonx.task.task_status_reporter.HttpClient", Client)
     task = CliTask({"amount": 1})
-    with SocketStatusSink(Stream(), task.logger) as sink:
-        task.execute(emit=sink.publish)
+    with HttpTaskStatusReporter(task.logger) as reporter:
+        task.execute(emit=reporter.publish)
 
     percentages = [status.steps[0].percentage if status.steps else None for _, status in deliveries]
     assert percentages == [None, None, None, 50, 100, 100]
@@ -121,11 +132,11 @@ def test_demo_task_exercises_dynamic_steps_and_outputs():
     assert equal.execute() == {"result": 4, "branch": "equal", "operands": ["x", "y"]}
     assert [step.name for step in equal.status.steps] == ["initialize", "add_equal_operands", "finish"]
 
-    different = DemoTask({"x": 2, "y": 3, "code": 7})
+    different = DemoTask({"x": 2, "y": 3})
     different.execute()
     assert [step.name for step in different.status.steps] == ["initialize", "add_x", "add_y", "finish"]
-    assert different.status.state == "failed"
-    assert different.status.exit_code == 7
+    assert different.status.state == "succeeded"
+    assert different.status.exit_code == 0
 
 
 def test_demo_task_exercises_failure_status():
@@ -178,35 +189,52 @@ def test_submit_forwards_the_same_task_arguments(monkeypatch, capsys):
     assert status == 0
     assert calls == [
         ("client", {"host_ip": "service", "host_port": 9000, "timeout": 5}),
-        ("submit", {"task": "sample", "amount": 3, "dry_run": True}),
+        (
+            "submit",
+            {
+                "task": "sample",
+                "amount": 3,
+                "dry_run": True,
+                "_axonx_argv": ["--task", "sample", "--amount", "3", "--dry-run", "true"],
+            },
+        ),
     ]
     assert json.loads(capsys.readouterr().out)["answer"] == {"task_id": "analysis_20240601120000_abcd"}
 
 
 def test_exec_without_arguments_lists_available_tasks(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "_installed_tasks", lambda: {"sample": CliTask})
+    monkeypatch.setattr("axonx.task.task_command_executor.installed_tasks", lambda: {"sample": CliTask})
 
     assert cli.main(["exec"]) == 0
 
     assert capsys.readouterr().out == f"sample\t{__name__}.CliTask\n"
 
 
-def test_exec_does_not_discover_unconfigured_plugin(capsys):
-    assert cli.main(["exec", "--task", "sales"]) == 2
-    assert "Unknown Task" in capsys.readouterr().err
+def test_exec_discovers_installed_plugin(capsys):
+    assert cli.main(["exec"]) == 0
+    assert "sales\taxonx_polars_demo.sales.SalesTask" in capsys.readouterr().out
 
 
 def test_task_options_are_strict(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "_installed_tasks", lambda: {"sample": CliTask})
+    monkeypatch.setattr("axonx.task.task_command_executor.resolve_task", lambda _name: CliTask)
 
     assert cli.main(["exec", "--task", "sample", "--amount"]) == 2
     assert "pairs like --field value" in capsys.readouterr().err
 
 
 def test_command_options_support_nested_fields():
-    command = CommandParser(["deploy", "--service.port", "2333", "--service.public-host", "example.test"]).parse()
+    command, _ = parse_command(["deploy", "--service.port", "2333", "--service.public-host", "example.test"])
 
-    assert command.arguments == {"service": {"port": 2333, "public_host": "example.test"}}
+    assert command.arguments == {
+        "service": {"port": 2333, "public_host": "example.test"},
+        "_axonx_argv": ["--service.port", "2333", "--service.public-host", "example.test"],
+    }
+
+
+def test_passthrough_command_preserves_unparsed_arguments():
+    command, _ = parse_command(["plugin", "build", "--output", "dist"])
+
+    assert command.arguments == {"_axonx_argv": ["build", "--output", "dist"]}
 
 
 def test_nested_options_reject_scalar_conflicts(capsys):
@@ -215,23 +243,23 @@ def test_nested_options_reject_scalar_conflicts(capsys):
 
 
 def test_command_uses_validated_http_client_options():
-    command = CommandParser(
+    command, client_options = parse_command(
         ["--host-ip", "service.internal", "--host-port", "4321", "--timeout", "5", "status"]
-    ).parse()
+    )
 
     assert isinstance(command, Command)
-    assert isinstance(command.client, HttpClientOptions)
-    assert command.client.host_ip == "service.internal"
-    assert command.client.host_port == 4321
-    assert command.client.timeout == 5
+    assert isinstance(client_options, ClientOptions)
+    assert client_options.host_ip == "service.internal"
+    assert client_options.host_port == 4321
+    assert client_options.timeout == 5
 
     with pytest.raises(ValidationError):
-        HttpClientOptions(timeout=True)
+        ClientOptions(timeout=True)
     with pytest.raises(ValidationError):
         HttpClient(host_ip="service.internal")
 
 
 def test_client_option_names_are_still_valid_actions():
-    command = CommandParser(["timeout"]).parse()
+    command, _ = parse_command(["timeout"])
 
     assert command.action == "timeout"

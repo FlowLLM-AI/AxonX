@@ -19,10 +19,8 @@ class JobConfig(ComponentConfig):
     """Configure a job's schema, defaults, visibility, and ordered steps."""
 
     backend: str = Field(default="base", min_length=1)
-    description: str = ""
-    parameters: dict[str, Any] = Field(
-        default_factory=lambda: {"type": "object", "properties": {}},
-    )
+    description: str = Field(default="")
+    parameters: dict[str, Any] = Field(default_factory=lambda: {"type": "object", "properties": {}})
     enable_serve: bool = True
     steps: list[ComponentConfig] = Field(default_factory=list)
     defaults: dict[str, Any] = Field(default_factory=dict)
@@ -38,6 +36,26 @@ class JobConfig(ComponentConfig):
         return schema
 
 
+class RemoteNode(BaseModel):
+    """Address of a configured remote AxonX node."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    host_ip: str = Field(min_length=1)
+    host_port: int = Field(ge=1, le=65535)
+
+    @field_validator("host_ip")
+    @classmethod
+    def validate_host_ip(cls, value: str) -> str:
+        ip_address(value)
+        return value
+
+    @property
+    def address(self) -> str:
+        host = f"[{self.host_ip}]" if ":" in self.host_ip else self.host_ip
+        return f"{host}:{self.host_port}"
+
+
 class ApplicationConfig(BaseModel):
     """Describe one complete AxonX application instance."""
 
@@ -46,7 +64,7 @@ class ApplicationConfig(BaseModel):
     workspace_dir: str = ".axonx"
     timezone: str = "Asia/Shanghai"
     plugins: list[str] = Field(default_factory=list)
-    remote_nodes: list[str] = Field(default_factory=list)
+    remote_nodes: list[RemoteNode] = Field(default_factory=list)
     environment: dict[str, str] = Field(default_factory=dict)
     components: dict[str, dict[str, ComponentConfig]] = Field(default_factory=dict)
     jobs: dict[str, JobConfig] = Field(default_factory=dict)
@@ -58,18 +76,4 @@ class ApplicationConfig(BaseModel):
         """Plugins are configured only by non-empty local project paths."""
         if any(not isinstance(value, str) or not value.strip() for value in values):
             raise ValueError("Plugin paths must be non-empty strings")
-        return values
-
-    @field_validator("remote_nodes")
-    @classmethod
-    def validate_remote_nodes(cls, values: list[str]) -> list[str]:
-        """Require each remote AxonX address to use the IP:PORT format."""
-        for value in values:
-            try:
-                host, port = value.rsplit(":", 1)
-                ip_address(host.strip("[]"))
-                if not 1 <= int(port) <= 65535:
-                    raise ValueError
-            except (AttributeError, ValueError) as exc:
-                raise ValueError(f"Invalid remote AxonX address: {value!r}") from exc
         return values

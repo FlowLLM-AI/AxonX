@@ -9,7 +9,4 @@ class DemoStep(BaseStep):
     """Show that sequential steps share one response."""
 
     async def execute(self):
-        assert self.context is not None
-        response = self.context.response
-        response.answer = f"Demo running on AxonX {response.answer}"
-        return response
+        self.response.answer = f"Demo running on AxonX {self.response.answer}"

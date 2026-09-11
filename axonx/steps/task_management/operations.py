@@ -2,83 +2,48 @@
 
 from ..base_step import BaseStep
 from ...components import R
-from ...enumeration import ComponentEnum
-from ...utils.cli_utils import pop_required_string
-
-
-def _answer(value):
-    return value.model_dump(mode="json") if hasattr(value, "model_dump") else value
-
-
-class TaskManagementStep(BaseStep):
-    """Resolve the selected task manager."""
-
-    def manager_and_arguments(self):
-        arguments = {**self.kwargs, **self.context}
-        manager = self.get_component(
-            ComponentEnum.TASK_MANAGER,
-            arguments.pop("manager", "default"),
-        )
-        return manager, arguments
+from ...constants import CLI_RAW_ARGUMENTS
+from ...schema import TaskStatus
 
 
 @R.register("submit_task")
-class SubmitTask(TaskManagementStep):
-    """Submit a Task using all remaining fields as its config."""
+class SubmitTask(BaseStep):
+    """Submit the original CLI arguments to the default task manager."""
 
     async def execute(self):
-        manager, arguments = self.manager_and_arguments()
-        task, arguments = pop_required_string(arguments, "task")
-        suffix = arguments.pop("suffix", None)
-        task_id = await manager.submit(task, arguments, suffix=suffix)
-        self.context["task_id"] = task_id
-        self.context.response.answer = {"task_id": task_id}
+        await self.task_manager.submit(self.context[CLI_RAW_ARGUMENTS])
+        self.response.answer = None
+
+
+@R.register("set_task_status")
+class SetTaskStatus(BaseStep):
+    """Store a complete status reported by a Task process."""
+
+    async def execute(self):
+        await self.task_manager.set_status(self.context["task_id"], TaskStatus.model_validate(self.context["status"]))
+        self.response.answer = None
 
 
 @R.register("list_tasks")
-class ListTasks(TaskManagementStep):
+class ListTasks(BaseStep):
     """List all known task identifiers."""
 
     async def execute(self):
-        manager, _ = self.manager_and_arguments()
-        self.context.response.answer = await manager.list_task_ids()
+        self.response.answer = await self.task_manager.list_task_ids()
 
 
 @R.register("get_task_status")
-class GetTaskStatus(TaskManagementStep):
+class GetTaskStatus(BaseStep):
     """Return one task status."""
 
     async def execute(self):
-        manager, arguments = self.manager_and_arguments()
-        self.context.response.answer = _answer(await manager.get_status(arguments["task_id"]))
-
-
-@R.register("wait_task")
-class WaitTask(TaskManagementStep):
-    """Wait for one task to finish."""
-
-    async def execute(self):
-        manager, arguments = self.manager_and_arguments()
-        result = await manager.wait(arguments["task_id"], arguments.get("timeout"))
-        self.context.response.answer = _answer(result)
+        status = await self.task_manager.get_status(self.context["task_id"])
+        self.response.answer = status.model_dump(mode="json")
 
 
 @R.register("cancel_task")
-class CancelTask(TaskManagementStep):
+class CancelTask(BaseStep):
     """Cancel one queued or running task."""
 
     async def execute(self):
-        manager, arguments = self.manager_and_arguments()
-        self.context.response.answer = _answer(await manager.cancel(arguments["task_id"]))
-
-
-@R.register("task_logs")
-class TaskLogs(TaskManagementStep):
-    """Read the trailing task log bytes."""
-
-    async def execute(self):
-        manager, arguments = self.manager_and_arguments()
-        self.context.response.answer = await manager.logs(
-            arguments["task_id"],
-            arguments.get("limit", 65536),
-        )
+        self.response.answer = await self.task_manager.cancel(self.context["task_id"])

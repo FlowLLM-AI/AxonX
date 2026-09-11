@@ -3,22 +3,55 @@
 import json
 import os
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Generic, TypeVar
 
-from ...constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
+from ...constants import (
+    AXONX_DEFAULT_HOST,
+    AXONX_DEFAULT_PORT,
+    AXONX_DEFAULT_REQUEST_TIMEOUT,
+    AXONX_DEFAULT_SCHEME,
+    AXONX_SERVICE_INFO,
+)
 from ...enumeration import ComponentEnum
-from ...schema import HttpClientOptions, JobInfo, Response
+from ...schema import ClientOptions, JobInfo, Response
 from ..base_component import BaseComponent
 
+ClientT = TypeVar("ClientT")
 
-class BaseClient(BaseComponent, ABC):
+
+class BaseClient(BaseComponent, ABC, Generic[ClientT]):
     """Define discovery and job operations required from remote clients."""
 
     component_type = ComponentEnum.CLIENT
+    _url_path = ""
 
-    def _resolve_address(self, options: HttpClientOptions) -> tuple[str, int]:
+    def __init__(
+        self,
+        host_ip: str | None = None,
+        host_port: int | None = None,
+        timeout: float = AXONX_DEFAULT_REQUEST_TIMEOUT,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        options = ClientOptions(host_ip=host_ip, host_port=host_port, timeout=timeout)
+        self.host_ip, self.host_port = self._resolve_address(options)
+        self.url = f"{AXONX_DEFAULT_SCHEME}://{self.host_ip}:{self.host_port}{self._url_path}"
+        self.timeout = options.timeout
+        self.client: ClientT | None = None
+
+    def _require_client(self) -> ClientT:
+        """Return the active transport client or fail with a clear lifecycle error."""
+        if self.client is None:
+            raise RuntimeError("Client is not started")
+        return self.client
+
+    def _resolve_address(self, options: ClientOptions) -> tuple[str, int]:
         address = options.host_ip, options.host_port
-        if options.host_ip is None or options.host_port is None or address == (AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT):
+        if (
+            options.host_ip is None
+            or options.host_port is None
+            or address == (AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT)
+        ):
             return self._discover_address()
         return options.host_ip, options.host_port
 
@@ -34,11 +67,9 @@ class BaseClient(BaseComponent, ABC):
             if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
                 raise ValueError("port is invalid")
             return host, port
-
         except (KeyError, TypeError, ValueError):
             self.logger.warning(f"Invalid {AXONX_SERVICE_INFO} value: {service_info}")
             return AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT
-
 
     @abstractmethod
     async def run_job(self, name: str, **kwargs: Any) -> Response:

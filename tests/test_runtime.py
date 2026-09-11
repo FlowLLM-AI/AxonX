@@ -5,16 +5,18 @@
 # pylint: disable=missing-function-docstring,protected-access,unused-variable,wrong-import-order
 
 import asyncio
+import json
 import os
 from pathlib import Path
+import signal
 import pytest
-from axonx import Application, BaseComponent, BaseStep
+from axonx import Application, BaseComponent
 from axonx.config import resolve_app_config
 from axonx.components import R
 from axonx.constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
 from axonx.plugin.manifest import parse_plugin_manifest
-from axonx.enumeration import TaskState
-from axonx.schema import PluginManifest
+from axonx.enumeration import TaskState, TaskType
+from axonx.schema import PluginManifest, TaskStatus
 from task_fixtures import ProbeTask
 
 
@@ -38,106 +40,47 @@ async def started(manager, task_id):
             await asyncio.sleep(0.02)
 
 
+async def finished(manager, task_id):
+    async with asyncio.timeout(10):
+        while not (record := await manager.get_status(task_id)).state.is_terminal:
+            await asyncio.sleep(0.02)
+        return record
+
+
 def assert_dead(pid):
     if pid:
         with pytest.raises(ProcessLookupError):
             os.kill(pid, 0)
 
 
-async def test_polars_submission_via_async_job(tmp_path):
+async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp_path):
+    calls = []
+
+    class Process:
+        pid = 12345
+        returncode = 0
+
+        async def wait(self):
+            return self.returncode
+
+    async def create_subprocess_exec(*command, **options):
+        calls.append((command, options))
+        return Process()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
+    monkeypatch.setattr(os, "killpg", lambda *_args: pytest.fail("manager close must not signal task processes"))
+    monkeypatch.setenv("AXONX_PARENT_ONLY", "not inherited")
+    monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host":"service.internal","port":4321}')
+    argv = ["--task", "sales", "--output", "result file.parquet"]
     async with application(tmp_path) as app:
-        response = await app.run_job("submit", task="sales", output=str(tmp_path / "sales.parquet"))
-        assert response.success, response.answer
-        task_id = response.answer["task_id"]
-        assert task_id.startswith("etl#")
-        response = await app.run_job("wait", task_id=task_id)
-        record = response.answer
-        assert record["state"] == "succeeded", record
-        assert record["result"]["revenue"] == 75
-        assert record["result"]["pid"] != os.getpid()
-        assert [step["name"] for step in record["steps"]] == ["load", "aggregate", "save"]
-        assert all(step["finished_at"] for step in record["steps"])
-        assert all(step["percentage"] == 100 for step in record["steps"])
-        assert Path(record["result"]["output"]).exists()
-        assert not hasattr(app, "submit")
+        await app.get_component("task_manager").submit(argv)
 
-
-async def test_declared_steps_failure_and_history(tmp_path):
-    async with application(tmp_path) as app:
-        manager = app.get_component("task_manager")
-        ok = await manager.submit("probe")
-        record = await manager.wait(ok)
-        assert record.result["value"] == 2
-        assert [step.name for step in record.steps] == ["first", "second"]
-        assert all(step.finished_at for step in record.steps)
-        assert all(step.percentage == 100 for step in record.steps)
-        bad = await manager.submit("probe", {"fail": True})
-        record = await manager.wait(bad)
-        assert record.state == "failed"
-        assert record.steps[0].name == "first"
-        assert record.steps[0].finished_at is not None
-        assert record.steps[0].percentage == 25
-        assert "intentional failure" in record.error
-        assert "Traceback" in await manager.logs(bad)
-    task_files = list((tmp_path / "tasks" / "default").glob("**/*"))
-    assert [path.name for path in task_files if path.is_file()] == ["state.json"]
-    async with application(tmp_path) as app:
-        assert (await app.get_component("task_manager").get_status(ok)).state == "succeeded"
-
-
-async def test_worker_reports_running_task_progress(tmp_path):
-    async with application(tmp_path) as app:
-        manager = app.get_component("task_manager")
-        task_id = await manager.submit("probe", {"delay": 30})
-        await started(manager, task_id)
-        async with asyncio.timeout(10):
-            while (await manager.get_status(task_id)).steps[0].percentage != 25:
-                await asyncio.sleep(0.02)
-        await manager.cancel(task_id)
-
-
-async def test_queue_cancel_and_observer_timeout(tmp_path):
-    async with application(tmp_path) as app:
-        manager = app.get_component("task_manager")
-        active = await manager.submit("probe", {"delay": 30})
-        running = await started(manager, active)
-        queued = await manager.submit("probe", {"marker": str(tmp_path / "never")})
-        with pytest.raises(TimeoutError):
-            await manager.wait(active, timeout=0.01)
-        assert (await manager.get_status(active)).state == "running"
-        assert (await manager.cancel(queued)).state == "cancelled"
-        assert not (tmp_path / "never").exists()
-        assert (await manager.cancel(active)).state == "cancelled"
-        assert_dead(running.pid)
-
-
-async def test_cancel_and_shutdown(tmp_path):
-    app = application(tmp_path)
-    await app.start()
-    manager = app.get_component("task_manager")
-    first = await manager.submit("probe", {"delay": 30})
-    record = await started(manager, first)
-    killed = await manager.cancel(first)
-    assert killed.state == "cancelled"
-    assert_dead(record.pid)
-    second = await manager.submit("probe", {"delay": 30})
-    record = await started(manager, second)
-    await app.close()
-    assert_dead(record.pid)
-    assert (await manager.get_status(second)).state == "cancelled"
-    with pytest.raises(RuntimeError):
-        await manager.submit("probe")
-
-
-async def test_task_id_suffix_and_list(tmp_path):
-    async with application(tmp_path) as app:
-        manager = app.get_component("task_manager")
-        task_id = await manager.submit("probe", suffix="manual-1")
-        assert task_id.endswith("#manual-1")
-        assert await manager.list_task_ids() == [task_id]
-        await manager.wait(task_id)
-        with pytest.raises(ValueError, match="suffix"):
-            await manager.submit("probe", suffix="bad_suffix")
+    command, options = calls[0]
+    assert command[1:] == ("-m", "axonx.cli", "exec", *argv)
+    assert options["start_new_session"] is True
+    assert "AXONX_PARENT_ONLY" not in options["env"]
+    assert options["env"][AXONX_SERVICE_INFO] == '{"host":"service.internal","port":4321}'
+    assert options["env"]["PYTHONPATH"] == str(Path(__file__).parent)
 
 
 async def test_lifecycle_rollback(tmp_path):
@@ -168,13 +111,7 @@ async def test_lifecycle_rollback(tmp_path):
     assert not app.is_started
 
 
-def test_async_step_rejects_sync_and_task_no_components():
-    with pytest.raises(TypeError):
-
-        class Invalid(BaseStep):
-            def execute(self):
-                pass
-
+def test_task_has_no_components():
     assert not hasattr(ProbeTask({}), "app_context")
 
 
@@ -201,15 +138,26 @@ def test_plugin_manifest_defaults_and_normalizes_task_strings():
 
 
 def test_http_client_discovers_service_from_environment(monkeypatch, capsys):
-    from axonx.components.client import HttpClient
+    from axonx.components.client import HttpClient, McpClient
 
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host": "service.internal", "port": 4321}')
     assert HttpClient().url == "http://service.internal:4321"
+    assert McpClient().url == "http://service.internal:4321/mcp"
     assert HttpClient(host_ip="explicit.example", host_port=8443).url == "http://explicit.example:8443"
 
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host": "missing-port"}')
     assert HttpClient().url == f"http://{AXONX_DEFAULT_HOST}:{AXONX_DEFAULT_PORT}"
     assert f"Invalid {AXONX_SERVICE_INFO} value" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("client_name", ["HttpClient", "McpClient"])
+async def test_remote_clients_require_start(client_name):
+    from axonx.components import client as client_module
+
+    client = getattr(client_module, client_name)(host_ip="service.example", host_port=443)
+
+    with pytest.raises(RuntimeError, match="Client is not started"):
+        await client.list_jobs()
 
 
 async def test_http_service_publishes_service_info(monkeypatch):
@@ -243,7 +191,7 @@ async def test_http_and_mcp_expose_the_same_jobs():
                 "parameters": {"type": "object", "properties": {"value": {"type": "string"}}},
             },
             "hidden": {"enable_serve": False},
-            "scheduled": {"backend": "interval", "interval": 60},
+            "scheduled": {"backend": "cron", "cron": "0 * * * *"},
         }
     )
     service = HttpService()
@@ -331,36 +279,69 @@ async def test_concurrent_job_contexts(tmp_path):
         assert len({id(r) for r in results}) == 5
 
 
-async def test_submit_invalid_and_status_snapshot(tmp_path):
+async def test_submit_validation_and_status_snapshot(tmp_path):
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
-        with pytest.raises(ValueError):
-            await manager.submit("missing")
-        with pytest.raises(ValueError):
-            await manager.submit("probe", {"unknown": 1})
-        task_id = await manager.submit("probe")
-        record = await manager.wait(task_id)
+        status = TaskStatus(
+            task_id="analysis#snapshot",
+            task_type=TaskType.ANALYSIS,
+            state=TaskState.SUCCEEDED,
+            result={"value": 2},
+        )
+        await manager.set_status(status.task_id, status)
+        record = await manager.get_status(status.task_id)
         record.result["value"] = -1
-        assert (await manager.get_status(task_id)).result["value"] == 2
-        with pytest.raises(KeyError):
-            await manager.logs("../../outside")
+        assert (await manager.get_status(status.task_id)).result["value"] == 2
 
 
-async def test_fifo_and_distinct_processes(tmp_path):
+async def test_cancel_returns_whether_signal_was_sent(monkeypatch, tmp_path):
+    signals = []
+    pid = 12345
+
+    monkeypatch.setattr(os, "killpg", lambda pid, sig: signals.append((pid, sig)))
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
-        ids = [await manager.submit("probe", {"delay": 0.05}) for _ in range(3)]
-        records = await asyncio.gather(*(manager.wait(key) for key in ids))
-        assert len({r.pid for r in records}) == 3
-        assert all(a.finished_at <= b.started_at for a, b in zip(records, records[1:]))
+        status = TaskStatus(
+            task_id="analysis#cancel",
+            task_type=TaskType.ANALYSIS,
+            state=TaskState.RUNNING,
+            pid=pid,
+        )
+        await manager.set_status(status.task_id, status)
+
+        assert await manager.cancel(status.task_id) is True
+        record = await manager.get_status(status.task_id)
+        assert record.state == TaskState.CANCELLED
+        assert record.exit_code == 130
+        assert record.finished_at is not None
+
+    assert signals == [(pid, signal.SIGKILL)]
+
+
+async def test_cancel_returns_false_without_a_live_managed_process(tmp_path):
+    def missing_process(_pid, _sig):
+        raise ProcessLookupError
+
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        status = TaskStatus(
+            task_id="analysis#not-running",
+            task_type=TaskType.ANALYSIS,
+            state=TaskState.RUNNING,
+            pid=12345,
+        )
+        await manager.set_status(status.task_id, status)
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.setattr(os, "killpg", missing_process)
+            assert await manager.cancel(status.task_id) is False
+
+        assert (await manager.get_status(status.task_id)).state == TaskState.RUNNING
 
 
 async def test_unfinished_history_is_loaded_without_rewriting(tmp_path):
-    import json
-
-    directory = tmp_path / "tasks" / "default"
+    directory = tmp_path / "task_manager"
     directory.mkdir(parents=True)
-    (directory / "state.json").write_text(
+    (directory / "status.json").write_text(
         json.dumps(
             {
                 "version": 1,
@@ -379,7 +360,34 @@ async def test_unfinished_history_is_loaded_without_rewriting(tmp_path):
     async with application(tmp_path) as app:
         record = await app.get_component("task_manager").get_status("old")
         assert record.state == "running"
-        assert record.pid == os.getpid()  # recovered PIDs are never signalled
+        assert record.pid == os.getpid()
+
+
+async def test_task_manager_ignores_status_from_another_version(tmp_path):
+    directory = tmp_path / "task_manager"
+    directory.mkdir(parents=True)
+    status_path = directory / "status.json"
+    status_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "tasks": {
+                    "old": {
+                        "task_id": "old",
+                        "task_type": "analysis",
+                        "state": "succeeded",
+                    }
+                },
+            }
+        )
+    )
+
+    async with application(tmp_path, version=2) as app:
+        manager = app.get_component("task_manager")
+        assert manager.task_manager_dir == directory
+        assert await manager.list_task_ids() == []
+
+    assert json.loads(status_path.read_text())["version"] == 1
 
 
 async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):

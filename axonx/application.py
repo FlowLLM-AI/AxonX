@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 import heapq
-from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from .components import BaseComponent, R
 from .context import ApplicationContext
-from .components.job import BaseJob
-from .schema import ApplicationConfig, ComponentConfig
+from .components.job import BaseJob, CronJob
+from .schema import ComponentConfig
 
 ComponentT = TypeVar("ComponentT", bound=BaseComponent)
 
@@ -26,22 +24,15 @@ class Application(BaseComponent):
         super().__init__(app_context=self.context)
 
         self._started_components: list[BaseComponent] = []
-        self._active_job_tasks: set[asyncio.Task[Any]] = set()
-        self._accepting = False
 
-        for category, group in self.config.components.items():
+        for category, group in self.app_config.components.items():
             self.context.components[category] = {
                 name: self._instantiate(category, name, spec, BaseComponent) for name, spec in group.items()
             }
         self.context.jobs = {
-            name: self._instantiate("job", name, spec, BaseJob) for name, spec in self.config.jobs.items()
+            name: self._instantiate("job", name, spec, BaseJob) for name, spec in self.app_config.jobs.items()
         }
         registry.freeze()
-
-    @property
-    def config(self) -> ApplicationConfig:
-        """Return the validated application configuration."""
-        return self.context.app_config
 
     def _instantiate(
         self,
@@ -51,25 +42,16 @@ class Application(BaseComponent):
         expected_base: type[ComponentT],
     ) -> ComponentT:
         cls = self.context.registry.get(category, spec.backend)
-        if cls is None or not issubclass(cls, expected_base):
+        if not isinstance(cls, type) or not issubclass(cls, expected_base):
             raise ValueError(f"Unknown {category} backend: {spec.backend}")
+        component_cls = cast(type[ComponentT], cls)
         options = spec.model_dump(exclude={"backend"}, exclude_unset=True)
-        return cls(
+        return component_cls(
             name=name,
             backend=spec.backend,
             app_context=self.context,
             **options,
         )
-
-    def _iter_startup_components(self) -> Iterator[BaseComponent]:
-        yield from self._component_startup_order()
-
-        jobs = self.context.jobs.values()
-        yield from (job for job in jobs if not job.runs_in_background)
-
-        # Background runners may execute immediately, so start them only after
-        # every dependency and directly callable job is ready.
-        yield from (job for job in jobs if job.runs_in_background)
 
     def _component_startup_order(self) -> list[BaseComponent]:
         """Order components by declared dependencies and reject invalid graphs."""
@@ -111,23 +93,27 @@ class Application(BaseComponent):
         return ordered
 
     async def _start(self) -> None:
-        Path(self.config.workspace_dir).expanduser().mkdir(parents=True, exist_ok=True)
-        for component in self._iter_startup_components():
+        Path(self.app_config.workspace_dir).expanduser().mkdir(parents=True, exist_ok=True)
+
+        for component in self._component_startup_order():
             await component.start()
             self._started_components.append(component)
-        self._accepting = True
+
+        jobs = self.context.jobs.values()
+        for job in jobs:
+            if not isinstance(job, CronJob):
+                await job.start()
+                self._started_components.append(job)
+        for job in jobs:
+            if isinstance(job, CronJob):
+                await job.start()
+                self._started_components.append(job)
 
     async def _close(self) -> None:
-        self._accepting = False
-
-        shutdown_task = asyncio.current_task()
-        active_tasks = [task for task in self._active_job_tasks if task is not shutdown_task]
-        for task in active_tasks:
-            task.cancel()
-        await asyncio.gather(*active_tasks, return_exceptions=True)
+        self.is_started = False
 
         errors: list[Exception] = []
-        # Close in reverse startup order so dependants stop before dependencies.
+        # Jobs stop before their dependencies; cron jobs were started last.
         while self._started_components:
             try:
                 await self._started_components.pop().close()
@@ -137,26 +123,14 @@ class Application(BaseComponent):
             raise ExceptionGroup("Application cleanup failed", errors)
 
     async def run_job(self, name: str, **kwargs: Any) -> Any:
-        """Run a public job and track its calling task for application shutdown.
-
-        Closing the application cancels tasks currently awaiting this method.
-        """
-        if not self._accepting:
+        """Run a public job."""
+        if not self.is_started:
             raise RuntimeError("Application is not running")
 
         job = self.context.jobs.get(name)
         if job is None:
             raise ValueError(f"Unknown job: {name!r}")
-        if job.runs_in_background:
+        if isinstance(job, CronJob):
             raise ValueError(f"Job {name!r} is managed in the background")
         job.validate_arguments(kwargs)
-
-        task = asyncio.current_task()
-        if task is None:
-            raise RuntimeError("Job execution requires an asyncio task")
-
-        self._active_job_tasks.add(task)
-        try:
-            return await job(**kwargs)
-        finally:
-            self._active_job_tasks.discard(task)
+        return await job(**kwargs)

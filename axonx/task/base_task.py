@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 import os
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,10 +15,7 @@ from ..enumeration import ComponentEnum, TaskType
 from ..schema import TaskStatus
 from ..utils import get_logger
 
-if TYPE_CHECKING:
-    from .task_status_manager import TaskStatusManager
-
-StatusCallback = Callable[[TaskStatus], None]
+from .task_status_manager import StatusCallback, TaskStatusManager
 
 
 class BaseConfig(BaseModel):

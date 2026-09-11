@@ -74,13 +74,13 @@ class HttpService(BaseComponent):
                     else:
                         os.environ[AXONX_SERVICE_INFO] = previous_service_info
 
-        self.mcp_server = FastMCP(name=app.config.app_name)
+        self.mcp_server = FastMCP(name=app.app_config.app_name)
         for job in public_jobs.values():
             self._add_mcp_job(app, job)
         mcp_app = self.mcp_server.http_app(path="/mcp", transport="streamable-http")
 
         server = FastAPI(
-            title=app.config.app_name,
+            title=app.app_config.app_name,
             lifespan=combine_lifespans(lifespan, mcp_app.lifespan),
         )
         server.router.routes.append(
