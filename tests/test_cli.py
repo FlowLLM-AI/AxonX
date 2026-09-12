@@ -39,6 +39,11 @@ class CliTask(BaseTask):
         self.context.update(amount=self.config.amount, dry_run=self.config.dry_run)
 
 
+@pytest.fixture(autouse=True)
+def isolate_dotenv_loading(monkeypatch):
+    monkeypatch.setattr(cli, "load_env", lambda **_kwargs: {})
+
+
 def test_tushare_config_accepts_compact_dates_converted_by_cli():
     command, _ = parse_command(
         ["exec", "--task", "download_tushar_task", "--start-date", "20100101", "--end-date", "20260912"],
@@ -102,6 +107,16 @@ def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path
 
     assert cli.main(["exec", "--task", "sample"]) == 0
     assert json.loads(capsys.readouterr().out) == {"workspace_dir": str(tmp_path.resolve())}
+
+
+def test_exec_loads_dotenv_without_overriding_injected_environment(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(cli, "load_env", lambda **kwargs: calls.append(kwargs) or {})
+    monkeypatch.setattr("axonx.task.task_command_executor.installed_tasks", lambda: {})
+
+    assert cli.main(["exec"]) == 0
+    assert calls == [{"override": False}]
+    assert capsys.readouterr().out == ""
 
 
 def test_progress_delivery_runs_on_a_dedicated_thread(monkeypatch):
@@ -243,12 +258,19 @@ def test_start_prints_logo_before_running_service(monkeypatch):
             events.append("serve")
 
     service = Service()
-    monkeypatch.setattr(cli, "resolve_app_config", lambda **_kwargs: {})
-    monkeypatch.setattr(cli, "Application", lambda **_config: app)
+    configs = []
+    monkeypatch.setattr(cli, "load_env", lambda: {"FROM_DOTENV": "dotenv", "PRECEDENCE": "dotenv"})
+    monkeypatch.setattr(
+        cli,
+        "resolve_app_config",
+        lambda **_kwargs: {"environment": {"PRECEDENCE": "config"}},
+    )
+    monkeypatch.setattr(cli, "Application", lambda **config: configs.append(config) or app)
     monkeypatch.setattr(cli, "HttpService", lambda **_config: service)
     monkeypatch.setattr(cli, "print_logo", lambda config, runtime: events.append((config, runtime)))
 
     assert cli.main(["start"]) == 0
+    assert configs == [{"environment": {"FROM_DOTENV": "dotenv", "PRECEDENCE": "config"}}]
     assert events == [(app.app_config, service), "serve"]
 
 

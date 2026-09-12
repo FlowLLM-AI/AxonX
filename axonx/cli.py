@@ -14,7 +14,7 @@ from .config import resolve_app_config
 from .constants import AXONX_TASK_WORKSPACE_DIR, CLI_LOCAL_COMMANDS, CLI_RAW_ARGUMENTS, CLI_USAGE
 from .schema import ApplicationConfig, ClientOptions, Command
 from .task import TaskCatalog, TaskCommandExecutor
-from .utils import print_logo
+from .utils import load_env, print_logo
 from .utils.cli_utils import (
     parse_command,
     print_json,
@@ -22,8 +22,11 @@ from .utils.cli_utils import (
 
 
 def _run_server(command: Command) -> int:
+    environment = load_env()
     arguments = {key: value for key, value in command.arguments.items() if key != CLI_RAW_ARGUMENTS}
-    app = Application(**resolve_app_config(**arguments))
+    config = resolve_app_config(**arguments)
+    config["environment"] = {**environment, **config.get("environment", {})}
+    app = Application(**config)
     spec = app.app_config.service
     if spec and spec.backend != "http":
         raise ValueError("Only the http service is supported")
@@ -45,6 +48,7 @@ def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
 
 
 def _run_exec(command: Command) -> int:
+    load_env(override=False)
     workspace_dir = os.environ.get(AXONX_TASK_WORKSPACE_DIR)
     if workspace_dir is None:
         app_config = ApplicationConfig.model_validate(resolve_app_config(log_config=False))
