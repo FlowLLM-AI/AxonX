@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Any, Callable
 
 from ..enumeration import TaskState
-from ..schema import TaskStatus, TaskStep
+from ..schema import TaskStatus, TaskStepStatus
 
 StatusCallback = Callable[[TaskStatus], None]
 
@@ -17,7 +17,7 @@ class TaskStatusManager:
     def __init__(self, status: TaskStatus, emit: StatusCallback | None = None) -> None:
         self.status = status
         self._emit = emit or (lambda _status: None)
-        self._active_step: TaskStep | None = None
+        self._active_step: TaskStepStatus | None = None
 
     def snapshot(self) -> TaskStatus:
         """Return an immutable-by-convention snapshot for observers."""
@@ -35,8 +35,9 @@ class TaskStatusManager:
 
     def begin_step(self, name: str) -> None:
         """Append and activate the next Task step."""
-        self._active_step = TaskStep(name=name, started_at=datetime.now(UTC))
-        self.status.steps.append(self._active_step)
+        step = TaskStepStatus(name=name, started_at=datetime.now(UTC))
+        self._active_step = step
+        self.status.steps.append(step)
         self.report()
 
     def finish_step(self, completed: bool) -> None:
@@ -67,7 +68,7 @@ class TaskStatusManager:
         """Store a failed terminal state."""
         self._finish(TaskState.FAILED, 1, error=f"{type(exc).__name__}: {exc}")
 
-    def _step(self) -> TaskStep:
+    def _step(self) -> TaskStepStatus:
         if self._active_step is None:
             raise RuntimeError("Progress can only be reported while a task step is running")
         return self._active_step

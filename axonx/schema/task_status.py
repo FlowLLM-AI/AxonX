@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from ..enumeration import TaskState, TaskType
 
 
-class TaskStep(BaseModel):
+class TaskStepStatus(BaseModel):
     """Describe one task step and its reported progress."""
 
     name: str = Field(min_length=1)
@@ -26,7 +26,7 @@ class TaskStatus(BaseModel):
     pid: int | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
-    steps: list[TaskStep] = Field(default_factory=list)
+    steps: list[TaskStepStatus] = Field(default_factory=list)
     result: dict[str, Any] = Field(default_factory=dict)
     error: str = Field(default="", min_length=0)
     exit_code: int = Field(default=0, ge=0, le=255)

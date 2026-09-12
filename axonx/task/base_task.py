@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 import os
-from typing import Any
+from typing import Any, TypeAlias
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,6 +16,8 @@ from ..schema import TaskStatus
 from ..utils import get_logger
 
 from .task_status_manager import StatusCallback, TaskStatusManager
+
+TaskStep: TypeAlias = Callable[[], None]
 
 
 class BaseConfig(BaseModel):
@@ -72,7 +74,7 @@ class BaseTask(ABC):
         return self._status
 
     @abstractmethod
-    def build_task_steps(self) -> Iterable[Callable[[], None]]:
+    def build_task_steps(self) -> Iterable[TaskStep]:
         """Yield every synchronous callable in execution order."""
 
     @property

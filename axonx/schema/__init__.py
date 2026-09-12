@@ -6,7 +6,7 @@ from .command import Command
 from .job import JobInfo
 from .plugin import PluginManifest
 from .response import Response
-from .task_status import TaskStatus, TaskStep
+from .task_status import TaskStatus, TaskStepStatus
 
 __all__ = [
     "ApplicationConfig",
@@ -19,5 +19,5 @@ __all__ = [
     "RemoteNode",
     "Response",
     "TaskStatus",
-    "TaskStep",
+    "TaskStepStatus",
 ]
