@@ -21,11 +21,16 @@ from ...schema import TaskStatus
 class LocalTaskManager(BaseTaskManager):
     """Launch local workers, monitor their exits, and store reported status."""
 
-    def __init__(self, version: int = 1, **kwargs):
+    def __init__(self, version: int = 1, terminate_grace_seconds: float = 5, **kwargs):
         super().__init__(**kwargs)
+        if terminate_grace_seconds < 0:
+            raise ValueError("terminate_grace_seconds must not be negative")
         self.version = version
+        self.terminate_grace_seconds = terminate_grace_seconds
         self._statuses: dict[str, TaskStatus] = {}
+        self._processes: dict[int, asyncio.subprocess.Process] = {}
         self._process_monitors: set[asyncio.Task[None]] = set()
+        self._shutdown_processes: set[int] = set()
 
     @property
     def task_manager_dir(self) -> Path:
@@ -45,7 +50,10 @@ class LocalTaskManager(BaseTaskManager):
             "tasks": [status.model_dump(mode="json") for status in self._statuses.values()],
         }
         temporary = self.status_path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False),
+            encoding="utf-8",
+        )
         temporary.replace(self.status_path)
 
     async def _start(self):
@@ -65,7 +73,44 @@ class LocalTaskManager(BaseTaskManager):
                 )
 
     async def _close(self):
-        self._save_status()
+        try:
+            await self._terminate_processes()
+        finally:
+            self._save_status()
+
+    async def _terminate_processes(self) -> None:
+        """Terminate and reap every worker process launched by this manager."""
+        processes = tuple(process for process in self._processes.values() if process.returncode is None)
+        if not processes:
+            return
+
+        self._shutdown_processes.update(process.pid for process in processes)
+        terminated = {process.pid for process in processes if self._signal(process.pid, signal.SIGTERM)}
+        monitors = tuple(self._process_monitors)
+        if monitors and self.terminate_grace_seconds > 0:
+            await asyncio.wait(monitors, timeout=self.terminate_grace_seconds)
+
+        survivors = tuple(process for process in processes if process.returncode is None)
+        for process in survivors:
+            if self._signal(process.pid, signal.SIGKILL):
+                terminated.add(process.pid)
+
+        if monitors:
+            _, pending = await asyncio.wait(
+                monitors,
+                timeout=max(1, self.terminate_grace_seconds),
+            )
+            for monitor in pending:
+                monitor.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+
+        now = datetime.now(UTC)
+        for status in self._statuses.values():
+            if status.pid in terminated and not status.state.is_terminal:
+                status.state = TaskState.CANCELLED
+                status.finished_at = now
+                status.exit_code = 130
 
     async def submit(self, argv: Sequence[str]) -> None:
         if not self.is_started:
@@ -86,6 +131,7 @@ class LocalTaskManager(BaseTaskManager):
             stderr=asyncio.subprocess.PIPE,
             start_new_session=True,
         )
+        self._processes[process.pid] = process
         monitor = asyncio.create_task(
             self._monitor_process(process, self._task_name(argv)),
             name=f"axonx-task-monitor-{process.pid}",
@@ -111,15 +157,23 @@ class LocalTaskManager(BaseTaskManager):
         except Exception:  # noqa
             self.logger.exception(f"Failed to monitor task process {process.pid} ({task_name})")
             return
+        finally:
+            if process.returncode is not None:
+                self._processes.pop(process.pid, None)
+            stopped_during_shutdown = process.pid in self._shutdown_processes
+            self._shutdown_processes.discard(process.pid)
 
         if return_code == 0:
             self.logger.info(f"Task process {process.pid} ({task_name}) completed successfully")
             return
 
+        if stopped_during_shutdown:
+            self.logger.info(f"Task process {process.pid} ({task_name}) stopped during task-manager shutdown")
+            return
+
         detail = stderr_tail.decode(errors="replace").strip() or "no stderr output"
         self.logger.error(
-            f"Task process {process.pid} ({task_name}) exited with code {return_code}. "
-            f"stderr tail:\n{detail}",
+            f"Task process {process.pid} ({task_name}) exited with code {return_code}. " f"stderr tail:\n{detail}",
         )
 
     @staticmethod

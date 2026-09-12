@@ -29,6 +29,8 @@ AXONX_DEFAULT_SCHEME = "http"
 
 AXONX_DEFAULT_REQUEST_TIMEOUT = 60.0
 
+LOG_ARGUMENT_MAX_LENGTH = 1000
+
 # Public command-line interface. Keeping command metadata here gives parsing
 # and dispatch one shared vocabulary.
 CLI_CLIENT_OPTIONS = frozenset({"host_ip", "host_port", "timeout"})

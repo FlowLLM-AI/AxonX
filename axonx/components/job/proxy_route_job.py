@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from typing import Any
 
@@ -11,6 +12,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from ...enumeration import JobMode
+from ...utils import format_log_arguments
 from ..component_registry import R
 from ..proxy import BaseProxyComponent
 from .base_job import BaseJob
@@ -38,9 +40,7 @@ class ProxyRouteJob(BaseJob):
         if not prefix.startswith("/") or prefix == "":
             raise ValueError("Proxy path_prefix must start with '/'")
         normalized_methods = tuple(dict.fromkeys(method.upper() for method in methods))
-        if not normalized_methods or any(
-            not method.isalpha() for method in normalized_methods
-        ):
+        if not normalized_methods or any(not method.isalpha() for method in normalized_methods):
             raise ValueError("Proxy methods must contain valid HTTP method names")
         if max_request_bytes <= 0:
             raise ValueError("Proxy max_request_bytes must be greater than 0")
@@ -63,6 +63,19 @@ class ProxyRouteJob(BaseJob):
             body = await request.body()
             if len(body) > self.max_request_bytes:
                 raise HTTPException(413, "Proxy request is too large")
+            try:
+                logged_body = json.loads(body)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                logged_body = body
+            arguments = format_log_arguments(
+                {
+                    "method": request.method,
+                    "path": proxy_path,
+                    "query": dict(request.query_params),
+                    "body": logged_body,
+                },
+            )
+            self.logger.info(f"Plugin endpoint called: name={self.name} arguments={arguments}")
             try:
                 result = await self.proxy.forward(
                     request.method,

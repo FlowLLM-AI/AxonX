@@ -15,8 +15,9 @@ from axonx.components.client import HttpClient
 from axonx.enumeration import TaskType
 from axonx.schema import ClientOptions, Command, Response, TaskStatus
 from axonx.task import BaseConfig, BaseTask
+from axonx.task.backtest import RankingBacktestTask
 from axonx.task.common import DemoTask
-from axonx.task.data import TushareDownloadConfig
+from axonx.task.data import DownloadTusharTask, TushareDownloadConfig
 from axonx.task.task_status_reporter import HttpTaskStatusReporter
 from axonx.utils.cli_utils import parse_command
 
@@ -55,6 +56,30 @@ def test_tushare_config_accepts_compact_dates_converted_by_cli():
 
     assert config.start_date == "20100101"
     assert config.end_date == "20260912"
+
+
+def test_tushare_download_directory_is_inside_workspace(tmp_path):
+    task = DownloadTusharTask(
+        {"start_date": "20260912", "end_date": "20260912"},
+        workspace_path=tmp_path,
+    )
+
+    task.initialize()
+
+    assert task.context["root"] == tmp_path / "tushare"
+
+
+def test_backtest_relative_paths_are_resolved_from_workspace(tmp_path):
+    task = RankingBacktestTask(
+        {"input_file": "predictions/input.parquet", "output_dir": "backtests/example"},
+        workspace_path=tmp_path,
+    )
+
+    task.resolve_paths()
+
+    assert task.context["input_file"] == tmp_path / "predictions/input.parquet"
+    assert task.context["output_dir"] == tmp_path / "backtests/example"
+    assert task.context["daily_path"] == tmp_path / "backtests/example/daily.parquet"
 
 
 def test_task_id_is_generated_internally_and_read_only():
@@ -97,7 +122,7 @@ def test_local_task_uses_registered_config(monkeypatch, capsys):
 def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path):
     class WorkspaceTask(BaseTask):
         task_type = TaskType.ANALYSIS
-        output_keys = ("workspace_dir",)
+        output_keys = ("workspace_path",)
 
         def build_task_steps(self):
             return ()
@@ -106,7 +131,7 @@ def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path
     monkeypatch.setattr(cli, "resolve_app_config", lambda **_kwargs: {"workspace_dir": str(tmp_path)})
 
     assert cli.main(["exec", "--task", "sample"]) == 0
-    assert json.loads(capsys.readouterr().out) == {"workspace_dir": str(tmp_path.resolve())}
+    assert json.loads(capsys.readouterr().out) == {"workspace_path": str(tmp_path.resolve())}
 
 
 def test_exec_loads_dotenv_without_overriding_injected_environment(monkeypatch, capsys):
@@ -134,7 +159,7 @@ def test_progress_delivery_runs_on_a_dedicated_thread(monkeypatch):
             deliveries.append((threading.get_ident(), status))
 
     monkeypatch.setattr("axonx.task.task_status_reporter.HttpClient", Client)
-    task = CliTask({"amount": 1})
+    task = CliTask({"amount": 1}, workspace_path=".")
     with HttpTaskStatusReporter(task.logger) as reporter:
         task.execute(emit=reporter.publish)
 
@@ -154,7 +179,7 @@ def test_task_rejects_async_steps():
         def build_task_steps(self):
             yield self.async_step
 
-    task = AsyncTask({"amount": 1})
+    task = AsyncTask({"amount": 1}, workspace_path=".")
     with pytest.raises(TypeError, match="must be synchronous"):
         task.execute()
     assert task.status.state == "failed"
@@ -169,15 +194,15 @@ def test_task_steps_stay_on_the_calling_thread():
         def record_config(self):
             self.context["thread_id"] = threading.get_ident()
 
-    assert ThreadTask({"amount": 1}).execute() == {"thread_id": caller}
+    assert ThreadTask({"amount": 1}, workspace_path=".").execute() == {"thread_id": caller}
 
 
 def test_demo_task_exercises_dynamic_steps_and_outputs():
-    equal = DemoTask({"x": 2, "y": 2})
+    equal = DemoTask({"x": 2, "y": 2}, workspace_path=".")
     assert equal.execute() == {"result": 4, "branch": "equal", "operands": ["x", "y"]}
     assert [step.name for step in equal.status.steps] == ["initialize", "add_equal_operands", "finish"]
 
-    different = DemoTask({"x": 2, "y": 3})
+    different = DemoTask({"x": 2, "y": 3}, workspace_path=".")
     different.execute()
     assert [step.name for step in different.status.steps] == ["initialize", "add_x", "add_y", "finish"]
     assert different.status.state == "succeeded"
@@ -186,7 +211,7 @@ def test_demo_task_exercises_dynamic_steps_and_outputs():
 
 
 def test_demo_task_exercises_failure_status():
-    task = DemoTask({"x": 1, "y": 2, "fail": True})
+    task = DemoTask({"x": 1, "y": 2, "fail": True}, workspace_path=".")
     with pytest.raises(RuntimeError, match="Demo failure requested"):
         task.execute()
     assert task.status.state == "failed"

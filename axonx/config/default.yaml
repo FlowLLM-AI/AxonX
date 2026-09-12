@@ -8,6 +8,7 @@ components:
   task_manager:
     default:
       backend: local
+      terminate_grace_seconds: 5
   machine:
     default:
       backend: machine

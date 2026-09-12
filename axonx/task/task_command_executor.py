@@ -52,7 +52,7 @@ class TaskCommandExecutor:
             return TaskCatalog(installed_tasks())
 
         name, config = self._task_arguments(arguments)
-        task = resolve_task(name)(config, workspace_dir=self.workspace_path)
+        task = resolve_task(name)(config, workspace_path=self.workspace_path)
         with create_task_status_reporter(task.logger) as reporter:
             status = TaskRunner(reporter.publish).run(task)
         return TaskExecution(task.output, status)

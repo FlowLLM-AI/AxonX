@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 import os
+from pathlib import Path
 from typing import Any, TypeAlias
 from uuid import uuid4
 
@@ -52,11 +53,12 @@ class BaseTask(ABC):
     config_cls = BaseConfig
     output_keys: tuple[str, ...] = ()
 
-    def __init__(self, config: BaseConfig | dict, **kwargs):
+    def __init__(self, config: BaseConfig | dict, *, workspace_path: str | Path):
         if not isinstance(getattr(type(self), "task_type", None), TaskType):
             raise TypeError("Task subclasses must declare a TaskType")
         self.config = self.config_cls.model_validate(config)
-        self.context = dict(kwargs)
+        self.workspace_path = Path(workspace_path).expanduser().resolve()
+        self.context = {"workspace_path": self.workspace_path}
         self.logger = get_logger(type(self).__name__)
         self.config.generate_task_id(self.task_type)
         self._status = TaskStatus(task_id=self.task_id, task_type=self.task_type, pid=os.getpid())
@@ -72,6 +74,11 @@ class BaseTask(ABC):
     def status(self) -> TaskStatus:
         """Return this Task's latest execution status."""
         return self._status
+
+    def resolve_workspace_path(self, path: str | Path) -> Path:
+        """Resolve a relative task path from the application workspace."""
+        path = Path(path).expanduser()
+        return (path if path.is_absolute() else self.workspace_path / path).resolve()
 
     @abstractmethod
     def build_task_steps(self) -> Iterable[TaskStep]:

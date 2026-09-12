@@ -13,7 +13,7 @@ from .context import ApplicationContext
 from .components.job import BaseJob
 from .constants import REMOTE_IP_ARGUMENT
 from .schema import ComponentConfig
-from .utils import get_logger
+from .utils import format_log_arguments, get_logger
 
 ComponentT = TypeVar("ComponentT", bound=BaseComponent)
 
@@ -43,9 +43,7 @@ class Application(BaseComponent):
             name: self._instantiate("job", name, spec, BaseJob) for name, spec in self.app_config.jobs.items()
         }
         component_names = [
-            f"{category}:{name}"
-            for category, group in self.context.components.items()
-            for name in group
+            f"{category}:{name}" for category, group in self.context.components.items() for name in group
         ]
         logger.info(f"Components ({len(component_names)}): {', '.join(component_names) or '-'}")
         logger.info(f"Jobs ({len(self.context.jobs)}): {', '.join(self.context.jobs) or '-'}")
@@ -143,12 +141,11 @@ class Application(BaseComponent):
         if job is None:
             raise ValueError(f"Unknown job: {name!r}")
         if not job.is_invocable:
-            raise ValueError(
-                f"Job {name!r} does not support direct invocation "
-                f"in {job.mode.value!r} mode"
-            )
+            raise ValueError(f"Job {name!r} does not support direct invocation " f"in {job.mode.value!r} mode")
         if REMOTE_IP_ARGUMENT in kwargs and not job.is_remotely_invocable:
             raise ValueError(f"Job {name!r} does not support remote execution")
+        arguments = format_log_arguments(kwargs)
+        job.logger.info(f"Job called: name={name} arguments={arguments}")
         job.validate_arguments(kwargs)
         remote_ip = kwargs.pop(REMOTE_IP_ARGUMENT, None)
         if remote_ip is not None:

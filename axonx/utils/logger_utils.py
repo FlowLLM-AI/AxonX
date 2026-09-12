@@ -12,12 +12,20 @@ from typing import Any
 
 from loguru import logger
 
+from ..constants import LOG_ARGUMENT_MAX_LENGTH
+
 _LOG_FORMAT = "{time:YYYY-MM-DD HH:mm:ss} | {level:<8} | {extra[name]} | {file}:{line} | {function} | {message}"
 
 
 def _write_stderr(message: object) -> None:
     """Write through the current stderr stream so test capture remains effective."""
     sys.stderr.write(str(message))
+
+
+def format_log_arguments(arguments: Any) -> str:
+    """Return a bounded representation suitable for invocation logs."""
+    rendered = repr(arguments)
+    return rendered if len(rendered) <= LOG_ARGUMENT_MAX_LENGTH else f"{rendered[:LOG_ARGUMENT_MAX_LENGTH - 3]}..."
 
 
 @dataclass(frozen=True)

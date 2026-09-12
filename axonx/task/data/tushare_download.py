@@ -7,7 +7,6 @@ from calendar import monthrange
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 from functools import partial
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -87,7 +86,7 @@ class DownloadTusharTask(BaseTask):
         months = tuple(self._month_bounds(day) for day in days if day.day == 1 or day == start)
         self.context.update(
             client=TushareClient(timeout=self.config.timeout, logger=self.logger),
-            root=Path(os.getenv("AXON_DATA_ROOT") or "axon_data").expanduser() / "data/data",
+            root=self.workspace_path / "tushare",
             days=days,
             months=months,
             start_date=f"{start:%Y%m%d}",

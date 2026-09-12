@@ -50,7 +50,11 @@ async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp
         return Process()
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
-    monkeypatch.setattr(os, "killpg", lambda *_args: pytest.fail("manager close must not signal task processes"))
+    monkeypatch.setattr(
+        os,
+        "killpg",
+        lambda *_args: pytest.fail("manager close must not signal task processes"),
+    )
     monkeypatch.setenv("AXONX_PARENT_ONLY", "not inherited")
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host":"service.internal","port":4321}')
     argv = ["--task", "sales", "--output", "result file.parquet"]
@@ -99,6 +103,110 @@ async def test_task_manager_logs_worker_stderr_on_failure(monkeypatch, tmp_path,
     assert "exited with code 2" in error
 
 
+async def test_task_manager_terminates_and_reaps_workers_on_close(monkeypatch, tmp_path):
+    signals = []
+
+    class Process:
+        pid = 34567
+        returncode = None
+
+        def __init__(self):
+            self.stderr = asyncio.StreamReader()
+            self.exited = asyncio.Event()
+
+        async def wait(self):
+            await self.exited.wait()
+            return self.returncode
+
+        def finish(self, returncode):
+            self.returncode = returncode
+            self.stderr.feed_eof()
+            self.exited.set()
+
+    process = Process()
+
+    async def create_subprocess_exec(*_command, **_options):
+        return process
+
+    def killpg(pid, sig):
+        signals.append((pid, sig))
+        process.finish(-sig)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
+    monkeypatch.setattr(os, "killpg", killpg)
+    app = application(tmp_path, terminate_grace_seconds=0.1)
+    await app.start()
+    manager = app.get_component("task_manager")
+    await manager.submit(["--task", "running"])
+    await manager.set_status(
+        "analysis#running",
+        TaskStatus(
+            task_id="analysis#running",
+            task_type=TaskType.ANALYSIS,
+            state=TaskState.RUNNING,
+            pid=process.pid,
+        ),
+    )
+
+    await app.close()
+
+    assert signals == [(process.pid, signal.SIGTERM)]
+    assert process.returncode == -signal.SIGTERM
+    assert manager._processes == {}
+    assert manager._process_monitors == set()
+    status = await manager.get_status("analysis#running")
+    assert status.state == TaskState.CANCELLED
+    assert status.exit_code == 130
+
+
+async def test_task_manager_kills_worker_after_shutdown_grace_period(monkeypatch, tmp_path):
+    signals = []
+
+    class Process:
+        pid = 45678
+        returncode = None
+
+        def __init__(self):
+            self.stderr = asyncio.StreamReader()
+            self.exited = asyncio.Event()
+
+        async def wait(self):
+            await self.exited.wait()
+            return self.returncode
+
+    process = Process()
+
+    async def create_subprocess_exec(*_command, **_options):
+        return process
+
+    def killpg(pid, sig):
+        signals.append((pid, sig))
+        if sig == signal.SIGKILL:
+            process.returncode = -sig
+            process.stderr.feed_eof()
+            process.exited.set()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
+    monkeypatch.setattr(os, "killpg", killpg)
+    app = application(tmp_path, terminate_grace_seconds=0)
+    await app.start()
+    manager = app.get_component("task_manager")
+    await manager.submit(["--task", "stubborn"])
+
+    await app.close()
+
+    assert signals == [
+        (process.pid, signal.SIGTERM),
+        (process.pid, signal.SIGKILL),
+    ]
+    assert process.returncode == -signal.SIGKILL
+
+
+def test_task_manager_rejects_negative_shutdown_grace_period(tmp_path):
+    with pytest.raises(ValueError, match="terminate_grace_seconds"):
+        application(tmp_path, terminate_grace_seconds=-1)
+
+
 async def test_lifecycle_rollback(tmp_path):
     events = []
 
@@ -135,7 +243,7 @@ def test_task_has_no_components():
         def build_task_steps(self):
             return ()
 
-    assert not hasattr(ProbeTask({}), "app_context")
+    assert not hasattr(ProbeTask({}, workspace_path="."), "app_context")
 
 
 def test_plugin_manifest_tasks_only():
@@ -148,7 +256,12 @@ def test_plugin_manifest_tasks_only():
 
 @pytest.mark.parametrize(
     "text",
-    ["tasks: []\n", "tasks:\n  '': package.module:Task\n", "tasks:\n  task: ''\n", "tasks:\n  task: 1\n"],
+    [
+        "tasks: []\n",
+        "tasks:\n  '': package.module:Task\n",
+        "tasks:\n  task: ''\n",
+        "tasks:\n  task: 1\n",
+    ],
 )
 def test_plugin_manifest_rejects_invalid_schema(text):
     with pytest.raises(ValueError, match="Plugin 'test' manifest is invalid"):
@@ -197,7 +310,10 @@ async def test_http_service_publishes_service_info(monkeypatch):
 
     assert server.title == "Configured AxonX"
     async with server.router.lifespan_context(server):
-        assert json.loads(os.environ[AXONX_SERVICE_INFO]) == {"host": "127.0.0.2", "port": 4321}
+        assert json.loads(os.environ[AXONX_SERVICE_INFO]) == {
+            "host": "127.0.0.2",
+            "port": 4321,
+        }
         assert app.is_started
 
     assert os.environ[AXONX_SERVICE_INFO] == previous
@@ -233,7 +349,10 @@ async def test_http_and_mcp_expose_the_same_jobs():
         jobs={
             "visible": {
                 "description": "A visible job",
-                "parameters": {"type": "object", "properties": {"value": {"type": "string"}}},
+                "parameters": {
+                    "type": "object",
+                    "properties": {"value": {"type": "string"}},
+                },
             },
             "hidden": {"enable_serve": False},
             "scheduled": {"backend": "cron", "cron": "0 * * * *"},
@@ -479,7 +598,13 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     app = Application(
         workspace_dir=str(tmp_path / "workspace"),
         components={
-            "plugin": {"default": {"backend": "local", "allow_remote_install": True, "install_token": "secret"}},
+            "plugin": {
+                "default": {
+                    "backend": "local",
+                    "allow_remote_install": True,
+                    "install_token": "secret",
+                }
+            },
         },
         jobs={"list_plugins": {"steps": [{"backend": "list_plugins_step"}]}},
     )

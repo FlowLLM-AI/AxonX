@@ -104,20 +104,25 @@ class RankingBacktestTask(BaseTask):
         yield self.publish_output
 
     def resolve_paths(self) -> None:
+        input_file = self.resolve_workspace_path(self.config.input_file)
+        output_dir = self.resolve_workspace_path(self.config.output_dir)
         self.context.update(
-            daily_path=self.config.output_dir / "daily.parquet",
-            overall_path=self.config.output_dir / "overall.csv",
-            yearly_path=self.config.output_dir / "yearly.csv",
-            quarterly_path=self.config.output_dir / "quarterly.csv",
-            report_path=self.config.output_dir / "backtest.pdf",
-            metadata_path=self.config.output_dir / "metadata.json",
+            input_file=input_file,
+            output_dir=output_dir,
+            daily_path=output_dir / "daily.parquet",
+            overall_path=output_dir / "overall.csv",
+            yearly_path=output_dir / "yearly.csv",
+            quarterly_path=output_dir / "quarterly.csv",
+            report_path=output_dir / "backtest.pdf",
+            metadata_path=output_dir / "metadata.json",
             top_ns=RankingBacktestConfig.parse_positive_ints(self.config.top_ns),
         )
 
     def load_and_validate(self) -> None:
-        if not self.config.input_file.is_file():
-            raise FileNotFoundError(f"回测输入不存在: {self.config.input_file}")
-        frame = pd.read_parquet(self.config.input_file)
+        input_file = self.context["input_file"]
+        if not input_file.is_file():
+            raise FileNotFoundError(f"回测输入不存在: {input_file}")
+        frame = pd.read_parquet(input_file)
         missing = [column for column in self.REQUIRED_COLUMNS if column not in frame.columns]
         if missing:
             raise ValueError(f"回测输入缺少字段: {', '.join(missing)}")
@@ -379,7 +384,7 @@ class RankingBacktestTask(BaseTask):
         )
 
     def save_outputs(self) -> None:
-        self.config.output_dir.mkdir(parents=True, exist_ok=True)
+        self.context["output_dir"].mkdir(parents=True, exist_ok=True)
         self.atomic_parquet(self.context["daily"], self.context["daily_path"])
         self.atomic_csv(self.context["overall"], self.context["overall_path"])
         self.atomic_csv(self.context["yearly"], self.context["yearly_path"])
@@ -393,7 +398,7 @@ class RankingBacktestTask(BaseTask):
 
         daily: pd.DataFrame = self.context["daily"]
         dates = pd.to_datetime(daily["trade_date"], format="%Y%m%d")
-        descriptor, temporary = tempfile.mkstemp(dir=self.config.output_dir, suffix=".pdf")
+        descriptor, temporary = tempfile.mkstemp(dir=self.context["output_dir"], suffix=".pdf")
         os.close(descriptor)
         try:
             with PdfPages(temporary) as pdf:
@@ -507,8 +512,8 @@ class RankingBacktestTask(BaseTask):
         metadata = {
             "version": 3,
             "flow": "ranking_backtest",
-            "input_file": str(self.config.input_file),
-            "input_sha256": self.file_sha256(self.config.input_file),
+            "input_file": str(self.context["input_file"]),
+            "input_sha256": self.file_sha256(self.context["input_file"]),
             "input_rows": len(self.context["frame"]),
             "return_unit": "decimal",
             "source_return_unit": self.config.return_unit,
@@ -544,7 +549,7 @@ class RankingBacktestTask(BaseTask):
     def publish_output(self) -> None:
         self.context.update(
             status="done",
-            output_dir=self.config.output_dir,
+            output_dir=self.context["output_dir"],
             daily_file=self.context["daily_path"],
             overall_file=self.context["overall_path"],
             yearly_file=self.context["yearly_path"],

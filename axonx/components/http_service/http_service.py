@@ -14,6 +14,7 @@ from ...constants import (
     AXONX_SERVICE_INFO,
 )
 from ...schema import JobInfo, Response
+from ...utils import format_log_arguments
 from ..component_registry import R
 from .base_service import BaseService
 
@@ -66,14 +67,8 @@ class HttpService(BaseService):
         async def lifespan(_server):
             async with app:
                 previous_service_info = os.environ.get(AXONX_SERVICE_INFO)
-                advertised_host = (
-                    AXONX_DEFAULT_CONNECT_HOST
-                    if self.host == AXONX_DEFAULT_BIND_HOST
-                    else self.host
-                )
-                service_info = json.dumps(
-                    {"host": advertised_host, "port": self.port}
-                )
+                advertised_host = AXONX_DEFAULT_CONNECT_HOST if self.host == AXONX_DEFAULT_BIND_HOST else self.host
+                service_info = json.dumps({"host": advertised_host, "port": self.port})
                 os.environ[AXONX_SERVICE_INFO] = service_info
                 self.logger.info(f"Service started: {AXONX_SERVICE_INFO}={service_info}")
                 try:
@@ -117,6 +112,14 @@ class HttpService(BaseService):
 
         @server.post("/plugins")
         async def install_plugin(request: Request):
+            arguments = format_log_arguments(
+                {
+                    "filename": request.headers.get("x-wheel-filename", ""),
+                    "sha256": request.headers.get("x-wheel-sha256", ""),
+                    "content_length": request.headers.get("content-length", ""),
+                },
+            )
+            self.logger.info(f"Plugin endpoint called: name=install_plugin arguments={arguments}")
             plugin = app.context.components.get("plugin", {}).get("default")
             if plugin is None:
                 raise HTTPException(404, "Plugin component is not configured")
