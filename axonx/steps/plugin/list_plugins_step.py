@@ -1,12 +1,12 @@
-"""Expose installed Task plugins through a standard job."""
+"""Installed-plugin listing step."""
 
 from ...components import R
-from ..base_step import BaseStep
+from ..common.base_step import BaseStep
 
 
 @R.register("list_plugins_step")
 class ListPluginsStep(BaseStep):
-    """List plugins known to the local plugin component."""
+    """Return the installed plugin status."""
 
     async def execute(self):
         self.response.answer = self.plugin.status()

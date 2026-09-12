@@ -1,30 +1,27 @@
 """MCP client for AxonX services."""
 
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from ...schema import JobInfo, Response
 from ..component_registry import R
 from .base_client import BaseClient
 
-if TYPE_CHECKING:
-    from fastmcp import Client
-
 
 @R.register("mcp")
-class McpClient(BaseClient["Client"]):
+class McpClient(BaseClient[Any]):
     """Call AxonX jobs through the Streamable HTTP MCP endpoint."""
 
     _url_path = "/mcp"
     _exit_stack: AsyncExitStack | None = None
 
     async def _start(self):
-        from fastmcp import Client
+        from fastmcp import Client as FastMCPClient
 
         exit_stack = AsyncExitStack()
         self._exit_stack = exit_stack
         self.client = await exit_stack.enter_async_context(
-            Client(self.url, timeout=self.timeout, auth=None),
+            FastMCPClient(self.url, timeout=self.timeout, auth=None),
         )
 
     async def _close(self):

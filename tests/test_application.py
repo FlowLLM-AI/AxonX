@@ -253,6 +253,7 @@ async def test_cron_job_cancels_an_active_invocation_on_close():
     await app.close()
     assert cancelled.is_set()
 
+
 def test_cron_job_validates_schedule_and_timezone():
     app = Application(
         timezone="UTC",

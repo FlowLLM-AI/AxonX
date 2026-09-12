@@ -15,16 +15,21 @@ from .task_status_reporter import create_task_status_reporter
 
 @dataclass(frozen=True)
 class TaskCatalog:
+    """Collection returned when ``exec`` is called without a task."""
+
     tasks: dict[str, type[BaseTask]]
 
 
 @dataclass(frozen=True)
 class TaskExecution:
+    """Completed task output together with its final status."""
+
     output: dict[str, Any]
     status: TaskStatus
 
     @property
     def exit_code(self) -> int:
+        """Return the required process exit code from the final status."""
         if self.status.exit_code is None:
             raise RuntimeError("Task finished without an exit code")
         return self.status.exit_code
@@ -34,6 +39,7 @@ class TaskCommandExecutor:
     """Turn one validated ``exec`` Command into a Task result."""
 
     def execute(self, command: Command) -> TaskCatalog | TaskExecution:
+        """Execute or enumerate tasks for one validated command."""
         if command.action != "exec":
             raise ValueError(f"Unsupported Task command: {command.action}")
 
@@ -49,6 +55,7 @@ class TaskCommandExecutor:
 
     @staticmethod
     def _task_arguments(arguments: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        """Separate the task name from its validated configuration."""
         config = dict(arguments)
         try:
             name = config.pop("task")

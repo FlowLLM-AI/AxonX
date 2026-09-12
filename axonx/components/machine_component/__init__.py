@@ -12,4 +12,12 @@ from .local_machine_component import (
 # Backward-compatible name and module attributes used by existing integrations.
 MachineComponent = LocalMachineComponent
 
-__all__ = ["BaseMachineComponent", "LocalMachineComponent", "MachineComponent"]
+__all__ = [
+    "BaseMachineComponent",
+    "LocalMachineComponent",
+    "MachineComponent",
+    "platform",
+    "psutil",
+    "shutil",
+    "subprocess",
+]

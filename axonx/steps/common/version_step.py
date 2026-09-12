@@ -1,13 +1,12 @@
-"""Return the package version."""
-
-from ..base_step import BaseStep
+"""Package-version step."""
 
 from ...components import R
+from .base_step import BaseStep
 
 
 @R.register("version_step")
 class VersionStep(BaseStep):
-    """Emit axonx.__version__ as the response answer."""
+    """Expose the installed AxonX version."""
 
     async def execute(self):
         from ... import __version__

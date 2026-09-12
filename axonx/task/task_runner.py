@@ -26,7 +26,7 @@ class TaskRunner:
     def run(self, task: BaseTask) -> TaskStatus:
         """Execute one Task and return its final status."""
         manager = TaskStatusManager(task.prepare_status(), self.emit)
-        task._bind_status_manager(manager)
+        task._bind_status_manager(manager)  # pylint: disable=protected-access
         manager.report()
         try:
             manager.start()
@@ -39,7 +39,7 @@ class TaskRunner:
             manager.fail(exc)
             raise
         finally:
-            task._bind_status_manager(None)
+            task._bind_status_manager(None)  # pylint: disable=protected-access
 
     @staticmethod
     def _run_step(step, manager: TaskStatusManager) -> None:

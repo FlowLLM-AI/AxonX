@@ -10,47 +10,20 @@ import os
 from pathlib import Path
 import signal
 import pytest
-from axonx import Application, BaseComponent
+from axonx import Application, BaseComponent, BaseTask
 from axonx.config import resolve_app_config
 from axonx.components import R
 from axonx.constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
 from axonx.plugin.manifest import parse_plugin_manifest
 from axonx.enumeration import TaskState, TaskType
 from axonx.schema import PluginManifest, TaskStatus
-from task_fixtures import ProbeTask
 
 
 def application(tmp_path, **manager):
-    config = resolve_app_config(workspace_dir=str(tmp_path), plugins=["plugins/polars-demo"])
+    config = resolve_app_config(workspace_dir=str(tmp_path))
     config.setdefault("environment", {})["PYTHONPATH"] = str(Path(__file__).parent)
     config["components"]["task_manager"]["default"].update(**manager)
-    with R.preserve(allow_mutation=True):
-        R.register(ProbeTask, "probe")
-        return Application(**config)
-
-
-async def started(manager, task_id):
-    async with asyncio.timeout(10):
-        while True:
-            record = await manager.get_status(task_id)
-            if record.state == TaskState.RUNNING and record.steps and record.steps[0].started_at:
-                return record
-            if record.state == TaskState.FAILED:
-                pytest.fail(record.error)
-            await asyncio.sleep(0.02)
-
-
-async def finished(manager, task_id):
-    async with asyncio.timeout(10):
-        while not (record := await manager.get_status(task_id)).state.is_terminal:
-            await asyncio.sleep(0.02)
-        return record
-
-
-def assert_dead(pid):
-    if pid:
-        with pytest.raises(ProcessLookupError):
-            os.kill(pid, 0)
+    return Application(**config)
 
 
 async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp_path):
@@ -113,6 +86,12 @@ async def test_lifecycle_rollback(tmp_path):
 
 
 def test_task_has_no_components():
+    class ProbeTask(BaseTask):
+        task_type = TaskType.ANALYSIS
+
+        def build_task_steps(self):
+            return ()
+
     assert not hasattr(ProbeTask({}), "app_context")
 
 

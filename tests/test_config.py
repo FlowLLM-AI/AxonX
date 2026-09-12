@@ -5,6 +5,7 @@
 
 import pytest
 
+from axonx import Application
 from axonx.config import (
     ConfigResolver,
     convert_value,
@@ -91,3 +92,10 @@ def test_default_config_enables_local_plugin_component():
         "auto_install": True,
         "allow_remote_install": True,
     }
+
+
+def test_default_jobs_expose_remote_ip_except_list_machines():
+    app = Application(**resolve_app_config(log_config=False))
+
+    for name, job in app.context.jobs.items():
+        assert ("remote_ip" in job.parameters["properties"]) is (name != "list_machines")

@@ -37,7 +37,7 @@ def _print(artifact) -> None:
             },
             ensure_ascii=False,
             indent=2,
-        )
+        ),
     )
 
 

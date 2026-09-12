@@ -1,16 +1,16 @@
-"""Discover configured remote AxonX services."""
+"""Remote-machine discovery step."""
 
 import asyncio
 
 from ...components import R
 from ...components.client import HttpClient
 from ...schema import RemoteNode
-from ..base_step import BaseStep
+from ..common.base_step import BaseStep
 
 
 @R.register("list_machines_step")
 class ListMachinesStep(BaseStep):
-    """Check the health of every remote AxonX in the application config."""
+    """Check the health of every configured remote node."""
 
     async def execute(self):
         self.response.answer = await asyncio.gather(

@@ -11,6 +11,7 @@ from ..components.client import HttpClient
 from ..constants import AXONX_SERVICE_INFO
 from ..schema import TaskStatus
 
+
 class TaskStatusReporter:
     """Default no-op status reporter."""
 

@@ -1,19 +1,20 @@
-"""Asynchronous job step types and built-in step registrations."""
+"""Built-in asynchronous steps, grouped by responsibility."""
 
-from . import task_management
-from .base_step import BaseStep
-from .common import demo
-from .common import list_machines
-from .common import list_plugins
-from .common import machine_status
-from .common import version
+from .common import BaseStep, DemoStep, VersionStep
+from .machine import ListMachinesStep, MachineStatusStep
+from .plugin import ListPluginsStep
+from .task import CancelTaskStep, GetTaskStatusStep, ListTasksStep, SetTaskStatusStep, SubmitTaskStep
 
 __all__ = [
     "BaseStep",
-    "demo",
-    "list_machines",
-    "list_plugins",
-    "machine_status",
-    "task_management",
-    "version",
+    "CancelTaskStep",
+    "DemoStep",
+    "GetTaskStatusStep",
+    "ListMachinesStep",
+    "ListPluginsStep",
+    "ListTasksStep",
+    "MachineStatusStep",
+    "SetTaskStatusStep",
+    "SubmitTaskStep",
+    "VersionStep",
 ]

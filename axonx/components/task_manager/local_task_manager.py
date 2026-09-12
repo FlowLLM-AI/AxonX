@@ -27,12 +27,14 @@ class LocalTaskManager(BaseTaskManager):
 
     @property
     def task_manager_dir(self) -> Path:
+        """Return the directory containing task-manager state."""
         directory = self.workspace_path.resolve() / "task_manager"
         directory.mkdir(parents=True, exist_ok=True)
         return directory
 
     @property
     def status_path(self) -> Path:
+        """Return the persisted task-status file path."""
         return self.task_manager_dir / "status.json"
 
     def _save_status(self):
