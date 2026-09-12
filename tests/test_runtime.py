@@ -22,7 +22,7 @@ from axonx.constants import (
 from axonx.plugin.manifest import parse_plugin_manifest
 from axonx.enumeration import TaskState, TaskType
 from axonx.schema import PluginManifest, TaskStatus
-from axonx.steps.task.submit_task_step import SubmitTaskStep
+from axonx.task.task_arguments import build_task_argv, split_task_arguments
 
 
 def application(tmp_path, **manager):
@@ -510,14 +510,11 @@ async def test_list_runtime_task_statuses_returns_independent_snapshots(tmp_path
 
 
 def test_structured_task_submission_is_encoded_losslessly():
-    assert SubmitTaskStep._to_argv(  # pylint: disable=protected-access
-        {
-            "task": "sample",
-            "start_date": "00100101",
-            "dry_run": True,
-            "options": {"markets": ["CN", "HK"]},
-        },
-    ) == [
+    task, config = split_task_arguments(
+        {"task": "sample", "start_date": "00100101", "dry_run": True, "options": {"markets": ["CN", "HK"]}},
+    )
+
+    assert build_task_argv(task, config) == [
         "--task",
         "sample",
         "--start-date",

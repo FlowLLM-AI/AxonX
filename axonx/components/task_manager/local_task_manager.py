@@ -15,6 +15,7 @@ from ..component_registry import R
 from ...constants import AXONX_SERVICE_INFO, AXONX_TASK_WORKSPACE_DIR
 from ...enumeration import TaskState
 from ...schema import TaskStatus
+from ...task.task_arguments import task_name_from_argv
 
 
 @R.register("local")
@@ -178,11 +179,7 @@ class LocalTaskManager(BaseTaskManager):
 
     @staticmethod
     def _task_name(argv: Sequence[str]) -> str:
-        try:
-            index = argv.index("--task")
-            return argv[index + 1]
-        except (ValueError, IndexError):
-            return "unknown"
+        return task_name_from_argv(argv) or "unknown"
 
     async def set_status(self, task_id: str, status: TaskStatus) -> None:
         if task_id != status.task_id:
