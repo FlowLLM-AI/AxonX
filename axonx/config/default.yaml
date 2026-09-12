@@ -18,16 +18,11 @@ jobs:
       - backend: list_plugins_step
   machine_status:
     description: Get local or remote AxonX machine status.
-    parameters:
-      type: object
-      properties:
-        address:
-          type: string
-          description: Optional configured remote AxonX address in IP:PORT format.
     steps:
       - backend: machine_status_step
   list_machines:
     description: Check the health of all configured remote AxonX machines.
+    enable_remote: false
     steps:
       - backend: list_machines_step
   demo:

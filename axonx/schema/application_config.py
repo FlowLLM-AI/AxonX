@@ -3,7 +3,7 @@
 from ipaddress import ip_address
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..constants import AXONX_NAME
 
@@ -22,6 +22,7 @@ class JobConfig(ComponentConfig):
     description: str = Field(default="")
     parameters: dict[str, Any] = Field(default_factory=lambda: {"type": "object", "properties": {}})
     enable_serve: bool = True
+    enable_remote: bool = True
     steps: list[ComponentConfig] = Field(default_factory=list)
     defaults: dict[str, Any] = Field(default_factory=dict)
 
@@ -47,11 +48,12 @@ class RemoteNode(BaseModel):
     @field_validator("host_ip")
     @classmethod
     def validate_host_ip(cls, value: str) -> str:
-        ip_address(value)
-        return value
+        """Validate and canonicalize an IPv4 or IPv6 address."""
+        return ip_address(value).compressed
 
     @property
     def address(self) -> str:
+        """Return the node's HTTP authority, including IPv6 brackets."""
         host = f"[{self.host_ip}]" if ":" in self.host_ip else self.host_ip
         return f"{host}:{self.host_port}"
 
@@ -69,6 +71,27 @@ class ApplicationConfig(BaseModel):
     components: dict[str, dict[str, ComponentConfig]] = Field(default_factory=dict)
     jobs: dict[str, JobConfig] = Field(default_factory=dict)
     service: ComponentConfig | None = None
+
+    @model_validator(mode="after")
+    def validate_remote_nodes(self):
+        """Require each IP to identify exactly one configured remote node."""
+        seen: set[str] = set()
+        for node in self.remote_nodes:
+            if node.host_ip in seen:
+                raise ValueError(f"Duplicate remote node IP: {node.host_ip}")
+            seen.add(node.host_ip)
+        return self
+
+    def resolve_remote_node(self, remote_ip: str) -> RemoteNode:
+        """Resolve a validated IP to its configured remote node."""
+        try:
+            normalized_ip = ip_address(remote_ip).compressed
+        except ValueError as exc:
+            raise ValueError(f"Invalid remote IP: {remote_ip!r}") from exc
+        for node in self.remote_nodes:
+            if node.host_ip == normalized_ip:
+                return node
+        raise ValueError(f"Remote AxonX is not configured: {normalized_ip!r}")
 
     @field_validator("plugins")
     @classmethod

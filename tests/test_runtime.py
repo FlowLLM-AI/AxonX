@@ -103,7 +103,8 @@ async def test_lifecycle_rollback(tmp_path):
         R.register(Good, "good")
         R.register(Bad, "bad")
         app = Application(
-            workspace_dir=str(tmp_path), components={"test": {"a": {"backend": "good"}, "b": {"backend": "bad"}}}
+            workspace_dir=str(tmp_path),
+            components={"test": {"a": {"backend": "good"}, "b": {"backend": "bad"}}},
         )
     with pytest.raises(ValueError):
         await app.start()
@@ -124,7 +125,8 @@ def test_plugin_manifest_tasks_only():
 
 
 @pytest.mark.parametrize(
-    "text", ["tasks: []\n", "tasks:\n  '': package.module:Task\n", "tasks:\n  task: ''\n", "tasks:\n  task: 1\n"]
+    "text",
+    ["tasks: []\n", "tasks:\n  '': package.module:Task\n", "tasks:\n  task: ''\n", "tasks:\n  task: 1\n"],
 )
 def test_plugin_manifest_rejects_invalid_schema(text):
     with pytest.raises(ValueError, match="Plugin 'test' manifest is invalid"):
@@ -144,6 +146,8 @@ def test_http_client_discovers_service_from_environment(monkeypatch, capsys):
     assert HttpClient().url == "http://service.internal:4321"
     assert McpClient().url == "http://service.internal:4321/mcp"
     assert HttpClient(host_ip="explicit.example", host_port=8443).url == "http://explicit.example:8443"
+    assert HttpClient(host_ip=AXONX_DEFAULT_HOST, host_port=AXONX_DEFAULT_PORT).url == "http://127.0.0.1:1024"
+    assert HttpClient(host_ip="2001:db8::1", host_port=8443).url == "http://[2001:db8::1]:8443"
 
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host": "missing-port"}')
     assert HttpClient().url == f"http://{AXONX_DEFAULT_HOST}:{AXONX_DEFAULT_PORT}"
@@ -161,7 +165,6 @@ async def test_remote_clients_require_start(client_name):
 
 
 async def test_http_service_publishes_service_info(monkeypatch):
-    import json
     from axonx.components import HttpService
 
     previous = '{"host": "previous", "port": 1234}'
@@ -192,7 +195,7 @@ async def test_http_and_mcp_expose_the_same_jobs():
             },
             "hidden": {"enable_serve": False},
             "scheduled": {"backend": "cron", "cron": "0 * * * *"},
-        }
+        },
     )
     service = HttpService()
     server = service.build_service(app)
@@ -202,7 +205,13 @@ async def test_http_and_mcp_expose_the_same_jobs():
             response = await http_client.get("/jobs")
             assert response.status_code == 200
             assert [job["name"] for job in response.json()] == ["visible"]
-            assert response.json()[0]["inputSchema"]["properties"] == {"value": {"type": "string"}}
+            assert response.json()[0]["inputSchema"]["properties"] == {
+                "value": {"type": "string"},
+                "remote_ip": {
+                    "type": "string",
+                    "description": "Optional IP of a configured remote AxonX node.",
+                },
+            }
             assert (await http_client.post("/jobs/hidden", json={})).status_code == 404
             invalid = await http_client.post("/jobs/visible", json={"value": 1})
             assert invalid.status_code == 422
@@ -242,7 +251,7 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
                     description="Demo",
                     inputSchema={"type": "object", "properties": {}},
                     outputSchema=Response.model_json_schema(),
-                )
+                ),
             ]
 
         async def ping(self):
@@ -270,7 +279,8 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
 
 async def test_concurrent_job_contexts(tmp_path):
     app = Application(
-        workspace_dir=str(tmp_path), jobs={"demo": {"steps": [{"backend": "version_step"}, {"backend": "demo_step"}]}}
+        workspace_dir=str(tmp_path),
+        jobs={"demo": {"steps": [{"backend": "version_step"}, {"backend": "demo_step"}]}},
     )
     async with app:
         results = await asyncio.gather(*(app.run_job("demo") for _ in range(5)))
@@ -353,10 +363,10 @@ async def test_unfinished_history_is_loaded_without_rewriting(tmp_path):
                         "created_at": "2024-01-01T00:00:00Z",
                         "state": "running",
                         "pid": os.getpid(),
-                    }
+                    },
                 ],
-            }
-        )
+            },
+        ),
     )
     async with application(tmp_path) as app:
         record = await app.get_component("task_manager").get_status("old")
@@ -377,10 +387,10 @@ async def test_task_manager_ignores_status_from_another_version(tmp_path):
                         "task_id": "old",
                         "task_type": "analysis",
                         "state": "succeeded",
-                    }
+                    },
                 ],
-            }
-        )
+            },
+        ),
     )
 
     async with application(tmp_path, version=2) as app:
@@ -403,7 +413,7 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     app = Application(
         workspace_dir=str(tmp_path / "workspace"),
         components={
-            "plugin": {"default": {"backend": "local", "allow_remote_install": True, "install_token": "secret"}}
+            "plugin": {"default": {"backend": "local", "allow_remote_install": True, "install_token": "secret"}},
         },
         jobs={"list_plugins": {"steps": [{"backend": "list_plugins_step"}]}},
     )

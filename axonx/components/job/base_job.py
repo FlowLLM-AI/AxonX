@@ -8,10 +8,10 @@ from typing import Any, cast
 from jsonschema.validators import validator_for
 
 from ...enumeration import ComponentEnum
-from ...constants import CLI_RAW_ARGUMENTS
+from ...constants import CLI_RAW_ARGUMENTS, REMOTE_IP_ARGUMENT
 from ...context import RuntimeContext
 from ...schema import ComponentConfig, JobInfo, Response
-from ...steps.base_step import BaseStep
+from ...steps.common.base_step import BaseStep
 from ..base_component import BaseComponent
 from ..component_registry import R
 
@@ -30,6 +30,7 @@ class BaseJob(BaseComponent):
         description: str = "",
         parameters: Mapping[str, Any] | None = None,
         enable_serve: bool = True,
+        enable_remote: bool = True,
         steps: Sequence[ComponentConfig | Mapping[str, Any]] = (),
         defaults: Mapping[str, Any] | None = None,
         **kwargs: Any,
@@ -46,6 +47,16 @@ class BaseJob(BaseComponent):
         self.parameters.setdefault("type", "object")
         validator_class = cast(Any, validator_for(self.parameters))
         validator_class.check_schema(self.parameters)
+        self.enable_remote = enable_remote
+        if self.enable_remote:
+            properties = self.parameters.setdefault("properties", {})
+            required = self.parameters.get("required", ())
+            if REMOTE_IP_ARGUMENT in properties or REMOTE_IP_ARGUMENT in required:
+                raise ValueError(f"{REMOTE_IP_ARGUMENT!r} is a reserved Job parameter")
+            properties[REMOTE_IP_ARGUMENT] = {
+                "type": "string",
+                "description": "Optional IP of a configured remote AxonX node.",
+            }
         self._parameter_validator = validator_class(self.parameters)
         self.enable_serve = enable_serve
         self._step_specs: tuple[_StepSpec, ...] = ()

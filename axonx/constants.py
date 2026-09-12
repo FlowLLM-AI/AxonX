@@ -29,6 +29,9 @@ CLI_CLIENT_OPTIONS = frozenset({"host_ip", "host_port", "timeout"})
 # Internal Job argument carrying the original tokens after the command name.
 CLI_RAW_ARGUMENTS = "_axonx_argv"
 
+# Reserved Job argument used by Application to select a configured remote node.
+REMOTE_IP_ARGUMENT = "remote_ip"
+
 CLI_LOCAL_COMMANDS = frozenset({"exec", "help", "plugin", "start"})
 
 CLI_PASSTHROUGH_COMMANDS = frozenset({"plugin"})
@@ -41,4 +44,5 @@ CLI_USAGE = f"""Usage:
   axonx plugin COMMAND ...
   axonx JOB [--field value ...]
 
-Remote Job options: host_ip={AXONX_DEFAULT_HOST} host_port={AXONX_DEFAULT_PORT} timeout={AXONX_DEFAULT_REQUEST_TIMEOUT:g}"""
+Remote Job options: host_ip={AXONX_DEFAULT_HOST} host_port={AXONX_DEFAULT_PORT}
+timeout={AXONX_DEFAULT_REQUEST_TIMEOUT:g}"""

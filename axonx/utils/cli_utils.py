@@ -14,6 +14,7 @@ from ..constants import (
     CLI_LOCAL_COMMANDS,
     CLI_PASSTHROUGH_COMMANDS,
     CLI_RAW_ARGUMENTS,
+    REMOTE_IP_ARGUMENT,
 )
 from ..schema import ClientOptions, Command
 
@@ -40,8 +41,20 @@ def parse_command(argv: Sequence[str]) -> tuple[Command, ClientOptions]:
 
     raw_arguments = tokens[action_index + 1:]
     arguments = {} if action in CLI_PASSTHROUGH_COMMANDS else _parse_arguments(raw_arguments)
-    arguments[CLI_RAW_ARGUMENTS] = list(raw_arguments)
+    arguments[CLI_RAW_ARGUMENTS] = _task_arguments(raw_arguments, arguments)
     return Command(action=action, arguments=arguments), client
+
+
+def _task_arguments(tokens: tuple[str, ...], arguments: dict[str, Any]) -> list[str]:
+    """Keep routing arguments out of the argv passed to a submitted Task."""
+    if REMOTE_IP_ARGUMENT not in arguments:
+        return list(tokens)
+    task_arguments = []
+    for option, value in zip(tokens[::2], tokens[1::2], strict=True):
+        name = option.removeprefix("--").replace("-", "_")
+        if name != REMOTE_IP_ARGUMENT:
+            task_arguments.extend((option, value))
+    return task_arguments
 
 
 def _parse_client_options(tokens: tuple[str, ...]) -> tuple[ClientOptions, int]:

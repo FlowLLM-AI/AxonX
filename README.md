@@ -110,6 +110,9 @@ components:
   task_manager:
     default:
       backend: local
+remote_nodes:
+  - host_ip: 192.168.1.10
+    host_port: 1024
 jobs:
   sales_submit:
     steps:
@@ -118,6 +121,15 @@ jobs:
 ```
 
 `axonx sales_submit --output /tmp/sales.parquet` 启动 `axonx exec` 子进程后立即返回空结果。Task 进程生成 task_id 并通过 HTTP 上报状态，之后可通过 `list` 发现 ID，再通过 `status` 查询完整状态。
+
+除 `list_machines` 外，所有 Job 都有框架保留参数 `remote_ip`。不传时在当前节点执行；传入时，当前节点根据 `remote_nodes` 中唯一的 IP 找到完整地址，并通过 HTTP 将同名 Job 转发到目标节点。路由参数不会继续传给目标节点或提交的 Task：
+
+```bash
+axonx submit --remote-ip 192.168.1.10 --task sales --output /tmp/sales.parquet
+axonx machine_status --remote-ip 192.168.1.10
+```
+
+每个 `remote_nodes.host_ip` 必须是合法且唯一的 IPv4 或 IPv6 地址。Job 可设置 `enable_remote: false` 禁止远程执行；`list_machines` 默认使用该设置。
 
 普通 Job 默认通过 REST 和 MCP 同时公开；设置 `enable_serve: false` 可将其限制为应用内部调用。HTTP 服务提供 `GET /jobs`、`POST /jobs/{name}` 和 Streamable HTTP MCP `/mcp`。`cron` Job 由 Application 生命周期托管，不会公开，首次执行会等待表达式指定的时间。
 
@@ -189,7 +201,7 @@ Response.success 表示异步 Job 调用是否成功。查询一个失败 Task �
 - `cancel` 根据 Task 上报的 pid 向 `exec` 进程组发送 SIGKILL，并由 Manager 写入 `cancelled` 终态，因为被强制终止的进程无法再通过 HTTP 上报。
 - Application 正常关闭时只停止接收新任务并保存现有状态，不跟踪、等待或终止已经启动的 Task 进程。HTTP 服务默认最多等待现有请求 1 秒（`service.shutdown_timeout`），随后退出。
 - Task 进程生成 task_id，并通过 HTTP `set_status` Job 全量上报状态。除 `cancel` 外，TaskManager 不检测或补写状态，只将外部快照原子写入 `<workspace>/task_manager/status.json`。
-- 当前按一个常驻 Application 独占一个 workspace 使用。服务被 SIGKILL 或机器异常中止不属于正常关闭保证，可能遗留进程；本版没有独立守护执行服务、远程调度或崩溃恢复。
+- 当前按一个常驻 Application 独占一个 workspace 使用。服务被 SIGKILL 或机器异常中止不属于正常关闭保证，可能遗留进程；本版没有独立守护执行服务或崩溃恢复。
 
 ## 插件
 

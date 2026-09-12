@@ -184,7 +184,7 @@ def test_submit_forwards_the_same_task_arguments(monkeypatch, capsys):
             "3",
             "--dry-run",
             "true",
-        ]
+        ],
     )
 
     assert status == 0
@@ -232,6 +232,19 @@ def test_command_options_support_nested_fields():
     }
 
 
+def test_remote_ip_is_routing_metadata_not_a_task_argument():
+    command, _ = parse_command(
+        ["submit", "--task", "sample", "--remote-ip", "192.168.1.10", "--amount", "3"],
+    )
+
+    assert command.arguments == {
+        "task": "sample",
+        "remote_ip": "192.168.1.10",
+        "amount": 3,
+        "_axonx_argv": ["--task", "sample", "--amount", "3"],
+    }
+
+
 def test_passthrough_command_preserves_unparsed_arguments():
     command, _ = parse_command(["plugin", "build", "--output", "dist"])
 
@@ -245,7 +258,7 @@ def test_nested_options_reject_scalar_conflicts(capsys):
 
 def test_command_uses_validated_http_client_options():
     command, client_options = parse_command(
-        ["--host-ip", "service.internal", "--host-port", "4321", "--timeout", "5", "status"]
+        ["--host-ip", "service.internal", "--host-port", "4321", "--timeout", "5", "status"],
     )
 
     assert isinstance(command, Command)

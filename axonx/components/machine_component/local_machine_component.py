@@ -15,37 +15,24 @@ from typing import Any
 
 import psutil
 
-from ..client.http_client import HttpClient
 from ..component_registry import R
 from .base_machine_component import BaseMachineComponent
 
 
 @R.register("machine")
 class LocalMachineComponent(BaseMachineComponent):
-    """Collect local machine resources or read them from another AxonX node."""
+    """Collect local machine resources."""
 
-    def __init__(self, timeout: float = 10.0, cpu_sample_interval: float = 0.1, **kwargs: Any) -> None:
+    def __init__(self, cpu_sample_interval: float = 0.1, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        if timeout <= 0:
-            raise ValueError("timeout must be positive")
         if cpu_sample_interval < 0:
             raise ValueError("cpu_sample_interval must be non-negative")
 
-        self.timeout = timeout
         self.cpu_sample_interval = cpu_sample_interval
 
-    async def get_info(self, address: str | None = None) -> dict[str, Any]:
-        """Return local status, or status from one configured remote node."""
-        if address is None:
-            return await asyncio.to_thread(self._collect_local_info)
-        node = next((node for node in self.app_config.remote_nodes if node.address == address), None)
-        if node is None:
-            raise ValueError(f"Remote AxonX is not configured: {address!r}")
-        async with HttpClient(host_ip=node.host_ip, host_port=node.host_port, timeout=self.timeout) as client:
-            job_response = await client.run_job("machine_status")
-        if not job_response.success or not isinstance(job_response.answer, dict):
-            raise ValueError("Remote machine returned an unsuccessful or invalid response")
-        return job_response.answer
+    async def get_info(self) -> dict[str, Any]:
+        """Return local machine status."""
+        return await asyncio.to_thread(self._collect_local_info)
 
     def _collect_local_info(self) -> dict[str, Any]:
         cpu_percent = psutil.cpu_percent(interval=self.cpu_sample_interval)
@@ -154,7 +141,7 @@ class LocalMachineComponent(BaseMachineComponent):
                         round(used_bytes * 100 / total_bytes, 2) if total_bytes and used_bytes is not None else None
                     ),
                     "usage_percent": LocalMachineComponent._number(usage),
-                }
+                },
             )
         return gpus
 
@@ -197,6 +184,6 @@ class LocalMachineComponent(BaseMachineComponent):
                         round(used_bytes * 100 / total_bytes, 2) if total_bytes and used_bytes is not None else None
                     ),
                     "usage_percent": LocalMachineComponent._number(values.get("GPU use (%)")),
-                }
+                },
             )
         return gpus

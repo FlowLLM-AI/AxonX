@@ -44,7 +44,8 @@ def test_parse_nvidia_smi_output(monkeypatch):
         lambda command: f"/usr/bin/{command}" if command == "nvidia-smi" else None,
     )
     monkeypatch.setattr(
-        "axonx.components.machine_component.subprocess.run", lambda *args, **kwargs: SimpleNamespace(stdout=output)
+        "axonx.components.machine_component.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=output),
     )
 
     assert MachineComponent._gpu_info() == [
@@ -58,7 +59,7 @@ def test_parse_nvidia_smi_output(monkeypatch):
             "memory_available_bytes": 40960 * 1024**2,
             "memory_usage_percent": 50.0,
             "usage_percent": 75.0,
-        }
+        },
     ]
 
 
@@ -76,11 +77,12 @@ def test_parse_amd_gpu_info(monkeypatch):
                 "VRAM Total Memory (B)": "1000",
                 "VRAM Total Used Memory (B)": "250",
                 "GPU use (%)": "40",
-            }
-        }
+            },
+        },
     )
     monkeypatch.setattr(
-        "axonx.components.machine_component.subprocess.run", lambda *args, **kwargs: SimpleNamespace(stdout=output)
+        "axonx.components.machine_component.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=output),
     )
 
     assert MachineComponent._amd_gpu_info() == [
@@ -94,7 +96,7 @@ def test_parse_amd_gpu_info(monkeypatch):
             "memory_available_bytes": 750,
             "memory_usage_percent": 25.0,
             "usage_percent": 40.0,
-        }
+        },
     ]
 
 
@@ -112,12 +114,23 @@ def test_remote_node_requires_ip_and_port(node):
         Application(remote_nodes=[node])
 
 
-async def test_get_remote_machine_status(monkeypatch):
+def test_remote_node_ips_are_unique_after_normalization():
+    with pytest.raises(ValueError, match="Duplicate remote node IP"):
+        Application(
+            remote_nodes=[
+                {"host_ip": "2001:db8::1", "host_port": 9000},
+                {"host_ip": "2001:0db8:0:0:0:0:0:1", "host_port": 9001},
+            ],
+        )
+
+
+async def test_application_routes_machine_status_by_ip(monkeypatch):
     expected = {"axonx": {"version": "1.2.3"}, "gpus": []}
 
     async def run_job(client, name, **kwargs):
         assert client.url == "http://192.168.1.10:9000"
         assert name == "machine_status"
+        assert not kwargs
         return Response(answer=expected)
 
     monkeypatch.setattr(HttpClient, "run_job", run_job)
@@ -125,9 +138,12 @@ async def test_get_remote_machine_status(monkeypatch):
     app = Application(
         remote_nodes=[{"host_ip": "192.168.1.10", "host_port": 9000}],
         components={"machine": {"default": {"backend": "machine"}}},
+        jobs={"machine_status": {"steps": [{"backend": "machine_status_step"}]}},
     )
-    component = app.get_component("machine")
-    assert await component.get_info("192.168.1.10:9000") == expected
+    async with app:
+        response = await app.run_job("machine_status", remote_ip="192.168.1.10")
+
+    assert response.answer == expected
 
 
 async def test_remote_machine_http_failure_is_propagated(monkeypatch):
@@ -138,18 +154,18 @@ async def test_remote_machine_http_failure_is_propagated(monkeypatch):
     monkeypatch.setattr(HttpClient, "run_job", run_job)
     app = Application(
         remote_nodes=[{"host_ip": "192.168.1.10", "host_port": 9000}],
-        components={"machine": {"default": {"backend": "machine"}}},
+        jobs={"machine_status": {}},
     )
-    component = app.get_component("machine")
-    with pytest.raises(httpx.HTTPStatusError):
-        await component.get_info("192.168.1.10:9000")
+    async with app:
+        with pytest.raises(httpx.HTTPStatusError):
+            await app.run_job("machine_status", remote_ip="192.168.1.10")
 
 
 async def test_machine_status_rejects_unconfigured_remote():
-    app = Application(components={"machine": {"default": {"backend": "machine"}}})
-    component = app.get_component("machine")
-    with pytest.raises(ValueError, match="not configured"):
-        await component.get_info("192.168.1.10:9000")
+    app = Application(jobs={"machine_status": {}})
+    async with app:
+        with pytest.raises(ValueError, match="not configured"):
+            await app.run_job("machine_status", remote_ip="192.168.1.10")
 
 
 async def test_list_machines_checks_health_without_machine_component(monkeypatch):
@@ -163,7 +179,7 @@ async def test_list_machines_checks_health_without_machine_component(monkeypatch
             {"host_ip": "192.168.1.10", "host_port": 9000},
             {"host_ip": "192.168.1.11", "host_port": 9001},
         ],
-        jobs={"list_machines": {"steps": [{"backend": "list_machines_step"}]}},
+        jobs={"list_machines": {"enable_remote": False, "steps": [{"backend": "list_machines_step"}]}},
     )
     async with app:
         response = await app.run_job("list_machines")
@@ -176,7 +192,8 @@ async def test_list_machines_checks_health_without_machine_component(monkeypatch
 async def test_http_client_health():
     client = HttpClient(host_ip="192.168.1.10", host_port=9000)
     client.client = httpx.AsyncClient(
-        base_url=client.url, transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"running": True}))
+        base_url=client.url,
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"running": True})),
     )
     try:
         assert await client.health()
@@ -190,26 +207,35 @@ async def test_http_service_exposes_machine_jobs(monkeypatch):
         components={"machine": {"default": {"backend": "machine"}}},
         jobs={
             "machine_status": {"steps": [{"backend": "machine_status_step"}]},
-            "list_machines": {"steps": [{"backend": "list_machines_step"}]},
+            "list_machines": {"enable_remote": False, "steps": [{"backend": "list_machines_step"}]},
         },
     )
     machine = app.get_component("machine")
 
-    async def get_info(address=None):
-        return {"address": address, "cpu": {"total_cores": 8}}
+    async def get_info():
+        return {"source": "local", "cpu": {"total_cores": 8}}
+
+    async def run_job(client, name, **kwargs):
+        assert client.url == "http://192.168.1.10:9000"
+        assert name == "machine_status"
+        assert not kwargs
+        return Response(answer={"source": "remote", "cpu": {"total_cores": 16}})
 
     async def health(client):
         return True
 
     monkeypatch.setattr(machine, "get_info", get_info)
+    monkeypatch.setattr(HttpClient, "run_job", run_job)
     monkeypatch.setattr(HttpClient, "health", health)
     server = HttpService().build_service(app)
     async with server.router.lifespan_context(server):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
             local = await client.post("/jobs/machine_status", json={})
-            remote = await client.post("/jobs/machine_status", json={"address": "192.168.1.10:9000"})
+            remote = await client.post("/jobs/machine_status", json={"remote_ip": "192.168.1.10"})
             machines = await client.post("/jobs/list_machines", json={})
+            rejected = await client.post("/jobs/list_machines", json={"remote_ip": "192.168.1.10"})
 
-    assert local.json()["answer"]["address"] is None
-    assert remote.json()["answer"]["address"] == "192.168.1.10:9000"
+    assert local.json()["answer"]["source"] == "local"
+    assert remote.json()["answer"]["source"] == "remote"
     assert machines.json()["answer"] == [{"address": "192.168.1.10:9000", "healthy": True}]
+    assert rejected.status_code == 422

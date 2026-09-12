@@ -7,8 +7,10 @@ from pathlib import Path
 from typing import Any, TypeVar, cast
 
 from .components import BaseComponent, R
+from .components.client import HttpClient
 from .context import ApplicationContext
 from .components.job import BaseJob, CronJob
+from .constants import REMOTE_IP_ARGUMENT
 from .schema import ComponentConfig
 
 ComponentT = TypeVar("ComponentT", bound=BaseComponent)
@@ -132,5 +134,12 @@ class Application(BaseComponent):
             raise ValueError(f"Unknown job: {name!r}")
         if isinstance(job, CronJob):
             raise ValueError(f"Job {name!r} is managed in the background")
+        if REMOTE_IP_ARGUMENT in kwargs and not job.enable_remote:
+            raise ValueError(f"Job {name!r} does not support remote execution")
         job.validate_arguments(kwargs)
+        remote_ip = kwargs.pop(REMOTE_IP_ARGUMENT, None)
+        if remote_ip is not None:
+            node = self.app_config.resolve_remote_node(remote_ip)
+            async with HttpClient(host_ip=node.host_ip, host_port=node.host_port) as client:
+                return await client.run_job(name, **kwargs)
         return await job(**kwargs)

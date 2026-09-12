@@ -35,7 +35,8 @@ class BaseClient(BaseComponent, ABC, Generic[ClientT]):
         super().__init__(**kwargs)
         options = ClientOptions(host_ip=host_ip, host_port=host_port, timeout=timeout)
         self.host_ip, self.host_port = self._resolve_address(options)
-        self.url = f"{AXONX_DEFAULT_SCHEME}://{self.host_ip}:{self.host_port}{self._url_path}"
+        url_host = f"[{self.host_ip}]" if ":" in self.host_ip else self.host_ip
+        self.url = f"{AXONX_DEFAULT_SCHEME}://{url_host}:{self.host_port}{self._url_path}"
         self.timeout = options.timeout
         self.client: ClientT | None = None
 
@@ -46,12 +47,7 @@ class BaseClient(BaseComponent, ABC, Generic[ClientT]):
         return self.client
 
     def _resolve_address(self, options: ClientOptions) -> tuple[str, int]:
-        address = options.host_ip, options.host_port
-        if (
-            options.host_ip is None
-            or options.host_port is None
-            or address == (AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT)
-        ):
+        if options.host_ip is None or options.host_port is None:
             return self._discover_address()
         return options.host_ip, options.host_port
 
