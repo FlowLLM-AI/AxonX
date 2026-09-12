@@ -94,12 +94,12 @@ async def test_task_manager_logs_worker_stderr_on_failure(monkeypatch, tmp_path,
     monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
-        await manager.submit(["--task", "download_tushar_task"])
+        await manager.submit(["--task", "download_tushare_task"])
         await asyncio.gather(*manager._process_monitors)
 
     error = capsys.readouterr().err
     assert "ValidationError: invalid start_date" in error
-    assert "download_tushar_task" in error
+    assert "download_tushare_task" in error
     assert "exited with code 2" in error
 
 
@@ -559,9 +559,25 @@ async def test_task_manager_replaces_status_from_another_version_on_close(tmp_pa
     async with application(tmp_path, version=2) as app:
         manager = app.get_component("task_manager")
         assert manager.task_manager_dir == directory
-        assert await manager.list_task_ids() == []
+        assert await manager.list_runtime_task_ids() == []
 
     assert json.loads(status_path.read_text()) == {"version": 2, "tasks": []}
+
+
+async def test_task_listing_jobs_separate_runtime_and_installed_tasks(tmp_path):
+    async with application(tmp_path) as app:
+        runtime = await app.run_job("list_runtime_task_ids")
+        installed = await app.run_job("list_installed_task_infos")
+
+    assert runtime.answer == []
+    tasks = {info["name"]: info for info in installed.answer}
+    assert "download_tushare_task" in tasks
+    assert set(tasks["download_tushare_task"]["config_schema"]["properties"]) == {
+        "start_date",
+        "end_date",
+        "days_back",
+        "timeout",
+    }
 
 
 async def test_task_manager_logs_and_ignores_invalid_status(tmp_path, capsys):
@@ -579,7 +595,7 @@ async def test_task_manager_logs_and_ignores_invalid_status(tmp_path, capsys):
 
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
-        assert await manager.list_task_ids() == []
+        assert await manager.list_runtime_task_ids() == []
         assert json.loads(status_path.read_text())["tasks"] == {"old": {"task_id": "old", "task_type": "analysis"}}
 
     assert "Failed to load task status" in capsys.readouterr().err

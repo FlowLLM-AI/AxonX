@@ -14,10 +14,10 @@ from axonx import cli
 from axonx.components.client import HttpClient
 from axonx.enumeration import TaskType
 from axonx.schema import ClientOptions, Command, Response, TaskStatus
-from axonx.task import BaseConfig, BaseTask
+from axonx.task import BaseConfig, BaseTask, list_installed_task_infos
 from axonx.task.backtest import RankingBacktestTask
 from axonx.task.common import DemoTask
-from axonx.task.data import DownloadTusharTask, TushareDownloadConfig
+from axonx.task.data import DownloadTushareTask, TushareDownloadConfig
 from axonx.task.task_status_reporter import HttpTaskStatusReporter
 from axonx.utils.cli_utils import parse_command
 
@@ -40,6 +40,21 @@ class CliTask(BaseTask):
         self.context.update(amount=self.config.amount, dry_run=self.config.dry_run)
 
 
+def test_installed_task_infos_include_only_public_config(monkeypatch):
+    monkeypatch.setattr(
+        "axonx.task.task_resolver.installed_tasks",
+        lambda: {"sample": CliTask},
+    )
+
+    info = list_installed_task_infos()[0]
+
+    assert info.name == "sample"
+    assert info.task_type == TaskType.ANALYSIS
+    assert info.output_keys == ("amount", "dry_run")
+    assert set(info.config_schema["properties"]) == {"amount", "dry_run"}
+    assert info.config_schema["required"] == ["amount"]
+
+
 @pytest.fixture(autouse=True)
 def isolate_dotenv_loading(monkeypatch):
     monkeypatch.setattr(cli, "load_env", lambda **_kwargs: {})
@@ -47,7 +62,7 @@ def isolate_dotenv_loading(monkeypatch):
 
 def test_tushare_config_accepts_compact_dates_converted_by_cli():
     command, _ = parse_command(
-        ["exec", "--task", "download_tushar_task", "--start-date", "20100101", "--end-date", "20260912"],
+        ["exec", "--task", "download_tushare_task", "--start-date", "20100101", "--end-date", "20260912"],
     )
 
     config = TushareDownloadConfig.model_validate(
@@ -59,7 +74,7 @@ def test_tushare_config_accepts_compact_dates_converted_by_cli():
 
 
 def test_tushare_download_directory_is_inside_workspace(tmp_path):
-    task = DownloadTusharTask(
+    task = DownloadTushareTask(
         {"start_date": "20260912", "end_date": "20260912"},
         workspace_path=tmp_path,
     )
@@ -70,7 +85,7 @@ def test_tushare_download_directory_is_inside_workspace(tmp_path):
 
 
 def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
-    task = DownloadTusharTask(
+    task = DownloadTushareTask(
         {"start_date": "20260101", "end_date": "20260720"},
         workspace_path=tmp_path,
     )

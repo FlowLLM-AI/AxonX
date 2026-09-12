@@ -3,16 +3,24 @@
 from .common import BaseStep, DemoStep, VersionStep
 from .machine import ListMachinesStep, MachineStatusStep
 from .plugin import ListPluginsStep
-from .task import CancelTaskStep, GetTaskStatusStep, ListTasksStep, SetTaskStatusStep, SubmitTaskStep
+from .task import (
+    CancelTaskStep,
+    GetTaskStatusStep,
+    ListInstalledTaskInfosStep,
+    ListRuntimeTaskIdsStep,
+    SetTaskStatusStep,
+    SubmitTaskStep,
+)
 
 __all__ = [
     "BaseStep",
     "CancelTaskStep",
     "DemoStep",
     "GetTaskStatusStep",
+    "ListInstalledTaskInfosStep",
     "ListMachinesStep",
     "ListPluginsStep",
-    "ListTasksStep",
+    "ListRuntimeTaskIdsStep",
     "MachineStatusStep",
     "SetTaskStatusStep",
     "SubmitTaskStep",

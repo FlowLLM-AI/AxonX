@@ -22,8 +22,8 @@ class BaseTaskManager(BaseComponent, ABC):
         """Store a complete status reported by a task worker."""
 
     @abstractmethod
-    async def list_task_ids(self) -> list[str]:
-        """Return all known task identifiers."""
+    async def list_runtime_task_ids(self) -> list[str]:
+        """Return all known runtime task identifiers."""
 
     @abstractmethod
     async def get_status(self, task_id: str) -> TaskStatus:

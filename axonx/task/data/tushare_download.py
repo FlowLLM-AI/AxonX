@@ -55,8 +55,8 @@ class TushareDownloadConfig(BaseConfig):
         return value
 
 
-@R.register("download_tushar_task")
-class DownloadTusharTask(BaseTask):
+@R.register("download_tushare_task")
+class DownloadTushareTask(BaseTask):
     """下载日线、复权因子和沪深300月度成分权重。"""
 
     config_cls = TushareDownloadConfig

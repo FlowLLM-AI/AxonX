@@ -4,10 +4,10 @@ from .base_task import BaseConfig, BaseTask, TaskStep
 
 from .common import DemoTask
 from .backtest import RankingBacktestTask
-from .data import DownloadTusharTask
+from .data import DownloadTushareTask
 from .task_command_executor import TaskCatalog, TaskCommandExecutor, TaskExecution
 from .task_runner import TaskRunner
-from .task_resolver import installed_tasks, resolve_task
+from .task_resolver import installed_tasks, list_installed_task_infos, resolve_task
 from .task_status_reporter import HttpTaskStatusReporter, TaskStatusReporter
 from .task_status_manager import TaskStatusManager
 
@@ -16,7 +16,7 @@ __all__ = [
     "BaseTask",
     "TaskStep",
     "DemoTask",
-    "DownloadTusharTask",
+    "DownloadTushareTask",
     "HttpTaskStatusReporter",
     "TaskCatalog",
     "TaskCommandExecutor",
@@ -26,5 +26,6 @@ __all__ = [
     "TaskStatusManager",
     "RankingBacktestTask",
     "installed_tasks",
+    "list_installed_task_infos",
     "resolve_task",
 ]

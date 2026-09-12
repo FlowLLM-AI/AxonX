@@ -1,14 +1,19 @@
 """Resolve executable Tasks from plugins and AxonX's registry."""
 
+from copy import deepcopy
 from importlib import import_module
 from importlib.resources import files
+from inspect import getdoc
 
 from ..components.component_registry import R
 from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
 from ..enumeration import ComponentEnum
 from ..plugin.manifest import parse_plugin_manifest
+from ..schema import TaskInfo
 from ..utils.entry_points import find_all_entry_points, load_entry_point
 from .base_task import BaseTask
+
+_INTERNAL_CONFIG_FIELDS = frozenset({"task_id", "task_type", "task_id_suffix"})
 
 
 def _load_task(target: str) -> type[BaseTask]:
@@ -39,6 +44,29 @@ def installed_tasks() -> dict[str, type[BaseTask]]:
         plugin_targets.update(manifest.tasks)
     tasks.update({name: _load_task(target) for name, target in plugin_targets.items()})
     return tasks
+
+
+def list_installed_task_infos() -> list[TaskInfo]:
+    """Return sorted metadata for every installed Task."""
+    infos = []
+    for name, task_class in sorted(installed_tasks().items()):
+        schema = deepcopy(task_class.config_cls.model_json_schema())
+        properties = schema.get("properties", {})
+        schema["properties"] = {
+            key: value for key, value in properties.items() if key not in _INTERNAL_CONFIG_FIELDS
+        }
+        if required := schema.get("required"):
+            schema["required"] = [key for key in required if key not in _INTERNAL_CONFIG_FIELDS]
+        infos.append(
+            TaskInfo(
+                name=name,
+                task_type=task_class.task_type,
+                description=getdoc(task_class) or "",
+                config_schema=schema,
+                output_keys=task_class.output_keys,
+            ),
+        )
+    return infos
 
 
 def resolve_task(name: str) -> type[BaseTask]:

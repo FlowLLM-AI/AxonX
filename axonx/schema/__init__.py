@@ -12,6 +12,7 @@ from .job import JobInfo
 from .plugin import PluginManifest
 from .proxy import ProxyResponse
 from .response import Response
+from .task_info import TaskInfo
 from .task_status import TaskStatus, TaskStepStatus
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "ProxyResponse",
     "RemoteNode",
     "Response",
+    "TaskInfo",
     "TaskStatus",
     "TaskStepStatus",
 ]
