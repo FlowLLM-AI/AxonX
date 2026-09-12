@@ -14,7 +14,12 @@ class SalesConfig(BaseConfig):
 
 
 class SalesTask(BaseTask):
-    """Aggregate synthetic or CSV sales data and write a Parquet result."""
+    """Aggregate product revenue from synthetic data or an optional CSV file.
+
+    The Task uses a lazy Polars pipeline to multiply quantity by unit price,
+    group revenue by product, and write the sorted result to Parquet. It returns
+    the output path, row count, total revenue, and worker process identifier.
+    """
 
     config_cls = SalesConfig
     task_type = TaskType.ETL

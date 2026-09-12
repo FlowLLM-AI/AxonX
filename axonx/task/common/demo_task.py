@@ -15,7 +15,13 @@ class DemoTaskConfig(BaseConfig):
 
 @R.register("demo")
 class DemoTask(BaseTask):
-    """Demonstrate the complete synchronous Task contract."""
+    """Demonstrate synchronous Task execution with a small arithmetic workflow.
+
+    The Task selects a conditional step sequence from its validated operands,
+    reports progress, and publishes both the sum and the branch that produced
+    it. Its optional failure mode exercises framework-managed error status and
+    exit-code handling without reading or writing external data.
+    """
 
     config_cls = DemoTaskConfig
     task_type = TaskType.ANALYSIS

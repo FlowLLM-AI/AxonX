@@ -3,7 +3,7 @@
 from copy import deepcopy
 from importlib import import_module
 from importlib.resources import files
-from inspect import getdoc
+from inspect import cleandoc
 
 from ..components.component_registry import R
 from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
@@ -14,6 +14,13 @@ from ..utils.entry_points import find_all_entry_points, load_entry_point
 from .base_task import BaseTask
 
 _INTERNAL_CONFIG_FIELDS = frozenset({"task_id", "task_type", "task_id_suffix"})
+
+
+def _task_description(name: str, task_class: type[BaseTask]) -> str:
+    description = task_class.__doc__
+    if not description or not description.strip():
+        raise TypeError(f"Task {name!r} must define a detailed class docstring")
+    return cleandoc(description)
 
 
 def _load_task(target: str) -> type[BaseTask]:
@@ -43,6 +50,8 @@ def installed_tasks() -> dict[str, type[BaseTask]]:
             raise ValueError(f"Task provided by multiple plugins: {names}")
         plugin_targets.update(manifest.tasks)
     tasks.update({name: _load_task(target) for name, target in plugin_targets.items()})
+    for name, task_class in tasks.items():
+        _task_description(name, task_class)
     return tasks
 
 
@@ -61,7 +70,7 @@ def list_installed_task_infos() -> list[TaskInfo]:
             TaskInfo(
                 name=name,
                 task_type=task_class.task_type,
-                description=getdoc(task_class) or "",
+                description=_task_description(name, task_class),
                 config_schema=schema,
                 output_keys=task_class.output_keys,
             ),

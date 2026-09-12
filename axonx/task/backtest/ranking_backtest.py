@@ -64,8 +64,14 @@ class RankingBacktestConfig(BaseConfig):
 class RankingBacktestTask(BaseTask):
     """Calculate ranking quality, portfolio performance, and benchmark-relative metrics.
 
-    Index weights are optional decimal columns named ``index_weight_<benchmark>``,
-    such as ``index_weight_hs300``; all matching columns are discovered automatically.
+    The Task validates a prediction-result Parquet dataset, constructs daily
+    top-N portfolios, and summarizes predictive quality, return, risk, turnover,
+    and benchmark-relative performance across overall, yearly, and quarterly
+    periods. Optional benchmark weights are discovered from decimal columns
+    named ``index_weight_<benchmark>``, such as ``index_weight_hs300``.
+
+    Results are written atomically as Parquet, CSV, JSON metadata, and an
+    optional PDF report beneath the configured output directory.
     """
 
     REQUIRED_COLUMNS = (

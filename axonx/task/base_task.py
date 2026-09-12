@@ -45,7 +45,22 @@ class BaseConfig(BaseModel):
 
 
 class BaseTask(ABC):
-    """Run a declared sequence of synchronous steps in a shared context."""
+    """Define an isolated synchronous unit of work executed as ordered steps.
+
+    Every concrete Task must provide its own detailed class docstring in a
+    language its author can maintain confidently. That docstring is exposed as
+    the Task's public description, so it should explain the Task's purpose,
+    important behavior, and produced artifacts rather than restating its class
+    name. Subclasses must also declare ``task_type``, select a Pydantic
+    ``config_cls``, list public ``output_keys``, and implement
+    ``build_task_steps``.
+
+    Steps run synchronously in declaration order and communicate through
+    ``context``. Relative filesystem paths should be resolved from
+    ``workspace_path`` so execution does not depend on the process working
+    directory. Long-running steps may call ``report_progress`` with a
+    monotonically increasing percentage.
+    """
 
     component_type = ComponentEnum.TASK
     task_type: TaskType

@@ -28,6 +28,8 @@ class CliConfig(BaseConfig):
 
 
 class CliTask(BaseTask):
+    """Expose a minimal configurable Task for command-line execution tests."""
+
     config_cls = CliConfig
     task_type = TaskType.ANALYSIS
     output_keys = ("amount", "dry_run")
@@ -53,6 +55,19 @@ def test_installed_task_infos_include_only_public_config(monkeypatch):
     assert info.output_keys == ("amount", "dry_run")
     assert set(info.config_schema["properties"]) == {"amount", "dry_run"}
     assert info.config_schema["required"] == ["amount"]
+
+
+def test_installed_task_infos_require_an_explicit_class_docstring(monkeypatch):
+    class UndocumentedTask(CliTask):
+        __doc__ = None
+
+    monkeypatch.setattr(
+        "axonx.task.task_resolver.installed_tasks",
+        lambda: {"undocumented": UndocumentedTask},
+    )
+
+    with pytest.raises(TypeError, match="must define a detailed class docstring"):
+        list_installed_task_infos()
 
 
 @pytest.fixture(autouse=True)

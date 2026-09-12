@@ -57,7 +57,12 @@ class TushareDownloadConfig(BaseConfig):
 
 @R.register("download_tushare_task")
 class DownloadTushareTask(BaseTask):
-    """下载日线、复权因子和沪深300月度成分权重。"""
+    """下载构建最小 A 股量化数据集所需的 Tushare 数据。
+
+    任务按日期下载股票日线与复权因子，并按月查询沪深 300 成分权重。
+    所有结果经过字段检查和稳定排序后，以 Parquet 格式原子写入工作区的
+    ``tushare/<年份>/<交易日>`` 目录，同时返回文件清单和各数据集行数。
+    """
 
     config_cls = TushareDownloadConfig
     config: TushareDownloadConfig
