@@ -69,6 +69,30 @@ def test_tushare_download_directory_is_inside_workspace(tmp_path):
     assert task.context["root"] == tmp_path / "tushare"
 
 
+def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
+    task = DownloadTusharTask(
+        {"start_date": "20260101", "end_date": "20260720"},
+        workspace_path=tmp_path,
+    )
+    monkeypatch.setattr(task, "download_market_day", lambda _day: None)
+    monkeypatch.setattr(task, "download_hs300_weight", lambda _start, _end: None)
+    snapshots = []
+
+    task.execute(emit=snapshots.append)
+
+    assert [step.name for step in task.status.steps] == [
+        "initialize",
+        "download_market_days",
+        "download_hs300_weights",
+    ]
+    market_progress = [
+        status.steps[1].percentage
+        for status in snapshots
+        if len(status.steps) == 2 and status.steps[1].percentage is not None
+    ]
+    assert market_progress == pytest.approx([100 / 201 * 100, 200 / 201 * 100, 100])
+
+
 def test_backtest_relative_paths_are_resolved_from_workspace(tmp_path):
     task = RankingBacktestTask(
         {"input_file": "predictions/input.parquet", "output_dir": "backtests/example"},

@@ -6,7 +6,6 @@ import os
 from calendar import monthrange
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta
-from functools import partial
 from typing import Any
 
 import pandas as pd
@@ -67,10 +66,8 @@ class DownloadTusharTask(BaseTask):
 
     def build_task_steps(self) -> Iterable[TaskStep]:
         yield self.initialize
-        for day in self.context["days"]:
-            yield partial(self.download_market_day, day)
-        for start, end in self.context["months"]:
-            yield partial(self.download_hs300_weight, start, end)
+        yield self.download_market_days
+        yield self.download_hs300_weights
 
     def initialize(self) -> None:
         end = min(self._parse_date(self.config.end_date) or date.today(), date.today())
@@ -94,6 +91,18 @@ class DownloadTusharTask(BaseTask):
             files=[],
             rows=dict.fromkeys(DATASETS, 0),
         )
+
+    def download_market_days(self) -> None:
+        days = self.context["days"]
+        for completed, day in enumerate(days, start=1):
+            self.download_market_day(day)
+            self._report_batch_progress(completed, len(days))
+
+    def download_hs300_weights(self) -> None:
+        months = self.context["months"]
+        for completed, (start, end) in enumerate(months, start=1):
+            self.download_hs300_weight(start, end)
+            self._report_batch_progress(completed, len(months))
 
     def download_market_day(self, day: date) -> None:
         trade_date = f"{day:%Y%m%d}"
@@ -138,6 +147,10 @@ class DownloadTusharTask(BaseTask):
             temporary.unlink(missing_ok=True)
         self.context["files"].append(str(path))
         self.context["rows"][api_name] += len(frame)
+
+    def _report_batch_progress(self, completed: int, total: int) -> None:
+        if completed % 100 == 0 and completed < total:
+            self.report_progress(completed / total * 100)
 
     @staticmethod
     def _parse_date(value: Any) -> date | None:
