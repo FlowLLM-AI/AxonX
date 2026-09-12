@@ -99,13 +99,13 @@ class BaseJob(BaseComponent):
         for step_class, options in self._step_specs:
             yield step_class(app_context=self.app_context, **deepcopy(options))
 
-    async def __call__(self, **arguments: Any) -> Response:
+    async def __call__(self, **kwargs) -> Response:
         task = asyncio.current_task()
         if task is not None:
             self._active_tasks.add(task)
         try:
             context = RuntimeContext(**deepcopy(self._defaults))
-            context.update(arguments)
+            context.update(kwargs)
             try:
                 for step in self._build_steps():
                     await step(context)

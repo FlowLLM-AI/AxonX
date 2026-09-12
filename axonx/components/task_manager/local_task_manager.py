@@ -20,7 +20,7 @@ from ...schema import TaskStatus
 class LocalTaskManager(BaseTaskManager):
     """Launch workers without deriving or monitoring their task status."""
 
-    def __init__(self, version=1, **kwargs):
+    def __init__(self, version: int = 1, **kwargs):
         super().__init__(**kwargs)
         self.version = version
         self._statuses: dict[str, TaskStatus] = {}
@@ -38,7 +38,7 @@ class LocalTaskManager(BaseTaskManager):
     def _save_status(self):
         payload = {
             "version": self.version,
-            "tasks": {task_id: status.model_dump(mode="json") for task_id, status in self._statuses.items()},
+            "tasks": [status.model_dump(mode="json") for status in self._statuses.values()],
         }
         temporary = self.status_path.with_suffix(".tmp")
         temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
@@ -50,9 +50,8 @@ class LocalTaskManager(BaseTaskManager):
         if self.status_path.is_file():
             data = json.loads(self.status_path.read_text(encoding="utf-8"))
             if data.get("version") == self.version:
-                self._statuses = {
-                    task_id: TaskStatus.model_validate(status) for task_id, status in data.get("tasks", {}).items()
-                }
+                statuses = (TaskStatus.model_validate(status) for status in data.get("tasks", []))
+                self._statuses = {status.task_id: status for status in statuses}
 
     async def submit(self, argv: Sequence[str]) -> None:
         if not self.is_started:

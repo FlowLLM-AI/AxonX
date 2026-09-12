@@ -31,7 +31,15 @@ axonx/
     task_manager/
       base_task_manager.py     # Task 管理接口
       local_task_manager.py    # 本机进程实现
-    service/                   # 可选 HTTP 服务
+    plugin_component/
+      base_plugin_component.py
+      local_plugin_component.py
+    machine_component/
+      base_machine_component.py
+      local_machine_component.py
+    http_service/
+      base_service.py
+      http_service.py          # 可选 HTTP 服务
     client/                    # HTTP 客户端
   task/
     base_task.py               # BaseTask / BaseConfig / Task 内部同步步骤类型

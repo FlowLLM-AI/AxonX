@@ -46,6 +46,6 @@ class McpClient(BaseClient["Client"]):
         client = self._require_client()
         try:
             return await client.ping()
-        except Exception:
+        except Exception:  # noqa
             # A health probe represents every transport or protocol failure as False.
             return False

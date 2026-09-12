@@ -8,23 +8,20 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from threading import RLock
 
-from ..enumeration import ComponentEnum
-from ..plugin.artifact import (
+from ...plugin.artifact import (
     PluginArtifact,
     build_wheel,
     inspect_wheel,
     install_artifact,
     source_sha256,
 )
-from .base_component import BaseComponent
-from .component_registry import R
+from ..component_registry import R
+from .base_plugin_component import BasePluginComponent
 
 
 @R.register("local")
-class PluginComponent(BaseComponent):
+class LocalPluginComponent(BasePluginComponent):
     """Build and install configured Task plugins and resolve Task targets."""
-
-    component_type = ComponentEnum.PLUGIN
 
     def __init__(
         self,

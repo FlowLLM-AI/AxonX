@@ -3,7 +3,7 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from threading import RLock
-from typing import Callable, TypeVar, cast
+from typing import Callable, TypeVar
 
 from ..enumeration import ComponentType, component_type_name
 
@@ -34,10 +34,10 @@ class ComponentRegistry:
 
     def _do_register(self, cls: type[T], name: str, *, owner: str | None = None) -> type[T]:
         """Insert ``cls`` under its component type and reject ambiguous providers."""
-        try:
-            component_type = component_type_name(getattr(cls, "component_type", None))
-        except (TypeError, ValueError) as exc:
-            raise TypeError(f"{cls.__name__} must have a non-empty string 'component_type' attribute") from exc
+        raw_component_type = getattr(cls, "component_type", None)
+        if not isinstance(raw_component_type, str) or not raw_component_type:
+            raise TypeError(f"{cls.__name__} must have a non-empty string 'component_type' attribute")
+        component_type = component_type_name(raw_component_type)
         if not name:
             raise ValueError("Component name cannot be empty")
 
@@ -70,7 +70,7 @@ class ComponentRegistry:
         """Register a component class directly, or return a decorator that does so."""
         # Direct call: register(MyClass) or register(MyClass, "alias").
         if isinstance(cls_or_name, type):
-            cls = cast(type[T], cls_or_name)
+            cls = cls_or_name
             return self._do_register(cls, name if name is not None else cls.__name__)
 
         # Decorator call: @R.register("alias") — must receive a string name.

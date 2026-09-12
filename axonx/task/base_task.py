@@ -36,7 +36,7 @@ class BaseConfig(BaseModel):
         elif self.task_id is None or self.task_type is None:
             raise ValueError("Task config contains an incomplete identity")
         elif self.task_type != task_type:
-            raise ValueError(f"Task type mismatch: {self.task_type} != {task_type}")
+            raise ValueError(f"Task type mismatch: {self.task_type.value} != {task_type.value}")
         assert self.task_id is not None
         return self.task_id
 

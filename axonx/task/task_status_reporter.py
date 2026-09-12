@@ -11,16 +11,13 @@ from ..components.client import HttpClient
 from ..constants import AXONX_SERVICE_INFO
 from ..schema import TaskStatus
 
-_STOP = object()
-
-
 class TaskStatusReporter:
     """Default no-op status reporter."""
 
     def __enter__(self):
         return self
 
-    def publish(self, _status: TaskStatus) -> None:
+    def publish(self, status: TaskStatus) -> None:
         """Publish one complete status snapshot."""
 
     def __exit__(self, *_exc) -> None:
@@ -32,19 +29,20 @@ class HttpTaskStatusReporter(TaskStatusReporter):
 
     def __init__(self, logger) -> None:
         self._logger = logger
-        self._queue: Queue[TaskStatus | object] = Queue()
+        self._queue: Queue[TaskStatus | None] = Queue()
         self._thread: Thread | None = None
 
     def __enter__(self):
-        self._thread = Thread(target=self._write, name="task-status", daemon=True)
-        self._thread.start()
+        thread = Thread(target=self._write, name="task-status", daemon=True)
+        self._thread = thread
+        thread.start()
         return self
 
     def publish(self, status: TaskStatus) -> None:
         self._queue.put(status)
 
     def __exit__(self, *_exc) -> None:
-        self._queue.put(_STOP)
+        self._queue.put(None)
         assert self._thread is not None
         self._thread.join()
 
@@ -56,7 +54,7 @@ class HttpTaskStatusReporter(TaskStatusReporter):
 
     async def _write_async(self) -> None:
         async with HttpClient() as client:
-            while (status := self._queue.get()) is not _STOP:
+            while (status := self._queue.get()) is not None:
                 try:
                     await client.set_status(status)
                 except Exception as exc:

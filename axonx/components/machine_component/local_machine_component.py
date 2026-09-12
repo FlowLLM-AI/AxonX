@@ -15,17 +15,14 @@ from typing import Any
 
 import psutil
 
-from ..enumeration import ComponentEnum
-from .base_component import BaseComponent
-from .client.http_client import HttpClient
-from .component_registry import R
+from ..client.http_client import HttpClient
+from ..component_registry import R
+from .base_machine_component import BaseMachineComponent
 
 
 @R.register("machine")
-class MachineComponent(BaseComponent):
+class LocalMachineComponent(BaseMachineComponent):
     """Collect local machine resources or read them from another AxonX node."""
-
-    component_type = ComponentEnum.MACHINE
 
     def __init__(self, timeout: float = 10.0, cpu_sample_interval: float = 0.1, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -77,7 +74,7 @@ class MachineComponent(BaseComponent):
         try:
             return metadata.version("axonx")
         except metadata.PackageNotFoundError:
-            from .. import __version__
+            from ... import __version__
 
             return __version__
 
@@ -85,7 +82,7 @@ class MachineComponent(BaseComponent):
     def _git_commit() -> str | None:
         if commit := os.environ.get("AXONX_GIT_COMMIT"):
             return commit
-        package_root = Path(__file__).resolve().parents[2]
+        package_root = Path(__file__).resolve().parents[3]
         try:
             result = subprocess.run(
                 ["git", "-C", str(package_root), "rev-parse", "HEAD"],
@@ -107,9 +104,9 @@ class MachineComponent(BaseComponent):
 
         gpus = []
         if shutil.which("nvidia-smi"):
-            gpus.extend(MachineComponent._nvidia_gpu_info())
+            gpus.extend(LocalMachineComponent._nvidia_gpu_info())
         if shutil.which("rocm-smi"):
-            gpus.extend(MachineComponent._amd_gpu_info())
+            gpus.extend(LocalMachineComponent._amd_gpu_info())
         return gpus or None
 
     @staticmethod
@@ -138,12 +135,12 @@ class MachineComponent(BaseComponent):
             if len(row) != 7:
                 continue
             index, uuid, name, total_mib, used_mib, free_mib, usage = map(str.strip, row)
-            gpu_index = MachineComponent._number(index)
+            gpu_index = LocalMachineComponent._number(index)
             if gpu_index is None:
                 continue
-            total_bytes = MachineComponent._number(total_mib, 1024**2)
-            used_bytes = MachineComponent._number(used_mib, 1024**2)
-            free_bytes = MachineComponent._number(free_mib, 1024**2)
+            total_bytes = LocalMachineComponent._number(total_mib, 1024**2)
+            used_bytes = LocalMachineComponent._number(used_mib, 1024**2)
+            free_bytes = LocalMachineComponent._number(free_mib, 1024**2)
             gpus.append(
                 {
                     "vendor": "nvidia",
@@ -156,7 +153,7 @@ class MachineComponent(BaseComponent):
                     "memory_usage_percent": (
                         round(used_bytes * 100 / total_bytes, 2) if total_bytes and used_bytes is not None else None
                     ),
-                    "usage_percent": MachineComponent._number(usage),
+                    "usage_percent": LocalMachineComponent._number(usage),
                 }
             )
         return gpus
@@ -181,8 +178,8 @@ class MachineComponent(BaseComponent):
         for fallback_index, (card, values) in enumerate(cards.items()):
             if not isinstance(card, str) or not isinstance(values, dict):
                 continue
-            total_bytes = MachineComponent._number(values.get("VRAM Total Memory (B)"))
-            used_bytes = MachineComponent._number(values.get("VRAM Total Used Memory (B)"))
+            total_bytes = LocalMachineComponent._number(values.get("VRAM Total Memory (B)"))
+            used_bytes = LocalMachineComponent._number(values.get("VRAM Total Used Memory (B)"))
             card_index = card.removeprefix("card")
             index = int(card_index) if card_index.isdigit() else fallback_index
             gpus.append(
@@ -199,7 +196,7 @@ class MachineComponent(BaseComponent):
                     "memory_usage_percent": (
                         round(used_bytes * 100 / total_bytes, 2) if total_bytes and used_bytes is not None else None
                     ),
-                    "usage_percent": MachineComponent._number(values.get("GPU use (%)")),
+                    "usage_percent": LocalMachineComponent._number(values.get("GPU use (%)")),
                 }
             )
         return gpus

@@ -292,6 +292,7 @@ async def test_submit_validation_and_status_snapshot(tmp_path):
         record = await manager.get_status(status.task_id)
         record.result["value"] = -1
         assert (await manager.get_status(status.task_id)).result["value"] == 2
+        assert json.loads(manager.status_path.read_text())["tasks"] == [status.model_dump(mode="json")]
 
 
 async def test_cancel_returns_whether_signal_was_sent(monkeypatch, tmp_path):
@@ -345,15 +346,15 @@ async def test_unfinished_history_is_loaded_without_rewriting(tmp_path):
         json.dumps(
             {
                 "version": 1,
-                "tasks": {
-                    "old": {
+                "tasks": [
+                    {
                         "task_id": "old",
                         "task_type": "analysis",
                         "created_at": "2024-01-01T00:00:00Z",
                         "state": "running",
                         "pid": os.getpid(),
                     }
-                },
+                ],
             }
         )
     )
@@ -371,13 +372,13 @@ async def test_task_manager_ignores_status_from_another_version(tmp_path):
         json.dumps(
             {
                 "version": 1,
-                "tasks": {
-                    "old": {
+                "tasks": [
+                    {
                         "task_id": "old",
                         "task_type": "analysis",
                         "state": "succeeded",
                     }
-                },
+                ],
             }
         )
     )

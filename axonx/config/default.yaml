@@ -4,7 +4,7 @@ components:
     default:
       backend: local
       auto_install: true
-      allow_remote_install: false
+      allow_remote_install: true
   task_manager:
     default:
       backend: local
@@ -43,7 +43,8 @@ jobs:
         task:
           type: string
           description: Registered task name.
-      required: [ task ]
+      required:
+        - task
       additionalProperties: true
     steps:
       - backend: submit_task
@@ -56,9 +57,13 @@ jobs:
     parameters:
       type: object
       properties:
-        task_id: { type: string }
-        status: { type: object }
-      required: [ task_id, status ]
+        task_id:
+          type: string
+        status:
+          type: object
+      required:
+        - task_id
+        - status
     steps:
       - backend: set_task_status
   status:
@@ -66,8 +71,10 @@ jobs:
     parameters:
       type: object
       properties:
-        task_id: { type: string }
-      required: [ task_id ]
+        task_id:
+          type: string
+      required:
+        - task_id
     steps:
       - backend: get_task_status
   cancel:
@@ -75,7 +82,9 @@ jobs:
     parameters:
       type: object
       properties:
-        task_id: { type: string }
-      required: [ task_id ]
+        task_id:
+          type: string
+      required:
+        - task_id
     steps:
       - backend: cancel_task

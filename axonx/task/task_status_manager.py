@@ -60,7 +60,7 @@ class TaskStatusManager:
     def succeed(self, result: dict[str, Any], exit_code: int) -> None:
         """Store Task output and its successful or nonzero terminal state."""
         state = TaskState.SUCCEEDED if exit_code == 0 else TaskState.FAILED
-        error = None if exit_code == 0 else f"Task exited with code {exit_code}"
+        error = "" if exit_code == 0 else f"Task exited with code {exit_code}"
         self._finish(state, exit_code, result=result, error=error)
 
     def fail(self, exc: BaseException) -> None:
@@ -78,7 +78,7 @@ class TaskStatusManager:
         exit_code: int,
         *,
         result: dict[str, Any] | None = None,
-        error: str | None = None,
+        error: str = "",
     ) -> None:
         self.status.state = state
         self.status.exit_code = exit_code

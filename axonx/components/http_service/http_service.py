@@ -5,27 +5,25 @@ import hmac
 import json
 import os
 from contextlib import asynccontextmanager
+from typing import Any
 
-from ..constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
-from ..enumeration import ComponentEnum
-from ..schema import JobInfo, Response
-from .base_component import BaseComponent
-from .component_registry import R
+from ...constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
+from ...schema import JobInfo, Response
+from ..component_registry import R
+from .base_service import BaseService
 
 
 @R.register("http")
-class HttpService(BaseComponent):
+class HttpService(BaseService):
     """Expose public jobs over REST and Streamable HTTP MCP."""
-
-    component_type = ComponentEnum.SERVICE
 
     def __init__(
         self,
-        host=AXONX_DEFAULT_HOST,
-        port=AXONX_DEFAULT_PORT,
-        shutdown_timeout=1.0,
-        **kwargs,
-    ):
+        host: str = AXONX_DEFAULT_HOST,
+        port: int = AXONX_DEFAULT_PORT,
+        shutdown_timeout: int = 1,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         if shutdown_timeout < 0:
             raise ValueError("shutdown_timeout must be non-negative")

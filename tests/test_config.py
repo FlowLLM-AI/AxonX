@@ -89,5 +89,5 @@ def test_default_config_enables_local_plugin_component():
     assert config["components"]["plugin"]["default"] == {
         "backend": "local",
         "auto_install": True,
-        "allow_remote_install": False,
+        "allow_remote_install": True,
     }

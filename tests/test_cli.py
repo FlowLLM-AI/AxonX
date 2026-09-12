@@ -137,6 +137,7 @@ def test_demo_task_exercises_dynamic_steps_and_outputs():
     assert [step.name for step in different.status.steps] == ["initialize", "add_x", "add_y", "finish"]
     assert different.status.state == "succeeded"
     assert different.status.exit_code == 0
+    assert different.status.error == ""
 
 
 def test_demo_task_exercises_failure_status():
