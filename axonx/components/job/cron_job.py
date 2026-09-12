@@ -6,15 +6,19 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from .base_job import BaseJob
+from ...enumeration import JobMode
 from ..component_registry import R
+from .simple_job import SimpleJob
 
 
 @R.register("cron")
-class CronJob(BaseJob):
+class CronJob(SimpleJob):
     """Run at times selected by a cron expression in the application timezone."""
 
-    runs_in_background = True
+    @property
+    def mode(self) -> JobMode:
+        """Run continuously according to the configured schedule."""
+        return JobMode.BACKGROUND
 
     def __init__(self, cron: str, **kwargs: Any) -> None:
         from croniter import croniter

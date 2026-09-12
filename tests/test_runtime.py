@@ -13,7 +13,12 @@ import pytest
 from axonx import Application, BaseComponent, BaseTask
 from axonx.config import resolve_app_config
 from axonx.components import R
-from axonx.constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO, AXONX_TASK_WORKSPACE_DIR
+from axonx.constants import (
+    AXONX_DEFAULT_CONNECT_HOST,
+    AXONX_DEFAULT_PORT,
+    AXONX_SERVICE_INFO,
+    AXONX_TASK_WORKSPACE_DIR,
+)
 from axonx.plugin.manifest import parse_plugin_manifest
 from axonx.enumeration import TaskState, TaskType
 from axonx.schema import PluginManifest, TaskStatus
@@ -163,11 +168,11 @@ def test_http_client_discovers_service_from_environment(monkeypatch, capsys):
     assert HttpClient().url == "http://service.internal:4321"
     assert McpClient().url == "http://service.internal:4321/mcp"
     assert HttpClient(host_ip="explicit.example", host_port=8443).url == "http://explicit.example:8443"
-    assert HttpClient(host_ip=AXONX_DEFAULT_HOST, host_port=AXONX_DEFAULT_PORT).url == "http://127.0.0.1:1024"
+    assert HttpClient(host_ip=AXONX_DEFAULT_CONNECT_HOST, host_port=AXONX_DEFAULT_PORT).url == "http://127.0.0.1:1024"
     assert HttpClient(host_ip="2001:db8::1", host_port=8443).url == "http://[2001:db8::1]:8443"
 
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host": "missing-port"}')
-    assert HttpClient().url == f"http://{AXONX_DEFAULT_HOST}:{AXONX_DEFAULT_PORT}"
+    assert HttpClient().url == f"http://{AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}"
     assert f"Invalid {AXONX_SERVICE_INFO} value" in capsys.readouterr().err
 
 
@@ -199,6 +204,26 @@ async def test_http_service_publishes_service_info(monkeypatch):
     assert not app.is_started
 
 
+async def test_http_service_advertises_loopback_for_default_wildcard_bind(
+    monkeypatch,
+):
+    from axonx.components import HttpService
+
+    monkeypatch.delenv(AXONX_SERVICE_INFO, raising=False)
+    app = Application()
+    service = HttpService()
+    server = service.build_service(app)
+
+    assert service.host == "0.0.0.0"
+    async with server.router.lifespan_context(server):
+        assert json.loads(os.environ[AXONX_SERVICE_INFO]) == {
+            "host": AXONX_DEFAULT_CONNECT_HOST,
+            "port": AXONX_DEFAULT_PORT,
+        }
+
+    assert AXONX_SERVICE_INFO not in os.environ
+
+
 async def test_http_and_mcp_expose_the_same_jobs():
     import httpx
     from fastmcp import Client
@@ -215,6 +240,8 @@ async def test_http_and_mcp_expose_the_same_jobs():
         },
     )
     service = HttpService()
+    assert service.host == "0.0.0.0"
+    assert service.port == AXONX_DEFAULT_PORT
     server = service.build_service(app)
 
     async with server.router.lifespan_context(server):

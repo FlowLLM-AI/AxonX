@@ -3,7 +3,7 @@
 __version__ = "0.1.0"
 
 from .components import BaseComponent, R
-from .components.job import BaseJob
+from .components.job import BaseJob, JobMode, SimpleJob
 from .components.task_manager import BaseTaskManager, LocalTaskManager
 from .components import client
 from .task import BaseTask, BaseConfig
@@ -20,8 +20,10 @@ __all__ = [
     "BaseStep",
     "BaseTask",
     "BaseTaskManager",
+    "JobMode",
     "LocalTaskManager",
     "R",
+    "SimpleJob",
     "__version__",
     "client",
 ]

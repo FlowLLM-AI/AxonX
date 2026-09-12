@@ -15,7 +15,11 @@ AXONX_SERVICE_INFO = "AXONX_SERVICE_INFO"
 # Internal handoff from an application task manager to its Task subprocess.
 AXONX_TASK_WORKSPACE_DIR = "AXONX_TASK_WORKSPACE_DIR"
 
-AXONX_DEFAULT_HOST = "127.0.0.1"
+# Wildcard address used by servers to listen on every IPv4 interface.
+AXONX_DEFAULT_BIND_HOST = "0.0.0.0"
+
+# Loopback address used by clients when no remote service is configured.
+AXONX_DEFAULT_CONNECT_HOST = "127.0.0.1"
 
 AXONX_DEFAULT_PORT = 1024
 
@@ -47,5 +51,5 @@ CLI_USAGE = f"""Usage:
   axonx plugin COMMAND ...
   axonx JOB [--field value ...]
 
-Remote Job options: host_ip={AXONX_DEFAULT_HOST} host_port={AXONX_DEFAULT_PORT}
+Remote Job options: host_ip={AXONX_DEFAULT_CONNECT_HOST} host_port={AXONX_DEFAULT_PORT}
 timeout={AXONX_DEFAULT_REQUEST_TIMEOUT:g}"""

@@ -18,7 +18,7 @@ class ComponentConfig(BaseModel):
 class JobConfig(ComponentConfig):
     """Configure a job's schema, defaults, visibility, and ordered steps."""
 
-    backend: str = Field(default="base", min_length=1)
+    backend: str = Field(default="simple", min_length=1)
     description: str = Field(default="")
     parameters: dict[str, Any] = Field(default_factory=lambda: {"type": "object", "properties": {}})
     enable_serve: bool = True

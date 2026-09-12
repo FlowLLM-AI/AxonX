@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT
+from ..constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
 
 if TYPE_CHECKING:
     from ..components.http_service import HttpService
@@ -48,7 +48,7 @@ def print_logo(app_config: "ApplicationConfig", service: "HttpService") -> None:
             logo.append(character, style=f"bold rgb({red},{green},{blue})")
         logo.append("\n")
 
-    host = getattr(service, "host", AXONX_DEFAULT_HOST)
+    host = getattr(service, "host", AXONX_DEFAULT_BIND_HOST)
     port = getattr(service, "port", AXONX_DEFAULT_PORT)
     url = f"http://{host}:{port}"
     info = Table.grid(padding=(0, 1))

@@ -10,7 +10,7 @@ from . import __version__
 from .components import BaseComponent, R
 from .components.client import HttpClient
 from .context import ApplicationContext
-from .components.job import BaseJob, CronJob
+from .components.job import BaseJob
 from .constants import REMOTE_IP_ARGUMENT
 from .schema import ComponentConfig
 from .utils import get_logger
@@ -116,21 +116,16 @@ class Application(BaseComponent):
             await component.start()
             self._started_components.append(component)
 
-        jobs = self.context.jobs.values()
+        jobs = sorted(self.context.jobs.values(), key=lambda x: x.startup_priority)
         for job in jobs:
-            if not isinstance(job, CronJob):
-                await job.start()
-                self._started_components.append(job)
-        for job in jobs:
-            if isinstance(job, CronJob):
-                await job.start()
-                self._started_components.append(job)
+            await job.start()
+            self._started_components.append(job)
 
     async def _close(self) -> None:
         self.is_started = False
 
         errors: list[Exception] = []
-        # Jobs stop before their dependencies; cron jobs were started last.
+        # Jobs stop before their dependencies; background jobs were started last.
         while self._started_components:
             try:
                 await self._started_components.pop().close()
@@ -147,9 +142,12 @@ class Application(BaseComponent):
         job = self.context.jobs.get(name)
         if job is None:
             raise ValueError(f"Unknown job: {name!r}")
-        if isinstance(job, CronJob):
-            raise ValueError(f"Job {name!r} is managed in the background")
-        if REMOTE_IP_ARGUMENT in kwargs and not job.enable_remote:
+        if not job.is_invocable:
+            raise ValueError(
+                f"Job {name!r} does not support direct invocation "
+                f"in {job.mode.value!r} mode"
+            )
+        if REMOTE_IP_ARGUMENT in kwargs and not job.is_remotely_invocable:
             raise ValueError(f"Job {name!r} does not support remote execution")
         job.validate_arguments(kwargs)
         remote_ip = kwargs.pop(REMOTE_IP_ARGUMENT, None)

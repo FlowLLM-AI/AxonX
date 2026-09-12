@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Generic, TypeVar
 
 from ...constants import (
-    AXONX_DEFAULT_HOST,
+    AXONX_DEFAULT_CONNECT_HOST,
     AXONX_DEFAULT_PORT,
     AXONX_DEFAULT_REQUEST_TIMEOUT,
     AXONX_DEFAULT_SCHEME,
@@ -54,7 +54,7 @@ class BaseClient(BaseComponent, ABC, Generic[ClientT]):
     def _discover_address(self) -> tuple[str, int]:
         service_info = os.environ.get(AXONX_SERVICE_INFO)
         if not service_info:
-            return AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT
+            return AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_PORT
         try:
             data = json.loads(service_info)
             host, port = data["host"], data["port"]
@@ -65,7 +65,7 @@ class BaseClient(BaseComponent, ABC, Generic[ClientT]):
             return host, port
         except (KeyError, TypeError, ValueError):
             self.logger.warning(f"Invalid {AXONX_SERVICE_INFO} value: {service_info}")
-            return AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT
+            return AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_PORT
 
     @abstractmethod
     async def run_job(self, name: str, **kwargs: Any) -> Response:

@@ -7,7 +7,12 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
-from ...constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
+from ...constants import (
+    AXONX_DEFAULT_BIND_HOST,
+    AXONX_DEFAULT_CONNECT_HOST,
+    AXONX_DEFAULT_PORT,
+    AXONX_SERVICE_INFO,
+)
 from ...schema import JobInfo, Response
 from ..component_registry import R
 from .base_service import BaseService
@@ -19,7 +24,7 @@ class HttpService(BaseService):
 
     def __init__(
         self,
-        host: str = AXONX_DEFAULT_HOST,
+        host: str = AXONX_DEFAULT_BIND_HOST,
         port: int = AXONX_DEFAULT_PORT,
         shutdown_timeout: int = 1,
         **kwargs: Any,
@@ -61,7 +66,14 @@ class HttpService(BaseService):
         async def lifespan(_server):
             async with app:
                 previous_service_info = os.environ.get(AXONX_SERVICE_INFO)
-                service_info = json.dumps({"host": self.host, "port": self.port})
+                advertised_host = (
+                    AXONX_DEFAULT_CONNECT_HOST
+                    if self.host == AXONX_DEFAULT_BIND_HOST
+                    else self.host
+                )
+                service_info = json.dumps(
+                    {"host": advertised_host, "port": self.port}
+                )
                 os.environ[AXONX_SERVICE_INFO] = service_info
                 self.logger.info(f"Service started: {AXONX_SERVICE_INFO}={service_info}")
                 try:
@@ -137,6 +149,9 @@ class HttpService(BaseService):
                 "tasks": artifact.tasks,
                 "sha256": artifact.sha256,
             }
+
+        for job in app.context.jobs.values():
+            job.mount_http_routes(server)
 
         return server
 

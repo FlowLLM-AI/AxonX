@@ -15,6 +15,7 @@ class ComponentEnum(StrEnum):
     CLIENT = "client"
     MACHINE = "machine"
     PLUGIN = "plugin"
+    PROXY = "proxy"
 
 
 ComponentType = str | ComponentEnum

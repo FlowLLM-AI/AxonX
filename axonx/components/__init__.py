@@ -6,11 +6,13 @@ from .component_registry import R, ComponentRegistry
 from .http_service import BaseService, HttpService
 from .machine_component import BaseMachineComponent, LocalMachineComponent, MachineComponent
 from .plugin_component import BasePluginComponent, LocalPluginComponent, PluginComponent
+from .proxy import BaseProxyComponent, HttpProxyComponent, ProxyResponse
 
 __all__ = [
     "BaseComponent",
     "BaseMachineComponent",
     "BasePluginComponent",
+    "BaseProxyComponent",
     "BaseService",
     "ComponentMixin",
     "ComponentRegistry",
@@ -20,4 +22,6 @@ __all__ = [
     "MachineComponent",
     "PluginComponent",
     "R",
+    "HttpProxyComponent",
+    "ProxyResponse",
 ]
