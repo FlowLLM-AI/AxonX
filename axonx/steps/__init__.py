@@ -8,6 +8,7 @@ from .task import (
     GetTaskStatusStep,
     ListInstalledTaskInfosStep,
     ListRuntimeTaskIdsStep,
+    ListRuntimeTaskStatusesStep,
     SetTaskStatusStep,
     SubmitTaskStep,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "ListMachinesStep",
     "ListPluginsStep",
     "ListRuntimeTaskIdsStep",
+    "ListRuntimeTaskStatusesStep",
     "MachineStatusStep",
     "SetTaskStatusStep",
     "SubmitTaskStep",

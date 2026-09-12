@@ -5,6 +5,7 @@ import hmac
 import json
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from ...constants import (
@@ -28,6 +29,8 @@ class HttpService(BaseService):
         host: str = AXONX_DEFAULT_BIND_HOST,
         port: int = AXONX_DEFAULT_PORT,
         shutdown_timeout: int = 1,
+        web_enabled: bool = True,
+        web_static_dir: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -35,6 +38,8 @@ class HttpService(BaseService):
             raise ValueError("shutdown_timeout must be non-negative")
         self.host, self.port = host, port
         self.shutdown_timeout = shutdown_timeout
+        self.web_enabled = web_enabled
+        self.web_static_dir = web_static_dir
         self.mcp_server = None
 
     def _add_mcp_job(self, app, job):
@@ -57,6 +62,9 @@ class HttpService(BaseService):
     def build_service(self, app):
         """Build the ASGI application without starting a server."""
         from fastapi import FastAPI, HTTPException, Request
+        from fastapi.middleware.cors import CORSMiddleware
+        from fastapi.responses import FileResponse
+        from fastapi.staticfiles import StaticFiles
         from fastmcp import FastMCP
         from fastmcp.utilities.lifespan import combine_lifespans
         from starlette.routing import Route
@@ -88,9 +96,14 @@ class HttpService(BaseService):
             title=app.app_config.app_name,
             lifespan=combine_lifespans(lifespan, mcp_app.lifespan),
         )
-        server.router.routes.append(
-            Route("/mcp", endpoint=mcp_app, include_in_schema=False),
+        server.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=False,
+            allow_methods=["*"],
+            allow_headers=["*"],
         )
+        server.router.routes.append(Route("/mcp", endpoint=mcp_app, include_in_schema=False))
 
         @server.get("/health")
         async def health():
@@ -156,7 +169,50 @@ class HttpService(BaseService):
         for job in app.context.jobs.values():
             job.mount_http_routes(server)
 
+        self._mount_web_app(server, StaticFiles, FileResponse, HTTPException)
+
         return server
+
+    def _mount_web_app(self, server, static_files, file_response, http_exception) -> None:
+        """Serve the optional AxonX Studio static build as a same-origin SPA."""
+        if not self.web_enabled:
+            return
+        static_dir = self._resolve_web_static_dir()
+        if static_dir is None:
+            self.logger.info("AxonX Studio is unavailable; no static build was found")
+            return
+
+        assets_dir = static_dir / "assets"
+        if assets_dir.is_dir():
+            server.mount("/assets", static_files(directory=str(assets_dir)), name="web-assets")
+        index_file = static_dir / "index.html"
+        no_cache_headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+
+        @server.get("/{full_path:path}", include_in_schema=False)
+        async def studio_spa(full_path: str):
+            if full_path in {"docs", "redoc", "openapi.json"}:
+                raise http_exception(status_code=404, detail="Not Found")
+            if full_path and not Path(full_path).is_absolute():
+                static_file = (static_dir / full_path).resolve()
+                if static_file.is_relative_to(static_dir) and static_file.is_file():
+                    return file_response(static_file)
+            return file_response(index_file, headers=no_cache_headers)
+
+    def _resolve_web_static_dir(self) -> Path | None:
+        candidates = []
+        if self.web_static_dir:
+            candidates.append(Path(self.web_static_dir).expanduser())
+        candidates.extend(
+            (
+                Path(__file__).resolve().parents[3] / "axon_studio" / "dist",
+                Path(__file__).resolve().parents[2] / "static",
+            ),
+        )
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            if (resolved / "index.html").is_file():
+                return resolved
+        return None
 
     def run_app(self, app):
         """Serve the application with Uvicorn until shutdown."""

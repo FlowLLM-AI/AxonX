@@ -26,6 +26,10 @@ class BaseTaskManager(BaseComponent, ABC):
         """Return all known runtime task identifiers."""
 
     @abstractmethod
+    async def list_runtime_task_statuses(self) -> list[TaskStatus]:
+        """Return snapshots for all known task executions."""
+
+    @abstractmethod
     async def get_status(self, task_id: str) -> TaskStatus:
         """Return one task status."""
 

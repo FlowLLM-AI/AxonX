@@ -193,6 +193,9 @@ class LocalTaskManager(BaseTaskManager):
     async def list_runtime_task_ids(self):
         return sorted(self._statuses)
 
+    async def list_runtime_task_statuses(self):
+        return [self._statuses[task_id].model_copy(deep=True) for task_id in sorted(self._statuses, reverse=True)]
+
     async def get_status(self, task_id):
         return self._statuses[task_id].model_copy(deep=True)
 

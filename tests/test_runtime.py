@@ -22,6 +22,7 @@ from axonx.constants import (
 from axonx.plugin.manifest import parse_plugin_manifest
 from axonx.enumeration import TaskState, TaskType
 from axonx.schema import PluginManifest, TaskStatus
+from axonx.steps.task.submit_task_step import SubmitTaskStep
 
 
 def application(tmp_path, **manager):
@@ -340,6 +341,30 @@ async def test_http_service_advertises_loopback_for_default_wildcard_bind(
     assert AXONX_SERVICE_INFO not in os.environ
 
 
+async def test_http_service_serves_studio_spa_and_cors(tmp_path):
+    import httpx
+
+    from axonx.components import HttpService
+
+    static_dir = tmp_path / "studio"
+    static_dir.mkdir()
+    (static_dir / "index.html").write_text("<main>AxonX Studio</main>", encoding="utf-8")
+    server = HttpService(web_static_dir=str(static_dir)).build_service(Application())
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
+        page = await client.get("/tasks")
+        preflight = await client.options(
+            "/jobs",
+            headers={
+                "origin": "http://127.0.0.1:4173",
+                "access-control-request-method": "GET",
+            },
+        )
+
+    assert page.text == "<main>AxonX Studio</main>"
+    assert page.headers["cache-control"] == "no-cache, no-store, must-revalidate"
+    assert preflight.headers["access-control-allow-origin"] == "*"
+
+
 async def test_http_and_mcp_expose_the_same_jobs():
     import httpx
     from fastmcp import Client
@@ -466,6 +491,59 @@ async def test_submit_validation_and_status_snapshot(tmp_path):
         record.result["value"] = -1
         assert (await manager.get_status(status.task_id)).result["value"] == 2
         assert json.loads(manager.status_path.read_text())["tasks"] == [status.model_dump(mode="json")]
+
+
+async def test_list_runtime_task_statuses_returns_independent_snapshots(tmp_path):
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        status = TaskStatus(
+            task_id="analysis#snapshot",
+            task_type=TaskType.ANALYSIS,
+            state=TaskState.RUNNING,
+            result={"value": 2},
+        )
+        await manager.set_status(status.task_id, status)
+        response = await app.run_job("list_runtime_task_statuses")
+        response.answer[0]["result"]["value"] = -1
+
+        assert (await manager.get_status(status.task_id)).result["value"] == 2
+
+
+def test_structured_task_submission_is_encoded_losslessly():
+    assert SubmitTaskStep._to_argv(  # pylint: disable=protected-access
+        {
+            "task": "sample",
+            "start_date": "00100101",
+            "dry_run": True,
+            "options": {"markets": ["CN", "HK"]},
+        },
+    ) == [
+        "--task",
+        "sample",
+        "--start-date",
+        '"00100101"',
+        "--dry-run",
+        "true",
+        "--options",
+        '{"markets":["CN","HK"]}',
+    ]
+
+
+async def test_structured_task_submission_validates_before_launch(monkeypatch, tmp_path):
+    calls = []
+
+    async def submit(argv):
+        calls.append(argv)
+
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        monkeypatch.setattr(manager, "submit", submit)
+
+        invalid = await app.run_job("submit", task="demo", x="not-an-integer", y=2)
+
+    assert invalid.success is False
+    assert "validation error" in invalid.answer
+    assert not calls
 
 
 async def test_cancel_returns_whether_signal_was_sent(monkeypatch, tmp_path):
@@ -619,7 +697,7 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
                     "backend": "local",
                     "allow_remote_install": True,
                     "install_token": "secret",
-                }
+                },
             },
         },
         jobs={"list_plugins": {"steps": [{"backend": "list_plugins_step"}]}},

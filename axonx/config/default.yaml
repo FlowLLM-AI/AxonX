@@ -1,4 +1,6 @@
-remote_nodes: []
+remote_nodes:
+  - host_ip: 11.160.132.45
+    host_port: 1024
 components:
   plugin:
     default:
@@ -48,6 +50,10 @@ jobs:
     description: List all runtime Task IDs.
     steps:
       - backend: list_runtime_task_ids
+  list_runtime_task_statuses:
+    description: List complete status snapshots for all runtime Tasks.
+    steps:
+      - backend: list_runtime_task_statuses
   list_installed_task_infos:
     description: List all installed Task definitions.
     steps:
