@@ -381,6 +381,31 @@ async def test_task_manager_ignores_status_from_another_version(tmp_path):
     assert json.loads(status_path.read_text())["version"] == 1
 
 
+async def test_task_manager_logs_and_ignores_invalid_status(tmp_path, capsys):
+    directory = tmp_path / "task_manager"
+    directory.mkdir(parents=True)
+    status_path = directory / "status.json"
+    status_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "tasks": {"old": {"task_id": "old", "task_type": "analysis"}},
+            },
+        ),
+    )
+
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        assert await manager.list_task_ids() == []
+        assert json.loads(status_path.read_text())["tasks"] == {"old": {"task_id": "old", "task_type": "analysis"}}
+
+        status = TaskStatus(task_id="new", task_type=TaskType.ANALYSIS)
+        await manager.set_status(status.task_id, status)
+
+    assert "Failed to load task status" in capsys.readouterr().err
+    assert json.loads(status_path.read_text())["tasks"] == [status.model_dump(mode="json")]
+
+
 async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     import httpx
 

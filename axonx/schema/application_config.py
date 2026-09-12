@@ -65,6 +65,9 @@ class ApplicationConfig(BaseModel):
     app_name: str = AXONX_NAME
     workspace_dir: str = ".axonx"
     timezone: str = "Asia/Shanghai"
+    enable_logo: bool = True
+    log_to_console: bool = True
+    log_to_file: bool = True
     plugins: list[str] = Field(default_factory=list)
     remote_nodes: list[RemoteNode] = Field(default_factory=list)
     environment: dict[str, str] = Field(default_factory=dict)

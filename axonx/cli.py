@@ -14,6 +14,7 @@ from .config import resolve_app_config
 from .constants import AXONX_TASK_WORKSPACE_DIR, CLI_LOCAL_COMMANDS, CLI_RAW_ARGUMENTS, CLI_USAGE
 from .schema import ApplicationConfig, ClientOptions, Command
 from .task import TaskCatalog, TaskCommandExecutor
+from .utils import print_logo
 from .utils.cli_utils import (
     parse_command,
     print_json,
@@ -26,7 +27,10 @@ def _run_server(command: Command) -> int:
     spec = app.app_config.service
     if spec and spec.backend != "http":
         raise ValueError("Only the http service is supported")
-    HttpService(**(spec.model_dump() if spec else {})).run_app(app)
+    service = HttpService(**(spec.model_dump() if spec else {}))
+    if app.app_config.enable_logo:
+        print_logo(app.app_config, service)
+    service.run_app(app)
     return 0
 
 

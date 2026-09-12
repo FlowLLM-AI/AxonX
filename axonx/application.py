@@ -6,12 +6,14 @@ import heapq
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
+from . import __version__
 from .components import BaseComponent, R
 from .components.client import HttpClient
 from .context import ApplicationContext
 from .components.job import BaseJob, CronJob
 from .constants import REMOTE_IP_ARGUMENT
 from .schema import ComponentConfig
+from .utils import get_logger
 
 ComponentT = TypeVar("ComponentT", bound=BaseComponent)
 
@@ -23,7 +25,13 @@ class Application(BaseComponent):
         # Plugins provide tasks only; backends and defaults come from app config.
         registry = R.copy()
         self.context = ApplicationContext(registry, **config)
+        logger = get_logger(
+            log_to_console=self.context.app_config.log_to_console,
+            log_to_file=self.context.app_config.log_to_file,
+            force_init=True,
+        )
         super().__init__(app_context=self.context)
+        logger.info(f"Initializing {self.app_config.app_name} Application v{__version__}")
 
         self._started_components: list[BaseComponent] = []
 

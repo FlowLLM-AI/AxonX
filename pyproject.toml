@@ -42,6 +42,7 @@ dependencies = [
     "pyarrow>=14,<23",
     "PyYAML>=6,<7",
     "requests>=2.31,<3",
+    "rich>=14,<15",
     "starlette>=0.46",
     "uvicorn>=0.30",
 ]

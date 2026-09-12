@@ -50,10 +50,14 @@ class LocalTaskManager(BaseTaskManager):
         if os.name != "posix":
             raise NotImplementedError("LocalTaskManager supports macOS and Linux")
         if self.status_path.is_file():
-            data = json.loads(self.status_path.read_text(encoding="utf-8"))
-            if data.get("version") == self.version:
-                statuses = (TaskStatus.model_validate(status) for status in data.get("tasks", []))
-                self._statuses = {status.task_id: status for status in statuses}
+            try:
+                data = json.loads(self.status_path.read_text(encoding="utf-8"))
+                if data.get("version") == self.version:
+                    statuses = (TaskStatus.model_validate(status) for status in data.get("tasks", []))
+                    self._statuses = {status.task_id: status for status in statuses}
+            except Exception:  # noqa
+                self._statuses = {}
+                self.logger.exception(f"Failed to load task status from {self.status_path}; starting with empty history")
 
     async def submit(self, argv: Sequence[str]) -> None:
         if not self.is_started:

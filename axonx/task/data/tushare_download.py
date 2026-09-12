@@ -122,7 +122,7 @@ class DownloadTusharTask(BaseTask):
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
         try:
-            frame.to_parquet(temporary, index=False, compression="zstd")
+            frame.to_parquet(temporary, index=False, compression="zstd", compression_level=6)
             temporary.replace(path)
         finally:
             temporary.unlink(missing_ok=True)

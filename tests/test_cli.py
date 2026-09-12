@@ -4,6 +4,7 @@
 # pylint: disable=missing-class-docstring,missing-function-docstring
 
 import json
+from types import SimpleNamespace
 import threading
 
 import pytest
@@ -216,6 +217,25 @@ def test_submit_forwards_the_same_task_arguments(monkeypatch, capsys):
         ),
     ]
     assert json.loads(capsys.readouterr().out)["answer"] == {"task_id": "analysis_20240601120000_abcd"}
+
+
+def test_start_prints_logo_before_running_service(monkeypatch):
+    events = []
+    app = SimpleNamespace(app_config=SimpleNamespace(service=None, enable_logo=True))
+
+    class Service:
+        def run_app(self, received_app):
+            assert received_app is app
+            events.append("serve")
+
+    service = Service()
+    monkeypatch.setattr(cli, "resolve_app_config", lambda **_kwargs: {})
+    monkeypatch.setattr(cli, "Application", lambda **_config: app)
+    monkeypatch.setattr(cli, "HttpService", lambda **_config: service)
+    monkeypatch.setattr(cli, "print_logo", lambda config, runtime: events.append((config, runtime)))
+
+    assert cli.main(["start"]) == 0
+    assert events == [(app.app_config, service), "serve"]
 
 
 def test_exec_without_arguments_lists_available_tasks(monkeypatch, capsys):
