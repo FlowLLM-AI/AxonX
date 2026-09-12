@@ -12,6 +12,9 @@ PLUGIN_MANIFEST = "plugin.yaml"
 # clients created in the same process.
 AXONX_SERVICE_INFO = "AXONX_SERVICE_INFO"
 
+# Internal handoff from an application task manager to its Task subprocess.
+AXONX_TASK_WORKSPACE_DIR = "AXONX_TASK_WORKSPACE_DIR"
+
 AXONX_DEFAULT_HOST = "127.0.0.1"
 
 AXONX_DEFAULT_PORT = 1024

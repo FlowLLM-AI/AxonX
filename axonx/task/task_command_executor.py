@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from ..constants import CLI_RAW_ARGUMENTS
@@ -38,6 +39,9 @@ class TaskExecution:
 class TaskCommandExecutor:
     """Turn one validated ``exec`` Command into a Task result."""
 
+    def __init__(self, workspace_dir: str | Path) -> None:
+        self.workspace_path = Path(workspace_dir).expanduser().resolve()
+
     def execute(self, command: Command) -> TaskCatalog | TaskExecution:
         """Execute or enumerate tasks for one validated command."""
         if command.action != "exec":
@@ -48,7 +52,7 @@ class TaskCommandExecutor:
             return TaskCatalog(installed_tasks())
 
         name, config = self._task_arguments(arguments)
-        task = resolve_task(name)(config)
+        task = resolve_task(name)(config, workspace_dir=self.workspace_path)
         with create_task_status_reporter(task.logger) as reporter:
             status = TaskRunner(reporter.publish).run(task)
         return TaskExecution(task.output, status)

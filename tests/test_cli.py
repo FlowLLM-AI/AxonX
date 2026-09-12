@@ -74,6 +74,21 @@ def test_local_task_uses_registered_config(monkeypatch, capsys):
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
 
 
+def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path):
+    class WorkspaceTask(BaseTask):
+        task_type = TaskType.ANALYSIS
+        output_keys = ("workspace_dir",)
+
+        def build_task_steps(self):
+            return ()
+
+    monkeypatch.setattr("axonx.task.task_command_executor.resolve_task", lambda _name: WorkspaceTask)
+    monkeypatch.setattr(cli, "resolve_app_config", lambda **_kwargs: {"workspace_dir": str(tmp_path)})
+
+    assert cli.main(["exec", "--task", "sample"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"workspace_dir": str(tmp_path.resolve())}
+
+
 def test_progress_delivery_runs_on_a_dedicated_thread(monkeypatch):
     caller = threading.get_ident()
     deliveries = []

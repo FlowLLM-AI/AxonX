@@ -11,7 +11,7 @@ import sys
 
 from .base_task_manager import BaseTaskManager
 from ..component_registry import R
-from ...constants import AXONX_SERVICE_INFO
+from ...constants import AXONX_SERVICE_INFO, AXONX_TASK_WORKSPACE_DIR
 from ...enumeration import TaskState
 from ...schema import TaskStatus
 
@@ -61,6 +61,7 @@ class LocalTaskManager(BaseTaskManager):
         if isinstance(argv, (str, bytes)) or not all(isinstance(value, str) for value in argv):
             raise TypeError("Task arguments must be a sequence of strings")
         environment = dict(self.app_config.environment)
+        environment[AXONX_TASK_WORKSPACE_DIR] = str(self.workspace_path.resolve())
         if service_info := os.environ.get(AXONX_SERVICE_INFO):
             environment[AXONX_SERVICE_INFO] = service_info
         await asyncio.create_subprocess_exec(

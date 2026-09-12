@@ -13,7 +13,7 @@ import pytest
 from axonx import Application, BaseComponent, BaseTask
 from axonx.config import resolve_app_config
 from axonx.components import R
-from axonx.constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO
+from axonx.constants import AXONX_DEFAULT_HOST, AXONX_DEFAULT_PORT, AXONX_SERVICE_INFO, AXONX_TASK_WORKSPACE_DIR
 from axonx.plugin.manifest import parse_plugin_manifest
 from axonx.enumeration import TaskState, TaskType
 from axonx.schema import PluginManifest, TaskStatus
@@ -53,6 +53,7 @@ async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp
     assert options["start_new_session"] is True
     assert "AXONX_PARENT_ONLY" not in options["env"]
     assert options["env"][AXONX_SERVICE_INFO] == '{"host":"service.internal","port":4321}'
+    assert options["env"][AXONX_TASK_WORKSPACE_DIR] == str(tmp_path.resolve())
     assert options["env"]["PYTHONPATH"] == str(Path(__file__).parent)
 
 

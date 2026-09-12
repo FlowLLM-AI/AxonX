@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from typing import Sequence
 
@@ -10,8 +11,8 @@ from .application import Application
 from .components.client import HttpClient
 from .components import HttpService
 from .config import resolve_app_config
-from .constants import CLI_LOCAL_COMMANDS, CLI_RAW_ARGUMENTS, CLI_USAGE
-from .schema import ClientOptions, Command
+from .constants import AXONX_TASK_WORKSPACE_DIR, CLI_LOCAL_COMMANDS, CLI_RAW_ARGUMENTS, CLI_USAGE
+from .schema import ApplicationConfig, ClientOptions, Command
 from .task import TaskCatalog, TaskCommandExecutor
 from .utils.cli_utils import (
     parse_command,
@@ -40,7 +41,11 @@ def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
 
 
 def _run_exec(command: Command) -> int:
-    result = TaskCommandExecutor().execute(command)
+    workspace_dir = os.environ.get(AXONX_TASK_WORKSPACE_DIR)
+    if workspace_dir is None:
+        app_config = ApplicationConfig.model_validate(resolve_app_config(log_config=False))
+        workspace_dir = app_config.workspace_dir
+    result = TaskCommandExecutor(workspace_dir).execute(command)
     if isinstance(result, TaskCatalog):
         for name, task_class in sorted(result.tasks.items()):
             print(f"{name}\t{task_class.__module__}.{task_class.__name__}")
