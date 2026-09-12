@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from pydantic import field_validator
 
 from ...components.component_registry import R
 from ...enumeration import TaskType
@@ -44,6 +45,16 @@ class TushareDownloadConfig(BaseConfig):
     end_date: str | None = None
     days_back: int = 7
     timeout: int = 600
+
+    @field_validator("start_date", "end_date", mode="before")
+    @classmethod
+    def normalize_compact_date(cls, value: Any) -> Any:
+        """Preserve YYYYMMDD values converted to integers by the generic CLI parser."""
+        if isinstance(value, int) and not isinstance(value, bool):
+            text = str(value)
+            if len(text) == 8:
+                return text
+        return value
 
 
 @R.register("download_tushar_task")

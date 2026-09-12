@@ -26,12 +26,16 @@ def application(tmp_path, **manager):
     return Application(**config)
 
 
-async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp_path):
+async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp_path, capsys):
     calls = []
 
     class Process:
         pid = 12345
         returncode = 0
+
+        def __init__(self):
+            self.stderr = asyncio.StreamReader()
+            self.stderr.feed_eof()
 
         async def wait(self):
             return self.returncode
@@ -46,7 +50,9 @@ async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host":"service.internal","port":4321}')
     argv = ["--task", "sales", "--output", "result file.parquet"]
     async with application(tmp_path) as app:
-        await app.get_component("task_manager").submit(argv)
+        manager = app.get_component("task_manager")
+        await manager.submit(argv)
+        await asyncio.gather(*manager._process_monitors)
 
     command, options = calls[0]
     assert command[1:] == ("-m", "axonx.cli", "exec", *argv)
@@ -55,6 +61,37 @@ async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp
     assert options["env"][AXONX_SERVICE_INFO] == '{"host":"service.internal","port":4321}'
     assert options["env"][AXONX_TASK_WORKSPACE_DIR] == str(tmp_path.resolve())
     assert options["env"]["PYTHONPATH"] == str(Path(__file__).parent)
+    assert options["stderr"] == asyncio.subprocess.PIPE
+    success_log = capsys.readouterr().err
+    assert "Task process 12345 (sales) completed successfully" in success_log
+
+
+async def test_task_manager_logs_worker_stderr_on_failure(monkeypatch, tmp_path, capsys):
+    class Process:
+        pid = 23456
+        returncode = 2
+
+        def __init__(self):
+            self.stderr = asyncio.StreamReader()
+            self.stderr.feed_data(b"ValidationError: invalid start_date\n")
+            self.stderr.feed_eof()
+
+        async def wait(self):
+            return self.returncode
+
+    async def create_subprocess_exec(*_command, **_options):
+        return Process()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        await manager.submit(["--task", "download_tushar_task"])
+        await asyncio.gather(*manager._process_monitors)
+
+    error = capsys.readouterr().err
+    assert "ValidationError: invalid start_date" in error
+    assert "download_tushar_task" in error
+    assert "exited with code 2" in error
 
 
 async def test_lifecycle_rollback(tmp_path):
@@ -354,7 +391,7 @@ async def test_unfinished_history_is_loaded_without_rewriting(tmp_path):
         assert record.pid == os.getpid()
 
 
-async def test_task_manager_ignores_status_from_another_version(tmp_path):
+async def test_task_manager_replaces_status_from_another_version_on_close(tmp_path):
     directory = tmp_path / "task_manager"
     directory.mkdir(parents=True)
     status_path = directory / "status.json"
@@ -378,7 +415,7 @@ async def test_task_manager_ignores_status_from_another_version(tmp_path):
         assert manager.task_manager_dir == directory
         assert await manager.list_task_ids() == []
 
-    assert json.loads(status_path.read_text())["version"] == 1
+    assert json.loads(status_path.read_text()) == {"version": 2, "tasks": []}
 
 
 async def test_task_manager_logs_and_ignores_invalid_status(tmp_path, capsys):
@@ -399,11 +436,8 @@ async def test_task_manager_logs_and_ignores_invalid_status(tmp_path, capsys):
         assert await manager.list_task_ids() == []
         assert json.loads(status_path.read_text())["tasks"] == {"old": {"task_id": "old", "task_type": "analysis"}}
 
-        status = TaskStatus(task_id="new", task_type=TaskType.ANALYSIS)
-        await manager.set_status(status.task_id, status)
-
     assert "Failed to load task status" in capsys.readouterr().err
-    assert json.loads(status_path.read_text())["tasks"] == [status.model_dump(mode="json")]
+    assert json.loads(status_path.read_text())["tasks"] == []
 
 
 async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):

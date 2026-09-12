@@ -42,6 +42,13 @@ class Application(BaseComponent):
         self.context.jobs = {
             name: self._instantiate("job", name, spec, BaseJob) for name, spec in self.app_config.jobs.items()
         }
+        component_names = [
+            f"{category}:{name}"
+            for category, group in self.context.components.items()
+            for name in group
+        ]
+        logger.info(f"Components ({len(component_names)}): {', '.join(component_names) or '-'}")
+        logger.info(f"Jobs ({len(self.context.jobs)}): {', '.join(self.context.jobs) or '-'}")
         registry.freeze()
 
     def _instantiate(

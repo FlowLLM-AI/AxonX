@@ -30,6 +30,30 @@ def test_application_configures_logging_from_final_config(monkeypatch):
     assert calls == [{"log_to_console": False, "log_to_file": False, "force_init": True}]
 
 
+def test_application_logs_configured_components_and_jobs(monkeypatch):
+    messages = []
+
+    class RecordingLogger:
+        def info(self, message):
+            messages.append(message)
+
+    monkeypatch.setattr("axonx.application.get_logger", lambda **_kwargs: RecordingLogger())
+
+    Application(
+        log_to_file=False,
+        components={
+            "plugin": {"first": {"backend": "local"}},
+            "task_manager": {"worker": {"backend": "local"}},
+        },
+        jobs={"inspect": {}, "submit": {}},
+    )
+
+    assert messages[-2:] == [
+        "Components (2): plugin:first, task_manager:worker",
+        "Jobs (2): inspect, submit",
+    ]
+
+
 async def test_lifecycle_starts_cron_last_and_closes_jobs_first():
     events = []
 

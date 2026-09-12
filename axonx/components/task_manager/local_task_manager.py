@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import signal
 import sys
+from typing import Any
 
 from .base_task_manager import BaseTaskManager
 from ..component_registry import R
@@ -18,12 +19,13 @@ from ...schema import TaskStatus
 
 @R.register("local")
 class LocalTaskManager(BaseTaskManager):
-    """Launch workers without deriving or monitoring their task status."""
+    """Launch local workers, monitor their exits, and store reported status."""
 
     def __init__(self, version: int = 1, **kwargs):
         super().__init__(**kwargs)
         self.version = version
         self._statuses: dict[str, TaskStatus] = {}
+        self._process_monitors: set[asyncio.Task[None]] = set()
 
     @property
     def task_manager_dir(self) -> Path:
@@ -55,9 +57,15 @@ class LocalTaskManager(BaseTaskManager):
                 if data.get("version") == self.version:
                     statuses = (TaskStatus.model_validate(status) for status in data.get("tasks", []))
                     self._statuses = {status.task_id: status for status in statuses}
-            except Exception:  # noqa
+            except Exception as exc:  # noqa
                 self._statuses = {}
-                self.logger.exception(f"Failed to load task status from {self.status_path}; starting with empty history")
+                self.logger.error(
+                    f"Failed to load task status from {self.status_path}: {type(exc).__name__}: {exc}; "
+                    "starting with empty history",
+                )
+
+    async def _close(self):
+        self._save_status()
 
     async def submit(self, argv: Sequence[str]) -> None:
         if not self.is_started:
@@ -68,15 +76,59 @@ class LocalTaskManager(BaseTaskManager):
         environment[AXONX_TASK_WORKSPACE_DIR] = str(self.workspace_path.resolve())
         if service_info := os.environ.get(AXONX_SERVICE_INFO):
             environment[AXONX_SERVICE_INFO] = service_info
-        await asyncio.create_subprocess_exec(
+        process = await asyncio.create_subprocess_exec(
             sys.executable,
             "-m",
             "axonx.cli",
             "exec",
             *argv,
             env=environment,
+            stderr=asyncio.subprocess.PIPE,
             start_new_session=True,
         )
+        monitor = asyncio.create_task(
+            self._monitor_process(process, self._task_name(argv)),
+            name=f"axonx-task-monitor-{process.pid}",
+        )
+        self._process_monitors.add(monitor)
+        monitor.add_done_callback(self._process_monitors.discard)
+
+    async def _monitor_process(self, process: Any, task_name: str) -> None:
+        """Relay worker stderr and report a non-zero process exit asynchronously."""
+        stderr_tail = bytearray()
+        tail_limit = 32 * 1024
+        try:
+            if process.stderr is not None:
+                while chunk := await process.stderr.read(8192):
+                    sys.stderr.write(chunk.decode(errors="replace"))
+                    sys.stderr.flush()
+                    stderr_tail.extend(chunk)
+                    if len(stderr_tail) > tail_limit:
+                        del stderr_tail[:-tail_limit]
+            return_code = await process.wait()
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa
+            self.logger.exception(f"Failed to monitor task process {process.pid} ({task_name})")
+            return
+
+        if return_code == 0:
+            self.logger.info(f"Task process {process.pid} ({task_name}) completed successfully")
+            return
+
+        detail = stderr_tail.decode(errors="replace").strip() or "no stderr output"
+        self.logger.error(
+            f"Task process {process.pid} ({task_name}) exited with code {return_code}. "
+            f"stderr tail:\n{detail}",
+        )
+
+    @staticmethod
+    def _task_name(argv: Sequence[str]) -> str:
+        try:
+            index = argv.index("--task")
+            return argv[index + 1]
+        except (ValueError, IndexError):
+            return "unknown"
 
     async def set_status(self, task_id: str, status: TaskStatus) -> None:
         if task_id != status.task_id:

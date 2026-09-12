@@ -16,6 +16,7 @@ from axonx.enumeration import TaskType
 from axonx.schema import ClientOptions, Command, Response, TaskStatus
 from axonx.task import BaseConfig, BaseTask
 from axonx.task.common import DemoTask
+from axonx.task.data import TushareDownloadConfig
 from axonx.task.task_status_reporter import HttpTaskStatusReporter
 from axonx.utils.cli_utils import parse_command
 
@@ -36,6 +37,19 @@ class CliTask(BaseTask):
     def record_config(self):
         self.report_progress(50)
         self.context.update(amount=self.config.amount, dry_run=self.config.dry_run)
+
+
+def test_tushare_config_accepts_compact_dates_converted_by_cli():
+    command, _ = parse_command(
+        ["exec", "--task", "download_tushar_task", "--start-date", "20100101", "--end-date", "20260912"],
+    )
+
+    config = TushareDownloadConfig.model_validate(
+        {key: value for key, value in command.arguments.items() if key in {"start_date", "end_date"}},
+    )
+
+    assert config.start_date == "20100101"
+    assert config.end_date == "20260912"
 
 
 def test_task_id_is_generated_internally_and_read_only():
