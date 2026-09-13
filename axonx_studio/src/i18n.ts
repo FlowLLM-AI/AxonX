@@ -3,7 +3,7 @@ import type { Language, PageId, TaskState } from "./types";
 const shared = {
   zh: {
     brandTag: "COMPUTE · RESEARCH · DEPLOY", studio: "控制台", consoleTitle: "AxonX 控制台", serviceOnline: "服务在线", serviceOffline: "服务未连接", serviceChecking: "正在检测服务", currentMachine: "当前机器", switchLanguage: "切换语言", openGithub: "在 GitHub 查看 AxonX",
-    pages: { home: "首页", machines: "机器管理", tasks: "任务运行", submit: "提交任务", datasets: "数据集", files: "工作区", factors: "因子分析", training: "模型训练", models: "模型管理", inference: "模型推理", strategies: "策略管理", backtest: "发起回测", reports: "回测报告", plugins: "插件管理", jobs: "Job 目录", taskCatalog: "Task 目录", components: "Component 目录" } as Record<PageId, string>,
+    pages: { home: "首页", machines: "机器管理", tasks: "任务运行", submit: "提交任务", datasets: "数据集", tushare: "Tushare 数据", etl: "ETL 数据集", files: "工作区", factors: "因子分析", training: "模型管理", models: "模型管理", inference: "模型推理", predict: "预测结果", strategies: "策略管理", backtest: "回测分析", reports: "回测报告", plugins: "插件管理", jobs: "Job 目录", taskCatalog: "Task 目录", components: "Component 目录" } as Record<PageId, string>,
     taskTitle: "任务运行中心", taskLead: "观察每一次计算，从排队到产出。", refreshNow: "立即刷新", autoRefresh: "自动刷新", nextRefresh: "{seconds} 秒后刷新",
     search: "搜索 Task ID、类型或 PID", allStates: "全部状态", allTypes: "全部类型", total: "全部任务", active: "进行中", succeeded: "已成功", attention: "需关注",
     taskId: "TASK ID", type: "类型", state: "状态", progress: "进度", step: "步骤", started: "开始时间", duration: "耗时", action: "操作", details: "详情", cancel: "终止任务", cancelling: "终止中", copyTaskId: "复制 Task ID", copied: "已复制",
@@ -18,7 +18,7 @@ const shared = {
   },
   en: {
     brandTag: "COMPUTE · RESEARCH · DEPLOY", studio: "Studio", consoleTitle: "AxonX Console", serviceOnline: "Service online", serviceOffline: "Service unavailable", serviceChecking: "Checking service", currentMachine: "Current machine", switchLanguage: "Switch language", openGithub: "View AxonX on GitHub",
-    pages: { home: "Overview", machines: "Machines", tasks: "Task Runs", submit: "Submit Task", datasets: "Datasets", files: "Workspace", factors: "Factor Analysis", training: "Training", models: "Model Registry", inference: "Inference", strategies: "Strategies", backtest: "Run Backtest", reports: "Backtest Reports", plugins: "Plugins", jobs: "Job Catalog", taskCatalog: "Task Catalog", components: "Components" } as Record<PageId, string>,
+    pages: { home: "Overview", machines: "Machines", tasks: "Task Runs", submit: "Submit Task", datasets: "Datasets", tushare: "Tushare Data", etl: "ETL Datasets", files: "Workspace", factors: "Factor Analysis", training: "Model Registry", models: "Model Registry", inference: "Inference", predict: "Predictions", strategies: "Strategies", backtest: "Backtest Analytics", reports: "Backtest Reports", plugins: "Plugins", jobs: "Job Catalog", taskCatalog: "Task Catalog", components: "Components" } as Record<PageId, string>,
     taskTitle: "Task operations", taskLead: "Follow every compute run from queue to output.", refreshNow: "Refresh now", autoRefresh: "Auto refresh", nextRefresh: "Refresh in {seconds}s",
     search: "Search Task ID, type, or PID", allStates: "All states", allTypes: "All types", total: "All tasks", active: "In progress", succeeded: "Succeeded", attention: "Needs attention",
     taskId: "TASK ID", type: "TYPE", state: "STATUS", progress: "PROGRESS", step: "Step", started: "STARTED", duration: "DURATION", action: "ACTION", details: "Details", cancel: "Terminate Task", cancelling: "Terminating", copyTaskId: "Copy Task ID", copied: "Copied",

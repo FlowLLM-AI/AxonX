@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, AppWindow, BarChart3, Blocks, BrainCircuit, ChevronDown, ChevronLeft,
-  ChevronRight, CircleGauge, Cpu, Database, FileChartColumn, Files, Home, Languages,
+  Activity, BarChart3, Blocks, BrainCircuit, ChevronDown, ChevronLeft,
+  ChevronRight, CircleGauge, Cpu, Database, Files, Home, Languages,
   Menu, Moon, PackageOpen, PanelLeftClose, PanelLeftOpen, Play, Plug, Send, Server,
-  Sun, Workflow, X,
+  Sun, TableProperties, Workflow, X,
 } from "lucide-react";
 import { API_URL, listMachineOptions, machineHost } from "./api";
 import { t } from "./i18n";
@@ -12,6 +12,7 @@ import { SubmitPage } from "./SubmitPage";
 import { TaskDetailPage } from "./TaskDetailPage";
 import { TasksPage } from "./TasksPage";
 import { WorkspaceBrowserPage } from "./WorkspaceBrowserPage";
+import { ResearchPage, TusharePage } from "./ResearchPages";
 import { ComingSoonPage, HomePage, JobCatalogPage, PluginsPage, TaskCatalogPage } from "./WorkspacePages";
 import type { Language, MachineNode, PageId, ThemePreference } from "./types";
 import { useAxonXWebMcp } from "./webmcp";
@@ -24,13 +25,16 @@ const groups: NavGroup[] = [
     { id: "machines", icon: Cpu, ready: true }, { id: "tasks", icon: Activity, ready: true }, { id: "submit", icon: Send, ready: true },
   ] },
   { id: "data", label: { zh: "数据中心", en: "Data" }, icon: Database, items: [
-    { id: "datasets", icon: Database }, { id: "files", icon: Files, ready: true }, { id: "factors", icon: Workflow },
+    { id: "tushare", icon: Database, ready: true }, { id: "etl", icon: TableProperties, ready: true }, { id: "factors", icon: Workflow, ready: true },
   ] },
   { id: "model", label: { zh: "模型中心", en: "Models" }, icon: BrainCircuit, items: [
-    { id: "training", icon: BrainCircuit }, { id: "models", icon: AppWindow }, { id: "inference", icon: Play },
+    { id: "training", icon: BrainCircuit, ready: true }, { id: "predict", icon: Play, ready: true },
   ] },
   { id: "strategy", label: { zh: "策略与回测", en: "Strategy & Backtest" }, icon: BarChart3, items: [
-    { id: "strategies", icon: Blocks }, { id: "backtest", icon: BarChart3, ready: true }, { id: "reports", icon: FileChartColumn },
+    { id: "backtest", icon: BarChart3, ready: true },
+  ] },
+  { id: "assets", label: { zh: "资产与文件", en: "Assets" }, icon: Files, items: [
+    { id: "files", icon: Files, ready: true },
   ] },
   { id: "extensions", label: { zh: "扩展中心", en: "Extensions" }, icon: Plug, items: [
     { id: "plugins", icon: PackageOpen, ready: true }, { id: "jobs", icon: Workflow, ready: true }, { id: "taskCatalog", icon: Activity, ready: true }, { id: "components", icon: Blocks },
@@ -38,7 +42,7 @@ const groups: NavGroup[] = [
 ];
 
 const allPages = new Set<PageId>(["home", ...groups.flatMap((group) => group.items.map((item) => item.id))]);
-const legacyPages: Record<string, PageId> = { rawData: "datasets", prediction: "inference" };
+const legacyPages: Record<string, PageId> = { rawData: "tushare", datasets: "etl", prediction: "predict", inference: "predict", models: "training", reports: "backtest" };
 const initialPage = (): PageId => {
   const value = window.location.hash.slice(1);
   if (value.startsWith("tasks/")) return "tasks";
@@ -63,7 +67,7 @@ export default function App() {
   const [serviceOnline, setServiceOnline] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("axonx-sidebar") === "collapsed");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [openGroups, setOpenGroups] = useState(() => new Set(groups.map((group) => group.id)));
+  const [openGroups, setOpenGroups] = useState(() => new Set(["runtime"]));
   const [machines, setMachines] = useState<MachineNode[]>([{ id: "local", address: "localhost", isLocal: true, healthy: true }]);
   const [machineId, setMachineId] = useState(() => localStorage.getItem("axonx-machine") || "local");
   const [machinesLoaded, setMachinesLoaded] = useState(false);
@@ -119,10 +123,11 @@ export default function App() {
     if (page === "tasks") return <TasksPage language={language} remoteIp={remoteIp} onSubmit={() => setPage("submit")} onOpenTask={openTask} onConnection={setServiceOnline} />;
     if (page === "submit") return <SubmitPage language={language} remoteIp={remoteIp} onViewTasks={() => setPage("tasks")} onConnection={setServiceOnline} />;
     if (page === "files") return <WorkspaceBrowserPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
+    if (page === "tushare") return <TusharePage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
+    if (page === "etl" || page === "factors" || page === "training" || page === "predict" || page === "backtest") return <ResearchPage kind={page === "factors" ? "analysis" : page} language={language} remoteIp={remoteIp} onConnection={setServiceOnline} onNavigate={setPage} />;
     if (page === "plugins") return <PluginsPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
     if (page === "jobs") return <JobCatalogPage language={language} machine={selectedMachine} onConnection={setServiceOnline} />;
     if (page === "taskCatalog") return <TaskCatalogPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} onSubmit={() => setPage("submit")} />;
-    if (page === "backtest") return <ComingSoonPage page={page} language={language} partial detail={language === "zh" ? "后端已具备 ranking_backtest Task；专用参数表单和报告索引正在接入。现在可从“提交任务”运行。" : "The ranking_backtest Task is available now. A dedicated launcher and report index are being connected; use Submit Task in the meantime."} />;
     return <ComingSoonPage page={page} language={language} />;
   }, [page, taskDetailId, language, remoteIp, selectedMachine]);
 

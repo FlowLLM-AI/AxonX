@@ -139,11 +139,17 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     backtest_output = backtest.execute()
     daily = pl.read_csv(backtest_output["daily_file"])
     overall = pl.read_csv(backtest_output["overall_file"])
+    holdings = pl.read_csv(backtest_output["holdings_file"])
     assert daily["rank_ic"].min() > 0.9
     assert "rankicir" in overall["metric"].to_list()
+    assert holdings.columns == [
+        "trade_date", "rank", "ts_code", "prediction", "weight", "daily_return"
+    ]
+    assert holdings.group_by("trade_date").len()["len"].max() <= 50
+    assert holdings["rank"].min() == 1
     assert all(
         Path(backtest_output[key]).suffix == ".csv"
-        for key in ("daily_file", "overall_file", "yearly_file", "quarterly_file")
+        for key in ("daily_file", "holdings_file", "overall_file", "yearly_file", "quarterly_file")
     )
     assert Path(backtest_output["metadata_file"]).is_file()
 

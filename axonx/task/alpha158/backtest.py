@@ -29,7 +29,8 @@ class Alpha158BacktestConfig(BaseConfig):
     """Configure top-N portfolios for one Alpha158 prediction task."""
 
     prediction_task_id: str
-    top_ns: str = "1,2,3,4,5,10,20,30"
+    top_ns: str = "1,2,3,4,5,10,20,30,50"
+    holdings_top_n: int = Field(default=50, gt=0, le=500)
     transaction_cost_rate: float = Field(default=0.002, ge=0.0, lt=1.0)
     annual_risk_free_rate: float = Field(default=0.012, gt=-1.0, lt=1.0)
     annualization_days: int = Field(default=252, gt=0)
@@ -66,6 +67,7 @@ class Alpha158BacktestTask(BaseTask):
     task_type = TaskType.BACKTEST
     output_keys = (
         "daily_file",
+        "holdings_file",
         "overall_file",
         "yearly_file",
         "quarterly_file",
@@ -105,6 +107,7 @@ class Alpha158BacktestTask(BaseTask):
             predictions_path=predictions_path,
             output_dir=output_dir,
             daily_path=output_dir / "daily.csv",
+            holdings_path=output_dir / "holdings.csv",
             overall_path=output_dir / "overall.csv",
             yearly_path=output_dir / "yearly.csv",
             quarterly_path=output_dir / "quarterly.csv",
@@ -193,6 +196,7 @@ class Alpha158BacktestTask(BaseTask):
 
     def calculate_daily_performance(self) -> None:
         rows: list[dict[str, Any]] = []
+        holding_rows: list[dict[str, Any]] = []
         previous: dict[int, dict[str, float]] = {}
         net_values = {top_n: 1.0 for top_n in self.context["top_ns"]}
         grouped = self.context["frame"].groupby("trade_date", sort=True)
@@ -217,6 +221,19 @@ class Alpha158BacktestTask(BaseTask):
                 "benchmark_universe": float(candidates["actual_return"].mean()),
             }
             self._add_index_returns(row, all_rows)
+            holdings = candidates.head(self.config.holdings_top_n)
+            holding_weight = 1.0 / len(holdings)
+            for rank, (_, holding) in enumerate(holdings.iterrows(), start=1):
+                holding_rows.append(
+                    {
+                        "trade_date": trade_date,
+                        "rank": rank,
+                        "ts_code": holding["ts_code"],
+                        "prediction": float(holding["pred"]),
+                        "weight": holding_weight,
+                        "daily_return": float(holding["actual_return"]),
+                    }
+                )
             for top_n in self.context["top_ns"]:
                 selected = candidates.head(top_n)
                 weights = {code: 1.0 / len(selected) for code in selected["ts_code"]}
@@ -252,6 +269,17 @@ class Alpha158BacktestTask(BaseTask):
             pd.DataFrame(rows)
             .sort_values("trade_date", kind="stable")
             .reset_index(drop=True)
+        )
+        self.context["holdings"] = pd.DataFrame(
+            holding_rows,
+            columns=(
+                "trade_date",
+                "rank",
+                "ts_code",
+                "prediction",
+                "weight",
+                "daily_return",
+            ),
         )
         self.logger.info(
             f"Daily backtest completed days={len(rows)} start={rows[0]['trade_date']} end={rows[-1]['trade_date']}"
@@ -430,6 +458,7 @@ class Alpha158BacktestTask(BaseTask):
         output_dir.mkdir(parents=True, exist_ok=True)
         for key, path_key in (
             ("daily", "daily_path"),
+            ("holdings", "holdings_path"),
             ("overall", "overall_path"),
             ("yearly", "yearly_path"),
             ("quarterly", "quarterly_path"),
@@ -481,11 +510,11 @@ class Alpha158BacktestTask(BaseTask):
             "index_weight_columns": list(self.context["index_columns"]),
             "artifacts": {
                 name: f"{name}.csv"
-                for name in ("daily", "overall", "yearly", "quarterly")
+                for name in ("daily", "holdings", "overall", "yearly", "quarterly")
             },
             "artifact_integrity": {
                 name: artifact_record(self.context[f"{name}_path"], output_dir)
-                for name in ("daily", "overall", "yearly", "quarterly")
+                for name in ("daily", "holdings", "overall", "yearly", "quarterly")
             },
         }
         write_metadata(self.context["metadata_path"], metadata)
@@ -493,6 +522,7 @@ class Alpha158BacktestTask(BaseTask):
     def publish_output(self) -> None:
         self.context.update(
             daily_file=str(self.context["daily_path"]),
+            holdings_file=str(self.context["holdings_path"]),
             overall_file=str(self.context["overall_path"]),
             yearly_file=str(self.context["yearly_path"]),
             quarterly_file=str(self.context["quarterly_path"]),
