@@ -12,7 +12,7 @@ from typing import Any
 
 from .base import BaseTaskManager
 from ..registry import R
-from ...constants import AXONX_SERVICE_INFO, AXONX_TASK_WORKSPACE_DIR
+from ...constants import AXONX_SERVICE_INFO, AXONX_TASK_LOG_DIR, AXONX_TASK_WORKSPACE_DIR
 from ...enums import TaskState
 from ...schema import TaskStatus
 from ...task.arguments import task_name_from_argv
@@ -50,7 +50,7 @@ class LocalTaskManager(BaseTaskManager):
     @property
     def log_dir(self) -> Path:
         """Return the process-log directory shared with Task workers."""
-        return Path(os.environ.get("AXONX_LOG_DIR") or "logs").expanduser().resolve()
+        return Path(self.app_config.log_dir).expanduser().resolve()
 
     def _attach_log_path(self, status: TaskStatus) -> None:
         """Backfill legacy statuses by matching the worker PID in log filenames."""
@@ -60,9 +60,30 @@ class LocalTaskManager(BaseTaskManager):
         if matches:
             status.log_path = str(max(matches, key=lambda path: path.stat().st_mtime))
 
+    def _sanitize_loaded_log_path(self, status: TaskStatus) -> None:
+        """Remove a persisted log path that cannot belong to this runtime."""
+        if not status.log_path:
+            return
+        path = Path(status.log_path).expanduser().resolve()
+        if path.suffix != ".log" or not path.is_relative_to(self.log_dir):
+            status.log_path = ""
+        else:
+            status.log_path = str(path)
+
+    @staticmethod
+    def _mark_interrupted(status: TaskStatus) -> None:
+        """Make an unfinished persisted Task terminal after manager restart."""
+        if status.state.is_terminal:
+            return
+        status.state = TaskState.FAILED
+        status.finished_at = datetime.now(UTC)
+        status.exit_code = 1
+        status.error = "Task ownership was lost when the task manager stopped"
+
     def _save_status(self):
         payload = {
             "version": self.version,
+            "workspace": str(self.workspace_path.resolve()),
             "tasks": [
                 status.model_dump(mode="json") for status in self._statuses.values()
             ],
@@ -81,13 +102,26 @@ class LocalTaskManager(BaseTaskManager):
             try:
                 data = json.loads(self.status_path.read_text(encoding="utf-8"))
                 if data.get("version") == self.version:
-                    statuses = (
-                        TaskStatus.model_validate(status)
-                        for status in data.get("tasks", [])
-                    )
-                    self._statuses = {status.task_id: status for status in statuses}
-                    for status in self._statuses.values():
-                        self._attach_log_path(status)
+                    saved_workspace = data.get("workspace")
+                    if saved_workspace is not None and Path(
+                        saved_workspace
+                    ).expanduser().resolve() != self.workspace_path.resolve():
+                        self.logger.warning(
+                            f"Ignoring task history copied from workspace {saved_workspace}"
+                        )
+                    else:
+                        statuses = (
+                            TaskStatus.model_validate(status)
+                            for status in data.get("tasks", [])
+                        )
+                        self._statuses = {
+                            status.task_id: status for status in statuses
+                        }
+                        for status in self._statuses.values():
+                            self._sanitize_loaded_log_path(status)
+                            self._attach_log_path(status)
+                            self._mark_interrupted(status)
+                    self._save_status()
             except Exception as exc:  # noqa
                 self._statuses = {}
                 self.logger.error(
@@ -154,6 +188,7 @@ class LocalTaskManager(BaseTaskManager):
             raise TypeError("Task arguments must be a sequence of strings")
         environment = dict(self.app_config.environment)
         environment[AXONX_TASK_WORKSPACE_DIR] = str(self.workspace_path.resolve())
+        environment[AXONX_TASK_LOG_DIR] = str(self.log_dir)
         if service_info := os.environ.get(AXONX_SERVICE_INFO):
             environment[AXONX_SERVICE_INFO] = service_info
         process = await asyncio.create_subprocess_exec(
@@ -299,8 +334,10 @@ class LocalTaskManager(BaseTaskManager):
 
     async def cancel(self, task_id: str) -> bool:
         status = self._statuses[task_id]
+        process = self._processes.get(status.pid) if status.pid is not None else None
         if (
-            status.pid is None
+            process is None
+            or process.returncode is not None
             or status.state.is_terminal
             or not self._signal(status.pid, signal.SIGKILL)
         ):

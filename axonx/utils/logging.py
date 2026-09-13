@@ -101,14 +101,14 @@ class LoggerManager:
         self,
         name: str = "axonx",
         *,
-        log_dir: str | Path | None = None,
+        log_dir: str | Path = "logs",
         level: str = "INFO",
         log_to_console: bool = True,
         log_to_file: bool = True,
         force_init: bool = False,
     ) -> Any:
         """Return a named view of the shared Loguru logger."""
-        directory = Path(log_dir or os.environ.get("AXONX_LOG_DIR") or "logs")
+        directory = Path(log_dir)
         self.configure(
             LoggingConfig(directory, level, log_to_console, log_to_file),
             force=force_init,
@@ -125,7 +125,7 @@ _LOGGER_MANAGER = LoggerManager()
 def get_logger(
     name: str = "axonx",
     *,
-    log_dir: str | Path | None = None,
+    log_dir: str | Path = "logs",
     level: str = "INFO",
     log_to_console: bool = True,
     log_to_file: bool = True,

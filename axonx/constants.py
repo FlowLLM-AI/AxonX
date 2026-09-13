@@ -14,6 +14,7 @@ AXONX_SERVICE_INFO = "AXONX_SERVICE_INFO"
 
 # Internal handoff from an application task manager to its Task subprocess.
 AXONX_TASK_WORKSPACE_DIR = "AXONX_TASK_WORKSPACE_DIR"
+AXONX_TASK_LOG_DIR = "AXONX_TASK_LOG_DIR"
 
 # Wildcard address used by servers to listen on every IPv4 interface.
 AXONX_DEFAULT_BIND_HOST = "0.0.0.0"

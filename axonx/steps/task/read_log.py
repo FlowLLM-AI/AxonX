@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from ...components.registry import R
@@ -29,9 +28,7 @@ class ReadTaskLogStep(BaseStep):
             }
             return
 
-        log_root = (
-            Path(os.environ.get("AXONX_LOG_DIR") or "logs").expanduser().resolve()
-        )
+        log_root = Path(self.app_config.log_dir).expanduser().resolve()
         path = Path(status.log_path).expanduser().resolve()
         if not path.is_relative_to(log_root) or path.suffix != ".log":
             raise ValueError("Task log path is outside the configured log directory")

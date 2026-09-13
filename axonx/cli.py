@@ -12,6 +12,7 @@ from .components.client import HttpClient
 from .components.service import HttpService
 from .config import resolve_app_config
 from .constants import (
+    AXONX_TASK_LOG_DIR,
     AXONX_TASK_WORKSPACE_DIR,
     CLI_LOCAL_COMMANDS,
     CLI_RAW_ARGUMENTS,
@@ -19,7 +20,7 @@ from .constants import (
 )
 from .schema import ApplicationConfig, ClientOptions, Command
 from .task.executor import TaskCatalog, TaskCommandExecutor
-from .utils import load_env, print_logo
+from .utils import get_logger, load_env, print_logo
 from .utils.cli import (
     parse_command,
     print_json,
@@ -59,11 +60,12 @@ def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
 def _run_exec(command: Command) -> int:
     load_env(override=False)
     workspace_dir = os.environ.get(AXONX_TASK_WORKSPACE_DIR)
-    if workspace_dir is None:
-        app_config = ApplicationConfig.model_validate(
-            resolve_app_config(log_config=False)
-        )
-        workspace_dir = app_config.workspace_dir
+    log_dir = os.environ.get(AXONX_TASK_LOG_DIR)
+    if workspace_dir is None or log_dir is None:
+        app_config = ApplicationConfig.model_validate(resolve_app_config(log_config=False))
+        workspace_dir = workspace_dir or app_config.workspace_dir
+        log_dir = log_dir or app_config.log_dir
+    get_logger(log_dir=log_dir, force_init=True)
     result = TaskCommandExecutor(workspace_dir).execute(command)
     if isinstance(result, TaskCatalog):
         for name, task_class in sorted(result.tasks.items()):

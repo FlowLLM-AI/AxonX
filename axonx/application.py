@@ -28,6 +28,7 @@ class Application(BaseComponent):
         registry = R.copy()
         self.context = ApplicationContext(registry, **config)
         logger = get_logger(
+            log_dir=self.context.app_config.log_dir,
             log_to_console=self.context.app_config.log_to_console,
             log_to_file=self.context.app_config.log_to_file,
             force_init=True,

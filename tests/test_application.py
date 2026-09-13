@@ -32,7 +32,12 @@ def test_application_configures_logging_from_final_config(monkeypatch):
     Application(log_to_console=False, log_to_file=False)
 
     assert calls == [
-        {"log_to_console": False, "log_to_file": False, "force_init": True}
+        {
+            "log_dir": "logs",
+            "log_to_console": False,
+            "log_to_file": False,
+            "force_init": True,
+        }
     ]
 
 

@@ -20,9 +20,7 @@ class JobConfig(ComponentConfig):
 
     backend: str = Field(default="simple", min_length=1)
     description: str = Field(default="")
-    parameters: dict[str, Any] = Field(
-        default_factory=lambda: {"type": "object", "properties": {}}
-    )
+    parameters: dict[str, Any] = Field(default_factory=lambda: {"type": "object", "properties": {}})
     enable_serve: bool = True
     enable_remote: bool = True
     steps: list[ComponentConfig] = Field(default_factory=list)
@@ -66,6 +64,7 @@ class ApplicationConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     app_name: str = AXONX_NAME
     workspace_dir: str = ".axonx"
+    log_dir: str = "logs"
     timezone: str = "Asia/Shanghai"
     enable_logo: bool = True
     log_to_console: bool = True
