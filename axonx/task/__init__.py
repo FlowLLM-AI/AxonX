@@ -1,9 +1,9 @@
 """Synchronous task base types and built-in tasks."""
 
-from .base_task import BaseConfig, BaseTask, TaskStep
-
-from .common import DemoTask
+from . import backtest, common, data, etl
 from .backtest import RankingBacktestTask
+from .base_task import BaseConfig, BaseTask, TaskStep
+from .common import DemoTask
 from .data import DownloadTushareTask
 from .task_command_executor import TaskCatalog, TaskCommandExecutor, TaskExecution
 from .task_runner import TaskRunner
@@ -17,6 +17,10 @@ __all__ = [
     "TaskStep",
     "DemoTask",
     "DownloadTushareTask",
+    "backtest",
+    "common",
+    "data",
+    "etl",
     "HttpTaskStatusReporter",
     "TaskCatalog",
     "TaskCommandExecutor",

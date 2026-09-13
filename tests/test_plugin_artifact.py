@@ -43,6 +43,8 @@ def test_install_artifact_force_reinstalls_plugin_without_dependencies(
         requirements=(),
         wheel=tmp_path / "demo.whl",
         sha256="digest",
+        components={},
+        jobs={},
     )
 
     install_artifact(artifact)

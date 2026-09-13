@@ -1,4 +1,4 @@
-"""Task-only plugin manifests and wheel artifacts."""
+"""Plugin manifests and wheel artifacts."""
 
 from .artifact import (
     PluginArtifact,

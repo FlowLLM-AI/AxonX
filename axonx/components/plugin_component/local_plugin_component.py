@@ -1,8 +1,8 @@
-"""Plugin artifact lifecycle and Task lookup."""
+"""Plugin artifact lifecycle and contribution lookup."""
 
 from __future__ import annotations
 
-import asyncio
+from copy import deepcopy
 import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -15,13 +15,17 @@ from ...plugin.artifact import (
     install_artifact,
     source_sha256,
 )
+from ...schema import JobConfig
+from ...enumeration import component_type_name
+from ...utils.imports import load_symbol
+from ..base_component import BaseComponent
 from ..component_registry import R
 from .base_plugin_component import BasePluginComponent
 
 
 @R.register("local")
 class LocalPluginComponent(BasePluginComponent):
-    """Build and install configured Task plugins and resolve Task targets."""
+    """Build and install configured plugins and expose their contributions."""
 
     def __init__(
         self,
@@ -37,34 +41,36 @@ class LocalPluginComponent(BasePluginComponent):
         self.install_token = install_token
         self.max_wheel_bytes = max_wheel_bytes
         self.directory = None
-        self._tasks: dict[str, str] = {}
-        self._task_owners: dict[str, str] = {}
+        self._components: dict[str, dict[str, str]] = {}
+        self._component_owners: dict[tuple[str, str], str] = {}
+        self._jobs: dict[str, JobConfig] = {}
         self._state: dict[str, dict] = {}
         self._install_lock = RLock()
+        self._discovered = False
 
-    async def _start(self):
+    def discover(self) -> None:
+        """Prepare configured plugins before jobs and service routes are built."""
+        if self._discovered:
+            return
         self.directory = self.workspace_path / "plugins"
         self.directory.mkdir(parents=True, exist_ok=True)
         self._load_state()
         for configured_path in self.app_config.plugins:
-            await asyncio.to_thread(self.prepare, Path(configured_path))
+            self.prepare(Path(configured_path))
+        self._register_components()
+        self._discovered = True
 
     @property
     def state_path(self) -> Path:
         """Return the persistent plugin-state path for the active workspace."""
         if self.directory is None:
-            raise RuntimeError("Plugin component is not started")
+            raise RuntimeError("Plugin manager has not discovered its workspace")
         return self.directory / "state.json"
 
     def _load_state(self):
         if self.state_path.is_file():
             self._state = json.loads(self.state_path.read_text(encoding="utf-8"))
-        for key, record in self._state.items():
-            for name, target in record.get("tasks", {}).items():
-                if name in self._tasks:
-                    raise ValueError(f"Task provided by multiple plugins: {name}")
-                self._tasks[name] = target
-                self._task_owners[name] = key
+        self._rebuild_index()
 
     def _save_state(self):
         temporary = self.state_path.with_suffix(".tmp")
@@ -84,25 +90,20 @@ class LocalPluginComponent(BasePluginComponent):
         *,
         source_hash: str | None = None,
     ):
-        for name in tuple(self._tasks):
-            if self._task_owners.get(name) == key:
-                self._tasks.pop(name)
-                self._task_owners.pop(name)
-        self._tasks.update(artifact.tasks)
-        self._task_owners.update(dict.fromkeys(artifact.tasks, key))
         self._state[key] = {
             "distribution": artifact.distribution,
             "version": artifact.version,
             "plugins": list(artifact.plugin_names),
-            "tasks": artifact.tasks,
+            **artifact.contributions_dict(),
             "source_sha256": source_hash,
             "wheel_sha256": artifact.sha256,
             "wheel": str(artifact.wheel),
         }
+        self._rebuild_index()
         self._save_state()
 
     def prepare(self, source: Path) -> PluginArtifact:
-        """Build a changed source tree, install it, and publish its Tasks."""
+        """Build a changed source tree, install it, and publish its contributions."""
         with self._install_lock:
             source = source.expanduser().resolve()
             digest = source_sha256(source)
@@ -119,7 +120,7 @@ class LocalPluginComponent(BasePluginComponent):
                         use_cache=True,
                     ),
                 )
-            self._check_tasks(key, artifact)
+            self._check_contributions(key, artifact)
             if self.auto_install and cached.get("wheel_sha256") != artifact.sha256:
                 self._install(artifact)
             self._record(key, artifact, source_hash=digest)
@@ -131,7 +132,11 @@ class LocalPluginComponent(BasePluginComponent):
         expected_sha256: str,
         filename: str,
     ) -> PluginArtifact:
-        """Validate and install one uploaded wheel, then refresh its Task index."""
+        """Install one uploaded wheel and persist its contributions.
+
+        Tasks become discoverable immediately. Jobs are picked up the next time
+        the application graph is built.
+        """
         if not self.allow_remote_install:
             raise PermissionError("Remote plugin installation is disabled")
         if len(data) > self.max_wheel_bytes:
@@ -153,7 +158,7 @@ class LocalPluginComponent(BasePluginComponent):
                 key = f"remote:{artifact.distribution}"
                 if self._state.get(key, {}).get("wheel_sha256") == artifact.sha256:
                     return artifact
-                self._check_tasks(key, artifact)
+                self._check_contributions(key, artifact)
                 destination = self.directory / "artifacts" / artifact.sha256 / filename
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 path.replace(destination)
@@ -164,17 +169,72 @@ class LocalPluginComponent(BasePluginComponent):
             finally:
                 path.unlink(missing_ok=True)
 
-    def resolve_task(self, name: str) -> str | None:
-        """Return the import target for a configured plugin Task."""
-        return self._tasks.get(name)
+    def job_configs(self) -> dict[str, JobConfig]:
+        """Return a copy of all plugin-contributed Job configurations."""
+        return deepcopy(self._jobs)
 
-    def _check_tasks(self, key: str, artifact: PluginArtifact) -> None:
-        duplicate = {name for name in artifact.tasks if name in self._tasks and self._task_owners.get(name) != key}
-        if duplicate:
-            raise ValueError(
-                f"Task provided by multiple plugins: {', '.join(sorted(duplicate))}",
-            )
+    def _check_contributions(self, key: str, artifact: PluginArtifact) -> None:
+        candidate = {
+            **self._state,
+            key: artifact.contributions_dict(),
+        }
+        self._index_records(candidate)
+
+    def _rebuild_index(self) -> None:
+        self._jobs, self._components, self._component_owners = self._index_records(self._state)
+
+    @staticmethod
+    def _index_records(
+        records: dict[str, dict],
+    ) -> tuple[dict[str, JobConfig], dict[str, dict[str, str]], dict[tuple[str, str], str]]:
+        jobs: dict[str, JobConfig] = {}
+        components: dict[str, dict[str, str]] = {}
+        component_owners: dict[tuple[str, str], str] = {}
+        task_owners: dict[str, str] = {}
+        job_owners: dict[str, str] = {}
+
+        for owner, record in records.items():
+            for name in record.get("tasks", {}):
+                if name in task_owners:
+                    previous = task_owners[name]
+                    raise ValueError(f"Task {name!r} is provided by plugins {previous!r} and {owner!r}")
+                task_owners[name] = owner
+            for name, raw_config in record.get("jobs", {}).items():
+                if name in job_owners:
+                    previous = job_owners[name]
+                    raise ValueError(f"Job {name!r} is provided by plugins {previous!r} and {owner!r}")
+                jobs[name] = JobConfig.model_validate(raw_config)
+                job_owners[name] = owner
+            for component_type, backends in record.get("components", {}).items():
+                registered = components.setdefault(component_type, {})
+                for backend, target in backends.items():
+                    identity = (component_type, backend)
+                    if identity in component_owners:
+                        previous = component_owners[identity]
+                        raise ValueError(
+                            f"Component backend {component_type}:{backend} is provided by "
+                            f"plugins {previous!r} and {owner!r}",
+                        )
+                    registered[backend] = target
+                    component_owners[identity] = owner
+        return jobs, components, component_owners
+
+    def _register_components(self) -> None:
+        modules = {}
+        for component_type, backends in self._components.items():
+            if component_type == "plugin":
+                raise ValueError("Plugins cannot contribute plugin component backends")
+            for backend, target in backends.items():
+                component_class = load_symbol(target, BaseComponent, kind="Component", modules=modules)
+                actual_type = component_type_name(component_class.component_type)
+                if actual_type != component_type:
+                    raise TypeError(
+                        f"Component target {target} declares type {actual_type!r}, "
+                        f"expected {component_type!r}",
+                    )
+                owner = self._component_owners[(component_type, backend)]
+                self.app_context.registry.add(backend, component_class, owner)
 
     def status(self) -> list[dict]:
         """Return persisted status records for all prepared plugins."""
-        return list(self._state.values())
+        return deepcopy(list(self._state.values()))

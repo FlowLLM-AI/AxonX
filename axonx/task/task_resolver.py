@@ -1,7 +1,6 @@
 """Resolve executable Tasks from plugins and AxonX's registry."""
 
 from copy import deepcopy
-from importlib import import_module
 from importlib.resources import files
 from inspect import cleandoc
 
@@ -11,6 +10,7 @@ from ..enumeration import ComponentEnum
 from ..plugin.manifest import parse_plugin_manifest
 from ..schema import TaskInfo
 from ..utils.entry_points import find_all_entry_points, load_entry_point
+from ..utils.imports import load_symbol
 from .base_task import BaseTask
 
 _INTERNAL_CONFIG_FIELDS = frozenset({"task_id", "task_type", "task_id_suffix"})
@@ -21,17 +21,6 @@ def _task_description(name: str, task_class: type[BaseTask]) -> str:
     if not description or not description.strip():
         raise TypeError(f"Task {name!r} must define a detailed class docstring")
     return cleandoc(description)
-
-
-def _load_task(target: str) -> type[BaseTask]:
-    module_name, qualname = target.split(":", 1)
-    with R.preserve(allow_mutation=True):
-        task_class = import_module(module_name)
-        for part in qualname.split("."):
-            task_class = getattr(task_class, part)
-    if not isinstance(task_class, type) or not issubclass(task_class, BaseTask):
-        raise TypeError(f"Task target must subclass BaseTask: {target}")
-    return task_class
 
 
 def installed_tasks() -> dict[str, type[BaseTask]]:
@@ -49,7 +38,13 @@ def installed_tasks() -> dict[str, type[BaseTask]]:
             names = ", ".join(sorted(duplicate))
             raise ValueError(f"Task provided by multiple plugins: {names}")
         plugin_targets.update(manifest.tasks)
-    tasks.update({name: _load_task(target) for name, target in plugin_targets.items()})
+    modules = {}
+    tasks.update(
+        {
+            name: load_symbol(target, BaseTask, kind="Task", modules=modules)
+            for name, target in plugin_targets.items()
+        },
+    )
     for name, task_class in tasks.items():
         _task_description(name, task_class)
     return tasks

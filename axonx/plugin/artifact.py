@@ -1,4 +1,4 @@
-"""Build, inspect, and fingerprint Task-only plugin wheels."""
+"""Build, inspect, and fingerprint AxonX plugin wheels."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from email.parser import Parser
 from functools import partial
 import hashlib
+from importlib import invalidate_caches
 from pathlib import Path
 import subprocess
 import sys
@@ -17,6 +18,7 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
+from ..schema import JobConfig
 from .manifest import parse_plugin_manifest
 
 _IGNORED_PARTS = {".git", ".venv", "__pycache__", "build", "dist"}
@@ -24,7 +26,7 @@ _IGNORED_PARTS = {".git", ".venv", "__pycache__", "build", "dist"}
 
 @dataclass(frozen=True)
 class PluginArtifact:
-    """Metadata and Task targets read directly from one wheel."""
+    """Metadata and contributions read directly from one wheel."""
 
     distribution: str
     version: str
@@ -33,6 +35,19 @@ class PluginArtifact:
     requirements: tuple[str, ...]
     wheel: Path
     sha256: str
+    components: dict[str, dict[str, str]]
+    jobs: dict[str, JobConfig]
+
+    def contributions_dict(self) -> dict:
+        """Return JSON-compatible manifest contributions."""
+        return {
+            "tasks": self.tasks,
+            "components": self.components,
+            "jobs": {
+                name: config.model_dump(mode="json", exclude_unset=True)
+                for name, config in self.jobs.items()
+            },
+        }
 
 
 def file_sha256(path: Path) -> str:
@@ -116,10 +131,11 @@ def install_artifact(artifact: PluginArtifact) -> None:
             raise RuntimeError(
                 f"Plugin installation failed: {(result.stderr or result.stdout).strip()}",
             )
+    invalidate_caches()
 
 
 def inspect_wheel(path: Path) -> PluginArtifact:
-    """Read distribution, entry points, and Task manifests without importing code."""
+    """Read distribution, entry points, and manifests without importing code."""
     with ZipFile(path) as archive:
         names = archive.namelist()
         metadata_files = [name for name in names if name.endswith(".dist-info/METADATA")]
@@ -133,6 +149,8 @@ def inspect_wheel(path: Path) -> PluginArtifact:
             raise ValueError(f"Wheel does not provide {PLUGIN_ENTRY_POINT_GROUP}")
 
         tasks: dict[str, str] = {}
+        components: dict[str, dict[str, str]] = {}
+        jobs: dict[str, JobConfig] = {}
         plugin_names = []
         for plugin_name, package in entries.items(PLUGIN_ENTRY_POINT_GROUP):
             if ":" in package:
@@ -147,6 +165,21 @@ def inspect_wheel(path: Path) -> PluginArtifact:
                     f"Duplicate Task names in wheel: {', '.join(sorted(duplicate))}",
                 )
             tasks.update(manifest.tasks)
+            for component_type, backends in manifest.components.items():
+                registered = components.setdefault(component_type, {})
+                duplicate_backends = registered.keys() & backends.keys()
+                if duplicate_backends:
+                    names = ", ".join(sorted(duplicate_backends))
+                    raise ValueError(
+                        f"Duplicate Component backends in wheel for {component_type!r}: {names}",
+                    )
+                registered.update(backends)
+            duplicate_jobs = jobs.keys() & manifest.jobs.keys()
+            if duplicate_jobs:
+                raise ValueError(
+                    f"Duplicate Job names in wheel: {', '.join(sorted(duplicate_jobs))}",
+                )
+            jobs.update(manifest.jobs)
             plugin_names.append(plugin_name)
 
     distribution = metadata.get("Name")
@@ -161,4 +194,6 @@ def inspect_wheel(path: Path) -> PluginArtifact:
         requirements=tuple(metadata.get_all("Requires-Dist") or ()),
         wheel=path,
         sha256=file_sha256(path),
+        components=components,
+        jobs=jobs,
     )

@@ -247,10 +247,39 @@ def test_task_has_no_components():
     assert not hasattr(ProbeTask({}, workspace_path="."), "app_context")
 
 
-def test_plugin_manifest_tasks_only():
-    manifest = parse_plugin_manifest("tasks:\n  demo: package.module:Task\n", "test")
+def test_plugin_manifest_accepts_tasks_and_declarative_jobs():
+    manifest = parse_plugin_manifest(
+        """
+tasks:
+  demo: package.module:Task
+components:
+  step:
+    demo_step: package.module:DemoStep
+jobs:
+  run_demo:
+    steps:
+      - backend: submit_task
+    defaults:
+      task: demo
+  nightly_demo:
+    backend: cron
+    cron: 0 2 * * *
+    steps:
+      - backend: submit_task
+    defaults:
+      task: demo
+""",
+        "test",
+    )
+
     assert isinstance(manifest, PluginManifest)
     assert manifest.tasks == {"demo": "package.module:Task"}
+    assert manifest.components == {"step": {"demo_step": "package.module:DemoStep"}}
+    assert manifest.jobs["run_demo"].backend == "simple"
+    assert manifest.jobs["nightly_demo"].backend == "cron"
+
+
+def test_plugin_manifest_rejects_unknown_sections():
     with pytest.raises(ValueError, match="backends"):
         parse_plugin_manifest("backends: {}\n", "test")
 
@@ -262,6 +291,10 @@ def test_plugin_manifest_tasks_only():
         "tasks:\n  '': package.module:Task\n",
         "tasks:\n  task: ''\n",
         "tasks:\n  task: 1\n",
+        "jobs: []\n",
+        "jobs:\n  demo: invalid\n",
+        "components: []\n",
+        "components:\n  step: []\n",
     ],
 )
 def test_plugin_manifest_rejects_invalid_schema(text):
@@ -526,6 +559,12 @@ def test_structured_task_submission_is_encoded_losslessly():
     ]
 
 
+@pytest.mark.parametrize("key", ["foo-bar", "foo.bar", "_hidden"])
+def test_structured_task_submission_rejects_non_roundtrippable_keys(key):
+    with pytest.raises(ValueError, match="Invalid Task configuration key"):
+        build_task_argv("sample", {key: 1})
+
+
 async def test_structured_task_submission_validates_before_launch(monkeypatch, tmp_path):
     calls = []
 
@@ -718,4 +757,10 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert response.json()["tasks"] == {"sales": "axonx_polars_demo.sales:SalesTask"}
+    assert response.json()["components"] == {}
+    assert response.json()["jobs"]["polars_sales"]["steps"][0] == {
+        "backend": "submit_task",
+    }
+    assert response.json()["jobs"]["polars_sales"]["defaults"] == {"task": "sales"}
+    assert response.json()["restart_required"] is True
     assert plugins.json()["answer"][0]["wheel_sha256"] == artifact.sha256

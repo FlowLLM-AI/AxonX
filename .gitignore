@@ -219,3 +219,6 @@ __marimo__/
 
 # AxonX runtime artifacts
 .axonx/
+
+# macOS metadata
+.DS_Store

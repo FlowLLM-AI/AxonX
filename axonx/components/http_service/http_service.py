@@ -133,7 +133,8 @@ class HttpService(BaseService):
                 },
             )
             self.logger.info(f"Plugin endpoint called: name=install_plugin arguments={arguments}")
-            plugin = app.context.components.get("plugin", {}).get("default")
+            plugins = app.context.components.get("plugin", {})
+            plugin = next(iter(plugins.values()), None)
             if plugin is None:
                 raise HTTPException(404, "Plugin component is not configured")
             if not plugin.allow_remote_install:
@@ -162,7 +163,8 @@ class HttpService(BaseService):
                 "distribution": artifact.distribution,
                 "version": artifact.version,
                 "plugins": artifact.plugin_names,
-                "tasks": artifact.tasks,
+                **artifact.contributions_dict(),
+                "restart_required": bool(artifact.components or artifact.jobs),
                 "sha256": artifact.sha256,
             }
 

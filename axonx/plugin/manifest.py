@@ -1,4 +1,4 @@
-"""Read and parse a Task-only plugin manifest."""
+"""Read and parse an AxonX plugin manifest."""
 
 import yaml
 from pydantic import ValidationError
@@ -7,7 +7,7 @@ from ..schema.plugin import PluginManifest
 
 
 def parse_plugin_manifest(text: str, plugin_name: str) -> PluginManifest:
-    """Parse and validate plugin.yaml without importing Task modules."""
+    """Parse and validate plugin.yaml without importing plugin modules."""
     try:
         value = yaml.safe_load(text)
     except yaml.YAMLError as exc:

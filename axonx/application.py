@@ -11,6 +11,7 @@ from .components import BaseComponent, R
 from .components.client import HttpClient
 from .context import ApplicationContext
 from .components.job import BaseJob
+from .components.plugin_component import BasePluginComponent
 from .constants import REMOTE_IP_ARGUMENT
 from .schema import ComponentConfig
 from .utils import format_log_arguments, get_logger
@@ -22,7 +23,7 @@ class Application(BaseComponent):
     """Build application components and coordinate their async lifetimes."""
 
     def __init__(self, **config: Any) -> None:
-        # Plugins provide tasks only; backends and defaults come from app config.
+        # Each application owns an isolated backend registry and a static Job graph.
         registry = R.copy()
         self.context = ApplicationContext(registry, **config)
         logger = get_logger(
@@ -35,10 +36,15 @@ class Application(BaseComponent):
 
         self._started_components: list[BaseComponent] = []
 
+        self._discover_plugins()
+
         for category, group in self.app_config.components.items():
+            if category == "plugin":
+                continue
             self.context.components[category] = {
                 name: self._instantiate(category, name, spec, BaseComponent) for name, spec in group.items()
             }
+        self._merge_plugin_jobs()
         self.context.jobs = {
             name: self._instantiate("job", name, spec, BaseJob) for name, spec in self.app_config.jobs.items()
         }
@@ -48,6 +54,35 @@ class Application(BaseComponent):
         logger.info(f"Components ({len(component_names)}): {', '.join(component_names) or '-'}")
         logger.info(f"Jobs ({len(self.context.jobs)}): {', '.join(self.context.jobs) or '-'}")
         registry.freeze()
+
+    def _discover_plugins(self) -> None:
+        """Create the single plugin manager and discover graph contributions."""
+        specs = self.app_config.components.get("plugin", {})
+        if not specs:
+            return
+        if len(specs) != 1:
+            raise ValueError("Application supports only one plugin manager")
+        name, spec = next(iter(specs.items()))
+        component = self._instantiate("plugin", name, spec, BasePluginComponent)
+        self.context.components["plugin"] = {name: component}
+        component.discover()
+
+    def _merge_plugin_jobs(self) -> None:
+        """Merge discovered plugin Jobs into the application graph."""
+        managers = self.context.components.get("plugin", {}).values()
+        manager = next(iter(managers), None)
+        plugin_jobs = manager.job_configs() if manager is not None else {}
+
+        conflicts = plugin_jobs.keys() & self.app_config.jobs.keys()
+        if conflicts:
+            raise ValueError(
+                f"Jobs provided by both application config and plugins: "
+                f"{', '.join(sorted(conflicts))}",
+            )
+        if plugin_jobs:
+            self.context.app_config = self.context.app_config.model_copy(
+                update={"jobs": {**plugin_jobs, **self.context.app_config.jobs}},
+            )
 
     def _instantiate(
         self,

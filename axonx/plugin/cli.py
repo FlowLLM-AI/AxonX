@@ -1,4 +1,4 @@
-"""Small CLI for Task-only plugin wheels."""
+"""Small CLI for AxonX plugin wheels."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def _print(artifact) -> None:
                 "distribution": artifact.distribution,
                 "version": artifact.version,
                 "plugins": artifact.plugin_names,
-                "tasks": artifact.tasks,
+                **artifact.contributions_dict(),
                 "requirements": artifact.requirements,
                 "wheel": str(artifact.wheel),
                 "sha256": artifact.sha256,
@@ -65,7 +65,7 @@ def _deploy(args) -> int:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="axonx plugin", description="Build and install Task plugins.")
+    parser = argparse.ArgumentParser(prog="axonx plugin", description="Build and install AxonX plugins.")
     commands = parser.add_subparsers(dest="command", required=True)
     for name, handler in (("build", _build), ("install", _install), ("deploy", _deploy)):
         command = commands.add_parser(name)

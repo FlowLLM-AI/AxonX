@@ -1,2 +1,18 @@
 tasks:
   sales: axonx_polars_demo.sales:SalesTask
+jobs:
+  polars_sales:
+    description: Submit the Polars sales aggregation task.
+    parameters:
+      type: object
+      properties:
+        output:
+          type: string
+        input:
+          type: string
+      required:
+        - output
+    steps:
+      - backend: submit_task
+    defaults:
+      task: sales

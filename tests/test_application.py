@@ -12,6 +12,8 @@ from pydantic import ValidationError
 from axonx import Application, BaseComponent, BaseJob, BaseStep, JobMode, SimpleJob
 from axonx.components import R
 from axonx.components.job import CronJob
+from axonx.components.plugin_component import LocalPluginComponent
+from axonx.schema import JobConfig
 
 
 class _Logger:
@@ -53,6 +55,85 @@ def test_application_logs_configured_components_and_jobs(monkeypatch):
         "Components (2): plugin:first, task_manager:worker",
         "Jobs (2): inspect, submit",
     ]
+
+
+def test_application_builds_plugin_jobs_before_freezing_the_graph(monkeypatch):
+    class PluginStep(BaseStep):
+        async def execute(self):
+            self.response.answer = "plugin component ran"
+
+    def discover(component):
+        if component._discovered:
+            return
+        component.app_context.registry.add("plugin-step", PluginStep, "test-plugin")
+        component._discovered = True
+
+    monkeypatch.setattr(LocalPluginComponent, "discover", discover)
+    monkeypatch.setattr(
+        LocalPluginComponent,
+        "job_configs",
+        lambda self: {
+            "plugin_job": JobConfig(steps=[{"backend": "plugin-step"}]),
+            "plugin_cron": JobConfig(backend="cron", cron="0 2 * * *"),
+        },
+    )
+
+    app = Application(components={"plugin": {"default": {"backend": "local"}}})
+
+    assert type(app.context.jobs["plugin_job"]) is SimpleJob
+    assert type(app.context.jobs["plugin_cron"]) is CronJob
+
+
+async def test_plugin_job_can_run_a_plugin_component(monkeypatch):
+    class PluginStep(BaseStep):
+        async def execute(self):
+            self.response.answer = "plugin component ran"
+
+    def discover(component):
+        if component._discovered:
+            return
+        component.app_context.registry.add("plugin-step", PluginStep, "test-plugin")
+        component._discovered = True
+
+    monkeypatch.setattr(LocalPluginComponent, "discover", discover)
+    monkeypatch.setattr(
+        LocalPluginComponent,
+        "job_configs",
+        lambda self: {"plugin_job": JobConfig(steps=[{"backend": "plugin-step"}])},
+    )
+    app = Application(components={"plugin": {"default": {"backend": "local"}}})
+
+    async with app:
+        response = await app.run_job("plugin_job")
+
+    assert response.answer == "plugin component ran"
+
+
+def test_application_rejects_plugin_job_name_conflicts(monkeypatch):
+    monkeypatch.setattr(LocalPluginComponent, "discover", lambda self: None)
+    monkeypatch.setattr(
+        LocalPluginComponent,
+        "job_configs",
+        lambda self: {"shared": JobConfig()},
+    )
+
+    with pytest.raises(ValueError, match="both application config and plugins: shared"):
+        Application(
+            components={"plugin": {"default": {"backend": "local"}}},
+            jobs={"shared": {}},
+        )
+
+
+def test_application_rejects_multiple_plugin_managers():
+    with pytest.raises(ValueError, match="only one plugin manager"):
+        Application(
+            components={
+                "plugin": {
+                    "first": {"backend": "local"},
+                    "second": {"backend": "local"},
+                },
+            },
+        )
 
 
 async def test_lifecycle_starts_background_jobs_last_and_closes_jobs_first():
