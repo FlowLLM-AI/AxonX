@@ -20,7 +20,9 @@ class JobConfig(ComponentConfig):
 
     backend: str = Field(default="simple", min_length=1)
     description: str = Field(default="")
-    parameters: dict[str, Any] = Field(default_factory=lambda: {"type": "object", "properties": {}})
+    parameters: dict[str, Any] = Field(
+        default_factory=lambda: {"type": "object", "properties": {}}
+    )
     enable_serve: bool = True
     enable_remote: bool = True
     steps: list[ComponentConfig] = Field(default_factory=list)

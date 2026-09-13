@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from ..enumeration import TaskType
+from ..enums import TaskType
 
 
 class TaskInfo(BaseModel):

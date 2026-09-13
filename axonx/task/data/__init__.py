@@ -1,3 +1,3 @@
-from .tushare_download import DownloadTushareTask, TushareDownloadConfig
+from .tushare import DownloadTushareTask, TushareDownloadConfig
 
 __all__ = ["DownloadTushareTask", "TushareDownloadConfig"]

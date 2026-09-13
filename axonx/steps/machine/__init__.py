@@ -1,6 +1,6 @@
 """Machine steps."""
 
-from .list_machines_step import ListMachinesStep
-from .machine_status_step import MachineStatusStep
+from .list_machines import ListMachinesStep
+from .status import MachineStatusStep
 
 __all__ = ["ListMachinesStep", "MachineStatusStep"]

@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from ..enumeration import TaskState, TaskType
+from ..enums import TaskState, TaskType
 
 
 class TaskStepStatus(BaseModel):

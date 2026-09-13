@@ -9,9 +9,9 @@ from pathlib import Path
 import polars as pl
 from pydantic import field_validator
 
-from ...components.component_registry import R
-from ...enumeration import TaskType
-from ..base_task import BaseConfig, BaseTask, TaskStep
+from ...components.registry import R
+from ...enums import TaskType
+from ..base import BaseConfig, BaseTask, TaskStep
 
 WINDOWS = (5, 10, 20, 30, 60)
 KBAR = ("KMID", "KLEN", "KMID2", "KUP", "KUP2", "KLOW", "KLOW2", "KSFT", "KSFT2")

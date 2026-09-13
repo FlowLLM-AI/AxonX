@@ -1,19 +1,23 @@
 remote_nodes:
   - host_ip: 11.160.132.45
     host_port: 1024
+
 components:
   plugin:
     default:
       backend: local
       auto_install: true
       allow_remote_install: true
+
   task_manager:
     default:
       backend: local
       terminate_grace_seconds: 5
+
   machine:
     default:
       backend: machine
+
 jobs:
   list_plugins:
     description: List installed plugins and their contributions.

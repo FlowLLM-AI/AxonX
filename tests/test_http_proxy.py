@@ -6,9 +6,10 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from axonx import Application, JobMode
-from axonx.components import BaseProxyComponent, HttpProxyComponent, HttpService
-from axonx.enumeration import ComponentEnum
+from axonx import Application
+from axonx.components.proxy import BaseProxyComponent, HttpProxyComponent
+from axonx.components.service import HttpService
+from axonx.enums import ComponentEnum, JobMode
 from axonx.schema import ProxyResponse
 
 

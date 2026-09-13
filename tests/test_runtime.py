@@ -12,7 +12,7 @@ import signal
 import pytest
 from axonx import Application, BaseComponent, BaseTask
 from axonx.config import resolve_app_config
-from axonx.components import R
+from axonx.components.registry import R
 from axonx.constants import (
     AXONX_DEFAULT_CONNECT_HOST,
     AXONX_DEFAULT_PORT,
@@ -20,9 +20,9 @@ from axonx.constants import (
     AXONX_TASK_WORKSPACE_DIR,
 )
 from axonx.plugin.manifest import parse_plugin_manifest
-from axonx.enumeration import TaskState, TaskType
+from axonx.enums import TaskState, TaskType
 from axonx.schema import PluginManifest, TaskStatus
-from axonx.task.task_arguments import build_task_argv, split_task_arguments
+from axonx.task.arguments import build_task_argv, split_task_arguments
 
 
 def application(tmp_path, **manager):
@@ -32,7 +32,9 @@ def application(tmp_path, **manager):
     return Application(**config)
 
 
-async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp_path, capsys):
+async def test_task_manager_starts_exec_with_original_arguments(
+    monkeypatch, tmp_path, capsys
+):
     calls = []
 
     class Process:
@@ -68,7 +70,9 @@ async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp
     assert command[1:] == ("-m", "axonx.cli", "exec", *argv)
     assert options["start_new_session"] is True
     assert "AXONX_PARENT_ONLY" not in options["env"]
-    assert options["env"][AXONX_SERVICE_INFO] == '{"host":"service.internal","port":4321}'
+    assert (
+        options["env"][AXONX_SERVICE_INFO] == '{"host":"service.internal","port":4321}'
+    )
     assert options["env"][AXONX_TASK_WORKSPACE_DIR] == str(tmp_path.resolve())
     assert options["env"]["PYTHONPATH"] == str(Path(__file__).parent)
     assert options["stderr"] == asyncio.subprocess.PIPE
@@ -76,7 +80,9 @@ async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp
     assert "Task process 12345 (sales) completed successfully" in success_log
 
 
-async def test_task_manager_logs_worker_stderr_on_failure(monkeypatch, tmp_path, capsys):
+async def test_task_manager_logs_worker_stderr_on_failure(
+    monkeypatch, tmp_path, capsys
+):
     class Process:
         pid = 23456
         returncode = 2
@@ -104,7 +110,9 @@ async def test_task_manager_logs_worker_stderr_on_failure(monkeypatch, tmp_path,
     assert "exited with code 2" in error
 
 
-async def test_task_manager_terminates_and_reaps_workers_on_close(monkeypatch, tmp_path):
+async def test_task_manager_terminates_and_reaps_workers_on_close(
+    monkeypatch, tmp_path
+):
     signals = []
 
     class Process:
@@ -160,7 +168,9 @@ async def test_task_manager_terminates_and_reaps_workers_on_close(monkeypatch, t
     assert status.exit_code == 130
 
 
-async def test_task_manager_kills_worker_after_shutdown_grace_period(monkeypatch, tmp_path):
+async def test_task_manager_kills_worker_after_shutdown_grace_period(
+    monkeypatch, tmp_path
+):
     signals = []
 
     class Process:
@@ -303,7 +313,9 @@ def test_plugin_manifest_rejects_invalid_schema(text):
 
 
 def test_plugin_manifest_defaults_and_normalizes_task_strings():
-    manifest = parse_plugin_manifest("tasks:\n  ' sales ': ' package.module:Task '\n", "test")
+    manifest = parse_plugin_manifest(
+        "tasks:\n  ' sales ': ' package.module:Task '\n", "test"
+    )
 
     assert manifest.tasks == {"sales": "package.module:Task"}
 
@@ -314,12 +326,23 @@ def test_http_client_discovers_service_from_environment(monkeypatch, capsys):
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host": "service.internal", "port": 4321}')
     assert HttpClient().url == "http://service.internal:4321"
     assert McpClient().url == "http://service.internal:4321/mcp"
-    assert HttpClient(host_ip="explicit.example", host_port=8443).url == "http://explicit.example:8443"
-    assert HttpClient(host_ip=AXONX_DEFAULT_CONNECT_HOST, host_port=AXONX_DEFAULT_PORT).url == "http://127.0.0.1:1024"
-    assert HttpClient(host_ip="2001:db8::1", host_port=8443).url == "http://[2001:db8::1]:8443"
+    assert (
+        HttpClient(host_ip="explicit.example", host_port=8443).url
+        == "http://explicit.example:8443"
+    )
+    assert (
+        HttpClient(host_ip=AXONX_DEFAULT_CONNECT_HOST, host_port=AXONX_DEFAULT_PORT).url
+        == "http://127.0.0.1:1024"
+    )
+    assert (
+        HttpClient(host_ip="2001:db8::1", host_port=8443).url
+        == "http://[2001:db8::1]:8443"
+    )
 
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host": "missing-port"}')
-    assert HttpClient().url == f"http://{AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}"
+    assert (
+        HttpClient().url == f"http://{AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}"
+    )
     assert f"Invalid {AXONX_SERVICE_INFO} value" in capsys.readouterr().err
 
 
@@ -327,14 +350,16 @@ def test_http_client_discovers_service_from_environment(monkeypatch, capsys):
 async def test_remote_clients_require_start(client_name):
     from axonx.components import client as client_module
 
-    client = getattr(client_module, client_name)(host_ip="service.example", host_port=443)
+    client = getattr(client_module, client_name)(
+        host_ip="service.example", host_port=443
+    )
 
     with pytest.raises(RuntimeError, match="Client is not started"):
         await client.list_jobs()
 
 
 async def test_http_service_publishes_service_info(monkeypatch):
-    from axonx.components import HttpService
+    from axonx.components.service import HttpService
 
     previous = '{"host": "previous", "port": 1234}'
     monkeypatch.setenv(AXONX_SERVICE_INFO, previous)
@@ -357,7 +382,7 @@ async def test_http_service_publishes_service_info(monkeypatch):
 async def test_http_service_advertises_loopback_for_default_wildcard_bind(
     monkeypatch,
 ):
-    from axonx.components import HttpService
+    from axonx.components.service import HttpService
 
     monkeypatch.delenv(AXONX_SERVICE_INFO, raising=False)
     app = Application()
@@ -377,13 +402,17 @@ async def test_http_service_advertises_loopback_for_default_wildcard_bind(
 async def test_http_service_serves_studio_spa_and_cors(tmp_path):
     import httpx
 
-    from axonx.components import HttpService
+    from axonx.components.service import HttpService
 
     static_dir = tmp_path / "studio"
     static_dir.mkdir()
-    (static_dir / "index.html").write_text("<main>AxonX Studio</main>", encoding="utf-8")
+    (static_dir / "index.html").write_text(
+        "<main>AxonX Studio</main>", encoding="utf-8"
+    )
     server = HttpService(web_static_dir=str(static_dir)).build_service(Application())
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=server), base_url="http://test"
+    ) as client:
         page = await client.get("/tasks")
         preflight = await client.options(
             "/jobs",
@@ -401,7 +430,7 @@ async def test_http_service_serves_studio_spa_and_cors(tmp_path):
 async def test_http_and_mcp_expose_the_same_jobs():
     import httpx
     from fastmcp import Client
-    from axonx.components import HttpService
+    from axonx.components.service import HttpService
 
     app = Application(
         jobs={
@@ -422,7 +451,9 @@ async def test_http_and_mcp_expose_the_same_jobs():
     server = service.build_service(app)
 
     async with server.router.lifespan_context(server):
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as http_client:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=server), base_url="http://test"
+        ) as http_client:
             response = await http_client.get("/jobs")
             assert response.status_code == 200
             assert [job["name"] for job in response.json()] == ["visible"]
@@ -501,7 +532,9 @@ async def test_mcp_client_uses_common_job_interface(monkeypatch):
 async def test_concurrent_job_contexts(tmp_path):
     app = Application(
         workspace_dir=str(tmp_path),
-        jobs={"demo": {"steps": [{"backend": "version_step"}, {"backend": "demo_step"}]}},
+        jobs={
+            "demo": {"steps": [{"backend": "version_step"}, {"backend": "demo_step"}]}
+        },
     )
     async with app:
         results = await asyncio.gather(*(app.run_job("demo") for _ in range(5)))
@@ -523,7 +556,9 @@ async def test_submit_validation_and_status_snapshot(tmp_path):
         record = await manager.get_status(status.task_id)
         record.result["value"] = -1
         assert (await manager.get_status(status.task_id)).result["value"] == 2
-        assert json.loads(manager.status_path.read_text())["tasks"] == [status.model_dump(mode="json")]
+        assert json.loads(manager.status_path.read_text())["tasks"] == [
+            status.model_dump(mode="json")
+        ]
 
 
 async def test_list_runtime_task_statuses_returns_independent_snapshots(tmp_path):
@@ -544,7 +579,12 @@ async def test_list_runtime_task_statuses_returns_independent_snapshots(tmp_path
 
 def test_structured_task_submission_is_encoded_losslessly():
     task, config = split_task_arguments(
-        {"task": "sample", "start_date": "00100101", "dry_run": True, "options": {"markets": ["CN", "HK"]}},
+        {
+            "task": "sample",
+            "start_date": "00100101",
+            "dry_run": True,
+            "options": {"markets": ["CN", "HK"]},
+        },
     )
 
     assert build_task_argv(task, config) == [
@@ -565,7 +605,9 @@ def test_structured_task_submission_rejects_non_roundtrippable_keys(key):
         build_task_argv("sample", {key: 1})
 
 
-async def test_structured_task_submission_validates_before_launch(monkeypatch, tmp_path):
+async def test_structured_task_submission_validates_before_launch(
+    monkeypatch, tmp_path
+):
     calls = []
 
     async def submit(argv):
@@ -710,7 +752,9 @@ async def test_task_manager_logs_and_ignores_invalid_status(tmp_path, capsys):
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
         assert await manager.list_runtime_task_ids() == []
-        assert json.loads(status_path.read_text())["tasks"] == {"old": {"task_id": "old", "task_type": "analysis"}}
+        assert json.loads(status_path.read_text())["tasks"] == {
+            "old": {"task_id": "old", "task_type": "analysis"}
+        }
 
     assert "Failed to load task status" in capsys.readouterr().err
     assert json.loads(status_path.read_text())["tasks"] == []
@@ -719,7 +763,7 @@ async def test_task_manager_logs_and_ignores_invalid_status(tmp_path, capsys):
 async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     import httpx
 
-    from axonx.components import HttpService
+    from axonx.components.service import HttpService
     from axonx.plugin.artifact import build_wheel, inspect_wheel, source_sha256
 
     source = Path("plugins/polars-demo").resolve()
@@ -743,7 +787,9 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     server = HttpService().build_service(app)
 
     async with server.router.lifespan_context(server):
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=server), base_url="http://test"
+        ) as client:
             response = await client.post(
                 "/plugins",
                 content=wheel.read_bytes(),

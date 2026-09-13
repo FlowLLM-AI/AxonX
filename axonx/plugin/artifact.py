@@ -69,7 +69,10 @@ def source_sha256(path: Path) -> str:
         item
         for item in root.rglob("*")
         if item.is_file()
-        and not any(part in _IGNORED_PARTS or part.endswith(".egg-info") for part in item.relative_to(root).parts)
+        and not any(
+            part in _IGNORED_PARTS or part.endswith(".egg-info")
+            for part in item.relative_to(root).parts
+        )
     )
     for item in files:
         relative = item.relative_to(root).as_posix().encode()
@@ -109,7 +112,11 @@ def build_wheel(source: Path, output: Path, *, use_cache: bool = False) -> Path:
 
 def install_artifact(artifact: PluginArtifact) -> None:
     """Install plugin dependencies without replacing AxonX, then install its wheel."""
-    dependencies = [value for value in artifact.requirements if canonicalize_name(Requirement(value).name) != "axonx"]
+    dependencies = [
+        value
+        for value in artifact.requirements
+        if canonicalize_name(Requirement(value).name) != "axonx"
+    ]
     commands = []
     if dependencies:
         commands.append([sys.executable, "-m", "pip", "install", *dependencies])
@@ -138,8 +145,12 @@ def inspect_wheel(path: Path) -> PluginArtifact:
     """Read distribution, entry points, and manifests without importing code."""
     with ZipFile(path) as archive:
         names = archive.namelist()
-        metadata_files = [name for name in names if name.endswith(".dist-info/METADATA")]
-        entry_files = [name for name in names if name.endswith(".dist-info/entry_points.txt")]
+        metadata_files = [
+            name for name in names if name.endswith(".dist-info/METADATA")
+        ]
+        entry_files = [
+            name for name in names if name.endswith(".dist-info/entry_points.txt")
+        ]
         if len(metadata_files) != 1 or len(entry_files) != 1:
             raise ValueError("Wheel must contain one METADATA and entry_points.txt")
         metadata = Parser().parsestr(archive.read(metadata_files[0]).decode())
@@ -158,7 +169,9 @@ def inspect_wheel(path: Path) -> PluginArtifact:
             manifest_path = f"{package.replace('.', '/')}/{PLUGIN_MANIFEST}"
             if manifest_path not in names:
                 raise ValueError(f"Wheel does not contain {manifest_path}")
-            manifest = parse_plugin_manifest(archive.read(manifest_path).decode(), plugin_name)
+            manifest = parse_plugin_manifest(
+                archive.read(manifest_path).decode(), plugin_name
+            )
             duplicate = tasks.keys() & manifest.tasks.keys()
             if duplicate:
                 raise ValueError(

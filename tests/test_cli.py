@@ -11,16 +11,16 @@ import threading
 import pytest
 from pydantic import ValidationError
 
-from axonx import cli
+from axonx import BaseConfig, BaseTask, cli
 from axonx.components.client import HttpClient
-from axonx.enumeration import TaskType
+from axonx.enums import TaskType
 from axonx.schema import ClientOptions, Command, Response, TaskStatus
-from axonx.task import BaseConfig, BaseTask, list_installed_task_infos
 from axonx.task.backtest import RankingBacktestTask
 from axonx.task.common import DemoTask
 from axonx.task.data import DownloadTushareTask, TushareDownloadConfig
-from axonx.task.task_status_reporter import HttpTaskStatusReporter
-from axonx.utils.cli_utils import parse_command
+from axonx.task.status_reporter import HttpTaskStatusReporter
+from axonx.task.resolver import list_installed_task_infos
+from axonx.utils.cli import parse_command
 
 
 class CliConfig(BaseConfig):
@@ -45,7 +45,7 @@ class CliTask(BaseTask):
 
 def test_installed_task_infos_include_only_public_config(monkeypatch):
     monkeypatch.setattr(
-        "axonx.task.task_resolver.installed_tasks",
+        "axonx.task.resolver.installed_tasks",
         lambda: {"sample": CliTask},
     )
 
@@ -63,7 +63,7 @@ def test_installed_task_infos_require_an_explicit_class_docstring(monkeypatch):
         __doc__ = None
 
     monkeypatch.setattr(
-        "axonx.task.task_resolver.installed_tasks",
+        "axonx.task.resolver.installed_tasks",
         lambda: {"undocumented": UndocumentedTask},
     )
 
@@ -78,11 +78,23 @@ def isolate_dotenv_loading(monkeypatch):
 
 def test_tushare_config_accepts_compact_dates_converted_by_cli():
     command, _ = parse_command(
-        ["exec", "--task", "download_tushare_task", "--start-date", "20100101", "--end-date", "20260912"],
+        [
+            "exec",
+            "--task",
+            "download_tushare_task",
+            "--start-date",
+            "20100101",
+            "--end-date",
+            "20260912",
+        ],
     )
 
     config = TushareDownloadConfig.model_validate(
-        {key: value for key, value in command.arguments.items() if key in {"start_date", "end_date"}},
+        {
+            key: value
+            for key, value in command.arguments.items()
+            if key in {"start_date", "end_date"}
+        },
     )
 
     assert config.start_date == "20100101"
@@ -142,7 +154,9 @@ def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
 
     task.sort_output_files()
 
-    assert [path.relative_to(root).as_posix() for path in map(Path, task.context["files"])] == [
+    assert [
+        path.relative_to(root).as_posix() for path in map(Path, task.context["files"])
+    ] == [
         "2026/20260104/daily.parquet",
         "2026/20260104/adj_factor.parquet",
         "2026/20260105/daily.parquet",
@@ -187,16 +201,23 @@ def test_task_id_is_generated_internally_and_read_only():
 
 
 def test_task_status_accepts_an_optional_log_path():
-    status = TaskStatus(task_id="analysis#example", task_type=TaskType.ANALYSIS, log_path="logs/example.log")
+    status = TaskStatus(
+        task_id="analysis#example",
+        task_type=TaskType.ANALYSIS,
+        log_path="logs/example.log",
+    )
 
     assert status.log_path == "logs/example.log"
     assert status.model_dump(mode="json")["log_path"] == "logs/example.log"
 
 
 def test_local_task_uses_registered_config(monkeypatch, capsys):
-    monkeypatch.setattr("axonx.task.task_command_executor.resolve_task", lambda _name: CliTask)
+    monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: CliTask)
 
-    assert cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"]) == 0
+    assert (
+        cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"])
+        == 0
+    )
 
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
 
@@ -209,17 +230,21 @@ def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path
         def build_task_steps(self):
             return ()
 
-    monkeypatch.setattr("axonx.task.task_command_executor.resolve_task", lambda _name: WorkspaceTask)
-    monkeypatch.setattr(cli, "resolve_app_config", lambda **_kwargs: {"workspace_dir": str(tmp_path)})
+    monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: WorkspaceTask)
+    monkeypatch.setattr(
+        cli, "resolve_app_config", lambda **_kwargs: {"workspace_dir": str(tmp_path)}
+    )
 
     assert cli.main(["exec", "--task", "sample"]) == 0
-    assert json.loads(capsys.readouterr().out) == {"workspace_path": str(tmp_path.resolve())}
+    assert json.loads(capsys.readouterr().out) == {
+        "workspace_path": str(tmp_path.resolve())
+    }
 
 
 def test_exec_loads_dotenv_without_overriding_injected_environment(monkeypatch, capsys):
     calls = []
     monkeypatch.setattr(cli, "load_env", lambda **kwargs: calls.append(kwargs) or {})
-    monkeypatch.setattr("axonx.task.task_command_executor.installed_tasks", lambda: {})
+    monkeypatch.setattr("axonx.task.executor.installed_tasks", lambda: {})
 
     assert cli.main(["exec"]) == 0
     assert calls == [{"override": False}]
@@ -240,12 +265,14 @@ def test_progress_delivery_runs_on_a_dedicated_thread(monkeypatch):
         async def set_status(self, status):
             deliveries.append((threading.get_ident(), status))
 
-    monkeypatch.setattr("axonx.task.task_status_reporter.HttpClient", Client)
+    monkeypatch.setattr("axonx.task.status_reporter.HttpClient", Client)
     task = CliTask({"amount": 1}, workspace_path=".")
     with HttpTaskStatusReporter(task.logger) as reporter:
         task.execute(emit=reporter.publish)
 
-    percentages = [status.steps[0].percentage if status.steps else None for _, status in deliveries]
+    percentages = [
+        status.steps[0].percentage if status.steps else None for _, status in deliveries
+    ]
     assert percentages == [None, None, None, 50, 100, 100]
     assert deliveries[0][1].steps == []
     assert deliveries[-1][1].steps[0].finished_at is not None
@@ -276,17 +303,28 @@ def test_task_steps_stay_on_the_calling_thread():
         def record_config(self):
             self.context["thread_id"] = threading.get_ident()
 
-    assert ThreadTask({"amount": 1}, workspace_path=".").execute() == {"thread_id": caller}
+    assert ThreadTask({"amount": 1}, workspace_path=".").execute() == {
+        "thread_id": caller
+    }
 
 
 def test_demo_task_exercises_dynamic_steps_and_outputs():
     equal = DemoTask({"x": 2, "y": 2}, workspace_path=".")
     assert equal.execute() == {"result": 4, "branch": "equal", "operands": ["x", "y"]}
-    assert [step.name for step in equal.status.steps] == ["initialize", "add_equal_operands", "finish"]
+    assert [step.name for step in equal.status.steps] == [
+        "initialize",
+        "add_equal_operands",
+        "finish",
+    ]
 
     different = DemoTask({"x": 2, "y": 3}, workspace_path=".")
     different.execute()
-    assert [step.name for step in different.status.steps] == ["initialize", "add_x", "add_y", "finish"]
+    assert [step.name for step in different.status.steps] == [
+        "initialize",
+        "add_x",
+        "add_y",
+        "finish",
+    ]
     assert different.status.state == "succeeded"
     assert different.status.exit_code == 0
     assert different.status.error == ""
@@ -348,11 +386,20 @@ def test_submit_forwards_the_same_task_arguments(monkeypatch, capsys):
                 "task": "sample",
                 "amount": 3,
                 "dry_run": True,
-                "_axonx_argv": ["--task", "sample", "--amount", "3", "--dry-run", "true"],
+                "_axonx_argv": [
+                    "--task",
+                    "sample",
+                    "--amount",
+                    "3",
+                    "--dry-run",
+                    "true",
+                ],
             },
         ),
     ]
-    assert json.loads(capsys.readouterr().out)["answer"] == {"task_id": "analysis_20240601120000_abcd"}
+    assert json.loads(capsys.readouterr().out)["answer"] == {
+        "task_id": "analysis_20240601120000_abcd"
+    }
 
 
 def test_start_prints_logo_before_running_service(monkeypatch):
@@ -366,23 +413,33 @@ def test_start_prints_logo_before_running_service(monkeypatch):
 
     service = Service()
     configs = []
-    monkeypatch.setattr(cli, "load_env", lambda: {"FROM_DOTENV": "dotenv", "PRECEDENCE": "dotenv"})
+    monkeypatch.setattr(
+        cli, "load_env", lambda: {"FROM_DOTENV": "dotenv", "PRECEDENCE": "dotenv"}
+    )
     monkeypatch.setattr(
         cli,
         "resolve_app_config",
         lambda **_kwargs: {"environment": {"PRECEDENCE": "config"}},
     )
-    monkeypatch.setattr(cli, "Application", lambda **config: configs.append(config) or app)
+    monkeypatch.setattr(
+        cli, "Application", lambda **config: configs.append(config) or app
+    )
     monkeypatch.setattr(cli, "HttpService", lambda **_config: service)
-    monkeypatch.setattr(cli, "print_logo", lambda config, runtime: events.append((config, runtime)))
+    monkeypatch.setattr(
+        cli, "print_logo", lambda config, runtime: events.append((config, runtime))
+    )
 
     assert cli.main(["start"]) == 0
-    assert configs == [{"environment": {"FROM_DOTENV": "dotenv", "PRECEDENCE": "config"}}]
+    assert configs == [
+        {"environment": {"FROM_DOTENV": "dotenv", "PRECEDENCE": "config"}}
+    ]
     assert events == [(app.app_config, service), "serve"]
 
 
 def test_exec_without_arguments_lists_available_tasks(monkeypatch, capsys):
-    monkeypatch.setattr("axonx.task.task_command_executor.installed_tasks", lambda: {"sample": CliTask})
+    monkeypatch.setattr(
+        "axonx.task.executor.installed_tasks", lambda: {"sample": CliTask}
+    )
 
     assert cli.main(["exec"]) == 0
 
@@ -395,18 +452,25 @@ def test_exec_discovers_installed_plugin(capsys):
 
 
 def test_task_options_are_strict(monkeypatch, capsys):
-    monkeypatch.setattr("axonx.task.task_command_executor.resolve_task", lambda _name: CliTask)
+    monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: CliTask)
 
     assert cli.main(["exec", "--task", "sample", "--amount"]) == 2
     assert "pairs like --field value" in capsys.readouterr().err
 
 
 def test_command_options_support_nested_fields():
-    command, _ = parse_command(["deploy", "--service.port", "2333", "--service.public-host", "example.test"])
+    command, _ = parse_command(
+        ["deploy", "--service.port", "2333", "--service.public-host", "example.test"]
+    )
 
     assert command.arguments == {
         "service": {"port": 2333, "public_host": "example.test"},
-        "_axonx_argv": ["--service.port", "2333", "--service.public-host", "example.test"],
+        "_axonx_argv": [
+            "--service.port",
+            "2333",
+            "--service.public-host",
+            "example.test",
+        ],
     }
 
 
@@ -436,7 +500,15 @@ def test_nested_options_reject_scalar_conflicts(capsys):
 
 def test_command_uses_validated_http_client_options():
     command, client_options = parse_command(
-        ["--host-ip", "service.internal", "--host-port", "4321", "--timeout", "5", "status"],
+        [
+            "--host-ip",
+            "service.internal",
+            "--host-port",
+            "4321",
+            "--timeout",
+            "5",
+            "status",
+        ],
     )
 
     assert isinstance(command, Command)

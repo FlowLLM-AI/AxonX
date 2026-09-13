@@ -9,13 +9,18 @@ from typing import Sequence
 
 from .application import Application
 from .components.client import HttpClient
-from .components import HttpService
+from .components.service import HttpService
 from .config import resolve_app_config
-from .constants import AXONX_TASK_WORKSPACE_DIR, CLI_LOCAL_COMMANDS, CLI_RAW_ARGUMENTS, CLI_USAGE
+from .constants import (
+    AXONX_TASK_WORKSPACE_DIR,
+    CLI_LOCAL_COMMANDS,
+    CLI_RAW_ARGUMENTS,
+    CLI_USAGE,
+)
 from .schema import ApplicationConfig, ClientOptions, Command
-from .task import TaskCatalog, TaskCommandExecutor
+from .task.executor import TaskCatalog, TaskCommandExecutor
 from .utils import load_env, print_logo
-from .utils.cli_utils import (
+from .utils.cli import (
     parse_command,
     print_json,
 )
@@ -23,7 +28,11 @@ from .utils.cli_utils import (
 
 def _run_server(command: Command) -> int:
     environment = load_env()
-    arguments = {key: value for key, value in command.arguments.items() if key != CLI_RAW_ARGUMENTS}
+    arguments = {
+        key: value
+        for key, value in command.arguments.items()
+        if key != CLI_RAW_ARGUMENTS
+    }
     config = resolve_app_config(**arguments)
     config["environment"] = {**environment, **config.get("environment", {})}
     app = Application(**config)
@@ -51,7 +60,9 @@ def _run_exec(command: Command) -> int:
     load_env(override=False)
     workspace_dir = os.environ.get(AXONX_TASK_WORKSPACE_DIR)
     if workspace_dir is None:
-        app_config = ApplicationConfig.model_validate(resolve_app_config(log_config=False))
+        app_config = ApplicationConfig.model_validate(
+            resolve_app_config(log_config=False)
+        )
         workspace_dir = app_config.workspace_dir
     result = TaskCommandExecutor(workspace_dir).execute(command)
     if isinstance(result, TaskCatalog):
@@ -94,7 +105,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_remote_job(command, client_options)
     except Exception as exc:
         print(f"Error: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return 2 if isinstance(exc, (FileNotFoundError, KeyError, TypeError, ValueError)) else 1
+        return (
+            2
+            if isinstance(exc, (FileNotFoundError, KeyError, TypeError, ValueError))
+            else 1
+        )
 
 
 if __name__ == "__main__":

@@ -23,14 +23,16 @@ def unique_entry_point(
     """Return the sole matching entry point, rejecting ambiguous providers."""
     if len(entries) > 1:
         values = ", ".join(sorted(entry.value for entry in entries))
-        raise ValueError(f"{provider} '{name}' has multiple installed providers: {values}")
+        raise ValueError(
+            f"{provider} '{name}' has multiple installed providers: {values}"
+        )
     return entries[0] if entries else None
 
 
 def load_entry_point(entry: metadata.EntryPoint, *, invoke: bool = False) -> Any:
     """Load and optionally invoke an entry point without retaining registrations."""
     # Import lazily so config parser imports do not pull in the component graph.
-    from ..components.component_registry import R
+    from ..components.registry import R
 
     with R.preserve(allow_mutation=True):
         loaded = entry.load()

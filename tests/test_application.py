@@ -9,10 +9,11 @@ from typing import cast
 import pytest
 from pydantic import ValidationError
 
-from axonx import Application, BaseComponent, BaseJob, BaseStep, JobMode, SimpleJob
-from axonx.components import R
-from axonx.components.job import CronJob
-from axonx.components.plugin_component import LocalPluginComponent
+from axonx import Application, BaseComponent, BaseJob, BaseStep
+from axonx.components.job import CronJob, SimpleJob
+from axonx.components.plugin import LocalPluginComponent
+from axonx.components.registry import R
+from axonx.enums import JobMode
 from axonx.schema import JobConfig
 
 
@@ -30,7 +31,9 @@ def test_application_configures_logging_from_final_config(monkeypatch):
 
     Application(log_to_console=False, log_to_file=False)
 
-    assert calls == [{"log_to_console": False, "log_to_file": False, "force_init": True}]
+    assert calls == [
+        {"log_to_console": False, "log_to_file": False, "force_init": True}
+    ]
 
 
 def test_application_logs_configured_components_and_jobs(monkeypatch):
@@ -40,7 +43,9 @@ def test_application_logs_configured_components_and_jobs(monkeypatch):
         def info(self, message):
             messages.append(message)
 
-    monkeypatch.setattr("axonx.application.get_logger", lambda **_kwargs: RecordingLogger())
+    monkeypatch.setattr(
+        "axonx.application.get_logger", lambda **_kwargs: RecordingLogger()
+    )
 
     Application(
         log_to_file=False,

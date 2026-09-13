@@ -1,5 +1,5 @@
 """Plugin steps."""
 
-from .list_plugins_step import ListPluginsStep
+from .list_plugins import ListPluginsStep
 
 __all__ = ["ListPluginsStep"]

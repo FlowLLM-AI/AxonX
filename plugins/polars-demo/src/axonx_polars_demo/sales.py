@@ -2,8 +2,8 @@
 
 import os
 from pathlib import Path
-from axonx.enumeration import TaskType
-from axonx.task import BaseTask, BaseConfig
+from axonx.enums import TaskType
+from axonx import BaseConfig, BaseTask
 
 
 class SalesConfig(BaseConfig):
