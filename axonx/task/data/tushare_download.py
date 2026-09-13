@@ -73,6 +73,7 @@ class DownloadTushareTask(BaseTask):
         yield self.initialize
         yield self.download_market_days
         yield self.download_hs300_weights
+        yield self.sort_output_files
 
     def initialize(self) -> None:
         end = min(self._parse_date(self.config.end_date) or date.today(), date.today())
@@ -108,6 +109,17 @@ class DownloadTushareTask(BaseTask):
         for completed, (start, end) in enumerate(months, start=1):
             self.download_hs300_weight(start, end)
             self._report_batch_progress(completed, len(months))
+
+    def sort_output_files(self) -> None:
+        """Order artifacts by trading date, then by declared dataset order."""
+        dataset_order = {name: index for index, name in enumerate(DATASETS)}
+        self.context["files"].sort(
+            key=lambda value: (
+                os.path.basename(os.path.dirname(value)),
+                dataset_order.get(os.path.splitext(os.path.basename(value))[0], len(dataset_order)),
+                value,
+            ),
+        )
 
     def download_market_day(self, day: date) -> None:
         trade_date = f"{day:%Y%m%d}"

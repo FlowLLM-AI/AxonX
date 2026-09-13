@@ -4,6 +4,7 @@
 # pylint: disable=missing-class-docstring,missing-function-docstring
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 import threading
 
@@ -114,6 +115,7 @@ def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
         "initialize",
         "download_market_days",
         "download_hs300_weights",
+        "sort_output_files",
     ]
     market_progress = [
         status.steps[1].percentage
@@ -121,6 +123,32 @@ def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
         if len(status.steps) == 2 and status.steps[1].percentage is not None
     ]
     assert market_progress == pytest.approx([100 / 201 * 100, 200 / 201 * 100, 100])
+
+
+def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
+    task = DownloadTushareTask(
+        {"start_date": "20260101", "end_date": "20260101"},
+        workspace_path=tmp_path,
+    )
+    task.initialize()
+    root = task.context["root"]
+    task.context["files"] = [
+        str(root / "2026" / "20260105" / "index_weight.parquet"),
+        str(root / "2026" / "20260104" / "adj_factor.parquet"),
+        str(root / "2026" / "20260105" / "adj_factor.parquet"),
+        str(root / "2026" / "20260104" / "daily.parquet"),
+        str(root / "2026" / "20260105" / "daily.parquet"),
+    ]
+
+    task.sort_output_files()
+
+    assert [path.relative_to(root).as_posix() for path in map(Path, task.context["files"])] == [
+        "2026/20260104/daily.parquet",
+        "2026/20260104/adj_factor.parquet",
+        "2026/20260105/daily.parquet",
+        "2026/20260105/adj_factor.parquet",
+        "2026/20260105/index_weight.parquet",
+    ]
 
 
 def test_backtest_relative_paths_are_resolved_from_workspace(tmp_path):

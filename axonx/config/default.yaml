@@ -19,20 +19,24 @@ jobs:
     description: List installed Task plugins.
     steps:
       - backend: list_plugins_step
+
   machine_status:
     description: Get local or remote AxonX machine status.
     steps:
       - backend: machine_status_step
+
   list_machines:
     description: Check the health of all configured remote AxonX machines.
     enable_remote: false
     steps:
       - backend: list_machines_step
+
   demo:
     description: Show the installed AxonX version.
     steps:
       - backend: version_step
       - backend: demo_step
+
   submit:
     description: Submit a task for asynchronous execution.
     parameters:
@@ -46,18 +50,22 @@ jobs:
       additionalProperties: true
     steps:
       - backend: submit_task
+
   list_runtime_task_ids:
     description: List all runtime Task IDs.
     steps:
       - backend: list_runtime_task_ids
+
   list_runtime_task_statuses:
     description: List complete status snapshots for all runtime Tasks.
     steps:
       - backend: list_runtime_task_statuses
+
   list_installed_task_infos:
     description: List all installed Task definitions.
     steps:
       - backend: list_installed_task_infos
+
   set_status:
     description: Store a complete status reported by a task process.
     parameters:
@@ -72,6 +80,7 @@ jobs:
         - status
     steps:
       - backend: set_task_status
+
   status:
     description: Get one task status.
     parameters:
@@ -83,6 +92,7 @@ jobs:
         - task_id
     steps:
       - backend: get_task_status
+
   cancel:
     description: Cancel a queued or running task.
     parameters:
