@@ -10,6 +10,7 @@ def test_task_type_values() -> None:
         "etl",
         "analysis",
         "training",
+        "predict",
         "inference",
         "backtest",
     ]

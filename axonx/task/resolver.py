@@ -53,6 +53,7 @@ def installed_tasks() -> dict[str, type[BaseTask]]:
 def list_installed_task_infos() -> list[TaskInfo]:
     """Return sorted metadata for every installed Task."""
     infos = []
+    native_tasks = R.get_all(ComponentEnum.TASK)
     for name, task_class in sorted(installed_tasks().items()):
         schema = deepcopy(task_class.config_cls.model_json_schema())
         properties = schema.get("properties", {})
@@ -68,6 +69,9 @@ def list_installed_task_infos() -> list[TaskInfo]:
         infos.append(
             TaskInfo(
                 name=name,
+                source=(
+                    "native" if native_tasks.get(name) is task_class else "plugin"
+                ),
                 task_type=task_class.task_type,
                 description=_task_description(name, task_class),
                 config_schema=schema,

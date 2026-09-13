@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowUpRight, Ban, CheckCircle2, ChevronRight, Clock3, LoaderCircle, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { AlertTriangle, Ban, Check, ChevronRight, Copy, LoaderCircle, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
 import { interpolate, t } from "./i18n";
 import { formatDate, formatDuration, taskStepProgress } from "./taskFormat";
@@ -17,7 +17,7 @@ export function TasksPage({ language, remoteIp, onSubmit, onOpenTask, onConnecti
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [seconds, setSeconds] = useState(10);
   const [search, setSearch] = useState("");
-  const [state, setState] = useState("");
+  const [state, setState] = useState<"" | "active" | "attention" | TaskState>("");
   const [type, setType] = useState("");
   const [cancelTarget, setCancelTarget] = useState<TaskStatus | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -53,12 +53,15 @@ export function TasksPage({ language, remoteIp, onSubmit, onOpenTask, onConnecti
   const filtered = useMemo(() => tasks.filter((task) => {
     const query = search.trim().toLowerCase();
     const matches = !query || `${task.task_id} ${task.task_type} ${task.pid || ""}`.toLowerCase().includes(query);
-    return matches && (!state || task.state === state) && (!type || task.task_type === type);
+    const matchesState = !state
+      || state === "active" && ACTIVE.has(task.state)
+      || state === "attention" && ATTENTION.has(task.state)
+      || task.state === state;
+    return matches && matchesState && (!type || task.task_type === type);
   }), [tasks, search, state, type]);
   const stats = {
     total: tasks.length,
     active: tasks.filter((item) => ACTIVE.has(item.state)).length,
-    succeeded: tasks.filter((item) => item.state === "succeeded").length,
     attention: tasks.filter((item) => ATTENTION.has(item.state)).length,
   };
   const selectableIds = filtered.filter((task) => !ACTIVE.has(task.state)).map((task) => task.task_id);
@@ -125,25 +128,11 @@ export function TasksPage({ language, remoteIp, onSubmit, onOpenTask, onConnecti
       </div>
     </div>
 
-    <div className="stats-grid">
-      <Stat label={text.total} value={stats.total} tone="blue" icon={<Clock3 />} />
-      <Stat label={text.active} value={stats.active} tone="cyan" icon={<LoaderCircle />} live />
-      <Stat label={text.succeeded} value={stats.succeeded} tone="green" icon={<CheckCircle2 />} />
-      <Stat label={text.attention} value={stats.attention} tone="amber" icon={<AlertTriangle />} />
-    </div>
-
     {error && <div className="error-banner"><AlertTriangle size={18} /><div><strong>{text.requestFailed}</strong><span>{error} · {text.staleHint}</span></div><button onClick={() => void load()}>{text.retry}</button></div>}
 
     <div className="data-panel">
-      <div className="filter-bar">
-        <label className="search-field"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={text.search} /></label>
-        <select value={state} onChange={(event) => setState(event.target.value)}><option value="">{text.allStates}</option>{Object.entries(text.states).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
-        <select value={type} onChange={(event) => setType(event.target.value)}><option value="">{text.allTypes}</option>{types.map((value) => <option key={value} value={value}>{text.types[value] || value}</option>)}</select>
-        {selected.size > 0 && <button className="danger-outline bulk-delete" onClick={() => setDeleteOpen(true)}><Trash2 size={15} />{interpolate(text.deleteSelected, { count: selected.size })}</button>}
-        <span className="result-count">{filtered.length} / {tasks.length}</span>
-      </div>
       <div className="table-wrap">
-        <table><thead><tr><th className="select-column"><input type="checkbox" aria-label={text.selectAll} checked={allVisibleSelected} disabled={!selectableIds.length} onChange={toggleAllVisible} /></th><th>{text.taskId}</th><th>{text.type}</th><th>{text.state}</th><th>{text.progress}</th><th>{text.started}</th><th>{text.duration}</th><th>{text.action}</th></tr></thead>
+        <table><thead><tr><th className="select-column"><input type="checkbox" aria-label={text.selectAll} checked={allVisibleSelected} disabled={!selectableIds.length} onChange={toggleAllVisible} /></th><th className="task-filter-column"><div className="table-search-head"><span>{text.taskId}</span><label className="search-field"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={text.search} /></label><small>{filtered.length} / {tasks.length}</small></div></th><th><select className="table-filter-select" aria-label={text.type} value={type} onChange={(event) => setType(event.target.value)}><option value="">{text.allTypes} · {tasks.length}</option>{types.map((value) => <option key={value} value={value}>{text.types[value] || value} · {tasks.filter((task) => task.task_type === value).length}</option>)}</select></th><th><select className="table-filter-select" aria-label={text.state} value={state} onChange={(event) => setState(event.target.value as "" | "active" | "attention" | TaskState)}><option value="">{text.allStates} · {stats.total}</option><option value="active">{text.active} · {stats.active}</option><option value="attention">{text.attention} · {stats.attention}</option>{Object.entries(text.states).map(([key, label]) => <option key={key} value={key}>{label} · {tasks.filter((task) => task.state === key).length}</option>)}</select></th><th className="progress-column">{text.progress}</th><th>{text.started}</th><th>{text.duration}</th><th>{selected.size > 0 ? <button className="danger-outline bulk-delete" onClick={() => setDeleteOpen(true)}><Trash2 size={14} />{selected.size}</button> : text.action}</th></tr></thead>
           <tbody>{filtered.map((task) => <TaskRow key={task.task_id} task={task} language={language} selected={selected.has(task.task_id)} onSelect={() => toggleTask(task.task_id)} onOpen={() => onOpenTask(task.task_id)} onCancel={() => setCancelTarget(task)} />)}</tbody>
         </table>
         {!loading && filtered.length === 0 && <div className="empty-state"><span className="empty-glyph">⌁</span><strong>{tasks.length ? text.noMatches : text.noTasks}</strong><p>{tasks.length ? text.noMatches : text.noTasksHint}</p>{!tasks.length && <button className="primary-button" onClick={onSubmit}><Plus size={17} />{text.pages.submit}</button>}</div>}
@@ -153,10 +142,6 @@ export function TasksPage({ language, remoteIp, onSubmit, onOpenTask, onConnecti
     {cancelTarget && <div className="modal-backdrop" onMouseDown={() => setCancelTarget(null)}><div className="confirm-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="close-button" onClick={() => setCancelTarget(null)}><X /></button><span className="danger-icon"><Ban /></span><h2>{text.cancelConfirm}</h2><code>{cancelTarget.task_id}</code><div><button className="secondary-button" onClick={() => setCancelTarget(null)}>{text.close}</button><button className="danger-button" onClick={() => void confirmCancel()} disabled={cancelling}>{cancelling ? text.cancelling : text.confirmCancel}</button></div></div></div>}
     {deleteOpen && <div className="modal-backdrop" onMouseDown={() => setDeleteOpen(false)}><div className="confirm-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="close-button" onClick={() => setDeleteOpen(false)}><X /></button><span className="danger-icon"><Trash2 /></span><h2>{interpolate(text.deleteConfirm, { count: selected.size })}</h2><p>{text.deleteHint}</p><div><button className="secondary-button" onClick={() => setDeleteOpen(false)}>{text.close}</button><button className="danger-button" onClick={() => void confirmDelete()} disabled={deleting}>{deleting ? text.deleting : text.confirmDelete}</button></div></div></div>}
   </section>;
-}
-
-function Stat({ label, value, tone, icon, live }: { label: string; value: number; tone: string; icon: React.ReactNode; live?: boolean }) {
-  return <article className={`stat-card ${tone}`}><div className="stat-icon">{icon}</div><span>{label}</span><strong>{value.toLocaleString()}</strong>{live && value > 0 ? <i className="pulse-dot" /> : <ArrowUpRight className="stat-arrow" />}</article>;
 }
 
 function taskTimestamp(task: TaskStatus) {
@@ -171,7 +156,13 @@ function taskTimestamp(task: TaskStatus) {
 function TaskRow({ task, language, selected, onSelect, onOpen, onCancel }: { task: TaskStatus; language: Language; selected: boolean; onSelect: () => void; onOpen: () => void; onCancel: () => void }) {
   const text = t(language); const progress = taskStepProgress(task);
   const selectable = !ACTIVE.has(task.state);
-  return <tr className={selected ? "selected" : ""} onClick={onOpen}><td className="select-column" onClick={(event) => event.stopPropagation()}><input type="checkbox" aria-label={interpolate(text.selectTask, { taskId: task.task_id })} checked={selected} disabled={!selectable} onChange={onSelect} /></td><td><div className="task-identity"><span className={`task-orb ${task.state}`}>{task.task_type.slice(0, 1).toUpperCase()}</span><div><strong>{task.task_id}</strong><small>PID {task.pid || "—"}</small></div></div></td><td><span className="type-chip">{text.types[task.task_type] || task.task_type}</span></td><td><Status state={task.state} language={language} /></td><td>{progress ? <div className="progress-cell"><div className="progress-label"><strong>{text.step} {progress.current}</strong><code title={progress.name}>{progress.name}</code><span>{progress.percentage}%</span></div><div className="progress-track"><i style={{ width: `${progress.percentage}%` }} /></div></div> : <span className="muted">{text.notStarted}</span>}</td><td>{formatDate(task.started_at, language)}</td><td>{formatDuration(task, language)}</td><td><div className="row-actions">{ACTIVE.has(task.state) && <button className="text-danger" onClick={(event) => { event.stopPropagation(); onCancel(); }}>{text.cancel}</button>}<button aria-label={text.details}><ChevronRight /></button></div></td></tr>;
+  const [copied, setCopied] = useState(false);
+  const copyTaskId = async () => {
+    await navigator.clipboard.writeText(task.task_id);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  };
+  return <tr className={selected ? "selected" : ""} onClick={onOpen}><td className="select-column" onClick={(event) => event.stopPropagation()}><input type="checkbox" aria-label={interpolate(text.selectTask, { taskId: task.task_id })} checked={selected} disabled={!selectable} onChange={onSelect} /></td><td className="task-id-column"><div className="task-identity"><span className={`task-orb ${task.state}`}>{task.task_type.slice(0, 1).toUpperCase()}</span><div><span className="task-id-line"><strong>{task.task_id}</strong><button type="button" className={copied ? "copied" : ""} aria-label={copied ? text.copied : text.copyTaskId} title={copied ? text.copied : text.copyTaskId} onClick={(event) => { event.stopPropagation(); void copyTaskId(); }}>{copied ? <Check /> : <Copy />}</button></span><small>PID {task.pid || "—"}</small></div></div></td><td><span className="type-chip">{text.types[task.task_type] || task.task_type}</span></td><td><Status state={task.state} language={language} /></td><td className="progress-column">{progress ? <div className="progress-cell"><span className="progress-step"><small>{text.step}</small><strong>{progress.current}</strong></span><code title={progress.name}>{progress.name}</code><span className="progress-ring" style={{ "--step-progress": `${progress.percentage}%` } as React.CSSProperties}><strong>{progress.percentage}</strong><small>%</small></span></div> : <span className="muted">{text.notStarted}</span>}</td><td>{formatDate(task.started_at, language)}</td><td>{formatDuration(task, language)}</td><td><div className="row-actions">{ACTIVE.has(task.state) && <button className="text-danger" onClick={(event) => { event.stopPropagation(); onCancel(); }}>{text.cancel}</button>}<button aria-label={text.details}><ChevronRight /></button></div></td></tr>;
 }
 
 export function Status({ state, language }: { state: TaskState; language: Language }) { return <span className={`status-badge ${state}`}><i />{t(language).states[state]}</span>; }

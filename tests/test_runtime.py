@@ -1041,6 +1041,7 @@ async def test_task_listing_jobs_separate_runtime_and_installed_tasks(tmp_path):
     assert runtime.answer == []
     tasks = {info["name"]: info for info in installed.answer}
     assert "download_tushare_task" in tasks
+    assert tasks["download_tushare_task"]["source"] == "native"
     assert set(tasks["download_tushare_task"]["config_schema"]["properties"]) == {
         "end_date",
         "days_back",

@@ -84,7 +84,7 @@ class Alpha158BacktestTask(BaseTask):
 
     def resolve_prediction_task(self) -> None:
         prediction_dir = task_directory(
-            self.workspace_path, "inference", self.config.prediction_task_id
+            self.workspace_path, "predict", self.config.prediction_task_id
         )
         prediction_metadata_path = prediction_dir / "metadata.json"
         prediction_metadata = read_metadata(

@@ -1,4 +1,4 @@
-"""Task-id chained Alpha158 research, modeling, inference, and backtest tasks."""
+"""Task-id chained Alpha158 research, modeling, prediction, and backtest tasks."""
 
 from .alpha158_etl import Alpha158Config, Alpha158Task
 from .backtest import Alpha158BacktestConfig, Alpha158BacktestTask

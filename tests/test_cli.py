@@ -62,6 +62,7 @@ def test_installed_task_infos_include_only_public_config(monkeypatch):
     info = list_installed_task_infos()[0]
 
     assert info.name == "sample"
+    assert info.source == "plugin"
     assert info.task_type == TaskType.ANALYSIS
     assert info.output_keys == ("amount", "dry_run")
     assert set(info.config_schema["properties"]) == {"amount", "dry_run"}
@@ -169,7 +170,7 @@ def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
 
 
 def test_backtest_paths_are_resolved_from_prediction_task_id(tmp_path):
-    prediction_dir = tmp_path / "inference" / "inference#example"
+    prediction_dir = tmp_path / "predict" / "predict#example"
     prediction_dir.mkdir(parents=True)
     (prediction_dir / "metadata.json").write_text(
         json.dumps(
@@ -180,7 +181,7 @@ def test_backtest_paths_are_resolved_from_prediction_task_id(tmp_path):
         ),
         encoding="utf-8",
     )
-    task = Alpha158BacktestTask({"prediction_task_id": "inference#example"}, workspace_path=tmp_path)
+    task = Alpha158BacktestTask({"prediction_task_id": "predict#example"}, workspace_path=tmp_path)
 
     task.resolve_prediction_task()
 

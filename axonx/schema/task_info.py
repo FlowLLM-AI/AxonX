@@ -1,6 +1,6 @@
 """Description of an installed Task."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -13,6 +13,7 @@ class TaskInfo(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     name: str
+    source: Literal["native", "plugin"]
     task_type: TaskType
     description: str
     config_schema: dict[str, Any]

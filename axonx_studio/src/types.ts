@@ -69,6 +69,7 @@ export interface JsonSchema {
 
 export interface TaskInfo {
   name: string;
+  source: "native" | "plugin";
   task_type: string;
   description: string;
   config_schema: JsonSchema;

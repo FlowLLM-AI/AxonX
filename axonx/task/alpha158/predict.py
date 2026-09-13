@@ -1,4 +1,4 @@
-"""Run full-cross-section inference from an Alpha158 LightGBM training task."""
+"""Run full-cross-section prediction from an Alpha158 LightGBM training task."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ class LgbmPredictionTask(BaseTask):
 
     config_cls = LgbmPredictionConfig
     config: LgbmPredictionConfig
-    task_type = TaskType.INFERENCE
+    task_type = TaskType.PREDICT
     output_keys = ("predictions_file", "metadata_file", "rows")
 
     def build_task_steps(self) -> Iterable[TaskStep]:
@@ -87,7 +87,7 @@ class LgbmPredictionTask(BaseTask):
         )
         if expected_hash and file_sha256(model_path) != expected_hash:
             raise ValueError(f"模型文件 SHA256 与训练 metadata 不一致: {model_path}")
-        output_dir = self.workspace_path / "inference" / self.task_id
+        output_dir = self.workspace_path / "predict" / self.task_id
         self.context.update(
             training_dir=training_dir,
             training_metadata_path=training_metadata_path,

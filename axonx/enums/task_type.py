@@ -10,5 +10,6 @@ class TaskType(StrEnum):
     ETL = "etl"
     ANALYSIS = "analysis"
     TRAINING = "training"
-    INFERENCE = "inference"
+    PREDICT = "predict"  # Offline prediction
+    INFERENCE = "inference"  # Online inference
     BACKTEST = "backtest"

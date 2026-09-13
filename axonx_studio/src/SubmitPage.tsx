@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, Braces, Check, ChevronRight, CircleDot, LoaderCircle, RefreshCw, Search, Send, Sparkles } from "lucide-react";
+import { ArrowRight, Braces, Check, ChevronDown, ChevronRight, CircleDot, LoaderCircle, RefreshCw, Search, Send, Sparkles } from "lucide-react";
 import { listInstalledTaskInfos, submitTask } from "./api";
 import { interpolate, t } from "./i18n";
 import type { JsonSchema, Language, TaskInfo } from "./types";
@@ -17,6 +17,7 @@ export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<TaskInfo["source"]>>(new Set());
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -30,6 +31,10 @@ export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { 
   useEffect(() => { void load(); }, [load]);
   const selected = tasks.find((task) => task.name === selectedName);
   const filtered = useMemo(() => tasks.filter((task) => `${task.name} ${task.task_type} ${task.description}`.toLowerCase().includes(search.toLowerCase())), [tasks, search]);
+  const taskGroups = useMemo(() => [
+    { source: "native" as const, label: text.nativeTasks, tasks: filtered.filter((task) => task.source !== "plugin") },
+    { source: "plugin" as const, label: text.pluginTasks, tasks: filtered.filter((task) => task.source === "plugin") },
+  ], [filtered, text.nativeTasks, text.pluginTasks]);
 
   useEffect(() => {
     if (!selected) return;
@@ -43,6 +48,12 @@ export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { 
   }, [selectedName, selected]);
 
   const chooseTask = (name: string) => { setSelectedName(name); setSubmitted(false); };
+  const toggleGroup = (source: TaskInfo["source"]) => setCollapsedGroups((current) => {
+    const next = new Set(current);
+    if (next.has(source)) next.delete(source);
+    else next.add(source);
+    return next;
+  });
   const submit = async (event: FormEvent) => {
     event.preventDefault(); if (!selected) return;
     const parsed: Record<string, unknown> = {}; const errors: Record<string, string> = {};
@@ -68,7 +79,15 @@ export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { 
         <header><div><p>{text.taskCatalog}</p><span>{interpolate(text.tasksAvailable, { count: tasks.length })}</span></div><button onClick={() => void load()} aria-label="Refresh"><RefreshCw className={loading ? "spin" : ""} /></button></header>
         <label className="catalog-search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={text.findTask} /></label>
         <div className="task-catalog">
-          {filtered.map((task) => <button key={task.name} className={selectedName === task.name ? "active" : ""} onClick={() => chooseTask(task.name)}><span className={`catalog-icon type-${task.task_type}`}>{task.name.slice(0, 1).toUpperCase()}</span><div><strong>{task.name}</strong><small>{text.types[task.task_type] || task.task_type}</small></div><ChevronRight /></button>)}
+          {taskGroups.map((group) => {
+            if (!group.tasks.length) return null;
+            const expanded = !collapsedGroups.has(group.source) || Boolean(search.trim());
+            const itemsId = `task-group-${group.source}`;
+            return <section className={`task-catalog-group ${expanded ? "expanded" : "collapsed"}`} key={group.source}>
+              <button type="button" className="catalog-group-toggle" aria-expanded={expanded} aria-controls={itemsId} onClick={() => toggleGroup(group.source)}><span><ChevronDown />{group.label}</span><small>{group.tasks.length}</small></button>
+              {expanded && <div className="task-catalog-items" id={itemsId}>{group.tasks.map((task) => <button key={task.name} className={selectedName === task.name ? "active" : ""} onClick={() => chooseTask(task.name)}><span className={`catalog-icon type-${task.task_type}`}>{task.name.slice(0, 1).toUpperCase()}</span><div><strong>{task.name}</strong><small>{text.types[task.task_type] || task.task_type}</small></div><ChevronRight /></button>)}</div>}
+            </section>;
+          })}
           {!loading && !filtered.length && <div className="catalog-empty">{text.noInstalled}</div>}
         </div>
       </aside>
