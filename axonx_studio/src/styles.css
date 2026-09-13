@@ -574,6 +574,19 @@ code, pre, .eyebrow { font-family: "JetBrains Mono", monospace; }
 .workspace-notice svg { width: 15px; flex: none; }
 .workspace-notice span { opacity: .85; }
 .workspace-code { min-height: 100%; margin: 0; padding: 24px; overflow: visible; color: var(--muted); background: color-mix(in srgb,var(--surface-2) 75%,var(--surface)); font-size: 13px; line-height: 1.7; tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+.structured-tree { min-height: 100%; padding: 18px 14px 40px; color: var(--ink); background: color-mix(in srgb,var(--surface-2) 75%,var(--surface)); font-family: "JetBrains Mono",monospace; font-size: 12px; }
+.structured-toggle,.structured-leaf { width: 100%; min-height: 32px; padding-left: calc(8px + var(--tree-depth,0) * 18px); }
+.structured-toggle { display: flex; align-items: center; gap: 7px; border: 0; border-radius: 7px; color: inherit; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.structured-toggle:hover { background: color-mix(in srgb,var(--accent) 7%,transparent); }
+.structured-toggle svg { width: 14px; height: 14px; flex: none; color: var(--faint); }
+.structured-key { color: var(--ink); font-weight: 650; }
+.structured-toggle b { padding: 2px 6px; border-radius: 5px; color: var(--accent); background: var(--accent-soft); font-size: 9px; letter-spacing: .04em; }
+.structured-toggle small { color: var(--faint); font-size: 10px; }
+.structured-leaf { display: flex; align-items: flex-start; gap: 7px; padding-top: 7px; padding-right: 16px; padding-bottom: 7px; line-height: 1.5; }
+.structured-leaf>i { color: var(--faint); font-style: normal; }
+.structured-value { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.structured-value.string { color: #168169; }.structured-value.number { color: #315bd6; }.structured-value.boolean { color: #b66b18; font-weight: 700; }.structured-value.null { color: var(--faint); font-style: italic; }
+:root[data-theme="dark"] .structured-value.string { color: #62d6b9; }:root[data-theme="dark"] .structured-value.number { color: #91a9ff; }:root[data-theme="dark"] .structured-value.boolean { color: #f2bd70; }
 .workspace-frontmatter { margin: 20px 24px 0; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); overflow: hidden; }
 .workspace-frontmatter>header { padding: 9px 12px; border-bottom: 1px solid var(--line); color: var(--accent); font-family: "JetBrains Mono",monospace; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
 .workspace-frontmatter pre { max-height: 210px; margin: 0; padding: 13px; overflow: auto; color: var(--muted); font-size: 12px; line-height: 1.6; }

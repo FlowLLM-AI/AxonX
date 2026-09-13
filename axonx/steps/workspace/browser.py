@@ -102,6 +102,26 @@ def _read_text(path: Path) -> tuple[str, bool, int]:
         raise ValueError("File is not valid UTF-8 text") from exc
 
 
+def _read_complete_text(path: Path) -> tuple[str, int]:
+    """Read a structured text file completely so it can be parsed as one value."""
+    size = path.stat().st_size
+    try:
+        return path.read_text(encoding="utf-8-sig"), size
+    except UnicodeDecodeError as exc:
+        raise ValueError("File is not valid UTF-8 text") from exc
+
+
+def _json_compatible(value: Any) -> Any:
+    """Convert YAML-specific scalar/container values into JSON-safe data."""
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _json_compatible(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_compatible(item) for item in value]
+    return str(value)
+
+
 def _split_frontmatter(content: str) -> tuple[Any, str, str | None]:
     if not content.startswith("---\n") and not content.startswith("---\r\n"):
         return None, content, None
@@ -154,7 +174,11 @@ def _preview_file(root: Path, relative_path: str, offset: int, limit: int) -> di
     if kind == "csv":
         return _preview_csv(path, offset, limit)
 
-    content, truncated, size = _read_text(path)
+    if kind in {"json", "yaml"}:
+        content, size = _read_complete_text(path)
+        truncated = False
+    else:
+        content, truncated, size = _read_text(path)
     if kind == "markdown":
         frontmatter, body, frontmatter_error = _split_frontmatter(content)
         return {
@@ -167,41 +191,42 @@ def _preview_file(root: Path, relative_path: str, offset: int, limit: int) -> di
         }
     if kind == "json":
         parse_error = None
-        if not truncated:
-            try:
-                content = json.dumps(json.loads(content), ensure_ascii=False, indent=2)
-            except json.JSONDecodeError as exc:
-                parse_error = f"Line {exc.lineno}, column {exc.colno}: {exc.msg}"
+        data = None
+        try:
+            data = json.loads(content)
+            content = json.dumps(data, ensure_ascii=False, indent=2)
+        except json.JSONDecodeError as exc:
+            parse_error = f"Line {exc.lineno}, column {exc.colno}: {exc.msg}"
         return {
             "kind": kind,
             "size": size,
             "content": content,
+            "data": data,
             "parse_error": parse_error,
-            "truncated": truncated,
+            "truncated": False,
         }
     if kind == "yaml":
         parse_error = None
-        if not truncated:
-            try:
-                content = yaml.safe_dump(
-                    yaml.safe_load(content),
-                    allow_unicode=True,
-                    sort_keys=False,
-                )
-            except yaml.YAMLError as exc:
-                mark = getattr(exc, "problem_mark", None)
-                problem = getattr(exc, "problem", None) or str(exc)
-                parse_error = (
-                    f"Line {mark.line + 1}, column {mark.column + 1}: {problem}"
-                    if mark is not None
-                    else problem
-                )
+        data = None
+        try:
+            parsed = yaml.safe_load(content)
+            data = _json_compatible(parsed)
+            content = yaml.safe_dump(parsed, allow_unicode=True, sort_keys=False)
+        except yaml.YAMLError as exc:
+            mark = getattr(exc, "problem_mark", None)
+            problem = getattr(exc, "problem", None) or str(exc)
+            parse_error = (
+                f"Line {mark.line + 1}, column {mark.column + 1}: {problem}"
+                if mark is not None
+                else problem
+            )
         return {
             "kind": kind,
             "size": size,
             "content": content,
+            "data": data,
             "parse_error": parse_error,
-            "truncated": truncated,
+            "truncated": False,
         }
     return {"kind": kind, "size": size, "content": content, "truncated": truncated}
 

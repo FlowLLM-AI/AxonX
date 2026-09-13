@@ -294,12 +294,42 @@ function PreviewContent({ preview, text, onPage }: { preview: WorkspacePreview; 
     const offset = preview.offset || 0; const limit = preview.limit || 200;
     return <div className="workspace-csv"><div className="workspace-csv-scroll"><table><thead><tr><th>#</th>{(preview.columns || []).map((column, index) => <th key={`${column}-${index}`}>{column || `Column ${index + 1}`}</th>)}</tr></thead><tbody>{(preview.rows || []).map((row, rowIndex) => <tr key={rowIndex}><td>{offset + rowIndex + 1}</td>{(preview.columns || []).map((_, cellIndex) => <td key={cellIndex}>{row[cellIndex] ?? ""}</td>)}</tr>)}</tbody></table></div><footer><span>{offset + 1}–{offset + (preview.rows?.length || 0)} {text.rows}</span><div><button disabled={offset === 0} onClick={() => onPage(Math.max(0, offset - limit))}>{text.previous}</button><button disabled={!preview.has_more} onClick={() => onPage(offset + limit)}>{text.next}</button></div></footer></div>;
   }
+  const structured = (preview.kind === "json" || preview.kind === "yaml") && !preview.parse_error && preview.data !== undefined;
   return <div className="workspace-document">
     {preview.truncated && <div className="workspace-notice"><AlertTriangle />{text.truncated}</div>}
     {preview.kind === "json" && preview.parse_error && <div className="workspace-notice error"><AlertTriangle /><strong>{text.invalidJson}</strong><span>{preview.parse_error}</span></div>}
     {preview.kind === "yaml" && preview.parse_error && <div className="workspace-notice error"><AlertTriangle /><strong>{text.invalidYaml}</strong><span>{preview.parse_error}</span></div>}
     {preview.kind === "markdown" && preview.frontmatter !== null && preview.frontmatter !== undefined && <section className="workspace-frontmatter"><header>{text.frontmatter}</header><pre>{JSON.stringify(preview.frontmatter, null, 2)}</pre></section>}
     {preview.kind === "markdown" && preview.frontmatter_error && <div className="workspace-notice error"><AlertTriangle />{preview.frontmatter_error}</div>}
-    {preview.kind === "markdown" ? <article className="workspace-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: ({ alt }) => <span className="markdown-image-placeholder">[{alt || "image"}]</span>, a: ({ children, ...props }) => <a {...props} target="_blank" rel="noreferrer">{children}</a> }}>{preview.content || ""}</ReactMarkdown></article> : <pre className="workspace-code">{preview.content || ""}</pre>}
+    {preview.kind === "markdown" ? <article className="workspace-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: ({ alt }) => <span className="markdown-image-placeholder">[{alt || "image"}]</span>, a: ({ children, ...props }) => <a {...props} target="_blank" rel="noreferrer">{children}</a> }}>{preview.content || ""}</ReactMarkdown></article> : structured ? <StructuredTree value={preview.data} /> : <pre className="workspace-code">{preview.content || ""}</pre>}
+  </div>;
+}
+
+function StructuredTree({ value }: { value: unknown }) {
+  return <div className="structured-tree"><StructuredNode name="root" value={value} depth={0} /></div>;
+}
+
+function StructuredNode({ name, value, depth }: { name: string; value: unknown; depth: number }) {
+  const [expanded, setExpanded] = useState(depth === 0);
+  const isArray = Array.isArray(value);
+  const isObject = value !== null && typeof value === "object";
+
+  if (!isObject) {
+    const type = value === null ? "null" : typeof value;
+    const rendered = typeof value === "string" ? JSON.stringify(value) : String(value);
+    return <div className="structured-leaf" style={{ "--tree-depth": depth } as React.CSSProperties}><span className="structured-key">{name}</span><i>:</i><span className={`structured-value ${type}`}>{rendered}</span></div>;
+  }
+
+  const entries = isArray
+    ? value.map((item, index) => [`[${index}]`, item] as const)
+    : Object.entries(value as Record<string, unknown>);
+  return <div className="structured-node">
+    <button type="button" className="structured-toggle" style={{ "--tree-depth": depth } as React.CSSProperties} aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}>
+      {expanded ? <ChevronDown /> : <ChevronRight />}
+      <span className="structured-key">{name}</span>
+      <b>{isArray ? "List" : "Dict"}</b>
+      <small>{entries.length} {isArray ? "items" : "keys"}</small>
+    </button>
+    {expanded && <div className="structured-children">{entries.map(([key, item]) => <StructuredNode key={key} name={key} value={item} depth={depth + 1} />)}</div>}
   </div>;
 }

@@ -1,5 +1,6 @@
 """Read-only workspace browsing and preview tests."""
 
+import json
 import os
 
 import pytest
@@ -85,6 +86,7 @@ async def test_workspace_markdown_frontmatter_json_and_csv(tmp_path):
     }
     assert markdown.answer["content"] == "# Result\n"
     assert json_result.answer["content"] == '{\n  "ok": true,\n  "value": 2\n}'
+    assert json_result.answer["data"] == {"ok": True, "value": 2}
     assert csv_result.answer["columns"] == ["name", "value"]
     assert csv_result.answer["rows"] == [["b", "2"]]
 
@@ -104,9 +106,28 @@ async def test_workspace_previews_yaml_and_reports_invalid_yaml(tmp_path):
 
     assert valid.answer["kind"] == "yaml"
     assert "name: 研究配置" in valid.answer["content"]
+    assert valid.answer["data"] == {
+        "name": "研究配置",
+        "enabled": True,
+        "items": ["alpha", "beta"],
+    }
     assert valid.answer["parse_error"] is None
     assert invalid.answer["kind"] == "yaml"
     assert invalid.answer["parse_error"].startswith("Line 2, column 1:")
+
+
+async def test_workspace_loads_large_structured_files_completely(tmp_path):
+    payload = {"items": ["x" * 1024 for _ in range(520)]}
+    (tmp_path / "large.json").write_text(json.dumps(payload), encoding="utf-8")
+    app = await _workspace_app(tmp_path)
+    try:
+        result = await app.run_job("preview_workspace_file", path="large.json")
+    finally:
+        await app.close()
+
+    assert result.answer["size"] > 512 * 1024
+    assert result.answer["truncated"] is False
+    assert result.answer["data"] == payload
 
 
 async def test_workspace_rejects_path_escape_and_external_symlink(tmp_path):

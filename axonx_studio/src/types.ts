@@ -165,6 +165,7 @@ export interface WorkspacePreview {
   kind: WorkspacePreviewKind;
   size: number;
   content?: string;
+  data?: unknown;
   truncated?: boolean;
   frontmatter?: unknown;
   frontmatter_error?: string | null;
