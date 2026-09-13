@@ -4,9 +4,9 @@
 # pylint: disable=missing-class-docstring,missing-function-docstring
 
 import json
+import threading
 from pathlib import Path
 from types import SimpleNamespace
-import threading
 
 import pytest
 from pydantic import ValidationError
@@ -15,11 +15,11 @@ from axonx import BaseConfig, BaseTask, cli
 from axonx.components.client import HttpClient
 from axonx.enums import TaskType
 from axonx.schema import ClientOptions, Command, Response, TaskStatus
-from axonx.task.alpha158 import RankingBacktestTask
+from axonx.task.alpha158 import Alpha158BacktestTask
 from axonx.task.common import DemoTask
 from axonx.task.data import DownloadTushareTask, TushareDownloadConfig
-from axonx.task.status_reporter import HttpTaskStatusReporter
 from axonx.task.resolver import list_installed_task_infos
+from axonx.task.status_reporter import HttpTaskStatusReporter
 from axonx.utils import get_logger
 from axonx.utils.cli import parse_command
 
@@ -168,17 +168,25 @@ def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
     ]
 
 
-def test_backtest_relative_paths_are_resolved_from_workspace(tmp_path):
-    task = RankingBacktestTask(
-        {"input_file": "predictions/input.parquet", "output_dir": "backtests/example"},
-        workspace_path=tmp_path,
+def test_backtest_paths_are_resolved_from_prediction_task_id(tmp_path):
+    prediction_dir = tmp_path / "inference" / "inference#example"
+    prediction_dir.mkdir(parents=True)
+    (prediction_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "protocol": {"actual_return_column": "label_1d"},
+                "artifacts": {"predictions": "predictions.parquet"},
+            },
+        ),
+        encoding="utf-8",
     )
+    task = Alpha158BacktestTask({"prediction_task_id": "inference#example"}, workspace_path=tmp_path)
 
-    task.resolve_paths()
+    task.resolve_prediction_task()
 
-    assert task.context["input_file"] == tmp_path / "predictions/input.parquet"
-    assert task.context["output_dir"] == tmp_path / "backtests/example"
-    assert task.context["daily_path"] == tmp_path / "backtests/example/daily.parquet"
+    assert task.context["predictions_path"] == prediction_dir / "predictions.parquet"
+    assert task.context["output_dir"] == tmp_path / "backtest" / task.task_id
+    assert task.context["daily_path"] == task.context["output_dir"] / "daily.csv"
 
 
 def test_task_id_is_generated_internally_and_read_only():

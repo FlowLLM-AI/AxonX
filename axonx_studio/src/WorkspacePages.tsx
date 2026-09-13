@@ -95,7 +95,6 @@ export function TaskCatalogPage({ language, remoteIp, onConnection, onSubmit }: 
 
 const pageDetails: Partial<Record<PageId, { zh: string; en: string; icon: React.ReactNode }>> = {
   datasets: { zh: "数据集目录、原始数据和特征数据需要新增数据资产 API。", en: "Dataset catalog, raw data, and feature data require a data asset API.", icon: <Database /> },
-  files: { zh: "工作区文件浏览、预览与下载需要新增文件服务 API。", en: "Workspace browsing, preview, and download require a file service API.", icon: <FileCode2 /> },
   factors: { zh: "RankIC、IC、分层收益和因子稳定性分析任务待开发。", en: "RankIC, IC, quantile returns, and stability analysis Tasks are planned.", icon: <Sparkles /> },
   training: { zh: "模型训练 Task 与实验记录能力待开发。", en: "Model training Tasks and experiment tracking are planned.", icon: <BrainCircuit /> },
   models: { zh: "模型版本、元数据与产物注册能力待开发。", en: "Model versions, metadata, and artifact registry are planned.", icon: <Box /> },

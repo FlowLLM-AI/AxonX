@@ -1,4 +1,4 @@
-import type { ApiResponse, JobInfo, MachineInfo, MachineNode, PluginInfo, TaskInfo, TaskLogChunk, TaskStatus } from "./types";
+import type { ApiResponse, JobInfo, MachineInfo, MachineNode, PluginInfo, TaskInfo, TaskLogChunk, TaskStatus, WorkspaceDirectory, WorkspacePreview } from "./types";
 
 const configuredUrl = import.meta.env.VITE_AXONX_API_URL || "";
 export const API_URL = configuredUrl.replace(/\/$/, "");
@@ -60,6 +60,12 @@ export const machineStatus = (remoteIp?: string, signal?: AbortSignal) =>
   callJob<MachineInfo>("machine_status", remoteBody(remoteIp), signal);
 export const listPlugins = (remoteIp?: string, signal?: AbortSignal) =>
   callJob<PluginInfo[]>("list_plugins", remoteBody(remoteIp), signal);
+export const listWorkspaceEntries = (path = "", remoteIp?: string, signal?: AbortSignal) =>
+  callJob<WorkspaceDirectory>("list_workspace_entries", { path, ...remoteBody(remoteIp) }, signal);
+export const previewWorkspaceFile = (path: string, offset = 0, limit = 200, remoteIp?: string, signal?: AbortSignal) =>
+  callJob<WorkspacePreview>("preview_workspace_file", { path, offset, limit, ...remoteBody(remoteIp) }, signal);
+export const deleteWorkspaceEntry = (path: string, remoteIp?: string) =>
+  callJob<{ deleted: string; kind: "file" | "directory" }>("delete_workspace_entry", { path, ...remoteBody(remoteIp) });
 
 export const listJobs = (remoteAddress?: string, signal?: AbortSignal) => {
   const base = remoteAddress ? `${window.location.protocol}//${remoteAddress}` : API_URL;

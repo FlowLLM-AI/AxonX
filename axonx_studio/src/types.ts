@@ -140,3 +140,37 @@ export interface JobInfo {
   inputSchema: JsonSchema;
   outputSchema: JsonSchema;
 }
+
+export type WorkspaceEntryKind = "directory" | "file" | "symlink";
+export type WorkspacePreviewKind = "text" | "markdown" | "json" | "yaml" | "csv" | "parquet" | "unsupported";
+
+export interface WorkspaceEntry {
+  name: string;
+  path: string;
+  kind: WorkspaceEntryKind;
+  preview_kind: WorkspacePreviewKind | null;
+  supported: boolean;
+  size: number | null;
+  modified_at: number;
+}
+
+export interface WorkspaceDirectory {
+  path: string;
+  entries: WorkspaceEntry[];
+  truncated: boolean;
+}
+
+export interface WorkspacePreview {
+  kind: WorkspacePreviewKind;
+  size: number;
+  content?: string;
+  truncated?: boolean;
+  frontmatter?: unknown;
+  frontmatter_error?: string | null;
+  parse_error?: string | null;
+  columns?: string[];
+  rows?: string[][];
+  offset?: number;
+  limit?: number;
+  has_more?: boolean;
+}

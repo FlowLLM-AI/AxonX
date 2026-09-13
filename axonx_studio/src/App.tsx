@@ -11,6 +11,7 @@ import { MachinesPage } from "./MachinesPage";
 import { SubmitPage } from "./SubmitPage";
 import { TaskDetailPage } from "./TaskDetailPage";
 import { TasksPage } from "./TasksPage";
+import { WorkspaceBrowserPage } from "./WorkspaceBrowserPage";
 import { ComingSoonPage, HomePage, JobCatalogPage, PluginsPage, TaskCatalogPage } from "./WorkspacePages";
 import type { Language, MachineNode, PageId, ThemePreference } from "./types";
 import { useAxonXWebMcp } from "./webmcp";
@@ -23,7 +24,7 @@ const groups: NavGroup[] = [
     { id: "machines", icon: Cpu, ready: true }, { id: "tasks", icon: Activity, ready: true }, { id: "submit", icon: Send, ready: true },
   ] },
   { id: "data", label: { zh: "数据中心", en: "Data" }, icon: Database, items: [
-    { id: "datasets", icon: Database }, { id: "files", icon: Files }, { id: "factors", icon: Workflow },
+    { id: "datasets", icon: Database }, { id: "files", icon: Files, ready: true }, { id: "factors", icon: Workflow },
   ] },
   { id: "model", label: { zh: "模型中心", en: "Models" }, icon: BrainCircuit, items: [
     { id: "training", icon: BrainCircuit }, { id: "models", icon: AppWindow }, { id: "inference", icon: Play },
@@ -117,6 +118,7 @@ export default function App() {
     if (page === "tasks" && taskDetailId) return <TaskDetailPage taskId={taskDetailId} language={language} remoteIp={remoteIp} onBack={() => setPage("tasks")} onConnection={setServiceOnline} />;
     if (page === "tasks") return <TasksPage language={language} remoteIp={remoteIp} onSubmit={() => setPage("submit")} onOpenTask={openTask} onConnection={setServiceOnline} />;
     if (page === "submit") return <SubmitPage language={language} remoteIp={remoteIp} onViewTasks={() => setPage("tasks")} onConnection={setServiceOnline} />;
+    if (page === "files") return <WorkspaceBrowserPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
     if (page === "plugins") return <PluginsPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
     if (page === "jobs") return <JobCatalogPage language={language} machine={selectedMachine} onConnection={setServiceOnline} />;
     if (page === "taskCatalog") return <TaskCatalogPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} onSubmit={() => setPage("submit")} />;

@@ -118,6 +118,54 @@ jobs:
     steps:
       - backend: read_task_log
 
+  list_workspace_entries:
+    description: List one directory inside the configured workspace.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          default: ""
+      additionalProperties: false
+    steps:
+      - backend: list_workspace_entries_step
+
+  preview_workspace_file:
+    description: Preview one supported file inside the configured workspace.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 200
+      required:
+        - path
+      additionalProperties: false
+    steps:
+      - backend: preview_workspace_file_step
+
+  delete_workspace_entry:
+    description: Delete one file or directory inside the configured workspace.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          minLength: 1
+      required:
+        - path
+      additionalProperties: false
+    steps:
+      - backend: delete_workspace_entry_step
+
   cancel:
     description: Cancel a queued or running task.
     parameters:

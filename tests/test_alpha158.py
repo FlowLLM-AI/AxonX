@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import polars as pl
@@ -121,6 +122,8 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
         "finalize_dataset",
         "calculate_statistics",
         "write_outputs",
+        "write_metadata",
+        "publish_output",
     ]
     rolling_progress = [
         status.steps[4].percentage
@@ -146,6 +149,11 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
         "index_weight_hs300",
     ]
     assert Path(output["statistics_file"]).name == "alpha158.csv"
+    assert Path(output["metadata_file"]) == tmp_path / "etl" / task.task_id / "metadata.json"
+    metadata = json.loads(Path(output["metadata_file"]).read_text())
+    assert metadata["task_id"] == task.task_id
+    assert metadata["feature_columns"] == list(FEATURES)
+    assert metadata["artifacts"]["dataset"] == "alpha158.parquet"
     statistics = pl.read_csv(output["statistics_file"])
     assert statistics.height == len(FEATURES) + len(LABEL_OUTPUTS)
     assert statistics.columns == [

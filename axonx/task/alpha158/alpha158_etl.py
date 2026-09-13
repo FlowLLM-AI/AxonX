@@ -12,6 +12,7 @@ from pydantic import Field, field_validator
 from ...components.registry import R
 from ...enums import TaskType
 from ..base import BaseConfig, BaseTask, TaskStep
+from ._artifacts import artifact_record, metadata_header, write_metadata
 
 WINDOWS = (5, 10, 20, 30, 60)
 KBAR = ("KMID", "KLEN", "KMID2", "KUP", "KUP2", "KLOW", "KLOW2", "KSFT", "KSFT2")
@@ -97,7 +98,13 @@ class Alpha158Task(BaseTask):
     config_cls = Alpha158Config
     config: Alpha158Config
     task_type = TaskType.ETL
-    output_keys = ("output_file", "statistics_file", "rows", "feature_count")
+    output_keys = (
+        "output_file",
+        "statistics_file",
+        "metadata_file",
+        "rows",
+        "feature_count",
+    )
 
     def build_task_steps(self) -> Iterable[TaskStep]:
         yield self.resolve_paths
@@ -110,6 +117,8 @@ class Alpha158Task(BaseTask):
         yield self.finalize_dataset
         yield self.calculate_statistics
         yield self.write_outputs
+        yield self.write_metadata
+        yield self.publish_output
 
     def resolve_paths(self) -> None:
         input_dir = self.resolve_workspace_path(self.config.input_dir)
@@ -134,6 +143,8 @@ class Alpha158Task(BaseTask):
             weight_files=weight_files,
             output_path=output_path,
             statistics_path=statistics_path,
+            task_dir=self.workspace_path / "etl" / self.task_id,
+            metadata_path=self.workspace_path / "etl" / self.task_id / "metadata.json",
         )
         self.logger.info(
             f"Alpha158 paths resolved input_dir={input_dir} "
@@ -627,6 +638,52 @@ class Alpha158Task(BaseTask):
             f"statistics_path={statistics_path} "
             f"statistics_bytes={statistics_path.stat().st_size}"
         )
+
+    def write_metadata(self) -> None:
+        """Publish the dataset contract used by every downstream Alpha158 task."""
+        output: pl.DataFrame = self.context["output"]
+        task_dir: Path = self.context["task_dir"]
+        task_dir.mkdir(parents=True, exist_ok=True)
+        dataset_record = artifact_record(self.context["output_path"], task_dir)
+        statistics_record = artifact_record(self.context["statistics_path"], task_dir)
+        metadata = {
+            **metadata_header(
+                task_name="alpha158_etl",
+                task_id=self.task_id,
+                task_type=self.task_type.value,
+            ),
+            "config": self.config.model_dump(mode="json", exclude={"task_id", "task_type"}),
+            "date_range": {
+                "start": output["trade_date"].min(),
+                "end": output["trade_date"].max(),
+            },
+            "rows": output.height,
+            "symbols": output["ts_code"].n_unique(),
+            "feature_columns": list(FEATURES),
+            "labels": {
+                "raw": list(LABELS),
+                "csz": list(CSZ_LABELS),
+                "rank": list(RANK_LABELS),
+                "valid": list(VALID_LABELS),
+                "return_unit": "decimal",
+                "definition": "adjusted close return from trade_date to the Nth following market trading day",
+            },
+            "index_weight_columns": ["index_weight_hs300"],
+            "schema": {name: str(dtype) for name, dtype in output.schema.items()},
+            "artifacts": {
+                "dataset": dataset_record["path"],
+                "statistics": statistics_record["path"],
+            },
+        }
+        metadata["artifact_integrity"] = {
+            "dataset": dataset_record,
+            "statistics": statistics_record,
+        }
+        write_metadata(self.context["metadata_path"], metadata)
+        self.logger.info(f"Alpha158 metadata written path={self.context['metadata_path']}")
+
+    def publish_output(self) -> None:
+        self.context["metadata_file"] = str(self.context["metadata_path"])
 
     @staticmethod
     def _statistics(

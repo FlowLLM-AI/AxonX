@@ -1,11 +1,20 @@
-"""Alpha158 dataset and backtest tasks."""
+"""Task-id chained Alpha158 research, modeling, inference, and backtest tasks."""
 
 from .alpha158_etl import Alpha158Config, Alpha158Task
-from .backtest import RankingBacktestConfig, RankingBacktestTask
+from .backtest import Alpha158BacktestConfig, Alpha158BacktestTask
+from .factor_analysis import FactorAnalysisConfig, FactorAnalysisTask
+from .predict import LgbmPredictionConfig, LgbmPredictionTask
+from .train import LgbmTrainingConfig, LgbmTrainingTask
 
 __all__ = [
+    "Alpha158BacktestConfig",
+    "Alpha158BacktestTask",
     "Alpha158Config",
     "Alpha158Task",
-    "RankingBacktestConfig",
-    "RankingBacktestTask",
+    "FactorAnalysisConfig",
+    "FactorAnalysisTask",
+    "LgbmPredictionConfig",
+    "LgbmPredictionTask",
+    "LgbmTrainingConfig",
+    "LgbmTrainingTask",
 ]

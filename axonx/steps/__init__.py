@@ -1,5 +1,5 @@
 """Built-in step domains."""
 
-from . import common, machine, plugin, task
+from . import common, machine, plugin, task, workspace
 
-__all__ = ["common", "machine", "plugin", "task"]
+__all__ = ["common", "machine", "plugin", "task", "workspace"]
