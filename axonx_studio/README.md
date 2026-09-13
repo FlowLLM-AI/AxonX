@@ -20,4 +20,4 @@ cd ..
 axonx start
 ```
 
-AxonX 会自动发现 `axon_studio/dist` 并通过同一个 HTTP 服务提供 Studio 与 API。
+AxonX 会自动发现 `axonx_studio/dist` 并通过同一个 HTTP 服务提供 Studio 与 API。

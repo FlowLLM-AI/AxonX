@@ -237,7 +237,7 @@ class HttpService(BaseService):
             candidates.append(Path(self.web_static_dir).expanduser())
         candidates.extend(
             (
-                Path(__file__).resolve().parents[3] / "axon_studio" / "dist",
+                Path(__file__).resolve().parents[3] / "axonx_studio" / "dist",
                 Path(__file__).resolve().parents[2] / "static",
             ),
         )

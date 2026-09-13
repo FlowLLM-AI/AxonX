@@ -92,35 +92,34 @@ def test_tushare_config_accepts_compact_dates_converted_by_cli():
             "exec",
             "--task",
             "download_tushare_task",
-            "--start-date",
-            "20100101",
             "--end-date",
             "20260912",
         ],
     )
 
     config = TushareDownloadConfig.model_validate(
-        {key: value for key, value in command.arguments.items() if key in {"start_date", "end_date"}},
+        {key: value for key, value in command.arguments.items() if key == "end_date"},
     )
 
-    assert config.start_date == "20100101"
     assert config.end_date == "20260912"
 
 
 def test_tushare_download_directory_is_inside_workspace(tmp_path):
     task = DownloadTushareTask(
-        {"start_date": "20260912", "end_date": "20260912"},
+        {"end_date": "20260912"},
         workspace_path=tmp_path,
     )
 
     task.initialize()
 
     assert task.context["root"] == tmp_path / "tushare"
+    assert task.context["start_date"] == "20260906"
+    assert task.context["end_date"] == "20260912"
 
 
 def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
     task = DownloadTushareTask(
-        {"start_date": "20260101", "end_date": "20260720"},
+        {"end_date": "20260720", "days_back": 201},
         workspace_path=tmp_path,
     )
     monkeypatch.setattr(task, "download_market_day", lambda _day: None)
@@ -145,7 +144,7 @@ def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
 
 def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
     task = DownloadTushareTask(
-        {"start_date": "20260101", "end_date": "20260101"},
+        {"end_date": "20260101", "days_back": 1},
         workspace_path=tmp_path,
     )
     task.initialize()
