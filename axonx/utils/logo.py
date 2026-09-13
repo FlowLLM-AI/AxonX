@@ -52,7 +52,8 @@ def print_logo(app_config: "ApplicationConfig", service: "HttpService") -> None:
 
     host = getattr(service, "host", AXONX_DEFAULT_BIND_HOST)
     port = getattr(service, "port", AXONX_DEFAULT_PORT)
-    url = f"http://{host}:{port}"
+    display_host = "127.0.0.1" if host == "0.0.0.0" else host
+    url = f"http://{display_host}:{port}"
     info = Table.grid(padding=(0, 1))
     info.add_column(style="bold", justify="center")
     info.add_column(style="bold cyan")

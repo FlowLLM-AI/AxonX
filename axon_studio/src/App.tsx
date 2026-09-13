@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, BarChart3, Box, BrainCircuit, ChevronDown, Cpu, Database,
+  Activity, BarChart3, BrainCircuit, ChevronDown, Cpu, Database,
   Languages, Moon, Play, Send, Sun, Workflow,
 } from "lucide-react";
 import { API_URL } from "./api";
@@ -81,8 +81,9 @@ export default function App() {
     <div className="app-shell">
       <header className="app-header">
         <button className="brand" onClick={() => setPage("tasks")} aria-label="AxonX Studio">
-          <span className="brand-mark"><i /><i /><i /><Box size={18} /></span>
-          <span><strong>Axon<span>X</span></strong><small>{text.studio}</small></span>
+          <img className="brand-logo" src="/axonx-logo.svg" alt="" width="118" height="34" />
+          <img className="brand-icon" src="/axonx-icon.svg" alt="" width="34" height="34" />
+          <small>{text.studio}</small>
         </button>
         <nav className="main-tabs" aria-label="Main navigation">
           {pages.map(({ id, icon: Icon }) => (

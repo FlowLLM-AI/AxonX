@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970 280" role="img" aria-labelledby="axonx-title axonx-desc">
+  <title id="axonx-title">AxonX</title>
+  <desc id="axonx-desc">AxonX rounded wordmark with signal junctions in the A and final X.</desc>
+
+  <defs>
+    <!-- Mirrors Axon Studio's teal-to-cobalt interface palette. -->
+    <linearGradient id="axonx-brand" x1="34" y1="36" x2="948" y2="242" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#20D2B5"/>
+      <stop offset="0.38" stop-color="#0C8B72"/>
+      <stop offset="0.72" stop-color="#315BD6"/>
+      <stop offset="1" stop-color="#675BE7"/>
+    </linearGradient>
+    <mask id="axonx-a-junction" maskUnits="userSpaceOnUse" x="65" y="128" width="132" height="60">
+      <rect x="65" y="128" width="132" height="60" fill="#fff"/>
+      <circle cx="121" cy="158" r="10" fill="#000"/>
+    </mask>
+
+    <!-- The clear center turns the terminal X into an axon/signal junction. -->
+    <mask id="axonx-junction" maskUnits="userSpaceOnUse" x="714" y="18" width="236" height="244">
+      <rect x="714" y="18" width="236" height="244" fill="#fff"/>
+      <circle cx="836" cy="140" r="13" fill="#000"/>
+    </mask>
+  </defs>
+
+  <g fill="none" stroke="url(#axonx-brand)" stroke-width="36" stroke-linecap="round" stroke-linejoin="round">
+    <!-- A: the original wordmark proportions, with the icon's signal-wave crossbar. -->
+    <path d="M42 232 103 61c5-15 14-23 27-23s22 8 27 23l61 171"/>
+    <path d="M76 158c26-21 55 21 108 0" stroke-width="30" mask="url(#axonx-a-junction)"/>
+
+    <!-- x: kept at x-height so the terminal X remains the signature. -->
+    <path d="M270 111c24 29 50 68 90 121"/>
+    <path d="M360 111c-24 29-50 68-90 121"/>
+
+    <!-- o -->
+    <circle cx="464" cy="171" r="61"/>
+
+    <!-- n: a single flowing route rather than a mechanical arch. -->
+    <path d="M568 232V111v56c0-35 24-57 58-57 35 0 59 24 59 59v63"/>
+
+    <!-- X: four signal paths converge at one transparent neural junction. -->
+    <g mask="url(#axonx-junction)">
+      <path d="M744 42c29 39 57 76 92 98 35 23 64 61 93 100"/>
+      <path d="M928 42c-29 39-57 76-92 98-35 23-64 61-93 100"/>
+    </g>
+  </g>
+</svg>

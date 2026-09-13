@@ -26,6 +26,7 @@ def test_logo_shows_effective_http_endpoints(monkeypatch):
 
     rendered = output.getvalue()
     assert "Trading Axon" in rendered
-    assert "http://0.0.0.0:8123" in rendered
-    assert "http://0.0.0.0:8123/mcp" in rendered
+    assert "http://127.0.0.1:8123" in rendered
+    assert "http://127.0.0.1:8123/mcp" in rendered
+    assert "http://0.0.0.0:8123" not in rendered
     assert "AxonX:" in rendered
