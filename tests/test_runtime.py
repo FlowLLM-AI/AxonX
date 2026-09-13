@@ -102,12 +102,105 @@ async def test_task_manager_logs_worker_stderr_on_failure(
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
         await manager.submit(["--task", "download_tushare_task"])
+        await manager.set_status(
+            "ingestion#failed-worker",
+            TaskStatus(
+                task_id="ingestion#failed-worker",
+                task_type=TaskType.INGESTION,
+                state=TaskState.RUNNING,
+                pid=Process.pid,
+            ),
+        )
         await asyncio.gather(*manager._process_monitors)
+        status = await manager.get_status("ingestion#failed-worker")
 
     error = capsys.readouterr().err
     assert "ValidationError: invalid start_date" in error
     assert "download_tushare_task" in error
     assert "exited with code 2" in error
+    assert status.state == TaskState.FAILED
+    assert status.exit_code == 2
+    assert status.finished_at is not None
+    assert "Worker exited unexpectedly with code 2" in status.error
+    assert "ValidationError: invalid start_date" in status.error
+
+
+async def test_task_manager_records_signal_exit_and_rejects_late_running_status(
+    monkeypatch, tmp_path
+):
+    class Process:
+        pid = 24567
+        returncode = -signal.SIGKILL
+
+        def __init__(self):
+            self.stderr = asyncio.StreamReader()
+            self.stderr.feed_eof()
+
+        async def wait(self):
+            return self.returncode
+
+    async def create_subprocess_exec(*_command, **_options):
+        return Process()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        await manager.submit(["--task", "alpha158_etl"])
+        running = TaskStatus(
+            task_id="etl#killed-worker",
+            task_type=TaskType.ETL,
+            state=TaskState.RUNNING,
+            pid=Process.pid,
+        )
+        await manager.set_status(running.task_id, running)
+        await asyncio.gather(*manager._process_monitors)
+
+        failed = await manager.get_status(running.task_id)
+        assert failed.state == TaskState.FAILED
+        assert failed.exit_code == 137
+        assert failed.finished_at is not None
+        assert failed.error == "Worker terminated by signal SIGKILL (9)"
+
+        await manager.set_status(running.task_id, running)
+        assert (await manager.get_status(running.task_id)).state == TaskState.FAILED
+
+
+async def test_task_manager_reconciles_status_reported_after_worker_exit(
+    monkeypatch, tmp_path
+):
+    class Process:
+        pid = 25678
+        returncode = -signal.SIGKILL
+
+        def __init__(self):
+            self.stderr = asyncio.StreamReader()
+            self.stderr.feed_eof()
+
+        async def wait(self):
+            return self.returncode
+
+    async def create_subprocess_exec(*_command, **_options):
+        return Process()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        await manager.submit(["--task", "alpha158_etl"])
+        await asyncio.gather(*manager._process_monitors)
+
+        status = TaskStatus(
+            task_id="etl#late-status",
+            task_type=TaskType.ETL,
+            state=TaskState.RUNNING,
+            pid=Process.pid,
+        )
+        await manager.set_status(status.task_id, status)
+
+        failed = await manager.get_status(status.task_id)
+        assert failed.state == TaskState.FAILED
+        assert failed.exit_code == 137
+        assert failed.finished_at is not None
+        assert failed.error == "Worker terminated by signal SIGKILL (9)"
 
 
 async def test_task_manager_terminates_and_reaps_workers_on_close(
@@ -766,6 +859,66 @@ async def test_cancel_returns_false_without_a_live_managed_process(tmp_path):
             assert await manager.cancel(status.task_id) is False
 
         assert (await manager.get_status(status.task_id)).state == TaskState.RUNNING
+
+
+async def test_delete_tasks_job_removes_multiple_terminal_records(tmp_path):
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        for task_id, state in (
+            ("analysis#succeeded", TaskState.SUCCEEDED),
+            ("analysis#failed", TaskState.FAILED),
+            ("analysis#running", TaskState.RUNNING),
+        ):
+            await manager.set_status(
+                task_id,
+                TaskStatus(
+                    task_id=task_id,
+                    task_type=TaskType.ANALYSIS,
+                    state=state,
+                    pid=12345,
+                ),
+            )
+
+        response = await app.run_job(
+            "delete_tasks",
+            task_ids=["analysis#succeeded", "analysis#failed", "analysis#running"],
+        )
+
+        assert response.success is True
+        assert response.answer == ["analysis#succeeded", "analysis#failed"]
+        assert await manager.list_runtime_task_ids() == ["analysis#running"]
+
+        persisted = json.loads(manager.status_path.read_text(encoding="utf-8"))
+        assert [task["task_id"] for task in persisted["tasks"]] == [
+            "analysis#running"
+        ]
+
+
+async def test_delete_ignores_unknown_and_duplicate_task_ids(tmp_path):
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        task_id = "analysis#finished"
+        await manager.set_status(
+            task_id,
+            TaskStatus(
+                task_id=task_id,
+                task_type=TaskType.ANALYSIS,
+                state=TaskState.CANCELLED,
+            ),
+        )
+
+        assert await manager.delete([task_id, "missing", task_id]) == [task_id]
+        assert await manager.list_runtime_task_ids() == []
+
+        await manager.set_status(
+            task_id,
+            TaskStatus(
+                task_id=task_id,
+                task_type=TaskType.ANALYSIS,
+                state=TaskState.CANCELLED,
+            ),
+        )
+        assert await manager.list_runtime_task_ids() == []
 
 
 async def test_unfinished_history_is_loaded_without_rewriting(tmp_path):

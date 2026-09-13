@@ -36,3 +36,7 @@ class BaseTaskManager(BaseComponent, ABC):
     @abstractmethod
     async def cancel(self, task_id: str) -> bool:
         """Return whether cancellation was successfully requested."""
+
+    @abstractmethod
+    async def delete(self, task_ids: Sequence[str]) -> list[str]:
+        """Delete terminal task records and return the IDs that were deleted."""

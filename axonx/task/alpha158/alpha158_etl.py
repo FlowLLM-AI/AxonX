@@ -135,6 +135,11 @@ class Alpha158Task(BaseTask):
             output_path=output_path,
             statistics_path=statistics_path,
         )
+        self.logger.info(
+            f"Alpha158 paths resolved input_dir={input_dir} "
+            f"daily_files={len(daily_files)} factor_files={len(factor_files)} "
+            f"weight_files={len(weight_files)} output_file={output_path}"
+        )
 
     def load_and_validate_market_data(self) -> None:
         """Load the quote and adjustment-factor partitions and validate their rows."""
@@ -184,6 +189,11 @@ class Alpha158Task(BaseTask):
             raise ValueError("daily 或 adj_factor 包含缺失、非有限或越界数据")
         self.context["frame"] = frame
         self.report_progress(95)
+        self.logger.info(
+            f"Market data loaded rows={frame.height} "
+            f"symbols={frame['ts_code'].n_unique()} "
+            f"start_date={frame['trade_date'].min()} end_date={frame['trade_date'].max()}"
+        )
 
     def build_trading_panel(self) -> None:
         """Align every stock to the market calendar and derive adjusted inputs."""
@@ -224,6 +234,10 @@ class Alpha158Task(BaseTask):
         )
         self.context["frame"] = frame
         self.report_progress(95)
+        self.logger.info(
+            f"Trading panel built rows={frame.height} "
+            f"symbols={frame['ts_code'].n_unique()} calendar_days={calendar.height}"
+        )
 
     def calculate_base_features(self) -> None:
         """Calculate candlestick features and inputs shared by rolling features."""
@@ -231,6 +245,9 @@ class Alpha158Task(BaseTask):
         self.report_progress(65)
         self.context["frame"] = self._rolling_inputs(frame)
         self.report_progress(95)
+        self.logger.info(
+            f"Base features calculated rows={frame.height} features={len(KBAR) + len(PRICE)}"
+        )
 
     def calculate_rolling_features(self) -> None:
         """Calculate every configured rolling-window feature group."""
@@ -239,21 +256,33 @@ class Alpha158Task(BaseTask):
         # milestones are weighted more heavily than the smaller windows.
         milestones = (10, 23, 41, 64, 95)
         for window, percentage in zip(WINDOWS, milestones, strict=True):
+            self.logger.info(f"Calculating rolling features window={window}")
             frame = self._rolling(frame, window)
             self.context["frame"] = frame
             self.report_progress(percentage)
+            self.logger.info(
+                f"Rolling features calculated window={window} progress={percentage}%"
+            )
 
     def calculate_labels(self) -> None:
         """Calculate forward returns and their cross-sectional transformations."""
+        self.logger.info(
+            f"Calculating labels horizons={len(LABELS)} "
+            f"winsorize_tail={self.config.csz_winsorize_tail}"
+        )
         self.context["frame"] = self._labels(
             self.context["frame"],
             progress=self.report_progress,
         )
+        self.logger.info("Labels calculated")
 
     def attach_index_weights(self) -> None:
         """Attach the latest available HS300 constituent-weight snapshot."""
         self.context["frame"] = self._weights(self.context["frame"])
         self.report_progress(95)
+        self.logger.info(
+            f"HS300 weights attached files={len(self.context['weight_files'])}"
+        )
 
     def finalize_dataset(self) -> None:
         """Apply the requested date range and project the public output schema."""
@@ -279,12 +308,21 @@ class Alpha158Task(BaseTask):
         self.context["output"] = output
         self.context.pop("frame", None)
         self.report_progress(95)
+        self.logger.info(
+            f"Dataset finalized rows={output.height} columns={output.width} "
+            f"start_date={self.config.start_date or '-'} "
+            f"end_date={self.config.end_date or '-'}"
+        )
 
     def calculate_statistics(self) -> None:
         """Calculate data-quality statistics with bounded progress updates."""
         self.context["statistics"] = self._statistics(
             self.context["output"],
             progress=self.report_progress,
+        )
+        self.logger.info(
+            f"Data-quality statistics calculated "
+            f"columns={self.context['statistics'].height}"
         )
 
     @staticmethod
@@ -512,6 +550,9 @@ class Alpha158Task(BaseTask):
 
     def _weights(self, frame: pl.DataFrame) -> pl.DataFrame:
         if not self.context["weight_files"]:
+            self.logger.warning(
+                "No HS300 weight files found; index weights will be null"
+            )
             return frame.with_columns(
                 pl.lit(None, dtype=pl.Float64).alias("index_weight_hs300"),
             )
@@ -528,6 +569,10 @@ class Alpha158Task(BaseTask):
         if weights.select("_weight_date", "ts_code").n_unique() != weights.height:
             raise ValueError("index_weight 包含重复的 trade_date, con_code")
         snapshots = weights.select("_weight_date").unique().sort("_weight_date")
+        self.logger.info(
+            f"HS300 weight snapshots loaded rows={weights.height} "
+            f"snapshots={snapshots.height}"
+        )
         dates = (
             frame.select("trade_date")
             .unique()
@@ -575,6 +620,12 @@ class Alpha158Task(BaseTask):
             statistics_file=str(statistics_path),
             rows=output.height,
             feature_count=len(FEATURES),
+        )
+        self.logger.info(
+            f"Alpha158 outputs written rows={output.height} features={len(FEATURES)} "
+            f"dataset_path={path} dataset_bytes={path.stat().st_size} "
+            f"statistics_path={statistics_path} "
+            f"statistics_bytes={statistics_path.stat().st_size}"
         )
 
     @staticmethod

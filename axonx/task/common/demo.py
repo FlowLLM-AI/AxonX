@@ -44,34 +44,44 @@ class DemoTask(BaseTask):
         self.report_progress(50)
         branch = "equal" if self.config.x == self.config.y else "different"
         self.context.update(total=0, operands=[], branch=branch)
+        self.logger.info(
+            f"Demo initialized x={self.config.x} y={self.config.y} branch={branch}"
+        )
 
     def add_equal_operands(self) -> None:
         """Use one conditional step when both operands are equal."""
         self.report_progress(50)
         self.context["operands"].extend(("x", "y"))
         self.context["total"] += self.config.x + self.config.y
+        self.logger.info(f"Added equal operands total={self.context['total']}")
 
     def add_x(self) -> None:
         """Add the first operand to the accumulator."""
         self.report_progress(50)
         self.context["operands"].append("x")
         self.context["total"] += self.config.x
+        self.logger.info(f"Added operand x total={self.context['total']}")
 
     def add_y(self) -> None:
         """Add the second operand to the accumulator."""
         self.report_progress(50)
         self.context["operands"].append("y")
         self.context["total"] += self.config.y
+        self.logger.info(f"Added operand y total={self.context['total']}")
 
     def fail(self) -> None:
         """Demonstrate framework-managed error status and exit code."""
         self.report_progress(50)
+        self.logger.warning("Demo failure requested")
         raise RuntimeError("Demo failure requested")
 
     def finish(self) -> None:
         """Publish the accumulator as the task result."""
         self.report_progress(50)
         self.context["result"] = self.context["total"]
+        self.logger.info(
+            f"Demo result={self.context['result']} operands={self.context['operands']}"
+        )
 
     def exit_code(self, _output) -> int:
         """Demonstrate a Task-defined process exit code."""

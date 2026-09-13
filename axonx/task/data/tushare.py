@@ -103,18 +103,32 @@ class DownloadTushareTask(BaseTask):
             files=[],
             rows=dict.fromkeys(DATASETS, 0),
         )
+        self.logger.info(
+            f"Tushare download initialized start_date={start:%Y%m%d} "
+            f"end_date={end:%Y%m%d} days={len(days)} months={len(months)} "
+            f"output_dir={self.context['root']}"
+        )
 
     def download_market_days(self) -> None:
         days = self.context["days"]
+        self.logger.info(f"Downloading market data days={len(days)}")
         for completed, day in enumerate(days, start=1):
             self.download_market_day(day)
             self._report_batch_progress(completed, len(days))
+        self.logger.info(
+            f"Market data download completed daily_rows={self.context['rows']['daily']} "
+            f"adj_factor_rows={self.context['rows']['adj_factor']}"
+        )
 
     def download_hs300_weights(self) -> None:
         months = self.context["months"]
+        self.logger.info(f"Downloading HS300 weights month_ranges={len(months)}")
         for completed, (start, end) in enumerate(months, start=1):
             self.download_hs300_weight(start, end)
             self._report_batch_progress(completed, len(months))
+        self.logger.info(
+            f"HS300 weight download completed rows={self.context['rows']['index_weight']}"
+        )
 
     def sort_output_files(self) -> None:
         """Order artifacts by trading date, then by declared dataset order."""
@@ -128,11 +142,13 @@ class DownloadTushareTask(BaseTask):
                 value,
             ),
         )
+        self.logger.info(f"Output files sorted files={len(self.context['files'])}")
 
     def download_market_day(self, day: date) -> None:
         trade_date = f"{day:%Y%m%d}"
         daily = self._query("daily", trade_date=trade_date)
         if daily.empty:
+            self.logger.info(f"No market data trade_date={trade_date}")
             return
         self._save("daily", daily, day)
         self._save("adj_factor", self._query("adj_factor", trade_date=trade_date), day)
@@ -145,16 +161,21 @@ class DownloadTushareTask(BaseTask):
             end_date=f"{end:%Y%m%d}",
         )
         if frame.empty:
+            self.logger.info(
+                f"No HS300 weights start_date={start:%Y%m%d} end_date={end:%Y%m%d}"
+            )
             return
         for trade_date, group in frame.groupby("trade_date", sort=True):
             self._save("index_weight", group, self._parse_date(trade_date))
 
     def _query(self, api_name: str, **params: Any) -> pd.DataFrame:
         fields = ",".join(DATASETS[api_name])
+        self.logger.info(f"Tushare API query api={api_name} params={params}")
         frame = self.context["client"].query(api_name, fields=fields, **params)
         missing = set(DATASETS[api_name]).difference(frame.columns)
         if not frame.empty and missing:
             raise RuntimeError(f"{api_name} 缺少字段: {sorted(missing)}")
+        self.logger.info(f"Tushare API response api={api_name} rows={len(frame)}")
         return frame
 
     def _save(self, api_name: str, frame: pd.DataFrame, day: date) -> None:
@@ -180,6 +201,10 @@ class DownloadTushareTask(BaseTask):
             temporary.unlink(missing_ok=True)
         self.context["files"].append(str(path))
         self.context["rows"][api_name] += len(frame)
+        self.logger.info(
+            f"Dataset saved dataset={api_name} trade_date={day:%Y%m%d} "
+            f"rows={len(frame)} path={path}"
+        )
 
     def _report_batch_progress(self, completed: int, total: int) -> None:
         if completed % 100 == 0 and completed < total:

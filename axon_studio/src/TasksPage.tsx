@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowUpRight, Ban, CheckCircle2, ChevronRight, Clock3, LoaderCircle, Plus, RefreshCw, Search, X } from "lucide-react";
-import { cancelTask, listTaskStatuses } from "./api";
+import { AlertTriangle, ArrowUpRight, Ban, CheckCircle2, ChevronRight, Clock3, LoaderCircle, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
 import { interpolate, t } from "./i18n";
 import { formatDate, formatDuration, taskStepProgress } from "./taskFormat";
 import type { Language, TaskState, TaskStatus } from "./types";
@@ -21,6 +21,9 @@ export function TasksPage({ language, remoteIp, onSubmit, onOpenTask, onConnecti
   const [type, setType] = useState("");
   const [cancelTarget, setCancelTarget] = useState<TaskStatus | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async (quiet = false) => {
     if (quiet) setRefreshing(true);
@@ -29,6 +32,7 @@ export function TasksPage({ language, remoteIp, onSubmit, onOpenTask, onConnecti
       const result = await listTaskStatuses(remoteIp);
       const ordered = [...result].sort((left, right) => taskTimestamp(right) - taskTimestamp(left));
       setTasks(ordered);
+      setSelected((previous) => new Set([...previous].filter((taskId) => ordered.some((task) => task.task_id === taskId && !ACTIVE.has(task.state)))));
       setError(""); onConnection(true); setSeconds(10);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason)); onConnection(false);
@@ -57,6 +61,23 @@ export function TasksPage({ language, remoteIp, onSubmit, onOpenTask, onConnecti
     succeeded: tasks.filter((item) => item.state === "succeeded").length,
     attention: tasks.filter((item) => ATTENTION.has(item.state)).length,
   };
+  const selectableIds = filtered.filter((task) => !ACTIVE.has(task.state)).map((task) => task.task_id);
+  const selectedIds = [...selected];
+  const allVisibleSelected = selectableIds.length > 0 && selectableIds.every((taskId) => selected.has(taskId));
+
+  const toggleAllVisible = () => setSelected((previous) => {
+    const next = new Set(previous);
+    if (allVisibleSelected) selectableIds.forEach((taskId) => next.delete(taskId));
+    else selectableIds.forEach((taskId) => next.add(taskId));
+    return next;
+  });
+
+  const toggleTask = (taskId: string) => setSelected((previous) => {
+    const next = new Set(previous);
+    if (next.has(taskId)) next.delete(taskId);
+    else next.add(taskId);
+    return next;
+  });
 
   const confirmCancel = async () => {
     if (!cancelTarget) return;
@@ -72,6 +93,26 @@ export function TasksPage({ language, remoteIp, onSubmit, onOpenTask, onConnecti
       setError(reason instanceof Error ? reason.message : String(reason));
     }
     finally { setCancelling(false); }
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedIds.length) return;
+    const requested = selectedIds;
+    setDeleting(true);
+    try {
+      const deleted = await deleteTasks(requested, remoteIp);
+      setSelected((previous) => {
+        const next = new Set(previous);
+        deleted.forEach((taskId) => next.delete(taskId));
+        return next;
+      });
+      setDeleteOpen(false);
+      await load(true);
+      if (deleted.length !== requested.length) throw new Error(interpolate(text.deletePartial, { deleted: deleted.length, total: requested.length }));
+    } catch (reason) {
+      setDeleteOpen(false);
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally { setDeleting(false); }
   };
 
   return <section className="workspace-page">
@@ -98,17 +139,19 @@ export function TasksPage({ language, remoteIp, onSubmit, onOpenTask, onConnecti
         <label className="search-field"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={text.search} /></label>
         <select value={state} onChange={(event) => setState(event.target.value)}><option value="">{text.allStates}</option>{Object.entries(text.states).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
         <select value={type} onChange={(event) => setType(event.target.value)}><option value="">{text.allTypes}</option>{types.map((value) => <option key={value} value={value}>{text.types[value] || value}</option>)}</select>
+        {selected.size > 0 && <button className="danger-outline bulk-delete" onClick={() => setDeleteOpen(true)}><Trash2 size={15} />{interpolate(text.deleteSelected, { count: selected.size })}</button>}
         <span className="result-count">{filtered.length} / {tasks.length}</span>
       </div>
       <div className="table-wrap">
-        <table><thead><tr><th>{text.taskId}</th><th>{text.type}</th><th>{text.state}</th><th>{text.progress}</th><th>{text.started}</th><th>{text.duration}</th><th>{text.action}</th></tr></thead>
-          <tbody>{filtered.map((task) => <TaskRow key={task.task_id} task={task} language={language} onOpen={() => onOpenTask(task.task_id)} onCancel={() => setCancelTarget(task)} />)}</tbody>
+        <table><thead><tr><th className="select-column"><input type="checkbox" aria-label={text.selectAll} checked={allVisibleSelected} disabled={!selectableIds.length} onChange={toggleAllVisible} /></th><th>{text.taskId}</th><th>{text.type}</th><th>{text.state}</th><th>{text.progress}</th><th>{text.started}</th><th>{text.duration}</th><th>{text.action}</th></tr></thead>
+          <tbody>{filtered.map((task) => <TaskRow key={task.task_id} task={task} language={language} selected={selected.has(task.task_id)} onSelect={() => toggleTask(task.task_id)} onOpen={() => onOpenTask(task.task_id)} onCancel={() => setCancelTarget(task)} />)}</tbody>
         </table>
         {!loading && filtered.length === 0 && <div className="empty-state"><span className="empty-glyph">⌁</span><strong>{tasks.length ? text.noMatches : text.noTasks}</strong><p>{tasks.length ? text.noMatches : text.noTasksHint}</p>{!tasks.length && <button className="primary-button" onClick={onSubmit}><Plus size={17} />{text.pages.submit}</button>}</div>}
         {loading && <div className="loading-state"><LoaderCircle className="spin" /> Loading AxonX runtime…</div>}
       </div>
     </div>
     {cancelTarget && <div className="modal-backdrop" onMouseDown={() => setCancelTarget(null)}><div className="confirm-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="close-button" onClick={() => setCancelTarget(null)}><X /></button><span className="danger-icon"><Ban /></span><h2>{text.cancelConfirm}</h2><code>{cancelTarget.task_id}</code><div><button className="secondary-button" onClick={() => setCancelTarget(null)}>{text.close}</button><button className="danger-button" onClick={() => void confirmCancel()} disabled={cancelling}>{cancelling ? text.cancelling : text.confirmCancel}</button></div></div></div>}
+    {deleteOpen && <div className="modal-backdrop" onMouseDown={() => setDeleteOpen(false)}><div className="confirm-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true"><button className="close-button" onClick={() => setDeleteOpen(false)}><X /></button><span className="danger-icon"><Trash2 /></span><h2>{interpolate(text.deleteConfirm, { count: selected.size })}</h2><p>{text.deleteHint}</p><div><button className="secondary-button" onClick={() => setDeleteOpen(false)}>{text.close}</button><button className="danger-button" onClick={() => void confirmDelete()} disabled={deleting}>{deleting ? text.deleting : text.confirmDelete}</button></div></div></div>}
   </section>;
 }
 
@@ -125,9 +168,10 @@ function taskTimestamp(task: TaskStatus) {
   return new Date(iso).getTime();
 }
 
-function TaskRow({ task, language, onOpen, onCancel }: { task: TaskStatus; language: Language; onOpen: () => void; onCancel: () => void }) {
+function TaskRow({ task, language, selected, onSelect, onOpen, onCancel }: { task: TaskStatus; language: Language; selected: boolean; onSelect: () => void; onOpen: () => void; onCancel: () => void }) {
   const text = t(language); const progress = taskStepProgress(task);
-  return <tr onClick={onOpen}><td><div className="task-identity"><span className={`task-orb ${task.state}`}>{task.task_type.slice(0, 1).toUpperCase()}</span><div><strong>{task.task_id}</strong><small>PID {task.pid || "—"}</small></div></div></td><td><span className="type-chip">{text.types[task.task_type] || task.task_type}</span></td><td><Status state={task.state} language={language} /></td><td>{progress ? <div className="progress-cell"><div className="progress-label"><strong>{text.step} {progress.current}</strong><code title={progress.name}>{progress.name}</code><span>{progress.percentage}%</span></div><div className="progress-track"><i style={{ width: `${progress.percentage}%` }} /></div></div> : <span className="muted">{text.notStarted}</span>}</td><td>{formatDate(task.started_at, language)}</td><td>{formatDuration(task, language)}</td><td><div className="row-actions">{ACTIVE.has(task.state) && <button className="text-danger" onClick={(event) => { event.stopPropagation(); onCancel(); }}>{text.cancel}</button>}<button aria-label={text.details}><ChevronRight /></button></div></td></tr>;
+  const selectable = !ACTIVE.has(task.state);
+  return <tr className={selected ? "selected" : ""} onClick={onOpen}><td className="select-column" onClick={(event) => event.stopPropagation()}><input type="checkbox" aria-label={interpolate(text.selectTask, { taskId: task.task_id })} checked={selected} disabled={!selectable} onChange={onSelect} /></td><td><div className="task-identity"><span className={`task-orb ${task.state}`}>{task.task_type.slice(0, 1).toUpperCase()}</span><div><strong>{task.task_id}</strong><small>PID {task.pid || "—"}</small></div></div></td><td><span className="type-chip">{text.types[task.task_type] || task.task_type}</span></td><td><Status state={task.state} language={language} /></td><td>{progress ? <div className="progress-cell"><div className="progress-label"><strong>{text.step} {progress.current}</strong><code title={progress.name}>{progress.name}</code><span>{progress.percentage}%</span></div><div className="progress-track"><i style={{ width: `${progress.percentage}%` }} /></div></div> : <span className="muted">{text.notStarted}</span>}</td><td>{formatDate(task.started_at, language)}</td><td>{formatDuration(task, language)}</td><td><div className="row-actions">{ACTIVE.has(task.state) && <button className="text-danger" onClick={(event) => { event.stopPropagation(); onCancel(); }}>{text.cancel}</button>}<button aria-label={text.details}><ChevronRight /></button></div></td></tr>;
 }
 
 export function Status({ state, language }: { state: TaskState; language: Language }) { return <span className={`status-badge ${state}`}><i />{t(language).states[state]}</span>; }

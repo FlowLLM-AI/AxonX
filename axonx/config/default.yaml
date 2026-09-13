@@ -129,3 +129,19 @@ jobs:
         - task_id
     steps:
       - backend: cancel_task
+
+  delete_tasks:
+    description: Delete multiple completed Task records.
+    parameters:
+      type: object
+      properties:
+        task_ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          uniqueItems: true
+      required:
+        - task_ids
+    steps:
+      - backend: delete_tasks

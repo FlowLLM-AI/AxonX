@@ -32,6 +32,8 @@ class LocalTaskManager(BaseTaskManager):
         self._processes: dict[int, asyncio.subprocess.Process] = {}
         self._process_monitors: set[asyncio.Task[None]] = set()
         self._shutdown_processes: set[int] = set()
+        self._abnormal_exits: dict[int, tuple[int, str, datetime]] = {}
+        self._deleted_task_ids: set[str] = set()
 
     @property
     def task_manager_dir(self) -> Path:
@@ -215,6 +217,45 @@ class LocalTaskManager(BaseTaskManager):
             f"Task process {process.pid} ({task_name}) exited with code {return_code}. "
             f"stderr tail:\n{detail}",
         )
+        self._record_abnormal_exit(process.pid, return_code, detail)
+
+    def _record_abnormal_exit(
+        self,
+        pid: int,
+        return_code: int,
+        stderr_tail: str,
+    ) -> None:
+        """Persist a terminal failure when a worker cannot report its own exit."""
+        if return_code < 0:
+            signal_number = -return_code
+            try:
+                signal_name = signal.Signals(signal_number).name
+            except ValueError:
+                signal_name = f"signal {signal_number}"
+            exit_code = min(255, 128 + signal_number)
+            error = f"Worker terminated by signal {signal_name} ({signal_number})"
+        else:
+            exit_code = min(255, return_code)
+            error = f"Worker exited unexpectedly with code {return_code}"
+
+        if stderr_tail != "no stderr output":
+            error = f"{error}: {stderr_tail[-2048:]}"
+
+        changed = False
+        now = datetime.now(UTC)
+        for status in self._statuses.values():
+            if status.pid == pid and not status.state.is_terminal:
+                status.state = TaskState.FAILED
+                status.finished_at = now
+                status.exit_code = exit_code
+                status.error = error
+                changed = True
+        if changed:
+            self._save_status()
+        else:
+            # The worker can exit before its first asynchronous status report
+            # reaches the manager. Reconcile it when that snapshot arrives.
+            self._abnormal_exits[pid] = (exit_code, error, now)
 
     @staticmethod
     def _task_name(argv: Sequence[str]) -> str:
@@ -223,14 +264,21 @@ class LocalTaskManager(BaseTaskManager):
     async def set_status(self, task_id: str, status: TaskStatus) -> None:
         if task_id != status.task_id:
             raise ValueError("Task status ID does not match task_id")
-        current = self._statuses.get(task_id)
-        if current is not None and current.state == TaskState.CANCELLED:
-            # A status report may already be in flight when SIGKILL is sent.
-            # Cancellation is terminal and must not be overwritten by that stale
-            # worker snapshot after ``cancel`` has persisted it.
+        if task_id in self._deleted_task_ids:
             return
+        current = self._statuses.get(task_id)
+        if current is not None and current.state.is_terminal:
+            # A worker snapshot may already be in flight when cancellation or
+            # abnormal-exit reconciliation persists a terminal state.
+            if current.state == TaskState.CANCELLED or not status.state.is_terminal:
+                return
         snapshot = status.model_copy(deep=True)
         self._attach_log_path(snapshot)
+        if snapshot.pid is not None and not snapshot.state.is_terminal:
+            abnormal_exit = self._abnormal_exits.pop(snapshot.pid, None)
+            if abnormal_exit is not None:
+                snapshot.exit_code, snapshot.error, snapshot.finished_at = abnormal_exit
+                snapshot.state = TaskState.FAILED
         self._statuses[task_id] = snapshot
         self._save_status()
 
@@ -262,6 +310,23 @@ class LocalTaskManager(BaseTaskManager):
         status.exit_code = 130
         self._save_status()
         return True
+
+    async def delete(self, task_ids: Sequence[str]) -> list[str]:
+        if isinstance(task_ids, (str, bytes)) or not all(
+            isinstance(task_id, str) for task_id in task_ids
+        ):
+            raise TypeError("task_ids must be a sequence of strings")
+
+        deleted = []
+        for task_id in dict.fromkeys(task_ids):
+            status = self._statuses.get(task_id)
+            if status is not None and status.state.is_terminal:
+                del self._statuses[task_id]
+                self._deleted_task_ids.add(task_id)
+                deleted.append(task_id)
+        if deleted:
+            self._save_status()
+        return deleted
 
     @staticmethod
     def _signal(pid: int, sig: signal.Signals) -> bool:

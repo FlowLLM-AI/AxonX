@@ -53,6 +53,7 @@ export const readTaskLog = (taskId: string, offset = -1, limit = 65_536, remoteI
 export const listInstalledTaskInfos = (remoteIp?: string, signal?: AbortSignal) =>
   callJob<TaskInfo[]>("list_installed_task_infos", remoteBody(remoteIp), signal);
 export const cancelTask = (taskId: string, remoteIp?: string) => callJob<boolean>("cancel", { task_id: taskId, ...remoteBody(remoteIp) });
+export const deleteTasks = (taskIds: string[], remoteIp?: string) => callJob<string[]>("delete_tasks", { task_ids: taskIds, ...remoteBody(remoteIp) });
 export const submitTask = (task: string, values: Record<string, unknown>, remoteIp?: string) =>
   callJob<{ accepted: boolean; task: string }>("submit", { task, ...values, ...remoteBody(remoteIp) });
 export const machineStatus = (remoteIp?: string, signal?: AbortSignal) =>
