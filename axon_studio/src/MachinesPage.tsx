@@ -3,7 +3,7 @@ import {
   Boxes, CheckCircle2, ChevronRight, CircleOff, Cpu, Gauge, GitCommitHorizontal,
   HardDrive, LoaderCircle, MemoryStick, Microchip, RefreshCw, Server, Wifi,
 } from "lucide-react";
-import { listMachineResources } from "./api";
+import { listMachineOptions, machineHost, machineStatus } from "./api";
 import { interpolate, t } from "./i18n";
 import type { GpuInfo, Language, MachineNode } from "./types";
 
@@ -21,14 +21,19 @@ export function MachinesPage({ language, onConnection }: { language: Language; o
   const load = useCallback(async (quiet = false) => {
     if (quiet) setRefreshing(true); else setLoading(true);
     try {
-      const result = await listMachineResources();
-      setNodes(result);
-      setSelectedId((current) => result.some((node) => node.id === current) ? current : result[0]?.id || "");
+      const result = await listMachineOptions();
+      const targetId = result.some((node) => node.id === selectedId) ? selectedId : result[0]?.id || "";
+      const target = result.find((node) => node.id === targetId);
+      if (target?.healthy) {
+        try { target.info = await machineStatus(target.isLocal ? undefined : machineHost(target.address)); }
+        catch { target.healthy = false; }
+      }
+      setNodes(result); setSelectedId(targetId);
       setUpdatedAt(new Date()); setSeconds(10); setError(""); onConnection(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason)); onConnection(false);
     } finally { setLoading(false); setRefreshing(false); }
-  }, [onConnection]);
+  }, [onConnection, selectedId]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
@@ -86,7 +91,7 @@ export function MachinesPage({ language, onConnection }: { language: Language; o
       <div className="machine-detail">
         {loading && !selected && <div className="loading-state machine-loading"><LoaderCircle className="spin" /> {text.machineLoading}</div>}
         {selected && selected.info && <MachineDashboard node={selected} language={language} updatedAt={updatedAt} />}
-        {selected && !selected.info && <div className="machine-offline"><span><CircleOff /></span><h2>{text.machineUnavailable}</h2><p>{selected.address}</p></div>}
+        {selected && !selected.info && <div className="machine-offline"><span>{selected.healthy ? <LoaderCircle className="spin" /> : <CircleOff />}</span><h2>{selected.healthy ? text.machineLoading : text.machineUnavailable}</h2><p>{selected.address}</p></div>}
       </div>
     </div>
   </section>;

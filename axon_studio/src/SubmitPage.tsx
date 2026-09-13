@@ -6,7 +6,7 @@ import type { JsonSchema, Language, TaskInfo } from "./types";
 
 type FieldValue = string | boolean;
 
-export function SubmitPage({ language, onViewTasks, onConnection }: { language: Language; onViewTasks: () => void; onConnection: (online: boolean) => void }) {
+export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { language: Language; remoteIp?: string; onViewTasks: () => void; onConnection: (online: boolean) => void }) {
   const text = t(language);
   const [tasks, setTasks] = useState<TaskInfo[]>([]);
   const [selectedName, setSelectedName] = useState("");
@@ -21,11 +21,11 @@ export function SubmitPage({ language, onViewTasks, onConnection }: { language: 
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const result = await listInstalledTaskInfos();
+      const result = await listInstalledTaskInfos(remoteIp);
       setTasks(result); setSelectedName((current) => current || result[0]?.name || ""); onConnection(true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); onConnection(false); }
     finally { setLoading(false); }
-  }, [onConnection]);
+  }, [onConnection, remoteIp]);
 
   useEffect(() => { void load(); }, [load]);
   const selected = tasks.find((task) => task.name === selectedName);
@@ -56,7 +56,7 @@ export function SubmitPage({ language, onViewTasks, onConnection }: { language: 
     }
     setFieldErrors(errors); if (Object.keys(errors).length) return;
     setSubmitting(true); setError("");
-    try { await submitTask(selected.name, parsed); setSubmitted(true); onConnection(true); }
+    try { await submitTask(selected.name, parsed, remoteIp); setSubmitted(true); onConnection(true); }
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); onConnection(false); }
     finally { setSubmitting(false); }
   };

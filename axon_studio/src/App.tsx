@@ -1,41 +1,81 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, BarChart3, BrainCircuit, ChevronDown, Cpu, Database,
-  Languages, Moon, Play, Send, Sun, Workflow,
+  Activity, AppWindow, BarChart3, Blocks, BrainCircuit, ChevronDown, ChevronLeft,
+  ChevronRight, CircleGauge, Cpu, Database, FileChartColumn, Files, Home, Languages,
+  Menu, Moon, PackageOpen, PanelLeftClose, PanelLeftOpen, Play, Plug, Send, Server,
+  Sun, Workflow, X,
 } from "lucide-react";
-import { API_URL } from "./api";
+import { API_URL, listMachineOptions, machineHost } from "./api";
 import { t } from "./i18n";
 import { MachinesPage } from "./MachinesPage";
 import { SubmitPage } from "./SubmitPage";
 import { TasksPage } from "./TasksPage";
-import type { Language, PageId, ThemePreference } from "./types";
+import { ComingSoonPage, HomePage, JobCatalogPage, PluginsPage, TaskCatalogPage } from "./WorkspacePages";
+import type { Language, MachineNode, PageId, ThemePreference } from "./types";
 import { useAxonXWebMcp } from "./webmcp";
 
-const pages: Array<{ id: PageId; icon: typeof Cpu }> = [
-  { id: "machines", icon: Cpu }, { id: "tasks", icon: Activity }, { id: "submit", icon: Send },
-  { id: "rawData", icon: Database }, { id: "factors", icon: Workflow }, { id: "training", icon: BrainCircuit },
-  { id: "prediction", icon: Play }, { id: "backtest", icon: BarChart3 },
+type NavItem = { id: PageId; icon: typeof Cpu; ready?: boolean };
+type NavGroup = { id: string; label: { zh: string; en: string }; icon: typeof Cpu; items: NavItem[] };
+
+const groups: NavGroup[] = [
+  { id: "runtime", label: { zh: "运行中心", en: "Operations" }, icon: CircleGauge, items: [
+    { id: "machines", icon: Cpu, ready: true }, { id: "tasks", icon: Activity, ready: true }, { id: "submit", icon: Send, ready: true },
+  ] },
+  { id: "data", label: { zh: "数据中心", en: "Data" }, icon: Database, items: [
+    { id: "datasets", icon: Database }, { id: "files", icon: Files }, { id: "factors", icon: Workflow },
+  ] },
+  { id: "model", label: { zh: "模型中心", en: "Models" }, icon: BrainCircuit, items: [
+    { id: "training", icon: BrainCircuit }, { id: "models", icon: AppWindow }, { id: "inference", icon: Play },
+  ] },
+  { id: "strategy", label: { zh: "策略与回测", en: "Strategy & Backtest" }, icon: BarChart3, items: [
+    { id: "strategies", icon: Blocks }, { id: "backtest", icon: BarChart3, ready: true }, { id: "reports", icon: FileChartColumn },
+  ] },
+  { id: "extensions", label: { zh: "扩展中心", en: "Extensions" }, icon: Plug, items: [
+    { id: "plugins", icon: PackageOpen, ready: true }, { id: "jobs", icon: Workflow, ready: true }, { id: "taskCatalog", icon: Activity, ready: true }, { id: "components", icon: Blocks },
+  ] },
 ];
 
+const allPages = new Set<PageId>(["home", ...groups.flatMap((group) => group.items.map((item) => item.id))]);
+const legacyPages: Record<string, PageId> = { rawData: "datasets", prediction: "inference" };
 const initialPage = (): PageId => {
-  const value = window.location.hash.slice(1) as PageId;
-  return pages.some((page) => page.id === value) ? value : "tasks";
+  const value = window.location.hash.slice(1);
+  return legacyPages[value] || (allPages.has(value as PageId) ? value as PageId : "home");
 };
 
 export default function App() {
   useAxonXWebMcp();
-  const [language, setLanguage] = useState<Language>(() => (localStorage.getItem("axonx-language") === "en" ? "en" : "zh"));
+  const [language, setLanguage] = useState<Language>(() => localStorage.getItem("axonx-language") === "en" ? "en" : "zh");
   const [theme, setTheme] = useState<ThemePreference>(() => {
     const saved = localStorage.getItem("axonx-theme");
     return saved === "light" || saved === "dark" ? saved : "system";
   });
   const [page, setPageState] = useState<PageId>(initialPage);
   const [serviceOnline, setServiceOnline] = useState<boolean | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("axonx-sidebar") === "collapsed");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState(() => new Set(groups.map((group) => group.id)));
+  const [machines, setMachines] = useState<MachineNode[]>([{ id: "local", address: "localhost", isLocal: true, healthy: true }]);
+  const [machineId, setMachineId] = useState(() => localStorage.getItem("axonx-machine") || "local");
+  const [machinesLoaded, setMachinesLoaded] = useState(false);
+  const [machinesLoading, setMachinesLoading] = useState(false);
   const text = t(language);
+  const selectedMachine = machines.find((item) => item.id === machineId) || machines[0];
+  const remoteIp = selectedMachine?.isLocal ? undefined : machineHost(selectedMachine.address);
 
   const setPage = (next: PageId) => {
-    window.location.hash = next;
-    setPageState(next);
+    window.location.hash = next; setPageState(next); setMobileOpen(false);
+  };
+
+  const loadMachines = async () => {
+    if (machinesLoaded || machinesLoading) return;
+    setMachinesLoading(true);
+    try {
+      const result = await listMachineOptions();
+      setMachines(result);
+      setMachineId((current) => result.some((item) => item.id === current) ? current : "local");
+      setMachinesLoaded(true); setServiceOnline(true);
+    } catch { setServiceOnline(false); }
+    finally { setMachinesLoading(false); }
   };
 
   useEffect(() => {
@@ -43,83 +83,80 @@ export default function App() {
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem("axonx-language", language);
-    document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
-  }, [language]);
-
+  useEffect(() => { localStorage.setItem("axonx-language", language); document.documentElement.lang = language === "zh" ? "zh-CN" : "en"; document.title = text.consoleTitle; }, [language, text.consoleTitle]);
+  useEffect(() => { localStorage.setItem("axonx-machine", machineId); }, [machineId]);
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => {
-      const dark = theme === "dark" || (theme === "system" && media.matches);
-      document.documentElement.dataset.theme = dark ? "dark" : "light";
-    };
-    localStorage.setItem("axonx-theme", theme);
-    apply();
-    media.addEventListener("change", apply);
+    const apply = () => document.documentElement.dataset.theme = theme === "dark" || (theme === "system" && media.matches) ? "dark" : "light";
+    localStorage.setItem("axonx-theme", theme); apply(); media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
   }, [theme]);
-
   useEffect(() => {
     let alive = true;
-    const check = () => fetch(`${API_URL}/health`).then((response) => response.ok ? response.json() : null)
-      .then((data) => alive && setServiceOnline(data?.running === true)).catch(() => alive && setServiceOnline(false));
-    check();
-    const timer = window.setInterval(check, 15_000);
+    const checkService = () => fetch(`${API_URL}/health`).then((response) => response.ok ? response.json() : null).then((data) => alive && setServiceOnline(data?.running === true)).catch(() => alive && setServiceOnline(false));
+    void checkService();
+    const timer = window.setInterval(checkService, 15_000);
     return () => { alive = false; window.clearInterval(timer); };
   }, []);
 
   const content = useMemo(() => {
+    if (page === "home") return <HomePage language={language} remoteIp={remoteIp} machine={selectedMachine} onConnection={setServiceOnline} onNavigate={setPage} />;
     if (page === "machines") return <MachinesPage language={language} onConnection={setServiceOnline} />;
-    if (page === "tasks") return <TasksPage language={language} onSubmit={() => setPage("submit")} onConnection={setServiceOnline} />;
-    if (page === "submit") return <SubmitPage language={language} onViewTasks={() => setPage("tasks")} onConnection={setServiceOnline} />;
-    return <Placeholder page={page} language={language} />;
-  }, [page, language]);
+    if (page === "tasks") return <TasksPage language={language} remoteIp={remoteIp} onSubmit={() => setPage("submit")} onConnection={setServiceOnline} />;
+    if (page === "submit") return <SubmitPage language={language} remoteIp={remoteIp} onViewTasks={() => setPage("tasks")} onConnection={setServiceOnline} />;
+    if (page === "plugins") return <PluginsPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
+    if (page === "jobs") return <JobCatalogPage language={language} machine={selectedMachine} onConnection={setServiceOnline} />;
+    if (page === "taskCatalog") return <TaskCatalogPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} onSubmit={() => setPage("submit")} />;
+    if (page === "backtest") return <ComingSoonPage page={page} language={language} partial detail={language === "zh" ? "后端已具备 ranking_backtest Task；专用参数表单和报告索引正在接入。现在可从“提交任务”运行。" : "The ranking_backtest Task is available now. A dedicated launcher and report index are being connected; use Submit Task in the meantime."} />;
+    return <ComingSoonPage page={page} language={language} />;
+  }, [page, language, remoteIp, selectedMachine]);
 
-  return (
-    <div className="app-shell">
-      <header className="app-header">
-        <button className="brand" onClick={() => setPage("tasks")} aria-label="AxonX Studio">
-          <img className="brand-logo" src="/axonx-logo.svg" alt="" width="118" height="34" />
-          <img className="brand-icon" src="/axonx-icon.svg" alt="" width="34" height="34" />
-          <small>{text.studio}</small>
+  const toggleSidebar = () => setSidebarCollapsed((value) => {
+    localStorage.setItem("axonx-sidebar", value ? "expanded" : "collapsed"); return !value;
+  });
+
+  return <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+    <aside className={`app-sidebar ${mobileOpen ? "mobile-open" : ""}`}>
+      <header className="sidebar-brand">
+        <button className="brand" onClick={() => setPage("home")} aria-label={text.consoleTitle}>
+          <img className="brand-icon" src="/axonx-icon.svg" alt="" width="40" height="40" />
+          <span className="brand-copy"><strong>{text.consoleTitle}</strong><small className={serviceOnline === true ? "online" : serviceOnline === false ? "offline" : "checking"}><i />{serviceOnline === true ? text.serviceOnline : serviceOnline === false ? text.serviceOffline : text.serviceChecking}</small></span>
         </button>
-        <nav className="main-tabs" aria-label="Main navigation">
-          {pages.map(({ id, icon: Icon }) => (
-            <button key={id} className={page === id ? "active" : ""} onClick={() => setPage(id)}>
-              <Icon size={17} strokeWidth={1.8} /><span>{text.pages[id]}</span>
-            </button>
-          ))}
-        </nav>
+        <button className="sidebar-toggle desktop-only" onClick={toggleSidebar} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>{sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</button>
+        <button className="sidebar-toggle mobile-close" onClick={() => setMobileOpen(false)} aria-label="Close navigation"><X /></button>
+      </header>
+      <nav className="side-nav" aria-label="Main navigation">
+        <button className={`nav-home ${page === "home" ? "active" : ""}`} onClick={() => setPage("home")} title={text.pages.home}><Home /><span>{text.pages.home}</span></button>
+        {groups.map((group) => {
+          const GroupIcon = group.icon; const open = openGroups.has(group.id); const groupActive = group.items.some((item) => item.id === page);
+          return <section className={`nav-group ${groupActive ? "has-active" : ""}`} key={group.id}>
+            <button className="nav-group-button" onClick={() => setOpenGroups((current) => { const next = new Set(current); if (next.has(group.id)) next.delete(group.id); else next.add(group.id); return next; })} title={group.label[language]}><GroupIcon /><span>{group.label[language]}</span><ChevronDown className={open ? "open" : ""} /></button>
+            {open && <div className="nav-children">{group.items.map(({ id, icon: Icon, ready }) => <button key={id} className={page === id ? "active" : ""} onClick={() => setPage(id)} title={text.pages[id]}><Icon /><span>{text.pages[id]}</span>{!ready && <i>{language === "zh" ? "待开发" : "Planned"}</i>}</button>)}</div>}
+          </section>;
+        })}
+      </nav>
+      <footer className="sidebar-footer"><button onClick={toggleSidebar}>{sidebarCollapsed ? <ChevronRight /> : <><ChevronLeft /><span>{language === "zh" ? "收起侧栏" : "Collapse"}</span></>}</button></footer>
+    </aside>
+    {mobileOpen && <button className="sidebar-scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
+    <div className="app-main">
+      <header className="topbar">
+        <button className="mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu /></button>
+        <div className="breadcrumb"><span>AXONX</span><ChevronRight />{text.pages[page]}</div>
         <div className="header-actions">
-          <div className={`service-pill ${serviceOnline === true ? "online" : serviceOnline === false ? "offline" : ""}`}>
-            <i /> <span>{serviceOnline === false ? text.serviceOffline : text.serviceOnline}</span>
+          <div className="machine-picker" onMouseEnter={() => void loadMachines()} onFocus={() => void loadMachines()}>
+            <button className="machine-trigger topbar-control"><Server /><span><small>{text.currentMachine}</small><strong>{selectedMachine?.isLocal ? text.localNode : selectedMachine?.address}</strong></span><ChevronDown /></button>
+            <div className="machine-menu">{machinesLoading && <p>{language === "zh" ? "读取机器列表…" : "Loading machines…"}</p>}{machines.map((machine) => <button key={machine.id} className={machine.id === selectedMachine?.id ? "active" : ""} onClick={() => setMachineId(machine.id)}><i className={machine.healthy ? "online" : "offline"} /><span>{machine.isLocal ? (language === "zh" ? "本机" : "Local") : machine.address}</span>{machine.id === selectedMachine?.id && <span>✓</span>}</button>)}</div>
           </div>
-          <button className="icon-button language-button" onClick={() => setLanguage(language === "zh" ? "en" : "zh")} title="Language">
-            <Languages size={17} /><span>{language === "zh" ? "EN" : "中"}</span>
-          </button>
-          <div className="theme-picker">
-            <button className="icon-button" aria-label={text.appearance}>
-              {theme === "light" ? <Sun size={17} /> : theme === "dark" ? <Moon size={17} /> : <span className="system-icon">◐</span>}
-              <ChevronDown size={13} />
-            </button>
-            <div className="theme-menu">
-              {(["system", "light", "dark"] as ThemePreference[]).map((value) => (
-                <button key={value} className={theme === value ? "active" : ""} onClick={() => setTheme(value)}>{text[value]}</button>
-              ))}
-            </div>
-          </div>
+          <button className="topbar-control language-button" onClick={() => setLanguage(language === "zh" ? "en" : "zh")} title={text.switchLanguage}><Languages /><span>{language === "zh" ? "EN" : "中文"}</span></button>
+          <div className="theme-picker"><button className="topbar-control theme-trigger" aria-label={text.appearance}>{theme === "light" ? <Sun /> : theme === "dark" ? <Moon /> : <span className="system-icon">◐</span>}<span>{text[theme]}</span><ChevronDown /></button><div className="theme-menu">{(["system", "light", "dark"] as ThemePreference[]).map((value) => <button key={value} className={theme === value ? "active" : ""} onClick={() => setTheme(value)}>{text[value]}</button>)}</div></div>
+          <a className="topbar-control github-link" href="https://github.com/FlowLLM-AI/AxonX" target="_blank" rel="noreferrer" aria-label={text.openGithub} title={text.openGithub}><GitHubMark /></a>
         </div>
       </header>
       <main>{content}</main>
     </div>
-  );
+  </div>;
 }
 
-function Placeholder({ page, language }: { page: PageId; language: Language }) {
-  const text = t(language);
-  const pageInfo = pages.find((item) => item.id === page)!;
-  const Icon = pageInfo.icon;
-  return <section className="placeholder-page"><div className="placeholder-orbit"><Icon size={34} /></div><p>{text.pages[page]}</p><h1>{text.comingSoon}</h1><span>{text.comingHint}</span></section>;
+function GitHubMark() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .7a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2.24c-3.23.7-3.91-1.37-3.91-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.72 1.26 3.38.96.1-.75.41-1.26.74-1.55-2.58-.29-5.29-1.29-5.29-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.47.11-3.05 0 0 .97-.31 3.16 1.18a10.96 10.96 0 0 1 5.76 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.58.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.72 5.39-5.31 5.68.42.36.79 1.07.79 2.16v3.26c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z" /></svg>;
 }

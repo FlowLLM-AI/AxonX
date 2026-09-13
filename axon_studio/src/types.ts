@@ -1,6 +1,23 @@
 export type Language = "zh" | "en";
 export type ThemePreference = "light" | "dark" | "system";
-export type PageId = "machines" | "tasks" | "submit" | "rawData" | "factors" | "training" | "prediction" | "backtest";
+export type PageId =
+  | "home"
+  | "machines"
+  | "tasks"
+  | "submit"
+  | "datasets"
+  | "files"
+  | "factors"
+  | "training"
+  | "models"
+  | "inference"
+  | "strategies"
+  | "backtest"
+  | "reports"
+  | "plugins"
+  | "jobs"
+  | "taskCatalog"
+  | "components";
 export type TaskState = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
 export interface TaskStepStatus {
@@ -93,4 +110,23 @@ export interface MachineNode {
   isLocal: boolean;
   healthy: boolean;
   info?: MachineInfo;
+}
+
+export interface PluginInfo {
+  distribution: string;
+  version: string;
+  plugins: string[];
+  tasks: Record<string, string>;
+  jobs: Record<string, unknown>;
+  components: Record<string, Record<string, string>>;
+  source_sha256?: string | null;
+  wheel_sha256?: string;
+  wheel?: string;
+}
+
+export interface JobInfo {
+  name: string;
+  description: string;
+  inputSchema: JsonSchema;
+  outputSchema: JsonSchema;
 }

@@ -7,7 +7,7 @@ import type { Language, TaskState, TaskStatus } from "./types";
 const ACTIVE = new Set<TaskState>(["queued", "running"]);
 const ATTENTION = new Set<TaskState>(["failed", "cancelled"]);
 
-export function TasksPage({ language, onSubmit, onConnection }: { language: Language; onSubmit: () => void; onConnection: (online: boolean) => void }) {
+export function TasksPage({ language, remoteIp, onSubmit, onConnection }: { language: Language; remoteIp?: string; onSubmit: () => void; onConnection: (online: boolean) => void }) {
   const text = t(language);
   const [tasks, setTasks] = useState<TaskStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,7 @@ export function TasksPage({ language, onSubmit, onConnection }: { language: Lang
     if (quiet) setRefreshing(true);
     else setLoading(true);
     try {
-      const result = await listTaskStatuses();
+      const result = await listTaskStatuses(remoteIp);
       const ordered = [...result].sort((left, right) => taskTimestamp(right) - taskTimestamp(left));
       setTasks(ordered);
       setSelected((current) => current ? ordered.find((item) => item.task_id === current.task_id) || current : null);
@@ -34,7 +34,7 @@ export function TasksPage({ language, onSubmit, onConnection }: { language: Lang
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason)); onConnection(false);
     } finally { setLoading(false); setRefreshing(false); }
-  }, [onConnection]);
+  }, [onConnection, remoteIp]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
@@ -62,7 +62,7 @@ export function TasksPage({ language, onSubmit, onConnection }: { language: Lang
   const confirmCancel = async () => {
     if (!cancelTarget) return;
     setCancelling(true);
-    try { await cancelTask(cancelTarget.task_id); setCancelTarget(null); await load(true); }
+    try { await cancelTask(cancelTarget.task_id, remoteIp); setCancelTarget(null); await load(true); }
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setCancelling(false); }
   };

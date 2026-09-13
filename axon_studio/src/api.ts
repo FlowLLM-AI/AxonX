@@ -1,21 +1,35 @@
-import type { ApiResponse, MachineInfo, MachineNode, TaskInfo, TaskStatus } from "./types";
+import type { ApiResponse, JobInfo, MachineInfo, MachineNode, PluginInfo, TaskInfo, TaskStatus } from "./types";
 
 const configuredUrl = import.meta.env.VITE_AXONX_API_URL || "";
 export const API_URL = configuredUrl.replace(/\/$/, "");
 
 async function parse<T>(response: Response): Promise<T> {
-  let payload: ApiResponse<T> | { detail?: string };
+  let payload: ApiResponse<T> | { detail?: unknown };
   try {
     payload = await response.json();
   } catch {
     throw new Error(`Invalid server response (HTTP ${response.status})`);
   }
   if (!response.ok) {
-    throw new Error("detail" in payload && payload.detail ? payload.detail : `HTTP ${response.status}`);
+    const detail = "detail" in payload ? payload.detail : undefined;
+    throw new Error(typeof detail === "string" ? detail : detail ? JSON.stringify(detail) : `HTTP ${response.status}`);
   }
   const result = payload as ApiResponse<T>;
   if (!result.success) throw new Error(String(result.answer || "Request failed"));
   return result.answer;
+}
+
+async function parseJson<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    let detail = `HTTP ${response.status}`;
+    try {
+      const payload = await response.json() as { detail?: unknown };
+      if (typeof payload.detail === "string") detail = payload.detail;
+      else if (payload.detail) detail = JSON.stringify(payload.detail);
+    } catch { /* Preserve the HTTP status when the body is not JSON. */ }
+    throw new Error(detail);
+  }
+  return response.json() as Promise<T>;
 }
 
 export async function callJob<T>(name: string, body: Record<string, unknown> = {}, signal?: AbortSignal): Promise<T> {
@@ -28,13 +42,24 @@ export async function callJob<T>(name: string, body: Record<string, unknown> = {
   return parse<T>(response);
 }
 
-export const listTaskStatuses = (signal?: AbortSignal) =>
-  callJob<TaskStatus[]>("list_runtime_task_statuses", {}, signal);
-export const listInstalledTaskInfos = (signal?: AbortSignal) =>
-  callJob<TaskInfo[]>("list_installed_task_infos", {}, signal);
-export const cancelTask = (taskId: string) => callJob<boolean>("cancel", { task_id: taskId });
-export const submitTask = (task: string, values: Record<string, unknown>) =>
-  callJob<{ accepted: boolean; task: string }>("submit", { task, ...values });
+const remoteBody = (remoteIp?: string) => remoteIp ? { remote_ip: remoteIp } : {};
+
+export const listTaskStatuses = (remoteIp?: string, signal?: AbortSignal) =>
+  callJob<TaskStatus[]>("list_runtime_task_statuses", remoteBody(remoteIp), signal);
+export const listInstalledTaskInfos = (remoteIp?: string, signal?: AbortSignal) =>
+  callJob<TaskInfo[]>("list_installed_task_infos", remoteBody(remoteIp), signal);
+export const cancelTask = (taskId: string, remoteIp?: string) => callJob<boolean>("cancel", { task_id: taskId, ...remoteBody(remoteIp) });
+export const submitTask = (task: string, values: Record<string, unknown>, remoteIp?: string) =>
+  callJob<{ accepted: boolean; task: string }>("submit", { task, ...values, ...remoteBody(remoteIp) });
+export const machineStatus = (remoteIp?: string, signal?: AbortSignal) =>
+  callJob<MachineInfo>("machine_status", remoteBody(remoteIp), signal);
+export const listPlugins = (remoteIp?: string, signal?: AbortSignal) =>
+  callJob<PluginInfo[]>("list_plugins", remoteBody(remoteIp), signal);
+
+export const listJobs = (remoteAddress?: string, signal?: AbortSignal) => {
+  const base = remoteAddress ? `${window.location.protocol}//${remoteAddress}` : API_URL;
+  return fetch(`${base}/jobs`, { signal }).then(parseJson<JobInfo[]>);
+};
 
 interface RemoteMachineStatus { address: string; healthy: boolean }
 
@@ -42,6 +67,17 @@ function addressHost(address: string) {
   if (address.startsWith("[")) return address.slice(1, address.indexOf("]"));
   const separator = address.lastIndexOf(":");
   return separator < 0 ? address : address.slice(0, separator);
+}
+
+export const machineHost = addressHost;
+
+export async function listMachineOptions(signal?: AbortSignal): Promise<MachineNode[]> {
+  const remotes = await callJob<RemoteMachineStatus[]>("list_machines", {}, signal);
+  const localAddress = new URL(API_URL || window.location.href, window.location.href).host || "localhost";
+  return [
+    { id: "local", address: localAddress, isLocal: true, healthy: true },
+    ...remotes.map((remote) => ({ id: remote.address, address: remote.address, isLocal: false, healthy: remote.healthy })),
+  ];
 }
 
 export async function listMachineResources(): Promise<MachineNode[]> {
