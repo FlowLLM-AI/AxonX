@@ -49,11 +49,17 @@ class LoggerManager:
         self._lock = RLock()
         self._initialized = False
         self._config: LoggingConfig | None = None
+        self._log_path: Path | None = None
 
     @property
     def config(self) -> LoggingConfig | None:
         """Return the active configuration, if logging has been initialized."""
         return self._config
+
+    @property
+    def log_path(self) -> Path | None:
+        """Return the active process log file, when file logging is enabled."""
+        return self._log_path
 
     def configure(self, config: LoggingConfig, *, force: bool = False) -> None:
         """Initialize sinks, replacing them only when explicitly forced."""
@@ -63,6 +69,7 @@ class LoggerManager:
 
             logger.remove()
             logger.configure(extra={"name": "axonx"})
+            self._log_path = None
 
             if config.log_to_console:
                 logger.add(
@@ -73,11 +80,12 @@ class LoggerManager:
                 )
 
             if config.log_to_file:
-                log_dir = config.log_dir.expanduser()
+                log_dir = config.log_dir.expanduser().resolve()
                 log_dir.mkdir(parents=True, exist_ok=True)
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                self._log_path = log_dir / f"{timestamp}_{os.getpid()}.log"
                 logger.add(
-                    log_dir / f"{timestamp}_{os.getpid()}.log",
+                    self._log_path,
                     level=config.level,
                     format=_LOG_FORMAT,
                     rotation="00:00",
@@ -132,3 +140,8 @@ def get_logger(
         log_to_file=log_to_file,
         force_init=force_init,
     )
+
+
+def get_log_path() -> Path | None:
+    """Return the file receiving logs for the current process."""
+    return _LOGGER_MANAGER.log_path

@@ -577,6 +577,83 @@ async def test_list_runtime_task_statuses_returns_independent_snapshots(tmp_path
         assert (await manager.get_status(status.task_id)).result["value"] == 2
 
 
+async def test_read_task_log_returns_bounded_ranges(monkeypatch, tmp_path):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_path = log_dir / "task.log"
+    content = "".join(f"line {index:04d}\n" for index in range(400))
+    log_path.write_text(content, encoding="utf-8")
+    monkeypatch.setenv("AXONX_LOG_DIR", str(log_dir))
+
+    async with application(tmp_path / "workspace") as app:
+        manager = app.get_component("task_manager")
+        status = TaskStatus(
+            task_id="analysis#log",
+            task_type=TaskType.ANALYSIS,
+            state=TaskState.RUNNING,
+            log_path=str(log_path),
+        )
+        await manager.set_status(status.task_id, status)
+
+        tail = await app.run_job(
+            "read_task_log", task_id=status.task_id, offset=-1, limit=1024
+        )
+        beginning = await app.run_job(
+            "read_task_log", task_id=status.task_id, offset=0, limit=1024
+        )
+
+    encoded = content.encode()
+    assert tail.answer["content"] == encoded[-1024:].decode()
+    assert tail.answer["start_offset"] == len(encoded) - 1024
+    assert tail.answer["next_offset"] == len(encoded)
+    assert tail.answer["has_more_before"] is True
+    assert beginning.answer["content"] == encoded[:1024].decode()
+    assert beginning.answer["has_more_after"] is True
+
+
+async def test_task_manager_backfills_legacy_log_path_from_pid(monkeypatch, tmp_path):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_path = log_dir / "2026-09-13_20-59-53_2903.log"
+    log_path.write_text("legacy task log\n", encoding="utf-8")
+    monkeypatch.setenv("AXONX_LOG_DIR", str(log_dir))
+
+    async with application(tmp_path / "workspace") as app:
+        manager = app.get_component("task_manager")
+        status = TaskStatus(
+            task_id="etl#legacy",
+            task_type=TaskType.ETL,
+            pid=2903,
+        )
+        await manager.set_status(status.task_id, status)
+        record = await manager.get_status(status.task_id)
+
+    assert record.log_path == str(log_path)
+
+
+async def test_read_task_log_rejects_paths_outside_log_directory(
+    monkeypatch, tmp_path
+):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    outside = tmp_path / "secret.log"
+    outside.write_text("secret", encoding="utf-8")
+    monkeypatch.setenv("AXONX_LOG_DIR", str(log_dir))
+
+    async with application(tmp_path / "workspace") as app:
+        manager = app.get_component("task_manager")
+        status = TaskStatus(
+            task_id="analysis#outside",
+            task_type=TaskType.ANALYSIS,
+            log_path=str(outside),
+        )
+        await manager.set_status(status.task_id, status)
+        response = await app.run_job("read_task_log", task_id=status.task_id)
+
+    assert response.success is False
+    assert "outside the configured log directory" in response.answer
+
+
 def test_structured_task_submission_is_encoded_losslessly():
     task, config = split_task_arguments(
         {
@@ -646,6 +723,29 @@ async def test_cancel_returns_whether_signal_was_sent(monkeypatch, tmp_path):
         assert record.finished_at is not None
 
     assert signals == [(pid, signal.SIGKILL)]
+
+
+async def test_cancelled_status_is_not_overwritten_by_late_worker_report(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(os, "killpg", lambda _pid, _sig: None)
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        running = TaskStatus(
+            task_id="analysis#cancel-race",
+            task_type=TaskType.ANALYSIS,
+            state=TaskState.RUNNING,
+            pid=12345,
+        )
+        await manager.set_status(running.task_id, running)
+
+        assert await manager.cancel(running.task_id) is True
+        await manager.set_status(running.task_id, running)
+
+        record = await manager.get_status(running.task_id)
+        assert record.state == TaskState.CANCELLED
+        assert record.exit_code == 130
+        assert record.finished_at is not None
 
 
 async def test_cancel_returns_false_without_a_live_managed_process(tmp_path):

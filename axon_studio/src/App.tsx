@@ -9,6 +9,7 @@ import { API_URL, listMachineOptions, machineHost } from "./api";
 import { t } from "./i18n";
 import { MachinesPage } from "./MachinesPage";
 import { SubmitPage } from "./SubmitPage";
+import { TaskDetailPage } from "./TaskDetailPage";
 import { TasksPage } from "./TasksPage";
 import { ComingSoonPage, HomePage, JobCatalogPage, PluginsPage, TaskCatalogPage } from "./WorkspacePages";
 import type { Language, MachineNode, PageId, ThemePreference } from "./types";
@@ -39,7 +40,14 @@ const allPages = new Set<PageId>(["home", ...groups.flatMap((group) => group.ite
 const legacyPages: Record<string, PageId> = { rawData: "datasets", prediction: "inference" };
 const initialPage = (): PageId => {
   const value = window.location.hash.slice(1);
+  if (value.startsWith("tasks/")) return "tasks";
   return legacyPages[value] || (allPages.has(value as PageId) ? value as PageId : "home");
+};
+const initialTaskId = () => {
+  const value = window.location.hash.slice(1);
+  if (!value.startsWith("tasks/")) return "";
+  try { return decodeURIComponent(value.slice("tasks/".length)); }
+  catch { return ""; }
 };
 
 export default function App() {
@@ -50,6 +58,7 @@ export default function App() {
     return saved === "light" || saved === "dark" ? saved : "system";
   });
   const [page, setPageState] = useState<PageId>(initialPage);
+  const [taskDetailId, setTaskDetailId] = useState(initialTaskId);
   const [serviceOnline, setServiceOnline] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("axonx-sidebar") === "collapsed");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -63,7 +72,10 @@ export default function App() {
   const remoteIp = selectedMachine?.isLocal ? undefined : machineHost(selectedMachine.address);
 
   const setPage = (next: PageId) => {
-    window.location.hash = next; setPageState(next); setMobileOpen(false);
+    window.location.hash = next; setPageState(next); setTaskDetailId(""); setMobileOpen(false);
+  };
+  const openTask = (taskId: string) => {
+    window.location.hash = `tasks/${encodeURIComponent(taskId)}`; setPageState("tasks"); setTaskDetailId(taskId); setMobileOpen(false);
   };
 
   const loadMachines = async () => {
@@ -79,7 +91,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    const onHash = () => setPageState(initialPage());
+    const onHash = () => { setPageState(initialPage()); setTaskDetailId(initialTaskId()); };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -102,14 +114,15 @@ export default function App() {
   const content = useMemo(() => {
     if (page === "home") return <HomePage language={language} remoteIp={remoteIp} machine={selectedMachine} onConnection={setServiceOnline} onNavigate={setPage} />;
     if (page === "machines") return <MachinesPage language={language} onConnection={setServiceOnline} />;
-    if (page === "tasks") return <TasksPage language={language} remoteIp={remoteIp} onSubmit={() => setPage("submit")} onConnection={setServiceOnline} />;
+    if (page === "tasks" && taskDetailId) return <TaskDetailPage taskId={taskDetailId} language={language} remoteIp={remoteIp} onBack={() => setPage("tasks")} onConnection={setServiceOnline} />;
+    if (page === "tasks") return <TasksPage language={language} remoteIp={remoteIp} onSubmit={() => setPage("submit")} onOpenTask={openTask} onConnection={setServiceOnline} />;
     if (page === "submit") return <SubmitPage language={language} remoteIp={remoteIp} onViewTasks={() => setPage("tasks")} onConnection={setServiceOnline} />;
     if (page === "plugins") return <PluginsPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
     if (page === "jobs") return <JobCatalogPage language={language} machine={selectedMachine} onConnection={setServiceOnline} />;
     if (page === "taskCatalog") return <TaskCatalogPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} onSubmit={() => setPage("submit")} />;
     if (page === "backtest") return <ComingSoonPage page={page} language={language} partial detail={language === "zh" ? "后端已具备 ranking_backtest Task；专用参数表单和报告索引正在接入。现在可从“提交任务”运行。" : "The ranking_backtest Task is available now. A dedicated launcher and report index are being connected; use Submit Task in the meantime."} />;
     return <ComingSoonPage page={page} language={language} />;
-  }, [page, language, remoteIp, selectedMachine]);
+  }, [page, taskDetailId, language, remoteIp, selectedMachine]);
 
   const toggleSidebar = () => setSidebarCollapsed((value) => {
     localStorage.setItem("axonx-sidebar", value ? "expanded" : "collapsed"); return !value;
@@ -141,7 +154,7 @@ export default function App() {
     <div className="app-main">
       <header className="topbar">
         <button className="mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu /></button>
-        <div className="breadcrumb"><span>AXONX</span><ChevronRight />{text.pages[page]}</div>
+        <div className="breadcrumb"><span>AXONX</span><ChevronRight />{taskDetailId ? text.taskDetails : text.pages[page]}</div>
         <div className="header-actions">
           <div className="machine-picker" onMouseEnter={() => void loadMachines()} onFocus={() => void loadMachines()}>
             <button className="machine-trigger topbar-control"><Server /><span><small>{text.currentMachine}</small><strong>{selectedMachine?.isLocal ? text.localNode : selectedMachine?.address}</strong></span><ChevronDown /></button>

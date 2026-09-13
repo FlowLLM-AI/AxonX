@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..enums import ComponentEnum, TaskType
 from ..schema import TaskStatus
-from ..utils import get_logger
+from ..utils import get_log_path, get_logger
 
 from .status_manager import StatusCallback, TaskStatusManager
 
@@ -87,7 +87,10 @@ class BaseTask(ABC):
         self.logger = get_logger(type(self).__name__)
         self.config.generate_task_id(self.task_type)
         self._status = TaskStatus(
-            task_id=self.task_id, task_type=self.task_type, pid=os.getpid()
+            task_id=self.task_id,
+            task_type=self.task_type,
+            pid=os.getpid(),
+            log_path=str(get_log_path() or ""),
         )
         self._status_manager: TaskStatusManager | None = None
 

@@ -45,6 +45,19 @@ class LocalTaskManager(BaseTaskManager):
         """Return the persisted task-status file path."""
         return self.task_manager_dir / "status.json"
 
+    @property
+    def log_dir(self) -> Path:
+        """Return the process-log directory shared with Task workers."""
+        return Path(os.environ.get("AXONX_LOG_DIR") or "logs").expanduser().resolve()
+
+    def _attach_log_path(self, status: TaskStatus) -> None:
+        """Backfill legacy statuses by matching the worker PID in log filenames."""
+        if status.log_path or status.pid is None or not self.log_dir.is_dir():
+            return
+        matches = tuple(self.log_dir.glob(f"*_{status.pid}.log"))
+        if matches:
+            status.log_path = str(max(matches, key=lambda path: path.stat().st_mtime))
+
     def _save_status(self):
         payload = {
             "version": self.version,
@@ -71,6 +84,8 @@ class LocalTaskManager(BaseTaskManager):
                         for status in data.get("tasks", [])
                     )
                     self._statuses = {status.task_id: status for status in statuses}
+                    for status in self._statuses.values():
+                        self._attach_log_path(status)
             except Exception as exc:  # noqa
                 self._statuses = {}
                 self.logger.error(
@@ -208,19 +223,30 @@ class LocalTaskManager(BaseTaskManager):
     async def set_status(self, task_id: str, status: TaskStatus) -> None:
         if task_id != status.task_id:
             raise ValueError("Task status ID does not match task_id")
-        self._statuses[task_id] = status.model_copy(deep=True)
+        current = self._statuses.get(task_id)
+        if current is not None and current.state == TaskState.CANCELLED:
+            # A status report may already be in flight when SIGKILL is sent.
+            # Cancellation is terminal and must not be overwritten by that stale
+            # worker snapshot after ``cancel`` has persisted it.
+            return
+        snapshot = status.model_copy(deep=True)
+        self._attach_log_path(snapshot)
+        self._statuses[task_id] = snapshot
         self._save_status()
 
     async def list_runtime_task_ids(self):
         return sorted(self._statuses)
 
     async def list_runtime_task_statuses(self):
+        for status in self._statuses.values():
+            self._attach_log_path(status)
         return [
             self._statuses[task_id].model_copy(deep=True)
             for task_id in sorted(self._statuses, reverse=True)
         ]
 
     async def get_status(self, task_id):
+        self._attach_log_path(self._statuses[task_id])
         return self._statuses[task_id].model_copy(deep=True)
 
     async def cancel(self, task_id: str) -> bool:

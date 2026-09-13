@@ -15,11 +15,12 @@ from axonx import BaseConfig, BaseTask, cli
 from axonx.components.client import HttpClient
 from axonx.enums import TaskType
 from axonx.schema import ClientOptions, Command, Response, TaskStatus
-from axonx.task.backtest import RankingBacktestTask
+from axonx.task.alpha158 import RankingBacktestTask
 from axonx.task.common import DemoTask
 from axonx.task.data import DownloadTushareTask, TushareDownloadConfig
 from axonx.task.status_reporter import HttpTaskStatusReporter
 from axonx.task.resolver import list_installed_task_infos
+from axonx.utils import get_logger
 from axonx.utils.cli import parse_command
 
 
@@ -41,6 +42,15 @@ class CliTask(BaseTask):
     def record_config(self):
         self.report_progress(50)
         self.context.update(amount=self.config.amount, dry_run=self.config.dry_run)
+
+
+def test_task_status_records_the_active_process_log(tmp_path):
+    get_logger(log_dir=tmp_path / "logs", log_to_console=False, force_init=True)
+    try:
+        task = CliTask({"amount": 1}, workspace_path=tmp_path)
+        assert Path(task.status.log_path).parent == (tmp_path / "logs").resolve()
+    finally:
+        get_logger(log_to_console=False, log_to_file=False, force_init=True)
 
 
 def test_installed_task_infos_include_only_public_config(monkeypatch):
@@ -90,11 +100,7 @@ def test_tushare_config_accepts_compact_dates_converted_by_cli():
     )
 
     config = TushareDownloadConfig.model_validate(
-        {
-            key: value
-            for key, value in command.arguments.items()
-            if key in {"start_date", "end_date"}
-        },
+        {key: value for key, value in command.arguments.items() if key in {"start_date", "end_date"}},
     )
 
     assert config.start_date == "20100101"
@@ -154,9 +160,7 @@ def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
 
     task.sort_output_files()
 
-    assert [
-        path.relative_to(root).as_posix() for path in map(Path, task.context["files"])
-    ] == [
+    assert [path.relative_to(root).as_posix() for path in map(Path, task.context["files"])] == [
         "2026/20260104/daily.parquet",
         "2026/20260104/adj_factor.parquet",
         "2026/20260105/daily.parquet",
@@ -214,10 +218,7 @@ def test_task_status_accepts_an_optional_log_path():
 def test_local_task_uses_registered_config(monkeypatch, capsys):
     monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: CliTask)
 
-    assert (
-        cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"])
-        == 0
-    )
+    assert cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"]) == 0
 
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
 
@@ -232,12 +233,14 @@ def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path
 
     monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: WorkspaceTask)
     monkeypatch.setattr(
-        cli, "resolve_app_config", lambda **_kwargs: {"workspace_dir": str(tmp_path)}
+        cli,
+        "resolve_app_config",
+        lambda **_kwargs: {"workspace_dir": str(tmp_path)},
     )
 
     assert cli.main(["exec", "--task", "sample"]) == 0
     assert json.loads(capsys.readouterr().out) == {
-        "workspace_path": str(tmp_path.resolve())
+        "workspace_path": str(tmp_path.resolve()),
     }
 
 
@@ -270,9 +273,7 @@ def test_progress_delivery_runs_on_a_dedicated_thread(monkeypatch):
     with HttpTaskStatusReporter(task.logger) as reporter:
         task.execute(emit=reporter.publish)
 
-    percentages = [
-        status.steps[0].percentage if status.steps else None for _, status in deliveries
-    ]
+    percentages = [status.steps[0].percentage if status.steps else None for _, status in deliveries]
     assert percentages == [None, None, None, 50, 100, 100]
     assert deliveries[0][1].steps == []
     assert deliveries[-1][1].steps[0].finished_at is not None
@@ -304,7 +305,7 @@ def test_task_steps_stay_on_the_calling_thread():
             self.context["thread_id"] = threading.get_ident()
 
     assert ThreadTask({"amount": 1}, workspace_path=".").execute() == {
-        "thread_id": caller
+        "thread_id": caller,
     }
 
 
@@ -398,7 +399,7 @@ def test_submit_forwards_the_same_task_arguments(monkeypatch, capsys):
         ),
     ]
     assert json.loads(capsys.readouterr().out)["answer"] == {
-        "task_id": "analysis_20240601120000_abcd"
+        "task_id": "analysis_20240601120000_abcd",
     }
 
 
@@ -414,7 +415,9 @@ def test_start_prints_logo_before_running_service(monkeypatch):
     service = Service()
     configs = []
     monkeypatch.setattr(
-        cli, "load_env", lambda: {"FROM_DOTENV": "dotenv", "PRECEDENCE": "dotenv"}
+        cli,
+        "load_env",
+        lambda: {"FROM_DOTENV": "dotenv", "PRECEDENCE": "dotenv"},
     )
     monkeypatch.setattr(
         cli,
@@ -422,23 +425,28 @@ def test_start_prints_logo_before_running_service(monkeypatch):
         lambda **_kwargs: {"environment": {"PRECEDENCE": "config"}},
     )
     monkeypatch.setattr(
-        cli, "Application", lambda **config: configs.append(config) or app
+        cli,
+        "Application",
+        lambda **config: configs.append(config) or app,
     )
     monkeypatch.setattr(cli, "HttpService", lambda **_config: service)
     monkeypatch.setattr(
-        cli, "print_logo", lambda config, runtime: events.append((config, runtime))
+        cli,
+        "print_logo",
+        lambda config, runtime: events.append((config, runtime)),
     )
 
     assert cli.main(["start"]) == 0
     assert configs == [
-        {"environment": {"FROM_DOTENV": "dotenv", "PRECEDENCE": "config"}}
+        {"environment": {"FROM_DOTENV": "dotenv", "PRECEDENCE": "config"}},
     ]
     assert events == [(app.app_config, service), "serve"]
 
 
 def test_exec_without_arguments_lists_available_tasks(monkeypatch, capsys):
     monkeypatch.setattr(
-        "axonx.task.executor.installed_tasks", lambda: {"sample": CliTask}
+        "axonx.task.executor.installed_tasks",
+        lambda: {"sample": CliTask},
     )
 
     assert cli.main(["exec"]) == 0
@@ -460,7 +468,7 @@ def test_task_options_are_strict(monkeypatch, capsys):
 
 def test_command_options_support_nested_fields():
     command, _ = parse_command(
-        ["deploy", "--service.port", "2333", "--service.public-host", "example.test"]
+        ["deploy", "--service.port", "2333", "--service.public-host", "example.test"],
     )
 
     assert command.arguments == {

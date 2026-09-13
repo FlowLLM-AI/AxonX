@@ -1,7 +1,13 @@
 """Public utility helpers."""
 
 from .env import EnvLoader, load_env, parse_env_file
-from .logging import LoggerManager, LoggingConfig, format_log_arguments, get_logger
+from .logging import (
+    LoggerManager,
+    LoggingConfig,
+    format_log_arguments,
+    get_log_path,
+    get_logger,
+)
 from .logo import print_logo
 
 __all__ = [
@@ -9,6 +15,7 @@ __all__ = [
     "LoggerManager",
     "LoggingConfig",
     "format_log_arguments",
+    "get_log_path",
     "get_logger",
     "load_env",
     "parse_env_file",

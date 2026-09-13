@@ -1,4 +1,4 @@
-"""Reusable cross-sectional ranking backtest task."""
+"""Run a cross-sectional ranking backtest for the Alpha158 workflow."""
 
 from __future__ import annotations
 
@@ -52,9 +52,7 @@ class RankingBacktestConfig(BaseConfig):
     @staticmethod
     def parse_positive_ints(value: str) -> tuple[int, ...]:
         try:
-            values = tuple(
-                int(part.strip()) for part in value.split(",") if part.strip()
-            )
+            values = tuple(int(part.strip()) for part in value.split(",") if part.strip())
         except ValueError as exc:
             raise ValueError("top_ns 必须是逗号分隔的正整数") from exc
         if not values or any(item <= 0 for item in values):
@@ -131,9 +129,7 @@ class RankingBacktestTask(BaseTask):
         if not input_file.is_file():
             raise FileNotFoundError(f"回测输入不存在: {input_file}")
         frame = pd.read_parquet(input_file)
-        missing = [
-            column for column in self.REQUIRED_COLUMNS if column not in frame.columns
-        ]
+        missing = [column for column in self.REQUIRED_COLUMNS if column not in frame.columns]
         if missing:
             raise ValueError(f"回测输入缺少字段: {', '.join(missing)}")
         if frame.columns.duplicated().any():
@@ -170,16 +166,12 @@ class RankingBacktestTask(BaseTask):
         if (frame.loc[frame["label_valid"], "actual_return"] <= -1.0).any():
             raise ValueError("有效 actual_return 必须大于 -1")
 
-        index_columns = tuple(
-            column for column in frame if column.startswith("index_weight_")
-        )
-        index_names = tuple(
-            column.removeprefix("index_weight_") for column in index_columns
-        )
+        index_columns = tuple(column for column in frame if column.startswith("index_weight_"))
+        index_names = tuple(column.removeprefix("index_weight_") for column in index_columns)
         reserved_names = sorted(set(index_names) & {"", "none", "universe"})
         if reserved_names:
             raise ValueError(
-                f"指数权重名称为空或与保留基准冲突: {', '.join(reserved_names)}"
+                f"指数权重名称为空或与保留基准冲突: {', '.join(reserved_names)}",
             )
         if len(index_names) != len(set(index_names)):
             raise ValueError("清理后的指数权重名称必须唯一")
@@ -196,9 +188,7 @@ class RankingBacktestTask(BaseTask):
             if (daily_totals > 1.05).any():
                 raise ValueError(f"{column} 必须使用小数权重，且每日合计不能明显超过 1")
 
-        model_rows = (
-            frame["label_valid"] & frame["is_model_candidate"] & frame["pred"].notna()
-        )
+        model_rows = frame["label_valid"] & frame["is_model_candidate"] & frame["pred"].notna()
         eligible_rows = model_rows & frame["is_buyable_at_signal"]
         if not model_rows.any() or not eligible_rows.any():
             raise ValueError("模型评价或可买 TopN 过滤后没有样本")
@@ -225,7 +215,7 @@ class RankingBacktestTask(BaseTask):
                 normalized.append(string_values[value.strip().lower()])
             else:
                 raise ValueError(
-                    f"{column} 只能包含布尔值、0/1 或 true/false 字符串: {value!r}"
+                    f"{column} 只能包含布尔值、0/1 或 true/false 字符串: {value!r}",
                 )
         return pd.Series(normalized, index=values.index, dtype=bool)
 
@@ -234,13 +224,10 @@ class RankingBacktestTask(BaseTask):
         previous_weights: dict[int, dict[str, float]] = {}
         net_values = {top_n: 1.0 for top_n in self.context["top_ns"]}
         for trade_date, all_rows in self.context["frame"].groupby(
-            "trade_date", sort=True
+            "trade_date",
+            sort=True,
         ):
-            model = all_rows[
-                all_rows["label_valid"]
-                & all_rows["is_model_candidate"]
-                & all_rows["pred"].notna()
-            ]
+            model = all_rows[all_rows["label_valid"] & all_rows["is_model_candidate"] & all_rows["pred"].notna()]
             eligible = model[model["is_buyable_at_signal"]].sort_values(
                 ["pred", "ts_code"],
                 ascending=[False, True],
@@ -253,10 +240,14 @@ class RankingBacktestTask(BaseTask):
                 "candidates": len(model),
                 "buyable_candidates": len(eligible),
                 "ic": self.safe_correlation(
-                    model["pred"], model["actual_return"], method="pearson"
+                    model["pred"],
+                    model["actual_return"],
+                    method="pearson",
                 ),
                 "rank_ic": self.safe_correlation(
-                    model["pred"], model["actual_return"], method="spearman"
+                    model["pred"],
+                    model["actual_return"],
+                    method="spearman",
                 ),
                 "benchmark_universe": float(model["actual_return"].mean()),
             }
@@ -266,9 +257,7 @@ class RankingBacktestTask(BaseTask):
                 selected_count = len(selected)
                 weights = {code: 1.0 / selected_count for code in selected["ts_code"]}
                 turnover = (
-                    0.0
-                    if top_n not in previous_weights
-                    else self.portfolio_turnover(previous_weights[top_n], weights)
+                    0.0 if top_n not in previous_weights else self.portfolio_turnover(previous_weights[top_n], weights)
                 )
                 gross_return = float(selected["actual_return"].mean())
                 cost = turnover * self.config.transaction_cost_rate
@@ -288,33 +277,22 @@ class RankingBacktestTask(BaseTask):
             rows.append(row)
         if not rows:
             raise ValueError("没有同时包含有效模型样本和可买样本的交易日")
-        self.context["daily"] = (
-            pd.DataFrame(rows)
-            .sort_values("trade_date", kind="stable")
-            .reset_index(drop=True)
-        )
+        self.context["daily"] = pd.DataFrame(rows).sort_values("trade_date", kind="stable").reset_index(drop=True)
 
     def add_index_returns(self, row: dict[str, Any], frame: pd.DataFrame) -> None:
         for column in self.context["index_columns"]:
             name = self.context["index_names"][column]
             weights = frame[column]
             total_weight = float(weights.sum(skipna=True))
-            valid_return = (
-                frame["label_valid"] & frame["actual_return"].notna() & weights.notna()
-            )
+            valid_return = frame["label_valid"] & frame["actual_return"].notna() & weights.notna()
             covered_weight = float(weights.where(valid_return, 0.0).sum())
             coverage = min(covered_weight, 1.0)
             row[f"benchmark_{name}_coverage"] = coverage
             row[f"benchmark_{name}"] = (
                 float(
-                    (
-                        weights.where(valid_return, 0.0)
-                        * frame["actual_return"].fillna(0.0)
-                    ).sum()
-                    / covered_weight
+                    (weights.where(valid_return, 0.0) * frame["actual_return"].fillna(0.0)).sum() / covered_weight,
                 )
-                if total_weight > 0.0
-                and coverage >= self.config.minimum_index_weight_coverage
+                if total_weight > 0.0 and coverage >= self.config.minimum_index_weight_coverage
                 else math.nan
             )
 
@@ -324,7 +302,8 @@ class RankingBacktestTask(BaseTask):
         dated = daily.assign(
             year=daily["trade_date"].str[:4],
             quarter=pd.PeriodIndex(
-                pd.to_datetime(daily["trade_date"], format="%Y%m%d"), freq="Q"
+                pd.to_datetime(daily["trade_date"], format="%Y%m%d"),
+                freq="Q",
             ).astype(str),
         )
         overall: list[dict[str, Any]] = []
@@ -459,7 +438,8 @@ class RankingBacktestTask(BaseTask):
         daily: pd.DataFrame = self.context["daily"]
         dates = pd.to_datetime(daily["trade_date"], format="%Y%m%d")
         descriptor, temporary = tempfile.mkstemp(
-            dir=self.context["output_dir"], suffix=".pdf"
+            dir=self.context["output_dir"],
+            suffix=".pdf",
         )
         os.close(descriptor)
         try:
@@ -497,7 +477,7 @@ class RankingBacktestTask(BaseTask):
                         linewidth=1,
                     )
                 axis.set_title(
-                    f"Compounded Return After Costs ({self.config.transaction_cost_rate:.2%})"
+                    f"Compounded Return After Costs ({self.config.transaction_cost_rate:.2%})",
                 )
                 axis.set_ylabel("Compounded net return")
                 axis.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
@@ -507,9 +487,7 @@ class RankingBacktestTask(BaseTask):
                 pdf.savefig(figure)
                 plt.close(figure)
 
-                summary_top_n = (
-                    5 if 5 in self.context["top_ns"] else self.context["top_ns"][0]
-                )
+                summary_top_n = 5 if 5 in self.context["top_ns"] else self.context["top_ns"][0]
                 figure, axis = plt.subplots(figsize=(14, 6), constrained_layout=True)
                 self.draw_quarterly_performance(axis, daily, summary_top_n)
                 pdf.savefig(figure)
@@ -518,7 +496,11 @@ class RankingBacktestTask(BaseTask):
                 rank_ic_mean = float(daily["rank_ic"].mean())
                 figure, axis = plt.subplots(figsize=(12, 4), constrained_layout=True)
                 axis.bar(
-                    dates, daily["rank_ic"], width=1, alpha=0.3, label="Daily RankIC"
+                    dates,
+                    daily["rank_ic"],
+                    width=1,
+                    alpha=0.3,
+                    label="Daily RankIC",
                 )
                 axis.plot(
                     dates,
@@ -550,13 +532,17 @@ class RankingBacktestTask(BaseTask):
         axis.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
 
     def draw_quarterly_performance(
-        self, axis: Any, daily: pd.DataFrame, top_n: int
+        self,
+        axis: Any,
+        daily: pd.DataFrame,
+        top_n: int,
     ) -> None:
         from matplotlib.ticker import PercentFormatter
 
         dated = daily.assign(
             quarter=pd.PeriodIndex(
-                pd.to_datetime(daily["trade_date"], format="%Y%m%d"), freq="Q"
+                pd.to_datetime(daily["trade_date"], format="%Y%m%d"),
+                freq="Q",
             ).astype(str),
         )
         rows = []
@@ -595,12 +581,18 @@ class RankingBacktestTask(BaseTask):
         handles, labels = axis.get_legend_handles_labels()
         other_handles, other_labels = ratio_axis.get_legend_handles_labels()
         axis.legend(
-            handles + other_handles, labels + other_labels, loc="upper left", ncol=3
+            handles + other_handles,
+            labels + other_labels,
+            loc="upper left",
+            ncol=3,
         )
         axis.set_title(f"Top {top_n} Quarterly Performance and Overall Summary")
 
     def quarterly_plot_row(
-        self, period: str, frame: pd.DataFrame, top_n: int
+        self,
+        period: str,
+        frame: pd.DataFrame,
+        top_n: int,
     ) -> dict[str, Any]:
         returns = frame[f"top{top_n}_gross_return"]
         return {
@@ -608,7 +600,8 @@ class RankingBacktestTask(BaseTask):
             "return": float(returns.sum()),
             "max_drawdown": self.arithmetic_max_drawdown(returns),
             "information_ratio": self.information_ratio(
-                returns, frame["benchmark_universe"]
+                returns,
+                frame["benchmark_universe"],
             ),
         }
 
@@ -661,9 +654,7 @@ class RankingBacktestTask(BaseTask):
             overall_file=self.context["overall_path"],
             yearly_file=self.context["yearly_path"],
             quarterly_file=self.context["quarterly_path"],
-            report_file=self.context["report_path"]
-            if self.config.plot_report
-            else None,
+            report_file=self.context["report_path"] if self.config.plot_report else None,
             metadata_file=self.context["metadata_path"],
         )
 
@@ -676,11 +667,11 @@ class RankingBacktestTask(BaseTask):
 
     @staticmethod
     def portfolio_turnover(
-        previous: dict[str, float], current: dict[str, float]
+        previous: dict[str, float],
+        current: dict[str, float],
     ) -> float:
         return 0.5 * sum(
-            abs(current.get(code, 0.0) - previous.get(code, 0.0))
-            for code in previous.keys() | current.keys()
+            abs(current.get(code, 0.0) - previous.get(code, 0.0)) for code in previous.keys() | current.keys()
         )
 
     @staticmethod
@@ -692,18 +683,12 @@ class RankingBacktestTask(BaseTask):
         return float(values.mean() / deviation)
 
     def sharpe(self, returns: pd.Series) -> float:
-        daily_risk_free = (1.0 + self.config.annual_risk_free_rate) ** (
-            1.0 / self.config.annualization_days
-        ) - 1.0
+        daily_risk_free = (1.0 + self.config.annual_risk_free_rate) ** (1.0 / self.config.annualization_days) - 1.0
         return self.annualized_ratio(returns - daily_risk_free)
 
     def information_ratio(self, returns: pd.Series, benchmark: pd.Series) -> float:
         aligned = pd.concat((returns, benchmark), axis=1).dropna()
-        return (
-            self.annualized_ratio(aligned.iloc[:, 0] - aligned.iloc[:, 1])
-            if not aligned.empty
-            else 0.0
-        )
+        return self.annualized_ratio(aligned.iloc[:, 0] - aligned.iloc[:, 1]) if not aligned.empty else 0.0
 
     def annualized_ratio(self, values: pd.Series) -> float:
         return self.ratio(values) * math.sqrt(self.config.annualization_days)
@@ -748,7 +733,9 @@ class RankingBacktestTask(BaseTask):
     @staticmethod
     def atomic_csv(frame: pd.DataFrame, path: Path) -> None:
         descriptor, temporary = tempfile.mkstemp(
-            dir=path.parent, suffix=".csv", text=True
+            dir=path.parent,
+            suffix=".csv",
+            text=True,
         )
         os.close(descriptor)
         try:
@@ -770,7 +757,9 @@ class RankingBacktestTask(BaseTask):
     @staticmethod
     def atomic_text(path: Path, content: str) -> None:
         descriptor, temporary = tempfile.mkstemp(
-            dir=path.parent, suffix=path.suffix, text=True
+            dir=path.parent,
+            suffix=path.suffix,
+            text=True,
         )
         os.close(descriptor)
         try:

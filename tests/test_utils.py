@@ -3,7 +3,7 @@
 # Tests favor descriptive function names over repeated docstrings.
 # pylint: disable=missing-function-docstring
 
-from axonx.utils import EnvLoader, get_logger
+from axonx.utils import EnvLoader, get_log_path, get_logger
 
 
 def test_env_loader_discovers_and_caches_nearest_file(tmp_path, monkeypatch):
@@ -34,5 +34,7 @@ def test_get_logger_configures_named_file_sink(tmp_path):
     content = log_file.read_text(encoding="utf-8")
     assert "axonx.Probe" in content
     assert "value=3" in content
+    assert get_log_path() == log_file.resolve()
 
     get_logger(log_to_console=False, log_to_file=False, force_init=True)
+    assert get_log_path() is None

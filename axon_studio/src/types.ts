@@ -41,6 +41,16 @@ export interface TaskStatus {
   log_path: string;
 }
 
+export interface TaskLogChunk {
+  content: string;
+  start_offset: number;
+  next_offset: number;
+  file_size: number;
+  has_more_before: boolean;
+  has_more_after: boolean;
+  reset: boolean;
+}
+
 export interface JsonSchema {
   type?: string | string[];
   title?: string;
