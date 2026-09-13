@@ -17,6 +17,7 @@ from axonx.constants import (
     AXONX_DEFAULT_CONNECT_HOST,
     AXONX_DEFAULT_PORT,
     AXONX_SERVICE_INFO,
+    AXONX_TASK_LOG_DIR,
     AXONX_TASK_WORKSPACE_DIR,
 )
 from axonx.plugin.manifest import parse_plugin_manifest
@@ -25,8 +26,8 @@ from axonx.schema import PluginManifest, TaskStatus
 from axonx.task.arguments import build_task_argv, split_task_arguments
 
 
-def application(tmp_path, **manager):
-    config = resolve_app_config(workspace_dir=str(tmp_path))
+def application(tmp_path, *, log_dir="logs", **manager):
+    config = resolve_app_config(workspace_dir=str(tmp_path), log_dir=str(log_dir))
     config.setdefault("environment", {})["PYTHONPATH"] = str(Path(__file__).parent)
     config["components"]["task_manager"]["default"].update(**manager)
     return Application(**config)
@@ -59,9 +60,10 @@ async def test_task_manager_starts_exec_with_original_arguments(
         lambda *_args: pytest.fail("manager close must not signal task processes"),
     )
     monkeypatch.setenv("AXONX_PARENT_ONLY", "not inherited")
+    log_dir = tmp_path / "service-logs"
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host":"service.internal","port":4321}')
     argv = ["--task", "sales", "--output", "result file.parquet"]
-    async with application(tmp_path) as app:
+    async with application(tmp_path, log_dir=log_dir) as app:
         manager = app.get_component("task_manager")
         await manager.submit(argv)
         await asyncio.gather(*manager._process_monitors)
@@ -74,6 +76,7 @@ async def test_task_manager_starts_exec_with_original_arguments(
         options["env"][AXONX_SERVICE_INFO] == '{"host":"service.internal","port":4321}'
     )
     assert options["env"][AXONX_TASK_WORKSPACE_DIR] == str(tmp_path.resolve())
+    assert options["env"][AXONX_TASK_LOG_DIR] == str(log_dir.resolve())
     assert options["env"]["PYTHONPATH"] == str(Path(__file__).parent)
     assert options["stderr"] == asyncio.subprocess.PIPE
     success_log = capsys.readouterr().err
@@ -676,9 +679,8 @@ async def test_read_task_log_returns_bounded_ranges(monkeypatch, tmp_path):
     log_path = log_dir / "task.log"
     content = "".join(f"line {index:04d}\n" for index in range(400))
     log_path.write_text(content, encoding="utf-8")
-    monkeypatch.setenv("AXONX_LOG_DIR", str(log_dir))
 
-    async with application(tmp_path / "workspace") as app:
+    async with application(tmp_path / "workspace", log_dir=log_dir) as app:
         manager = app.get_component("task_manager")
         status = TaskStatus(
             task_id="analysis#log",
@@ -709,9 +711,8 @@ async def test_task_manager_backfills_legacy_log_path_from_pid(monkeypatch, tmp_
     log_dir.mkdir()
     log_path = log_dir / "2026-09-13_20-59-53_2903.log"
     log_path.write_text("legacy task log\n", encoding="utf-8")
-    monkeypatch.setenv("AXONX_LOG_DIR", str(log_dir))
 
-    async with application(tmp_path / "workspace") as app:
+    async with application(tmp_path / "workspace", log_dir=log_dir) as app:
         manager = app.get_component("task_manager")
         status = TaskStatus(
             task_id="etl#legacy",
@@ -731,9 +732,8 @@ async def test_read_task_log_rejects_paths_outside_log_directory(
     log_dir.mkdir()
     outside = tmp_path / "secret.log"
     outside.write_text("secret", encoding="utf-8")
-    monkeypatch.setenv("AXONX_LOG_DIR", str(log_dir))
 
-    async with application(tmp_path / "workspace") as app:
+    async with application(tmp_path / "workspace", log_dir=log_dir) as app:
         manager = app.get_component("task_manager")
         status = TaskStatus(
             task_id="analysis#outside",
@@ -798,7 +798,17 @@ async def test_cancel_returns_whether_signal_was_sent(monkeypatch, tmp_path):
     signals = []
     pid = 12345
 
-    monkeypatch.setattr(os, "killpg", lambda pid, sig: signals.append((pid, sig)))
+    class Process:
+        pid = 12345
+        returncode = None
+
+    process = Process()
+
+    def killpg(received_pid, sig):
+        signals.append((received_pid, sig))
+        process.returncode = -sig
+
+    monkeypatch.setattr(os, "killpg", killpg)
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
         status = TaskStatus(
@@ -808,6 +818,7 @@ async def test_cancel_returns_whether_signal_was_sent(monkeypatch, tmp_path):
             pid=pid,
         )
         await manager.set_status(status.task_id, status)
+        manager._processes[pid] = process
 
         assert await manager.cancel(status.task_id) is True
         record = await manager.get_status(status.task_id)
@@ -821,7 +832,16 @@ async def test_cancel_returns_whether_signal_was_sent(monkeypatch, tmp_path):
 async def test_cancelled_status_is_not_overwritten_by_late_worker_report(
     monkeypatch, tmp_path
 ):
-    monkeypatch.setattr(os, "killpg", lambda _pid, _sig: None)
+    class Process:
+        pid = 12345
+        returncode = None
+
+    process = Process()
+
+    def killpg(_pid, sig):
+        process.returncode = -sig
+
+    monkeypatch.setattr(os, "killpg", killpg)
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
         running = TaskStatus(
@@ -831,6 +851,7 @@ async def test_cancelled_status_is_not_overwritten_by_late_worker_report(
             pid=12345,
         )
         await manager.set_status(running.task_id, running)
+        manager._processes[process.pid] = process
 
         assert await manager.cancel(running.task_id) is True
         await manager.set_status(running.task_id, running)
@@ -842,9 +863,6 @@ async def test_cancelled_status_is_not_overwritten_by_late_worker_report(
 
 
 async def test_cancel_returns_false_without_a_live_managed_process(tmp_path):
-    def missing_process(_pid, _sig):
-        raise ProcessLookupError
-
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
         status = TaskStatus(
@@ -855,7 +873,11 @@ async def test_cancel_returns_false_without_a_live_managed_process(tmp_path):
         )
         await manager.set_status(status.task_id, status)
         with pytest.MonkeyPatch.context() as monkeypatch:
-            monkeypatch.setattr(os, "killpg", missing_process)
+            monkeypatch.setattr(
+                os,
+                "killpg",
+                lambda *_args: pytest.fail("an unmanaged PID must never be signalled"),
+            )
             assert await manager.cancel(status.task_id) is False
 
         assert (await manager.get_status(status.task_id)).state == TaskState.RUNNING
@@ -921,7 +943,7 @@ async def test_delete_ignores_unknown_and_duplicate_task_ids(tmp_path):
         assert await manager.list_runtime_task_ids() == []
 
 
-async def test_unfinished_history_is_loaded_without_rewriting(tmp_path):
+async def test_unfinished_history_is_failed_after_restart(tmp_path):
     directory = tmp_path / "task_manager"
     directory.mkdir(parents=True)
     (directory / "status.json").write_text(
@@ -942,8 +964,42 @@ async def test_unfinished_history_is_loaded_without_rewriting(tmp_path):
     )
     async with application(tmp_path) as app:
         record = await app.get_component("task_manager").get_status("old")
-        assert record.state == "running"
+        assert record.state == "failed"
         assert record.pid == os.getpid()
+        assert record.exit_code == 1
+        assert record.finished_at is not None
+        assert "ownership was lost" in record.error
+
+
+async def test_task_history_from_another_workspace_is_ignored(tmp_path):
+    directory = tmp_path / "task_manager"
+    directory.mkdir(parents=True)
+    status_path = directory / "status.json"
+    status_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "workspace": "/Users/source/project/.axonx",
+                "tasks": [
+                    {
+                        "task_id": "foreign",
+                        "task_type": "analysis",
+                        "state": "running",
+                        "pid": os.getpid(),
+                        "log_path": "/Users/source/project/logs/task.log",
+                    },
+                ],
+            },
+        ),
+    )
+
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        assert await manager.list_runtime_task_ids() == []
+
+    persisted = json.loads(status_path.read_text())
+    assert persisted["workspace"] == str(tmp_path.resolve())
+    assert persisted["tasks"] == []
 
 
 async def test_task_manager_replaces_status_from_another_version_on_close(tmp_path):
@@ -970,7 +1026,11 @@ async def test_task_manager_replaces_status_from_another_version_on_close(tmp_pa
         assert manager.task_manager_dir == directory
         assert await manager.list_runtime_task_ids() == []
 
-    assert json.loads(status_path.read_text()) == {"version": 2, "tasks": []}
+    assert json.loads(status_path.read_text()) == {
+        "version": 2,
+        "workspace": str(tmp_path.resolve()),
+        "tasks": [],
+    }
 
 
 async def test_task_listing_jobs_separate_runtime_and_installed_tasks(tmp_path):
