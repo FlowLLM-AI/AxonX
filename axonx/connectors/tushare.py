@@ -13,11 +13,12 @@ if TYPE_CHECKING:
 
 DEFAULT_BASE_URL = "http://api.waditu.com/dataapi"
 IP_LIMIT_ERROR = "IP数量超限"
+RATE_LIMIT_ERROR = "频率超限"
 TRANSIENT_ERROR = "查询数据失败，请确认参数"
 
 
 class TushareClient:
-    """Query Tushare Pro endpoints with bounded transient-error retries."""
+    """Query Tushare Pro endpoints with bounded transient and persistent limit retries."""
 
     def __init__(
         self,
@@ -70,8 +71,8 @@ class TushareClient:
         import pandas as pd
 
         params = {"ts_type_name": self.base_url, **params}
-        retry = ip_retry = 0
-        delay = ip_delay = min(self.initial_delay, self.max_delay)
+        retry = limit_retry = 0
+        delay = limit_delay = min(self.initial_delay, self.max_delay)
 
         while True:
             try:
@@ -101,14 +102,16 @@ class TushareClient:
                 )
 
             message = str(result.get("msg", ""))
-            if IP_LIMIT_ERROR in message:
-                ip_retry += 1
-                ip_delay = self._wait(api_name, ip_retry, ip_delay, message)
-            elif TRANSIENT_ERROR in message and retry < self.retries:
+            if IP_LIMIT_ERROR in message or RATE_LIMIT_ERROR in message:
+                limit_retry += 1
+                wait = self.max_delay if RATE_LIMIT_ERROR in message else limit_delay
+                limit_delay = self._wait(api_name, limit_retry, wait, message)
+                continue
+            if TRANSIENT_ERROR in message and retry < self.retries:
                 retry += 1
                 delay = self._wait(api_name, retry, delay, message, self.retries)
-            else:
-                raise RuntimeError(message)
+                continue
+            raise RuntimeError(message)
 
     def query(self, api_name: str, fields: str = "", **params: Any) -> pd.DataFrame:
         """Query an endpoint that must return a complete response."""
