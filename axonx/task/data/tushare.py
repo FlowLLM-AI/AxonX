@@ -62,14 +62,15 @@ DATASETS = {
 
 
 class TushareDownloadConfig(BaseConfig):
-    """下载日期范围；默认下载截至今天的最近七个自然日。"""
+    """下载日期范围；start_date 未设置时下载截至 end_date 的最近若干自然日。"""
 
+    start_date: str | None = None
     end_date: str | None = None
     days_back: int = 7
     timeout: int = 600
     datasets: str = ",".join(DEFAULT_DOWNLOAD_GROUPS)
 
-    @field_validator("end_date", mode="before")
+    @field_validator("start_date", "end_date", mode="before")
     @classmethod
     def normalize_compact_date(cls, value: Any) -> Any:
         """Preserve YYYYMMDD values converted to integers by the generic CLI parser."""
@@ -128,9 +129,12 @@ class DownloadTushareTask(BaseTask):
 
     def initialize(self) -> None:
         end = min(self._parse_date(self.config.end_date) or date.today(), date.today())
-        if self.config.days_back <= 0:
+        start = self._parse_date(self.config.start_date)
+        if start is None and self.config.days_back <= 0:
             raise ValueError("days_back 必须大于 0")
-        start = end - timedelta(days=self.config.days_back - 1)
+        start = start or end - timedelta(days=self.config.days_back - 1)
+        if start > end:
+            raise ValueError("start_date 不能晚于 end_date")
         if self.config.timeout <= 0:
             raise ValueError("timeout 必须大于 0")
 

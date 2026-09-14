@@ -106,6 +106,29 @@ def test_tushare_config_accepts_compact_dates_converted_by_cli():
     assert config.end_date == "20260912"
 
 
+def test_tushare_config_uses_explicit_start_date(tmp_path):
+    task = DownloadTushareTask(
+        {"start_date": 20100101, "end_date": 20260914, "datasets": "stk_limit"},
+        workspace_path=tmp_path,
+    )
+
+    task.initialize()
+
+    assert task.context["start_date"] == "20100101"
+    assert task.context["end_date"] == "20260914"
+    assert len(task.context["days"]) == 6101
+
+
+def test_tushare_config_rejects_reversed_explicit_range(tmp_path):
+    task = DownloadTushareTask(
+        {"start_date": "20260915", "end_date": "20260914"},
+        workspace_path=tmp_path,
+    )
+
+    with pytest.raises(ValueError, match="start_date 不能晚于 end_date"):
+        task.initialize()
+
+
 def test_tushare_download_directory_is_inside_workspace(tmp_path):
     task = DownloadTushareTask(
         {"end_date": "20260912"},
