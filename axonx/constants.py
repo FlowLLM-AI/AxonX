@@ -12,6 +12,11 @@ PLUGIN_MANIFEST = "plugin.yaml"
 # clients created in the same process.
 AXONX_SERVICE_INFO = "AXONX_SERVICE_INFO"
 
+# Minimum delay between Task status HTTP requests. Task subprocesses may
+# override the default through this environment variable.
+AXONX_TASK_STATUS_MIN_INTERVAL = "AXONX_TASK_STATUS_MIN_INTERVAL"
+AXONX_DEFAULT_TASK_STATUS_MIN_INTERVAL = 3.0
+
 # Internal handoff from an application task manager to its Task subprocess.
 AXONX_TASK_WORKSPACE_DIR = "AXONX_TASK_WORKSPACE_DIR"
 AXONX_TASK_LOG_DIR = "AXONX_TASK_LOG_DIR"

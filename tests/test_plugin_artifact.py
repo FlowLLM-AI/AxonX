@@ -33,8 +33,7 @@ def test_install_artifact_force_reinstalls_plugin_without_dependencies(
     commands = []
     monkeypatch.setattr(
         "axonx.plugin.artifact.subprocess.run",
-        lambda command, **_kwargs: commands.append(command)
-        or SimpleNamespace(returncode=0, stderr="", stdout=""),
+        lambda command, **_kwargs: commands.append(command) or SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
     artifact = PluginArtifact(
         distribution="demo",

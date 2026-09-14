@@ -25,11 +25,7 @@ def _write_stderr(message: object) -> None:
 def format_log_arguments(arguments: Any) -> str:
     """Return a bounded representation suitable for invocation logs."""
     rendered = repr(arguments)
-    return (
-        rendered
-        if len(rendered) <= LOG_ARGUMENT_MAX_LENGTH
-        else f"{rendered[: LOG_ARGUMENT_MAX_LENGTH - 3]}..."
-    )
+    return rendered if len(rendered) <= LOG_ARGUMENT_MAX_LENGTH else f"{rendered[: LOG_ARGUMENT_MAX_LENGTH - 3]}..."
 
 
 @dataclass(frozen=True)
@@ -113,9 +109,7 @@ class LoggerManager:
             LoggingConfig(directory, level, log_to_console, log_to_file),
             force=force_init,
         )
-        qualified_name = (
-            name if name == "axonx" or name.startswith("axonx.") else f"axonx.{name}"
-        )
+        qualified_name = name if name == "axonx" or name.startswith("axonx.") else f"axonx.{name}"
         return logger.bind(name=qualified_name)
 
 

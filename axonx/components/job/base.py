@@ -97,15 +97,11 @@ class BaseJob(BaseComponent, ABC):
 
     def validate_arguments(self, arguments: Mapping[str, Any]) -> None:
         """Raise ``ValueError`` when arguments violate the job schema."""
-        public_arguments = {
-            key: value for key, value in arguments.items() if key != CLI_RAW_ARGUMENTS
-        }
+        public_arguments = {key: value for key, value in arguments.items() if key != CLI_RAW_ARGUMENTS}
         try:
             error = next(self._parameter_validator.iter_errors(public_arguments))
         except StopIteration:
             return
         location = ".".join(map(str, error.absolute_path))
         prefix = f"{location}: " if location else ""
-        raise ValueError(
-            f"Invalid arguments for job {self.name!r}: {prefix}{error.message}"
-        )
+        raise ValueError(f"Invalid arguments for job {self.name!r}: {prefix}{error.message}")

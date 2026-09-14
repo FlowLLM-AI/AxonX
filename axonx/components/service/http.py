@@ -81,24 +81,16 @@ class HttpService(BaseService):
         from fastmcp.utilities.lifespan import combine_lifespans
         from starlette.routing import Route
 
-        public_jobs = {
-            name: job for name, job in app.context.jobs.items() if job.is_servable
-        }
+        public_jobs = {name: job for name, job in app.context.jobs.items() if job.is_servable}
 
         @asynccontextmanager
         async def lifespan(_server):
             async with app:
                 previous_service_info = os.environ.get(AXONX_SERVICE_INFO)
-                advertised_host = (
-                    AXONX_DEFAULT_CONNECT_HOST
-                    if self.host == AXONX_DEFAULT_BIND_HOST
-                    else self.host
-                )
+                advertised_host = AXONX_DEFAULT_CONNECT_HOST if self.host == AXONX_DEFAULT_BIND_HOST else self.host
                 service_info = json.dumps({"host": advertised_host, "port": self.port})
                 os.environ[AXONX_SERVICE_INFO] = service_info
-                self.logger.info(
-                    f"Service started: {AXONX_SERVICE_INFO}={service_info}"
-                )
+                self.logger.info(f"Service started: {AXONX_SERVICE_INFO}={service_info}")
                 try:
                     yield
                 finally:
@@ -123,9 +115,7 @@ class HttpService(BaseService):
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        server.router.routes.append(
-            Route("/mcp", endpoint=mcp_app, include_in_schema=False)
-        )
+        server.router.routes.append(Route("/mcp", endpoint=mcp_app, include_in_schema=False))
 
         @server.get("/health")
         async def health():
@@ -154,13 +144,9 @@ class HttpService(BaseService):
                     "content_length": request.headers.get("content-length", ""),
                 },
             )
-            self.logger.info(
-                f"Plugin endpoint called: name=install_plugin arguments={arguments}"
-            )
+            self.logger.info(f"Plugin endpoint called: name=install_plugin arguments={arguments}")
             plugins = app.context.components.get("plugin", {})
-            plugin = cast(
-                "BasePluginComponent | None", next(iter(plugins.values()), None)
-            )
+            plugin = cast("BasePluginComponent | None", next(iter(plugins.values()), None))
             if plugin is None:
                 raise HTTPException(404, "Plugin component is not configured")
             if not plugin.allow_remote_install:
@@ -201,9 +187,7 @@ class HttpService(BaseService):
 
         return server
 
-    def _mount_web_app(
-        self, server, static_files, file_response, http_exception
-    ) -> None:
+    def _mount_web_app(self, server, static_files, file_response, http_exception) -> None:
         """Serve the optional AxonX Studio static build as a same-origin SPA."""
         if not self.web_enabled:
             return
@@ -215,9 +199,7 @@ class HttpService(BaseService):
 
         assets_dir = static_root / "assets"
         if assets_dir.is_dir():
-            server.mount(
-                "/assets", static_files(directory=str(assets_dir)), name="web-assets"
-            )
+            server.mount("/assets", static_files(directory=str(assets_dir)), name="web-assets")
         index_file = static_root / "index.html"
         no_cache_headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
 

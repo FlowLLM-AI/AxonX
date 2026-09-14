@@ -6,13 +6,13 @@ import os
 import pytest
 
 from axonx import Application
+
+
 async def _workspace_app(path):
     app = Application(
         workspace_dir=str(path),
         jobs={
-            "list_workspace_entries": {
-                "steps": [{"backend": "list_workspace_entries_step"}]
-            },
+            "list_workspace_entries": {"steps": [{"backend": "list_workspace_entries_step"}]},
             "preview_workspace_file": {
                 "parameters": {
                     "type": "object",
@@ -74,9 +74,7 @@ async def test_workspace_markdown_frontmatter_json_and_csv(tmp_path):
     try:
         markdown = await app.run_job("preview_workspace_file", path="readme.md")
         json_result = await app.run_job("preview_workspace_file", path="result.json")
-        csv_result = await app.run_job(
-            "preview_workspace_file", path="table.csv", offset=1, limit=1
-        )
+        csv_result = await app.run_job("preview_workspace_file", path="table.csv", offset=1, limit=1)
     finally:
         await app.close()
 
@@ -143,9 +141,7 @@ async def test_workspace_rejects_path_escape_and_external_symlink(tmp_path):
 
     app = await _workspace_app(workspace)
     try:
-        escaped = await app.run_job(
-            "preview_workspace_file", path=os.path.relpath(outside, workspace)
-        )
+        escaped = await app.run_job("preview_workspace_file", path=os.path.relpath(outside, workspace))
         linked = await app.run_job("preview_workspace_file", path=symlink.name)
         listing = await app.run_job("list_workspace_entries", path="")
     finally:
@@ -166,12 +162,8 @@ async def test_workspace_deletes_files_and_directories_but_not_root(tmp_path):
     file_path.write_text("{}", encoding="utf-8")
     app = await _workspace_app(tmp_path)
     try:
-        deleted_file = await app.run_job(
-            "delete_workspace_entry", path="single.json"
-        )
-        deleted_folder = await app.run_job(
-            "delete_workspace_entry", path="results"
-        )
+        deleted_file = await app.run_job("delete_workspace_entry", path="single.json")
+        deleted_folder = await app.run_job("delete_workspace_entry", path="results")
         rejected_root = await app.run_job("delete_workspace_entry", path=".")
     finally:
         await app.close()

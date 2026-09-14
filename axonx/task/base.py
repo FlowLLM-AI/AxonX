@@ -28,9 +28,7 @@ class BaseConfig(BaseModel):
 
     task_id: str | None = Field(default=None, frozen=True)
     task_type: TaskType | None = Field(default=None, frozen=True)
-    task_id_suffix: str = Field(
-        default_factory=lambda: uuid4().hex[-4:], pattern=r"^[A-Za-z0-9-]{1,32}$"
-    )
+    task_id_suffix: str = Field(default_factory=lambda: uuid4().hex[-4:], pattern=r"^[A-Za-z0-9-]{1,32}$")
 
     def generate_task_id(self, task_type: TaskType) -> str:
         """Generate or validate the immutable Task identity."""
@@ -40,16 +38,14 @@ class BaseConfig(BaseModel):
                     task_type.value,
                     f"{datetime.now(UTC):%Y%m%d%H%M%S}",
                     self.task_id_suffix,
-                )
+                ),
             )
             object.__setattr__(self, "task_type", task_type)
             object.__setattr__(self, "task_id", task_id)
         elif self.task_id is None or self.task_type is None:
             raise ValueError("Task config contains an incomplete identity")
         elif self.task_type != task_type:
-            raise ValueError(
-                f"Task type mismatch: {self.task_type.value} != {task_type.value}"
-            )
+            raise ValueError(f"Task type mismatch: {self.task_type.value} != {task_type.value}")
         assert self.task_id is not None
         return self.task_id
 

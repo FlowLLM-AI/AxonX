@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
+import math
 import os
 from threading import Condition, Thread
+from time import monotonic
 
 from ..components.client import HttpClient
-from ..constants import AXONX_SERVICE_INFO
+from ..constants import (
+    AXONX_DEFAULT_TASK_STATUS_MIN_INTERVAL,
+    AXONX_SERVICE_INFO,
+    AXONX_TASK_STATUS_MIN_INTERVAL,
+)
 from ..schema import TaskStatus
 
 
@@ -28,8 +34,15 @@ class TaskStatusReporter:
 class HttpTaskStatusReporter(TaskStatusReporter):
     """Post status snapshots on a dedicated lightweight thread."""
 
-    def __init__(self, logger) -> None:
+    def __init__(
+        self,
+        logger,
+        min_interval: float = AXONX_DEFAULT_TASK_STATUS_MIN_INTERVAL,
+    ) -> None:
+        if not math.isfinite(min_interval) or min_interval < 0:
+            raise ValueError("min_interval must be a finite non-negative number")
         self._logger = logger
+        self._min_interval = min_interval
         self._pending: deque[TaskStatus] = deque()
         self._condition = Condition()
         self._closed = False
@@ -76,10 +89,20 @@ class HttpTaskStatusReporter(TaskStatusReporter):
             and right.percentage is not None
         )
 
-    def _next(self) -> TaskStatus | None:
+    def _next(self, not_before: float = 0) -> TaskStatus | None:
         with self._condition:
-            self._condition.wait_for(lambda: self._pending or self._closed)
-            return self._pending.popleft() if self._pending else None
+            while True:
+                if not self._pending:
+                    if self._closed:
+                        return None
+                    self._condition.wait()
+                    continue
+                remaining = not_before - monotonic()
+                if remaining <= 0:
+                    return self._pending.popleft()
+                # Releasing the condition while throttled lets publishers
+                # replace queued progress snapshots with the newest value.
+                self._condition.wait(timeout=remaining)
 
     def _write(self) -> None:
         try:
@@ -89,15 +112,35 @@ class HttpTaskStatusReporter(TaskStatusReporter):
 
     async def _write_async(self) -> None:
         async with HttpClient() as client:
-            while (status := self._next()) is not None:
+            next_send_at = 0.0
+            while (status := self._next(next_send_at)) is not None:
+                send_started_at = monotonic()
                 try:
                     await client.set_status(status)
                 except Exception as exc:
                     self._logger.warning(f"Task status update failed: {exc}")
+                next_send_at = send_started_at + self._min_interval
+
+
+def _status_min_interval(logger) -> float:
+    value = os.environ.get(AXONX_TASK_STATUS_MIN_INTERVAL)
+    if value is None:
+        return AXONX_DEFAULT_TASK_STATUS_MIN_INTERVAL
+    try:
+        interval = float(value)
+        if not math.isfinite(interval) or interval < 0:
+            raise ValueError
+        return interval
+    except ValueError:
+        logger.warning(
+            f"Invalid {AXONX_TASK_STATUS_MIN_INTERVAL} value: {value}; "
+            f"using {AXONX_DEFAULT_TASK_STATUS_MIN_INTERVAL:g} seconds",
+        )
+        return AXONX_DEFAULT_TASK_STATUS_MIN_INTERVAL
 
 
 def create_task_status_reporter(logger) -> TaskStatusReporter:
     """Create the reporter required by the current process environment."""
     if os.environ.get(AXONX_SERVICE_INFO):
-        return HttpTaskStatusReporter(logger)
+        return HttpTaskStatusReporter(logger, _status_min_interval(logger))
     return TaskStatusReporter()

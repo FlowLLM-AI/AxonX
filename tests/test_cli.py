@@ -6,6 +6,7 @@
 import json
 import threading
 from pathlib import Path
+from time import monotonic
 from types import SimpleNamespace
 
 import pandas as pd
@@ -14,13 +15,17 @@ from pydantic import ValidationError
 
 from axonx import BaseConfig, BaseTask, cli
 from axonx.components.client import HttpClient
+from axonx.constants import AXONX_SERVICE_INFO, AXONX_TASK_STATUS_MIN_INTERVAL
 from axonx.enums import TaskType
 from axonx.schema import ClientOptions, Command, Response, TaskStatus
 from axonx.task.alpha158 import Alpha158BacktestTask
 from axonx.task.common import DemoTask
 from axonx.task.data import DownloadTushareTask, TushareDownloadConfig
 from axonx.task.resolver import list_installed_task_infos
-from axonx.task.status_reporter import HttpTaskStatusReporter
+from axonx.task.status_reporter import (
+    HttpTaskStatusReporter,
+    create_task_status_reporter,
+)
 from axonx.utils import get_logger
 from axonx.utils.cli import parse_command
 
@@ -203,9 +208,7 @@ def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
 
     task.sort_output_files()
 
-    assert [
-        path.relative_to(root).as_posix() for path in map(Path, task.context["files"])
-    ] == [
+    assert [path.relative_to(root).as_posix() for path in map(Path, task.context["files"])] == [
         "2026/20260104/daily.parquet",
         "2026/20260104/adj_factor.parquet",
         "2026/20260105/daily.parquet",
@@ -226,9 +229,7 @@ def test_backtest_paths_are_resolved_from_prediction_task_id(tmp_path):
         ),
         encoding="utf-8",
     )
-    task = Alpha158BacktestTask(
-        {"prediction_task_id": "predict#example"}, workspace_path=tmp_path
-    )
+    task = Alpha158BacktestTask({"prediction_task_id": "predict#example"}, workspace_path=tmp_path)
 
     task.resolve_prediction_task()
 
@@ -274,10 +275,7 @@ def test_task_status_accepts_an_optional_log_path():
 def test_local_task_uses_registered_config(monkeypatch, capsys):
     monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: CliTask)
 
-    assert (
-        cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"])
-        == 0
-    )
+    assert cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"]) == 0
 
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
 
@@ -329,12 +327,10 @@ def test_progress_delivery_runs_on_a_dedicated_thread(monkeypatch):
 
     monkeypatch.setattr("axonx.task.status_reporter.HttpClient", Client)
     task = CliTask({"amount": 1}, workspace_path=".")
-    with HttpTaskStatusReporter(task.logger) as reporter:
+    with HttpTaskStatusReporter(task.logger, min_interval=0) as reporter:
         task.execute(emit=reporter.publish)
 
-    percentages = [
-        status.steps[0].percentage if status.steps else None for _, status in deliveries
-    ]
+    percentages = [status.steps[0].percentage if status.steps else None for _, status in deliveries]
     assert percentages == [None, None, None, 50, 100, 100]
     assert deliveries[0][1].steps == []
     assert deliveries[-1][1].steps[0].finished_at is not None
@@ -366,17 +362,61 @@ def test_progress_delivery_coalesces_queued_updates(monkeypatch):
 
     monkeypatch.setattr("axonx.task.status_reporter.HttpClient", Client)
     task = BurstTask({"amount": 1}, workspace_path=".")
-    with HttpTaskStatusReporter(task.logger) as reporter:
+    with HttpTaskStatusReporter(task.logger, min_interval=0) as reporter:
         task.execute(emit=reporter.publish)
         release.set()
 
     percentages = [
-        status.steps[-1].percentage
-        for status in deliveries
-        if status.steps and status.steps[-1].finished_at is None
+        status.steps[-1].percentage for status in deliveries if status.steps and status.steps[-1].finished_at is None
     ]
     assert percentages == [None, 30]
     assert deliveries[-1].state == "succeeded"
+
+
+def test_progress_delivery_observes_minimum_interval(monkeypatch):
+    deliveries = []
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+        async def set_status(self, status):
+            deliveries.append((monotonic(), status))
+
+    monkeypatch.setattr("axonx.task.status_reporter.HttpClient", Client)
+    task = CliTask({"amount": 1}, workspace_path=".")
+    with HttpTaskStatusReporter(task.logger, min_interval=0.05) as reporter:
+        task.execute(emit=reporter.publish)
+
+    assert len(deliveries) > 1
+    intervals = [current[0] - previous[0] for previous, current in zip(deliveries, deliveries[1:])]
+    assert min(intervals) >= 0.04
+
+
+def test_status_reporter_interval_is_configurable_from_environment(monkeypatch):
+    monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host":"localhost","port":1024}')
+    monkeypatch.setenv(AXONX_TASK_STATUS_MIN_INTERVAL, "1.25")
+
+    task = CliTask({"amount": 1}, workspace_path=".")
+    reporter = create_task_status_reporter(task.logger)
+
+    assert isinstance(reporter, HttpTaskStatusReporter)
+    assert reporter._min_interval == 1.25  # pylint: disable=protected-access
+
+
+def test_status_reporter_invalid_interval_uses_default(monkeypatch, capsys):
+    monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host":"localhost","port":1024}')
+    monkeypatch.setenv(AXONX_TASK_STATUS_MIN_INTERVAL, "invalid")
+
+    task = CliTask({"amount": 1}, workspace_path=".")
+    reporter = create_task_status_reporter(task.logger)
+
+    assert isinstance(reporter, HttpTaskStatusReporter)
+    assert reporter._min_interval == 3  # pylint: disable=protected-access
+    assert "using 3 seconds" in capsys.readouterr().err
 
 
 def test_task_rejects_async_steps():

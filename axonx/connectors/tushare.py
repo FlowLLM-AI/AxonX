@@ -32,15 +32,11 @@ class TushareClient:
         if transient_error_retries < 0:
             raise ValueError("transient_error_retries must not be negative")
         if transient_error_retry_initial_seconds < 0:
-            raise ValueError(
-                "transient_error_retry_initial_seconds must not be negative"
-            )
+            raise ValueError("transient_error_retry_initial_seconds must not be negative")
         if transient_error_retry_max_seconds <= 0:
             raise ValueError("transient_error_retry_max_seconds must be greater than 0")
 
-        self.base_url = os.getenv("AXONX_TUSHARE_BASE_URL", DEFAULT_BASE_URL).rstrip(
-            "/"
-        )
+        self.base_url = os.getenv("AXONX_TUSHARE_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
         self.token = os.getenv("AXONX_TUSHARE_TOKEN", "")
         self.timeout = timeout
         self.session = session if session is not None else requests.Session()
@@ -59,15 +55,11 @@ class TushareClient:
     ) -> float:
         if self.logger is not None:
             retry = f"{attempt}/{limit}" if limit is not None else str(attempt)
-            self.logger.warning(
-                f"API retry api={api_name} retry={retry} wait_seconds={delay} error={error}"
-            )
+            self.logger.warning(f"API retry api={api_name} retry={retry} wait_seconds={delay} error={error}")
         time.sleep(delay)
         return min(delay * 2, self.max_delay)
 
-    def _request(
-        self, api_name: str, fields: str, params: dict[str, Any]
-    ) -> tuple[pd.DataFrame, bool]:
+    def _request(self, api_name: str, fields: str, params: dict[str, Any]) -> tuple[pd.DataFrame, bool]:
         import pandas as pd
 
         params = {"ts_type_name": self.base_url, **params}
@@ -97,9 +89,7 @@ class TushareClient:
 
             if result["code"] == 0:
                 data = result["data"]
-                return pd.DataFrame(data["items"], columns=data["fields"]), bool(
-                    data.get("has_more")
-                )
+                return pd.DataFrame(data["items"], columns=data["fields"]), bool(data.get("has_more"))
 
             message = str(result.get("msg", ""))
             if IP_LIMIT_ERROR in message or RATE_LIMIT_ERROR in message:
@@ -117,9 +107,7 @@ class TushareClient:
         """Query an endpoint that must return a complete response."""
         frame, has_more = self._request(api_name, fields, params)
         if has_more:
-            raise RuntimeError(
-                "Tushare API returned has_more=True; query result is incomplete"
-            )
+            raise RuntimeError("Tushare API returned has_more=True; query result is incomplete")
         return frame
 
     def query_has_more(
@@ -141,9 +129,7 @@ class TushareClient:
         frames: list[pd.DataFrame] = []
         offset = 0
         while True:
-            frame, has_more = self._request(
-                api_name, fields, {**params, "offset": offset, "limit": limit}
-            )
+            frame, has_more = self._request(api_name, fields, {**params, "offset": offset, "limit": limit})
             if frame.empty:
                 break
             frames.append(frame)
@@ -153,12 +139,6 @@ class TushareClient:
 
         if not frames:
             return pd.DataFrame()
-        columns = list(
-            dict.fromkeys(column for frame in frames for column in frame.columns)
-        )
+        columns = list(dict.fromkeys(column for frame in frames for column in frame.columns))
         frames = [frame.dropna(axis="columns", how="all") for frame in frames]
-        return (
-            pd.concat(frames, ignore_index=True)
-            .reindex(columns=columns)
-            .drop_duplicates(ignore_index=True)
-        )
+        return pd.concat(frames, ignore_index=True).reindex(columns=columns).drop_duplicates(ignore_index=True)

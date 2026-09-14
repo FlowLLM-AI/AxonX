@@ -69,9 +69,7 @@ async def test_missing_required_dependency_is_rejected_before_startup():
     _, consumer = component_classes(events)
     with R.preserve(allow_mutation=True):
         R.register(consumer, "test")
-        app = Application(
-            components={"test_consumer": {"default": {"backend": "test"}}}
-        )
+        app = Application(components={"test_consumer": {"default": {"backend": "test"}}})
 
     with pytest.raises(ValueError, match="depends on missing test_provider:default"):
         await app.start()
@@ -201,12 +199,8 @@ async def test_multiple_owned_close_failures_are_grouped():
 
         def __init__(self):
             super().__init__()
-            self.first = self.bind(
-                "first", Broken, default_factory=lambda: Broken("first")
-            )
-            self.second = self.bind(
-                "second", Broken, default_factory=lambda: Broken("second")
-            )
+            self.first = self.bind("first", Broken, default_factory=lambda: Broken("first"))
+            self.second = self.bind("second", Broken, default_factory=lambda: Broken("second"))
 
     parent = Parent()
     await parent.start()

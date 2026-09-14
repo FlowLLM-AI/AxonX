@@ -32,15 +32,11 @@ class ComponentRegistry:
         if self._frozen:
             raise RuntimeError("Component registry is frozen")
 
-    def _do_register(
-        self, cls: type[T], name: str, *, owner: str | None = None
-    ) -> type[T]:
+    def _do_register(self, cls: type[T], name: str, *, owner: str | None = None) -> type[T]:
         """Insert ``cls`` under its component type and reject ambiguous providers."""
         raw_component_type = getattr(cls, "component_type", None)
         if not isinstance(raw_component_type, str) or not raw_component_type:
-            raise TypeError(
-                f"{cls.__name__} must have a non-empty string 'component_type' attribute"
-            )
+            raise TypeError(f"{cls.__name__} must have a non-empty string 'component_type' attribute")
         component_type = component_type_name(raw_component_type)
         if not name:
             raise ValueError("Component name cannot be empty")
@@ -56,8 +52,7 @@ class ComponentRegistry:
                 if existing is cls and existing_owner == provider:
                     return cls
                 raise ValueError(
-                    f"Backend '{component_type}:{name}' is provided by both "
-                    f"'{existing_owner}' and '{provider}'",
+                    f"Backend '{component_type}:{name}' is provided by both " f"'{existing_owner}' and '{provider}'",
                 )
             group[name] = cls
             self._owners[key] = provider
@@ -80,9 +75,7 @@ class ComponentRegistry:
 
         # Decorator call: @R.register("alias") — must receive a string name.
         if not isinstance(cls_or_name, str):
-            raise TypeError(
-                f"Expected a class or string, got {type(cls_or_name).__name__}"
-            )
+            raise TypeError(f"Expected a class or string, got {type(cls_or_name).__name__}")
         if name is not None:
             raise TypeError("name is only valid when registering a class directly")
 
@@ -135,10 +128,7 @@ class ComponentRegistry:
     def copy(self) -> "ComponentRegistry":
         """Return an independent registry containing the same providers."""
         with self._lock:
-            registry = {
-                component_type: dict(group)
-                for component_type, group in self._registry.items()
-            }
+            registry = {component_type: dict(group) for component_type, group in self._registry.items()}
             owners = dict(self._owners)
         return ComponentRegistry(registry, owners)
 
@@ -146,10 +136,7 @@ class ComponentRegistry:
     def preserve(self, *, allow_mutation: bool = False) -> Iterator[None]:
         """Restore the registry after code that may register through import side effects."""
         with self._lock:
-            registry = {
-                component_type: dict(group)
-                for component_type, group in self._registry.items()
-            }
+            registry = {component_type: dict(group) for component_type, group in self._registry.items()}
             owners = dict(self._owners)
             frozen = self._frozen
             if allow_mutation:

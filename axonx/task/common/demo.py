@@ -44,9 +44,7 @@ class DemoTask(BaseTask):
         self.report_progress(50)
         branch = "equal" if self.config.x == self.config.y else "different"
         self.context.update(total=0, operands=[], branch=branch)
-        self.logger.info(
-            f"Demo initialized x={self.config.x} y={self.config.y} branch={branch}"
-        )
+        self.logger.info(f"Demo initialized x={self.config.x} y={self.config.y} branch={branch}")
 
     def add_equal_operands(self) -> None:
         """Use one conditional step when both operands are equal."""
@@ -79,9 +77,7 @@ class DemoTask(BaseTask):
         """Publish the accumulator as the task result."""
         self.report_progress(50)
         self.context["result"] = self.context["total"]
-        self.logger.info(
-            f"Demo result={self.context['result']} operands={self.context['operands']}"
-        )
+        self.logger.info(f"Demo result={self.context['result']} operands={self.context['operands']}")
 
     def exit_code(self, _output) -> int:
         """Demonstrate a Task-defined process exit code."""

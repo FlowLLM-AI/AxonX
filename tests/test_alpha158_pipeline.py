@@ -77,9 +77,7 @@ def test_training_defaults():
 @pytest.mark.parametrize("artifact", ["../outside.parquet", "/tmp/outside.parquet"])
 def test_artifact_path_stays_inside_task_directory(tmp_path, artifact):
     with pytest.raises(ValueError, match="任务目录"):
-        artifact_path(
-            tmp_path / "etl#fixture", {"artifacts": {"dataset": artifact}}, "dataset"
-        )
+        artifact_path(tmp_path / "etl#fixture", {"artifacts": {"dataset": artifact}}, "dataset")
 
 
 def test_task_id_chained_alpha158_pipeline(tmp_path):
@@ -138,9 +136,7 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
         "is_buyable",
         "index_weight_hs300",
     ]
-    prediction_metadata = json.loads(
-        Path(prediction_output["metadata_file"]).read_text()
-    )
+    prediction_metadata = json.loads(Path(prediction_output["metadata_file"]).read_text())
     assert prediction_metadata["protocol"]["actual_return_column"] == "label_1d"
     assert prediction_metadata["protocol"]["cross_section_filter"] == "none"
 

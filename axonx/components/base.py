@@ -22,8 +22,7 @@ class Dependency:
 
     def __getattr__(self, item):
         raise RuntimeError(
-            f"Dependency {self.ctype}:{self.name} accessed before start() "
-            f"(attribute {item!r})",
+            f"Dependency {self.ctype}:{self.name} accessed before start() " f"(attribute {item!r})",
         )
 
 
@@ -50,20 +49,14 @@ class BaseComponent(ComponentMixin):
             return None
         ctype = component_type_name(base_cls.component_type)
         if ctype == ComponentEnum.BASE.value:
-            raise TypeError(
-                f"{base_cls.__name__} must declare a non-BASE component_type"
-            )
+            raise TypeError(f"{base_cls.__name__} must declare a non-BASE component_type")
         return cast(T, Dependency(ctype, name, default_factory, optional))
 
     @property
     def dependency_bindings(self) -> dict[str, Dependency]:
         """Return dependency declarations keyed by their bound attribute."""
         bindings = dict(self._binding_specs)
-        bindings.update(
-            (name, value)
-            for name, value in self.__dict__.items()
-            if isinstance(value, Dependency)
-        )
+        bindings.update((name, value) for name, value in self.__dict__.items() if isinstance(value, Dependency))
         return bindings
 
     @property
@@ -78,16 +71,12 @@ class BaseComponent(ComponentMixin):
             self._binding_specs[attribute] = dependency
             target = None
             if self.app_context is not None:
-                target = self.app_context.components.get(dependency.ctype, {}).get(
-                    dependency.name
-                )
+                target = self.app_context.components.get(dependency.ctype, {}).get(dependency.name)
             elif dependency.default_factory is not None:
                 target = dependency.default_factory()
                 self._owned_components.append(target)
             if target is None and not dependency.optional:
-                raise ValueError(
-                    f"Missing component dependency: {dependency.ctype}:{dependency.name}"
-                )
+                raise ValueError(f"Missing component dependency: {dependency.ctype}:{dependency.name}")
             setattr(self, attribute, target)
 
     @staticmethod

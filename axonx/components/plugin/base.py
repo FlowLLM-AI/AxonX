@@ -26,9 +26,7 @@ class BasePluginComponent(BaseComponent, ABC):
         """Prepare a plugin source tree and publish its contributions."""
 
     @abstractmethod
-    def install_wheel(
-        self, data: bytes, expected_sha256: str, filename: str
-    ) -> PluginArtifact:
+    def install_wheel(self, data: bytes, expected_sha256: str, filename: str) -> PluginArtifact:
         """Validate and install an uploaded wheel."""
 
     @abstractmethod

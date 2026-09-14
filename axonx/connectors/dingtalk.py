@@ -31,10 +31,7 @@ def _conversation_ids() -> tuple[str, ...]:
         raise ValueError("DINGTALK_CONVERSATIONS must be a non-empty JSON object")
     if any(not isinstance(key, str) or not key.strip() for key in conversations):
         raise ValueError("DINGTALK_CONVERSATIONS keys must be non-empty strings")
-    if any(
-        not isinstance(value, str) or not value.strip()
-        for value in conversations.values()
-    ):
+    if any(not isinstance(value, str) or not value.strip() for value in conversations.values()):
         raise ValueError("DINGTALK_CONVERSATIONS values must be non-empty strings")
     return tuple(dict.fromkeys(value.strip() for value in conversations.values()))
 
@@ -59,9 +56,7 @@ def _access_token(client_id: str, client_secret: str, timeout: float) -> str:
         response.raise_for_status()
         token = _json(response).get("accessToken")
     except Exception as exc:  # Do not expose credentials stored on the request.
-        raise RuntimeError(
-            f"Failed to obtain DingTalk access token: {type(exc).__name__}"
-        ) from exc
+        raise RuntimeError(f"Failed to obtain DingTalk access token: {type(exc).__name__}") from exc
     if not isinstance(token, str) or not token:
         raise RuntimeError("DingTalk access token response did not contain a token")
     return token
@@ -106,9 +101,7 @@ def send_dingtalk_message(
             if not isinstance(_json(response).get("processQueryKey"), str):
                 raise RuntimeError("response did not contain processQueryKey")
             responses.append(response.text)
-        except (
-            Exception
-        ) as exc:  # Try all groups without exposing IDs or request headers.
+        except Exception as exc:  # Try all groups without exposing IDs or request headers.
             failures.append(f"group[{index}]: {type(exc).__name__}")
 
     if failures:

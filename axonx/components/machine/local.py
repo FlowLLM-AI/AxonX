@@ -128,9 +128,7 @@ class LocalMachineComponent(BaseMachineComponent):
         for row in csv.reader(result.stdout.splitlines()):
             if len(row) != 7:
                 continue
-            index, uuid, name, total_mib, used_mib, free_mib, usage = map(
-                str.strip, row
-            )
+            index, uuid, name, total_mib, used_mib, free_mib, usage = map(str.strip, row)
             gpu_index = LocalMachineComponent._number(index)
             if gpu_index is None:
                 continue
@@ -143,19 +141,11 @@ class LocalMachineComponent(BaseMachineComponent):
                     "index": int(gpu_index),
                     "uuid": uuid,
                     "name": name,
-                    "memory_total_bytes": int(total_bytes)
-                    if total_bytes is not None
-                    else None,
-                    "memory_used_bytes": int(used_bytes)
-                    if used_bytes is not None
-                    else None,
-                    "memory_available_bytes": int(free_bytes)
-                    if free_bytes is not None
-                    else None,
+                    "memory_total_bytes": int(total_bytes) if total_bytes is not None else None,
+                    "memory_used_bytes": int(used_bytes) if used_bytes is not None else None,
+                    "memory_available_bytes": int(free_bytes) if free_bytes is not None else None,
                     "memory_usage_percent": (
-                        round(used_bytes * 100 / total_bytes, 2)
-                        if total_bytes and used_bytes is not None
-                        else None
+                        round(used_bytes * 100 / total_bytes, 2) if total_bytes and used_bytes is not None else None
                     ),
                     "usage_percent": LocalMachineComponent._number(usage),
                 },
@@ -190,12 +180,8 @@ class LocalMachineComponent(BaseMachineComponent):
         for fallback_index, (card, values) in enumerate(cards.items()):
             if not isinstance(card, str) or not isinstance(values, dict):
                 continue
-            total_bytes = LocalMachineComponent._number(
-                values.get("VRAM Total Memory (B)")
-            )
-            used_bytes = LocalMachineComponent._number(
-                values.get("VRAM Total Used Memory (B)")
-            )
+            total_bytes = LocalMachineComponent._number(values.get("VRAM Total Memory (B)"))
+            used_bytes = LocalMachineComponent._number(values.get("VRAM Total Used Memory (B)"))
             card_index = card.removeprefix("card")
             index = int(card_index) if card_index.isdigit() else fallback_index
             gpus.append(
@@ -204,25 +190,15 @@ class LocalMachineComponent(BaseMachineComponent):
                     "index": index,
                     "uuid": values.get("Unique ID"),
                     "name": values.get("Card series") or values.get("Card model"),
-                    "memory_total_bytes": int(total_bytes)
-                    if total_bytes is not None
-                    else None,
-                    "memory_used_bytes": int(used_bytes)
-                    if used_bytes is not None
-                    else None,
+                    "memory_total_bytes": int(total_bytes) if total_bytes is not None else None,
+                    "memory_used_bytes": int(used_bytes) if used_bytes is not None else None,
                     "memory_available_bytes": (
-                        int(total_bytes - used_bytes)
-                        if total_bytes is not None and used_bytes is not None
-                        else None
+                        int(total_bytes - used_bytes) if total_bytes is not None and used_bytes is not None else None
                     ),
                     "memory_usage_percent": (
-                        round(used_bytes * 100 / total_bytes, 2)
-                        if total_bytes and used_bytes is not None
-                        else None
+                        round(used_bytes * 100 / total_bytes, 2) if total_bytes and used_bytes is not None else None
                     ),
-                    "usage_percent": LocalMachineComponent._number(
-                        values.get("GPU use (%)")
-                    ),
+                    "usage_percent": LocalMachineComponent._number(values.get("GPU use (%)")),
                 },
             )
         return gpus

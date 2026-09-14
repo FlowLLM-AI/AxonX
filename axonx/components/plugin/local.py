@@ -181,16 +181,12 @@ class LocalPluginComponent(BasePluginComponent):
         self._index_records(candidate)
 
     def _rebuild_index(self) -> None:
-        self._jobs, self._components, self._component_owners = self._index_records(
-            self._state
-        )
+        self._jobs, self._components, self._component_owners = self._index_records(self._state)
 
     @staticmethod
     def _index_records(
         records: dict[str, dict],
-    ) -> tuple[
-        dict[str, JobConfig], dict[str, dict[str, str]], dict[tuple[str, str], str]
-    ]:
+    ) -> tuple[dict[str, JobConfig], dict[str, dict[str, str]], dict[tuple[str, str], str]]:
         jobs: dict[str, JobConfig] = {}
         components: dict[str, dict[str, str]] = {}
         component_owners: dict[tuple[str, str], str] = {}
@@ -201,16 +197,12 @@ class LocalPluginComponent(BasePluginComponent):
             for name in record.get("tasks", {}):
                 if name in task_owners:
                     previous = task_owners[name]
-                    raise ValueError(
-                        f"Task {name!r} is provided by plugins {previous!r} and {owner!r}"
-                    )
+                    raise ValueError(f"Task {name!r} is provided by plugins {previous!r} and {owner!r}")
                 task_owners[name] = owner
             for name, raw_config in record.get("jobs", {}).items():
                 if name in job_owners:
                     previous = job_owners[name]
-                    raise ValueError(
-                        f"Job {name!r} is provided by plugins {previous!r} and {owner!r}"
-                    )
+                    raise ValueError(f"Job {name!r} is provided by plugins {previous!r} and {owner!r}")
                 jobs[name] = JobConfig.model_validate(raw_config)
                 job_owners[name] = owner
             for component_type, backends in record.get("components", {}).items():
@@ -233,14 +225,11 @@ class LocalPluginComponent(BasePluginComponent):
             if component_type == "plugin":
                 raise ValueError("Plugins cannot contribute plugin component backends")
             for backend, target in backends.items():
-                component_class = load_symbol(
-                    target, BaseComponent, kind="Component", modules=modules
-                )
+                component_class = load_symbol(target, BaseComponent, kind="Component", modules=modules)
                 actual_type = component_type_name(component_class.component_type)
                 if actual_type != component_type:
                     raise TypeError(
-                        f"Component target {target} declares type {actual_type!r}, "
-                        f"expected {component_type!r}",
+                        f"Component target {target} declares type {actual_type!r}, " f"expected {component_type!r}",
                     )
                 owner = self._component_owners[(component_type, backend)]
                 self.app_context.registry.add(backend, component_class, owner)

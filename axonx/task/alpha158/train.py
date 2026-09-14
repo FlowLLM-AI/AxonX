@@ -107,9 +107,7 @@ class LgbmTrainingTask(BaseTask):
     def resolve_upstream_task(self) -> None:
         source_dir = task_directory(self.workspace_path, "etl", self.config.etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = read_metadata(
-            source_metadata_path, description="Alpha158 ETL"
-        )
+        source_metadata = read_metadata(source_metadata_path, description="Alpha158 ETL")
         dataset_path = artifact_path(source_dir, source_metadata, "dataset")
         output_dir = self.workspace_path / "training" / self.task_id
         self.context.update(
@@ -125,7 +123,7 @@ class LgbmTrainingTask(BaseTask):
         )
         self.logger.info(
             f"Training source resolved etl_task_id={self.config.etl_task_id} "
-            f"dataset={dataset_path} label={self.config.label_column}"
+            f"dataset={dataset_path} label={self.config.label_column}",
         )
 
     def load_and_validate_training_data(self) -> None:
@@ -180,18 +178,14 @@ class LgbmTrainingTask(BaseTask):
         self.report_progress(95)
         self.logger.info(
             f"Training data loaded rows={frame.height} dates={frame['trade_date'].n_unique()} "
-            f"start={frame['trade_date'].min()} end={frame['trade_date'].max()}"
+            f"start={frame['trade_date'].min()} end={frame['trade_date'].max()}",
         )
 
     def trim_daily_label_tails(self) -> None:
         frame: pl.DataFrame = self.context["frame"]
         raw = pl.col(self.raw_label)
-        lower = raw.quantile(self.config.trim_tail, interpolation="linear").over(
-            "trade_date"
-        )
-        upper = raw.quantile(1 - self.config.trim_tail, interpolation="linear").over(
-            "trade_date"
-        )
+        lower = raw.quantile(self.config.trim_tail, interpolation="linear").over("trade_date")
+        upper = raw.quantile(1 - self.config.trim_tail, interpolation="linear").over("trade_date")
         trimmed = frame.filter(raw.is_between(lower, upper, closed="both"))
         if trimmed.is_empty():
             raise ValueError("每日标签尾部过滤后没有训练样本")
@@ -199,7 +193,7 @@ class LgbmTrainingTask(BaseTask):
         self.report_progress(95)
         self.logger.info(
             f"Training tails trimmed raw_label={self.raw_label} tail={self.config.trim_tail:.2%} "
-            f"before={frame.height} after={trimmed.height}"
+            f"before={frame.height} after={trimmed.height}",
         )
 
     def split_temporal_validation(self) -> None:
@@ -221,7 +215,7 @@ class LgbmTrainingTask(BaseTask):
         )
         self.logger.info(
             f"Temporal validation split train_rows={fit.height} validation_rows={validation.height} "
-            f"validation_start={validation_start}"
+            f"validation_start={validation_start}",
         )
 
     def _matrix(self, frame: pl.DataFrame) -> tuple[np.ndarray, np.ndarray]:
@@ -270,9 +264,7 @@ class LgbmTrainingTask(BaseTask):
             raise RuntimeError("训练需要安装 lightgbm；请重新安装项目依赖") from exc
         return lgb
 
-    def _progress_callback(
-        self, total: int, phase: str, *, start: float = 0, end: float = 95
-    ):
+    def _progress_callback(self, total: int, phase: str, *, start: float = 0, end: float = 95):
         last_milestone = -1
 
         def callback(environment) -> None:
@@ -282,9 +274,7 @@ class LgbmTrainingTask(BaseTask):
             if completed == 1 or milestone > last_milestone or completed == total:
                 last_milestone = milestone
                 self.report_progress(start + completed / total * (end - start))
-                self.logger.info(
-                    f"LightGBM {phase} progress iteration={completed}/{total}"
-                )
+                self.logger.info(f"LightGBM {phase} progress iteration={completed}/{total}")
 
         callback.order = 5
         callback.before_iteration = False
@@ -299,16 +289,12 @@ class LgbmTrainingTask(BaseTask):
         history: dict[str, dict[str, list[float]]] = {}
         model = lgb.train(
             self._parameters(),
-            lgb.Dataset(
-                fit_x, label=fit_y, feature_name=list(self.context["features"])
-            ),
+            lgb.Dataset(fit_x, label=fit_y, feature_name=list(self.context["features"])),
             num_boost_round=self.config.num_boost_round,
             valid_sets=[lgb.Dataset(valid_x, label=valid_y, reference=None)],
             valid_names=["validation"],
             callbacks=[
-                self._progress_callback(
-                    self.config.num_boost_round, "tuning", start=20
-                ),
+                self._progress_callback(self.config.num_boost_round, "tuning", start=20),
                 lgb.early_stopping(self.config.early_stopping_rounds, verbose=False),
                 lgb.record_evaluation(history),
             ],
@@ -321,7 +307,7 @@ class LgbmTrainingTask(BaseTask):
         )
         self.logger.info(
             f"LightGBM tuning completed best_iteration={best_iteration} "
-            f"validation_l2={history['validation']['l2'][best_iteration - 1]:.8f}"
+            f"validation_l2={history['validation']['l2'][best_iteration - 1]:.8f}",
         )
 
     def evaluate_validation(self) -> None:
@@ -329,9 +315,7 @@ class LgbmTrainingTask(BaseTask):
         valid_x, valid_y = self._matrix(validation)
         self.report_progress(25)
         pred = np.asarray(
-            self.context["tuning_model"].predict(
-                valid_x, num_iteration=self.context["best_iteration"]
-            ),
+            self.context["tuning_model"].predict(valid_x, num_iteration=self.context["best_iteration"]),
             dtype=float,
         )
         self.report_progress(65)
@@ -369,21 +353,13 @@ class LgbmTrainingTask(BaseTask):
         self.report_progress(15)
         self.context["model"] = lgb.train(
             self._parameters(),
-            lgb.Dataset(
-                full_x, label=full_y, feature_name=list(self.context["features"])
-            ),
+            lgb.Dataset(full_x, label=full_y, feature_name=list(self.context["features"])),
             num_boost_round=self.context["best_iteration"],
-            callbacks=[
-                self._progress_callback(
-                    self.context["best_iteration"], "final-fit", start=15
-                )
-            ],
+            callbacks=[self._progress_callback(self.context["best_iteration"], "final-fit", start=15)],
         )
         self.context.pop("tuning_model", None)
         self.report_progress(95)
-        self.logger.info(
-            f"Final LightGBM fitted rows={len(full_y)} iterations={self.context['best_iteration']}"
-        )
+        self.logger.info(f"Final LightGBM fitted rows={len(full_y)} iterations={self.context['best_iteration']}")
 
     def calculate_feature_importance(self) -> None:
         model = self.context["model"]
@@ -416,7 +392,7 @@ class LgbmTrainingTask(BaseTask):
             self.report_progress(40 + index / len(outputs) * 55)
         self.logger.info(
             f"Training artifacts written model={self.context['model_path']} "
-            f"importance={self.context['importance_path']} history={self.context['history_path']}"
+            f"importance={self.context['importance_path']} history={self.context['history_path']}",
         )
 
     def write_metadata(self) -> None:
@@ -437,9 +413,7 @@ class LgbmTrainingTask(BaseTask):
                 task_id=self.task_id,
                 task_type=self.task_type.value,
             ),
-            "config": self.config.model_dump(
-                mode="json", exclude={"task_id", "task_type"}
-            ),
+            "config": self.config.model_dump(mode="json", exclude={"task_id", "task_type"}),
             "source": {
                 "etl_task_id": self.config.etl_task_id,
                 "metadata": str(self.context["source_metadata_path"]),

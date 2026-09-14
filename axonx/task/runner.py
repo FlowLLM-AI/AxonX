@@ -30,9 +30,7 @@ class TaskRunner:
         task._bind_status_manager(manager)  # pylint: disable=protected-access
         manager.report()
         started = perf_counter()
-        task.logger.info(
-            f"Task started task_id={task.task_id} task_type={task.task_type.value}"
-        )
+        task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
         try:
             manager.start()
             for step in task.build_task_steps():
@@ -42,7 +40,7 @@ class TaskRunner:
             manager.succeed(output, exit_code)
             task.logger.info(
                 f"Task completed task_id={task.task_id} exit_code={exit_code} "
-                f"elapsed_seconds={perf_counter() - started:.3f}"
+                f"elapsed_seconds={perf_counter() - started:.3f}",
             )
             return manager.status
         except BaseException as exc:
@@ -50,7 +48,7 @@ class TaskRunner:
             task.logger.exception(
                 f"Task failed task_id={task.task_id} "
                 f"elapsed_seconds={perf_counter() - started:.3f} "
-                f"error={type(exc).__name__}: {exc}"
+                f"error={type(exc).__name__}: {exc}",
             )
             raise
         finally:
@@ -75,11 +73,8 @@ class TaskRunner:
             logger.error(
                 f"Task step failed step={name} "
                 f"elapsed_seconds={perf_counter() - started:.3f} "
-                f"error={type(exc).__name__}: {exc}"
+                f"error={type(exc).__name__}: {exc}",
             )
             raise
         manager.finish_step(True)
-        logger.info(
-            f"Task step completed step={name} "
-            f"elapsed_seconds={perf_counter() - started:.3f}"
-        )
+        logger.info(f"Task step completed step={name} " f"elapsed_seconds={perf_counter() - started:.3f}")

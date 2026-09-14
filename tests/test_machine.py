@@ -18,12 +18,8 @@ from axonx.schema import Response
 
 def test_collect_local_machine_info(monkeypatch):
     component = LocalMachineComponent(cpu_sample_interval=0)
-    monkeypatch.setattr(
-        "axonx.components.machine.local.psutil.cpu_count", lambda logical: 8
-    )
-    monkeypatch.setattr(
-        "axonx.components.machine.local.psutil.cpu_percent", lambda interval: 25.0
-    )
+    monkeypatch.setattr("axonx.components.machine.local.psutil.cpu_count", lambda logical: 8)
+    monkeypatch.setattr("axonx.components.machine.local.psutil.cpu_percent", lambda interval: 25.0)
     monkeypatch.setattr(
         "axonx.components.machine.local.psutil.virtual_memory",
         lambda: SimpleNamespace(total=1_000, used=400, available=550, percent=40.0),
@@ -52,9 +48,7 @@ def test_collect_local_machine_info(monkeypatch):
 
 def test_parse_nvidia_smi_output(monkeypatch):
     output = "0, GPU-1, NVIDIA A100, 81920, 40960, 40960, 75\n"
-    monkeypatch.setattr(
-        "axonx.components.machine.local.platform.system", lambda: "Linux"
-    )
+    monkeypatch.setattr("axonx.components.machine.local.platform.system", lambda: "Linux")
     monkeypatch.setattr(
         "axonx.components.machine.local.shutil.which",
         lambda command: f"/usr/bin/{command}" if command == "nvidia-smi" else None,
@@ -80,9 +74,7 @@ def test_parse_nvidia_smi_output(monkeypatch):
 
 
 def test_macos_gpu_info_is_null(monkeypatch):
-    monkeypatch.setattr(
-        "axonx.components.machine.local.platform.system", lambda: "Darwin"
-    )
+    monkeypatch.setattr("axonx.components.machine.local.platform.system", lambda: "Darwin")
     assert LocalMachineComponent._gpu_info() is None
 
 
@@ -205,7 +197,7 @@ async def test_list_machines_checks_health_without_machine_component(monkeypatch
             "list_machines": {
                 "enable_remote": False,
                 "steps": [{"backend": "list_machines_step"}],
-            }
+            },
         },
     )
     async with app:
@@ -220,9 +212,7 @@ async def test_http_client_health():
     client = HttpClient(host_ip="192.168.1.10", host_port=9000)
     client.client = httpx.AsyncClient(
         base_url=client.url,
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(200, json={"running": True})
-        ),
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"running": True})),
     )
     try:
         assert await client.health()
@@ -261,21 +251,13 @@ async def test_http_service_exposes_machine_jobs(monkeypatch):
     monkeypatch.setattr(HttpClient, "health", health)
     server = HttpService().build_service(app)
     async with server.router.lifespan_context(server):
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=server), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
             local = await client.post("/jobs/machine_status", json={})
-            remote = await client.post(
-                "/jobs/machine_status", json={"remote_ip": "192.168.1.10"}
-            )
+            remote = await client.post("/jobs/machine_status", json={"remote_ip": "192.168.1.10"})
             machines = await client.post("/jobs/list_machines", json={})
-            rejected = await client.post(
-                "/jobs/list_machines", json={"remote_ip": "192.168.1.10"}
-            )
+            rejected = await client.post("/jobs/list_machines", json={"remote_ip": "192.168.1.10"})
 
     assert local.json()["answer"]["source"] == "local"
     assert remote.json()["answer"]["source"] == "remote"
-    assert machines.json()["answer"] == [
-        {"address": "192.168.1.10:9000", "healthy": True}
-    ]
+    assert machines.json()["answer"] == [{"address": "192.168.1.10:9000", "healthy": True}]
     assert rejected.status_code == 422

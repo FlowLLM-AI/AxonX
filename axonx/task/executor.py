@@ -48,11 +48,7 @@ class TaskCommandExecutor:
         if command.action != "exec":
             raise ValueError(f"Unsupported Task command: {command.action}")
 
-        arguments = {
-            key: value
-            for key, value in command.arguments.items()
-            if key != CLI_RAW_ARGUMENTS
-        }
+        arguments = {key: value for key, value in command.arguments.items() if key != CLI_RAW_ARGUMENTS}
         if not arguments:
             return TaskCatalog(installed_tasks())
 

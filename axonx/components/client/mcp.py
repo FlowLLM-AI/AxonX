@@ -37,9 +37,7 @@ class McpClient(BaseClient[Any]):
 
     async def list_jobs(self) -> list[JobInfo]:
         tools = await self._require_client().list_tools()
-        return [
-            JobInfo.model_validate(tool.model_dump(by_alias=True)) for tool in tools
-        ]
+        return [JobInfo.model_validate(tool.model_dump(by_alias=True)) for tool in tools]
 
     async def health(self) -> bool:
         client = self._require_client()

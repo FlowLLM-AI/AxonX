@@ -70,9 +70,7 @@ class TaskStatusManager:
 
     def _step(self) -> TaskStepStatus:
         if self._active_step is None:
-            raise RuntimeError(
-                "Progress can only be reported while a task step is running"
-            )
+            raise RuntimeError("Progress can only be reported while a task step is running")
         return self._active_step
 
     def _finish(

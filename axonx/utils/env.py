@@ -33,11 +33,7 @@ class EnvLoader:
 
     @staticmethod
     def _apply(values: dict[str, str], override: bool) -> dict[str, str]:
-        loaded = {
-            key: value
-            for key, value in values.items()
-            if override or key not in os.environ
-        }
+        loaded = {key: value for key, value in values.items() if override or key not in os.environ}
         os.environ.update(loaded)
         return loaded
 
@@ -77,8 +73,6 @@ def parse_env_file(path: str | Path) -> dict[str, str]:
     return EnvLoader.parse(path)
 
 
-def load_env(
-    path: str | Path | None = None, *, override: bool = True
-) -> dict[str, str]:
+def load_env(path: str | Path | None = None, *, override: bool = True) -> dict[str, str]:
     """Load an explicit env file, or discover one from the working directory."""
     return _ENV_LOADER.load(path, override=override)

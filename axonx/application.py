@@ -34,9 +34,7 @@ class Application(BaseComponent):
             force_init=True,
         )
         super().__init__(app_context=self.context)
-        logger.info(
-            f"Initializing {self.app_config.app_name} Application v{__version__}"
-        )
+        logger.info(f"Initializing {self.app_config.app_name} Application v{__version__}")
 
         self._started_components: list[BaseComponent] = []
 
@@ -46,25 +44,17 @@ class Application(BaseComponent):
             if category == "plugin":
                 continue
             self.context.components[category] = {
-                name: self._instantiate(category, name, spec, BaseComponent)
-                for name, spec in group.items()
+                name: self._instantiate(category, name, spec, BaseComponent) for name, spec in group.items()
             }
         self._merge_plugin_jobs()
         self.context.jobs = {
-            name: self._instantiate("job", name, spec, BaseJob)
-            for name, spec in self.app_config.jobs.items()
+            name: self._instantiate("job", name, spec, BaseJob) for name, spec in self.app_config.jobs.items()
         }
         component_names = [
-            f"{category}:{name}"
-            for category, group in self.context.components.items()
-            for name in group
+            f"{category}:{name}" for category, group in self.context.components.items() for name in group
         ]
-        logger.info(
-            f"Components ({len(component_names)}): {', '.join(component_names) or '-'}"
-        )
-        logger.info(
-            f"Jobs ({len(self.context.jobs)}): {', '.join(self.context.jobs) or '-'}"
-        )
+        logger.info(f"Components ({len(component_names)}): {', '.join(component_names) or '-'}")
+        logger.info(f"Jobs ({len(self.context.jobs)}): {', '.join(self.context.jobs) or '-'}")
         registry.freeze()
 
     def _discover_plugins(self) -> None:
@@ -88,8 +78,7 @@ class Application(BaseComponent):
         conflicts = plugin_jobs.keys() & self.app_config.jobs.keys()
         if conflicts:
             raise ValueError(
-                f"Jobs provided by both application config and plugins: "
-                f"{', '.join(sorted(conflicts))}",
+                f"Jobs provided by both application config and plugins: " f"{', '.join(sorted(conflicts))}",
             )
         if plugin_jobs:
             self.context.app_config = self.context.app_config.model_copy(
@@ -132,15 +121,12 @@ class Application(BaseComponent):
                     if dependency.optional:
                         continue
                     raise ValueError(
-                        f"Component {key[0]}:{key[1]} depends on missing "
-                        f"{dependency.ctype}:{dependency.name}",
+                        f"Component {key[0]}:{key[1]} depends on missing " f"{dependency.ctype}:{dependency.name}",
                     )
                 in_degree[key] += 1
                 dependants[dependency_key].append(key)
 
-        ready = [
-            (positions[key], key) for key, degree in in_degree.items() if degree == 0
-        ]
+        ready = [(positions[key], key) for key, degree in in_degree.items() if degree == 0]
         heapq.heapify(ready)
         ordered = []
         while ready:
@@ -151,18 +137,14 @@ class Application(BaseComponent):
                 if in_degree[dependant] == 0:
                     heapq.heappush(ready, (positions[dependant], dependant))
         if len(ordered) != len(nodes):
-            unresolved = [
-                f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree
-            ]
+            unresolved = [f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree]
             raise ValueError(
                 f"Components unresolved due to circular dependencies: {', '.join(unresolved)}",
             )
         return ordered
 
     async def _start(self) -> None:
-        Path(self.app_config.workspace_dir).expanduser().mkdir(
-            parents=True, exist_ok=True
-        )
+        Path(self.app_config.workspace_dir).expanduser().mkdir(parents=True, exist_ok=True)
 
         for component in self._component_startup_order():
             await component.start()
@@ -195,10 +177,7 @@ class Application(BaseComponent):
         if job is None:
             raise ValueError(f"Unknown job: {name!r}")
         if not job.is_invocable:
-            raise ValueError(
-                f"Job {name!r} does not support direct invocation "
-                f"in {job.mode.value!r} mode"
-            )
+            raise ValueError(f"Job {name!r} does not support direct invocation " f"in {job.mode.value!r} mode")
         if REMOTE_IP_ARGUMENT in kwargs and not job.is_remotely_invocable:
             raise ValueError(f"Job {name!r} does not support remote execution")
         arguments = format_log_arguments(kwargs)
@@ -207,8 +186,6 @@ class Application(BaseComponent):
         remote_ip = kwargs.pop(REMOTE_IP_ARGUMENT, None)
         if remote_ip is not None:
             node = self.app_config.resolve_remote_node(remote_ip)
-            async with HttpClient(
-                host_ip=node.host_ip, host_port=node.host_port
-            ) as client:
+            async with HttpClient(host_ip=node.host_ip, host_port=node.host_port) as client:
                 return await client.run_job(name, **kwargs)
         return await job(**kwargs)

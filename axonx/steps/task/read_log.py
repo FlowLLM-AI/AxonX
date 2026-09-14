@@ -37,11 +37,7 @@ class ReadTaskLogStep(BaseStep):
 
         file_size = path.stat().st_size
         reset = requested_offset > file_size
-        start_offset = (
-            max(0, file_size - limit)
-            if requested_offset < 0 or reset
-            else requested_offset
-        )
+        start_offset = max(0, file_size - limit) if requested_offset < 0 or reset else requested_offset
         with path.open("rb") as file:
             file.seek(start_offset)
             data = file.read(limit)

@@ -83,7 +83,7 @@ def _list_entries(root: Path, relative_path: str) -> dict[str, Any]:
                 "supported": preview_kind is not None,
                 "size": stat.st_size if kind == "file" else None,
                 "modified_at": stat.st_mtime,
-            }
+            },
         )
     entries.sort(key=lambda entry: (entry["kind"] != "directory", entry["name"].casefold()))
     return {"path": relative_path, "entries": entries, "truncated": truncated}
@@ -215,11 +215,7 @@ def _preview_file(root: Path, relative_path: str, offset: int, limit: int) -> di
         except yaml.YAMLError as exc:
             mark = getattr(exc, "problem_mark", None)
             problem = getattr(exc, "problem", None) or str(exc)
-            parse_error = (
-                f"Line {mark.line + 1}, column {mark.column + 1}: {problem}"
-                if mark is not None
-                else problem
-            )
+            parse_error = f"Line {mark.line + 1}, column {mark.column + 1}: {problem}" if mark is not None else problem
         return {
             "kind": kind,
             "size": size,
@@ -262,9 +258,7 @@ class ListWorkspaceEntriesStep(BaseStep):
 
     async def execute(self):
         relative_path = self.context.get("path", "")
-        self.response.answer = await asyncio.to_thread(
-            _list_entries, _workspace_root(self), relative_path
-        )
+        self.response.answer = await asyncio.to_thread(_list_entries, _workspace_root(self), relative_path)
 
 
 @R.register("preview_workspace_file_step")
@@ -276,7 +270,11 @@ class PreviewWorkspaceFileStep(BaseStep):
         offset = self.context.get("offset", 0)
         limit = min(self.context.get("limit", CSV_PREVIEW_ROWS), CSV_PREVIEW_ROWS)
         self.response.answer = await asyncio.to_thread(
-            _preview_file, _workspace_root(self), relative_path, offset, limit
+            _preview_file,
+            _workspace_root(self),
+            relative_path,
+            offset,
+            limit,
         )
 
 
@@ -285,6 +283,4 @@ class DeleteWorkspaceEntryStep(BaseStep):
     """Delete one file or directory after workspace-boundary validation."""
 
     async def execute(self):
-        self.response.answer = await asyncio.to_thread(
-            _delete_entry, _workspace_root(self), self.context["path"]
-        )
+        self.response.answer = await asyncio.to_thread(_delete_entry, _workspace_root(self), self.context["path"])

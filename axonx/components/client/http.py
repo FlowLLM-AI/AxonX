@@ -31,9 +31,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
 
     async def run_job(self, name: str, **kwargs: Any) -> Response:
         """Invoke a named remote job with JSON arguments."""
-        response = await self._require_client().post(
-            f"/jobs/{quote(name, safe='')}", json=kwargs
-        )
+        response = await self._require_client().post(f"/jobs/{quote(name, safe='')}", json=kwargs)
         response.raise_for_status()
         return Response.model_validate_json(response.content)
 
@@ -71,8 +69,6 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         }
         if token:
             headers["authorization"] = f"Bearer {token}"
-        response = await self._require_client().post(
-            "/plugins", content=data, headers=headers
-        )
+        response = await self._require_client().post("/plugins", content=data, headers=headers)
         response.raise_for_status()
         return response.json()

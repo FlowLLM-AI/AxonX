@@ -12,7 +12,12 @@ from typing import Any
 
 from .base import BaseTaskManager
 from ..registry import R
-from ...constants import AXONX_SERVICE_INFO, AXONX_TASK_LOG_DIR, AXONX_TASK_WORKSPACE_DIR
+from ...constants import (
+    AXONX_SERVICE_INFO,
+    AXONX_TASK_LOG_DIR,
+    AXONX_TASK_STATUS_MIN_INTERVAL,
+    AXONX_TASK_WORKSPACE_DIR,
+)
 from ...enums import TaskState
 from ...schema import TaskStatus
 from ...task.arguments import task_name_from_argv
@@ -84,9 +89,7 @@ class LocalTaskManager(BaseTaskManager):
         payload = {
             "version": self.version,
             "workspace": str(self.workspace_path.resolve()),
-            "tasks": [
-                status.model_dump(mode="json") for status in self._statuses.values()
-            ],
+            "tasks": [status.model_dump(mode="json") for status in self._statuses.values()],
         }
         temporary = self.status_path.with_suffix(".tmp")
         temporary.write_text(
@@ -103,20 +106,14 @@ class LocalTaskManager(BaseTaskManager):
                 data = json.loads(self.status_path.read_text(encoding="utf-8"))
                 if data.get("version") == self.version:
                     saved_workspace = data.get("workspace")
-                    if saved_workspace is not None and Path(
-                        saved_workspace
-                    ).expanduser().resolve() != self.workspace_path.resolve():
-                        self.logger.warning(
-                            f"Ignoring task history copied from workspace {saved_workspace}"
-                        )
+                    if (
+                        saved_workspace is not None
+                        and Path(saved_workspace).expanduser().resolve() != self.workspace_path.resolve()
+                    ):
+                        self.logger.warning(f"Ignoring task history copied from workspace {saved_workspace}")
                     else:
-                        statuses = (
-                            TaskStatus.model_validate(status)
-                            for status in data.get("tasks", [])
-                        )
-                        self._statuses = {
-                            status.task_id: status for status in statuses
-                        }
+                        statuses = (TaskStatus.model_validate(status) for status in data.get("tasks", []))
+                        self._statuses = {status.task_id: status for status in statuses}
                         for status in self._statuses.values():
                             self._sanitize_loaded_log_path(status)
                             self._attach_log_path(status)
@@ -137,27 +134,17 @@ class LocalTaskManager(BaseTaskManager):
 
     async def _terminate_processes(self) -> None:
         """Terminate and reap every worker process launched by this manager."""
-        processes = tuple(
-            process
-            for process in self._processes.values()
-            if process.returncode is None
-        )
+        processes = tuple(process for process in self._processes.values() if process.returncode is None)
         if not processes:
             return
 
         self._shutdown_processes.update(process.pid for process in processes)
-        terminated = {
-            process.pid
-            for process in processes
-            if self._signal(process.pid, signal.SIGTERM)
-        }
+        terminated = {process.pid for process in processes if self._signal(process.pid, signal.SIGTERM)}
         monitors = tuple(self._process_monitors)
         if monitors and self.terminate_grace_seconds > 0:
             await asyncio.wait(monitors, timeout=self.terminate_grace_seconds)
 
-        survivors = tuple(
-            process for process in processes if process.returncode is None
-        )
+        survivors = tuple(process for process in processes if process.returncode is None)
         for process in survivors:
             if self._signal(process.pid, signal.SIGKILL):
                 terminated.add(process.pid)
@@ -182,15 +169,16 @@ class LocalTaskManager(BaseTaskManager):
     async def submit(self, argv: Sequence[str]) -> None:
         if not self.is_started:
             raise RuntimeError("Task manager is not running")
-        if isinstance(argv, (str, bytes)) or not all(
-            isinstance(value, str) for value in argv
-        ):
+        if isinstance(argv, (str, bytes)) or not all(isinstance(value, str) for value in argv):
             raise TypeError("Task arguments must be a sequence of strings")
         environment = dict(self.app_config.environment)
         environment[AXONX_TASK_WORKSPACE_DIR] = str(self.workspace_path.resolve())
         environment[AXONX_TASK_LOG_DIR] = str(self.log_dir)
         if service_info := os.environ.get(AXONX_SERVICE_INFO):
             environment[AXONX_SERVICE_INFO] = service_info
+        status_interval = os.environ.get(AXONX_TASK_STATUS_MIN_INTERVAL)
+        if status_interval is not None:
+            environment.setdefault(AXONX_TASK_STATUS_MIN_INTERVAL, status_interval)
         process = await asyncio.create_subprocess_exec(
             sys.executable,
             "-m",
@@ -225,9 +213,7 @@ class LocalTaskManager(BaseTaskManager):
         except asyncio.CancelledError:
             raise
         except Exception:  # noqa
-            self.logger.exception(
-                f"Failed to monitor task process {process.pid} ({task_name})"
-            )
+            self.logger.exception(f"Failed to monitor task process {process.pid} ({task_name})")
             return
         finally:
             if process.returncode is not None:
@@ -236,21 +222,16 @@ class LocalTaskManager(BaseTaskManager):
             self._shutdown_processes.discard(process.pid)
 
         if return_code == 0:
-            self.logger.info(
-                f"Task process {process.pid} ({task_name}) completed successfully"
-            )
+            self.logger.info(f"Task process {process.pid} ({task_name}) completed successfully")
             return
 
         if stopped_during_shutdown:
-            self.logger.info(
-                f"Task process {process.pid} ({task_name}) stopped during task-manager shutdown"
-            )
+            self.logger.info(f"Task process {process.pid} ({task_name}) stopped during task-manager shutdown")
             return
 
         detail = stderr_tail.decode(errors="replace").strip() or "no stderr output"
         self.logger.error(
-            f"Task process {process.pid} ({task_name}) exited with code {return_code}. "
-            f"stderr tail:\n{detail}",
+            f"Task process {process.pid} ({task_name}) exited with code {return_code}. " f"stderr tail:\n{detail}",
         )
         self._record_abnormal_exit(process.pid, return_code, detail)
 
@@ -323,10 +304,7 @@ class LocalTaskManager(BaseTaskManager):
     async def list_runtime_task_statuses(self):
         for status in self._statuses.values():
             self._attach_log_path(status)
-        return [
-            self._statuses[task_id].model_copy(deep=True)
-            for task_id in sorted(self._statuses, reverse=True)
-        ]
+        return [self._statuses[task_id].model_copy(deep=True) for task_id in sorted(self._statuses, reverse=True)]
 
     async def get_status(self, task_id):
         self._attach_log_path(self._statuses[task_id])
@@ -349,9 +327,7 @@ class LocalTaskManager(BaseTaskManager):
         return True
 
     async def delete(self, task_ids: Sequence[str]) -> list[str]:
-        if isinstance(task_ids, (str, bytes)) or not all(
-            isinstance(task_id, str) for task_id in task_ids
-        ):
+        if isinstance(task_ids, (str, bytes)) or not all(isinstance(task_id, str) for task_id in task_ids):
             raise TypeError("task_ids must be a sequence of strings")
 
         deleted = []

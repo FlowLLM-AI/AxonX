@@ -45,9 +45,7 @@ def artifact_path(task_dir: Path, metadata: dict[str, Any], name: str) -> Path:
 
 def normalize_yyyymmdd(value: object, *, optional: bool = False) -> str | None:
     """Normalize and validate a compact calendar date."""
-    if optional and (
-        value is None or isinstance(value, str) and value.lower() in {"", "none"}
-    ):
+    if optional and (value is None or isinstance(value, str) and value.lower() in {"", "none"}):
         return None
     normalized = str(value)
     try:
@@ -99,9 +97,7 @@ def atomic_output(path: Path, writer: Callable[[Path], object]) -> None:
 
 
 def atomic_text(path: Path, content: str) -> None:
-    atomic_output(
-        path, lambda temporary: temporary.write_text(content, encoding="utf-8")
-    )
+    atomic_output(path, lambda temporary: temporary.write_text(content, encoding="utf-8"))
 
 
 def write_metadata(path: Path, metadata: dict[str, Any]) -> None:
@@ -116,6 +112,5 @@ def write_metadata(path: Path, metadata: dict[str, Any]) -> None:
 
     atomic_text(
         path,
-        json.dumps(json_value(metadata), ensure_ascii=False, indent=2, allow_nan=False)
-        + "\n",
+        json.dumps(json_value(metadata), ensure_ascii=False, indent=2, allow_nan=False) + "\n",
     )

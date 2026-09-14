@@ -54,9 +54,7 @@ class FactorAnalysisTask(BaseTask):
     def resolve_upstream_task(self) -> None:
         source_dir = task_directory(self.workspace_path, "etl", self.config.etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = read_metadata(
-            source_metadata_path, description="Alpha158 ETL"
-        )
+        source_metadata = read_metadata(source_metadata_path, description="Alpha158 ETL")
         dataset_path = artifact_path(source_dir, source_metadata, "dataset")
         output_dir = self.workspace_path / "analysis" / self.task_id
         self.context.update(
@@ -71,7 +69,7 @@ class FactorAnalysisTask(BaseTask):
         )
         self.logger.info(
             f"Factor analysis source resolved etl_task_id={self.config.etl_task_id} "
-            f"dataset={dataset_path} output_dir={output_dir}"
+            f"dataset={dataset_path} output_dir={output_dir}",
         )
 
     def load_and_validate_dataset(self) -> None:
@@ -106,7 +104,7 @@ class FactorAnalysisTask(BaseTask):
         self.report_progress(95)
         self.logger.info(
             f"Factor analysis data validated rows={stats['rows']} features={len(features)} "
-            f"start={stats['start']} end={stats['end']}"
+            f"start={stats['start']} end={stats['end']}",
         )
 
     def calculate_factor_metrics(self) -> None:
@@ -129,13 +127,13 @@ class FactorAnalysisTask(BaseTask):
             completed = min(offset + len(batch), total)
             percentage = completed / total * 95
             self.report_progress(percentage)
-            self.logger.info(
-                f"Factor diagnostics progress completed={completed}/{total} last_factor={batch[-1]}"
-            )
+            self.logger.info(f"Factor diagnostics progress completed={completed}/{total} last_factor={batch[-1]}")
         self.context["results"] = pl.concat(results, how="vertical")
-        self.context["quantile_results"] = pl.concat(
-            quantile_results, how="vertical"
-        ).sort("factor", "label", "quantile")
+        self.context["quantile_results"] = pl.concat(quantile_results, how="vertical").sort(
+            "factor",
+            "label",
+            "quantile",
+        )
 
     def _analyze_batch(
         self,
@@ -153,21 +151,14 @@ class FactorAnalysisTask(BaseTask):
                         pl.col(feature).alias("factor_value"),
                         pl.col(label).alias("label_value"),
                     )
-                    .filter(
-                        pl.col("factor_value").is_finite()
-                        & pl.col("label_value").is_finite()
-                    )
+                    .filter(pl.col("factor_value").is_finite() & pl.col("label_value").is_finite())
                 )
                 daily = (
                     valid.group_by("trade_date")
                     .agg(
                         pl.len().alias("samples"),
-                        pl.corr("factor_value", "label_value", method="pearson").alias(
-                            "ic"
-                        ),
-                        pl.corr("factor_value", "label_value", method="spearman").alias(
-                            "rank_ic"
-                        ),
+                        pl.corr("factor_value", "label_value", method="pearson").alias("ic"),
+                        pl.corr("factor_value", "label_value", method="spearman").alias("rank_ic"),
                     )
                     .filter(pl.col("samples") >= self.config.minimum_daily_samples)
                 )
@@ -181,7 +172,7 @@ class FactorAnalysisTask(BaseTask):
                             *self._summary_expressions("rank_ic", "rankic"),
                         ),
                         how="cross",
-                    )
+                    ),
                 )
                 quantile_plans.append(self._quantile_plan(valid, feature, label))
 
@@ -189,43 +180,27 @@ class FactorAnalysisTask(BaseTask):
             [
                 self._finalize_daily_metrics(pl.concat(daily_plans)),
                 pl.concat(quantile_plans),
-            ]
+            ],
         )
         quantile_summary = (
             quantiles.lazy()
             .group_by("factor", "label")
             .agg(
                 (
-                    pl.col("mean_return")
-                    .filter(pl.col("quantile") == self.config.quantiles)
-                    .first()
+                    pl.col("mean_return").filter(pl.col("quantile") == self.config.quantiles).first()
                     - pl.col("mean_return").filter(pl.col("quantile") == 1).first()
                 ).alias("quantile_spread"),
-                pl.corr("quantile", "mean_return", method="spearman").alias(
-                    "quantile_monotonicity"
-                ),
+                pl.corr("quantile", "mean_return", method="spearman").alias("quantile_monotonicity"),
             )
         )
         results = (
             daily_metrics.lazy()
-            .with_columns(
-                (
-                    pl.col("valid_samples") / frame.height
-                    if frame.height
-                    else pl.lit(0.0)
-                ).alias("coverage")
-            )
+            .with_columns((pl.col("valid_samples") / frame.height if frame.height else pl.lit(0.0)).alias("coverage"))
             .join(quantile_summary, on=["factor", "label"], how="left")
             .with_columns(
-                pl.col("quantile_spread", "quantile_monotonicity").fill_null(
-                    float("nan")
-                ),
+                pl.col("quantile_spread", "quantile_monotonicity").fill_null(float("nan")),
                 pl.when(pl.col("rankic_mean").is_finite())
-                .then(
-                    pl.when(pl.col("rankic_mean") >= 0)
-                    .then(pl.lit("positive"))
-                    .otherwise(pl.lit("negative"))
-                )
+                .then(pl.when(pl.col("rankic_mean") >= 0).then(pl.lit("positive")).otherwise(pl.lit("negative")))
                 .otherwise(pl.lit("unknown"))
                 .alias("direction"),
             )
@@ -256,21 +231,14 @@ class FactorAnalysisTask(BaseTask):
         )
         return results, quantiles
 
-    def _quantile_plan(
-        self, valid: pl.LazyFrame, feature: str, label: str
-    ) -> pl.LazyFrame:
+    def _quantile_plan(self, valid: pl.LazyFrame, feature: str, label: str) -> pl.LazyFrame:
         daily_size = pl.len().over("trade_date")
         return (
             valid.filter(daily_size >= self.config.minimum_daily_samples)
             .with_columns(
                 (
                     (
-                        (
-                            pl.col("factor_value")
-                            .rank(method="average")
-                            .over("trade_date")
-                            - 1
-                        )
+                        (pl.col("factor_value").rank(method="average").over("trade_date") - 1)
                         / daily_size
                         * self.config.quantiles
                     )
@@ -279,7 +247,7 @@ class FactorAnalysisTask(BaseTask):
                     .cast(pl.Int16)
                     .add(1)
                     .alias("quantile")
-                )
+                ),
             )
             .group_by("trade_date", "quantile")
             .agg(
@@ -319,9 +287,7 @@ class FactorAnalysisTask(BaseTask):
         ]
         if prefix == "rankic":
             expressions.extend(
-                finite.quantile(quantile, interpolation="linear").alias(
-                    f"rankic_{name}"
-                )
+                finite.quantile(quantile, interpolation="linear").alias(f"rankic_{name}")
                 for name, quantile in (("p05", 0.05), ("p50", 0.50), ("p95", 0.95))
             )
         return expressions
@@ -346,9 +312,7 @@ class FactorAnalysisTask(BaseTask):
             )
             .with_columns(
                 (pl.col("icir") * pl.col("_ic_count").sqrt()).alias("ic_t_stat"),
-                (pl.col("rankicir") * pl.col("_rankic_count").sqrt()).alias(
-                    "rankic_t_stat"
-                ),
+                (pl.col("rankicir") * pl.col("_rankic_count").sqrt()).alias("rankic_t_stat"),
             )
             .with_columns(
                 pl.col(
@@ -363,25 +327,19 @@ class FactorAnalysisTask(BaseTask):
                     "rankic_p05",
                     "rankic_p50",
                     "rankic_p95",
-                ).fill_null(nan)
+                ).fill_null(nan),
             )
         )
 
     def rank_factors(self) -> None:
         results: pl.DataFrame = self.context["results"]
         self.context["results"] = results.with_columns(
-            (
-                pl.col("rankic_mean")
-                .abs()
-                .rank(method="average", descending=True)
-                .over("label")
-            ).alias("rank_by_abs_rankic"),
-            (
-                pl.col("rankicir")
-                .abs()
-                .rank(method="average", descending=True)
-                .over("label")
-            ).alias("rank_by_abs_rankicir"),
+            (pl.col("rankic_mean").abs().rank(method="average", descending=True).over("label")).alias(
+                "rank_by_abs_rankic",
+            ),
+            (pl.col("rankicir").abs().rank(method="average", descending=True).over("label")).alias(
+                "rank_by_abs_rankicir",
+            ),
         ).sort("label", "rank_by_abs_rankic")
 
     def write_outputs(self) -> None:
@@ -397,7 +355,7 @@ class FactorAnalysisTask(BaseTask):
             self.report_progress(index / len(outputs) * 95)
         self.logger.info(
             f"Factor analysis outputs written result={self.context['result_path']} "
-            f"quantiles={self.context['quantiles_path']} rows={self.context['results'].height}"
+            f"quantiles={self.context['quantiles_path']} rows={self.context['results'].height}",
         )
 
     def write_metadata(self) -> None:
@@ -414,9 +372,7 @@ class FactorAnalysisTask(BaseTask):
                 task_id=self.task_id,
                 task_type=self.task_type.value,
             ),
-            "config": self.config.model_dump(
-                mode="json", exclude={"task_id", "task_type"}
-            ),
+            "config": self.config.model_dump(mode="json", exclude={"task_id", "task_type"}),
             "source": {
                 "etl_task_id": self.config.etl_task_id,
                 "metadata": str(self.context["source_metadata_path"]),

@@ -73,9 +73,7 @@ async def test_proxy_forwards_request_and_applies_json_overrides():
     }
 
     async with app:
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=server), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
             response = await client.post("/mirror/resource?limit=2", json=payload)
 
     assert response.status_code == 200
@@ -96,9 +94,7 @@ async def test_proxy_rejects_invalid_secret_without_contacting_upstream():
     app = build_app(upstream)
     server = HttpService().build_service(app)
     async with app:
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=server), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
             response = await client.post(
                 "/mirror/resource",
                 json={"credentials": {"secret": "wrong"}},
@@ -119,9 +115,7 @@ async def test_proxy_preserves_upstream_status_body_and_selected_headers():
     app = build_app(upstream)
     server = HttpService().build_service(app)
     async with app:
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=server), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
             response = await client.post(
                 "/mirror/resource",
                 json={"credentials": {"secret": "secret-token"}},
@@ -137,9 +131,7 @@ async def test_proxy_rejects_oversized_request():
     app = build_app(lambda _request: httpx.Response(200), max_request_bytes=10)
     server = HttpService().build_service(app)
     async with app:
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=server), base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
             response = await client.post("/mirror/resource", content=b"01234567890")
 
     assert response.status_code == 413

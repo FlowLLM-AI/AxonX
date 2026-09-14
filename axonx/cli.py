@@ -29,11 +29,7 @@ from .utils.cli import (
 
 def _run_server(command: Command) -> int:
     environment = load_env()
-    arguments = {
-        key: value
-        for key, value in command.arguments.items()
-        if key != CLI_RAW_ARGUMENTS
-    }
+    arguments = {key: value for key, value in command.arguments.items() if key != CLI_RAW_ARGUMENTS}
     config = resolve_app_config(**arguments)
     config["environment"] = {**environment, **config.get("environment", {})}
     app = Application(**config)
@@ -107,11 +103,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_remote_job(command, client_options)
     except Exception as exc:
         print(f"Error: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return (
-            2
-            if isinstance(exc, (FileNotFoundError, KeyError, TypeError, ValueError))
-            else 1
-        )
+        return 2 if isinstance(exc, (FileNotFoundError, KeyError, TypeError, ValueError)) else 1
 
 
 if __name__ == "__main__":

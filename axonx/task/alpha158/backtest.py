@@ -87,9 +87,7 @@ class Alpha158BacktestTask(BaseTask):
         yield self.publish_output
 
     def resolve_prediction_task(self) -> None:
-        source_dir = task_directory(
-            self.workspace_path, "predict", self.config.prediction_task_id
-        )
+        source_dir = task_directory(self.workspace_path, "predict", self.config.prediction_task_id)
         metadata_path = source_dir / "metadata.json"
         metadata = read_metadata(metadata_path, description="Alpha158 prediction")
         if metadata.get("protocol", {}).get("actual_return_column") != "label_1d":
@@ -116,16 +114,12 @@ class Alpha158BacktestTask(BaseTask):
         for name in ("label_valid", "is_buyable"):
             if schema[name] != pl.Boolean:
                 raise TypeError(f"{name} 必须是 Boolean")
-        index_columns = tuple(
-            name for name in schema if name.startswith("index_weight_")
-        )
+        index_columns = tuple(name for name in schema if name.startswith("index_weight_"))
         frame = (
             pl.scan_parquet(path)
             .select(
                 pl.col("trade_date", "ts_code", "name").cast(pl.String),
-                pl.col("pred", "actual_return", *index_columns).cast(
-                    pl.Float64, strict=False
-                ),
+                pl.col("pred", "actual_return", *index_columns).cast(pl.Float64, strict=False),
                 "label_valid",
                 "is_buyable",
             )
@@ -138,15 +132,10 @@ class Alpha158BacktestTask(BaseTask):
         if frame.select("trade_date", "ts_code").n_unique() != frame.height:
             raise ValueError("预测文件包含重复的 trade_date, ts_code")
         invalid_number = pl.any_horizontal(
-            pl.col("pred", "actual_return").is_not_null()
-            & ~pl.col("pred", "actual_return").is_finite()
+            pl.col("pred", "actual_return").is_not_null() & ~pl.col("pred", "actual_return").is_finite(),
         )
-        invalid_label = pl.col("label_valid") & (
-            pl.col("actual_return").is_null() | (pl.col("actual_return") <= -1)
-        )
-        if frame.filter(
-            pl.col("trade_date").str.to_date("%Y%m%d", strict=False).is_null()
-        ).height:
+        invalid_label = pl.col("label_valid") & (pl.col("actual_return").is_null() | (pl.col("actual_return") <= -1))
+        if frame.filter(pl.col("trade_date").str.to_date("%Y%m%d", strict=False).is_null()).height:
             raise ValueError("trade_date 必须是有效 YYYYMMDD")
         if frame.filter(invalid_number).height:
             raise ValueError("pred 或 actual_return 包含非有限值")
@@ -154,32 +143,19 @@ class Alpha158BacktestTask(BaseTask):
             raise ValueError("有效 actual_return 必须非空且大于 -1")
         for column in index_columns:
             weight = pl.col(column)
-            if frame.filter(
-                weight.is_not_null() & (~weight.is_finite() | (weight < 0))
-            ).height:
+            if frame.filter(weight.is_not_null() & (~weight.is_finite() | (weight < 0))).height:
                 raise ValueError(f"{column} 必须是非负有限小数权重")
-            if (
-                frame.group_by("trade_date")
-                .agg(weight.sum())
-                .filter(weight > 1.05)
-                .height
-            ):
+            if frame.group_by("trade_date").agg(weight.sum()).filter(weight > 1.05).height:
                 raise ValueError(f"{column} 每日合计不能明显超过 1")
-        eligible = (
-            pl.col("is_buyable") & pl.col("label_valid") & pl.col("pred").is_not_null()
-        )
+        eligible = pl.col("is_buyable") & pl.col("label_valid") & pl.col("pred").is_not_null()
         candidates = (
             frame.filter(eligible)
             .sort("trade_date", "pred", "ts_code", descending=(False, True, False))
-            .with_columns(
-                pl.col("ts_code").cum_count().over("trade_date").alias("rank")
-            )
+            .with_columns(pl.col("ts_code").cum_count().over("trade_date").alias("rank"))
         )
         if candidates.is_empty():
             raise ValueError("预测文件没有可回测的 label_1d 样本")
-        self.context.update(
-            frame=frame, candidates=candidates, index_columns=index_columns
-        )
+        self.context.update(frame=frame, candidates=candidates, index_columns=index_columns)
         self.report_progress(95)
 
     def calculate_daily_performance(self) -> None:
@@ -196,9 +172,7 @@ class Alpha158BacktestTask(BaseTask):
             base = base.join(benchmarks, on="trade_date", how="left")
         self.report_progress(30)
         daily = base
-        portfolios = pl.collect_all(
-            [self._portfolio(candidates, n).lazy() for n in self.context["top_ns"]]
-        )
+        portfolios = pl.collect_all([self._portfolio(candidates, n).lazy() for n in self.context["top_ns"]])
         self.report_progress(65)
         for portfolio in portfolios:
             daily = daily.join(portfolio, on="trade_date", how="left")
@@ -207,8 +181,7 @@ class Alpha158BacktestTask(BaseTask):
         if daily.filter(pl.any_horizontal(pl.col(*net_columns) <= -1)).height:
             raise ValueError("扣费后收益不能低于 -100%")
         daily = daily.with_columns(
-            (pl.col(name) + 1).cum_prod().alias(name.replace("return", "value"))
-            for name in net_columns
+            (pl.col(name) + 1).cum_prod().alias(name.replace("return", "value")) for name in net_columns
         )
         self.report_progress(85)
         holdings = (
@@ -233,49 +206,36 @@ class Alpha158BacktestTask(BaseTask):
 
     @staticmethod
     def _correlation(method: str, name: str) -> pl.Expr:
-        return (
-            pl.corr("pred", "actual_return", method=method)
-            .fill_nan(0)
-            .fill_null(0)
-            .alias(name)
-        )
+        return pl.corr("pred", "actual_return", method=method).fill_nan(0).fill_null(0).alias(name)
 
     def _index_benchmarks(self, frame: pl.DataFrame) -> pl.DataFrame | None:
         expressions = []
         for column in self.context["index_columns"]:
             suffix = column.removeprefix("index_weight_")
-            valid = (
-                pl.col("label_valid")
-                & pl.col("actual_return").is_not_null()
-                & pl.col(column).is_not_null()
-            )
+            valid = pl.col("label_valid") & pl.col("actual_return").is_not_null() & pl.col(column).is_not_null()
             covered = pl.col(column).filter(valid).sum()
             expressions.extend(
                 (
                     covered.clip(upper_bound=1).alias(f"benchmark_{suffix}_coverage"),
                     pl.when(covered >= self.config.minimum_index_weight_coverage)
-                    .then(
-                        (pl.col(column) * pl.col("actual_return")).filter(valid).sum()
-                        / covered
-                    )
+                    .then((pl.col(column) * pl.col("actual_return")).filter(valid).sum() / covered)
                     .alias(f"benchmark_{suffix}"),
-                )
+                ),
             )
         return frame.group_by("trade_date").agg(*expressions) if expressions else None
 
     def _portfolio(self, candidates: pl.DataFrame, top_n: int) -> pl.DataFrame:
         prefix = f"top{top_n}"
         selected = candidates.filter(pl.col("rank") <= top_n).with_columns(
-            (1 / pl.len().over("trade_date")).alias("weight")
+            (1 / pl.len().over("trade_date")).alias("weight"),
         )
-        dates = (
-            selected.select("trade_date")
-            .unique()
-            .sort("trade_date")
-            .with_row_index("_day")
-        )
+        dates = selected.select("trade_date").unique().sort("trade_date").with_row_index("_day")
         weights = selected.join(dates, on="trade_date").select(
-            "_day", "trade_date", "ts_code", "weight", "actual_return"
+            "_day",
+            "trade_date",
+            "ts_code",
+            "weight",
+            "actual_return",
         )
         previous = weights.select(
             (pl.col("_day") + 1).alias("_day"),
@@ -299,18 +259,13 @@ class Alpha158BacktestTask(BaseTask):
                 pl.when(pl.col("_day") == 0)
                 .then(0)
                 .otherwise(1 - pl.col("_overlap").fill_null(0))
-                .alias(f"{prefix}_turnover")
+                .alias(f"{prefix}_turnover"),
             )
             .with_columns(
-                (
-                    pl.col(f"{prefix}_turnover") * self.config.transaction_cost_rate
-                ).alias(f"{prefix}_transaction_cost")
+                (pl.col(f"{prefix}_turnover") * self.config.transaction_cost_rate).alias(f"{prefix}_transaction_cost"),
             )
             .with_columns(
-                (
-                    pl.col(f"{prefix}_gross_return")
-                    - pl.col(f"{prefix}_transaction_cost")
-                ).alias(f"{prefix}_net_return")
+                (pl.col(f"{prefix}_gross_return") - pl.col(f"{prefix}_transaction_cost")).alias(f"{prefix}_net_return"),
             )
             .drop("_day", "_overlap")
         )
@@ -322,14 +277,10 @@ class Alpha158BacktestTask(BaseTask):
             (
                 pl.col("trade_date").str.slice(0, 4)
                 + "Q"
-                + (
-                    ((pl.col("trade_date").str.slice(4, 2).cast(pl.Int8) - 1) // 3) + 1
-                ).cast(pl.String)
+                + (((pl.col("trade_date").str.slice(4, 2).cast(pl.Int8) - 1) // 3) + 1).cast(pl.String)
             ).alias("quarter"),
         )
-        self.context["overall"] = self._summarize(
-            daily.with_columns(pl.lit("overall").alias("period")), "period"
-        )
+        self.context["overall"] = self._summarize(daily.with_columns(pl.lit("overall").alias("period")), "period")
         self.report_progress(30)
         self.context["yearly"] = self._summarize(dated, "year")
         self.report_progress(60)
@@ -340,17 +291,11 @@ class Alpha158BacktestTask(BaseTask):
     def _ratio(column: str) -> pl.Expr:
         values = pl.col(column).drop_nulls()
         std = values.std(ddof=1)
-        return (
-            pl.when((values.len() > 1) & (std > 0))
-            .then(values.mean() / std)
-            .otherwise(0)
-        )
+        return pl.when((values.len() > 1) & (std > 0)).then(values.mean() / std).otherwise(0)
 
     def _summarize(self, frame: pl.DataFrame, period: str) -> pl.DataFrame:
         frame = frame.rename({period: "_period"})
-        daily_rf = (1 + self.config.annual_risk_free_rate) ** (
-            1 / self.config.annualization_days
-        ) - 1
+        daily_rf = (1 + self.config.annual_risk_free_rate) ** (1 / self.config.annualization_days) - 1
         derived = []
         for n in self.context["top_ns"]:
             net = f"top{n}_net_return"
@@ -358,7 +303,7 @@ class Alpha158BacktestTask(BaseTask):
                 (
                     (pl.col(net) + 1).cum_prod().over("_period").alias(f"_{n}_equity"),
                     (pl.col(net) - daily_rf).alias(f"_{n}_excess"),
-                )
+                ),
             )
         frame = frame.sort("_period", "trade_date").with_columns(*derived)
         metrics = [
@@ -369,59 +314,43 @@ class Alpha158BacktestTask(BaseTask):
             self._ratio("rank_ic").alias("all|none|rankicir"),
         ]
         benchmarks = ("benchmark_universe",) + tuple(
-            f"benchmark_{name.removeprefix('index_weight_')}"
-            for name in self.context["index_columns"]
+            f"benchmark_{name.removeprefix('index_weight_')}" for name in self.context["index_columns"]
         )
         for n in self.context["top_ns"]:
             portfolio, net, equity = f"top{n}", f"top{n}_net_return", f"_{n}_equity"
             cumulative = (pl.col(net) + 1).product()
             metrics.extend(
                 (
-                    pl.col(f"{portfolio}_gross_return")
-                    .sum()
-                    .alias(f"{portfolio}|none|gross_cumulative_return"),
+                    pl.col(f"{portfolio}_gross_return").sum().alias(f"{portfolio}|none|gross_cumulative_return"),
                     (cumulative - 1).alias(f"{portfolio}|none|net_cumulative_return"),
                     pl.when(cumulative > 0)
                     .then(cumulative.pow(self.config.annualization_days / pl.len()) - 1)
                     .otherwise(-1)
                     .alias(f"{portfolio}|none|annualized_net_return"),
-                    (
-                        pl.col(net).std(ddof=1)
-                        * math.sqrt(self.config.annualization_days)
-                    ).alias(f"{portfolio}|none|annualized_volatility"),
-                    (
-                        self._ratio(f"_{n}_excess")
-                        * math.sqrt(self.config.annualization_days)
-                    ).alias(f"{portfolio}|none|sharpe"),
-                    (pl.col(equity) / pl.col(equity).cum_max() - 1)
-                    .min()
-                    .alias(f"{portfolio}|none|max_drawdown"),
+                    (pl.col(net).std(ddof=1) * math.sqrt(self.config.annualization_days)).alias(
+                        f"{portfolio}|none|annualized_volatility",
+                    ),
+                    (self._ratio(f"_{n}_excess") * math.sqrt(self.config.annualization_days)).alias(
+                        f"{portfolio}|none|sharpe",
+                    ),
+                    (pl.col(equity) / pl.col(equity).cum_max() - 1).min().alias(f"{portfolio}|none|max_drawdown"),
                     (pl.col(net) > 0).mean().alias(f"{portfolio}|none|win_rate"),
-                    pl.col(f"{portfolio}_turnover")
-                    .mean()
-                    .alias(f"{portfolio}|none|average_turnover"),
-                    pl.col(f"{portfolio}_count")
-                    .mean()
-                    .alias(f"{portfolio}|none|average_holding_count"),
-                )
+                    pl.col(f"{portfolio}_turnover").mean().alias(f"{portfolio}|none|average_turnover"),
+                    pl.col(f"{portfolio}_count").mean().alias(f"{portfolio}|none|average_holding_count"),
+                ),
             )
             for benchmark in benchmarks:
                 active = f"_{n}_{benchmark}_active"
-                frame = frame.with_columns(
-                    (pl.col(net) - pl.col(benchmark)).alias(active)
-                )
+                frame = frame.with_columns((pl.col(net) - pl.col(benchmark)).alias(active))
                 metrics.extend(
                     (
                         pl.when(pl.col(active).is_not_null().any())
                         .then(pl.col(active).drop_nulls().sum())
                         .alias(f"{portfolio}|{benchmark}|active_cumulative_return"),
                         pl.when(pl.col(active).is_not_null().any())
-                        .then(
-                            self._ratio(active)
-                            * math.sqrt(self.config.annualization_days)
-                        )
+                        .then(self._ratio(active) * math.sqrt(self.config.annualization_days))
                         .alias(f"{portfolio}|{benchmark}|information_ratio"),
-                    )
+                    ),
                 )
         return (
             frame.group_by("_period", maintain_order=True)
@@ -450,9 +379,7 @@ class Alpha158BacktestTask(BaseTask):
         daily: pl.DataFrame = self.context["daily"]
         integrity = {}
         for index, name in enumerate(names, start=1):
-            integrity[name] = artifact_record(
-                self.context[f"{name}_path"], self.context["output_dir"]
-            )
+            integrity[name] = artifact_record(self.context[f"{name}_path"], self.context["output_dir"])
             self.report_progress(index / (len(names) + 1) * 90)
         metadata = {
             **metadata_header(
@@ -460,9 +387,7 @@ class Alpha158BacktestTask(BaseTask):
                 task_id=self.task_id,
                 task_type=self.task_type.value,
             ),
-            "config": self.config.model_dump(
-                mode="json", exclude={"task_id", "task_type"}
-            ),
+            "config": self.config.model_dump(mode="json", exclude={"task_id", "task_type"}),
             "source": {
                 "prediction_task_id": self.config.prediction_task_id,
                 "metadata": str(self.context["prediction_metadata_path"]),

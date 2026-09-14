@@ -36,9 +36,7 @@ class BaseClient(BaseComponent, ABC, Generic[ClientT]):
         options = ClientOptions(host_ip=host_ip, host_port=host_port, timeout=timeout)
         self.host_ip, self.host_port = self._resolve_address(options)
         url_host = f"[{self.host_ip}]" if ":" in self.host_ip else self.host_ip
-        self.url = (
-            f"{AXONX_DEFAULT_SCHEME}://{url_host}:{self.host_port}{self._url_path}"
-        )
+        self.url = f"{AXONX_DEFAULT_SCHEME}://{url_host}:{self.host_port}{self._url_path}"
         self.timeout = options.timeout
         self.client: ClientT | None = None
 
@@ -62,11 +60,7 @@ class BaseClient(BaseComponent, ABC, Generic[ClientT]):
             host, port = data["host"], data["port"]
             if not isinstance(host, str) or not host:
                 raise ValueError("host has an invalid type")
-            if (
-                isinstance(port, bool)
-                or not isinstance(port, int)
-                or not 1 <= port <= 65535
-            ):
+            if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
                 raise ValueError("port is invalid")
             return host, port
         except (KeyError, TypeError, ValueError):

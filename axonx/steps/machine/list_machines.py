@@ -19,7 +19,5 @@ class ListMachinesStep(BaseStep):
 
     @staticmethod
     async def _check(node: RemoteNode) -> dict:
-        async with HttpClient(
-            host_ip=node.host_ip, host_port=node.host_port, timeout=5
-        ) as client:
+        async with HttpClient(host_ip=node.host_ip, host_port=node.host_port, timeout=5) as client:
             return {"address": node.address, "healthy": await client.health()}

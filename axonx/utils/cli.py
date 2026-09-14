@@ -40,9 +40,7 @@ def parse_command(argv: Sequence[str]) -> tuple[Command, ClientOptions]:
         raise ValueError(f"Client options cannot be used with local command: {action}")
 
     raw_arguments = tokens[action_index + 1 :]
-    arguments = (
-        {} if action in CLI_PASSTHROUGH_COMMANDS else _parse_arguments(raw_arguments)
-    )
+    arguments = {} if action in CLI_PASSTHROUGH_COMMANDS else _parse_arguments(raw_arguments)
     arguments[CLI_RAW_ARGUMENTS] = _task_arguments(raw_arguments, arguments)
     return Command(action=action, arguments=arguments), client
 

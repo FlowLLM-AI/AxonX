@@ -44,9 +44,7 @@ def print_logo(app_config: "ApplicationConfig", service: "HttpService") -> None:
     logo = Text()
     for line_number, line in enumerate(ascii_art):
         for position, character in enumerate(line):
-            red, green, blue = _rgb(
-                hue_base + line_number * 0.08 + position / max(1, len(line) - 1) * 0.5
-            )
+            red, green, blue = _rgb(hue_base + line_number * 0.08 + position / max(1, len(line) - 1) * 0.5)
             logo.append(character, style=f"bold rgb({red},{green},{blue})")
         logo.append("\n")
 

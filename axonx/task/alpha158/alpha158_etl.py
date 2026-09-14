@@ -59,9 +59,7 @@ CSZ_LABELS = tuple(f"{label}_csz" for label in LABELS)
 RANK_LABELS = tuple(f"{label}_rank" for label in LABELS)
 VALID_LABELS = tuple(f"{label}_is_valid" for label in LABELS)
 LABEL_OUTPUTS = tuple(
-    column
-    for columns in zip(LABELS, CSZ_LABELS, RANK_LABELS, VALID_LABELS, strict=True)
-    for column in columns
+    column for columns in zip(LABELS, CSZ_LABELS, RANK_LABELS, VALID_LABELS, strict=True) for column in columns
 )
 EPSILON = 1e-12
 HISTORY_DAYS = max(WINDOWS)
@@ -97,11 +95,7 @@ class Alpha158Config(BaseConfig):
     @field_validator("start_date", "end_date", mode="before")
     @classmethod
     def normalize_date(cls, value: object) -> object:
-        return (
-            str(value)
-            if isinstance(value, int) and not isinstance(value, bool)
-            else value
-        )
+        return str(value) if isinstance(value, int) and not isinstance(value, bool) else value
 
 
 @R.register("alpha158_etl")
@@ -146,22 +140,13 @@ class Alpha158Task(BaseTask):
         daily_files = sorted(input_dir.glob("*/*/daily.parquet"))
         factor_files = sorted(input_dir.glob("*/*/adj_factor.parquet"))
         weight_files = sorted(input_dir.glob("*/*/index_weight.parquet"))
-        static_files = {
-            name: input_dir / f"{name}.parquet"
-            for name in ("trade_cal", "stock_basic", "namechange")
-        }
+        static_files = {name: input_dir / f"{name}.parquet" for name in ("trade_cal", "stock_basic", "namechange")}
         if not daily_files or not factor_files:
             raise FileNotFoundError(f"缺少 daily 或 adj_factor 分区: {input_dir}")
         missing = [path for path in static_files.values() if not path.is_file()]
         if missing:
-            raise FileNotFoundError(
-                f"缺少 Alpha158 主数据: {', '.join(map(str, missing))}"
-            )
-        if (
-            self.config.start_date
-            and self.config.end_date
-            and self.config.start_date > self.config.end_date
-        ):
+            raise FileNotFoundError(f"缺少 Alpha158 主数据: {', '.join(map(str, missing))}")
+        if self.config.start_date and self.config.end_date and self.config.start_date > self.config.end_date:
             raise ValueError("start_date 不能晚于 end_date")
         output_path = (
             self.resolve_workspace_path(self.config.output_file)
@@ -185,7 +170,7 @@ class Alpha158Task(BaseTask):
         self.logger.info(
             f"Alpha158 paths resolved input_dir={input_dir} "
             f"daily_files={len(daily_files)} factor_files={len(factor_files)} "
-            f"weight_files={len(weight_files)} output_file={output_path}"
+            f"weight_files={len(weight_files)} output_file={output_path}",
         )
 
     def load_and_validate_market_data(self) -> None:
@@ -219,11 +204,7 @@ class Alpha158Task(BaseTask):
             )
             .filter(~pl.col("ts_code").str.ends_with(".BJ"))
         )
-        frame = (
-            daily.join(factors, on=["ts_code", "trade_date"], how="left")
-            .collect()
-            .sort("ts_code", "trade_date")
-        )
+        frame = daily.join(factors, on=["ts_code", "trade_date"], how="left").collect().sort("ts_code", "trade_date")
         self.report_progress(70)
         if frame.is_empty():
             raise ValueError("daily 与 adj_factor 没有可匹配的数据")
@@ -236,17 +217,13 @@ class Alpha158Task(BaseTask):
                 * pl.col("pre_close").shift(-1).over("ts_code")
                 / pl.col("close")
             )
-            frame = frame.with_columns(
-                pl.coalesce("adj_factor", fallback).alias("adj_factor")
-            )
+            frame = frame.with_columns(pl.coalesce("adj_factor", fallback).alias("adj_factor"))
         unresolved_adj_factor_rows = frame["adj_factor"].null_count()
-        self.context["filled_adj_factor_rows"] = (
-            missing_adj_factor_rows - unresolved_adj_factor_rows
-        )
+        self.context["filled_adj_factor_rows"] = missing_adj_factor_rows - unresolved_adj_factor_rows
         self.logger.info(
             f"Adjustment factors checked missing_rows={missing_adj_factor_rows} "
             f"filled_rows={self.context['filled_adj_factor_rows']} "
-            f"unresolved_rows={unresolved_adj_factor_rows}"
+            f"unresolved_rows={unresolved_adj_factor_rows}",
         )
         self.report_progress(80)
         positive = pl.col("open", "high", "low", "close", "adj_factor")
@@ -271,18 +248,14 @@ class Alpha158Task(BaseTask):
         self.logger.info(
             f"Market data loaded rows={frame.height} "
             f"symbols={frame['ts_code'].n_unique()} "
-            f"start_date={frame['trade_date'].min()} end_date={frame['trade_date'].max()}"
+            f"start_date={frame['trade_date'].min()} end_date={frame['trade_date'].max()}",
         )
 
     def load_reference_data(self) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
         """Load the authoritative calendar, stock lifecycle, and historical names."""
         calendar = (
-            pl.read_parquet(
-                self.context["trade_cal_file"], columns=("cal_date", "is_open")
-            )
-            .with_columns(
-                pl.col("cal_date").cast(pl.String), pl.col("is_open").cast(pl.Int8)
-            )
+            pl.read_parquet(self.context["trade_cal_file"], columns=("cal_date", "is_open"))
+            .with_columns(pl.col("cal_date").cast(pl.String), pl.col("is_open").cast(pl.Int8))
             .filter(pl.col("is_open") == 1)
             .select(pl.col("cal_date").alias("trade_date"))
             .unique()
@@ -293,14 +266,9 @@ class Alpha158Task(BaseTask):
                 self.context["stock_basic_file"],
                 columns=("ts_code", "name", "list_date", "delist_date"),
             )
+            .with_columns(pl.col("ts_code", "name", "list_date", "delist_date").cast(pl.String))
             .with_columns(
-                pl.col("ts_code", "name", "list_date", "delist_date").cast(pl.String)
-            )
-            .with_columns(
-                pl.when(pl.col("delist_date") == "")
-                .then(None)
-                .otherwise(pl.col("delist_date"))
-                .alias("delist_date"),
+                pl.when(pl.col("delist_date") == "").then(None).otherwise(pl.col("delist_date")).alias("delist_date"),
             )
         )
         names = (
@@ -308,12 +276,8 @@ class Alpha158Task(BaseTask):
                 self.context["namechange_file"],
                 columns=("ts_code", "name", "start_date", "ann_date"),
             )
-            .with_columns(
-                pl.col("ts_code", "name", "start_date", "ann_date").cast(pl.String)
-            )
-            .with_columns(
-                pl.max_horizontal("start_date", "ann_date").alias("_known_date")
-            )
+            .with_columns(pl.col("ts_code", "name", "start_date", "ann_date").cast(pl.String))
+            .with_columns(pl.max_horizontal("start_date", "ann_date").alias("_known_date"))
             .sort("ts_code", "_known_date", "start_date")
             .unique(("ts_code", "_known_date"), keep="last")
         )
@@ -335,28 +299,42 @@ class Alpha158Task(BaseTask):
         ).with_row_index("_trade_index")
         if calendar.is_empty():
             raise ValueError("行情范围内没有开市日")
-        missing_dates = (
-            frame.select("trade_date")
-            .unique()
-            .join(calendar, on="trade_date", how="anti")
-        )
+        missing_dates = frame.select("trade_date").unique().join(calendar, on="trade_date", how="anti")
         if not missing_dates.is_empty():
-            raise ValueError(
-                f"daily 包含非开市日期: {missing_dates.head(5).to_dicts()}"
+            raise ValueError(f"daily 包含非开市日期: {missing_dates.head(5).to_dicts()}")
+        quote_bounds = frame.group_by("ts_code").agg(
+            pl.col("trade_date").min().alias("_first_trade_date"),
+            pl.col("trade_date").max().alias("_last_trade_date"),
+        )
+        bounds = quote_bounds.join(
+            stocks.with_columns(pl.lit(True).alias("_has_stock_basic")),
+            on="ts_code",
+            how="left",
+        ).with_columns(pl.col("_has_stock_basic").fill_null(False))
+        missing_stock_basic = bounds.filter(~pl.col("_has_stock_basic"))
+        self.context["missing_stock_basic_symbols"] = missing_stock_basic.height
+        if not missing_stock_basic.is_empty():
+            sample = missing_stock_basic["ts_code"].head(10).to_list()
+            self.logger.warning(
+                "daily contains symbols absent from stock_basic; inferring lifecycle "
+                f"from quote bounds symbols={missing_stock_basic.height} sample={sample}",
             )
-        bounds = frame.select("ts_code").unique().join(stocks, on="ts_code", how="left")
-        if bounds.filter(pl.col("list_date").is_null()).height:
-            raise ValueError("daily 包含 stock_basic 中不存在的股票")
+        bounds = bounds.with_columns(
+            pl.coalesce("name", "ts_code").alias("name"),
+            pl.coalesce("list_date", "_first_trade_date").alias("list_date"),
+            pl.when(~pl.col("_has_stock_basic"))
+            .then(pl.col("_last_trade_date"))
+            .otherwise(pl.col("delist_date"))
+            .alias("_panel_end_date"),
+        ).drop("_first_trade_date", "_last_trade_date", "_has_stock_basic")
         self.report_progress(20)
         frame = (
             bounds.join(calendar, how="cross")
             .filter(
                 (pl.col("trade_date") >= pl.col("list_date"))
-                & (
-                    pl.col("delist_date").is_null()
-                    | (pl.col("trade_date") <= pl.col("delist_date"))
-                ),
+                & (pl.col("_panel_end_date").is_null() | (pl.col("trade_date") <= pl.col("_panel_end_date"))),
             )
+            .drop("_panel_end_date")
             .join(
                 frame.with_columns(pl.lit(True).alias("_has_market_data")),
                 on=["ts_code", "trade_date"],
@@ -381,7 +359,8 @@ class Alpha158Task(BaseTask):
         self.report_progress(95)
         self.logger.info(
             f"Trading panel built rows={frame.height} "
-            f"symbols={frame['ts_code'].n_unique()} calendar_days={calendar.height}"
+            f"symbols={frame['ts_code'].n_unique()} calendar_days={calendar.height} "
+            f"missing_stock_basic_symbols={self.context['missing_stock_basic_symbols']}",
         )
 
     def attach_market_status(self) -> None:
@@ -403,7 +382,7 @@ class Alpha158Task(BaseTask):
                     "trade_date": pl.String,
                     "up_limit": pl.Float64,
                     "down_limit": pl.Float64,
-                }
+                },
             )
         )
         self.report_progress(20)
@@ -453,17 +432,9 @@ class Alpha158Task(BaseTask):
             mode="half_away_from_zero",
         )
         frame = frame.with_columns(
-            (~official_limits_valid & pl.col("_has_market_data")).alias(
-                "_used_limit_fallback"
-            ),
-            pl.when(official_limits_valid)
-            .then(pl.col("up_limit"))
-            .otherwise(fallback_up)
-            .alias("up_limit"),
-            pl.when(official_limits_valid)
-            .then(pl.col("down_limit"))
-            .otherwise(fallback_down)
-            .alias("down_limit"),
+            (~official_limits_valid & pl.col("_has_market_data")).alias("_used_limit_fallback"),
+            pl.when(official_limits_valid).then(pl.col("up_limit")).otherwise(fallback_up).alias("up_limit"),
+            pl.when(official_limits_valid).then(pl.col("down_limit")).otherwise(fallback_down).alias("down_limit"),
         )
         self.report_progress(65)
         observed = (
@@ -472,9 +443,7 @@ class Alpha158Task(BaseTask):
             .rolling_sum(window_size=HISTORY_DAYS, min_samples=1)
             .over("ts_code")
         )
-        history_span = (
-            pl.col("_trade_index") - pl.col("_trade_index").min().over("ts_code") + 1
-        )
+        history_span = pl.col("_trade_index") - pl.col("_trade_index").min().over("ts_code") + 1
         valid_limits = (
             pl.col("up_limit").is_finite()
             & pl.col("down_limit").is_finite()
@@ -484,16 +453,9 @@ class Alpha158Task(BaseTask):
         frame = frame.with_columns(
             upper_name.str.contains(r"^(?:S\*?ST|\*ST|ST)").alias("is_st"),
             pl.col("name").str.contains(r"^退|退$").alias("is_delisting"),
-            (valid_limits & (pl.col("close") >= pl.col("up_limit") - 1e-6)).alias(
-                "is_limit_up"
-            ),
-            (valid_limits & (pl.col("close") <= pl.col("down_limit") + 1e-6)).alias(
-                "is_limit_down"
-            ),
-            (
-                (history_span < HISTORY_DAYS)
-                | (observed / HISTORY_DAYS < self.config.min_history_coverage)
-            ).alias(
+            (valid_limits & (pl.col("close") >= pl.col("up_limit") - 1e-6)).alias("is_limit_up"),
+            (valid_limits & (pl.col("close") <= pl.col("down_limit") + 1e-6)).alias("is_limit_down"),
+            ((history_span < HISTORY_DAYS) | (observed / HISTORY_DAYS < self.config.min_history_coverage)).alias(
                 "is_insufficient_history",
             ),
             valid_limits.alias("_has_valid_limits"),
@@ -521,7 +483,7 @@ class Alpha158Task(BaseTask):
         self.logger.info(
             f"Market status attached limit_rows={limits.height} "
             f"fallback_limit_rows={self.context['fallback_limit_rows']} "
-            f"missing_limit_rows={self.context['missing_limit_rows']}"
+            f"missing_limit_rows={self.context['missing_limit_rows']}",
         )
 
     def calculate_base_features(self) -> None:
@@ -530,9 +492,7 @@ class Alpha158Task(BaseTask):
         self.report_progress(65)
         self.context["frame"] = self._rolling_inputs(frame)
         self.report_progress(95)
-        self.logger.info(
-            f"Base features calculated rows={frame.height} features={len(KBAR) + len(PRICE)}"
-        )
+        self.logger.info(f"Base features calculated rows={frame.height} features={len(KBAR) + len(PRICE)}")
 
     def calculate_rolling_features(self) -> None:
         """Calculate independent rolling windows concurrently in Polars."""
@@ -541,23 +501,16 @@ class Alpha158Task(BaseTask):
         rolling_frames = []
         for window, percentage in zip(WINDOWS, milestones, strict=True):
             rolling_frames.append(
-                self._rolling(frame.lazy(), window)
-                .select(*(f"{name}{window}" for name in ROLLING))
-                .collect()
+                self._rolling(frame.lazy(), window).select(*(f"{name}{window}" for name in ROLLING)).collect(),
             )
             self.report_progress(percentage)
-            self.logger.info(
-                f"Rolling features calculated window={window} progress={percentage}%"
-            )
-        self.context["frame"] = pl.concat(
-            [frame, *rolling_frames], how="horizontal_extend"
-        )
+            self.logger.info(f"Rolling features calculated window={window} progress={percentage}%")
+        self.context["frame"] = pl.concat([frame, *rolling_frames], how="horizontal_extend")
 
     def calculate_labels(self) -> None:
         """Calculate forward returns and their cross-sectional transformations."""
         self.logger.info(
-            f"Calculating labels horizons={len(LABELS)} "
-            f"winsorize_tail={self.config.csz_winsorize_tail}"
+            f"Calculating labels horizons={len(LABELS)} " f"winsorize_tail={self.config.csz_winsorize_tail}",
         )
         self.context["frame"] = self._labels(
             self.context["frame"],
@@ -570,9 +523,7 @@ class Alpha158Task(BaseTask):
         self.report_progress(10)
         self.context["frame"] = self._weights(self.context["frame"])
         self.report_progress(95)
-        self.logger.info(
-            f"HS300 weights attached files={len(self.context['weight_files'])}"
-        )
+        self.logger.info(f"HS300 weights attached files={len(self.context['weight_files'])}")
 
     def finalize_dataset(self) -> None:
         """Apply the requested date range and project the public output schema."""
@@ -588,10 +539,7 @@ class Alpha158Task(BaseTask):
                 "trade_date",
                 "ts_code",
                 *MARKET_STATE_COLUMNS,
-                *(
-                    pl.col(raw).alias(name)
-                    for raw, name in zip(RAW_FEATURES, FEATURES, strict=True)
-                ),
+                *(pl.col(raw).alias(name) for raw, name in zip(RAW_FEATURES, FEATURES, strict=True)),
                 *LABEL_OUTPUTS,
                 "index_weight_hs300",
             )
@@ -605,7 +553,7 @@ class Alpha158Task(BaseTask):
         self.logger.info(
             f"Dataset finalized rows={output.height} columns={output.width} "
             f"start_date={self.config.start_date or '-'} "
-            f"end_date={self.config.end_date or '-'}"
+            f"end_date={self.config.end_date or '-'}",
         )
 
     def calculate_statistics(self) -> None:
@@ -614,10 +562,7 @@ class Alpha158Task(BaseTask):
             self.context["output"],
             progress=self.report_progress,
         )
-        self.logger.info(
-            f"Data-quality statistics calculated "
-            f"columns={self.context['statistics'].height}"
-        )
+        self.logger.info(f"Data-quality statistics calculated " f"columns={self.context['statistics'].height}")
 
     @staticmethod
     def _price_features(frame: pl.DataFrame) -> pl.DataFrame:
@@ -626,30 +571,12 @@ class Alpha158Task(BaseTask):
             ((pl.col("_close") - pl.col("_open")) / pl.col("_open")).alias("KMID"),
             (spread / pl.col("_open")).alias("KLEN"),
             ((pl.col("_close") - pl.col("_open")) / (spread + EPSILON)).alias("KMID2"),
-            (
-                (pl.col("_high") - pl.max_horizontal("_open", "_close"))
-                / pl.col("_open")
-            ).alias("KUP"),
-            (
-                (pl.col("_high") - pl.max_horizontal("_open", "_close"))
-                / (spread + EPSILON)
-            ).alias("KUP2"),
-            (
-                (pl.min_horizontal("_open", "_close") - pl.col("_low"))
-                / pl.col("_open")
-            ).alias("KLOW"),
-            (
-                (pl.min_horizontal("_open", "_close") - pl.col("_low"))
-                / (spread + EPSILON)
-            ).alias("KLOW2"),
-            (
-                (2 * pl.col("_close") - pl.col("_high") - pl.col("_low"))
-                / pl.col("_open")
-            ).alias("KSFT"),
-            (
-                (2 * pl.col("_close") - pl.col("_high") - pl.col("_low"))
-                / (spread + EPSILON)
-            ).alias("KSFT2"),
+            ((pl.col("_high") - pl.max_horizontal("_open", "_close")) / pl.col("_open")).alias("KUP"),
+            ((pl.col("_high") - pl.max_horizontal("_open", "_close")) / (spread + EPSILON)).alias("KUP2"),
+            ((pl.min_horizontal("_open", "_close") - pl.col("_low")) / pl.col("_open")).alias("KLOW"),
+            ((pl.min_horizontal("_open", "_close") - pl.col("_low")) / (spread + EPSILON)).alias("KLOW2"),
+            ((2 * pl.col("_close") - pl.col("_high") - pl.col("_low")) / pl.col("_open")).alias("KSFT"),
+            ((2 * pl.col("_close") - pl.col("_high") - pl.col("_low")) / (spread + EPSILON)).alias("KSFT2"),
             (pl.col("_open") / pl.col("_close")).alias("OPEN0"),
             (pl.col("_high") / pl.col("_close")).alias("HIGH0"),
             (pl.col("_low") / pl.col("_close")).alias("LOW0"),
@@ -680,9 +607,7 @@ class Alpha158Task(BaseTask):
         return frame
 
     @staticmethod
-    def _rolling(
-        frame: pl.DataFrame | pl.LazyFrame, window: int
-    ) -> pl.DataFrame | pl.LazyFrame:
+    def _rolling(frame: pl.DataFrame | pl.LazyFrame, window: int) -> pl.DataFrame | pl.LazyFrame:
         def roll(expr: pl.Expr, method: str, minimum: int = 1) -> pl.Expr:
             return getattr(expr, method)(window_size=window, min_samples=minimum).over(
                 "ts_code",
@@ -739,20 +664,10 @@ class Alpha158Task(BaseTask):
         wvma = pl.when(count > 1).then(variance.sqrt() / (total / count + EPSILON))
         # qlib ArgMax/ArgMin choose the oldest matching extreme in a tied window.
         max_age = pl.max_horizontal(
-            *[
-                pl.when(pl.col("_high").shift(i).over("ts_code") == high)
-                .then(i)
-                .otherwise(-1)
-                for i in range(window)
-            ],
+            *[pl.when(pl.col("_high").shift(i).over("ts_code") == high).then(i).otherwise(-1) for i in range(window)],
         )
         min_age = pl.max_horizontal(
-            *[
-                pl.when(pl.col("_low").shift(i).over("ts_code") == low)
-                .then(i)
-                .otherwise(-1)
-                for i in range(window)
-            ],
+            *[pl.when(pl.col("_low").shift(i).over("ts_code") == low).then(i).otherwise(-1) for i in range(window)],
         )
         length = roll(x.is_not_null().cast(pl.Float64), "rolling_sum")
         imax, imin = (length - max_age) / window, (length - min_age) / window
@@ -761,10 +676,7 @@ class Alpha158Task(BaseTask):
             (mean_close / close).alias(f"MA{window}"),
             (roll(close, "rolling_std") / close).alias(f"STD{window}"),
             (slope / close).alias(f"BETA{window}"),
-            pl.rolling_corr(close, x, window_size=window, min_samples=2)
-            .over("ts_code")
-            .pow(2)
-            .alias(f"RSQR{window}"),
+            pl.rolling_corr(close, x, window_size=window, min_samples=2).over("ts_code").pow(2).alias(f"RSQR{window}"),
             ((close - (mean_close + slope * (x - mean_x))) / close).alias(
                 f"RESI{window}",
             ),
@@ -807,19 +719,13 @@ class Alpha158Task(BaseTask):
             ),
             (roll(gain, "rolling_sum") / (abs_sum + EPSILON)).alias(f"SUMP{window}"),
             (roll(loss, "rolling_sum") / (abs_sum + EPSILON)).alias(f"SUMN{window}"),
-            (
-                (roll(gain, "rolling_sum") - roll(loss, "rolling_sum"))
-                / (abs_sum + EPSILON)
-            ).alias(f"SUMD{window}"),
+            ((roll(gain, "rolling_sum") - roll(loss, "rolling_sum")) / (abs_sum + EPSILON)).alias(f"SUMD{window}"),
             (roll(volume, "rolling_mean") / (volume + EPSILON)).alias(f"VMA{window}"),
             (roll(volume, "rolling_std") / (volume + EPSILON)).alias(f"VSTD{window}"),
             wvma.alias(f"WVMA{window}"),
             (roll(vgain, "rolling_sum") / (vabs_sum + EPSILON)).alias(f"VSUMP{window}"),
             (roll(vloss, "rolling_sum") / (vabs_sum + EPSILON)).alias(f"VSUMN{window}"),
-            (
-                (roll(vgain, "rolling_sum") - roll(vloss, "rolling_sum"))
-                / (vabs_sum + EPSILON)
-            ).alias(f"VSUMD{window}"),
+            ((roll(vgain, "rolling_sum") - roll(vloss, "rolling_sum")) / (vabs_sum + EPSILON)).alias(f"VSUMD{window}"),
         )
 
     def _labels(
@@ -830,10 +736,7 @@ class Alpha158Task(BaseTask):
     ) -> pl.DataFrame:
         frame = frame.with_columns(
             *(
-                (
-                    pl.col("_close").shift(-horizon).over("ts_code") / pl.col("_close")
-                    - 1
-                ).alias(label)
+                (pl.col("_close").shift(-horizon).over("ts_code") / pl.col("_close") - 1).alias(label)
                 for horizon, label in enumerate(LABELS, start=1)
             ),
         )
@@ -849,12 +752,8 @@ class Alpha158Task(BaseTask):
         winsorized_expressions: list[pl.Expr] = []
         for label, valid_label in zip(LABELS, VALID_LABELS, strict=True):
             finite = pl.when(pl.col(valid_label)).then(pl.col(label))
-            lower = finite.quantile(
-                self.config.csz_winsorize_tail, interpolation="linear"
-            ).over("trade_date")
-            upper = finite.quantile(
-                1 - self.config.csz_winsorize_tail, interpolation="linear"
-            ).over("trade_date")
+            lower = finite.quantile(self.config.csz_winsorize_tail, interpolation="linear").over("trade_date")
+            upper = finite.quantile(1 - self.config.csz_winsorize_tail, interpolation="linear").over("trade_date")
             column = f"_{label}_winsorized"
             winsorized_columns[label] = column
             winsorized_expressions.append(finite.clip(lower, upper).alias(column))
@@ -877,9 +776,7 @@ class Alpha158Task(BaseTask):
             count = finite.count().over("trade_date")
             expressions.extend(
                 (
-                    pl.when(std > EPSILON)
-                    .then((winsorized - mean) / std)
-                    .alias(csz_label),
+                    pl.when(std > EPSILON).then((winsorized - mean) / std).alias(csz_label),
                     pl.when(pl.col(valid_label) & (count > 0))
                     .then(finite.rank(method="average").over("trade_date") / count)
                     .alias(rank_label),
@@ -892,9 +789,7 @@ class Alpha158Task(BaseTask):
 
     def _weights(self, frame: pl.DataFrame) -> pl.DataFrame:
         if not self.context["weight_files"]:
-            self.logger.warning(
-                "No HS300 weight files found; index weights will be null"
-            )
+            self.logger.warning("No HS300 weight files found; index weights will be null")
             return frame.with_columns(
                 pl.lit(None, dtype=pl.Float64).alias("index_weight_hs300"),
             )
@@ -911,10 +806,7 @@ class Alpha158Task(BaseTask):
         if weights.select("_weight_date", "ts_code").n_unique() != weights.height:
             raise ValueError("index_weight 包含重复的 trade_date, con_code")
         snapshots = weights.select("_weight_date").unique().sort("_weight_date")
-        self.logger.info(
-            f"HS300 weight snapshots loaded rows={weights.height} "
-            f"snapshots={snapshots.height}"
-        )
+        self.logger.info(f"HS300 weight snapshots loaded rows={weights.height} " f"snapshots={snapshots.height}")
         dates = (
             frame.select("trade_date")
             .unique()
@@ -967,7 +859,7 @@ class Alpha158Task(BaseTask):
             f"Alpha158 outputs written rows={output.height} features={len(FEATURES)} "
             f"dataset_path={path} dataset_bytes={path.stat().st_size} "
             f"statistics_path={statistics_path} "
-            f"statistics_bytes={statistics_path.stat().st_size}"
+            f"statistics_bytes={statistics_path.stat().st_size}",
         )
 
     def write_metadata(self) -> None:
@@ -985,9 +877,7 @@ class Alpha158Task(BaseTask):
                 task_id=self.task_id,
                 task_type=self.task_type.value,
             ),
-            "config": self.config.model_dump(
-                mode="json", exclude={"task_id", "task_type"}
-            ),
+            "config": self.config.model_dump(mode="json", exclude={"task_id", "task_type"}),
             "date_range": {
                 "start": output["trade_date"].min(),
                 "end": output["trade_date"].max(),
@@ -1006,9 +896,15 @@ class Alpha158Task(BaseTask):
             "index_weight_columns": ["index_weight_hs300"],
             "market_state_columns": list(MARKET_STATE_COLUMNS),
             "market_state": {
-                "buyable_definition": "listed, quoted, valid limits, non-ST, non-delisting, non-limit, sufficient history",
+                "buyable_definition": (
+                    "listed, quoted, valid limits, non-ST, non-delisting, non-limit, sufficient history"
+                ),
                 "minimum_history_days": HISTORY_DAYS,
                 "minimum_history_coverage": self.config.min_history_coverage,
+                "missing_stock_basic_symbols": self.context["missing_stock_basic_symbols"],
+                "missing_stock_basic_policy": (
+                    "name=ts_code, list_date=first_quote, panel_end=last_quote, delist_date=null"
+                ),
                 "fallback_limit_rows": self.context["fallback_limit_rows"],
                 "missing_limit_rows": self.context["missing_limit_rows"],
             },
@@ -1024,9 +920,7 @@ class Alpha158Task(BaseTask):
         }
         write_metadata(self.context["metadata_path"], metadata)
         self.report_progress(95)
-        self.logger.info(
-            f"Alpha158 metadata written path={self.context['metadata_path']}"
-        )
+        self.logger.info(f"Alpha158 metadata written path={self.context['metadata_path']}")
 
     def publish_output(self) -> None:
         self.context["metadata_file"] = str(self.context["metadata_path"])
@@ -1061,7 +955,7 @@ class Alpha158Task(BaseTask):
                     finite_value.std(ddof=0).alias("std"),
                     finite_value.drop_nulls().n_unique().alias("unique_count"),
                     (finite_value == 0).sum().alias("zero_count"),
-                )
+                ),
             )
         summaries = []
         batch_size = 16

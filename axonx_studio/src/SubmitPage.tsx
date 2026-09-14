@@ -96,8 +96,10 @@ export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { 
         {error && !selected && <div className="form-message error"><Braces /><h2>{text.catalogFailed}</h2><p>{error}</p><button className="secondary-button" onClick={() => void load()}>{text.retry}</button></div>}
         {selected && !submitted && <form onSubmit={(event) => void submit(event)}>
           <header className="task-form-header"><div className={`large-task-icon type-${selected.task_type}`}><Sparkles /></div><div><span className="type-label">{text.types[selected.task_type] || selected.task_type}</span><h2>{selected.name}</h2><p>{selected.description}</p></div></header>
-          <div className="form-section-heading"><div><CircleDot /><span>{text.configure}</span></div><small>{Object.keys(selected.config_schema.properties || {}).length} fields</small></div>
-          <div className="dynamic-form">{Object.entries(selected.config_schema.properties || {}).map(([name, schema]) => <SchemaField key={name} name={name} schema={schema} required={(selected.config_schema.required || []).includes(name)} value={values[name] ?? ""} error={fieldErrors[name]} language={language} onChange={(value) => setValues((current) => ({ ...current, [name]: value }))} />)}</div>
+          <section className="configuration-card">
+            <div className="form-section-heading"><div><span className="section-heading-icon"><CircleDot /></span><span>{text.configure}</span></div><small>{Object.keys(selected.config_schema.properties || {}).length} fields</small></div>
+            <div className="dynamic-form">{Object.entries(selected.config_schema.properties || {}).map(([name, schema]) => <SchemaField key={name} name={name} schema={schema} required={(selected.config_schema.required || []).includes(name)} value={values[name] ?? ""} error={fieldErrors[name]} language={language} onChange={(value) => setValues((current) => ({ ...current, [name]: value }))} />)}</div>
+          </section>
           {!!selected.output_keys.length && <div className="output-preview"><span><Braces />{text.output}</span><div>{selected.output_keys.map((key) => <code key={key}>{key}</code>)}</div></div>}
           {error && <div className="inline-error">{error}</div>}
           <footer className="form-footer"><span>POST /jobs/submit</span><button className="primary-button submit-button" disabled={submitting}>{submitting ? <LoaderCircle className="spin" /> : <Send />} {submitting ? text.submitting : text.submit}<ArrowRight /></button></footer>

@@ -40,9 +40,7 @@ class ProxyRouteJob(BaseJob):
         if not prefix.startswith("/") or prefix == "":
             raise ValueError("Proxy path_prefix must start with '/'")
         normalized_methods = tuple(dict.fromkeys(method.upper() for method in methods))
-        if not normalized_methods or any(
-            not method.isalpha() for method in normalized_methods
-        ):
+        if not normalized_methods or any(not method.isalpha() for method in normalized_methods):
             raise ValueError("Proxy methods must contain valid HTTP method names")
         if max_request_bytes <= 0:
             raise ValueError("Proxy max_request_bytes must be greater than 0")
@@ -77,9 +75,7 @@ class ProxyRouteJob(BaseJob):
                     "body": logged_body,
                 },
             )
-            self.logger.info(
-                f"Plugin endpoint called: name={self.name} arguments={arguments}"
-            )
+            self.logger.info(f"Plugin endpoint called: name={self.name} arguments={arguments}")
             try:
                 result = await self.proxy.forward(
                     request.method,

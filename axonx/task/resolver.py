@@ -40,10 +40,7 @@ def installed_tasks() -> dict[str, type[BaseTask]]:
         plugin_targets.update(manifest.tasks)
     modules = {}
     tasks.update(
-        {
-            name: load_symbol(target, BaseTask, kind="Task", modules=modules)
-            for name, target in plugin_targets.items()
-        },
+        {name: load_symbol(target, BaseTask, kind="Task", modules=modules) for name, target in plugin_targets.items()},
     )
     for name, task_class in tasks.items():
         _task_description(name, task_class)
@@ -57,21 +54,13 @@ def list_installed_task_infos() -> list[TaskInfo]:
     for name, task_class in sorted(installed_tasks().items()):
         schema = deepcopy(task_class.config_cls.model_json_schema())
         properties = schema.get("properties", {})
-        schema["properties"] = {
-            key: value
-            for key, value in properties.items()
-            if key not in _INTERNAL_CONFIG_FIELDS
-        }
+        schema["properties"] = {key: value for key, value in properties.items() if key not in _INTERNAL_CONFIG_FIELDS}
         if required := schema.get("required"):
-            schema["required"] = [
-                key for key in required if key not in _INTERNAL_CONFIG_FIELDS
-            ]
+            schema["required"] = [key for key in required if key not in _INTERNAL_CONFIG_FIELDS]
         infos.append(
             TaskInfo(
                 name=name,
-                source=(
-                    "native" if native_tasks.get(name) is task_class else "plugin"
-                ),
+                source=("native" if native_tasks.get(name) is task_class else "plugin"),
                 task_type=task_class.task_type,
                 description=_task_description(name, task_class),
                 config_schema=schema,
