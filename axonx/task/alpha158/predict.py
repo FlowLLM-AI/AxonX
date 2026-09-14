@@ -132,15 +132,25 @@ class LgbmPredictionTask(BaseTask):
         if not features:
             raise ValueError("训练 metadata 缺少 feature_columns")
         schema = pl.read_parquet_schema(path)
+        self.report_progress(10)
         index_columns = tuple(
             column for column in schema if column.startswith("index_weight_")
         )
-        required = ("trade_date", "ts_code", "label_1d", "label_1d_is_valid", *features)
+        required = (
+            "trade_date",
+            "ts_code",
+            "name",
+            "is_buyable",
+            "label_1d",
+            "label_1d_is_valid",
+            *features,
+        )
         if missing := [column for column in required if column not in schema]:
             raise ValueError(f"预测数据缺少字段: {', '.join(missing[:20])}")
         latest = (
             pl.scan_parquet(path).select(pl.col("trade_date").max()).collect().item()
         )
+        self.report_progress(25)
         pred_end = self.config.pred_end or latest
         if pred_end > latest:
             self.logger.warning(
@@ -157,6 +167,7 @@ class LgbmPredictionTask(BaseTask):
             .collect()
             .sort("trade_date", "ts_code")
         )
+        self.report_progress(80)
         if frame.is_empty():
             raise ValueError(
                 f"预测日期范围内没有数据: {self.config.pred_start}..{pred_end}",
@@ -169,6 +180,7 @@ class LgbmPredictionTask(BaseTask):
             index_columns=index_columns,
             actual_pred_end=pred_end,
         )
+        self.report_progress(95)
         self.logger.info(
             f"Prediction data loaded rows={frame.height} dates={frame['trade_date'].n_unique()} "
             f"start={frame['trade_date'].min()} end={frame['trade_date'].max()}"
@@ -195,11 +207,13 @@ class LgbmPredictionTask(BaseTask):
                 for column in self.context["features"]
             ),
         ).to_numpy()
+        self.report_progress(30)
         best_iteration = self.context["training_metadata"]["model"]["best_iteration"]
         prediction = np.asarray(
             self.context["model"].predict(matrix, num_iteration=best_iteration),
             dtype=float,
         )
+        self.report_progress(80)
         if len(prediction) != frame.height or not np.isfinite(prediction).all():
             raise FloatingPointError("模型预测数量不匹配或包含非有限值")
         self.context["predictions"] = frame.select(
@@ -208,6 +222,8 @@ class LgbmPredictionTask(BaseTask):
             pl.Series("pred", prediction),
             pl.col("label_1d").alias("actual_return"),
             pl.col("label_1d_is_valid").alias("label_valid"),
+            "name",
+            "is_buyable",
             *self.context["index_columns"],
         )
         self.report_progress(95)
@@ -226,6 +242,7 @@ class LgbmPredictionTask(BaseTask):
                 temporary, compression="zstd"
             ),
         )
+        self.report_progress(95)
         self.logger.info(
             f"Predictions written path={path} rows={self.context['predictions'].height} bytes={path.stat().st_size}"
         )
@@ -233,6 +250,10 @@ class LgbmPredictionTask(BaseTask):
     def write_metadata(self) -> None:
         output_dir: Path = self.context["output_dir"]
         predictions: pl.DataFrame = self.context["predictions"]
+        prediction_record = artifact_record(
+            self.context["predictions_path"], output_dir
+        )
+        self.report_progress(75)
         metadata = {
             **metadata_header(
                 task_name="alpha158_lgbm_predict",
@@ -252,6 +273,7 @@ class LgbmPredictionTask(BaseTask):
                 "pred_start_inclusive": self.config.pred_start,
                 "pred_end_inclusive": self.context["actual_pred_end"],
                 "cross_section_filter": "none",
+                "execution_filter": "deferred to backtest via is_buyable",
                 "actual_return_column": "label_1d",
                 "actual_return_unit": "decimal",
             },
@@ -266,12 +288,11 @@ class LgbmPredictionTask(BaseTask):
             "index_weight_columns": list(self.context["index_columns"]),
             "artifacts": {"predictions": "predictions.parquet"},
             "artifact_integrity": {
-                "predictions": artifact_record(
-                    self.context["predictions_path"], output_dir
-                ),
+                "predictions": prediction_record,
             },
         }
         write_metadata(self.context["metadata_path"], metadata)
+        self.report_progress(95)
 
     def publish_output(self) -> None:
         self.context.update(

@@ -137,9 +137,11 @@ class LgbmTrainingTask(BaseTask):
             raise ValueError("ETL metadata 缺少 feature_columns")
         valid_label = f"{self.raw_label}_is_valid"
         schema = pl.read_parquet_schema(path)
+        self.report_progress(10)
         required = (
             "trade_date",
             "ts_code",
+            "is_buyable",
             self.raw_label,
             self.config.label_column,
             valid_label,
@@ -157,16 +159,25 @@ class LgbmTrainingTask(BaseTask):
             .collect()
             .sort("trade_date", "ts_code")
         )
+        self.report_progress(75)
         if frame.is_empty():
             raise ValueError("训练日期范围内没有数据")
+        loaded_rows = frame.height
         frame = frame.filter(
-            pl.col(valid_label)
+            pl.col("is_buyable")
+            & pl.col(valid_label)
             & pl.col(self.raw_label).is_finite()
             & pl.col(self.config.label_column).is_finite(),
         )
         if frame.is_empty():
             raise ValueError("训练日期范围内没有有效标签")
-        self.context.update(frame=frame, features=features, valid_label=valid_label)
+        self.context.update(
+            frame=frame,
+            features=features,
+            valid_label=valid_label,
+            loaded_rows=loaded_rows,
+        )
+        self.report_progress(95)
         self.logger.info(
             f"Training data loaded rows={frame.height} dates={frame['trade_date'].n_unique()} "
             f"start={frame['trade_date'].min()} end={frame['trade_date'].max()}"
@@ -259,7 +270,9 @@ class LgbmTrainingTask(BaseTask):
             raise RuntimeError("训练需要安装 lightgbm；请重新安装项目依赖") from exc
         return lgb
 
-    def _progress_callback(self, total: int, phase: str):
+    def _progress_callback(
+        self, total: int, phase: str, *, start: float = 0, end: float = 95
+    ):
         last_milestone = -1
 
         def callback(environment) -> None:
@@ -268,7 +281,7 @@ class LgbmTrainingTask(BaseTask):
             milestone = completed * 10 // total
             if completed == 1 or milestone > last_milestone or completed == total:
                 last_milestone = milestone
-                self.report_progress(min(completed / total * 95, 95))
+                self.report_progress(start + completed / total * (end - start))
                 self.logger.info(
                     f"LightGBM {phase} progress iteration={completed}/{total}"
                 )
@@ -280,7 +293,9 @@ class LgbmTrainingTask(BaseTask):
     def select_best_iteration(self) -> None:
         lgb = self._lightgbm()
         fit_x, fit_y = self._matrix(self.context["tuning_train"])
+        self.report_progress(10)
         valid_x, valid_y = self._matrix(self.context["validation"])
+        self.report_progress(20)
         history: dict[str, dict[str, list[float]]] = {}
         model = lgb.train(
             self._parameters(),
@@ -291,7 +306,9 @@ class LgbmTrainingTask(BaseTask):
             valid_sets=[lgb.Dataset(valid_x, label=valid_y, reference=None)],
             valid_names=["validation"],
             callbacks=[
-                self._progress_callback(self.config.num_boost_round, "tuning"),
+                self._progress_callback(
+                    self.config.num_boost_round, "tuning", start=20
+                ),
                 lgb.early_stopping(self.config.early_stopping_rounds, verbose=False),
                 lgb.record_evaluation(history),
             ],
@@ -310,12 +327,14 @@ class LgbmTrainingTask(BaseTask):
     def evaluate_validation(self) -> None:
         validation: pl.DataFrame = self.context["validation"]
         valid_x, valid_y = self._matrix(validation)
+        self.report_progress(25)
         pred = np.asarray(
             self.context["tuning_model"].predict(
                 valid_x, num_iteration=self.context["best_iteration"]
             ),
             dtype=float,
         )
+        self.report_progress(65)
         diagnostic = (
             pl.DataFrame(
                 {
@@ -342,10 +361,12 @@ class LgbmTrainingTask(BaseTask):
                 "validation_l2": history["l2"],
             },
         )
+        self.report_progress(95)
 
     def fit_final_model(self) -> None:
         lgb = self._lightgbm()
         full_x, full_y = self._matrix(self.context["frame"])
+        self.report_progress(15)
         self.context["model"] = lgb.train(
             self._parameters(),
             lgb.Dataset(
@@ -353,7 +374,9 @@ class LgbmTrainingTask(BaseTask):
             ),
             num_boost_round=self.context["best_iteration"],
             callbacks=[
-                self._progress_callback(self.context["best_iteration"], "final-fit")
+                self._progress_callback(
+                    self.context["best_iteration"], "final-fit", start=15
+                )
             ],
         )
         self.context.pop("tuning_model", None)
@@ -385,12 +408,12 @@ class LgbmTrainingTask(BaseTask):
             self.context["model_path"],
             lambda temporary: self.context["model"].save_model(str(temporary)),
         )
-        for key, path_key in (
-            ("importance", "importance_path"),
-            ("history", "history_path"),
-        ):
+        self.report_progress(40)
+        outputs = (("importance", "importance_path"), ("history", "history_path"))
+        for index, (key, path_key) in enumerate(outputs, start=1):
             path: Path = self.context[path_key]
             atomic_output(path, self.context[key].write_csv)
+            self.report_progress(40 + index / len(outputs) * 55)
         self.logger.info(
             f"Training artifacts written model={self.context['model_path']} "
             f"importance={self.context['importance_path']} history={self.context['history_path']}"
@@ -399,6 +422,15 @@ class LgbmTrainingTask(BaseTask):
     def write_metadata(self) -> None:
         output_dir: Path = self.context["output_dir"]
         frame: pl.DataFrame = self.context["frame"]
+        artifacts = {}
+        artifact_paths = (
+            ("model", "model_path"),
+            ("feature_importance", "importance_path"),
+            ("evaluation_history", "history_path"),
+        )
+        for index, (name, path_key) in enumerate(artifact_paths, start=1):
+            artifacts[name] = artifact_record(self.context[path_key], output_dir)
+            self.report_progress(index / (len(artifact_paths) + 1) * 90)
         metadata = {
             **metadata_header(
                 task_name="alpha158_lgbm_train",
@@ -421,6 +453,7 @@ class LgbmTrainingTask(BaseTask):
                 "raw_label_for_trimming": self.raw_label,
                 "daily_trim_tail": self.config.trim_tail,
                 "prediction_rows_are_not_trimmed": True,
+                "sample_filter": "is_buyable and valid finite label",
             },
             "feature_columns": list(self.context["features"]),
             "model": {
@@ -430,6 +463,8 @@ class LgbmTrainingTask(BaseTask):
                 "best_iteration": self.context["best_iteration"],
             },
             "rows": {
+                "loaded": self.context["loaded_rows"],
+                "eligible": self.context["pre_trim_rows"],
                 "before_trim": self.context["pre_trim_rows"],
                 "after_trim": frame.height,
                 "tuning_train": self.context["tuning_train"].height,
@@ -441,17 +476,10 @@ class LgbmTrainingTask(BaseTask):
                 "feature_importance": "feature_importance.csv",
                 "evaluation_history": "evaluation_history.csv",
             },
-            "artifact_integrity": {
-                "model": artifact_record(self.context["model_path"], output_dir),
-                "feature_importance": artifact_record(
-                    self.context["importance_path"], output_dir
-                ),
-                "evaluation_history": artifact_record(
-                    self.context["history_path"], output_dir
-                ),
-            },
+            "artifact_integrity": artifacts,
         }
         write_metadata(self.context["metadata_path"], metadata)
+        self.report_progress(95)
 
     def publish_output(self) -> None:
         self.context.update(

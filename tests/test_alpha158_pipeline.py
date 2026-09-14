@@ -31,6 +31,15 @@ def _etl_fixture(workspace: Path) -> str:
             row = {
                 "trade_date": trade_date,
                 "ts_code": f"{stock_index:06d}.SZ",
+                "name": f"股票{stock_index}",
+                "list_date": "20200101",
+                "delist_date": None,
+                "is_st": False,
+                "is_delisting": False,
+                "is_limit_up": False,
+                "is_limit_down": False,
+                "is_insufficient_history": False,
+                "is_buyable": stock_index != 0,
                 features[0]: signal,
                 features[1]: -signal,
                 features[2]: np.sin(stock_index + date_index),
@@ -118,12 +127,15 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     prediction_output = prediction.execute()
     predictions = pl.read_parquet(prediction_output["predictions_file"])
     assert predictions.height == 5 * 40
+    assert predictions.filter(~pl.col("is_buyable")).height == 5
     assert predictions.columns == [
         "trade_date",
         "ts_code",
         "pred",
         "actual_return",
         "label_valid",
+        "name",
+        "is_buyable",
         "index_weight_hs300",
     ]
     prediction_metadata = json.loads(
@@ -141,15 +153,29 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     overall = pl.read_csv(backtest_output["overall_file"])
     holdings = pl.read_csv(backtest_output["holdings_file"])
     assert daily["rank_ic"].min() > 0.9
+    assert daily["candidates"].max() == 39
     assert "rankicir" in overall["metric"].to_list()
     assert holdings.columns == [
-        "trade_date", "rank", "ts_code", "prediction", "weight", "daily_return"
+        "trade_date",
+        "rank",
+        "ts_code",
+        "name",
+        "prediction",
+        "weight",
+        "daily_return",
     ]
     assert holdings.group_by("trade_date").len()["len"].max() <= 50
     assert holdings["rank"].min() == 1
+    assert "000000.SZ" not in holdings["ts_code"].to_list()
     assert all(
         Path(backtest_output[key]).suffix == ".csv"
-        for key in ("daily_file", "holdings_file", "overall_file", "yearly_file", "quarterly_file")
+        for key in (
+            "daily_file",
+            "holdings_file",
+            "overall_file",
+            "yearly_file",
+            "quarterly_file",
+        )
     )
     assert Path(backtest_output["metadata_file"]).is_file()
 

@@ -155,15 +155,17 @@ def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
 
     assert [step.name for step in task.status.steps] == [
         "initialize",
+        "download_static",
+        "download_stk_limits",
         "download_daily",
         "download_adj_factors",
         "download_hs300_weights",
         "sort_output_files",
     ]
     market_progress = [
-        status.steps[1].percentage
+        status.steps[3].percentage
         for status in snapshots
-        if len(status.steps) == 2 and status.steps[1].percentage is not None
+        if len(status.steps) == 4 and status.steps[3].percentage is not None
     ]
     assert market_progress == pytest.approx([100 / 201 * 100, 200 / 201 * 100, 100])
 
@@ -201,7 +203,9 @@ def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
 
     task.sort_output_files()
 
-    assert [path.relative_to(root).as_posix() for path in map(Path, task.context["files"])] == [
+    assert [
+        path.relative_to(root).as_posix() for path in map(Path, task.context["files"])
+    ] == [
         "2026/20260104/daily.parquet",
         "2026/20260104/adj_factor.parquet",
         "2026/20260105/daily.parquet",
@@ -222,7 +226,9 @@ def test_backtest_paths_are_resolved_from_prediction_task_id(tmp_path):
         ),
         encoding="utf-8",
     )
-    task = Alpha158BacktestTask({"prediction_task_id": "predict#example"}, workspace_path=tmp_path)
+    task = Alpha158BacktestTask(
+        {"prediction_task_id": "predict#example"}, workspace_path=tmp_path
+    )
 
     task.resolve_prediction_task()
 
@@ -268,7 +274,10 @@ def test_task_status_accepts_an_optional_log_path():
 def test_local_task_uses_registered_config(monkeypatch, capsys):
     monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: CliTask)
 
-    assert cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"]) == 0
+    assert (
+        cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"])
+        == 0
+    )
 
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
 
@@ -323,12 +332,51 @@ def test_progress_delivery_runs_on_a_dedicated_thread(monkeypatch):
     with HttpTaskStatusReporter(task.logger) as reporter:
         task.execute(emit=reporter.publish)
 
-    percentages = [status.steps[0].percentage if status.steps else None for _, status in deliveries]
+    percentages = [
+        status.steps[0].percentage if status.steps else None for _, status in deliveries
+    ]
     assert percentages == [None, None, None, 50, 100, 100]
     assert deliveries[0][1].steps == []
     assert deliveries[-1][1].steps[0].finished_at is not None
     assert deliveries[-1][1].state == "succeeded"
     assert all(thread_id != caller for thread_id, _ in deliveries)
+
+
+def test_progress_delivery_coalesces_queued_updates(monkeypatch):
+    release = threading.Event()
+    deliveries = []
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+        async def set_status(self, status):
+            if not deliveries:
+                release.wait(timeout=5)
+            deliveries.append(status)
+
+    class BurstTask(CliTask):
+        def record_config(self):
+            for percentage in (10, 20, 30):
+                self.report_progress(percentage)
+            self.context.update(amount=self.config.amount, dry_run=self.config.dry_run)
+
+    monkeypatch.setattr("axonx.task.status_reporter.HttpClient", Client)
+    task = BurstTask({"amount": 1}, workspace_path=".")
+    with HttpTaskStatusReporter(task.logger) as reporter:
+        task.execute(emit=reporter.publish)
+        release.set()
+
+    percentages = [
+        status.steps[-1].percentage
+        for status in deliveries
+        if status.steps and status.steps[-1].finished_at is None
+    ]
+    assert percentages == [None, 30]
+    assert deliveries[-1].state == "succeeded"
 
 
 def test_task_rejects_async_steps():

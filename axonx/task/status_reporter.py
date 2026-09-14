@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 import os
-from queue import Queue
-from threading import Thread
+from threading import Condition, Thread
 
 from ..components.client import HttpClient
 from ..constants import AXONX_SERVICE_INFO
@@ -30,7 +30,9 @@ class HttpTaskStatusReporter(TaskStatusReporter):
 
     def __init__(self, logger) -> None:
         self._logger = logger
-        self._queue: Queue[TaskStatus | None] = Queue()
+        self._pending: deque[TaskStatus] = deque()
+        self._condition = Condition()
+        self._closed = False
         self._thread: Thread | None = None
 
     def __enter__(self):
@@ -40,12 +42,44 @@ class HttpTaskStatusReporter(TaskStatusReporter):
         return self
 
     def publish(self, status: TaskStatus) -> None:
-        self._queue.put(status)
+        with self._condition:
+            if self._pending and self._same_progress(self._pending[-1], status):
+                self._pending[-1] = status
+            else:
+                self._pending.append(status)
+            self._condition.notify()
 
     def __exit__(self, *_exc) -> None:
-        self._queue.put(None)
+        with self._condition:
+            self._closed = True
+            self._condition.notify()
         assert self._thread is not None
         self._thread.join()
+
+    @staticmethod
+    def _same_progress(previous: TaskStatus, current: TaskStatus) -> bool:
+        """Return whether two queued snapshots differ only by active progress."""
+        if (
+            previous.task_id != current.task_id
+            or previous.state != current.state
+            or previous.state.is_terminal
+            or len(previous.steps) != len(current.steps)
+            or not current.steps
+        ):
+            return False
+        left, right = previous.steps[-1], current.steps[-1]
+        return (
+            left.name == right.name
+            and left.finished_at is None
+            and right.finished_at is None
+            and left.percentage is not None
+            and right.percentage is not None
+        )
+
+    def _next(self) -> TaskStatus | None:
+        with self._condition:
+            self._condition.wait_for(lambda: self._pending or self._closed)
+            return self._pending.popleft() if self._pending else None
 
     def _write(self) -> None:
         try:
@@ -55,7 +89,7 @@ class HttpTaskStatusReporter(TaskStatusReporter):
 
     async def _write_async(self) -> None:
         async with HttpClient() as client:
-            while (status := self._queue.get()) is not None:
+            while (status := self._next()) is not None:
                 try:
                     await client.set_status(status)
                 except Exception as exc:

@@ -5,7 +5,11 @@ import polars as pl
 import pytest
 
 from axonx.task.alpha158 import Alpha158Config, Alpha158Task
-from axonx.task.alpha158.alpha158_etl import FEATURES, LABEL_OUTPUTS
+from axonx.task.alpha158.alpha158_etl import (
+    FEATURES,
+    LABEL_OUTPUTS,
+    MARKET_STATE_COLUMNS,
+)
 
 
 def _write_partition(root: Path, trade_date: str, name: str, rows: list[dict]) -> None:
@@ -14,12 +18,40 @@ def _write_partition(root: Path, trade_date: str, name: str, rows: list[dict]) -
     pl.DataFrame(rows).write_parquet(path)
 
 
+def _write_reference_data(root: Path, dates: list[str], codes: list[str]) -> None:
+    directory = root / "tushare"
+    directory.mkdir(parents=True, exist_ok=True)
+    pl.DataFrame({"cal_date": dates, "is_open": [1] * len(dates)}).write_parquet(
+        directory / "trade_cal.parquet",
+    )
+    pl.DataFrame(
+        {
+            "ts_code": codes,
+            "name": [f"股票{index}" for index in range(len(codes))],
+            "list_date": ["20200101"] * len(codes),
+            "delist_date": [""] * len(codes),
+        },
+    ).write_parquet(directory / "stock_basic.parquet")
+    pl.DataFrame(
+        {
+            "ts_code": codes,
+            "name": [
+                "*ST历史股票0" if index == 0 else f"历史股票{index}"
+                for index in range(len(codes))
+            ],
+            "start_date": ["20200101"] * len(codes),
+            "ann_date": ["20200101"] * len(codes),
+        },
+    ).write_parquet(directory / "namechange.parquet")
+
+
 def test_alpha158_defaults_to_data_since_2014():
     config = Alpha158Config()
 
     assert config.start_date == "20140101"
     assert config.end_date is None
     assert config.csz_winsorize_tail == pytest.approx(0.025)
+    assert config.min_history_coverage == pytest.approx(0.8)
 
 
 def test_alpha158_csz_winsorizes_configured_cross_section_tails(tmp_path):
@@ -43,10 +75,23 @@ def test_alpha158_csz_winsorizes_configured_cross_section_tails(tmp_path):
 
 def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
     quotes = {
-        "20260105": [("000001.SZ", 10.0), ("000002.SZ", 20.0)],
-        "20260106": [("000001.SZ", 11.0)],
-        "20260107": [("000001.SZ", 12.0), ("000002.SZ", 22.0)],
+        "20260105": [
+            ("000001.SZ", 10.0),
+            ("000002.SZ", 20.0),
+            ("920001.BJ", 30.0),
+        ],
+        "20260107": [
+            ("000001.SZ", 12.0),
+            ("000002.SZ", 22.0),
+            ("920001.BJ", 33.0),
+        ],
     }
+    _write_reference_data(
+        tmp_path,
+        ["20260105", "20260106", "20260107"],
+        ["000001.SZ", "000002.SZ", "920001.BJ"],
+    )
+    previous_closes: dict[str, float] = {}
     for trade_date, stocks in quotes.items():
         _write_partition(
             tmp_path,
@@ -60,6 +105,7 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
                     "high": close + 0.5,
                     "low": close - 0.5,
                     "close": close,
+                    "pre_close": previous_closes.get(code, close - 0.1),
                     "vol": 1000.0,
                     "amount": close * 100.0,
                 }
@@ -70,8 +116,28 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
             tmp_path,
             trade_date,
             "adj_factor",
-            [{"ts_code": code, "trade_date": trade_date, "adj_factor": 1.0} for code, _ in stocks],
+            [
+                {"ts_code": code, "trade_date": trade_date, "adj_factor": 1.0}
+                for code, _ in stocks
+                if not (trade_date == "20260105" and code == "000001.SZ")
+            ],
         )
+        _write_partition(
+            tmp_path,
+            trade_date,
+            "stk_limit",
+            [
+                {
+                    "ts_code": code,
+                    "trade_date": trade_date,
+                    "up_limit": close * 1.1,
+                    "down_limit": close * 0.9,
+                }
+                for code, close in stocks
+                if not (trade_date == "20260105" and code == "000002.SZ")
+            ],
+        )
+        previous_closes.update(stocks)
 
     _write_partition(
         tmp_path,
@@ -111,12 +177,18 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
     output = task.execute(emit=snapshots.append)
     result = pl.read_parquet(output["output_file"])
 
+    assert task.context["filled_adj_factor_rows"] == 1
+    assert task.context["fallback_limit_rows"] == 1
+    assert task.context["missing_limit_rows"] == 0
+    assert not result["ts_code"].str.ends_with(".BJ").any()
+
     assert [step.name for step in task.status.steps] == [
         "resolve_paths",
         "load_and_validate_market_data",
         "build_trading_panel",
         "calculate_base_features",
         "calculate_rolling_features",
+        "attach_market_status",
         "calculate_labels",
         "attach_index_weights",
         "finalize_dataset",
@@ -132,24 +204,34 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
     ]
     assert rolling_progress == [10, 23, 41, 64, 95, 100]
     statistics_progress = [
-        status.steps[8].percentage
+        status.steps[9].percentage
         for status in snapshots
-        if len(status.steps) == 9 and status.steps[8].percentage is not None
+        if len(status.steps) == 10 and status.steps[9].percentage is not None
     ]
     assert statistics_progress == sorted(statistics_progress)
     assert statistics_progress[-2:] == [95, 100]
     assert output["feature_count"] == 158
-    assert Path(output["output_file"]) == tmp_path / "etl" / task.task_id / "alpha158.parquet"
-    assert Path(output["statistics_file"]) == tmp_path / "etl" / task.task_id / "alpha158.csv"
+    assert (
+        Path(output["output_file"])
+        == tmp_path / "etl" / task.task_id / "alpha158.parquet"
+    )
+    assert (
+        Path(output["statistics_file"])
+        == tmp_path / "etl" / task.task_id / "alpha158.csv"
+    )
     assert result.columns == [
         "trade_date",
         "ts_code",
+        *MARKET_STATE_COLUMNS,
         *FEATURES,
         *LABEL_OUTPUTS,
         "index_weight_hs300",
     ]
     assert Path(output["statistics_file"]).name == "alpha158.csv"
-    assert Path(output["metadata_file"]) == tmp_path / "etl" / task.task_id / "metadata.json"
+    assert (
+        Path(output["metadata_file"])
+        == tmp_path / "etl" / task.task_id / "metadata.json"
+    )
     metadata = json.loads(Path(output["metadata_file"]).read_text())
     assert metadata["task_id"] == task.task_id
     assert metadata["feature_columns"] == list(FEATURES)
@@ -179,22 +261,26 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
     ]
     label_2d_statistics = statistics.filter(pl.col("column") == "label_2d")
     assert label_2d_statistics["finite_count"].item() == 2
-    assert label_2d_statistics["null_count"].item() == 3
+    assert label_2d_statistics["null_count"].item() == 2
     assert label_2d_statistics["nan_rate"].item() == 0
     assert label_2d_statistics["inf_rate"].item() == 0
-    assert result.filter(pl.col("ts_code") == "000001.SZ")["label_1d"].to_list() == pytest.approx(
-        [0.1, 1 / 11, None],
-        nan_ok=True,
-    )
-    assert result.filter(pl.col("ts_code") == "000001.SZ")["label_2d"].to_list() == pytest.approx(
-        [0.2, None, None],
+    assert result.filter(pl.col("ts_code") == "000001.SZ")["label_1d"].to_list() == [
+        None,
+        None,
+    ]
+    assert result.filter(pl.col("ts_code") == "000001.SZ")[
+        "label_2d"
+    ].to_list() == pytest.approx(
+        [0.2, None],
         nan_ok=True,
     )
     assert result.filter(pl.col("ts_code") == "000002.SZ")["label_1d"].to_list() == [
         None,
         None,
     ]
-    assert result.filter(pl.col("ts_code") == "000002.SZ")["label_2d"].to_list() == pytest.approx(
+    assert result.filter(pl.col("ts_code") == "000002.SZ")[
+        "label_2d"
+    ].to_list() == pytest.approx(
         [0.1, None],
         nan_ok=True,
     )
@@ -202,10 +288,14 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
     assert first_day["label_2d_csz"].to_list() == pytest.approx([1.0, -1.0])
     assert first_day["label_2d_rank"].to_list() == pytest.approx([1.0, 0.5])
     assert first_day["label_2d_is_valid"].to_list() == [True, True]
-    assert result.filter(pl.col("ts_code") == "000002.SZ")["label_1d_is_valid"].to_list() == [False, False]
-    assert result["index_weight_hs300"].to_list() == pytest.approx(
-        [0.6, 0.4, 0.6, 0.0, 1.0],
-    )
+    assert result.filter(pl.col("ts_code") == "000002.SZ")[
+        "label_1d_is_valid"
+    ].to_list() == [False, False]
+    assert result["index_weight_hs300"].to_list() == pytest.approx([0.6, 0.4, 0.0, 1.0])
+    assert result["name"].unique().sort().to_list() == ["*ST历史股票0", "历史股票1"]
+    assert result.filter(pl.col("ts_code") == "000001.SZ")["is_st"].all()
+    assert result["is_insufficient_history"].all()
+    assert not result["is_buyable"].any()
     # The missing 20260106 quote remains a calendar row inside B's rolling window.
     b_last = result.filter(
         (pl.col("ts_code") == "000002.SZ") & (pl.col("trade_date") == "20260107"),

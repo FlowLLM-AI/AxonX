@@ -19,7 +19,7 @@ from ..base import BaseConfig, BaseTask, TaskStep
 
 HS300 = "000300.SH"
 DOWNLOAD_GROUPS = ("static", "stk_limit", "daily", "adj_factor", "index_weight")
-DEFAULT_DOWNLOAD_GROUPS = ("daily", "adj_factor", "index_weight")
+DEFAULT_DOWNLOAD_GROUPS = DOWNLOAD_GROUPS
 STATIC_DATASETS = ("stock_basic", "namechange", "trade_cal")
 STOCK_LIST_STATUSES = ("L", "D", "P", "G")
 DATASETS = {
@@ -88,12 +88,16 @@ class TushareDownloadConfig(BaseConfig):
             value = ",".join(str(item) for item in value)
         if not isinstance(value, str):
             raise ValueError("datasets 必须是逗号分隔字符串或字符串列表")
-        selected = tuple(dict.fromkeys(item.strip() for item in value.split(",") if item.strip()))
+        selected = tuple(
+            dict.fromkeys(item.strip() for item in value.split(",") if item.strip())
+        )
         if not selected:
             raise ValueError("datasets 不能为空")
         unknown = sorted(set(selected) - set(DOWNLOAD_GROUPS))
         if unknown:
-            raise ValueError(f"不支持的 datasets: {unknown}; 可选值: {list(DOWNLOAD_GROUPS)}")
+            raise ValueError(
+                f"不支持的 datasets: {unknown}; 可选值: {list(DOWNLOAD_GROUPS)}"
+            )
         return ",".join(selected)
 
 
@@ -240,10 +244,16 @@ class DownloadTushareTask(BaseTask):
             f"Dataset download completed dataset={api_name} rows={self.context['rows'][api_name]}"
         )
 
-    def _query(self, api_name: str, *, paginated: bool = False, **params: Any) -> pd.DataFrame:
+    def _query(
+        self, api_name: str, *, paginated: bool = False, **params: Any
+    ) -> pd.DataFrame:
         fields = ",".join(DATASETS[api_name])
         self.logger.info(f"Tushare API query api={api_name} params={params}")
-        query = self.context["client"].query_has_more if paginated else self.context["client"].query
+        query = (
+            self.context["client"].query_has_more
+            if paginated
+            else self.context["client"].query
+        )
         frame = query(api_name, fields=fields, **params)
         missing = set(DATASETS[api_name]).difference(frame.columns)
         if not frame.empty and missing:
@@ -254,7 +264,9 @@ class DownloadTushareTask(BaseTask):
     def _save_static(self, api_name: str, frame: pd.DataFrame) -> None:
         if frame.empty:
             return
-        sort_columns = [column for column in DATASETS[api_name] if column in frame.columns]
+        sort_columns = [
+            column for column in DATASETS[api_name] if column in frame.columns
+        ]
         frame = (
             frame.loc[:, DATASETS[api_name]]
             .drop_duplicates(ignore_index=True)
