@@ -108,12 +108,12 @@ const iconFor = (kind: Kind) => kind === "analysis" ? <Sparkles /> : kind === "b
 function Kpis({ items }: { items: { label: string; value: React.ReactNode; hint?: string }[] }) { return <div className="artifact-kpis">{items.map((item) => <article key={item.label}><small>{item.label}</small><strong>{item.value}</strong>{item.hint && <span>{item.hint}</span>}</article>)}</div>; }
 
 function AnalysisView({ meta, result, quantiles, zh }: { meta: Meta; result: Row[]; quantiles: Row[]; zh: boolean }) {
-  const [label, setLabel] = useState("label_1d"); const filtered = result.filter((row) => row.label === label).sort((a, b) => Math.abs(Number(b.rankic_mean)) - Math.abs(Number(a.rankic_mean))); const top = filtered.slice(0, 12);
+  const [label, setLabel] = useState("label_1d"); const filtered = result.filter((row) => row.label === label).sort((a, b) => Math.abs(Number(b.rankic_mean)) - Math.abs(Number(a.rankic_mean))); const top = filtered.slice(0, 100);
   const labels = Array.from(new Set(result.map((row) => row.label)));
   return <div className="artifact-content"><Kpis items={[{ label: zh ? "因子数" : "FACTORS", value: fmt(meta.feature_count, 0) }, { label: zh ? "分析样本" : "SAMPLES", value: fmt(meta.rows, 0) }, { label: zh ? "有效交易日" : "TRADING DAYS", value: fmt(filtered[0]?.valid_days, 0) }, { label: zh ? "分组数" : "QUANTILES", value: fmt(meta.config?.quantiles, 0) }]} />
-    <section className="viz-card wide"><header><div><small>FACTOR SIGNAL</small><h3>{zh ? "RankIC 绝对值领先因子" : "Leading factors by absolute RankIC"}</h3></div><select value={label} onChange={(e) => setLabel(e.target.value)}>{labels.map((item) => <option key={item}>{item}</option>)}</select></header><BarList rows={top} name="factor" value="rankic_mean" /></section>
+    <section className="viz-card wide factor-ranking-bars"><header><div><small>FACTOR SIGNAL</small><h3>{zh ? "RankIC 绝对值 Top 100" : "Top 100 factors by absolute RankIC"}</h3></div><select value={label} onChange={(e) => setLabel(e.target.value)}>{labels.map((item) => <option key={item}>{item}</option>)}</select></header><BarList rows={top} name="factor" value="rankic_mean" /></section>
     <section className="viz-card"><header><div><small>QUANTILE RETURN</small><h3>{zh ? "最佳因子分层收益" : "Top factor quantile return"}</h3></div></header><BarList rows={quantiles.filter((row) => row.factor === top[0]?.factor && row.label === label)} name="quantile" value="mean_return" percent /></section>
-    <section className="viz-card"><header><div><small>FACTOR TABLE</small><h3>{zh ? "因子排名" : "Factor ranking"}</h3></div></header><MiniTable rows={top.slice(0, 8)} columns={["factor", "rankic_mean", "rankicir", "coverage", "direction"]} /></section></div>;
+    <section className="viz-card"><header><div><small>FACTOR TABLE</small><h3>{zh ? "因子排名 Top 100" : "Top 100 factor ranking"}</h3></div></header><MiniTable rows={top} columns={["factor", "rankic_mean", "rankicir", "coverage", "direction"]} /></section></div>;
 }
 
 function BacktestView({ meta, daily, overall, zh, remoteIp }: { meta: Meta; daily: Row[]; overall: Row[]; zh: boolean; remoteIp?: string }) {
