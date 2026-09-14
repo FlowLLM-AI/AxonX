@@ -1046,6 +1046,7 @@ async def test_task_listing_jobs_separate_runtime_and_installed_tasks(tmp_path):
         "end_date",
         "days_back",
         "timeout",
+        "datasets",
     }
 
 

@@ -8,6 +8,7 @@ import threading
 from pathlib import Path
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 from pydantic import ValidationError
 
@@ -123,7 +124,7 @@ def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
         {"end_date": "20260720", "days_back": 201},
         workspace_path=tmp_path,
     )
-    monkeypatch.setattr(task, "download_market_day", lambda _day: None)
+    monkeypatch.setattr(task, "_query", lambda *_args, **_kwargs: pd.DataFrame())
     monkeypatch.setattr(task, "download_hs300_weight", lambda _start, _end: None)
     snapshots = []
 
@@ -131,7 +132,8 @@ def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
 
     assert [step.name for step in task.status.steps] == [
         "initialize",
-        "download_market_days",
+        "download_daily",
+        "download_adj_factors",
         "download_hs300_weights",
         "sort_output_files",
     ]
@@ -141,6 +143,22 @@ def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
         if len(status.steps) == 2 and status.steps[1].percentage is not None
     ]
     assert market_progress == pytest.approx([100 / 201 * 100, 200 / 201 * 100, 100])
+
+
+def test_tushare_download_groups_are_independently_selectable(tmp_path):
+    static_task = DownloadTushareTask({"datasets": "static"}, workspace_path=tmp_path)
+    limit_task = DownloadTushareTask({"datasets": "stk_limit"}, workspace_path=tmp_path)
+
+    assert [step.__name__ for step in static_task.build_task_steps()] == [
+        "initialize",
+        "download_static",
+        "sort_output_files",
+    ]
+    assert [step.__name__ for step in limit_task.build_task_steps()] == [
+        "initialize",
+        "download_stk_limits",
+        "sort_output_files",
+    ]
 
 
 def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
