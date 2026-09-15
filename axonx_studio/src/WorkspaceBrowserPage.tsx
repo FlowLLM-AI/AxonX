@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle, Check, CheckSquare2, ChevronRight, Copy, Database, Eye, File, FileCode2,
   FileJson, FileSpreadsheet, FileText, Folder, HardDrive, LoaderCircle,
-  ListChecks, RefreshCw, Square, Trash2, X,
+  RefreshCw, Square, Trash2, X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { deleteWorkspaceEntries, listWorkspaceEntries, previewWorkspaceFile } from "./api";
-import type { Language, WorkspaceDirectory, WorkspaceEntry, WorkspacePreview } from "./types";
+import { RailResizer } from "./RailResizer";
+import type { ContextOption, Language, WorkspaceDirectory, WorkspaceEntry, WorkspacePreview } from "./types";
 
 const labels = {
   zh: {
@@ -63,8 +64,8 @@ const entryIcon = (entry: WorkspaceEntry) => {
   return File;
 };
 
-export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
-  language: Language; remoteIp?: string; onConnection: (online: boolean) => void;
+export function WorkspaceBrowserPage({ language, remoteIp, initialPath, onConnection, onPathChange, onOptionsChange }: {
+  language: Language; remoteIp?: string; initialPath?: string; onConnection: (online: boolean) => void; onPathChange?: (path: string) => void; onOptionsChange?: (options: ContextOption[]) => void;
 }) {
   const text = labels[language];
   const [columnPaths, setColumnPaths] = useState<string[]>([""]);
@@ -114,13 +115,15 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
   const openDirectory = useCallback((entry: WorkspaceEntry, column: number) => {
     previewRequest.current += 1; setActivePath(entry.path); setSelected(null); setPreview(null); setPreviewError(""); setPreviewLoading(false);
     setColumnPaths((current) => [...current.slice(0, column + 1), entry.path]);
+    onPathChange?.(entry.path);
     if (!directories[entry.path]) void loadDirectory(entry.path);
-  }, [directories, loadDirectory]);
+  }, [directories, loadDirectory, onPathChange]);
 
   const selectFile = useCallback((entry: WorkspaceEntry, column: number) => {
     setColumnPaths((current) => current.slice(0, column + 1));
+    onPathChange?.(entry.path);
     void loadPreview(entry);
-  }, [loadPreview]);
+  }, [loadPreview, onPathChange]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -129,6 +132,32 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
     void loadDirectory("", controller.signal);
     return () => { controller.abort(); previewRequest.current += 1; };
   }, [remoteIp, loadDirectory]);
+
+  useEffect(() => {
+    if (!initialPath || activePath === initialPath) return;
+    let alive = true;
+    const reveal = async () => {
+      try {
+        const parts = initialPath.split("/").filter(Boolean); const loaded: Record<string, WorkspaceDirectory> = {}; const paths = [""]; let parent = ""; let target: WorkspaceEntry | undefined;
+        for (const part of parts) {
+          const directory = loaded[parent] || await listWorkspaceEntries(parent, remoteIp);
+          loaded[parent] = directory; target = directory.entries.find((entry) => entry.name === part);
+          if (!target) return;
+          if (target.kind === "directory") { parent = target.path; paths.push(parent); }
+        }
+        if (!alive || !target) return;
+        if (target.kind === "directory") loaded[target.path] = await listWorkspaceEntries(target.path, remoteIp);
+        setDirectories((current) => ({ ...current, ...loaded })); setColumnPaths(paths); setActivePath(target.path); onConnection(true);
+        if (target.kind === "file") void loadPreview(target);
+      } catch (reason) { if (alive) { setError(reason instanceof Error ? reason.message : String(reason)); onConnection(false); } }
+    };
+    void reveal(); return () => { alive = false; };
+  }, [initialPath, activePath, remoteIp, loadPreview, onConnection]);
+
+  useEffect(() => {
+    const path = columnPaths.at(-1) || ""; const entries = directories[path]?.entries || [];
+    onOptionsChange?.(entries.filter((entry) => entry.kind !== "symlink").map((entry) => ({ value: entry.path, label: entry.name, detail: entry.kind === "directory" ? (language === "zh" ? "目录" : "Folder") : entry.preview_kind || (language === "zh" ? "文件" : "File") })));
+  }, [columnPaths, directories, language, onOptionsChange]);
 
   useEffect(() => {
     const viewport = columnsViewport.current;
@@ -191,7 +220,7 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
     const selectable = entries.filter((entry) => entry.kind !== "symlink");
     const allSelected = selectable.length > 0 && selectable.every((entry) => checkedEntries[entry.path]);
     return <section className="workspace-column" key={path} aria-label={title}>
-      <header><div className="workspace-folder-mark"><Folder /></div><span><strong>{title}</strong><small>{path || text.directory}</small></span><em>{entries.length}</em>{selectionMode && <button className={allSelected ? "checked" : ""} title={text.selectAll} onClick={() => toggleColumn(entries)}>{allSelected ? <CheckSquare2 /> : <Square />}</button>}</header>
+      <header><div className="workspace-folder-mark"><Folder /></div><span><strong>{title}</strong><small>{path || text.directory}</small></span><button className={allSelected ? "checked" : ""} title={selectionMode ? text.selectAll : text.refresh} onClick={() => selectionMode ? toggleColumn(entries) : void loadDirectory(path)}>{selectionMode ? allSelected ? <CheckSquare2 /> : <Square /> : <RefreshCw className={loadingDirs.has(path) ? "spin" : ""} />}</button></header>
       <div>
         {!directory && loadingDirs.has(path) && <div className="workspace-column-loading"><LoaderCircle className="spin" /></div>}
         {entries.map((entry) => {
@@ -212,17 +241,18 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
   };
 
   return <section className="workspace-page workspace-browser-page">
-    <div className="page-heading workspace-page-heading"><div><p className="eyebrow">OPERATIONS / WORKSPACE</p><h1>{text.title}</h1><span>{text.lead}</span></div><div className="workspace-heading-actions"><button className={`secondary-button ${selectionMode ? "active" : ""}`} onClick={() => { setSelectionMode((current) => !current); if (selectionMode) setCheckedEntries({}); }}><ListChecks />{selectionMode ? text.done : text.selectItems}</button><button className="secondary-button" onClick={refresh}><RefreshCw className={loadingDirs.size ? "spin" : ""} />{text.refresh}</button></div></div>
+    <div className="page-heading workspace-page-heading"><div><p className="eyebrow">OPERATIONS / WORKSPACE</p><h1>{text.title}</h1><span>{text.lead}</span></div></div>
     {error && <div className="error-banner"><AlertTriangle /><div><strong>{text.loadFailed}</strong><span>{error}</span></div><button onClick={refresh}>{text.refresh}</button></div>}
     <div className="workspace-browser">
       <div className={`workspace-explorer ${selectionMode ? "selecting" : ""}`}>
         <div className="workspace-columns" ref={columnsViewport}>{columnPaths.map(renderColumn)}</div>
-        {selectionMode && <div className={`workspace-selection-bar ${Object.keys(checkedEntries).length ? "has-selection" : ""}`}><span><CheckSquare2 /><strong>{text.selectedCount.replace("{count}", String(Object.keys(checkedEntries).length))}</strong></span><div><button disabled={!Object.keys(checkedEntries).length} onClick={() => setCheckedEntries({})}>{text.clearSelection}</button><button className="danger" disabled={!Object.keys(checkedEntries).length} onClick={() => { setDeleteTargets(Object.values(checkedEntries)); setDeleteError(""); }}><Trash2 />{text.deleteSelected}</button></div></div>}
+        {selectionMode && <div className={`workspace-selection-bar ${Object.keys(checkedEntries).length ? "has-selection" : ""}`}><span><CheckSquare2 /><strong>{text.selectedCount.replace("{count}", String(Object.keys(checkedEntries).length))}</strong></span><div><button className="finish" onClick={() => { setSelectionMode(false); setCheckedEntries({}); }}>{text.done}</button><button disabled={!Object.keys(checkedEntries).length} onClick={() => setCheckedEntries({})}>{text.clearSelection}</button><button className="danger" disabled={!Object.keys(checkedEntries).length} onClick={() => { setDeleteTargets(Object.values(checkedEntries)); setDeleteError(""); }}><Trash2 />{text.deleteSelected}</button></div></div>}
       </div>
+      <RailResizer min={340} max={900} className="context-resizer" />
       <div className="workspace-preview-panel">
         {!selected ? <div className="workspace-preview-empty"><div><HardDrive /></div><small>FILE PREVIEW</small><strong>{text.select}</strong><span>TXT&nbsp;&nbsp;·&nbsp;&nbsp;MD&nbsp;&nbsp;·&nbsp;&nbsp;JSON&nbsp;&nbsp;·&nbsp;&nbsp;YAML&nbsp;&nbsp;·&nbsp;&nbsp;CSV&nbsp;&nbsp;·&nbsp;&nbsp;PARQUET</span></div> : <>
           <header className="workspace-file-header"><div>{(() => { const Icon = entryIcon(selected); return <Icon />; })()}<span><strong>{selected.name}</strong><small>{selected.path}</small></span></div><div><span>{text.size}<strong>{formatBytes(selected.size)}</strong></span><span>{text.modified}<strong>{new Date(selected.modified_at * 1000).toLocaleString(language === "zh" ? "zh-CN" : "en")}</strong></span></div></header>
-          {previewLoading ? <div className="workspace-preview-loading"><LoaderCircle className="spin" /></div> : previewError ? <div className="workspace-preview-message error"><AlertTriangle /><strong>{text.previewFailed}</strong><span>{previewError}</span></div> : preview && <PreviewContent preview={preview} text={text} onPage={(offset) => void loadPreview(selected, offset)} />}
+          {previewLoading ? <div className="workspace-preview-loading"><LoaderCircle className="spin" /></div> : previewError ? <div className="workspace-preview-message error"><AlertTriangle /><strong>{text.previewFailed}</strong><span>{previewError}</span></div> : preview && <PreviewContent preview={preview} language={language} onPage={(offset) => void loadPreview(selected, offset)} />}
         </>}
       </div>
     </div>
@@ -247,7 +277,8 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
   </section>;
 }
 
-function PreviewContent({ preview, text, onPage }: { preview: WorkspacePreview; text: typeof labels.zh | typeof labels.en; onPage: (offset: number) => void }) {
+export function PreviewContent({ preview, language, onPage }: { preview: WorkspacePreview; language: Language; onPage: (offset: number) => void }) {
+  const text = labels[language];
   if (preview.kind === "parquet") return <div className="workspace-parquet">
     <div className="parquet-summary">
       <article><small>{text.rowCount}</small><strong>{(preview.row_count ?? 0).toLocaleString()}</strong></article>

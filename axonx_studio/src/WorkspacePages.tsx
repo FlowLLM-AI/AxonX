@@ -1,49 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, ArrowRight, BarChart3, Blocks, Box, BrainCircuit, CheckCircle2,
+  Activity, ArrowRight, Blocks, Box, BrainCircuit, CheckCircle2,
   CircleDashed, Cpu, Database, FileCode2, LoaderCircle,
-  Network, PackageOpen, Plug, RefreshCw, Search, Send, Server, Sparkles, Workflow,
+  Network, PackageOpen, RefreshCw, Search, Send, Sparkles, Workflow,
 } from "lucide-react";
-import { listInstalledTaskInfos, listJobs, listPlugins, machineStatus } from "./api";
+import { listInstalledTaskInfos, listJobs, listPlugins } from "./api";
 import { t } from "./i18n";
-import type { JobInfo, Language, MachineInfo, MachineNode, PageId, PluginInfo, TaskInfo } from "./types";
+import type { JobInfo, Language, MachineNode, PageId, PluginInfo, TaskInfo } from "./types";
 
-export function HomePage({ language, remoteIp, machine, onConnection, onNavigate }: {
-  language: Language; remoteIp?: string; machine: MachineNode; onConnection: (online: boolean) => void; onNavigate: (page: PageId) => void;
+export function HomePage({ language, onNavigate }: {
+  language: Language; onNavigate: (page: PageId) => void;
 }) {
-  const [info, setInfo] = useState<MachineInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    const controller = new AbortController(); setLoading(true); setError("");
-    machineStatus(remoteIp, controller.signal).then((result) => { setInfo(result); onConnection(true); }).catch((reason) => {
-      if (reason?.name !== "AbortError") { setError(reason instanceof Error ? reason.message : String(reason)); onConnection(false); }
-    }).finally(() => setLoading(false));
-    return () => controller.abort();
-  }, [remoteIp, onConnection]);
-
   const zh = language === "zh";
   return <section className="workspace-page overview-page">
     <div className="overview-hero">
-      <div className="hero-copy"><div className="hero-mark"><img src="/axonx-icon.svg" alt="" /><span>AXONX QUANT HARNESS</span></div><p className="eyebrow">COMPUTE · RESEARCH · DEPLOY</p><h1>{zh ? "把量化研究，变成可运行的系统" : "Turn quant research into an operating system"}</h1><p>{zh ? "AxonX 是面向量化工作流的异步 Harness 框架，统一编排 Component、Job、Plugin 与隔离 Task Runtime。" : "AxonX is an asynchronous harness for quantitative workflows, orchestrating Components, Jobs, Plugins, and isolated Task runtimes."}</p><div className="hero-actions"><button className="primary-button" onClick={() => onNavigate("submit")}><Send />{zh ? "提交任务" : "Submit task"}<ArrowRight /></button><button className="secondary-button" onClick={() => onNavigate("tasks")}><Activity />{zh ? "查看运行" : "View runs"}</button></div></div>
-      <div className="runtime-console">
-        <header><span><i /> AXONX RUNTIME</span><small>{loading ? "CONNECTING" : error ? "UNAVAILABLE" : "READY"}</small></header>
-        <div className="runtime-logo"><img src="/axonx-logo.svg" alt="AxonX" /></div>
-        <div className="runtime-console-grid"><div><small>{zh ? "当前机器" : "MACHINE"}</small><strong><Server />{machine.isLocal ? (zh ? "本机" : "Local") : machine.address}</strong></div><div><small>{zh ? "框架版本" : "VERSION"}</small><strong>{info ? `v${info.axonx.version}` : "—"}</strong></div><div><small>GIT COMMIT</small><code>{info?.axonx.git_commit?.slice(0, 12) || "—"}</code></div><div><small>{zh ? "计算资源" : "COMPUTE"}</small><strong>{info ? `${info.cpu.total_cores} CPU · ${info.gpus?.length || 0} GPU` : "—"}</strong></div></div>
-      </div>
-    </div>
-    <div className="section-heading"><div><p className="eyebrow">WORKSPACE</p><h2>{zh ? "从数据到回测，一处完成" : "From data to backtest, in one workspace"}</h2></div><span>{zh ? "能力按需加载，仅在打开页面时请求对应机器。" : "Capabilities load on demand for the selected machine."}</span></div>
-    <div className="capability-grid">
-      <Capability icon={<Database />} title={zh ? "数据中心" : "Data"} detail={zh ? "数据摄取、ETL 与因子分析" : "Ingestion, ETL, and factor analysis"} onClick={() => onNavigate("datasets")} />
-      <Capability icon={<BrainCircuit />} title={zh ? "模型中心" : "Models"} detail={zh ? "训练、管理与模型推理" : "Training, registry, and inference"} planned onClick={() => onNavigate("training")} />
-      <Capability icon={<BarChart3 />} title={zh ? "策略与回测" : "Strategy & Backtest"} detail={zh ? "排名策略、绩效指标与报告" : "Ranking strategies, metrics, and reports"} onClick={() => onNavigate("backtest")} />
-      <Capability icon={<Plug />} title={zh ? "扩展中心" : "Extensions"} detail={zh ? "查看插件及其 Job、Task、Component" : "Inspect Plugins, Jobs, Tasks, and Components"} onClick={() => onNavigate("plugins")} />
+      <div className="hero-copy"><p className="eyebrow">AXONX · QUANT</p><h1>{zh ? "量化 Harness 框架" : "A harness for quantitative workflows"}</h1><p>{zh ? "组织数据、研究、训练、预测与回测，并交给隔离的 Task Runtime 执行。" : "Organize data, research, training, prediction, and backtesting through isolated Task runtimes."}</p><div className="hero-actions"><button className="primary-button" onClick={() => onNavigate("submit")}><Send />{zh ? "提交Task" : "Submit Task"}<ArrowRight /></button><button className="secondary-button" onClick={() => onNavigate("tasks")}><Activity />{zh ? "查看运行" : "View runs"}</button></div></div>
     </div>
   </section>;
-}
-
-function Capability({ icon, title, detail, planned, onClick }: { icon: React.ReactNode; title: string; detail: string; planned?: boolean; onClick: () => void }) {
-  return <button className="capability-card" onClick={onClick}><span>{icon}</span><div><strong>{title}</strong><small>{detail}</small></div>{planned ? <i>PLANNED</i> : <ArrowRight />}</button>;
 }
 
 export function PluginsPage({ language, remoteIp, onConnection }: { language: Language; remoteIp?: string; onConnection: (online: boolean) => void }) {

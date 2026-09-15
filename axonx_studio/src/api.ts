@@ -74,6 +74,16 @@ export const listJobs = (remoteAddress?: string, signal?: AbortSignal) => {
   return fetch(`${base}/jobs`, { signal }).then(parseJson<JobInfo[]>);
 };
 
+export const invokeApi = <T = unknown>(name: string, body: Record<string, unknown>, remoteAddress?: string, signal?: AbortSignal) => {
+  const base = remoteAddress ? `${window.location.protocol}//${remoteAddress}` : API_URL;
+  return fetch(`${base}/jobs/${encodeURIComponent(name)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  }).then(parse<T>);
+};
+
 interface RemoteMachineStatus { address: string; healthy: boolean }
 
 function addressHost(address: string) {

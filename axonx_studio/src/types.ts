@@ -1,5 +1,6 @@
 export type Language = "zh" | "en";
 export type ThemePreference = "light" | "dark" | "system";
+export interface ContextOption { value: string; label: string; detail?: string }
 export type PageId =
   | "home"
   | "machines"
@@ -113,7 +114,7 @@ export interface GpuInfo {
 }
 
 export interface MachineInfo {
-  axonx: { version: string; git_commit: string | null };
+  axonx: { version: string; git_commit: string | null; git_branch: string | null };
   cpu: CpuInfo;
   memory: MemoryInfo;
   gpus: GpuInfo[] | null;

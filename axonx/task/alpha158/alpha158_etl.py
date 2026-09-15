@@ -886,6 +886,27 @@ class Alpha158Task(BaseTask):
             "rows": output.height,
             "symbols": output["ts_code"].n_unique(),
             "feature_columns": list(FEATURES),
+            "feature_schema": {
+                "title": {
+                    "zh": "Alpha158 特征结构",
+                    "en": "Alpha158 feature schema",
+                },
+                "groups": [
+                    {
+                        "name": "基础价量",
+                        "features": [f"f_alpha158_{name}" for name in (*KBAR, *PRICE)],
+                    },
+                    *[
+                        {
+                            "name": family,
+                            "features": [
+                                f"f_alpha158_{family}{window}" for window in WINDOWS
+                            ],
+                        }
+                        for family in ROLLING
+                    ],
+                ],
+            },
             "labels": {
                 "raw": list(LABELS),
                 "csz": list(CSZ_LABELS),

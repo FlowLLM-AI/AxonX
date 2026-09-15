@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Boxes, CheckCircle2, ChevronRight, CircleOff, Cpu, Gauge, GitCommitHorizontal,
+  Boxes, ChevronRight, CircleOff, Cpu, Gauge,
   HardDrive, LoaderCircle, MemoryStick, Microchip, RefreshCw, Server, Wifi,
 } from "lucide-react";
 import { listMachineOptions, machineHost, machineStatus } from "./api";
@@ -16,7 +16,6 @@ export function MachinesPage({ language, onConnection }: { language: Language; o
   const [error, setError] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [seconds, setSeconds] = useState(10);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   const load = useCallback(async (quiet = false) => {
     if (quiet) setRefreshing(true); else setLoading(true);
@@ -29,7 +28,7 @@ export function MachinesPage({ language, onConnection }: { language: Language; o
         catch { target.healthy = false; }
       }
       setNodes(result); setSelectedId(targetId);
-      setUpdatedAt(new Date()); setSeconds(10); setError(""); onConnection(true);
+      setSeconds(10); setError(""); onConnection(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason)); onConnection(false);
     } finally { setLoading(false); setRefreshing(false); }
@@ -90,7 +89,7 @@ export function MachinesPage({ language, onConnection }: { language: Language; o
 
       <div className="machine-detail">
         {loading && !selected && <div className="loading-state machine-loading"><LoaderCircle className="spin" /> {text.machineLoading}</div>}
-        {selected && selected.info && <MachineDashboard node={selected} language={language} updatedAt={updatedAt} />}
+        {selected && selected.info && <MachineDashboard node={selected} language={language} />}
         {selected && !selected.info && <div className="machine-offline"><span>{selected.healthy ? <LoaderCircle className="spin" /> : <CircleOff />}</span><h2>{selected.healthy ? text.machineLoading : text.machineUnavailable}</h2><p>{selected.address}</p></div>}
       </div>
     </div>
@@ -101,10 +100,9 @@ function ClusterMetric({ icon, label, value, tone }: { icon: React.ReactNode; la
   return <div className={`cluster-metric ${tone}`}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div>;
 }
 
-function MachineDashboard({ node, language, updatedAt }: { node: MachineNode; language: Language; updatedAt: Date | null }) {
+export function MachineDashboard({ node, language }: { node: MachineNode; language: Language }) {
   const text = t(language); const info = node.info!;
   return <>
-    <header className="machine-head"><div className="machine-identity"><span className="machine-cube"><Server /></span><div><small>{node.isLocal ? text.localNode : text.remoteNode}</small><h2>{node.address}</h2><span><CheckCircle2 /> {text.online}</span></div></div><div className="updated-at"><RefreshCw /><span>{text.lastUpdated}<strong>{updatedAt?.toLocaleTimeString(language === "zh" ? "zh-CN" : "en-US", { hour12: false }) || "—"}</strong></span></div></header>
     <div className="resource-grid">
       <ResourceGauge label={text.cpuUsage} value={info.cpu.usage_percent} tone="cpu" icon={<Cpu />} detail={`${info.cpu.used_cores} / ${info.cpu.total_cores} ${text.coresUsed}`} />
       <ResourceGauge label={text.memoryUsage} value={info.memory.usage_percent} tone="memory" icon={<MemoryStick />} detail={`${formatBytes(info.memory.available_bytes)} ${text.available}`} />
@@ -112,7 +110,6 @@ function MachineDashboard({ node, language, updatedAt }: { node: MachineNode; la
       <article className="capacity-card memory-card"><header><span><HardDrive />{text.memoryCapacity}</span><small>RAM</small></header><CapacityRow label={text.usedMemory} value={formatBytes(info.memory.used_bytes)} percent={info.memory.usage_percent} /><CapacityRow label={text.available} value={formatBytes(info.memory.available_bytes)} percent={100 - info.memory.usage_percent} /><CapacityRow label={text.totalMemory} value={formatBytes(info.memory.total_bytes)} percent={100} /></article>
     </div>
     <section className="gpu-section"><div className="section-title"><div><Microchip /><span>{text.gpuResources}</span></div><small>{info.gpus?.length || 0} DEVICES</small></div>{info.gpus?.length ? <div className="gpu-grid">{info.gpus.map((gpu) => <GpuCard key={`${gpu.vendor}-${gpu.index}`} gpu={gpu} language={language} />)}</div> : <div className="no-gpu"><span><Microchip /></span><div><strong>{text.noGpu}</strong><small>{text.noGpuHint}</small></div></div>}</section>
-    <section className="runtime-card"><div className="section-title"><div><GitCommitHorizontal /><span>{text.runtimeInfo}</span></div></div><div className="runtime-values"><div><small>{text.version}</small><strong>v{info.axonx.version}</strong></div><div><small>{text.gitCommit}</small><code>{info.axonx.git_commit?.slice(0, 12) || "—"}</code></div><div><small>{text.endpoint}</small><code>{node.address}</code></div></div></section>
   </>;
 }
 

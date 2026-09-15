@@ -2,11 +2,12 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Braces, Check, ChevronDown, ChevronRight, CircleDot, LoaderCircle, RefreshCw, Search, Send, Sparkles } from "lucide-react";
 import { listInstalledTaskInfos, submitTask } from "./api";
 import { interpolate, t } from "./i18n";
-import type { JsonSchema, Language, TaskInfo } from "./types";
+import { RailResizer } from "./RailResizer";
+import type { ContextOption, JsonSchema, Language, TaskInfo } from "./types";
 
 type FieldValue = string | boolean;
 
-export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { language: Language; remoteIp?: string; onViewTasks: () => void; onConnection: (online: boolean) => void }) {
+export function SubmitPage({ language, remoteIp, initialName, onSelected, onOptionsChange, onViewTasks, onConnection }: { language: Language; remoteIp?: string; initialName?: string; onSelected?: (name: string) => void; onOptionsChange?: (options: ContextOption[]) => void; onViewTasks: () => void; onConnection: (online: boolean) => void }) {
   const text = t(language);
   const [tasks, setTasks] = useState<TaskInfo[]>([]);
   const [selectedName, setSelectedName] = useState("");
@@ -23,12 +24,14 @@ export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { 
     setLoading(true); setError("");
     try {
       const result = await listInstalledTaskInfos(remoteIp);
-      setTasks(result); setSelectedName((current) => current || result[0]?.name || ""); onConnection(true);
+      setTasks(result); setSelectedName((current) => result.some((task) => task.name === current) ? current : ""); onConnection(true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); onConnection(false); }
     finally { setLoading(false); }
   }, [onConnection, remoteIp]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (initialName && tasks.some((task) => task.name === initialName)) setSelectedName(initialName); }, [initialName, tasks]);
+  useEffect(() => { onOptionsChange?.(tasks.map((task) => ({ value: task.name, label: task.name, detail: text.types[task.task_type] || task.task_type }))); }, [tasks, text.types, onOptionsChange]);
   const selected = tasks.find((task) => task.name === selectedName);
   const filtered = useMemo(() => tasks.filter((task) => `${task.name} ${task.task_type} ${task.description}`.toLowerCase().includes(search.toLowerCase())), [tasks, search]);
   const taskGroups = useMemo(() => [
@@ -47,7 +50,7 @@ export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { 
     setValues(defaults); setFieldErrors({}); setSubmitted(false);
   }, [selectedName, selected]);
 
-  const chooseTask = (name: string) => { setSelectedName(name); setSubmitted(false); };
+  const chooseTask = (name: string) => { setSelectedName(name); setSubmitted(false); onSelected?.(name); };
   const toggleGroup = (source: TaskInfo["source"]) => setCollapsedGroups((current) => {
     const next = new Set(current);
     if (next.has(source)) next.delete(source);
@@ -91,9 +94,11 @@ export function SubmitPage({ language, remoteIp, onViewTasks, onConnection }: { 
           {!loading && !filtered.length && <div className="catalog-empty">{text.noInstalled}</div>}
         </div>
       </aside>
+      <RailResizer min={250} max={460} className="context-resizer" />
       <div className="form-panel">
         {loading && !selected && <div className="loading-state tall"><LoaderCircle className="spin" /> Loading Task catalog…</div>}
         {error && !selected && <div className="form-message error"><Braces /><h2>{text.catalogFailed}</h2><p>{error}</p><button className="secondary-button" onClick={() => void load()}>{text.retry}</button></div>}
+        {!loading && !error && !selected && <div className="empty-workspace"><Sparkles /><strong>{language === "zh" ? "选择一个 Task" : "Select a Task"}</strong><span>{language === "zh" ? "查看说明、配置参数并提交运行" : "Review its inputs and submit a run"}</span></div>}
         {selected && !submitted && <form onSubmit={(event) => void submit(event)}>
           <header className="task-form-header"><div className={`large-task-icon type-${selected.task_type}`}><Sparkles /></div><div><span className="type-label">{text.types[selected.task_type] || selected.task_type}</span><h2>{selected.name}</h2><p>{selected.description}</p></div></header>
           <section className="configuration-card">

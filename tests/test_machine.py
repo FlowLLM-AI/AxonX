@@ -26,10 +26,11 @@ def test_collect_local_machine_info(monkeypatch):
     )
     monkeypatch.setattr(component, "_axonx_version", lambda: "1.2.3")
     monkeypatch.setattr(component, "_git_commit", lambda: "abc123")
+    monkeypatch.setattr(component, "_git_branch", lambda: "main")
     monkeypatch.setattr(component, "_gpu_info", lambda: [{"index": 0}])
 
     assert component._collect_local_info() == {
-        "axonx": {"version": "1.2.3", "git_commit": "abc123"},
+        "axonx": {"version": "1.2.3", "git_commit": "abc123", "git_branch": "main"},
         "cpu": {
             "total_cores": 8,
             "physical_cores": 8,

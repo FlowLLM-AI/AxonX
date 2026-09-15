@@ -42,6 +42,7 @@ class LocalMachineComponent(BaseMachineComponent):
             "axonx": {
                 "version": self._axonx_version(),
                 "git_commit": self._git_commit(),
+                "git_branch": self._git_branch(),
             },
             "cpu": {
                 "total_cores": total_cores,
@@ -76,6 +77,23 @@ class LocalMachineComponent(BaseMachineComponent):
         try:
             result = subprocess.run(
                 ["git", "-C", str(package_root), "rev-parse", "HEAD"],
+                capture_output=True,
+                check=True,
+                text=True,
+                timeout=2,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return result.stdout.strip() or None
+
+    @staticmethod
+    def _git_branch() -> str | None:
+        if branch := os.environ.get("AXONX_GIT_BRANCH"):
+            return branch
+        package_root = Path(__file__).resolve().parents[3]
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(package_root), "branch", "--show-current"],
                 capture_output=True,
                 check=True,
                 text=True,

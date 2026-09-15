@@ -274,6 +274,16 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
     metadata = json.loads(Path(output["metadata_file"]).read_text())
     assert metadata["task_id"] == task.task_id
     assert metadata["feature_columns"] == list(FEATURES)
+    grouped_features = [
+        feature
+        for group in metadata["feature_schema"]["groups"]
+        for feature in group["features"]
+    ]
+    assert metadata["feature_schema"]["title"] == {
+        "zh": "Alpha158 特征结构",
+        "en": "Alpha158 feature schema",
+    }
+    assert grouped_features == list(FEATURES)
     assert metadata["artifacts"]["dataset"] == "alpha158.parquet"
     statistics = pl.read_csv(output["statistics_file"])
     assert statistics.height == len(FEATURES) + len(LABEL_OUTPUTS)
