@@ -22,6 +22,8 @@ class TaskStatus(BaseModel):
 
     task_id: str
     task_type: TaskType
+    task_name: str = Field(default="", min_length=0)
+    config: dict[str, Any] = Field(default_factory=dict)
     state: TaskState = TaskState.QUEUED
     pid: int | None = None
     started_at: datetime | None = None

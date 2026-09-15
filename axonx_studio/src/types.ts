@@ -33,6 +33,8 @@ export interface TaskStepStatus {
 export interface TaskStatus {
   task_id: string;
   task_type: string;
+  task_name: string;
+  config: Record<string, unknown>;
   state: TaskState;
   pid: number | null;
   started_at: string | null;

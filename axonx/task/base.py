@@ -85,6 +85,7 @@ class BaseTask(ABC):
         self._status = TaskStatus(
             task_id=self.task_id,
             task_type=self.task_type,
+            config=self.config.model_dump(mode="json", exclude={"task_id", "task_type", "task_id_suffix"}),
             pid=os.getpid(),
             log_path=str(get_log_path() or ""),
         )

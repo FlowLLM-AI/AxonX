@@ -21,6 +21,7 @@ from axonx.schema import ClientOptions, Command, Response, TaskStatus
 from axonx.task.alpha158 import Alpha158BacktestTask
 from axonx.task.common import DemoTask
 from axonx.task.data import DownloadTushareTask, TushareDownloadConfig
+from axonx.task.executor import TaskCommandExecutor
 from axonx.task.resolver import list_installed_task_infos
 from axonx.task.status_reporter import (
     HttpTaskStatusReporter,
@@ -278,6 +279,18 @@ def test_local_task_uses_registered_config(monkeypatch, capsys):
     assert cli.main(["exec", "--task", "sample", "--amount", "3", "--dry-run", "true"]) == 0
 
     assert json.loads(capsys.readouterr().out) == {"amount": 3, "dry_run": True}
+
+
+def test_task_status_keeps_effective_config_for_reruns(monkeypatch, tmp_path):
+    monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: CliTask)
+    command, _ = parse_command(["exec", "--task", "sample", "--amount", "3"])
+
+    execution = TaskCommandExecutor(tmp_path).execute(command)
+
+    assert execution.status.task_name == "sample"
+    assert execution.status.config == {"amount": 3, "dry_run": False}
+    assert "task_id" not in execution.status.config
+    assert "task_id_suffix" not in execution.status.config
 
 
 def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path):
