@@ -2,12 +2,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle, ArrowRight, BarChart3, BrainCircuit, CalendarDays,
+  AlertTriangle, ArrowRight, BarChart3, BrainCircuit,
   CheckCircle2, Database, FileSpreadsheet, GitBranch, LoaderCircle,
   RefreshCw, Search, Sparkles, TrendingUp,
 } from "lucide-react";
 import { listWorkspaceEntries, previewWorkspaceFile } from "./api";
-import type { Language, WorkspaceEntry, WorkspacePreview } from "./types";
+import type { Language, WorkspacePreview } from "./types";
 
 type Meta = Record<string, any>;
 type Row = Record<string, string>;
@@ -37,17 +37,17 @@ const bytes = (value: unknown) => {
 };
 const rowsOf = (preview?: WorkspacePreview | null): Row[] => {
   if (preview?.kind !== "csv") return [];
-  return (preview.rows || []).map((row) => Object.fromEntries((preview.columns || []).map((column, index) => [column, row[index] || ""])));
+  return (preview.rows || []).map((row) => Object.fromEntries((preview.columns || []).map((column, index) => [column, String(row[index] ?? "")])));
 };
 
 async function readAllCsv(path: string, remoteIp?: string) {
-  const rows: string[][] = []; let columns: string[] = [];
+  const rows: unknown[][] = []; let columns: string[] = [];
   for (let offset = 0; offset < 5000; offset += 200) {
     const page = await previewWorkspaceFile(path, offset, 200, remoteIp);
     columns = page.columns || columns; rows.push(...(page.rows || []));
     if (!page.has_more) break;
   }
-  return rows.map((row) => Object.fromEntries(columns.map((column, index) => [column, row[index] || ""])));
+  return rows.map((row) => Object.fromEntries(columns.map((column, index) => [column, String(row[index] ?? "")])));
 }
 
 function useTasks(kind: Kind, remoteIp?: string, onConnection?: (online: boolean) => void) {
@@ -151,11 +151,4 @@ function LineChart({ rows, value, benchmark }: { rows: Row[]; value: string; ben
   const min = Math.min(...all), max = Math.max(...all), range = max - min || 1; const point = (v: number, i: number, length: number) => `${20 + i / Math.max(1, length - 1) * 760},${220 - (v - min) / range * 190}`;
   const path = (values: number[]) => values.map((v, i) => `${i ? "L" : "M"}${point(v, i, values.length)}`).join(" ");
   return <div className="line-chart"><svg viewBox="0 0 800 250" preserveAspectRatio="none"><line x1="20" y1="220" x2="780" y2="220" className="chart-axis" />{bench.length > 0 && <path d={path(bench)} className="chart-benchmark" />}<path d={path(series)} className="chart-primary" /></svg><footer><span>{rows[0]?.trade_date || rows[0]?.iteration}</span><strong>{fmt(series.at(-1), 4)}</strong><span>{rows.at(-1)?.trade_date || rows.at(-1)?.iteration}</span></footer></div>;
-}
-
-export function TusharePage({ language, remoteIp, onConnection }: { language: Language; remoteIp?: string; onConnection: (online: boolean) => void }) {
-  const zh = language === "zh"; const [years, setYears] = useState<WorkspaceEntry[]>([]); const [year, setYear] = useState(""); const [days, setDays] = useState<WorkspaceEntry[]>([]); const [loading, setLoading] = useState(true);
-  const load = () => { setLoading(true); listWorkspaceEntries("tushare", remoteIp).then((result) => { const values = result.entries.filter((entry) => entry.kind === "directory").reverse(); setYears(values); setYear((current) => current || values[0]?.name || ""); onConnection(true); }).catch(() => onConnection(false)).finally(() => setLoading(false)); };
-  useEffect(load, [remoteIp]); useEffect(() => { if (!year) return; listWorkspaceEntries(`tushare/${year}`, remoteIp).then((result) => setDays(result.entries.filter((entry) => entry.kind === "directory").reverse())); }, [year, remoteIp]);
-  return <section className="workspace-page research-page"><div className="page-heading"><div><p className="eyebrow">DATA / TUSHARE API</p><h1>{zh ? "Tushare 数据" : "Tushare data"}</h1><span>{zh ? "按交易日检查 API 落盘覆盖与数据接口。" : "Inspect API landing coverage and datasets by trading day."}</span></div><button className="secondary-button" onClick={load}><RefreshCw className={loading ? "spin" : ""} />{zh ? "刷新" : "Refresh"}</button></div><Kpis items={[{ label: zh ? "覆盖年份" : "YEARS", value: years.length }, { label: zh ? "最早年份" : "EARLIEST", value: years.at(-1)?.name }, { label: zh ? "最新年份" : "LATEST", value: years[0]?.name }, { label: zh ? "选中年度交易日" : "TRADING DAYS", value: days.length }]} /><div className="tushare-layout"><aside className="year-rail">{years.map((item) => <button key={item.path} className={year === item.name ? "active" : ""} onClick={() => setYear(item.name)}><CalendarDays /><strong>{item.name}</strong><ArrowRight /></button>)}</aside><section className="api-calendar"><header><div><small>TUSHARE / {year}</small><h2>{zh ? "交易日数据落盘" : "Daily API snapshots"}</h2></div><span>{days.length} DAYS</span></header><div>{days.map((day) => <article key={day.path}><time>{day.name}</time><span><i>daily</i><i>adj_factor</i><i className="optional">index_weight · monthly</i></span><CheckCircle2 /></article>)}</div></section></div></section>;
 }

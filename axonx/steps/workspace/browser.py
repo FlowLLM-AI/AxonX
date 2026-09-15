@@ -5,11 +5,15 @@ from __future__ import annotations
 import asyncio
 import csv
 import json
+import math
 import shutil
+from datetime import date, datetime
+from decimal import Decimal
 from itertools import islice
 from pathlib import Path
 from typing import Any
 
+import pyarrow.parquet as pq
 import yaml
 
 from ...components.registry import R
@@ -17,6 +21,7 @@ from ..base import BaseStep
 
 TEXT_PREVIEW_BYTES = 512 * 1024
 CSV_PREVIEW_ROWS = 200
+PARQUET_PREVIEW_ROWS = 5
 MAX_DIRECTORY_ENTRIES = 5_000
 
 
@@ -26,7 +31,7 @@ def _workspace_root(step: BaseStep) -> Path:
 
 def _resolve_workspace_path(root: Path, relative_path: str) -> Path:
     if not isinstance(relative_path, str):
-        raise ValueError("Workspace path must be a string")
+        raise TypeError("Workspace path must be a string")
     candidate = Path(relative_path)
     if candidate.is_absolute():
         raise ValueError("Workspace path must be relative")
@@ -113,13 +118,43 @@ def _read_complete_text(path: Path) -> tuple[str, int]:
 
 def _json_compatible(value: Any) -> Any:
     """Convert YAML-specific scalar/container values into JSON-safe data."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
     if isinstance(value, dict):
         return {str(key): _json_compatible(item) for key, item in value.items()}
     if isinstance(value, (list, tuple, set)):
         return [_json_compatible(item) for item in value]
     return str(value)
+
+
+def _preview_parquet(path: Path) -> dict[str, Any]:
+    """Read footer metadata and a five-row sample without scanning the file."""
+    parquet = pq.ParquetFile(path)
+    batch = next(parquet.iter_batches(batch_size=PARQUET_PREVIEW_ROWS), None)
+    columns = [field.name for field in parquet.schema_arrow]
+    rows = [] if batch is None else [
+        [_json_compatible(row.get(column)) for column in columns]
+        for row in batch.to_pylist()
+    ]
+    return {
+        "kind": "parquet",
+        "size": path.stat().st_size,
+        "row_count": parquet.metadata.num_rows,
+        "row_group_count": parquet.metadata.num_row_groups,
+        "columns": columns,
+        "schema": [
+            {"name": field.name, "type": str(field.type), "nullable": field.nullable}
+            for field in parquet.schema_arrow
+        ],
+        "rows": rows,
+        "preview_limit": PARQUET_PREVIEW_ROWS,
+    }
 
 
 def _split_frontmatter(content: str) -> tuple[Any, str, str | None]:
@@ -170,7 +205,7 @@ def _preview_file(root: Path, relative_path: str, offset: int, limit: int) -> di
     if kind is None:
         return {"kind": "unsupported", "size": size}
     if kind == "parquet":
-        return {"kind": "parquet", "size": size}
+        return _preview_parquet(path)
     if kind == "csv":
         return _preview_csv(path, offset, limit)
 

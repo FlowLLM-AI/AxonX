@@ -6,7 +6,6 @@ export type PageId =
   | "tasks"
   | "submit"
   | "datasets"
-  | "tushare"
   | "etl"
   | "files"
   | "factors"
@@ -176,7 +175,11 @@ export interface WorkspacePreview {
   frontmatter_error?: string | null;
   parse_error?: string | null;
   columns?: string[];
-  rows?: string[][];
+  rows?: unknown[][];
+  schema?: { name: string; type: string; nullable: boolean }[];
+  row_count?: number;
+  row_group_count?: number;
+  preview_limit?: number;
   offset?: number;
   limit?: number;
   has_more?: boolean;

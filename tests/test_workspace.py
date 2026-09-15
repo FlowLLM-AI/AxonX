@@ -3,6 +3,8 @@
 import json
 import os
 
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 from axonx import Application
@@ -44,7 +46,10 @@ async def _workspace_app(path):
 async def test_workspace_lists_directories_first_and_previews_supported_files(tmp_path):
     (tmp_path / "nested").mkdir()
     (tmp_path / "notes.txt").write_text("hello workspace", encoding="utf-8")
-    (tmp_path / "data.parquet").write_bytes(b"parquet-placeholder")
+    pq.write_table(
+        pa.table({"symbol": ["000001.SZ", "000002.SZ"], "close": [11.74, 3.06]}),
+        tmp_path / "data.parquet",
+    )
     app = await _workspace_app(tmp_path)
     try:
         listing = await app.run_job("list_workspace_entries", path="")
@@ -60,7 +65,16 @@ async def test_workspace_lists_directories_first_and_previews_supported_files(tm
     ]
     assert text.answer["kind"] == "text"
     assert text.answer["content"] == "hello workspace"
-    assert parquet.answer == {"kind": "parquet", "size": 19}
+    assert parquet.answer["kind"] == "parquet"
+    assert parquet.answer["row_count"] == 2
+    assert parquet.answer["row_group_count"] == 1
+    assert parquet.answer["columns"] == ["symbol", "close"]
+    assert parquet.answer["schema"] == [
+        {"name": "symbol", "type": "string", "nullable": True},
+        {"name": "close", "type": "double", "nullable": True},
+    ]
+    assert parquet.answer["rows"] == [["000001.SZ", 11.74], ["000002.SZ", 3.06]]
+    assert parquet.answer["preview_limit"] == 5
 
 
 async def test_workspace_markdown_frontmatter_json_and_csv(tmp_path):

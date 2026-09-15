@@ -12,7 +12,7 @@ import { SubmitPage } from "./SubmitPage";
 import { TaskDetailPage } from "./TaskDetailPage";
 import { TasksPage } from "./TasksPage";
 import { WorkspaceBrowserPage } from "./WorkspaceBrowserPage";
-import { ResearchPage, TusharePage } from "./ResearchPages";
+import { ResearchPage } from "./ResearchPages";
 import { ComingSoonPage, HomePage, JobCatalogPage, PluginsPage, TaskCatalogPage } from "./WorkspacePages";
 import type { Language, MachineNode, PageId, ThemePreference } from "./types";
 import { useAxonXWebMcp } from "./webmcp";
@@ -22,10 +22,10 @@ type NavGroup = { id: string; label: { zh: string; en: string }; icon: typeof Cp
 
 const groups: NavGroup[] = [
   { id: "runtime", label: { zh: "运行中心", en: "Operations" }, icon: CircleGauge, items: [
-    { id: "machines", icon: Cpu, ready: true }, { id: "tasks", icon: Activity, ready: true }, { id: "submit", icon: Send, ready: true },
+    { id: "machines", icon: Cpu, ready: true }, { id: "tasks", icon: Activity, ready: true }, { id: "submit", icon: Send, ready: true }, { id: "files", icon: Files, ready: true },
   ] },
   { id: "data", label: { zh: "数据中心", en: "Data" }, icon: Database, items: [
-    { id: "tushare", icon: Database, ready: true }, { id: "etl", icon: TableProperties, ready: true }, { id: "factors", icon: Workflow, ready: true },
+    { id: "etl", icon: TableProperties, ready: true }, { id: "factors", icon: Workflow, ready: true },
   ] },
   { id: "model", label: { zh: "模型中心", en: "Models" }, icon: BrainCircuit, items: [
     { id: "training", icon: BrainCircuit, ready: true }, { id: "predict", icon: Play, ready: true },
@@ -33,16 +33,13 @@ const groups: NavGroup[] = [
   { id: "strategy", label: { zh: "策略与回测", en: "Strategy & Backtest" }, icon: BarChart3, items: [
     { id: "backtest", icon: BarChart3, ready: true },
   ] },
-  { id: "assets", label: { zh: "资产与文件", en: "Assets" }, icon: Files, items: [
-    { id: "files", icon: Files, ready: true },
-  ] },
   { id: "extensions", label: { zh: "扩展中心", en: "Extensions" }, icon: Plug, items: [
     { id: "plugins", icon: PackageOpen, ready: true }, { id: "jobs", icon: Workflow, ready: true }, { id: "taskCatalog", icon: Activity, ready: true }, { id: "components", icon: Blocks },
   ] },
 ];
 
 const allPages = new Set<PageId>(["home", ...groups.flatMap((group) => group.items.map((item) => item.id))]);
-const legacyPages: Record<string, PageId> = { rawData: "tushare", datasets: "etl", prediction: "predict", inference: "predict", models: "training", reports: "backtest" };
+const legacyPages: Record<string, PageId> = { rawData: "files", tushare: "files", datasets: "etl", prediction: "predict", inference: "predict", models: "training", reports: "backtest" };
 const initialPage = (): PageId => {
   const value = window.location.hash.slice(1);
   if (value.startsWith("tasks/")) return "tasks";
@@ -128,7 +125,6 @@ export default function App() {
     if (page === "tasks") return <TasksPage language={language} remoteIp={remoteIp} onSubmit={() => setPage("submit")} onOpenTask={openTask} onConnection={setServiceOnline} />;
     if (page === "submit") return <SubmitPage language={language} remoteIp={remoteIp} onViewTasks={() => setPage("tasks")} onConnection={setServiceOnline} />;
     if (page === "files") return <WorkspaceBrowserPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
-    if (page === "tushare") return <TusharePage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
     if (page === "etl" || page === "factors" || page === "training" || page === "predict" || page === "backtest") return <ResearchPage kind={page === "factors" ? "analysis" : page} language={language} remoteIp={remoteIp} onConnection={setServiceOnline} onNavigate={setPage} />;
     if (page === "plugins") return <PluginsPage language={language} remoteIp={remoteIp} onConnection={setServiceOnline} />;
     if (page === "jobs") return <JobCatalogPage language={language} machine={selectedMachine} onConnection={setServiceOnline} />;
