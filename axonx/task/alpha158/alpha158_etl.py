@@ -505,7 +505,8 @@ class Alpha158Task(BaseTask):
             )
             self.report_progress(percentage)
             self.logger.info(f"Rolling features calculated window={window} progress={percentage}%")
-        self.context["frame"] = pl.concat([frame, *rolling_frames], how="horizontal_extend")
+        rolling_columns = [column for rolling_frame in rolling_frames for column in rolling_frame.get_columns()]
+        self.context["frame"] = frame.hstack(rolling_columns)
 
     def calculate_labels(self) -> None:
         """Calculate forward returns and their cross-sectional transformations."""

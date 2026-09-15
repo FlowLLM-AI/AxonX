@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 name = "axonx-polars-demo"
 version = "0.1.1"
 requires-python = ">=3.11"
-dependencies = ["axonx>=0.1.0", "polars>=1"]
+dependencies = ["axonx>=0.1.0", "polars>=1.44.2,<2"]
 [project.entry-points."axonx.plugins"]
 polars-demo = "axonx_polars_demo"
 [tool.setuptools.packages.find]
