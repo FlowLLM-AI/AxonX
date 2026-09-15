@@ -637,6 +637,15 @@ async def test_list_runtime_task_statuses_returns_independent_snapshots(tmp_path
         assert (await manager.get_status(status.task_id)).result["value"] == 2
 
 
+async def test_status_job_returns_failure_for_unknown_task_without_logging_traceback(tmp_path, capsys):
+    async with application(tmp_path) as app:
+        response = await app.run_job("status", task_id="etl#missing")
+
+    assert response.success is False
+    assert response.answer == "Task not found: etl#missing"
+    assert "Traceback" not in capsys.readouterr().err
+
+
 async def test_read_task_log_returns_bounded_ranges(monkeypatch, tmp_path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()

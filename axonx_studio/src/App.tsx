@@ -82,6 +82,11 @@ export default function App() {
   const openTask = (taskId: string) => {
     window.location.hash = `tasks/${encodeURIComponent(taskId)}`; setPageState("tasks"); setTaskDetailId(taskId); setMobileOpen(false);
   };
+  const selectMachine = (nextMachineId: string) => {
+    if (nextMachineId === machineId) return;
+    setMachineId(nextMachineId);
+    if (taskDetailId) setPage("tasks");
+  };
 
   const loadMachines = async () => {
     if (machinesLoaded || machinesLoading) return;
@@ -165,7 +170,7 @@ export default function App() {
         <div className="header-actions">
           <div className="machine-picker" onMouseEnter={() => void loadMachines()} onFocus={() => void loadMachines()}>
             <button className="machine-trigger topbar-control"><Server /><span><small>{text.currentMachine}</small><strong>{selectedMachine?.isLocal ? text.localNode : selectedMachine?.address}</strong></span><ChevronDown /></button>
-            <div className="machine-menu">{machinesLoading && <p>{language === "zh" ? "读取机器列表…" : "Loading machines…"}</p>}{machines.map((machine) => <button key={machine.id} className={machine.id === selectedMachine?.id ? "active" : ""} onClick={() => setMachineId(machine.id)}><i className={machine.healthy ? "online" : "offline"} /><span>{machine.isLocal ? (language === "zh" ? "本机" : "Local") : machine.address}</span>{machine.id === selectedMachine?.id && <span>✓</span>}</button>)}</div>
+            <div className="machine-menu">{machinesLoading && <p>{language === "zh" ? "读取机器列表…" : "Loading machines…"}</p>}{machines.map((machine) => <button key={machine.id} className={machine.id === selectedMachine?.id ? "active" : ""} onClick={() => selectMachine(machine.id)}><i className={machine.healthy ? "online" : "offline"} /><span>{machine.isLocal ? (language === "zh" ? "本机" : "Local") : machine.address}</span>{machine.id === selectedMachine?.id && <span>✓</span>}</button>)}</div>
           </div>
           <button className="topbar-control language-button" onClick={() => setLanguage(language === "zh" ? "en" : "zh")} title={text.switchLanguage}><Languages /><span>{language === "zh" ? "EN" : "中文"}</span></button>
           <div className="theme-picker"><button className="topbar-control theme-trigger" aria-label={text.appearance}>{theme === "light" ? <Sun /> : theme === "dark" ? <Moon /> : <span className="system-icon">◐</span>}<span>{text[theme]}</span><ChevronDown /></button><div className="theme-menu">{(["system", "light", "dark"] as ThemePreference[]).map((value) => <button key={value} className={theme === value ? "active" : ""} onClick={() => setTheme(value)}>{text[value]}</button>)}</div></div>
