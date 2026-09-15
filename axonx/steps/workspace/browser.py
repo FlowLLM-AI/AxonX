@@ -287,6 +287,39 @@ def _delete_entry(root: Path, relative_path: str) -> dict[str, str]:
     return {"deleted": relative_path, "kind": kind}
 
 
+def _delete_entries(root: Path, relative_paths: list[str]) -> dict[str, list[dict[str, str]]]:
+    """Validate a batch first, then delete unique top-level selections."""
+    if not relative_paths:
+        raise ValueError("At least one workspace entry is required")
+    if len(relative_paths) > 200:
+        raise ValueError("At most 200 workspace entries can be deleted at once")
+
+    normalized: list[str] = []
+    for relative_path in dict.fromkeys(relative_paths):
+        if not isinstance(relative_path, str) or not relative_path:
+            raise ValueError("Workspace paths must be non-empty strings")
+        candidate = Path(relative_path)
+        if candidate.is_absolute():
+            raise ValueError("Workspace path must be relative")
+        lexical_target = root / candidate
+        if lexical_target.is_symlink():
+            raise ValueError("Workspace symlinks cannot be deleted")
+        target = _resolve_workspace_path(root, relative_path)
+        if target == root:
+            raise ValueError("The workspace root cannot be deleted")
+        if not target.exists() or not (target.is_file() or target.is_dir()):
+            raise ValueError(f"Workspace entry does not exist: {relative_path}")
+        normalized.append(target.relative_to(root).as_posix())
+
+    selected = set(normalized)
+    roots = [
+        path for path in normalized
+        if not any(parent.as_posix() in selected for parent in Path(path).parents if parent.as_posix() != ".")
+    ]
+    deleted = [_delete_entry(root, path) for path in roots]
+    return {"deleted": deleted}
+
+
 @R.register("list_workspace_entries_step")
 class ListWorkspaceEntriesStep(BaseStep):
     """List one directory without walking the complete workspace tree."""
@@ -319,3 +352,15 @@ class DeleteWorkspaceEntryStep(BaseStep):
 
     async def execute(self):
         self.response.answer = await asyncio.to_thread(_delete_entry, _workspace_root(self), self.context["path"])
+
+
+@R.register("delete_workspace_entries_step")
+class DeleteWorkspaceEntriesStep(BaseStep):
+    """Delete multiple validated workspace entries in one request."""
+
+    async def execute(self):
+        self.response.answer = await asyncio.to_thread(
+            _delete_entries,
+            _workspace_root(self),
+            self.context["paths"],
+        )

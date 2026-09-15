@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle, ChevronRight, Copy, Database, Eye, File, FileCode2,
+  AlertTriangle, Check, CheckSquare2, ChevronRight, Copy, Database, Eye, File, FileCode2,
   FileJson, FileSpreadsheet, FileText, Folder, HardDrive, LoaderCircle,
-  RefreshCw, Trash2, X,
+  ListChecks, RefreshCw, Square, Trash2, X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { deleteWorkspaceEntry, listWorkspaceEntries, previewWorkspaceFile } from "./api";
+import { deleteWorkspaceEntries, listWorkspaceEntries, previewWorkspaceFile } from "./api";
 import type { Language, WorkspaceDirectory, WorkspaceEntry, WorkspacePreview } from "./types";
 
 const labels = {
@@ -21,7 +21,10 @@ const labels = {
     modified: "修改时间", size: "文件大小", previewAction: "预览", open: "打开", copyPath: "复制相对路径",
     deleteAction: "删除", deleteTitle: "确认删除？", deleteFileHint: "文件将被永久删除，此操作无法撤销。",
     deleteFolderHint: "目录及其中的全部内容将被永久删除，此操作无法撤销。", cancel: "取消",
-    deleting: "删除中…", deleteFailed: "删除失败",
+    deleting: "删除中…", deleteFailed: "删除失败", selectItems: "多选", done: "完成",
+    selectedCount: "已选择 {count} 项", deleteSelected: "删除所选", clearSelection: "清除",
+    batchDeleteTitle: "删除所选项目？", batchDeleteHint: "所选文件及目录中的全部内容将被永久删除，此操作无法撤销。",
+    selectAll: "选择本列", selected: "已选择",
   },
   en: {
     title: "Workspace", lead: "Browse data and task artifacts through their real directory structure.", directory: "DIRECTORY",
@@ -34,7 +37,10 @@ const labels = {
     modified: "Modified", size: "File size", previewAction: "Preview", open: "Open", copyPath: "Copy relative path",
     deleteAction: "Delete", deleteTitle: "Delete this item?", deleteFileHint: "The file will be permanently deleted. This cannot be undone.",
     deleteFolderHint: "The folder and all of its contents will be permanently deleted. This cannot be undone.", cancel: "Cancel",
-    deleting: "Deleting…", deleteFailed: "Delete failed",
+    deleting: "Deleting…", deleteFailed: "Delete failed", selectItems: "Select", done: "Done",
+    selectedCount: "{count} selected", deleteSelected: "Delete selected", clearSelection: "Clear",
+    batchDeleteTitle: "Delete selected items?", batchDeleteHint: "Selected files and all contents of selected folders will be permanently deleted. This cannot be undone.",
+    selectAll: "Select this column", selected: "Selected",
   },
 } as const;
 
@@ -73,7 +79,9 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
   const previewRequest = useRef(0);
   const columnsViewport = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<{ entry: WorkspaceEntry; column: number; x: number; y: number } | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<WorkspaceEntry | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [checkedEntries, setCheckedEntries] = useState<Record<string, WorkspaceEntry>>({});
+  const [deleteTargets, setDeleteTargets] = useState<WorkspaceEntry[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
@@ -117,6 +125,7 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
   useEffect(() => {
     const controller = new AbortController();
     previewRequest.current += 1; setColumnPaths([""]); setDirectories({}); setActivePath(""); setSelected(null); setPreview(null); setError("");
+    setCheckedEntries({}); setSelectionMode(false); setDeleteTargets([]);
     void loadDirectory("", controller.signal);
     return () => { controller.abort(); previewRequest.current += 1; };
   }, [remoteIp, loadDirectory]);
@@ -137,25 +146,38 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
 
   const refresh = () => {
     setDirectories({}); setColumnPaths([""]); setActivePath(""); setSelected(null); setPreview(null); setPreviewError(""); setError("");
+    setCheckedEntries({}); setSelectionMode(false);
     previewRequest.current += 1; void loadDirectory("");
   };
 
   const confirmDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTargets.length) return;
     setDeleting(true); setDeleteError("");
     try {
-      await deleteWorkspaceEntry(deleteTarget.path, remoteIp);
-      const deletedPath = deleteTarget.path;
-      const slash = deletedPath.lastIndexOf("/"); const parentPath = slash < 0 ? "" : deletedPath.slice(0, slash);
-      setDirectories((current) => Object.fromEntries(Object.entries(current).filter(([path]) => path !== deletedPath && !path.startsWith(`${deletedPath}/`))));
-      setColumnPaths((current) => current.filter((path) => path !== deletedPath && !path.startsWith(`${deletedPath}/`)));
-      if (activePath === deletedPath || activePath.startsWith(`${deletedPath}/`)) {
-        previewRequest.current += 1; setActivePath(parentPath); setSelected(null); setPreview(null); setPreviewError("");
-      }
-      setDeleteTarget(null); await loadDirectory(parentPath); onConnection(true);
+      await deleteWorkspaceEntries(deleteTargets.map((entry) => entry.path), remoteIp);
+      setDeleteTargets([]); setCheckedEntries({}); setSelectionMode(false); refresh(); onConnection(true);
     } catch (reason) {
       setDeleteError(reason instanceof Error ? reason.message : String(reason)); onConnection(false);
     } finally { setDeleting(false); }
+  };
+
+  const toggleEntry = (entry: WorkspaceEntry) => {
+    if (entry.kind === "symlink") return;
+    setCheckedEntries((current) => {
+      const next = { ...current };
+      if (next[entry.path]) delete next[entry.path]; else next[entry.path] = entry;
+      return next;
+    });
+  };
+
+  const toggleColumn = (entries: WorkspaceEntry[]) => {
+    const selectable = entries.filter((entry) => entry.kind !== "symlink");
+    const allSelected = selectable.length > 0 && selectable.every((entry) => checkedEntries[entry.path]);
+    setCheckedEntries((current) => {
+      const next = { ...current };
+      for (const entry of selectable) { if (allSelected) delete next[entry.path]; else next[entry.path] = entry; }
+      return next;
+    });
   };
 
   const renderColumn = (path: string, column: number) => {
@@ -166,23 +188,22 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
       const rightDirectory = right.kind === "directory" ? 1 : 0;
       return leftDirectory - rightDirectory;
     });
+    const selectable = entries.filter((entry) => entry.kind !== "symlink");
+    const allSelected = selectable.length > 0 && selectable.every((entry) => checkedEntries[entry.path]);
     return <section className="workspace-column" key={path} aria-label={title}>
-      <header><Folder /><span><strong>{title}</strong><small>{path || text.directory}</small></span></header>
+      <header><div className="workspace-folder-mark"><Folder /></div><span><strong>{title}</strong><small>{path || text.directory}</small></span><em>{entries.length}</em>{selectionMode && <button className={allSelected ? "checked" : ""} title={text.selectAll} onClick={() => toggleColumn(entries)}>{allSelected ? <CheckSquare2 /> : <Square />}</button>}</header>
       <div>
         {!directory && loadingDirs.has(path) && <div className="workspace-column-loading"><LoaderCircle className="spin" /></div>}
         {entries.map((entry) => {
           const Icon = entryIcon(entry); const isDirectory = entry.kind === "directory";
           const isActive = activePath === entry.path || columnPaths[column + 1] === entry.path;
-          return <button
-            key={entry.path}
-            className={`${isActive ? "active" : ""} ${entry.kind === "symlink" ? "disabled" : ""}`}
-            onClick={() => isDirectory ? openDirectory(entry, column) : entry.kind === "file" && selectFile(entry, column)}
-            onContextMenu={(event) => { event.preventDefault(); setContextMenu({ entry, column, x: Math.max(6, Math.min(event.clientX, window.innerWidth - 224)), y: Math.max(6, Math.min(event.clientY, window.innerHeight - 190)) }); }}
-            disabled={entry.kind === "symlink"}
-            title={entry.path}
-          >
-            <Icon /><span>{entry.name}</span>{entry.kind === "file" && <small>{formatBytes(entry.size)}</small>}{isDirectory && <ChevronRight />}
-          </button>;
+          const isChecked = Boolean(checkedEntries[entry.path]);
+          return <div key={entry.path} className={`workspace-entry ${isActive ? "active" : ""} ${isChecked ? "selected" : ""} ${entry.kind === "symlink" ? "disabled" : ""}`} onContextMenu={(event) => { event.preventDefault(); setContextMenu({ entry, column, x: Math.max(6, Math.min(event.clientX, window.innerWidth - 224)), y: Math.max(6, Math.min(event.clientY, window.innerHeight - 190)) }); }}>
+            {selectionMode && <button className="workspace-entry-check" aria-label={`${text.selected}: ${entry.name}`} disabled={entry.kind === "symlink"} onClick={() => toggleEntry(entry)}>{isChecked ? <Check /> : null}</button>}
+            <button className="workspace-entry-main" onClick={() => isDirectory ? openDirectory(entry, column) : entry.kind === "file" && selectFile(entry, column)} disabled={entry.kind === "symlink"} title={entry.path}>
+              <Icon /><span>{entry.name}</span>{entry.kind === "file" && <small>{formatBytes(entry.size)}</small>}{isDirectory && <ChevronRight />}
+            </button>
+          </div>;
         })}
         {directory?.entries.length === 0 && <div className="workspace-column-empty">{text.empty}</div>}
         {directory?.truncated && <div className="workspace-column-warning">{text.entriesTruncated}</div>}
@@ -191,12 +212,15 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
   };
 
   return <section className="workspace-page workspace-browser-page">
-    <div className="page-heading"><div><p className="eyebrow">OPERATIONS / WORKSPACE</p><h1>{text.title}</h1><span>{text.lead}</span></div><button className="secondary-button" onClick={refresh}><RefreshCw className={loadingDirs.size ? "spin" : ""} />{text.refresh}</button></div>
+    <div className="page-heading workspace-page-heading"><div><p className="eyebrow">OPERATIONS / WORKSPACE</p><h1>{text.title}</h1><span>{text.lead}</span></div><div className="workspace-heading-actions"><button className={`secondary-button ${selectionMode ? "active" : ""}`} onClick={() => { setSelectionMode((current) => !current); if (selectionMode) setCheckedEntries({}); }}><ListChecks />{selectionMode ? text.done : text.selectItems}</button><button className="secondary-button" onClick={refresh}><RefreshCw className={loadingDirs.size ? "spin" : ""} />{text.refresh}</button></div></div>
     {error && <div className="error-banner"><AlertTriangle /><div><strong>{text.loadFailed}</strong><span>{error}</span></div><button onClick={refresh}>{text.refresh}</button></div>}
     <div className="workspace-browser">
-      <div className="workspace-columns" ref={columnsViewport}>{columnPaths.map(renderColumn)}</div>
+      <div className={`workspace-explorer ${selectionMode ? "selecting" : ""}`}>
+        <div className="workspace-columns" ref={columnsViewport}>{columnPaths.map(renderColumn)}</div>
+        {selectionMode && <div className={`workspace-selection-bar ${Object.keys(checkedEntries).length ? "has-selection" : ""}`}><span><CheckSquare2 /><strong>{text.selectedCount.replace("{count}", String(Object.keys(checkedEntries).length))}</strong></span><div><button disabled={!Object.keys(checkedEntries).length} onClick={() => setCheckedEntries({})}>{text.clearSelection}</button><button className="danger" disabled={!Object.keys(checkedEntries).length} onClick={() => { setDeleteTargets(Object.values(checkedEntries)); setDeleteError(""); }}><Trash2 />{text.deleteSelected}</button></div></div>}
+      </div>
       <div className="workspace-preview-panel">
-        {!selected ? <div className="workspace-preview-empty"><HardDrive /><strong>{text.select}</strong><span>TXT · MD · JSON · YAML · CSV · PARQUET</span></div> : <>
+        {!selected ? <div className="workspace-preview-empty"><div><HardDrive /></div><small>FILE PREVIEW</small><strong>{text.select}</strong><span>TXT&nbsp;&nbsp;·&nbsp;&nbsp;MD&nbsp;&nbsp;·&nbsp;&nbsp;JSON&nbsp;&nbsp;·&nbsp;&nbsp;YAML&nbsp;&nbsp;·&nbsp;&nbsp;CSV&nbsp;&nbsp;·&nbsp;&nbsp;PARQUET</span></div> : <>
           <header className="workspace-file-header"><div>{(() => { const Icon = entryIcon(selected); return <Icon />; })()}<span><strong>{selected.name}</strong><small>{selected.path}</small></span></div><div><span>{text.size}<strong>{formatBytes(selected.size)}</strong></span><span>{text.modified}<strong>{new Date(selected.modified_at * 1000).toLocaleString(language === "zh" ? "zh-CN" : "en")}</strong></span></div></header>
           {previewLoading ? <div className="workspace-preview-loading"><LoaderCircle className="spin" /></div> : previewError ? <div className="workspace-preview-message error"><AlertTriangle /><strong>{text.previewFailed}</strong><span>{previewError}</span></div> : preview && <PreviewContent preview={preview} text={text} onPage={(offset) => void loadPreview(selected, offset)} />}
         </>}
@@ -207,15 +231,17 @@ export function WorkspaceBrowserPage({ language, remoteIp, onConnection }: {
       {contextMenu.entry.kind === "file" && contextMenu.entry.supported && <button role="menuitem" onClick={() => { selectFile(contextMenu.entry, contextMenu.column); setContextMenu(null); }}><Eye />{text.previewAction}</button>}
       {contextMenu.entry.kind === "directory" && <button role="menuitem" onClick={() => { openDirectory(contextMenu.entry, contextMenu.column); setContextMenu(null); }}><ChevronRight />{text.open}</button>}
       <button role="menuitem" onClick={() => { void navigator.clipboard.writeText(contextMenu.entry.path); setContextMenu(null); }}><Copy />{text.copyPath}</button>
-      {contextMenu.entry.kind !== "symlink" && <button className="danger" role="menuitem" onClick={() => { setDeleteTarget(contextMenu.entry); setDeleteError(""); setContextMenu(null); }}><Trash2 />{text.deleteAction}</button>}
+      {contextMenu.entry.kind !== "symlink" && <button role="menuitem" onClick={() => { setSelectionMode(true); if (!checkedEntries[contextMenu.entry.path]) toggleEntry(contextMenu.entry); setContextMenu(null); }}><CheckSquare2 />{text.selectItems}</button>}
+      {contextMenu.entry.kind !== "symlink" && <button className="danger" role="menuitem" onClick={() => { setDeleteTargets([contextMenu.entry]); setDeleteError(""); setContextMenu(null); }}><Trash2 />{text.deleteAction}</button>}
     </div>}
-    {deleteTarget && <div className="modal-backdrop" role="presentation" onClick={() => !deleting && setDeleteTarget(null)}>
+    {deleteTargets.length > 0 && <div className="modal-backdrop" role="presentation" onClick={() => !deleting && setDeleteTargets([])}>
       <div className="confirm-modal workspace-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="workspace-delete-title" onClick={(event) => event.stopPropagation()}>
-        <button className="close-button" aria-label={text.cancel} disabled={deleting} onClick={() => setDeleteTarget(null)}><X /></button>
-        <div className="danger-icon"><Trash2 /></div><h2 id="workspace-delete-title">{text.deleteTitle}</h2><code>{deleteTarget.path}</code>
-        <p>{deleteTarget.kind === "directory" ? text.deleteFolderHint : text.deleteFileHint}</p>
+        <button className="close-button" aria-label={text.cancel} disabled={deleting} onClick={() => setDeleteTargets([])}><X /></button>
+        <div className="danger-icon"><Trash2 /></div><h2 id="workspace-delete-title">{deleteTargets.length > 1 ? text.batchDeleteTitle : text.deleteTitle}</h2>
+        <div className="workspace-delete-list">{deleteTargets.slice(0, 6).map((entry) => <code key={entry.path}>{entry.path}</code>)}{deleteTargets.length > 6 && <span>+{deleteTargets.length - 6}</span>}</div>
+        <p>{deleteTargets.length > 1 ? text.batchDeleteHint : deleteTargets[0].kind === "directory" ? text.deleteFolderHint : text.deleteFileHint}</p>
         {deleteError && <div className="inline-error"><strong>{text.deleteFailed}</strong><span>{deleteError}</span></div>}
-        <div><button className="secondary-button" disabled={deleting} onClick={() => setDeleteTarget(null)}>{text.cancel}</button><button className="danger-button" disabled={deleting} onClick={() => void confirmDelete()}>{deleting ? <LoaderCircle className="spin" /> : <Trash2 />}{deleting ? text.deleting : text.deleteAction}</button></div>
+        <div><button className="secondary-button" disabled={deleting} onClick={() => setDeleteTargets([])}>{text.cancel}</button><button className="danger-button" disabled={deleting} onClick={() => void confirmDelete()}>{deleting ? <LoaderCircle className="spin" /> : <Trash2 />}{deleting ? text.deleting : `${text.deleteAction} (${deleteTargets.length})`}</button></div>
       </div>
     </div>}
   </section>;

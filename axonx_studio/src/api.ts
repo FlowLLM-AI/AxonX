@@ -66,6 +66,8 @@ export const previewWorkspaceFile = (path: string, offset = 0, limit = 200, remo
   callJob<WorkspacePreview>("preview_workspace_file", { path, offset, limit, ...remoteBody(remoteIp) }, signal);
 export const deleteWorkspaceEntry = (path: string, remoteIp?: string) =>
   callJob<{ deleted: string; kind: "file" | "directory" }>("delete_workspace_entry", { path, ...remoteBody(remoteIp) });
+export const deleteWorkspaceEntries = (paths: string[], remoteIp?: string) =>
+  callJob<{ deleted: { deleted: string; kind: "file" | "directory" }[] }>("delete_workspace_entries", { paths, ...remoteBody(remoteIp) });
 
 export const listJobs = (remoteAddress?: string, signal?: AbortSignal) => {
   const base = remoteAddress ? `${window.location.protocol}//${remoteAddress}` : API_URL;

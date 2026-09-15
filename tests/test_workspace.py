@@ -37,6 +37,22 @@ async def _workspace_app(path):
                 },
                 "steps": [{"backend": "delete_workspace_entry_step"}],
             },
+            "delete_workspace_entries": {
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "paths": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 200,
+                            "items": {"type": "string", "minLength": 1},
+                        },
+                    },
+                    "required": ["paths"],
+                    "additionalProperties": False,
+                },
+                "steps": [{"backend": "delete_workspace_entries_step"}],
+            },
         },
     )
     await app.start()
@@ -188,3 +204,35 @@ async def test_workspace_deletes_files_and_directories_but_not_root(tmp_path):
     assert not folder.exists()
     assert not rejected_root.success
     assert "root cannot be deleted" in rejected_root.answer
+
+
+async def test_workspace_batch_delete_validates_first_and_collapses_descendants(tmp_path):
+    folder = tmp_path / "run"
+    folder.mkdir()
+    child = folder / "result.csv"
+    child.write_text("value\n1\n", encoding="utf-8")
+    other = tmp_path / "metadata.json"
+    other.write_text("{}", encoding="utf-8")
+    app = await _workspace_app(tmp_path)
+    try:
+        rejected = await app.run_job(
+            "delete_workspace_entries",
+            paths=["metadata.json", "missing.txt"],
+        )
+        assert not rejected.success
+        assert other.exists()
+        deleted = await app.run_job(
+            "delete_workspace_entries",
+            paths=["run/result.csv", "run", "metadata.json", "metadata.json"],
+        )
+    finally:
+        await app.close()
+
+    assert deleted.answer == {
+        "deleted": [
+            {"deleted": "run", "kind": "directory"},
+            {"deleted": "metadata.json", "kind": "file"},
+        ],
+    }
+    assert not folder.exists()
+    assert not other.exists()

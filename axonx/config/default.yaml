@@ -166,6 +166,24 @@ jobs:
     steps:
       - backend: delete_workspace_entry_step
 
+  delete_workspace_entries:
+    description: Delete multiple files or directories inside the configured workspace.
+    parameters:
+      type: object
+      properties:
+        paths:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: string
+            minLength: 1
+      required:
+        - paths
+      additionalProperties: false
+    steps:
+      - backend: delete_workspace_entries_step
+
   cancel:
     description: Cancel a queued or running task.
     parameters:
