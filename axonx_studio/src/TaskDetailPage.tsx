@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Ban, Check, ChevronUp, Copy, FileJson, FileText, LoaderCircle, Play, RefreshCw, RotateCw, Settings2, X } from "lucide-react";
+import { ArrowLeft, Ban, Check, ChevronDown, ChevronUp, Copy, FileJson, FileText, LoaderCircle, Play, RefreshCw, RotateCw, Settings2, X } from "lucide-react";
 import { cancelTask, getTaskStatus, readTaskLog, submitTask } from "./api";
 import { t } from "./i18n";
 import { Status } from "./TasksPage";
@@ -22,6 +22,7 @@ export function TaskDetailPage({ taskId, language, remoteIp, onBack, onConnectio
     rerunConfirm: "使用本次配置重新运行任务？", rerunHint: "系统会创建一条新的运行记录，不会覆盖当前记录。",
     confirmRerun: "确认重跑", rerunSubmitted: "已提交新的任务运行", rerunFailed: "重新运行失败",
     runDetails: "运行详情", completedSteps: "个步骤已完成", unavailableRerun: "该运行缺少可重用的任务名称",
+    expandConfig: "展开任务配置", collapseConfig: "收起任务配置",
   } : {
     live: "Live log", loadEarlier: "Load earlier", follow: "Follow tail", copy: "Copy", copied: "Copied",
     logEmpty: "The log is empty for now", logUnavailable: "No readable log is attached to this task", logError: "Unable to read log",
@@ -32,6 +33,7 @@ export function TaskDetailPage({ taskId, language, remoteIp, onBack, onConnectio
     rerunConfirm: "Run this task again with the same configuration?", rerunHint: "A new run will be created; this record will not be changed.",
     confirmRerun: "Run again", rerunSubmitted: "A new task run was submitted", rerunFailed: "Unable to rerun task",
     runDetails: "Run details", completedSteps: "steps completed", unavailableRerun: "This run does not include a reusable task name",
+    expandConfig: "Expand task configuration", collapseConfig: "Collapse task configuration",
   };
   const [task, setTask] = useState<TaskStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,7 @@ export function TaskDetailPage({ taskId, language, remoteIp, onBack, onConnectio
   const [followTail, setFollowTail] = useState(true);
   const [copied, setCopied] = useState(false);
   const [configCopied, setConfigCopied] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const [rerunOpen, setRerunOpen] = useState(false);
   const [rerunning, setRerunning] = useState(false);
   const [rerunMessage, setRerunMessage] = useState("");
@@ -96,6 +99,7 @@ export function TaskDetailPage({ taskId, language, remoteIp, onBack, onConnectio
   }, [remoteIp, taskId]);
 
   useEffect(() => { void loadStatus().then((result) => { if (result?.log_path) void loadLog(-1, "replace"); }); }, [loadLog, loadStatus]);
+  useEffect(() => { setConfigOpen(false); }, [taskId]);
   useEffect(() => {
     if (!task || !ACTIVE.has(task.state)) return;
     const timer = window.setInterval(() => {
@@ -171,15 +175,19 @@ export function TaskDetailPage({ taskId, language, remoteIp, onBack, onConnectio
     {rerunMessage && <div className={`task-rerun-notice ${rerunMessage.startsWith(labels.rerunFailed) ? "error" : ""}`}><Play />{rerunMessage}</div>}
     <div className="task-detail-layout">
       <div className="task-detail-summary">
-        <section className="task-config-section">
+        <section className={`task-config-section ${configOpen ? "open" : "collapsed"}`}>
           <header className="detail-section-heading">
-            <div><span className="detail-section-icon"><Settings2 /></span><div><h2>{labels.config}</h2><p>{task.task_name ? labels.effectiveConfig : labels.configUnavailable}</p></div></div>
+            <button className="config-section-toggle" type="button" onClick={() => setConfigOpen((open) => !open)} aria-expanded={configOpen} aria-controls="task-config-content" title={configOpen ? labels.collapseConfig : labels.expandConfig}>
+              <span className="detail-section-icon"><Settings2 /></span><span><h2>{labels.config}</h2><p>{task.task_name ? labels.effectiveConfig : labels.configUnavailable}</p></span><ChevronDown className="config-chevron" />
+            </button>
             <button className="config-copy-button" onClick={() => void copyConfig()} disabled={!task.task_name}><Copy />{configCopied ? labels.copied : labels.copyConfig}</button>
           </header>
-          {task.task_name ? <>
-            <div className="config-source"><span>{language === "zh" ? "任务" : "Task"}</span><code>{task.task_name}</code><i>{language === "zh" ? "完整快照" : "Snapshot"}</i></div>
-            {configEntries.length ? <dl className="task-config-list">{configEntries.map(([key, value]) => <div key={key}><dt>{key}</dt><dd title={formatConfigValue(value)}>{formatConfigValue(value)}</dd></div>)}</dl> : <div className="task-config-empty"><FileJson />{labels.noConfig}</div>}
-          </> : <div className="task-config-empty legacy"><FileJson />{labels.configUnavailable}</div>}
+          {configOpen && <div id="task-config-content">
+            {task.task_name ? <>
+              <div className="config-source"><span>{language === "zh" ? "任务" : "Task"}</span><code>{task.task_name}</code><i>{language === "zh" ? "完整快照" : "Snapshot"}</i></div>
+              {configEntries.length ? <dl className="task-config-list">{configEntries.map(([key, value]) => <div key={key}><dt>{key}</dt><dd title={formatConfigValue(value)}>{formatConfigValue(value)}</dd></div>)}</dl> : <div className="task-config-empty"><FileJson />{labels.noConfig}</div>}
+            </> : <div className="task-config-empty legacy"><FileJson />{labels.configUnavailable}</div>}
+          </div>}
         </section>
 
         <section className="task-run-section">
