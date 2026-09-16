@@ -5,9 +5,8 @@ from tempfile import NamedTemporaryFile
 from threading import RLock
 from typing import Callable
 
-from ....plugin.builder import build_wheel, source_sha256
-from ....plugin.inspector import inspect_wheel
-from ....plugin.models import PluginArtifact
+from ....plugin import build_wheel, inspect_wheel, source_sha256
+from ....schema import PluginArtifact
 from .contributions import index_records
 from .repository import PluginRepository
 

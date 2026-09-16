@@ -4,8 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from ...enums import ComponentEnum
-from ...plugin.artifact import PluginArtifact
-from ...schema import JobConfig
+from ...schema import JobConfig, PluginArtifact
 from ..base import BaseComponent
 
 

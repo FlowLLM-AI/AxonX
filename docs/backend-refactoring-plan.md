@@ -718,7 +718,7 @@ Alpha158 和 Tushare 保持 `axonx` 原生能力，不迁移为插件。项目�
 
 完成标准：插件安装流程不再集中在 `LocalPluginComponent` 中。
 
-阶段状态：已完成（2026-09-16）。`LocalPluginComponent` 保留公开接口并委托 `PluginService`；仅供本地组件使用的编排、状态仓库和贡献索引放在 `axonx/components/plugin/local/`，CLI 与组件共用的 wheel 能力保留在 `axonx/plugin/`。原 `axonx.plugin.artifact` 路径继续 re-export。检查已保存的 wheel 时会核对摘要。完整测试：200 passed；新增和修改的 Python 文件通过 pre-commit 检查。
+阶段状态：已完成（2026-09-17）。`LocalPluginComponent` 保留公开接口并委托 `PluginService`；仅供本地组件使用的编排、状态仓库和贡献索引放在 `axonx/components/plugin/local/`。CLI 与组件共用的 wheel 构建、检查和安装集中在 `axonx/plugin/wheel.py`，manifest 解析独立供 wheel 检查和 Task 解析使用，`PluginArtifact` 使用 `axonx/schema/plugin.py` 中的 Pydantic 模型。检查已保存的 wheel 时会核对摘要。完整测试：200 passed；新增和修改的 Python 文件通过 pre-commit 检查。
 
 安全审查：`LocalPluginComponent` 构造默认禁用远程安装，但内置 `config/default.yaml` 显式启用，且未配置 `install_token`；HTTP 上传此时无需 token。阶段 5 保持现有默认配置语义，仅记录此风险；如需改为默认禁用或强制 token，应作为单独的外部配置契约变更处理。
 

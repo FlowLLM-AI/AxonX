@@ -1,7 +1,8 @@
 """Plugin manifests and wheel artifacts."""
 
-from .artifact import (
-    PluginArtifact,
+from ..schema import PluginArtifact
+from .manifest import parse_plugin_manifest
+from .wheel import (
     build_wheel,
     inspect_wheel,
     install_artifact,
@@ -13,5 +14,6 @@ __all__ = [
     "build_wheel",
     "inspect_wheel",
     "install_artifact",
+    "parse_plugin_manifest",
     "source_sha256",
 ]

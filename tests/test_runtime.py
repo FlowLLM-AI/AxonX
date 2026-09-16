@@ -646,7 +646,7 @@ async def test_status_job_returns_failure_for_unknown_task_without_logging_trace
     assert "Traceback" not in capsys.readouterr().err
 
 
-async def test_read_task_log_returns_bounded_ranges(monkeypatch, tmp_path):
+async def test_read_task_log_returns_bounded_ranges(tmp_path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
     log_path = log_dir / "task.log"
@@ -675,7 +675,7 @@ async def test_read_task_log_returns_bounded_ranges(monkeypatch, tmp_path):
     assert beginning.answer["has_more_after"] is True
 
 
-async def test_task_manager_backfills_legacy_log_path_from_pid(monkeypatch, tmp_path):
+async def test_task_manager_backfills_legacy_log_path_from_pid(tmp_path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
     log_path = log_dir / "2026-09-13_20-59-53_2903.log"
@@ -694,7 +694,7 @@ async def test_task_manager_backfills_legacy_log_path_from_pid(monkeypatch, tmp_
     assert record.log_path == str(log_path)
 
 
-async def test_read_task_log_rejects_paths_outside_log_directory(monkeypatch, tmp_path):
+async def test_read_task_log_rejects_paths_outside_log_directory(tmp_path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
     outside = tmp_path / "secret.log"
@@ -1038,7 +1038,7 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     import httpx
 
     from axonx.components.service import HttpService
-    from axonx.plugin.artifact import build_wheel, inspect_wheel, source_sha256
+    from axonx.plugin import build_wheel, inspect_wheel, source_sha256
 
     source = Path("plugins/polars-demo").resolve()
     wheel = build_wheel(source, tmp_path / "build" / source_sha256(source))

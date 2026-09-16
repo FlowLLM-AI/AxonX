@@ -2,7 +2,6 @@
 
 # pylint: disable=missing-function-docstring
 
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -11,7 +10,7 @@ from axonx.components.plugin.local.contributions import index_records
 from axonx.components.plugin.local.repository import PluginRepository
 from axonx.components.plugin.local.service import PluginService
 from axonx.plugin.cli import plugin_job_argv
-from axonx.plugin.models import PluginArtifact
+from axonx.plugin import PluginArtifact
 
 
 def artifact(path: Path, *, tasks: dict[str, str] | None = None) -> PluginArtifact:
@@ -162,7 +161,7 @@ def test_inspect_rejects_changed_managed_wheel(monkeypatch, tmp_path):
     service = PluginService(repository, lambda _artifact: None)
 
     def inspect(path):
-        return replace(artifact(path), sha256="changed")
+        return artifact(path).model_copy(update={"sha256": "changed"})
 
     monkeypatch.setattr("axonx.components.plugin.local.service.inspect_wheel", inspect)
     with pytest.raises(ValueError, match="SHA-256 mismatch"):

@@ -6,8 +6,8 @@ from copy import deepcopy
 from pathlib import Path
 
 from ....enums import component_type_name
-from ....plugin.artifact import PluginArtifact, install_artifact
-from ....schema import JobConfig
+from ....plugin import install_artifact
+from ....schema import JobConfig, PluginArtifact
 from ....utils.imports import load_symbol
 from ...base import BaseComponent
 from ...registry import R

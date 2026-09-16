@@ -9,7 +9,7 @@ from .application_config import (
 from .client_options import ClientOptions
 from .command import Command
 from .job import JobInfo
-from .plugin import PluginManifest
+from .plugin import PluginArtifact, PluginManifest
 from .proxy import ProxyResponse
 from .response import Response
 from .task_info import TaskInfo
@@ -22,6 +22,7 @@ __all__ = [
     "ClientOptions",
     "JobConfig",
     "JobInfo",
+    "PluginArtifact",
     "PluginManifest",
     "ProxyResponse",
     "RemoteNode",

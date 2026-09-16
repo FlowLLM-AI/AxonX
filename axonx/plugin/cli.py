@@ -15,7 +15,7 @@ import sys
 from typing import Sequence
 
 from ..components.client import HttpClient
-from .artifact import build_wheel, inspect_wheel, install_artifact, source_sha256
+from . import build_wheel, inspect_wheel, install_artifact, source_sha256
 
 _QUERY_ACTIONS = frozenset({"list", "status", "inspect"})
 _CLIENT_OPTIONS = frozenset({"--host-ip", "--host-port", "--timeout"})
