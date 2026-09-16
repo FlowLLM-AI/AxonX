@@ -1,7 +1,11 @@
 """Workspace Job Steps."""
 
-from .browse_steps import ListWorkspaceEntriesStep, PreviewWorkspaceFileStep
-from .delete_steps import DeleteWorkspaceEntriesStep, DeleteWorkspaceEntryStep
+from .browser import (
+    DeleteWorkspaceEntriesStep,
+    DeleteWorkspaceEntryStep,
+    ListWorkspaceEntriesStep,
+    PreviewWorkspaceFileStep,
+)
 from .task_graph import GetTaskGraphStep, ListTaskGraphsStep
 
 __all__ = [
