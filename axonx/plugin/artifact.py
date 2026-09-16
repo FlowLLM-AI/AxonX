@@ -5,8 +5,6 @@ from __future__ import annotations
 import configparser
 from dataclasses import dataclass
 from email.parser import Parser
-from functools import partial
-import hashlib
 from importlib import invalidate_caches
 from pathlib import Path
 import subprocess
@@ -18,10 +16,11 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
+from ..io import directory_sha256, file_sha256
 from ..schema import JobConfig
 from .manifest import parse_plugin_manifest
 
-_IGNORED_PARTS = {".git", ".venv", "__pycache__", "build", "dist"}
+_IGNORED_PARTS = {".git", ".venv", "__pycache__", "build", "dist", "*.egg-info"}
 
 
 @dataclass(frozen=True)
@@ -47,35 +46,12 @@ class PluginArtifact:
         }
 
 
-def file_sha256(path: Path) -> str:
-    """Return the SHA-256 digest of a file's contents."""
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(partial(stream.read, 1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def source_sha256(path: Path) -> str:
     """Hash stable source paths and contents, excluding generated files."""
     root = path.expanduser().resolve()
     if not (root / "pyproject.toml").is_file():
         raise FileNotFoundError(f"Plugin pyproject.toml not found: {root}")
-    digest = hashlib.sha256()
-    files = sorted(
-        item
-        for item in root.rglob("*")
-        if item.is_file()
-        and not any(part in _IGNORED_PARTS or part.endswith(".egg-info") for part in item.relative_to(root).parts)
-    )
-    for item in files:
-        relative = item.relative_to(root).as_posix().encode()
-        digest.update(len(relative).to_bytes(4, "big"))
-        digest.update(relative)
-        with item.open("rb") as stream:
-            for chunk in iter(partial(stream.read, 1024 * 1024), b""):
-                digest.update(chunk)
-    return digest.hexdigest()
+    return directory_sha256(root, ignored_parts=_IGNORED_PARTS)
 
 
 def build_wheel(source: Path, output: Path, *, use_cache: bool = False) -> Path:

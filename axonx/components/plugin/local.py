@@ -15,6 +15,7 @@ from ...plugin.artifact import (
     install_artifact,
     source_sha256,
 )
+from ...io import atomic_write_json
 from ...schema import JobConfig
 from ...enums import component_type_name
 from ...utils.imports import load_symbol
@@ -73,12 +74,7 @@ class LocalPluginComponent(BasePluginComponent):
         self._rebuild_index()
 
     def _save_state(self):
-        temporary = self.state_path.with_suffix(".tmp")
-        temporary.write_text(
-            json.dumps(self._state, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        temporary.replace(self.state_path)
+        atomic_write_json(self.state_path, self._state)
 
     def _install(self, artifact: PluginArtifact):
         install_artifact(artifact)

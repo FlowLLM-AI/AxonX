@@ -19,6 +19,7 @@ from ...constants import (
     AXONX_TASK_WORKSPACE_DIR,
 )
 from ...enums import TaskState
+from ...io import atomic_write_json
 from ...schema import TaskStatus
 from ...task.arguments import task_name_from_argv
 
@@ -91,12 +92,7 @@ class LocalTaskManager(BaseTaskManager):
             "workspace": str(self.workspace_path.resolve()),
             "tasks": [status.model_dump(mode="json") for status in self._statuses.values()],
         }
-        temporary = self.status_path.with_suffix(".tmp")
-        temporary.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False),
-            encoding="utf-8",
-        )
-        temporary.replace(self.status_path)
+        atomic_write_json(self.status_path, payload)
 
     async def _start(self):
         if os.name != "posix":
@@ -210,8 +206,6 @@ class LocalTaskManager(BaseTaskManager):
                     if len(stderr_tail) > tail_limit:
                         del stderr_tail[:-tail_limit]
             return_code = await process.wait()
-        except asyncio.CancelledError:
-            raise
         except Exception:  # noqa
             self.logger.exception(f"Failed to monitor task process {process.pid} ({task_name})")
             return
