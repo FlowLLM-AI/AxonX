@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Home,
   Network,
+  GitBranch,
   Sparkles,
   Workflow,
 } from "lucide-react";
@@ -26,6 +27,7 @@ export const navigationItems: NavigationItem[] = [
   { id: "apis", icon: Network, zh: "API接口", en: "API interfaces" },
   { id: "task-defs", icon: FileCode2, zh: "提交Task", en: "Submit Task" },
   { id: "raw", icon: Database, zh: "Tushare数据", en: "Tushare data" },
+  { id: "lineage", icon: GitBranch, zh: "任务关系图", en: "Task graph" },
   { id: "etl", icon: Workflow, zh: "ETL", en: "ETL" },
   { id: "factors", icon: Sparkles, zh: "因子分析", en: "Factor analysis" },
   { id: "training", icon: BrainCircuit, zh: "模型训练", en: "Model training" },

@@ -4,6 +4,7 @@ export const sectionIds = [
   "apis",
   "task-defs",
   "raw",
+  "lineage",
   "etl",
   "factors",
   "training",

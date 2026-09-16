@@ -26,6 +26,11 @@ const ResearchPage = lazy(() =>
     default: module.ResearchPage,
   })),
 );
+const TaskGraphPage = lazy(() =>
+  import("../features/task-graph/TaskGraphPage").then((module) => ({
+    default: module.TaskGraphPage,
+  })),
+);
 const ApiWorkspace = lazy(() =>
   import("../features/api-catalog/ApiWorkspace").then((module) => ({
     default: module.ApiWorkspace,
@@ -110,6 +115,22 @@ export function PageOutlet({
           })
         }
         onOptionsChange={setResourceOptions}
+      />
+    );
+  } else if (route.section === "lineage") {
+    page = (
+      <TaskGraphPage
+        language={language}
+        remoteIp={remoteIp}
+        selectedId={route.resource}
+        onSelect={(resource) =>
+          navigate({ section: "lineage", view: "runs", resource })
+        }
+        onNavigate={(section, resource) =>
+          navigate({ section, view: "runs", resource })
+        }
+        onOptionsChange={setResourceOptions}
+        onConnection={setServiceOnline}
       />
     );
   } else if (researchSections.has(route.section)) {

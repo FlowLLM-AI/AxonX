@@ -9746,3 +9746,43 @@
     overflow: visible;
   }
 }
+.task-graph-page{display:grid;grid-template-columns:minmax(280px,340px) minmax(0,1fr);min-height:calc(100vh - 76px);color:var(--text-primary,#1f2937)}
+.task-graph-list{border-right:1px solid var(--border-color,#e2e8f0);padding:28px 20px;min-width:0}
+.task-graph-list header{display:flex;align-items:flex-start;gap:12px;margin-bottom:24px}
+.task-graph-list header>svg{width:28px;height:28px;color:#0d947c}
+.task-graph-list h1{font-size:21px;margin:0 0 6px}
+.task-graph-list p,.task-graph-empty p{margin:0;color:#64748b;font-size:13px}
+.task-graph-search{display:flex;gap:8px;align-items:center;border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;background:var(--surface,#fff)}
+.task-graph-search svg{width:18px;height:18px;color:#64748b}
+.task-graph-search input{border:0;outline:0;background:transparent;min-width:0;width:100%;color:inherit}
+.task-graph-list-heading{display:flex;justify-content:space-between;margin:25px 4px 10px;font-size:13px;font-weight:700;color:#64748b}
+.task-graph-results{display:flex;flex-direction:column;gap:6px}
+.task-graph-results button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;border:1px solid transparent;border-radius:10px;padding:10px 12px;background:transparent;color:inherit;cursor:pointer;max-width:100%}
+.task-graph-results button:hover,.task-graph-results button.active{background:#ecfdf9;border-color:#9ddfd3}
+.task-graph-results span{font-size:12px;color:#0d947c;font-weight:700}
+.task-graph-results code,.task-graph-node code{font-size:13px;overflow-wrap:anywhere}
+.task-graph-more{margin-top:14px;width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:9px;background:transparent;cursor:pointer;color:inherit}
+.task-graph-canvas{min-width:0;padding:32px 36px;overflow:auto}
+.task-graph-canvas>header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.task-graph-canvas>header small{color:#0d947c;font-weight:700}
+.task-graph-canvas h2{font-size:20px;margin:5px 0 0;overflow-wrap:anywhere}
+.task-graph-canvas>header span,.task-graph-hint{font-size:13px;color:#64748b}
+.task-graph-hint{margin:12px 0 30px}
+.task-graph-message{padding:16px 4px;color:#64748b;font-size:13px;overflow-wrap:anywhere}
+.task-graph-message.error{color:#b42318}
+.task-graph-empty{min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
+.task-graph-empty>svg{width:42px;height:42px;color:#0d947c}
+.task-graph-tree{overflow:auto;padding:8px 8px 40px}
+.task-graph-tree ul{list-style:none;margin:0;padding-left:34px;border-left:2px solid #cbd5e1}
+.task-graph-tree>ul{padding-left:0;border-left:0}
+.task-graph-tree li{position:relative;margin:0 0 12px;padding-top:4px}
+.task-graph-tree ul ul>li:before{content:"";position:absolute;left:-34px;top:24px;width:26px;border-top:2px solid #cbd5e1}
+.task-graph-node{display:flex;align-items:center;gap:10px;width:max-content;max-width:100%;padding:11px 14px;border:1px solid #cbd5e1;border-radius:12px;background:var(--surface,#fff);box-shadow:0 2px 8px #0f172a0d}
+.task-graph-node.selected{border-color:#0d947c;box-shadow:0 0 0 3px #0d947c30;background:#ecfdf9}
+.task-graph-node.missing{border-style:dashed;opacity:.7}
+.task-graph-type{font-size:12px;font-weight:700;color:#0d947c;white-space:nowrap}
+.task-graph-node.analysis .task-graph-type{color:#9361b6}.task-graph-node.training .task-graph-type{color:#4869b4}.task-graph-node.predict .task-graph-type{color:#b1782f}.task-graph-node.backtest .task-graph-type{color:#bf596b}
+.task-graph-toggle,.task-graph-link{border:0;background:transparent;color:inherit;cursor:pointer;padding:0}
+.task-graph-toggle svg{width:16px;height:16px;display:block}.task-graph-link{display:flex;align-items:center;gap:5px;text-align:left}.task-graph-link:hover{text-decoration:underline}.task-graph-link svg{width:15px;height:15px;flex:none}
+.task-graph-node small{color:#b42318;white-space:nowrap}
+@media(max-width:900px){.task-graph-page{grid-template-columns:1fr}.task-graph-list{border-right:0;border-bottom:1px solid #cbd5e1}.task-graph-canvas{padding:24px 16px}}
