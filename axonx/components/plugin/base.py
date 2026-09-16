@@ -4,8 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from ...enums import ComponentEnum
-from ...plugin.artifact import PluginArtifact
-from ...schema import JobConfig
+from ...schema import JobConfig, PluginArtifact
 from ..base import BaseComponent
 
 
@@ -36,3 +35,11 @@ class BasePluginComponent(BaseComponent, ABC):
     @abstractmethod
     def status(self) -> list[dict]:
         """Return status records for all prepared plugins."""
+
+    @abstractmethod
+    def plugin_status(self, name: str) -> dict:
+        """Return one managed plugin's saved status."""
+
+    @abstractmethod
+    def inspect(self, name: str) -> dict:
+        """Inspect one managed plugin's wheel on the service machine."""

@@ -5,7 +5,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from axonx.plugin.artifact import PluginArtifact, build_wheel, install_artifact
+from axonx.plugin import PluginArtifact, build_wheel, install_artifact
 
 
 def test_build_wheel_only_reuses_explicit_cache(monkeypatch, tmp_path):
@@ -21,7 +21,7 @@ def test_build_wheel_only_reuses_explicit_cache(monkeypatch, tmp_path):
         (build_output / wheel.name).write_bytes(b"new")
         return SimpleNamespace(returncode=0, stderr="", stdout="")
 
-    monkeypatch.setattr("axonx.plugin.artifact.subprocess.run", run)
+    monkeypatch.setattr("axonx.plugin.wheel.subprocess.run", run)
     assert build_wheel(tmp_path, output) == wheel
     assert wheel.read_bytes() == b"new"
 
@@ -32,7 +32,7 @@ def test_install_artifact_force_reinstalls_plugin_without_dependencies(
 ):
     commands = []
     monkeypatch.setattr(
-        "axonx.plugin.artifact.subprocess.run",
+        "axonx.plugin.wheel.subprocess.run",
         lambda command, **_kwargs: commands.append(command) or SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
     artifact = PluginArtifact(

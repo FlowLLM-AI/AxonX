@@ -1,9 +1,6 @@
-"""Build, inspect, and fingerprint AxonX plugin wheels."""
-
-from __future__ import annotations
+"""Build, inspect, and install plugin wheels."""
 
 import configparser
-from dataclasses import dataclass
 from email.parser import Parser
 from importlib import invalidate_caches
 from pathlib import Path
@@ -16,34 +13,11 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
+from ..schema import JobConfig, PluginArtifact
 from ..utils.fs import directory_sha256, file_sha256
-from ..schema import JobConfig
 from .manifest import parse_plugin_manifest
 
 _IGNORED_PARTS = {".git", ".venv", "__pycache__", "build", "dist", "*.egg-info"}
-
-
-@dataclass(frozen=True)
-class PluginArtifact:
-    """Metadata and contributions read directly from one wheel."""
-
-    distribution: str
-    version: str
-    plugin_names: tuple[str, ...]
-    tasks: dict[str, str]
-    requirements: tuple[str, ...]
-    wheel: Path
-    sha256: str
-    components: dict[str, dict[str, str]]
-    jobs: dict[str, JobConfig]
-
-    def contributions_dict(self) -> dict:
-        """Return JSON-compatible manifest contributions."""
-        return {
-            "tasks": self.tasks,
-            "components": self.components,
-            "jobs": {name: config.model_dump(mode="json", exclude_unset=True) for name, config in self.jobs.items()},
-        }
 
 
 def source_sha256(path: Path) -> str:
@@ -78,33 +52,6 @@ def build_wheel(source: Path, output: Path, *, use_cache: bool = False) -> Path:
             detail = (result.stderr or result.stdout).strip()
             raise RuntimeError(f"Plugin wheel build failed: {detail}")
         return wheels[0].replace(output / wheels[0].name)
-
-
-def install_artifact(artifact: PluginArtifact) -> None:
-    """Install plugin dependencies without replacing AxonX, then install its wheel."""
-    dependencies = [value for value in artifact.requirements if canonicalize_name(Requirement(value).name) != "axonx"]
-    commands = []
-    if dependencies:
-        commands.append([sys.executable, "-m", "pip", "install", *dependencies])
-    commands.append(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--upgrade",
-            "--force-reinstall",
-            "--no-deps",
-            str(artifact.wheel),
-        ],
-    )
-    for command in commands:
-        result = subprocess.run(command, check=False, capture_output=True, text=True)
-        if result.returncode:
-            raise RuntimeError(
-                f"Plugin installation failed: {(result.stderr or result.stdout).strip()}",
-            )
-    invalidate_caches()
 
 
 def inspect_wheel(path: Path) -> PluginArtifact:
@@ -170,3 +117,30 @@ def inspect_wheel(path: Path) -> PluginArtifact:
         components=components,
         jobs=jobs,
     )
+
+
+def install_artifact(artifact: PluginArtifact) -> None:
+    """Install plugin dependencies without replacing AxonX, then install its wheel."""
+    dependencies = [value for value in artifact.requirements if canonicalize_name(Requirement(value).name) != "axonx"]
+    commands = []
+    if dependencies:
+        commands.append([sys.executable, "-m", "pip", "install", *dependencies])
+    commands.append(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "--force-reinstall",
+            "--no-deps",
+            str(artifact.wheel),
+        ],
+    )
+    for command in commands:
+        result = subprocess.run(command, check=False, capture_output=True, text=True)
+        if result.returncode:
+            raise RuntimeError(
+                f"Plugin installation failed: {(result.stderr or result.stdout).strip()}",
+            )
+    invalidate_caches()
