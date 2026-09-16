@@ -123,8 +123,12 @@ export function PageOutlet({
         language={language}
         remoteIp={remoteIp}
         selectedId={route.resource}
-        onSelect={(resource) => navigate({ section: "lineage", view: "runs", resource })}
-        onNavigate={(section, resource) => navigate({ section, view: "runs", resource })}
+        onSelect={(resource) =>
+          navigate({ section: "lineage", view: "runs", resource })
+        }
+        onNavigate={(section, resource) =>
+          navigate({ section, view: "runs", resource })
+        }
         onOptionsChange={setResourceOptions}
         onConnection={setServiceOnline}
       />

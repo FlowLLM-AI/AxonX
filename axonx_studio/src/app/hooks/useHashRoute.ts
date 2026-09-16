@@ -8,7 +8,7 @@ export function useHashRoute() {
   );
 
   useEffect(() => {
-    if (!window.location.hash) window.location.hash = "m/local/home/overview";
+    if (!window.location.hash) window.location.hash = "m/local/runtime/tasks";
     const handleChange = () => setLocation(parseHash(window.location.hash));
     window.addEventListener("hashchange", handleChange);
     return () => window.removeEventListener("hashchange", handleChange);

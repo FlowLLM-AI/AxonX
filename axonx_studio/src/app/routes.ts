@@ -35,18 +35,20 @@ export function parseHash(hash: string): AppLocation {
   const [candidate, view, ...resourceParts] = machineScoped
     ? parts.slice(2)
     : [];
-  const section = sectionSet.has(candidate) ? (candidate as SectionId) : "home";
+  const section = sectionSet.has(candidate)
+    ? (candidate as SectionId)
+    : "runtime";
+  const validSection = sectionSet.has(candidate);
 
   return {
     machineId,
     route: {
       section,
-      view: sectionSet.has(candidate)
-        ? view || defaultRoute(section).view
-        : "overview",
-      resource: resourceParts.length
-        ? decodeURIComponent(resourceParts.join("/"))
-        : undefined,
+      view: validSection ? view || defaultRoute(section).view : "tasks",
+      resource:
+        validSection && resourceParts.length
+          ? decodeURIComponent(resourceParts.join("/"))
+          : undefined,
     },
   };
 }
@@ -68,7 +70,7 @@ export function defaultRoute(section: SectionId): AppRoute {
     section === "home"
       ? "overview"
       : section === "runtime"
-        ? "resources"
+        ? "tasks"
         : section === "raw"
           ? "files"
           : section === "apis" || section === "task-defs"

@@ -130,13 +130,13 @@ function useTasks(
   const load = useCallback(() => {
     setLoading(true);
     setError("");
-    listWorkspaceEntries(kind, remoteIp)
+    listWorkspaceEntries(kind, remoteIp, undefined, true)
       .then(async (directory) => {
         const dirs = directory.entries.filter(
           (entry) => entry.kind === "directory",
         );
-        const values: Meta[] = await Promise.all(
-          dirs.map(async (entry): Promise<Meta> => {
+        const values = await Promise.all(
+          dirs.map(async (entry): Promise<Meta | null> => {
             try {
               const preview = await previewWorkspaceFile(
                 `${entry.path}/metadata.json`,
@@ -144,27 +144,32 @@ function useTasks(
                 200,
                 remoteIp,
               );
+              if (
+                !preview.data ||
+                typeof preview.data !== "object" ||
+                Array.isArray(preview.data)
+              ) {
+                throw new Error(preview.parse_error || "Invalid task metadata");
+              }
               return {
                 ...(preview.data as Meta),
                 _path: entry.path,
                 _modified: entry.modified_at,
               };
-            } catch {
-              return {
-                task_id: entry.name,
-                task_type: kind,
-                _path: entry.path,
-                _modified: entry.modified_at,
-              };
+            } catch (reason) {
+              console.warn(`Skipping task directory ${entry.path}:`, reason);
+              return null;
             }
           }),
         );
         setTasks(
-          values.sort((a, b) =>
-            String(b.created_at || b._modified).localeCompare(
-              String(a.created_at || a._modified),
+          values
+            .filter((value): value is Meta => value !== null)
+            .sort((a, b) =>
+              String(b.created_at || b._modified).localeCompare(
+                String(a.created_at || a._modified),
+              ),
             ),
-          ),
         );
         onConnection?.(true);
       })

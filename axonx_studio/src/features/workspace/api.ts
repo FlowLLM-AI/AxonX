@@ -5,10 +5,15 @@ export const listWorkspaceEntries = (
   path = "",
   remoteIp?: string,
   signal?: AbortSignal,
+  requireMetadata = false,
 ) =>
   callJob<WorkspaceDirectory>(
     "list_workspace_entries",
-    { path, ...remoteBody(remoteIp) },
+    {
+      path,
+      ...(requireMetadata ? { require_metadata: true } : {}),
+      ...remoteBody(remoteIp),
+    },
     signal,
   );
 export const previewWorkspaceFile = (

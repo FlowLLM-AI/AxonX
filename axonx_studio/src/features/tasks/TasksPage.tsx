@@ -214,31 +214,26 @@ export function TasksPage({
           <span>{text.taskLead}</span>
         </div>
         <div className="heading-actions">
-          <label className="auto-toggle">
+          <label className="auto-toggle" title={text.autoRefresh}>
             <input
               type="checkbox"
               checked={autoRefresh}
               onChange={(event) => setAutoRefresh(event.target.checked)}
+              aria-label={text.autoRefresh}
             />
             <i />
-            <span>
-              {text.autoRefresh}
-              <small>
-                {autoRefresh ? interpolate(text.nextRefresh, { seconds }) : "—"}
-              </small>
-            </span>
+            {autoRefresh && (
+              <small>{interpolate(text.nextRefresh, { seconds })}</small>
+            )}
           </label>
           <button
             className="secondary-button"
             onClick={() => void load(true)}
             disabled={refreshing}
+            title={text.refreshNow}
+            aria-label={text.refreshNow}
           >
             <RefreshCw size={16} className={refreshing ? "spin" : ""} />
-            {text.refreshNow}
-          </button>
-          <button className="primary-button" onClick={onSubmit}>
-            <Plus size={17} />
-            {text.pages.submit}
           </button>
         </div>
       </div>

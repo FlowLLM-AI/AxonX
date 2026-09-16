@@ -10,6 +10,7 @@ import pyarrow.parquet as pq
 import pytest
 
 from axonx import Application
+from axonx.steps.workspace.files import list_entries
 
 
 async def _workspace_app(path):
@@ -60,6 +61,21 @@ async def _workspace_app(path):
     )
     await app.start()
     return app
+
+
+def test_workspace_metadata_filter_skips_incomplete_task_directories(tmp_path, caplog):
+    etl = tmp_path / "etl"
+    complete = etl / "etl#complete"
+    incomplete = etl / "etl#incomplete"
+    complete.mkdir(parents=True)
+    incomplete.mkdir()
+    (complete / "metadata.json").write_text("{}", encoding="utf-8")
+
+    listing = list_entries(tmp_path, "etl", require_metadata=True)
+
+    assert [entry["name"] for entry in listing["entries"]] == ["etl#complete"]
+    assert "Skipping task directory without metadata.json" in caplog.text
+    assert str(incomplete) in caplog.text
 
 
 async def test_workspace_lists_directories_first_and_previews_supported_files(tmp_path):

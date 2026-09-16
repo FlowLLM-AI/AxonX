@@ -32,6 +32,7 @@ jobs:
         plugin:
           type: string
           minLength: 1
+          description: Name of the managed plugin to query.
       required: [plugin]
     steps:
       - backend: status_plugins_step
@@ -44,6 +45,7 @@ jobs:
         plugin:
           type: string
           minLength: 1
+          description: Name of the managed plugin wheel to inspect.
       required: [plugin]
     steps:
       - backend: inspect_plugins_step
@@ -101,8 +103,10 @@ jobs:
       properties:
         task_id:
           type: string
+          description: ID of the task the reported status belongs to.
         status:
           type: object
+          description: Complete TaskStatus snapshot reported by the task process.
       required:
         - task_id
         - status
@@ -116,6 +120,7 @@ jobs:
       properties:
         task_id:
           type: string
+          description: ID of the task whose status is requested.
       required:
         - task_id
     steps:
@@ -128,15 +133,18 @@ jobs:
       properties:
         task_id:
           type: string
+          description: ID of the task whose log is read.
         offset:
           type: integer
           minimum: -1
           default: -1
+          description: Byte offset to start reading from; negative values read the tail of the log.
         limit:
           type: integer
           minimum: 1024
           maximum: 262144
           default: 65536
+          description: Maximum number of bytes to return.
       required:
         - task_id
     steps:
@@ -150,6 +158,11 @@ jobs:
         path:
           type: string
           default: ""
+          description: Workspace-relative directory to list; empty string lists the workspace root.
+        require_metadata:
+          type: boolean
+          default: false
+          description: Skip task directories that do not contain metadata.json.
       additionalProperties: false
     steps:
       - backend: list_workspace_entries_step
@@ -162,15 +175,18 @@ jobs:
         q:
           type: string
           default: ""
+          description: Search query over task artifacts; empty string lists the ETL roots.
         offset:
           type: integer
           minimum: 0
           default: 0
+          description: Number of results to skip.
         limit:
           type: integer
           minimum: 1
           maximum: 100
           default: 50
+          description: Maximum number of results to return.
       additionalProperties: false
     steps:
       - backend: list_task_graphs_step
@@ -182,6 +198,7 @@ jobs:
       properties:
         task_id:
           type: string
+          description: ID of the task artifact whose ETL graph is returned.
       required:
         - task_id
       additionalProperties: false
@@ -195,18 +212,22 @@ jobs:
       properties:
         path:
           type: string
+          description: Workspace-relative path of the file to preview.
         offset:
           type: integer
           minimum: 0
           default: 0
+          description: Number of rows to skip for row-based previews such as CSV.
         limit:
           type: integer
           minimum: 1
           maximum: 200
           default: 200
+          description: Maximum number of rows to return for row-based previews such as CSV.
         full:
           type: boolean
           default: false
+          description: Return every Parquet row instead of the sampled preview.
       required:
         - path
       additionalProperties: false
@@ -221,6 +242,7 @@ jobs:
         path:
           type: string
           minLength: 1
+          description: Workspace-relative path of the file or directory to delete.
       required:
         - path
       additionalProperties: false
@@ -236,6 +258,7 @@ jobs:
           type: array
           minItems: 1
           maxItems: 200
+          description: Workspace-relative paths of the files or directories to delete.
           items:
             type: string
             minLength: 1
@@ -252,6 +275,7 @@ jobs:
       properties:
         task_id:
           type: string
+          description: ID of the queued or running task to cancel.
       required:
         - task_id
     steps:
@@ -264,6 +288,7 @@ jobs:
       properties:
         task_ids:
           type: array
+          description: IDs of the completed tasks to delete.
           items:
             type: string
           minItems: 1

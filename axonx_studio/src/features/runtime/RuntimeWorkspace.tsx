@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 import {
-  Activity,
-  Cpu,
   GitBranch,
   GitCommitHorizontal,
   LoaderCircle,
@@ -14,7 +12,6 @@ import { useMachineInfo } from "../machines/useMachineInfo";
 import { listTaskStatuses } from "../tasks/api";
 import { TaskDetailPage } from "../tasks/TaskDetailPage";
 import { TasksPage } from "../tasks/TasksPage";
-import { RailResizer } from "../../shared/ui/RailResizer";
 import type { ContextOption, Language, MachineNode } from "../../types";
 
 export function RuntimeWorkspace({
@@ -41,7 +38,6 @@ export function RuntimeWorkspace({
   onOptionsChange?: (options: ContextOption[]) => void;
   onConnection: (online: boolean) => void;
 }) {
-  const zh = language === "zh";
   useEffect(() => {
     if (view !== "tasks" || !taskId || !onOptionsChange) return;
     const controller = new AbortController();
@@ -60,39 +56,6 @@ export function RuntimeWorkspace({
   }, [view, taskId, remoteIp, onOptionsChange]);
   return (
     <section className="runtime-workspace unified-workspace">
-      <aside className="context-rail">
-        <header>
-          <small>RUNTIME</small>
-          <strong>{zh ? "运行管理" : "Run management"}</strong>
-        </header>
-        <nav>
-          <button
-            className={view === "tasks" ? "active" : ""}
-            onClick={() => onNavigate("tasks")}
-          >
-            <Activity />
-            <span>
-              <strong>{zh ? "任务管理" : "Task management"}</strong>
-              <small>
-                {zh ? "运行实例、日志与状态" : "Runs, logs and status"}
-              </small>
-            </span>
-          </button>
-          <button
-            className={view === "resources" ? "active" : ""}
-            onClick={() => onNavigate("resources")}
-          >
-            <Cpu />
-            <span>
-              <strong>{zh ? "机器资源" : "Machine resources"}</strong>
-              <small>
-                {zh ? "当前机器的实时资源" : "Live resources for this machine"}
-              </small>
-            </span>
-          </button>
-        </nav>
-      </aside>
-      <RailResizer min={240} max={440} className="context-resizer" />
       <main className="workspace-canvas">
         {view === "resources" ? (
           <CurrentMachineResources
@@ -268,9 +231,13 @@ function CurrentMachineResources({
             </span>
           </p>
         </div>
-        <button className="secondary-button" onClick={() => void reload()}>
+        <button
+          className="secondary-button machine-refresh-button"
+          onClick={() => void reload()}
+          aria-label={zh ? "刷新机器资源" : "Refresh machine resources"}
+          title={zh ? "刷新机器资源" : "Refresh machine resources"}
+        >
           <RefreshCw className={loading ? "spin" : ""} />
-          {zh ? "刷新" : "Refresh"}
         </button>
       </header>
       {loading && !info ? (

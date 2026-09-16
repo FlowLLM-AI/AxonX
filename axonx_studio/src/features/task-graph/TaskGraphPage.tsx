@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowUpRight, ChevronDown, ChevronRight, GitBranch, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, GitBranch, Search } from "lucide-react";
 import { callJob, remoteBody } from "../../shared/api/client";
 import type { AppRoute, SectionId } from "../../app/routes";
 import type { ContextOption, Language } from "../../types";
@@ -28,6 +28,18 @@ const labels: Record<Kind, [string, string]> = {
 const sectionFor: Record<Kind, SectionId> = {
   etl: "etl", analysis: "factors", training: "training", predict: "predict", backtest: "backtest",
 };
+
+function taskTime(node: TaskNode): string | null {
+  const stamp = node.task_id.match(/^[^#]+#(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})#/);
+  if (stamp) return `${stamp[1]}-${stamp[2]}-${stamp[3]} ${stamp[4]}:${stamp[5]}`;
+  if (!node.created_at) return null;
+  const date = new Date(node.created_at);
+  return Number.isNaN(date.getTime()) ? null : date.toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+function shortTaskId(taskId: string): string {
+  return `#${taskId.split("#").at(-1) || taskId}`;
+}
 
 export function TaskGraphPage({ language, remoteIp, selectedId, onSelect, onNavigate, onOptionsChange, onConnection }: {
   language: Language;
@@ -101,15 +113,16 @@ export function TaskGraphPage({ language, remoteIp, selectedId, onSelect, onNavi
   const renderNode = (node: TaskNode): ReactNode => {
     const descendants = children.get(node.task_id) || [];
     const isCollapsed = collapsed.has(node.task_id);
+    const time = taskTime(node);
     return (
       <li key={node.task_id}>
         <div className={`task-graph-node ${node.kind} ${node.task_id === selectedId ? "selected" : ""} ${node.missing ? "missing" : ""}`}>
           {descendants.length > 0 && <button className="task-graph-toggle" onClick={() => toggle(node.task_id)} aria-label={isCollapsed ? (zh ? "展开" : "Expand") : (zh ? "折叠" : "Collapse")}>
             {isCollapsed ? <ChevronRight /> : <ChevronDown />}
           </button>}
-          <span className="task-graph-type">{labels[node.kind][zh ? 0 : 1]}</span>
-          {node.missing ? <code>{node.task_id}</code> : <button className="task-graph-link" onClick={() => onNavigate(sectionFor[node.kind], node.task_id)} title={zh ? "打开任务详情" : "Open task details"}>
-            <code>{node.task_id}</code><ArrowUpRight />
+          {descendants.length === 0 && <span className="task-graph-leaf" role="img" aria-label={zh ? "叶子节点" : "Leaf node"}>🍃</span>}
+          {node.missing ? <div className="task-graph-content" title={node.task_id}><span className="task-graph-title"><span className="task-graph-type">{labels[node.kind][zh ? 0 : 1]}</span><span className="task-graph-short-id">{shortTaskId(node.task_id)}</span></span>{time && <time className="task-graph-time">{time}</time>}</div> : <button className="task-graph-link" onClick={() => onNavigate(sectionFor[node.kind], node.task_id)} title={node.task_id} aria-label={`${labels[node.kind][zh ? 0 : 1]} ${node.task_id}, ${zh ? "打开详情" : "Open details"}`}>
+            <span className="task-graph-content"><span className="task-graph-title"><span className="task-graph-type">{labels[node.kind][zh ? 0 : 1]}</span><span className="task-graph-short-id">{shortTaskId(node.task_id)}</span></span>{time && <time className="task-graph-time">{time}</time>}</span>
           </button>}
           {node.missing && <small>{zh ? "产物缺失" : "Artifact missing"}</small>}
         </div>
@@ -133,8 +146,8 @@ export function TaskGraphPage({ language, remoteIp, selectedId, onSelect, onNavi
     </aside>
     <main className="task-graph-canvas">
       {loadingGraph ? <p className="task-graph-message">{zh ? "加载关系图…" : "Loading graph…"}</p> : graphError ? <p className="task-graph-message error">{graphError}</p> : graph ? <>
-        <header><div><small>{zh ? "根任务" : "Root task"}</small><h2>{graph.root_id}</h2></div><span>{graph.nodes.length} {zh ? "个任务" : "tasks"}</span></header>
-        <p className="task-graph-hint">{zh ? "高亮为当前搜索或选中的任务；点击任意 task ID 打开详情。" : "The selected task is highlighted. Click any task ID to open its details."}</p>
+        <header><div><small>{zh ? "根任务" : "Root task"}</small><h2 title={graph.root_id}>{labels[nodeById.get(graph.root_id)?.kind || "etl"][zh ? 0 : 1]} {shortTaskId(graph.root_id)}</h2>{nodeById.get(graph.root_id) && taskTime(nodeById.get(graph.root_id)!) && <time className="task-graph-root-time">{taskTime(nodeById.get(graph.root_id)!)}</time>}</div><span>{graph.nodes.length} {zh ? "个任务" : "tasks"}</span></header>
+        <p className="task-graph-hint">{zh ? "点击节点打开任务详情" : "Click a node to open its details"}</p>
         <div className="task-graph-tree">{nodeById.get(graph.root_id) ? <ul>{renderNode(nodeById.get(graph.root_id)!)}</ul> : <p className="task-graph-message">{zh ? "根任务缺失" : "Root task missing"}</p>}</div>
       </> : <div className="task-graph-empty"><GitBranch /><h2>{zh ? "选择一个 ETL 或搜索任意 task ID" : "Choose an ETL or search any task ID"}</h2><p>{zh ? "这里会显示从 ETL 到回测的完整任务关系。" : "The complete task graph from ETL to backtest will appear here."}</p></div>}
     </main>

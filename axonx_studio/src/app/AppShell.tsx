@@ -1,7 +1,7 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import {
-  ChevronDown,
   ChevronRight,
+  ChevronDown,
   Languages,
   Menu,
   Moon,
@@ -18,10 +18,15 @@ import type {
   MachineNode,
   ThemePreference,
 } from "../types";
-import { navigationItems, researchSections } from "./navigation";
+import {
+  navigationGroups,
+  navigationItems,
+  navigationItemForRoute,
+  researchSections,
+} from "./navigation";
 import { defaultRoute } from "./routes";
 import { EnvironmentSettingsModal } from "../features/runtime/EnvironmentSettingsModal";
-import type { AppRoute, SectionId } from "./routes";
+import type { AppRoute } from "./routes";
 
 interface SidebarState {
   collapsed: boolean;
@@ -67,9 +72,12 @@ export function AppShell(props: AppShellProps) {
   } = props;
   const text = t(language);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const section =
-    navigationItems.find((item) => item.id === route.section) ||
-    navigationItems[0];
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    run: true,
+    submit: true,
+    research: true,
+  });
+  const section = navigationItemForRoute(route);
   const machineLabel = selectedMachine.isLocal
     ? language === "zh"
       ? "本机"
@@ -178,18 +186,11 @@ export function AppShell(props: AppShellProps) {
               value: item.id,
               label: item[language],
             }))}
-            onSelect={(id) => navigate(defaultRoute(id as SectionId))}
+            onSelect={(id) => {
+              const item = navigationItems.find((option) => option.id === id);
+              if (item) navigate(item.route);
+            }}
           />
-          {route.section === "runtime" && (
-            <>
-              <ChevronRight />
-              <PathPicker
-                label={runtimeViewLabel(route.view, language)}
-                options={runtimeOptions(language)}
-                onSelect={(view) => navigate({ section: "runtime", view })}
-              />
-            </>
-          )}
           {route.section !== "home" &&
             (route.section !== "runtime" || route.view === "tasks") && (
               <>
@@ -270,19 +271,50 @@ export function AppShell(props: AppShellProps) {
           className={`primary-rail ${sidebar.mobileOpen ? "mobile-open" : ""}`}
         >
           <nav>
-            {navigationItems.map(({ id, icon: Icon, zh, en }) => (
-              <button
-                key={id}
-                className={`nav-${id}${route.section === id ? " active" : ""}`}
-                onClick={() => {
-                  navigate(defaultRoute(id));
-                  sidebar.setMobileOpen(false);
-                }}
-                title={language === "zh" ? zh : en}
+            {navigationGroups.map((group) => (
+              <div
+                className={`primary-nav-group group-${group.id}`}
+                key={group.id}
               >
-                <Icon />
-                <span>{language === "zh" ? zh : en}</span>
-              </button>
+                <button
+                  className="primary-group-toggle"
+                  aria-expanded={openGroups[group.id]}
+                  aria-controls={`nav-group-${group.id}`}
+                  title={group[language]}
+                  onClick={() =>
+                    setOpenGroups((current) => ({
+                      ...current,
+                      [group.id]: !current[group.id],
+                    }))
+                  }
+                >
+                  <span>{group[language]}</span>
+                  <ChevronDown />
+                </button>
+                {openGroups[group.id] && (
+                  <div
+                    className="primary-group-items"
+                    id={`nav-group-${group.id}`}
+                  >
+                    {group.items.map(
+                      ({ id, route: target, icon: Icon, zh, en }) => (
+                        <button
+                          key={id}
+                          className={`nav-${id}${section.id === id ? " active" : ""}`}
+                          onClick={() => {
+                            navigate(target);
+                            sidebar.setMobileOpen(false);
+                          }}
+                          title={language === "zh" ? zh : en}
+                        >
+                          <Icon />
+                          <span>{language === "zh" ? zh : en}</span>
+                        </button>
+                      ),
+                    )}
+                  </div>
+                )}
+              </div>
             ))}
           </nav>
           <div className="primary-rail-footer">
@@ -342,25 +374,6 @@ export function AppShell(props: AppShellProps) {
       )}
     </div>
   );
-}
-
-function runtimeViewLabel(view: string | undefined, language: Language) {
-  if (view === "tasks")
-    return language === "zh" ? "任务管理" : "Task management";
-  return language === "zh" ? "机器资源" : "Machine resources";
-}
-
-function runtimeOptions(language: Language): ContextOption[] {
-  return [
-    {
-      value: "resources",
-      label: language === "zh" ? "机器资源" : "Machine resources",
-    },
-    {
-      value: "tasks",
-      label: language === "zh" ? "任务管理" : "Task management",
-    },
-  ];
 }
 
 function PathPicker({

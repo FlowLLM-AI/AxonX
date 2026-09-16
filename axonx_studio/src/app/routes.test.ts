@@ -9,10 +9,15 @@ describe("application routes", () => {
     });
   });
 
-  it("falls back to the home route for unknown sections", () => {
+  it("falls back to task management for unknown routes and retains home links", () => {
     expect(parseHash("#m/local/unknown")).toEqual({
       machineId: "local",
-      route: { section: "home", view: "overview", resource: undefined },
+      route: { section: "runtime", view: "tasks", resource: undefined },
+    });
+    expect(parseHash("#m/local/home/overview").route).toEqual({
+      section: "home",
+      view: "overview",
+      resource: undefined,
     });
   });
 
@@ -39,6 +44,14 @@ describe("application routes", () => {
       view: "runs",
       resource: undefined,
     });
-    expect(parseHash(routeHash("local", { section: "lineage", view: "runs", resource: "predict#123" })).route.resource).toBe("predict#123");
+    expect(
+      parseHash(
+        routeHash("local", {
+          section: "lineage",
+          view: "runs",
+          resource: "predict#123",
+        }),
+      ).route.resource,
+    ).toBe("predict#123");
   });
 });

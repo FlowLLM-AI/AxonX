@@ -8,8 +8,10 @@ jobs:
       properties:
         output:
           type: string
+          description: Filesystem path of the Parquet file to write.
         input:
           type: string
+          description: Optional filesystem path of an input CSV file; built-in demo data is used when omitted.
       required:
         - output
     steps:

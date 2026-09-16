@@ -16,75 +16,84 @@ export function MachineDashboard({
 
   return (
     <>
-      <div className="resource-grid">
-        <ResourceGauge
-          label={text.cpuUsage}
-          value={info.cpu.usage_percent}
-          tone="cpu"
-          icon={<Cpu />}
-          detail={`${info.cpu.used_cores} / ${info.cpu.total_cores} ${text.coresUsed}`}
-        />
-        <ResourceGauge
-          label={text.memoryUsage}
-          value={info.memory.usage_percent}
-          tone="memory"
-          icon={<MemoryStick />}
-          detail={`${formatBytes(info.memory.available_bytes)} ${text.available}`}
-        />
-        <article className="capacity-card">
-          <header>
-            <span>
-              <Gauge />
-              {text.cpuCapacity}
-            </span>
-            <small>CPU</small>
-          </header>
-          <CapacityRow
-            label={text.totalCores}
-            value={`${info.cpu.total_cores}`}
-            percent={100}
+      <section className="machine-resource-group host-resource-section">
+        <div className="section-title">
+          <div>
+            <Cpu />
+            <span>{language === "zh" ? "CPU 与内存" : "CPU & memory"}</span>
+          </div>
+          <small>4 METRICS</small>
+        </div>
+        <div className="resource-grid">
+          <ResourceGauge
+            label={text.cpuUsage}
+            value={info.cpu.usage_percent}
+            tone="cpu"
+            icon={<Cpu />}
+            detail={`${info.cpu.used_cores} / ${info.cpu.total_cores} ${text.coresUsed}`}
           />
-          <CapacityRow
-            label={text.physicalCores}
-            value={`${info.cpu.physical_cores ?? "—"}`}
-            percent={
-              info.cpu.physical_cores
-                ? (info.cpu.physical_cores / info.cpu.total_cores) * 100
-                : 0
-            }
+          <ResourceGauge
+            label={text.memoryUsage}
+            value={info.memory.usage_percent}
+            tone="memory"
+            icon={<MemoryStick />}
+            detail={`${formatBytes(info.memory.available_bytes)} ${text.available}`}
           />
-          <CapacityRow
-            label={text.coresUsed}
-            value={`${info.cpu.used_cores}`}
-            percent={info.cpu.usage_percent}
-          />
-        </article>
-        <article className="capacity-card memory-card">
-          <header>
-            <span>
-              <HardDrive />
-              {text.memoryCapacity}
-            </span>
-            <small>RAM</small>
-          </header>
-          <CapacityRow
-            label={text.usedMemory}
-            value={formatBytes(info.memory.used_bytes)}
-            percent={info.memory.usage_percent}
-          />
-          <CapacityRow
-            label={text.available}
-            value={formatBytes(info.memory.available_bytes)}
-            percent={100 - info.memory.usage_percent}
-          />
-          <CapacityRow
-            label={text.totalMemory}
-            value={formatBytes(info.memory.total_bytes)}
-            percent={100}
-          />
-        </article>
-      </div>
-      <section className="gpu-section">
+          <article className="capacity-card">
+            <header>
+              <span>
+                <Gauge />
+                {text.cpuCapacity}
+              </span>
+              <small>CPU</small>
+            </header>
+            <CapacityRow
+              label={text.totalCores}
+              value={`${info.cpu.total_cores}`}
+              percent={100}
+            />
+            <CapacityRow
+              label={text.physicalCores}
+              value={`${info.cpu.physical_cores ?? "—"}`}
+              percent={
+                info.cpu.physical_cores
+                  ? (info.cpu.physical_cores / info.cpu.total_cores) * 100
+                  : 0
+              }
+            />
+            <CapacityRow
+              label={text.coresUsed}
+              value={`${info.cpu.used_cores}`}
+              percent={info.cpu.usage_percent}
+            />
+          </article>
+          <article className="capacity-card memory-card">
+            <header>
+              <span>
+                <HardDrive />
+                {text.memoryCapacity}
+              </span>
+              <small>RAM</small>
+            </header>
+            <CapacityRow
+              label={text.usedMemory}
+              value={formatBytes(info.memory.used_bytes)}
+              percent={info.memory.usage_percent}
+            />
+            <CapacityRow
+              label={text.available}
+              value={formatBytes(info.memory.available_bytes)}
+              percent={100 - info.memory.usage_percent}
+            />
+            <CapacityRow
+              label={text.totalMemory}
+              value={formatBytes(info.memory.total_bytes)}
+              percent={100}
+            />
+          </article>
+        </div>
+      </section>
+      <section className="machine-resource-group gpu-section">
         <div className="section-title">
           <div>
             <Microchip />

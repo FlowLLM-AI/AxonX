@@ -1,5 +1,6 @@
 """List and delete validated workspace entries."""
 
+import logging
 import shutil
 from pathlib import Path
 from typing import Any
@@ -8,9 +9,10 @@ from .paths import resolve_deletable_path, resolve_workspace_path
 from .preview import preview_kind
 
 MAX_DIRECTORY_ENTRIES = 5_000
+logger = logging.getLogger(__name__)
 
 
-def list_entries(root: Path, relative_path: str) -> dict[str, Any]:
+def list_entries(root: Path, relative_path: str, require_metadata: bool = False) -> dict[str, Any]:
     directory = resolve_workspace_path(root, relative_path)
     if not directory.exists():
         raise ValueError("Workspace directory does not exist")
@@ -21,6 +23,9 @@ def list_entries(root: Path, relative_path: str) -> dict[str, Any]:
     children = sorted(directory.iterdir(), key=lambda item: item.name.casefold())
     truncated = len(children) > MAX_DIRECTORY_ENTRIES
     for child in children[:MAX_DIRECTORY_ENTRIES]:
+        if require_metadata and child.is_dir() and not (child / "metadata.json").is_file():
+            logger.warning("Skipping task directory without metadata.json: %s", child)
+            continue
         relative = child.relative_to(root).as_posix()
         try:
             stat = child.lstat() if child.is_symlink() else child.stat()

@@ -15,8 +15,9 @@ class ListWorkspaceEntriesStep(BaseStep):
 
     async def execute(self):
         relative_path = self.context.get("path", "")
+        require_metadata = self.context.get("require_metadata", False)
         self.response.answer = await asyncio.to_thread(
-            _list_entries, workspace_root(self.app_config.workspace_dir), relative_path
+            _list_entries, workspace_root(self.app_config.workspace_dir), relative_path, require_metadata
         )
 
 
