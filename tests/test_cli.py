@@ -236,8 +236,8 @@ def test_backtest_paths_are_resolved_from_prediction_task_id(tmp_path):
 
     assert task.context["predictions_path"] == prediction_dir / "predictions.parquet"
     assert task.context["output_dir"] == tmp_path / "backtest" / task.task_id
-    assert task.context["daily_path"] == task.context["output_dir"] / "daily.csv"
-    assert task.context["holdings_path"] == task.context["output_dir"] / "holdings.csv"
+    assert task.context["daily_path"] == task.context["output_dir"] / "daily.parquet"
+    assert task.context["summary_path"] == task.context["output_dir"] / "summary.parquet"
 
 
 def test_task_id_is_generated_internally_and_read_only():

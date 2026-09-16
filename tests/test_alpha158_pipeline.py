@@ -141,39 +141,41 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     assert prediction_metadata["protocol"]["cross_section_filter"] == "none"
 
     backtest = Alpha158BacktestTask(
-        {"prediction_task_id": prediction.task_id, "top_ns": "1,5"},
+        {"prediction_task_id": prediction.task_id},
         workspace_path=tmp_path,
     )
     backtest_output = backtest.execute()
-    daily = pl.read_csv(backtest_output["daily_file"])
-    overall = pl.read_csv(backtest_output["overall_file"])
-    holdings = pl.read_csv(backtest_output["holdings_file"])
+    daily = pl.read_parquet(backtest_output["daily_file"])
+    summary = pl.read_parquet(backtest_output["summary_file"])
     assert daily["rank_ic"].min() > 0.9
-    assert daily["candidates"].max() == 39
-    assert "rankicir" in overall["metric"].to_list()
-    assert holdings.columns == [
-        "trade_date",
-        "rank",
-        "ts_code",
-        "name",
-        "prediction",
-        "weight",
-        "daily_return",
-    ]
-    assert holdings.group_by("trade_date").len()["len"].max() <= 50
-    assert holdings["rank"].min() == 1
-    assert "000000.SZ" not in holdings["ts_code"].to_list()
-    assert all(
-        Path(backtest_output[key]).suffix == ".csv"
-        for key in (
-            "daily_file",
-            "holdings_file",
-            "overall_file",
-            "yearly_file",
-            "quarterly_file",
-        )
+    assert daily["candidate_count"].max() == 39
+    assert daily["top30_holdings"].list.len().max() == 30
+    assert "000000.SZ" not in daily["top30_holdings"].explode(empty_as_null=True).struct.field("ts_code").to_list()
+    assert daily["top1_turnover"][0] == 0
+    assert daily.select(pl.col("top30_ndcg").is_between(0, 1).all()).item()
+    expected_universe = predictions.filter(pl.col("label_valid")).group_by("trade_date").agg(
+        pl.col("actual_return").mean().alias("expected"),
     )
+    benchmark = daily.join(expected_universe, on="trade_date")
+    assert benchmark.select(
+        (pl.col("benchmark_universe_return") - pl.col("expected")).abs().max(),
+    ).item() == pytest.approx(0)
+    assert set(summary["period_type"]) == {"overall", "year", "quarter", "month"}
+    assert "top30_information_ratio_hs300" in summary.columns
+    assert "top30_ndcg" in daily.columns
+    assert Path(backtest_output["daily_file"]).suffix == ".parquet"
+    assert Path(backtest_output["summary_file"]).suffix == ".parquet"
+    assert set(backtest_output) == {"daily_file", "summary_file", "metadata_file", "days"}
     assert Path(backtest_output["metadata_file"]).is_file()
+    assert {path.name for path in Path(backtest_output["metadata_file"]).parent.iterdir()} == {
+        "daily.parquet",
+        "summary.parquet",
+        "metadata.json",
+    }
+    backtest_metadata = json.loads(Path(backtest_output["metadata_file"]).read_text())
+    assert backtest_metadata["schema_version"] == 2
+    assert backtest_metadata["dimensions"]["top_ns"] == [1, 2, 3, 5, 10, 15, 20, 30]
+    assert backtest_metadata["artifacts"] == {"daily": "daily.parquet", "summary": "summary.parquet"}
 
 
 def test_prediction_rejects_training_overlap(tmp_path):

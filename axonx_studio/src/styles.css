@@ -9366,6 +9366,165 @@
 .artifact-content > .viz-card:nth-of-type(4n) {
   --card-tone: var(--orange);
 }
+
+/* Backtest artifact protocol v2 */
+.backtest-report {
+  display: grid;
+  gap: 16px;
+}
+.backtest-tabs {
+  position: sticky;
+  z-index: 20;
+  top: -24px;
+  display: flex;
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+.backtest-tabs button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 650;
+}
+.backtest-tabs button.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.backtest-overview,
+.summary-view {
+  display: grid;
+  gap: 16px;
+}
+.range-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto 36px;
+  align-items: end;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+}
+.range-toolbar label span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.range-toolbar input[type="date"] {
+  height: 35px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.range-sliders {
+  position: relative;
+  height: 35px;
+}
+.range-sliders input {
+  position: absolute;
+  top: 8px;
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  pointer-events: none;
+}
+.range-sliders input::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+.range-toolbar > strong {
+  align-self: center;
+  color: var(--accent);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.range-toolbar > button,
+.holdings-panel > header button {
+  height: 35px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.range-toolbar > button svg,
+.holdings-panel > header button svg {
+  width: 14px;
+}
+.backtest-chart-card > header > span {
+  color: var(--faint);
+  font-size: 11px;
+}
+.backtest-chart {
+  width: 100%;
+  height: 360px;
+}
+.backtest-half-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.backtest-half-grid .backtest-chart {
+  height: 320px;
+}
+.holdings-panel .mini-table,
+.summary-table .mini-table {
+  max-height: 520px;
+}
+.holdings-panel td.positive {
+  color: var(--accent);
+}
+.holdings-panel td.negative {
+  color: var(--danger);
+}
+.summary-table {
+  min-width: 0;
+}
+.summary-table .mini-table {
+  overflow: auto;
+}
+.summary-table th:first-child,
+.summary-table td:first-child {
+  position: sticky;
+  z-index: 2;
+  left: 0;
+  background: var(--surface);
+}
+.summary-table th:first-child {
+  background: var(--surface-2);
+}
+.period-chart .backtest-chart {
+  height: 430px;
+}
+@media (max-width: 980px) {
+  .range-toolbar {
+    grid-template-columns: 1fr 1fr auto;
+  }
+  .range-sliders {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .backtest-half-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .viz-card {
   border-color: color-mix(
     in srgb,

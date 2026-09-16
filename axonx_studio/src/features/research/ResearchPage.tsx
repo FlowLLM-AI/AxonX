@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -26,7 +33,7 @@ import {
 } from "../workspace/api";
 import { formatBytes } from "../../shared/lib/format";
 import { RailResizer } from "../../shared/ui/RailResizer";
-import type { ContextOption, Language, WorkspacePreview } from "../../types";
+import type { ContextOption, Language } from "../../types";
 import type {
   FeatureGroupConfig,
   ResearchArtifact,
@@ -34,6 +41,12 @@ import type {
   ResearchPageId,
   ResearchRow,
 } from "./types";
+
+const BacktestView = lazy(() =>
+  import("./backtest/BacktestView").then((module) => ({
+    default: module.BacktestView,
+  })),
+);
 
 type Meta = ResearchArtifact;
 type Row = ResearchRow;
@@ -90,18 +103,6 @@ const fmt = (value: unknown, digits = 2) => {
 };
 const pct = (value: unknown) =>
   Number.isFinite(Number(value)) ? `${(Number(value) * 100).toFixed(2)}%` : "—";
-const rowsOf = (preview?: WorkspacePreview | null): Row[] => {
-  if (preview?.kind !== "csv") return [];
-  return (preview.rows || []).map((row) =>
-    Object.fromEntries(
-      (preview.columns || []).map((column, index) => [
-        column,
-        String(row[index] ?? ""),
-      ]),
-    ),
-  );
-};
-
 async function readAllCsv(path: string, remoteIp?: string) {
   const rows: unknown[][] = [];
   let columns: string[] = [];
@@ -645,7 +646,7 @@ function ArtifactDetail({
       kind === "analysis"
         ? ["result", "quantiles"]
         : kind === "backtest"
-          ? ["daily", "overall"]
+          ? []
           : kind === "training"
             ? ["evaluation_history"]
             : kind === "etl"
@@ -782,13 +783,15 @@ function ArtifactDetail({
           zh={zh}
         />
       ) : kind === "backtest" ? (
-        <BacktestView
-          meta={meta}
-          daily={csv.daily || []}
-          overall={csv.overall || []}
-          zh={zh}
-          remoteIp={remoteIp}
-        />
+        <Suspense
+          fallback={
+            <div className="research-loading">
+              <LoaderCircle className="spin" />
+            </div>
+          }
+        >
+          <BacktestView meta={meta} zh={zh} remoteIp={remoteIp} />
+        </Suspense>
       ) : kind === "training" ? (
         <TrainingView
           meta={meta}
@@ -924,175 +927,6 @@ function AnalysisView({
             "direction",
           ]}
         />
-      </section>
-    </div>
-  );
-}
-
-function BacktestView({
-  meta,
-  daily,
-  overall,
-  zh,
-  remoteIp,
-}: {
-  meta: Meta;
-  daily: Row[];
-  overall: Row[];
-  zh: boolean;
-  remoteIp?: string;
-}) {
-  const portfolios = Array.from(
-    new Set(
-      Object.keys(daily[0] || {})
-        .map((key) => key.match(/^top(\d+)_net_value$/)?.[1])
-        .filter(Boolean),
-    ),
-  ) as string[];
-  const [topN, setTopN] = useState(
-    portfolios.includes("30") ? "30" : portfolios[0] || "",
-  );
-  const [dayIndex, setDayIndex] = useState(Math.max(0, daily.length - 1));
-  const [holdings, setHoldings] = useState<Row[]>([]);
-  const [holdingsLoading, setHoldingsLoading] = useState(false);
-  useEffect(() => {
-    setDayIndex(Math.max(0, daily.length - 1));
-  }, [meta.task_id, daily.length]);
-  useEffect(() => {
-    const file = meta.artifacts?.holdings;
-    if (!file || !daily.length) {
-      setHoldings([]);
-      return;
-    }
-    const top = Number(meta.config?.holdings_top_n || 50);
-    setHoldingsLoading(true);
-    previewWorkspaceFile(`${meta._path}/${file}`, dayIndex * top, top, remoteIp)
-      .then((preview) => setHoldings(rowsOf(preview)))
-      .finally(() => setHoldingsLoading(false));
-  }, [
-    meta.task_id,
-    meta._path,
-    meta.artifacts?.holdings,
-    meta.config?.holdings_top_n,
-    dayIndex,
-    daily.length,
-    remoteIp,
-  ]);
-  const metric = (name: string, portfolio = `top${topN}`) =>
-    overall.find(
-      (row) =>
-        row.metric === name &&
-        row.portfolio === portfolio &&
-        row.benchmark === "none",
-    )?.value;
-  return (
-    <div className="artifact-content">
-      <Kpis
-        items={[
-          {
-            label: zh ? "累计收益" : "TOTAL RETURN",
-            value: pct(Number(daily.at(-1)?.[`top${topN}_net_value`] || 1) - 1),
-          },
-          {
-            label: zh ? "年化收益" : "ANNUAL RETURN",
-            value: pct(metric("annualized_net_return")),
-          },
-          { label: "SHARPE", value: fmt(metric("sharpe")) },
-          {
-            label: zh ? "最大回撤" : "MAX DRAWDOWN",
-            value: pct(metric("max_drawdown")),
-          },
-        ]}
-      />
-      <section className="viz-card wide equity-card">
-        <header>
-          <div>
-            <small>
-              EQUITY CURVE · {meta.date_range?.start}—{meta.date_range?.end}
-            </small>
-            <h3>{zh ? "策略净值曲线" : "Portfolio equity curve"}</h3>
-          </div>
-          <select value={topN} onChange={(e) => setTopN(e.target.value)}>
-            {portfolios.map((n) => (
-              <option key={n} value={n}>
-                Top {n}
-              </option>
-            ))}
-          </select>
-        </header>
-        <LineChart
-          rows={daily}
-          value={`top${topN}_net_value`}
-          benchmark="benchmark_hs300"
-        />
-      </section>
-      <section className="viz-card">
-        <header>
-          <div>
-            <small>PERFORMANCE</small>
-            <h3>{zh ? "核心指标" : "Core metrics"}</h3>
-          </div>
-        </header>
-        <MiniTable
-          rows={overall
-            .filter((row) => row.portfolio === `top${topN}`)
-            .slice(0, 12)}
-          columns={["metric", "value"]}
-        />
-      </section>
-      <section className="viz-card holdings-card">
-        <header>
-          <div>
-            <small>DAILY HOLDINGS</small>
-            <h3>{zh ? "每日 Top50" : "Daily Top 50"}</h3>
-          </div>
-          {daily.length > 0 && <time>{daily[dayIndex]?.trade_date}</time>}
-        </header>
-        {meta.artifacts?.holdings ? (
-          <>
-            <label className="date-scrubber">
-              <span>{daily[0]?.trade_date}</span>
-              <input
-                type="range"
-                min="0"
-                max={Math.max(0, daily.length - 1)}
-                value={dayIndex}
-                onChange={(e) => setDayIndex(Number(e.target.value))}
-              />
-              <span>{daily.at(-1)?.trade_date}</span>
-            </label>
-            {holdingsLoading ? (
-              <div className="holdings-loading">
-                <LoaderCircle className="spin" />
-              </div>
-            ) : (
-              <MiniTable
-                rows={holdings}
-                columns={[
-                  "rank",
-                  "ts_code",
-                  "prediction",
-                  "weight",
-                  "daily_return",
-                ]}
-              />
-            )}
-          </>
-        ) : (
-          <div className="data-gap">
-            <AlertTriangle />
-            <strong>
-              {zh
-                ? "旧任务未包含持仓明细"
-                : "This older run has no holdings detail"}
-            </strong>
-            <span>
-              {zh
-                ? "重新运行 backtest 后将生成 holdings.csv，并在这里按曲线日期展示 Top50。"
-                : "Rerun the backtest to generate holdings.csv and inspect the Top 50 for any chart date here."}
-            </span>
-          </div>
-        )}
       </section>
     </div>
   );

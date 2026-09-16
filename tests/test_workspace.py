@@ -98,8 +98,12 @@ async def test_workspace_lists_directories_first_and_previews_supported_files(tm
 
 
 async def test_workspace_can_read_parquet_fully_on_request(tmp_path):
+    holdings = pa.array(
+        [[{"rank": value + 1, "code": f"{value:06d}.SZ"}] for value in range(8)],
+        type=pa.list_(pa.struct([("rank", pa.int64()), ("code", pa.string())])),
+    )
     pq.write_table(
-        pa.table({"value": list(range(8))}),
+        pa.table({"value": list(range(8)), "holdings": holdings}),
         tmp_path / "data.parquet",
         row_group_size=3,
     )
@@ -110,9 +114,11 @@ async def test_workspace_can_read_parquet_fully_on_request(tmp_path):
     finally:
         await app.close()
 
-    assert preview.answer["rows"] == [[0], [1], [2], [3], [4]]
+    assert preview.answer["rows"][0] == [0, [{"rank": 1, "code": "000000.SZ"}]]
+    assert len(preview.answer["rows"]) == 5
     assert preview.answer["full"] is False
-    assert full.answer["rows"] == [[value] for value in range(8)]
+    assert len(full.answer["rows"]) == 8
+    assert full.answer["rows"][-1] == [7, [{"rank": 8, "code": "000007.SZ"}]]
     assert full.answer["full"] is True
 
 

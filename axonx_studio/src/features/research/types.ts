@@ -50,7 +50,12 @@ export interface ResearchArtifact {
     prediction_task_id?: string;
     training_task_id?: string;
   };
-  config?: { quantiles?: number; holdings_top_n?: number };
+  config?: {
+    quantiles?: number;
+    transaction_cost_rate?: number;
+    annual_risk_free_rate?: number;
+    annualization_days?: number;
+  };
   artifacts?: Record<string, string>;
   artifact_integrity?: Record<string, ArtifactFile>;
 }
