@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -7,6 +7,7 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings2,
   Sun,
 } from "lucide-react";
 import { t } from "../i18n";
@@ -19,6 +20,7 @@ import type {
 } from "../types";
 import { navigationItems, researchSections } from "./navigation";
 import { defaultRoute } from "./routes";
+import { EnvironmentSettingsModal } from "../features/runtime/EnvironmentSettingsModal";
 import type { AppRoute, SectionId } from "./routes";
 
 interface SidebarState {
@@ -41,6 +43,7 @@ interface AppShellProps {
   serviceOnline: boolean | null;
   machines: MachineNode[];
   selectedMachine: MachineNode;
+  remoteIp?: string;
   resourceOptions: ContextOption[];
   sidebar: SidebarState;
   navigate: (route: AppRoute, machineId?: string) => void;
@@ -57,11 +60,13 @@ export function AppShell(props: AppShellProps) {
     serviceOnline,
     machines,
     selectedMachine,
+    remoteIp,
     resourceOptions,
     sidebar,
     navigate,
   } = props;
   const text = t(language);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const section =
     navigationItems.find((item) => item.id === route.section) ||
     navigationItems[0];
@@ -74,6 +79,23 @@ export function AppShell(props: AppShellProps) {
     (item) => item.value === route.resource,
   );
   const resourceLabel = resourceOption?.label || route.resource;
+  const serviceLabel = serviceOnline
+    ? language === "zh"
+      ? "在线"
+      : "Online"
+    : serviceOnline === false
+      ? language === "zh"
+        ? "离线"
+        : "Offline"
+      : language === "zh"
+        ? "连接中"
+        : "Connecting";
+  const serviceState =
+    serviceOnline === null
+      ? "connecting"
+      : serviceOnline
+        ? "online"
+        : "offline";
   const rawFileSelected =
     route.section === "raw" &&
     resourceOption &&
@@ -104,44 +126,26 @@ export function AppShell(props: AppShellProps) {
       style={{ "--primary-width": `${sidebar.width}px` } as CSSProperties}
     >
       <header className="studio-topbar">
-        <button
-          className="mobile-menu"
-          onClick={() => sidebar.setMobileOpen(true)}
-          aria-label="Open navigation"
-        >
-          <Menu />
-        </button>
+        {route.section !== "home" && (
+          <button
+            className="mobile-menu"
+            onClick={() => sidebar.setMobileOpen(true)}
+            aria-label="Open navigation"
+          >
+            <Menu />
+          </button>
+        )}
         <button
           className="studio-brand"
           onClick={() => navigate(defaultRoute("home"))}
+          aria-label="AxonX Studio"
         >
           <img src="/axonx-icon.svg" alt="" />
           <span>
-            <strong>AxonX Studio</strong>
-            <small>
-              <i
-                className={
-                  serviceOnline
-                    ? "online"
-                    : serviceOnline === false
-                      ? "offline"
-                      : ""
-                }
-              />
-              <b>
-                {serviceOnline
-                  ? language === "zh"
-                    ? "在线"
-                    : "online"
-                  : serviceOnline === false
-                    ? language === "zh"
-                      ? "离线"
-                      : "offline"
-                    : language === "zh"
-                      ? "连接中"
-                      : "connecting"}
-              </b>
-            </small>
+            <strong>
+              <span className="brand-name">AxonX</span>
+              <span className="brand-subtitle">Studio</span>
+            </strong>
           </span>
         </button>
         <nav
@@ -251,6 +255,14 @@ export function AppShell(props: AppShellProps) {
           >
             <GitHubMark />
           </a>
+          <button
+            className="topbar-control settings-trigger"
+            onClick={() => setSettingsOpen(true)}
+            aria-label={language === "zh" ? "打开设置" : "Open settings"}
+            title={language === "zh" ? "设置" : "Settings"}
+          >
+            <Settings2 />
+          </button>
         </div>
       </header>
       <div className="studio-body">
@@ -261,7 +273,7 @@ export function AppShell(props: AppShellProps) {
             {navigationItems.map(({ id, icon: Icon, zh, en }) => (
               <button
                 key={id}
-                className={route.section === id ? "active" : ""}
+                className={`nav-${id}${route.section === id ? " active" : ""}`}
                 onClick={() => {
                   navigate(defaultRoute(id));
                   sidebar.setMobileOpen(false);
@@ -273,16 +285,36 @@ export function AppShell(props: AppShellProps) {
               </button>
             ))}
           </nav>
-          <button className="primary-collapse" onClick={sidebar.toggle}>
-            {sidebar.collapsed ? (
-              <PanelLeftOpen />
-            ) : (
-              <>
-                <PanelLeftClose />
-                <span>{language === "zh" ? "收起导航" : "Collapse"}</span>
-              </>
-            )}
-          </button>
+          <div className="primary-rail-footer">
+            <span className={`service-status ${serviceState}`} role="status">
+              <i aria-hidden="true" />
+              {serviceLabel}
+            </span>
+            <button
+              className="primary-collapse"
+              onClick={sidebar.toggle}
+              aria-label={
+                sidebar.collapsed
+                  ? language === "zh"
+                    ? "展开导航"
+                    : "Expand navigation"
+                  : language === "zh"
+                    ? "收起导航"
+                    : "Collapse navigation"
+              }
+              title={
+                sidebar.collapsed
+                  ? language === "zh"
+                    ? "展开导航"
+                    : "Expand navigation"
+                  : language === "zh"
+                    ? "收起导航"
+                    : "Collapse navigation"
+              }
+            >
+              {sidebar.collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+            </button>
+          </div>
         </aside>
         <RailResizer
           min={70}
@@ -300,6 +332,14 @@ export function AppShell(props: AppShellProps) {
         )}
         <main className="studio-workspace">{children}</main>
       </div>
+      {settingsOpen && (
+        <EnvironmentSettingsModal
+          language={language}
+          machine={selectedMachine}
+          remoteIp={remoteIp}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -307,8 +347,6 @@ export function AppShell(props: AppShellProps) {
 function runtimeViewLabel(view: string | undefined, language: Language) {
   if (view === "tasks")
     return language === "zh" ? "Task 管理" : "Task management";
-  if (view === "environment")
-    return language === "zh" ? "运行环境" : "Environment";
   return language === "zh" ? "机器资源" : "Machine resources";
 }
 
@@ -321,10 +359,6 @@ function runtimeOptions(language: Language): ContextOption[] {
     {
       value: "tasks",
       label: language === "zh" ? "Task 管理" : "Task management",
-    },
-    {
-      value: "environment",
-      label: language === "zh" ? "运行环境" : "Environment",
     },
   ];
 }
@@ -340,6 +374,16 @@ function PathPicker({
   muted?: boolean;
   onSelect: (value: string) => void;
 }) {
+  if (options.length === 0) {
+    return (
+      <div className="path-picker">
+        <span className={`path-placeholder${muted ? " muted" : ""}`}>
+          {label}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="path-picker">
       <button className={muted ? "muted" : ""}>{label}</button>

@@ -73,7 +73,7 @@ export function PageOutlet({
               ? defaultRoute("task-defs")
               : target === "tasks"
                 ? { section: "runtime", view: "tasks" }
-                : defaultRoute("home"),
+                : defaultRoute(target),
           )
         }
       />

@@ -42,6 +42,7 @@ export default function App() {
       serviceOnline={serviceOnline}
       machines={machines}
       selectedMachine={selectedMachine}
+      remoteIp={remoteIp}
       resourceOptions={resourceOptions}
       sidebar={sidebar}
       navigate={navigate}

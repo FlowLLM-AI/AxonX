@@ -90,18 +90,6 @@ export function RuntimeWorkspace({
               </small>
             </span>
           </button>
-          <button
-            className={view === "environment" ? "active" : ""}
-            onClick={() => onNavigate("environment")}
-          >
-            <SlidersHorizontal />
-            <span>
-              <strong>{zh ? "运行环境" : "Environment"}</strong>
-              <small>
-                {zh ? "版本与代码信息" : "Version and source details"}
-              </small>
-            </span>
-          </button>
         </nav>
       </aside>
       <RailResizer min={240} max={440} className="context-resizer" />

@@ -182,9 +182,9 @@ function BacktestReport({
   const benchmarks = meta.dimensions?.benchmarks || [
     { key: "universe", label: "全市场平均" },
   ];
-  const [tab, setTab] = useState<"gross" | "net" | "quality" | "summary">(
-    "gross",
-  );
+  const [tab, setTab] = useState<
+    "gross" | "net" | "quality" | "overall" | "year" | "quarter" | "month"
+  >("gross");
   const [range, setRange] = useState<[number, number]>([0, daily.length - 1]);
   const [hoveredDate, setHoveredDate] = useState("");
   const [lockedDate, setLockedDate] = useState("");
@@ -192,7 +192,10 @@ function BacktestReport({
     ["gross", zh ? "毛收益" : "Gross return"],
     ["net", zh ? "净收益" : "Net return"],
     ["quality", zh ? "模型质量" : "Model quality"],
-    ["summary", zh ? "汇总表" : "Summary"],
+    ["overall", zh ? "总体" : "Overall"],
+    ["year", zh ? "分年" : "Yearly"],
+    ["quarter", zh ? "分季度" : "Quarterly"],
+    ["month", zh ? "分月" : "Monthly"],
   ];
   return (
     <div className="backtest-report">
@@ -223,7 +226,7 @@ function BacktestReport({
         />
       ) : (
         <SummaryView
-          rows={summary}
+          rows={summary.filter((row) => row.period_type === tab)}
           topNs={topNs}
           benchmarks={benchmarks}
           zh={zh}
@@ -628,6 +631,39 @@ function SummaryView({
   benchmarks: BenchmarkDefinition[];
   zh: boolean;
 }) {
+  const [chartTopN, setChartTopN] = useState(
+    topNs.includes(30) ? 30 : topNs[0],
+  );
+  const overall = rows[0]?.period_type === "overall";
+  const chartRows: ChartRow[] = overall
+    ? [
+        [zh ? "净累乘收益" : "Net cumulative", "net_cumulative_return"],
+        [zh ? "净收益年化" : "Net annualized", "net_annualized_return"],
+        [zh ? "毛累加收益" : "Gross cumulative", "gross_cumulative_return"],
+        [zh ? "最大回撤" : "Max drawdown", "net_max_drawdown"],
+      ].map(([label, key]) => ({
+        date: label,
+        value: rows[0][`top${chartTopN}_${key}`],
+      }))
+    : rows.map((row) => ({
+        date: row.period,
+        net: row[`top${chartTopN}_net_cumulative_return`],
+        gross: row[`top${chartTopN}_gross_cumulative_return`],
+        drawdown: row[`top${chartTopN}_net_max_drawdown`],
+      }));
+  const chartSeries: ChartSeries[] = overall
+    ? [
+        {
+          key: "value",
+          label: zh ? "收益 / 回撤" : "Return / drawdown",
+          type: "bar",
+        },
+      ]
+    : [
+        { key: "net", label: zh ? "净累乘收益" : "Net cumulative return" },
+        { key: "gross", label: zh ? "毛累加收益" : "Gross cumulative return" },
+        { key: "drawdown", label: zh ? "最大回撤" : "Max drawdown" },
+      ];
   const baseColumns = [
     {
       key: "trading_days",
@@ -681,6 +717,32 @@ function SummaryView({
   if (!rows.length) return <div className="chart-empty">NO SUMMARY DATA</div>;
   return (
     <div className="summary-view">
+      <section className="viz-card period-chart">
+        <header>
+          <div>
+            <small>
+              {overall ? "OVERALL PERFORMANCE" : "PERIOD PERFORMANCE"}
+            </small>
+            <h3>
+              {zh
+                ? `Top ${chartTopN} · 收益与回撤`
+                : `Top ${chartTopN} · Return and drawdown`}
+            </h3>
+          </div>
+          <select
+            aria-label={zh ? "选择图表 TopN" : "Select chart TopN"}
+            value={chartTopN}
+            onChange={(event) => setChartTopN(Number(event.target.value))}
+          >
+            {topNs.map((topN) => (
+              <option key={topN} value={topN}>
+                Top {topN}
+              </option>
+            ))}
+          </select>
+        </header>
+        <BacktestChart rows={chartRows} series={chartSeries} percent />
+      </section>
       <section className="viz-card summary-table combined-summary-table">
         <header>
           <div>
