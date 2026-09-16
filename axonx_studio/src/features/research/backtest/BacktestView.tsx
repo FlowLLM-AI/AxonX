@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  Columns3,
   LoaderCircle,
   LockKeyhole,
   RotateCcw,
 } from "lucide-react";
 import { loadBacktest } from "./api";
 import { BacktestChart } from "./BacktestChart";
+import { DateRangeSlider } from "./DateRangeSlider";
 import type {
   BacktestArtifact,
   BenchmarkDefinition,
@@ -180,13 +182,17 @@ function BacktestReport({
   const benchmarks = meta.dimensions?.benchmarks || [
     { key: "universe", label: "全市场平均" },
   ];
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState<"gross" | "net" | "quality" | "summary">(
+    "gross",
+  );
+  const [range, setRange] = useState<[number, number]>([0, daily.length - 1]);
+  const [hoveredDate, setHoveredDate] = useState("");
+  const [lockedDate, setLockedDate] = useState("");
   const tabs = [
-    ["overview", zh ? "走势概览" : "Overview"],
-    ["overall", zh ? "总体" : "Overall"],
-    ["year", zh ? "分年" : "Yearly"],
-    ["quarter", zh ? "分季度" : "Quarterly"],
-    ["month", zh ? "分月" : "Monthly"],
+    ["gross", zh ? "毛收益" : "Gross return"],
+    ["net", zh ? "净收益" : "Net return"],
+    ["quality", zh ? "模型质量" : "Model quality"],
+    ["summary", zh ? "汇总表" : "Summary"],
   ];
   return (
     <div className="backtest-report">
@@ -195,26 +201,31 @@ function BacktestReport({
           <button
             key={key}
             className={tab === key ? "active" : ""}
-            onClick={() => setTab(key)}
+            onClick={() => setTab(key as typeof tab)}
           >
             {label}
           </button>
         ))}
       </nav>
-      {tab === "overview" ? (
-        <Overview daily={daily} topNs={topNs} benchmarks={benchmarks} zh={zh} />
-      ) : tab === "overall" ? (
-        <Overall
-          rows={summary.filter((row) => row.period_type === "overall")}
+      {tab === "gross" || tab === "net" || tab === "quality" ? (
+        <Overview
+          view={tab}
+          daily={daily}
           topNs={topNs}
           benchmarks={benchmarks}
+          range={range}
+          setRange={setRange}
+          hoveredDate={hoveredDate}
+          setHoveredDate={setHoveredDate}
+          lockedDate={lockedDate}
+          setLockedDate={setLockedDate}
           zh={zh}
         />
       ) : (
-        <PeriodView
-          period={tab as "year" | "quarter" | "month"}
-          rows={summary.filter((row) => row.period_type === tab)}
+        <SummaryView
+          rows={summary}
           topNs={topNs}
+          benchmarks={benchmarks}
           zh={zh}
         />
       )}
@@ -223,27 +234,39 @@ function BacktestReport({
 }
 
 function Overview({
+  view,
   daily,
   topNs,
   benchmarks,
+  range,
+  setRange,
+  hoveredDate,
+  setHoveredDate,
+  lockedDate,
+  setLockedDate,
   zh,
 }: {
+  view: "gross" | "net" | "quality";
   daily: DailyRow[];
   topNs: number[];
   benchmarks: BenchmarkDefinition[];
+  range: [number, number];
+  setRange: React.Dispatch<React.SetStateAction<[number, number]>>;
+  hoveredDate: string;
+  setHoveredDate: React.Dispatch<React.SetStateAction<string>>;
+  lockedDate: string;
+  setLockedDate: React.Dispatch<React.SetStateAction<string>>;
   zh: boolean;
 }) {
-  const [range, setRange] = useState<[number, number]>([0, daily.length - 1]);
-  const [hoveredDate, setHoveredDate] = useState(
-    daily.at(-1)?.trade_date || "",
-  );
-  const [lockedDate, setLockedDate] = useState("");
   const updateRange = (position: 0 | 1, value: number) =>
-    setRange(([start, end]) =>
-      position === 0
-        ? [Math.min(value, end), end]
-        : [start, Math.max(value, start)],
-    );
+    setRange((current) => {
+      const [start, end] = current;
+      const next: [number, number] =
+        position === 0
+          ? [Math.min(value, end), end]
+          : [start, Math.max(value, start)];
+      return next[0] === start && next[1] === end ? current : next;
+    });
   const selected = useMemo(
     () => daily.slice(range[0], range[1] + 1),
     [daily, range],
@@ -253,16 +276,26 @@ function Overview({
     () => allSignals.slice(range[0], range[1] + 1),
     [allSignals, range],
   );
-  const activeDate = lockedDate || hoveredDate || selected.at(-1)?.trade_date;
+  const selectedDates = new Set(selected.map((row) => row.trade_date));
+  const activeDate =
+    (selectedDates.has(lockedDate) && lockedDate) ||
+    (selectedDates.has(hoveredDate) && hoveredDate) ||
+    selected.at(-1)?.trade_date;
   const active =
     daily.find((row) => row.trade_date === activeDate) || selected.at(-1);
-  const hover = useCallback((date: string) => {
-    if (date !== "起点") setHoveredDate(date);
-  }, []);
-  const lock = useCallback((date: string) => {
-    if (date !== "起点")
-      setLockedDate((current) => (current === date ? "" : date));
-  }, []);
+  const hover = useCallback(
+    (date: string) => {
+      if (date !== "起点") setHoveredDate(date);
+    },
+    [setHoveredDate],
+  );
+  const lock = useCallback(
+    (date: string) => {
+      if (date !== "起点")
+        setLockedDate((current) => (current === date ? "" : date));
+    },
+    [setLockedDate],
+  );
   const returnSeries = useMemo<ChartSeries[]>(
     () => [
       ...topNs.map((topN) => ({ key: `top${topN}`, label: `Top ${topN}` })),
@@ -304,22 +337,12 @@ function Overview({
             }}
           />
         </label>
-        <div className="range-sliders">
-          <input
-            type="range"
-            min="0"
-            max={daily.length - 1}
-            value={range[0]}
-            onChange={(event) => updateRange(0, +event.target.value)}
-          />
-          <input
-            type="range"
-            min="0"
-            max={daily.length - 1}
-            value={range[1]}
-            onChange={(event) => updateRange(1, +event.target.value)}
-          />
-        </div>
+        <DateRangeSlider
+          range={range}
+          count={daily.length}
+          onChange={updateRange}
+          labels={zh ? ["开始日期", "结束日期"] : ["Start date", "End date"]}
+        />
         <label>
           <span>{zh ? "结束日期" : "To"}</span>
           <input
@@ -343,37 +366,43 @@ function Overview({
           <RotateCcw />
         </button>
       </section>
-      <ChartCard
-        title={zh ? "毛收益累计" : "Cumulative gross return"}
-        hint={
-          zh ? "日收益算术累加，区间起点归零" : "Arithmetic sum rebased to zero"
-        }
-      >
-        <BacktestChart
-          rows={grossRows}
-          series={returnSeries}
-          percent
-          onHover={hover}
-          onSelect={lock}
-        />
-      </ChartCard>
-      <ChartCard
-        title={zh ? "净收益复利" : "Compounded net return"}
-        hint={
-          zh
-            ? "策略扣除换手手续费，基准不扣费"
-            : "Strategies include turnover costs"
-        }
-      >
-        <BacktestChart
-          rows={netRows}
-          series={returnSeries}
-          percent
-          onHover={hover}
-          onSelect={lock}
-        />
-      </ChartCard>
-      <div className="backtest-half-grid">
+      {view === "gross" && (
+        <ChartCard
+          title={zh ? "毛收益累计" : "Cumulative gross return"}
+          hint={
+            zh
+              ? "日收益算术累加，区间起点归零"
+              : "Arithmetic sum rebased to zero"
+          }
+        >
+          <BacktestChart
+            rows={grossRows}
+            series={returnSeries}
+            percent
+            onHover={hover}
+            onSelect={lock}
+          />
+        </ChartCard>
+      )}
+      {view === "net" && (
+        <ChartCard
+          title={zh ? "净收益复利" : "Compounded net return"}
+          hint={
+            zh
+              ? "策略扣除换手手续费，基准不扣费"
+              : "Strategies include turnover costs"
+          }
+        >
+          <BacktestChart
+            rows={netRows}
+            series={returnSeries}
+            percent
+            onHover={hover}
+            onSelect={lock}
+          />
+        </ChartCard>
+      )}
+      {view === "quality" && (
         <ChartCard
           title="IC / RankIC · MA20"
           hint={zh ? "候选股票池内计算" : "Candidate universe"}
@@ -385,6 +414,8 @@ function Overview({
             onSelect={lock}
           />
         </ChartCard>
+      )}
+      {view === "quality" && (
         <ChartCard
           title="NDCG · MA20"
           hint={
@@ -398,13 +429,19 @@ function Overview({
             onSelect={lock}
           />
         </ChartCard>
-      </div>
-      <HoldingsPanel
-        row={active}
-        locked={Boolean(lockedDate)}
-        zh={zh}
-        onUnlock={() => setLockedDate("")}
-      />
+      )}
+      {(view === "gross" || view === "net") && (
+        <HoldingsPanel
+          row={active}
+          locked={Boolean(lockedDate && selectedDates.has(lockedDate))}
+          zh={zh}
+          onUnlock={() => setLockedDate("")}
+          onLatest={() => {
+            setLockedDate("");
+            setHoveredDate("");
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -437,11 +474,13 @@ function HoldingsPanel({
   locked,
   zh,
   onUnlock,
+  onLatest,
 }: {
   row?: DailyRow;
   locked: boolean;
   zh: boolean;
   onUnlock: () => void;
+  onLatest: () => void;
 }) {
   const holdings = (row?.top30_holdings || []) as Holding[];
   return (
@@ -454,12 +493,26 @@ function HoldingsPanel({
             {zh ? "只股票" : "stocks"}
           </h3>
         </div>
-        {locked && (
-          <button onClick={onUnlock}>
-            <LockKeyhole />
-            {zh ? "取消锁定" : "Unlock"}
+        <div className="holdings-actions">
+          {locked && (
+            <button type="button" onClick={onUnlock}>
+              <LockKeyhole />
+              {zh ? "取消锁定" : "Unlock"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onLatest}
+            title={
+              zh
+                ? "回到所选区间的最后一个交易日"
+                : "Show the latest day in the selected range"
+            }
+          >
+            <RotateCcw />
+            {zh ? "回到最新" : "Latest"}
           </button>
-        )}
+        </div>
       </header>
       <div className="mini-table">
         <table>
@@ -512,7 +565,59 @@ const performanceColumns = [
   ["gross_sharpe", "Sharpe", fixed],
 ] as const;
 
-function Overall({
+function ColumnPicker({
+  columns,
+  visible,
+  onChange,
+  zh,
+}: {
+  columns: { key: string; label: string }[];
+  visible: string[];
+  onChange: (keys: string[]) => void;
+  zh: boolean;
+}) {
+  return (
+    <details className="summary-column-picker">
+      <summary>
+        <Columns3 size={15} aria-hidden="true" />
+        {zh ? "选择列" : "Columns"}
+        <span>
+          {visible.length}/{columns.length}
+        </span>
+      </summary>
+      <div className="summary-column-menu">
+        <div className="summary-column-menu-actions">
+          <strong>{zh ? "显示指标" : "Visible metrics"}</strong>
+          <button
+            type="button"
+            onClick={() => onChange(columns.map(({ key }) => key))}
+          >
+            {zh ? "显示全部" : "Show all"}
+          </button>
+        </div>
+        {columns.map(({ key, label }) => (
+          <label key={key}>
+            <input
+              type="checkbox"
+              checked={visible.includes(key)}
+              disabled={visible.length === 1 && visible.includes(key)}
+              onChange={() =>
+                onChange(
+                  visible.includes(key)
+                    ? visible.filter((item) => item !== key)
+                    : [...visible, key],
+                )
+              }
+            />
+            {label}
+          </label>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function SummaryView({
   rows,
   topNs,
   benchmarks,
@@ -523,159 +628,112 @@ function Overall({
   benchmarks: BenchmarkDefinition[];
   zh: boolean;
 }) {
-  const row = rows[0];
-  if (!row) return <div className="chart-empty">NO SUMMARY DATA</div>;
-  return (
-    <div className="summary-view">
-      <div className="artifact-kpis">
-        {[
-          [zh ? "交易日" : "Days", fixed(row.trading_days, 0)],
-          ["IC", fixed(row.ic_mean, 4)],
-          ["ICIR", fixed(row.icir, 2)],
-          [
-            "RankIC / IR",
-            `${fixed(row.rank_ic_mean, 4)} / ${fixed(row.rank_icir, 2)}`,
-          ],
-        ].map(([label, value]) => (
-          <article key={label}>
-            <small>{label}</small>
-            <strong>{value}</strong>
-            <span>
-              {row.period_start}—{row.period_end}
-            </span>
-          </article>
-        ))}
-      </div>
-      <section className="viz-card summary-table">
-        <header>
-          <div>
-            <small>OVERALL PERFORMANCE</small>
-            <h3>{zh ? "TopN 总体表现" : "TopN performance"}</h3>
-          </div>
-        </header>
-        <div className="mini-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Portfolio</th>
-                {performanceColumns.map(([, label]) => (
-                  <th key={label}>{label}</th>
-                ))}
-                {benchmarks.map((item) => (
-                  <th key={item.key}>IR · {item.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {topNs.map((topN) => (
-                <tr key={topN}>
-                  <td>
-                    <strong>Top {topN}</strong>
-                  </td>
-                  {performanceColumns.map(([key, , format]) => (
-                    <td key={key}>{format(row[`top${topN}_${key}`])}</td>
-                  ))}
-                  {benchmarks.map(({ key }) => (
-                    <td key={key}>
-                      {fixed(row[`top${topN}_information_ratio_${key}`])}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
+  const baseColumns = [
+    {
+      key: "trading_days",
+      label: zh ? "交易日数" : "Trading days",
+      format: (value: unknown) => fixed(value, 0),
+    },
+    {
+      key: "ic_mean",
+      label: zh ? "IC均值" : "IC mean",
+      format: (value: unknown) => fixed(value, 4),
+    },
+    { key: "icir", label: "ICIR", format: (value: unknown) => fixed(value) },
+    {
+      key: "rank_ic_mean",
+      label: zh ? "RankIC均值" : "RankIC mean",
+      format: (value: unknown) => fixed(value, 4),
+    },
+    {
+      key: "rank_icir",
+      label: "RankICIR",
+      format: (value: unknown) => fixed(value),
+    },
+  ];
+  const metricColumns = [
+    ...baseColumns,
+    ...topNs.flatMap((topN) => [
+      ...performanceColumns.map(([key, label, format]) => ({
+        key: "top" + topN + "_" + key,
+        label: "Top " + topN + " · " + label,
+        format,
+      })),
+      ...benchmarks.map(({ key, label }) => ({
+        key: "top" + topN + "_information_ratio_" + key,
+        label: "Top " + topN + " · IR · " + label,
+        format: fixed,
+      })),
+    ]),
+  ];
+  const [visible, setVisible] = useState<string[]>(() =>
+    metricColumns.map(({ key }) => key),
   );
-}
-
-function PeriodView({
-  period,
-  rows,
-  topNs,
-  zh,
-}: {
-  period: "year" | "quarter" | "month";
-  rows: SummaryRow[];
-  topNs: number[];
-  zh: boolean;
-}) {
-  const [topN, setTopN] = useState(topNs.includes(30) ? 30 : topNs[0]);
-  const chartRows = rows.map((row) => ({
-    date: row.period,
-    net: row[`top${topN}_net_cumulative_return`],
-    gross: row[`top${topN}_gross_cumulative_return`],
-    drawdown: row[`top${topN}_net_max_drawdown`],
-  }));
+  const visibleColumns = metricColumns.filter(({ key }) =>
+    visible.includes(key),
+  );
+  const typeLabels = {
+    overall: zh ? "总体" : "Overall",
+    year: zh ? "分年" : "Yearly",
+    quarter: zh ? "分季度" : "Quarterly",
+    month: zh ? "分月" : "Monthly",
+  };
+  if (!rows.length) return <div className="chart-empty">NO SUMMARY DATA</div>;
   return (
     <div className="summary-view">
-      <section className="viz-card period-chart">
+      <section className="viz-card summary-table combined-summary-table">
         <header>
           <div>
-            <small>{period.toUpperCase()} PERFORMANCE</small>
-            <h3>{zh ? "收益与回撤" : "Return and drawdown"}</h3>
+            <small>PERFORMANCE SUMMARY</small>
+            <h3>{zh ? "回测指标汇总" : "Backtest performance summary"}</h3>
           </div>
-          <select
-            value={topN}
-            onChange={(event) => setTopN(+event.target.value)}
-          >
-            {topNs.map((value) => (
-              <option key={value} value={value}>
-                Top {value}
-              </option>
-            ))}
-          </select>
-        </header>
-        <BacktestChart
-          rows={chartRows}
-          series={[
-            { key: "net", label: zh ? "净收益" : "Net return", type: "bar" },
-            {
-              key: "gross",
-              label: zh ? "毛收益" : "Gross return",
-              type: "bar",
-            },
-            {
-              key: "drawdown",
-              label: zh ? "最大回撤" : "Max drawdown",
-              axis: 1,
-            },
-          ]}
-          percent
-        />
-      </section>
-      <section className="viz-card summary-table">
-        <header>
-          <div>
-            <small>PERIOD DETAILS</small>
-            <h3>{zh ? "周期明细" : "Period details"}</h3>
+          <div className="summary-table-actions">
+            <span>
+              {zh ? "左右滑动查看全部指标" : "Scroll sideways for more"}
+            </span>
+            <ColumnPicker
+              columns={metricColumns}
+              visible={visible}
+              onChange={setVisible}
+              zh={zh}
+            />
           </div>
         </header>
-        <div className="mini-table">
+        <div
+          className="mini-table"
+          role="region"
+          aria-label={
+            zh
+              ? "回测指标汇总，可横向滚动"
+              : "Backtest performance summary, horizontally scrollable"
+          }
+          tabIndex={0}
+        >
           <table>
             <thead>
               <tr>
+                <th>{zh ? "类型" : "Type"}</th>
                 <th>{zh ? "时间" : "Period"}</th>
-                <th>{zh ? "交易日" : "Days"}</th>
-                <th>IC</th>
-                <th>ICIR</th>
-                {performanceColumns.map(([, label]) => (
-                  <th key={label}>{label}</th>
+                {visibleColumns.map(({ key, label }) => (
+                  <th key={key}>{label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.period}>
+                <tr key={row.period_type + ":" + row.period}>
                   <td>
-                    <strong>{row.period}</strong>
+                    <strong>{typeLabels[row.period_type]}</strong>
                   </td>
-                  <td>{fixed(row.trading_days, 0)}</td>
-                  <td>{fixed(row.ic_mean, 4)}</td>
-                  <td>{fixed(row.icir)}</td>
-                  {performanceColumns.map(([key, , format]) => (
-                    <td key={key}>{format(row[`top${topN}_${key}`])}</td>
+                  <td>
+                    <strong>
+                      {row.period_type === "overall"
+                        ? row.period_start + "—" + row.period_end
+                        : row.period}
+                    </strong>
+                  </td>
+                  {visibleColumns.map(({ key, format }) => (
+                    <td key={key}>{format(row[key])}</td>
                   ))}
                 </tr>
               ))}

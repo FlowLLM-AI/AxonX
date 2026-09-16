@@ -8932,69 +8932,22 @@
   }
 }
 
-/* Chromatic signal system --------------------------------------------------
-   Each workspace owns a hue, while data/status colors keep their meaning. */
+/* AxonX uses one brand accent for navigation and actions. Data and status
+   colors remain available where their meaning needs to be visible. */
 .studio-shell {
-  --route-accent: #0b9b82;
-  --accent: var(--route-accent);
-  --accent-soft: color-mix(in srgb, var(--route-accent) 12%, var(--surface));
   position: relative;
-}
-.studio-shell.route-runtime {
-  --route-accent: var(--blue);
-}
-.studio-shell.route-apis {
-  --route-accent: var(--cyan);
-}
-.studio-shell.route-task-defs {
-  --route-accent: var(--violet);
-}
-.studio-shell.route-raw {
-  --route-accent: #08a58d;
-}
-.studio-shell.route-etl {
-  --route-accent: #16a085;
-}
-.studio-shell.route-factors {
-  --route-accent: var(--violet);
-}
-.studio-shell.route-training {
-  --route-accent: var(--pink);
-}
-.studio-shell.route-predict {
-  --route-accent: var(--blue);
-}
-.studio-shell.route-backtest {
-  --route-accent: var(--orange);
 }
 
 .studio-topbar {
-  border-bottom-color: color-mix(in srgb, var(--route-accent) 18%, var(--line));
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border-bottom-color: var(--line);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
   box-shadow: none;
-}
-.studio-topbar::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    var(--accent),
-    var(--blue),
-    var(--violet),
-    var(--orange)
-  );
-  opacity: 0.35;
-  content: "";
 }
 .studio-brand {
   background: transparent;
 }
 .studio-brand img {
   border-radius: 12px;
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .studio-brand small {
   font-size: 12px;
@@ -9015,18 +8968,17 @@
   transform: translateY(-1px);
 }
 .topbar-control {
-  border-color: color-mix(in srgb, var(--route-accent) 12%, var(--line));
+  border-color: var(--line);
   box-shadow: 0 5px 16px rgba(34, 49, 87, 0.05);
 }
 .topbar-control:hover {
-  border-color: color-mix(in srgb, var(--route-accent) 38%, var(--line));
-  color: var(--route-accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  color: var(--accent);
 }
 
 .primary-rail {
-  border-right-color: color-mix(in srgb, var(--route-accent) 13%, var(--line));
+  border-right-color: var(--line);
   background: var(--surface);
-  box-shadow: 12px 0 36px rgba(38, 54, 94, 0.04);
 }
 .primary-rail > nav {
   gap: 5px;
@@ -9047,42 +8999,14 @@
   transform: translateX(2px);
 }
 .primary-rail > nav button.active {
-  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
-  background: linear-gradient(
-    105deg,
-    color-mix(in srgb, var(--accent) 17%, var(--surface)),
-    color-mix(in srgb, var(--accent) 5%, var(--surface))
-  );
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 11%, transparent);
-}
-.primary-rail > nav button:nth-child(2) svg {
-  color: var(--blue);
-}
-.primary-rail > nav button:nth-child(3) svg {
-  color: var(--cyan);
-}
-.primary-rail > nav button:nth-child(4) svg {
-  color: var(--violet);
-}
-.primary-rail > nav button:nth-child(5) svg {
-  color: #16a085;
-}
-.primary-rail > nav button:nth-child(6) svg {
-  color: var(--violet);
-}
-.primary-rail > nav button:nth-child(7) svg {
-  color: var(--pink);
-}
-.primary-rail > nav button:nth-child(8) svg {
-  color: var(--blue);
-}
-.primary-rail > nav button:nth-child(9) svg {
-  color: var(--orange);
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line));
+  background: var(--accent-soft);
+  box-shadow: none;
 }
 .primary-collapse {
   min-height: 42px;
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--surface-2) 88%, var(--accent));
+  background: var(--surface-2);
 }
 
 .studio-workspace {
@@ -9097,7 +9021,7 @@
 .studio-workspace .run-index,
 .studio-workspace .catalog-panel,
 .studio-workspace .tushare-tree-panel {
-  border-right-color: color-mix(in srgb, var(--route-accent) 15%, var(--line));
+  border-right-color: var(--line);
   background: var(--surface-2);
 }
 .context-rail > header {
@@ -9112,19 +9036,9 @@
   border-radius: 14px;
 }
 .context-rail > nav button.active {
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--accent) 11%, var(--surface)),
-    var(--surface)
-  );
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 10%, transparent);
-}
-.context-rail > nav button:nth-child(2).active {
-  --accent: var(--violet);
-}
-.context-rail > nav button:nth-child(3).active {
-  --accent: var(--cyan);
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--line));
+  background: var(--accent-soft);
+  box-shadow: none;
 }
 
 .canvas-heading h1 {
@@ -9156,11 +9070,7 @@
   box-shadow: 0 9px 22px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .primary-button {
-  background: linear-gradient(
-    120deg,
-    var(--accent),
-    color-mix(in srgb, var(--accent) 55%, var(--blue))
-  );
+  background: var(--accent);
 }
 
 /* Shared surfaces get depth without sacrificing data density. */
@@ -9171,21 +9081,19 @@
 .configuration-card,
 .workspace-browser,
 .viz-card {
-  border-color: color-mix(in srgb, var(--accent) 12%, var(--line));
-  box-shadow:
-    0 16px 42px rgba(38, 52, 91, 0.07),
-    0 2px 8px rgba(38, 52, 91, 0.035);
+  border-color: var(--line);
+  box-shadow: 0 8px 26px rgba(38, 52, 91, 0.035);
 }
 .data-panel,
 .api-form-card,
 .api-response,
 .runtime-environment-card,
 .viz-card {
-  background: color-mix(in srgb, var(--surface) 97%, var(--accent));
+  background: var(--surface);
 }
 .table-wrap th,
 .workspace-csv th {
-  background: color-mix(in srgb, var(--surface-2) 90%, var(--accent));
+  background: var(--surface-2);
 }
 .table-wrap tbody tr:hover,
 .workspace-csv tbody tr:hover {
@@ -9202,7 +9110,7 @@
   border-color: color-mix(in srgb, var(--accent) 13%, var(--line));
 }
 
-/* Machine telemetry: blue compute, cyan memory, violet GPU, amber capacity. */
+/* Metric colors belong to gauges and bars, not their surrounding cards. */
 .current-machine-page {
   padding-bottom: 32px;
 }
@@ -9217,37 +9125,16 @@
 .gpu-section,
 .runtime-card {
   position: relative;
-  border-color: color-mix(
-    in srgb,
-    var(--card-tone, var(--accent)) 18%,
-    var(--line)
-  );
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, var(--card-tone, var(--accent)) 7%, var(--surface)),
-    var(--surface) 52%
-  );
-  box-shadow: 0 14px 38px
-    color-mix(in srgb, var(--card-tone, var(--accent)) 8%, transparent);
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: 0 8px 26px rgba(38, 52, 91, 0.035);
   overflow: hidden;
 }
 .resource-gauge-card::before,
 .capacity-card::before,
 .gpu-section::before,
 .runtime-card::before {
-  position: absolute;
-  top: 0;
-  right: 18px;
-  left: 18px;
-  height: 3px;
-  border-radius: 0 0 6px 6px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--card-tone, var(--accent)),
-    transparent
-  );
-  content: "";
+  content: none;
 }
 .resource-gauge-card.cpu {
   --card-tone: var(--blue);
@@ -9274,20 +9161,16 @@
   margin-top: 16px;
 }
 .gpu-card {
-  border-color: color-mix(in srgb, var(--violet) 17%, var(--line));
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--violet) 5%, var(--surface)),
-    var(--surface)
-  );
+  border-color: var(--line);
+  background: var(--surface);
   transition:
     transform 0.18s,
     box-shadow 0.18s,
     border-color 0.18s;
 }
 .gpu-card:hover {
-  border-color: color-mix(in srgb, var(--violet) 38%, var(--line));
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--violet) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--line));
+  box-shadow: 0 10px 24px rgba(38, 52, 91, 0.07);
   transform: translateY(-2px);
 }
 .gauge-ring {
@@ -9307,62 +9190,22 @@
   background: color-mix(in srgb, var(--surface) 80%, transparent);
 }
 
-/* Research and analytics use a repeating spectrum for quick scanning. */
+/* Research cards stay neutral; charts and values carry the data palette. */
 .artifact-kpis {
   gap: 14px;
 }
 .artifact-kpis article {
   position: relative;
-  border-color: color-mix(
-    in srgb,
-    var(--kpi-tone, var(--accent)) 18%,
-    var(--line)
-  );
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--kpi-tone, var(--accent)) 8%, var(--surface)),
-    var(--surface)
-  );
-  box-shadow: 0 10px 28px
-    color-mix(in srgb, var(--kpi-tone, var(--accent)) 7%, transparent);
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: 0 8px 26px rgba(38, 52, 91, 0.035);
   overflow: hidden;
 }
 .artifact-kpis article::after {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  background: var(--kpi-tone, var(--accent));
-  opacity: 0.75;
-  content: "";
-}
-.artifact-kpis article:nth-child(1) {
-  --kpi-tone: var(--blue);
-}
-.artifact-kpis article:nth-child(2) {
-  --kpi-tone: var(--violet);
-}
-.artifact-kpis article:nth-child(3) {
-  --kpi-tone: var(--cyan);
-}
-.artifact-kpis article:nth-child(4) {
-  --kpi-tone: var(--orange);
+  content: none;
 }
 .artifact-kpis article strong {
-  color: var(--kpi-tone, var(--ink));
-}
-.artifact-content > .viz-card:nth-of-type(4n + 1) {
-  --card-tone: var(--blue);
-}
-.artifact-content > .viz-card:nth-of-type(4n + 2) {
-  --card-tone: var(--violet);
-}
-.artifact-content > .viz-card:nth-of-type(4n + 3) {
-  --card-tone: var(--cyan);
-}
-.artifact-content > .viz-card:nth-of-type(4n) {
-  --card-tone: var(--orange);
+  color: var(--ink);
 }
 
 /* Backtest artifact protocol v2 */
@@ -9376,6 +9219,7 @@
   top: -24px;
   display: flex;
   gap: 4px;
+  overflow-x: auto;
   padding: 7px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -9383,6 +9227,7 @@
   backdrop-filter: blur(12px);
 }
 .backtest-tabs button {
+  flex: none;
   min-height: 36px;
   padding: 0 16px;
   border: 0;
@@ -9427,20 +9272,48 @@
   color: var(--ink);
   background: var(--surface-2);
 }
-.range-sliders {
+.date-range-slider {
   position: relative;
   height: 35px;
+  margin: 0 10px;
+  cursor: pointer;
+  touch-action: none;
 }
-.range-sliders input {
+.date-range-track,
+.date-range-selection {
+  position: absolute;
+  top: 15px;
+  height: 5px;
+  border-radius: 999px;
+}
+.date-range-track {
+  right: 0;
+  left: 0;
+  background: var(--surface-3);
+}
+.date-range-selection {
+  background: var(--accent);
+}
+.date-range-handle {
   position: absolute;
   top: 8px;
-  width: 100%;
-  margin: 0;
-  accent-color: var(--accent);
-  pointer-events: none;
+  width: 19px;
+  height: 19px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 2px 7px rgba(0, 0, 0, 0.15);
+  transform: translateX(-50%);
+  cursor: grab;
 }
-.range-sliders input::-webkit-slider-thumb {
-  pointer-events: auto;
+.date-range-handle:active {
+  cursor: grabbing;
+}
+.date-range-handle:focus-visible {
+  outline: 3px solid var(--accent-soft);
+  outline-offset: 4px;
 }
 .range-toolbar > strong {
   align-self: center;
@@ -9462,6 +9335,11 @@
   background: var(--surface-2);
   cursor: pointer;
 }
+.holdings-actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
 .range-toolbar > button svg,
 .holdings-panel > header button svg {
   width: 14px;
@@ -9472,15 +9350,7 @@
 }
 .backtest-chart {
   width: 100%;
-  height: 360px;
-}
-.backtest-half-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-.backtest-half-grid .backtest-chart {
-  height: 320px;
+  height: 520px;
 }
 .holdings-panel .mini-table,
 .summary-table .mini-table {
@@ -9494,9 +9364,100 @@
 }
 .summary-table {
   min-width: 0;
+  overflow: visible;
+}
+.summary-table > header {
+  position: relative;
+  z-index: 5;
+}
+.summary-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.summary-table-actions > span {
+  color: var(--faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.summary-column-picker > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--surface-2);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+  list-style: none;
+  white-space: nowrap;
+}
+.summary-column-picker > summary::-webkit-details-marker {
+  display: none;
+}
+.summary-column-picker > summary span {
+  color: var(--faint);
+}
+.summary-column-menu {
+  position: absolute;
+  top: calc(100% - 4px);
+  right: 16px;
+  width: min(260px, calc(100vw - 48px));
+  max-height: 330px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 15%, transparent);
+  overflow-y: auto;
+}
+.summary-column-menu-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 6px 8px;
+  font-size: 11px;
+}
+.summary-column-menu-actions button {
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+}
+.summary-column-menu label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+.summary-column-menu input {
+  accent-color: var(--accent);
 }
 .summary-table .mini-table {
   overflow: auto;
+  overscroll-behavior-x: contain;
+}
+.summary-table .mini-table table {
+  width: max-content;
+  min-width: 100%;
+}
+.summary-table .mini-table:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+@media (max-width: 700px) {
+  .summary-table-actions > span {
+    display: none;
+  }
 }
 .summary-table th:first-child,
 .summary-table td:first-child {
@@ -9508,6 +9469,22 @@
 .summary-table th:first-child {
   background: var(--surface-2);
 }
+.combined-summary-table th:first-child,
+.combined-summary-table td:first-child {
+  min-width: 76px;
+}
+.combined-summary-table th:nth-child(2),
+.combined-summary-table td:nth-child(2) {
+  position: sticky;
+  z-index: 2;
+  left: 76px;
+  min-width: 146px;
+  background: var(--surface);
+  box-shadow: 1px 0 0 var(--line);
+}
+.combined-summary-table th:nth-child(2) {
+  background: var(--surface-2);
+}
 .period-chart .backtest-chart {
   height: 430px;
 }
@@ -9515,44 +9492,25 @@
   .range-toolbar {
     grid-template-columns: 1fr 1fr auto;
   }
-  .range-sliders {
+  .date-range-slider {
     grid-column: 1 / -1;
     grid-row: 2;
   }
-  .backtest-half-grid {
-    grid-template-columns: 1fr;
-  }
 }
 .viz-card {
-  border-color: color-mix(
-    in srgb,
-    var(--card-tone, var(--accent)) 15%,
-    var(--line)
-  );
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, var(--card-tone, var(--accent)) 4%, var(--surface)),
-    var(--surface) 35%
-  );
+  border-color: var(--line);
+  background: var(--surface);
 }
 .viz-card > header small {
-  color: var(--card-tone, var(--accent));
+  color: var(--muted);
 }
 .bar-list i {
-  background: linear-gradient(
-    90deg,
-    var(--card-tone, var(--accent)),
-    color-mix(in srgb, var(--card-tone, var(--accent)) 50%, var(--cyan))
-  );
+  background: var(--accent);
 }
 .run-index > div > article.active {
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
-  background: linear-gradient(
-    110deg,
-    color-mix(in srgb, var(--accent) 11%, var(--surface)),
-    var(--surface)
-  );
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 9%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--line));
+  background: var(--accent-soft);
+  box-shadow: none;
 }
 
 /* Shared index rail: task definitions and generated task versions. */
@@ -9697,25 +9655,16 @@
   color: var(--faint);
 }
 
-/* Overview and capability navigation form the visual palette key. */
+/* The home page keeps color on capability icons only. */
 .overview-hero {
-  border-color: color-mix(in srgb, var(--accent) 20%, var(--line));
-  background: linear-gradient(
-    125deg,
-    color-mix(in srgb, var(--accent) 13%, var(--surface)),
-    var(--surface) 47%,
-    color-mix(in srgb, var(--violet) 10%, var(--surface))
-  );
-  box-shadow: 0 28px 80px rgba(52, 65, 112, 0.12);
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: 0 12px 36px rgba(38, 52, 91, 0.05);
 }
 .capability-card {
   --tile-tone: var(--accent);
-  border-color: color-mix(in srgb, var(--tile-tone) 16%, var(--line));
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--tile-tone) 6%, var(--surface)),
-    var(--surface) 58%
-  );
+  border-color: var(--line);
+  background: var(--surface);
 }
 .capability-card:nth-child(4n + 1) {
   --tile-tone: var(--blue);
@@ -9734,8 +9683,8 @@
   background: color-mix(in srgb, var(--tile-tone) 12%, var(--surface));
 }
 .capability-card:hover {
-  border-color: color-mix(in srgb, var(--tile-tone) 38%, var(--line));
-  box-shadow: 0 16px 38px color-mix(in srgb, var(--tile-tone) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  box-shadow: 0 12px 30px rgba(38, 52, 91, 0.07);
 }
 
 /* Independent pane scrolling: navigation and content never move each other. */

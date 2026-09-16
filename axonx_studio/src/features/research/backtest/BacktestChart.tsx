@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BarChart, LineChart } from "echarts/charts";
 import {
   GridComponent,
@@ -18,17 +18,6 @@ registerECharts([
   CanvasRenderer,
 ]);
 
-const colors = [
-  "#2f8f68",
-  "#3975d5",
-  "#9061c2",
-  "#d28235",
-  "#d34f6f",
-  "#15999c",
-  "#617083",
-  "#b49b32",
-];
-
 export function BacktestChart({
   rows,
   series,
@@ -43,8 +32,31 @@ export function BacktestChart({
   onSelect?: (date: string) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const [theme, setTheme] = useState(
+    () => document.documentElement.dataset.theme,
+  );
+  useEffect(() => {
+    const observer = new MutationObserver(() =>
+      setTheme(document.documentElement.dataset.theme),
+    );
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     if (!host.current) return;
+    const theme = getComputedStyle(host.current);
+    const token = (name: string) => theme.getPropertyValue(name).trim();
+    const colors = Array.from({ length: 8 }, (_, index) =>
+      token(`--chart-${index + 1}`),
+    );
+    const muted = token("--muted");
+    const faint = token("--faint");
+    const line = token("--line");
+    const surface = token("--surface");
+    const ink = token("--ink");
     const chart = init(host.current, undefined, { renderer: "canvas" });
     const format = (value: number) =>
       percent ? `${(value * 100).toFixed(1)}%` : value.toFixed(3);
@@ -60,31 +72,34 @@ export function BacktestChart({
       legend: {
         type: "scroll",
         top: 8,
-        textStyle: { color: "#718078", fontSize: 11 },
+        textStyle: { color: muted, fontSize: 11 },
       },
       tooltip: {
         trigger: "axis",
         order: "valueDesc",
+        backgroundColor: surface,
+        borderColor: line,
+        textStyle: { color: ink },
         valueFormatter: (value: unknown) => format(Number(value)),
       },
       xAxis: {
         type: "category",
         boundaryGap: series.some((item) => item.type === "bar"),
         data: rows.map((row) => row.date),
-        axisLabel: { color: "#849089", hideOverlap: true },
-        axisLine: { lineStyle: { color: "#dfe5e1" } },
+        axisLabel: { color: faint, hideOverlap: true },
+        axisLine: { lineStyle: { color: line } },
       },
       yAxis: [
         {
           type: "value",
-          axisLabel: { formatter: format, color: "#849089" },
-          splitLine: { lineStyle: { color: "#edf1ef" } },
+          axisLabel: { formatter: format, color: faint },
+          splitLine: { lineStyle: { color: line, opacity: 0.6 } },
         },
         ...(series.some((item) => item.axis === 1)
           ? [
               {
                 type: "value",
-                axisLabel: { formatter: format, color: "#849089" },
+                axisLabel: { formatter: format, color: faint },
                 splitLine: { show: false },
               },
             ]
@@ -119,6 +134,6 @@ export function BacktestChart({
       resize.disconnect();
       chart.dispose();
     };
-  }, [onHover, onSelect, percent, rows, series]);
+  }, [onHover, onSelect, percent, rows, series, theme]);
   return <div className="backtest-chart" ref={host} />;
 }

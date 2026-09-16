@@ -51,6 +51,40 @@ def test_alpha158_defaults_to_data_since_2014():
     assert config.min_history_coverage == pytest.approx(0.8)
 
 
+def test_historical_names_remain_chronological_after_deduplication(tmp_path):
+    _write_reference_data(tmp_path, ["20230103"], ["000990.SZ"])
+    pl.DataFrame(
+        {
+            "ts_code": ["000990.SZ"] * 3,
+            "name": ["诚志股份", "G诚志", "诚志股份"],
+            "start_date": ["20000706", "20060123", "20061009"],
+            "ann_date": ["20000706", "20060119", "20060928"],
+        },
+    ).write_parquet(tmp_path / "tushare" / "namechange.parquet")
+
+    task = Alpha158Task({}, workspace_path=tmp_path)
+    task.context.update(
+        trade_cal_file=tmp_path / "tushare" / "trade_cal.parquet",
+        stock_basic_file=tmp_path / "tushare" / "stock_basic.parquet",
+        namechange_file=tmp_path / "tushare" / "namechange.parquet",
+    )
+    _, _, names = task.load_reference_data()
+
+    assert names["_known_date"].to_list() == ["20000706", "20060123", "20061009"]
+    matched = pl.DataFrame(
+        {"ts_code": ["000990.SZ", "000990.SZ"], "trade_date": ["20060401", "20230103"]},
+    ).join_asof(
+        names,
+        by="ts_code",
+        left_on="trade_date",
+        right_on="_known_date",
+        strategy="backward",
+        allow_exact_matches=False,
+        check_sortedness=False,
+    )
+    assert matched["name"].to_list() == ["G诚志", "诚志股份"]
+
+
 def test_alpha158_csz_winsorizes_configured_cross_section_tails(tmp_path):
     task = Alpha158Task({"csz_winsorize_tail": 0.25}, workspace_path=tmp_path)
     frame = pl.DataFrame(

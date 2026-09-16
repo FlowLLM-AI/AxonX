@@ -280,6 +280,7 @@ class Alpha158Task(BaseTask):
             .with_columns(pl.max_horizontal("start_date", "ann_date").alias("_known_date"))
             .sort("ts_code", "_known_date", "start_date")
             .unique(("ts_code", "_known_date"), keep="last")
+            .sort("ts_code", "_known_date")
         )
         if calendar.is_empty() or stocks.is_empty():
             raise ValueError("trade_cal 或 stock_basic 为空")
