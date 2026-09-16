@@ -1,4 +1,4 @@
-"""Shared filesystem I/O primitives."""
+"""Shared filesystem primitives."""
 
 from .atomic import atomic_write, atomic_write_json, atomic_write_text
 from .checksum import directory_sha256, file_sha256

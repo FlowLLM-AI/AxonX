@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ...io import atomic_write as atomic_output
-from ...io import atomic_write_text as atomic_text
-from ...io import file_sha256
+from ...utils.fs import atomic_write as atomic_output
+from ...utils.fs import atomic_write_text as atomic_text
+from ...utils.fs import file_sha256
 
 __all__ = [
     "artifact_path",

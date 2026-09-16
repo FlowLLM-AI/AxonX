@@ -16,7 +16,7 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
-from ..io import directory_sha256, file_sha256
+from ..utils.fs import directory_sha256, file_sha256
 from ..schema import JobConfig
 from .manifest import parse_plugin_manifest
 

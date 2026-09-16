@@ -15,7 +15,7 @@ from ...plugin.artifact import (
     install_artifact,
     source_sha256,
 )
-from ...io import atomic_write_json
+from ...utils.fs import atomic_write_json
 from ...schema import JobConfig
 from ...enums import component_type_name
 from ...utils.imports import load_symbol

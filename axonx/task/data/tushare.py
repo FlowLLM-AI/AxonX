@@ -14,7 +14,7 @@ from pydantic import field_validator
 
 from ...components.registry import R
 from ...enums import TaskType
-from ...io import atomic_write
+from ...utils.fs import atomic_write
 from ...connectors.tushare import TushareClient
 from ..base import BaseConfig, BaseTask, TaskStep
 
