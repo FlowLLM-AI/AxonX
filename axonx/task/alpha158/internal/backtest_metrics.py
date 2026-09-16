@@ -11,6 +11,7 @@ HOLDING_DETAIL_TOP_N = 30
 
 
 def correlation(method: str, name: str) -> pl.Expr:
+    """Build a daily prediction and realized-return correlation expression."""
     return pl.corr("pred", "actual_return", method=method).fill_nan(0).fill_null(0).alias(name)
 
 
@@ -36,6 +37,7 @@ def index_benchmarks(
     index_columns: tuple[str, ...],
     minimum_coverage: float,
 ) -> pl.DataFrame | None:
+    """Calculate index-weighted benchmark returns and coverage by date."""
     expressions: list[pl.Expr] = []
     for column in index_columns:
         key = column.removeprefix("index_weight_")
@@ -53,13 +55,20 @@ def index_benchmarks(
 
 
 def portfolio_daily(candidates: pl.DataFrame, top_n: int, cost_rate: float) -> pl.DataFrame:
+    """Calculate daily return, turnover, and ranking metrics for a top-N portfolio."""
     prefix = f"top{top_n}"
     selected = candidates.filter(pl.col("rank") <= top_n).with_columns(
         (1 / pl.len().over("trade_date")).alias("weight"),
     )
     dates = selected.select("trade_date").unique().sort("trade_date").with_row_index("_day")
     weights = selected.join(dates, on="trade_date").select(
-        "_day", "trade_date", "ts_code", "weight", "actual_return", "rank", "relevance",
+        "_day",
+        "trade_date",
+        "ts_code",
+        "weight",
+        "actual_return",
+        "rank",
+        "relevance",
     )
     previous = weights.select(
         (pl.col("_day") + 1).alias("_day"),
@@ -92,7 +101,10 @@ def portfolio_daily(candidates: pl.DataFrame, top_n: int, cost_rate: float) -> p
             .then(0.0)
             .otherwise(1 - pl.col("_overlap").fill_null(0))
             .alias(f"{prefix}_turnover"),
-            pl.when(pl.col("_idcg") > 0).then(pl.col("_dcg") / pl.col("_idcg")).otherwise(0.0).alias(
+            pl.when(pl.col("_idcg") > 0)
+            .then(pl.col("_dcg") / pl.col("_idcg"))
+            .otherwise(0.0)
+            .alias(
                 f"{prefix}_ndcg",
             ),
         )
@@ -109,6 +121,7 @@ def portfolio_daily(candidates: pl.DataFrame, top_n: int, cost_rate: float) -> p
 
 
 def holding_details(candidates: pl.DataFrame) -> pl.DataFrame:
+    """Summarize selected holdings for each trading date."""
     selected = (
         candidates.filter(pl.col("rank") <= HOLDING_DETAIL_TOP_N)
         .with_columns(
@@ -146,6 +159,7 @@ def summarize(
     annual_risk_free_rate: float,
     annualization_days: int,
 ) -> pl.DataFrame:
+    """Combine overall, yearly, quarterly, and monthly backtest summaries."""
     frames = [
         _summarize_period(daily, period_type, benchmark_keys, annual_risk_free_rate, annualization_days)
         for period_type in ("overall", "year", "quarter", "month")
@@ -220,3 +234,27 @@ def _summarize_period(
         .with_columns(pl.lit(period_type).alias("period_type"))
         .select("period_type", "period", pl.exclude("period_type", "period"))
     )
+
+
+def validate_prediction_frame(frame: pl.DataFrame, index_columns: tuple[str, ...]) -> None:
+    """Validate dates, returns, and benchmark weights before backtesting."""
+    if frame.is_empty():
+        raise ValueError("预测文件为空")
+    if frame.select("trade_date", "ts_code").n_unique() != frame.height:
+        raise ValueError("预测文件包含重复的 trade_date, ts_code")
+    invalid_number = pl.any_horizontal(
+        pl.col("pred", "actual_return").is_not_null() & ~pl.col("pred", "actual_return").is_finite(),
+    )
+    invalid_label = pl.col("label_valid") & (pl.col("actual_return").is_null() | (pl.col("actual_return") <= -1))
+    if frame.filter(pl.col("trade_date").str.to_date("%Y%m%d", strict=False).is_null()).height:
+        raise ValueError("trade_date 必须是有效 YYYYMMDD")
+    if frame.filter(invalid_number).height:
+        raise ValueError("pred 或 actual_return 包含非有限值")
+    if frame.filter(invalid_label).height:
+        raise ValueError("有效 actual_return 必须非空且大于 -1")
+    for column in index_columns:
+        weight = pl.col(column)
+        if frame.filter(weight.is_not_null() & (~weight.is_finite() | (weight < 0))).height:
+            raise ValueError(f"{column} 必须是非负有限小数权重")
+        if frame.group_by("trade_date").agg(weight.sum()).filter(weight > 1.05).height:
+            raise ValueError(f"{column} 每日合计不能明显超过 1")

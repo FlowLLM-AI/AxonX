@@ -13,7 +13,7 @@ from pydantic import field_validator, model_validator
 from ...components.registry import R
 from ...enums import TaskType
 from ..base import BaseConfig, BaseTask, TaskStep
-from ._artifacts import (
+from .internal.artifacts import (
     artifact_path,
     artifact_record,
     atomic_output,
@@ -24,6 +24,7 @@ from ._artifacts import (
     task_directory,
     write_metadata,
 )
+from .internal.modeling import feature_matrix
 
 
 class LgbmPredictionConfig(BaseConfig):
@@ -179,15 +180,7 @@ class LgbmPredictionTask(BaseTask):
 
     def predict_full_cross_section(self) -> None:
         frame: pl.DataFrame = self.context["frame"]
-        matrix = frame.select(
-            *(
-                pl.when(pl.col(column).cast(pl.Float64, strict=False).is_finite())
-                .then(pl.col(column).cast(pl.Float64, strict=False))
-                .otherwise(None)
-                .alias(column)
-                for column in self.context["features"]
-            ),
-        ).to_numpy()
+        matrix = feature_matrix(frame, self.context["features"])
         self.report_progress(30)
         best_iteration = self.context["training_metadata"]["model"]["best_iteration"]
         prediction = np.asarray(

@@ -1,6 +1,6 @@
 # AxonX 后端重构方案
 
-> 状态：实施中（阶段 0 至阶段 5 已完成）
+> 状态：实施中（阶段 0 至阶段 6 已完成）
 > 范围：`axonx/` 及与后端强相关的内置插件、测试和配置
 > 原则：保持外部行为兼容，采用小步迁移，不进行一次性重写
 
@@ -445,24 +445,14 @@ axonx/tasks/alpha158/
 └── config.py
 ```
 
-### Typed State
+### Task Context 与计算边界
 
-每条管线使用明确状态对象代替任意字典。例如：
+保留 `BaseTask` 的设计：步骤按声明顺序运行，通过 `self.context` 自由传递中间结果，
+`output_keys` 从 context 发布结果。不使用覆盖整条管线的 Typed State 替换 context。
 
-```python
-@dataclass
-class TrainingState:
-    source: DatasetArtifact | None = None
-    frame: pl.DataFrame | None = None
-    feature_names: tuple[str, ...] = ()
-    tuning_train: pl.DataFrame | None = None
-    validation: pl.DataFrame | None = None
-    model: object | None = None
-    metrics: dict[str, float] = field(default_factory=dict)
-    output: TrainingArtifacts | None = None
-```
-
-每个步骤应通过参数和返回值表达依赖；只有需要统一进度汇报的管线步骤才接收 state。
+步骤负责从 context 读取输入、调用计算或 I/O 函数、上报进度和写回结果。
+提取的函数通过参数和返回值表达依赖，不直接访问 Task 的 context、logger 或进度状态。
+只在局部数据确有多个相关字段时引入有类型的返回对象，避免为简单传值增加包装。
 
 ### ETL 拆分
 
@@ -728,18 +718,37 @@ Alpha158 和 Tushare 保持 `axonx` 原生能力，不迁移为插件。项目�
 
 步骤：
 
-- [ ] 为 ETL、训练、预测、分析、回测建立 Typed State。
-- [ ] 提取公共 Artifact Reader/Writer。
-- [ ] 将 ETL 数据加载与校验拆开。
-- [ ] 将特征、标签、市场状态计算改为纯函数模块。
-- [ ] 将训练数据准备、调参、最终训练、评估和输出拆开。
-- [ ] 将预测输入解析、模型加载、推理和发布拆开。
-- [ ] 将因子指标和分组收益计算拆开。
-- [ ] 将回测持仓、换手、基准和统计计算拆开。
-- [ ] 对固定样本比较重构前后的数值结果。
-- [ ] 保持 metadata schema 和文件名不变。
+- [x] 明确保留 `self.context` 作为 Task 步骤间的共享状态；提取函数使用显式参数和返回值。
+- [x] 将公共 Artifact 读取、路径校验和写入能力集中在 `internal/artifacts.py`。
+- [x] 将 ETL 行情与复权因子加载、补全和校验拆开，保留原 Polars 执行链。
+- [x] 将 ETL 交易日对齐、股票生命周期推断和复权交易面板组装拆开。
+- [x] 将 ETL 特征、标签、市场状态和指数权重计算移入 `internal/`，保留 Task 步骤入口。
+- [x] 保留训练数据准备、调参、最终训练、评估和输出的独立步骤，统一训练与预测的特征矩阵转换。
+- [x] 保留预测输入解析、模型加载、推理和发布的独立步骤。
+- [x] 将因子指标和分组收益计算移入 `internal/analysis.py`。
+- [x] 将回测持仓、换手、基准、统计和输入校验集中在 `internal/backtest_metrics.py`。
+- [x] 使用固定样本回归测试校验 ETL、训练、预测、分析和回测数值结果。
+- [x] 保持 metadata schema 和文件名不变。
 
 完成标准：Task 类主要描述步骤和进度，不再直接包含大量数据计算和文件协议逻辑。
+
+实施记录（2026-09-17）：第一批仅提取 ETL 输入处理。`load_and_validate_market_data` 继续作为原步骤入口，
+保留 context 键、进度点、异常和日志；Parquet 扫描、join、collect、排序和校验次数不变。
+新增重复行情键与非法输入回归测试；完整测试 205 passed，修改的 Python 文件通过 pre-commit 检查。
+
+第二批提取交易面板计算，`build_trading_panel` 仍负责 context、日志和进度。
+日历校验、生命周期推断及复权列计算移入独立函数；DataFrame 操作和执行顺序保持不变。
+新增非开市日期回归测试；完整测试 207 passed，修改的 Python 文件通过 pre-commit 检查。
+
+整体整理后，`alpha158/` 外层只保留 `alpha158_etl.py`、`train.py`、`predict.py`、
+`factor_analysis.py`、`backtest.py` 及包入口；每个 Task 文件均包含自己的 `BaseConfig` 和 `BaseTask` 子类。
+不继承 Task 的实现统一放在 `internal/`：`etl_pipeline.py`、`features.py`、`modeling.py`、
+`analysis.py`、`backtest_metrics.py` 和 `artifacts.py`。原先分散的 `_xxx.py` 文件已合并或移动，
+`internal/` 只依赖公共代码与纯业务常量，不反向导入 Task 模块。
+
+阶段状态：已完成（2026-09-17）。完整测试 209 passed；`internal/` 的 Python 文件通过 pre-commit 检查。
+本阶段保持原 Polars 表达式、扫描和 collect 次数，以及 LightGBM 训练参数与调用顺序；
+独立性能基准留在阶段 8 执行。
 
 ## 阶段 7：原生业务边界与注册治理
 

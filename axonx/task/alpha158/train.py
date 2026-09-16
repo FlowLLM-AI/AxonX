@@ -14,7 +14,7 @@ from pydantic import Field, field_validator, model_validator
 from ...components.registry import R
 from ...enums import TaskType
 from ..base import BaseConfig, BaseTask, TaskStep
-from ._artifacts import (
+from .internal.artifacts import (
     artifact_path,
     artifact_record,
     atomic_output,
@@ -24,7 +24,8 @@ from ._artifacts import (
     task_directory,
     write_metadata,
 )
-from .alpha158_etl import CSZ_LABELS, LABELS, RANK_LABELS
+from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
+from .internal.modeling import feature_matrix
 
 MODEL_LABELS = (*LABELS, *CSZ_LABELS, *RANK_LABELS)
 
@@ -219,17 +220,8 @@ class LgbmTrainingTask(BaseTask):
         )
 
     def _matrix(self, frame: pl.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-        feature_frame = frame.select(
-            *(
-                pl.when(pl.col(column).cast(pl.Float64, strict=False).is_finite())
-                .then(pl.col(column).cast(pl.Float64, strict=False))
-                .otherwise(None)
-                .alias(column)
-                for column in self.context["features"]
-            ),
-        )
         return (
-            feature_frame.to_numpy(),
+            feature_matrix(frame, self.context["features"]),
             frame[self.config.label_column].cast(pl.Float64).to_numpy(),
         )
 

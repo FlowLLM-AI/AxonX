@@ -12,7 +12,8 @@ from axonx.task.alpha158 import (
     LgbmTrainingConfig,
     LgbmTrainingTask,
 )
-from axonx.task.alpha158._artifacts import artifact_path
+from axonx.task.alpha158.internal.artifacts import artifact_path
+from axonx.task.alpha158.internal.modeling import feature_matrix
 
 
 def _etl_fixture(workspace: Path) -> str:
@@ -72,6 +73,18 @@ def test_training_defaults():
     assert config.train_end == "20230101"
     assert config.label_column == "label_1d_rank"
     assert config.trim_tail == pytest.approx(0.025)
+
+
+def test_feature_matrix_preserves_feature_order_and_missing_values():
+    """Training and prediction must apply the same finite-value conversion."""
+    frame = pl.DataFrame({"first": [1.0, float("inf"), None], "second": [2.0, 3.0, 4.0]})
+
+    matrix = feature_matrix(frame, ("second", "first"))
+
+    assert matrix.shape == (3, 2)
+    assert matrix[:, 0].tolist() == [2.0, 3.0, 4.0]
+    assert matrix[0, 1] == pytest.approx(1.0)
+    assert np.isnan(matrix[1:, 1]).all()
 
 
 @pytest.mark.parametrize("artifact", ["../outside.parquet", "/tmp/outside.parquet"])
@@ -153,8 +166,12 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     assert "000000.SZ" not in daily["top30_holdings"].explode(empty_as_null=True).struct.field("ts_code").to_list()
     assert daily["top1_turnover"][0] == 0
     assert daily.select(pl.col("top30_ndcg").is_between(0, 1).all()).item()
-    expected_universe = predictions.filter(pl.col("label_valid")).group_by("trade_date").agg(
-        pl.col("actual_return").mean().alias("expected"),
+    expected_universe = (
+        predictions.filter(pl.col("label_valid"))
+        .group_by("trade_date")
+        .agg(
+            pl.col("actual_return").mean().alias("expected"),
+        )
     )
     benchmark = daily.join(expected_universe, on="trade_date")
     assert benchmark.select(
