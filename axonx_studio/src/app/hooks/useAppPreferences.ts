@@ -3,7 +3,7 @@ import type { Language, ThemePreference } from "../../types";
 
 export function useAppPreferences() {
   const [language, setLanguage] = useState<Language>(() =>
-    localStorage.getItem("axonx-language") === "en" ? "en" : "zh",
+    localStorage.getItem("axonx-language") === "zh" ? "zh" : "en",
   );
   const [theme, setTheme] = useState<ThemePreference>(() => {
     const saved = localStorage.getItem("axonx-theme");
