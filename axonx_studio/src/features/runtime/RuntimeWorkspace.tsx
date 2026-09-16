@@ -67,18 +67,6 @@ export function RuntimeWorkspace({
         </header>
         <nav>
           <button
-            className={view === "resources" ? "active" : ""}
-            onClick={() => onNavigate("resources")}
-          >
-            <Cpu />
-            <span>
-              <strong>{zh ? "机器资源" : "Machine resources"}</strong>
-              <small>
-                {zh ? "当前机器的实时资源" : "Live resources for this machine"}
-              </small>
-            </span>
-          </button>
-          <button
             className={view === "tasks" ? "active" : ""}
             onClick={() => onNavigate("tasks")}
           >
@@ -87,6 +75,18 @@ export function RuntimeWorkspace({
               <strong>{zh ? "Task 管理" : "Task management"}</strong>
               <small>
                 {zh ? "运行实例、日志与状态" : "Runs, logs and status"}
+              </small>
+            </span>
+          </button>
+          <button
+            className={view === "resources" ? "active" : ""}
+            onClick={() => onNavigate("resources")}
+          >
+            <Cpu />
+            <span>
+              <strong>{zh ? "机器资源" : "Machine resources"}</strong>
+              <small>
+                {zh ? "当前机器的实时资源" : "Live resources for this machine"}
               </small>
             </span>
           </button>

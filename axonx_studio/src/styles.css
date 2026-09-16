@@ -444,32 +444,34 @@
 }
 .task-identity > div {
   min-width: 0;
+  flex: 1;
 }
 .task-identity > div strong,
 .task-identity > div small {
   display: block;
 }
 .task-id-line {
-  position: relative;
   display: flex;
   align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 .task-identity strong {
-  max-width: 190px;
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   color: var(--ink);
   font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .task-id-line button {
-  position: absolute;
-  right: 0;
   width: 25px;
   height: 25px;
   display: grid;
   place-items: center;
+  flex: none;
   border: 0;
   border-radius: 6px;
   color: var(--faint);
@@ -772,9 +774,6 @@
 .table-wrap .task-id-column {
   width: 265px;
   max-width: 265px;
-}
-.table-wrap .task-identity strong {
-  max-width: 210px;
 }
 
 .drawer-backdrop,
@@ -8194,7 +8193,6 @@
   width: 60px;
 }
 .runtime-workspace .table-wrap .task-identity strong {
-  max-width: 260px;
   font-size: 12px;
 }
 .runtime-workspace .workspace-canvas {
