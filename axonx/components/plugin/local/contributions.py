@@ -1,6 +1,6 @@
 """Validate and index plugin contributions across persisted records."""
 
-from ..schema import JobConfig
+from ....schema import JobConfig
 
 
 def index_records(

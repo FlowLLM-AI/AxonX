@@ -5,16 +5,16 @@ from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
 
-from ...enums import component_type_name
-from ...plugin.artifact import PluginArtifact, install_artifact
-from ...plugin.contributions import index_records
-from ...plugin.repository import PluginRepository
-from ...plugin.service import PluginService
-from ...schema import JobConfig
-from ...utils.imports import load_symbol
-from ..base import BaseComponent
-from ..registry import R
-from .base import BasePluginComponent
+from ....enums import component_type_name
+from ....plugin.artifact import PluginArtifact, install_artifact
+from ....schema import JobConfig
+from ....utils.imports import load_symbol
+from ...base import BaseComponent
+from ...registry import R
+from ..base import BasePluginComponent
+from .contributions import index_records
+from .repository import PluginRepository
+from .service import PluginService
 
 
 @R.register("local")

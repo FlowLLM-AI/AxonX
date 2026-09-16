@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from axonx.plugin.contributions import index_records
+from axonx.components.plugin.local.contributions import index_records
+from axonx.components.plugin.local.repository import PluginRepository
+from axonx.components.plugin.local.service import PluginService
 from axonx.plugin.cli import plugin_job_argv
 from axonx.plugin.models import PluginArtifact
-from axonx.plugin.repository import PluginRepository
-from axonx.plugin.service import PluginService
 
 
 def artifact(path: Path, *, tasks: dict[str, str] | None = None) -> PluginArtifact:
@@ -32,7 +32,7 @@ def test_uploaded_wheel_rejects_digest_without_install_or_state(monkeypatch, tmp
     repository = PluginRepository(tmp_path)
     installed = []
     service = PluginService(repository, installed.append)
-    monkeypatch.setattr("axonx.plugin.service.inspect_wheel", artifact)
+    monkeypatch.setattr("axonx.components.plugin.local.service.inspect_wheel", artifact)
 
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         service.install_uploaded_wheel(b"wheel", "demo.whl", "wrong")
@@ -51,7 +51,7 @@ def test_install_failure_keeps_previous_state(monkeypatch, tmp_path):
         raise RuntimeError("pip failed")
 
     service = PluginService(repository, fail)
-    monkeypatch.setattr("axonx.plugin.service.inspect_wheel", artifact)
+    monkeypatch.setattr("axonx.components.plugin.local.service.inspect_wheel", artifact)
 
     with pytest.raises(RuntimeError, match="pip failed"):
         service.install_uploaded_wheel(b"wheel", "demo.whl", "digest")
@@ -64,7 +64,7 @@ def test_repeated_upload_skips_installer(monkeypatch, tmp_path):
     repository = PluginRepository(tmp_path)
     installed = []
     service = PluginService(repository, installed.append)
-    monkeypatch.setattr("axonx.plugin.service.inspect_wheel", artifact)
+    monkeypatch.setattr("axonx.components.plugin.local.service.inspect_wheel", artifact)
 
     service.install_uploaded_wheel(b"wheel", "demo.whl", "digest")
     before = repository.path.read_bytes()
@@ -80,7 +80,7 @@ def test_conflicting_task_contributions_rejected_before_install(monkeypatch, tmp
     installed = []
     service = PluginService(repository, installed.append)
     monkeypatch.setattr(
-        "axonx.plugin.service.inspect_wheel",
+        "axonx.components.plugin.local.service.inspect_wheel",
         lambda path: artifact(path, tasks={"shared": "demo:Task"}),
     )
 
@@ -146,7 +146,7 @@ def test_status_and_inspect_managed_plugin(monkeypatch, tmp_path):
     repository = PluginRepository(tmp_path)
     repository.record("remote:demo", artifact(wheel))
     service = PluginService(repository, lambda _artifact: None)
-    monkeypatch.setattr("axonx.plugin.service.inspect_wheel", artifact)
+    monkeypatch.setattr("axonx.components.plugin.local.service.inspect_wheel", artifact)
 
     assert service.status("demo")["version"] == "0.1"
     assert service.inspect("demo")["requirements"] == ()
@@ -164,7 +164,7 @@ def test_inspect_rejects_changed_managed_wheel(monkeypatch, tmp_path):
     def inspect(path):
         return replace(artifact(path), sha256="changed")
 
-    monkeypatch.setattr("axonx.plugin.service.inspect_wheel", inspect)
+    monkeypatch.setattr("axonx.components.plugin.local.service.inspect_wheel", inspect)
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         service.inspect("demo")
 
@@ -179,7 +179,7 @@ async def test_plugin_query_jobs_use_service_state(monkeypatch, tmp_path):
     plugin_dir = tmp_path / "plugins"
     plugin_dir.mkdir()
     PluginRepository(plugin_dir).record("remote:demo", artifact(wheel))
-    monkeypatch.setattr("axonx.plugin.service.inspect_wheel", artifact)
+    monkeypatch.setattr("axonx.components.plugin.local.service.inspect_wheel", artifact)
     configured = resolve_app_config(log_config=False)["jobs"]
     jobs = {name: configured[name] for name in ("list_plugins", "status_plugins", "inspect_plugins")}
     app = Application(

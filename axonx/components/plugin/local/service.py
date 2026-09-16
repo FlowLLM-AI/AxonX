@@ -5,10 +5,10 @@ from tempfile import NamedTemporaryFile
 from threading import RLock
 from typing import Callable
 
-from .builder import build_wheel, source_sha256
+from ....plugin.builder import build_wheel, source_sha256
+from ....plugin.inspector import inspect_wheel
+from ....plugin.models import PluginArtifact
 from .contributions import index_records
-from .inspector import inspect_wheel
-from .models import PluginArtifact
 from .repository import PluginRepository
 
 

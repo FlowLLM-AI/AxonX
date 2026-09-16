@@ -4,8 +4,8 @@ from copy import deepcopy
 import json
 from pathlib import Path
 
-from ..utils.fs import atomic_write_json
-from .models import PluginArtifact
+from ....plugin.models import PluginArtifact
+from ....utils.fs import atomic_write_json
 
 
 class PluginRepository:
