@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING, cast
 from fastapi import APIRouter, HTTPException
 from starlette.requests import Request
 
-from ...utils import format_log_arguments
+from ....utils import format_log_arguments
 
 if TYPE_CHECKING:
-    from ...components.plugin.base import BasePluginComponent
+    from ...plugin.base import BasePluginComponent
 
 
 def create_plugins_router(app, logger) -> APIRouter:

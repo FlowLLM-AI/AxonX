@@ -2,15 +2,15 @@
 
 from typing import TYPE_CHECKING, Any
 
-from ...constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
-from ..registry import R
-from .base import BaseService
+from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
+from ...registry import R
+from ..base import BaseService
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
     from fastmcp import FastMCP
 
-    from ...core import Application
+    from ....core import Application
 
 
 @R.register("http")
@@ -37,13 +37,13 @@ class HttpService(BaseService):
 
     def build_service(self, app: "Application") -> "FastAPI":
         """Build the ASGI application without starting a server."""
-        from ...transport.http import create_http_app
+        from .app import create_http_app
 
         return create_http_app(app, self)
 
     def _resolve_web_static_dir(self):
         """Retain the service's static directory lookup entry point."""
-        from ...transport.http.static import resolve_web_static_dir
+        from .static import resolve_web_static_dir
 
         return resolve_web_static_dir(self.web_static_dir)
 

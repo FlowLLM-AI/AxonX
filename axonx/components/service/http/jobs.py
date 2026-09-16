@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 
-from ...schema import JobInfo, Response
+from ....schema import JobInfo, Response
 
 
 def create_jobs_router(app, public_jobs) -> APIRouter:

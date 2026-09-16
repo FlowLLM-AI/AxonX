@@ -114,7 +114,15 @@ axonx/
 │   ├── base.py
 │   ├── dependency.py
 │   ├── graph.py
-│   └── registry.py
+│   ├── registry.py
+│   └── service/
+│       └── http/
+│           ├── __init__.py      # HttpService 兼容入口
+│           ├── app.py
+│           ├── jobs.py
+│           ├── plugins.py
+│           ├── mcp.py
+│           └── static.py
 ├── jobs/
 │   ├── base.py
 │   ├── simple.py
@@ -140,14 +148,7 @@ axonx/
 │   └── data/               # 原生数据接入任务
 │       └── tushare.py
 ├── transport/
-│   ├── client/
-│   └── http/
-│       ├── app.py
-│       ├── lifespan.py
-│       ├── jobs.py
-│       ├── plugins.py
-│       ├── mcp.py
-│       └── static.py
+│   └── client/
 ├── plugins/
 │   ├── artifacts.py
 │   ├── discovery.py

@@ -3,7 +3,7 @@
 from fastmcp import FastMCP
 from fastmcp.tools import FunctionTool
 
-from ...schema import Response
+from ....schema import Response
 
 
 def create_mcp_server(app, public_jobs) -> FastMCP:

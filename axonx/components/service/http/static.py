@@ -14,8 +14,8 @@ def resolve_web_static_dir(configured_dir: str | None) -> Path | None:
         candidates.append(Path(configured_dir).expanduser())
     candidates.extend(
         (
-            Path(__file__).resolve().parents[3] / "axonx_studio" / "dist",
-            Path(__file__).resolve().parents[2] / "static",
+            Path(__file__).resolve().parents[4] / "axonx_studio" / "dist",
+            Path(__file__).resolve().parents[3] / "static",
         ),
     )
     for candidate in candidates:
