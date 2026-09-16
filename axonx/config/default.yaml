@@ -130,6 +130,40 @@ jobs:
     steps:
       - backend: list_workspace_entries_step
 
+  list_task_graphs:
+    description: List ETL roots or search all Alpha158 task artifacts.
+    parameters:
+      type: object
+      properties:
+        q:
+          type: string
+          default: ""
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      additionalProperties: false
+    steps:
+      - backend: list_task_graphs_step
+
+  get_task_graph:
+    description: Return the full ETL graph containing a task artifact.
+    parameters:
+      type: object
+      properties:
+        task_id:
+          type: string
+      required:
+        - task_id
+      additionalProperties: false
+    steps:
+      - backend: get_task_graph_step
+
   preview_workspace_file:
     description: Preview one supported file inside the configured workspace.
     parameters:

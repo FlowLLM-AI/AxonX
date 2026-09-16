@@ -5,9 +5,12 @@ from .browser import (
     ListWorkspaceEntriesStep,
     PreviewWorkspaceFileStep,
 )
+from .task_graph import GetTaskGraphStep, ListTaskGraphsStep
 
 __all__ = [
     "DeleteWorkspaceEntryStep",
     "ListWorkspaceEntriesStep",
     "PreviewWorkspaceFileStep",
+    "GetTaskGraphStep",
+    "ListTaskGraphsStep",
 ]
