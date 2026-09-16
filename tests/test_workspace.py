@@ -1,5 +1,7 @@
 """Read-only workspace browsing and preview tests."""
 
+# pylint: disable=missing-function-docstring
+
 import json
 import os
 
@@ -22,6 +24,7 @@ async def _workspace_app(path):
                         "path": {"type": "string"},
                         "offset": {"type": "integer", "minimum": 0},
                         "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+                        "full": {"type": "boolean", "default": False},
                     },
                     "required": ["path"],
                     "additionalProperties": False,
@@ -91,6 +94,26 @@ async def test_workspace_lists_directories_first_and_previews_supported_files(tm
     ]
     assert parquet.answer["rows"] == [["000001.SZ", 11.74], ["000002.SZ", 3.06]]
     assert parquet.answer["preview_limit"] == 5
+    assert parquet.answer["full"] is False
+
+
+async def test_workspace_can_read_parquet_fully_on_request(tmp_path):
+    pq.write_table(
+        pa.table({"value": list(range(8))}),
+        tmp_path / "data.parquet",
+        row_group_size=3,
+    )
+    app = await _workspace_app(tmp_path)
+    try:
+        preview = await app.run_job("preview_workspace_file", path="data.parquet")
+        full = await app.run_job("preview_workspace_file", path="data.parquet", full=True)
+    finally:
+        await app.close()
+
+    assert preview.answer["rows"] == [[0], [1], [2], [3], [4]]
+    assert preview.answer["full"] is False
+    assert full.answer["rows"] == [[value] for value in range(8)]
+    assert full.answer["full"] is True
 
 
 async def test_workspace_markdown_frontmatter_json_and_csv(tmp_path):

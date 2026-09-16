@@ -146,6 +146,9 @@ jobs:
           minimum: 1
           maximum: 200
           default: 200
+        full:
+          type: boolean
+          default: false
       required:
         - path
       additionalProperties: false
