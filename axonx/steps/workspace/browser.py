@@ -4,12 +4,12 @@ import asyncio
 from pathlib import Path
 
 from ...components.registry import R
-from ...workspace.listing import list_entries as _list_entries
-from ...workspace.operations import (
+from .listing import list_entries as _list_entries
+from .operations import (
     delete_entries as _delete_entries,
     delete_entry as _delete_entry,
 )
-from ...workspace.preview import CSV_PREVIEW_ROWS, preview_file as _preview_file
+from .preview import CSV_PREVIEW_ROWS, preview_file as _preview_file
 from ..base import BaseStep
 
 

@@ -79,7 +79,7 @@
 ```text
 utils/fs/atomic.py        原子写入
 utils/fs/checksum.py      摘要计算
-workspace/paths.py  Workspace 路径安全
+steps/workspace/paths.py  Workspace 路径安全
 ```
 
 避免继续向 `utils.py` 或 `helpers.py` 堆积无关函数。
@@ -155,11 +155,13 @@ axonx/
 │   ├── installer.py
 │   ├── repository.py
 │   └── service.py
-├── workspace/
-│   ├── paths.py
-│   ├── listing.py
-│   ├── operations.py
-│   └── preview/
+├── steps/
+│   └── workspace/
+│       ├── browser.py       # Job Step 适配器
+│       ├── paths.py
+│       ├── listing.py
+│       ├── operations.py
+│       └── preview.py
 ├── utils/
 │   └── fs/
 │       ├── atomic.py
