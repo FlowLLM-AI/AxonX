@@ -2,15 +2,28 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
-import os
-import tempfile
-from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from ...io import atomic_write as atomic_output
+from ...io import atomic_write_text as atomic_text
+from ...io import file_sha256
+
+__all__ = [
+    "artifact_path",
+    "artifact_record",
+    "atomic_output",
+    "atomic_text",
+    "file_sha256",
+    "metadata_header",
+    "normalize_yyyymmdd",
+    "read_metadata",
+    "task_directory",
+    "write_metadata",
+]
 
 
 def task_directory(workspace: Path, task_type: str, task_id: str) -> Path:
@@ -21,6 +34,7 @@ def task_directory(workspace: Path, task_type: str, task_id: str) -> Path:
 
 
 def read_metadata(path: Path, *, description: str) -> dict[str, Any]:
+    """Read and validate an Artifact metadata JSON object."""
     if not path.is_file():
         raise FileNotFoundError(f"{description} metadata 不存在: {path}")
     value = json.loads(path.read_text(encoding="utf-8"))
@@ -30,6 +44,7 @@ def read_metadata(path: Path, *, description: str) -> dict[str, Any]:
 
 
 def artifact_path(task_dir: Path, metadata: dict[str, Any], name: str) -> Path:
+    """Resolve a declared Artifact path without allowing directory escape."""
     artifacts = metadata.get("artifacts")
     value = artifacts.get(name) if isinstance(artifacts, dict) else None
     if not isinstance(value, str) or not value:
@@ -57,15 +72,8 @@ def normalize_yyyymmdd(value: object, *, optional: bool = False) -> str | None:
     return normalized
 
 
-def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def artifact_record(path: Path, root: Path) -> dict[str, Any]:
+    """Describe an Artifact path, size and content digest."""
     try:
         name = str(path.relative_to(root))
     except ValueError:
@@ -74,6 +82,7 @@ def artifact_record(path: Path, root: Path) -> dict[str, Any]:
 
 
 def metadata_header(*, task_name: str, task_id: str, task_type: str) -> dict[str, Any]:
+    """Build the shared header for task Artifact metadata."""
     return {
         "schema_version": 1,
         "task_name": task_name,
@@ -83,24 +92,9 @@ def metadata_header(*, task_name: str, task_id: str, task_type: str) -> dict[str
     }
 
 
-def atomic_output(path: Path, writer: Callable[[Path], object]) -> None:
-    """Write one artifact through a temporary sibling and atomically replace it."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary = tempfile.mkstemp(dir=path.parent, suffix=".tmp", text=True)
-    os.close(descriptor)
-    temporary_path = Path(temporary)
-    try:
-        writer(temporary_path)
-        os.replace(temporary_path, path)
-    finally:
-        temporary_path.unlink(missing_ok=True)
-
-
-def atomic_text(path: Path, content: str) -> None:
-    atomic_output(path, lambda temporary: temporary.write_text(content, encoding="utf-8"))
-
-
 def write_metadata(path: Path, metadata: dict[str, Any]) -> None:
+    """Normalize and atomically persist task Artifact metadata."""
+
     def json_value(value: Any) -> Any:
         if isinstance(value, float) and not math.isfinite(value):
             return None

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import os
 from calendar import monthrange
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta
+import os
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +14,7 @@ from pydantic import field_validator
 
 from ...components.registry import R
 from ...enums import TaskType
+from ...io import atomic_write
 from ...connectors.tushare import TushareClient
 from ..base import BaseConfig, BaseTask, TaskStep
 
@@ -128,6 +129,7 @@ class DownloadTushareTask(BaseTask):
         yield self.sort_output_files
 
     def initialize(self) -> None:
+        """Validate the requested range and initialize download state."""
         end = min(self._parse_date(self.config.end_date) or date.today(), date.today())
         start = self._parse_date(self.config.start_date)
         if start is None and self.config.days_back <= 0:
@@ -177,6 +179,7 @@ class DownloadTushareTask(BaseTask):
         self._download_days("adj_factor")
 
     def download_hs300_weights(self) -> None:
+        """Download HS300 weights for every month in the configured range."""
         months = self.context["months"]
         self.logger.info(f"Downloading HS300 weights month_ranges={len(months)}")
         for completed, (start, end) in enumerate(months, start=1):
@@ -204,6 +207,7 @@ class DownloadTushareTask(BaseTask):
         self._save("adj_factor", self._query("adj_factor", trade_date=trade_date), day)
 
     def download_hs300_weight(self, start: date, end: date) -> None:
+        """Download one date range of HS300 constituent weights."""
         frame = self._query(
             "index_weight",
             index_code=HS300,
@@ -258,13 +262,15 @@ class DownloadTushareTask(BaseTask):
 
     def _write_frame(self, api_name: str, frame: pd.DataFrame, path: Path) -> None:
         """Atomically persist one normalized dataset and record its artifact metadata."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-        try:
-            frame.to_parquet(temporary, index=False, compression="zstd", compression_level=6)
-            temporary.replace(path)
-        finally:
-            temporary.unlink(missing_ok=True)
+        atomic_write(
+            path,
+            lambda temporary: frame.to_parquet(
+                temporary,
+                index=False,
+                compression="zstd",
+                compression_level=6,
+            ),
+        )
         self.context["files"].append(str(path))
         self.context["rows"][api_name] += len(frame)
         self.logger.info(f"Dataset saved dataset={api_name} rows={len(frame)} path={path}")
