@@ -24,6 +24,30 @@ jobs:
     steps:
       - backend: list_plugins_step
 
+  status_plugins:
+    description: Show the saved status of one managed plugin.
+    parameters:
+      type: object
+      properties:
+        plugin:
+          type: string
+          minLength: 1
+      required: [plugin]
+    steps:
+      - backend: status_plugins_step
+
+  inspect_plugins:
+    description: Inspect one managed plugin wheel on this service machine.
+    parameters:
+      type: object
+      properties:
+        plugin:
+          type: string
+          minLength: 1
+      required: [plugin]
+    steps:
+      - backend: inspect_plugins_step
+
   machine_status:
     description: Get local or remote AxonX machine status.
     steps:

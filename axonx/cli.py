@@ -96,6 +96,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run one AxonX command and return its process exit status."""
     args = list(sys.argv[1:] if argv is None else argv)
     try:
+        from .plugin.cli import plugin_job_argv
+
+        args = plugin_job_argv(args) or args
         command, client_options = parse_command(args)
         handler = _LOCAL_HANDLERS.get(command.action)
         if handler is not None:
