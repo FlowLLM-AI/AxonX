@@ -38,7 +38,7 @@ async def test_run_job_logs_name_and_bounded_arguments():
 async def test_plugin_endpoint_logs_name_and_upload_metadata():
     messages = []
     app = Application(log_to_console=False, log_to_file=False)
-    service = HttpService()
+    service = HttpService(web_enabled=False)
     service.logger = type("RecordingLogger", (), {"info": lambda _self, message: messages.append(message)})()
     server = service.build_service(app)
 
