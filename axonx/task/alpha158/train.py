@@ -236,7 +236,7 @@ class LgbmTrainingTask(BaseTask):
     def _parameters(self) -> dict[str, object]:
         return {
             "objective": "regression",
-            "metric": "l2",
+            "metric": ["l2", "l1"],
             "learning_rate": self.config.learning_rate,
             "num_leaves": self.config.num_leaves,
             "max_depth": self.config.max_depth,
@@ -287,15 +287,25 @@ class LgbmTrainingTask(BaseTask):
         valid_x, valid_y = self._matrix(self.context["validation"])
         self.report_progress(20)
         history: dict[str, dict[str, list[float]]] = {}
+        train_dataset = lgb.Dataset(
+            fit_x,
+            label=fit_y,
+            feature_name=list(self.context["features"]),
+        )
+        validation_dataset = lgb.Dataset(valid_x, label=valid_y, reference=train_dataset)
         model = lgb.train(
             self._parameters(),
-            lgb.Dataset(fit_x, label=fit_y, feature_name=list(self.context["features"])),
+            train_dataset,
             num_boost_round=self.config.num_boost_round,
-            valid_sets=[lgb.Dataset(valid_x, label=valid_y, reference=None)],
-            valid_names=["validation"],
+            valid_sets=[train_dataset, validation_dataset],
+            valid_names=["training", "validation"],
             callbacks=[
                 self._progress_callback(self.config.num_boost_round, "tuning", start=20),
-                lgb.early_stopping(self.config.early_stopping_rounds, verbose=False),
+                lgb.early_stopping(
+                    self.config.early_stopping_rounds,
+                    first_metric_only=True,
+                    verbose=False,
+                ),
                 lgb.record_evaluation(history),
             ],
         )
@@ -338,12 +348,15 @@ class LgbmTrainingTask(BaseTask):
             "ic_mean": self._finite_mean(diagnostic["ic"]),
             "rankic_mean": self._finite_mean(diagnostic["rank_ic"]),
         }
-        history = self.context["evaluation_history"]["validation"]
+        evaluation_history = self.context["evaluation_history"]
+        history_columns = {
+            f"{dataset}_{metric}": values
+            for dataset, metrics in evaluation_history.items()
+            for metric, values in metrics.items()
+        }
+        history_length = len(next(iter(history_columns.values())))
         self.context["history"] = pl.DataFrame(
-            {
-                "iteration": range(1, len(history["l2"]) + 1),
-                "validation_l2": history["l2"],
-            },
+            {"iteration": range(1, history_length + 1), **history_columns},
         )
         self.report_progress(95)
 
