@@ -33,6 +33,7 @@ export interface WorkspacePreview {
   row_count?: number;
   row_group_count?: number;
   preview_limit?: number;
+  full?: boolean;
   offset?: number;
   limit?: number;
   has_more?: boolean;

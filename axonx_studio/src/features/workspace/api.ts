@@ -16,11 +16,12 @@ export const previewWorkspaceFile = (
   offset = 0,
   limit = 200,
   remoteIp?: string,
+  full = false,
   signal?: AbortSignal,
 ) =>
   callJob<WorkspacePreview>(
     "preview_workspace_file",
-    { path, offset, limit, ...remoteBody(remoteIp) },
+    { path, offset, limit, full, ...remoteBody(remoteIp) },
     signal,
   );
 export const deleteWorkspaceEntries = (paths: string[], remoteIp?: string) =>

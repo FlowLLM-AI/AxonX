@@ -1877,22 +1877,39 @@
   box-shadow: 0 4px 15px rgba(20, 48, 38, 0.07);
 }
 .catalog-icon {
-  color: #30705f;
-  background: #dff2ec;
+  color: var(--task-tone, #30705f);
+  background: var(--task-tone-soft, #dff2ec);
+}
+.type-etl {
+  --task-tone: #30705f;
+  --task-tone-soft: #dff2ec;
 }
 .type-analysis {
-  color: #4260bb;
-  background: #e8edff;
+  --task-tone: #4260bb;
+  --task-tone-soft: #e8edff;
 }
 .type-ingestion {
-  color: #0d8378;
-  background: #def4ef;
+  --task-tone: #0d8378;
+  --task-tone-soft: #def4ef;
+}
+.type-training {
+  --task-tone: #7652a8;
+  --task-tone-soft: #f0e7ff;
+}
+.type-predict {
+  --task-tone: #147b8d;
+  --task-tone-soft: #dff3f7;
+}
+.type-inference {
+  --task-tone: #315bd6;
+  --task-tone-soft: #e7ecff;
 }
 .type-backtest {
-  color: #9b6821;
-  background: #fff0d8;
+  --task-tone: #9b6821;
+  --task-tone-soft: #fff0d8;
 }
-:root[data-theme="dark"] .catalog-icon {
+:root[data-theme="dark"] .catalog-icon,
+:root[data-theme="dark"] .large-task-icon {
   filter: saturate(0.8) brightness(0.75);
 }
 .catalog-empty {
@@ -1921,12 +1938,14 @@
   place-items: center;
   flex: none;
   border-radius: 15px;
+  color: var(--task-tone, var(--accent));
+  background: var(--task-tone-soft, var(--accent-soft));
 }
 .large-task-icon svg {
   width: 23px;
 }
 .type-label {
-  color: var(--accent);
+  color: var(--task-tone, var(--accent));
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;
   font-weight: 600;

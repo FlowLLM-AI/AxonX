@@ -273,8 +273,8 @@ export function SubmitPage({
           )}
           {selected && !submitted && (
             <form onSubmit={(event) => void submit(event)}>
-              <header className="task-form-header">
-                <div className={`large-task-icon type-${selected.task_type}`}>
+              <header className={`task-form-header type-${selected.task_type}`}>
+                <div className="large-task-icon">
                   <Sparkles />
                 </div>
                 <div>
