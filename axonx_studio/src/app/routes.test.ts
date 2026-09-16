@@ -39,14 +39,6 @@ describe("application routes", () => {
       view: "runs",
       resource: undefined,
     });
-    expect(
-      parseHash(
-        routeHash("local", {
-          section: "lineage",
-          view: "runs",
-          resource: "predict#123",
-        }),
-      ).route.resource,
-    ).toBe("predict#123");
+    expect(parseHash(routeHash("local", { section: "lineage", view: "runs", resource: "predict#123" })).route.resource).toBe("predict#123");
   });
 });
