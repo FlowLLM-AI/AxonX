@@ -7,7 +7,6 @@ import os
 import sys
 from typing import Sequence
 
-from .application import Application
 from .components.client import HttpClient
 from .components.service import HttpService
 from .config import resolve_app_config
@@ -19,6 +18,7 @@ from .constants import (
     CLI_USAGE,
 )
 from .schema import ApplicationConfig, ClientOptions, Command
+from .core import Application
 from .task.executor import TaskCatalog, TaskCommandExecutor
 from .utils import get_logger, load_env, print_logo
 from .utils.cli import (

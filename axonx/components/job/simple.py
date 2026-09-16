@@ -5,7 +5,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from copy import deepcopy
 from typing import Any
 
-from ...context import RuntimeContext
+from ...core.context import RuntimeContext
 from ...enums import ComponentEnum, JobMode
 from ...schema import ComponentConfig, Response
 from ...steps.base import BaseStep

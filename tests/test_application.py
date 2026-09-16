@@ -25,7 +25,7 @@ class _Logger:
 def test_application_configures_logging_from_final_config(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "axonx.application.get_logger",
+        "axonx.core.builder.get_logger",
         lambda **kwargs: calls.append(kwargs) or _Logger(),
     )
 
@@ -48,7 +48,7 @@ def test_application_logs_configured_components_and_jobs(monkeypatch):
         def info(self, message):
             messages.append(message)
 
-    monkeypatch.setattr("axonx.application.get_logger", lambda **_kwargs: RecordingLogger())
+    monkeypatch.setattr("axonx.core.builder.get_logger", lambda **_kwargs: RecordingLogger())
 
     Application(
         log_to_file=False,
