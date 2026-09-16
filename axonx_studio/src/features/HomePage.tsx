@@ -126,12 +126,12 @@ export function HomePage({
             <div className="hero-brand-actions">
               <button className="primary-button" onClick={() => onNavigate("submit")}>
                 <Send aria-hidden="true" />
-                {zh ? "提交 Task" : "Submit Task"}
+                {zh ? "提交任务" : "Submit Task"}
                 <ArrowRight aria-hidden="true" />
               </button>
               <button className="secondary-button" onClick={() => onNavigate("tasks")}>
                 <Activity aria-hidden="true" />
-                {zh ? "Task 管理" : "Manage Tasks"}
+                {zh ? "任务管理" : "Manage Tasks"}
               </button>
             </div>
             <div className="hero-brand-footer"><span>JOB</span><i /><span>TASK</span><i /><span>ARTIFACT</span></div>

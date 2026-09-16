@@ -101,7 +101,7 @@ const shared = {
     submit: "提交运行",
     submitting: "正在提交",
     submitted: "任务已交给 AxonX",
-    submittedHint: "工作进程启动后，运行状态会自动出现在 Task 管理页。",
+    submittedHint: "工作进程启动后，运行状态会自动出现在任务管理页。",
     viewTasks: "查看任务状态",
     catalogFailed: "无法读取已安装的 Task",
     noInstalled: "没有发现已安装的 Task",

@@ -346,7 +346,7 @@ export function AppShell(props: AppShellProps) {
 
 function runtimeViewLabel(view: string | undefined, language: Language) {
   if (view === "tasks")
-    return language === "zh" ? "Task 管理" : "Task management";
+    return language === "zh" ? "任务管理" : "Task management";
   return language === "zh" ? "机器资源" : "Machine resources";
 }
 
@@ -358,7 +358,7 @@ function runtimeOptions(language: Language): ContextOption[] {
     },
     {
       value: "tasks",
-      label: language === "zh" ? "Task 管理" : "Task management",
+      label: language === "zh" ? "任务管理" : "Task management",
     },
   ];
 }

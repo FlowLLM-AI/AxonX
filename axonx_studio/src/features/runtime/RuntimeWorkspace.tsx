@@ -72,7 +72,7 @@ export function RuntimeWorkspace({
           >
             <Activity />
             <span>
-              <strong>{zh ? "Task 管理" : "Task management"}</strong>
+              <strong>{zh ? "任务管理" : "Task management"}</strong>
               <small>
                 {zh ? "运行实例、日志与状态" : "Runs, logs and status"}
               </small>

@@ -25,7 +25,7 @@ export const navigationItems: NavigationItem[] = [
   { id: "home", icon: Home, zh: "首页", en: "Home" },
   { id: "runtime", icon: Activity, zh: "运行管理", en: "Runs" },
   { id: "apis", icon: Network, zh: "API接口", en: "API interfaces" },
-  { id: "task-defs", icon: FileCode2, zh: "提交Task", en: "Submit Task" },
+  { id: "task-defs", icon: FileCode2, zh: "提交任务", en: "Submit Task" },
   { id: "raw", icon: Database, zh: "Tushare数据", en: "Tushare data" },
   { id: "lineage", icon: GitBranch, zh: "任务关系图", en: "Task graph" },
   { id: "etl", icon: Workflow, zh: "ETL", en: "ETL" },
