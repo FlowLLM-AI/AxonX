@@ -3,6 +3,10 @@
 from pathlib import Path
 
 
+def workspace_root(workspace_dir: str) -> Path:
+    return Path(workspace_dir).expanduser().resolve()
+
+
 def resolve_workspace_path(root: Path, relative_path: str) -> Path:
     if not isinstance(relative_path, str):
         raise TypeError("Workspace path must be a string")

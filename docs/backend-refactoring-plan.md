@@ -157,11 +157,14 @@ axonx/
 │   └── service.py
 ├── steps/
 │   └── workspace/
-│       ├── browser.py       # Job Step 适配器
+│       ├── browse_steps.py  # 浏览与预览 Step
+│       ├── delete_steps.py  # 删除 Step
+│       ├── task_graph.py    # 任务关系图 Step
 │       ├── paths.py
 │       ├── listing.py
 │       ├── operations.py
-│       └── preview.py
+│       ├── preview.py
+│       └── lineage.py
 ├── utils/
 │   └── fs/
 │       ├── atomic.py

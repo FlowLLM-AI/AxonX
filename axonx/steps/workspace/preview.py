@@ -12,12 +12,24 @@ from typing import Any
 import pyarrow.parquet as pq
 import yaml
 
-from .listing import preview_kind as _preview_kind
 from .paths import resolve_workspace_path as _resolve_workspace_path
 
 TEXT_PREVIEW_BYTES = 512 * 1024
 CSV_PREVIEW_ROWS = 200
 PARQUET_PREVIEW_ROWS = 5
+
+
+def preview_kind(path: Path) -> str | None:
+    return {
+        ".txt": "text",
+        ".md": "markdown",
+        ".markdown": "markdown",
+        ".json": "json",
+        ".yaml": "yaml",
+        ".yml": "yaml",
+        ".csv": "csv",
+        ".parquet": "parquet",
+    }.get(path.suffix.lower())
 
 
 def _read_text(path: Path) -> tuple[str, bool, int]:
@@ -130,7 +142,7 @@ def preview_file(root: Path, relative_path: str, offset: int, limit: int, full: 
         raise ValueError("Workspace file does not exist")
     if not path.is_file():
         raise ValueError("Workspace path is not a file")
-    kind = _preview_kind(path)
+    kind = preview_kind(path)
     size = path.stat().st_size
     if kind is None:
         return {"kind": "unsupported", "size": size}

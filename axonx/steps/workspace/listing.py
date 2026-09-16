@@ -4,22 +4,9 @@ from pathlib import Path
 from typing import Any
 
 from .paths import resolve_workspace_path as _resolve_workspace_path
+from .preview import preview_kind
 
 MAX_DIRECTORY_ENTRIES = 5_000
-
-
-def preview_kind(path: Path) -> str | None:
-    suffix = path.suffix.lower()
-    return {
-        ".txt": "text",
-        ".md": "markdown",
-        ".markdown": "markdown",
-        ".json": "json",
-        ".yaml": "yaml",
-        ".yml": "yaml",
-        ".csv": "csv",
-        ".parquet": "parquet",
-    }.get(suffix)
 
 
 def list_entries(root: Path, relative_path: str) -> dict[str, Any]:
