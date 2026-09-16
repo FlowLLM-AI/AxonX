@@ -1,8 +1,9 @@
 """Public Job HTTP routes."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from ....schema import JobInfo, Response
+from .errors import InvalidArgumentsError, UnknownJobError
 
 
 def create_jobs_router(app, public_jobs) -> APIRouter:
@@ -20,10 +21,10 @@ def create_jobs_router(app, public_jobs) -> APIRouter:
     @router.post("/jobs/{name}", response_model=Response)
     async def run_job(name: str, arguments: dict):
         if name not in public_jobs:
-            raise HTTPException(404, "Unknown job")
+            raise UnknownJobError("Unknown job")
         try:
             return await app.run_job(name, **arguments)
         except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
+            raise InvalidArgumentsError(str(exc)) from exc
 
     return router

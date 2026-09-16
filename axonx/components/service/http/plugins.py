@@ -4,10 +4,17 @@ import asyncio
 import hmac
 from typing import TYPE_CHECKING, cast
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from starlette.requests import Request
 
 from ....utils import format_log_arguments
+from .errors import (
+    PluginArtifactError,
+    PluginAuthenticationError,
+    PluginDisabledError,
+    PluginSizeError,
+    PluginUnavailableError,
+)
 
 if TYPE_CHECKING:
     from ...plugin.base import BasePluginComponent
@@ -30,18 +37,18 @@ def create_plugins_router(app, logger) -> APIRouter:
         plugins = app.context.components.get("plugin", {})
         plugin = cast("BasePluginComponent | None", next(iter(plugins.values()), None))
         if plugin is None:
-            raise HTTPException(404, "Plugin component is not configured")
+            raise PluginUnavailableError("Plugin component is not configured")
         if not plugin.allow_remote_install:
-            raise HTTPException(403, "Remote plugin installation is disabled")
+            raise PluginDisabledError("Remote plugin installation is disabled")
         authorization = request.headers.get("authorization", "")
         if plugin.install_token and not hmac.compare_digest(
             authorization,
             f"Bearer {plugin.install_token}",
         ):
-            raise HTTPException(401, "Invalid plugin installation token")
+            raise PluginAuthenticationError("Invalid plugin installation token")
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > plugin.max_wheel_bytes:
-            raise HTTPException(413, "Wheel exceeds configured size limit")
+            raise PluginSizeError("Wheel exceeds configured size limit")
         data = await request.body()
         try:
             artifact = await asyncio.to_thread(
@@ -51,7 +58,7 @@ def create_plugins_router(app, logger) -> APIRouter:
                 request.headers.get("x-wheel-filename", ""),
             )
         except (RuntimeError, TypeError, ValueError) as exc:
-            raise HTTPException(422, str(exc)) from exc
+            raise PluginArtifactError(str(exc)) from exc
         return {
             "installed": True,
             "distribution": artifact.distribution,

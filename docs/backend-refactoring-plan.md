@@ -1,6 +1,6 @@
 # AxonX 后端重构方案
 
-> 状态：实施中（阶段 0 至阶段 3 已完成，阶段 4 进行中）
+> 状态：实施中（阶段 0 至阶段 4 已完成）
 > 范围：`axonx/` 及与后端强相关的内置插件、测试和配置
 > 原则：保持外部行为兼容，采用小步迁移，不进行一次性重写
 
@@ -689,14 +689,14 @@ Alpha158 和 Tushare 保持 `axonx` 原生能力，不迁移为插件。项目�
 - [x] 拆分 Plugin Router。
 - [x] 拆分 MCP 注册器。
 - [x] 拆分静态站点挂载。
-- [ ] 建立内部异常到 HTTP 状态码的统一映射。
-- [ ] 提取 Workspace 路径解析器。
-- [ ] 提取 Workspace 浏览、预览和删除服务。
-- [ ] 将现有 Workspace Step 改成薄适配器。
+- [x] 建立内部异常到 HTTP 状态码的统一映射。
+- [x] 提取 Workspace 路径解析器。
+- [x] 提取 Workspace 浏览、预览和删除服务。
+- [x] 将现有 Workspace Step 改成薄适配器。
 
 完成标准：HTTP 模块不直接处理插件状态文件、Workspace 文件格式或 TaskManager 内部状态。
 
-阶段状态：进行中（2026-09-16）。`HttpService.build_service()` 已委托给应用工厂，Job、插件上传、MCP 和静态站点装配已分离；独立检出的完整测试通过。下一批处理统一异常映射和 Workspace 路径、读写服务。
+阶段状态：已完成（2026-09-16）。`HttpService.build_service()` 已委托给应用工厂，Job、插件上传、MCP 和静态站点装配已分离；HTTP 预期错误统一映射；Workspace 路径、浏览、预览和删除已移入独立服务，Step 只负责适配。完整测试：190 passed。
 
 ## 阶段 5：插件系统
 

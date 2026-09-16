@@ -9,7 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastmcp.utilities.lifespan import combine_lifespans
 from starlette.routing import Route
 
-from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_CONNECT_HOST, AXONX_SERVICE_INFO
+from ....constants import (
+    AXONX_DEFAULT_BIND_HOST,
+    AXONX_DEFAULT_CONNECT_HOST,
+    AXONX_SERVICE_INFO,
+)
+from .errors import install_error_handler
 from .jobs import create_jobs_router
 from .mcp import create_mcp_server
 from .plugins import create_plugins_router
@@ -38,7 +43,11 @@ def create_http_app(app, service) -> FastAPI:
 
     service.mcp_server = create_mcp_server(app, public_jobs)
     mcp_app = service.mcp_server.http_app(path="/mcp", transport="streamable-http")
-    server = FastAPI(title=app.app_config.app_name, lifespan=combine_lifespans(lifespan, mcp_app.lifespan))
+    server = FastAPI(
+        title=app.app_config.app_name,
+        lifespan=combine_lifespans(lifespan, mcp_app.lifespan),
+    )
+    install_error_handler(server)
     server.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
