@@ -5,6 +5,7 @@
 import pytest
 
 from axonx import Application, BaseComponent
+from axonx.components.graph import ComponentGraph
 from axonx.components.registry import R
 
 
@@ -128,6 +129,59 @@ async def test_independent_components_keep_configuration_order():
     await app.start()
     assert events == ["z-last-alphabetically", "a-first-alphabetically"]
     await app.close()
+
+
+def test_component_graph_ignores_missing_optional_dependency():
+    class Provider(BaseComponent):
+        component_type = "test_provider"
+
+    class OptionalConsumer(BaseComponent):
+        component_type = "test_consumer"
+
+        def __init__(self):
+            super().__init__()
+            self.provider = self.bind("missing", Provider)
+
+    consumer = OptionalConsumer()
+
+    assert ComponentGraph({"test_consumer": {"default": consumer}}).startup_order() == (consumer,)
+
+
+async def test_lifecycle_rolls_back_started_components(tmp_path):
+    events = []
+
+    class Probe(BaseComponent):
+        component_type = "test_probe"
+
+        def __init__(self, fail=False, **kwargs):
+            super().__init__(**kwargs)
+            self.fail = fail
+
+        async def _start(self):
+            events.append(f"start:{self.name}")
+            if self.fail:
+                raise RuntimeError("startup failed")
+
+        async def _close(self):
+            events.append(f"close:{self.name}")
+
+    with R.preserve(allow_mutation=True):
+        R.register(Probe, "test")
+        app = Application(
+            workspace_dir=str(tmp_path),
+            components={
+                "test_probe": {
+                    "first": {"backend": "test"},
+                    "second": {"backend": "test", "fail": True},
+                },
+            },
+        )
+
+    with pytest.raises(RuntimeError, match="startup failed"):
+        await app.start()
+
+    assert events == ["start:first", "start:second", "close:second", "close:first"]
+    assert not any(component.is_started for component in app.context.components["test_probe"].values())
 
 
 async def test_dependency_failure_does_not_close_unstarted_parent():

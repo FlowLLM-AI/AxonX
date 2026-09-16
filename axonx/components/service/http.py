@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from fastmcp import FastMCP
 
-    from ...application import Application
+    from ...core import Application
     from ..job.base import BaseJob
     from ..plugin.base import BasePluginComponent
 

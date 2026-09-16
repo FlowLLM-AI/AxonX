@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .schema import ApplicationConfig, Response
+from ..schema import ApplicationConfig, Response
 
 if TYPE_CHECKING:
-    from .components.base import BaseComponent
-    from .components.job.base import BaseJob
-    from .components.registry import ComponentRegistry
+    from ..components.base import BaseComponent
+    from ..components.job.base import BaseJob
+    from ..components.registry import ComponentRegistry
 
 
 class ApplicationContext:
@@ -24,7 +24,7 @@ class ApplicationContext:
 
 
 class RuntimeContext(dict):
-    """Share invocation data and the response across one job's steps."""
+    """Share invocation data and the response across one Job invocation."""
 
     def __init__(self, **data: Any) -> None:
         super().__init__(data)
