@@ -1,4 +1,4 @@
-"""Tests for shared filesystem I/O primitives."""
+"""Tests for shared filesystem primitives."""
 
 # pylint: disable=missing-function-docstring,use-implicit-booleaness-not-comparison
 
@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from axonx.io import atomic_write, atomic_write_json, atomic_write_text, directory_sha256, file_sha256
+from axonx.utils.fs import atomic_write, atomic_write_json, atomic_write_text, directory_sha256, file_sha256
 
 
 def test_atomic_write_text_creates_parent_and_overwrites_with_unicode(tmp_path):

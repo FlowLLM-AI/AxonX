@@ -19,7 +19,7 @@ from ...constants import (
     AXONX_TASK_WORKSPACE_DIR,
 )
 from ...enums import TaskState
-from ...io import atomic_write_json
+from ...utils.fs import atomic_write_json
 from ...schema import TaskStatus
 from ...task.arguments import task_name_from_argv
 
