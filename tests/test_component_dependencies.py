@@ -7,7 +7,6 @@ import pytest
 from axonx import Application, BaseComponent
 from axonx.components.graph import ComponentGraph
 from axonx.components.registry import R
-from axonx.core import LifecycleManager
 
 
 def component_classes(events):
@@ -154,8 +153,8 @@ async def test_lifecycle_rolls_back_started_components(tmp_path):
     class Probe(BaseComponent):
         component_type = "test_probe"
 
-        def __init__(self, name, *, fail=False):
-            super().__init__(name=name)
+        def __init__(self, fail=False, **kwargs):
+            super().__init__(**kwargs)
             self.fail = fail
 
         async def _start(self):
@@ -166,20 +165,23 @@ async def test_lifecycle_rolls_back_started_components(tmp_path):
         async def _close(self):
             events.append(f"close:{self.name}")
 
-    first = Probe("first")
-    second = Probe("second", fail=True)
-    lifecycle = LifecycleManager(
-        ComponentGraph({"test_probe": {"first": first, "second": second}}),
-        {},
-        tmp_path,
-    )
+    with R.preserve(allow_mutation=True):
+        R.register(Probe, "test")
+        app = Application(
+            workspace_dir=str(tmp_path),
+            components={
+                "test_probe": {
+                    "first": {"backend": "test"},
+                    "second": {"backend": "test", "fail": True},
+                },
+            },
+        )
 
     with pytest.raises(RuntimeError, match="startup failed"):
-        await lifecycle.start()
+        await app.start()
 
     assert events == ["start:first", "start:second", "close:second", "close:first"]
-    assert not first.is_started
-    assert not second.is_started
+    assert not any(component.is_started for component in app.context.components["test_probe"].values())
 
 
 async def test_dependency_failure_does_not_close_unstarted_parent():

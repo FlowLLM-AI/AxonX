@@ -11,7 +11,6 @@ from ..components.registry import R
 from .builder import ApplicationBuilder
 from .context import ApplicationContext
 from .dispatch import JobDispatcher
-from .lifecycle import LifecycleManager
 
 
 class Application(BaseComponent):
@@ -20,19 +19,38 @@ class Application(BaseComponent):
     def __init__(self, **config: Any) -> None:
         self.context: ApplicationContext = ApplicationBuilder(R, __version__, **config).build()
         super().__init__(app_context=self.context)
-        self._lifecycle = LifecycleManager(
-            ComponentGraph(self.context.components),
-            self.context.jobs,
-            self.app_config.workspace_dir,
-        )
+        self._graph = ComponentGraph(self.context.components)
+        self._started: list[BaseComponent] = []
         self._dispatcher = JobDispatcher(self.context)
 
     async def _start(self) -> None:
-        await self._lifecycle.start()
+        self.workspace_path.mkdir(parents=True, exist_ok=True)
+        try:
+            for component in self._graph.startup_order():
+                await component.start()
+                self._started.append(component)
+            for job in sorted(self.context.jobs.values(), key=lambda item: item.startup_priority):
+                await job.start()
+                self._started.append(job)
+        except BaseException as start_error:
+            try:
+                await self._close()
+            except BaseException as cleanup_error:
+                raise BaseExceptionGroup(
+                    "Application startup failed and rollback was incomplete",
+                    [start_error, cleanup_error],
+                ) from None
+            raise
 
     async def _close(self) -> None:
-        self.is_started = False
-        await self._lifecycle.close()
+        errors: list[Exception] = []
+        while self._started:
+            try:
+                await self._started.pop().close()
+            except Exception as exc:
+                errors.append(exc)
+        if errors:
+            raise ExceptionGroup("Application cleanup failed", errors)
 
     async def run_job(self, name: str, **kwargs: Any) -> Any:
         """Run a public job."""
