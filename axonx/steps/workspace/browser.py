@@ -1,5 +1,7 @@
 """Read-only helpers for browsing the configured workspace."""
 
+# pylint: disable=too-many-return-statements
+
 from __future__ import annotations
 
 import asyncio
@@ -133,15 +135,16 @@ def _json_compatible(value: Any) -> Any:
     return str(value)
 
 
-def _preview_parquet(path: Path) -> dict[str, Any]:
-    """Read footer metadata and a five-row sample without scanning the file."""
+def _preview_parquet(path: Path, full: bool = False) -> dict[str, Any]:
+    """Read footer metadata and either a five-row sample or all rows."""
     parquet = pq.ParquetFile(path)
-    batch = next(parquet.iter_batches(batch_size=PARQUET_PREVIEW_ROWS), None)
     columns = [field.name for field in parquet.schema_arrow]
-    rows = [] if batch is None else [
-        [_json_compatible(row.get(column)) for column in columns]
-        for row in batch.to_pylist()
-    ]
+    if full:
+        records = parquet.read().to_pylist()
+    else:
+        batch = next(parquet.iter_batches(batch_size=PARQUET_PREVIEW_ROWS), None)
+        records = [] if batch is None else batch.to_pylist()
+    rows = [[_json_compatible(row.get(column)) for column in columns] for row in records]
     return {
         "kind": "parquet",
         "size": path.stat().st_size,
@@ -149,11 +152,11 @@ def _preview_parquet(path: Path) -> dict[str, Any]:
         "row_group_count": parquet.metadata.num_row_groups,
         "columns": columns,
         "schema": [
-            {"name": field.name, "type": str(field.type), "nullable": field.nullable}
-            for field in parquet.schema_arrow
+            {"name": field.name, "type": str(field.type), "nullable": field.nullable} for field in parquet.schema_arrow
         ],
         "rows": rows,
         "preview_limit": PARQUET_PREVIEW_ROWS,
+        "full": full,
     }
 
 
@@ -194,7 +197,7 @@ def _preview_csv(path: Path, offset: int, limit: int) -> dict[str, Any]:
     }
 
 
-def _preview_file(root: Path, relative_path: str, offset: int, limit: int) -> dict[str, Any]:
+def _preview_file(root: Path, relative_path: str, offset: int, limit: int, full: bool = False) -> dict[str, Any]:
     path = _resolve_workspace_path(root, relative_path)
     if not path.exists():
         raise ValueError("Workspace file does not exist")
@@ -205,7 +208,7 @@ def _preview_file(root: Path, relative_path: str, offset: int, limit: int) -> di
     if kind is None:
         return {"kind": "unsupported", "size": size}
     if kind == "parquet":
-        return _preview_parquet(path)
+        return _preview_parquet(path, full)
     if kind == "csv":
         return _preview_csv(path, offset, limit)
 
@@ -313,7 +316,8 @@ def _delete_entries(root: Path, relative_paths: list[str]) -> dict[str, list[dic
 
     selected = set(normalized)
     roots = [
-        path for path in normalized
+        path
+        for path in normalized
         if not any(parent.as_posix() in selected for parent in Path(path).parents if parent.as_posix() != ".")
     ]
     deleted = [_delete_entry(root, path) for path in roots]
@@ -337,12 +341,14 @@ class PreviewWorkspaceFileStep(BaseStep):
         relative_path = self.context["path"]
         offset = self.context.get("offset", 0)
         limit = min(self.context.get("limit", CSV_PREVIEW_ROWS), CSV_PREVIEW_ROWS)
+        full = self.context.get("full", False)
         self.response.answer = await asyncio.to_thread(
             _preview_file,
             _workspace_root(self),
             relative_path,
             offset,
             limit,
+            full,
         )
 
 
