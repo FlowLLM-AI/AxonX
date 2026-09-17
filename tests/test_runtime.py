@@ -201,6 +201,26 @@ async def test_task_manager_reconciles_status_reported_after_worker_exit(monkeyp
         assert failed.error == "Worker terminated by signal SIGKILL (9)"
 
 
+async def test_task_manager_can_cancel_rerun_with_reused_id(monkeypatch, tmp_path):
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        task_id = "analysis#fixed"
+        old = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED, pid=41)
+        new = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING, pid=42)
+        await manager.set_status(task_id, old)
+        await manager.set_status(task_id, new)
+        cancelled_pids = []
+
+        async def cancel(pid):
+            cancelled_pids.append(pid)
+            return True
+
+        monkeypatch.setattr(manager._supervisor, "cancel", cancel)
+        assert await manager.cancel(task_id) is True
+        assert cancelled_pids == [42]
+        assert (await manager.get_status(task_id)).state == TaskState.CANCELLED
+
+
 async def test_task_manager_terminates_and_reaps_workers_on_close(monkeypatch, tmp_path):
     signals = []
 
@@ -1015,6 +1035,7 @@ async def test_task_listing_jobs_separate_runtime_and_installed_tasks(tmp_path):
     assert set(tasks["download_tushare_task"]["input_schema"]["properties"]) == {
         "task_name",
         "include_time",
+        "source_tasks",
         "start_date",
         "end_date",
         "days_back",

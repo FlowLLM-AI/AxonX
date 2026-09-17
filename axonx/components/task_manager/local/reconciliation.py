@@ -25,6 +25,7 @@ class TaskStateReconciler:
 
     def __init__(self) -> None:
         self._pending_exits: dict[int, tuple[int, str, datetime]] = {}
+        self._retired_pids: dict[str, set[int]] = {}
         self._deleted_task_ids: set[str] = set()
 
     @staticmethod
@@ -44,11 +45,21 @@ class TaskStateReconciler:
         incoming: TaskStatus,
     ) -> TaskStatus | None:
         """Return the accepted snapshot, or ``None`` when a late report loses."""
-        if task_id in self._deleted_task_ids:
+        if incoming.pid is not None and incoming.pid in self._retired_pids.get(task_id, ()):
             return None
-        if current is not None and current.state.is_terminal:
-            if current.state == TaskState.CANCELLED or not incoming.state.is_terminal:
+        if task_id in self._deleted_task_ids:
+            if incoming.pid is None:
                 return None
+            self._deleted_task_ids.remove(task_id)
+        if current is not None:
+            if current.pid != incoming.pid:
+                if not current.state.is_terminal or incoming.pid is None:
+                    return None
+                if current.pid is not None:
+                    self._retired_pids.setdefault(task_id, set()).add(current.pid)
+            elif current.state.is_terminal:
+                if current.state == TaskState.CANCELLED or not incoming.state.is_terminal:
+                    return None
 
         snapshot = incoming.model_copy(deep=True)
         if snapshot.pid is not None and not snapshot.state.is_terminal:
@@ -87,9 +98,11 @@ class TaskStateReconciler:
             if status.pid in pids and not status.state.is_terminal:
                 TaskStateReconciler.cancel(status)
 
-    def mark_deleted(self, task_id: str) -> None:
+    def mark_deleted(self, task_id: str, pid: int | None) -> None:
         """Prevent a delayed worker report from recreating a deleted status."""
         self._deleted_task_ids.add(task_id)
+        if pid is not None:
+            self._retired_pids.setdefault(task_id, set()).add(pid)
 
     @staticmethod
     def _exit_failure(return_code: int, stderr_tail: str) -> tuple[int, str]:

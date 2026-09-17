@@ -89,3 +89,39 @@ def test_reconciler_rejects_late_status_after_cancellation():
     incoming = current.model_copy(update={"state": TaskState.SUCCEEDED})
 
     assert reconciler.accept(current.task_id, current, incoming) is None
+
+
+def test_reconciler_accepts_rerun_and_rejects_previous_process_reports():
+    reconciler = TaskStateReconciler()
+    task_id = "analysis#fixed"
+    old = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED, pid=41)
+    new = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.QUEUED, pid=42)
+
+    accepted = reconciler.accept(task_id, old, new)
+    assert accepted is not None and accepted.pid == 42
+    assert reconciler.accept(task_id, accepted, old) is None
+    assert reconciler.accept(task_id, accepted, new.model_copy(update={"state": TaskState.RUNNING})) is not None
+
+
+def test_reconciler_accepts_rerun_after_cancellation():
+    reconciler = TaskStateReconciler()
+    task_id = "analysis#fixed"
+    cancelled = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.CANCELLED, pid=41)
+    new = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING, pid=42)
+
+    accepted = reconciler.accept(task_id, cancelled, new)
+    assert accepted is not None and accepted.pid == 42
+    assert reconciler.accept(task_id, accepted, cancelled) is None
+
+
+def test_reconciler_accepts_rerun_after_deletion():
+    reconciler = TaskStateReconciler()
+    task_id = "analysis#fixed"
+    old = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED, pid=41)
+    new = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.QUEUED, pid=42)
+    reconciler.mark_deleted(task_id, old.pid)
+
+    assert reconciler.accept(task_id, None, old) is None
+    accepted = reconciler.accept(task_id, None, new)
+    assert accepted is not None and accepted.pid == 42
+    assert reconciler.accept(task_id, accepted, old) is None

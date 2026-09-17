@@ -1,12 +1,12 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=84.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "axonx-alpha158"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["axonx>=0.1.0", "lightgbm>=4.7,<5", "numpy>=2.5,<3", "polars>=1.44,<2"]
+dependencies = ["axonx>=0.1.0", "lightgbm>=4.7.0,<5", "numpy>=2.5.3,<3", "polars>=1.44.2,<2"]
 
 [project.entry-points."axonx.plugins"]
 alpha158 = "axonx_alpha158"

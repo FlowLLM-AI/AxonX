@@ -4,6 +4,7 @@ from abc import ABC
 from datetime import datetime
 from pathlib import Path
 
+from ...constants import AXONX_DEFAULT_TIMEZONE
 from ..base import BaseInputParams, BaseOutputParams, BaseTask, TaskMetadata
 from .artifact_store import ArtifactStore
 
@@ -17,8 +18,9 @@ class BaseArtifactTask(BaseTask, ABC):
         *,
         workspace_path: str | Path,
         reg_name: str | None = None,
+        timezone: str = AXONX_DEFAULT_TIMEZONE,
     ) -> None:
-        super().__init__(input_params, workspace_path=workspace_path, reg_name=reg_name)
+        super().__init__(input_params, workspace_path=workspace_path, reg_name=reg_name, timezone=timezone)
         self.artifact_store = ArtifactStore(self.workspace_path)
 
     @staticmethod

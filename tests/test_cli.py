@@ -360,6 +360,32 @@ def test_task_status_keeps_effective_config_for_reruns(monkeypatch, tmp_path):
     assert "task_type" not in execution.status.config
 
 
+@pytest.mark.parametrize(
+    ("name", "extra_arguments"),
+    [
+        ("backtest", {}),
+        ("alpha158_etl", {"input_dir": "data"}),
+        ("alpha158_factor_analysis", {}),
+        ("alpha158_lgbm_train", {}),
+        ("alpha158_lgbm_predict", {}),
+    ],
+)
+def test_artifact_tasks_receive_executor_timezone(monkeypatch, tmp_path, name, extra_arguments):
+    captured = []
+
+    def stop_after_construction(_runner, task):
+        captured.append(task)
+        raise RuntimeError("constructed")
+
+    monkeypatch.setattr("axonx.task.executor.TaskRunner.run", stop_after_construction)
+    command = Command(action="exec", arguments={"task": name, **extra_arguments})
+
+    with pytest.raises(RuntimeError, match="constructed"):
+        TaskCommandExecutor(tmp_path, timezone="Asia/Tokyo").execute(command)
+
+    assert captured[0].created_at.tzinfo.key == "Asia/Tokyo"
+
+
 def test_task_uses_passed_timezone_for_creation_time(tmp_path):
     task = CliTask({"amount": 1, "task_name": "clock"}, workspace_path=tmp_path, reg_name="sample", timezone="Asia/Tokyo")
 
