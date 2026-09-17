@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -83,9 +83,12 @@ function useTasks(
   const [tasks, setTasks] = useState<Meta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const requestId = useRef(0);
   const load = useCallback(() => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
     setError("");
+    setTasks([]);
     listWorkspaceEntries(kind, remoteIp, undefined, true)
       .then(async (directory) => {
         const dirs = directory.entries.filter(
@@ -164,6 +167,7 @@ function useTasks(
             }
           }),
         );
+        if (currentRequest !== requestId.current) return;
         setTasks(
           values
             .filter((value): value is Meta => value !== null)
@@ -176,13 +180,19 @@ function useTasks(
         onConnection?.(true);
       })
       .catch((reason) => {
+        if (currentRequest !== requestId.current) return;
         setError(reason instanceof Error ? reason.message : String(reason));
         onConnection?.(false);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (currentRequest === requestId.current) setLoading(false);
+      });
   }, [kind, onConnection, remoteIp]);
   useEffect(() => {
     load();
+    return () => {
+      requestId.current += 1;
+    };
   }, [load]);
   return { tasks, loading, error, load };
 }
@@ -204,7 +214,7 @@ export function ResearchPage({
   onSelected?: (taskId: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
   onConnection: (online: boolean) => void;
-  onNavigate: (page: ResearchPageId, resource?: string) => void;
+  onNavigate: (page: ResearchPageId | "runtime", resource?: string) => void;
 }) {
   const zh = language === "zh";
   const labels = copy[kind][language];
@@ -337,9 +347,12 @@ export function ResearchPage({
             </strong>
             <span>{error}</span>
           </div>
+          <button type="button" onClick={load}>
+            {zh ? "重试" : "Retry"}
+          </button>
         </div>
       )}
-      <div className="research-layout">
+      {!error && <div className="research-layout">
         <aside
           className={`run-index rail-panel ${selectionMode ? "selecting" : ""}`}
         >
@@ -476,7 +489,11 @@ export function ResearchPage({
         </aside>
         <RailResizer min={180} max={460} className="context-resizer" />
         <main className="research-canvas">
-          {selected ? (
+          {loading ? (
+            <div className="research-loading">
+              <LoaderCircle className="spin" />
+            </div>
+          ) : selected ? (
             <ArtifactDetail
               kind={kind}
               meta={selected}
@@ -510,7 +527,7 @@ export function ResearchPage({
             )
           )}
         </main>
-      </div>
+      </div>}
       {contextMenu && (
         <div
           className="workspace-context-menu task-version-context-menu"
@@ -639,7 +656,7 @@ function ArtifactDetail({
   meta: Meta;
   language: Language;
   remoteIp?: string;
-  onNavigate: (page: ResearchPageId, resource?: string) => void;
+  onNavigate: (page: ResearchPageId | "runtime", resource?: string) => void;
 }) {
   const zh = language === "zh";
   const [copiedLineage, setCopiedLineage] = useState("");
@@ -653,7 +670,7 @@ function ArtifactDetail({
   const upstreams = (meta.source || []).map((taskId) => ({
     taskId,
     type: taskId.split("#")[0],
-    page: pageByType[taskId.split("#")[0]],
+    page: pageByType[taskId.split("#")[0]] || ("runtime" as const),
   }));
   const copyLineageId = async (taskId: string) => {
     await navigator.clipboard.writeText(taskId);
@@ -669,9 +686,20 @@ function ArtifactDetail({
         <header className="artifact-header">
           <div>
             <span className={`artifact-kind ${kind}`}>{iconFor(kind)}</span>
-            <div>
+            <div className="artifact-title">
               <small>{meta.task_key || kind}</small>
-              <h2>{meta.config.task_id}</h2>
+              <div className="artifact-title-row">
+                <h2 title={meta.config.task_id}>{meta.config.task_id}</h2>
+                <button
+                  type="button"
+                  className="artifact-id-copy"
+                  onClick={() => void copyLineageId(meta.config.task_id)}
+                  title={zh ? "复制 Task ID" : "Copy Task ID"}
+                  aria-label={zh ? "复制 Task ID" : "Copy Task ID"}
+                >
+                  {copiedLineage === meta.config.task_id ? <Check /> : <Copy />}
+                </button>
+              </div>
             </div>
           </div>
           <span className="ready-badge">
@@ -684,27 +712,20 @@ function ArtifactDetail({
         <div className="lineage-strip">
           <span>
             <GitBranch />
-            {zh ? "数据血缘" : "LINEAGE"}
+            {zh ? "上游任务" : "UPSTREAM TASKS"}
           </span>
           <div className="lineage-sources">
             {upstreams.map((upstream) => (
               <div className="lineage-node" key={upstream.taskId}>
-                {upstream.page ? (
-                  <button
-                    className="lineage-link"
-                    onClick={() => onNavigate(upstream.page!, upstream.taskId)}
-                    title={zh ? "打开上游任务" : "Open upstream task"}
-                  >
-                    <em>{upstream.type.toUpperCase()}</em>
-                    <code>{upstream.taskId}</code>
-                    <ArrowRight />
-                  </button>
-                ) : (
-                  <strong>
-                    <em>{upstream.type.toUpperCase()}</em>
-                    <code>{upstream.taskId}</code>
-                  </strong>
-                )}
+                <button
+                  className="lineage-link"
+                  onClick={() => onNavigate(upstream.page, upstream.taskId)}
+                  title={`${zh ? "打开上游任务" : "Open upstream task"}: ${upstream.taskId}`}
+                >
+                  <em>{upstream.type.toUpperCase()}</em>
+                  <code>{upstream.taskId}</code>
+                  <ArrowRight />
+                </button>
                 <button
                   className="lineage-copy"
                   onClick={() => void copyLineageId(upstream.taskId)}
@@ -714,20 +735,6 @@ function ArtifactDetail({
                 </button>
               </div>
             ))}
-          </div>
-          <i />
-          <div className="lineage-node current">
-            <strong>
-              <em>{kind.toUpperCase()}</em>
-              <code>{meta.config.task_id}</code>
-            </strong>
-            <button
-              className="lineage-copy"
-              onClick={() => void copyLineageId(meta.config.task_id)}
-              aria-label={zh ? "复制当前 Task ID" : "Copy current task ID"}
-            >
-              {copiedLineage === meta.config.task_id ? <Check /> : <Copy />}
-            </button>
           </div>
         </div>
       )}
@@ -765,7 +772,7 @@ function Kpis({
   items: { label: string; value: React.ReactNode; hint?: string }[];
 }) {
   return (
-    <div className="artifact-kpis">
+    <div className={`artifact-kpis count-${Math.min(items.length, 4)}`}>
       {items.map((item) => (
         <article key={item.label}>
           <small>{item.label}</small>
@@ -774,6 +781,98 @@ function Kpis({
         </article>
       ))}
     </div>
+  );
+}
+
+function AnalysisScores({
+  scores,
+  zh,
+}: {
+  scores: Record<string, Record<string, number>>;
+  zh: boolean;
+}) {
+  const [chosenMetric, setChosenMetric] = useState("");
+  const [chosenLabel, setChosenLabel] = useState("");
+  const groups = Object.entries(scores).map(([key, values]) => {
+    const separator = key.indexOf("/");
+    return {
+      metric: separator < 0 ? key : key.slice(0, separator),
+      label: separator < 0 ? "—" : key.slice(separator + 1),
+      values,
+    };
+  });
+  if (!groups.length) return null;
+  const metrics = [...new Set(groups.map((group) => group.metric))];
+  const metric = metrics.includes(chosenMetric) ? chosenMetric : metrics[0];
+  const labels = [
+    ...new Set(
+      groups.filter((group) => group.metric === metric).map((group) => group.label),
+    ),
+  ];
+  const label = labels.includes(chosenLabel) ? chosenLabel : labels[0];
+  const values = groups.find(
+    (group) => group.metric === metric && group.label === label,
+  )?.values || {};
+  const rows = Object.entries(values).sort(
+    ([nameA, valueA], [nameB, valueB]) =>
+      Math.abs(valueB) - Math.abs(valueA) || nameA.localeCompare(nameB),
+  );
+  const maxAbs = Math.max(...rows.map(([, value]) => Math.abs(value)), 0);
+
+  return (
+    <section className="viz-card wide analysis-score-card">
+      <header>
+        <div>
+          <small>SCORES</small>
+          <h3>{zh ? "因子评分" : "Factor scores"}</h3>
+        </div>
+        <div className="analysis-score-controls">
+          <label>
+            <span>{zh ? "指标" : "Metric"}</span>
+            <select value={metric} onChange={(event) => setChosenMetric(event.target.value)}>
+              {metrics.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>{zh ? "标签" : "Label"}</span>
+            <select value={label} onChange={(event) => setChosenLabel(event.target.value)}>
+              {labels.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+          <span className="analysis-score-count">{rows.length}</span>
+        </div>
+      </header>
+      <div className="analysis-score-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>{zh ? "因子" : "Factor"}</th>
+              <th>{zh ? "分布" : "Magnitude"}</th>
+              <th>{zh ? "评分" : "Score"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([factor, value]) => {
+              const width = maxAbs ? Math.abs(value) / maxAbs * 50 : 0;
+              return (
+                <tr key={factor}>
+                  <td><code>{factor}</code></td>
+                  <td>
+                    <div className="analysis-score-bar" aria-hidden="true">
+                      <span
+                        className={value < 0 ? "negative" : "positive"}
+                        style={{ left: `${value < 0 ? 50 - width : 50}%`, width: `${width}%` }}
+                      />
+                    </div>
+                  </td>
+                  <td>{fmt(value, 4)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -864,7 +963,7 @@ function BaseOutputView({
         ([title, values]) =>
           Array.isArray(values) &&
           values.length > 0 && (
-            <section className="viz-card" key={String(title)}>
+            <section className="viz-card base-columns-card" key={String(title)}>
               <header>
                 <div>
                   <small>COLUMNS</small>
@@ -880,35 +979,7 @@ function BaseOutputView({
             </section>
           ),
       )}
-      {kind === "analysis" &&
-        Object.entries(meta.scores || {}).map(([metric, values]) => (
-          <section className="viz-card wide" key={metric}>
-            <header>
-              <div>
-                <small>SCORES</small>
-                <h3>{metric}</h3>
-              </div>
-              <span>{Object.keys(values).length}</span>
-            </header>
-            <div className="base-value-list">
-              {Object.entries(values)
-                .slice(0, 20)
-                .map(([subject, value]) => (
-                  <div key={subject}>
-                    <code>{subject}</code>
-                    <strong>{fmt(value, 4)}</strong>
-                  </div>
-                ))}
-            </div>
-            {Object.keys(values).length > 20 && (
-              <small>
-                {zh
-                  ? "仅显示前 20 项；完整结果见产物文件"
-                  : "Showing 20 entries; see the artifact for full results"}
-              </small>
-            )}
-          </section>
-        ))}
+      {kind === "analysis" && <AnalysisScores scores={meta.scores || {}} zh={zh} />}
       {kind === "train" && Object.keys(meta.metrics || {}).length > 0 && (
         <section className="viz-card wide">
           <header>
@@ -947,7 +1018,7 @@ function BaseOutputView({
           </div>
         </section>
       )}
-      <section className="viz-card wide">
+      <section className="viz-card base-files-card">
         <header>
           <div>
             <small>OUTPUT</small>
@@ -969,13 +1040,13 @@ function BaseOutputView({
           )}
         </div>
         {kind === "etl" && meta.config.input_dir && (
-          <small>
-            {zh ? "输入目录" : "Input directory"}:{" "}
+          <div className="artifact-input-dir">
+            <small>{zh ? "输入目录" : "Input directory"}</small>
             <code>{meta.config.input_dir}</code>
-          </small>
+          </div>
         )}
       </section>
-      <section className="viz-card wide">
+      <section className="viz-card base-files-card">
         <header>
           <div>
             <small>ARTIFACTS</small>

@@ -145,7 +145,7 @@ async def test_task_manager_records_signal_exit_and_rejects_late_running_status(
     monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
-        await manager.submit(["--task", "alpha158_etl"])
+        await manager.submit(["--task", "a158_etl"])
         running = TaskStatus(
             task_id="etl#killed-worker",
             task_type=TaskType.ETL,
@@ -183,7 +183,7 @@ async def test_task_manager_reconciles_status_reported_after_worker_exit(monkeyp
     monkeypatch.setattr(asyncio, "create_subprocess_exec", create_subprocess_exec)
     async with application(tmp_path) as app:
         manager = app.get_component("task_manager")
-        await manager.submit(["--task", "alpha158_etl"])
+        await manager.submit(["--task", "a158_etl"])
         await asyncio.gather(*manager._process_monitors)
 
         status = TaskStatus(
@@ -1108,10 +1108,10 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert response.json()["tasks"] == {
-        "alpha158_etl": "axonx_alpha158.etl:Alpha158Task",
-        "alpha158_factor_analysis": "axonx_alpha158.analysis:FactorAnalysisTask",
-        "alpha158_lgbm_train": "axonx_alpha158.train:LgbmTrainTask",
-        "alpha158_lgbm_predict": "axonx_alpha158.predict:LgbmPredictTask",
+        "a158_etl": "axonx_alpha158.etl:Alpha158Task",
+        "a158_factor": "axonx_alpha158.analysis:FactorAnalysisTask",
+        "a158_train": "axonx_alpha158.train:LgbmTrainTask",
+        "a158_predict": "axonx_alpha158.predict:LgbmPredictTask",
     }
     assert response.json()["components"] == {}
     assert response.json()["jobs"] == {}

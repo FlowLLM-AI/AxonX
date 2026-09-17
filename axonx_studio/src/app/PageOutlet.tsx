@@ -137,6 +137,7 @@ export function PageOutlet({
     const kind = route.section === "factors" ? "analysis" : route.section;
     page = (
       <ResearchPage
+        key={`${kind}:${remoteIp || "local"}`}
         kind={kind as "analysis" | "backtest" | "etl" | "train" | "predict"}
         language={language}
         remoteIp={remoteIp}
@@ -146,12 +147,17 @@ export function PageOutlet({
         }
         onOptionsChange={setResourceOptions}
         onConnection={setServiceOnline}
-        onNavigate={(target: ResearchPageId, resource?: string) =>
-          navigate({
-            section: target === "factors" ? "factors" : (target as SectionId),
-            view: "runs",
-            resource,
-          })
+        onNavigate={(target: ResearchPageId | "runtime", resource?: string) =>
+          navigate(
+            target === "runtime"
+              ? { section: "runtime", view: "tasks", resource }
+              : {
+                  section:
+                    target === "factors" ? "factors" : (target as SectionId),
+                  view: "runs",
+                  resource,
+                },
+          )
         }
       />
     );

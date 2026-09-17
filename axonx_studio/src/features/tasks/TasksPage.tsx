@@ -471,8 +471,8 @@ function taskTimestamp(task: TaskStatus) {
   const value = task.started_at || task.finished_at;
   if (value) return new Date(value).getTime();
   const compact = task.task_id.split("#")[3];
-  if (!/^\d{14}$/.test(compact || "")) return 0;
-  const iso = `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}T${compact.slice(8, 10)}:${compact.slice(10, 12)}:${compact.slice(12, 14)}Z`;
+  if (!/^\d{10}(?:\d{4})?$/.test(compact || "")) return 0;
+  const iso = `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}T${compact.slice(8, 10)}:${compact.slice(10, 12) || "00"}:${compact.slice(12, 14) || "00"}Z`;
   return new Date(iso).getTime();
 }
 

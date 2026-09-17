@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import re
+import secrets
+import string
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from datetime import datetime
@@ -24,6 +26,11 @@ from .status_manager import StatusCallback, TaskStatusManager
 
 TaskStep: TypeAlias = Callable[[], None]
 _REG_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
+_TASK_NAME_ALPHABET = string.ascii_letters + string.digits
+
+
+def _short_task_name() -> str:
+    return "".join(secrets.choice(_TASK_NAME_ALPHABET) for _ in range(4))
 
 
 def _manifest_registration_name(task_class: type["BaseTask"]) -> str | None:
@@ -48,7 +55,7 @@ class BaseInputParams(BaseModel):
     """Validated user supplied parameters for one task invocation."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
-    task_name: str = Field(default_factory=lambda: uuid4().hex[:8], pattern=r"^[A-Za-z0-9-]{1,32}$")
+    task_name: str = Field(default_factory=_short_task_name, pattern=r"^[A-Za-z0-9-]{1,32}$")
     include_time: bool = True
     source_tasks: list[str] = Field(default_factory=list)
 
@@ -77,7 +84,7 @@ def task_type_from_id(task_id: str) -> TaskType:
     parts = task_id.split("#")
     if len(parts) not in (3, 4) or not _REG_NAME.fullmatch(parts[1]) or not re.fullmatch(r"[A-Za-z0-9-]{1,32}", parts[2]):
         raise ValueError(f"Invalid task ID: {task_id!r}")
-    if len(parts) == 4 and not re.fullmatch(r"[0-9]{14}", parts[3]):
+    if len(parts) == 4 and not re.fullmatch(r"[0-9]{10}(?:[0-9]{4})?", parts[3]):
         raise ValueError(f"Invalid task ID: {task_id!r}")
     try:
         return TaskType(parts[0])
@@ -146,7 +153,7 @@ class BaseTask(ABC):
 
         parts = [self.task_type.value, reg_name, self.input_params.task_name]
         if self.input_params.include_time:
-            parts.append(f"{self.created_at:%Y%m%d%H%M%S}")
+            parts.append(f"{self.created_at:%Y%m%d%H}")
         self.task_id = "#".join(parts)
         self._output_params: BaseOutputParams | None = None
 

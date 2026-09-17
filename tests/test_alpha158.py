@@ -306,7 +306,7 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
     assert task.metadata_path == tmp_path / "etl" / task.task_id / "metadata.json"
     metadata = json.loads(task.metadata_path.read_text())
     assert metadata["task_id"] == task.task_id
-    assert metadata["reg_name"] == "alpha158_etl"
+    assert metadata["reg_name"] == "a158_etl"
     assert metadata["input_params"] == task.input_params.model_dump(mode="json")
     assert "source_tasks" not in metadata
     assert "metadata_file" not in output

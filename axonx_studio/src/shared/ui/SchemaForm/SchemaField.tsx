@@ -74,6 +74,19 @@ export function SchemaField({
           <i />
           <span>{value ? "True" : "False"}</span>
         </button>
+      ) : name === "source_tasks" ? (
+        <input
+          id={id}
+          type="text"
+          value={String(value)}
+          required={required}
+          placeholder={
+            language === "zh"
+              ? "多个 Task ID 用逗号分隔，可留空"
+              : "Task IDs separated by commas (optional)"
+          }
+          onChange={(event) => onChange(event.target.value)}
+        />
       ) : type === "object" || type === "array" ? (
         <textarea
           id={id}
@@ -106,14 +119,18 @@ export function SchemaField({
 
   return variant === "default" ? (
     <label
-      className={`schema-field ${type === "object" || type === "array" ? "wide" : ""}`}
+      className={`schema-field ${name !== "source_tasks" && (type === "object" || type === "array") ? "wide" : ""}`}
       htmlFor={id}
     >
       {content}
     </label>
   ) : (
     <label
-      className={type === "object" || type === "array" ? "wide" : ""}
+      className={
+        name !== "source_tasks" && (type === "object" || type === "array")
+          ? "wide"
+          : ""
+      }
       htmlFor={id}
     >
       {content}

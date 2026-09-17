@@ -97,7 +97,7 @@ def test_installed_task_definitions_include_only_public_config(monkeypatch):
 
 
 def test_etl_catalog_exposes_domain_input_and_output_contracts():
-    info = next(item for item in list_installed_task_definitions() if item.name == "alpha158_etl")
+    info = next(item for item in list_installed_task_definitions() if item.name == "a158_etl")
     assert info.source == "plugin"
     assert info.plugin == "alpha158"
     assert "input_dir" not in info.input_schema["properties"]
@@ -295,14 +295,14 @@ def test_backtest_paths_are_resolved_from_prediction_task_id(tmp_path):
 def test_task_id_is_generated_internally_and_read_only(tmp_path):
     task = DemoTask({"x": 1, "y": 2, "task_name": "fixed"}, workspace_path=tmp_path)
     assert task.task_id.startswith("base#demo#fixed#")
-    assert len(task.task_id.split("#")[3]) == 14
+    assert len(task.task_id.split("#")[3]) == 10
     task.execute()
     assert not hasattr(task, "task_metadata")
     assert list(tmp_path.rglob("metadata.json")) == []
     assert "task_id" not in task.input_params.model_dump()
 
 
-def test_task_id_can_omit_time_and_defaults_to_eight_uuid_characters():
+def test_task_id_can_omit_time_and_defaults_to_four_random_characters():
     named = DemoTask({"x": 1, "y": 2, "task_name": "experiment-1", "include_time": False}, workspace_path=".")
     assert named.task_id == "base#demo#experiment-1"
     replacement = DemoTask({"x": 3, "y": 4, "task_name": "experiment-1", "include_time": False}, workspace_path=".")
@@ -312,7 +312,7 @@ def test_task_id_can_omit_time_and_defaults_to_eight_uuid_characters():
     assert replacement.execute()["result"] == 7
 
     generated = DemoTask({"x": 1, "y": 2, "include_time": False}, workspace_path=".")
-    assert len(generated.input_params.task_name) == 8
+    assert len(generated.input_params.task_name) == 4
     assert generated.task_id == f"base#demo#{generated.input_params.task_name}"
 
     with pytest.raises(ValidationError):
@@ -321,7 +321,7 @@ def test_task_id_can_omit_time_and_defaults_to_eight_uuid_characters():
 
 def test_source_tasks_require_canonical_unique_ids():
     source = "etl#alpha158_etl#dataset"
-    params = BaseInputParams(source_tasks=[source, "train#model#run"])
+    params = BaseInputParams(source_tasks=[source, "train#model#run", "analysis#a158_factor#e55d#2026091717", "analysis#alpha158_factor_analysis#e55dc084#20260917172122"])
     assert params.source_task(TaskType.ETL) == source
 
     for invalid in ([source, source], ["etl#dataset"], ["../etl#dataset#run"]):
@@ -372,10 +372,10 @@ def test_task_status_keeps_effective_config_for_reruns(monkeypatch, tmp_path):
     ("name", "extra_arguments"),
     [
         ("backtest", {}),
-        ("alpha158_etl", {"input_dir": "data"}),
-        ("alpha158_factor_analysis", {}),
-        ("alpha158_lgbm_train", {}),
-        ("alpha158_lgbm_predict", {}),
+        ("a158_etl", {"input_dir": "data"}),
+        ("a158_factor", {}),
+        ("a158_train", {}),
+        ("a158_predict", {}),
     ],
 )
 def test_artifact_tasks_receive_executor_timezone(monkeypatch, tmp_path, name, extra_arguments):
@@ -398,7 +398,7 @@ def test_task_uses_passed_timezone_for_creation_time(tmp_path):
     task = CliTask({"amount": 1, "task_name": "clock"}, workspace_path=tmp_path, reg_name="sample", timezone="Asia/Tokyo")
 
     assert task.created_at.utcoffset().total_seconds() == 9 * 60 * 60
-    assert task.task_id.endswith(task.created_at.strftime("%Y%m%d%H%M%S"))
+    assert task.task_id.endswith(task.created_at.strftime("%Y%m%d%H"))
 
     with pytest.raises(ValueError, match="Unknown timezone"):
         CliTask({"amount": 1}, workspace_path=tmp_path, reg_name="sample", timezone="Not/A-Timezone")
@@ -741,7 +741,7 @@ def test_exec_without_arguments_lists_available_tasks(monkeypatch, capsys):
 
 def test_exec_discovers_installed_plugin(capsys):
     assert cli.main(["exec"]) == 0
-    assert "alpha158_etl\taxonx_alpha158.etl.Alpha158Task" in capsys.readouterr().out
+    assert "a158_etl\taxonx_alpha158.etl.Alpha158Task" in capsys.readouterr().out
 
 
 def test_task_options_are_strict(monkeypatch, capsys):

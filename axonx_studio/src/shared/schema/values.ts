@@ -16,7 +16,9 @@ export function schemaType(schema: JsonSchema): string {
 export function encodeFieldValue(
   value: unknown,
   schema: JsonSchema,
+  name?: string,
 ): SchemaFieldValue {
+  if (name === "source_tasks" && Array.isArray(value)) return value.join(", ");
   const type = schemaType(schema);
   if (type === "boolean") return Boolean(value);
   if (schema.enum || type === "object" || type === "array") {
@@ -34,7 +36,13 @@ export function encodeFieldValue(
 export function decodeFieldValue(
   value: SchemaFieldValue,
   schema: JsonSchema,
+  name?: string,
 ): unknown {
+  if (name === "source_tasks")
+    return String(value)
+      .split(/[,，]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
   const type = schemaType(schema);
   if (schema.enum) return JSON.parse(String(value));
   if (type === "boolean") return Boolean(value);
@@ -49,7 +57,7 @@ export function initialSchemaValues(schema: JsonSchema): SchemaFormValues {
     Object.entries(schema.properties || {}).map(([name, field]) => [
       name,
       field.default !== undefined
-        ? encodeFieldValue(field.default, field)
+        ? encodeFieldValue(field.default, field, name)
         : schemaType(field) === "boolean"
           ? false
           : "",
@@ -82,7 +90,7 @@ export function parseSchemaValues(
     )
       continue;
     try {
-      data[name] = decodeFieldValue(value, field);
+      data[name] = decodeFieldValue(value, field, name);
     } catch {
       errors[name] = messages.invalidJson;
     }

@@ -23,6 +23,12 @@ import { formatDate, formatDuration, taskStepProgress } from "./format";
 import { Status } from "./TasksPage";
 
 const ACTIVE = new Set(["queued", "running"]);
+const RENAMED_TASKS: Record<string, string> = {
+  alpha158_etl: "a158_etl",
+  alpha158_factor_analysis: "a158_factor",
+  alpha158_lgbm_train: "a158_train",
+  alpha158_lgbm_predict: "a158_predict",
+};
 const LOG_CHUNK_BYTES = 65_536;
 const MAX_LOG_CHARACTERS = 524_288;
 
@@ -255,7 +261,13 @@ export function TaskDetailPage({
     setRerunning(true);
     setRerunMessage("");
     try {
-      await submitTask(task.task_name, task.config || {}, remoteIp);
+      const config = { ...task.config };
+      delete config.task_name;
+      await submitTask(
+        RENAMED_TASKS[task.task_name] || task.task_name,
+        config,
+        remoteIp,
+      );
       setRerunOpen(false);
       setRerunMessage(labels.rerunSubmitted);
       onConnection(true);
@@ -326,21 +338,23 @@ export function TaskDetailPage({
         </div>
         <div className="heading-actions">
           <button
-            className="secondary-button"
+            className="secondary-button task-detail-icon-button"
             onClick={() => void refresh()}
             disabled={refreshing}
+            title={text.refreshNow}
+            aria-label={text.refreshNow}
           >
             <RefreshCw className={refreshing ? "spin" : ""} />
-            {text.refreshNow}
           </button>
           {ACTIVE.has(task.state) ? (
             <button
-              className="danger-outline"
+              className="danger-outline task-detail-icon-button"
               onClick={() => void cancel()}
               disabled={cancelling}
+              title={cancelling ? text.cancelling : text.cancel}
+              aria-label={cancelling ? text.cancelling : text.cancel}
             >
               <Ban />
-              {cancelling ? text.cancelling : text.cancel}
             </button>
           ) : (
             <button

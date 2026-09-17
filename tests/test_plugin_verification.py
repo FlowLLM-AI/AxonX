@@ -21,7 +21,7 @@ async def test_remote_submit_rejects_mismatched_plugin_before_submission(monkeyp
         return httpx.Response(
             200,
             json=_response(
-                [{"distribution": "axonx-alpha158", "tasks": {"alpha158_etl": "target"}, "wheel_sha256": "remote"}],
+                [{"distribution": "axonx-alpha158", "tasks": {"a158_etl": "target"}, "wheel_sha256": "remote"}],
             ),
         )
 
@@ -29,7 +29,7 @@ async def test_remote_submit_rejects_mismatched_plugin_before_submission(monkeyp
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond), base_url=client.url) as transport:
         client.client = transport
         with pytest.raises(ValueError, match="Install the plugin locally and deploy"):
-            await client.run_job("submit", task="alpha158_etl")
+            await client.run_job("submit", task="a158_etl")
 
     assert requests == ["/jobs/list_plugins"]
 
@@ -42,7 +42,7 @@ async def test_remote_submit_succeeds_when_plugin_wheels_match(monkeypatch):
     def respond(request):
         requests.append(request.url.path)
         answer = (
-            [{"distribution": "axonx-alpha158", "tasks": {"alpha158_etl": "target"}, "wheel_sha256": "same"}]
+            [{"distribution": "axonx-alpha158", "tasks": {"a158_etl": "target"}, "wheel_sha256": "same"}]
             if request.url.path == "/jobs/list_plugins"
             else {"accepted": True}
         )
@@ -51,7 +51,7 @@ async def test_remote_submit_succeeds_when_plugin_wheels_match(monkeypatch):
     client = HttpClient(host_ip="127.0.0.1", host_port=1024)
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond), base_url=client.url) as transport:
         client.client = transport
-        result = await client.run_job("submit", task="alpha158_etl")
+        result = await client.run_job("submit", task="a158_etl")
 
     assert result.answer == {"accepted": True}
     assert requests == ["/jobs/list_plugins", "/jobs/submit"]
@@ -76,12 +76,12 @@ def test_remote_plugin_requires_verifiable_local_wheel(monkeypatch):
     monkeypatch.setattr(verification, "installed_plugin_for_task", lambda _task: ("axonx-alpha158", None))
     with pytest.raises(ValueError, match="wheel SHA-256 is unavailable"):
         verification.verify_remote_plugin(
-            "alpha158_etl",
-            [{"distribution": "axonx-alpha158", "tasks": {"alpha158_etl": "target"}, "wheel_sha256": "remote"}],
+            "a158_etl",
+            [{"distribution": "axonx-alpha158", "tasks": {"a158_etl": "target"}, "wheel_sha256": "remote"}],
         )
 
 
 def test_remote_submit_rejects_missing_managed_wheel(monkeypatch):
     monkeypatch.setattr(verification, "installed_plugin_for_task", lambda _task: ("axonx-alpha158", "local"))
     with pytest.raises(ValueError, match="no managed wheel"):
-        verification.verify_remote_plugin("alpha158_etl", [])
+        verification.verify_remote_plugin("a158_etl", [])

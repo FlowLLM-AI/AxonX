@@ -33,8 +33,8 @@ const sectionFor: Record<Kind, SectionId> = {
 };
 
 function taskTime(node: TaskNode): string | null {
-  const stamp = node.task_id.match(/^[^#]+#[^#]+#[^#]+#(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
-  if (stamp) return `${stamp[1]}-${stamp[2]}-${stamp[3]} ${stamp[4]}:${stamp[5]}`;
+  const stamp = node.task_id.match(/^[^#]+#[^#]+#[^#]+#(\d{4})(\d{2})(\d{2})(\d{2})(?:(\d{2})(\d{2}))?$/);
+  if (stamp) return `${stamp[1]}-${stamp[2]}-${stamp[3]} ${stamp[4]}:${stamp[5] || "00"}`;
   if (!node.created_at) return null;
   const date = new Date(node.created_at);
   return Number.isNaN(date.getTime()) ? null : date.toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });

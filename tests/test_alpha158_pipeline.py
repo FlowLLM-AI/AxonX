@@ -142,7 +142,7 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
         {"source_tasks": [training.task_id], "pred_start": "20230102"},
         workspace_path=tmp_path,
     )
-    assert prediction.task_id.startswith("predict#alpha158_lgbm_predict#")
+    assert prediction.task_id.startswith("predict#a158_predict#")
     prediction_output = prediction.execute()
     predictions = pl.read_parquet(prediction_output["predictions_file"])
     assert predictions.height == 5 * 40
