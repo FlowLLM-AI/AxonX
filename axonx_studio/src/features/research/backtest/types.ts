@@ -51,6 +51,7 @@ export interface ChartRow extends NumericRow {
 export interface ChartSeries {
   key: string;
   label: string;
+  sourceKey?: string;
   dashed?: boolean;
   type?: "line" | "bar";
   axis?: 0 | 1;

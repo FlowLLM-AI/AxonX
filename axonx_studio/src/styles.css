@@ -10436,6 +10436,37 @@
   color: var(--faint);
   font-size: 11px;
 }
+.backtest-series-means {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px 0;
+}
+.backtest-series-means > small {
+  margin-right: 4px;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 650;
+}
+.backtest-series-means > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.backtest-series-means em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+.backtest-series-means strong {
+  color: var(--ink);
+  font: 700 12px "JetBrains Mono", monospace;
+}
 .backtest-chart {
   width: 100%;
   height: 520px;

@@ -34,6 +34,7 @@ const IC_SERIES: ChartSeries[] = [
 const NDCG_SERIES: ChartSeries[] = [5, 10, 15, 20, 30].map((topN) => ({
   key: `ndcg_${topN}`,
   label: `NDCG@${topN}`,
+  sourceKey: `top${topN}_ndcg`,
 }));
 const lastOnOrBefore = (rows: DailyRow[], date: string) => {
   let index = 0;
@@ -53,6 +54,36 @@ function movingAverage(rows: DailyRow[], key: string, window = 20) {
       ? values.reduce((sum, value) => sum + value, 0) / values.length
       : null;
   });
+}
+
+function SeriesMeans({
+  rows,
+  series,
+  zh,
+}: {
+  rows: DailyRow[];
+  series: ChartSeries[];
+  zh: boolean;
+}) {
+  return (
+    <div className="backtest-series-means">
+      <small>{zh ? "区间日均" : "Daily mean in range"}</small>
+      {series.map(({ key, label, sourceKey }) => {
+        const values = rows
+          .map((row) => number(row[sourceKey || key]))
+          .filter(Number.isFinite);
+        const mean = values.length
+          ? values.reduce((sum, value) => sum + value, 0) / values.length
+          : NaN;
+        return (
+          <span key={key}>
+            <em>{label}</em>
+            <strong>{fixed(mean, 4)}</strong>
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 function cumulativeRows(
@@ -410,6 +441,7 @@ function Overview({
           title="IC / RankIC · MA20"
           hint={zh ? "候选股票池内计算" : "Candidate universe"}
         >
+          <SeriesMeans rows={selected} series={IC_SERIES} zh={zh} />
           <BacktestChart
             rows={signals}
             series={IC_SERIES}
@@ -425,6 +457,7 @@ function Overview({
             zh ? "实际收益截面百分位 relevance" : "Return-percentile relevance"
           }
         >
+          <SeriesMeans rows={selected} series={NDCG_SERIES} zh={zh} />
           <BacktestChart
             rows={signals}
             series={NDCG_SERIES}
@@ -737,6 +770,9 @@ function SummaryView({
     ),
   }));
   if (!rows.length) return <div className="chart-empty">NO SUMMARY DATA</div>;
+  const detailRows = overall
+    ? topNs.map((n) => ({ row: periods[0], topN: n, key: `top-${n}` }))
+    : periods.map((row) => ({ row, topN, key: row.period }));
   const topNControl = (
     <label className="summary-select-label">
       <span>Top N</span>
@@ -906,11 +942,16 @@ function SummaryView({
             <div>
               <small>TOP N DETAIL</small>
               <h3>
-                {zh ? `Top ${topN} · 全部指标` : `Top ${topN} · All metrics`}
+                {overall
+                  ? zh
+                    ? "各 Top N · 全部指标"
+                    : "All Top N metrics"
+                  : zh
+                    ? `Top ${topN} · 全部指标`
+                    : `Top ${topN} · All metrics`}
               </h3>
             </div>
             <div className="summary-chart-controls">
-              {overall && topNControl}
               <span className="summary-table-hint">
                 {zh ? "左右滑动查看" : "Scroll sideways"}
               </span>
@@ -920,27 +961,29 @@ function SummaryView({
             className="mini-table"
             role="region"
             aria-label={
-              zh ? "Top N 分期指标明细" : "Top N period metric details"
+              overall
+                ? zh ? "各 Top N 总体指标" : "Overall metrics by Top N"
+                : zh ? "Top N 分期指标明细" : "Top N period metric details"
             }
             tabIndex={0}
           >
             <table>
               <thead>
                 <tr>
-                  <th>{zh ? "时间" : "Period"}</th>
+                  <th>{overall ? "Top N" : zh ? "时间" : "Period"}</th>
                   {metrics.map((metric) => (
                     <th key={metric.key}>{metricName(metric, zh)}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {periods.map((row) => (
-                  <tr key={row.period}>
+                {detailRows.map(({ row, topN: n, key }) => (
+                  <tr key={key}>
                     <td>
-                      <strong>{periodName(row)}</strong>
+                      <strong>{overall ? `Top ${n}` : periodName(row)}</strong>
                     </td>
                     {metrics.map(({ key, format }) => {
-                      const value = metricValue(row, topN, key);
+                      const value = metricValue(row, n, key);
                       return (
                         <td key={key} className={valueTone(value)}>
                           {format(value)}
