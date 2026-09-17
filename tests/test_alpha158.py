@@ -146,7 +146,7 @@ def test_alpha158_infers_lifecycle_for_daily_symbol_missing_from_stock_basic(
 
     result = pl.read_parquet(output["output_file"])
     inferred = result.filter(pl.col("ts_code") == "000999.SZ")
-    metadata = json.loads(Path(output["metadata_file"]).read_text())
+    metadata = json.loads(task.metadata_path.read_text())
     assert task.context["missing_stock_basic_symbols"] == 1
     assert metadata["output_params"]["market_state"]["missing_stock_basic_symbols"] == 1
     assert inferred["trade_date"].to_list() == ["20260105", "20260107"]
@@ -302,13 +302,16 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
         "index_weight_hs300",
     ]
     assert Path(output["statistics_file"]).name == "alpha158.csv"
-    assert Path(output["metadata_file"]) == tmp_path / "etl" / task.task_id / "metadata.json"
-    metadata = json.loads(Path(output["metadata_file"]).read_text())
+    assert task.metadata_path == tmp_path / "etl" / task.task_id / "metadata.json"
+    metadata = json.loads(task.metadata_path.read_text())
     assert metadata["task_id"] == task.task_id
     assert metadata["reg_name"] == "alpha158_etl"
-    assert metadata["schema_version"] == 2
     assert metadata["input_params"] == task.input_params.model_dump(mode="json")
+    assert "source_tasks" not in metadata
+    assert "metadata_file" not in output
+    assert "metadata_file" not in metadata["output_params"]
     assert metadata["output_params"]["feature_columns"] == list(FEATURES)
+    assert metadata["output_params"]["label_columns"] == list(LABEL_OUTPUTS)
     grouped_features = [
         feature
         for group in metadata["output_params"]["feature_schema"]["groups"]

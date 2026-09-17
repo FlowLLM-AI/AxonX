@@ -6563,6 +6563,11 @@
   width: 16px;
   color: var(--accent);
 }
+.lineage-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .lineage-node {
   min-width: 0;
   display: flex;
@@ -6703,6 +6708,36 @@
 .viz-card > header h3 {
   margin-top: 4px;
   font-size: 15px;
+}
+.base-column-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 16px;
+}
+.base-column-list code {
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-size: 11px;
+}
+.base-value-list {
+  display: grid;
+  max-height: 360px;
+  overflow: auto;
+  padding: 8px 16px;
+}
+.base-value-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.base-value-list code,
+.base-value-list strong {
+  overflow-wrap: anywhere;
+  font-size: 11px;
 }
 .viz-card > header select {
   height: 34px;
@@ -10738,6 +10773,21 @@
 .task-graph-node.missing {
   border-style: dashed;
   opacity: 0.7;
+}
+.task-graph-sources {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  max-width: 280px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.task-graph-sources button {
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  cursor: pointer;
 }
 .task-graph-node.analysis {
   --node-accent: #9361b6;

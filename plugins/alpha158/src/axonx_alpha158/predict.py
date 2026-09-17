@@ -10,20 +10,12 @@ import numpy as np
 import polars as pl
 from pydantic import field_validator, model_validator
 
-from axonx.task.base import TaskStep
+from axonx.enums import TaskType
+from axonx.task.base import TaskStep, task_type_from_id
 from axonx.task.core import (
     BasePredictInputParams,
     BasePredictOutputParams,
     BasePredictTask,
-)
-from axonx.task.core.artifacts import (
-    artifact_path,
-    artifact_record,
-    atomic_output,
-    file_sha256,
-    normalize_yyyymmdd,
-    read_metadata,
-    task_directory,
 )
 
 from .internal.modeling import feature_matrix
@@ -44,7 +36,7 @@ class LgbmPredictInputParams(BasePredictInputParams):
     @field_validator("pred_start", "pred_end", mode="before")
     @classmethod
     def normalize_date(cls, value: object) -> str | None:
-        return normalize_yyyymmdd(value, optional=True)
+        return BasePredictTask.normalize_yyyymmdd(value, optional=True)
 
     @model_validator(mode="after")
     def validate_period(self) -> Self:
@@ -69,10 +61,11 @@ class LgbmPredictTask(BasePredictTask):
         yield self.write_outputs
 
     def resolve_train_task(self) -> None:
-        train_dir = task_directory(self.workspace_path, "train", self.input_params.train_task_id)
+        train_task_id = self.input_params.source_task(TaskType.TRAIN)
+        train_dir = self.artifact_store.task_directory("train", train_task_id)
         train_metadata_path = train_dir / "metadata.json"
-        train_metadata = read_metadata(train_metadata_path, description="LightGBM training")
-        model_path = artifact_path(train_dir, train_metadata, "model")
+        train_metadata = self.artifact_store.read_metadata(train_metadata_path, description="LightGBM training")
+        model_path = self.artifact_store.artifact_path(train_dir, train_metadata, "model")
         train_end = train_metadata.get("output_params", {}).get("protocol", {}).get("train_end_exclusive")
         if not isinstance(train_end, str):
             raise TypeError("训练 metadata 缺少 protocol.train_end_exclusive")
@@ -81,32 +74,32 @@ class LgbmPredictTask(BasePredictTask):
                 f"pred_start 不能早于 train_end: {self.input_params.pred_start} < {train_end}",
             )
         expected_hash = train_metadata.get("output_params", {}).get("artifacts", {}).get("model", {}).get("sha256")
-        if expected_hash and file_sha256(model_path) != expected_hash:
+        if expected_hash and self.artifact_store.file_sha256(model_path) != expected_hash:
             raise ValueError(f"模型文件 SHA256 与训练 metadata 不一致: {model_path}")
-        output_dir = self.workspace_path / "predict" / self.task_id
+        output_dir = self.task_dir
         self.context.update(
             train_dir=train_dir,
             train_metadata_path=train_metadata_path,
             train_metadata=train_metadata,
             model_path=model_path,
             train_end=train_end,
-            output_dir=output_dir,
             predictions_path=output_dir / "predictions.parquet",
-            metadata_path=output_dir / "metadata.json",
         )
         self.logger.info(
-            f"Prediction training source resolved train_task_id={self.input_params.train_task_id} "
+            f"Prediction training source resolved train_task_id={train_task_id} "
             f"model={model_path} train_end={train_end}",
         )
 
     def resolve_source_dataset(self) -> None:
-        etl_task_id = self.context["train_metadata"].get("source_tasks", {}).get("etl_task_id")
-        if not isinstance(etl_task_id, str):
-            raise TypeError("训练 metadata 缺少 source.etl_task_id")
-        etl_dir = task_directory(self.workspace_path, "etl", etl_task_id)
+        sources = self.context["train_metadata"].get("input_params", {}).get("source_tasks", [])
+        etl_sources = [task_id for task_id in sources if task_type_from_id(task_id) == TaskType.ETL]
+        if len(etl_sources) != 1:
+            raise ValueError("训练 metadata 必须包含一个 ETL 上游任务")
+        etl_task_id = etl_sources[0]
+        etl_dir = self.artifact_store.task_directory("etl", etl_task_id)
         etl_metadata_path = etl_dir / "metadata.json"
-        etl_metadata = read_metadata(etl_metadata_path, description="Alpha158 ETL")
-        dataset_path = artifact_path(etl_dir, etl_metadata, "dataset")
+        etl_metadata = self.artifact_store.read_metadata(etl_metadata_path, description="Alpha158 ETL")
+        dataset_path = self.artifact_store.artifact_path(etl_dir, etl_metadata, "dataset")
         self.context.update(
             etl_task_id=etl_task_id,
             etl_dir=etl_dir,
@@ -210,10 +203,10 @@ class LgbmPredictTask(BasePredictTask):
         )
 
     def write_outputs(self) -> None:
-        output_dir: Path = self.context["output_dir"]
+        output_dir: Path = self.task_dir
         output_dir.mkdir(parents=True, exist_ok=True)
         path: Path = self.context["predictions_path"]
-        atomic_output(
+        self.artifact_store.atomic_output(
             path,
             lambda temporary: self.context["predictions"].write_parquet(temporary, compression="zstd"),
         )
@@ -223,9 +216,10 @@ class LgbmPredictTask(BasePredictTask):
         )
 
     def build_output_params(self) -> LgbmPredictOutputParams:
-        output_dir: Path = self.context["output_dir"]
+        output_dir: Path = self.task_dir
         predictions: pl.DataFrame = self.context["predictions"]
-        prediction_record = artifact_record(self.context["predictions_path"], output_dir)
+        prediction_record = self.artifact_store.artifact_record(self.context["predictions_path"], output_dir)
+        model_target = self.context["train_metadata"]["output_params"]["protocol"]["label_column"]
         return self.output_cls(
             protocol={
                 "train_end_exclusive": self.context["train_end"],
@@ -241,11 +235,12 @@ class LgbmPredictTask(BasePredictTask):
                 "start": predictions["trade_date"].min(),
                 "end": predictions["trade_date"].max(),
             },
-            model_target=self.context["train_metadata"]["output_params"]["protocol"]["label_column"],
+            feature_columns=list(self.context["train_metadata"]["output_params"]["feature_columns"]),
+            target_columns=[model_target],
+            model_target=model_target,
             index_weight_columns=list(self.context["index_columns"]),
             artifacts={
                 "predictions": prediction_record,
             },
             predictions_file=str(self.context["predictions_path"]),
-            metadata_file=str(self.context["metadata_path"]),
         )

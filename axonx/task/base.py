@@ -6,15 +6,16 @@ import os
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
-from datetime import UTC, datetime
+from datetime import datetime
 from importlib.resources import files
 from pathlib import Path
 from typing import Any, ClassVar, TypeAlias
 from uuid import uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, SerializeAsAny
+from pydantic import BaseModel, ConfigDict, Field, SerializeAsAny, field_validator
 
-from ..constants import PLUGIN_MANIFEST
+from ..constants import AXONX_DEFAULT_TIMEZONE, PLUGIN_MANIFEST
 from ..enums import ComponentEnum, TaskType
 from ..plugin.manifest import parse_plugin_manifest
 from ..schema import TaskStatus
@@ -49,6 +50,39 @@ class BaseInputParams(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
     task_name: str = Field(default_factory=lambda: uuid4().hex[:8], pattern=r"^[A-Za-z0-9-]{1,32}$")
     include_time: bool = True
+    source_tasks: list[str] = Field(default_factory=list)
+
+    @field_validator("source_tasks")
+    @classmethod
+    def validate_source_tasks(cls, sources: list[str]) -> list[str]:
+        for task_id in sources:
+            task_type_from_id(task_id)
+        if len(sources) != len(set(sources)):
+            raise ValueError("source_tasks contains duplicate task IDs")
+        return sources
+
+    def source_task(self, task_type: TaskType) -> str:
+        matches = [task_id for task_id in self.source_tasks if task_type_from_id(task_id) == task_type]
+        if len(matches) == 1:
+            return matches[0]
+        if matches:
+            raise ValueError(f"Multiple source tasks of type: {task_type.value}")
+        raise ValueError(f"Missing source task: {task_type.value}")
+
+
+def task_type_from_id(task_id: str) -> TaskType:
+    """Read the task category from a canonical task ID."""
+    if not isinstance(task_id, str) or Path(task_id).name != task_id:
+        raise ValueError(f"Invalid task ID: {task_id!r}")
+    parts = task_id.split("#")
+    if len(parts) not in (3, 4) or not _REG_NAME.fullmatch(parts[1]) or not re.fullmatch(r"[A-Za-z0-9-]{1,32}", parts[2]):
+        raise ValueError(f"Invalid task ID: {task_id!r}")
+    if len(parts) == 4 and not re.fullmatch(r"[0-9]{14}", parts[3]):
+        raise ValueError(f"Invalid task ID: {task_id!r}")
+    try:
+        return TaskType(parts[0])
+    except ValueError:
+        raise ValueError(f"Invalid task type in ID: {task_id!r}") from None
 
 
 class BaseOutputParams(BaseModel):
@@ -61,14 +95,12 @@ class BaseOutputParams(BaseModel):
 class TaskMetadata(BaseModel):
     """Common persisted envelope around task specific input and output."""
 
-    schema_version: int = 2
     task_id: str
     reg_name: str
     created_at: datetime
     task_type: TaskType
     input_params: SerializeAsAny[BaseInputParams]
     output_params: SerializeAsAny[BaseOutputParams]
-    source_tasks: dict[str, str] = Field(default_factory=dict)
 
 
 class BaseTask(ABC):
@@ -85,11 +117,13 @@ class BaseTask(ABC):
         *,
         workspace_path: str | Path,
         reg_name: str | None = None,
+        timezone: str = AXONX_DEFAULT_TIMEZONE,
     ):
         self.input_params = self.input_cls.model_validate(input_params)
         self.workspace_path = Path(workspace_path).expanduser().resolve()
         self.context: dict[str, Any] = {"workspace_path": self.workspace_path}
         self.logger = get_logger(type(self).__name__)
+
         if reg_name is None:
             from ..components.registry import R
 
@@ -97,27 +131,29 @@ class BaseTask(ABC):
             if len(names) > 1:
                 raise ValueError(f"Task {type(self).__name__} has multiple registration names; pass reg_name")
             reg_name = names[0] if names else _manifest_registration_name(type(self))
-        name = reg_name
-        if not name:
+
+        if not reg_name:
             raise ValueError(f"Task {type(self).__name__} has no registration name")
-        if not _REG_NAME.fullmatch(name):
-            raise ValueError(f"Invalid Task registration name: {name!r}")
-        self.reg_name = name
-        self.created_at = datetime.now(UTC)
-        parts = [name, self.input_params.task_name]
+        if not _REG_NAME.fullmatch(reg_name):
+            raise ValueError(f"Invalid Task registration name: {reg_name!r}")
+        self.reg_name = reg_name
+
+        try:
+            task_timezone = ZoneInfo(timezone)
+        except ZoneInfoNotFoundError:
+            raise ValueError(f"Unknown timezone: {timezone!r}") from None
+        self.created_at = datetime.now(task_timezone)
+
+        parts = [self.task_type.value, reg_name, self.input_params.task_name]
         if self.input_params.include_time:
             parts.append(f"{self.created_at:%Y%m%d%H%M%S}")
         self.task_id = "#".join(parts)
-        self.source_tasks = {
-            key: value for key, value in self.input_params.model_dump().items()
-            if key.endswith("_task_id") and isinstance(value, str) and value
-        }
-        self.task_metadata: TaskMetadata | None = None
         self._output_params: BaseOutputParams | None = None
+
         self._status = TaskStatus(
             task_id=self.task_id,
             task_type=self.task_type,
-            task_name=name,
+            task_name=reg_name,
             config=self.input_params.model_dump(mode="json"),
             pid=os.getpid(),
             log_path=str(get_log_path() or ""),
@@ -146,26 +182,13 @@ class BaseTask(ABC):
             raise RuntimeError("Task output is unavailable before execution completes")
         return self._output_params.model_dump(mode="json", by_alias=True)
 
-    def prepare_output(self) -> None:
-        """Build one typed result and persist its frontend metadata."""
+    def prepare_output(self) -> BaseOutputParams:
+        """Build one typed result after all steps complete."""
         output = self.build_output_params()
         if not isinstance(output, self.output_cls):
             raise TypeError(f"{type(self).__name__}.build_output_params must return {self.output_cls.__name__}")
         self._output_params = output
-        self.task_metadata = TaskMetadata(
-            task_id=self.task_id,
-            reg_name=self.reg_name,
-            created_at=self.created_at,
-            task_type=self.task_type,
-            input_params=self.input_params,
-            output_params=output,
-            source_tasks=self.source_tasks,
-        )
-        metadata_file = getattr(output, "metadata_file", None)
-        if metadata_file is not None:
-            from .core.artifacts import write_metadata
-
-            write_metadata(Path(metadata_file), self.task_metadata)
+        return output
 
     def prepare_status(self) -> TaskStatus:
         return self._status.model_copy(deep=True)

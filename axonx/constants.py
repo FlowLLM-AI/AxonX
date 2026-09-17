@@ -1,6 +1,7 @@
 """Stable names and defaults shared across AxonX subsystems."""
 
 AXONX_NAME = "AxonX"
+AXONX_DEFAULT_TIMEZONE = "Asia/Shanghai"
 
 PLUGIN_ENTRY_POINT_GROUP = "axonx.plugins"
 
@@ -20,6 +21,7 @@ AXONX_DEFAULT_TASK_STATUS_MIN_INTERVAL = 3.0
 # Internal handoff from an application task manager to its Task subprocess.
 AXONX_TASK_WORKSPACE_DIR = "AXONX_TASK_WORKSPACE_DIR"
 AXONX_TASK_LOG_DIR = "AXONX_TASK_LOG_DIR"
+AXONX_TASK_TIMEZONE = "AXONX_TASK_TIMEZONE"
 
 # Wildcard address used by servers to listen on every IPv4 interface.
 AXONX_DEFAULT_BIND_HOST = "0.0.0.0"

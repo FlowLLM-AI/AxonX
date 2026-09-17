@@ -91,7 +91,3 @@ class DemoTask(BaseTask):
             branch=self.context["branch"],
             operands=self.context["operands"],
         )
-
-    def exit_code(self, _output) -> int:
-        """Demonstrate a Task-defined process exit code."""
-        return 0

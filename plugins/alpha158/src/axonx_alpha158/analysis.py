@@ -2,24 +2,19 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from pathlib import Path
 
 import polars as pl
 from pydantic import Field
 
+from axonx.enums import TaskType
 from axonx.task.base import TaskStep
 from axonx.task.core import (
     BaseAnalysisInputParams,
     BaseAnalysisOutputParams,
     BaseAnalysisTask,
-)
-from axonx.task.core.artifacts import (
-    artifact_path,
-    artifact_record,
-    atomic_output,
-    read_metadata,
-    task_directory,
 )
 
 from .internal.analysis import FactorMetricsCalculator
@@ -57,23 +52,22 @@ class FactorAnalysisTask(BaseAnalysisTask):
         yield self.write_outputs
 
     def resolve_upstream_task(self) -> None:
-        source_dir = task_directory(self.workspace_path, "etl", self.input_params.etl_task_id)
+        etl_task_id = self.input_params.source_task(TaskType.ETL)
+        source_dir = self.artifact_store.task_directory("etl", etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = read_metadata(source_metadata_path, description="Alpha158 ETL")
-        dataset_path = artifact_path(source_dir, source_metadata, "dataset")
-        output_dir = self.workspace_path / "analysis" / self.task_id
+        source_metadata = self.artifact_store.read_metadata(source_metadata_path, description="Alpha158 ETL")
+        dataset_path = self.artifact_store.artifact_path(source_dir, source_metadata, "dataset")
+        output_dir = self.task_dir
         self.context.update(
             source_dir=source_dir,
             source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
             dataset_path=dataset_path,
-            output_dir=output_dir,
             result_path=output_dir / "factor_analysis.csv",
             quantiles_path=output_dir / "factor_quantiles.csv",
-            metadata_path=output_dir / "metadata.json",
         )
         self.logger.info(
-            f"Factor analysis source resolved etl_task_id={self.input_params.etl_task_id} "
+            f"Factor analysis source resolved etl_task_id={etl_task_id} "
             f"dataset={dataset_path} output_dir={output_dir}",
         )
 
@@ -153,7 +147,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
         ).sort("label", "rank_by_abs_rankic")
 
     def write_outputs(self) -> None:
-        output_dir: Path = self.context["output_dir"]
+        output_dir: Path = self.task_dir
         output_dir.mkdir(parents=True, exist_ok=True)
         outputs = (
             ("results", "result_path"),
@@ -161,7 +155,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
         )
         for index, (key, path_key) in enumerate(outputs, start=1):
             path: Path = self.context[path_key]
-            atomic_output(path, self.context[key].write_csv)
+            self.artifact_store.atomic_output(path, self.context[key].write_csv)
             self.report_progress(index / len(outputs) * 95)
         self.logger.info(
             f"Factor analysis outputs written result={self.context['result_path']} "
@@ -169,13 +163,20 @@ class FactorAnalysisTask(BaseAnalysisTask):
         )
 
     def build_output_params(self) -> FactorAnalysisOutputParams:
-        output_dir: Path = self.context["output_dir"]
-        result_record = artifact_record(self.context["result_path"], output_dir)
-        quantiles_record = artifact_record(self.context["quantiles_path"], output_dir)
+        output_dir: Path = self.task_dir
+        result_record = self.artifact_store.artifact_record(self.context["result_path"], output_dir)
+        quantiles_record = self.artifact_store.artifact_record(self.context["quantiles_path"], output_dir)
+        scores: dict[str, dict[str, float]] = {}
+        for row in self.context["results"].iter_rows(named=True):
+            for metric in ("ic_mean", "rankic_mean"):
+                value = row[metric]
+                if value is not None and math.isfinite(value):
+                    scores.setdefault(f"{metric}/{row['label']}", {})[row["factor"]] = float(value)
         return self.output_cls(
             feature_count=len(self.context["features"]),
             labels=list(LABELS),
             rows=self.context["results"].height,
+            scores=scores,
             definitions={
                 "icir": "mean daily cross-sectional Pearson IC divided by its sample standard deviation",
                 "rankicir": "mean daily cross-sectional Spearman RankIC divided by its sample standard deviation",
@@ -189,5 +190,4 @@ class FactorAnalysisTask(BaseAnalysisTask):
             },
             result_file=str(self.context["result_path"]),
             quantiles_file=str(self.context["quantiles_path"]),
-            metadata_file=str(self.context["metadata_path"]),
         )

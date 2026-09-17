@@ -11,7 +11,6 @@ from pydantic import Field, field_validator
 
 from axonx.task.base import TaskStep
 from axonx.task.core import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
-from axonx.task.core.artifacts import artifact_record
 
 from .internal import etl_pipeline
 from .internal.etl_pipeline import (
@@ -58,7 +57,6 @@ class Alpha158OutputParams(BaseETLOutputParams):
     statistics_file: str
     feature_count: int
     symbols: int
-    feature_columns: list[str]
     feature_schema: dict
     labels: dict
     index_weight_columns: list[str]
@@ -136,7 +134,7 @@ class Alpha158Task(BaseETLTask):
             )
         if self.input_params.start_date and self.input_params.end_date and self.input_params.start_date > self.input_params.end_date:
             raise ValueError("start_date 不能晚于 end_date")
-        output_path = self.workspace_path / "etl" / self.task_id / "alpha158.parquet"
+        output_path = self.task_dir / "alpha158.parquet"
         statistics_path = output_path.with_suffix(".csv")
         if statistics_path == output_path:
             raise ValueError("output_file 必须使用非 CSV 扩展名")
@@ -148,8 +146,6 @@ class Alpha158Task(BaseETLTask):
             **{f"{name}_file": path for name, path in static_files.items()},
             output_path=output_path,
             statistics_path=statistics_path,
-            task_dir=self.workspace_path / "etl" / self.task_id,
-            metadata_path=self.workspace_path / "etl" / self.task_id / "metadata.json",
         )
         self.logger.info(
             f"Alpha158 paths resolved input_dir={input_dir} "
@@ -430,10 +426,10 @@ class Alpha158Task(BaseETLTask):
     def build_output_params(self) -> Alpha158OutputParams:
         """Publish the dataset contract used by every downstream Alpha158 task."""
         output: pl.DataFrame = self.context["output"]
-        task_dir: Path = self.context["task_dir"]
+        task_dir: Path = self.task_dir
         task_dir.mkdir(parents=True, exist_ok=True)
-        dataset_record = artifact_record(self.context["output_path"], task_dir)
-        statistics_record = artifact_record(self.context["statistics_path"], task_dir)
+        dataset_record = self.artifact_store.artifact_record(self.context["output_path"], task_dir)
+        statistics_record = self.artifact_store.artifact_record(self.context["statistics_path"], task_dir)
         return self.output_cls(
             date_range={
                 "start": output["trade_date"].min(),
@@ -442,6 +438,7 @@ class Alpha158Task(BaseETLTask):
             rows=output.height,
             symbols=output["ts_code"].n_unique(),
             feature_columns=list(FEATURES),
+            label_columns=list(LABEL_OUTPUTS),
             feature_schema={
                 "title": {
                     "zh": "Alpha158 特征结构",
@@ -491,6 +488,5 @@ class Alpha158Task(BaseETLTask):
             },
             output_file=self.context["output_file"],
             statistics_file=self.context["statistics_file"],
-            metadata_file=str(self.context["metadata_path"]),
             feature_count=self.context["feature_count"],
         )

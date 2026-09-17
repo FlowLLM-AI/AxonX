@@ -12,6 +12,7 @@ from ...registry import R
 from ....constants import (
     AXONX_SERVICE_INFO,
     AXONX_TASK_LOG_DIR,
+    AXONX_TASK_TIMEZONE,
     AXONX_TASK_STATUS_MIN_INTERVAL,
     AXONX_TASK_WORKSPACE_DIR,
 )
@@ -104,6 +105,7 @@ class LocalTaskManager(BaseTaskManager):
         environment = dict(self.app_config.environment)
         environment[AXONX_TASK_WORKSPACE_DIR] = str(self.workspace_path.resolve())
         environment[AXONX_TASK_LOG_DIR] = str(self.log_dir)
+        environment[AXONX_TASK_TIMEZONE] = self.app_config.timezone
         if service_info := os.environ.get(AXONX_SERVICE_INFO):
             environment[AXONX_SERVICE_INFO] = service_info
         status_interval = os.environ.get(AXONX_TASK_STATUS_MIN_INTERVAL)

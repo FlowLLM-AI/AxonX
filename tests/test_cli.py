@@ -87,15 +87,15 @@ def test_installed_task_definitions_include_only_public_config(monkeypatch):
     assert info.source == "plugin"
     assert info.task_type == TaskType.ANALYSIS
     assert set(info.output_schema["properties"]) == {"artifacts", "amount", "dry_run"}
-    assert set(info.input_schema["properties"]) == {"amount", "dry_run", "task_name", "include_time"}
+    assert set(info.input_schema["properties"]) == {"amount", "dry_run", "task_name", "include_time", "source_tasks"}
     assert info.input_schema["required"] == ["amount"]
 
 
 def test_etl_catalog_exposes_domain_input_and_output_contracts():
     info = next(item for item in list_installed_task_definitions() if item.name == "alpha158_etl")
     assert "input_dir" in info.input_schema["required"]
-    assert {"metadata_file", "output_file", "rows", "date_range"} <= set(info.output_schema["properties"])
-    assert {"metadata_file", "output_file", "rows", "date_range"} <= set(info.output_schema["required"])
+    assert {"output_file", "rows", "date_range"} <= set(info.output_schema["properties"])
+    assert {"output_file", "rows", "date_range"} <= set(info.output_schema["required"])
 
 
 def test_domain_task_bases_remain_abstract():
@@ -108,9 +108,9 @@ def test_builtin_task_types_come_from_their_configs(tmp_path):
     demo = DemoTask({"x": 1, "y": 2}, workspace_path=tmp_path)
     download = DownloadTushareTask({}, workspace_path=tmp_path)
 
-    assert demo.task_id.startswith("demo#")
+    assert demo.task_id.startswith("base#demo#")
     assert demo.status.task_type == TaskType.BASE
-    assert download.task_id.startswith("download_tushare_task#")
+    assert download.task_id.startswith("api#download_tushare_task#")
     assert download.status.task_type == TaskType.API
     assert "task_type" not in demo.status.config
 
@@ -216,6 +216,7 @@ def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
         if len(status.steps) == 4 and status.steps[3].percentage is not None
     ]
     assert market_progress == pytest.approx([100 / 201 * 100, 200 / 201 * 100, 100])
+    assert list(tmp_path.rglob("metadata.json")) == []
 
 
 def test_tushare_download_groups_are_independently_selectable(tmp_path):
@@ -261,7 +262,7 @@ def test_tushare_download_files_are_sorted_by_date_and_dataset(tmp_path):
 
 
 def test_backtest_paths_are_resolved_from_prediction_task_id(tmp_path):
-    prediction_dir = tmp_path / "predict" / "predict#example"
+    prediction_dir = tmp_path / "predict" / "predict#backtest_source#example"
     prediction_dir.mkdir(parents=True)
     (prediction_dir / "metadata.json").write_text(
         json.dumps(
@@ -274,30 +275,29 @@ def test_backtest_paths_are_resolved_from_prediction_task_id(tmp_path):
         ),
         encoding="utf-8",
     )
-    task = BacktestTask({"prediction_task_id": "predict#example"}, workspace_path=tmp_path)
+    task = BacktestTask({"source_tasks": ["predict#backtest_source#example"]}, workspace_path=tmp_path)
 
     task.resolve_prediction_task()
 
     assert task.context["predictions_path"] == prediction_dir / "predictions.parquet"
-    assert task.context["output_dir"] == tmp_path / "backtest" / task.task_id
-    assert task.context["daily_path"] == task.context["output_dir"] / "daily.parquet"
-    assert task.context["summary_path"] == task.context["output_dir"] / "summary.parquet"
+    assert task.task_dir == tmp_path / "backtest" / task.task_id
+    assert task.context["daily_path"] == task.task_dir / "daily.parquet"
+    assert task.context["summary_path"] == task.task_dir / "summary.parquet"
 
 
-def test_task_id_is_generated_internally_and_read_only():
-    task = DemoTask({"x": 1, "y": 2, "task_name": "fixed"}, workspace_path=".")
-    assert task.task_id.startswith("demo#fixed#")
-    assert len(task.task_id.split("#")[2]) == 14
-    assert task.task_metadata is None
+def test_task_id_is_generated_internally_and_read_only(tmp_path):
+    task = DemoTask({"x": 1, "y": 2, "task_name": "fixed"}, workspace_path=tmp_path)
+    assert task.task_id.startswith("base#demo#fixed#")
+    assert len(task.task_id.split("#")[3]) == 14
     task.execute()
-    assert task.task_metadata.task_id == task.task_id
-    assert task.task_metadata.input_params is task.input_params
+    assert not hasattr(task, "task_metadata")
+    assert list(tmp_path.rglob("metadata.json")) == []
     assert "task_id" not in task.input_params.model_dump()
 
 
 def test_task_id_can_omit_time_and_defaults_to_eight_uuid_characters():
     named = DemoTask({"x": 1, "y": 2, "task_name": "experiment-1", "include_time": False}, workspace_path=".")
-    assert named.task_id == "demo#experiment-1"
+    assert named.task_id == "base#demo#experiment-1"
     replacement = DemoTask({"x": 3, "y": 4, "task_name": "experiment-1", "include_time": False}, workspace_path=".")
     assert replacement.task_id == named.task_id
     assert named.execute()["result"] == 3
@@ -305,10 +305,22 @@ def test_task_id_can_omit_time_and_defaults_to_eight_uuid_characters():
 
     generated = DemoTask({"x": 1, "y": 2, "include_time": False}, workspace_path=".")
     assert len(generated.input_params.task_name) == 8
-    assert generated.task_id == f"demo#{generated.input_params.task_name}"
+    assert generated.task_id == f"base#demo#{generated.input_params.task_name}"
 
     with pytest.raises(ValidationError):
         BaseInputParams(task_name="invalid#name")
+
+
+def test_source_tasks_require_canonical_unique_ids():
+    source = "etl#alpha158_etl#dataset"
+    params = BaseInputParams(source_tasks=[source, "train#model#run"])
+    assert params.source_task(TaskType.ETL) == source
+
+    for invalid in ([source, source], ["etl#dataset"], ["../etl#dataset#run"]):
+        with pytest.raises(ValidationError):
+            BaseInputParams(source_tasks=invalid)
+    with pytest.raises(ValueError, match="Missing source task"):
+        params.source_task(TaskType.PREDICT)
 
 
 def test_task_status_accepts_an_optional_log_path():
@@ -340,11 +352,22 @@ def test_task_status_keeps_effective_config_for_reruns(monkeypatch, tmp_path):
     assert execution.status.config == {
         "amount": 3,
         "dry_run": False,
-        "task_name": execution.status.task_id.split("#")[1],
+        "task_name": execution.status.task_id.split("#")[2],
         "include_time": True,
+        "source_tasks": [],
     }
     assert "task_id" not in execution.status.config
     assert "task_type" not in execution.status.config
+
+
+def test_task_uses_passed_timezone_for_creation_time(tmp_path):
+    task = CliTask({"amount": 1, "task_name": "clock"}, workspace_path=tmp_path, reg_name="sample", timezone="Asia/Tokyo")
+
+    assert task.created_at.utcoffset().total_seconds() == 9 * 60 * 60
+    assert task.task_id.endswith(task.created_at.strftime("%Y%m%d%H%M%S"))
+
+    with pytest.raises(ValueError, match="Unknown timezone"):
+        CliTask({"amount": 1}, workspace_path=tmp_path, reg_name="sample", timezone="Not/A-Timezone")
 
 
 def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path):
@@ -353,6 +376,7 @@ def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path
 
     class WorkspaceOutputParams(BaseOutputParams):
         workspace_path: Path
+        timezone_offset_seconds: int
 
     class WorkspaceTask(BaseTask):
         task_type = TaskType.ANALYSIS
@@ -363,19 +387,23 @@ def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path
             return ()
 
         def build_output_params(self) -> WorkspaceOutputParams:
-            return WorkspaceOutputParams(workspace_path=self.workspace_path)
+            return WorkspaceOutputParams(
+                workspace_path=self.workspace_path,
+                timezone_offset_seconds=int(self.created_at.utcoffset().total_seconds()),
+            )
 
     monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: WorkspaceTask)
     monkeypatch.setattr(
         cli,
         "resolve_app_config",
-        lambda **_kwargs: {"workspace_dir": str(tmp_path)},
+        lambda **_kwargs: {"workspace_dir": str(tmp_path), "timezone": "Asia/Tokyo"},
     )
 
     assert cli.main(["exec", "--task", "sample"]) == 0
     assert json.loads(capsys.readouterr().out) == {
         "artifacts": {},
         "workspace_path": str(tmp_path.resolve()),
+        "timezone_offset_seconds": 9 * 60 * 60,
     }
 
 

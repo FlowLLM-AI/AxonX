@@ -12,12 +12,12 @@ from axonx_alpha158 import (
     LgbmTrainInputParams,
     LgbmTrainTask,
 )
-from axonx.task.core.artifacts import artifact_path
+from axonx.task.core.artifact_store import ArtifactStore
 from axonx_alpha158.internal.modeling import feature_matrix
 
 
 def _etl_fixture(workspace: Path) -> str:
-    task_id = "alpha158_etl#fixture"
+    task_id = "etl#alpha158_etl#fixture"
     output_dir = workspace / "etl" / task_id
     output_dir.mkdir(parents=True)
     features = ("f_alpha158_signal", "f_alpha158_inverse", "f_alpha158_wave")
@@ -56,12 +56,11 @@ def _etl_fixture(workspace: Path) -> str:
     dataset = output_dir / "alpha158.parquet"
     pl.DataFrame(rows).write_parquet(dataset)
     metadata = {
-        "schema_version": 2,
+        "schema_version": 3,
         "task_id": task_id,
         "reg_name": "alpha158_etl",
         "task_type": "etl",
-        "input_params": {},
-        "source_tasks": {},
+        "input_params": {"source_tasks": []},
         "output_params": {"feature_columns": list(features), "artifacts": {"dataset": {"path": "alpha158.parquet"}}},
     }
     (output_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
@@ -69,7 +68,7 @@ def _etl_fixture(workspace: Path) -> str:
 
 
 def test_training_defaults():
-    config = LgbmTrainInputParams(etl_task_id="alpha158_etl#fixture")
+    config = LgbmTrainInputParams(source_tasks=["etl#alpha158_etl#fixture"])
 
     assert config.train_start == "20150101"
     assert config.train_end == "20230101"
@@ -92,14 +91,14 @@ def test_feature_matrix_preserves_feature_order_and_missing_values():
 @pytest.mark.parametrize("artifact", ["../outside.parquet", "/tmp/outside.parquet"])
 def test_artifact_path_stays_inside_task_directory(tmp_path, artifact):
     with pytest.raises(ValueError, match="任务目录"):
-        artifact_path(tmp_path / "alpha158_etl#fixture", {"output_params": {"artifacts": {"dataset": {"path": artifact}}}}, "dataset")
+        ArtifactStore(tmp_path).artifact_path(tmp_path / "etl#alpha158_etl#fixture", {"output_params": {"artifacts": {"dataset": {"path": artifact}}}}, "dataset")
 
 
 def test_task_id_chained_alpha158_pipeline(tmp_path):
     etl_task_id = _etl_fixture(tmp_path)
 
     analysis = FactorAnalysisTask(
-        {"etl_task_id": etl_task_id, "minimum_daily_samples": 10, "quantiles": 5},
+        {"source_tasks": [etl_task_id], "minimum_daily_samples": 10, "quantiles": 5},
         workspace_path=tmp_path,
     )
     analysis_output = analysis.execute()
@@ -110,11 +109,13 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     )
     assert signal["rankic_mean"].item() == pytest.approx(1.0)
     assert signal["quantile_monotonicity"].item() == pytest.approx(1.0)
-    assert Path(analysis_output["metadata_file"]).is_file()
+    assert analysis.metadata_path.is_file()
+    analysis_metadata = json.loads(analysis.metadata_path.read_text())
+    assert analysis_metadata["output_params"]["scores"]["rankic_mean/label_1d"]["f_alpha158_signal"] == pytest.approx(1.0)
 
     training = LgbmTrainTask(
         {
-            "etl_task_id": etl_task_id,
+            "source_tasks": [etl_task_id],
             "train_start": "20221201",
             "train_end": "20230101",
             "num_boost_round": 30,
@@ -128,16 +129,20 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     assert training_output["train_rows"] < 20 * 40
     assert training_output["best_iteration"] >= 1
     assert Path(training_output["model_file"]).is_file()
-    training_metadata = json.loads(Path(training_output["metadata_file"]).read_text())
+    training_metadata = json.loads(training.metadata_path.read_text())
+    assert training_metadata["output_params"]["model_name"] == "LightGBM"
+    assert training_metadata["output_params"]["target_columns"] == [training.input_params.label_column]
+    assert training_metadata["output_params"]["metrics"]
+    assert training_metadata["output_params"]["parameters"]
     assert training_metadata["input_params"] == training.input_params.model_dump(mode="json")
     assert training_metadata["output_params"]["protocol"]["label_column"] == "label_1d_rank"
     assert training_metadata["output_params"]["protocol"]["daily_trim_tail"] == pytest.approx(0.025)
 
     prediction = LgbmPredictTask(
-        {"train_task_id": training.task_id, "pred_start": "20230102"},
+        {"source_tasks": [training.task_id], "pred_start": "20230102"},
         workspace_path=tmp_path,
     )
-    assert prediction.task_id.startswith("alpha158_lgbm_predict#")
+    assert prediction.task_id.startswith("predict#alpha158_lgbm_predict#")
     prediction_output = prediction.execute()
     predictions = pl.read_parquet(prediction_output["predictions_file"])
     assert predictions.height == 5 * 40
@@ -152,13 +157,15 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
         "is_buyable",
         "index_weight_hs300",
     ]
-    prediction_metadata = json.loads(Path(prediction_output["metadata_file"]).read_text())
+    prediction_metadata = json.loads(prediction.metadata_path.read_text())
+    assert prediction_metadata["output_params"]["feature_columns"] == training_metadata["output_params"]["feature_columns"]
+    assert prediction_metadata["output_params"]["target_columns"] == [training.input_params.label_column]
     assert prediction_metadata["input_params"] == prediction.input_params.model_dump(mode="json")
     assert prediction_metadata["output_params"]["protocol"]["actual_return_column"] == "label_1d"
     assert prediction_metadata["output_params"]["protocol"]["cross_section_filter"] == "none"
 
     backtest = BacktestTask(
-        {"prediction_task_id": prediction.task_id},
+        {"source_tasks": [prediction.task_id]},
         workspace_path=tmp_path,
     )
     backtest_output = backtest.execute()
@@ -186,16 +193,15 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     assert "top30_ndcg" in daily.columns
     assert Path(backtest_output["daily_file"]).suffix == ".parquet"
     assert Path(backtest_output["summary_file"]).suffix == ".parquet"
-    assert {"daily_file", "summary_file", "metadata_file", "days", "artifacts"} <= set(backtest_output)
-    assert Path(backtest_output["metadata_file"]).is_file()
-    assert {path.name for path in Path(backtest_output["metadata_file"]).parent.iterdir()} == {
+    assert {"daily_file", "summary_file", "days", "artifacts"} <= set(backtest_output)
+    assert backtest.metadata_path.is_file()
+    assert {path.name for path in backtest.metadata_path.parent.iterdir()} == {
         "daily.parquet",
         "summary.parquet",
         "metadata.json",
     }
-    backtest_metadata = json.loads(Path(backtest_output["metadata_file"]).read_text())
+    backtest_metadata = json.loads(backtest.metadata_path.read_text())
     assert backtest_metadata["input_params"] == backtest.input_params.model_dump(mode="json")
-    assert backtest_metadata["schema_version"] == 2
     assert backtest_metadata["output_params"]["dimensions"]["top_ns"] == [1, 2, 3, 5, 10, 15, 20, 30]
     assert {name: record["path"] for name, record in backtest_metadata["output_params"]["artifacts"].items()} == {
         "daily": "daily.parquet", "summary": "summary.parquet",
@@ -204,20 +210,20 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
 
 def test_prediction_rejects_training_overlap(tmp_path):
     etl_task_id = _etl_fixture(tmp_path)
-    training_dir = tmp_path / "train" / "alpha158_lgbm_train#fixture"
+    training_dir = tmp_path / "train" / "train#alpha158_lgbm_train#fixture"
     training_dir.mkdir(parents=True)
     (training_dir / "model.txt").write_text("fixture", encoding="utf-8")
     (training_dir / "metadata.json").write_text(
         json.dumps(
             {
                 "output_params": {"protocol": {"train_end_exclusive": "20230101"}, "artifacts": {"model": {"path": "model.txt"}}},
-                "source_tasks": {"etl_task_id": etl_task_id},
+                "input_params": {"source_tasks": [etl_task_id]},
             },
         ),
         encoding="utf-8",
     )
     task = LgbmPredictTask(
-        {"train_task_id": "alpha158_lgbm_train#fixture", "pred_start": "20221231"},
+        {"source_tasks": ["train#alpha158_lgbm_train#fixture"], "pred_start": "20221231"},
         workspace_path=tmp_path,
     )
 

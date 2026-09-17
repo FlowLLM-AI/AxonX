@@ -2,7 +2,6 @@ export type ResearchKind =
   "analysis" | "backtest" | "etl" | "train" | "predict";
 export type ResearchPageId =
   "etl" | "factors" | "train" | "predict" | "backtest";
-export type ResearchRow = Record<string, string>;
 
 export interface ArtifactFile {
   path: string;
@@ -10,55 +9,40 @@ export interface ArtifactFile {
   sha256: string;
 }
 
-export interface FeatureGroupConfig {
-  name?: string;
-  label?: string;
-  description?: string;
-  features?: unknown[];
-  columns?: unknown[];
-}
-
 export interface ResearchArtifact {
-  [key: string]: unknown;
   _path: string;
   _modified?: number;
-  schema_version: 2;
   task_key: string;
   created_at: string;
   rows?: number;
-  symbols?: number;
-  feature_count?: number;
+  train_rows?: number;
+  days?: number;
+  model_name?: string;
   feature_columns?: string[];
   label_columns?: string[];
-  labels?: Record<string, unknown>;
-  schema?: Record<string, string>;
-  feature_groups?: FeatureGroupConfig[] | Record<string, unknown[]>;
-  feature_schema?: {
-    title?: string | Record<"zh" | "en", string>;
-    groups?: FeatureGroupConfig[] | Record<string, unknown[]>;
+  target_columns?: string[];
+  scores?: Record<string, Record<string, number>>;
+  metrics?: Record<string, number>;
+  parameters?: Record<string, unknown>;
+  dimensions?: {
+    top_ns?: number[];
+    holding_detail_top_n?: number;
+    benchmarks?: { key: string; label: string }[];
   };
   date_range?: { start?: string; end?: string };
-  model_target?: string;
-  model?: {
-    library?: string;
-    library_version?: string;
-    best_iteration?: number;
-  };
-  validation_metrics?: { ic_mean?: number; rankic_mean?: number };
-  source?: {
-    etl_task_id?: string;
-    prediction_task_id?: string;
-    train_task_id?: string;
-  };
+  output_file?: string;
+  result_file?: string;
+  model_file?: string;
+  predictions_file?: string;
+  daily_file?: string;
+  summary_file?: string;
+  source?: string[];
   config: {
     task_id: string;
     task_type: ResearchKind;
     task_name: string;
     include_time: boolean;
-    quantiles?: number;
-    transaction_cost_rate?: number;
-    annual_risk_free_rate?: number;
-    annualization_days?: number;
+    input_dir?: string;
   };
   artifacts: Record<string, ArtifactFile>;
 }

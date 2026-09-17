@@ -1,22 +1,24 @@
 """Common contract for analysis tasks."""
 
 from abc import ABC
+from pydantic import Field
 
 from ...enums import TaskType
-from ..base import BaseInputParams, BaseOutputParams, BaseTask
+from ..base import BaseInputParams, BaseOutputParams
+from .artifact_task import BaseArtifactTask
 
 
 class BaseAnalysisInputParams(BaseInputParams):
-    etl_task_id: str
+    pass
 
 
 class BaseAnalysisOutputParams(BaseOutputParams):
-    metadata_file: str
     result_file: str
     rows: int
+    scores: dict[str, dict[str, float]] = Field(default_factory=dict)
 
 
-class BaseAnalysisTask(BaseTask, ABC):
+class BaseAnalysisTask(BaseArtifactTask, ABC):
     """Analyze a completed ETL task."""
 
     task_type = TaskType.ANALYSIS

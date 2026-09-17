@@ -19,6 +19,7 @@ from axonx.constants import (
     AXONX_SERVICE_INFO,
     AXONX_TASK_LOG_DIR,
     AXONX_TASK_STATUS_MIN_INTERVAL,
+    AXONX_TASK_TIMEZONE,
     AXONX_TASK_WORKSPACE_DIR,
 )
 from axonx.plugin.manifest import parse_plugin_manifest
@@ -75,6 +76,7 @@ async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp
     assert options["env"][AXONX_SERVICE_INFO] == '{"host":"service.internal","port":4321}'
     assert options["env"][AXONX_TASK_WORKSPACE_DIR] == str(tmp_path.resolve())
     assert options["env"][AXONX_TASK_LOG_DIR] == str(log_dir.resolve())
+    assert options["env"][AXONX_TASK_TIMEZONE] == "Asia/Shanghai"
     assert options["env"][AXONX_TASK_STATUS_MIN_INTERVAL] == "1.5"
     assert options["env"]["PYTHONPATH"] == str(Path(__file__).parent)
     assert options["stderr"] == asyncio.subprocess.PIPE

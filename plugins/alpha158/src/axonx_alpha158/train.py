@@ -11,16 +11,9 @@ import numpy as np
 import polars as pl
 from pydantic import Field, field_validator, model_validator
 
+from axonx.enums import TaskType
 from axonx.task.base import TaskStep
 from axonx.task.core import BaseTrainInputParams, BaseTrainOutputParams, BaseTrainTask
-from axonx.task.core.artifacts import (
-    artifact_path,
-    artifact_record,
-    atomic_output,
-    normalize_yyyymmdd,
-    read_metadata,
-    task_directory,
-)
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix
@@ -33,7 +26,6 @@ class LgbmTrainOutputParams(BaseTrainOutputParams):
     evaluation_history_file: str
     best_iteration: int
     protocol: dict
-    feature_columns: list[str]
     model: dict
     rows: dict[str, int]
     validation_metrics: dict
@@ -64,7 +56,7 @@ class LgbmTrainInputParams(BaseTrainInputParams):
     @field_validator("train_start", "train_end", mode="before")
     @classmethod
     def normalize_date(cls, value: object) -> str:
-        return normalize_yyyymmdd(value)
+        return BaseTrainTask.normalize_yyyymmdd(value)
 
     @field_validator("label_column")
     @classmethod
@@ -103,24 +95,23 @@ class LgbmTrainTask(BaseTrainTask):
         return self.input_params.label_column.removesuffix("_rank").removesuffix("_csz")
 
     def resolve_upstream_task(self) -> None:
-        source_dir = task_directory(self.workspace_path, "etl", self.input_params.etl_task_id)
+        etl_task_id = self.input_params.source_task(TaskType.ETL)
+        source_dir = self.artifact_store.task_directory("etl", etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = read_metadata(source_metadata_path, description="Alpha158 ETL")
-        dataset_path = artifact_path(source_dir, source_metadata, "dataset")
-        output_dir = self.workspace_path / "train" / self.task_id
+        source_metadata = self.artifact_store.read_metadata(source_metadata_path, description="Alpha158 ETL")
+        dataset_path = self.artifact_store.artifact_path(source_dir, source_metadata, "dataset")
+        output_dir = self.task_dir
         self.context.update(
             source_dir=source_dir,
             source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
             dataset_path=dataset_path,
-            output_dir=output_dir,
             model_path=output_dir / "model.txt",
             importance_path=output_dir / "feature_importance.csv",
             history_path=output_dir / "evaluation_history.csv",
-            metadata_path=output_dir / "metadata.json",
         )
         self.logger.info(
-            f"Training source resolved etl_task_id={self.input_params.etl_task_id} "
+            f"Training source resolved etl_task_id={etl_task_id} "
             f"dataset={dataset_path} label={self.input_params.label_column}",
         )
 
@@ -380,9 +371,9 @@ class LgbmTrainTask(BaseTrainTask):
         return float(array.mean()) if len(array) else math.nan
 
     def write_outputs(self) -> None:
-        output_dir: Path = self.context["output_dir"]
+        output_dir: Path = self.task_dir
         output_dir.mkdir(parents=True, exist_ok=True)
-        atomic_output(
+        self.artifact_store.atomic_output(
             self.context["model_path"],
             lambda temporary: self.context["model"].save_model(str(temporary)),
         )
@@ -390,7 +381,7 @@ class LgbmTrainTask(BaseTrainTask):
         outputs = (("importance", "importance_path"), ("history", "history_path"))
         for index, (key, path_key) in enumerate(outputs, start=1):
             path: Path = self.context[path_key]
-            atomic_output(path, self.context[key].write_csv)
+            self.artifact_store.atomic_output(path, self.context[key].write_csv)
             self.report_progress(40 + index / len(outputs) * 55)
         self.logger.info(
             f"Training artifacts written model={self.context['model_path']} "
@@ -398,7 +389,7 @@ class LgbmTrainTask(BaseTrainTask):
         )
 
     def build_output_params(self) -> LgbmTrainOutputParams:
-        output_dir: Path = self.context["output_dir"]
+        output_dir: Path = self.task_dir
         frame: pl.DataFrame = self.context["frame"]
         artifacts = {}
         artifact_paths = (
@@ -407,7 +398,7 @@ class LgbmTrainTask(BaseTrainTask):
             ("evaluation_history", "history_path"),
         )
         for index, (name, path_key) in enumerate(artifact_paths, start=1):
-            artifacts[name] = artifact_record(self.context[path_key], output_dir)
+            artifacts[name] = self.artifact_store.artifact_record(self.context[path_key], output_dir)
         return self.output_cls(
             protocol={
                 "train_start_inclusive": self.input_params.train_start,
@@ -420,6 +411,13 @@ class LgbmTrainTask(BaseTrainTask):
                 "sample_filter": "is_buyable and valid finite label",
             },
             feature_columns=list(self.context["features"]),
+            target_columns=[self.input_params.label_column],
+            model_name="LightGBM",
+            metrics={
+                name: value for name, value in self.context["validation_metrics"].items()
+                if isinstance(value, (int, float)) and math.isfinite(value)
+            },
+            parameters=self._parameters(),
             model={
                 "library": "lightgbm",
                 "library_version": self._lightgbm().__version__,
@@ -439,7 +437,6 @@ class LgbmTrainTask(BaseTrainTask):
             model_file=str(self.context["model_path"]),
             feature_importance_file=str(self.context["importance_path"]),
             evaluation_history_file=str(self.context["history_path"]),
-            metadata_file=str(self.context["metadata_path"]),
             train_rows=frame.height,
             best_iteration=self.context["best_iteration"],
         )

@@ -2,9 +2,11 @@
 
 from abc import ABC
 from pathlib import Path
+from pydantic import Field
 
 from ...enums import TaskType
-from ..base import BaseInputParams, BaseOutputParams, BaseTask
+from ..base import BaseInputParams, BaseOutputParams
+from .artifact_task import BaseArtifactTask
 
 
 class BaseETLInputParams(BaseInputParams):
@@ -12,13 +14,14 @@ class BaseETLInputParams(BaseInputParams):
 
 
 class BaseETLOutputParams(BaseOutputParams):
-    metadata_file: str
     output_file: str
     rows: int
     date_range: dict[str, str]
+    feature_columns: list[str] = Field(default_factory=list)
+    label_columns: list[str] = Field(default_factory=list)
 
 
-class BaseETLTask(BaseTask, ABC):
+class BaseETLTask(BaseArtifactTask, ABC):
     """Build a dataset from a source directory."""
 
     task_type = TaskType.ETL
