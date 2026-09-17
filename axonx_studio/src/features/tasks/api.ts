@@ -1,5 +1,5 @@
 import { callJob, remoteBody } from "../../shared/api/client";
-import type { TaskInfo, TaskLogChunk, TaskStatus } from "../../types";
+import type { TaskDefinition, TaskLogChunk, TaskStatus } from "../../types";
 
 export const listTaskStatuses = (remoteIp?: string, signal?: AbortSignal) =>
   callJob<TaskStatus[]>(
@@ -29,12 +29,12 @@ export const readTaskLog = (
     { task_id: taskId, offset, limit, ...remoteBody(remoteIp) },
     signal,
   );
-export const listInstalledTaskInfos = (
+export const listInstalledTaskDefinitions = (
   remoteIp?: string,
   signal?: AbortSignal,
 ) =>
-  callJob<TaskInfo[]>(
-    "list_installed_task_infos",
+  callJob<TaskDefinition[]>(
+    "list_installed_task_definitions",
     remoteBody(remoteIp),
     signal,
   );

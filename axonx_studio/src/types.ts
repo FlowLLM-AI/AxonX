@@ -39,7 +39,7 @@ export type {
   MemoryInfo,
 } from "./features/machines/types";
 export type {
-  TaskInfo,
+  TaskDefinition,
   TaskLogChunk,
   TaskState,
   TaskStatus,

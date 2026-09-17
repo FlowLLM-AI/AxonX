@@ -8,7 +8,7 @@ from ..components.registry import R
 from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
 from ..enums import ComponentEnum, TaskType
 from ..plugin.manifest import parse_plugin_manifest
-from ..schema import TaskInfo
+from ..schema import TaskDefinition
 from ..utils.entry_points import find_all_entry_points, load_entry_point
 from ..utils.imports import load_symbol
 from .base import BaseTask
@@ -45,26 +45,26 @@ def installed_tasks() -> dict[str, type[BaseTask]]:
     return tasks
 
 
-def list_installed_task_infos() -> list[TaskInfo]:
-    """Return sorted metadata for every installed Task."""
-    infos = []
+def list_installed_task_definitions() -> list[TaskDefinition]:
+    """Return sorted definitions for every installed Task."""
+    definitions = []
     native_tasks = R.get_all(ComponentEnum.TASK)
     for name, task_class in sorted(installed_tasks().items()):
         task_type = task_class.task_type
         if not isinstance(task_type, TaskType):
             raise TypeError(f"Task {name!r} must declare a fixed TaskType")
-        schema = deepcopy(task_class.input_cls.model_json_schema())
-        infos.append(
-            TaskInfo(
+        input_schema = deepcopy(task_class.input_cls.model_json_schema())
+        definitions.append(
+            TaskDefinition(
                 name=name,
                 source=("native" if native_tasks.get(name) is task_class else "plugin"),
                 task_type=task_type,
                 description=_task_description(name, task_class),
-                config_schema=schema,
+                input_schema=input_schema,
                 output_schema=task_class.output_cls.model_json_schema(),
             ),
         )
-    return infos
+    return definitions
 
 
 def resolve_task(name: str) -> type[BaseTask]:

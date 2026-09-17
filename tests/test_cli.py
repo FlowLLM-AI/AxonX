@@ -29,7 +29,7 @@ from axonx.task.core import (
 )
 from axonx.task.data import DownloadTushareTask, TushareDownloadInputParams
 from axonx.task.executor import TaskCommandExecutor
-from axonx.task.resolver import list_installed_task_infos
+from axonx.task.resolver import list_installed_task_definitions
 from axonx.task.status_reporter import (
     HttpTaskStatusReporter,
     create_task_status_reporter,
@@ -75,25 +75,25 @@ def test_task_status_records_the_active_process_log(tmp_path):
         get_logger(log_to_console=False, log_to_file=False, force_init=True)
 
 
-def test_installed_task_infos_include_only_public_config(monkeypatch):
+def test_installed_task_definitions_include_only_public_config(monkeypatch):
     monkeypatch.setattr(
         "axonx.task.resolver.installed_tasks",
         lambda: {"sample": CliTask},
     )
 
-    info = list_installed_task_infos()[0]
+    info = list_installed_task_definitions()[0]
 
     assert info.name == "sample"
     assert info.source == "plugin"
     assert info.task_type == TaskType.ANALYSIS
     assert set(info.output_schema["properties"]) == {"artifacts", "amount", "dry_run"}
-    assert set(info.config_schema["properties"]) == {"amount", "dry_run", "task_name", "include_time"}
-    assert info.config_schema["required"] == ["amount"]
+    assert set(info.input_schema["properties"]) == {"amount", "dry_run", "task_name", "include_time"}
+    assert info.input_schema["required"] == ["amount"]
 
 
 def test_etl_catalog_exposes_domain_input_and_output_contracts():
-    info = next(item for item in list_installed_task_infos() if item.name == "alpha158_etl")
-    assert "input_dir" in info.config_schema["required"]
+    info = next(item for item in list_installed_task_definitions() if item.name == "alpha158_etl")
+    assert "input_dir" in info.input_schema["required"]
     assert {"metadata_file", "output_file", "rows", "date_range"} <= set(info.output_schema["properties"])
     assert {"metadata_file", "output_file", "rows", "date_range"} <= set(info.output_schema["required"])
 
@@ -118,7 +118,7 @@ def test_builtin_task_types_come_from_their_configs(tmp_path):
         CliInputParams(amount=1, task_type=TaskType.ETL)
 
 
-def test_installed_task_infos_require_an_explicit_class_docstring(monkeypatch):
+def test_installed_task_definitions_require_an_explicit_class_docstring(monkeypatch):
     class UndocumentedTask(CliTask):
         __doc__ = None
 
@@ -128,7 +128,7 @@ def test_installed_task_infos_require_an_explicit_class_docstring(monkeypatch):
     )
 
     with pytest.raises(TypeError, match="must define a detailed class docstring"):
-        list_installed_task_infos()
+        list_installed_task_definitions()
 
 
 @pytest.fixture(autouse=True)

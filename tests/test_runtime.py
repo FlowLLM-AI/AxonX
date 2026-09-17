@@ -1004,13 +1004,13 @@ async def test_task_manager_replaces_status_from_another_version_on_close(tmp_pa
 async def test_task_listing_jobs_separate_runtime_and_installed_tasks(tmp_path):
     async with application(tmp_path) as app:
         runtime = await app.run_job("list_runtime_task_ids")
-        installed = await app.run_job("list_installed_task_infos")
+        installed = await app.run_job("list_installed_task_definitions")
 
     assert runtime.answer == []
     tasks = {info["name"]: info for info in installed.answer}
     assert "download_tushare_task" in tasks
     assert tasks["download_tushare_task"]["source"] == "native"
-    assert set(tasks["download_tushare_task"]["config_schema"]["properties"]) == {
+    assert set(tasks["download_tushare_task"]["input_schema"]["properties"]) == {
         "task_name",
         "include_time",
         "start_date",

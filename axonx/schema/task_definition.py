@@ -1,4 +1,4 @@
-"""Description of an installed Task."""
+"""Definition of an installed Task."""
 
 from typing import Any, Literal
 
@@ -7,8 +7,8 @@ from pydantic import BaseModel, ConfigDict
 from ..enums import TaskType
 
 
-class TaskInfo(BaseModel):
-    """Describe an installed Task and its public configuration."""
+class TaskDefinition(BaseModel):
+    """Describe an installed Task and its input and output schemas."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -16,5 +16,5 @@ class TaskInfo(BaseModel):
     source: Literal["native", "plugin"]
     task_type: TaskType
     description: str
-    config_schema: dict[str, Any]
+    input_schema: dict[str, Any]
     output_schema: dict[str, Any]

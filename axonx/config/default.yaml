@@ -91,10 +91,10 @@ jobs:
     steps:
       - backend: list_runtime_task_statuses
 
-  list_installed_task_infos:
+  list_installed_task_definitions:
     description: List all installed Task definitions.
     steps:
-      - backend: list_installed_task_infos
+      - backend: list_installed_task_definitions
 
   set_status:
     description: Store a complete status reported by a task process.
