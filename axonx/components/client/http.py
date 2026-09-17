@@ -7,7 +7,10 @@ from urllib.parse import quote
 
 import httpx
 
+from ...constants import CLI_RAW_ARGUMENTS
+from ...plugin.verification import verify_remote_plugin
 from ...schema import JobInfo, Response, TaskStatus
+from ...task.arguments import task_name_from_argv
 from ..registry import R
 from .base import BaseClient
 
@@ -31,6 +34,15 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
 
     async def run_job(self, name: str, **kwargs: Any) -> Response:
         """Invoke a named remote job with JSON arguments."""
+        if name == "submit":
+            task_name = kwargs.get("task") or task_name_from_argv(kwargs.get(CLI_RAW_ARGUMENTS, ()))
+            if isinstance(task_name, str) and task_name:
+                plugins = await self._require_client().post("/jobs/list_plugins", json={})
+                plugins.raise_for_status()
+                listing = Response.model_validate_json(plugins.content)
+                if not listing.success:
+                    raise ValueError(f"Cannot verify remote plugins: {listing.answer}")
+                verify_remote_plugin(task_name, listing.answer)
         response = await self._require_client().post(f"/jobs/{quote(name, safe='')}", json=kwargs)
         response.raise_for_status()
         return Response.model_validate_json(response.content)
