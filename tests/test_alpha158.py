@@ -43,8 +43,9 @@ def _write_reference_data(root: Path, dates: list[str], codes: list[str]) -> Non
 
 
 def test_alpha158_defaults_to_data_since_2014():
-    config = Alpha158InputParams(input_dir="tushare")
+    config = Alpha158InputParams()
 
+    assert config.input_dir == Path("tushare")
     assert config.start_date == "20140101"
     assert config.end_date is None
     assert config.csz_winsorize_tail == pytest.approx(0.025)

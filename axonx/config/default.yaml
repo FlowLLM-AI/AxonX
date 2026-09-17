@@ -67,6 +67,26 @@ jobs:
       - backend: version_step
       - backend: demo_step
 
+  shell:
+    description: Execute a shell command on the selected AxonX machine.
+    parameters:
+      type: object
+      properties:
+        command:
+          type: string
+          minLength: 1
+          description: Shell command to execute.
+        timeout:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 300
+          default: 30
+          description: Maximum execution time in seconds.
+      required: [command]
+      additionalProperties: false
+    steps:
+      - backend: shell_step
+
   submit:
     description: Submit a task for asynchronous execution.
     parameters:

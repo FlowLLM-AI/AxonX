@@ -68,6 +68,7 @@ class Alpha158OutputParams(BaseETLOutputParams):
 class Alpha158InputParams(BaseETLInputParams):
     """Configure input partitions, output file, and optional output date range."""
 
+    input_dir: Path = Path("tushare")
     start_date: str | None = "20140101"
     end_date: str | None = None
     csz_winsorize_tail: float = Field(
