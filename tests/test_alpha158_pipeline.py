@@ -79,7 +79,13 @@ def test_training_defaults():
 
 def test_training_curve_requires_aligned_series():
     with pytest.raises(ValidationError, match="x-axis length"):
-        TrainingCurve(x=["1", "2"], y={"train_l2": [0.4]})
+        TrainingCurve(x=["1", "2"], y_left={"train_l2": [0.4]})
+
+    with pytest.raises(ValidationError, match="unique across axes"):
+        TrainingCurve(x=["1"], y_left={"loss": [0.4]}, y_right={"loss": [0.2]})
+
+    with pytest.raises(ValidationError, match="x-axis points"):
+        TrainingCurve(y_left={"train_l2": []})
 
 
 def test_feature_matrix_preserves_feature_order_and_missing_values():
@@ -142,8 +148,12 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     assert training_metadata["output_params"]["parameters"]
     curve = training_metadata["output_params"]["training_curve"]
     assert curve["x"][0] == "1"
-    assert {"train_l2", "validation_l2"} <= set(curve["y"])
-    assert all(len(values) == len(curve["x"]) for values in curve["y"].values())
+    assert {"train_l2", "validation_l2"} <= set(curve["y_left"])
+    assert {"train_l1", "validation_l1"} <= set(curve["y_right"])
+    assert all(
+        len(values) == len(curve["x"])
+        for values in (*curve["y_left"].values(), *curve["y_right"].values())
+    )
     assert training_metadata["input_params"] == training.input_params.model_dump(mode="json")
     assert training_metadata["output_params"]["protocol"]["label_column"] == "label_1d_rank"
     assert training_metadata["output_params"]["protocol"]["daily_trim_tail"] == pytest.approx(0.025)

@@ -6791,6 +6791,13 @@
   width: 100%;
   height: 390px;
 }
+.train-curve-note {
+  margin: 0;
+  padding: 0 18px 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
 .train-curve-empty {
   min-height: 220px;
   display: grid;

@@ -34,7 +34,12 @@ import {
 import { formatBytes } from "../../shared/lib/format";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import type { ContextOption, Language } from "../../types";
-import type { ResearchArtifact, ResearchKind, ResearchPageId } from "./types";
+import type {
+  ResearchArtifact,
+  ResearchKind,
+  ResearchPageId,
+  TrainingCurveData,
+} from "./types";
 
 const BacktestView = lazy(() =>
   import("./backtest/BacktestView").then((module) => ({
@@ -87,6 +92,29 @@ const fmt = (value: unknown, digits = 2) => {
     }).format(number);
   return number.toLocaleString("zh-CN", { maximumFractionDigits: digits });
 };
+
+function normalizeTrainingCurve(value: unknown): TrainingCurveData | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const curve = value as Partial<TrainingCurveData> & {
+    y?: Record<string, number[]>;
+  };
+  if (!Array.isArray(curve.x)) return undefined;
+  if (curve.y_left || curve.y_right) {
+    return {
+      x: curve.x,
+      y_left: curve.y_left || {},
+      y_right: curve.y_right || {},
+    };
+  }
+  // Earlier artifacts stored all series under y. Keep them readable.
+  const legacy = Object.entries(curve.y || {});
+  return {
+    x: curve.x,
+    y_left: Object.fromEntries(legacy.filter(([name]) => !name.endsWith("_l1"))),
+    y_right: Object.fromEntries(legacy.filter(([name]) => name.endsWith("_l1"))),
+  };
+}
+
 function useTasks(
   kind: Kind,
   remoteIp?: string,
@@ -152,7 +180,7 @@ function useTasks(
                 model_name: output.model_name,
                 metrics: output.metrics,
                 parameters: output.parameters,
-                training_curve: output.training_curve,
+                training_curve: normalizeTrainingCurve(output.training_curve),
                 dimensions: output.dimensions,
                 artifacts: (output.artifacts || {}) as Meta["artifacts"],
                 task_key: String(metadata.reg_name),
@@ -1199,7 +1227,7 @@ function BaseOutputView({
                 </div>
               }
             >
-              <TrainingCurveChart curve={meta.training_curve} />
+              <TrainingCurveChart curve={meta.training_curve} zh={zh} />
             </Suspense>
           ) : (
             <div className="train-curve-empty">
@@ -1208,6 +1236,15 @@ function BaseOutputView({
                 : "No training curve is available for this task"}
             </div>
           )}
+          {meta.training_curve &&
+            Object.keys(meta.training_curve.y_left).some((name) => name.endsWith("_l2")) &&
+            Object.keys(meta.training_curve.y_right).some((name) => name.endsWith("_l1")) && (
+              <p className="train-curve-note">
+                {zh
+                  ? "左轴 L2：均方误差；右轴 L1：平均绝对误差。实线为训练，虚线为验证；两轴数值不可直接比较。"
+                  : "Left axis L2: mean squared error; right axis L1: mean absolute error. Solid lines show training, dashed lines validation. Do not compare heights across axes."}
+              </p>
+            )}
           {Object.keys(meta.metrics || {}).length > 0 && (
             <div className="train-curve-metrics">
               {Object.entries(meta.metrics || {}).map(([name, value]) => (

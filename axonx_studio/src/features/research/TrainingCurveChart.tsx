@@ -8,6 +8,7 @@ import {
 } from "echarts/components";
 import { init, use as registerECharts } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
+import type { TrainingCurveData } from "./types";
 
 registerECharts([
   LineChart,
@@ -20,8 +21,10 @@ registerECharts([
 
 export function TrainingCurveChart({
   curve,
+  zh,
 }: {
-  curve: { x: string[]; y: Record<string, number[]> };
+  curve: TrainingCurveData;
+  zh: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState(
@@ -43,17 +46,79 @@ export function TrainingCurveChart({
     if (!host.current) return;
     const style = getComputedStyle(host.current);
     const token = (name: string) => style.getPropertyValue(name).trim();
-    const series = Object.entries(curve.y).filter(
+    const left = Object.entries(curve.y_left).filter(
       ([, values]) => values.length === curve.x.length,
     );
+    const right = Object.entries(curve.y_right).filter(
+      ([, values]) => values.length === curve.x.length,
+    );
+    const dualAxis = right.length > 0;
+    const l2Left =
+      left.length > 0 && left.every(([name]) => name.endsWith("_l2"));
+    const l1Right =
+      right.length > 0 && right.every(([name]) => name.endsWith("_l1"));
+    const axisRange = (entries: [string, number[]][], start = 0, end = 100) => {
+      const from = Math.floor((start / 100) * Math.max(curve.x.length - 1, 0));
+      const to = Math.ceil((end / 100) * Math.max(curve.x.length - 1, 0)) + 1;
+      let minimum = Infinity;
+      let maximum = -Infinity;
+      for (const [, points] of entries) {
+        for (const value of points.slice(from, to)) {
+          if (!Number.isFinite(value)) continue;
+          minimum = Math.min(minimum, value);
+          maximum = Math.max(maximum, value);
+        }
+      }
+      if (!Number.isFinite(minimum)) return {};
+      const padding = Math.max(
+        (maximum - minimum) * 0.12,
+        Math.abs(maximum) * 0.001,
+        1e-6,
+      );
+      return { min: minimum - padding, max: maximum + padding };
+    };
+    const axis = (entries: [string, number[]][], side: "left" | "right") => ({
+      type: "value",
+      position: side,
+      scale: true,
+      name:
+        side === "left"
+          ? l2Left
+            ? "L2 · MSE"
+            : zh
+              ? "左轴"
+              : "Left axis"
+          : l1Right
+            ? "L1 · MAE"
+            : zh
+              ? "右轴"
+              : "Right axis",
+      nameTextStyle: { color: token("--muted"), fontSize: 11 },
+      ...axisRange(entries),
+      axisLabel: {
+        color: token("--faint"),
+        formatter: (value: number) => Number(value).toPrecision(4),
+      },
+      splitLine: {
+        show: side === "left",
+        lineStyle: { color: token("--line"), opacity: 0.65 },
+      },
+    });
+    const displayName = (name: string) =>
+      name
+        .replace(/^train_/, zh ? "训练 " : "Train ")
+        .replace(/^validation_/, zh ? "验证 " : "Validation ")
+        .replace(/_l([12])$/, " L$1");
     const zoom = curve.x.length > 80;
     const chart = init(host.current, undefined, { renderer: "canvas" });
     chart.setOption({
       animation: false,
-      color: Array.from({ length: 8 }, (_, index) =>
-        token(`--chart-${index + 1}`),
-      ),
-      grid: { left: 68, right: 24, top: 58, bottom: zoom ? 76 : 42 },
+      grid: {
+        left: 78,
+        right: dualAxis ? 78 : 24,
+        top: 66,
+        bottom: zoom ? 76 : 42,
+      },
       legend: {
         type: "scroll",
         top: 10,
@@ -64,7 +129,7 @@ export function TrainingCurveChart({
         backgroundColor: token("--surface"),
         borderColor: token("--line"),
         textStyle: { color: token("--ink") },
-        valueFormatter: (value: unknown) => Number(value).toPrecision(5),
+        valueFormatter: (value: unknown) => Number(value).toPrecision(6),
       },
       xAxis: {
         type: "category",
@@ -73,15 +138,7 @@ export function TrainingCurveChart({
         axisLabel: { color: token("--faint"), hideOverlap: true },
         axisLine: { lineStyle: { color: token("--line") } },
       },
-      yAxis: {
-        type: "value",
-        scale: true,
-        axisLabel: {
-          color: token("--faint"),
-          formatter: (value: number) => Number(value).toPrecision(3),
-        },
-        splitLine: { lineStyle: { color: token("--line"), opacity: 0.65 } },
-      },
+      yAxis: [axis(left, "left"), ...(dualAxis ? [axis(right, "right")] : [])],
       ...(zoom
         ? {
             dataZoom: [
@@ -100,23 +157,65 @@ export function TrainingCurveChart({
             ],
           }
         : {}),
-      series: series.map(([name, values]) => ({
-        name,
+      series: [
+        ...left.map(([name, values], index) => ({
+          name,
+          values,
+          index,
+          axis: 0,
+        })),
+        ...right.map(([name, values], index) => ({
+          name,
+          values,
+          index,
+          axis: 1,
+        })),
+      ].map(({ name, values, index, axis }) => ({
+        name: displayName(name),
         type: "line",
+        yAxisIndex: axis,
+        itemStyle: {
+          color: token(
+            `--chart-${axis === 0 ? (index % 2 ? 3 : 2) : index % 2 ? 1 : 4}`,
+          ),
+        },
         data: values.map((value) => (Number.isFinite(value) ? value : null)),
         showSymbol: false,
         connectNulls: false,
-        lineStyle: { width: 2 },
+        lineStyle: {
+          width: 2,
+          type: name.startsWith("validation_") ? "dashed" : "solid",
+        },
         emphasis: { focus: "series" },
       })),
     });
+    if (zoom) {
+      chart.on("datazoom", () => {
+        const state = (
+          chart.getOption() as {
+            dataZoom?: { start?: number; end?: number }[];
+          }
+        ).dataZoom?.[0];
+        const start = state?.start ?? 0;
+        const end = state?.end ?? 100;
+        chart.setOption(
+          {
+            yAxis: [
+              { ...axisRange(left, start, end) },
+              ...(dualAxis ? [{ ...axisRange(right, start, end) }] : []),
+            ],
+          },
+          { lazyUpdate: true },
+        );
+      });
+    }
     const resize = new ResizeObserver(() => chart.resize());
     resize.observe(host.current);
     return () => {
       resize.disconnect();
       chart.dispose();
     };
-  }, [curve, theme]);
+  }, [curve, theme, zh]);
 
   return <div className="train-curve-chart" ref={host} />;
 }

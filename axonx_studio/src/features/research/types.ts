@@ -9,6 +9,20 @@ export interface ArtifactFile {
   sha256: string;
 }
 
+/**
+ * Training curve protocol: x[i] identifies the same ordered training point
+ * in every series. Each named series has exactly x.length finite samples.
+ * Series with comparable units and value ranges share y_left; y_right is an
+ * optional second range. The chart maps these groups to separate y-axes.
+ * A populated curve must have at least one left-axis series, and names must
+ * be unique across both groups. Empty x and groups mean no history exists.
+ */
+export interface TrainingCurveData {
+  x: string[];
+  y_left: Record<string, number[]>;
+  y_right: Record<string, number[]>;
+}
+
 export interface ResearchArtifact {
   _path: string;
   _modified?: number;
@@ -38,10 +52,7 @@ export interface ResearchArtifact {
   scores?: Record<string, Record<string, number>>;
   metrics?: Record<string, number>;
   parameters?: Record<string, unknown>;
-  training_curve?: {
-    x: string[];
-    y: Record<string, number[]>;
-  };
+  training_curve?: TrainingCurveData;
   dimensions?: {
     top_ns?: number[];
     holding_detail_top_n?: number;

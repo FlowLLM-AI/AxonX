@@ -420,10 +420,18 @@ class LgbmTrainTask(BaseTrainTask):
             parameters=self._parameters(),
             training_curve={
                 "x": [str(iteration) for iteration in self.context["history"]["iteration"].to_list()],
-                "y": {
+                # L2 is mean squared error and L1 is mean absolute error.
+                # Their numeric ranges differ, so training and validation
+                # series for each metric share one dedicated y-axis.
+                "y_left": {
                     column: self.context["history"][column].to_list()
                     for column in self.context["history"].columns
-                    if column != "iteration"
+                    if column.endswith("_l2")
+                },
+                "y_right": {
+                    column: self.context["history"][column].to_list()
+                    for column in self.context["history"].columns
+                    if column.endswith("_l1")
                 },
             },
             model={
