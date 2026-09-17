@@ -8,17 +8,17 @@ from typing import Any
 
 from watchfiles import awatch
 
-from ..enums import ComponentEnum, TaskType
-from ..task.base import task_type_from_id
-from .base import BaseComponent
-from .registry import R
+from ...enums import TaskType
+from ...task.base import task_type_from_id
+from ..registry import R
+from .base import BaseTaskGraphComponent
 
 KINDS = tuple(kind.value for kind in TaskType)
 
 
 @R.register("local")
-class TaskGraphIndex(BaseComponent):
-    component_type = ComponentEnum.TASK_GRAPH
+class LocalTaskGraphComponent(BaseTaskGraphComponent):
+    """Maintain a live index of task artifacts in the local workspace."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
