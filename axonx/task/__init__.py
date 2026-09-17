@@ -1,5 +1,5 @@
 """Built-in synchronous task domains."""
 
-from . import alpha158, common, data
+from . import common, core, data
 
-__all__ = ["alpha158", "common", "data"]
+__all__ = ["common", "core", "data"]

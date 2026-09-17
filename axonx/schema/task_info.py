@@ -17,4 +17,4 @@ class TaskInfo(BaseModel):
     task_type: TaskType
     description: str
     config_schema: dict[str, Any]
-    output_keys: tuple[str, ...]
+    output_schema: dict[str, Any]

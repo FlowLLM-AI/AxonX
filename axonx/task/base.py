@@ -2,143 +2,189 @@
 
 from __future__ import annotations
 
+import os
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
-import os
+from importlib.resources import files
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import Any, ClassVar, TypeAlias
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializeAsAny
 
+from ..constants import PLUGIN_MANIFEST
 from ..enums import ComponentEnum, TaskType
+from ..plugin.manifest import parse_plugin_manifest
 from ..schema import TaskStatus
 from ..utils import get_log_path, get_logger
-
 from .status_manager import StatusCallback, TaskStatusManager
 
 TaskStep: TypeAlias = Callable[[], None]
+_REG_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
-class BaseConfig(BaseModel):
-    """Forbid unknown task configuration fields by default."""
+def _manifest_registration_name(task_class: type["BaseTask"]) -> str | None:
+    """Find a directly constructed plugin Task's name in its package manifest."""
+    module = task_class.__module__
+    target = f"{module}:{task_class.__qualname__}"
+    package = module.rpartition(".")[0]
+    while package:
+        manifest_file = files(package).joinpath(PLUGIN_MANIFEST)
+        if manifest_file.is_file():
+            manifest = parse_plugin_manifest(manifest_file.read_text(encoding="utf-8"), package)
+            names = [name for name, value in manifest.tasks.items() if value == target]
+            if len(names) > 1:
+                raise ValueError(f"Task {task_class.__name__} has multiple registration names; pass reg_name")
+            if names:
+                return names[0]
+        package = package.rpartition(".")[0]
+    return None
+
+
+class BaseInputParams(BaseModel):
+    """Validated user supplied parameters for one task invocation."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    task_name: str = Field(default_factory=lambda: uuid4().hex[:8], pattern=r"^[A-Za-z0-9-]{1,32}$")
+    include_time: bool = True
+
+
+class BaseOutputParams(BaseModel):
+    """Validated task result, including any produced artifacts."""
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    artifacts: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
-    task_id: str | None = Field(default=None, frozen=True)
-    task_type: TaskType | None = Field(default=None, frozen=True)
-    task_id_suffix: str = Field(default_factory=lambda: uuid4().hex[-4:], pattern=r"^[A-Za-z0-9-]{1,32}$")
 
-    def generate_task_id(self, task_type: TaskType) -> str:
-        """Generate or validate the immutable Task identity."""
-        if self.task_id is None and self.task_type is None:
-            task_id = "#".join(
-                (
-                    task_type.value,
-                    f"{datetime.now(UTC):%Y%m%d%H%M%S}",
-                    self.task_id_suffix,
-                ),
-            )
-            object.__setattr__(self, "task_type", task_type)
-            object.__setattr__(self, "task_id", task_id)
-        elif self.task_id is None or self.task_type is None:
-            raise ValueError("Task config contains an incomplete identity")
-        elif self.task_type != task_type:
-            raise ValueError(f"Task type mismatch: {self.task_type.value} != {task_type.value}")
-        assert self.task_id is not None
-        return self.task_id
+class TaskMetadata(BaseModel):
+    """Common persisted envelope around task specific input and output."""
+
+    schema_version: int = 2
+    task_id: str
+    reg_name: str
+    created_at: datetime
+    task_type: TaskType
+    input_params: SerializeAsAny[BaseInputParams]
+    output_params: SerializeAsAny[BaseOutputParams]
+    source_tasks: dict[str, str] = Field(default_factory=dict)
 
 
 class BaseTask(ABC):
-    """Define an isolated synchronous unit of work executed as ordered steps.
-
-    Every concrete Task must provide its own detailed class docstring in a
-    language its author can maintain confidently. That docstring is exposed as
-    the Task's public description, so it should explain the Task's purpose,
-    important behavior, and produced artifacts rather than restating its class
-    name. Subclasses must also declare ``task_type``, select a Pydantic
-    ``config_cls``, list public ``output_keys``, and implement
-    ``build_task_steps``.
-
-    Steps run synchronously in declaration order and communicate through
-    ``context``. Relative filesystem paths should be resolved from
-    ``workspace_path`` so execution does not depend on the process working
-    directory. Long-running steps may call ``report_progress`` with a
-    monotonically increasing percentage.
-    """
+    """Execute ordered synchronous steps with typed input and output."""
 
     component_type = ComponentEnum.TASK
-    task_type: TaskType
+    task_type: ClassVar[TaskType] = TaskType.BASE
+    input_cls: ClassVar[type[BaseInputParams]] = BaseInputParams
+    output_cls: ClassVar[type[BaseOutputParams]] = BaseOutputParams
 
-    config_cls = BaseConfig
-    output_keys: tuple[str, ...] = ()
-
-    def __init__(self, config: BaseConfig | dict, *, workspace_path: str | Path):
-        if not isinstance(getattr(type(self), "task_type", None), TaskType):
-            raise TypeError("Task subclasses must declare a TaskType")
-        self.config = self.config_cls.model_validate(config)
+    def __init__(
+        self,
+        input_params: BaseInputParams | dict,
+        *,
+        workspace_path: str | Path,
+        reg_name: str | None = None,
+    ):
+        self.input_params = self.input_cls.model_validate(input_params)
         self.workspace_path = Path(workspace_path).expanduser().resolve()
-        self.context = {"workspace_path": self.workspace_path}
+        self.context: dict[str, Any] = {"workspace_path": self.workspace_path}
         self.logger = get_logger(type(self).__name__)
-        self.config.generate_task_id(self.task_type)
+        if reg_name is None:
+            from ..components.registry import R
+
+            names = [name for name, task_cls in R.get_all(ComponentEnum.TASK).items() if task_cls is type(self)]
+            if len(names) > 1:
+                raise ValueError(f"Task {type(self).__name__} has multiple registration names; pass reg_name")
+            reg_name = names[0] if names else _manifest_registration_name(type(self))
+        name = reg_name
+        if not name:
+            raise ValueError(f"Task {type(self).__name__} has no registration name")
+        if not _REG_NAME.fullmatch(name):
+            raise ValueError(f"Invalid Task registration name: {name!r}")
+        self.reg_name = name
+        self.created_at = datetime.now(UTC)
+        parts = [name, self.input_params.task_name]
+        if self.input_params.include_time:
+            parts.append(f"{self.created_at:%Y%m%d%H%M%S}")
+        self.task_id = "#".join(parts)
+        self.source_tasks = {
+            key: value for key, value in self.input_params.model_dump().items()
+            if key.endswith("_task_id") and isinstance(value, str) and value
+        }
+        self.task_metadata: TaskMetadata | None = None
+        self._output_params: BaseOutputParams | None = None
         self._status = TaskStatus(
             task_id=self.task_id,
             task_type=self.task_type,
-            config=self.config.model_dump(mode="json", exclude={"task_id", "task_type", "task_id_suffix"}),
+            task_name=name,
+            config=self.input_params.model_dump(mode="json"),
             pid=os.getpid(),
             log_path=str(get_log_path() or ""),
         )
         self._status_manager: TaskStatusManager | None = None
 
     @property
-    def task_id(self) -> str:
-        """Return the generated Task identifier."""
-        assert self.config.task_id is not None
-        return self.config.task_id
-
-    @property
     def status(self) -> TaskStatus:
-        """Return this Task's latest execution status."""
         return self._status
 
     def resolve_workspace_path(self, path: str | Path) -> Path:
-        """Resolve a relative task path from the application workspace."""
         path = Path(path).expanduser()
         return (path if path.is_absolute() else self.workspace_path / path).resolve()
 
     @abstractmethod
     def build_task_steps(self) -> Iterable[TaskStep]:
-        """Yield every synchronous callable in execution order."""
+        """Yield synchronous callables in execution order."""
+
+    @abstractmethod
+    def build_output_params(self) -> BaseOutputParams:
+        """Return the explicit, validated result after all steps complete."""
 
     @property
-    def output(self) -> dict:
-        """Select declared output fields from the shared task context."""
-        return {key: self.context[key] for key in self.output_keys}
+    def output(self) -> dict[str, Any]:
+        if self._output_params is None:
+            raise RuntimeError("Task output is unavailable before execution completes")
+        return self._output_params.model_dump(mode="json", by_alias=True)
+
+    def prepare_output(self) -> None:
+        """Build one typed result and persist its frontend metadata."""
+        output = self.build_output_params()
+        if not isinstance(output, self.output_cls):
+            raise TypeError(f"{type(self).__name__}.build_output_params must return {self.output_cls.__name__}")
+        self._output_params = output
+        self.task_metadata = TaskMetadata(
+            task_id=self.task_id,
+            reg_name=self.reg_name,
+            created_at=self.created_at,
+            task_type=self.task_type,
+            input_params=self.input_params,
+            output_params=output,
+            source_tasks=self.source_tasks,
+        )
+        metadata_file = getattr(output, "metadata_file", None)
+        if metadata_file is not None:
+            from .core.artifacts import write_metadata
+
+            write_metadata(Path(metadata_file), self.task_metadata)
 
     def prepare_status(self) -> TaskStatus:
-        """Build the initial task status before execution."""
         return self._status.model_copy(deep=True)
 
     def execute(self, *, emit: StatusCallback | None = None) -> dict[str, Any]:
-        """Run all synchronous steps on the calling thread."""
         from .runner import TaskRunner
 
         self._status = TaskRunner(emit).run(self)
         return self.output
 
     def report_progress(self, percentage: float) -> None:
-        """Report progress for the current step without blocking its execution."""
         if self._status_manager is None:
             raise RuntimeError("Progress can only be reported while a Task is running")
         self._status_manager.progress(percentage)
 
     def _bind_status_manager(self, manager: TaskStatusManager | None) -> None:
-        """Bind execution-scoped status state for ``report_progress``."""
         if manager is not None:
             self._status = manager.status
         self._status_manager = manager
 
     def exit_code(self, _output: dict[str, Any]) -> int:
-        """Return the worker exit code for a successful task output."""
         return 0

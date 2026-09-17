@@ -1,4 +1,4 @@
-"""Generate the v2 daily and summary Parquet backtest artifacts."""
+"""Generate daily and summary Parquet backtest artifacts."""
 
 from __future__ import annotations
 
@@ -10,17 +10,15 @@ from pydantic import Field
 
 from ...components.registry import R
 from ...enums import TaskType
-from ..base import BaseConfig, BaseTask, TaskStep
-from .internal.artifacts import (
+from ..base import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
+from .artifacts import (
     artifact_path,
     artifact_record,
     atomic_output,
-    metadata_header,
     read_metadata,
     task_directory,
-    write_metadata,
 )
-from .internal.backtest_metrics import (
+from .backtest_metrics import (
     HOLDING_DETAIL_TOP_N,
     TOP_NS,
     correlation,
@@ -33,7 +31,17 @@ from .internal.backtest_metrics import (
 )
 
 
-class Alpha158BacktestConfig(BaseConfig):
+class BacktestOutputParams(BaseOutputParams):
+    metadata_file: str
+    daily_file: str
+    summary_file: str
+    dimensions: dict
+    protocol: dict
+    date_range: dict[str, str]
+    days: int
+
+
+class BacktestInputParams(BaseInputParams):
     prediction_task_id: str
     transaction_cost_rate: float = Field(default=0.002, ge=0.0, lt=1.0)
     annual_risk_free_rate: float = Field(default=0.012, gt=-1.0, lt=1.0)
@@ -41,9 +49,11 @@ class Alpha158BacktestConfig(BaseConfig):
     minimum_index_weight_coverage: float = Field(default=0.90, gt=0.0, le=1.0)
 
 
-@R.register("alpha158_backtest")
-class Alpha158BacktestTask(BaseTask):
+@R.register("backtest")
+class BacktestTask(BaseTask):
     """Build the complete backtest report from one prediction artifact."""
+
+    task_type = TaskType.BACKTEST
 
     REQUIRED_COLUMNS = (
         "trade_date",
@@ -54,10 +64,9 @@ class Alpha158BacktestTask(BaseTask):
         "label_valid",
         "is_buyable",
     )
-    config_cls = Alpha158BacktestConfig
-    config: Alpha158BacktestConfig
-    task_type = TaskType.BACKTEST
-    output_keys = ("daily_file", "summary_file", "metadata_file", "days")
+    input_cls = BacktestInputParams
+    output_cls = BacktestOutputParams
+    input_params: BacktestInputParams
 
     def build_task_steps(self) -> Iterable[TaskStep]:
         yield self.resolve_prediction_task
@@ -65,15 +74,13 @@ class Alpha158BacktestTask(BaseTask):
         yield self.calculate_daily_performance
         yield self.build_period_summaries
         yield self.write_outputs
-        yield self.write_metadata
-        yield self.publish_output
 
     def resolve_prediction_task(self) -> None:
-        source_dir = task_directory(self.workspace_path, "predict", self.config.prediction_task_id)
+        source_dir = task_directory(self.workspace_path, "predict", self.input_params.prediction_task_id)
         metadata_path = source_dir / "metadata.json"
-        metadata = read_metadata(metadata_path, description="Alpha158 prediction")
-        if metadata.get("protocol", {}).get("actual_return_column") != "label_1d":
-            raise ValueError("回测只接受以原始 label_1d 为 actual_return 的预测任务")
+        metadata = read_metadata(metadata_path, description="prediction")
+        if metadata.get("output_params", {}).get("protocol", {}).get("actual_return_unit") != "decimal":
+            raise ValueError("Backtest requires decimal actual returns")
         output_dir = self.workspace_path / "backtest" / self.task_id
         self.context.update(
             prediction_metadata_path=metadata_path,
@@ -117,7 +124,8 @@ class Alpha158BacktestTask(BaseTask):
         self.context.update(frame=frame, candidates=candidates, index_columns=index_columns)
         self.report_progress(95)
 
-    def _validate_frame(self, frame: pl.DataFrame, index_columns: tuple[str, ...]) -> None:
+    @staticmethod
+    def _validate_frame(frame: pl.DataFrame, index_columns: tuple[str, ...]) -> None:
         """Preserve the Task helper while delegating prediction validation."""
         validate_prediction_frame(frame, index_columns)
 
@@ -139,13 +147,13 @@ class Alpha158BacktestTask(BaseTask):
         indices = index_benchmarks(
             frame,
             self.context["index_columns"],
-            self.config.minimum_index_weight_coverage,
+            self.input_params.minimum_index_weight_coverage,
         )
         if indices is not None:
             daily = daily.join(indices, on="trade_date", how="left")
         self.report_progress(35)
         portfolios = pl.collect_all(
-            [portfolio_daily(candidates, top_n, self.config.transaction_cost_rate).lazy() for top_n in TOP_NS],
+            [portfolio_daily(candidates, top_n, self.input_params.transaction_cost_rate).lazy() for top_n in TOP_NS],
         )
         for portfolio in portfolios:
             daily = daily.join(portfolio, on="trade_date", how="left")
@@ -164,8 +172,8 @@ class Alpha158BacktestTask(BaseTask):
         self.context["summary"] = summarize(
             self.context["daily"],
             benchmark_keys,
-            self.config.annual_risk_free_rate,
-            self.config.annualization_days,
+            self.input_params.annual_risk_free_rate,
+            self.input_params.annualization_days,
         )
         self.report_progress(95)
 
@@ -178,21 +186,14 @@ class Alpha158BacktestTask(BaseTask):
             )
             self.report_progress(index / 2 * 95)
 
-    def write_metadata(self) -> None:
+    def build_output_params(self) -> BacktestOutputParams:
         daily: pl.DataFrame = self.context["daily"]
         integrity = {
             name: artifact_record(self.context[f"{name}_path"], self.context["output_dir"])
             for name in ("daily", "summary")
         }
-        metadata = {
-            **metadata_header(task_name="alpha158_backtest", task_id=self.task_id, task_type=self.task_type.value),
-            "schema_version": 2,
-            "config": self.config.model_dump(mode="json", exclude={"task_id", "task_type"}),
-            "source": {
-                "prediction_task_id": self.config.prediction_task_id,
-                "metadata": str(self.context["prediction_metadata_path"]),
-            },
-            "dimensions": {
+        return self.output_cls(
+            dimensions={
                 "top_ns": list(TOP_NS),
                 "holding_detail_top_n": HOLDING_DETAIL_TOP_N,
                 "benchmarks": [
@@ -200,9 +201,9 @@ class Alpha158BacktestTask(BaseTask):
                     for key in self.context["benchmark_keys"]
                 ],
             },
-            "protocol": {
-                "actual_return": "raw label_1d decimal adjusted-close return",
-                "candidate_filter": "is_buyable and finite prediction and valid label_1d",
+            protocol={
+                "actual_return": "decimal realized return supplied by the prediction task",
+                "candidate_filter": "is_buyable and finite prediction and valid actual_return",
                 "portfolio": "daily equal-weight top-N ranked by descending prediction",
                 "initial_turnover": 0.0,
                 "turnover": "half L1 distance between consecutive target portfolios",
@@ -212,18 +213,10 @@ class Alpha158BacktestTask(BaseTask):
                 "ndcg": "actual-return cross-sectional percentile relevance in the candidate universe",
                 "icir": "annualized mean divided by sample standard deviation",
             },
-            "date_range": {"start": daily["trade_date"].min(), "end": daily["trade_date"].max()},
-            "days": daily.height,
-            "artifacts": {"daily": "daily.parquet", "summary": "summary.parquet"},
-            "artifact_integrity": integrity,
-        }
-        write_metadata(self.context["metadata_path"], metadata)
-        self.report_progress(95)
-
-    def publish_output(self) -> None:
-        self.context.update(
+            date_range={"start": daily["trade_date"].min(), "end": daily["trade_date"].max()},
+            days=daily.height,
+            artifacts=integrity,
             daily_file=str(self.context["daily_path"]),
             summary_file=str(self.context["summary_path"]),
             metadata_file=str(self.context["metadata_path"]),
-            days=self.context["daily"].height,
         )

@@ -105,8 +105,8 @@ export const navigationGroups: NavigationGroup[] = [
         en: "Factor analysis",
       },
       {
-        id: "training",
-        route: { section: "training", view: "runs" },
+        id: "train",
+        route: { section: "train", view: "runs" },
         icon: BrainCircuit,
         zh: "模型训练",
         en: "Model training",
@@ -144,7 +144,7 @@ export function navigationItemForRoute(route: AppRoute): NavigationItem {
 export const researchSections = new Set<SectionId>([
   "etl",
   "factors",
-  "training",
+  "train",
   "predict",
   "backtest",
 ]);

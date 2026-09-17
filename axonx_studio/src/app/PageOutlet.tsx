@@ -137,7 +137,7 @@ export function PageOutlet({
     const kind = route.section === "factors" ? "analysis" : route.section;
     page = (
       <ResearchPage
-        kind={kind as "analysis" | "backtest" | "etl" | "training" | "predict"}
+        kind={kind as "analysis" | "backtest" | "etl" | "train" | "predict"}
         language={language}
         remoteIp={remoteIp}
         initialSelectedId={route.resource}

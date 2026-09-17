@@ -1,12 +1,13 @@
 export type ResearchKind =
-  "analysis" | "backtest" | "etl" | "training" | "predict";
+  "analysis" | "backtest" | "etl" | "train" | "predict";
 export type ResearchPageId =
-  "etl" | "factors" | "training" | "predict" | "backtest";
+  "etl" | "factors" | "train" | "predict" | "backtest";
 export type ResearchRow = Record<string, string>;
 
 export interface ArtifactFile {
   path: string;
-  bytes?: number;
+  bytes: number;
+  sha256: string;
 }
 
 export interface FeatureGroupConfig {
@@ -21,10 +22,9 @@ export interface ResearchArtifact {
   [key: string]: unknown;
   _path: string;
   _modified?: number;
-  task_id: string;
-  task_name?: string;
-  task_type?: string;
-  created_at?: string;
+  schema_version: 2;
+  task_key: string;
+  created_at: string;
   rows?: number;
   symbols?: number;
   feature_count?: number;
@@ -48,14 +48,17 @@ export interface ResearchArtifact {
   source?: {
     etl_task_id?: string;
     prediction_task_id?: string;
-    training_task_id?: string;
+    train_task_id?: string;
   };
-  config?: {
+  config: {
+    task_id: string;
+    task_type: ResearchKind;
+    task_name: string;
+    include_time: boolean;
     quantiles?: number;
     transaction_cost_rate?: number;
     annual_risk_free_rate?: number;
     annualization_days?: number;
   };
-  artifacts?: Record<string, string>;
-  artifact_integrity?: Record<string, ArtifactFile>;
+  artifacts: Record<string, ArtifactFile>;
 }

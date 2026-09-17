@@ -6,14 +6,12 @@ from inspect import cleandoc
 
 from ..components.registry import R
 from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
-from ..enums import ComponentEnum
+from ..enums import ComponentEnum, TaskType
 from ..plugin.manifest import parse_plugin_manifest
 from ..schema import TaskInfo
 from ..utils.entry_points import find_all_entry_points, load_entry_point
 from ..utils.imports import load_symbol
 from .base import BaseTask
-
-_INTERNAL_CONFIG_FIELDS = frozenset({"task_id", "task_type", "task_id_suffix"})
 
 
 def _task_description(name: str, task_class: type[BaseTask]) -> str:
@@ -52,19 +50,18 @@ def list_installed_task_infos() -> list[TaskInfo]:
     infos = []
     native_tasks = R.get_all(ComponentEnum.TASK)
     for name, task_class in sorted(installed_tasks().items()):
-        schema = deepcopy(task_class.config_cls.model_json_schema())
-        properties = schema.get("properties", {})
-        schema["properties"] = {key: value for key, value in properties.items() if key not in _INTERNAL_CONFIG_FIELDS}
-        if required := schema.get("required"):
-            schema["required"] = [key for key in required if key not in _INTERNAL_CONFIG_FIELDS]
+        task_type = task_class.task_type
+        if not isinstance(task_type, TaskType):
+            raise TypeError(f"Task {name!r} must declare a fixed TaskType")
+        schema = deepcopy(task_class.input_cls.model_json_schema())
         infos.append(
             TaskInfo(
                 name=name,
                 source=("native" if native_tasks.get(name) is task_class else "plugin"),
-                task_type=task_class.task_type,
+                task_type=task_type,
                 description=_task_description(name, task_class),
                 config_schema=schema,
-                output_keys=task_class.output_keys,
+                output_schema=task_class.output_cls.model_json_schema(),
             ),
         )
     return infos

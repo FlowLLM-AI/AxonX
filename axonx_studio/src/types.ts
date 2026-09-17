@@ -16,7 +16,7 @@ export type PageId =
   | "etl"
   | "files"
   | "factors"
-  | "training"
+  | "train"
   | "models"
   | "inference"
   | "predict"

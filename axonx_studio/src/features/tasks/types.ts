@@ -42,5 +42,5 @@ export interface TaskInfo {
   task_type: string;
   description: string;
   config_schema: JsonSchema;
-  output_keys: string[];
+  output_schema: JsonSchema;
 }

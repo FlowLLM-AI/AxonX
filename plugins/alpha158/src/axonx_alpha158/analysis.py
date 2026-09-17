@@ -8,40 +8,46 @@ from pathlib import Path
 import polars as pl
 from pydantic import Field
 
-from ...components.registry import R
-from ...enums import TaskType
-from ..base import BaseConfig, BaseTask, TaskStep
-from .internal.artifacts import (
+from axonx.task.base import TaskStep
+from axonx.task.core import (
+    BaseAnalysisInputParams,
+    BaseAnalysisOutputParams,
+    BaseAnalysisTask,
+)
+from axonx.task.core.artifacts import (
     artifact_path,
     artifact_record,
     atomic_output,
-    metadata_header,
     read_metadata,
     task_directory,
-    write_metadata,
 )
-from .internal.etl_pipeline import LABELS
+
 from .internal.analysis import FactorMetricsCalculator
+from .internal.etl_pipeline import LABELS
 
 
-class FactorAnalysisConfig(BaseConfig):
+class FactorAnalysisOutputParams(BaseAnalysisOutputParams):
+    quantiles_file: str
+    feature_count: int
+    labels: list[str]
+    definitions: dict[str, str]
+
+
+class FactorAnalysisInputParams(BaseAnalysisInputParams):
     """Configure factor diagnostics sourced from one Alpha158 ETL task."""
 
-    etl_task_id: str
     quantiles: int = Field(default=10, ge=3, le=50)
     minimum_daily_samples: int = Field(default=20, ge=2)
     feature_batch_size: int = Field(default=8, ge=1, le=32)
     tradable_only: bool = True
 
 
-@R.register("alpha158_factor_analysis")
-class FactorAnalysisTask(BaseTask):
+class FactorAnalysisTask(BaseAnalysisTask):
     """Measure IC, RankIC, stability, quantile spread, and monotonicity for 158 factors and five raw labels."""
 
-    config_cls = FactorAnalysisConfig
-    config: FactorAnalysisConfig
-    task_type = TaskType.ANALYSIS
-    output_keys = ("result_file", "quantiles_file", "metadata_file", "rows")
+    input_cls = FactorAnalysisInputParams
+    output_cls = FactorAnalysisOutputParams
+    input_params: FactorAnalysisInputParams
 
     def build_task_steps(self) -> Iterable[TaskStep]:
         yield self.resolve_upstream_task
@@ -49,11 +55,9 @@ class FactorAnalysisTask(BaseTask):
         yield self.calculate_factor_metrics
         yield self.rank_factors
         yield self.write_outputs
-        yield self.write_metadata
-        yield self.publish_output
 
     def resolve_upstream_task(self) -> None:
-        source_dir = task_directory(self.workspace_path, "etl", self.config.etl_task_id)
+        source_dir = task_directory(self.workspace_path, "etl", self.input_params.etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
         source_metadata = read_metadata(source_metadata_path, description="Alpha158 ETL")
         dataset_path = artifact_path(source_dir, source_metadata, "dataset")
@@ -69,7 +73,7 @@ class FactorAnalysisTask(BaseTask):
             metadata_path=output_dir / "metadata.json",
         )
         self.logger.info(
-            f"Factor analysis source resolved etl_task_id={self.config.etl_task_id} "
+            f"Factor analysis source resolved etl_task_id={self.input_params.etl_task_id} "
             f"dataset={dataset_path} output_dir={output_dir}",
         )
 
@@ -78,13 +82,13 @@ class FactorAnalysisTask(BaseTask):
         if not dataset_path.is_file():
             raise FileNotFoundError(f"Alpha158 数据不存在: {dataset_path}")
         metadata = self.context["source_metadata"]
-        features = tuple(metadata.get("feature_columns", ()))
+        features = tuple(metadata.get("output_params", {}).get("feature_columns", ()))
         if not features:
             raise ValueError("ETL metadata 缺少 feature_columns")
         schema = pl.read_parquet_schema(dataset_path)
         self.report_progress(15)
         required = ("trade_date", "ts_code", *features, *LABELS)
-        if self.config.tradable_only:
+        if self.input_params.tradable_only:
             required = (*required, "is_buyable")
         if missing := [column for column in required if column not in schema]:
             raise ValueError(f"Alpha158 数据缺少字段: {', '.join(missing[:20])}")
@@ -113,14 +117,14 @@ class FactorAnalysisTask(BaseTask):
         quantile_results: list[pl.DataFrame] = []
         features: tuple[str, ...] = self.context["features"]
         total = len(features)
-        calculator = FactorMetricsCalculator(self.config.minimum_daily_samples, self.config.quantiles)
-        for offset in range(0, total, self.config.feature_batch_size):
-            batch = features[offset : offset + self.config.feature_batch_size]
+        calculator = FactorMetricsCalculator(self.input_params.minimum_daily_samples, self.input_params.quantiles)
+        for offset in range(0, total, self.input_params.feature_batch_size):
+            batch = features[offset : offset + self.input_params.feature_batch_size]
             columns = ("trade_date", *batch, *LABELS)
-            if self.config.tradable_only:
+            if self.input_params.tradable_only:
                 columns = (*columns, "is_buyable")
             source = pl.scan_parquet(self.context["dataset_path"]).select(columns)
-            if self.config.tradable_only:
+            if self.input_params.tradable_only:
                 source = source.filter("is_buyable").drop("is_buyable")
             frame = source.collect()
             batch_results, batch_quantiles = calculator.analyze_batch(frame, batch)
@@ -164,52 +168,26 @@ class FactorAnalysisTask(BaseTask):
             f"quantiles={self.context['quantiles_path']} rows={self.context['results'].height}",
         )
 
-    def write_metadata(self) -> None:
+    def build_output_params(self) -> FactorAnalysisOutputParams:
         output_dir: Path = self.context["output_dir"]
-        dataset_record = artifact_record(self.context["dataset_path"], output_dir)
-        self.report_progress(35)
         result_record = artifact_record(self.context["result_path"], output_dir)
-        self.report_progress(60)
         quantiles_record = artifact_record(self.context["quantiles_path"], output_dir)
-        self.report_progress(85)
-        metadata = {
-            **metadata_header(
-                task_name="alpha158_factor_analysis",
-                task_id=self.task_id,
-                task_type=self.task_type.value,
-            ),
-            "config": self.config.model_dump(mode="json", exclude={"task_id", "task_type"}),
-            "source": {
-                "etl_task_id": self.config.etl_task_id,
-                "metadata": str(self.context["source_metadata_path"]),
-                "dataset_sha256": dataset_record["sha256"],
-            },
-            "feature_count": len(self.context["features"]),
-            "labels": list(LABELS),
-            "rows": self.context["results"].height,
-            "definitions": {
+        return self.output_cls(
+            feature_count=len(self.context["features"]),
+            labels=list(LABELS),
+            rows=self.context["results"].height,
+            definitions={
                 "icir": "mean daily cross-sectional Pearson IC divided by its sample standard deviation",
                 "rankicir": "mean daily cross-sectional Spearman RankIC divided by its sample standard deviation",
                 "quantile_spread": "highest quantile mean raw return minus lowest quantile mean raw return",
                 "quantile_monotonicity": "Spearman correlation between quantile order and mean raw return",
-                "sample_filter": "is_buyable" if self.config.tradable_only else "none",
+                "sample_filter": "is_buyable" if self.input_params.tradable_only else "none",
             },
-            "artifacts": {
-                "result": "factor_analysis.csv",
-                "quantiles": "factor_quantiles.csv",
-            },
-            "artifact_integrity": {
+            artifacts={
                 "result": result_record,
                 "quantiles": quantiles_record,
             },
-        }
-        write_metadata(self.context["metadata_path"], metadata)
-        self.report_progress(95)
-
-    def publish_output(self) -> None:
-        self.context.update(
             result_file=str(self.context["result_path"]),
             quantiles_file=str(self.context["quantiles_path"]),
             metadata_file=str(self.context["metadata_path"]),
-            rows=self.context["results"].height,
         )

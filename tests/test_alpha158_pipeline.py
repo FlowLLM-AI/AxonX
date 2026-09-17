@@ -5,19 +5,19 @@ import numpy as np
 import polars as pl
 import pytest
 
-from axonx.task.alpha158 import (
-    Alpha158BacktestTask,
+from axonx.task.core import BacktestTask
+from axonx_alpha158 import (
     FactorAnalysisTask,
-    LgbmPredictionTask,
-    LgbmTrainingConfig,
-    LgbmTrainingTask,
+    LgbmPredictTask,
+    LgbmTrainInputParams,
+    LgbmTrainTask,
 )
-from axonx.task.alpha158.internal.artifacts import artifact_path
-from axonx.task.alpha158.internal.modeling import feature_matrix
+from axonx.task.core.artifacts import artifact_path
+from axonx_alpha158.internal.modeling import feature_matrix
 
 
 def _etl_fixture(workspace: Path) -> str:
-    task_id = "etl#fixture"
+    task_id = "alpha158_etl#fixture"
     output_dir = workspace / "etl" / task_id
     output_dir.mkdir(parents=True)
     features = ("f_alpha158_signal", "f_alpha158_inverse", "f_alpha158_wave")
@@ -56,18 +56,20 @@ def _etl_fixture(workspace: Path) -> str:
     dataset = output_dir / "alpha158.parquet"
     pl.DataFrame(rows).write_parquet(dataset)
     metadata = {
-        "task_name": "alpha158_etl",
+        "schema_version": 2,
         "task_id": task_id,
+        "reg_name": "alpha158_etl",
         "task_type": "etl",
-        "feature_columns": list(features),
-        "artifacts": {"dataset": "alpha158.parquet"},
+        "input_params": {},
+        "source_tasks": {},
+        "output_params": {"feature_columns": list(features), "artifacts": {"dataset": {"path": "alpha158.parquet"}}},
     }
     (output_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
     return task_id
 
 
 def test_training_defaults():
-    config = LgbmTrainingConfig(etl_task_id="etl#fixture")
+    config = LgbmTrainInputParams(etl_task_id="alpha158_etl#fixture")
 
     assert config.train_start == "20150101"
     assert config.train_end == "20230101"
@@ -90,7 +92,7 @@ def test_feature_matrix_preserves_feature_order_and_missing_values():
 @pytest.mark.parametrize("artifact", ["../outside.parquet", "/tmp/outside.parquet"])
 def test_artifact_path_stays_inside_task_directory(tmp_path, artifact):
     with pytest.raises(ValueError, match="任务目录"):
-        artifact_path(tmp_path / "etl#fixture", {"artifacts": {"dataset": artifact}}, "dataset")
+        artifact_path(tmp_path / "alpha158_etl#fixture", {"output_params": {"artifacts": {"dataset": {"path": artifact}}}}, "dataset")
 
 
 def test_task_id_chained_alpha158_pipeline(tmp_path):
@@ -110,7 +112,7 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     assert signal["quantile_monotonicity"].item() == pytest.approx(1.0)
     assert Path(analysis_output["metadata_file"]).is_file()
 
-    training = LgbmTrainingTask(
+    training = LgbmTrainTask(
         {
             "etl_task_id": etl_task_id,
             "train_start": "20221201",
@@ -127,14 +129,15 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     assert training_output["best_iteration"] >= 1
     assert Path(training_output["model_file"]).is_file()
     training_metadata = json.loads(Path(training_output["metadata_file"]).read_text())
-    assert training_metadata["protocol"]["label_column"] == "label_1d_rank"
-    assert training_metadata["protocol"]["daily_trim_tail"] == pytest.approx(0.025)
+    assert training_metadata["input_params"] == training.input_params.model_dump(mode="json")
+    assert training_metadata["output_params"]["protocol"]["label_column"] == "label_1d_rank"
+    assert training_metadata["output_params"]["protocol"]["daily_trim_tail"] == pytest.approx(0.025)
 
-    prediction = LgbmPredictionTask(
-        {"training_task_id": training.task_id, "pred_start": "20230102"},
+    prediction = LgbmPredictTask(
+        {"train_task_id": training.task_id, "pred_start": "20230102"},
         workspace_path=tmp_path,
     )
-    assert prediction.task_id.startswith("predict#")
+    assert prediction.task_id.startswith("alpha158_lgbm_predict#")
     prediction_output = prediction.execute()
     predictions = pl.read_parquet(prediction_output["predictions_file"])
     assert predictions.height == 5 * 40
@@ -150,10 +153,11 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
         "index_weight_hs300",
     ]
     prediction_metadata = json.loads(Path(prediction_output["metadata_file"]).read_text())
-    assert prediction_metadata["protocol"]["actual_return_column"] == "label_1d"
-    assert prediction_metadata["protocol"]["cross_section_filter"] == "none"
+    assert prediction_metadata["input_params"] == prediction.input_params.model_dump(mode="json")
+    assert prediction_metadata["output_params"]["protocol"]["actual_return_column"] == "label_1d"
+    assert prediction_metadata["output_params"]["protocol"]["cross_section_filter"] == "none"
 
-    backtest = Alpha158BacktestTask(
+    backtest = BacktestTask(
         {"prediction_task_id": prediction.task_id},
         workspace_path=tmp_path,
     )
@@ -182,7 +186,7 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     assert "top30_ndcg" in daily.columns
     assert Path(backtest_output["daily_file"]).suffix == ".parquet"
     assert Path(backtest_output["summary_file"]).suffix == ".parquet"
-    assert set(backtest_output) == {"daily_file", "summary_file", "metadata_file", "days"}
+    assert {"daily_file", "summary_file", "metadata_file", "days", "artifacts"} <= set(backtest_output)
     assert Path(backtest_output["metadata_file"]).is_file()
     assert {path.name for path in Path(backtest_output["metadata_file"]).parent.iterdir()} == {
         "daily.parquet",
@@ -190,28 +194,30 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
         "metadata.json",
     }
     backtest_metadata = json.loads(Path(backtest_output["metadata_file"]).read_text())
+    assert backtest_metadata["input_params"] == backtest.input_params.model_dump(mode="json")
     assert backtest_metadata["schema_version"] == 2
-    assert backtest_metadata["dimensions"]["top_ns"] == [1, 2, 3, 5, 10, 15, 20, 30]
-    assert backtest_metadata["artifacts"] == {"daily": "daily.parquet", "summary": "summary.parquet"}
+    assert backtest_metadata["output_params"]["dimensions"]["top_ns"] == [1, 2, 3, 5, 10, 15, 20, 30]
+    assert {name: record["path"] for name, record in backtest_metadata["output_params"]["artifacts"].items()} == {
+        "daily": "daily.parquet", "summary": "summary.parquet",
+    }
 
 
 def test_prediction_rejects_training_overlap(tmp_path):
     etl_task_id = _etl_fixture(tmp_path)
-    training_dir = tmp_path / "training" / "training#fixture"
+    training_dir = tmp_path / "train" / "alpha158_lgbm_train#fixture"
     training_dir.mkdir(parents=True)
     (training_dir / "model.txt").write_text("fixture", encoding="utf-8")
     (training_dir / "metadata.json").write_text(
         json.dumps(
             {
-                "protocol": {"train_end_exclusive": "20230101"},
-                "artifacts": {"model": "model.txt"},
-                "source": {"etl_task_id": etl_task_id},
+                "output_params": {"protocol": {"train_end_exclusive": "20230101"}, "artifacts": {"model": {"path": "model.txt"}}},
+                "source_tasks": {"etl_task_id": etl_task_id},
             },
         ),
         encoding="utf-8",
     )
-    task = LgbmPredictionTask(
-        {"training_task_id": "training#fixture", "pred_start": "20221231"},
+    task = LgbmPredictTask(
+        {"train_task_id": "alpha158_lgbm_train#fixture", "pred_start": "20221231"},
         workspace_path=tmp_path,
     )
 

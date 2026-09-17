@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import os
 from calendar import monthrange
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta
-import os
 from pathlib import Path
 from typing import Any
 
@@ -13,10 +13,10 @@ import pandas as pd
 from pydantic import field_validator
 
 from ...components.registry import R
+from ...connectors.tushare import TushareClient
 from ...enums import TaskType
 from ...utils.fs import atomic_write
-from ...connectors.tushare import TushareClient
-from ..base import BaseConfig, BaseTask, TaskStep
+from ..base import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
 
 HS300 = "000300.SH"
 DOWNLOAD_GROUPS = ("static", "stk_limit", "daily", "adj_factor", "index_weight")
@@ -62,7 +62,7 @@ DATASETS = {
 }
 
 
-class TushareDownloadConfig(BaseConfig):
+class TushareDownloadInputParams(BaseInputParams):
     """下载日期范围；start_date 未设置时下载截至 end_date 的最近若干自然日。"""
 
     start_date: str | None = None
@@ -98,6 +98,13 @@ class TushareDownloadConfig(BaseConfig):
         return ",".join(selected)
 
 
+class TushareDownloadOutputParams(BaseOutputParams):
+    start_date: str
+    end_date: str
+    files: list[str]
+    rows: dict[str, int]
+
+
 @R.register("download_tushare_task")
 class DownloadTushareTask(BaseTask):
     """下载构建最小 A 股量化数据集所需的 Tushare 数据。
@@ -108,14 +115,23 @@ class DownloadTushareTask(BaseTask):
     ``tushare/<年份>/<交易日>`` 目录，同时返回文件清单和各数据集行数。
     """
 
-    config_cls = TushareDownloadConfig
-    config: TushareDownloadConfig
-    task_type = TaskType.INGESTION
-    output_keys = ("start_date", "end_date", "files", "rows")
+    task_type = TaskType.API
+
+    input_cls = TushareDownloadInputParams
+    output_cls = TushareDownloadOutputParams
+
+    def build_output_params(self) -> TushareDownloadOutputParams:
+        return TushareDownloadOutputParams(
+            start_date=self.context["start_date"],
+            end_date=self.context["end_date"],
+            files=self.context["files"],
+            rows=self.context["rows"],
+        )
+    input_params: TushareDownloadInputParams
 
     def build_task_steps(self) -> Iterable[TaskStep]:
         yield self.initialize
-        selected = set(self.config.datasets.split(","))
+        selected = set(self.input_params.datasets.split(","))
         if "static" in selected:
             yield self.download_static
         if "stk_limit" in selected:
@@ -130,20 +146,20 @@ class DownloadTushareTask(BaseTask):
 
     def initialize(self) -> None:
         """Validate the requested range and initialize download state."""
-        end = min(self._parse_date(self.config.end_date) or date.today(), date.today())
-        start = self._parse_date(self.config.start_date)
-        if start is None and self.config.days_back <= 0:
+        end = min(self._parse_date(self.input_params.end_date) or date.today(), date.today())
+        start = self._parse_date(self.input_params.start_date)
+        if start is None and self.input_params.days_back <= 0:
             raise ValueError("days_back 必须大于 0")
-        start = start or end - timedelta(days=self.config.days_back - 1)
+        start = start or end - timedelta(days=self.input_params.days_back - 1)
         if start > end:
             raise ValueError("start_date 不能晚于 end_date")
-        if self.config.timeout <= 0:
+        if self.input_params.timeout <= 0:
             raise ValueError("timeout 必须大于 0")
 
         days = tuple(start + timedelta(days=offset) for offset in range((end - start).days + 1))
         months = tuple(self._month_bounds(day) for day in days if day.day == 1 or day == start)
         self.context.update(
-            client=TushareClient(timeout=self.config.timeout, logger=self.logger),
+            client=TushareClient(timeout=self.input_params.timeout, logger=self.logger),
             root=self.workspace_path / "tushare",
             days=days,
             months=months,

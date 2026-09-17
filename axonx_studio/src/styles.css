@@ -1887,11 +1887,15 @@
   --task-tone: #4260bb;
   --task-tone-soft: #e8edff;
 }
-.type-ingestion {
+.type-api {
   --task-tone: #0d8378;
   --task-tone-soft: #def4ef;
 }
-.type-training {
+.type-base {
+  --task-tone: #526477;
+  --task-tone-soft: #e9eef3;
+}
+.type-train {
   --task-tone: #7652a8;
   --task-tone-soft: #f0e7ff;
 }
@@ -4120,7 +4124,7 @@
 .hero-capability-factors {
   --step-tone: var(--pink);
 }
-.hero-capability-training {
+.hero-capability-train {
   --step-tone: var(--orange);
 }
 .hero-capability-predict {
@@ -7353,7 +7357,7 @@
   color: #4260bb;
   background: #e8edff;
 }
-.run-item-avatar.run-kind-training {
+.run-item-avatar.run-kind-train {
   color: #7652a8;
   background: #f0e7ff;
 }
@@ -9605,7 +9609,7 @@
 .primary-rail > nav .nav-factors {
   --nav-icon: var(--pink);
 }
-.primary-rail > nav .nav-training {
+.primary-rail > nav .nav-train {
   --nav-icon: var(--orange);
 }
 .studio-workspace {
@@ -10520,7 +10524,7 @@
 .primary-group-items .nav-factors {
   --nav-icon: var(--pink);
 }
-.primary-group-items .nav-training {
+.primary-group-items .nav-train {
   --nav-icon: var(--orange);
 }
 .sidebar-collapsed .primary-rail > nav .primary-group-toggle {
@@ -10738,7 +10742,7 @@
 .task-graph-node.analysis {
   --node-accent: #9361b6;
 }
-.task-graph-node.training {
+.task-graph-node.train {
   --node-accent: #4869b4;
 }
 .task-graph-node.predict {
@@ -10985,7 +10989,7 @@
 .hero-quant-factors {
   --step-tone: var(--pink);
 }
-.hero-quant-training {
+.hero-quant-train {
   --step-tone: var(--orange);
 }
 .hero-quant-predict {

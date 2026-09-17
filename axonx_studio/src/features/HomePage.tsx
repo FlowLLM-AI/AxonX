@@ -17,7 +17,7 @@ const quantSteps: { id: SectionId; zh: string; en: string; detailZh: string; det
   { id: "raw", zh: "Tushare 数据", en: "Market data", detailZh: "行情与基础数据", detailEn: "Prices and fundamentals" },
   { id: "etl", zh: "ETL 特征构建", en: "ETL features", detailZh: "清洗数据，生成特征", detailEn: "Clean data and build features" },
   { id: "factors", zh: "因子分析", en: "Factor analysis", detailZh: "检验因子表现", detailEn: "Evaluate factor performance" },
-  { id: "training", zh: "模型训练", en: "Model training", detailZh: "拟合模型，评估效果", detailEn: "Fit and evaluate models" },
+  { id: "train", zh: "模型训练", en: "Model training", detailZh: "拟合模型，评估效果", detailEn: "Fit and evaluate models" },
   { id: "predict", zh: "离线预测", en: "Prediction", detailZh: "生成预测结果", detailEn: "Generate predictions" },
   { id: "backtest", zh: "离线回测", en: "Backtesting", detailZh: "验证策略表现", detailEn: "Validate strategy performance" },
 ];

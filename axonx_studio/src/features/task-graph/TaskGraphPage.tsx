@@ -5,7 +5,7 @@ import { callJob, remoteBody } from "../../shared/api/client";
 import type { AppRoute, SectionId } from "../../app/routes";
 import type { ContextOption, Language } from "../../types";
 
-type Kind = "etl" | "analysis" | "training" | "predict" | "backtest";
+type Kind = "etl" | "analysis" | "train" | "predict" | "backtest";
 interface TaskNode {
   task_id: string;
   kind: Kind;
@@ -21,16 +21,16 @@ interface TaskGraph { root_id: string; selected_id: string; nodes: TaskNode[]; e
 const labels: Record<Kind, [string, string]> = {
   etl: ["ETL", "ETL"],
   analysis: ["因子分析", "Factor analysis"],
-  training: ["模型训练", "Training"],
+  train: ["模型训练", "Training"],
   predict: ["离线预测", "Prediction"],
   backtest: ["离线回测", "Backtest"],
 };
 const sectionFor: Record<Kind, SectionId> = {
-  etl: "etl", analysis: "factors", training: "training", predict: "predict", backtest: "backtest",
+  etl: "etl", analysis: "factors", train: "train", predict: "predict", backtest: "backtest",
 };
 
 function taskTime(node: TaskNode): string | null {
-  const stamp = node.task_id.match(/^[^#]+#(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})#/);
+  const stamp = node.task_id.match(/^[^#]+#[^#]+#(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
   if (stamp) return `${stamp[1]}-${stamp[2]}-${stamp[3]} ${stamp[4]}:${stamp[5]}`;
   if (!node.created_at) return null;
   const date = new Date(node.created_at);
@@ -38,7 +38,7 @@ function taskTime(node: TaskNode): string | null {
 }
 
 function shortTaskId(taskId: string): string {
-  return `#${taskId.split("#").at(-1) || taskId}`;
+  return `#${taskId.split("#")[1] || taskId}`;
 }
 
 export function TaskGraphPage({ language, remoteIp, selectedId, onSelect, onNavigate, onOptionsChange, onConnection }: {

@@ -74,7 +74,7 @@ const copy = {
       "Manage feature dataset versions, coverage, and schema",
     ],
   },
-  training: {
+  train: {
     zh: ["模型管理", "追踪训练实验、过程指标与验证效果"],
     en: [
       "Model registry",
@@ -145,11 +145,28 @@ function useTasks(
               ) {
                 throw new Error(preview.parse_error || "Invalid task metadata");
               }
+              const metadata = preview.data as Record<string, unknown>;
+              const output = (metadata.output_params || {}) as Record<string, unknown>;
+              const input = (metadata.input_params || {}) as Record<string, unknown>;
               return {
-                ...(preview.data as Meta),
+                ...output,
+                schema_version: Number(metadata.schema_version),
+                artifacts: (output.artifacts || {}) as Meta["artifacts"],
+                task_key: String(metadata.reg_name),
+                task_id: String(metadata.task_id),
+                task_type: metadata.task_type as Kind,
+                created_at: String(metadata.created_at),
+                source: metadata.source_tasks,
+                config: {
+                  ...input,
+                  task_id: String(metadata.task_id),
+                  task_type: metadata.task_type as Kind,
+                  task_name: String(input.task_name),
+                  include_time: Boolean(input.include_time),
+                },
                 _path: entry.path,
                 _modified: entry.modified_at,
-              };
+              } as Meta;
             } catch (reason) {
               console.warn(`Skipping task directory ${entry.path}:`, reason);
               return null;
@@ -221,18 +238,18 @@ export function ResearchPage({
     if (!tasks.length) return;
     if (
       initialSelectedId &&
-      tasks.some((task) => task.task_id === initialSelectedId)
+      tasks.some((task) => task.config.task_id === initialSelectedId)
     )
       setSelectedId(initialSelectedId);
-    else if (!tasks.some((task) => task.task_id === selectedId))
+    else if (!tasks.some((task) => task.config.task_id === selectedId))
       setSelectedId("");
   }, [tasks, selectedId, initialSelectedId]);
   useEffect(() => {
     onOptionsChange?.(
       tasks.map((task) => ({
-        value: task.task_id,
-        label: task.task_id,
-        detail: task.task_name || kind,
+        value: task.config.task_id,
+        label: task.config.task_id,
+        detail: task.task_key || kind,
       })),
     );
   }, [tasks, kind, onOptionsChange]);
@@ -259,9 +276,9 @@ export function ResearchPage({
       window.removeEventListener("scroll", close, true);
     };
   }, [contextMenu]);
-  const selected = tasks.find((task) => task.task_id === selectedId);
+  const selected = tasks.find((task) => task.config.task_id === selectedId);
   const visible = tasks.filter((task) =>
-    `${task.task_id} ${task.task_name}`
+    `${task.config.task_id} ${task.task_key}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
@@ -367,8 +384,8 @@ export function ResearchPage({
             ) : (
               visible.map((task) => (
                 <article
-                  className={`${selectedId === task.task_id ? "active" : ""} ${checked[task._path] ? "checked" : ""}`}
-                  key={task.task_id}
+                  className={`${selectedId === task.config.task_id ? "active" : ""} ${checked[task._path] ? "checked" : ""}`}
+                  key={task.config.task_id}
                   onContextMenu={(event) => {
                     event.preventDefault();
                     setContextMenu({
@@ -387,7 +404,7 @@ export function ResearchPage({
                   {selectionMode && (
                     <button
                       className="run-check"
-                      aria-label={`${zh ? "选择" : "Select"} ${task.task_id}`}
+                      aria-label={`${zh ? "选择" : "Select"} ${task.config.task_id}`}
                       onClick={() => toggleTask(task)}
                     >
                       {checked[task._path] && <Check />}
@@ -398,21 +415,21 @@ export function ResearchPage({
                     onClick={() =>
                       selectionMode
                         ? toggleTask(task)
-                        : (setSelectedId(task.task_id),
-                          onSelected?.(task.task_id))
+                        : (setSelectedId(task.config.task_id),
+                          onSelected?.(task.config.task_id))
                     }
                   >
                     <span
                       className={`run-item-avatar rail-avatar run-kind-${kind}`}
                     >
-                      {String(task.task_name || kind)
+                      {String(task.task_key || kind)
                         .trim()
                         .slice(0, 1)
                         .toUpperCase()}
                     </span>
                     <span className="rail-item-copy">
-                      <strong>{task.task_name || kind}</strong>
-                      <code>{task.task_id}</code>
+                      <strong>{task.task_key || kind}</strong>
+                      <code>{task.config.task_id}</code>
                       <small>
                         {task.created_at
                           ? new Date(task.created_at).toLocaleString(
@@ -511,8 +528,8 @@ export function ResearchPage({
           onClick={(event) => event.stopPropagation()}
         >
           <header>
-            <span>{contextMenu.task.task_id}</span>
-            <small>{contextMenu.task.task_name || kind}</small>
+            <span>{contextMenu.task.config.task_id}</span>
+            <small>{contextMenu.task.task_key || kind}</small>
           </header>
           <button
             role="menuitem"
@@ -575,7 +592,7 @@ export function ResearchPage({
             </h2>
             <div className="workspace-delete-list">
               {deleteTargets.slice(0, 6).map((task) => (
-                <code key={task._path}>{task.task_id}</code>
+                <code key={task._path}>{task.config.task_id}</code>
               ))}
               {deleteTargets.length > 6 && (
                 <span>+{deleteTargets.length - 6}</span>
@@ -646,7 +663,7 @@ function ArtifactDetail({
         ? ["result", "quantiles"]
         : kind === "backtest"
           ? []
-          : kind === "training"
+          : kind === "train"
             ? ["evaluation_history"]
             : kind === "etl"
               ? ["statistics"]
@@ -658,7 +675,7 @@ function ArtifactDetail({
           async (key) =>
             [
               key,
-              await readAllCsv(`${meta._path}/${artifacts[key]}`, remoteIp),
+              await readAllCsv(`${meta._path}/${artifacts[key].path}`, remoteIp),
             ] as const,
         ),
     )
@@ -668,24 +685,24 @@ function ArtifactDetail({
     return () => {
       alive = false;
     };
-  }, [meta.task_id, meta._path, meta.artifacts, remoteIp, kind]);
+  }, [meta.config.task_id, meta._path, meta.artifacts, remoteIp, kind]);
   const upstream =
     kind === "analysis"
       ? meta.source?.etl_task_id
       : kind === "backtest"
         ? meta.source?.prediction_task_id
-        : kind === "training"
+        : kind === "train"
           ? meta.source?.etl_task_id
           : kind === "predict"
-            ? meta.source?.training_task_id
+            ? meta.source?.train_task_id
             : null;
   const upstreamPage: ResearchPageId | null =
-    kind === "analysis" || kind === "training"
+    kind === "analysis" || kind === "train"
       ? "etl"
       : kind === "backtest"
         ? "predict"
         : kind === "predict"
-          ? "training"
+          ? "train"
           : null;
   const copyLineageId = async (taskId: string) => {
     await navigator.clipboard.writeText(taskId);
@@ -702,8 +719,8 @@ function ArtifactDetail({
           <div>
             <span className={`artifact-kind ${kind}`}>{iconFor(kind)}</span>
             <div>
-              <small>{meta.task_name || kind}</small>
-              <h2>{meta.task_id}</h2>
+              <small>{meta.task_key || kind}</small>
+              <h2>{meta.config.task_id}</h2>
             </div>
           </div>
           <span className="ready-badge">
@@ -749,14 +766,14 @@ function ArtifactDetail({
           <div className="lineage-node current">
             <strong>
               <em>{kind.toUpperCase()}</em>
-              <code>{meta.task_id}</code>
+              <code>{meta.config.task_id}</code>
             </strong>
             <button
               className="lineage-copy"
-              onClick={() => void copyLineageId(meta.task_id)}
+              onClick={() => void copyLineageId(meta.config.task_id)}
               aria-label={zh ? "复制当前 Task ID" : "Copy current task ID"}
               title={
-                copiedLineage === meta.task_id
+                copiedLineage === meta.config.task_id
                   ? zh
                     ? "已复制"
                     : "Copied"
@@ -765,7 +782,7 @@ function ArtifactDetail({
                     : "Copy task ID"
               }
             >
-              {copiedLineage === meta.task_id ? <Check /> : <Copy />}
+              {copiedLineage === meta.config.task_id ? <Check /> : <Copy />}
             </button>
           </div>
         </div>
@@ -791,7 +808,7 @@ function ArtifactDetail({
         >
           <BacktestView meta={meta} zh={zh} remoteIp={remoteIp} />
         </Suspense>
-      ) : kind === "training" ? (
+      ) : kind === "train" ? (
         <TrainingView
           meta={meta}
           history={csv.evaluation_history || []}
@@ -811,7 +828,7 @@ const iconFor = (kind: Kind) =>
     <Sparkles />
   ) : kind === "backtest" ? (
     <TrendingUp />
-  ) : kind === "training" ? (
+  ) : kind === "train" ? (
     <BrainCircuit />
   ) : kind === "predict" ? (
     <BarChart3 />
@@ -972,7 +989,7 @@ function TrainingView({
           },
         ]}
       />
-      <section className="viz-card wide training-curve-card">
+      <section className="viz-card wide train-curve-card">
         <header>
           <div>
             <small>
@@ -984,7 +1001,7 @@ function TrainingView({
         </header>
         <LineChart rows={history} series={series} xKey="iteration" />
       </section>
-      <section className="viz-card training-metrics-card">
+      <section className="viz-card train-metrics-card">
         <header>
           <div>
             <small>METRIC CHANGES</small>
@@ -1273,7 +1290,7 @@ function EtlView({
             <h3>{zh ? "数据文件" : "Dataset files"}</h3>
           </div>
           <span className="card-count">
-            {Object.keys(meta.artifact_integrity || {}).length}
+            {Object.keys(meta.artifacts || {}).length}
           </span>
         </header>
         <ArtifactFiles meta={meta} />
@@ -1319,7 +1336,7 @@ function ArtifactFiles({
 }) {
   return (
     <div className="artifact-files">
-      {Object.entries(meta.artifact_integrity || {})
+      {Object.entries(meta.artifacts || {})
         .filter(([name]) => !exclude.includes(name))
         .map(([name, file]) => (
           <div key={name}>

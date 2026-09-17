@@ -11,29 +11,37 @@ import numpy as np
 import polars as pl
 from pydantic import Field, field_validator, model_validator
 
-from ...components.registry import R
-from ...enums import TaskType
-from ..base import BaseConfig, BaseTask, TaskStep
-from .internal.artifacts import (
+from axonx.task.base import TaskStep
+from axonx.task.core import BaseTrainInputParams, BaseTrainOutputParams, BaseTrainTask
+from axonx.task.core.artifacts import (
     artifact_path,
     artifact_record,
     atomic_output,
-    metadata_header,
     normalize_yyyymmdd,
     read_metadata,
     task_directory,
-    write_metadata,
 )
+
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix
 
 MODEL_LABELS = (*LABELS, *CSZ_LABELS, *RANK_LABELS)
 
 
-class LgbmTrainingConfig(BaseConfig):
+class LgbmTrainOutputParams(BaseTrainOutputParams):
+    feature_importance_file: str
+    evaluation_history_file: str
+    best_iteration: int
+    protocol: dict
+    feature_columns: list[str]
+    model: dict
+    rows: dict[str, int]
+    validation_metrics: dict
+
+
+class LgbmTrainInputParams(BaseTrainInputParams):
     """Configure one time-separated Alpha158 LightGBM training run."""
 
-    etl_task_id: str
     train_start: str = "20150101"
     train_end: str = "20230101"
     label_column: str = "label_1d_rank"
@@ -72,25 +80,16 @@ class LgbmTrainingConfig(BaseConfig):
         return self
 
 
-@R.register("alpha158_lgbm_train")
-class LgbmTrainingTask(BaseTask):
+class LgbmTrainTask(BaseTrainTask):
     """Select a label, trim its daily raw-return tails, tune temporally, and fit a native LightGBM booster."""
 
-    config_cls = LgbmTrainingConfig
-    config: LgbmTrainingConfig
-    task_type = TaskType.TRAINING
-    output_keys = (
-        "model_file",
-        "feature_importance_file",
-        "evaluation_history_file",
-        "metadata_file",
-        "train_rows",
-        "best_iteration",
-    )
+    input_cls = LgbmTrainInputParams
+    output_cls = LgbmTrainOutputParams
+    input_params: LgbmTrainInputParams
 
     def build_task_steps(self) -> Iterable[TaskStep]:
         yield self.resolve_upstream_task
-        yield self.load_and_validate_training_data
+        yield self.load_and_validate_train_data
         yield self.trim_daily_label_tails
         yield self.split_temporal_validation
         yield self.select_best_iteration
@@ -98,19 +97,17 @@ class LgbmTrainingTask(BaseTask):
         yield self.fit_final_model
         yield self.calculate_feature_importance
         yield self.write_outputs
-        yield self.write_metadata
-        yield self.publish_output
 
     @property
     def raw_label(self) -> str:
-        return self.config.label_column.removesuffix("_rank").removesuffix("_csz")
+        return self.input_params.label_column.removesuffix("_rank").removesuffix("_csz")
 
     def resolve_upstream_task(self) -> None:
-        source_dir = task_directory(self.workspace_path, "etl", self.config.etl_task_id)
+        source_dir = task_directory(self.workspace_path, "etl", self.input_params.etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
         source_metadata = read_metadata(source_metadata_path, description="Alpha158 ETL")
         dataset_path = artifact_path(source_dir, source_metadata, "dataset")
-        output_dir = self.workspace_path / "training" / self.task_id
+        output_dir = self.workspace_path / "train" / self.task_id
         self.context.update(
             source_dir=source_dir,
             source_metadata_path=source_metadata_path,
@@ -123,15 +120,15 @@ class LgbmTrainingTask(BaseTask):
             metadata_path=output_dir / "metadata.json",
         )
         self.logger.info(
-            f"Training source resolved etl_task_id={self.config.etl_task_id} "
-            f"dataset={dataset_path} label={self.config.label_column}",
+            f"Training source resolved etl_task_id={self.input_params.etl_task_id} "
+            f"dataset={dataset_path} label={self.input_params.label_column}",
         )
 
-    def load_and_validate_training_data(self) -> None:
+    def load_and_validate_train_data(self) -> None:
         path: Path = self.context["dataset_path"]
         if not path.is_file():
             raise FileNotFoundError(f"Alpha158 数据不存在: {path}")
-        features = tuple(self.context["source_metadata"].get("feature_columns", ()))
+        features = tuple(self.context["source_metadata"].get("output_params", {}).get("feature_columns", ()))
         if not features:
             raise ValueError("ETL metadata 缺少 feature_columns")
         valid_label = f"{self.raw_label}_is_valid"
@@ -142,7 +139,7 @@ class LgbmTrainingTask(BaseTask):
             "ts_code",
             "is_buyable",
             self.raw_label,
-            self.config.label_column,
+            self.input_params.label_column,
             valid_label,
             *features,
         )
@@ -151,8 +148,8 @@ class LgbmTrainingTask(BaseTask):
         frame = (
             pl.scan_parquet(path)
             .filter(
-                (pl.col("trade_date") >= pl.lit(self.config.train_start))
-                & (pl.col("trade_date") < pl.lit(self.config.train_end)),
+                (pl.col("trade_date") >= pl.lit(self.input_params.train_start))
+                & (pl.col("trade_date") < pl.lit(self.input_params.train_end)),
             )
             .select(*required)
             .collect()
@@ -166,7 +163,7 @@ class LgbmTrainingTask(BaseTask):
             pl.col("is_buyable")
             & pl.col(valid_label)
             & pl.col(self.raw_label).is_finite()
-            & pl.col(self.config.label_column).is_finite(),
+            & pl.col(self.input_params.label_column).is_finite(),
         )
         if frame.is_empty():
             raise ValueError("训练日期范围内没有有效标签")
@@ -185,15 +182,15 @@ class LgbmTrainingTask(BaseTask):
     def trim_daily_label_tails(self) -> None:
         frame: pl.DataFrame = self.context["frame"]
         raw = pl.col(self.raw_label)
-        lower = raw.quantile(self.config.trim_tail, interpolation="linear").over("trade_date")
-        upper = raw.quantile(1 - self.config.trim_tail, interpolation="linear").over("trade_date")
+        lower = raw.quantile(self.input_params.trim_tail, interpolation="linear").over("trade_date")
+        upper = raw.quantile(1 - self.input_params.trim_tail, interpolation="linear").over("trade_date")
         trimmed = frame.filter(raw.is_between(lower, upper, closed="both"))
         if trimmed.is_empty():
             raise ValueError("每日标签尾部过滤后没有训练样本")
         self.context.update(frame=trimmed, pre_trim_rows=frame.height)
         self.report_progress(95)
         self.logger.info(
-            f"Training tails trimmed raw_label={self.raw_label} tail={self.config.trim_tail:.2%} "
+            f"Training tails trimmed raw_label={self.raw_label} tail={self.input_params.trim_tail:.2%} "
             f"before={frame.height} after={trimmed.height}",
         )
 
@@ -202,7 +199,7 @@ class LgbmTrainingTask(BaseTask):
         dates = frame["trade_date"].unique().sort().to_list()
         if len(dates) < 2:
             raise ValueError("训练至少需要两个有效交易日")
-        validation_days = max(1, math.ceil(len(dates) * self.config.validation_ratio))
+        validation_days = max(1, math.ceil(len(dates) * self.input_params.validation_ratio))
         validation_days = min(validation_days, len(dates) - 1)
         validation_start = dates[-validation_days]
         fit = frame.filter(pl.col("trade_date") < validation_start)
@@ -222,27 +219,27 @@ class LgbmTrainingTask(BaseTask):
     def _matrix(self, frame: pl.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         return (
             feature_matrix(frame, self.context["features"]),
-            frame[self.config.label_column].cast(pl.Float64).to_numpy(),
+            frame[self.input_params.label_column].cast(pl.Float64).to_numpy(),
         )
 
     def _parameters(self) -> dict[str, object]:
         return {
             "objective": "regression",
             "metric": ["l2", "l1"],
-            "learning_rate": self.config.learning_rate,
-            "num_leaves": self.config.num_leaves,
-            "max_depth": self.config.max_depth,
-            "min_data_in_leaf": self.config.min_data_in_leaf,
-            "feature_fraction": self.config.feature_fraction,
-            "bagging_fraction": self.config.bagging_fraction,
-            "bagging_freq": self.config.bagging_freq,
-            "lambda_l1": self.config.lambda_l1,
-            "lambda_l2": self.config.lambda_l2,
-            "seed": self.config.random_seed,
-            "feature_fraction_seed": self.config.random_seed,
-            "bagging_seed": self.config.random_seed,
-            "data_random_seed": self.config.random_seed,
-            "num_threads": self.config.num_threads,
+            "learning_rate": self.input_params.learning_rate,
+            "num_leaves": self.input_params.num_leaves,
+            "max_depth": self.input_params.max_depth,
+            "min_data_in_leaf": self.input_params.min_data_in_leaf,
+            "feature_fraction": self.input_params.feature_fraction,
+            "bagging_fraction": self.input_params.bagging_fraction,
+            "bagging_freq": self.input_params.bagging_freq,
+            "lambda_l1": self.input_params.lambda_l1,
+            "lambda_l2": self.input_params.lambda_l2,
+            "seed": self.input_params.random_seed,
+            "feature_fraction_seed": self.input_params.random_seed,
+            "bagging_seed": self.input_params.random_seed,
+            "data_random_seed": self.input_params.random_seed,
+            "num_threads": self.input_params.num_threads,
             "deterministic": True,
             "force_col_wise": True,
             "verbosity": -1,
@@ -288,20 +285,20 @@ class LgbmTrainingTask(BaseTask):
         model = lgb.train(
             self._parameters(),
             train_dataset,
-            num_boost_round=self.config.num_boost_round,
+            num_boost_round=self.input_params.num_boost_round,
             valid_sets=[train_dataset, validation_dataset],
-            valid_names=["training", "validation"],
+            valid_names=["train", "validation"],
             callbacks=[
-                self._progress_callback(self.config.num_boost_round, "tuning", start=20),
+                self._progress_callback(self.input_params.num_boost_round, "tuning", start=20),
                 lgb.early_stopping(
-                    self.config.early_stopping_rounds,
+                    self.input_params.early_stopping_rounds,
                     first_metric_only=True,
                     verbose=False,
                 ),
                 lgb.record_evaluation(history),
             ],
         )
-        best_iteration = model.best_iteration or self.config.num_boost_round
+        best_iteration = model.best_iteration or self.input_params.num_boost_round
         self.context.update(
             tuning_model=model,
             evaluation_history=history,
@@ -400,7 +397,7 @@ class LgbmTrainingTask(BaseTask):
             f"importance={self.context['importance_path']} history={self.context['history_path']}",
         )
 
-    def write_metadata(self) -> None:
+    def build_output_params(self) -> LgbmTrainOutputParams:
         output_dir: Path = self.context["output_dir"]
         frame: pl.DataFrame = self.context["frame"]
         artifacts = {}
@@ -411,37 +408,25 @@ class LgbmTrainingTask(BaseTask):
         )
         for index, (name, path_key) in enumerate(artifact_paths, start=1):
             artifacts[name] = artifact_record(self.context[path_key], output_dir)
-            self.report_progress(index / (len(artifact_paths) + 1) * 90)
-        metadata = {
-            **metadata_header(
-                task_name="alpha158_lgbm_train",
-                task_id=self.task_id,
-                task_type=self.task_type.value,
-            ),
-            "config": self.config.model_dump(mode="json", exclude={"task_id", "task_type"}),
-            "source": {
-                "etl_task_id": self.config.etl_task_id,
-                "metadata": str(self.context["source_metadata_path"]),
-                "dataset": str(self.context["dataset_path"]),
-            },
-            "protocol": {
-                "train_start_inclusive": self.config.train_start,
-                "train_end_exclusive": self.config.train_end,
+        return self.output_cls(
+            protocol={
+                "train_start_inclusive": self.input_params.train_start,
+                "train_end_exclusive": self.input_params.train_end,
                 "validation_start_inclusive": self.context["validation_start"],
-                "label_column": self.config.label_column,
+                "label_column": self.input_params.label_column,
                 "raw_label_for_trimming": self.raw_label,
-                "daily_trim_tail": self.config.trim_tail,
+                "daily_trim_tail": self.input_params.trim_tail,
                 "prediction_rows_are_not_trimmed": True,
                 "sample_filter": "is_buyable and valid finite label",
             },
-            "feature_columns": list(self.context["features"]),
-            "model": {
+            feature_columns=list(self.context["features"]),
+            model={
                 "library": "lightgbm",
                 "library_version": self._lightgbm().__version__,
                 "parameters": self._parameters(),
                 "best_iteration": self.context["best_iteration"],
             },
-            "rows": {
+            rows={
                 "loaded": self.context["loaded_rows"],
                 "eligible": self.context["pre_trim_rows"],
                 "before_trim": self.context["pre_trim_rows"],
@@ -449,22 +434,12 @@ class LgbmTrainingTask(BaseTask):
                 "tuning_train": self.context["tuning_train"].height,
                 "validation": self.context["validation"].height,
             },
-            "validation_metrics": self.context["validation_metrics"],
-            "artifacts": {
-                "model": "model.txt",
-                "feature_importance": "feature_importance.csv",
-                "evaluation_history": "evaluation_history.csv",
-            },
-            "artifact_integrity": artifacts,
-        }
-        write_metadata(self.context["metadata_path"], metadata)
-        self.report_progress(95)
-
-    def publish_output(self) -> None:
-        self.context.update(
+            validation_metrics=self.context["validation_metrics"],
+            artifacts=artifacts,
             model_file=str(self.context["model_path"]),
             feature_importance_file=str(self.context["importance_path"]),
             evaluation_history_file=str(self.context["history_path"]),
             metadata_file=str(self.context["metadata_path"]),
-            train_rows=self.context["frame"].height,
+            train_rows=frame.height,
+            best_iteration=self.context["best_iteration"],
         )

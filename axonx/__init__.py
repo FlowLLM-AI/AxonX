@@ -14,7 +14,7 @@ from .components.service.base import BaseService
 from .components.task_manager.base import BaseTaskManager
 from .core import Application
 from .steps.base import BaseStep
-from .task.base import BaseConfig, BaseTask, TaskStep
+from .task.base import BaseInputParams, BaseOutputParams, BaseTask, TaskMetadata, TaskStep
 
 _component_registry.R.freeze()
 
@@ -22,7 +22,9 @@ __all__ = [
     "Application",
     "BaseClient",
     "BaseComponent",
-    "BaseConfig",
+    "BaseInputParams",
+    "BaseOutputParams",
+    "TaskMetadata",
     "BaseJob",
     "BaseMachineComponent",
     "BasePluginComponent",

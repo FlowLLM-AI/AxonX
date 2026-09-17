@@ -24,8 +24,8 @@ export async function loadBacktest(
   remoteIp?: string,
   signal?: AbortSignal,
 ) {
-  const daily = meta.artifacts?.daily;
-  const summary = meta.artifacts?.summary;
+  const daily = meta.artifacts?.daily?.path;
+  const summary = meta.artifacts?.summary?.path;
   if (!daily || !summary)
     throw new Error("回测 metadata 缺少 daily 或 summary 产物");
   const [dailyPreview, summaryPreview] = await Promise.all([

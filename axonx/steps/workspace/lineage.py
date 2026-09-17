@@ -4,11 +4,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-KINDS = ("etl", "analysis", "training", "predict", "backtest")
+KINDS = ("etl", "analysis", "train", "predict", "backtest")
 PARENTS = {
     "analysis": ("etl_task_id", "etl"),
-    "training": ("etl_task_id", "etl"),
-    "predict": ("training_task_id", "training"),
+    "train": ("etl_task_id", "etl"),
+    "predict": ("train_task_id", "train"),
     "backtest": ("prediction_task_id", "predict"),
 }
 
@@ -20,7 +20,7 @@ def _task_index(root: Path) -> dict[str, dict[str, Any]]:
         if not directory.is_dir():
             continue
         for task_dir in directory.iterdir():
-            if not task_dir.is_dir() or task_dir.is_symlink() or not task_dir.name.startswith(f"{kind}#"):
+            if not task_dir.is_dir() or task_dir.is_symlink():
                 continue
             metadata_path = task_dir / "metadata.json"
             try:
@@ -29,19 +29,21 @@ def _task_index(root: Path) -> dict[str, dict[str, Any]]:
                 metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
             except (OSError, UnicodeError, ValueError):
                 continue
-            if not isinstance(metadata, dict) or metadata.get("task_id") != task_dir.name:
+            if not isinstance(metadata, dict):
+                continue
+            if metadata.get("task_id") != task_dir.name or metadata.get("task_type") != kind:
                 continue
             parent_id = None
             if kind in PARENTS:
-                key, parent_kind = PARENTS[kind]
-                source = metadata.get("source")
+                key, _parent_kind = PARENTS[kind]
+                source = metadata.get("source_tasks")
                 value = source.get(key) if isinstance(source, dict) else None
-                if isinstance(value, str) and value.startswith(f"{parent_kind}#") and Path(value).name == value:
+                if isinstance(value, str) and "#" in value and Path(value).name == value:
                     parent_id = value
             nodes[task_dir.name] = {
                 "task_id": task_dir.name,
                 "kind": kind,
-                "task_name": metadata.get("task_name") if isinstance(metadata.get("task_name"), str) else kind,
+                "task_name": metadata.get("reg_name") if isinstance(metadata.get("reg_name"), str) else kind,
                 "created_at": metadata.get("created_at") if isinstance(metadata.get("created_at"), str) else None,
                 "parent_id": parent_id,
                 "missing": False,
@@ -85,7 +87,7 @@ def get_task_graph(root: Path, task_id: str) -> dict[str, Any]:
         if parent_id and parent_id not in graph:
             graph[parent_id] = {
                 "task_id": parent_id,
-                "kind": parent_id.split("#", 1)[0],
+                "kind": PARENTS[node["kind"]][1],
                 "task_name": None,
                 "created_at": None,
                 "parent_id": None,

@@ -1,16 +1,17 @@
-"""Small, shared helpers for task-scoped Alpha158 artifacts."""
+"""Shared helpers for task-scoped artifacts."""
 
 from __future__ import annotations
 
 import json
 import math
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from ....utils.fs import atomic_write as atomic_output
-from ....utils.fs import atomic_write_text as atomic_text
-from ....utils.fs import file_sha256
+from ...utils.fs import atomic_write as atomic_output
+from ...utils.fs import atomic_write_text as atomic_text
+from ...utils.fs import file_sha256
+from ..base import TaskMetadata
 
 __all__ = [
     "artifact_path",
@@ -18,7 +19,6 @@ __all__ = [
     "atomic_output",
     "atomic_text",
     "file_sha256",
-    "metadata_header",
     "normalize_yyyymmdd",
     "read_metadata",
     "task_directory",
@@ -28,7 +28,7 @@ __all__ = [
 
 def task_directory(workspace: Path, task_type: str, task_id: str) -> Path:
     """Return a canonical upstream directory after rejecting path-like IDs."""
-    if Path(task_id).name != task_id or not task_id.startswith(f"{task_type}#"):
+    if Path(task_id).name != task_id or "#" not in task_id:
         raise ValueError(f"无效的 {task_type} task_id: {task_id}")
     return workspace / task_type / task_id
 
@@ -45,10 +45,11 @@ def read_metadata(path: Path, *, description: str) -> dict[str, Any]:
 
 def artifact_path(task_dir: Path, metadata: dict[str, Any], name: str) -> Path:
     """Resolve a declared Artifact path without allowing directory escape."""
-    artifacts = metadata.get("artifacts")
-    value = artifacts.get(name) if isinstance(artifacts, dict) else None
+    artifacts = metadata.get("output_params", {}).get("artifacts")
+    record = artifacts.get(name) if isinstance(artifacts, dict) else None
+    value = record.get("path") if isinstance(record, dict) else None
     if not isinstance(value, str) or not value:
-        raise ValueError(f"metadata 缺少 artifacts.{name}")
+        raise ValueError(f"metadata 缺少 artifacts.{name}.path")
     path = Path(value)
     if path.is_absolute():
         raise ValueError(f"artifacts.{name} 必须是任务目录内的相对路径")
@@ -81,18 +82,7 @@ def artifact_record(path: Path, root: Path) -> dict[str, Any]:
     return {"path": name, "bytes": path.stat().st_size, "sha256": file_sha256(path)}
 
 
-def metadata_header(*, task_name: str, task_id: str, task_type: str) -> dict[str, Any]:
-    """Build the shared header for task Artifact metadata."""
-    return {
-        "schema_version": 1,
-        "task_name": task_name,
-        "task_id": task_id,
-        "task_type": task_type,
-        "created_at": datetime.now(UTC).isoformat(),
-    }
-
-
-def write_metadata(path: Path, metadata: dict[str, Any]) -> None:
+def write_metadata(path: Path, metadata: TaskMetadata) -> None:
     """Normalize and atomically persist task Artifact metadata."""
 
     def json_value(value: Any) -> Any:
@@ -106,5 +96,5 @@ def write_metadata(path: Path, metadata: dict[str, Any]) -> None:
 
     atomic_text(
         path,
-        json.dumps(json_value(metadata), ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+        json.dumps(json_value(metadata.model_dump(mode="json", by_alias=True)), ensure_ascii=False, indent=2, allow_nan=False) + "\n",
     )

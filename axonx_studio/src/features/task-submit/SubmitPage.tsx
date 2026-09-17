@@ -325,14 +325,14 @@ export function SubmitPage({
                   )}
                 </div>
               </section>
-              {!!selected.output_keys.length && (
+              {!!Object.keys(selected.output_schema.properties || {}).length && (
                 <div className="output-preview">
                   <span>
                     <Braces />
                     {text.output}
                   </span>
                   <div>
-                    {selected.output_keys.map((key) => (
+                    {Object.keys(selected.output_schema.properties || {}).map((key) => (
                       <code key={key}>{key}</code>
                     ))}
                   </div>

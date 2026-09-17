@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axonx-alpha158"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["axonx>=0.1.0", "lightgbm>=4.7,<5", "numpy>=2.5,<3", "polars>=1.44,<2"]
+
+[project.entry-points."axonx.plugins"]
+alpha158 = "axonx_alpha158"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["axonx_alpha158*"]
+
+[tool.setuptools.package-data]
+axonx_alpha158 = ["plugin.yaml"]
