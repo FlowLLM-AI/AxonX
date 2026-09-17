@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ListRestart,
   LoaderCircle,
   LockKeyhole,
   RotateCcw,
@@ -519,6 +523,64 @@ function HoldingsPanel({
   onLatest: () => void;
 }) {
   const holdings = (row?.top30_holdings || []) as Holding[];
+  const [sort, setSort] = useState<SummarySort>(null);
+  const sortedHoldings = sort
+    ? [...holdings].sort((a, b) => {
+        const left = a[sort.key as keyof Holding];
+        const right = b[sort.key as keyof Holding];
+        const comparison =
+          typeof left === "number" && typeof right === "number"
+            ? left - right
+            : String(left).localeCompare(String(right), zh ? "zh-CN" : "en");
+        return comparison * (sort.direction === "asc" ? 1 : -1);
+      })
+    : holdings;
+  const holdingDomain = (key: "prediction" | "daily_return" | "weight") => {
+    const values = holdings.map((item) => item[key]);
+    return new Set(values).size > 1 ? dataBarDomain(values) : undefined;
+  };
+  const domains = {
+    prediction: holdingDomain("prediction"),
+    daily_return: holdingDomain("daily_return"),
+    weight: holdingDomain("weight"),
+  };
+  const holdingHeader = (key: keyof Holding, label: string) => {
+    const active = sort?.key === key;
+    return (
+      <th
+        key={key}
+        aria-sort={
+          active
+            ? sort.direction === "asc"
+              ? "ascending"
+              : "descending"
+            : "none"
+        }
+      >
+        <button
+          type="button"
+          className={`summary-sort-button${active ? " active" : ""}`}
+          onClick={() => setSort((current) => nextSummarySort(current, key))}
+          aria-label={
+            zh
+              ? `按${label}${active && sort.direction === "asc" ? "降序" : "升序"}排列`
+              : `Sort ${label} ${active && sort.direction === "asc" ? "descending" : "ascending"}`
+          }
+        >
+          <span>{label}</span>
+          {active ? (
+            sort.direction === "asc" ? (
+              <ArrowUp />
+            ) : (
+              <ArrowDown />
+            )
+          ) : (
+            <ArrowUpDown />
+          )}
+        </button>
+      </th>
+    );
+  };
   return (
     <section className="viz-card holdings-panel">
       <header>
@@ -530,6 +592,17 @@ function HoldingsPanel({
           </h3>
         </div>
         <div className="holdings-actions">
+          <button
+            type="button"
+            className="summary-sort-reset"
+            onClick={() => setSort(null)}
+            disabled={!sort}
+            aria-label={zh ? "重置持仓表排序" : "Reset holdings sorting"}
+            title={zh ? "重置排序" : "Reset sorting"}
+          >
+            <ListRestart />
+            {zh ? "重置排序" : "Reset sort"}
+          </button>
           {locked && (
             <button type="button" onClick={onUnlock}>
               <LockKeyhole />
@@ -554,33 +627,45 @@ function HoldingsPanel({
         <table>
           <thead>
             <tr>
-              {[
-                "#",
-                zh ? "代码" : "Code",
-                zh ? "名称" : "Name",
-                zh ? "预测值" : "Prediction",
-                zh ? "当日收益" : "Return",
-                zh ? "权重" : "Weight",
-              ].map((label) => (
-                <th key={label}>{label}</th>
-              ))}
+              {holdingHeader("rank", "#")}
+              {holdingHeader("ts_code", zh ? "代码" : "Code")}
+              {holdingHeader("name", zh ? "名称" : "Name")}
+              {holdingHeader("prediction", zh ? "预测值" : "Prediction")}
+              {holdingHeader("daily_return", zh ? "当日收益" : "Return")}
+              {holdingHeader("weight", zh ? "权重" : "Weight")}
             </tr>
           </thead>
           <tbody>
-            {holdings.map((item) => (
+            {sortedHoldings.map((item) => (
               <tr key={item.ts_code}>
                 <td>{item.rank}</td>
                 <td>
                   <code>{item.ts_code}</code>
                 </td>
                 <td>{item.name}</td>
-                <td>{fixed(item.prediction, 6)}</td>
+                <td>
+                  <SummaryDataCell
+                    value={item.prediction}
+                    format={(value) => fixed(value, 6)}
+                    domain={domains.prediction}
+                  />
+                </td>
                 <td
                   className={item.daily_return >= 0 ? "positive" : "negative"}
                 >
-                  {percent(item.daily_return)}
+                  <SummaryDataCell
+                    value={item.daily_return}
+                    format={percent}
+                    domain={domains.daily_return}
+                  />
                 </td>
-                <td>{percent(item.weight)}</td>
+                <td>
+                  <SummaryDataCell
+                    value={item.weight}
+                    format={percent}
+                    domain={domains.weight}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -707,6 +792,61 @@ const valueTone = (value: unknown) =>
       : Number(value) > 0
         ? "positive"
         : "";
+type SummarySort = { key: string; direction: "asc" | "desc" } | null;
+const nextSummarySort = (current: SummarySort, key: string): SummarySort => ({
+  key,
+  direction:
+    current?.key === key && current.direction === "asc" ? "desc" : "asc",
+});
+const dataBarDomain = (values: unknown[]) => {
+  const finite = values.map(number).filter(Number.isFinite);
+  return {
+    min: Math.min(0, ...finite),
+    max: Math.max(0, ...finite),
+  };
+};
+
+function SummaryDataCell({
+  value,
+  format,
+  domain,
+}: {
+  value: unknown;
+  format: (value: unknown) => string;
+  domain?: { min: number; max: number };
+}) {
+  const numeric = number(value);
+  const zero = domain
+    ? (-domain.min / (domain.max - domain.min || 1)) * 100
+    : 0;
+  const position = Number.isFinite(numeric)
+    ? domain && numeric < 0
+      ? zero + (numeric / (domain.max - domain.min || 1)) * 100
+      : zero
+    : 0;
+  const width = Number.isFinite(numeric)
+    ? Math.abs(numeric / ((domain?.max ?? 0) - (domain?.min ?? 0) || 1)) * 100
+    : 0;
+  return (
+    <span className="summary-data-cell">
+      {domain && domain.min < 0 && domain.max > 0 && (
+        <span
+          className="summary-data-zero"
+          style={{ left: `${zero}%` }}
+          aria-hidden="true"
+        />
+      )}
+      {domain && width > 0 && (
+        <span
+          className={`summary-data-bar${numeric < 0 ? " negative" : ""}`}
+          style={{ left: `${position}%`, width: `${width}%` }}
+          aria-hidden="true"
+        />
+      )}
+      <span className="summary-data-value">{format(value)}</span>
+    </span>
+  );
+}
 
 function SummaryView({
   rows,
@@ -720,8 +860,8 @@ function SummaryView({
   zh: boolean;
 }) {
   const [topN, setTopN] = useState(topNs.includes(30) ? 30 : topNs[0]);
-  const [leftKey, setLeftKey] = useState("net_cumulative_return");
-  const [rightKey, setRightKey] = useState("net_max_drawdown");
+  const [signalSort, setSignalSort] = useState<SummarySort>(null);
+  const [detailSort, setDetailSort] = useState<SummarySort>(null);
   const overall = rows[0]?.period_type === "overall";
   const periods = [...rows].sort((a, b) => a.period.localeCompare(b.period));
   const metrics: SummaryMetric[] = [
@@ -734,45 +874,102 @@ function SummaryView({
       percent: false,
     })),
   ];
-  const selected = [leftKey, rightKey]
-    .filter(Boolean)
-    .map((key) => metrics.find((item) => item.key === key)!)
-    .filter(Boolean);
   const periodName = (row: SummaryRow) =>
     overall ? `${row.period_start}—${row.period_end}` : row.period;
-  const signalSeries: ChartSeries[] = [
-    {
-      key: "rank_ic_mean",
-      label: "RankIC",
-      type: "bar",
-      axis: 0,
-      format: "precise",
-    },
-    {
-      key: "rank_icir",
-      label: "RankICIR",
-      type: "bar",
-      axis: 1,
-      format: "decimal",
-    },
-  ];
-  const topSeries: ChartSeries[] = selected.map((metric, index) => ({
-    key: metric.key,
-    label: metricName(metric, zh),
-    type: "bar",
-    axis: index as 0 | 1,
-    format: metric.percent ? "percent" : "decimal",
-  }));
-  const topChartRows: ChartRow[] = periods.map((row) => ({
-    date: periodName(row),
-    ...Object.fromEntries(
-      selected.map(({ key }) => [key, metricValue(row, topN, key)]),
-    ),
-  }));
   if (!rows.length) return <div className="chart-empty">NO SUMMARY DATA</div>;
   const detailRows = overall
     ? topNs.map((n) => ({ row: periods[0], topN: n, key: `top-${n}` }))
     : periods.map((row) => ({ row, topN, key: row.period }));
+  const signalDomains = Object.fromEntries(
+    signalMetrics.map(({ key }) => [
+      key,
+      dataBarDomain(periods.map((row) => row[key])),
+    ]),
+  );
+  const detailDomains = Object.fromEntries(
+    metrics.map(({ key }) => [
+      key,
+      dataBarDomain(
+        detailRows.map(({ row, topN: n }) => metricValue(row, n, key)),
+      ),
+    ]),
+  );
+  const sortedSignalRows = signalSort
+    ? [...periods].sort((a, b) => {
+        const { key, direction } = signalSort;
+        if (key === "period") {
+          return (
+            a.period.localeCompare(b.period) * (direction === "asc" ? 1 : -1)
+          );
+        }
+        const left = number(a[key]);
+        const right = number(b[key]);
+        if (!Number.isFinite(left)) return Number.isFinite(right) ? 1 : 0;
+        if (!Number.isFinite(right)) return -1;
+        return (left - right) * (direction === "asc" ? 1 : -1);
+      })
+    : periods;
+  const sortedDetailRows = detailSort
+    ? [...detailRows].sort((a, b) => {
+        const { key, direction } = detailSort;
+        if (key === "top_n") {
+          return (a.topN - b.topN) * (direction === "asc" ? 1 : -1);
+        }
+        if (key === "period") {
+          return (
+            a.row.period.localeCompare(b.row.period) *
+            (direction === "asc" ? 1 : -1)
+          );
+        }
+        const left = number(metricValue(a.row, a.topN, key));
+        const right = number(metricValue(b.row, b.topN, key));
+        if (!Number.isFinite(left)) return Number.isFinite(right) ? 1 : 0;
+        if (!Number.isFinite(right)) return -1;
+        return (left - right) * (direction === "asc" ? 1 : -1);
+      })
+    : detailRows;
+  const sortHeader = (
+    key: string,
+    label: string,
+    sort: SummarySort,
+    onSort: (key: string) => void,
+  ) => {
+    const active = sort?.key === key;
+    return (
+      <th
+        key={key}
+        aria-sort={
+          active
+            ? sort.direction === "asc"
+              ? "ascending"
+              : "descending"
+            : "none"
+        }
+      >
+        <button
+          type="button"
+          className={`summary-sort-button${active ? " active" : ""}`}
+          onClick={() => onSort(key)}
+          aria-label={
+            zh
+              ? `按${label}${active && sort.direction === "asc" ? "降序" : "升序"}排列`
+              : `Sort ${label} ${active && sort.direction === "asc" ? "descending" : "ascending"}`
+          }
+        >
+          <span>{label}</span>
+          {active ? (
+            sort.direction === "asc" ? (
+              <ArrowUp />
+            ) : (
+              <ArrowDown />
+            )
+          ) : (
+            <ArrowUpDown />
+          )}
+        </button>
+      </th>
+    );
+  };
   const topNControl = (
     <label className="summary-select-label">
       <span>Top N</span>
@@ -809,37 +1006,24 @@ function SummaryView({
             ))}
           </div>
         )}
-        {!overall && (
-          <section className="viz-card period-chart summary-signal-chart">
-            <header>
-              <div>
-                <small>SIGNAL QUALITY</small>
-                <h3>RankIC · RankICIR</h3>
-              </div>
-              <span className="summary-axis-hint">
-                {zh
-                  ? "左轴：RankIC　右轴：RankICIR"
-                  : "Left: RankIC · Right: RankICIR"}
-              </span>
-            </header>
-            <BacktestChart
-              rows={periods.map((row) => ({
-                date: row.period,
-                ...Object.fromEntries(
-                  signalSeries.map(({ key }) => [key, row[key]]),
-                ),
-              }))}
-              series={signalSeries}
-              zoom
-            />
-          </section>
-        )}
         <section className="viz-card summary-table summary-signal-table">
           <header>
             <div>
               <small>BASE METRICS</small>
               <h3>{zh ? "整体指标明细" : "Overall metric details"}</h3>
             </div>
+            <button
+              type="button"
+              className="summary-sort-reset"
+              onClick={() => setSignalSort(null)}
+              disabled={!signalSort}
+              aria-label={
+                zh ? "重置整体指标排序" : "Reset overall metric sorting"
+              }
+              title={zh ? "重置排序" : "Reset sorting"}
+            >
+              <RotateCcw />
+            </button>
           </header>
           <div
             className="mini-table"
@@ -850,20 +1034,42 @@ function SummaryView({
             <table>
               <thead>
                 <tr>
-                  <th>{zh ? "时间" : "Period"}</th>
-                  {signalMetrics.map((metric) => (
-                    <th key={metric.key}>{metricName(metric, zh)}</th>
-                  ))}
+                  {sortHeader(
+                    "period",
+                    zh ? "时间" : "Period",
+                    signalSort,
+                    (key) =>
+                      setSignalSort((current) => nextSummarySort(current, key)),
+                  )}
+                  {signalMetrics.map((metric) =>
+                    sortHeader(
+                      metric.key,
+                      metricName(metric, zh),
+                      signalSort,
+                      (key) =>
+                        setSignalSort((current) =>
+                          nextSummarySort(current, key),
+                        ),
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {periods.map((row) => (
+                {sortedSignalRows.map((row) => (
                   <tr key={row.period}>
                     <td>
                       <strong>{periodName(row)}</strong>
                     </td>
                     {signalMetrics.map(({ key, format }) => (
-                      <td key={key}>{format(row[key])}</td>
+                      <td key={key}>
+                        <SummaryDataCell
+                          value={row[key]}
+                          format={format}
+                          domain={
+                            periods.length > 1 ? signalDomains[key] : undefined
+                          }
+                        />
+                      </td>
                     ))}
                   </tr>
                 ))}
@@ -880,63 +1086,6 @@ function SummaryView({
             <h3>Top N {zh ? "指标" : "metrics"}</h3>
           </div>
         </div>
-        {!overall && (
-          <section className="viz-card period-chart summary-top-chart">
-            <header>
-              <div>
-                <small>PERIOD PERFORMANCE</small>
-                <h3>
-                  {zh
-                    ? `Top ${topN} · 收益与风险`
-                    : `Top ${topN} · Return and risk`}
-                </h3>
-              </div>
-              <div className="summary-chart-controls">
-                {topNControl}
-                <label className="summary-select-label">
-                  <span>{zh ? "左轴" : "Left axis"}</span>
-                  <select
-                    aria-label={zh ? "选择左轴指标" : "Select left axis metric"}
-                    value={leftKey}
-                    onChange={(event) => setLeftKey(event.target.value)}
-                  >
-                    {metrics.map((metric) => (
-                      <option
-                        key={metric.key}
-                        value={metric.key}
-                        disabled={metric.key === rightKey}
-                      >
-                        {metricName(metric, zh)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="summary-select-label">
-                  <span>{zh ? "右轴" : "Right axis"}</span>
-                  <select
-                    aria-label={
-                      zh ? "选择右轴指标" : "Select right axis metric"
-                    }
-                    value={rightKey}
-                    onChange={(event) => setRightKey(event.target.value)}
-                  >
-                    <option value="">{zh ? "不显示" : "None"}</option>
-                    {metrics.map((metric) => (
-                      <option
-                        key={metric.key}
-                        value={metric.key}
-                        disabled={metric.key === leftKey}
-                      >
-                        {metricName(metric, zh)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </header>
-            <BacktestChart rows={topChartRows} series={topSeries} zoom />
-          </section>
-        )}
         <section className="viz-card summary-table summary-detail-table">
           <header>
             <div>
@@ -952,9 +1101,20 @@ function SummaryView({
               </h3>
             </div>
             <div className="summary-chart-controls">
+              {!overall && topNControl}
               <span className="summary-table-hint">
                 {zh ? "左右滑动查看" : "Scroll sideways"}
               </span>
+              <button
+                type="button"
+                className="summary-sort-reset"
+                onClick={() => setDetailSort(null)}
+                disabled={!detailSort}
+                aria-label={zh ? "重置表格排序" : "Reset table sorting"}
+                title={zh ? "重置排序" : "Reset sorting"}
+              >
+                <RotateCcw />
+              </button>
             </div>
           </header>
           <div
@@ -962,22 +1122,40 @@ function SummaryView({
             role="region"
             aria-label={
               overall
-                ? zh ? "各 Top N 总体指标" : "Overall metrics by Top N"
-                : zh ? "Top N 分期指标明细" : "Top N period metric details"
+                ? zh
+                  ? "各 Top N 总体指标"
+                  : "Overall metrics by Top N"
+                : zh
+                  ? "Top N 分期指标明细"
+                  : "Top N period metric details"
             }
             tabIndex={0}
           >
             <table>
               <thead>
                 <tr>
-                  <th>{overall ? "Top N" : zh ? "时间" : "Period"}</th>
-                  {metrics.map((metric) => (
-                    <th key={metric.key}>{metricName(metric, zh)}</th>
-                  ))}
+                  {sortHeader(
+                    overall ? "top_n" : "period",
+                    overall ? "Top N" : zh ? "时间" : "Period",
+                    detailSort,
+                    (key) =>
+                      setDetailSort((current) => nextSummarySort(current, key)),
+                  )}
+                  {metrics.map((metric) =>
+                    sortHeader(
+                      metric.key,
+                      metricName(metric, zh),
+                      detailSort,
+                      (key) =>
+                        setDetailSort((current) =>
+                          nextSummarySort(current, key),
+                        ),
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {detailRows.map(({ row, topN: n, key }) => (
+                {sortedDetailRows.map(({ row, topN: n, key }) => (
                   <tr key={key}>
                     <td>
                       <strong>{overall ? `Top ${n}` : periodName(row)}</strong>
@@ -986,7 +1164,15 @@ function SummaryView({
                       const value = metricValue(row, n, key);
                       return (
                         <td key={key} className={valueTone(value)}>
-                          {format(value)}
+                          <SummaryDataCell
+                            value={value}
+                            format={format}
+                            domain={
+                              detailRows.length > 1
+                                ? detailDomains[key]
+                                : undefined
+                            }
+                          />
                         </td>
                       );
                     })}

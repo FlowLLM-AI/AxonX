@@ -54,4 +54,12 @@ describe("application routes", () => {
       ).route.resource,
     ).toBe("predict#123");
   });
+
+  it("keeps strategy comparison on its own route", () => {
+    const route = { section: "compare" as const, view: "strategies" };
+    expect(parseHash(routeHash("11.160.132.45:1024", route))).toEqual({
+      machineId: "11.160.132.45:1024",
+      route: { ...route, resource: undefined },
+    });
+  });
 });

@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Network,
   GitBranch,
+  GitCompareArrows,
   Sparkles,
   Workflow,
 } from "lucide-react";
@@ -124,6 +125,13 @@ export const navigationGroups: NavigationGroup[] = [
         icon: BarChart3,
         zh: "离线回测",
         en: "Offline backtest",
+      },
+      {
+        id: "compare",
+        route: { section: "compare", view: "strategies" },
+        icon: GitCompareArrows,
+        zh: "策略对比",
+        en: "Strategy comparison",
       },
     ],
   },

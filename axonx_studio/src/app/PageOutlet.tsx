@@ -26,6 +26,11 @@ const ResearchPage = lazy(() =>
     default: module.ResearchPage,
   })),
 );
+const StrategyComparePage = lazy(() =>
+  import("../features/research/compare/StrategyComparePage").then((module) => ({
+    default: module.StrategyComparePage,
+  })),
+);
 const TaskGraphPage = lazy(() =>
   import("../features/task-graph/TaskGraphPage").then((module) => ({
     default: module.TaskGraphPage,
@@ -133,6 +138,15 @@ export function PageOutlet({
         onConnection={setServiceOnline}
       />
     );
+  } else if (route.section === "compare") {
+    page = (
+      <StrategyComparePage
+        language={language}
+        remoteIp={remoteIp}
+        initialTaskId={route.resource}
+        onConnection={setServiceOnline}
+      />
+    );
   } else if (researchSections.has(route.section)) {
     const kind = route.section === "factors" ? "analysis" : route.section;
     page = (
@@ -174,7 +188,7 @@ export function PageOutlet({
         onConnection={setServiceOnline}
       />
     );
-  } else {
+  } else if (route.section === "task-defs") {
     page = (
       <SubmitPage
         language={language}
@@ -188,6 +202,8 @@ export function PageOutlet({
         onConnection={setServiceOnline}
       />
     );
+  } else {
+    page = <div className="data-gap">Unknown page: {route.section}</div>;
   }
 
   return (

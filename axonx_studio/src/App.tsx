@@ -6,6 +6,7 @@ import { useMachines } from "./app/hooks/useMachines";
 import { useServiceStatus } from "./app/hooks/useServiceStatus";
 import { useSidebar } from "./app/hooks/useSidebar";
 import { PageOutlet } from "./app/PageOutlet";
+import { parseHash } from "./app/routes";
 import type { ContextOption } from "./types";
 import { useAxonXWebMcp } from "./webmcp";
 
@@ -15,9 +16,9 @@ export default function App() {
   const { machineId, route, navigate } = useHashRoute();
   const navigateToMachine = useCallback(
     (nextMachineId: string) => {
-      navigate(route, nextMachineId);
+      navigate(parseHash(window.location.hash).route, nextMachineId);
     },
-    [navigate, route],
+    [navigate],
   );
   const { machines, selectedMachine, remoteIp } = useMachines(
     machineId,

@@ -1,7 +1,7 @@
 export type ResearchKind =
   "analysis" | "backtest" | "etl" | "train" | "predict";
 export type ResearchPageId =
-  "etl" | "factors" | "train" | "predict" | "backtest";
+  "etl" | "factors" | "train" | "predict" | "backtest" | "compare";
 
 export interface ArtifactFile {
   path: string;

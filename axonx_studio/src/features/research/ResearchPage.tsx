@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   CheckSquare2,
   Copy,
+  GitCompareArrows,
   Database,
   FileSpreadsheet,
   GitBranch,
@@ -110,8 +111,12 @@ function normalizeTrainingCurve(value: unknown): TrainingCurveData | undefined {
   const legacy = Object.entries(curve.y || {});
   return {
     x: curve.x,
-    y_left: Object.fromEntries(legacy.filter(([name]) => !name.endsWith("_l1"))),
-    y_right: Object.fromEntries(legacy.filter(([name]) => name.endsWith("_l1"))),
+    y_left: Object.fromEntries(
+      legacy.filter(([name]) => !name.endsWith("_l1")),
+    ),
+    y_right: Object.fromEntries(
+      legacy.filter(([name]) => name.endsWith("_l1")),
+    ),
   };
 }
 
@@ -748,10 +753,22 @@ function ArtifactDetail({
               </div>
             </div>
           </div>
-          <span className="ready-badge">
-            <CheckCircle2 />
-            {zh ? "产物就绪" : "Artifacts ready"}
-          </span>
+          <div className="artifact-header-actions">
+            {kind === "backtest" && meta.task_key === "backtest" && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => onNavigate("compare", meta.config.task_id)}
+              >
+                <GitCompareArrows />
+                {zh ? "加入对比" : "Compare"}
+              </button>
+            )}
+            <span className="ready-badge">
+              <CheckCircle2 />
+              {zh ? "产物就绪" : "Artifacts ready"}
+            </span>
+          </div>
         </header>
       }
       {upstreams.length > 0 && (
@@ -1237,8 +1254,12 @@ function BaseOutputView({
             </div>
           )}
           {meta.training_curve &&
-            Object.keys(meta.training_curve.y_left).some((name) => name.endsWith("_l2")) &&
-            Object.keys(meta.training_curve.y_right).some((name) => name.endsWith("_l1")) && (
+            Object.keys(meta.training_curve.y_left).some((name) =>
+              name.endsWith("_l2"),
+            ) &&
+            Object.keys(meta.training_curve.y_right).some((name) =>
+              name.endsWith("_l1"),
+            ) && (
               <p className="train-curve-note">
                 {zh
                   ? "左轴 L2：均方误差；右轴 L1：平均绝对误差。实线为训练，虚线为验证；两轴数值不可直接比较。"

@@ -51,3 +51,21 @@ export async function loadBacktest(
     summary: rowsOf<SummaryRow>(summaryPreview),
   };
 }
+
+export async function loadBacktestDaily(
+  meta: BacktestArtifact,
+  remoteIp?: string,
+  signal?: AbortSignal,
+) {
+  const daily = meta.artifacts?.daily?.path;
+  if (!daily) throw new Error("回测 metadata 缺少 daily 产物");
+  const preview = await previewWorkspaceFile(
+    `${meta._path}/${daily}`,
+    0,
+    200,
+    remoteIp,
+    true,
+    signal,
+  );
+  return rowsOf<DailyRow>(preview);
+}

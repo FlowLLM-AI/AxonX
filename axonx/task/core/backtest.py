@@ -20,23 +20,37 @@ HOLDING_DETAIL_TOP_N = 30
 
 def correlation(method: str, name: str) -> pl.Expr:
     """Build a daily prediction and realized-return correlation expression."""
-    return pl.corr("pred", "actual_return", method=method).fill_nan(0).fill_null(0).alias(name)
+    return (
+        pl.corr("pred", "actual_return", method=method)
+        .fill_nan(0)
+        .fill_null(0)
+        .alias(name)
+    )
 
 
 def enrich_candidates(candidates: pl.DataFrame) -> pl.DataFrame:
     """Add prediction rank, robust relevance, and the ideal return rank."""
-    ranked = candidates.sort("trade_date", "pred", "ts_code", descending=(False, True, False)).with_columns(
+    ranked = candidates.sort(
+        "trade_date", "pred", "ts_code", descending=(False, True, False)
+    ).with_columns(
         pl.col("ts_code").cum_count().over("trade_date").alias("rank"),
     )
     ideal = (
-        ranked.sort("trade_date", "actual_return", "ts_code", descending=(False, True, False))
-        .with_columns(pl.col("ts_code").cum_count().over("trade_date").alias("ideal_rank"))
+        ranked.sort(
+            "trade_date", "actual_return", "ts_code", descending=(False, True, False)
+        )
+        .with_columns(
+            pl.col("ts_code").cum_count().over("trade_date").alias("ideal_rank")
+        )
         .select("trade_date", "ts_code", "ideal_rank")
     )
     count = pl.len().over("trade_date")
     actual_rank = pl.col("actual_return").rank(method="average").over("trade_date")
     return ranked.join(ideal, on=("trade_date", "ts_code")).with_columns(
-        pl.when(count > 1).then((actual_rank - 1) / (count - 1)).otherwise(1.0).alias("relevance"),
+        pl.when(count > 1)
+        .then((actual_rank - 1) / (count - 1))
+        .otherwise(1.0)
+        .alias("relevance"),
     )
 
 
@@ -49,26 +63,37 @@ def index_benchmarks(
     expressions: list[pl.Expr] = []
     for column in index_columns:
         key = column.removeprefix("index_weight_")
-        valid = pl.col("label_valid") & pl.col("actual_return").is_not_null() & pl.col(column).is_not_null()
+        valid = (
+            pl.col("label_valid")
+            & pl.col("actual_return").is_not_null()
+            & pl.col(column).is_not_null()
+        )
         covered = pl.col(column).filter(valid).sum()
         expressions.extend(
             (
                 covered.clip(upper_bound=1).alias(f"benchmark_{key}_coverage"),
                 pl.when(covered >= minimum_coverage)
-                .then((pl.col(column) * pl.col("actual_return")).filter(valid).sum() / covered)
+                .then(
+                    (pl.col(column) * pl.col("actual_return")).filter(valid).sum()
+                    / covered
+                )
                 .alias(f"benchmark_{key}_return"),
             ),
         )
     return frame.group_by("trade_date").agg(*expressions) if expressions else None
 
 
-def portfolio_daily(candidates: pl.DataFrame, top_n: int, cost_rate: float) -> pl.DataFrame:
+def portfolio_daily(
+    candidates: pl.DataFrame, top_n: int, cost_rate: float
+) -> pl.DataFrame:
     """Calculate daily return, turnover, and ranking metrics for a top-N portfolio."""
     prefix = f"top{top_n}"
     selected = candidates.filter(pl.col("rank") <= top_n).with_columns(
         (1 / pl.len().over("trade_date")).alias("weight"),
     )
-    dates = selected.select("trade_date").unique().sort("trade_date").with_row_index("_day")
+    dates = (
+        selected.select("trade_date").unique().sort("trade_date").with_row_index("_day")
+    )
     weights = selected.join(dates, on="trade_date").select(
         "_day",
         "trade_date",
@@ -94,7 +119,9 @@ def portfolio_daily(candidates: pl.DataFrame, top_n: int, cost_rate: float) -> p
         .group_by("_day", "trade_date")
         .agg(
             pl.len().alias(f"{prefix}_count"),
-            (pl.col("actual_return") * pl.col("weight")).sum().alias(f"{prefix}_gross_return"),
+            (pl.col("actual_return") * pl.col("weight"))
+            .sum()
+            .alias(f"{prefix}_gross_return"),
             (gain / (pl.col("rank") + 1).log(2)).sum().alias("_dcg"),
             pl.when(pl.col("_previous_weight").is_not_null())
             .then(pl.min_horizontal("weight", "_previous_weight"))
@@ -117,10 +144,14 @@ def portfolio_daily(candidates: pl.DataFrame, top_n: int, cost_rate: float) -> p
             ),
         )
         .with_columns(
-            (pl.col(f"{prefix}_turnover") * cost_rate).alias(f"{prefix}_transaction_cost"),
+            (pl.col(f"{prefix}_turnover") * cost_rate).alias(
+                f"{prefix}_transaction_cost"
+            ),
         )
         .with_columns(
-            (pl.col(f"{prefix}_gross_return") - pl.col(f"{prefix}_transaction_cost")).alias(
+            (
+                pl.col(f"{prefix}_gross_return") - pl.col(f"{prefix}_transaction_cost")
+            ).alias(
                 f"{prefix}_net_return",
             ),
         )
@@ -140,14 +171,18 @@ def holding_details(candidates: pl.DataFrame) -> pl.DataFrame:
         .sort("trade_date", "rank")
     )
     return selected.group_by("trade_date", maintain_order=True).agg(
-        pl.struct("rank", "ts_code", "name", "prediction", "daily_return", "weight").alias("top30_holdings"),
+        pl.struct(
+            "rank", "ts_code", "name", "prediction", "daily_return", "weight"
+        ).alias("top30_holdings"),
     )
 
 
 def _ratio(column: str) -> pl.Expr:
     values = pl.col(column).drop_nulls()
     std = values.std(ddof=1)
-    return pl.when((values.len() > 1) & (std > 0)).then(values.mean() / std).otherwise(0.0)
+    return (
+        pl.when((values.len() > 1) & (std > 0)).then(values.mean() / std).otherwise(0.0)
+    )
 
 
 def _period_column(period_type: str) -> pl.Expr:
@@ -157,8 +192,16 @@ def _period_column(period_type: str) -> pl.Expr:
         return pl.col("trade_date").str.slice(0, 4)
     if period_type == "quarter":
         month = pl.col("trade_date").str.slice(4, 2).cast(pl.Int8)
-        return pl.col("trade_date").str.slice(0, 4) + "Q" + (((month - 1) // 3) + 1).cast(pl.String)
-    return pl.col("trade_date").str.slice(0, 4) + "-" + pl.col("trade_date").str.slice(4, 2)
+        return (
+            pl.col("trade_date").str.slice(0, 4)
+            + "Q"
+            + (((month - 1) // 3) + 1).cast(pl.String)
+        )
+    return (
+        pl.col("trade_date").str.slice(0, 4)
+        + "-"
+        + pl.col("trade_date").str.slice(4, 2)
+    )
 
 
 def summarize(
@@ -169,7 +212,13 @@ def summarize(
 ) -> pl.DataFrame:
     """Combine overall, yearly, quarterly, and monthly backtest summaries."""
     frames = [
-        _summarize_period(daily, period_type, benchmark_keys, annual_risk_free_rate, annualization_days)
+        _summarize_period(
+            daily,
+            period_type,
+            benchmark_keys,
+            annual_risk_free_rate,
+            annualization_days,
+        )
         for period_type in ("overall", "year", "quarter", "month")
     ]
     return pl.concat(frames, how="vertical")
@@ -183,18 +232,27 @@ def _summarize_period(
     annualization_days: int,
 ) -> pl.DataFrame:
     daily_rf = (1 + annual_risk_free_rate) ** (1 / annualization_days) - 1
-    frame = daily.with_columns(_period_column(period_type).alias("_period")).sort("_period", "trade_date")
+    frame = daily.with_columns(_period_column(period_type).alias("_period")).sort(
+        "_period", "trade_date"
+    )
     derived: list[pl.Expr] = []
     for top_n in TOP_NS:
         prefix = f"top{top_n}"
         derived.extend(
             (
-                (pl.col(f"{prefix}_net_return") + 1).cum_prod().over("_period").alias(f"_{prefix}_equity"),
-                (pl.col(f"{prefix}_gross_return") - daily_rf).alias(f"_{prefix}_gross_excess"),
+                (pl.col(f"{prefix}_net_return") + 1)
+                .cum_prod()
+                .over("_period")
+                .alias(f"_{prefix}_equity"),
+                (pl.col(f"{prefix}_gross_return") - daily_rf).alias(
+                    f"_{prefix}_gross_excess"
+                ),
             ),
         )
         derived.extend(
-            (pl.col(f"{prefix}_gross_return") - pl.col(f"benchmark_{key}_return")).alias(
+            (
+                pl.col(f"{prefix}_gross_return") - pl.col(f"benchmark_{key}_return")
+            ).alias(
                 f"_{prefix}_{key}_active",
             )
             for key in benchmark_keys
@@ -223,16 +281,24 @@ def _summarize_period(
                 .then(cumulative.pow(annualization_days / pl.len()) - 1)
                 .otherwise(-1.0)
                 .alias(f"{prefix}_net_annualized_return"),
-                (pl.col(net).std(ddof=1) * annual_scale).alias(f"{prefix}_net_annualized_volatility"),
+                (pl.col(net).std(ddof=1) * annual_scale).alias(
+                    f"{prefix}_net_annualized_volatility"
+                ),
                 (pl.col(equity) / peak - 1).min().alias(f"{prefix}_net_max_drawdown"),
                 (pl.col(net) > 0).mean().alias(f"{prefix}_net_win_rate"),
                 pl.col(f"{prefix}_turnover").mean().alias(f"{prefix}_average_turnover"),
-                pl.col(f"{prefix}_gross_return").sum().alias(f"{prefix}_gross_cumulative_return"),
-                (_ratio(f"_{prefix}_gross_excess") * annual_scale).alias(f"{prefix}_gross_sharpe"),
+                pl.col(f"{prefix}_gross_return")
+                .sum()
+                .alias(f"{prefix}_gross_cumulative_return"),
+                (_ratio(f"_{prefix}_gross_excess") * annual_scale).alias(
+                    f"{prefix}_gross_sharpe"
+                ),
             ),
         )
         metrics.extend(
-            (_ratio(f"_{prefix}_{key}_active") * annual_scale).alias(f"{prefix}_information_ratio_{key}")
+            (_ratio(f"_{prefix}_{key}_active") * annual_scale).alias(
+                f"{prefix}_information_ratio_{key}"
+            )
             for key in benchmark_keys
         )
     return (
@@ -244,17 +310,24 @@ def _summarize_period(
     )
 
 
-def validate_prediction_frame(frame: pl.DataFrame, index_columns: tuple[str, ...]) -> None:
+def validate_prediction_frame(
+    frame: pl.DataFrame, index_columns: tuple[str, ...]
+) -> None:
     """Validate dates, returns, and benchmark weights before backtesting."""
     if frame.is_empty():
         raise ValueError("预测文件为空")
     if frame.select("trade_date", "ts_code").n_unique() != frame.height:
         raise ValueError("预测文件包含重复的 trade_date, ts_code")
     invalid_number = pl.any_horizontal(
-        pl.col("pred", "actual_return").is_not_null() & ~pl.col("pred", "actual_return").is_finite(),
+        pl.col("pred", "actual_return").is_not_null()
+        & ~pl.col("pred", "actual_return").is_finite(),
     )
-    invalid_label = pl.col("label_valid") & (pl.col("actual_return").is_null() | (pl.col("actual_return") <= -1))
-    if frame.filter(pl.col("trade_date").str.to_date("%Y%m%d", strict=False).is_null()).height:
+    invalid_label = pl.col("label_valid") & (
+        pl.col("actual_return").is_null() | (pl.col("actual_return") <= -1)
+    )
+    if frame.filter(
+        pl.col("trade_date").str.to_date("%Y%m%d", strict=False).is_null()
+    ).height:
         raise ValueError("trade_date 必须是有效 YYYYMMDD")
     if frame.filter(invalid_number).height:
         raise ValueError("pred 或 actual_return 包含非有限值")
@@ -262,7 +335,9 @@ def validate_prediction_frame(frame: pl.DataFrame, index_columns: tuple[str, ...
         raise ValueError("有效 actual_return 必须非空且大于 -1")
     for column in index_columns:
         weight = pl.col(column)
-        if frame.filter(weight.is_not_null() & (~weight.is_finite() | (weight < 0))).height:
+        if frame.filter(
+            weight.is_not_null() & (~weight.is_finite() | (weight < 0))
+        ).height:
             raise ValueError(f"{column} 必须是非负有限小数权重")
         if frame.group_by("trade_date").agg(weight.sum()).filter(weight > 1.05).height:
             raise ValueError(f"{column} 每日合计不能明显超过 1")
@@ -282,6 +357,10 @@ class BacktestInputParams(BaseInputParams):
     annual_risk_free_rate: float = Field(default=0.012, gt=-1.0, lt=1.0)
     annualization_days: int = Field(default=252, gt=0)
     minimum_index_weight_coverage: float = Field(default=0.90, gt=0.0, le=1.0)
+    index_filter: str = Field(
+        default="",
+        description="可选指数代码，多个用逗号分隔，如 hs300,zz500；留空表示全部股票",
+    )
 
 
 @R.register("backtest")
@@ -314,13 +393,22 @@ class BacktestTask(BaseArtifactTask):
         prediction_task_id = self.input_params.source_task(TaskType.PREDICT)
         source_dir = self.artifact_store.task_directory("predict", prediction_task_id)
         metadata_path = source_dir / "metadata.json"
-        metadata = self.artifact_store.read_metadata(metadata_path, description="prediction")
-        if metadata.get("output_params", {}).get("protocol", {}).get("actual_return_unit") != "decimal":
+        metadata = self.artifact_store.read_metadata(
+            metadata_path, description="prediction"
+        )
+        if (
+            metadata.get("output_params", {})
+            .get("protocol", {})
+            .get("actual_return_unit")
+            != "decimal"
+        ):
             raise ValueError("Backtest requires decimal actual returns")
         output_dir = self.task_dir
         self.context.update(
             prediction_metadata_path=metadata_path,
-            predictions_path=self.artifact_store.artifact_path(source_dir, metadata, "predictions"),
+            predictions_path=self.artifact_store.artifact_path(
+                source_dir, metadata, "predictions"
+            ),
             daily_path=output_dir / "daily.parquet",
             summary_path=output_dir / "summary.parquet",
         )
@@ -336,12 +424,34 @@ class BacktestTask(BaseArtifactTask):
         for name in ("label_valid", "is_buyable"):
             if schema[name] != pl.Boolean:
                 raise TypeError(f"{name} 必须是 Boolean")
-        index_columns = tuple(name for name in schema if name.startswith("index_weight_"))
+        index_columns = tuple(
+            name for name in schema if name.startswith("index_weight_")
+        )
+        requested_indices = tuple(
+            dict.fromkeys(
+                part.strip().lower()
+                for part in self.input_params.index_filter.replace("，", ",").split(",")
+                if part.strip()
+            )
+        )
+        available_indices = {
+            name.removeprefix("index_weight_").lower(): name for name in index_columns
+        }
+        unknown_indices = [
+            name for name in requested_indices if name not in available_indices
+        ]
+        if unknown_indices:
+            available = ", ".join(sorted(available_indices)) or "无"
+            raise ValueError(
+                f"预测文件没有指数权重列: {', '.join(unknown_indices)}；可选指数: {available}"
+            )
         frame = (
             pl.scan_parquet(path)
             .select(
                 pl.col("trade_date", "ts_code", "name").cast(pl.String),
-                pl.col("pred", "actual_return", *index_columns).cast(pl.Float64, strict=False),
+                pl.col("pred", "actual_return", *index_columns).cast(
+                    pl.Float64, strict=False
+                ),
                 "label_valid",
                 "is_buyable",
             )
@@ -350,12 +460,22 @@ class BacktestTask(BaseArtifactTask):
         )
         self.report_progress(55)
         self._validate_frame(frame, index_columns)
-        candidates = enrich_candidates(
-            frame.filter(pl.col("is_buyable") & pl.col("label_valid") & pl.col("pred").is_not_null()),
+        candidate_filter = (
+            pl.col("is_buyable") & pl.col("label_valid") & pl.col("pred").is_not_null()
         )
+        if requested_indices:
+            candidate_filter = candidate_filter & pl.any_horizontal(
+                *(pl.col(available_indices[name]) > 0 for name in requested_indices)
+            )
+        candidates = enrich_candidates(frame.filter(candidate_filter))
         if candidates.is_empty():
             raise ValueError("预测文件没有可回测的可买样本")
-        self.context.update(frame=frame, candidates=candidates, index_columns=index_columns)
+        self.context.update(
+            frame=frame,
+            candidates=candidates,
+            index_columns=index_columns,
+            requested_indices=requested_indices,
+        )
         self.report_progress(95)
 
     @staticmethod
@@ -387,11 +507,18 @@ class BacktestTask(BaseArtifactTask):
             daily = daily.join(indices, on="trade_date", how="left")
         self.report_progress(35)
         portfolios = pl.collect_all(
-            [portfolio_daily(candidates, top_n, self.input_params.transaction_cost_rate).lazy() for top_n in TOP_NS],
+            [
+                portfolio_daily(
+                    candidates, top_n, self.input_params.transaction_cost_rate
+                ).lazy()
+                for top_n in TOP_NS
+            ],
         )
         for portfolio in portfolios:
             daily = daily.join(portfolio, on="trade_date", how="left")
-        daily = daily.join(holding_details(candidates), on="trade_date", how="left").sort("trade_date")
+        daily = daily.join(
+            holding_details(candidates), on="trade_date", how="left"
+        ).sort("trade_date")
         net_columns = [f"top{top_n}_net_return" for top_n in TOP_NS]
         if daily.filter(pl.any_horizontal(pl.col(*net_columns) <= -1)).height:
             raise ValueError("扣费后收益不能低于 -100%")
@@ -400,7 +527,8 @@ class BacktestTask(BaseArtifactTask):
 
     def build_period_summaries(self) -> None:
         benchmark_keys = ("universe",) + tuple(
-            column.removeprefix("index_weight_") for column in self.context["index_columns"]
+            column.removeprefix("index_weight_")
+            for column in self.context["index_columns"]
         )
         self.context["benchmark_keys"] = benchmark_keys
         self.context["summary"] = summarize(
@@ -416,28 +544,36 @@ class BacktestTask(BaseArtifactTask):
         for index, name in enumerate(("daily", "summary"), start=1):
             self.artifact_store.atomic_output(
                 self.context[f"{name}_path"],
-                lambda temporary, key=name: self.context[key].write_parquet(temporary, compression="zstd"),
+                lambda temporary, key=name: self.context[key].write_parquet(
+                    temporary, compression="zstd"
+                ),
             )
             self.report_progress(index / 2 * 95)
 
     def build_output_params(self) -> BacktestOutputParams:
         daily: pl.DataFrame = self.context["daily"]
         integrity = {
-            name: self.artifact_store.artifact_record(self.context[f"{name}_path"], self.task_dir)
+            name: self.artifact_store.artifact_record(
+                self.context[f"{name}_path"], self.task_dir
+            )
             for name in ("daily", "summary")
         }
         return self.output_cls(
             dimensions={
                 "top_ns": list(TOP_NS),
                 "holding_detail_top_n": HOLDING_DETAIL_TOP_N,
+                "index_filter": list(self.context["requested_indices"]),
                 "benchmarks": [
-                    {"key": key, "label": "全市场平均" if key == "universe" else key.upper()}
+                    {
+                        "key": key,
+                        "label": "全市场平均" if key == "universe" else key.upper(),
+                    }
                     for key in self.context["benchmark_keys"]
                 ],
             },
             protocol={
                 "actual_return": "decimal realized return supplied by the prediction task",
-                "candidate_filter": "is_buyable and finite prediction and valid actual_return",
+                "candidate_filter": "is_buyable and finite prediction and valid actual_return; optional index_weight_* > 0 (any selected index)",
                 "portfolio": "daily equal-weight top-N ranked by descending prediction",
                 "initial_turnover": 0.0,
                 "turnover": "half L1 distance between consecutive target portfolios",
@@ -447,7 +583,10 @@ class BacktestTask(BaseArtifactTask):
                 "ndcg": "actual-return cross-sectional percentile relevance in the candidate universe",
                 "icir": "annualized mean divided by sample standard deviation",
             },
-            date_range={"start": daily["trade_date"].min(), "end": daily["trade_date"].max()},
+            date_range={
+                "start": daily["trade_date"].min(),
+                "end": daily["trade_date"].max(),
+            },
             days=daily.height,
             artifacts=integrity,
             daily_file=str(self.context["daily_path"]),

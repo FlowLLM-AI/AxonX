@@ -10,6 +10,7 @@ export const sectionIds = [
   "train",
   "predict",
   "backtest",
+  "compare",
 ] as const;
 
 export type SectionId = (typeof sectionIds)[number];
