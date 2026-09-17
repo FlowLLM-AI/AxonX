@@ -3,6 +3,10 @@ remote_nodes:
     host_port: 1024
 
 components:
+  task_graph:
+    default:
+      backend: local
+
   plugin:
     default:
       backend: local

@@ -1,14 +1,17 @@
 """Task artifact graph API contracts."""
 
 import json
+import asyncio
+import shutil
 
 from axonx import Application
-
+from axonx.utils.fs import atomic_write_text
 
 GRAPH_JOBS = {
     "list_task_graphs": {"steps": [{"backend": "list_task_graphs_step"}]},
     "get_task_graph": {"steps": [{"backend": "get_task_graph_step"}]},
 }
+GRAPH_COMPONENTS = {"task_graph": {"default": {"backend": "local"}}}
 
 
 def _artifact(root, task_id, source_tasks=()):
@@ -16,15 +19,17 @@ def _artifact(root, task_id, source_tasks=()):
     path = root / kind / task_id / "metadata.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps({
-            "schema_version": 3,
-            "task_id": task_id,
-            "task_type": kind,
-            "reg_name": reg_name,
-            "created_at": "2026-09-16T00:00:00Z",
-            "input_params": {"source_tasks": list(source_tasks)},
-            "output_params": {"artifacts": {}},
-        }),
+        json.dumps(
+            {
+                "schema_version": 3,
+                "task_id": task_id,
+                "task_type": kind,
+                "reg_name": reg_name,
+                "created_at": "2026-09-16T00:00:00Z",
+                "input_params": {"source_tasks": list(source_tasks)},
+                "output_params": {"artifacts": {}},
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -44,7 +49,7 @@ async def test_task_graph_search_and_full_branch(tmp_path):
     _artifact(tmp_path, predict, [train])
     _artifact(tmp_path, backtest_one, [predict])
     _artifact(tmp_path, backtest_two, [predict])
-    app = Application(workspace_dir=str(tmp_path), jobs=GRAPH_JOBS)
+    app = Application(workspace_dir=str(tmp_path), components=GRAPH_COMPONENTS, jobs=GRAPH_JOBS)
     await app.start()
     try:
         roots = (await app.run_job("list_task_graphs", offset=0, limit=1)).answer
@@ -58,10 +63,16 @@ async def test_task_graph_search_and_full_branch(tmp_path):
     assert graph["root_id"] == etl_one
     assert graph["selected_id"] == backtest_two
     assert {node["task_id"] for node in graph["nodes"]} == {
-        etl_one, analysis, train, predict, backtest_one, backtest_two,
+        etl_one,
+        analysis,
+        train,
+        predict,
+        backtest_one,
+        backtest_two,
     }
     assert {tuple(edge.values()) for edge in graph["edges"]} >= {
-        (etl_one, analysis), (predict, backtest_two),
+        (etl_one, analysis),
+        (predict, backtest_two),
     }
 
 
@@ -69,7 +80,7 @@ async def test_task_graph_keeps_missing_parent_visible(tmp_path):
     missing = "train#train#deleted"
     orphan = "predict#predict#orphan"
     _artifact(tmp_path, orphan, [missing])
-    app = Application(workspace_dir=str(tmp_path), jobs=GRAPH_JOBS)
+    app = Application(workspace_dir=str(tmp_path), components=GRAPH_COMPONENTS, jobs=GRAPH_JOBS)
     await app.start()
     try:
         graph = (await app.run_job("get_task_graph", task_id=orphan)).answer
@@ -88,7 +99,7 @@ async def test_task_graph_supports_multiple_upstreams_of_same_type(tmp_path):
     _artifact(tmp_path, second)
     _artifact(tmp_path, training)
     _artifact(tmp_path, analysis, [first, second, training])
-    app = Application(workspace_dir=str(tmp_path), jobs=GRAPH_JOBS)
+    app = Application(workspace_dir=str(tmp_path), components=GRAPH_COMPONENTS, jobs=GRAPH_JOBS)
     await app.start()
     try:
         listing = (await app.run_job("list_task_graphs")).answer
@@ -102,3 +113,40 @@ async def test_task_graph_supports_multiple_upstreams_of_same_type(tmp_path):
         {"from": second, "to": analysis},
         {"from": training, "to": analysis},
     ]
+
+
+async def test_task_graph_tracks_metadata_changes_and_deletion(tmp_path):
+    first = "etl#etl#first"
+    second = "etl#etl#second"
+    child = "analysis#analysis#child"
+    _artifact(tmp_path, first)
+    _artifact(tmp_path, second)
+    app = Application(workspace_dir=str(tmp_path), components=GRAPH_COMPONENTS, jobs=GRAPH_JOBS)
+    await app.start()
+
+    async def wait_for_total(expected):
+        for _ in range(100):
+            result = await app.run_job("list_task_graphs")
+            if result.answer["total"] == expected:
+                return
+            await asyncio.sleep(0.05)
+        assert result.answer["total"] == expected
+
+    try:
+        path = tmp_path / "analysis" / child / "metadata.json"
+        _artifact(tmp_path, child, [first, second])
+        await wait_for_total(1)
+        metadata = json.loads(path.read_text())
+        metadata["input_params"]["source_tasks"] = [first]
+        atomic_write_text(path, json.dumps(metadata))
+        await wait_for_total(2)
+        shutil.rmtree(tmp_path / "etl" / first)
+        for _ in range(100):
+            graph = (await app.run_job("get_task_graph", task_id=child)).answer
+            if any(node["task_id"] == first and node["missing"] for node in graph["nodes"]):
+                break
+            await asyncio.sleep(0.05)
+        else:
+            assert False, "deleted parent was not marked missing"
+    finally:
+        await app.close()

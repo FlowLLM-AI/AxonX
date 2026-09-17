@@ -46,6 +46,7 @@ dependencies = [
     "rich>=15.0.0,<16",
     "starlette>=1.6.0",
     "uvicorn>=0.53.0",
+    "watchfiles>=1.2.0,<2",
 ]
 
 [project.optional-dependencies]
