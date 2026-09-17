@@ -76,7 +76,8 @@ class TaskStateReconciler:
         snapshot = incoming.model_copy(deep=True)
         if snapshot.pid is not None and not snapshot.state.is_terminal:
             pending = self._pending_exits.pop(snapshot.pid, None)
-            if pending is not None and (snapshot.started_at is None or snapshot.started_at <= pending[2]):
+            created_at = snapshot.created_at or snapshot.started_at
+            if pending is not None and (created_at is None or created_at <= pending[2]):
                 snapshot.exit_code, snapshot.error, snapshot.finished_at = pending
                 snapshot.state = TaskState.FAILED
         return snapshot

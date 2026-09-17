@@ -157,6 +157,7 @@ class BaseTask(ABC):
             task_name=reg_name,
             config=self.input_params.model_dump(mode="json"),
             pid=os.getpid(),
+            created_at=self.created_at,
             log_path=str(get_log_path() or ""),
         )
         self._status_manager: TaskStatusManager | None = None

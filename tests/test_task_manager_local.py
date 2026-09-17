@@ -4,12 +4,15 @@
 
 from datetime import UTC, datetime, timedelta
 import json
+import os
 
 from axonx.components.task_manager.local.logs import TaskLogLocator
 from axonx.components.task_manager.local.reconciliation import TaskStateReconciler, WorkerExit
 from axonx.components.task_manager.local.repository import TaskStatusRepository
 from axonx.enums import TaskState, TaskType
 from axonx.schema import TaskStatus
+from axonx.task.common import DemoTask
+from axonx.task.runner import TaskRunner
 
 
 def test_status_repository_round_trips_snapshots(tmp_path):
@@ -163,3 +166,34 @@ def test_reconciler_ignores_pending_exit_from_prior_use_of_pid():
 
     accepted = reconciler.accept(new.task_id, None, new)
     assert accepted is not None and accepted.state == TaskState.RUNNING
+
+
+def test_reconciler_ignores_old_exit_during_real_rerun_status_sequence(tmp_path):
+    reconciler = TaskStateReconciler()
+    task_id = "base#demo#fixed"
+    old = TaskStatus(
+        task_id=task_id, task_type=TaskType.BASE, state=TaskState.SUCCEEDED,
+        pid=os.getpid(), execution_id="old",
+    )
+    exited_at = datetime.now(UTC)
+    reconciler.record_exit({task_id: old}, WorkerExit(os.getpid(), 1, "old failure", exited_at))
+    task = DemoTask(
+        {"x": 1, "y": 2, "task_name": "fixed", "include_time": False},
+        workspace_path=tmp_path,
+    )
+    assert task.created_at > exited_at
+    accepted = []
+    current = old
+
+    def receive(status):
+        nonlocal current
+        current = reconciler.accept(task_id, current, status)
+        assert current is not None
+        accepted.append(current)
+
+    TaskRunner(receive).run(task)
+
+    assert accepted[0].state == TaskState.QUEUED
+    assert accepted[1].state == TaskState.RUNNING
+    assert accepted[-1].state == TaskState.SUCCEEDED
+    assert all(status.execution_id == task.status.execution_id for status in accepted)
