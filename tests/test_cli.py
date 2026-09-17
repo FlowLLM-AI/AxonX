@@ -300,6 +300,7 @@ def test_task_id_can_omit_time_and_defaults_to_eight_uuid_characters():
     assert named.task_id == "base#demo#experiment-1"
     replacement = DemoTask({"x": 3, "y": 4, "task_name": "experiment-1", "include_time": False}, workspace_path=".")
     assert replacement.task_id == named.task_id
+    assert named.status.execution_id != replacement.status.execution_id
     assert named.execute()["result"] == 3
     assert replacement.execute()["result"] == 7
 

@@ -153,6 +153,7 @@ class BaseTask(ABC):
         self._status = TaskStatus(
             task_id=self.task_id,
             task_type=self.task_type,
+            execution_id=uuid4().hex,
             task_name=reg_name,
             config=self.input_params.model_dump(mode="json"),
             pid=os.getpid(),

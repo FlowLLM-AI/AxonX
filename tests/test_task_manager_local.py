@@ -2,7 +2,7 @@
 
 # pylint: disable=missing-function-docstring
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import json
 
 from axonx.components.task_manager.local.logs import TaskLogLocator
@@ -119,9 +119,47 @@ def test_reconciler_accepts_rerun_after_deletion():
     task_id = "analysis#fixed"
     old = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED, pid=41)
     new = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.QUEUED, pid=42)
-    reconciler.mark_deleted(task_id, old.pid)
+    reconciler.mark_deleted(old)
 
     assert reconciler.accept(task_id, None, old) is None
     accepted = reconciler.accept(task_id, None, new)
     assert accepted is not None and accepted.pid == 42
     assert reconciler.accept(task_id, accepted, old) is None
+
+
+def test_reconciler_accepts_recycled_pid_for_new_execution():
+    reconciler = TaskStateReconciler()
+    task_id = "analysis#fixed"
+    first = TaskStatus(
+        task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED,
+        pid=41, execution_id="first",
+    )
+    second = TaskStatus(
+        task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED,
+        pid=42, execution_id="second",
+    )
+    third = TaskStatus(
+        task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING,
+        pid=41, execution_id="third",
+    )
+
+    assert reconciler.accept(task_id, first, second) is not None
+    accepted = reconciler.accept(task_id, second, third)
+    assert accepted is not None and accepted.execution_id == "third"
+    assert reconciler.accept(task_id, accepted, first) is None
+    assert reconciler.accept(task_id, accepted, second) is None
+    assert reconciler.accept(task_id, accepted, third.model_copy(update={"state": TaskState.SUCCEEDED})) is not None
+
+
+def test_reconciler_ignores_pending_exit_from_prior_use_of_pid():
+    reconciler = TaskStateReconciler()
+    exited_at = datetime.now(UTC)
+    reconciler.record_exit({}, WorkerExit(41, 1, "old failure", exited_at))
+    new = TaskStatus(
+        task_id="analysis#fixed", task_type=TaskType.ANALYSIS,
+        state=TaskState.RUNNING, pid=41, execution_id="new",
+        started_at=exited_at + timedelta(seconds=1),
+    )
+
+    accepted = reconciler.accept(new.task_id, None, new)
+    assert accepted is not None and accepted.state == TaskState.RUNNING

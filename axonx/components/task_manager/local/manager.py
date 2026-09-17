@@ -157,7 +157,7 @@ class LocalTaskManager(BaseTaskManager):
                 status = self._statuses.get(task_id)
                 if status is not None and status.state.is_terminal:
                     del self._statuses[task_id]
-                    self._reconciler.mark_deleted(task_id, status.pid)
+                    self._reconciler.mark_deleted(status)
                     deleted.append(task_id)
             if deleted:
                 await self._save()
