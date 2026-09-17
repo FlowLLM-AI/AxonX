@@ -8,6 +8,7 @@ from pathlib import Path
 
 import polars as pl
 from pydantic import Field, field_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from axonx.task.base import TaskStep
 from axonx.task.core import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
@@ -68,7 +69,7 @@ class Alpha158OutputParams(BaseETLOutputParams):
 class Alpha158InputParams(BaseETLInputParams):
     """Configure input partitions, output file, and optional output date range."""
 
-    input_dir: Path = Path("tushare")
+    input_dir: SkipJsonSchema[Path] = Path("tushare")
     start_date: str | None = "20140101"
     end_date: str | None = None
     csz_winsorize_tail: float = Field(

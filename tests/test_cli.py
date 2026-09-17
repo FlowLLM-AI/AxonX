@@ -93,8 +93,7 @@ def test_installed_task_definitions_include_only_public_config(monkeypatch):
 
 def test_etl_catalog_exposes_domain_input_and_output_contracts():
     info = next(item for item in list_installed_task_definitions() if item.name == "alpha158_etl")
-    assert "input_dir" not in info.input_schema.get("required", [])
-    assert info.input_schema["properties"]["input_dir"]["default"] == "tushare"
+    assert "input_dir" not in info.input_schema["properties"]
     assert {"output_file", "rows", "date_range"} <= set(info.output_schema["properties"])
     assert {"output_file", "rows", "date_range"} <= set(info.output_schema["required"])
 
