@@ -418,6 +418,14 @@ class LgbmTrainTask(BaseTrainTask):
                 if isinstance(value, (int, float)) and math.isfinite(value)
             },
             parameters=self._parameters(),
+            training_curve={
+                "x": [str(iteration) for iteration in self.context["history"]["iteration"].to_list()],
+                "y": {
+                    column: self.context["history"][column].to_list()
+                    for column in self.context["history"].columns
+                    if column != "iteration"
+                },
+            },
             model={
                 "library": "lightgbm",
                 "library_version": self._lightgbm().__version__,

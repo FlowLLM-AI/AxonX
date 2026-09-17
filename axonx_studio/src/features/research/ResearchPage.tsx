@@ -1,4 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -32,6 +39,11 @@ import type { ResearchArtifact, ResearchKind, ResearchPageId } from "./types";
 const BacktestView = lazy(() =>
   import("./backtest/BacktestView").then((module) => ({
     default: module.BacktestView,
+  })),
+);
+const TrainingCurveChart = lazy(() =>
+  import("./TrainingCurveChart").then((module) => ({
+    default: module.TrainingCurveChart,
   })),
 );
 
@@ -133,10 +145,14 @@ function useTasks(
                 feature_columns: output.feature_columns,
                 label_columns: output.label_columns,
                 target_columns: output.target_columns,
+                output_columns: output.output_columns,
+                prediction_statistics: output.statistics,
+                index_weight_columns: output.index_weight_columns,
                 scores: output.scores,
                 model_name: output.model_name,
                 metrics: output.metrics,
                 parameters: output.parameters,
+                training_curve: output.training_curve,
                 dimensions: output.dimensions,
                 artifacts: (output.artifacts || {}) as Meta["artifacts"],
                 task_key: String(metadata.reg_name),
@@ -352,182 +368,184 @@ export function ResearchPage({
           </button>
         </div>
       )}
-      {!error && <div className="research-layout">
-        <aside
-          className={`run-index rail-panel ${selectionMode ? "selecting" : ""}`}
-        >
-          <header className="run-index-header rail-header">
-            <div className="run-index-heading rail-heading">
-              <small>TASK VERSIONS</small>
-              <strong>{zh ? "任务版本" : "Task versions"}</strong>
+      {!error && (
+        <div className="research-layout">
+          <aside
+            className={`run-index rail-panel ${selectionMode ? "selecting" : ""}`}
+          >
+            <header className="run-index-header rail-header">
+              <div className="run-index-heading rail-heading">
+                <small>TASK VERSIONS</small>
+                <strong>{zh ? "任务版本" : "Task versions"}</strong>
+              </div>
+              <div className="run-index-tools">
+                <em>{tasks.length}</em>
+                <button
+                  className="run-index-refresh rail-refresh"
+                  aria-label={zh ? "刷新" : "Refresh"}
+                  onClick={load}
+                >
+                  <RefreshCw className={loading ? "spin" : ""} />
+                </button>
+              </div>
+            </header>
+            <label className="run-index-search rail-search">
+              <Search />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={zh ? "搜索 task_id" : "Search task_id"}
+              />
+            </label>
+            <div className="rail-scroll">
+              {loading && !tasks.length ? (
+                <span className="run-loading">
+                  <LoaderCircle className="spin" />
+                </span>
+              ) : (
+                visible.map((task) => (
+                  <article
+                    className={`${selectedId === task.config.task_id ? "active" : ""} ${checked[task._path] ? "checked" : ""}`}
+                    key={task.config.task_id}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      setContextMenu({
+                        task,
+                        x: Math.max(
+                          6,
+                          Math.min(event.clientX, window.innerWidth - 224),
+                        ),
+                        y: Math.max(
+                          6,
+                          Math.min(event.clientY, window.innerHeight - 150),
+                        ),
+                      });
+                    }}
+                  >
+                    {selectionMode && (
+                      <button
+                        className="run-check"
+                        aria-label={`${zh ? "选择" : "Select"} ${task.config.task_id}`}
+                        onClick={() => toggleTask(task)}
+                      >
+                        {checked[task._path] && <Check />}
+                      </button>
+                    )}
+                    <button
+                      className="run-main rail-list-item"
+                      onClick={() =>
+                        selectionMode
+                          ? toggleTask(task)
+                          : (setSelectedId(task.config.task_id),
+                            onSelected?.(task.config.task_id))
+                      }
+                    >
+                      <span
+                        className={`run-item-avatar rail-avatar run-kind-${kind}`}
+                      >
+                        {String(task.task_key || kind)
+                          .trim()
+                          .slice(0, 1)
+                          .toUpperCase()}
+                      </span>
+                      <span className="rail-item-copy">
+                        <strong>{task.task_key || kind}</strong>
+                        <code>{task.config.task_id}</code>
+                        <small>
+                          {task.created_at
+                            ? new Date(task.created_at).toLocaleString(
+                                language === "zh" ? "zh-CN" : "en",
+                              )
+                            : zh
+                              ? "元数据不可用"
+                              : "Metadata unavailable"}
+                        </small>
+                      </span>
+                      {!selectionMode && <ArrowRight />}
+                    </button>
+                  </article>
+                ))
+              )}
             </div>
-            <div className="run-index-tools">
-              <em>{tasks.length}</em>
-              <button
-                className="run-index-refresh rail-refresh"
-                aria-label={zh ? "刷新" : "Refresh"}
-                onClick={load}
-              >
-                <RefreshCw className={loading ? "spin" : ""} />
-              </button>
-            </div>
-          </header>
-          <label className="run-index-search rail-search">
-            <Search />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={zh ? "搜索 task_id" : "Search task_id"}
-            />
-          </label>
-          <div className="rail-scroll">
-            {loading && !tasks.length ? (
-              <span className="run-loading">
-                <LoaderCircle className="spin" />
-              </span>
-            ) : (
-              visible.map((task) => (
-                <article
-                  className={`${selectedId === task.config.task_id ? "active" : ""} ${checked[task._path] ? "checked" : ""}`}
-                  key={task.config.task_id}
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    setContextMenu({
-                      task,
-                      x: Math.max(
-                        6,
-                        Math.min(event.clientX, window.innerWidth - 224),
-                      ),
-                      y: Math.max(
-                        6,
-                        Math.min(event.clientY, window.innerHeight - 150),
-                      ),
-                    });
+            {selectionMode && (
+              <footer className="run-selection">
+                <span>
+                  <strong>{selectedCount}</strong>
+                  {zh ? " 个已选" : " selected"}
+                </span>
+                <button
+                  onClick={() => {
+                    setSelectionMode(false);
+                    setChecked({});
                   }}
                 >
-                  {selectionMode && (
-                    <button
-                      className="run-check"
-                      aria-label={`${zh ? "选择" : "Select"} ${task.config.task_id}`}
-                      onClick={() => toggleTask(task)}
-                    >
-                      {checked[task._path] && <Check />}
-                    </button>
-                  )}
-                  <button
-                    className="run-main rail-list-item"
-                    onClick={() =>
-                      selectionMode
-                        ? toggleTask(task)
-                        : (setSelectedId(task.config.task_id),
-                          onSelected?.(task.config.task_id))
-                    }
-                  >
-                    <span
-                      className={`run-item-avatar rail-avatar run-kind-${kind}`}
-                    >
-                      {String(task.task_key || kind)
-                        .trim()
-                        .slice(0, 1)
-                        .toUpperCase()}
-                    </span>
-                    <span className="rail-item-copy">
-                      <strong>{task.task_key || kind}</strong>
-                      <code>{task.config.task_id}</code>
-                      <small>
-                        {task.created_at
-                          ? new Date(task.created_at).toLocaleString(
-                              language === "zh" ? "zh-CN" : "en",
-                            )
-                          : zh
-                            ? "元数据不可用"
-                            : "Metadata unavailable"}
-                      </small>
-                    </span>
-                    {!selectionMode && <ArrowRight />}
-                  </button>
-                </article>
-              ))
+                  {zh ? "完成" : "Done"}
+                </button>
+                <button onClick={toggleVisible}>
+                  {allVisibleSelected
+                    ? zh
+                      ? "取消全选"
+                      : "Deselect"
+                    : zh
+                      ? "全选"
+                      : "Select all"}
+                </button>
+                <button
+                  className="danger"
+                  disabled={!selectedCount}
+                  onClick={() => {
+                    setDeleteTargets(Object.values(checked));
+                    setDeleteError("");
+                  }}
+                >
+                  <Trash2 />
+                  {zh ? "删除" : "Delete"}
+                </button>
+              </footer>
             )}
-          </div>
-          {selectionMode && (
-            <footer className="run-selection">
-              <span>
-                <strong>{selectedCount}</strong>
-                {zh ? " 个已选" : " selected"}
-              </span>
-              <button
-                onClick={() => {
-                  setSelectionMode(false);
-                  setChecked({});
-                }}
-              >
-                {zh ? "完成" : "Done"}
-              </button>
-              <button onClick={toggleVisible}>
-                {allVisibleSelected
-                  ? zh
-                    ? "取消全选"
-                    : "Deselect"
-                  : zh
-                    ? "全选"
-                    : "Select all"}
-              </button>
-              <button
-                className="danger"
-                disabled={!selectedCount}
-                onClick={() => {
-                  setDeleteTargets(Object.values(checked));
-                  setDeleteError("");
-                }}
-              >
-                <Trash2 />
-                {zh ? "删除" : "Delete"}
-              </button>
-            </footer>
-          )}
-        </aside>
-        <RailResizer min={180} max={460} className="context-resizer" />
-        <main className="research-canvas">
-          {loading ? (
-            <div className="research-loading">
-              <LoaderCircle className="spin" />
-            </div>
-          ) : selected ? (
-            <ArtifactDetail
-              kind={kind}
-              meta={selected}
-              language={language}
-              remoteIp={remoteIp}
-              onNavigate={onNavigate}
-            />
-          ) : (
-            !loading && (
-              <div className="empty-research">
-                <Database />
-                <strong>
-                  {tasks.length
-                    ? zh
-                      ? "选择一个任务版本"
-                      : "Select a task version"
-                    : zh
-                      ? `暂无 ${kind} 任务`
-                      : `No ${kind} tasks`}
-                </strong>
-                <span>
-                  {tasks.length
-                    ? zh
-                      ? "右侧将显示该任务的数据与产物。"
-                      : "Its data and artifacts will appear here."
-                    : zh
-                      ? "任务产出后会自动出现在这里。"
-                      : "Task artifacts will appear here automatically."}
-                </span>
+          </aside>
+          <RailResizer min={180} max={460} className="context-resizer" />
+          <main className="research-canvas">
+            {loading ? (
+              <div className="research-loading">
+                <LoaderCircle className="spin" />
               </div>
-            )
-          )}
-        </main>
-      </div>}
+            ) : selected ? (
+              <ArtifactDetail
+                kind={kind}
+                meta={selected}
+                language={language}
+                remoteIp={remoteIp}
+                onNavigate={onNavigate}
+              />
+            ) : (
+              !loading && (
+                <div className="empty-research">
+                  <Database />
+                  <strong>
+                    {tasks.length
+                      ? zh
+                        ? "选择一个任务版本"
+                        : "Select a task version"
+                      : zh
+                        ? `暂无 ${kind} 任务`
+                        : `No ${kind} tasks`}
+                  </strong>
+                  <span>
+                    {tasks.length
+                      ? zh
+                        ? "右侧将显示该任务的数据与产物。"
+                        : "Its data and artifacts will appear here."
+                      : zh
+                        ? "任务产出后会自动出现在这里。"
+                        : "Task artifacts will appear here automatically."}
+                  </span>
+                </div>
+              )
+            )}
+          </main>
+        </div>
+      )}
       {contextMenu && (
         <div
           className="workspace-context-menu task-version-context-menu"
@@ -806,13 +824,15 @@ function AnalysisScores({
   const metric = metrics.includes(chosenMetric) ? chosenMetric : metrics[0];
   const labels = [
     ...new Set(
-      groups.filter((group) => group.metric === metric).map((group) => group.label),
+      groups
+        .filter((group) => group.metric === metric)
+        .map((group) => group.label),
     ),
   ];
   const label = labels.includes(chosenLabel) ? chosenLabel : labels[0];
-  const values = groups.find(
-    (group) => group.metric === metric && group.label === label,
-  )?.values || {};
+  const values =
+    groups.find((group) => group.metric === metric && group.label === label)
+      ?.values || {};
   const rows = Object.entries(values).sort(
     ([nameA, valueA], [nameB, valueB]) =>
       Math.abs(valueB) - Math.abs(valueA) || nameA.localeCompare(nameB),
@@ -829,14 +849,28 @@ function AnalysisScores({
         <div className="analysis-score-controls">
           <label>
             <span>{zh ? "指标" : "Metric"}</span>
-            <select value={metric} onChange={(event) => setChosenMetric(event.target.value)}>
-              {metrics.map((option) => <option key={option} value={option}>{option}</option>)}
+            <select
+              value={metric}
+              onChange={(event) => setChosenMetric(event.target.value)}
+            >
+              {metrics.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
             </select>
           </label>
           <label>
             <span>{zh ? "标签" : "Label"}</span>
-            <select value={label} onChange={(event) => setChosenLabel(event.target.value)}>
-              {labels.map((option) => <option key={option} value={option}>{option}</option>)}
+            <select
+              value={label}
+              onChange={(event) => setChosenLabel(event.target.value)}
+            >
+              {labels.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
             </select>
           </label>
           <span className="analysis-score-count">{rows.length}</span>
@@ -853,15 +887,20 @@ function AnalysisScores({
           </thead>
           <tbody>
             {rows.map(([factor, value]) => {
-              const width = maxAbs ? Math.abs(value) / maxAbs * 50 : 0;
+              const width = maxAbs ? (Math.abs(value) / maxAbs) * 50 : 0;
               return (
                 <tr key={factor}>
-                  <td><code>{factor}</code></td>
+                  <td>
+                    <code>{factor}</code>
+                  </td>
                   <td>
                     <div className="analysis-score-bar" aria-hidden="true">
                       <span
                         className={value < 0 ? "negative" : "positive"}
-                        style={{ left: `${value < 0 ? 50 - width : 50}%`, width: `${width}%` }}
+                        style={{
+                          left: `${value < 0 ? 50 - width : 50}%`,
+                          width: `${width}%`,
+                        }}
                       />
                     </div>
                   </td>
@@ -873,6 +912,138 @@ function AnalysisScores({
         </table>
       </div>
     </section>
+  );
+}
+
+const predictionColumnDetails: Record<string, [string, string]> = {
+  trade_date: ["交易日期", "Trading date"],
+  ts_code: ["股票代码", "Stock code"],
+  pred: ["模型排名分数", "Model ranking score"],
+  actual_return: [
+    "下一交易日复权收益率 · 小数",
+    "Next day adjusted return · decimal",
+  ],
+  label_valid: ["实际收益率是否有效", "Whether realized return is valid"],
+  name: ["股票名称", "Stock name"],
+  is_buyable: ["当日是否满足可买条件", "Whether buyable on this date"],
+};
+
+function PredictionOverview({ meta, zh }: { meta: Meta; zh: boolean }) {
+  const stats = meta.prediction_statistics;
+  const columns = meta.output_columns?.length
+    ? meta.output_columns
+    : [
+        "trade_date",
+        "ts_code",
+        "pred",
+        "actual_return",
+        "label_valid",
+        "name",
+        "is_buyable",
+        ...(meta.index_weight_columns || []),
+      ];
+  const rate = (count?: number) =>
+    count === undefined || !meta.rows
+      ? "—"
+      : `${fmt((count / meta.rows) * 100, 1)}%`;
+  const indices = Object.entries(stats?.indices || {});
+  return (
+    <>
+      <section className="viz-card wide prediction-overview-card">
+        <header>
+          <div>
+            <small>OVERVIEW</small>
+            <h3>{zh ? "预测结果概览" : "Prediction overview"}</h3>
+          </div>
+        </header>
+        <div className="prediction-stat-grid">
+          <div className="prediction-score-block">
+            <small>{zh ? "预测分数 · 均值" : "Prediction score · mean"}</small>
+            <strong>{fmt(stats?.pred.mean, 4)}</strong>
+            <div className="prediction-score-range">
+              <span>
+                {zh ? "最小" : "Min"} <b>{fmt(stats?.pred.min, 4)}</b>
+              </span>
+              <span>
+                {zh ? "中位" : "Median"} <b>{fmt(stats?.pred.median, 4)}</b>
+              </span>
+              <span>
+                {zh ? "最大" : "Max"} <b>{fmt(stats?.pred.max, 4)}</b>
+              </span>
+            </div>
+          </div>
+          <div className="prediction-coverage-block">
+            <small>{zh ? "样本覆盖" : "Sample coverage"}</small>
+            <div>
+              <span>{zh ? "股票 / 交易日" : "Symbols / days"}</span>
+              <strong>
+                {fmt(stats?.symbols, 0)} / {fmt(stats?.days, 0)}
+              </strong>
+            </div>
+            <div>
+              <span>{zh ? "可买" : "Buyable"}</span>
+              <strong>{rate(stats?.buyable_rows)}</strong>
+            </div>
+            <div>
+              <span>{zh ? "收益有效" : "Valid return"}</span>
+              <strong>{rate(stats?.valid_return_rows)}</strong>
+            </div>
+            <div>
+              <span>{zh ? "可回测" : "Backtest candidates"}</span>
+              <strong>{rate(stats?.candidate_rows)}</strong>
+            </div>
+          </div>
+        </div>
+        <div className="prediction-index-strip">
+          <small>{zh ? "指数权重" : "Index weights"}</small>
+          {indices.length ? (
+            indices.map(([column, value]) => (
+              <span key={column}>
+                <code>{column.replace("index_weight_", "").toUpperCase()}</code>
+                {fmt(value.constituents, 0)} {zh ? "只股票" : "symbols"} ·{" "}
+                {fmt(value.days_with_weights, 0)} {zh ? "天" : "days"}
+              </span>
+            ))
+          ) : (
+            <span>
+              {(meta.index_weight_columns || [])
+                .map((column) =>
+                  column.replace("index_weight_", "").toUpperCase(),
+                )
+                .join(" · ") || "—"}
+            </span>
+          )}
+        </div>
+      </section>
+      <section className="viz-card wide prediction-columns-card">
+        <header>
+          <div>
+            <small>SCHEMA</small>
+            <h3>{zh ? "结果列" : "Result columns"}</h3>
+          </div>
+          <span>{columns.length}</span>
+        </header>
+        <div className="prediction-column-grid">
+          {columns.map((column) => (
+            <div key={column}>
+              <code>{column}</code>
+              <span>
+                {column.startsWith("index_weight_")
+                  ? zh
+                    ? "指数成分权重 · 小数"
+                    : "Index weight · decimal"
+                  : predictionColumnDetails[column]?.[zh ? 0 : 1] || "—"}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p>
+          {zh
+            ? "pred 是排名分数，不代表预期收益率或概率。"
+            : "pred is a ranking score, not an expected return or probability."}
+        </p>
+      </section>
+    </>
   );
 }
 
@@ -900,9 +1071,13 @@ function BaseOutputView({
         ? zh
           ? "回测天数"
           : "DAYS"
-        : zh
-          ? "数据行数"
-          : "ROWS";
+        : kind === "predict"
+          ? zh
+            ? "预测行数"
+            : "PREDICTION ROWS"
+          : zh
+            ? "数据行数"
+            : "ROWS";
   const paths =
     kind === "etl"
       ? [["output_file", meta.output_file]]
@@ -922,12 +1097,30 @@ function BaseOutputView({
           [zh ? "特征列" : "Feature columns", meta.feature_columns],
           [zh ? "标签列" : "Label columns", meta.label_columns],
         ]
-      : kind === "train" || kind === "predict"
+      : kind === "train"
         ? [
             [zh ? "特征列" : "Feature columns", meta.feature_columns],
             [zh ? "目标列" : "Target columns", meta.target_columns],
           ]
         : [];
+  const columnCards = columns.map(([title, values]) =>
+    Array.isArray(values) && (values.length > 0 || kind === "train") ? (
+      <section className="viz-card base-columns-card" key={String(title)}>
+        <header>
+          <div>
+            <small>COLUMNS</small>
+            <h3>{title}</h3>
+          </div>
+          <span>{values.length}</span>
+        </header>
+        <div className="base-column-list">
+          {values.map((value) => (
+            <code key={value}>{value}</code>
+          ))}
+        </div>
+      </section>
+    ) : null,
+  );
   return (
     <div className="artifact-content">
       <Kpis
@@ -959,63 +1152,72 @@ function BaseOutputView({
           },
         ]}
       />
-      {columns.map(
-        ([title, values]) =>
-          Array.isArray(values) &&
-          values.length > 0 && (
-            <section className="viz-card base-columns-card" key={String(title)}>
-              <header>
-                <div>
-                  <small>COLUMNS</small>
-                  <h3>{title}</h3>
+      {kind === "train" ? (
+        <div className="train-config-grid">
+          {columnCards}
+          <section className="viz-card train-parameters-card">
+            <header>
+              <div>
+                <small>PARAMETERS</small>
+                <h3>{zh ? "生效参数" : "Effective parameters"}</h3>
+              </div>
+              <span>{Object.keys(meta.parameters || {}).length}</span>
+            </header>
+            <div className="base-value-list">
+              {Object.entries(meta.parameters || {}).map(([name, value]) => (
+                <div key={name}>
+                  <code>{name}</code>
+                  <strong>
+                    {typeof value === "string" ? value : JSON.stringify(value)}
+                  </strong>
                 </div>
-                <span>{values.length}</span>
-              </header>
-              <div className="base-column-list">
-                {values.map((value) => (
-                  <code key={value}>{value}</code>
-                ))}
-              </div>
-            </section>
-          ),
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : kind === "predict" ? (
+        <PredictionOverview meta={meta} zh={zh} />
+      ) : (
+        columnCards
       )}
-      {kind === "analysis" && <AnalysisScores scores={meta.scores || {}} zh={zh} />}
-      {kind === "train" && Object.keys(meta.metrics || {}).length > 0 && (
-        <section className="viz-card wide">
+      {kind === "analysis" && (
+        <AnalysisScores scores={meta.scores || {}} zh={zh} />
+      )}
+      {kind === "train" && (
+        <section className="viz-card wide train-curve-card">
           <header>
             <div>
-              <small>METRICS</small>
-              <h3>{zh ? "训练指标" : "Training metrics"}</h3>
+              <small>TRAINING</small>
+              <h3>{zh ? "训练曲线" : "Training curves"}</h3>
             </div>
           </header>
-          <div className="base-value-list">
-            {Object.entries(meta.metrics || {}).map(([name, value]) => (
-              <div key={name}>
-                <code>{name}</code>
-                <strong>{fmt(value, 4)}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-      {kind === "train" && Object.keys(meta.parameters || {}).length > 0 && (
-        <section className="viz-card wide">
-          <header>
-            <div>
-              <small>PARAMETERS</small>
-              <h3>{zh ? "生效参数" : "Effective parameters"}</h3>
+          {meta.training_curve?.x.length ? (
+            <Suspense
+              fallback={
+                <div className="research-loading">
+                  <LoaderCircle className="spin" />
+                </div>
+              }
+            >
+              <TrainingCurveChart curve={meta.training_curve} />
+            </Suspense>
+          ) : (
+            <div className="train-curve-empty">
+              {zh
+                ? "当前任务未提供训练曲线"
+                : "No training curve is available for this task"}
             </div>
-          </header>
-          <div className="base-value-list">
-            {Object.entries(meta.parameters || {}).map(([name, value]) => (
-              <div key={name}>
-                <code>{name}</code>
-                <strong>
-                  {typeof value === "string" ? value : JSON.stringify(value)}
-                </strong>
-              </div>
-            ))}
-          </div>
+          )}
+          {Object.keys(meta.metrics || {}).length > 0 && (
+            <div className="train-curve-metrics">
+              {Object.entries(meta.metrics || {}).map(([name, value]) => (
+                <span key={name}>
+                  <small>{name}</small>
+                  <strong>{fmt(value, 4)}</strong>
+                </span>
+              ))}
+            </div>
+          )}
         </section>
       )}
       <section className="viz-card base-files-card">

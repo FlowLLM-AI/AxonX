@@ -21,9 +21,27 @@ export interface ResearchArtifact {
   feature_columns?: string[];
   label_columns?: string[];
   target_columns?: string[];
+  output_columns?: string[];
+  prediction_statistics?: {
+    days: number;
+    symbols: number;
+    pred: { mean: number; min: number; median: number; max: number };
+    buyable_rows: number;
+    valid_return_rows: number;
+    candidate_rows: number;
+    indices: Record<
+      string,
+      { constituents: number; days_with_weights: number; null_rows: number }
+    >;
+  };
+  index_weight_columns?: string[];
   scores?: Record<string, Record<string, number>>;
   metrics?: Record<string, number>;
   parameters?: Record<string, unknown>;
+  training_curve?: {
+    x: string[];
+    y: Record<string, number[]>;
+  };
   dimensions?: {
     top_ns?: number[];
     holding_detail_top_n?: number;

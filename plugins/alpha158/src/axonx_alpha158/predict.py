@@ -22,7 +22,6 @@ from .internal.modeling import feature_matrix
 
 
 class LgbmPredictOutputParams(BasePredictOutputParams):
-    protocol: dict
     model_target: str
     index_weight_columns: list[str]
 
@@ -220,6 +219,18 @@ class LgbmPredictTask(BasePredictTask):
         predictions: pl.DataFrame = self.context["predictions"]
         prediction_record = self.artifact_store.artifact_record(self.context["predictions_path"], output_dir)
         model_target = self.context["train_metadata"]["output_params"]["protocol"]["label_column"]
+        scores = predictions["pred"].to_numpy()
+        buyable = predictions["is_buyable"]
+        valid = predictions["label_valid"]
+        index_columns = list(self.context["index_columns"])
+        index_statistics = {}
+        for column in index_columns:
+            weights = predictions[column]
+            index_statistics[column] = {
+                "constituents": predictions.filter(pl.col(column) > 0)["ts_code"].n_unique(),
+                "days_with_weights": predictions.filter(pl.col(column).is_not_null())["trade_date"].n_unique(),
+                "null_rows": weights.null_count(),
+            }
         return self.output_cls(
             protocol={
                 "train_end_exclusive": self.context["train_end"],
@@ -229,16 +240,32 @@ class LgbmPredictTask(BasePredictTask):
                 "execution_filter": "deferred to backtest via is_buyable",
                 "actual_return_column": "label_1d",
                 "actual_return_unit": "decimal",
+                "prediction_score": "model output trained on cross-sectional return rank; not a return or probability",
+                "row_key": ["trade_date", "ts_code"],
+                "index_weight_unit": "decimal",
             },
             rows=predictions.height,
             date_range={
                 "start": predictions["trade_date"].min(),
                 "end": predictions["trade_date"].max(),
             },
-            feature_columns=list(self.context["train_metadata"]["output_params"]["feature_columns"]),
-            target_columns=[model_target],
+            output_columns=predictions.columns,
+            statistics={
+                "days": predictions["trade_date"].n_unique(),
+                "symbols": predictions["ts_code"].n_unique(),
+                "pred": {
+                    "mean": float(np.mean(scores)),
+                    "min": float(np.min(scores)),
+                    "median": float(np.median(scores)),
+                    "max": float(np.max(scores)),
+                },
+                "buyable_rows": int(buyable.sum()),
+                "valid_return_rows": int(valid.sum()),
+                "candidate_rows": predictions.filter(pl.col("is_buyable") & pl.col("label_valid")).height,
+                "indices": index_statistics,
+            },
             model_target=model_target,
-            index_weight_columns=list(self.context["index_columns"]),
+            index_weight_columns=index_columns,
             artifacts={
                 "predictions": prediction_record,
             },

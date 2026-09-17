@@ -1,6 +1,7 @@
 """Common contract for prediction tasks."""
 
 from abc import ABC
+from typing import Any
 from pydantic import Field
 
 from ...enums import TaskType
@@ -13,11 +14,14 @@ class BasePredictInputParams(BaseInputParams):
 
 
 class BasePredictOutputParams(BaseOutputParams):
+    """Describe the prediction artifact consumed by downstream tasks."""
+
     predictions_file: str
     rows: int
     date_range: dict[str, str]
-    feature_columns: list[str] = Field(default_factory=list)
-    target_columns: list[str] = Field(default_factory=list)
+    output_columns: list[str] = Field(default_factory=list)
+    protocol: dict[str, Any] = Field(default_factory=dict)
+    statistics: dict[str, Any] = Field(default_factory=dict)
 
 
 class BasePredictTask(BaseArtifactTask, ABC):

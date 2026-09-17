@@ -4,8 +4,9 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 import pytest
+from pydantic import ValidationError
 
-from axonx.task.core import BacktestTask
+from axonx.task.core import BacktestTask, TrainingCurve
 from axonx_alpha158 import (
     FactorAnalysisTask,
     LgbmPredictTask,
@@ -76,6 +77,11 @@ def test_training_defaults():
     assert config.trim_tail == pytest.approx(0.025)
 
 
+def test_training_curve_requires_aligned_series():
+    with pytest.raises(ValidationError, match="x-axis length"):
+        TrainingCurve(x=["1", "2"], y={"train_l2": [0.4]})
+
+
 def test_feature_matrix_preserves_feature_order_and_missing_values():
     """Training and prediction must apply the same finite-value conversion."""
     frame = pl.DataFrame({"first": [1.0, float("inf"), None], "second": [2.0, 3.0, 4.0]})
@@ -134,6 +140,10 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
     assert training_metadata["output_params"]["target_columns"] == [training.input_params.label_column]
     assert training_metadata["output_params"]["metrics"]
     assert training_metadata["output_params"]["parameters"]
+    curve = training_metadata["output_params"]["training_curve"]
+    assert curve["x"][0] == "1"
+    assert {"train_l2", "validation_l2"} <= set(curve["y"])
+    assert all(len(values) == len(curve["x"]) for values in curve["y"].values())
     assert training_metadata["input_params"] == training.input_params.model_dump(mode="json")
     assert training_metadata["output_params"]["protocol"]["label_column"] == "label_1d_rank"
     assert training_metadata["output_params"]["protocol"]["daily_trim_tail"] == pytest.approx(0.025)
@@ -158,8 +168,13 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
         "index_weight_hs300",
     ]
     prediction_metadata = json.loads(prediction.metadata_path.read_text())
-    assert prediction_metadata["output_params"]["feature_columns"] == training_metadata["output_params"]["feature_columns"]
-    assert prediction_metadata["output_params"]["target_columns"] == [training.input_params.label_column]
+    assert prediction_metadata["output_params"]["output_columns"] == predictions.columns
+    stats = prediction_metadata["output_params"]["statistics"]
+    assert stats["days"] == 5
+    assert stats["symbols"] == 40
+    assert stats["buyable_rows"] == 5 * 39
+    assert stats["pred"]["min"] <= stats["pred"]["mean"] <= stats["pred"]["max"]
+    assert stats["indices"]["index_weight_hs300"]["days_with_weights"] == 5
     assert prediction_metadata["input_params"] == prediction.input_params.model_dump(mode="json")
     assert prediction_metadata["output_params"]["protocol"]["actual_return_column"] == "label_1d"
     assert prediction_metadata["output_params"]["protocol"]["cross_section_filter"] == "none"

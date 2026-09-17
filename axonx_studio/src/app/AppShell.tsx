@@ -390,7 +390,7 @@ function PathPicker({
   if (options.length === 0) {
     return (
       <div className="path-picker">
-        <span className={`path-placeholder${muted ? " muted" : ""}`}>
+        <span className={`path-placeholder${muted ? " muted" : ""}`} title={label}>
           {label}
         </span>
       </div>
@@ -399,12 +399,15 @@ function PathPicker({
 
   return (
     <div className="path-picker">
-      <button className={muted ? "muted" : ""}>{label}</button>
+      <button className={muted ? "muted" : ""} title={label}>
+        <span>{label}</span>
+      </button>
       <div className="path-menu">
         {options.map((option) => (
           <button
             key={option.value}
             className={option.label === label ? "active" : ""}
+            title={option.label}
             onClick={() => onSelect(option.value)}
           >
             <span>{option.label}</span>
