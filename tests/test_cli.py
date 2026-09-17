@@ -80,11 +80,16 @@ def test_installed_task_definitions_include_only_public_config(monkeypatch):
         "axonx.task.resolver.installed_tasks",
         lambda: {"sample": CliTask},
     )
+    monkeypatch.setattr(
+        "axonx.task.resolver._plugin_task_targets",
+        lambda: ({"sample": "example:CliTask"}, {"sample": "example"}),
+    )
 
     info = list_installed_task_definitions()[0]
 
     assert info.name == "sample"
     assert info.source == "plugin"
+    assert info.plugin == "example"
     assert info.task_type == TaskType.ANALYSIS
     assert set(info.output_schema["properties"]) == {"artifacts", "amount", "dry_run"}
     assert set(info.input_schema["properties"]) == {"amount", "dry_run", "task_name", "include_time", "source_tasks"}
@@ -93,6 +98,8 @@ def test_installed_task_definitions_include_only_public_config(monkeypatch):
 
 def test_etl_catalog_exposes_domain_input_and_output_contracts():
     info = next(item for item in list_installed_task_definitions() if item.name == "alpha158_etl")
+    assert info.source == "plugin"
+    assert info.plugin == "alpha158"
     assert "input_dir" not in info.input_schema["properties"]
     assert {"output_file", "rows", "date_range"} <= set(info.output_schema["properties"])
     assert {"output_file", "rows", "date_range"} <= set(info.output_schema["required"])

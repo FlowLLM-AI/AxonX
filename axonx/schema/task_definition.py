@@ -14,6 +14,7 @@ class TaskDefinition(BaseModel):
 
     name: str
     source: Literal["native", "plugin"]
+    plugin: str | None = None
     task_type: TaskType
     description: str
     input_schema: dict[str, Any]

@@ -50,9 +50,9 @@ export function SubmitPage({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<
-    Set<TaskDefinition["source"]>
-  >(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set(),
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,21 +98,28 @@ export function SubmitPage({
       ),
     [tasks, search],
   );
-  const taskGroups = useMemo(
-    () => [
+  const taskGroups = useMemo(() => {
+    const plugins = new Map<string, TaskDefinition[]>();
+    for (const task of filtered) {
+      if (task.source !== "plugin") continue;
+      const plugin = task.plugin || text.pluginTasks;
+      const group = plugins.get(plugin) || [];
+      group.push(task);
+      plugins.set(plugin, group);
+    }
+    return [
       {
-        source: "native" as const,
+        id: "native",
         label: text.nativeTasks,
         tasks: filtered.filter((task) => task.source !== "plugin"),
       },
-      {
-        source: "plugin" as const,
-        label: text.pluginTasks,
-        tasks: filtered.filter((task) => task.source === "plugin"),
-      },
-    ],
-    [filtered, text.nativeTasks, text.pluginTasks],
-  );
+      ...Array.from(plugins, ([plugin, pluginTasks]) => ({
+        id: `plugin:${plugin}`,
+        label: plugin,
+        tasks: pluginTasks,
+      })).sort((a, b) => a.label.localeCompare(b.label)),
+    ];
+  }, [filtered, text.nativeTasks, text.pluginTasks]);
 
   useEffect(() => {
     if (!selected) return;
@@ -126,11 +133,11 @@ export function SubmitPage({
     setSubmitted(false);
     onSelected?.(name);
   };
-  const toggleGroup = (source: TaskDefinition["source"]) =>
+  const toggleGroup = (id: string) =>
     setCollapsedGroups((current) => {
       const next = new Set(current);
-      if (next.has(source)) next.delete(source);
-      else next.add(source);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   const submit = async (event: FormEvent) => {
@@ -198,19 +205,22 @@ export function SubmitPage({
             {taskGroups.map((group) => {
               if (!group.tasks.length) return null;
               const expanded =
-                !collapsedGroups.has(group.source) || Boolean(search.trim());
-              const itemsId = `task-group-${group.source}`;
+                (group.id === "native"
+                  ? !collapsedGroups.has(group.id)
+                  : collapsedGroups.has(group.id)) ||
+                Boolean(search.trim());
+              const itemsId = `task-group-${group.id}`;
               return (
                 <section
                   className={`task-catalog-group ${expanded ? "expanded" : "collapsed"}`}
-                  key={group.source}
+                  key={group.id}
                 >
                   <button
                     type="button"
                     className="catalog-group-toggle"
                     aria-expanded={expanded}
                     aria-controls={itemsId}
-                    onClick={() => toggleGroup(group.source)}
+                    onClick={() => toggleGroup(group.id)}
                   >
                     <span>
                       <ChevronDown />

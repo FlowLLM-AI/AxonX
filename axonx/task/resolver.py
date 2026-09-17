@@ -21,10 +21,10 @@ def _task_description(name: str, task_class: type[BaseTask]) -> str:
     return cleandoc(description)
 
 
-def installed_tasks() -> dict[str, type[BaseTask]]:
-    """Return plugin Tasks first, falling back to built-in Tasks by name."""
-    tasks = R.get_all(ComponentEnum.TASK)
+def _plugin_task_targets() -> tuple[dict[str, str], dict[str, str]]:
+    """Return plugin Task targets and the plugin that provides each one."""
     plugin_targets: dict[str, str] = {}
+    plugin_names: dict[str, str] = {}
     for entry in find_all_entry_points(PLUGIN_ENTRY_POINT_GROUP):
         package = load_entry_point(entry)
         manifest = parse_plugin_manifest(
@@ -36,6 +36,14 @@ def installed_tasks() -> dict[str, type[BaseTask]]:
             names = ", ".join(sorted(duplicate))
             raise ValueError(f"Task provided by multiple plugins: {names}")
         plugin_targets.update(manifest.tasks)
+        plugin_names.update({name: entry.name for name in manifest.tasks})
+    return plugin_targets, plugin_names
+
+
+def installed_tasks() -> dict[str, type[BaseTask]]:
+    """Return plugin Tasks first, falling back to built-in Tasks by name."""
+    tasks = R.get_all(ComponentEnum.TASK)
+    plugin_targets, _ = _plugin_task_targets()
     modules = {}
     tasks.update(
         {name: load_symbol(target, BaseTask, kind="Task", modules=modules) for name, target in plugin_targets.items()},
@@ -49,15 +57,18 @@ def list_installed_task_definitions() -> list[TaskDefinition]:
     """Return sorted definitions for every installed Task."""
     definitions = []
     native_tasks = R.get_all(ComponentEnum.TASK)
+    _, plugin_names = _plugin_task_targets()
     for name, task_class in sorted(installed_tasks().items()):
         task_type = task_class.task_type
         if not isinstance(task_type, TaskType):
             raise TypeError(f"Task {name!r} must declare a fixed TaskType")
         input_schema = deepcopy(task_class.input_cls.model_json_schema())
+        source = "native" if native_tasks.get(name) is task_class else "plugin"
         definitions.append(
             TaskDefinition(
                 name=name,
-                source=("native" if native_tasks.get(name) is task_class else "plugin"),
+                source=source,
+                plugin=plugin_names.get(name) if source == "plugin" else None,
                 task_type=task_type,
                 description=_task_description(name, task_class),
                 input_schema=input_schema,

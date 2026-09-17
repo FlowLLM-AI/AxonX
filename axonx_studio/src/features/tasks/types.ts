@@ -39,6 +39,7 @@ export interface TaskLogChunk {
 export interface TaskDefinition {
   name: string;
   source: "native" | "plugin";
+  plugin?: string | null;
   task_type: string;
   description: string;
   input_schema: JsonSchema;

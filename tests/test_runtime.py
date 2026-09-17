@@ -1032,6 +1032,7 @@ async def test_task_listing_jobs_separate_runtime_and_installed_tasks(tmp_path):
     tasks = {info["name"]: info for info in installed.answer}
     assert "download_tushare_task" in tasks
     assert tasks["download_tushare_task"]["source"] == "native"
+    assert tasks["download_tushare_task"]["plugin"] is None
     assert set(tasks["download_tushare_task"]["input_schema"]["properties"]) == {
         "task_name",
         "include_time",
