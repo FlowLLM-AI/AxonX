@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 import signal
 import pytest
-from axonx import Application, BaseComponent, BaseTask
+from axonx import Application, BaseComponent, BaseInputParams, BaseTask
 from axonx.config import resolve_app_config
 from axonx.components.registry import R
 from axonx.constants import (
@@ -19,6 +19,7 @@ from axonx.constants import (
     AXONX_SERVICE_INFO,
     AXONX_TASK_LOG_DIR,
     AXONX_TASK_STATUS_MIN_INTERVAL,
+    AXONX_TASK_TIMEZONE,
     AXONX_TASK_WORKSPACE_DIR,
 )
 from axonx.plugin.manifest import parse_plugin_manifest
@@ -62,7 +63,7 @@ async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp
     log_dir = tmp_path / "service-logs"
     monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host":"service.internal","port":4321}')
     monkeypatch.setenv(AXONX_TASK_STATUS_MIN_INTERVAL, "1.5")
-    argv = ["--task", "sales", "--output", "result file.parquet"]
+    argv = ["--task", "demo", "--output", "result file.parquet"]
     async with application(tmp_path, log_dir=log_dir) as app:
         manager = app.get_component("task_manager")
         await manager.submit(argv)
@@ -75,11 +76,12 @@ async def test_task_manager_starts_exec_with_original_arguments(monkeypatch, tmp
     assert options["env"][AXONX_SERVICE_INFO] == '{"host":"service.internal","port":4321}'
     assert options["env"][AXONX_TASK_WORKSPACE_DIR] == str(tmp_path.resolve())
     assert options["env"][AXONX_TASK_LOG_DIR] == str(log_dir.resolve())
+    assert options["env"][AXONX_TASK_TIMEZONE] == "Asia/Shanghai"
     assert options["env"][AXONX_TASK_STATUS_MIN_INTERVAL] == "1.5"
     assert options["env"]["PYTHONPATH"] == str(Path(__file__).parent)
     assert options["stderr"] == asyncio.subprocess.PIPE
     success_log = capsys.readouterr().err
-    assert "Task process 12345 (sales) completed successfully" in success_log
+    assert "Task process 12345 (demo) completed successfully" in success_log
 
 
 async def test_task_manager_logs_worker_stderr_on_failure(monkeypatch, tmp_path, capsys):
@@ -103,16 +105,16 @@ async def test_task_manager_logs_worker_stderr_on_failure(monkeypatch, tmp_path,
         manager = app.get_component("task_manager")
         await manager.submit(["--task", "download_tushare_task"])
         await manager.set_status(
-            "ingestion#failed-worker",
+            "api#failed-worker",
             TaskStatus(
-                task_id="ingestion#failed-worker",
-                task_type=TaskType.INGESTION,
+                task_id="api#failed-worker",
+                task_type=TaskType.API,
                 state=TaskState.RUNNING,
                 pid=Process.pid,
             ),
         )
         await asyncio.gather(*manager._process_monitors)
-        status = await manager.get_status("ingestion#failed-worker")
+        status = await manager.get_status("api#failed-worker")
 
     error = capsys.readouterr().err
     assert "ValidationError: invalid start_date" in error
@@ -197,6 +199,26 @@ async def test_task_manager_reconciles_status_reported_after_worker_exit(monkeyp
         assert failed.exit_code == 137
         assert failed.finished_at is not None
         assert failed.error == "Worker terminated by signal SIGKILL (9)"
+
+
+async def test_task_manager_can_cancel_rerun_with_reused_id(monkeypatch, tmp_path):
+    async with application(tmp_path) as app:
+        manager = app.get_component("task_manager")
+        task_id = "analysis#fixed"
+        old = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED, pid=41)
+        new = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING, pid=42)
+        await manager.set_status(task_id, old)
+        await manager.set_status(task_id, new)
+        cancelled_pids = []
+
+        async def cancel(pid):
+            cancelled_pids.append(pid)
+            return True
+
+        monkeypatch.setattr(manager._supervisor, "cancel", cancel)
+        assert await manager.cancel(task_id) is True
+        assert cancelled_pids == [42]
+        assert (await manager.get_status(task_id)).state == TaskState.CANCELLED
 
 
 async def test_task_manager_terminates_and_reaps_workers_on_close(monkeypatch, tmp_path):
@@ -333,13 +355,20 @@ async def test_lifecycle_rollback(tmp_path):
 
 
 def test_task_has_no_components():
+    class ProbeInputParams(BaseInputParams):
+        pass
+
     class ProbeTask(BaseTask):
         task_type = TaskType.ANALYSIS
+        input_cls = ProbeInputParams
 
         def build_task_steps(self):
             return ()
 
-    assert not hasattr(ProbeTask({}, workspace_path="."), "app_context")
+        def build_output_params(self):
+            return self.output_cls()
+
+    assert not hasattr(ProbeTask({}, workspace_path=".", reg_name="probe"), "app_context")
 
 
 def test_plugin_manifest_accepts_tasks_and_declarative_jobs():
@@ -398,9 +427,9 @@ def test_plugin_manifest_rejects_invalid_schema(text):
 
 
 def test_plugin_manifest_defaults_and_normalizes_task_strings():
-    manifest = parse_plugin_manifest("tasks:\n  ' sales ': ' package.module:Task '\n", "test")
+    manifest = parse_plugin_manifest("tasks:\n  ' example ': ' package.module:Task '\n", "test")
 
-    assert manifest.tasks == {"sales": "package.module:Task"}
+    assert manifest.tasks == {"example": "package.module:Task"}
 
 
 def test_http_client_discovers_service_from_environment(monkeypatch, capsys):
@@ -997,13 +1026,16 @@ async def test_task_manager_replaces_status_from_another_version_on_close(tmp_pa
 async def test_task_listing_jobs_separate_runtime_and_installed_tasks(tmp_path):
     async with application(tmp_path) as app:
         runtime = await app.run_job("list_runtime_task_ids")
-        installed = await app.run_job("list_installed_task_infos")
+        installed = await app.run_job("list_installed_task_definitions")
 
     assert runtime.answer == []
     tasks = {info["name"]: info for info in installed.answer}
     assert "download_tushare_task" in tasks
     assert tasks["download_tushare_task"]["source"] == "native"
-    assert set(tasks["download_tushare_task"]["config_schema"]["properties"]) == {
+    assert set(tasks["download_tushare_task"]["input_schema"]["properties"]) == {
+        "task_name",
+        "include_time",
+        "source_tasks",
         "start_date",
         "end_date",
         "days_back",
@@ -1040,7 +1072,7 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
     from axonx.components.service import HttpService
     from axonx.plugin import build_wheel, inspect_wheel, source_sha256
 
-    source = Path("plugins/polars-demo").resolve()
+    source = Path("plugins/alpha158").resolve()
     wheel = build_wheel(source, tmp_path / "build" / source_sha256(source))
     artifact = inspect_wheel(wheel)
     app = Application(
@@ -1074,11 +1106,13 @@ async def test_http_service_installs_task_plugin_wheel(monkeypatch, tmp_path):
             plugins = await client.post("/jobs/list_plugins", json={})
 
     assert response.status_code == 200
-    assert response.json()["tasks"] == {"sales": "axonx_polars_demo.sales:SalesTask"}
-    assert response.json()["components"] == {}
-    assert response.json()["jobs"]["polars_sales"]["steps"][0] == {
-        "backend": "submit_task",
+    assert response.json()["tasks"] == {
+        "alpha158_etl": "axonx_alpha158.etl:Alpha158Task",
+        "alpha158_factor_analysis": "axonx_alpha158.analysis:FactorAnalysisTask",
+        "alpha158_lgbm_train": "axonx_alpha158.train:LgbmTrainTask",
+        "alpha158_lgbm_predict": "axonx_alpha158.predict:LgbmPredictTask",
     }
-    assert response.json()["jobs"]["polars_sales"]["defaults"] == {"task": "sales"}
-    assert response.json()["restart_required"] is True
+    assert response.json()["components"] == {}
+    assert response.json()["jobs"] == {}
+    assert response.json()["restart_required"] is False
     assert plugins.json()["answer"][0]["wheel_sha256"] == artifact.sha256

@@ -7,7 +7,7 @@ export const sectionIds = [
   "lineage",
   "etl",
   "factors",
-  "training",
+  "train",
   "predict",
   "backtest",
 ] as const;

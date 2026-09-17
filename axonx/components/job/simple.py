@@ -71,7 +71,10 @@ class SimpleJob(BaseJob):
                     if not context.response.success:
                         break
             except Exception as exc:
-                self.logger.exception("Job failed")
+                if isinstance(exc, ValueError):
+                    self.logger.warning(f"Job failed: {type(exc).__name__}: {exc}")
+                else:
+                    self.logger.exception("Job failed")
                 context.response.success = False
                 context.response.answer = f"{type(exc).__name__}: {exc}"
             return context.response

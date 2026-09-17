@@ -15,7 +15,7 @@ class SubmitTaskStep(BaseStep):
         arguments = self.context.get(CLI_RAW_ARGUMENTS)
         if arguments is None:
             task_name, config = split_task_arguments(self.context)
-            resolve_task(task_name).config_cls.model_validate(config)
+            resolve_task(task_name).input_cls.model_validate(config)
             arguments = build_task_argv(task_name, config)
         else:
             task_name = self.context.get("task") or task_name_from_argv(arguments)

@@ -9,13 +9,25 @@ from pathlib import Path
 import polars as pl
 from pydantic import Field, field_validator
 
-from ...components.registry import R
-from ...enums import TaskType
-from ..base import BaseConfig, BaseTask, TaskStep
+from axonx.task.base import TaskStep
+from axonx.task.core import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
+
 from .internal import etl_pipeline
-from .internal.artifacts import artifact_record, metadata_header, write_metadata
-from .internal.features import all_features, dataset_statistics, price_features, rolling_features, rolling_inputs
 from .internal.etl_pipeline import (
+    CSZ_LABELS,
+    FEATURES,
+    HISTORY_DAYS,
+    KBAR,
+    LABEL_OUTPUTS,
+    LABELS,
+    MARKET_STATE_COLUMNS,
+    PRICE,
+    RANK_LABELS,
+    RAW_FEATURES,
+    ROLLING,
+    ST_LIMIT_CHANGE_DATE,
+    VALID_LABELS,
+    WINDOWS,
     align_calendar,
     apply_price_limits,
     assemble_trading_panel,
@@ -25,34 +37,37 @@ from .internal.etl_pipeline import (
     infer_lifecycle_bounds,
     join_historical_names_and_limits,
     join_index_weights,
-    load_market_data,
     load_index_weights,
+    load_market_data,
     load_price_limits,
     validate_market_data,
-    WINDOWS,
-    KBAR,
-    PRICE,
-    ROLLING,
-    RAW_FEATURES,
-    FEATURES,
-    LABELS,
-    CSZ_LABELS,
-    RANK_LABELS,
-    VALID_LABELS,
-    LABEL_OUTPUTS,
-    HISTORY_DAYS,
-    ST_LIMIT_CHANGE_DATE,
-    MARKET_STATE_COLUMNS,
+)
+from .internal.features import (
+    all_features,
+    dataset_statistics,
+    price_features,
+    rolling_features,
+    rolling_inputs,
 )
 
 EPSILON = etl_pipeline.EPSILON
 
 
-class Alpha158Config(BaseConfig):
+class Alpha158OutputParams(BaseETLOutputParams):
+    statistics_file: str
+    feature_count: int
+    symbols: int
+    feature_schema: dict
+    labels: dict
+    index_weight_columns: list[str]
+    market_state_columns: list[str]
+    market_state: dict
+    column_schema: dict[str, str] = Field(alias="schema")
+
+
+class Alpha158InputParams(BaseETLInputParams):
     """Configure input partitions, output file, and optional output date range."""
 
-    input_dir: Path = Path("tushare")
-    output_file: Path | None = None
     start_date: str | None = "20140101"
     end_date: str | None = None
     csz_winsorize_tail: float = Field(
@@ -70,8 +85,7 @@ class Alpha158Config(BaseConfig):
         return str(value) if isinstance(value, int) and not isinstance(value, bool) else value
 
 
-@R.register("alpha158_etl")
-class Alpha158Task(BaseTask):
+class Alpha158Task(BaseETLTask):
     """Create adjusted Alpha158 features, 1-5 trading-day close returns, and HS300 weights.
 
     The task consumes Tushare quotes, adjustments, limits, index weights, calendar, and stock identity data.
@@ -81,16 +95,9 @@ class Alpha158Task(BaseTask):
     before t and are stored as decimal weights.
     """
 
-    config_cls = Alpha158Config
-    config: Alpha158Config
-    task_type = TaskType.ETL
-    output_keys = (
-        "output_file",
-        "statistics_file",
-        "metadata_file",
-        "rows",
-        "feature_count",
-    )
+    input_cls = Alpha158InputParams
+    output_cls = Alpha158OutputParams
+    input_params: Alpha158InputParams
 
     _price_features = staticmethod(price_features)
     _rolling_inputs = staticmethod(rolling_inputs)
@@ -110,12 +117,10 @@ class Alpha158Task(BaseTask):
         yield self.finalize_dataset
         yield self.calculate_statistics
         yield self.write_outputs
-        yield self.write_metadata
-        yield self.publish_output
 
     def resolve_paths(self) -> None:
         """Resolve source partitions and output paths for this task."""
-        input_dir = self.resolve_workspace_path(self.config.input_dir)
+        input_dir = self.resolve_workspace_path(self.input_params.input_dir)
         daily_files = sorted(input_dir.glob("*/*/daily.parquet"))
         factor_files = sorted(input_dir.glob("*/*/adj_factor.parquet"))
         weight_files = sorted(input_dir.glob("*/*/index_weight.parquet"))
@@ -127,13 +132,9 @@ class Alpha158Task(BaseTask):
             raise FileNotFoundError(
                 f"缺少 Alpha158 主数据: {', '.join(map(str, missing))}",
             )
-        if self.config.start_date and self.config.end_date and self.config.start_date > self.config.end_date:
+        if self.input_params.start_date and self.input_params.end_date and self.input_params.start_date > self.input_params.end_date:
             raise ValueError("start_date 不能晚于 end_date")
-        output_path = (
-            self.resolve_workspace_path(self.config.output_file)
-            if self.config.output_file is not None
-            else self.workspace_path / "etl" / self.task_id / "alpha158.parquet"
-        )
+        output_path = self.task_dir / "alpha158.parquet"
         statistics_path = output_path.with_suffix(".csv")
         if statistics_path == output_path:
             raise ValueError("output_file 必须使用非 CSV 扩展名")
@@ -145,8 +146,6 @@ class Alpha158Task(BaseTask):
             **{f"{name}_file": path for name, path in static_files.items()},
             output_path=output_path,
             statistics_path=statistics_path,
-            task_dir=self.workspace_path / "etl" / self.task_id,
-            metadata_path=self.workspace_path / "etl" / self.task_id / "metadata.json",
         )
         self.logger.info(
             f"Alpha158 paths resolved input_dir={input_dir} "
@@ -264,7 +263,7 @@ class Alpha158Task(BaseTask):
         frame = attach_market_flags(
             frame,
             HISTORY_DAYS,
-            self.config.min_history_coverage,
+            self.input_params.min_history_coverage,
         )
         self.context["missing_limit_rows"] = frame.filter(
             pl.col("_has_market_data") & ~pl.col("_has_valid_limits"),
@@ -309,7 +308,7 @@ class Alpha158Task(BaseTask):
     def calculate_labels(self) -> None:
         """Calculate forward returns and their cross-sectional transformations."""
         self.logger.info(
-            f"Calculating labels horizons={len(LABELS)} " f"winsorize_tail={self.config.csz_winsorize_tail}",
+            f"Calculating labels horizons={len(LABELS)} " f"winsorize_tail={self.input_params.csz_winsorize_tail}",
         )
         self.context["frame"] = self._labels(
             self.context["frame"],
@@ -330,10 +329,10 @@ class Alpha158Task(BaseTask):
         """Apply the requested date range and project the public output schema."""
         frame: pl.DataFrame = self.context["frame"]
 
-        if self.config.start_date:
-            frame = frame.filter(pl.col("trade_date") >= self.config.start_date)
-        if self.config.end_date:
-            frame = frame.filter(pl.col("trade_date") <= self.config.end_date)
+        if self.input_params.start_date:
+            frame = frame.filter(pl.col("trade_date") >= self.input_params.start_date)
+        if self.input_params.end_date:
+            frame = frame.filter(pl.col("trade_date") <= self.input_params.end_date)
         output = (
             frame.filter("_has_market_data")
             .select(
@@ -353,8 +352,8 @@ class Alpha158Task(BaseTask):
         self.report_progress(95)
         self.logger.info(
             f"Dataset finalized rows={output.height} columns={output.width} "
-            f"start_date={self.config.start_date or '-'} "
-            f"end_date={self.config.end_date or '-'}",
+            f"start_date={self.input_params.start_date or '-'} "
+            f"end_date={self.input_params.end_date or '-'}",
         )
 
     def calculate_statistics(self) -> None:
@@ -376,7 +375,7 @@ class Alpha158Task(BaseTask):
         """Keep the existing Task helper while delegating label calculations."""
         return calculate_labels(
             frame,
-            self.config.csz_winsorize_tail,
+            self.input_params.csz_winsorize_tail,
             progress=progress,
         )
 
@@ -424,33 +423,23 @@ class Alpha158Task(BaseTask):
             f"statistics_bytes={statistics_path.stat().st_size}",
         )
 
-    def write_metadata(self) -> None:
+    def build_output_params(self) -> Alpha158OutputParams:
         """Publish the dataset contract used by every downstream Alpha158 task."""
         output: pl.DataFrame = self.context["output"]
-        task_dir: Path = self.context["task_dir"]
+        task_dir: Path = self.task_dir
         task_dir.mkdir(parents=True, exist_ok=True)
-        dataset_record = artifact_record(self.context["output_path"], task_dir)
-        self.report_progress(45)
-        statistics_record = artifact_record(self.context["statistics_path"], task_dir)
-        self.report_progress(80)
-        metadata = {
-            **metadata_header(
-                task_name="alpha158_etl",
-                task_id=self.task_id,
-                task_type=self.task_type.value,
-            ),
-            "config": self.config.model_dump(
-                mode="json",
-                exclude={"task_id", "task_type"},
-            ),
-            "date_range": {
+        dataset_record = self.artifact_store.artifact_record(self.context["output_path"], task_dir)
+        statistics_record = self.artifact_store.artifact_record(self.context["statistics_path"], task_dir)
+        return self.output_cls(
+            date_range={
                 "start": output["trade_date"].min(),
                 "end": output["trade_date"].max(),
             },
-            "rows": output.height,
-            "symbols": output["ts_code"].n_unique(),
-            "feature_columns": list(FEATURES),
-            "feature_schema": {
+            rows=output.height,
+            symbols=output["ts_code"].n_unique(),
+            feature_columns=list(FEATURES),
+            label_columns=list(LABEL_OUTPUTS),
+            feature_schema={
                 "title": {
                     "zh": "Alpha158 特征结构",
                     "en": "Alpha158 feature schema",
@@ -469,7 +458,7 @@ class Alpha158Task(BaseTask):
                     ],
                 ],
             },
-            "labels": {
+            labels={
                 "raw": list(LABELS),
                 "csz": list(CSZ_LABELS),
                 "rank": list(RANK_LABELS),
@@ -477,14 +466,14 @@ class Alpha158Task(BaseTask):
                 "return_unit": "decimal",
                 "definition": "adjusted close return from trade_date to the Nth following market trading day",
             },
-            "index_weight_columns": ["index_weight_hs300"],
-            "market_state_columns": list(MARKET_STATE_COLUMNS),
-            "market_state": {
+            index_weight_columns=["index_weight_hs300"],
+            market_state_columns=list(MARKET_STATE_COLUMNS),
+            market_state={
                 "buyable_definition": (
                     "listed, quoted, valid limits, non-ST, non-delisting, non-limit, sufficient history"
                 ),
                 "minimum_history_days": HISTORY_DAYS,
-                "minimum_history_coverage": self.config.min_history_coverage,
+                "minimum_history_coverage": self.input_params.min_history_coverage,
                 "missing_stock_basic_symbols": self.context["missing_stock_basic_symbols"],
                 "missing_stock_basic_policy": (
                     "name=ts_code, list_date=first_quote, panel_end=last_quote, delist_date=null"
@@ -492,22 +481,12 @@ class Alpha158Task(BaseTask):
                 "fallback_limit_rows": self.context["fallback_limit_rows"],
                 "missing_limit_rows": self.context["missing_limit_rows"],
             },
-            "schema": {name: str(dtype) for name, dtype in output.schema.items()},
-            "artifacts": {
-                "dataset": dataset_record["path"],
-                "statistics": statistics_record["path"],
+            schema={name: str(dtype) for name, dtype in output.schema.items()},
+            artifacts={
+                "dataset": dataset_record,
+                "statistics": statistics_record,
             },
-        }
-        metadata["artifact_integrity"] = {
-            "dataset": dataset_record,
-            "statistics": statistics_record,
-        }
-        write_metadata(self.context["metadata_path"], metadata)
-        self.report_progress(95)
-        self.logger.info(
-            f"Alpha158 metadata written path={self.context['metadata_path']}",
+            output_file=self.context["output_file"],
+            statistics_file=self.context["statistics_file"],
+            feature_count=self.context["feature_count"],
         )
-
-    def publish_output(self) -> None:
-        """Expose the metadata path through the declared Task output."""
-        self.context["metadata_file"] = str(self.context["metadata_path"])

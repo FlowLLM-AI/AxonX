@@ -6,10 +6,11 @@ from enum import StrEnum
 class TaskType(StrEnum):
     """Enumerate the supported task categories."""
 
-    INGESTION = "ingestion"
+    BASE = "base"
+    API = "api"
     ETL = "etl"
     ANALYSIS = "analysis"
-    TRAINING = "training"
+    TRAIN = "train"
     PREDICT = "predict"  # Offline prediction
     INFERENCE = "inference"  # Online inference
     BACKTEST = "backtest"

@@ -1,16 +1,13 @@
-"""Index task artifacts and build their ETL lineage graph."""
+"""Index task artifacts and build their dependency graphs."""
 
 import json
 from pathlib import Path
 from typing import Any
 
-KINDS = ("etl", "analysis", "training", "predict", "backtest")
-PARENTS = {
-    "analysis": ("etl_task_id", "etl"),
-    "training": ("etl_task_id", "etl"),
-    "predict": ("training_task_id", "training"),
-    "backtest": ("prediction_task_id", "predict"),
-}
+from ...enums import TaskType
+from ...task.base import task_type_from_id
+
+KINDS = tuple(task_type.value for task_type in TaskType)
 
 
 def _task_index(root: Path) -> dict[str, dict[str, Any]]:
@@ -20,7 +17,7 @@ def _task_index(root: Path) -> dict[str, dict[str, Any]]:
         if not directory.is_dir():
             continue
         for task_dir in directory.iterdir():
-            if not task_dir.is_dir() or task_dir.is_symlink() or not task_dir.name.startswith(f"{kind}#"):
+            if not task_dir.is_dir() or task_dir.is_symlink():
                 continue
             metadata_path = task_dir / "metadata.json"
             try:
@@ -29,73 +26,107 @@ def _task_index(root: Path) -> dict[str, dict[str, Any]]:
                 metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
             except (OSError, UnicodeError, ValueError):
                 continue
-            if not isinstance(metadata, dict) or metadata.get("task_id") != task_dir.name:
+            if not isinstance(metadata, dict):
                 continue
-            parent_id = None
-            if kind in PARENTS:
-                key, parent_kind = PARENTS[kind]
-                source = metadata.get("source")
-                value = source.get(key) if isinstance(source, dict) else None
-                if isinstance(value, str) and value.startswith(f"{parent_kind}#") and Path(value).name == value:
-                    parent_id = value
-            nodes[task_dir.name] = {
-                "task_id": task_dir.name,
+            task_id = task_dir.name
+            try:
+                if task_type_from_id(task_id).value != kind:
+                    continue
+            except ValueError:
+                continue
+            if metadata.get("task_id") != task_id or metadata.get("task_type") != kind:
+                continue
+            input_params = metadata.get("input_params")
+            sources = input_params.get("source_tasks", []) if isinstance(input_params, dict) else []
+            if not isinstance(sources, list):
+                sources = []
+            parent_ids = []
+            for source in sources:
+                try:
+                    task_type_from_id(source)
+                except ValueError:
+                    continue
+                if source not in parent_ids:
+                    parent_ids.append(source)
+            nodes[task_id] = {
+                "task_id": task_id,
                 "kind": kind,
-                "task_name": metadata.get("task_name") if isinstance(metadata.get("task_name"), str) else kind,
+                "task_name": metadata.get("reg_name") if isinstance(metadata.get("reg_name"), str) else kind,
                 "created_at": metadata.get("created_at") if isinstance(metadata.get("created_at"), str) else None,
-                "parent_id": parent_id,
+                "parent_ids": parent_ids,
                 "missing": False,
             }
+    for node in tuple(nodes.values()):
+        for parent_id in node["parent_ids"]:
+            if parent_id not in nodes:
+                nodes[parent_id] = {
+                    "task_id": parent_id,
+                    "kind": task_type_from_id(parent_id).value,
+                    "task_name": None,
+                    "created_at": None,
+                    "parent_ids": [],
+                    "missing": True,
+                }
     return nodes
 
 
-def _root_id(nodes: dict[str, dict[str, Any]], task_id: str) -> str:
-    current = task_id
-    seen: set[str] = set()
-    while current in nodes and current not in seen:
-        seen.add(current)
-        parent = nodes[current]["parent_id"]
-        if not parent:
-            break
-        current = parent
-    return current
+def _component(nodes: dict[str, dict[str, Any]], task_id: str) -> set[str]:
+    neighbors = {node_id: set(node["parent_ids"]) for node_id, node in nodes.items()}
+    for node_id, node in nodes.items():
+        for parent_id in node["parent_ids"]:
+            neighbors[parent_id].add(node_id)
+    selected = {task_id}
+    pending = [task_id]
+    while pending:
+        for neighbor in neighbors[pending.pop()] - selected:
+            selected.add(neighbor)
+            pending.append(neighbor)
+    return selected
+
+
+def _root_id(nodes: dict[str, dict[str, Any]], component: set[str]) -> str:
+    roots = [task_id for task_id in component if not nodes[task_id]["parent_ids"]]
+    return min(roots or component)
 
 
 def list_task_graphs(root: Path, query: str, offset: int, limit: int) -> dict[str, Any]:
     nodes = _task_index(root)
     query = query.strip().casefold()
-    selected = [
-        {**node, "root_id": _root_id(nodes, node["task_id"])}
-        for node in nodes.values()
-        if (query in node["task_id"].casefold() or query in node["task_name"].casefold())
-        and (query or node["kind"] == "etl")
-    ]
+    selected = []
+    seen: set[str] = set()
+    for task_id, node in nodes.items():
+        if node["missing"] or task_id in seen:
+            continue
+        component = _component(nodes, task_id)
+        seen.update(component)
+        matches = [
+            nodes[item] for item in component
+            if not nodes[item]["missing"]
+            and (query in item.casefold() or query in nodes[item]["task_name"].casefold())
+        ]
+        if not matches:
+            continue
+        root_id = _root_id(nodes, component)
+        representative = max(matches, key=lambda item: (item["created_at"] or "", item["task_id"])) if query else nodes.get(root_id)
+        if representative is None or representative["missing"]:
+            representative = min(matches, key=lambda item: item["task_id"])
+        selected.append({**representative, "root_id": root_id})
     selected.sort(key=lambda node: (node["created_at"] or "", node["task_id"]), reverse=True)
     return {"items": selected[offset : offset + limit], "total": len(selected), "offset": offset, "limit": limit}
 
 
 def get_task_graph(root: Path, task_id: str) -> dict[str, Any]:
     nodes = _task_index(root)
-    if task_id not in nodes:
+    if task_id not in nodes or nodes[task_id]["missing"]:
         raise ValueError(f"Task artifact not found: {task_id}")
-    root_id = _root_id(nodes, task_id)
-    graph = {node_id: dict(node) for node_id, node in nodes.items() if _root_id(nodes, node_id) == root_id}
-    for node in tuple(graph.values()):
-        parent_id = node["parent_id"]
-        if parent_id and parent_id not in graph:
-            graph[parent_id] = {
-                "task_id": parent_id,
-                "kind": parent_id.split("#", 1)[0],
-                "task_name": None,
-                "created_at": None,
-                "parent_id": None,
-                "missing": True,
-            }
+    component = _component(nodes, task_id)
+    graph = [nodes[item] for item in component]
     return {
-        "root_id": root_id,
+        "root_id": _root_id(nodes, component),
         "selected_id": task_id,
-        "nodes": sorted(
-            graph.values(), key=lambda node: (KINDS.index(node["kind"]), node["created_at"] or "", node["task_id"])
+        "nodes": sorted(graph, key=lambda node: (KINDS.index(node["kind"]), node["created_at"] or "", node["task_id"])),
+        "edges": sorted(
+            ({"from": parent_id, "to": node["task_id"]} for node in graph for parent_id in node["parent_ids"]),
+            key=lambda edge: (edge["from"], edge["to"]),
         ),
-        "edges": [{"from": node["parent_id"], "to": node["task_id"]} for node in graph.values() if node["parent_id"]],
     }

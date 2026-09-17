@@ -36,11 +36,11 @@ export interface TaskLogChunk {
   reset: boolean;
 }
 
-export interface TaskInfo {
+export interface TaskDefinition {
   name: string;
   source: "native" | "plugin";
   task_type: string;
   description: string;
-  config_schema: JsonSchema;
-  output_keys: string[];
+  input_schema: JsonSchema;
+  output_schema: JsonSchema;
 }

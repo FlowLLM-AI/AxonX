@@ -4,8 +4,8 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from axonx.task.alpha158 import Alpha158Config, Alpha158Task
-from axonx.task.alpha158.alpha158_etl import (
+from axonx_alpha158.etl import Alpha158InputParams, Alpha158Task
+from axonx_alpha158.etl import (
     FEATURES,
     LABEL_OUTPUTS,
     MARKET_STATE_COLUMNS,
@@ -43,7 +43,7 @@ def _write_reference_data(root: Path, dates: list[str], codes: list[str]) -> Non
 
 
 def test_alpha158_defaults_to_data_since_2014():
-    config = Alpha158Config()
+    config = Alpha158InputParams(input_dir="tushare")
 
     assert config.start_date == "20140101"
     assert config.end_date is None
@@ -62,7 +62,7 @@ def test_historical_names_remain_chronological_after_deduplication(tmp_path):
         },
     ).write_parquet(tmp_path / "tushare" / "namechange.parquet")
 
-    task = Alpha158Task({}, workspace_path=tmp_path)
+    task = Alpha158Task({"input_dir": "tushare"}, workspace_path=tmp_path)
     task.context.update(
         trade_cal_file=tmp_path / "tushare" / "trade_cal.parquet",
         stock_basic_file=tmp_path / "tushare" / "stock_basic.parquet",
@@ -86,7 +86,7 @@ def test_historical_names_remain_chronological_after_deduplication(tmp_path):
 
 
 def test_alpha158_csz_winsorizes_configured_cross_section_tails(tmp_path):
-    task = Alpha158Task({"csz_winsorize_tail": 0.25}, workspace_path=tmp_path)
+    task = Alpha158Task({"input_dir": "tushare", "csz_winsorize_tail": 0.25}, workspace_path=tmp_path)
     frame = pl.DataFrame(
         {
             "trade_date": ["20260105", "20260106"] * 4,
@@ -141,14 +141,14 @@ def test_alpha158_infers_lifecycle_for_daily_symbol_missing_from_stock_basic(
             [{"ts_code": code, "trade_date": trade_date, "adj_factor": 1.0} for code, _ in rows],
         )
 
-    task = Alpha158Task({}, workspace_path=tmp_path)
+    task = Alpha158Task({"input_dir": "tushare"}, workspace_path=tmp_path)
     output = task.execute()
 
     result = pl.read_parquet(output["output_file"])
     inferred = result.filter(pl.col("ts_code") == "000999.SZ")
-    metadata = json.loads(Path(output["metadata_file"]).read_text())
+    metadata = json.loads(task.metadata_path.read_text())
     assert task.context["missing_stock_basic_symbols"] == 1
-    assert metadata["market_state"]["missing_stock_basic_symbols"] == 1
+    assert metadata["output_params"]["market_state"]["missing_stock_basic_symbols"] == 1
     assert inferred["trade_date"].to_list() == ["20260105", "20260107"]
     assert inferred["name"].unique().to_list() == ["000999.SZ"]
     assert inferred["list_date"].unique().to_list() == ["20260105"]
@@ -254,7 +254,7 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
         ],
     )
 
-    task = Alpha158Task({}, workspace_path=tmp_path)
+    task = Alpha158Task({"input_dir": "tushare"}, workspace_path=tmp_path)
     snapshots = []
     output = task.execute(emit=snapshots.append)
     result = pl.read_parquet(output["output_file"])
@@ -276,8 +276,6 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
         "finalize_dataset",
         "calculate_statistics",
         "write_outputs",
-        "write_metadata",
-        "publish_output",
     ]
     rolling_progress = [
         status.steps[4].percentage
@@ -304,21 +302,27 @@ def test_alpha158_builds_strict_forward_labels_and_snapshot_weights(tmp_path):
         "index_weight_hs300",
     ]
     assert Path(output["statistics_file"]).name == "alpha158.csv"
-    assert Path(output["metadata_file"]) == tmp_path / "etl" / task.task_id / "metadata.json"
-    metadata = json.loads(Path(output["metadata_file"]).read_text())
+    assert task.metadata_path == tmp_path / "etl" / task.task_id / "metadata.json"
+    metadata = json.loads(task.metadata_path.read_text())
     assert metadata["task_id"] == task.task_id
-    assert metadata["feature_columns"] == list(FEATURES)
+    assert metadata["reg_name"] == "alpha158_etl"
+    assert metadata["input_params"] == task.input_params.model_dump(mode="json")
+    assert "source_tasks" not in metadata
+    assert "metadata_file" not in output
+    assert "metadata_file" not in metadata["output_params"]
+    assert metadata["output_params"]["feature_columns"] == list(FEATURES)
+    assert metadata["output_params"]["label_columns"] == list(LABEL_OUTPUTS)
     grouped_features = [
         feature
-        for group in metadata["feature_schema"]["groups"]
+        for group in metadata["output_params"]["feature_schema"]["groups"]
         for feature in group["features"]
     ]
-    assert metadata["feature_schema"]["title"] == {
+    assert metadata["output_params"]["feature_schema"]["title"] == {
         "zh": "Alpha158 特征结构",
         "en": "Alpha158 feature schema",
     }
     assert grouped_features == list(FEATURES)
-    assert metadata["artifacts"]["dataset"] == "alpha158.parquet"
+    assert metadata["output_params"]["artifacts"]["dataset"]["path"] == "alpha158.parquet"
     statistics = pl.read_csv(output["statistics_file"])
     assert statistics.height == len(FEATURES) + len(LABEL_OUTPUTS)
     assert statistics.columns == [

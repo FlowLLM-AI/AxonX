@@ -12,7 +12,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
-import { listInstalledTaskInfos, submitTask } from "../tasks/api";
+import { listInstalledTaskDefinitions, submitTask } from "../tasks/api";
 import { interpolate, t } from "../../i18n";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import {
@@ -21,7 +21,7 @@ import {
 } from "../../shared/schema/values";
 import type { SchemaFormValues } from "../../shared/schema/values";
 import { SchemaField } from "../../shared/ui/SchemaForm/SchemaField";
-import type { ContextOption, Language, TaskInfo } from "../../types";
+import type { ContextOption, Language, TaskDefinition } from "../../types";
 
 export function SubmitPage({
   language,
@@ -41,7 +41,7 @@ export function SubmitPage({
   onConnection: (online: boolean) => void;
 }) {
   const text = t(language);
-  const [tasks, setTasks] = useState<TaskInfo[]>([]);
+  const [tasks, setTasks] = useState<TaskDefinition[]>([]);
   const [selectedName, setSelectedName] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -51,14 +51,14 @@ export function SubmitPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<
-    Set<TaskInfo["source"]>
+    Set<TaskDefinition["source"]>
   >(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const result = await listInstalledTaskInfos(remoteIp);
+      const result = await listInstalledTaskDefinitions(remoteIp);
       setTasks(result);
       setSelectedName((current) =>
         result.some((task) => task.name === current) ? current : "",
@@ -116,7 +116,7 @@ export function SubmitPage({
 
   useEffect(() => {
     if (!selected) return;
-    setValues(initialSchemaValues(selected.config_schema));
+    setValues(initialSchemaValues(selected.input_schema));
     setFieldErrors({});
     setSubmitted(false);
   }, [selectedName, selected]);
@@ -126,7 +126,7 @@ export function SubmitPage({
     setSubmitted(false);
     onSelected?.(name);
   };
-  const toggleGroup = (source: TaskInfo["source"]) =>
+  const toggleGroup = (source: TaskDefinition["source"]) =>
     setCollapsedGroups((current) => {
       const next = new Set(current);
       if (next.has(source)) next.delete(source);
@@ -137,7 +137,7 @@ export function SubmitPage({
     event.preventDefault();
     if (!selected) return;
     const { data: parsed, errors } = parseSchemaValues(
-      selected.config_schema,
+      selected.input_schema,
       values,
       {
         required: text.required,
@@ -295,21 +295,21 @@ export function SubmitPage({
                   </div>
                   <small>
                     {
-                      Object.keys(selected.config_schema.properties || {})
+                      Object.keys(selected.input_schema.properties || {})
                         .length
                     }{" "}
                     fields
                   </small>
                 </div>
                 <div className="dynamic-form">
-                  {Object.entries(selected.config_schema.properties || {}).map(
+                  {Object.entries(selected.input_schema.properties || {}).map(
                     ([name, schema]) => (
                       <SchemaField
                         key={name}
                         name={name}
                         schema={schema}
                         required={(
-                          selected.config_schema.required || []
+                          selected.input_schema.required || []
                         ).includes(name)}
                         value={values[name] ?? ""}
                         error={fieldErrors[name]}
@@ -325,14 +325,14 @@ export function SubmitPage({
                   )}
                 </div>
               </section>
-              {!!selected.output_keys.length && (
+              {!!Object.keys(selected.output_schema.properties || {}).length && (
                 <div className="output-preview">
                   <span>
                     <Braces />
                     {text.output}
                   </span>
                   <div>
-                    {selected.output_keys.map((key) => (
+                    {Object.keys(selected.output_schema.properties || {}).map((key) => (
                       <code key={key}>{key}</code>
                     ))}
                   </div>
@@ -387,7 +387,7 @@ function CatalogTask({
   active,
   onChoose,
 }: {
-  task: TaskInfo;
+  task: TaskDefinition;
   typeLabel: string;
   active: boolean;
   onChoose: (name: string) => void;

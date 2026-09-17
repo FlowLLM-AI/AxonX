@@ -12,6 +12,7 @@ from .components.service import HttpService
 from .config import resolve_app_config
 from .constants import (
     AXONX_TASK_LOG_DIR,
+    AXONX_TASK_TIMEZONE,
     AXONX_TASK_WORKSPACE_DIR,
     CLI_LOCAL_COMMANDS,
     CLI_RAW_ARGUMENTS,
@@ -57,12 +58,14 @@ def _run_exec(command: Command) -> int:
     load_env(override=False)
     workspace_dir = os.environ.get(AXONX_TASK_WORKSPACE_DIR)
     log_dir = os.environ.get(AXONX_TASK_LOG_DIR)
-    if workspace_dir is None or log_dir is None:
+    timezone = os.environ.get(AXONX_TASK_TIMEZONE)
+    if workspace_dir is None or log_dir is None or timezone is None:
         app_config = ApplicationConfig.model_validate(resolve_app_config(log_config=False))
         workspace_dir = workspace_dir or app_config.workspace_dir
         log_dir = log_dir or app_config.log_dir
+        timezone = timezone or app_config.timezone
     get_logger(log_dir=log_dir, force_init=True)
-    result = TaskCommandExecutor(workspace_dir).execute(command)
+    result = TaskCommandExecutor(workspace_dir, timezone=timezone).execute(command)
     if isinstance(result, TaskCatalog):
         for name, task_class in sorted(result.tasks.items()):
             print(f"{name}\t{task_class.__module__}.{task_class.__name__}")

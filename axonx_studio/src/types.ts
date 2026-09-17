@@ -16,7 +16,7 @@ export type PageId =
   | "etl"
   | "files"
   | "factors"
-  | "training"
+  | "train"
   | "models"
   | "inference"
   | "predict"
@@ -39,7 +39,7 @@ export type {
   MemoryInfo,
 } from "./features/machines/types";
 export type {
-  TaskInfo,
+  TaskDefinition,
   TaskLogChunk,
   TaskState,
   TaskStatus,

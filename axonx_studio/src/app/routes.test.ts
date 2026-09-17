@@ -39,8 +39,8 @@ describe("application routes", () => {
       view: "files",
       resource: "tushare",
     });
-    expect(defaultRoute("training")).toEqual({
-      section: "training",
+    expect(defaultRoute("train")).toEqual({
+      section: "train",
       view: "runs",
       resource: undefined,
     });

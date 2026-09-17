@@ -78,6 +78,21 @@ def test_workspace_metadata_filter_skips_incomplete_task_directories(tmp_path, c
     assert str(incomplete) in caplog.text
 
 
+async def test_missing_workspace_directory_logs_warning_without_traceback(tmp_path, capsys):
+    app = await _workspace_app(tmp_path)
+    try:
+        response = await app.run_job("list_workspace_entries", path="missing")
+    finally:
+        await app.close()
+
+    log_output = capsys.readouterr().err
+    assert response.success is False
+    assert response.answer == "ValueError: Workspace directory does not exist"
+    assert "WARNING" in log_output
+    assert "Job failed: ValueError: Workspace directory does not exist" in log_output
+    assert "Traceback" not in log_output
+
+
 async def test_workspace_lists_directories_first_and_previews_supported_files(tmp_path):
     (tmp_path / "nested").mkdir()
     (tmp_path / "notes.txt").write_text("hello workspace", encoding="utf-8")

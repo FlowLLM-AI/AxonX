@@ -3,7 +3,7 @@
 from .cancel import CancelTaskStep
 from .delete import DeleteTasksStep
 from .get_status import GetTaskStatusStep
-from .list_installed import ListInstalledTaskInfosStep
+from .list_installed import ListInstalledTaskDefinitionsStep
 from .list_runtime_ids import ListRuntimeTaskIdsStep
 from .list_runtime_statuses import ListRuntimeTaskStatusesStep
 from .read_log import ReadTaskLogStep
@@ -14,7 +14,7 @@ __all__ = [
     "CancelTaskStep",
     "DeleteTasksStep",
     "GetTaskStatusStep",
-    "ListInstalledTaskInfosStep",
+    "ListInstalledTaskDefinitionsStep",
     "ListRuntimeTaskIdsStep",
     "ListRuntimeTaskStatusesStep",
     "ReadTaskLogStep",

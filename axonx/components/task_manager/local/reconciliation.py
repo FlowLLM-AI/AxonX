@@ -25,6 +25,8 @@ class TaskStateReconciler:
 
     def __init__(self) -> None:
         self._pending_exits: dict[int, tuple[int, str, datetime]] = {}
+        self._retired_executions: dict[str, set[str]] = {}
+        self._retired_pids: dict[str, set[int]] = {}
         self._deleted_task_ids: set[str] = set()
 
     @staticmethod
@@ -44,16 +46,38 @@ class TaskStateReconciler:
         incoming: TaskStatus,
     ) -> TaskStatus | None:
         """Return the accepted snapshot, or ``None`` when a late report loses."""
-        if task_id in self._deleted_task_ids:
-            return None
-        if current is not None and current.state.is_terminal:
-            if current.state == TaskState.CANCELLED or not incoming.state.is_terminal:
+        if incoming.execution_id is not None:
+            if incoming.execution_id in self._retired_executions.get(task_id, ()):
                 return None
+        elif incoming.pid is not None and incoming.pid in self._retired_pids.get(task_id, ()):
+            return None
+        if task_id in self._deleted_task_ids:
+            if incoming.execution_id is None and incoming.pid is None:
+                return None
+            self._deleted_task_ids.remove(task_id)
+        if current is not None:
+            if current.execution_id is not None and incoming.execution_id is None:
+                return None
+            if current.execution_id is not None or incoming.execution_id is not None:
+                same_execution = incoming.execution_id is not None and current.execution_id == incoming.execution_id
+            else:
+                same_execution = current.pid == incoming.pid
+            if not same_execution:
+                if not current.state.is_terminal or (incoming.execution_id is None and incoming.pid is None):
+                    return None
+                if current.execution_id is not None:
+                    self._retired_executions.setdefault(task_id, set()).add(current.execution_id)
+                elif current.pid is not None:
+                    self._retired_pids.setdefault(task_id, set()).add(current.pid)
+            elif current.state.is_terminal:
+                if current.state == TaskState.CANCELLED or not incoming.state.is_terminal:
+                    return None
 
         snapshot = incoming.model_copy(deep=True)
         if snapshot.pid is not None and not snapshot.state.is_terminal:
             pending = self._pending_exits.pop(snapshot.pid, None)
-            if pending is not None:
+            created_at = snapshot.created_at or snapshot.started_at
+            if pending is not None and (created_at is None or created_at <= pending[2]):
                 snapshot.exit_code, snapshot.error, snapshot.finished_at = pending
                 snapshot.state = TaskState.FAILED
         return snapshot
@@ -87,9 +111,13 @@ class TaskStateReconciler:
             if status.pid in pids and not status.state.is_terminal:
                 TaskStateReconciler.cancel(status)
 
-    def mark_deleted(self, task_id: str) -> None:
+    def mark_deleted(self, status: TaskStatus) -> None:
         """Prevent a delayed worker report from recreating a deleted status."""
-        self._deleted_task_ids.add(task_id)
+        self._deleted_task_ids.add(status.task_id)
+        if status.execution_id is not None:
+            self._retired_executions.setdefault(status.task_id, set()).add(status.execution_id)
+        elif status.pid is not None:
+            self._retired_pids.setdefault(status.task_id, set()).add(status.pid)
 
     @staticmethod
     def _exit_failure(return_code: int, stderr_tail: str) -> tuple[int, str]:

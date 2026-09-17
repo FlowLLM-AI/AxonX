@@ -10,34 +10,33 @@ import numpy as np
 import polars as pl
 from pydantic import field_validator, model_validator
 
-from ...components.registry import R
-from ...enums import TaskType
-from ..base import BaseConfig, BaseTask, TaskStep
-from .internal.artifacts import (
-    artifact_path,
-    artifact_record,
-    atomic_output,
-    file_sha256,
-    metadata_header,
-    normalize_yyyymmdd,
-    read_metadata,
-    task_directory,
-    write_metadata,
+from axonx.enums import TaskType
+from axonx.task.base import TaskStep, task_type_from_id
+from axonx.task.core import (
+    BasePredictInputParams,
+    BasePredictOutputParams,
+    BasePredictTask,
 )
+
 from .internal.modeling import feature_matrix
 
 
-class LgbmPredictionConfig(BaseConfig):
+class LgbmPredictOutputParams(BasePredictOutputParams):
+    protocol: dict
+    model_target: str
+    index_weight_columns: list[str]
+
+
+class LgbmPredictInputParams(BasePredictInputParams):
     """Configure an out-of-sample prediction interval for a training task."""
 
-    training_task_id: str
     pred_start: str = "20230101"
     pred_end: str | None = None
 
     @field_validator("pred_start", "pred_end", mode="before")
     @classmethod
     def normalize_date(cls, value: object) -> str | None:
-        return normalize_yyyymmdd(value, optional=True)
+        return BasePredictTask.normalize_yyyymmdd(value, optional=True)
 
     @model_validator(mode="after")
     def validate_period(self) -> Self:
@@ -46,64 +45,61 @@ class LgbmPredictionConfig(BaseConfig):
         return self
 
 
-@R.register("alpha158_lgbm_predict")
-class LgbmPredictionTask(BaseTask):
+class LgbmPredictTask(BasePredictTask):
     """Predict every stock in the requested post-training period without label-tail or tradeability filtering."""
 
-    config_cls = LgbmPredictionConfig
-    config: LgbmPredictionConfig
-    task_type = TaskType.PREDICT
-    output_keys = ("predictions_file", "metadata_file", "rows")
+    input_cls = LgbmPredictInputParams
+    output_cls = LgbmPredictOutputParams
+    input_params: LgbmPredictInputParams
 
     def build_task_steps(self) -> Iterable[TaskStep]:
-        yield self.resolve_training_task
+        yield self.resolve_train_task
         yield self.resolve_source_dataset
         yield self.load_and_validate_prediction_data
         yield self.load_model
         yield self.predict_full_cross_section
         yield self.write_outputs
-        yield self.write_metadata
-        yield self.publish_output
 
-    def resolve_training_task(self) -> None:
-        training_dir = task_directory(self.workspace_path, "training", self.config.training_task_id)
-        training_metadata_path = training_dir / "metadata.json"
-        training_metadata = read_metadata(training_metadata_path, description="LightGBM training")
-        model_path = artifact_path(training_dir, training_metadata, "model")
-        train_end = training_metadata.get("protocol", {}).get("train_end_exclusive")
+    def resolve_train_task(self) -> None:
+        train_task_id = self.input_params.source_task(TaskType.TRAIN)
+        train_dir = self.artifact_store.task_directory("train", train_task_id)
+        train_metadata_path = train_dir / "metadata.json"
+        train_metadata = self.artifact_store.read_metadata(train_metadata_path, description="LightGBM training")
+        model_path = self.artifact_store.artifact_path(train_dir, train_metadata, "model")
+        train_end = train_metadata.get("output_params", {}).get("protocol", {}).get("train_end_exclusive")
         if not isinstance(train_end, str):
             raise TypeError("训练 metadata 缺少 protocol.train_end_exclusive")
-        if self.config.pred_start < train_end:
+        if self.input_params.pred_start < train_end:
             raise ValueError(
-                f"pred_start 不能早于 train_end: {self.config.pred_start} < {train_end}",
+                f"pred_start 不能早于 train_end: {self.input_params.pred_start} < {train_end}",
             )
-        expected_hash = training_metadata.get("artifact_integrity", {}).get("model", {}).get("sha256")
-        if expected_hash and file_sha256(model_path) != expected_hash:
+        expected_hash = train_metadata.get("output_params", {}).get("artifacts", {}).get("model", {}).get("sha256")
+        if expected_hash and self.artifact_store.file_sha256(model_path) != expected_hash:
             raise ValueError(f"模型文件 SHA256 与训练 metadata 不一致: {model_path}")
-        output_dir = self.workspace_path / "predict" / self.task_id
+        output_dir = self.task_dir
         self.context.update(
-            training_dir=training_dir,
-            training_metadata_path=training_metadata_path,
-            training_metadata=training_metadata,
+            train_dir=train_dir,
+            train_metadata_path=train_metadata_path,
+            train_metadata=train_metadata,
             model_path=model_path,
             train_end=train_end,
-            output_dir=output_dir,
             predictions_path=output_dir / "predictions.parquet",
-            metadata_path=output_dir / "metadata.json",
         )
         self.logger.info(
-            f"Prediction training source resolved training_task_id={self.config.training_task_id} "
+            f"Prediction training source resolved train_task_id={train_task_id} "
             f"model={model_path} train_end={train_end}",
         )
 
     def resolve_source_dataset(self) -> None:
-        etl_task_id = self.context["training_metadata"].get("source", {}).get("etl_task_id")
-        if not isinstance(etl_task_id, str):
-            raise TypeError("训练 metadata 缺少 source.etl_task_id")
-        etl_dir = task_directory(self.workspace_path, "etl", etl_task_id)
+        sources = self.context["train_metadata"].get("input_params", {}).get("source_tasks", [])
+        etl_sources = [task_id for task_id in sources if task_type_from_id(task_id) == TaskType.ETL]
+        if len(etl_sources) != 1:
+            raise ValueError("训练 metadata 必须包含一个 ETL 上游任务")
+        etl_task_id = etl_sources[0]
+        etl_dir = self.artifact_store.task_directory("etl", etl_task_id)
         etl_metadata_path = etl_dir / "metadata.json"
-        etl_metadata = read_metadata(etl_metadata_path, description="Alpha158 ETL")
-        dataset_path = artifact_path(etl_dir, etl_metadata, "dataset")
+        etl_metadata = self.artifact_store.read_metadata(etl_metadata_path, description="Alpha158 ETL")
+        dataset_path = self.artifact_store.artifact_path(etl_dir, etl_metadata, "dataset")
         self.context.update(
             etl_task_id=etl_task_id,
             etl_dir=etl_dir,
@@ -117,7 +113,7 @@ class LgbmPredictionTask(BaseTask):
         path: Path = self.context["dataset_path"]
         if not path.is_file():
             raise FileNotFoundError(f"Alpha158 数据不存在: {path}")
-        features = tuple(self.context["training_metadata"].get("feature_columns", ()))
+        features = tuple(self.context["train_metadata"].get("output_params", {}).get("feature_columns", ()))
         if not features:
             raise ValueError("训练 metadata 缺少 feature_columns")
         schema = pl.read_parquet_schema(path)
@@ -136,14 +132,14 @@ class LgbmPredictionTask(BaseTask):
             raise ValueError(f"预测数据缺少字段: {', '.join(missing[:20])}")
         latest = pl.scan_parquet(path).select(pl.col("trade_date").max()).collect().item()
         self.report_progress(25)
-        pred_end = self.config.pred_end or latest
+        pred_end = self.input_params.pred_end or latest
         if pred_end > latest:
             self.logger.warning(f"pred_end={pred_end} 晚于 ETL 最新日期 {latest}; 将截断到最新日期")
             pred_end = latest
         frame = (
             pl.scan_parquet(path)
             .filter(
-                (pl.col("trade_date") >= pl.lit(self.config.pred_start)) & (pl.col("trade_date") <= pl.lit(pred_end)),
+                (pl.col("trade_date") >= pl.lit(self.input_params.pred_start)) & (pl.col("trade_date") <= pl.lit(pred_end)),
             )
             .select(*required, *index_columns)
             .collect()
@@ -152,7 +148,7 @@ class LgbmPredictionTask(BaseTask):
         self.report_progress(80)
         if frame.is_empty():
             raise ValueError(
-                f"预测日期范围内没有数据: {self.config.pred_start}..{pred_end}",
+                f"预测日期范围内没有数据: {self.input_params.pred_start}..{pred_end}",
             )
         if frame.select("trade_date", "ts_code").n_unique() != frame.height:
             raise ValueError("预测数据包含重复的 trade_date, ts_code")
@@ -182,7 +178,7 @@ class LgbmPredictionTask(BaseTask):
         frame: pl.DataFrame = self.context["frame"]
         matrix = feature_matrix(frame, self.context["features"])
         self.report_progress(30)
-        best_iteration = self.context["training_metadata"]["model"]["best_iteration"]
+        best_iteration = self.context["train_metadata"]["output_params"]["model"]["best_iteration"]
         prediction = np.asarray(
             self.context["model"].predict(matrix, num_iteration=best_iteration),
             dtype=float,
@@ -207,10 +203,10 @@ class LgbmPredictionTask(BaseTask):
         )
 
     def write_outputs(self) -> None:
-        output_dir: Path = self.context["output_dir"]
+        output_dir: Path = self.task_dir
         output_dir.mkdir(parents=True, exist_ok=True)
         path: Path = self.context["predictions_path"]
-        atomic_output(
+        self.artifact_store.atomic_output(
             path,
             lambda temporary: self.context["predictions"].write_parquet(temporary, compression="zstd"),
         )
@@ -219,50 +215,32 @@ class LgbmPredictionTask(BaseTask):
             f"Predictions written path={path} rows={self.context['predictions'].height} bytes={path.stat().st_size}",
         )
 
-    def write_metadata(self) -> None:
-        output_dir: Path = self.context["output_dir"]
+    def build_output_params(self) -> LgbmPredictOutputParams:
+        output_dir: Path = self.task_dir
         predictions: pl.DataFrame = self.context["predictions"]
-        prediction_record = artifact_record(self.context["predictions_path"], output_dir)
-        self.report_progress(75)
-        metadata = {
-            **metadata_header(
-                task_name="alpha158_lgbm_predict",
-                task_id=self.task_id,
-                task_type=self.task_type.value,
-            ),
-            "config": self.config.model_dump(mode="json", exclude={"task_id", "task_type"}),
-            "source": {
-                "training_task_id": self.config.training_task_id,
-                "training_metadata": str(self.context["training_metadata_path"]),
-                "etl_task_id": self.context["etl_task_id"],
-            },
-            "protocol": {
+        prediction_record = self.artifact_store.artifact_record(self.context["predictions_path"], output_dir)
+        model_target = self.context["train_metadata"]["output_params"]["protocol"]["label_column"]
+        return self.output_cls(
+            protocol={
                 "train_end_exclusive": self.context["train_end"],
-                "pred_start_inclusive": self.config.pred_start,
+                "pred_start_inclusive": self.input_params.pred_start,
                 "pred_end_inclusive": self.context["actual_pred_end"],
                 "cross_section_filter": "none",
                 "execution_filter": "deferred to backtest via is_buyable",
                 "actual_return_column": "label_1d",
                 "actual_return_unit": "decimal",
             },
-            "rows": predictions.height,
-            "date_range": {
+            rows=predictions.height,
+            date_range={
                 "start": predictions["trade_date"].min(),
                 "end": predictions["trade_date"].max(),
             },
-            "model_target": self.context["training_metadata"]["protocol"]["label_column"],
-            "index_weight_columns": list(self.context["index_columns"]),
-            "artifacts": {"predictions": "predictions.parquet"},
-            "artifact_integrity": {
+            feature_columns=list(self.context["train_metadata"]["output_params"]["feature_columns"]),
+            target_columns=[model_target],
+            model_target=model_target,
+            index_weight_columns=list(self.context["index_columns"]),
+            artifacts={
                 "predictions": prediction_record,
             },
-        }
-        write_metadata(self.context["metadata_path"], metadata)
-        self.report_progress(95)
-
-    def publish_output(self) -> None:
-        self.context.update(
             predictions_file=str(self.context["predictions_path"]),
-            metadata_file=str(self.context["metadata_path"]),
-            rows=self.context["predictions"].height,
         )

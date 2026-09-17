@@ -35,6 +35,7 @@ class TaskRunner:
             manager.start()
             for step in task.build_task_steps():
                 self._run_step(step, manager, task.logger)
+            task.prepare_output()
             output = task.output
             exit_code = task.exit_code(output)
             manager.succeed(output, exit_code)

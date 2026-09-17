@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..constants import AXONX_NAME
+from ..constants import AXONX_DEFAULT_TIMEZONE, AXONX_NAME
 
 
 class ComponentConfig(BaseModel):
@@ -65,7 +65,7 @@ class ApplicationConfig(BaseModel):
     app_name: str = AXONX_NAME
     workspace_dir: str = ".axonx"
     log_dir: str = "logs"
-    timezone: str = "Asia/Shanghai"
+    timezone: str = AXONX_DEFAULT_TIMEZONE
     enable_logo: bool = True
     log_to_console: bool = True
     log_to_file: bool = True

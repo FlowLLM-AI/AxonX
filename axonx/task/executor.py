@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..constants import CLI_RAW_ARGUMENTS
+from ..constants import AXONX_DEFAULT_TIMEZONE, CLI_RAW_ARGUMENTS
 from ..schema import Command, TaskStatus
 from .base import BaseTask
 from .arguments import split_task_arguments
@@ -40,8 +40,9 @@ class TaskExecution:
 class TaskCommandExecutor:
     """Turn one validated ``exec`` Command into a Task result."""
 
-    def __init__(self, workspace_dir: str | Path) -> None:
+    def __init__(self, workspace_dir: str | Path, timezone: str = AXONX_DEFAULT_TIMEZONE) -> None:
         self.workspace_path = Path(workspace_dir).expanduser().resolve()
+        self.timezone = timezone
 
     def execute(self, command: Command) -> TaskCatalog | TaskExecution:
         """Execute or enumerate tasks for one validated command."""
@@ -53,7 +54,7 @@ class TaskCommandExecutor:
             return TaskCatalog(installed_tasks())
 
         name, config = split_task_arguments(arguments)
-        task = resolve_task(name)(config, workspace_path=self.workspace_path)
+        task = resolve_task(name)(config, workspace_path=self.workspace_path, reg_name=name, timezone=self.timezone)
         task.status.task_name = name
         with create_task_status_reporter(task.logger) as reporter:
             status = TaskRunner(reporter.publish).run(task)
