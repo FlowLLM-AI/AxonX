@@ -24,7 +24,7 @@ async def _workspace_app(path):
                     "properties": {
                         "path": {"type": "string"},
                         "offset": {"type": "integer", "minimum": 0},
-                        "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 5000},
                         "full": {"type": "boolean", "default": False},
                     },
                     "required": ["path"],
@@ -162,6 +162,23 @@ async def test_workspace_markdown_frontmatter_json_and_csv(tmp_path):
     assert json_result.answer["data"] == {"ok": True, "value": 2}
     assert csv_result.answer["columns"] == ["name", "value"]
     assert csv_result.answer["rows"] == [["b", "2"]]
+
+
+async def test_workspace_csv_preview_accepts_bulk_limit(tmp_path):
+    (tmp_path / "table.csv").write_text(
+        "value\n" + "".join(f"{index}\n" for index in range(450)),
+        encoding="utf-8",
+    )
+    app = await _workspace_app(tmp_path)
+    try:
+        result = await app.run_job("preview_workspace_file", path="table.csv", limit=5000)
+    finally:
+        await app.close()
+
+    assert result.answer["limit"] == 5000
+    assert len(result.answer["rows"]) == 450
+    assert result.answer["rows"][-1] == ["449"]
+    assert result.answer["has_more"] is False
 
 
 async def test_workspace_previews_yaml_and_reports_invalid_yaml(tmp_path):

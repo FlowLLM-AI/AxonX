@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  Columns3,
   LoaderCircle,
   LockKeyhole,
   RotateCcw,
@@ -19,7 +18,8 @@ import type {
   SummaryRow,
 } from "./types";
 
-const number = (value: unknown) => Number(value);
+const number = (value: unknown) =>
+  value == null || value === "" ? NaN : Number(value);
 const fixed = (value: unknown, digits = 2) =>
   Number.isFinite(number(value)) ? number(value).toFixed(digits) : "—";
 const percent = (value: unknown) =>
@@ -557,68 +557,123 @@ function HoldingsPanel({
   );
 }
 
-const performanceColumns = [
-  ["net_cumulative_return", "净累计收益", percent],
-  ["net_annualized_return", "净年化收益", percent],
-  ["net_annualized_volatility", "年化波动率", percent],
-  ["net_max_drawdown", "最大回撤", percent],
-  ["net_win_rate", "胜率", percent],
-  ["average_turnover", "平均换手率", percent],
-  ["gross_cumulative_return", "毛累计收益", percent],
-  ["gross_sharpe", "Sharpe", fixed],
-] as const;
+type SummaryMetric = {
+  key: string;
+  label: string;
+  english: string;
+  format: (value: unknown) => string;
+  percent: boolean;
+};
 
-function ColumnPicker({
-  columns,
-  visible,
-  onChange,
-  zh,
-}: {
-  columns: { key: string; label: string }[];
-  visible: string[];
-  onChange: (keys: string[]) => void;
-  zh: boolean;
-}) {
-  return (
-    <details className="summary-column-picker">
-      <summary>
-        <Columns3 size={15} aria-hidden="true" />
-        {zh ? "选择列" : "Columns"}
-        <span>
-          {visible.length}/{columns.length}
-        </span>
-      </summary>
-      <div className="summary-column-menu">
-        <div className="summary-column-menu-actions">
-          <strong>{zh ? "显示指标" : "Visible metrics"}</strong>
-          <button
-            type="button"
-            onClick={() => onChange(columns.map(({ key }) => key))}
-          >
-            {zh ? "显示全部" : "Show all"}
-          </button>
-        </div>
-        {columns.map(({ key, label }) => (
-          <label key={key}>
-            <input
-              type="checkbox"
-              checked={visible.includes(key)}
-              disabled={visible.length === 1 && visible.includes(key)}
-              onChange={() =>
-                onChange(
-                  visible.includes(key)
-                    ? visible.filter((item) => item !== key)
-                    : [...visible, key],
-                )
-              }
-            />
-            {label}
-          </label>
-        ))}
-      </div>
-    </details>
-  );
-}
+const performanceMetrics: SummaryMetric[] = [
+  {
+    key: "net_cumulative_return",
+    label: "净累计收益",
+    english: "Net cumulative return",
+    format: percent,
+    percent: true,
+  },
+  {
+    key: "net_annualized_return",
+    label: "净年化收益",
+    english: "Net annualized return",
+    format: percent,
+    percent: true,
+  },
+  {
+    key: "net_annualized_volatility",
+    label: "年化波动率",
+    english: "Annualized volatility",
+    format: percent,
+    percent: true,
+  },
+  {
+    key: "net_max_drawdown",
+    label: "最大回撤",
+    english: "Max drawdown",
+    format: percent,
+    percent: true,
+  },
+  {
+    key: "net_win_rate",
+    label: "胜率",
+    english: "Win rate",
+    format: percent,
+    percent: true,
+  },
+  {
+    key: "average_turnover",
+    label: "平均换手率",
+    english: "Average turnover",
+    format: percent,
+    percent: true,
+  },
+  {
+    key: "gross_cumulative_return",
+    label: "毛累计收益",
+    english: "Gross cumulative return",
+    format: percent,
+    percent: true,
+  },
+  {
+    key: "gross_sharpe",
+    label: "Sharpe",
+    english: "Sharpe",
+    format: fixed,
+    percent: false,
+  },
+];
+
+const signalMetrics: SummaryMetric[] = [
+  {
+    key: "trading_days",
+    label: "交易日数",
+    english: "Trading days",
+    format: (value) => fixed(value, 0),
+    percent: false,
+  },
+  {
+    key: "ic_mean",
+    label: "IC 均值",
+    english: "IC mean",
+    format: (value) => fixed(value, 4),
+    percent: false,
+  },
+  {
+    key: "icir",
+    label: "ICIR",
+    english: "ICIR",
+    format: fixed,
+    percent: false,
+  },
+  {
+    key: "rank_ic_mean",
+    label: "RankIC 均值",
+    english: "RankIC mean",
+    format: (value) => fixed(value, 4),
+    percent: false,
+  },
+  {
+    key: "rank_icir",
+    label: "RankICIR",
+    english: "RankICIR",
+    format: fixed,
+    percent: false,
+  },
+];
+
+const metricName = (metric: SummaryMetric, zh: boolean) =>
+  zh ? metric.label : metric.english;
+const metricValue = (row: SummaryRow, topN: number, key: string) =>
+  row[`top${topN}_${key}`];
+const valueTone = (value: unknown) =>
+  value == null || !Number.isFinite(Number(value))
+    ? ""
+    : Number(value) < 0
+      ? "negative"
+      : Number(value) > 0
+        ? "positive"
+        : "";
 
 function SummaryView({
   rows,
@@ -631,177 +686,273 @@ function SummaryView({
   benchmarks: BenchmarkDefinition[];
   zh: boolean;
 }) {
-  const [chartTopN, setChartTopN] = useState(
-    topNs.includes(30) ? 30 : topNs[0],
-  );
+  const [topN, setTopN] = useState(topNs.includes(30) ? 30 : topNs[0]);
+  const [leftKey, setLeftKey] = useState("net_cumulative_return");
+  const [rightKey, setRightKey] = useState("net_max_drawdown");
   const overall = rows[0]?.period_type === "overall";
-  const chartRows: ChartRow[] = overall
-    ? [
-        [zh ? "净累乘收益" : "Net cumulative", "net_cumulative_return"],
-        [zh ? "净收益年化" : "Net annualized", "net_annualized_return"],
-        [zh ? "毛累加收益" : "Gross cumulative", "gross_cumulative_return"],
-        [zh ? "最大回撤" : "Max drawdown", "net_max_drawdown"],
-      ].map(([label, key]) => ({
-        date: label,
-        value: rows[0][`top${chartTopN}_${key}`],
-      }))
-    : rows.map((row) => ({
-        date: row.period,
-        net: row[`top${chartTopN}_net_cumulative_return`],
-        gross: row[`top${chartTopN}_gross_cumulative_return`],
-        drawdown: row[`top${chartTopN}_net_max_drawdown`],
-      }));
-  const chartSeries: ChartSeries[] = overall
-    ? [
-        {
-          key: "value",
-          label: zh ? "收益 / 回撤" : "Return / drawdown",
-          type: "bar",
-        },
-      ]
-    : [
-        { key: "net", label: zh ? "净累乘收益" : "Net cumulative return" },
-        { key: "gross", label: zh ? "毛累加收益" : "Gross cumulative return" },
-        { key: "drawdown", label: zh ? "最大回撤" : "Max drawdown" },
-      ];
-  const baseColumns = [
-    {
-      key: "trading_days",
-      label: zh ? "交易日数" : "Trading days",
-      format: (value: unknown) => fixed(value, 0),
-    },
-    {
-      key: "ic_mean",
-      label: zh ? "IC均值" : "IC mean",
-      format: (value: unknown) => fixed(value, 4),
-    },
-    { key: "icir", label: "ICIR", format: (value: unknown) => fixed(value) },
+  const periods = [...rows].sort((a, b) => a.period.localeCompare(b.period));
+  const metrics: SummaryMetric[] = [
+    ...performanceMetrics,
+    ...benchmarks.map(({ key, label }) => ({
+      key: `information_ratio_${key}`,
+      label: `IR · ${label}`,
+      english: `IR · ${label}`,
+      format: fixed,
+      percent: false,
+    })),
+  ];
+  const selected = [leftKey, rightKey]
+    .filter(Boolean)
+    .map((key) => metrics.find((item) => item.key === key)!)
+    .filter(Boolean);
+  const periodName = (row: SummaryRow) =>
+    overall ? `${row.period_start}—${row.period_end}` : row.period;
+  const signalSeries: ChartSeries[] = [
     {
       key: "rank_ic_mean",
-      label: zh ? "RankIC均值" : "RankIC mean",
-      format: (value: unknown) => fixed(value, 4),
+      label: "RankIC",
+      type: "bar",
+      axis: 0,
+      format: "precise",
     },
     {
       key: "rank_icir",
       label: "RankICIR",
-      format: (value: unknown) => fixed(value),
+      type: "bar",
+      axis: 1,
+      format: "decimal",
     },
   ];
-  const metricColumns = [
-    ...baseColumns,
-    ...topNs.flatMap((topN) => [
-      ...performanceColumns.map(([key, label, format]) => ({
-        key: "top" + topN + "_" + key,
-        label: "Top " + topN + " · " + label,
-        format,
-      })),
-      ...benchmarks.map(({ key, label }) => ({
-        key: "top" + topN + "_information_ratio_" + key,
-        label: "Top " + topN + " · IR · " + label,
-        format: fixed,
-      })),
-    ]),
-  ];
-  const [visible, setVisible] = useState<string[]>(() =>
-    metricColumns.map(({ key }) => key),
-  );
-  const visibleColumns = metricColumns.filter(({ key }) =>
-    visible.includes(key),
-  );
-  const typeLabels = {
-    overall: zh ? "总体" : "Overall",
-    year: zh ? "分年" : "Yearly",
-    quarter: zh ? "分季度" : "Quarterly",
-    month: zh ? "分月" : "Monthly",
-  };
+  const topSeries: ChartSeries[] = selected.map((metric, index) => ({
+    key: metric.key,
+    label: metricName(metric, zh),
+    type: "bar",
+    axis: index as 0 | 1,
+    format: metric.percent ? "percent" : "decimal",
+  }));
+  const topChartRows: ChartRow[] = periods.map((row) => ({
+    date: periodName(row),
+    ...Object.fromEntries(
+      selected.map(({ key }) => [key, metricValue(row, topN, key)]),
+    ),
+  }));
   if (!rows.length) return <div className="chart-empty">NO SUMMARY DATA</div>;
+  const topNControl = (
+    <label className="summary-select-label">
+      <span>Top N</span>
+      <select
+        aria-label={zh ? "选择 Top N" : "Select Top N"}
+        value={topN}
+        onChange={(event) => setTopN(Number(event.target.value))}
+      >
+        {topNs.map((n) => (
+          <option key={n} value={n}>
+            Top {n}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
   return (
     <div className="summary-view">
-      <section className="viz-card period-chart">
-        <header>
+      <section className="summary-section">
+        <div className="summary-section-heading">
+          <span className="summary-section-index">01</span>
           <div>
-            <small>
-              {overall ? "OVERALL PERFORMANCE" : "PERIOD PERFORMANCE"}
-            </small>
-            <h3>
-              {zh
-                ? `Top ${chartTopN} · 收益与回撤`
-                : `Top ${chartTopN} · Return and drawdown`}
-            </h3>
+            <small>{zh ? "与 Top N 无关" : "INDEPENDENT OF TOP N"}</small>
+            <h3>{zh ? "整体指标" : "Overall metrics"}</h3>
           </div>
-          <select
-            aria-label={zh ? "选择图表 TopN" : "Select chart TopN"}
-            value={chartTopN}
-            onChange={(event) => setChartTopN(Number(event.target.value))}
-          >
-            {topNs.map((topN) => (
-              <option key={topN} value={topN}>
-                Top {topN}
-              </option>
+        </div>
+        {overall && (
+          <div className="summary-signal-cards">
+            {signalMetrics.map(({ key, label, english, format }) => (
+              <article key={key} className="viz-card">
+                <span>{zh ? label : english}</span>
+                <strong>{format(rows[0][key])}</strong>
+              </article>
             ))}
-          </select>
-        </header>
-        <BacktestChart rows={chartRows} series={chartSeries} percent />
-      </section>
-      <section className="viz-card summary-table combined-summary-table">
-        <header>
-          <div>
-            <small>PERFORMANCE SUMMARY</small>
-            <h3>{zh ? "回测指标汇总" : "Backtest performance summary"}</h3>
           </div>
-          <div className="summary-table-actions">
-            <span>
-              {zh ? "左右滑动查看全部指标" : "Scroll sideways for more"}
-            </span>
-            <ColumnPicker
-              columns={metricColumns}
-              visible={visible}
-              onChange={setVisible}
-              zh={zh}
+        )}
+        {!overall && (
+          <section className="viz-card period-chart summary-signal-chart">
+            <header>
+              <div>
+                <small>SIGNAL QUALITY</small>
+                <h3>RankIC · RankICIR</h3>
+              </div>
+              <span className="summary-axis-hint">
+                {zh
+                  ? "左轴：RankIC　右轴：RankICIR"
+                  : "Left: RankIC · Right: RankICIR"}
+              </span>
+            </header>
+            <BacktestChart
+              rows={periods.map((row) => ({
+                date: row.period,
+                ...Object.fromEntries(
+                  signalSeries.map(({ key }) => [key, row[key]]),
+                ),
+              }))}
+              series={signalSeries}
+              zoom
             />
-          </div>
-        </header>
-        <div
-          className="mini-table"
-          role="region"
-          aria-label={
-            zh
-              ? "回测指标汇总，可横向滚动"
-              : "Backtest performance summary, horizontally scrollable"
-          }
-          tabIndex={0}
-        >
-          <table>
-            <thead>
-              <tr>
-                <th>{zh ? "类型" : "Type"}</th>
-                <th>{zh ? "时间" : "Period"}</th>
-                {visibleColumns.map(({ key, label }) => (
-                  <th key={key}>{label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.period_type + ":" + row.period}>
-                  <td>
-                    <strong>{typeLabels[row.period_type]}</strong>
-                  </td>
-                  <td>
-                    <strong>
-                      {row.period_type === "overall"
-                        ? row.period_start + "—" + row.period_end
-                        : row.period}
-                    </strong>
-                  </td>
-                  {visibleColumns.map(({ key, format }) => (
-                    <td key={key}>{format(row[key])}</td>
+          </section>
+        )}
+        <section className="viz-card summary-table summary-signal-table">
+          <header>
+            <div>
+              <small>BASE METRICS</small>
+              <h3>{zh ? "整体指标明细" : "Overall metric details"}</h3>
+            </div>
+          </header>
+          <div
+            className="mini-table"
+            role="region"
+            aria-label={zh ? "整体指标明细" : "Overall metric details"}
+            tabIndex={0}
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>{zh ? "时间" : "Period"}</th>
+                  {signalMetrics.map((metric) => (
+                    <th key={metric.key}>{metricName(metric, zh)}</th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {periods.map((row) => (
+                  <tr key={row.period}>
+                    <td>
+                      <strong>{periodName(row)}</strong>
+                    </td>
+                    {signalMetrics.map(({ key, format }) => (
+                      <td key={key}>{format(row[key])}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <section className="summary-section">
+        <div className="summary-section-heading">
+          <span className="summary-section-index">02</span>
+          <div>
+            <small>{zh ? "按持仓数量筛选" : "FILTER BY PORTFOLIO SIZE"}</small>
+            <h3>Top N {zh ? "指标" : "metrics"}</h3>
+          </div>
         </div>
+        {!overall && (
+          <section className="viz-card period-chart summary-top-chart">
+            <header>
+              <div>
+                <small>PERIOD PERFORMANCE</small>
+                <h3>
+                  {zh
+                    ? `Top ${topN} · 收益与风险`
+                    : `Top ${topN} · Return and risk`}
+                </h3>
+              </div>
+              <div className="summary-chart-controls">
+                {topNControl}
+                <label className="summary-select-label">
+                  <span>{zh ? "左轴" : "Left axis"}</span>
+                  <select
+                    aria-label={zh ? "选择左轴指标" : "Select left axis metric"}
+                    value={leftKey}
+                    onChange={(event) => setLeftKey(event.target.value)}
+                  >
+                    {metrics.map((metric) => (
+                      <option
+                        key={metric.key}
+                        value={metric.key}
+                        disabled={metric.key === rightKey}
+                      >
+                        {metricName(metric, zh)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="summary-select-label">
+                  <span>{zh ? "右轴" : "Right axis"}</span>
+                  <select
+                    aria-label={
+                      zh ? "选择右轴指标" : "Select right axis metric"
+                    }
+                    value={rightKey}
+                    onChange={(event) => setRightKey(event.target.value)}
+                  >
+                    <option value="">{zh ? "不显示" : "None"}</option>
+                    {metrics.map((metric) => (
+                      <option
+                        key={metric.key}
+                        value={metric.key}
+                        disabled={metric.key === leftKey}
+                      >
+                        {metricName(metric, zh)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </header>
+            <BacktestChart rows={topChartRows} series={topSeries} zoom />
+          </section>
+        )}
+        <section className="viz-card summary-table summary-detail-table">
+          <header>
+            <div>
+              <small>TOP N DETAIL</small>
+              <h3>
+                {zh ? `Top ${topN} · 全部指标` : `Top ${topN} · All metrics`}
+              </h3>
+            </div>
+            <div className="summary-chart-controls">
+              {overall && topNControl}
+              <span className="summary-table-hint">
+                {zh ? "左右滑动查看" : "Scroll sideways"}
+              </span>
+            </div>
+          </header>
+          <div
+            className="mini-table"
+            role="region"
+            aria-label={
+              zh ? "Top N 分期指标明细" : "Top N period metric details"
+            }
+            tabIndex={0}
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>{zh ? "时间" : "Period"}</th>
+                  {metrics.map((metric) => (
+                    <th key={metric.key}>{metricName(metric, zh)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {periods.map((row) => (
+                  <tr key={row.period}>
+                    <td>
+                      <strong>{periodName(row)}</strong>
+                    </td>
+                    {metrics.map(({ key, format }) => {
+                      const value = metricValue(row, topN, key);
+                      return (
+                        <td key={key} className={valueTone(value)}>
+                          {format(value)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </section>
     </div>
   );

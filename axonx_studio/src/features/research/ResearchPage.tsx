@@ -104,15 +104,9 @@ const fmt = (value: unknown, digits = 2) => {
 const pct = (value: unknown) =>
   Number.isFinite(Number(value)) ? `${(Number(value) * 100).toFixed(2)}%` : "—";
 async function readAllCsv(path: string, remoteIp?: string) {
-  const rows: unknown[][] = [];
-  let columns: string[] = [];
-  for (let offset = 0; offset < 5000; offset += 200) {
-    const page = await previewWorkspaceFile(path, offset, 200, remoteIp);
-    columns = page.columns || columns;
-    rows.push(...(page.rows || []));
-    if (!page.has_more) break;
-  }
-  return rows.map((row) =>
+  const page = await previewWorkspaceFile(path, 0, 5000, remoteIp);
+  const columns = page.columns || [];
+  return (page.rows || []).map((row) =>
     Object.fromEntries(
       columns.map((column, index) => [column, String(row[index] ?? "")]),
     ),
@@ -472,7 +466,7 @@ export function ResearchPage({
             </footer>
           )}
         </aside>
-        <RailResizer min={250} max={460} className="context-resizer" />
+        <RailResizer min={180} max={460} className="context-resizer" />
         <main className="research-canvas">
           {selected ? (
             <ArtifactDetail

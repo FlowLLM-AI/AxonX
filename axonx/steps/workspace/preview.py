@@ -16,6 +16,7 @@ from .paths import resolve_workspace_path as _resolve_workspace_path
 
 TEXT_PREVIEW_BYTES = 512 * 1024
 CSV_PREVIEW_ROWS = 200
+CSV_MAX_ROWS = 5000
 PARQUET_PREVIEW_ROWS = 5
 
 

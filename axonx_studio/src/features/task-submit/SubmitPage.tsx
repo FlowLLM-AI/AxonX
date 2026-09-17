@@ -241,7 +241,7 @@ export function SubmitPage({
             )}
           </div>
         </aside>
-        <RailResizer min={250} max={460} className="context-resizer" />
+        <RailResizer min={180} max={460} className="context-resizer" />
         <div className="form-panel">
           {loading && !selected && (
             <div className="loading-state tall">

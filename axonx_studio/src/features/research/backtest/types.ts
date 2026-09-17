@@ -54,4 +54,5 @@ export interface ChartSeries {
   dashed?: boolean;
   type?: "line" | "bar";
   axis?: 0 | 1;
+  format?: "percent" | "decimal" | "precise";
 }

@@ -221,7 +221,7 @@ jobs:
         limit:
           type: integer
           minimum: 1
-          maximum: 200
+          maximum: 5000
           default: 200
           description: Maximum number of rows to return for row-based previews such as CSV.
         full:

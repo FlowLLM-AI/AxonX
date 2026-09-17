@@ -170,7 +170,7 @@ export function ApiWorkspace({
           )}
         </nav>
       </aside>
-      <RailResizer min={240} max={440} className="context-resizer" />
+      <RailResizer min={180} max={440} className="context-resizer" />
       <main className="workspace-canvas api-canvas">
         {!selected ? (
           <div className="empty-workspace">

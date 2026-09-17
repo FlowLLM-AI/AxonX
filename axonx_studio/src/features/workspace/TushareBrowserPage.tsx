@@ -350,7 +350,7 @@ export function TushareBrowserPage({
           </header>
           <nav>{renderEntries(ROOT, 0)}</nav>
         </aside>
-        <RailResizer min={260} max={520} className="context-resizer" />
+        <RailResizer min={180} max={520} className="context-resizer" />
         <div className="workspace-preview-panel">
           {!selected ? (
             <div className="workspace-preview-empty">
