@@ -11,7 +11,6 @@ class ComponentEnum(StrEnum):
     STEP = "step"
     TASK = "task"
     TASK_MANAGER = "task_manager"
-    TASK_GRAPH = "task_graph"
     SERVICE = "service"
     CLIENT = "client"
     MACHINE = "machine"

@@ -17,6 +17,7 @@ from axonx.task.core import (
     BasePredictOutputParams,
     BasePredictTask,
 )
+from axonx.utils.fs import atomic_write, file_sha256
 
 from .internal.modeling import feature_matrix
 
@@ -61,10 +62,10 @@ class LgbmPredictTask(BasePredictTask):
 
     def resolve_train_task(self) -> None:
         train_task_id = self.input_params.source_task(TaskType.TRAIN)
-        train_dir = self.artifact_store.task_directory("train", train_task_id)
+        train_dir = self.source_task_dir(train_task_id)
         train_metadata_path = train_dir / "metadata.json"
-        train_metadata = self.artifact_store.read_metadata(train_metadata_path, description="LightGBM training")
-        model_path = self.artifact_store.artifact_path(train_dir, train_metadata, "model")
+        train_metadata = self.read_metadata(train_metadata_path)
+        model_path = self.artifact_path(train_dir, train_metadata, "model")
         train_end = train_metadata.get("output_params", {}).get("protocol", {}).get("train_end_exclusive")
         if not isinstance(train_end, str):
             raise TypeError("训练 metadata 缺少 protocol.train_end_exclusive")
@@ -73,7 +74,7 @@ class LgbmPredictTask(BasePredictTask):
                 f"pred_start 不能早于 train_end: {self.input_params.pred_start} < {train_end}",
             )
         expected_hash = train_metadata.get("output_params", {}).get("artifacts", {}).get("model", {}).get("sha256")
-        if expected_hash and self.artifact_store.file_sha256(model_path) != expected_hash:
+        if expected_hash and file_sha256(model_path) != expected_hash:
             raise ValueError(f"模型文件 SHA256 与训练 metadata 不一致: {model_path}")
         output_dir = self.task_dir
         self.context.update(
@@ -95,10 +96,10 @@ class LgbmPredictTask(BasePredictTask):
         if len(etl_sources) != 1:
             raise ValueError("训练 metadata 必须包含一个 ETL 上游任务")
         etl_task_id = etl_sources[0]
-        etl_dir = self.artifact_store.task_directory("etl", etl_task_id)
+        etl_dir = self.source_task_dir(etl_task_id)
         etl_metadata_path = etl_dir / "metadata.json"
-        etl_metadata = self.artifact_store.read_metadata(etl_metadata_path, description="Alpha158 ETL")
-        dataset_path = self.artifact_store.artifact_path(etl_dir, etl_metadata, "dataset")
+        etl_metadata = self.read_metadata(etl_metadata_path)
+        dataset_path = self.artifact_path(etl_dir, etl_metadata, "dataset")
         self.context.update(
             etl_task_id=etl_task_id,
             etl_dir=etl_dir,
@@ -202,10 +203,8 @@ class LgbmPredictTask(BasePredictTask):
         )
 
     def write_outputs(self) -> None:
-        output_dir: Path = self.task_dir
-        output_dir.mkdir(parents=True, exist_ok=True)
         path: Path = self.context["predictions_path"]
-        self.artifact_store.atomic_output(
+        atomic_write(
             path,
             lambda temporary: self.context["predictions"].write_parquet(temporary, compression="zstd"),
         )
@@ -217,7 +216,7 @@ class LgbmPredictTask(BasePredictTask):
     def build_output_params(self) -> LgbmPredictOutputParams:
         output_dir: Path = self.task_dir
         predictions: pl.DataFrame = self.context["predictions"]
-        prediction_record = self.artifact_store.artifact_record(self.context["predictions_path"], output_dir)
+        prediction_record = self.artifact_record(self.context["predictions_path"], output_dir)
         model_target = self.context["train_metadata"]["output_params"]["protocol"]["label_column"]
         scores = predictions["pred"].to_numpy()
         buyable = predictions["is_buyable"]

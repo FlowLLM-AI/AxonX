@@ -3,7 +3,7 @@ import type { TaskDefinition, TaskLogChunk, TaskStatus } from "../../types";
 
 export const listTaskStatuses = (remoteIp?: string, signal?: AbortSignal) =>
   callJob<TaskStatus[]>(
-    "list_runtime_task_statuses",
+    "list_task_statuses",
     remoteBody(remoteIp),
     signal,
   );

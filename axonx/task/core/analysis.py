@@ -4,8 +4,7 @@ from abc import ABC
 from pydantic import Field
 
 from ...enums import TaskType
-from ..base import BaseInputParams, BaseOutputParams
-from .artifact_task import BaseArtifactTask
+from ..base import BaseInputParams, BaseOutputParams, BaseTask
 
 
 class BaseAnalysisInputParams(BaseInputParams):
@@ -18,7 +17,7 @@ class BaseAnalysisOutputParams(BaseOutputParams):
     scores: dict[str, dict[str, float]] = Field(default_factory=dict)
 
 
-class BaseAnalysisTask(BaseArtifactTask, ABC):
+class BaseAnalysisTask(BaseTask, ABC):
     """Analyze a completed ETL task."""
 
     task_type = TaskType.ANALYSIS

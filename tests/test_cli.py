@@ -7,7 +7,6 @@ import inspect
 import json
 import threading
 from pathlib import Path
-from time import monotonic
 from types import SimpleNamespace
 
 import pandas as pd
@@ -16,7 +15,6 @@ from pydantic import ValidationError
 
 from axonx import BaseInputParams, BaseOutputParams, BaseTask, cli
 from axonx.components.client import HttpClient
-from axonx.constants import AXONX_SERVICE_INFO, AXONX_TASK_STATUS_MIN_INTERVAL
 from axonx.enums import TaskType
 from axonx.schema import ClientOptions, Command, Response, TaskStatus
 from axonx.task.common import DemoTask
@@ -30,10 +28,6 @@ from axonx.task.core import (
 from axonx.task.data import DownloadTushareTask, TushareDownloadInputParams
 from axonx.task.executor import TaskCommandExecutor
 from axonx.task.resolver import list_installed_task_definitions
-from axonx.task.status_reporter import (
-    HttpTaskStatusReporter,
-    create_task_status_reporter,
-)
 from axonx.utils import get_logger
 from axonx.utils.cli import parse_command
 
@@ -77,12 +71,8 @@ def test_task_status_records_the_active_process_log(tmp_path):
 
 def test_installed_task_definitions_include_only_public_config(monkeypatch):
     monkeypatch.setattr(
-        "axonx.task.resolver.installed_tasks",
-        lambda: {"sample": CliTask},
-    )
-    monkeypatch.setattr(
-        "axonx.task.resolver._plugin_task_targets",
-        lambda: ({"sample": "example:CliTask"}, {"sample": "example"}),
+        "axonx.task.resolver._task_catalog",
+        lambda: ({"sample": CliTask}, {"sample": "example"}),
     )
 
     info = list_installed_task_definitions()[0]
@@ -130,8 +120,8 @@ def test_installed_task_definitions_require_an_explicit_class_docstring(monkeypa
         __doc__ = None
 
     monkeypatch.setattr(
-        "axonx.task.resolver.installed_tasks",
-        lambda: {"undocumented": UndocumentedTask},
+        "axonx.task.resolver._task_catalog",
+        lambda: ({"undocumented": UndocumentedTask}, {}),
     )
 
     with pytest.raises(TypeError, match="must define a detailed class docstring"):
@@ -223,7 +213,10 @@ def test_tushare_download_reports_once_per_hundred_items(monkeypatch, tmp_path):
         if len(status.steps) == 4 and status.steps[3].percentage is not None
     ]
     assert market_progress == pytest.approx([100 / 201 * 100, 200 / 201 * 100, 100])
-    assert list(tmp_path.rglob("metadata.json")) == []
+    metadata = json.loads(task.metadata_path.read_text())
+    assert task.task_dir == tmp_path / "api" / task.task_id
+    assert metadata["task_type"] == "api"
+    assert metadata["output_params"] == task.output
 
 
 def test_tushare_download_groups_are_independently_selectable(tmp_path):
@@ -298,20 +291,41 @@ def test_task_id_is_generated_internally_and_read_only(tmp_path):
     assert len(task.task_id.split("#")[3]) == 10
     task.execute()
     assert not hasattr(task, "task_metadata")
-    assert list(tmp_path.rglob("metadata.json")) == []
+    metadata = json.loads(task.metadata_path.read_text())
+    assert task.task_dir == tmp_path / "base" / task.task_id
+    assert metadata["task_type"] == "base"
+    assert metadata["output_params"] == task.output
+    assert (tmp_path / "base" / task.task_id / "status.json").is_file()
     assert "task_id" not in task.input_params.model_dump()
 
 
-def test_task_id_can_omit_time_and_defaults_to_four_random_characters():
-    named = DemoTask({"x": 1, "y": 2, "task_name": "experiment-1", "include_time": False}, workspace_path=".")
-    assert named.task_id == "base#demo#experiment-1"
-    replacement = DemoTask({"x": 3, "y": 4, "task_name": "experiment-1", "include_time": False}, workspace_path=".")
-    assert replacement.task_id == named.task_id
-    assert named.status.execution_id != replacement.status.execution_id
-    assert named.execute()["result"] == 3
-    assert replacement.execute()["result"] == 7
+def test_metadata_is_written_after_final_status(tmp_path, monkeypatch):
+    from axonx.task import base
 
-    generated = DemoTask({"x": 1, "y": 2, "include_time": False}, workspace_path=".")
+    write = base.atomic_write_json
+
+    def check_status(path, value):
+        status = TaskStatus.model_validate_json((path.parent / "status.json").read_text())
+        assert status.state == "succeeded"
+        assert status.result == value["output_params"]
+        write(path, value)
+
+    monkeypatch.setattr(base, "atomic_write_json", check_status)
+    task = DemoTask({"x": 1, "y": 2}, workspace_path=tmp_path)
+    task.execute()
+    assert task.metadata_path.is_file()
+
+
+def test_task_id_can_omit_time_and_defaults_to_four_random_characters(tmp_path):
+    named = DemoTask({"x": 1, "y": 2, "task_name": "experiment-1", "include_time": False}, workspace_path=tmp_path)
+    assert named.task_id == "base#demo#experiment-1"
+    replacement = DemoTask({"x": 3, "y": 4, "task_name": "experiment-1", "include_time": False}, workspace_path=tmp_path)
+    assert replacement.task_id == named.task_id
+    assert named.execute()["result"] == 3
+    with pytest.raises(FileExistsError):
+        replacement.execute()
+
+    generated = DemoTask({"x": 1, "y": 2, "include_time": False}, workspace_path=tmp_path)
     assert len(generated.input_params.task_name) == 4
     assert generated.task_id == f"base#demo#{generated.input_params.task_name}"
 
@@ -368,6 +382,31 @@ def test_task_status_keeps_effective_config_for_reruns(monkeypatch, tmp_path):
     assert "task_type" not in execution.status.config
 
 
+def test_runner_persists_final_snapshot_in_task_directory(tmp_path, monkeypatch):
+    from axonx.task.executor import TaskCommandExecutor
+
+    monkeypatch.setattr("axonx.task.executor.resolve_task", lambda _name: CliTask)
+    command, _ = parse_command(["exec", "--task", "sample", "--amount", "3"])
+    execution = TaskCommandExecutor(tmp_path).execute(command)
+    path = tmp_path / "analysis" / execution.status.task_id / "status.json"
+
+    assert TaskStatus.model_validate_json(path.read_text()) == execution.status
+
+
+def test_metadata_write_failure_marks_task_failed(tmp_path, monkeypatch):
+    from axonx.task import base
+
+    def fail_write(_path, _value):
+        raise OSError("metadata write failed")
+
+    monkeypatch.setattr(base, "atomic_write_json", fail_write)
+    task = CliTask({"amount": 1}, workspace_path=tmp_path, reg_name="sample")
+    with pytest.raises(OSError, match="metadata write failed"):
+        task.execute()
+    assert TaskStatus.model_validate_json((task.task_dir / "status.json").read_text()).state == "failed"
+    assert not task.metadata_path.exists()
+
+
 @pytest.mark.parametrize(
     ("name", "extra_arguments"),
     [
@@ -378,14 +417,14 @@ def test_task_status_keeps_effective_config_for_reruns(monkeypatch, tmp_path):
         ("a158_predict", {}),
     ],
 )
-def test_artifact_tasks_receive_executor_timezone(monkeypatch, tmp_path, name, extra_arguments):
+def test_tasks_receive_executor_timezone(monkeypatch, tmp_path, name, extra_arguments):
     captured = []
 
     def stop_after_construction(_runner, task):
         captured.append(task)
         raise RuntimeError("constructed")
 
-    monkeypatch.setattr("axonx.task.executor.TaskRunner.run", stop_after_construction)
+    monkeypatch.setattr("axonx.task.runner.TaskRunner.run", stop_after_construction)
     command = Command(action="exec", arguments={"task": name, **extra_arguments})
 
     with pytest.raises(RuntimeError, match="constructed"):
@@ -451,115 +490,7 @@ def test_exec_loads_dotenv_without_overriding_injected_environment(monkeypatch, 
     assert capsys.readouterr().out == ""
 
 
-def test_progress_delivery_runs_on_a_dedicated_thread(monkeypatch):
-    caller = threading.get_ident()
-    deliveries = []
-
-    class Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_):
-            pass
-
-        async def set_status(self, status):
-            deliveries.append((threading.get_ident(), status))
-
-    monkeypatch.setattr("axonx.task.status_reporter.HttpClient", Client)
-    task = CliTask({"amount": 1}, workspace_path=".", reg_name="sample")
-    with HttpTaskStatusReporter(task.logger, min_interval=0) as reporter:
-        task.execute(emit=reporter.publish)
-
-    percentages = [status.steps[0].percentage if status.steps else None for _, status in deliveries]
-    assert percentages == [None, None, None, 50, 100, 100]
-    assert deliveries[0][1].steps == []
-    assert deliveries[-1][1].steps[0].finished_at is not None
-    assert deliveries[-1][1].state == "succeeded"
-    assert all(thread_id != caller for thread_id, _ in deliveries)
-
-
-def test_progress_delivery_coalesces_queued_updates(monkeypatch):
-    release = threading.Event()
-    deliveries = []
-
-    class Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_):
-            pass
-
-        async def set_status(self, status):
-            if not deliveries:
-                release.wait(timeout=5)
-            deliveries.append(status)
-
-    class BurstTask(CliTask):
-        def record_config(self):
-            for percentage in (10, 20, 30):
-                self.report_progress(percentage)
-            self.context.update(amount=self.input_params.amount, dry_run=self.input_params.dry_run)
-
-    monkeypatch.setattr("axonx.task.status_reporter.HttpClient", Client)
-    task = BurstTask({"amount": 1}, workspace_path=".", reg_name="burst")
-    with HttpTaskStatusReporter(task.logger, min_interval=0) as reporter:
-        task.execute(emit=reporter.publish)
-        release.set()
-
-    percentages = [
-        status.steps[-1].percentage for status in deliveries if status.steps and status.steps[-1].finished_at is None
-    ]
-    assert percentages == [None, 30]
-    assert deliveries[-1].state == "succeeded"
-
-
-def test_progress_delivery_observes_minimum_interval(monkeypatch):
-    deliveries = []
-
-    class Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_):
-            pass
-
-        async def set_status(self, status):
-            deliveries.append((monotonic(), status))
-
-    monkeypatch.setattr("axonx.task.status_reporter.HttpClient", Client)
-    task = CliTask({"amount": 1}, workspace_path=".", reg_name="sample")
-    with HttpTaskStatusReporter(task.logger, min_interval=0.05) as reporter:
-        task.execute(emit=reporter.publish)
-
-    assert len(deliveries) > 1
-    intervals = [current[0] - previous[0] for previous, current in zip(deliveries, deliveries[1:])]
-    assert min(intervals) >= 0.04
-
-
-def test_status_reporter_interval_is_configurable_from_environment(monkeypatch):
-    monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host":"localhost","port":1024}')
-    monkeypatch.setenv(AXONX_TASK_STATUS_MIN_INTERVAL, "1.25")
-
-    task = CliTask({"amount": 1}, workspace_path=".", reg_name="sample")
-    reporter = create_task_status_reporter(task.logger)
-
-    assert isinstance(reporter, HttpTaskStatusReporter)
-    assert reporter._min_interval == 1.25  # pylint: disable=protected-access
-
-
-def test_status_reporter_invalid_interval_uses_default(monkeypatch, capsys):
-    monkeypatch.setenv(AXONX_SERVICE_INFO, '{"host":"localhost","port":1024}')
-    monkeypatch.setenv(AXONX_TASK_STATUS_MIN_INTERVAL, "invalid")
-
-    task = CliTask({"amount": 1}, workspace_path=".", reg_name="sample")
-    reporter = create_task_status_reporter(task.logger)
-
-    assert isinstance(reporter, HttpTaskStatusReporter)
-    assert reporter._min_interval == 3  # pylint: disable=protected-access
-    assert "using 3 seconds" in capsys.readouterr().err
-
-
-def test_task_rejects_async_steps():
+def test_task_rejects_async_steps(tmp_path):
     class AsyncTask(CliTask):
         async def async_step(self):
             pass
@@ -567,13 +498,13 @@ def test_task_rejects_async_steps():
         def build_task_steps(self):
             yield self.async_step
 
-    task = AsyncTask({"amount": 1}, workspace_path=".", reg_name="async")
+    task = AsyncTask({"amount": 1}, workspace_path=tmp_path, reg_name="async")
     with pytest.raises(TypeError, match="must be synchronous"):
         task.execute()
     assert task.status.state == "failed"
 
 
-def test_task_steps_stay_on_the_calling_thread():
+def test_task_steps_stay_on_the_calling_thread(tmp_path):
     caller = threading.get_ident()
 
     class ThreadTask(CliTask):
@@ -588,14 +519,14 @@ def test_task_steps_stay_on_the_calling_thread():
         def build_output_params(self) -> ThreadOutputParams:
             return self.ThreadOutputParams(thread_id=self.context["thread_id"])
 
-    assert ThreadTask({"amount": 1}, workspace_path=".", reg_name="thread").execute() == {
+    assert ThreadTask({"amount": 1}, workspace_path=tmp_path, reg_name="thread").execute() == {
         "artifacts": {},
         "thread_id": caller,
     }
 
 
-def test_demo_task_exercises_dynamic_steps_and_outputs():
-    equal = DemoTask({"x": 2, "y": 2}, workspace_path=".")
+def test_demo_task_exercises_dynamic_steps_and_outputs(tmp_path):
+    equal = DemoTask({"x": 2, "y": 2}, workspace_path=tmp_path)
     assert equal.execute() == {"artifacts": {}, "result": 4, "branch": "equal", "operands": ["x", "y"]}
     assert [step.name for step in equal.status.steps] == [
         "initialize",
@@ -603,7 +534,7 @@ def test_demo_task_exercises_dynamic_steps_and_outputs():
         "finish",
     ]
 
-    different = DemoTask({"x": 2, "y": 3}, workspace_path=".")
+    different = DemoTask({"x": 2, "y": 3}, workspace_path=tmp_path)
     different.execute()
     assert [step.name for step in different.status.steps] == [
         "initialize",
@@ -616,14 +547,16 @@ def test_demo_task_exercises_dynamic_steps_and_outputs():
     assert different.status.error == ""
 
 
-def test_demo_task_exercises_failure_status():
-    task = DemoTask({"x": 1, "y": 2, "fail": True}, workspace_path=".")
+def test_demo_task_exercises_failure_status(tmp_path):
+    task = DemoTask({"x": 1, "y": 2, "fail": True}, workspace_path=tmp_path)
     with pytest.raises(RuntimeError, match="Demo failure requested"):
         task.execute()
     assert task.status.state == "failed"
     assert task.status.error == "RuntimeError: Demo failure requested"
     assert task.status.steps[-1].name == "fail"
     assert task.status.steps[-1].percentage == 50
+    assert (task.task_dir / "status.json").is_file()
+    assert not task.metadata_path.exists()
 
 
 def test_submit_forwards_the_same_task_arguments(monkeypatch, capsys):

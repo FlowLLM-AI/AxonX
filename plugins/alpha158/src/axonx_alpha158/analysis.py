@@ -16,6 +16,7 @@ from axonx.task.core import (
     BaseAnalysisOutputParams,
     BaseAnalysisTask,
 )
+from axonx.utils.fs import atomic_write
 
 from .internal.analysis import FactorMetricsCalculator
 from .internal.etl_pipeline import LABELS
@@ -53,10 +54,10 @@ class FactorAnalysisTask(BaseAnalysisTask):
 
     def resolve_upstream_task(self) -> None:
         etl_task_id = self.input_params.source_task(TaskType.ETL)
-        source_dir = self.artifact_store.task_directory("etl", etl_task_id)
+        source_dir = self.source_task_dir(etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = self.artifact_store.read_metadata(source_metadata_path, description="Alpha158 ETL")
-        dataset_path = self.artifact_store.artifact_path(source_dir, source_metadata, "dataset")
+        source_metadata = self.read_metadata(source_metadata_path)
+        dataset_path = self.artifact_path(source_dir, source_metadata, "dataset")
         output_dir = self.task_dir
         self.context.update(
             source_dir=source_dir,
@@ -155,7 +156,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
         )
         for index, (key, path_key) in enumerate(outputs, start=1):
             path: Path = self.context[path_key]
-            self.artifact_store.atomic_output(path, self.context[key].write_csv)
+            atomic_write(path, self.context[key].write_csv)
             self.report_progress(index / len(outputs) * 95)
         self.logger.info(
             f"Factor analysis outputs written result={self.context['result_path']} "
@@ -164,8 +165,8 @@ class FactorAnalysisTask(BaseAnalysisTask):
 
     def build_output_params(self) -> FactorAnalysisOutputParams:
         output_dir: Path = self.task_dir
-        result_record = self.artifact_store.artifact_record(self.context["result_path"], output_dir)
-        quantiles_record = self.artifact_store.artifact_record(self.context["quantiles_path"], output_dir)
+        result_record = self.artifact_record(self.context["result_path"], output_dir)
+        quantiles_record = self.artifact_record(self.context["quantiles_path"], output_dir)
         scores: dict[str, dict[str, float]] = {}
         for row in self.context["results"].iter_rows(named=True):
             for metric in ("ic_mean", "rankic_mean"):

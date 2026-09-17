@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from datetime import UTC, datetime
+from dataclasses import dataclass
 import os
 import signal
 import sys
 from typing import Any
 
-from .reconciliation import WorkerExit
+
+@dataclass(frozen=True)
+class WorkerExit:
+    pid: int
+    return_code: int
+    stderr_tail: str
 
 ExitHandler = Callable[[WorkerExit], Awaitable[None]]
 
@@ -51,7 +56,10 @@ class TaskProcessSupervisor:
     async def cancel(self, pid: int) -> bool:
         """Kill a live managed process and report whether a signal was sent."""
         process = self.processes.get(pid)
-        return process is not None and process.returncode is None and self._signal(pid, signal.SIGKILL)
+        if process is None or process.returncode is not None or not self._signal(pid, signal.SIGKILL):
+            return False
+        await process.wait()
+        return True
 
     async def shutdown(self) -> set[int]:
         """Terminate and reap all workers, escalating to SIGKILL after grace."""
@@ -98,23 +106,21 @@ class TaskProcessSupervisor:
             stopped_during_shutdown = process.pid in self._shutdown_pids
             self._shutdown_pids.discard(process.pid)
 
-        if return_code == 0:
-            self.logger.info(f"Task process {process.pid} ({task_name}) completed successfully")
-            return
         if stopped_during_shutdown:
             self.logger.info(f"Task process {process.pid} ({task_name}) stopped during task-manager shutdown")
             return
 
-        detail = stderr_tail.decode(errors="replace").strip() or "no stderr output"
-        self.logger.error(
-            f"Task process {process.pid} ({task_name}) exited with code {return_code}. stderr tail:\n{detail}",
-        )
-        await self.on_exit(WorkerExit(process.pid, return_code, detail, datetime.now(UTC)))
+        detail = stderr_tail.decode(errors="replace").strip()
+        if return_code:
+            self.logger.error(f"Task process {process.pid} ({task_name}) exited with code {return_code}: {detail}")
+        else:
+            self.logger.info(f"Task process {process.pid} ({task_name}) completed successfully")
+        await self.on_exit(WorkerExit(process.pid, return_code, detail))
 
     @staticmethod
     def _signal(pid: int, sig: signal.Signals) -> bool:
         try:
             os.killpg(pid, sig)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             return False
         return True

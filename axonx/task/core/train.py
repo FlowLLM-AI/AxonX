@@ -7,8 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 
 from ...enums import TaskType
-from ..base import BaseInputParams, BaseOutputParams
-from .artifact_task import BaseArtifactTask
+from ..base import BaseInputParams, BaseOutputParams, BaseTask
 
 
 class BaseTrainInputParams(BaseInputParams):
@@ -76,7 +75,7 @@ class BaseTrainOutputParams(BaseOutputParams):
     )
 
 
-class BaseTrainTask(BaseArtifactTask, ABC):
+class BaseTrainTask(BaseTask, ABC):
     """Train a model from a completed ETL task."""
 
     task_type = TaskType.TRAIN

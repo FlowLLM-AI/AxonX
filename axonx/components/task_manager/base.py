@@ -1,4 +1,4 @@
-"""Component contract for managing synchronous Task runs."""
+"""Component contract for asynchronously managing task runs."""
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from ...enums import ComponentEnum
 from ..base import BaseComponent
 from ...schema import TaskStatus
+from .types import TaskGraph, TaskGraphList, TaskLogChunk
 
 
 class BaseTaskManager(BaseComponent, ABC):
@@ -18,25 +19,33 @@ class BaseTaskManager(BaseComponent, ABC):
         """Start ``axonx exec`` with the supplied arguments."""
 
     @abstractmethod
-    async def set_status(self, task_id: str, status: TaskStatus) -> None:
-        """Store a complete status reported by a task worker."""
+    async def list_ids(self) -> list[str]:
+        """Return IDs with a status file."""
 
     @abstractmethod
-    async def list_runtime_task_ids(self) -> list[str]:
-        """Return all known runtime task identifiers."""
-
-    @abstractmethod
-    async def list_runtime_task_statuses(self) -> list[TaskStatus]:
-        """Return snapshots for all known task executions."""
+    async def list_statuses(self) -> list[TaskStatus]:
+        """Return snapshots from status files."""
 
     @abstractmethod
     async def get_status(self, task_id: str) -> TaskStatus:
-        """Return one task status."""
+        """Return one task status; raise KeyError if the ID is absent."""
 
     @abstractmethod
     async def cancel(self, task_id: str) -> bool:
-        """Return whether cancellation was successfully requested."""
+        """Stop a managed worker and persist cancellation; return whether it stopped."""
 
     @abstractmethod
     async def delete(self, task_ids: Sequence[str]) -> list[str]:
-        """Delete terminal task records and return the IDs that were deleted."""
+        """Delete terminal task directories and return their IDs."""
+
+    @abstractmethod
+    async def list_graphs(self, query: str = "", offset: int = 0, limit: int = 50) -> TaskGraphList:
+        """List task dependency graphs."""
+
+    @abstractmethod
+    async def get_graph(self, task_id: str) -> TaskGraph:
+        """Return the graph containing one task; raise KeyError if absent."""
+
+    @abstractmethod
+    async def read_log(self, task_id: str, offset: int = -1, limit: int = 65_536) -> TaskLogChunk:
+        """Read a bounded range of a task log; raise KeyError if the ID is absent."""

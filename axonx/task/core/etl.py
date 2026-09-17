@@ -5,8 +5,7 @@ from pathlib import Path
 from pydantic import Field
 
 from ...enums import TaskType
-from ..base import BaseInputParams, BaseOutputParams
-from .artifact_task import BaseArtifactTask
+from ..base import BaseInputParams, BaseOutputParams, BaseTask
 
 
 class BaseETLInputParams(BaseInputParams):
@@ -21,7 +20,7 @@ class BaseETLOutputParams(BaseOutputParams):
     label_columns: list[str] = Field(default_factory=list)
 
 
-class BaseETLTask(BaseArtifactTask, ABC):
+class BaseETLTask(BaseTask, ABC):
     """Build a dataset from a source directory."""
 
     task_type = TaskType.ETL

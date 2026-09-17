@@ -9,7 +9,7 @@ import httpx
 
 from ...constants import CLI_RAW_ARGUMENTS
 from ...plugin.verification import verify_remote_plugin
-from ...schema import JobInfo, Response, TaskStatus
+from ...schema import JobInfo, Response
 from ...task.arguments import task_name_from_argv
 from ..registry import R
 from .base import BaseClient
@@ -46,14 +46,6 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         response = await self._require_client().post(f"/jobs/{quote(name, safe='')}", json=kwargs)
         response.raise_for_status()
         return Response.model_validate_json(response.content)
-
-    async def set_status(self, status: TaskStatus) -> Response:
-        """Report one complete Task status snapshot."""
-        return await self.run_job(
-            "set_status",
-            task_id=status.task_id,
-            status=status.model_dump(mode="json"),
-        )
 
     async def list_jobs(self) -> list[JobInfo]:
         """Return the jobs exposed by the remote service."""

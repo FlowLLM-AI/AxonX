@@ -11,8 +11,8 @@ from pydantic import Field
 
 from ...components.registry import R
 from ...enums import TaskType
-from ..base import BaseInputParams, BaseOutputParams, TaskStep
-from .artifact_task import BaseArtifactTask
+from ...utils.fs import atomic_write
+from ..base import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
 
 TOP_NS = (1, 2, 3, 5, 10, 15, 20, 30)
 HOLDING_DETAIL_TOP_N = 30
@@ -364,7 +364,7 @@ class BacktestInputParams(BaseInputParams):
 
 
 @R.register("backtest")
-class BacktestTask(BaseArtifactTask):
+class BacktestTask(BaseTask):
     """Build the complete backtest report from one prediction artifact."""
 
     task_type = TaskType.BACKTEST
@@ -391,11 +391,9 @@ class BacktestTask(BaseArtifactTask):
 
     def resolve_prediction_task(self) -> None:
         prediction_task_id = self.input_params.source_task(TaskType.PREDICT)
-        source_dir = self.artifact_store.task_directory("predict", prediction_task_id)
+        source_dir = self.source_task_dir(prediction_task_id)
         metadata_path = source_dir / "metadata.json"
-        metadata = self.artifact_store.read_metadata(
-            metadata_path, description="prediction"
-        )
+        metadata = self.read_metadata(metadata_path)
         if (
             metadata.get("output_params", {})
             .get("protocol", {})
@@ -406,7 +404,7 @@ class BacktestTask(BaseArtifactTask):
         output_dir = self.task_dir
         self.context.update(
             prediction_metadata_path=metadata_path,
-            predictions_path=self.artifact_store.artifact_path(
+            predictions_path=self.artifact_path(
                 source_dir, metadata, "predictions"
             ),
             daily_path=output_dir / "daily.parquet",
@@ -540,9 +538,8 @@ class BacktestTask(BaseArtifactTask):
         self.report_progress(95)
 
     def write_outputs(self) -> None:
-        self.task_dir.mkdir(parents=True, exist_ok=True)
         for index, name in enumerate(("daily", "summary"), start=1):
-            self.artifact_store.atomic_output(
+            atomic_write(
                 self.context[f"{name}_path"],
                 lambda temporary, key=name: self.context[key].write_parquet(
                     temporary, compression="zstd"
@@ -553,7 +550,7 @@ class BacktestTask(BaseArtifactTask):
     def build_output_params(self) -> BacktestOutputParams:
         daily: pl.DataFrame = self.context["daily"]
         integrity = {
-            name: self.artifact_store.artifact_record(
+            name: self.artifact_record(
                 self.context[f"{name}_path"], self.task_dir
             )
             for name in ("daily", "summary")

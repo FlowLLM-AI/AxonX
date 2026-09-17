@@ -11,8 +11,6 @@ from ..schema import Command, TaskStatus
 from .base import BaseTask
 from .arguments import split_task_arguments
 from .resolver import installed_tasks, resolve_task
-from .runner import TaskRunner
-from .status_reporter import create_task_status_reporter
 
 
 @dataclass(frozen=True)
@@ -31,9 +29,7 @@ class TaskExecution:
 
     @property
     def exit_code(self) -> int:
-        """Return the required process exit code from the final status."""
-        if self.status.exit_code is None:
-            raise RuntimeError("Task finished without an exit code")
+        """Return the final process exit code."""
         return self.status.exit_code
 
 
@@ -55,7 +51,5 @@ class TaskCommandExecutor:
 
         name, config = split_task_arguments(arguments)
         task = resolve_task(name)(config, workspace_path=self.workspace_path, reg_name=name, timezone=self.timezone)
-        task.status.task_name = name
-        with create_task_status_reporter(task.logger) as reporter:
-            status = TaskRunner(reporter.publish).run(task)
-        return TaskExecution(task.output, status)
+        output = task.execute()
+        return TaskExecution(output, task.status)

@@ -11,7 +11,7 @@ GRAPH_JOBS = {
     "list_task_graphs": {"steps": [{"backend": "list_task_graphs_step"}]},
     "get_task_graph": {"steps": [{"backend": "get_task_graph_step"}]},
 }
-GRAPH_COMPONENTS = {"task_graph": {"default": {"backend": "local"}}}
+GRAPH_COMPONENTS = {"task_manager": {"default": {"backend": "local"}}}
 
 
 def _artifact(root, task_id, source_tasks=()):

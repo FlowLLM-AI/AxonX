@@ -13,7 +13,7 @@ from axonx_alpha158 import (
     LgbmTrainInputParams,
     LgbmTrainTask,
 )
-from axonx.task.core.artifact_store import ArtifactStore
+from axonx.task.base import BaseTask
 from axonx_alpha158.internal.modeling import feature_matrix
 
 
@@ -103,7 +103,7 @@ def test_feature_matrix_preserves_feature_order_and_missing_values():
 @pytest.mark.parametrize("artifact", ["../outside.parquet", "/tmp/outside.parquet"])
 def test_artifact_path_stays_inside_task_directory(tmp_path, artifact):
     with pytest.raises(ValueError, match="任务目录"):
-        ArtifactStore(tmp_path).artifact_path(tmp_path / "etl#alpha158_etl#fixture", {"output_params": {"artifacts": {"dataset": {"path": artifact}}}}, "dataset")
+        BaseTask.artifact_path(tmp_path / "etl#alpha158_etl#fixture", {"output_params": {"artifacts": {"dataset": {"path": artifact}}}}, "dataset")
 
 
 def test_task_id_chained_alpha158_pipeline(tmp_path):
@@ -224,6 +224,7 @@ def test_task_id_chained_alpha158_pipeline(tmp_path):
         "daily.parquet",
         "summary.parquet",
         "metadata.json",
+        "status.json",
     }
     backtest_metadata = json.loads(backtest.metadata_path.read_text())
     assert backtest_metadata["input_params"] == backtest.input_params.model_dump(mode="json")

@@ -14,6 +14,7 @@ from pydantic import Field, field_validator, model_validator
 from axonx.enums import TaskType
 from axonx.task.base import TaskStep
 from axonx.task.core import BaseTrainInputParams, BaseTrainOutputParams, BaseTrainTask
+from axonx.utils.fs import atomic_write
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix
@@ -96,10 +97,10 @@ class LgbmTrainTask(BaseTrainTask):
 
     def resolve_upstream_task(self) -> None:
         etl_task_id = self.input_params.source_task(TaskType.ETL)
-        source_dir = self.artifact_store.task_directory("etl", etl_task_id)
+        source_dir = self.source_task_dir(etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = self.artifact_store.read_metadata(source_metadata_path, description="Alpha158 ETL")
-        dataset_path = self.artifact_store.artifact_path(source_dir, source_metadata, "dataset")
+        source_metadata = self.read_metadata(source_metadata_path)
+        dataset_path = self.artifact_path(source_dir, source_metadata, "dataset")
         output_dir = self.task_dir
         self.context.update(
             source_dir=source_dir,
@@ -371,9 +372,7 @@ class LgbmTrainTask(BaseTrainTask):
         return float(array.mean()) if len(array) else math.nan
 
     def write_outputs(self) -> None:
-        output_dir: Path = self.task_dir
-        output_dir.mkdir(parents=True, exist_ok=True)
-        self.artifact_store.atomic_output(
+        atomic_write(
             self.context["model_path"],
             lambda temporary: self.context["model"].save_model(str(temporary)),
         )
@@ -381,7 +380,7 @@ class LgbmTrainTask(BaseTrainTask):
         outputs = (("importance", "importance_path"), ("history", "history_path"))
         for index, (key, path_key) in enumerate(outputs, start=1):
             path: Path = self.context[path_key]
-            self.artifact_store.atomic_output(path, self.context[key].write_csv)
+            atomic_write(path, self.context[key].write_csv)
             self.report_progress(40 + index / len(outputs) * 55)
         self.logger.info(
             f"Training artifacts written model={self.context['model_path']} "
@@ -398,7 +397,7 @@ class LgbmTrainTask(BaseTrainTask):
             ("evaluation_history", "history_path"),
         )
         for index, (name, path_key) in enumerate(artifact_paths, start=1):
-            artifacts[name] = self.artifact_store.artifact_record(self.context[path_key], output_dir)
+            artifacts[name] = self.artifact_record(self.context[path_key], output_dir)
         return self.output_cls(
             protocol={
                 "train_start_inclusive": self.input_params.train_start,

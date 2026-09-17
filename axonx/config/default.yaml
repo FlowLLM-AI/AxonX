@@ -3,10 +3,6 @@ remote_nodes:
     host_port: 1024
 
 components:
-  task_graph:
-    default:
-      backend: local
-
   plugin:
     default:
       backend: local
@@ -105,37 +101,20 @@ jobs:
     steps:
       - backend: submit_task
 
-  list_runtime_task_ids:
-    description: List all runtime Task IDs.
+  list_task_ids:
+    description: List Task IDs with a status file.
     steps:
-      - backend: list_runtime_task_ids
+      - backend: list_ids
 
-  list_runtime_task_statuses:
-    description: List complete status snapshots for all runtime Tasks.
+  list_task_statuses:
+    description: List Task status snapshots.
     steps:
-      - backend: list_runtime_task_statuses
+      - backend: list_statuses
 
   list_installed_task_definitions:
     description: List all installed Task definitions.
     steps:
       - backend: list_installed_task_definitions
-
-  set_status:
-    description: Store a complete status reported by a task process.
-    parameters:
-      type: object
-      properties:
-        task_id:
-          type: string
-          description: ID of the task the reported status belongs to.
-        status:
-          type: object
-          description: Complete TaskStatus snapshot reported by the task process.
-      required:
-        - task_id
-        - status
-    steps:
-      - backend: set_task_status
 
   status:
     description: Get one task status.
@@ -148,7 +127,7 @@ jobs:
       required:
         - task_id
     steps:
-      - backend: get_task_status
+      - backend: get_status
 
   read_task_log:
     description: Read a bounded byte range from one Task log.
@@ -172,7 +151,7 @@ jobs:
       required:
         - task_id
     steps:
-      - backend: read_task_log
+      - backend: read_log
 
   list_workspace_entries:
     description: List one directory inside the configured workspace.
@@ -192,7 +171,7 @@ jobs:
       - backend: list_workspace_entries_step
 
   list_task_graphs:
-    description: List ETL roots or search all Alpha158 task artifacts.
+    description: List dependency graphs from indexed workspace Tasks.
     parameters:
       type: object
       properties:
@@ -216,7 +195,7 @@ jobs:
       - backend: list_task_graphs_step
 
   get_task_graph:
-    description: Return the full ETL graph containing a task artifact.
+    description: Return the dependency graph containing a workspace Task.
     parameters:
       type: object
       properties:
@@ -303,16 +282,16 @@ jobs:
       required:
         - task_id
     steps:
-      - backend: cancel_task
+      - backend: cancel
 
   delete_tasks:
-    description: Delete multiple completed Task records.
+    description: Delete terminal or metadata-only Tasks and their files.
     parameters:
       type: object
       properties:
         task_ids:
           type: array
-          description: IDs of the completed tasks to delete.
+          description: IDs of terminal or metadata-only tasks to delete.
           items:
             type: string
           minItems: 1
@@ -320,4 +299,4 @@ jobs:
       required:
         - task_ids
     steps:
-      - backend: delete_tasks
+      - backend: delete

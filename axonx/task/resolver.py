@@ -1,6 +1,5 @@
 """Resolve executable Tasks from plugins and AxonX's registry."""
 
-from copy import deepcopy
 from importlib.resources import files
 from inspect import cleandoc
 
@@ -22,11 +21,16 @@ def _task_description(name: str, task_class: type[BaseTask]) -> str:
 
 
 def _plugin_task_targets() -> tuple[dict[str, str], dict[str, str]]:
-    """Return plugin Task targets and the plugin that provides each one."""
+    """Return plugin Task targets and their providers."""
     plugin_targets: dict[str, str] = {}
     plugin_names: dict[str, str] = {}
     for entry in find_all_entry_points(PLUGIN_ENTRY_POINT_GROUP):
-        package = load_entry_point(entry)
+        try:
+            package = load_entry_point(entry)
+        except ModuleNotFoundError as exc:
+            if exc.name != entry.module:
+                raise
+            continue
         manifest = parse_plugin_manifest(
             files(package).joinpath(PLUGIN_MANIFEST).read_text(encoding="utf-8"),
             entry.name,
@@ -40,29 +44,32 @@ def _plugin_task_targets() -> tuple[dict[str, str], dict[str, str]]:
     return plugin_targets, plugin_names
 
 
-def installed_tasks() -> dict[str, type[BaseTask]]:
-    """Return plugin Tasks first, falling back to built-in Tasks by name."""
+def _task_catalog() -> tuple[dict[str, type[BaseTask]], dict[str, str]]:
     tasks = R.get_all(ComponentEnum.TASK)
-    plugin_targets, _ = _plugin_task_targets()
+    plugin_targets, plugin_names = _plugin_task_targets()
     modules = {}
     tasks.update(
         {name: load_symbol(target, BaseTask, kind="Task", modules=modules) for name, target in plugin_targets.items()},
     )
     for name, task_class in tasks.items():
         _task_description(name, task_class)
-    return tasks
+    return tasks, plugin_names
+
+
+def installed_tasks() -> dict[str, type[BaseTask]]:
+    """Return built-in and installed plugin tasks."""
+    return _task_catalog()[0]
 
 
 def list_installed_task_definitions() -> list[TaskDefinition]:
     """Return sorted definitions for every installed Task."""
     definitions = []
     native_tasks = R.get_all(ComponentEnum.TASK)
-    _, plugin_names = _plugin_task_targets()
-    for name, task_class in sorted(installed_tasks().items()):
+    tasks, plugin_names = _task_catalog()
+    for name, task_class in sorted(tasks.items()):
         task_type = task_class.task_type
         if not isinstance(task_type, TaskType):
             raise TypeError(f"Task {name!r} must declare a fixed TaskType")
-        input_schema = deepcopy(task_class.input_cls.model_json_schema())
         source = "native" if native_tasks.get(name) is task_class else "plugin"
         definitions.append(
             TaskDefinition(
@@ -71,7 +78,7 @@ def list_installed_task_definitions() -> list[TaskDefinition]:
                 plugin=plugin_names.get(name) if source == "plugin" else None,
                 task_type=task_type,
                 description=_task_description(name, task_class),
-                input_schema=input_schema,
+                input_schema=task_class.input_cls.model_json_schema(),
                 output_schema=task_class.output_cls.model_json_schema(),
             ),
         )

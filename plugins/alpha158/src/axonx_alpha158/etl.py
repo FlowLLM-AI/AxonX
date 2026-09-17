@@ -429,9 +429,8 @@ class Alpha158Task(BaseETLTask):
         """Publish the dataset contract used by every downstream Alpha158 task."""
         output: pl.DataFrame = self.context["output"]
         task_dir: Path = self.task_dir
-        task_dir.mkdir(parents=True, exist_ok=True)
-        dataset_record = self.artifact_store.artifact_record(self.context["output_path"], task_dir)
-        statistics_record = self.artifact_store.artifact_record(self.context["statistics_path"], task_dir)
+        dataset_record = self.artifact_record(self.context["output_path"], task_dir)
+        statistics_record = self.artifact_record(self.context["statistics_path"], task_dir)
         return self.output_cls(
             date_range={
                 "start": output["trade_date"].min(),

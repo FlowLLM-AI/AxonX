@@ -1,199 +1,216 @@
-"""Unit tests for local Task manager support services."""
+"""Workspace-backed task manager behavior."""
 
-# pylint: disable=missing-function-docstring
-
-from datetime import UTC, datetime, timedelta
+import asyncio
 import json
 import os
 
-from axonx.components.task_manager.local.logs import TaskLogLocator
-from axonx.components.task_manager.local.reconciliation import TaskStateReconciler, WorkerExit
-from axonx.components.task_manager.local.repository import TaskStatusRepository
+import pytest
+
+from axonx import Application
+from axonx.config import resolve_app_config
+from axonx.components.task_manager.local.process import WorkerExit
 from axonx.enums import TaskState, TaskType
 from axonx.schema import TaskStatus
-from axonx.task.common import DemoTask
-from axonx.task.runner import TaskRunner
+from axonx.utils.fs import atomic_write_json
 
 
-def test_status_repository_round_trips_snapshots(tmp_path):
-    repository = TaskStatusRepository(tmp_path, version=2)
-    status = TaskStatus(
-        task_id="analysis#saved",
-        task_type=TaskType.ANALYSIS,
-        state=TaskState.SUCCEEDED,
-    )
-
-    repository.save([status])
-    loaded = repository.load()
-
-    assert loaded is not None
-    assert loaded.should_save is True
-    assert loaded.foreign_workspace is None
-    assert loaded.statuses == {status.task_id: status}
+async def _wait_for(predicate):
+    for _ in range(140):
+        if await predicate():
+            return
+        await asyncio.sleep(0.05)
+    assert await predicate()
 
 
-def test_status_repository_ignores_other_versions_without_rewriting(tmp_path):
-    repository = TaskStatusRepository(tmp_path, version=2)
-    repository.directory.mkdir(parents=True, exist_ok=True)
-    repository.path.write_text(json.dumps({"version": 1, "tasks": []}), encoding="utf-8")
+async def test_task_index_watches_status_metadata_and_directory_removal(tmp_path):
+    task_id = "analysis#sample#live"
+    directory = tmp_path / "analysis" / task_id
+    app = Application(workspace_dir=str(tmp_path), components={"task_manager": {"default": {"backend": "local"}}})
+    async with app:
+        manager = app.get_component("task_manager")
+        directory.mkdir(parents=True)
+        status = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING)
+        atomic_write_json(directory / "status.json", status.model_dump(mode="json"))
 
-    loaded = repository.load()
+        async def has_running():
+            return task_id in await manager.list_ids() and (await manager.get_status(task_id)).state == TaskState.RUNNING
 
-    assert loaded is not None
-    assert not loaded.statuses
-    assert loaded.should_save is False
+        await _wait_for(has_running)
+        with pytest.raises(KeyError):
+            await manager.get_graph(task_id)
+        atomic_write_json(directory / "metadata.json", {
+            "task_id": task_id,
+            "task_type": "analysis",
+            "reg_name": "sample",
+            "created_at": "2026-09-18T00:00:00Z",
+            "input_params": {"source_tasks": []},
+        })
+
+        async def has_metadata():
+            try:
+                return not (await manager.get_graph(task_id))["nodes"][0]["missing"]
+            except KeyError:
+                return False
+
+        await _wait_for(has_metadata)
+        status.state = TaskState.SUCCEEDED
+        atomic_write_json(directory / "status.json", status.model_dump(mode="json"))
+
+        async def has_succeeded():
+            return (await manager.get_status(task_id)).state == TaskState.SUCCEEDED
+
+        await _wait_for(has_succeeded)
+        assert await manager.delete([task_id]) == [task_id]
+        assert not directory.exists()
+        assert await manager.list_ids() == []
 
 
-def test_log_locator_sanitizes_and_backfills_loaded_paths(tmp_path):
+async def test_metadata_only_task_is_visible_and_deletable(tmp_path):
+    task_id = "etl#sample#old"
+    directory = tmp_path / "etl" / task_id
+    directory.mkdir(parents=True)
+    atomic_write_json(directory / "metadata.json", {
+        "task_id": task_id,
+        "task_type": "etl",
+        "reg_name": "sample",
+        "created_at": "2026-09-18T00:00:00Z",
+        "input_params": {"source_tasks": []},
+    })
+    async with Application(workspace_dir=str(tmp_path), components={"task_manager": {"default": {"backend": "local"}}}) as app:
+        manager = app.get_component("task_manager")
+        assert await manager.list_ids() == []
+        assert await manager.list_statuses() == []
+        with pytest.raises(KeyError):
+            await manager.get_status(task_id)
+        assert (await manager.get_graph(task_id))["nodes"][0]["task_name"] == "sample"
+        assert await manager.delete([task_id]) == [task_id]
+    assert not directory.exists()
+
+
+async def test_missing_task_queries_use_key_error(tmp_path):
+    async with Application(workspace_dir=str(tmp_path), components={"task_manager": {"default": {"backend": "local"}}}) as app:
+        manager = app.get_component("task_manager")
+        for query in (manager.get_status, manager.get_graph, manager.read_log):
+            with pytest.raises(KeyError, match="etl#sample#missing"):
+                await query("etl#sample#missing")
+
+
+async def test_delete_removes_status_artifacts_and_dedicated_log(tmp_path):
+    task_id = "analysis#sample#done"
+    directory = tmp_path / "analysis" / task_id
+    directory.mkdir(parents=True)
+    (directory / "artifact.txt").write_text("result")
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
-    expected = log_dir / "worker_42.log"
-    expected.write_text("log", encoding="utf-8")
-    locator = TaskLogLocator(log_dir)
-    status = TaskStatus(
-        task_id="analysis#legacy",
-        task_type=TaskType.ANALYSIS,
-        pid=42,
-        log_path=str(tmp_path / "outside.log"),
-    )
-
-    locator.prepare_loaded({status.task_id: status})
-
-    assert status.log_path == str(expected)
+    log_path = log_dir / "task.log"
+    log_path.write_text("finished")
+    status = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED, log_path=str(log_path))
+    atomic_write_json(directory / "status.json", status.model_dump(mode="json"))
+    async with Application(workspace_dir=str(tmp_path), log_dir=str(log_dir), components={"task_manager": {"default": {"backend": "local"}}}) as app:
+        manager = app.get_component("task_manager")
+        assert await manager.delete([task_id, task_id, "bad-id"]) == [task_id]
+    assert not directory.exists()
+    assert not log_path.exists()
 
 
-def test_reconciler_applies_exit_that_arrives_before_first_status():
-    reconciler = TaskStateReconciler()
-    occurred_at = datetime.now(UTC)
-    assert reconciler.record_exit({}, WorkerExit(42, -9, "no stderr output", occurred_at)) is False
-    incoming = TaskStatus(
-        task_id="analysis#late",
-        task_type=TaskType.ANALYSIS,
-        state=TaskState.RUNNING,
-        pid=42,
-    )
-
-    accepted = reconciler.accept(incoming.task_id, None, incoming)
-
-    assert accepted is not None
-    assert accepted.state == TaskState.FAILED
-    assert accepted.exit_code == 137
-    assert accepted.finished_at == occurred_at
-    assert accepted.error == "Worker terminated by signal SIGKILL (9)"
+async def test_worker_exit_writes_final_status_file(tmp_path):
+    task_id = "analysis#sample#crashed"
+    directory = tmp_path / "analysis" / task_id
+    directory.mkdir(parents=True)
+    status = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING, pid=os.getpid())
+    atomic_write_json(directory / "status.json", status.model_dump(mode="json"))
+    async with Application(workspace_dir=str(tmp_path), components={"task_manager": {"default": {"backend": "local"}}}) as app:
+        manager = app.get_component("task_manager")
+        await manager._handle_worker_exit(WorkerExit(os.getpid(), 2, "boom"))
+        stored = json.loads((directory / "status.json").read_text())
+        assert stored["state"] == "failed"
+        assert stored["exit_code"] == 2
+        assert "boom" in stored["error"]
 
 
-def test_reconciler_rejects_late_status_after_cancellation():
-    reconciler = TaskStateReconciler()
-    current = TaskStatus(
-        task_id="analysis#cancelled",
-        task_type=TaskType.ANALYSIS,
-        state=TaskState.CANCELLED,
-    )
-    incoming = current.model_copy(update={"state": TaskState.SUCCEEDED})
+async def test_submitted_task_is_indexed_without_http_reporting(tmp_path):
+    async with Application(workspace_dir=str(tmp_path), components={"task_manager": {"default": {"backend": "local"}}}) as app:
+        manager = app.get_component("task_manager")
+        await manager.submit(["--task", "demo", "--x", "1", "--y", "2", "--task-name", "disk-run", "--include-time", "false"])
+        task_id = "base#demo#disk-run"
 
-    assert reconciler.accept(current.task_id, current, incoming) is None
+        async def completed():
+            if task_id not in await manager.list_ids():
+                return False
+            return (await manager.get_status(task_id)).state == TaskState.SUCCEEDED
 
-
-def test_reconciler_accepts_rerun_and_rejects_previous_process_reports():
-    reconciler = TaskStateReconciler()
-    task_id = "analysis#fixed"
-    old = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED, pid=41)
-    new = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.QUEUED, pid=42)
-
-    accepted = reconciler.accept(task_id, old, new)
-    assert accepted is not None and accepted.pid == 42
-    assert reconciler.accept(task_id, accepted, old) is None
-    assert reconciler.accept(task_id, accepted, new.model_copy(update={"state": TaskState.RUNNING})) is not None
+        await _wait_for(completed)
+        await asyncio.gather(*tuple(manager._supervisor.monitors))
+        stored = json.loads((tmp_path / "base" / task_id / "status.json").read_text())
+        assert stored["result"]["result"] == 3
+        assert task_id in await manager.list_ids()
 
 
-def test_reconciler_accepts_rerun_after_cancellation():
-    reconciler = TaskStateReconciler()
-    task_id = "analysis#fixed"
-    cancelled = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.CANCELLED, pid=41)
-    new = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING, pid=42)
+async def test_running_task_cannot_be_deleted_and_cancel_writes_file(tmp_path, monkeypatch):
+    task_id = "analysis#sample#running"
+    directory = tmp_path / "analysis" / task_id
+    directory.mkdir(parents=True)
+    status = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING, pid=os.getpid())
+    atomic_write_json(directory / "status.json", status.model_dump(mode="json"))
+    async with Application(workspace_dir=str(tmp_path), components={"task_manager": {"default": {"backend": "local"}}}) as app:
+        manager = app.get_component("task_manager")
+        assert await manager.delete([task_id]) == []
 
-    accepted = reconciler.accept(task_id, cancelled, new)
-    assert accepted is not None and accepted.pid == 42
-    assert reconciler.accept(task_id, accepted, cancelled) is None
+        async def cancelled(pid):
+            assert pid == os.getpid()
+            return True
 
-
-def test_reconciler_accepts_rerun_after_deletion():
-    reconciler = TaskStateReconciler()
-    task_id = "analysis#fixed"
-    old = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED, pid=41)
-    new = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.QUEUED, pid=42)
-    reconciler.mark_deleted(old)
-
-    assert reconciler.accept(task_id, None, old) is None
-    accepted = reconciler.accept(task_id, None, new)
-    assert accepted is not None and accepted.pid == 42
-    assert reconciler.accept(task_id, accepted, old) is None
+        monkeypatch.setattr(manager._supervisor, "cancel", cancelled)
+        assert await manager.cancel(task_id)
+        assert json.loads((directory / "status.json").read_text())["state"] == "cancelled"
 
 
-def test_reconciler_accepts_recycled_pid_for_new_execution():
-    reconciler = TaskStateReconciler()
-    task_id = "analysis#fixed"
-    first = TaskStatus(
-        task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED,
-        pid=41, execution_id="first",
-    )
-    second = TaskStatus(
-        task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED,
-        pid=42, execution_id="second",
-    )
-    third = TaskStatus(
-        task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING,
-        pid=41, execution_id="third",
-    )
-
-    assert reconciler.accept(task_id, first, second) is not None
-    accepted = reconciler.accept(task_id, second, third)
-    assert accepted is not None and accepted.execution_id == "third"
-    assert reconciler.accept(task_id, accepted, first) is None
-    assert reconciler.accept(task_id, accepted, second) is None
-    assert reconciler.accept(task_id, accepted, third.model_copy(update={"state": TaskState.SUCCEEDED})) is not None
+async def test_restart_marks_dead_worker_failed_on_disk(tmp_path):
+    task_id = "analysis#sample#interrupted"
+    directory = tmp_path / "analysis" / task_id
+    directory.mkdir(parents=True)
+    status = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING, pid=999999999)
+    atomic_write_json(directory / "status.json", status.model_dump(mode="json"))
+    async with Application(workspace_dir=str(tmp_path), components={"task_manager": {"default": {"backend": "local"}}}) as app:
+        assert (await app.get_component("task_manager").get_status(task_id)).state == TaskState.FAILED
+    assert json.loads((directory / "status.json").read_text())["state"] == "failed"
 
 
-def test_reconciler_ignores_pending_exit_from_prior_use_of_pid():
-    reconciler = TaskStateReconciler()
-    exited_at = datetime.now(UTC)
-    reconciler.record_exit({}, WorkerExit(41, 1, "old failure", exited_at))
-    new = TaskStatus(
-        task_id="analysis#fixed", task_type=TaskType.ANALYSIS,
-        state=TaskState.RUNNING, pid=41, execution_id="new",
-        started_at=exited_at + timedelta(seconds=1),
-    )
+async def test_dead_unmanaged_task_is_repaired_while_manager_runs(tmp_path):
+    task_id = "analysis#sample#lost"
+    directory = tmp_path / "analysis" / task_id
+    async with Application(workspace_dir=str(tmp_path), components={"task_manager": {"default": {"backend": "local"}}}) as app:
+        manager = app.get_component("task_manager")
+        directory.mkdir(parents=True)
+        status = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.RUNNING, pid=999999999)
+        atomic_write_json(directory / "status.json", status.model_dump(mode="json"))
 
-    accepted = reconciler.accept(new.task_id, None, new)
-    assert accepted is not None and accepted.state == TaskState.RUNNING
+        async def has_failed():
+            return task_id in await manager.list_ids() and (await manager.get_status(task_id)).state == TaskState.FAILED
+
+        await _wait_for(has_failed)
+        assert json.loads((directory / "status.json").read_text())["state"] == "failed"
 
 
-def test_reconciler_ignores_old_exit_during_real_rerun_status_sequence(tmp_path):
-    reconciler = TaskStateReconciler()
-    task_id = "base#demo#fixed"
-    old = TaskStatus(
-        task_id=task_id, task_type=TaskType.BASE, state=TaskState.SUCCEEDED,
-        pid=os.getpid(), execution_id="old",
-    )
-    exited_at = datetime.now(UTC)
-    reconciler.record_exit({task_id: old}, WorkerExit(os.getpid(), 1, "old failure", exited_at))
-    task = DemoTask(
-        {"x": 1, "y": 2, "task_name": "fixed", "include_time": False},
-        workspace_path=tmp_path,
-    )
-    assert task.created_at > exited_at
-    accepted = []
-    current = old
+async def test_log_reader_bounds_and_rejects_outside_paths(tmp_path):
+    task_id = "analysis#sample#logged"
+    directory = tmp_path / "analysis" / task_id
+    directory.mkdir(parents=True)
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_path = log_dir / "worker.log"
+    log_path.write_text("a" * 1200 + "ghij")
+    status = TaskStatus(task_id=task_id, task_type=TaskType.ANALYSIS, state=TaskState.SUCCEEDED, log_path=str(log_path))
+    atomic_write_json(directory / "status.json", status.model_dump(mode="json"))
+    async with Application(**resolve_app_config(workspace_dir=str(tmp_path), log_dir=str(log_dir))) as app:
+        response = await app.run_job("read_task_log", task_id=task_id, offset=-1, limit=1024)
+        assert response.answer["content"] == "a" * 1020 + "ghij"
+        status.log_path = str(tmp_path / "outside.log")
+        atomic_write_json(directory / "status.json", status.model_dump(mode="json"))
+        async def log_path_updated():
+            return (await app.get_component("task_manager").get_status(task_id)).log_path == status.log_path
 
-    def receive(status):
-        nonlocal current
-        current = reconciler.accept(task_id, current, status)
-        assert current is not None
-        accepted.append(current)
-
-    TaskRunner(receive).run(task)
-
-    assert accepted[0].state == TaskState.QUEUED
-    assert accepted[1].state == TaskState.RUNNING
-    assert accepted[-1].state == TaskState.SUCCEEDED
-    assert all(status.execution_id == task.status.execution_id for status in accepted)
+        await _wait_for(log_path_updated)
+        response = await app.run_job("read_task_log", task_id=task_id)
+        assert response.success is False
+        assert "outside the configured log directory" in response.answer

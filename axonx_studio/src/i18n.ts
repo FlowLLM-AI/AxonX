@@ -60,8 +60,8 @@ const shared = {
     selectAll: "选择全部可删除任务",
     selectTask: "选择任务 {taskId}",
     deleteSelected: "删除已选（{count}）",
-    deleteConfirm: "确定删除选中的 {count} 条任务记录？",
-    deleteHint: "此操作只删除已结束任务的运行记录，不会删除日志或任务产物。",
+    deleteConfirm: "确定彻底删除选中的 {count} 个任务？",
+    deleteHint: "任务目录、状态、产物及其独占日志会一并删除。",
     confirmDelete: "确认删除",
     deleting: "删除中",
     deletePartial:
@@ -224,9 +224,8 @@ const shared = {
     selectAll: "Select all deletable tasks",
     selectTask: "Select task {taskId}",
     deleteSelected: "Delete selected ({count})",
-    deleteConfirm: "Delete {count} selected task records?",
-    deleteHint:
-      "This only removes completed run records. Logs and task artifacts are kept.",
+    deleteConfirm: "Permanently delete {count} selected tasks?",
+    deleteHint: "Task directories, status, artifacts, and dedicated logs will be removed.",
     confirmDelete: "Delete",
     deleting: "Deleting",
     deletePartial:

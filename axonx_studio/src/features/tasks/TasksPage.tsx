@@ -107,7 +107,7 @@ export function TasksPage({
   const poll = useCallback(() => {
     void load(true);
   }, [load]);
-  const seconds = usePolling(poll, autoRefresh, 10);
+  const seconds = usePolling(poll, autoRefresh, 2);
 
   const types = useMemo(
     () => [...new Set(tasks.map((task) => task.task_type))].sort(),
@@ -468,7 +468,7 @@ export function TasksPage({
 }
 
 function taskTimestamp(task: TaskStatus) {
-  const value = task.started_at || task.finished_at;
+  const value = task.started_at || task.created_at || task.finished_at;
   if (value) return new Date(value).getTime();
   const compact = task.task_id.split("#")[3];
   if (!/^\d{10}(?:\d{4})?$/.test(compact || "")) return 0;
@@ -574,7 +574,7 @@ function TaskRow({
         )}
       </td>
       <td className="started-column">
-        {formatDate(task.started_at, language)}
+        {formatDate(task.started_at || task.created_at, language)}
       </td>
       <td className="duration-column">{formatDuration(task, language)}</td>
       <td className="action-column">

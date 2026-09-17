@@ -17,6 +17,7 @@ export interface TaskStatus {
   config: Record<string, unknown>;
   state: TaskState;
   pid: number | null;
+  created_at: string | null;
   started_at: string | null;
   finished_at: string | null;
   steps: TaskStepStatus[];

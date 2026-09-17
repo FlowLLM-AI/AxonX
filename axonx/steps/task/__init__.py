@@ -1,13 +1,7 @@
 """Task-management steps."""
 
-from .cancel import CancelTaskStep
-from .delete import DeleteTasksStep
-from .get_status import GetTaskStatusStep
 from .list_installed import ListInstalledTaskDefinitionsStep
-from .list_runtime_ids import ListRuntimeTaskIdsStep
-from .list_runtime_statuses import ListRuntimeTaskStatusesStep
-from .read_log import ReadTaskLogStep
-from .set_status import SetTaskStatusStep
+from .manager import CancelTaskStep, DeleteTasksStep, GetTaskStatusStep, ListTaskIdsStep, ListTaskStatusesStep, ReadTaskLogStep
 from .submit import SubmitTaskStep
 
 __all__ = [
@@ -15,9 +9,8 @@ __all__ = [
     "DeleteTasksStep",
     "GetTaskStatusStep",
     "ListInstalledTaskDefinitionsStep",
-    "ListRuntimeTaskIdsStep",
-    "ListRuntimeTaskStatusesStep",
+    "ListTaskIdsStep",
+    "ListTaskStatusesStep",
     "ReadTaskLogStep",
-    "SetTaskStatusStep",
     "SubmitTaskStep",
 ]

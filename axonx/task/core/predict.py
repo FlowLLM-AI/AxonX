@@ -5,8 +5,7 @@ from typing import Any
 from pydantic import Field
 
 from ...enums import TaskType
-from ..base import BaseInputParams, BaseOutputParams
-from .artifact_task import BaseArtifactTask
+from ..base import BaseInputParams, BaseOutputParams, BaseTask
 
 
 class BasePredictInputParams(BaseInputParams):
@@ -24,7 +23,7 @@ class BasePredictOutputParams(BaseOutputParams):
     statistics: dict[str, Any] = Field(default_factory=dict)
 
 
-class BasePredictTask(BaseArtifactTask, ABC):
+class BasePredictTask(BaseTask, ABC):
     """Predict from a completed training task."""
 
     task_type = TaskType.PREDICT
