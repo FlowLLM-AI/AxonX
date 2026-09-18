@@ -75,8 +75,12 @@ class TaskIndex:
 
     async def start(self) -> None:
         self._ensure_directories()
-        await self.reconcile()
+        # Watch before the initial scan: reconcile holds the lock for its whole duration, so the scan
+        # cannot overwrite a record the watcher already refreshed, but anything written before the
+        # watcher is listening would never be reported at all.
         self.watcher = asyncio.create_task(self._watch(), name="axonx-task-index")
+        await asyncio.sleep(0)
+        await self.reconcile()
 
     async def close(self) -> None:
         if self.watcher is not None:
