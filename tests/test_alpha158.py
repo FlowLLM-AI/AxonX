@@ -3,12 +3,12 @@ from pathlib import Path
 
 import polars as pl
 import pytest
-
-from axonx_alpha158.etl import Alpha158InputParams, Alpha158Task
 from axonx_alpha158.etl import (
     FEATURES,
     LABEL_OUTPUTS,
     MARKET_STATE_COLUMNS,
+    Alpha158InputParams,
+    Alpha158Task,
 )
 
 

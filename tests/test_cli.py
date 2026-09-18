@@ -300,9 +300,9 @@ def test_task_id_is_generated_internally_and_read_only(tmp_path):
 
 
 def test_metadata_is_written_after_final_status(tmp_path, monkeypatch):
-    from axonx.task import base
+    from axonx.task import metadata
 
-    write = base.atomic_write_json
+    write = metadata.atomic_write_json
 
     def check_status(path, value):
         status = TaskStatus.model_validate_json((path.parent / "status.json").read_text())
@@ -310,7 +310,7 @@ def test_metadata_is_written_after_final_status(tmp_path, monkeypatch):
         assert status.result == value["output_params"]
         write(path, value)
 
-    monkeypatch.setattr(base, "atomic_write_json", check_status)
+    monkeypatch.setattr(metadata, "atomic_write_json", check_status)
     task = DemoTask({"x": 1, "y": 2}, workspace_path=tmp_path)
     task.execute()
     assert task.metadata_path.is_file()
@@ -394,12 +394,12 @@ def test_runner_persists_final_snapshot_in_task_directory(tmp_path, monkeypatch)
 
 
 def test_metadata_write_failure_marks_task_failed(tmp_path, monkeypatch):
-    from axonx.task import base
+    from axonx.task import metadata
 
     def fail_write(_path, _value):
         raise OSError("metadata write failed")
 
-    monkeypatch.setattr(base, "atomic_write_json", fail_write)
+    monkeypatch.setattr(metadata, "atomic_write_json", fail_write)
     task = CliTask({"amount": 1}, workspace_path=tmp_path, reg_name="sample")
     with pytest.raises(OSError, match="metadata write failed"):
         task.execute()
@@ -483,7 +483,7 @@ def test_exec_passes_application_workspace_to_task(monkeypatch, capsys, tmp_path
 def test_exec_loads_dotenv_without_overriding_injected_environment(monkeypatch, capsys):
     calls = []
     monkeypatch.setattr(cli, "load_env", lambda **kwargs: calls.append(kwargs) or {})
-    monkeypatch.setattr("axonx.task.executor.installed_tasks", lambda: {})
+    monkeypatch.setattr("axonx.task.executor.installed_tasks", dict)
 
     assert cli.main(["exec"]) == 0
     assert calls == [{"override": False}]

@@ -1,17 +1,18 @@
 """Run full-cross-section prediction from an Alpha158 LightGBM training task."""
 
 from __future__ import annotations
-
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Self
 
 import numpy as np
 import polars as pl
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from axonx.enums import TaskType
-from axonx.task.base import TaskStep, task_type_from_id
+from axonx.task.artifacts import read_metadata, artifact_path, artifact_record
+from axonx.task.base import TaskStep
+from axonx.task.identity import task_type_from_id
 from axonx.task.core import (
     BasePredictInputParams,
     BasePredictOutputParams,
@@ -30,8 +31,8 @@ class LgbmPredictOutputParams(BasePredictOutputParams):
 class LgbmPredictInputParams(BasePredictInputParams):
     """Configure an out-of-sample prediction interval for a training task."""
 
-    pred_start: str = "20230101"
-    pred_end: str | None = None
+    pred_start: str = Field(default="20230101", description="First prediction date in YYYYMMDD format; must follow the training period.")
+    pred_end: str | None = Field(default=None, description="Last prediction date in YYYYMMDD format; omit for the latest dataset date.")
 
     @field_validator("pred_start", "pred_end", mode="before")
     @classmethod
@@ -46,7 +47,11 @@ class LgbmPredictInputParams(BasePredictInputParams):
 
 
 class LgbmPredictTask(BasePredictTask):
-    """Predict every stock in the requested post-training period without label-tail or tradeability filtering."""
+    """Score stocks after training with the saved Alpha158 LightGBM model.
+
+    Outputs the full prediction cross section for the selected date range,
+    including stocks without a valid return label or buyable status.
+    """
 
     input_cls = LgbmPredictInputParams
     output_cls = LgbmPredictOutputParams
@@ -64,8 +69,8 @@ class LgbmPredictTask(BasePredictTask):
         train_task_id = self.input_params.source_task(TaskType.TRAIN)
         train_dir = self.source_task_dir(train_task_id)
         train_metadata_path = train_dir / "metadata.json"
-        train_metadata = self.read_metadata(train_metadata_path)
-        model_path = self.artifact_path(train_dir, train_metadata, "model")
+        train_metadata = read_metadata(train_metadata_path)
+        model_path = artifact_path(train_dir, train_metadata, "model")
         train_end = train_metadata.get("output_params", {}).get("protocol", {}).get("train_end_exclusive")
         if not isinstance(train_end, str):
             raise TypeError("训练 metadata 缺少 protocol.train_end_exclusive")
@@ -98,8 +103,8 @@ class LgbmPredictTask(BasePredictTask):
         etl_task_id = etl_sources[0]
         etl_dir = self.source_task_dir(etl_task_id)
         etl_metadata_path = etl_dir / "metadata.json"
-        etl_metadata = self.read_metadata(etl_metadata_path)
-        dataset_path = self.artifact_path(etl_dir, etl_metadata, "dataset")
+        etl_metadata = read_metadata(etl_metadata_path)
+        dataset_path = artifact_path(etl_dir, etl_metadata, "dataset")
         self.context.update(
             etl_task_id=etl_task_id,
             etl_dir=etl_dir,
@@ -216,7 +221,7 @@ class LgbmPredictTask(BasePredictTask):
     def build_output_params(self) -> LgbmPredictOutputParams:
         output_dir: Path = self.task_dir
         predictions: pl.DataFrame = self.context["predictions"]
-        prediction_record = self.artifact_record(self.context["predictions_path"], output_dir)
+        prediction_record = artifact_record(self.context["predictions_path"], output_dir)
         model_target = self.context["train_metadata"]["output_params"]["protocol"]["label_column"]
         scores = predictions["pred"].to_numpy()
         buyable = predictions["is_buyable"]

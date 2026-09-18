@@ -4,9 +4,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
 from ...enums import ComponentEnum
+from ...schema import TaskGraph, TaskGraphList, TaskLogChunk, TaskStatus
 from ..base import BaseComponent
-from ...schema import TaskStatus
-from .types import TaskGraph, TaskGraphList, TaskLogChunk
 
 
 class BaseTaskManager(BaseComponent, ABC):

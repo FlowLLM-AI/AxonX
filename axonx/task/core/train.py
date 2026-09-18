@@ -15,20 +15,19 @@ class BaseTrainInputParams(BaseInputParams):
 
 
 class TrainingCurve(BaseModel):
-    """Aligned training history for one chart with up to two y-axis ranges."""
+    """Aligned training history for one chart with up to two y-axis ranges.
 
-    # Protocol:
-    # - x[i] labels the same training point in every series. Producers may use
-    #   iteration numbers, timestamps, or another ordered string label.
-    # - y_left contains series with comparable units and numeric ranges. Every
-    #   series in this group uses the primary (left) y-axis.
-    # - y_right is optional. Use it only for a second group whose values need
-    #   an independent scale; every series in this group uses the right y-axis.
-    # - Each series has exactly len(x) finite samples, and names are unique
-    #   across both groups. A populated curve needs at least one left series.
-    #   Empty x and empty groups mean that the task provides no curve data.
-    # - The protocol has exactly two value-range groups. Never put series with
-    #   substantially different scales into the same group or add a third.
+    Each ``x[i]`` labels the same training point in every series. Producers
+    may use iteration numbers, timestamps, or another ordered string label.
+    ``y_left`` contains series with comparable units and numeric ranges on
+    the primary axis. Use optional ``y_right`` only for a second group that
+    needs an independent scale; do not mix substantially different scales
+    within either group or add a third group.
+
+    Every series has exactly ``len(x)`` finite samples, and names are unique
+    across the two groups. A populated curve requires at least one left-axis
+    series. Empty ``x`` and empty groups mean no curve data is available.
+    """
 
     x: list[str] = Field(
         default_factory=list,
@@ -76,7 +75,10 @@ class BaseTrainOutputParams(BaseOutputParams):
 
 
 class BaseTrainTask(BaseTask, ABC):
-    """Train a model from a completed ETL task."""
+    """Train a model using a completed ETL dataset.
+
+    The result includes the saved model, training metrics, and optional curves.
+    """
 
     task_type = TaskType.TRAIN
     input_cls = BaseTrainInputParams

@@ -1,17 +1,18 @@
 """Task artifact graph API contracts."""
 
-import json
 import asyncio
+import json
 import shutil
 
 from axonx import Application
+from axonx.schema import TaskGraph, TaskGraphList
 from axonx.utils.fs import atomic_write_text
 
 GRAPH_JOBS = {
     "list_task_graphs": {"steps": [{"backend": "list_task_graphs_step"}]},
     "get_task_graph": {"steps": [{"backend": "get_task_graph_step"}]},
 }
-GRAPH_COMPONENTS = {"task_manager": {"default": {"backend": "local"}}}
+GRAPH_COMPONENTS = {"task_manager": {"default": {"backend": "local", "force_polling": True, "poll_delay_ms": 50, "step": 50, "debounce": 1000}}}
 
 
 def _artifact(root, task_id, source_tasks=()):
@@ -52,6 +53,14 @@ async def test_task_graph_search_and_full_branch(tmp_path):
     app = Application(workspace_dir=str(tmp_path), components=GRAPH_COMPONENTS, jobs=GRAPH_JOBS)
     await app.start()
     try:
+        manager = app.get_component("task_manager")
+        assert isinstance(await manager.list_graphs(), TaskGraphList)
+        model = await manager.get_graph(backtest_two)
+        assert isinstance(model, TaskGraph)
+        assert model.model_dump(mode="json", by_alias=True)["edges"][0] == {
+            "from": etl_one,
+            "to": analysis,
+        }
         roots = (await app.run_job("list_task_graphs", offset=0, limit=1)).answer
         found = (await app.run_job("list_task_graphs", q=backtest_two)).answer
         graph = (await app.run_job("get_task_graph", task_id=backtest_two)).answer
@@ -136,6 +145,7 @@ async def test_task_graph_tracks_metadata_changes_and_deletion(tmp_path):
         path = tmp_path / "analysis" / child / "metadata.json"
         _artifact(tmp_path, child, [first, second])
         await wait_for_total(1)
+        await asyncio.sleep(1)
         metadata = json.loads(path.read_text())
         metadata["input_params"]["source_tasks"] = [first]
         atomic_write_text(path, json.dumps(metadata))

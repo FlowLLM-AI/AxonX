@@ -13,7 +13,7 @@ import pandas as pd
 from pydantic import field_validator
 
 from ...components.registry import R
-from ...connectors.tushare import TushareClient
+from ...utils.connectors.tushare import TushareClient
 from ...enums import TaskType
 from ...utils.fs import atomic_write
 from ..base import BaseInputParams, BaseOutputParams, BaseTask, TaskStep

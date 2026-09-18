@@ -1,7 +1,6 @@
 """Train one LightGBM model from an Alpha158 ETL task."""
 
 from __future__ import annotations
-
 import math
 from collections.abc import Iterable
 from pathlib import Path
@@ -12,6 +11,7 @@ import polars as pl
 from pydantic import Field, field_validator, model_validator
 
 from axonx.enums import TaskType
+from axonx.task.artifacts import read_metadata, artifact_path, artifact_record
 from axonx.task.base import TaskStep
 from axonx.task.core import BaseTrainInputParams, BaseTrainOutputParams, BaseTrainTask
 from axonx.utils.fs import atomic_write
@@ -35,24 +35,24 @@ class LgbmTrainOutputParams(BaseTrainOutputParams):
 class LgbmTrainInputParams(BaseTrainInputParams):
     """Configure one time-separated Alpha158 LightGBM training run."""
 
-    train_start: str = "20150101"
-    train_end: str = "20230101"
-    label_column: str = "label_1d_rank"
-    trim_tail: float = Field(default=0.025, ge=0.0, lt=0.5)
-    validation_ratio: float = Field(default=0.10, gt=0.0, lt=0.5)
-    num_boost_round: int = Field(default=1000, gt=0)
-    early_stopping_rounds: int = Field(default=50, gt=0)
-    learning_rate: float = Field(default=0.03, gt=0.0)
-    num_leaves: int = Field(default=31, ge=2)
-    max_depth: int = Field(default=-1, ge=-1)
-    min_data_in_leaf: int = Field(default=20, gt=0)
-    feature_fraction: float = Field(default=0.9, gt=0.0, le=1.0)
-    bagging_fraction: float = Field(default=0.9, gt=0.0, le=1.0)
-    bagging_freq: int = Field(default=1, ge=0)
-    lambda_l1: float = Field(default=0.0, ge=0.0)
-    lambda_l2: float = Field(default=0.0, ge=0.0)
-    random_seed: int = Field(default=42, ge=0)
-    num_threads: int = Field(default=8, gt=0)
+    train_start: str = Field(default="20150101", description="First training date in YYYYMMDD format, inclusive.")
+    train_end: str = Field(default="20230101", description="Training cutoff in YYYYMMDD format, exclusive.")
+    label_column: str = Field(default="label_1d_rank", description="Target label from the Alpha158 dataset to predict.")
+    trim_tail: float = Field(default=0.025, ge=0.0, lt=0.5, description="Fraction of daily raw-return extremes removed from each tail.")
+    validation_ratio: float = Field(default=0.10, gt=0.0, lt=0.5, description="Fraction of training dates reserved at the end for validation.")
+    num_boost_round: int = Field(default=1000, gt=0, description="Maximum boosting rounds when selecting the best iteration.")
+    early_stopping_rounds: int = Field(default=50, gt=0, description="Rounds without validation improvement before stopping.")
+    learning_rate: float = Field(default=0.03, gt=0.0, description="Step size applied to each boosting round.")
+    num_leaves: int = Field(default=31, ge=2, description="Maximum number of leaves in each tree.")
+    max_depth: int = Field(default=-1, ge=-1, description="Maximum tree depth; -1 allows unlimited depth.")
+    min_data_in_leaf: int = Field(default=20, gt=0, description="Minimum number of training rows in a leaf.")
+    feature_fraction: float = Field(default=0.9, gt=0.0, le=1.0, description="Fraction of features sampled for each tree.")
+    bagging_fraction: float = Field(default=0.9, gt=0.0, le=1.0, description="Fraction of training rows sampled during bagging.")
+    bagging_freq: int = Field(default=1, ge=0, description="Boosting rounds between bagging samples; 0 disables bagging.")
+    lambda_l1: float = Field(default=0.0, ge=0.0, description="L1 penalty applied to leaf weights.")
+    lambda_l2: float = Field(default=0.0, ge=0.0, description="L2 penalty applied to leaf weights.")
+    random_seed: int = Field(default=42, ge=0, description="Seed for reproducible LightGBM sampling.")
+    num_threads: int = Field(default=8, gt=0, description="Number of CPU threads used by LightGBM.")
 
     @field_validator("train_start", "train_end", mode="before")
     @classmethod
@@ -74,7 +74,11 @@ class LgbmTrainInputParams(BaseTrainInputParams):
 
 
 class LgbmTrainTask(BaseTrainTask):
-    """Select a label, trim its daily raw-return tails, tune temporally, and fit a native LightGBM booster."""
+    """Train a LightGBM model on an Alpha158 dataset.
+
+    Uses a time-ordered validation split to select boosting rounds and saves
+    the final model, validation metrics, and feature importance.
+    """
 
     input_cls = LgbmTrainInputParams
     output_cls = LgbmTrainOutputParams
@@ -99,8 +103,8 @@ class LgbmTrainTask(BaseTrainTask):
         etl_task_id = self.input_params.source_task(TaskType.ETL)
         source_dir = self.source_task_dir(etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = self.read_metadata(source_metadata_path)
-        dataset_path = self.artifact_path(source_dir, source_metadata, "dataset")
+        source_metadata = read_metadata(source_metadata_path)
+        dataset_path = artifact_path(source_dir, source_metadata, "dataset")
         output_dir = self.task_dir
         self.context.update(
             source_dir=source_dir,
@@ -397,7 +401,7 @@ class LgbmTrainTask(BaseTrainTask):
             ("evaluation_history", "history_path"),
         )
         for index, (name, path_key) in enumerate(artifact_paths, start=1):
-            artifacts[name] = self.artifact_record(self.context[path_key], output_dir)
+            artifacts[name] = artifact_record(self.context[path_key], output_dir)
         return self.output_cls(
             protocol={
                 "train_start_inclusive": self.input_params.train_start,

@@ -18,7 +18,10 @@ class BaseAnalysisOutputParams(BaseOutputParams):
 
 
 class BaseAnalysisTask(BaseTask, ABC):
-    """Analyze a completed ETL task."""
+    """Analyze a completed ETL dataset and save the results.
+
+    The output includes a result file, its row count, and optional scores.
+    """
 
     task_type = TaskType.ANALYSIS
     input_cls = BaseAnalysisInputParams

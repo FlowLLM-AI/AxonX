@@ -1,7 +1,6 @@
 """Build a compact Alpha158 dataset from DownloadTushareTask output."""
 
 from __future__ import annotations
-
 import os
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -10,6 +9,7 @@ import polars as pl
 from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
+from axonx.task.artifacts import artifact_record
 from axonx.task.base import TaskStep
 from axonx.task.core import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
 
@@ -67,18 +67,18 @@ class Alpha158OutputParams(BaseETLOutputParams):
 
 
 class Alpha158InputParams(BaseETLInputParams):
-    """Configure input partitions, output file, and optional output date range."""
+    """Configure source data and the dates included in the Alpha158 dataset."""
 
     input_dir: SkipJsonSchema[Path] = Path("tushare")
-    start_date: str | None = "20140101"
-    end_date: str | None = None
+    start_date: str | None = Field(default="20140101", description="First output trading date in YYYYMMDD format; set null for all available dates.")
+    end_date: str | None = Field(default=None, description="Last output trading date in YYYYMMDD format; defaults to the latest available date.")
     csz_winsorize_tail: float = Field(
         default=0.025,
         ge=0.0,
         lt=0.5,
-        description="Fraction clipped from each cross-sectional tail before label z-scoring",
+        description="Fraction clipped from each daily return tail before label z-scoring.",
     )
-    min_history_coverage: float = Field(default=0.8, gt=0.0, le=1.0)
+    min_history_coverage: float = Field(default=0.8, gt=0.0, le=1.0, description="Minimum observed price history required for rolling features.")
 
     @field_validator("start_date", "end_date", mode="before")
     @classmethod
@@ -88,13 +88,10 @@ class Alpha158InputParams(BaseETLInputParams):
 
 
 class Alpha158Task(BaseETLTask):
-    """Create adjusted Alpha158 features, 1-5 trading-day close returns, and HS300 weights.
+    """Build an Alpha158 dataset from downloaded Tushare market data.
 
-    The task consumes Tushare quotes, adjustments, limits, index weights, calendar, and stock identity data.
-    Features at date t only use observations through t. ``label_1d`` through ``label_5d`` are cumulative adjusted
-    close returns from t to the corresponding future market trading day; a label is null when its target quote is
-    unavailable. CSZ labels are winsorized by date before z-scoring. HS300 weights use the latest snapshot on or
-    before t and are stored as decimal weights.
+    Produces adjusted features, one- to five-day future return labels, market
+    status, and HS300 weights for training and analysis.
     """
 
     input_cls = Alpha158InputParams
@@ -429,8 +426,8 @@ class Alpha158Task(BaseETLTask):
         """Publish the dataset contract used by every downstream Alpha158 task."""
         output: pl.DataFrame = self.context["output"]
         task_dir: Path = self.task_dir
-        dataset_record = self.artifact_record(self.context["output_path"], task_dir)
-        statistics_record = self.artifact_record(self.context["statistics_path"], task_dir)
+        dataset_record = artifact_record(self.context["output_path"], task_dir)
+        statistics_record = artifact_record(self.context["statistics_path"], task_dir)
         return self.output_cls(
             date_range={
                 "start": output["trade_date"].min(),

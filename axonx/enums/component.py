@@ -14,6 +14,7 @@ class ComponentEnum(StrEnum):
     SERVICE = "service"
     CLIENT = "client"
     MACHINE = "machine"
+    WORKSPACE = "workspace"
     PLUGIN = "plugin"
     PROXY = "proxy"
 

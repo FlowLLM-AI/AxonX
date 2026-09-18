@@ -24,7 +24,10 @@ class BasePredictOutputParams(BaseOutputParams):
 
 
 class BasePredictTask(BaseTask, ABC):
-    """Predict from a completed training task."""
+    """Generate predictions from a completed training task.
+
+    The saved predictions include dates and values for downstream evaluation.
+    """
 
     task_type = TaskType.PREDICT
     input_cls = BasePredictInputParams

@@ -4,17 +4,17 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 import pytest
-from pydantic import ValidationError
-
-from axonx.task.core import BacktestTask, TrainingCurve
 from axonx_alpha158 import (
     FactorAnalysisTask,
     LgbmPredictTask,
     LgbmTrainInputParams,
     LgbmTrainTask,
 )
-from axonx.task.base import BaseTask
 from axonx_alpha158.internal.modeling import feature_matrix
+from pydantic import ValidationError
+
+from axonx.task.artifacts import artifact_path
+from axonx.task.core import BacktestTask, TrainingCurve
 
 
 def _etl_fixture(workspace: Path) -> str:
@@ -103,7 +103,7 @@ def test_feature_matrix_preserves_feature_order_and_missing_values():
 @pytest.mark.parametrize("artifact", ["../outside.parquet", "/tmp/outside.parquet"])
 def test_artifact_path_stays_inside_task_directory(tmp_path, artifact):
     with pytest.raises(ValueError, match="任务目录"):
-        BaseTask.artifact_path(tmp_path / "etl#alpha158_etl#fixture", {"output_params": {"artifacts": {"dataset": {"path": artifact}}}}, "dataset")
+        artifact_path(tmp_path / "etl#alpha158_etl#fixture", {"output_params": {"artifacts": {"dataset": {"path": artifact}}}}, "dataset")
 
 
 def test_task_id_chained_alpha158_pipeline(tmp_path):

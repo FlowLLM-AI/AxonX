@@ -1,9 +1,9 @@
-"""Public results returned by task managers."""
+"""Public task graph and log results."""
 
-from typing import TypedDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class TaskGraphNode(TypedDict):
+class TaskGraphNode(BaseModel):
     task_id: str
     kind: str
     task_name: str | None
@@ -16,24 +16,28 @@ class TaskGraphSummary(TaskGraphNode):
     root_id: str
 
 
-class TaskGraphList(TypedDict):
+class TaskGraphList(BaseModel):
     items: list[TaskGraphSummary]
     total: int
     offset: int
     limit: int
 
 
-TaskGraphEdge = TypedDict("TaskGraphEdge", {"from": str, "to": str})
+class TaskGraphEdge(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_: str = Field(alias="from")
+    to: str
 
 
-class TaskGraph(TypedDict):
+class TaskGraph(BaseModel):
     root_id: str
     selected_id: str
     nodes: list[TaskGraphNode]
     edges: list[TaskGraphEdge]
 
 
-class TaskLogChunk(TypedDict):
+class TaskLogChunk(BaseModel):
     content: str
     start_offset: int
     next_offset: int

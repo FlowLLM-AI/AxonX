@@ -8,7 +8,7 @@ export const listWorkspaceEntries = (
   requireMetadata = false,
 ) =>
   callJob<WorkspaceDirectory>(
-    "list_workspace_entries",
+    "list_entries",
     {
       path,
       ...(requireMetadata ? { require_metadata: true } : {}),
@@ -25,12 +25,12 @@ export const previewWorkspaceFile = (
   signal?: AbortSignal,
 ) =>
   callJob<WorkspacePreview>(
-    "preview_workspace_file",
+    "preview_file",
     { path, offset, limit, full, ...remoteBody(remoteIp) },
     signal,
   );
 export const deleteWorkspaceEntries = (paths: string[], remoteIp?: string) =>
-  callJob<{ deleted: { deleted: string; kind: "file" | "directory" }[] }>(
-    "delete_workspace_entries",
+  callJob<{ deleted: string; kind: "file" | "directory" }[]>(
+    "delete_entries",
     { paths, ...remoteBody(remoteIp) },
   );

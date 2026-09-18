@@ -31,6 +31,10 @@ class BaseStep(ComponentMixin, ABC):
         return self._component(ComponentEnum.TASK_MANAGER)
 
     @property
+    def workspace(self):
+        return self._component(ComponentEnum.WORKSPACE)
+
+    @property
     def response(self):
         return self.context.response
 

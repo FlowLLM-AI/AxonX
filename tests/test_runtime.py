@@ -7,12 +7,14 @@
 import asyncio
 import json
 import os
-from pathlib import Path
 import signal
+from pathlib import Path
+
 import pytest
+
 from axonx import Application, BaseComponent, BaseInputParams, BaseTask
-from axonx.config import resolve_app_config
 from axonx.components.registry import R
+from axonx.config import resolve_app_config
 from axonx.constants import (
     AXONX_DEFAULT_CONNECT_HOST,
     AXONX_DEFAULT_PORT,
@@ -21,8 +23,8 @@ from axonx.constants import (
     AXONX_TASK_TIMEZONE,
     AXONX_TASK_WORKSPACE_DIR,
 )
-from axonx.plugin.manifest import parse_plugin_manifest
 from axonx.enums import TaskState, TaskType
+from axonx.plugin.manifest import parse_plugin_manifest
 from axonx.schema import PluginManifest, TaskStatus
 from axonx.task.arguments import build_task_argv, split_task_arguments
 
@@ -379,6 +381,7 @@ async def test_http_service_serves_studio_spa_and_cors(tmp_path):
 async def test_http_and_mcp_expose_the_same_jobs():
     import httpx
     from fastmcp import Client
+
     from axonx.components.service import HttpService
 
     app = Application(
@@ -425,8 +428,10 @@ async def test_http_and_mcp_expose_the_same_jobs():
 
 async def test_mcp_client_uses_common_job_interface(monkeypatch):
     from types import SimpleNamespace
+
     import fastmcp
     from mcp.types import Tool
+
     from axonx.components.client import McpClient
     from axonx.schema import Response
 

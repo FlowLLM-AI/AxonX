@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 import httpx
 
-from ..utils.env import load_env
+from ..env import load_env
 
 DingTalkMessageType = Literal["markdown", "text"]
 TOKEN_URL = "https://api.dingtalk.com/v1.0/oauth2/accessToken"

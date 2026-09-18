@@ -1,18 +1,11 @@
 """Workspace Job Steps."""
 
-from .browser import (
-    DeleteWorkspaceEntriesStep,
-    DeleteWorkspaceEntryStep,
-    ListWorkspaceEntriesStep,
-    PreviewWorkspaceFileStep,
-)
-from .task_graph import GetTaskGraphStep, ListTaskGraphsStep
+from .delete import DeleteEntriesStep
+from .list import ListEntriesStep
+from .preview import PreviewFileStep
 
 __all__ = [
-    "DeleteWorkspaceEntryStep",
-    "DeleteWorkspaceEntriesStep",
-    "ListWorkspaceEntriesStep",
-    "PreviewWorkspaceFileStep",
-    "GetTaskGraphStep",
-    "ListTaskGraphsStep",
+    "DeleteEntriesStep",
+    "ListEntriesStep",
+    "PreviewFileStep",
 ]

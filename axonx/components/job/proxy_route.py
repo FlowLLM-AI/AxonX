@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from fastapi import HTTPException
@@ -12,10 +11,12 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from ...enums import JobMode
-from ...utils import format_log_arguments
 from ..registry import R
 from ..proxy import BaseProxyComponent
 from .base import BaseJob
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 
 @R.register("proxy")
@@ -49,59 +50,60 @@ class ProxyRouteJob(BaseJob):
         self.methods = normalized_methods
         self.max_request_bytes = max_request_bytes
 
-    def mount_http_routes(self, server) -> None:
-        """Add the configured proxy endpoint to a FastAPI application."""
-
-        async def forward(proxy_path: str, request: Request):
-            content_length = request.headers.get("content-length")
-            if content_length:
-                try:
-                    if int(content_length) > self.max_request_bytes:
-                        raise HTTPException(413, "Proxy request is too large")
-                except ValueError as exc:
-                    raise HTTPException(400, "Invalid Content-Length") from exc
-            body = await request.body()
-            if len(body) > self.max_request_bytes:
-                raise HTTPException(413, "Proxy request is too large")
+    async def _read_body(self, request: Request) -> bytes:
+        content_length = request.headers.get("content-length")
+        if content_length is not None:
             try:
-                logged_body = json.loads(body)
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                logged_body = body
-            arguments = format_log_arguments(
-                {
-                    "method": request.method,
-                    "path": proxy_path,
-                    "query": dict(request.query_params),
-                    "body": logged_body,
-                },
-            )
-            self.logger.info(f"Plugin endpoint called: name={self.name} arguments={arguments}")
-            try:
-                result = await self.proxy.forward(
-                    request.method,
-                    proxy_path,
-                    query=tuple(request.query_params.multi_items()),
-                    headers=request.headers,
-                    content=body,
-                )
-            except PermissionError as exc:
-                raise HTTPException(401, str(exc)) from exc
+                length = int(content_length)
             except ValueError as exc:
-                raise HTTPException(422, str(exc)) from exc
-            except httpx.TimeoutException as exc:
-                raise HTTPException(504, "Proxy upstream timed out") from exc
-            except httpx.HTTPError as exc:
-                self.logger.warning(f"Proxy upstream request failed: {exc}")
-                raise HTTPException(502, "Proxy upstream request failed") from exc
-            return Response(
-                content=result.content,
-                status_code=result.status_code,
-                headers=result.headers,
-            )
+                raise HTTPException(400, "Invalid Content-Length") from exc
+            if length < 0:
+                raise HTTPException(400, "Invalid Content-Length")
+            if length > self.max_request_bytes:
+                raise HTTPException(413, "Proxy request is too large")
 
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > self.max_request_bytes:
+                raise HTTPException(413, "Proxy request is too large")
+            body.extend(chunk)
+        return bytes(body)
+
+    async def _forward(self, proxy_path: str, request: Request) -> Response:
+        body = await self._read_body(request)
+        # Request bodies and query values may contain credentials.
+        self.logger.info(
+            f"Proxy endpoint called: name={self.name} method={request.method} "
+            f"path={proxy_path} body_bytes={len(body)}"
+        )
+        try:
+            result = await self.proxy.forward(
+                request.method,
+                proxy_path,
+                query=tuple(request.query_params.multi_items()),
+                headers=request.headers,
+                content=body,
+            )
+        except PermissionError as exc:
+            raise HTTPException(401, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except httpx.TimeoutException as exc:
+            raise HTTPException(504, "Proxy upstream timed out") from exc
+        except httpx.HTTPError as exc:
+            self.logger.warning(f"Proxy upstream request failed: {exc}")
+            raise HTTPException(502, "Proxy upstream request failed") from exc
+        return Response(
+            content=result.content,
+            status_code=result.status_code,
+            headers=result.headers,
+        )
+
+    def mount_http_routes(self, server: FastAPI) -> None:
+        """Add the configured proxy endpoint to a FastAPI application."""
         server.add_api_route(
             f"{self.path_prefix}/{{proxy_path:path}}",
-            forward,
+            self._forward,
             methods=list(self.methods),
             include_in_schema=False,
             name=f"{self.name}_forward",

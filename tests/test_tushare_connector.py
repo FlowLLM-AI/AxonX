@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from axonx.connectors import tushare as tushare_module
-from axonx.connectors.tushare import TushareClient
+from axonx.utils.connectors import tushare as tushare_module
+from axonx.utils.connectors.tushare import TushareClient
 
 
 class FakeResponse:

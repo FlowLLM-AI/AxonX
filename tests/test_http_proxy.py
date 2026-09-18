@@ -4,7 +4,9 @@ import json
 
 import httpx
 import pytest
+from fastapi import HTTPException
 from pydantic import ValidationError
+from starlette.requests import Request
 
 from axonx import Application
 from axonx.components.proxy import BaseProxyComponent, HttpProxyComponent
@@ -135,6 +137,72 @@ async def test_proxy_rejects_oversized_request():
             response = await client.post("/mirror/resource", content=b"01234567890")
 
     assert response.status_code == 413
+
+
+async def test_proxy_rejects_streamed_request_without_content_length():
+    app = build_app(lambda _request: httpx.Response(200), max_request_bytes=10)
+    job = app.context.jobs["mirror"]
+    chunks = iter((b"012345", b"67890"))
+
+    async def receive():
+        chunk = next(chunks)
+        return {"type": "http.request", "body": chunk, "more_body": chunk != b"67890"}
+
+    request = Request({"type": "http", "method": "POST", "headers": []}, receive)
+    with pytest.raises(HTTPException) as exc_info:
+        await job._read_body(request)
+    assert exc_info.value.status_code == 413
+
+
+async def test_proxy_does_not_log_request_secret(capsys):
+    app = build_app(lambda _request: httpx.Response(200))
+    server = HttpService().build_service(app)
+    async with app:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://test") as client:
+            response = await client.post(
+                "/mirror/resource?token=query-secret",
+                json={"credentials": {"secret": "secret-token"}},
+            )
+
+    assert response.status_code == 200
+    logs = capsys.readouterr().err
+    assert "secret-token" not in logs
+    assert "query-secret" not in logs
+
+
+@pytest.mark.parametrize("source", ["request_secret_header", "request_secret_json_path"])
+def test_proxy_rejects_empty_secret_source(source):
+    with pytest.raises(ValueError):
+        HttpProxyComponent(
+            upstream_base_url="http://upstream.example",
+            request_secret="secret-token",
+            **{source: ""},
+        )
+
+
+async def test_proxy_header_secret_is_checked_and_not_forwarded():
+    forwarded = []
+
+    def upstream(request):
+        forwarded.append(request)
+        return httpx.Response(200)
+
+    proxy = HttpProxyComponent(
+        upstream_base_url="http://upstream.example",
+        request_secret="secret-token",
+        request_secret_header="x-proxy-secret",
+        transport=httpx.MockTransport(upstream),
+    )
+    await proxy._start()
+    try:
+        with pytest.raises(PermissionError):
+            await proxy.forward("POST", "resource", headers={"x-proxy-secret": "wrong"})
+        await proxy.forward("POST", "resource", headers={"x-proxy-secret": "secret-token"})
+    finally:
+        await proxy._close()
+
+    assert len(forwarded) == 1
+    assert "x-proxy-secret" not in forwarded[0].headers
 
 
 async def test_proxy_route_job_rejects_direct_invocation():

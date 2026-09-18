@@ -9,8 +9,8 @@ import pytest
 from axonx.components.plugin.local.contributions import index_records
 from axonx.components.plugin.local.repository import PluginRepository
 from axonx.components.plugin.local.service import PluginService
-from axonx.plugin.cli import plugin_job_argv
 from axonx.plugin import PluginArtifact
+from axonx.plugin.cli import plugin_job_argv
 
 
 def artifact(path: Path, *, tasks: dict[str, str] | None = None) -> PluginArtifact:

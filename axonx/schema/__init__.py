@@ -13,6 +13,7 @@ from .plugin import PluginArtifact, PluginManifest
 from .proxy import ProxyResponse
 from .response import Response
 from .task_definition import TaskDefinition
+from .task_graph import TaskGraph, TaskGraphEdge, TaskGraphList, TaskGraphNode, TaskGraphSummary, TaskLogChunk
 from .task_status import TaskStatus, TaskStepStatus
 
 __all__ = [
@@ -28,6 +29,12 @@ __all__ = [
     "RemoteNode",
     "Response",
     "TaskDefinition",
+    "TaskGraph",
+    "TaskGraphEdge",
+    "TaskGraphList",
+    "TaskGraphNode",
+    "TaskGraphSummary",
+    "TaskLogChunk",
     "TaskStatus",
     "TaskStepStatus",
 ]

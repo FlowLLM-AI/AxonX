@@ -1,7 +1,6 @@
 """Analyze every Alpha158 factor against all five realized-return horizons."""
 
 from __future__ import annotations
-
 import math
 from collections.abc import Iterable
 from pathlib import Path
@@ -10,6 +9,7 @@ import polars as pl
 from pydantic import Field
 
 from axonx.enums import TaskType
+from axonx.task.artifacts import read_metadata, artifact_path, artifact_record
 from axonx.task.base import TaskStep
 from axonx.task.core import (
     BaseAnalysisInputParams,
@@ -32,14 +32,17 @@ class FactorAnalysisOutputParams(BaseAnalysisOutputParams):
 class FactorAnalysisInputParams(BaseAnalysisInputParams):
     """Configure factor diagnostics sourced from one Alpha158 ETL task."""
 
-    quantiles: int = Field(default=10, ge=3, le=50)
-    minimum_daily_samples: int = Field(default=20, ge=2)
-    feature_batch_size: int = Field(default=8, ge=1, le=32)
-    tradable_only: bool = True
+    quantiles: int = Field(default=10, ge=3, le=50, description="Number of factor-value groups used to compare subsequent returns.")
+    minimum_daily_samples: int = Field(default=20, ge=2, description="Minimum valid stocks per day for a factor and return horizon.")
+    feature_batch_size: int = Field(default=8, ge=1, le=32, description="Number of factors processed together in each batch.")
+    tradable_only: bool = Field(default=True, description="Analyze only stocks marked buyable in the source dataset.")
 
 
 class FactorAnalysisTask(BaseAnalysisTask):
-    """Measure IC, RankIC, stability, quantile spread, and monotonicity for 158 factors and five raw labels."""
+    """Evaluate Alpha158 factors against five future return horizons.
+
+    Reports correlation, stability, and quantile-based measures for each factor.
+    """
 
     input_cls = FactorAnalysisInputParams
     output_cls = FactorAnalysisOutputParams
@@ -56,8 +59,8 @@ class FactorAnalysisTask(BaseAnalysisTask):
         etl_task_id = self.input_params.source_task(TaskType.ETL)
         source_dir = self.source_task_dir(etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = self.read_metadata(source_metadata_path)
-        dataset_path = self.artifact_path(source_dir, source_metadata, "dataset")
+        source_metadata = read_metadata(source_metadata_path)
+        dataset_path = artifact_path(source_dir, source_metadata, "dataset")
         output_dir = self.task_dir
         self.context.update(
             source_dir=source_dir,
@@ -165,8 +168,8 @@ class FactorAnalysisTask(BaseAnalysisTask):
 
     def build_output_params(self) -> FactorAnalysisOutputParams:
         output_dir: Path = self.task_dir
-        result_record = self.artifact_record(self.context["result_path"], output_dir)
-        quantiles_record = self.artifact_record(self.context["quantiles_path"], output_dir)
+        result_record = artifact_record(self.context["result_path"], output_dir)
+        quantiles_record = artifact_record(self.context["quantiles_path"], output_dir)
         scores: dict[str, dict[str, float]] = {}
         for row in self.context["results"].iter_rows(named=True):
             for metric in ("ic_mean", "rankic_mean"):

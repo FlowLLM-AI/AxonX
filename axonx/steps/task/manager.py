@@ -33,11 +33,12 @@ class GetTaskStatusStep(BaseStep):
 @R.register("read_log")
 class ReadTaskLogStep(BaseStep):
     async def execute(self):
-        self.response.answer = await self.task_manager.read_log(
+        chunk = await self.task_manager.read_log(
             self.context["task_id"],
             self.context.get("offset", -1),
             self.context.get("limit", 65_536),
         )
+        self.response.answer = chunk.model_dump(mode="json")
 
 
 @R.register("cancel")

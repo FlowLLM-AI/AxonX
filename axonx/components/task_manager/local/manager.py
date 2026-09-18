@@ -5,33 +5,46 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+from collections import Counter
 from collections.abc import Sequence
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
-from ..base import BaseTaskManager
-from ..types import TaskGraph, TaskGraphList, TaskLogChunk
-from ...registry import R
-from ....constants import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
+from ....constants import (
+    AXONX_TASK_LOG_DIR,
+    AXONX_TASK_TIMEZONE,
+    AXONX_TASK_WORKSPACE_DIR,
+)
 from ....enums import TaskState
-from ....schema import TaskStatus
+from ....schema import TaskGraph, TaskGraphList, TaskLogChunk, TaskStatus
 from ....task.arguments import task_name_from_argv
 from ....utils.fs import atomic_write_json
-from .index import TaskIndex
+from ...registry import R
+from ..base import BaseTaskManager
+from .index import TaskIndex, WatchOptions
 from .process import TaskProcessSupervisor, WorkerExit
 
 
 @R.register("local")
 class LocalTaskManager(BaseTaskManager):
-    """Run local workers and query their on-disk task records."""
+    """Run local workers and query their on-disk task records.
 
-    def __init__(self, terminate_grace_seconds: float = 5, **kwargs):
+    Watch settings (``recursive``, ``force_polling``, ``debounce``, ``step`` and
+    ``poll_delay_ms``) and ``reaper_interval_seconds`` are read from the component
+    configuration and consumed here rather than passed on to the base component.
+    """
+
+    def __init__(
+        self, terminate_grace_seconds: float = 5, reaper_interval_seconds: float = 5, **kwargs,
+    ) -> None:
+        watch = WatchOptions.collect(kwargs)
         super().__init__(**kwargs)
-        self._index = TaskIndex(self.workspace_path, self.logger)
+        self._index = TaskIndex(self.workspace_path, self.logger, watch)
         self._log_dir = Path(self.app_config.log_dir).expanduser().resolve()
         self._lock = asyncio.Lock()
         self._reaper: asyncio.Task | None = None
+        self._reaper_interval = reaper_interval_seconds
         self._supervisor = TaskProcessSupervisor(terminate_grace_seconds, self.logger, self._handle_worker_exit)
 
     async def _start(self) -> None:
@@ -56,6 +69,11 @@ class LocalTaskManager(BaseTaskManager):
         finally:
             await self._index.close()
 
+    async def _repair_dead_tasks(self) -> None:
+        while True:
+            await asyncio.sleep(self._reaper_interval)
+            await self._mark_dead_tasks()
+
     @staticmethod
     def _pid_alive(pid: int | None) -> bool:
         if pid is None or pid <= 0:
@@ -67,11 +85,6 @@ class LocalTaskManager(BaseTaskManager):
         except PermissionError:
             return True
         return True
-
-    async def _repair_dead_tasks(self) -> None:
-        while True:
-            await asyncio.sleep(5)
-            await self._mark_dead_tasks()
 
     async def _mark_dead_tasks(self) -> None:
         async with self._lock:
@@ -102,7 +115,9 @@ class LocalTaskManager(BaseTaskManager):
 
     async def list_statuses(self) -> list[TaskStatus]:
         records = await self._index.snapshot()
-        return [record.status.model_copy(deep=True) for _, record in sorted(records.items(), reverse=True) if record.status is not None]
+        statuses = [record.status.model_copy(deep=True) for record in records.values() if record.status is not None]
+        statuses.sort(key=lambda status: status.task_id, reverse=True)
+        return statuses
 
     async def get_status(self, task_id: str) -> TaskStatus:
         status = (await self._index.get(task_id)).status
@@ -116,17 +131,23 @@ class LocalTaskManager(BaseTaskManager):
     async def get_graph(self, task_id: str) -> TaskGraph:
         return await self._index.get_graph(task_id)
 
+    def _log_path(self, status: TaskStatus | None) -> Path | None:
+        if status is None or not status.log_path:
+            return None
+        return Path(status.log_path).expanduser().resolve()
+
+    def _is_log_file(self, path: Path | None) -> bool:
+        """Whether a recorded log path is a log file inside the configured log directory."""
+        return path is not None and path.suffix == ".log" and path.is_relative_to(self._log_dir)
+
     async def read_log(self, task_id: str, offset: int = -1, limit: int = 65_536) -> TaskLogChunk:
         if offset < -1 or limit <= 0:
             raise ValueError("Invalid task log range")
-        status = await self.get_status(task_id)
-        if not status.log_path:
-            return {
-                "content": "", "start_offset": 0, "next_offset": 0, "file_size": 0,
-                "has_more_before": False, "has_more_after": False, "reset": False,
-            }
-        path = Path(status.log_path).expanduser().resolve()
-        if not path.is_relative_to(self._log_dir) or path.suffix != ".log":
+        path = self._log_path(await self.get_status(task_id))
+        if path is None:
+            return TaskLogChunk(content="", start_offset=0, next_offset=0, file_size=0,
+                                has_more_before=False, has_more_after=False, reset=False)
+        if not self._is_log_file(path):
             raise ValueError("Task log path is outside the configured log directory")
         if not path.is_file():
             raise FileNotFoundError(f"Task log does not exist: {path.name}")
@@ -137,17 +158,16 @@ class LocalTaskManager(BaseTaskManager):
             file.seek(start_offset)
             data = file.read(limit)
         next_offset = start_offset + len(data)
-        return {
-            "content": data.decode("utf-8", errors="replace"),
-            "start_offset": start_offset, "next_offset": next_offset, "file_size": file_size,
-            "has_more_before": start_offset > 0, "has_more_after": next_offset < file_size,
-            "reset": reset,
-        }
+        return TaskLogChunk(
+            content=data.decode("utf-8", errors="replace"),
+            start_offset=start_offset, next_offset=next_offset, file_size=file_size,
+            has_more_before=start_offset > 0, has_more_after=next_offset < file_size,
+            reset=reset,
+        )
 
     async def cancel(self, task_id: str) -> bool:
         async with self._lock:
-            record = await self._index.get(task_id)
-            status = record.status
+            status = (await self._index.get(task_id)).status
             if status is None or status.pid is None or status.state.is_terminal:
                 return False
             if not await self._supervisor.cancel(status.pid):
@@ -161,6 +181,8 @@ class LocalTaskManager(BaseTaskManager):
         deleted = []
         async with self._lock:
             records = await self._index.snapshot()
+            # Count how many surviving tasks still reference each log before anything is removed.
+            logs = Counter(self._log_path(record.status) for record in records.values())
             for task_id in dict.fromkeys(task_ids):
                 try:
                     path = self._index.path(task_id)
@@ -172,17 +194,15 @@ class LocalTaskManager(BaseTaskManager):
                 status = record.status
                 if status is None and record.metadata is None:
                     continue
-                if status is not None and not status.state.is_terminal:
+                if status is not None and (not status.state.is_terminal or self._supervisor.is_managed(status.pid)):
                     continue
-                if status is not None and status.pid in self._supervisor.processes:
-                    continue
-                log_path = Path(status.log_path).expanduser().resolve() if status and status.log_path else None
                 await asyncio.to_thread(shutil.rmtree, path)
                 records.pop(task_id)
                 await self._index.remove(task_id)
-                other_logs = {Path(other.status.log_path).expanduser().resolve() for other in records.values() if other.status and other.status.log_path}
-                if log_path is not None and log_path not in other_logs and log_path.suffix == ".log" and log_path.is_relative_to(self._log_dir):
+                log_path = self._log_path(status)
+                if logs[log_path] == 1 and self._is_log_file(log_path):
                     await asyncio.to_thread(log_path.unlink, missing_ok=True)
+                logs[log_path] -= 1
                 deleted.append(task_id)
         return deleted
 

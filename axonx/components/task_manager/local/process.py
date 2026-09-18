@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass
 import os
 import signal
 import sys
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
+
+STDERR_TAIL_LIMIT = 32 * 1024
+REAP_TIMEOUT_SECONDS = 1.0
 
 
 @dataclass(frozen=True)
@@ -16,6 +19,7 @@ class WorkerExit:
     pid: int
     return_code: int
     stderr_tail: str
+
 
 ExitHandler = Callable[[WorkerExit], Awaitable[None]]
 
@@ -32,6 +36,10 @@ class TaskProcessSupervisor:
         self.processes: dict[int, Any] = {}
         self.monitors: set[asyncio.Task[None]] = set()
         self._shutdown_pids: set[int] = set()
+
+    def is_managed(self, pid: int | None) -> bool:
+        """Whether a process ID belongs to a worker this supervisor still tracks."""
+        return pid is not None and pid in self.processes
 
     async def spawn(self, argv: Sequence[str], environment: Mapping[str, str], task_name: str) -> None:
         """Launch one isolated worker and start monitoring it."""
@@ -73,12 +81,12 @@ class TaskProcessSupervisor:
         if monitors and self.grace_seconds > 0:
             await asyncio.wait(monitors, timeout=self.grace_seconds)
 
-        for process in tuple(process for process in processes if process.returncode is None):
-            if self._signal(process.pid, signal.SIGKILL):
-                terminated.add(process.pid)
+        survivors = tuple(process for process in processes if process.returncode is None)
+        terminated.update(process.pid for process in survivors if self._signal(process.pid, signal.SIGKILL))
 
         if monitors:
-            _, pending = await asyncio.wait(monitors, timeout=max(1, self.grace_seconds))
+            # A killed worker only has to drain its pipe, so this is a short drain, not a second grace period.
+            _, pending = await asyncio.wait(monitors, timeout=REAP_TIMEOUT_SECONDS)
             for monitor in pending:
                 monitor.cancel()
             if pending:
@@ -87,24 +95,26 @@ class TaskProcessSupervisor:
 
     async def _monitor(self, process: Any, task_name: str) -> None:
         stderr_tail = bytearray()
-        tail_limit = 32 * 1024
+        stopped_during_shutdown = False
         try:
             if process.stderr is not None:
                 while chunk := await process.stderr.read(8192):
                     sys.stderr.write(chunk.decode(errors="replace"))
                     sys.stderr.flush()
                     stderr_tail.extend(chunk)
-                    if len(stderr_tail) > tail_limit:
-                        del stderr_tail[:-tail_limit]
+                    if len(stderr_tail) > STDERR_TAIL_LIMIT:
+                        del stderr_tail[:-STDERR_TAIL_LIMIT]
             return_code = await process.wait()
-        except Exception:  # noqa
+        except Exception:
             self.logger.exception(f"Failed to monitor task process {process.pid} ({task_name})")
             return
         finally:
-            if process.returncode is not None:
-                self.processes.pop(process.pid, None)
             stopped_during_shutdown = process.pid in self._shutdown_pids
             self._shutdown_pids.discard(process.pid)
+            # A worker that may still be alive after a monitor failure stays tracked so cancel() and
+            # shutdown() can still signal it; the reaper marks its task failed once it disappears.
+            if process.returncode is not None or stopped_during_shutdown:
+                self.processes.pop(process.pid, None)
 
         if stopped_during_shutdown:
             self.logger.info(f"Task process {process.pid} ({task_name}) stopped during task-manager shutdown")

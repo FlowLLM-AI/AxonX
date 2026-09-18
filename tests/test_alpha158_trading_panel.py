@@ -2,7 +2,6 @@
 
 import polars as pl
 import pytest
-
 from axonx_alpha158.internal.etl_pipeline import align_calendar, load_index_weights
 
 

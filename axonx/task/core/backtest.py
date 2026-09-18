@@ -1,7 +1,6 @@
 """Generate daily and summary Parquet backtest artifacts."""
 
 from __future__ import annotations
-
 import math
 from collections.abc import Iterable
 from pathlib import Path
@@ -12,6 +11,7 @@ from pydantic import Field
 from ...components.registry import R
 from ...enums import TaskType
 from ...utils.fs import atomic_write
+from ..artifacts import read_metadata, artifact_path, artifact_record
 from ..base import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
 
 TOP_NS = (1, 2, 3, 5, 10, 15, 20, 30)
@@ -353,19 +353,42 @@ class BacktestOutputParams(BaseOutputParams):
 
 
 class BacktestInputParams(BaseInputParams):
-    transaction_cost_rate: float = Field(default=0.002, ge=0.0, lt=1.0)
-    annual_risk_free_rate: float = Field(default=0.012, gt=-1.0, lt=1.0)
-    annualization_days: int = Field(default=252, gt=0)
-    minimum_index_weight_coverage: float = Field(default=0.90, gt=0.0, le=1.0)
+    transaction_cost_rate: float = Field(
+        default=0.002,
+        ge=0.0,
+        lt=1.0,
+        description="Transaction cost as a decimal rate applied to daily portfolio turnover.",
+    )
+    annual_risk_free_rate: float = Field(
+        default=0.012,
+        gt=-1.0,
+        lt=1.0,
+        description="Annual risk-free rate used to calculate risk-adjusted returns.",
+    )
+    annualization_days: int = Field(
+        default=252,
+        gt=0,
+        description="Number of trading days used to annualize return and risk metrics.",
+    )
+    minimum_index_weight_coverage: float = Field(
+        default=0.90,
+        gt=0.0,
+        le=1.0,
+        description="Minimum daily index weight coverage required for benchmark returns.",
+    )
     index_filter: str = Field(
         default="",
-        description="可选指数代码，多个用逗号分隔，如 hs300,zz500；留空表示全部股票",
+        description="Optional comma-separated index codes, such as hs300,zz500. Leave blank to include all buyable stocks.",
     )
 
 
 @R.register("backtest")
 class BacktestTask(BaseTask):
-    """Build the complete backtest report from one prediction artifact."""
+    """Evaluate one prediction task with daily top-N portfolios.
+
+    Produces daily performance and period summaries with returns, turnover,
+    ranking metrics, and available benchmark comparisons.
+    """
 
     task_type = TaskType.BACKTEST
 
@@ -393,7 +416,7 @@ class BacktestTask(BaseTask):
         prediction_task_id = self.input_params.source_task(TaskType.PREDICT)
         source_dir = self.source_task_dir(prediction_task_id)
         metadata_path = source_dir / "metadata.json"
-        metadata = self.read_metadata(metadata_path)
+        metadata = read_metadata(metadata_path)
         if (
             metadata.get("output_params", {})
             .get("protocol", {})
@@ -404,7 +427,7 @@ class BacktestTask(BaseTask):
         output_dir = self.task_dir
         self.context.update(
             prediction_metadata_path=metadata_path,
-            predictions_path=self.artifact_path(
+            predictions_path=artifact_path(
                 source_dir, metadata, "predictions"
             ),
             daily_path=output_dir / "daily.parquet",
@@ -550,7 +573,7 @@ class BacktestTask(BaseTask):
     def build_output_params(self) -> BacktestOutputParams:
         daily: pl.DataFrame = self.context["daily"]
         integrity = {
-            name: self.artifact_record(
+            name: artifact_record(
                 self.context[f"{name}_path"], self.task_dir
             )
             for name in ("daily", "summary")

@@ -10,15 +10,17 @@ import pyarrow.parquet as pq
 import pytest
 
 from axonx import Application
-from axonx.steps.workspace.files import list_entries
 
 
 async def _workspace_app(path):
     app = Application(
         workspace_dir=str(path),
+        components={"workspace": {"default": {"backend": "local"}}},
         jobs={
-            "list_workspace_entries": {"steps": [{"backend": "list_workspace_entries_step"}]},
-            "preview_workspace_file": {
+            "list_entries": {
+                "steps": [{"backend": "list_entries_step"}]
+            },
+            "preview_file": {
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -30,18 +32,9 @@ async def _workspace_app(path):
                     "required": ["path"],
                     "additionalProperties": False,
                 },
-                "steps": [{"backend": "preview_workspace_file_step"}],
+                "steps": [{"backend": "preview_file_step"}],
             },
-            "delete_workspace_entry": {
-                "parameters": {
-                    "type": "object",
-                    "properties": {"path": {"type": "string", "minLength": 1}},
-                    "required": ["path"],
-                    "additionalProperties": False,
-                },
-                "steps": [{"backend": "delete_workspace_entry_step"}],
-            },
-            "delete_workspace_entries": {
+            "delete_entries": {
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -55,7 +48,7 @@ async def _workspace_app(path):
                     "required": ["paths"],
                     "additionalProperties": False,
                 },
-                "steps": [{"backend": "delete_workspace_entries_step"}],
+                "steps": [{"backend": "delete_entries_step"}],
             },
         },
     )
@@ -63,7 +56,9 @@ async def _workspace_app(path):
     return app
 
 
-def test_workspace_metadata_filter_skips_incomplete_task_directories(tmp_path, caplog):
+async def test_workspace_metadata_filter_skips_incomplete_task_directories(
+    tmp_path, capsys
+):
     etl = tmp_path / "etl"
     complete = etl / "etl#complete"
     incomplete = etl / "etl#incomplete"
@@ -71,17 +66,26 @@ def test_workspace_metadata_filter_skips_incomplete_task_directories(tmp_path, c
     incomplete.mkdir()
     (complete / "metadata.json").write_text("{}", encoding="utf-8")
 
-    listing = list_entries(tmp_path, "etl", require_metadata=True)
-
-    assert [entry["name"] for entry in listing["entries"]] == ["etl#complete"]
-    assert "Skipping task directory without metadata.json" in caplog.text
-    assert str(incomplete) in caplog.text
-
-
-async def test_missing_workspace_directory_logs_warning_without_traceback(tmp_path, capsys):
     app = await _workspace_app(tmp_path)
     try:
-        response = await app.run_job("list_workspace_entries", path="missing")
+        listing = await app.get_component("workspace").list_entries(
+            "etl", require_metadata=True
+        )
+    finally:
+        await app.close()
+
+    assert [entry["name"] for entry in listing["entries"]] == ["etl#complete"]
+    output = capsys.readouterr().err
+    assert "Skipping task directory without metadata.json" in output
+    assert str(incomplete) in output
+
+
+async def test_missing_workspace_directory_logs_warning_without_traceback(
+    tmp_path, capsys
+):
+    app = await _workspace_app(tmp_path)
+    try:
+        response = await app.run_job("list_entries", path="missing")
     finally:
         await app.close()
 
@@ -102,9 +106,9 @@ async def test_workspace_lists_directories_first_and_previews_supported_files(tm
     )
     app = await _workspace_app(tmp_path)
     try:
-        listing = await app.run_job("list_workspace_entries", path="")
-        text = await app.run_job("preview_workspace_file", path="notes.txt")
-        parquet = await app.run_job("preview_workspace_file", path="data.parquet")
+        listing = await app.run_job("list_entries", path="")
+        text = await app.run_job("preview_file", path="notes.txt")
+        parquet = await app.run_job("preview_file", path="data.parquet")
     finally:
         await app.close()
 
@@ -140,8 +144,10 @@ async def test_workspace_can_read_parquet_fully_on_request(tmp_path):
     )
     app = await _workspace_app(tmp_path)
     try:
-        preview = await app.run_job("preview_workspace_file", path="data.parquet")
-        full = await app.run_job("preview_workspace_file", path="data.parquet", full=True)
+        preview = await app.run_job("preview_file", path="data.parquet")
+        full = await app.run_job(
+            "preview_file", path="data.parquet", full=True
+        )
     finally:
         await app.close()
 
@@ -162,9 +168,11 @@ async def test_workspace_markdown_frontmatter_json_and_csv(tmp_path):
     (tmp_path / "table.csv").write_text("name,value\na,1\nb,2\n", encoding="utf-8")
     app = await _workspace_app(tmp_path)
     try:
-        markdown = await app.run_job("preview_workspace_file", path="readme.md")
-        json_result = await app.run_job("preview_workspace_file", path="result.json")
-        csv_result = await app.run_job("preview_workspace_file", path="table.csv", offset=1, limit=1)
+        markdown = await app.run_job("preview_file", path="readme.md")
+        json_result = await app.run_job("preview_file", path="result.json")
+        csv_result = await app.run_job(
+            "preview_file", path="table.csv", offset=1, limit=1
+        )
     finally:
         await app.close()
 
@@ -186,7 +194,9 @@ async def test_workspace_csv_preview_accepts_bulk_limit(tmp_path):
     )
     app = await _workspace_app(tmp_path)
     try:
-        result = await app.run_job("preview_workspace_file", path="table.csv", limit=5000)
+        result = await app.run_job(
+            "preview_file", path="table.csv", limit=5000
+        )
     finally:
         await app.close()
 
@@ -204,8 +214,8 @@ async def test_workspace_previews_yaml_and_reports_invalid_yaml(tmp_path):
     (tmp_path / "broken.yml").write_text("items: [one, two\n", encoding="utf-8")
     app = await _workspace_app(tmp_path)
     try:
-        valid = await app.run_job("preview_workspace_file", path="config.yaml")
-        invalid = await app.run_job("preview_workspace_file", path="broken.yml")
+        valid = await app.run_job("preview_file", path="config.yaml")
+        invalid = await app.run_job("preview_file", path="broken.yml")
     finally:
         await app.close()
 
@@ -226,7 +236,7 @@ async def test_workspace_loads_large_structured_files_completely(tmp_path):
     (tmp_path / "large.json").write_text(json.dumps(payload), encoding="utf-8")
     app = await _workspace_app(tmp_path)
     try:
-        result = await app.run_job("preview_workspace_file", path="large.json")
+        result = await app.run_job("preview_file", path="large.json")
     finally:
         await app.close()
 
@@ -248,9 +258,11 @@ async def test_workspace_rejects_path_escape_and_external_symlink(tmp_path):
 
     app = await _workspace_app(workspace)
     try:
-        escaped = await app.run_job("preview_workspace_file", path=os.path.relpath(outside, workspace))
-        linked = await app.run_job("preview_workspace_file", path=symlink.name)
-        listing = await app.run_job("list_workspace_entries", path="")
+        escaped = await app.run_job(
+            "preview_file", path=os.path.relpath(outside, workspace)
+        )
+        linked = await app.run_job("preview_file", path=symlink.name)
+        listing = await app.run_job("list_entries", path="")
     finally:
         await app.close()
 
@@ -269,21 +281,24 @@ async def test_workspace_deletes_files_and_directories_but_not_root(tmp_path):
     file_path.write_text("{}", encoding="utf-8")
     app = await _workspace_app(tmp_path)
     try:
-        deleted_file = await app.run_job("delete_workspace_entry", path="single.json")
-        deleted_folder = await app.run_job("delete_workspace_entry", path="results")
-        rejected_root = await app.run_job("delete_workspace_entry", path=".")
+        deleted = await app.run_job("delete_entries", paths=["single.json", "results"])
+        rejected_root = await app.run_job("delete_entries", paths=["."])
     finally:
         await app.close()
 
-    assert deleted_file.answer == {"deleted": "single.json", "kind": "file"}
-    assert deleted_folder.answer == {"deleted": "results", "kind": "directory"}
+    assert deleted.answer == [
+        {"deleted": "single.json", "kind": "file"},
+        {"deleted": "results", "kind": "directory"},
+    ]
     assert not file_path.exists()
     assert not folder.exists()
     assert not rejected_root.success
     assert "root cannot be deleted" in rejected_root.answer
 
 
-async def test_workspace_batch_delete_validates_first_and_collapses_descendants(tmp_path):
+async def test_workspace_batch_delete_validates_first_and_collapses_descendants(
+    tmp_path,
+):
     folder = tmp_path / "run"
     folder.mkdir()
     child = folder / "result.csv"
@@ -293,23 +308,21 @@ async def test_workspace_batch_delete_validates_first_and_collapses_descendants(
     app = await _workspace_app(tmp_path)
     try:
         rejected = await app.run_job(
-            "delete_workspace_entries",
+            "delete_entries",
             paths=["metadata.json", "missing.txt"],
         )
         assert not rejected.success
         assert other.exists()
         deleted = await app.run_job(
-            "delete_workspace_entries",
+            "delete_entries",
             paths=["run/result.csv", "run", "metadata.json", "metadata.json"],
         )
     finally:
         await app.close()
 
-    assert deleted.answer == {
-        "deleted": [
-            {"deleted": "run", "kind": "directory"},
-            {"deleted": "metadata.json", "kind": "file"},
-        ],
-    }
+    assert deleted.answer == [
+        {"deleted": "run", "kind": "directory"},
+        {"deleted": "metadata.json", "kind": "file"},
+    ]
     assert not folder.exists()
     assert not other.exists()

@@ -2,8 +2,10 @@
 
 import polars as pl
 import pytest
-
-from axonx_alpha158.internal.etl_pipeline import fill_missing_adj_factors, validate_market_data
+from axonx_alpha158.internal.etl_pipeline import (
+    fill_missing_adj_factors,
+    validate_market_data,
+)
 
 
 def _quote(**changes: object) -> pl.DataFrame:

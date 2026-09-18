@@ -11,7 +11,8 @@ from typing import TYPE_CHECKING
 from ..enums import TaskState
 from ..schema import TaskStatus, TaskStepStatus
 from ..utils.fs import atomic_write_json
-from .base import task_type_from_id
+from .identity import task_type_from_id
+from .metadata import write_task_metadata
 
 if TYPE_CHECKING:
     from .base import BaseTask
@@ -100,7 +101,7 @@ class TaskRunner:
             task.status.finished_at = datetime.now(UTC)
             self._publish()
             if exit_code == 0:
-                task._write_metadata()
+                write_task_metadata(task)
             task.logger.info(
                 f"Task completed task_id={task.task_id} exit_code={exit_code} "
                 f"elapsed_seconds={perf_counter() - started:.3f}",

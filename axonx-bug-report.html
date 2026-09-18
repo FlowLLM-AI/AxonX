@@ -1,0 +1,1188 @@
+<title>AxonX 缺陷清单</title>
+<style>
+  :root {
+    --ground: #f2f3f5;
+    --surface: #ffffff;
+    --surface-sunk: #e9ebee;
+    --ink: #15181d;
+    --ink-soft: #3d4550;
+    --muted: #5b6472;
+    --rule: #d7dbe0;
+    --rule-soft: #e4e7ea;
+    --accent: #0e6e7d;
+    --accent-soft: #d8ecef;
+    --sev-critical: #b3272d;
+    --sev-high: #a85a16;
+    --sev-medium: #7e6a18;
+    --sev-low: #4b6479;
+    --code-bg: #e8ebee;
+    --shadow: 0 1px 2px rgba(20, 24, 29, .06), 0 8px 24px -16px rgba(20, 24, 29, .28);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101317;
+      --surface: #171b21;
+      --surface-sunk: #1d2229;
+      --ink: #e6e9ed;
+      --ink-soft: #c3cad3;
+      --muted: #96a0ae;
+      --rule: #2a313a;
+      --rule-soft: #222831;
+      --accent: #4fb8c9;
+      --accent-soft: #16333a;
+      --sev-critical: #e8696e;
+      --sev-high: #e09a5a;
+      --sev-medium: #cbb55b;
+      --sev-low: #8fa9bf;
+      --code-bg: #1c222a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #101317;
+    --surface: #171b21;
+    --surface-sunk: #1d2229;
+    --ink: #e6e9ed;
+    --ink-soft: #c3cad3;
+    --muted: #96a0ae;
+    --rule: #2a313a;
+    --rule-soft: #222831;
+    --accent: #4fb8c9;
+    --accent-soft: #16333a;
+    --sev-critical: #e8696e;
+    --sev-high: #e09a5a;
+    --sev-medium: #cbb55b;
+    --sev-low: #8fa9bf;
+    --code-bg: #1c222a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 3.5rem 1.5rem 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  h1, h2, h3 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC",
+                 "Noto Serif CJK SC", "Source Han Serif SC", serif;
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 0;
+    line-height: 1.25;
+  }
+
+  h1 { font-size: clamp(2rem, 4.5vw, 2.9rem); letter-spacing: -0.015em; }
+  h2 { font-size: 1.35rem; margin-bottom: .25rem; }
+  h3 { font-size: 1.08rem; }
+
+  p { margin: 0; max-width: 68ch; }
+
+  .eyebrow {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .72rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  header { display: flex; flex-direction: column; gap: 1rem; }
+  .lede { color: var(--ink-soft); max-width: 64ch; }
+
+  .tally {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .tally div {
+    background: var(--surface);
+    padding: .9rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+  }
+  .tally .n {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 1.6rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .tally .k { font-size: .78rem; color: var(--muted); letter-spacing: .04em; }
+
+  section { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: .9rem;
+    padding-bottom: .7rem;
+    border-bottom: 2px solid var(--rule);
+  }
+  .sec-head .rule-count {
+    margin-left: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .8rem;
+    color: var(--muted);
+  }
+  .sec-head .dot {
+    width: .6rem; height: .6rem; border-radius: 50%;
+    align-self: center;
+    flex: none;
+  }
+
+  .sev-critical .dot, .chip.sev-critical { background: var(--sev-critical); }
+  .sev-high .dot, .chip.sev-high { background: var(--sev-high); }
+  .sev-medium .dot, .chip.sev-medium { background: var(--sev-medium); }
+  .sev-low .dot, .chip.sev-low { background: var(--sev-low); }
+
+  .findings { display: flex; flex-direction: column; gap: 1.1rem; }
+
+  article {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--rule);
+    border-radius: 3px;
+    padding: 1.35rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+    box-shadow: var(--shadow);
+  }
+  article.sev-critical { border-left-color: var(--sev-critical); }
+  article.sev-high { border-left-color: var(--sev-high); }
+  article.sev-medium { border-left-color: var(--sev-medium); }
+  article.sev-low { border-left-color: var(--sev-low); }
+
+  .a-head { display: flex; flex-direction: column; gap: .45rem; }
+
+  .a-title {
+    display: flex;
+    align-items: baseline;
+    gap: .7rem;
+    flex-wrap: wrap;
+  }
+  .idx {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .8rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+  }
+
+  .chip {
+    align-self: center;
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #fff;
+    padding: .12rem .5rem;
+    border-radius: 2px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    flex: none;
+  }
+
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .855em;
+  }
+
+  .loc {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .8rem;
+    color: var(--muted);
+    display: inline-block;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 1px;
+  }
+  .loc b { color: var(--ink-soft); font-weight: 600; }
+
+  dl { margin: 0; display: flex; flex-direction: column; gap: .6rem; }
+
+  .row { display: grid; grid-template-columns: 4.5rem 1fr; gap: .3rem .9rem; }
+  @media (max-width: 34rem) { .row { grid-template-columns: 1fr; gap: .1rem; } }
+
+  dt {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .72rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-top: .32rem;
+  }
+  dd { margin: 0; max-width: 66ch; }
+
+  pre {
+    margin: 0;
+    background: var(--code-bg);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    padding: .7rem .9rem;
+    overflow-x: auto;
+    line-height: 1.55;
+    font-size: .82rem;
+    color: var(--ink-soft);
+  }
+  pre b { color: var(--ink); font-weight: 600; }
+
+  .verdict {
+    display: flex;
+    gap: .6rem;
+    align-items: flex-start;
+    background: var(--accent-soft);
+    border-radius: 3px;
+    padding: .6rem .85rem;
+    font-size: .92rem;
+    color: var(--ink-soft);
+    max-width: 68ch;
+  }
+  .verdict::before {
+    content: "实测";
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .68rem;
+    letter-spacing: .08em;
+    color: var(--accent);
+    flex: none;
+    padding-top: .22rem;
+  }
+  .verdict code { color: var(--ink); }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: .88rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; }
+  th, td { text-align: left; padding: .5rem .8rem; border-bottom: 1px solid var(--rule-soft); }
+  th {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .72rem;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    background: var(--surface-sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.25rem;
+    color: var(--muted);
+    font-size: .88rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">代码审查 · 2026-09-18 · 工作树 e1cb3c8+</div>
+    <h1>AxonX 缺陷清单</h1>
+    <p class="lede">
+      对 <code>/Users/yuli/workspace/AxonX2</code> 全仓扫描的结果。全部条目都在检出代码上实测复现过；
+      每条都给出触发条件、实测输出与修复方向。当前测试套件 232 项全绿，<strong>下面没有一个缺陷被现有测试覆盖</strong>。
+    </p>
+  </header>
+
+  <div class="tally">
+    <div><span class="n" style="color:var(--sev-critical)">3</span><span class="k">严重</span></div>
+    <div><span class="n" style="color:var(--sev-high)">8</span><span class="k">高</span></div>
+    <div><span class="n" style="color:var(--sev-medium)">10</span><span class="k">中</span></div>
+    <div><span class="n" style="color:var(--sev-low)">7</span><span class="k">低</span></div>
+  </div>
+
+  <section class="sev-critical">
+    <div class="sec-head sev-critical">
+      <span class="dot"></span>
+      <h2>严重</h2>
+      <span class="rule-count">3 项 · 远程代码执行 / 数据损坏 / 结果错误</span>
+    </div>
+
+    <div class="findings">
+
+      <article class="sev-critical">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">C1</span>
+            <span class="chip sev-critical">Critical</span>
+            <h3>默认配置下 <code>POST /plugins</code> 无认证安装任意 wheel，导致远程代码执行</h3>
+          </div>
+          <span class="loc"><b>axonx/config/default.yaml:6-10</b> · <b>axonx/components/service/http/plugins.py:41-48</b> · components/plugin/local/manager.py:24-36, 76-85 · constants.py:25</span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>机制</dt>
+            <dd>
+              出厂配置把 plugin 组件设为 <code>{backend: local, auto_install: true, allow_remote_install: true}</code>，
+              <strong>没有 <code>install_token</code></strong>；HTTP 服务的 host 默认是
+              <code>AXONX_DEFAULT_BIND_HOST = "0.0.0.0"</code>。而端点里的鉴权写成了：
+            </dd>
+          </div>
+        </dl>
+
+        <pre>if plugin.install_token and not hmac.compare_digest(          # plugins.py:44
+        authorization, f"Bearer {plugin.install_token}"):
+    raise PluginAuthenticationError("Invalid plugin installation token")</pre>
+
+        <p>
+          <code>install_token</code> 为 <code>None</code> 时整个鉴权段被短路跳过——不是「校验失败」，是「不校验」。
+          <code>allow_remote_install: true</code> 又让上一层的禁用守卫放行。上传的包最终走到
+          <code>install_artifact</code>：
+        </p>
+
+        <pre>[sys.executable, "-m", "pip", "install", "--upgrade", "--force-reinstall",
+ "--no-deps", str(artifact.wheel)]        # plugin/wheel.py:128-139</pre>
+
+        <div class="verdict">
+          <code>axonx start</code>（默认配置，不带任何额外参数）之后，任何能访问到该端口的人，
+          连 <code>Authorization</code> 头都不需要，<code>POST /plugins</code> 传一个合法 wheel
+          即可在服务进程所在的 Python 环境里执行任意代码。
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>修复</dt>
+            <dd>
+              二选一：把出厂默认改回 <code>allow_remote_install: false</code>；或在启动期校验
+              「<code>allow_remote_install</code> 为真时必须提供 <code>install_token</code>」，否则直接拒绝启动。
+              参考：构造器自身的默认值本来就是安全的（<code>allow_remote_install: bool = False</code>，
+              manager.py:27），是 <code>default.yaml</code> 把它打开却没配 token。
+            </dd>
+          </div>
+          <div class="row">
+            <dt>注意</dt>
+            <dd>
+              <code>tests/test_config.py:87-94</code> 目前把 <code>allow_remote_install: True</code>
+              断言为正确的默认值，改默认配置需要同步改这条测试。
+            </dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="sev-critical">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">C2</span>
+            <span class="chip sev-critical">Critical</span>
+            <h3>任务成功结束后，磁盘状态被改写为 failed</h3>
+          </div>
+          <span class="loc"><b>axonx/components/task_manager/local/manager.py:210-219</b> · 关联 index.py:33-45, 140-155；config/default.yaml:12-20</span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>机制</dt>
+            <dd>
+              <code>_handle_worker_exit</code> 判断「worker 有没有写最终状态」时，读的是
+              <code>await self._index.snapshot()</code> —— 内存索引，而不是磁盘上的 <code>status.json</code>。
+              而 worker 是<strong>独立子进程</strong>（<code>runner._publish</code> 直接写文件），父进程的索引只能通过
+              <code>watchfiles</code> 观察磁盘变化来更新。<code>TaskProcessSupervisor._monitor</code>
+              在 <code>process.wait()</code> 返回后<em>立刻</em>回调 <code>on_exit</code>（process.py:118），
+              此时索引还停留在 <code>running</code> —— 于是终态被覆盖成失败。
+            </dd>
+          </div>
+
+          <div class="row">
+            <dt>触发</dt>
+            <dd>
+              任何运行时间超过索引可见窗口的任务，正常退出。默认配置（<code>debounce=60000, step=3000,
+              poll_delay_ms=3000</code>）下实测索引落后磁盘 <strong>约 5–6 秒</strong>；测试用的
+              <code>poll_delay_ms/step = 50</code> 几乎无延迟，所以测试全绿而生产全红。
+            </dd>
+          </div>
+        </dl>
+
+        <pre>index observed running after 6.1s
+worker exit code: 0
+disk at exit: succeeded
+<b>FINAL disk state: failed | exit_code=1 | error=Worker exited without final status (code 0)</b></pre>
+
+        <div class="verdict">
+          返回码 0 的正常退出被写成 <code>exit_code=1</code>，错误信息还宣称「没有写入最终状态」——而文件里明明写着 <code>succeeded</code>。
+        </div>
+
+        <p>
+          这是本次未提交改动引入的<strong>回归</strong>。旧版 <code>awatch(debounce=200, rust_timeout=1000,
+          yield_on_timeout=True)</code> 实测事件延迟 0.0s，新版同样的测量下默认配置要 5.0s：
+        </p>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>watcher 配置</th><th>status.json 变更被索引观察到</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="num">旧版 debounce=200, rust_timeout=1000, yield_on_timeout</td><td class="num">0.0 s</td></tr>
+              <tr><td class="num">新版默认 debounce=60000, step=3000, poll_delay_ms=3000</td><td class="num">5.0 s</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>连带</dt>
+            <dd>
+              同一个过期快照还让 <code>delete()</code>（manager.py:181-182）拒绝删除已经成功的任务、
+              <code>cancel()</code>（:157）对已结束任务返回 <code>False</code>；
+              <code>_mark_dead_tasks</code>（:91）重新读的也是索引而非磁盘，因此只会与过期记录自洽。
+            </dd>
+          </div>
+          <div class="row">
+            <dt>修复</dt>
+            <dd>
+              在 <code>_handle_worker_exit</code> 与 <code>_mark_dead_tasks</code> 里，判定前先
+              <code>await self._index.refresh(task_id)</code>（或直接读 <code>status.json</code>）。
+              调小 <code>step</code>/<code>poll_delay_ms</code> 只能缩小窗口，关不掉它。
+            </dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="sev-critical">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">C3</span>
+            <span class="chip sev-critical">Critical</span>
+            <h3>毛累计收益用单利累加，与净累计收益口径不一致</h3>
+          </div>
+          <span class="loc"><b>axonx/task/core/backtest.py:275, 290-292</b> · 展示于 BacktestView.tsx:715-731</span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>机制</dt>
+            <dd>
+              同一段汇总里，净收益按复利计算，毛收益按单利求和。两者在 UI 中并排显示为「净累计收益 / 毛累计收益」，
+              读者会直接比较它们，而口径不同使这个比较没有意义。
+            </dd>
+          </div>
+        </dl>
+
+        <pre>(cumulative - 1).alias(f"{prefix}_net_cumulative_return"),      # cumulative = (net+1).product()  复利
+...
+pl.col(f"{prefix}_gross_return").sum().alias(f"{prefix}_gross_cumulative_return"),   # <b>单利</b></pre>
+
+        <div class="verdict">
+          3 个交易日、每日各 +10%：净累计 <code>0.331</code>，毛累计 <code>0.30</code>。同一策略不应出现 3.1 个百分点的口径差。
+        </div>
+
+        <p>
+          <code>_{prefix}_equity</code> 本身就是 <code>(net_return + 1).cum_prod()</code>（backtest.py:243-246），
+          也就是本文件既有的复利约定；毛收益这一项是唯一的例外。
+        </p>
+
+        <dl>
+          <div class="row">
+            <dt>修复</dt>
+            <dd><code>((pl.col(f"{prefix}_gross_return") + 1).product() - 1)</code></dd>
+          </div>
+        </dl>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="sev-high">
+    <div class="sec-head sev-high">
+      <span class="dot"></span>
+      <h2>高</h2>
+      <span class="rule-count">8 项 · 挂死 / 资源泄漏 / 功能失效 / 鉴权缺陷</span>
+    </div>
+
+    <div class="findings">
+
+      <article class="sev-high">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">H1</span>
+            <span class="chip sev-high">High</span>
+            <h3>ShellStep 超时后永久挂死，连取消也一起卡住</h3>
+          </div>
+          <span class="loc"><b>axonx/steps/common/shell.py:26-39</b></span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>机制</dt>
+            <dd>
+              超时分支先 <code>_kill_process_group()</code>，紧接着 <code>await process.communicate()</code>
+              ——<strong>这次等待没有任何超时</strong>。若命令留下了脱离进程组的子进程（<code>setsid()</code>
+              或自行 daemon 化）且仍持有继承来的 stdout/stderr 管道，<code>communicate()</code>
+              会一直等 EOF，永远不返回。CancelledError 分支（:38）是同样的写法。
+            </dd>
+          </div>
+        </dl>
+
+        <pre>command = python -c "os.setsid(); time.sleep(30)" &amp; sleep 30   # timeout 设为 0.5s
+<b>STILL HUNG after 12s -> step never returns</b></pre>
+
+        <div class="verdict">
+          连外层 <code>wait_for(step(ctx), 12)</code> 都没能打断它——取消会触发 <code>CancelledError</code> 分支，
+          而那里同样是无超时的 <code>communicate()</code>，于是<strong>取消操作本身也挂死</strong>。
+          附带：超时分支把已经产生的输出丢弃了（<code>"stdout": ""</code>）。
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>修复</dt>
+            <dd>第二次等待加短超时（<code>asyncio.wait_for(process.communicate(), 1)</code>），超时后 <code>process.kill()</code> 收尾，并保留已读到的部分输出。</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="sev-high">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">H2</span>
+            <span class="chip sev-high">High</span>
+            <h3>Application._close 用 except Exception，与 _start 的 BaseException 不对称，导致组件泄漏</h3>
+          </div>
+          <span class="loc"><b>axonx/core/application.py:45-53</b> · 对比 :35</span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>机制</dt>
+            <dd>
+              <code>_close</code> 先 <code>self._started.pop()</code> 再从列表中移除组件，然后才调用
+              <code>close()</code>，且只收集 <code>Exception</code>。<code>asyncio.CancelledError</code>
+              属于 <code>BaseException</code>，一旦抛出就打断整个 while 循环——而那个组件已经出栈，
+              <strong>再没有任何重试机会</strong>。框架自身的 <code>BaseComponent.close()</code>
+              是<em>故意</em>把 <code>BaseException</code> 收集后再抛的（components/base.py:125-132），
+              所以这类异常确实会抵达这里。
+            </dd>
+          </div>
+        </dl>
+
+        <pre><b>[normal RuntimeError ]</b> raised ExceptionGroup; closed=['first', 'second', 'third']
+<b>[asyncio.CancelledError]</b> raised CancelledError; closed=['first']</pre>
+
+        <div class="verdict">
+          普通异常下三个组件都被关闭；换成 <code>CancelledError</code> 就只有第一个被关，
+          其余（子进程 supervisor、文件监听 index、HTTP client）<strong>永不关闭</strong>——子进程、watcher、socket 泄漏，进程可能无法退出。
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>修复</dt>
+            <dd>与 <code>_start</code> 对齐改为 <code>except BaseException</code>，或捕获 CancelledError 后继续循环、最后用 BaseExceptionGroup 抛出。</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="sev-high">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">H3</span>
+            <span class="chip sev-high">High</span>
+            <h3>chunked 上传绕过 wheel 体积上限，校验发生在读完整个 body 之后</h3>
+          </div>
+          <span class="loc"><b>axonx/components/service/http/plugins.py:49-52</b> · 真正的长度校验在 components/plugin/local/manager.py:80</span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>机制</dt>
+            <dd>
+              端点只信任客户端自报的 <code>content-length</code>，而 <code>data = await request.body()</code>
+              把整个 body 读进内存<em>之后</em>才由 manager 检查长度。用
+              <code>Transfer-Encoding: chunked</code>（不带 <code>content-length</code>）即可让头部检查整个跳过。
+            </dd>
+          </div>
+        </dl>
+
+        <div class="verdict">
+          <code>max_wheel_bytes</code> 形同虚设，任意大小 body 都会被完整缓冲——内存耗尽型 DoS。
+          （<code>max_wheel_bytes</code> 默认 256 MiB，但可通过该路径超额任意倍。）
+        </div>
+      </article>
+
+      <article class="sev-high">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">H4</span>
+            <span class="chip sev-high">High</span>
+            <h3>工作区预览把合法 UTF-8 文件判为「不是合法 UTF-8」</h3>
+          </div>
+          <span class="loc"><b>axonx/components/workspace/local.py:70-80</b></span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>机制</dt>
+            <dd>
+              预览按<strong>字节</strong>截断到 <code>TEXT_PREVIEW_BYTES</code>（512 KiB），切点落在多字节字符中间时，
+              <code>data.decode("utf-8-sig")</code> 抛 <code>UnicodeDecodeError</code>，被翻译成
+              「File is not valid UTF-8 text」——把截断缺陷伪装成文件格式错误。
+            </dd>
+          </div>
+        </dl>
+
+        <pre>size: 600000  boundary: 524288   # 文件内容为 200000 个「中」，完全合法 UTF-8
+<b>ValueError -> File is not valid UTF-8 text</b></pre>
+
+        <div class="verdict">
+          中文占 3 字节/字符，<code>524288 % 3 == 2</code>，所以任何超过 512 KiB 的中文文本／CSV／日志都会踩中——不是边界特例，是常态。
+        </div>
+      </article>
+
+      <article class="sev-high">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">H5</span>
+            <span class="chip sev-high">High</span>
+            <h3>无效因子（NaN）在因子排名中排到第一名</h3>
+          </div>
+          <span class="loc"><b>plugins/alpha158/src/axonx_alpha158/analysis.py:142-151</b></span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>机制</dt>
+            <dd>
+              <code>rankic_mean.abs().rank(descending=True)</code> 对 NaN 的排序语义是「排最前」。零有效日的因子
+              <code>rankic_mean</code>/<code>rankicir</code> 是 NaN（<code>direction</code> 同时为 <code>"unknown"</code>），
+              但排名列仍把它放在第 1 位，并按该列排序输出。
+            </dd>
+          </div>
+        </dl>
+
+        <div class="verdict">
+          5 个零有效日因子，全部拿到 <code>rank_by_abs_rankic == 1</code>——排名表把「无法评估」呈现成了「最优」。
+        </div>
+      </article>
+
+      <article class="sev-high">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">H6</span>
+            <span class="chip sev-high">High</span>
+            <h3>非 ASCII 的代理密钥触发 TypeError，认证失败变成 500</h3>
+          </div>
+          <span class="loc"><b>axonx/components/proxy/http.py:136</b> · 调用点 :146, :168 · 未映射于 job/proxy_route.py:87-95</span>
+        </div>
+
+        <pre>hmac.compare_digest("秘密", "secret")
+<b>TypeError: comparing strings with non-ASCII characters is not supported</b></pre>
+
+        <div class="verdict">
+          <code>hmac.compare_digest</code> 只接受纯 ASCII 字符串。该异常不在 <code>_forward</code> 的捕获列表里，
+          以 500 返回。任何调用方都能用一个非 ASCII 密钥字段把 401 变成 500 + 堆栈日志。
+          （同一模式在 <code>service/http/plugins.py:44</code> 重现，见 M7。）
+        </div>
+      </article>
+
+      <article class="sev-high">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">H7</span>
+            <span class="chip sev-high">High</span>
+            <h3>空的 request_secret 让鉴权静默失效（fail-open）</h3>
+          </div>
+          <span class="loc"><b>axonx/components/proxy/http.py:99-109, 136</b></span>
+        </div>
+
+        <pre>request_secret=""  →  _require_secret("")  <b>通过</b></pre>
+
+        <div class="verdict">
+          构造器校验了密钥<em>来源</em>却不校验密钥<em>值</em>；比较时写成 <code>self.request_secret or ""</code>，
+          空密钥下 <code>compare_digest("", "")</code> 为真。<code>request_secret: ${AXONX_TUSHARE_TOKEN}</code>
+          在环境变量存在但为空时会被解析成空串，代理遂变成一台<strong>无需认证、由服务端注入上游凭据</strong>的转发器。
+        </div>
+      </article>
+
+      <article class="sev-high">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">H8</span>
+            <span class="chip sev-high">High</span>
+            <h3>路径中的控制字符逃逸异常映射，请求缺陷被报成服务端 500</h3>
+          </div>
+          <span class="loc"><b>axonx/components/job/proxy_route.py:79-95</b> · 路径校验在 proxy/http.py:163-164</span>
+        </div>
+
+        <pre>httpx.InvalidURL MRO: ['InvalidURL', 'Exception', 'BaseException', 'object']
+is HTTPError subclass: False
+is ValueError subclass:  False
+
+forward("POST", "a\x01b")  →  <b>httpx.InvalidURL: Invalid non-printable ASCII character in URL</b></pre>
+
+        <div class="verdict">
+          路径守卫只拒绝空段、<code>.</code> 和 <code>..</code>，控制字符交给 <code>httpx.URL</code>，
+          而该类<strong>既不继承 <code>httpx.HTTPError</code> 也不继承 <code>ValueError</code></strong>，不被任何 except 捕获。
+          <code>POST /mirror/a%01b</code> 即可制造 500（0x00–0x1f 与 0x7f 全部命中）。
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="sev-medium">
+    <div class="sec-head sev-medium">
+      <span class="dot"></span>
+      <h2>中</h2>
+      <span class="rule-count">10 项 · 配置项失效 / 错误语义错位 / 边界崩坏</span>
+    </div>
+
+    <div class="findings">
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M1</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>recursive: false 会让任务索引彻底失效</h3>
+          </div>
+          <span class="loc"><b>axonx/components/task_manager/local/index.py:157-162</b> · 配置项 config/default.yaml:16</span>
+        </div>
+
+        <pre>[recursive=True ] indexed=True
+[recursive=False] <b>indexed=False</b>   # 10 秒内始终为空</pre>
+
+        <div class="verdict">
+          <code>_watch_file</code> 硬解包三段路径，非递归模式下 watchfiles 只报告任务目录本身（两段），解包即失败被过滤。
+          改一个默认配置里写明的开关，<code>list_ids</code>/<code>list_statuses</code>/图谱全部返回空。
+          旧版用的 <code>kind, task_id, *tail</code> 恰好能容纳两段路径，是新版回归。
+        </div>
+      </article>
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M2</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>索引失去了自愈能力，watcher 重启期间的变化永久丢失</h3>
+          </div>
+          <span class="loc"><b>axonx/components/task_manager/local/index.py:140-155, 47-54</b></span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>机制</dt>
+            <dd>
+              本次改动删掉了两处全量扫描：30 秒周期的 <code>reconcile()</code>，以及 watcher 异常恢复分支里的
+              <code>reconcile()</code>。现在唯一的全量扫描是 <code>start()</code> 里的那一次。
+            </dd>
+          </div>
+          <div class="row">
+            <dt>后果</dt>
+            <dd>
+              <code>awatch</code> 抛错重启期间发生的所有变更不会被补回；另外 <code>start()</code> 先
+              <code>create_task(_watch())</code>、<code>await asyncio.sleep(0)</code>、再 <code>reconcile()</code>，
+              与 <code>awatch</code> 的初始快照存在竞态——间隙里创建的任务既不在快照里也不会被当成变更上报，
+              因为已无周期扫描，只能等下次重启。
+            </dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M3</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>插件端点异常捕获类型不足，损坏 wheel 返回 500 而非 422</h3>
+          </div>
+          <span class="loc"><b>axonx/components/service/http/plugins.py:60</b> · 同类问题见 axonx/plugin/cli.py:146</span>
+        </div>
+
+        <pre>BadZipFile MRO: ['BadZipFile', 'Exception', 'BaseException', 'object']
+caught by (RuntimeError, TypeError, ValueError): <b>False</b></pre>
+
+        <div class="verdict">
+          <code>inspect_wheel</code> 抛的 <code>zipfile.BadZipFile</code>、<code>configparser.Error</code>、
+          <code>UnicodeDecodeError</code>、<code>KeyError</code> 都不在捕获列表里，会穿透成 500。
+          结合 C1，这是<strong>默认配置下无需认证即可触发</strong>的。CLI 侧的
+          <code>plugin install/deploy</code> 遇到坏 wheel 时同样打印原始 traceback。
+        </div>
+      </article>
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M4</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>非数字的 Content-Length 返回 500</h3>
+          </div>
+          <span class="loc"><b>axonx/components/service/http/plugins.py:49-51</b></span>
+        </div>
+
+        <div class="verdict">
+          <code>int(content_length)</code> 位于 try 之外，请求头写成 <code>content-length: abc</code>
+          即 <code>ValueError</code> 逃逸 → 500，本应是 400/413。同样在默认配置下无需认证即可触发。
+        </div>
+      </article>
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M5</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>ConfigResolver 静默忽略非字符串的 config 覆盖项，并残留非法键</h3>
+          </div>
+          <span class="loc"><b>axonx/config/resolver.py:199-212</b></span>
+        </div>
+
+        <pre>resolve_app_config(config=Path("app.yaml"))
+timezone in result: None            # 文件根本没被加载
+model_validate: ValidationError 1 validation error for ApplicationConfig
+config  Extra inputs are not permitted [input_value=PosixPath('/var/folders/...')]</pre>
+
+        <div class="verdict">
+          只处理 <code>isinstance(source, str)</code>，<code>Path</code> 入参既不加载文件也不 <code>pop("config")</code>：
+          用户以为加载了自定义配置，实际静默使用默认配置；随后校验在 <code>config</code> 这个无关键上报错，
+          错误信息完全指不到真正原因。
+        </div>
+      </article>
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M6</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>state.json 类型不校验，异常发生在 Application 构造期</h3>
+          </div>
+          <span class="loc"><b>axonx/components/plugin/local/repository.py:21</b> · 消费点 :25/:29/:42 · 调用链 plugin/local/service.py:31-32 → manager.py:50</span>
+        </div>
+
+        <pre>[state.json '[1,2,3]'   ] load ok -> records type: list
+                         status() -> <b>AttributeError: 'list' object has no attribute 'values'</b>
+[state.json '{bad json'] load raised JSONDecodeError</pre>
+
+        <div class="verdict">
+          <code>json.loads()</code> 的结果直接赋给 <code>self.records: dict</code>。数组／字符串类内容 load 时不报错，
+          之后调用才崩；截断的 JSON 直接抛 <code>JSONDecodeError</code>。两者都让整个 Application 构造失败，
+          没有文件路径上下文、也没有自愈途径（写回时 <code>{**self.records, ...}</code> 同样会失败）。
+        </div>
+      </article>
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M7</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>插件端点对非 ASCII 的 Authorization 头同样抛 TypeError</h3>
+          </div>
+          <span class="loc"><b>axonx/components/service/http/plugins.py:44-47</b></span>
+        </div>
+
+        <div class="verdict">
+          与 H6 同一模式：<code>Authorization: Bearer toké</code> 让 <code>hmac.compare_digest</code>
+          抛 <code>TypeError</code> → 500。此处鉴权仍是 fail-closed（不是绕过），但把一个客户端输入缺陷暴露成了服务端异常。
+        </div>
+      </article>
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M8</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>artifact_path 在 output_params 为 null 时抛 AttributeError</h3>
+          </div>
+          <span class="loc"><b>axonx/task/artifacts.py:18</b></span>
+        </div>
+
+        <pre>metadata = {"output_params": None}
+<b>AttributeError: 'NoneType' object has no attribute 'get'</b></pre>
+
+        <div class="verdict">
+          <code>dict.get(k, default)</code> 在键<em>存在且值为 null</em> 时返回 <code>None</code> 而非默认值，
+          把一个本应是清晰报错的路径变成任务步骤中段的莫名崩溃。
+        </div>
+      </article>
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M9</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>递归 YAML 让工作区预览抛 RecursionError</h3>
+          </div>
+          <span class="loc"><b>axonx/components/workspace/local.py:91-105</b>（<code>_json_compatible</code>）</span>
+        </div>
+
+        <pre>loop.yaml:  a: &amp;x\n  b: *x\n    →  <b>RecursionError escaped</b></pre>
+
+        <div class="verdict">YAML 锚点自引用是合法语法。这类文件会让预览步骤直接崩掉，而不是报一个可读的错误。</div>
+      </article>
+
+      <article class="sev-medium">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">M10</span>
+            <span class="chip sev-medium">Medium</span>
+            <h3>工作区预览的其余边界：full=true 无上限、frontmatter、死代码、异常不一致</h3>
+          </div>
+          <span class="loc"><b>axonx/components/workspace/local.py</b> · :107-130, 172-183 · :134-140 · :239-260 · :322-324</span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>full=true</dt>
+            <dd>
+              跳过采样把整个 Parquet 读进内存再序列化成 JSON（:107-130, :172-183）。alpha158 数据集数百 MB 量级，
+              一次预览即可打满内存；job 的 JSON Schema 只约束了 <code>limit</code>，对 <code>full</code> 没有任何上限。
+            </dd>
+          </div>
+          <div class="row">
+            <dt>frontmatter</dt>
+            <dd>用 <code>line.strip() == "---"</code> 找结束定界符，正文中任何缩进的 <code>---</code> 都会被误判（:138）。</dd>
+          </div>
+          <div class="row">
+            <dt>死代码</dt>
+            <dd><code>_list_entries</code> 的 <code>lstat()</code> 分支不可达——外层早已 <code>continue</code> 掉符号链接（:255-257）。</dd>
+          </div>
+          <div class="row">
+            <dt>异常</dt>
+            <dd>PyArrow <code>ArrowInvalid</code>（截断／损坏的 Parquet）未归一化，与同文件其它路径返回的 <code>ValueError</code> 不一致；CSV 预览另有 128 KiB 单字段上限。</dd>
+          </div>
+        </dl>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="sev-low">
+    <div class="sec-head sev-low">
+      <span class="dot"></span>
+      <h2>低</h2>
+      <span class="rule-count">7 项 · 契约、健壮性与配置卫生</span>
+    </div>
+
+    <div class="findings">
+
+      <article class="sev-low">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">L1</span>
+            <span class="chip sev-low">Low</span>
+            <h3>/docs 屏蔽是死代码，API 文档实际对外可见</h3>
+          </div>
+          <span class="loc"><b>axonx/components/service/http/static.py:36-39</b></span>
+        </div>
+
+        <pre>/docs            -> 200
+/redoc           -> 200
+/openapi.json    -> 200</pre>
+
+        <div class="verdict">
+          FastAPI 在挂载 catch-all 之前就已注册这三条路由（Starlette 按注册顺序匹配），
+          catch-all 里的 <code>raise HTTPException(404)</code> 永远不可达。源码里那行检查说明作者<em>意图</em>隐藏文档，
+          实际完全无效——结合默认 <code>0.0.0.0</code> 绑定，完整 OpenAPI schema 对外可用。
+          （路径穿越守卫本身是正确的。）
+        </div>
+      </article>
+
+      <article class="sev-low">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">L2</span>
+            <span class="chip sev-low">Low</span>
+            <h3>无关的残留插件会阻断所有远端任务提交</h3>
+          </div>
+          <span class="loc"><b>axonx/plugin/verification.py:24-25</b> · 触发点 components/client/http.py:37-45</span>
+        </div>
+
+        <div class="row">
+          <dd>
+            遍历 <code>metadata.distributions()</code> 时，对<strong>任何</strong>带 <code>axonx.plugins</code>
+            入口点但 manifest 缺失的 distribution 立刻 <code>raise ValueError</code>——这个判断发生在
+            <code>if task_name not in manifest.tasks: continue</code>（:27）<em>之前</em>，与该次提交的任务无关也照样抛，
+            且每次 <code>submit</code> 都会调用它。环境里任何一个卸载残留或 editable 源码被删的插件，
+            就能让所有远端提交失败，报错信息与用户操作毫无关联。另 <code>:31</code> 的
+            <code>json.loads(direct_url)</code> 无保护。
+          </dd>
+        </div>
+      </article>
+
+      <article class="sev-low">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">L3</span>
+            <span class="chip sev-low">Low</span>
+            <h3>stderr 按 8 KiB 分块独立解码，切断多字节字符</h3>
+          </div>
+          <span class="loc"><b>axonx/components/task_manager/local/process.py:93-94</b></span>
+        </div>
+
+        <div class="row">
+          <dd>每次 <code>read(8192)</code> 单独 <code>decode(errors="replace")</code>，跨块边界的多字节字符变成 U+FFFD，并经 <code>stderr_tail</code> 写进持久化的 <code>status.error</code>。</dd>
+        </div>
+      </article>
+
+      <article class="sev-low">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">L4</span>
+            <span class="chip sev-low">Low</span>
+            <h3>is_buyable 实为三态布尔（NULL ≠ false）</h3>
+          </div>
+          <span class="loc"><b>plugins/alpha158/src/axonx_alpha158/internal/etl_pipeline.py:317-346</b></span>
+        </div>
+
+        <pre>ts_code  buyable_null  buyable_true  limits_null
+A        0             61            0
+B        <b>61</b>            0             120</pre>
+
+        <div class="verdict">
+          缺涨停数据时 <code>is_buyable</code> 为 NULL 而非 <code>false</code>。下游全用真值过滤，
+          null 与 false 行为一致，<strong>不构成数据错误</strong>；但 schema 承诺的是布尔标记，
+          按 <code>== False</code> 或 <code>null_count()</code> 判断的消费方会得到意外结果。
+        </div>
+      </article>
+
+      <article class="sev-low">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">L5</span>
+            <span class="chip sev-low">Low</span>
+            <h3>Step 硬编码组件名 "default"</h3>
+          </div>
+          <span class="loc"><b>axonx/steps/base.py:18-35</b> 经 components/mixin.py:36 以 <code>name="default"</code> 查组件</span>
+        </div>
+
+        <div class="row">
+          <dd>
+            配置 schema 允许任意名字（<code>ts_proxy.yaml:5</code> 就把 proxy 命名为 <code>tushare</code>），
+            一旦某类组件被改名，相关 Step 会抛出无上下文的 <code>KeyError: 'default'</code>。当前随附配置都叫 <code>default</code>，属健壮性缺陷。
+          </dd>
+        </div>
+      </article>
+
+      <article class="sev-low">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">L6</span>
+            <span class="chip sev-low">Low</span>
+            <h3>工作区组件自身不校验 offset/limit</h3>
+          </div>
+          <span class="loc"><b>axonx/components/workspace/local.py:322-324</b></span>
+        </div>
+
+        <div class="row">
+          <dd>
+            组件层只靠 <code>min(limit, CSV_MAX_ROWS)</code> 兜底负数。经 job 调用时 JSON Schema 已兜住
+            （<code>offset ≥ 0</code>、<code>1 ≤ limit ≤ 5000</code>），所以经由 API 不可达；
+            直接调用组件（例如插件内）才暴露。属纵深防御缺失。
+          </dd>
+        </div>
+      </article>
+
+      <article class="sev-low">
+        <div class="a-head">
+          <div class="a-title">
+            <span class="idx">L7</span>
+            <span class="chip sev-low">Low</span>
+            <h3>其余待清理项</h3>
+          </div>
+          <span class="loc">wheel.py:92 · plugin/cli.py:111-119 · connectors/tushare.py:42 · config/default.yaml:1-3</span>
+        </div>
+
+        <dl>
+          <div class="row">
+            <dt>遮蔽</dt>
+            <dd><code>plugin/wheel.py:92</code> 的 <code>names</code> 覆盖了 <code>:60</code> 的 <code>names = archive.namelist()</code>，而 <code>:79</code> 的清单存在性检查依赖后者。当前紧接 <code>raise</code> 故不可达，但任何「改为收集告警后继续」的改动都会让该检查退化成字符串子串匹配 → 静默接受缺 manifest 的 wheel。建议改名。</dd>
+          </div>
+          <div class="row">
+            <dt>handler</dt>
+            <dd><code>plugin/cli.py:111-119</code> 的 <code>list</code>/<code>status</code>/<code>inspect</code> 子解析器没有 <code>set_defaults(handler=...)</code>，而 <code>:145</code> 无条件调用 <code>args.handler(args)</code>。当前路径不可达，但不在 <code>:146</code> 的捕获列表内。</dd>
+          </div>
+          <div class="row">
+            <dt>session</dt>
+            <dd><code>connectors/tushare.py:42</code> 创建 <code>requests.Session</code> 但全类无 <code>close()</code>/<code>__del__</code>。实际使用点在 Task 子进程内，进程退出即回收，影响可忽略。</dd>
+          </div>
+          <div class="row">
+            <dt>配置卫生</dt>
+            <dd><code>config/default.yaml:1-3</code> 把内部节点 <code>11.160.132.45:1024</code> 写成了出厂默认的 <code>remote_nodes</code>，会让默认的 <code>list_machines</code> 之类去探测该地址。</dd>
+          </div>
+        </dl>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>排查过、确认无问题的路径</h2>
+      <span class="rule-count">避免重复审查</span>
+    </div>
+    <dl>
+      <div class="row">
+        <dt>解压穿越</dt>
+        <dd>
+          全仓无 <code>zipfile.extract</code>/<code>extractall</code>/<code>tarfile.extract</code>，
+          <code>inspect_wheel</code> 只做 <code>namelist</code>/<code>read</code> 成员读取——<strong>不存在 zip-slip</strong>；
+          上传文件名经 <code>Path(filename).name != filename</code> 校验，落地路径由自身 sha256 拼出。
+        </dd>
+      </div>
+      <div class="row">
+        <dt>选股口径</dt>
+        <dd>candidates ⊆ label_valid 为真的行，因此 actual_return 必然非空——等权分母偏差不存在；portfolio_daily 的交易日与候选日一致，净值不会遇到 null。</dd>
+      </div>
+      <div class="row">
+        <dt>代理转发</dt>
+        <dd>主机由 base_url 固定，<code>//host</code>、<code>http://host</code>、<code>..</code> 均被拒（对照 httpx 0.28 <code>_merge_url</code> 验证）——无 SSRF；Authorization／Cookie／X-Api-Key／Host 都不到上游；504/502/401/422 映射逐条验证正确。</dd>
+      </div>
+      <div class="row">
+        <dt>涨跌停</dt>
+        <dd>BSE（<code>.BJ</code>）已在 load_market_data 中显式剔除，因此 30% 涨跌幅缺口不可达；ST_LIMIT_CHANGE_DATE 的「变更日前 5%、变更日后按板块」分支自洽，非缺陷。</dd>
+      </div>
+      <div class="row">
+        <dt>组件装配</dt>
+        <dd><code>ComponentGraph.startup_order()</code> 的入度／自环／重复依赖处理、环检测与稳定排序无误；<code>_discover_configs</code> 的 reversed 优先级与 <code>extends</code> 继承及环路检测正确；wheel 的重复 task/job/backend 校验与组件类型校验正确。</dd>
+      </div>
+      <div class="row">
+        <dt>标识与元数据</dt>
+        <dd>task_type_from_id 的拒绝面与生成端正则一致；<code>model_dump(mode="json")</code> 已把 NaN/Inf 落成 null，<code>allow_nan=False</code> 不会触发。</dd>
+      </div>
+      <div class="row">
+        <dt>任务图</dt>
+        <dd>缺失父节点必然作为根处理，<code>_graph_nodes</code> 的一层 setdefault 展开足够；<code>_component</code> 可达性遍历与 <code>_root_id</code> 回退语义正确。</dd>
+      </div>
+      <div class="row">
+        <dt>配置连接</dt>
+        <dd>所有 yaml 中 21 个 job 的 backend 引用都能在 <code>@R.register</code> 找到对应实现，无悬空引用；task_manager 抽象基类签名与各 Step 调用点逐一比对一致。</dd>
+      </div>
+    </dl>
+  </section>
+
+  <footer>
+    <div>方法：静态阅读 + 在检出代码上运行最小复现（polars 1.44.2 / httpx 0.28 / Python 3.13.3）。</div>
+    <div>C1 的 RCE 链路为静态核实（端点 → 鉴权短路 → <code>pip install</code>），未实际执行安装；C2 为真实子进程 + 默认 watcher 参数 + 真实退出回调的端到端复现。</div>
+    <div>232 项现有测试全绿：以上缺陷均不在测试覆盖范围内，其中若干条正是被测试里的宽松参数（<code>poll_delay_ms/step = 50</code>）掩盖的。</div>
+  </footer>
+
+</div>
