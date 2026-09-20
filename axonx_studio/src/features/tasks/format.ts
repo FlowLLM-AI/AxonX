@@ -1,5 +1,5 @@
 import { formatDateTime } from "../../shared/lib/format";
-import type { Language } from "../../app/types";
+import type { TFunction } from "i18next";
 import type { TaskStatus } from "./types";
 
 export interface TaskStepProgress {
@@ -20,11 +20,11 @@ export function taskStepProgress(task: TaskStatus): TaskStepProgress | null {
   };
 }
 
-export function formatDate(value: string | null, language: Language) {
-  return formatDateTime(value, language);
+export function formatDate(value: string | null) {
+  return formatDateTime(value);
 }
 
-export function formatDuration(task: TaskStatus, language: Language) {
+export function formatDuration(task: TaskStatus, t: TFunction) {
   if (!task.started_at) return "—";
   const end = task.finished_at
     ? new Date(task.finished_at).getTime()
@@ -33,13 +33,14 @@ export function formatDuration(task: TaskStatus, language: Language) {
     0,
     Math.floor((end - new Date(task.started_at).getTime()) / 1000),
   );
-  if (language === "zh") {
-    if (seconds < 60) return `${seconds} 秒`;
-    if (seconds < 3600)
-      return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
-    return `${Math.floor(seconds / 3600)} 小时 ${Math.floor((seconds % 3600) / 60)} 分`;
-  }
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  if (seconds < 60) return t("formats.duration.seconds", { seconds });
+  if (seconds < 3600)
+    return t("formats.duration.minutesSeconds", {
+      minutes: Math.floor(seconds / 60),
+      seconds: seconds % 60,
+    });
+  return t("formats.duration.hoursMinutes", {
+    hours: Math.floor(seconds / 3600),
+    minutes: Math.floor((seconds % 3600) / 60),
+  });
 }

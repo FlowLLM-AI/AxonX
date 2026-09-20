@@ -1,17 +1,10 @@
 import { Cpu, Gauge, HardDrive, MemoryStick, Microchip } from "lucide-react";
-import { t } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { formatBytes } from "../../shared/lib/format";
-import type { Language } from "../../app/types";
 import type { GpuInfo, MachineNode } from "./types";
 
-export function MachineDashboard({
-  node,
-  language,
-}: {
-  node: MachineNode;
-  language: Language;
-}) {
-  const text = t(language);
+export function MachineDashboard({ node }: { node: MachineNode }) {
+  const { t } = useTranslation();
   const info = node.info;
   if (!info) return null;
   const estimatedUsedCores =
@@ -25,40 +18,40 @@ export function MachineDashboard({
         <div className="section-title">
           <div>
             <Cpu />
-            <span>{language === "zh" ? "CPU 与内存" : "CPU & memory"}</span>
+            <span>{t("machine.cpuMemory")}</span>
           </div>
           <small>4 METRICS</small>
         </div>
         <div className="resource-grid">
           <ResourceGauge
-            label={text.cpuUsage}
+            label={t("cpuUsage")}
             value={info.cpu.usage_percent}
             tone="cpu"
             icon={<Cpu />}
-            detail={`${estimatedUsedCores ?? "—"} / ${info.cpu.total_cores ?? "—"} ${text.coresUsed}`}
+            detail={`${estimatedUsedCores ?? "—"} / ${info.cpu.total_cores ?? "—"} ${t("coresUsed")}`}
           />
           <ResourceGauge
-            label={text.memoryUsage}
+            label={t("memoryUsage")}
             value={info.memory.usage_percent}
             tone="memory"
             icon={<MemoryStick />}
-            detail={`${formatBytes(info.memory.available_bytes)} ${text.available}`}
+            detail={`${formatBytes(info.memory.available_bytes)} ${t("available")}`}
           />
           <article className="capacity-card">
             <header>
               <span>
                 <Gauge />
-                {text.cpuCapacity}
+                {t("cpuCapacity")}
               </span>
               <small>CPU</small>
             </header>
             <CapacityRow
-              label={text.totalCores}
+              label={t("totalCores")}
               value={`${info.cpu.total_cores ?? "—"}`}
               percent={info.cpu.total_cores == null ? 0 : 100}
             />
             <CapacityRow
-              label={text.physicalCores}
+              label={t("physicalCores")}
               value={`${info.cpu.physical_cores ?? "—"}`}
               percent={
                 info.cpu.physical_cores && info.cpu.total_cores
@@ -67,7 +60,7 @@ export function MachineDashboard({
               }
             />
             <CapacityRow
-              label={text.coresUsed}
+              label={t("coresUsed")}
               value={`${estimatedUsedCores ?? "—"}`}
               percent={info.cpu.usage_percent}
             />
@@ -76,22 +69,22 @@ export function MachineDashboard({
             <header>
               <span>
                 <HardDrive />
-                {text.memoryCapacity}
+                {t("memoryCapacity")}
               </span>
               <small>RAM</small>
             </header>
             <CapacityRow
-              label={text.usedMemory}
+              label={t("usedMemory")}
               value={formatBytes(info.memory.used_bytes)}
               percent={info.memory.usage_percent}
             />
             <CapacityRow
-              label={text.available}
+              label={t("available")}
               value={formatBytes(info.memory.available_bytes)}
               percent={100 - info.memory.usage_percent}
             />
             <CapacityRow
-              label={text.totalMemory}
+              label={t("totalMemory")}
               value={formatBytes(info.memory.total_bytes)}
               percent={100}
             />
@@ -102,18 +95,14 @@ export function MachineDashboard({
         <div className="section-title">
           <div>
             <Microchip />
-            <span>{text.gpuResources}</span>
+            <span>{t("gpuResources")}</span>
           </div>
           <small>{info.gpus.length} DEVICES</small>
         </div>
         {info.gpus.length ? (
           <div className="gpu-grid">
             {info.gpus.map((gpu) => (
-              <GpuCard
-                key={`${gpu.vendor}-${gpu.index}`}
-                gpu={gpu}
-                language={language}
-              />
+              <GpuCard key={`${gpu.vendor}-${gpu.index}`} gpu={gpu} />
             ))}
           </div>
         ) : (
@@ -122,8 +111,8 @@ export function MachineDashboard({
               <Microchip />
             </span>
             <div>
-              <strong>{text.noGpu}</strong>
-              <small>{text.noGpuHint}</small>
+              <strong>{t("noGpu")}</strong>
+              <small>{t("noGpuHint")}</small>
             </div>
           </div>
         )}
@@ -200,8 +189,8 @@ function CapacityRow({
   );
 }
 
-function GpuCard({ gpu, language }: { gpu: GpuInfo; language: Language }) {
-  const text = t(language);
+function GpuCard({ gpu }: { gpu: GpuInfo }) {
+  const { t } = useTranslation();
   return (
     <article className="gpu-card">
       <header>
@@ -212,12 +201,12 @@ function GpuCard({ gpu, language }: { gpu: GpuInfo; language: Language }) {
       </header>
       <div>
         <CapacityRow
-          label={text.gpuUtilization}
+          label={t("gpuUtilization")}
           value={gpu.usage_percent == null ? "—" : `${gpu.usage_percent}%`}
           percent={gpu.usage_percent || 0}
         />
         <CapacityRow
-          label={text.gpuMemory}
+          label={t("gpuMemory")}
           value={
             gpu.memory_used_bytes == null
               ? "—"

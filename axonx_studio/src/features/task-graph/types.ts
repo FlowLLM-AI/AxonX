@@ -14,15 +14,9 @@ export interface TaskGraphNode {
   task_name: string | null;
   created_at: string | null;
   parent_ids: string[];
+  state: "queued" | "running" | "succeeded" | "failed" | "cancelled" | null;
   missing: boolean;
-  root_id?: string;
-}
-
-export interface TaskGraphList {
-  items: TaskGraphNode[];
-  total: number;
-  offset: number;
-  limit: number;
+  provisional: boolean;
 }
 
 export interface TaskGraph {

@@ -12,7 +12,7 @@ import { useAxonXWebMcp } from "./webmcp";
 
 export default function App() {
   useAxonXWebMcp();
-  const { language, setLanguage, theme, setTheme } = useAppPreferences();
+  const { theme, setTheme } = useAppPreferences();
   const { machineId, route, navigate } = useHashRoute();
   const navigateToMachine = useCallback(
     (nextMachineId: string) => {
@@ -36,8 +36,6 @@ export default function App() {
   return (
     <AppShell
       route={route}
-      language={language}
-      setLanguage={setLanguage}
       theme={theme}
       setTheme={setTheme}
       serviceOnline={serviceOnline}
@@ -50,7 +48,6 @@ export default function App() {
     >
       <PageOutlet
         route={route}
-        language={language}
         machine={selectedMachine}
         remoteIp={remoteIp}
         navigate={navigate}

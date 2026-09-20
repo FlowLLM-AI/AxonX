@@ -274,38 +274,14 @@ jobs:
     steps:
       - backend: stream_task
 
-  list_task_graphs:
-    description: List dependency graphs from indexed workspace Tasks.
-    parameters:
-      type: object
-      properties:
-        q:
-          type: string
-          default: ""
-          description: Search query over task artifacts; empty string lists the ETL roots.
-        offset:
-          type: integer
-          minimum: 0
-          default: 0
-          description: Number of results to skip.
-        limit:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 50
-          description: Maximum number of results to return.
-      additionalProperties: false
-    steps:
-      - backend: list_task_graphs_step
-
   get_task_graph:
-    description: Return the dependency graph containing a workspace Task.
+    description: Return the dependency graph containing any workspace Task run.
     parameters:
       type: object
       properties:
         task_id:
           type: string
-          description: ID of the task artifact whose ETL graph is returned.
+          description: ID of the task run whose dependency graph is returned.
       required:
         - task_id
       additionalProperties: false

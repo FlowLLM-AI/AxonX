@@ -5,7 +5,6 @@ from .command import CancelTaskStep, DeleteTasksStep, SubmitTaskStep
 from .query import (
     GetTaskGraphStep,
     GetTaskStatusStep,
-    ListTaskGraphsStep,
     ListTaskIdsStep,
     ListTaskStatusesStep,
     ReadTaskLogStep,
@@ -19,7 +18,6 @@ __all__ = [
     "GetTaskGraphStep",
     "GetTaskStatusStep",
     "ListInstalledTaskDefinitionsStep",
-    "ListTaskGraphsStep",
     "ListTaskIdsStep",
     "ListTaskRunsStep",
     "ListTaskStatusesStep",

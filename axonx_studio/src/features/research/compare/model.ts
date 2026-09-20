@@ -44,7 +44,7 @@ export function cumulativeSeries(
   let a = mode === "net" ? 1 : 0;
   let b = mode === "net" ? 1 : 0;
   return [
-    { date: "起点", a: 0, b: 0 },
+    { date: "__start__", a: 0, b: 0 },
     ...points.map((point) => {
       const left = finite(point.a[`top${topN}_${mode}_return`]);
       const right = finite(point.b[`top${topN}_${mode}_return`]);

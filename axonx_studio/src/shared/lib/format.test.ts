@@ -9,6 +9,6 @@ describe("format utilities", () => {
   });
 
   it("formats absent dates safely", () => {
-    expect(formatDateTime(null, "zh")).toBe("—");
+    expect(formatDateTime(null)).toBe("—");
   });
 });

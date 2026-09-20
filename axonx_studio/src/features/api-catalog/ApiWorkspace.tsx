@@ -15,27 +15,26 @@ import {
 } from "../../shared/schema/values";
 import type { SchemaFormValues } from "../../shared/schema/values";
 import { SchemaField } from "../../shared/ui/SchemaForm/SchemaField";
-import type { ContextOption, Language } from "../../app/types";
+import type { ContextOption } from "../../app/types";
 import type { MachineNode } from "../machines/types";
 import type { JobInfo } from "./types";
 import { invokeApi, listJobs } from "./api";
+import { useTranslation } from "react-i18next";
 
 export function ApiWorkspace({
-  language,
   machine,
   initialName,
   onSelected,
   onOptionsChange,
   onConnection,
 }: {
-  language: Language;
   machine: MachineNode;
   initialName?: string;
   onSelected: (name: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
   onConnection: (online: boolean) => void;
 }) {
-  const zh = language === "zh";
+  const { t } = useTranslation();
   const [apis, setApis] = useState<JobInfo[]>([]);
   const [selectedName, setSelectedName] = useState(initialName || "");
   const [query, setQuery] = useState("");
@@ -103,8 +102,8 @@ export function ApiWorkspace({
     event.preventDefault();
     if (!selected) return;
     const parsed = parseSchemaValues(selected.input_schema, values, {
-      required: zh ? "必填" : "Required",
-      invalidJson: zh ? "请输入合法 JSON" : "Enter valid JSON",
+      required: t("required"),
+      invalidJson: t("jsonHint"),
     });
     if (Object.keys(parsed.errors).length) {
       setError(Object.values(parsed.errors)[0]);
@@ -135,7 +134,7 @@ export function ApiWorkspace({
         <header className="rail-header">
           <div className="rail-heading">
             <small>PUBLIC API</small>
-            <strong>{zh ? "接口" : "Interfaces"}</strong>
+            <strong>{t("api.interfaces")}</strong>
           </div>
           <em>{apis.length}</em>
         </header>
@@ -144,7 +143,7 @@ export function ApiWorkspace({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={zh ? "搜索 API" : "Search APIs"}
+            placeholder={t("api.search")}
           />
         </label>
         <nav className="rail-scroll">
@@ -173,7 +172,7 @@ export function ApiWorkspace({
         {!selected ? (
           <div className="empty-workspace">
             <Network />
-            <strong>{zh ? "选择一个 API" : "Select an API"}</strong>
+            <strong>{t("api.select")}</strong>
           </div>
         ) : (
           <form onSubmit={submit}>
@@ -181,21 +180,18 @@ export function ApiWorkspace({
               <div>
                 <small>POST /jobs/{selected.name}</small>
                 <h1>{selected.name}</h1>
-                <p>
-                  {selected.description ||
-                    (zh ? "无接口说明" : "No description")}
-                </p>
+                <p>{selected.description || t("api.noDescription")}</p>
               </div>
               <span>
                 <CheckCircle2 />
-                {zh ? "可调用" : "Available"}
+                {t("api.available")}
               </span>
             </header>
             <section className="api-form-card">
               <header>
                 <div>
                   <Braces />
-                  <strong>{zh ? "请求参数" : "Request parameters"}</strong>
+                  <strong>{t("api.requestParameters")}</strong>
                 </div>
                 <small>
                   {Object.keys(selected.input_schema.properties || {}).length}{" "}
@@ -213,7 +209,6 @@ export function ApiWorkspace({
                         name,
                       )}
                       value={values[name] ?? ""}
-                      language={language}
                       variant="compact"
                       onChange={(value) =>
                         setValues((current) => ({ ...current, [name]: value }))
@@ -228,13 +223,7 @@ export function ApiWorkspace({
               <code>POST /jobs/{selected.name}</code>
               <button className="primary-button" disabled={submitting}>
                 {submitting ? <LoaderCircle className="spin" /> : <Play />}
-                {submitting
-                  ? zh
-                    ? "调用中"
-                    : "Calling"
-                  : zh
-                    ? "调用 API"
-                    : "Call API"}
+                {submitting ? t("api.calling") : t("api.call")}
               </button>
             </footer>
             {result !== undefined && (
@@ -244,7 +233,7 @@ export function ApiWorkspace({
                     <i />
                     200
                   </span>
-                  <strong>{zh ? "响应" : "Response"}</strong>
+                  <strong>{t("api.response")}</strong>
                 </header>
                 <pre>{JSON.stringify(result, null, 2)}</pre>
               </section>

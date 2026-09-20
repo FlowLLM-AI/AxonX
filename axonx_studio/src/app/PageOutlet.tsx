@@ -1,7 +1,8 @@
 import { lazy, Suspense } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { ResearchPageId } from "../features/research/types";
-import type { ContextOption, Language } from "./types";
+import type { ContextOption } from "./types";
+import { useTranslation } from "react-i18next";
 import type { MachineNode } from "../features/machines/types";
 import { researchSections } from "./navigation";
 import { defaultRoute } from "./routes";
@@ -32,11 +33,6 @@ const StrategyComparePage = lazy(() =>
     default: module.StrategyComparePage,
   })),
 );
-const TaskGraphPage = lazy(() =>
-  import("../features/task-graph/TaskGraphPage").then((module) => ({
-    default: module.TaskGraphPage,
-  })),
-);
 const ApiWorkspace = lazy(() =>
   import("../features/api-catalog/ApiWorkspace").then((module) => ({
     default: module.ApiWorkspace,
@@ -50,7 +46,6 @@ const SubmitPage = lazy(() =>
 
 interface PageOutletProps {
   route: AppRoute;
-  language: Language;
   machine: MachineNode;
   remoteIp?: string;
   navigate: (route: AppRoute) => void;
@@ -60,7 +55,6 @@ interface PageOutletProps {
 
 export function PageOutlet({
   route,
-  language,
   machine,
   remoteIp,
   navigate,
@@ -72,7 +66,6 @@ export function PageOutlet({
   if (route.section === "home") {
     page = (
       <HomePage
-        language={language}
         onNavigate={(target) =>
           navigate(
             target === "submit"
@@ -86,14 +79,13 @@ export function PageOutlet({
     );
   } else if (route.section === "runtime") {
     const view =
-      route.view === "tasks"
-        ? "tasks"
-        : route.view === "environment"
-          ? "environment"
-          : "resources";
+      route.view === "environment" || route.view === "resources"
+        ? route.view
+        : ["overview", "logs", "relations"].includes(route.view || "")
+          ? (route.view as "overview" | "logs" | "relations")
+          : "tasks";
     page = (
       <RuntimeWorkspace
-        language={language}
         machine={machine}
         remoteIp={remoteIp}
         view={view}
@@ -109,7 +101,6 @@ export function PageOutlet({
   } else if (route.section === "raw") {
     page = (
       <TushareBrowserPage
-        language={language}
         remoteIp={remoteIp}
         initialPath={route.resource}
         onConnection={setServiceOnline}
@@ -123,26 +114,9 @@ export function PageOutlet({
         onOptionsChange={setResourceOptions}
       />
     );
-  } else if (route.section === "lineage") {
-    page = (
-      <TaskGraphPage
-        language={language}
-        remoteIp={remoteIp}
-        selectedId={route.resource}
-        onSelect={(resource) =>
-          navigate({ section: "lineage", view: "runs", resource })
-        }
-        onNavigate={(section, resource) =>
-          navigate({ section, view: "runs", resource })
-        }
-        onOptionsChange={setResourceOptions}
-        onConnection={setServiceOnline}
-      />
-    );
   } else if (route.section === "compare") {
     page = (
       <StrategyComparePage
-        language={language}
         remoteIp={remoteIp}
         initialTaskId={route.resource}
         onConnection={setServiceOnline}
@@ -154,7 +128,6 @@ export function PageOutlet({
       <ResearchPage
         key={`${kind}:${remoteIp || "local"}`}
         kind={kind as "analysis" | "backtest" | "etl" | "train" | "predict"}
-        language={language}
         remoteIp={remoteIp}
         initialSelectedId={route.resource}
         onSelected={(resource) =>
@@ -165,7 +138,7 @@ export function PageOutlet({
         onNavigate={(target: ResearchPageId | "runtime", resource?: string) =>
           navigate(
             target === "runtime"
-              ? { section: "runtime", view: "tasks", resource }
+              ? { section: "runtime", view: "overview", resource }
               : {
                   section:
                     target === "factors" ? "factors" : (target as SectionId),
@@ -179,7 +152,6 @@ export function PageOutlet({
   } else if (route.section === "apis") {
     page = (
       <ApiWorkspace
-        language={language}
         machine={machine}
         initialName={route.resource}
         onSelected={(resource) =>
@@ -192,7 +164,6 @@ export function PageOutlet({
   } else if (route.section === "task-defs") {
     page = (
       <SubmitPage
-        language={language}
         remoteIp={remoteIp}
         initialName={route.resource}
         onSelected={(resource) =>
@@ -204,12 +175,18 @@ export function PageOutlet({
       />
     );
   } else {
-    page = <div className="data-gap">Unknown page: {route.section}</div>;
+    page = <UnknownPage section={route.section} />;
   }
 
-  return (
-    <Suspense fallback={<div className="loading-state tall">Loading…</div>}>
-      {page}
-    </Suspense>
-  );
+  return <Suspense fallback={<PageLoading />}>{page}</Suspense>;
+}
+
+function PageLoading() {
+  const { t } = useTranslation();
+  return <div className="loading-state tall">{t("shell.loading")}</div>;
+}
+
+function UnknownPage({ section }: { section: string }) {
+  const { t } = useTranslation();
+  return <div className="data-gap">{t("shell.unknownPage", { section })}</div>;
 }

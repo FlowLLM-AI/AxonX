@@ -8,7 +8,7 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import type { Language } from "../../../app/types";
+import { useTranslation } from "react-i18next";
 import { listTaskRuns, previewWorkspaceFile } from "../../workspace/api";
 import { BacktestChart } from "../backtest/BacktestChart";
 import { loadBacktestDaily } from "../backtest/api";
@@ -121,7 +121,6 @@ async function loadTasks(
 
 function ComparisonTable({
   rows,
-  zh,
 }: {
   rows: {
     label: string;
@@ -129,17 +128,17 @@ function ComparisonTable({
     b: number;
     format: (value: number) => string;
   }[];
-  zh: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="compare-table-wrap">
       <table className="compare-table">
         <thead>
           <tr>
-            <th>{zh ? "指标" : "Metric"}</th>
+            <th>{t("compare.metric")}</th>
             <th>A</th>
             <th>B</th>
-            <th>{zh ? "差值 B − A" : "Difference B − A"}</th>
+            <th>{t("compare.difference_b_a")}</th>
           </tr>
         </thead>
         <tbody>
@@ -163,20 +162,19 @@ function ComparisonChart({
   title,
   rows,
   series,
-  zh,
   percentAxis = true,
 }: {
   title: string;
   rows: ChartRow[];
   series: ChartSeries[];
-  zh: boolean;
   percentAxis?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <section className="viz-card compare-chart-card">
       <header>
         <div>
-          <small>{zh ? "共同区间" : "COMMON WINDOW"}</small>
+          <small>{t("compare.common_window")}</small>
           <h3>{title}</h3>
         </div>
       </header>
@@ -200,17 +198,17 @@ function drawdownRows(points: PairedDay[], topN: number): ChartRow[] {
 }
 
 export function StrategyComparePage({
-  language,
   remoteIp,
   initialTaskId,
   onConnection,
 }: {
-  language: Language;
   remoteIp?: string;
   initialTaskId?: string;
   onConnection: (online: boolean) => void;
 }) {
-  const zh = language === "zh";
+  const { t, i18n } = useTranslation();
+  const zh = i18n.resolvedLanguage === "zh";
+  const locale = zh ? "zh-CN" : "en-US";
   const [tasks, setTasks] = useState<CompareTask[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState("");
@@ -344,17 +342,21 @@ export function StrategyComparePage({
     { key: "a", label: "A" },
     { key: "b", label: "B" },
   ];
+  const localizeStart = (rows: ChartRow[]) =>
+    rows.map((row) =>
+      row.date === "__start__" ? { ...row, date: t("common.start") } : row,
+    );
   const availableTasks = tasks.filter((task) =>
     `${task.config.task_id} ${task.config.task_name}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
-  const tabs: [CompareTab, string, string][] = [
-    ["overview", "概览", "Overview"],
-    ["returns", "收益与风险", "Return & risk"],
-    ["periods", "分期表现", "Periods"],
-    ["quality", "信号质量", "Signal quality"],
-    ["trading", "交易与持仓", "Trading & holdings"],
+  const tabs: CompareTab[] = [
+    "overview",
+    "returns",
+    "periods",
+    "quality",
+    "trading",
   ];
   const warnings: string[] = [];
   if (taskA && taskB) {
@@ -363,59 +365,51 @@ export function StrategyComparePage({
       Number.isFinite(taskB.settings.transactionCost) &&
       taskA.settings.transactionCost !== taskB.settings.transactionCost
     )
-      warnings.push(zh ? "手续费参数不同" : "Transaction costs differ");
+      warnings.push(t("compare.transaction_costs_differ"));
     if (
       Number.isFinite(taskA.settings.annualizationDays) &&
       Number.isFinite(taskB.settings.annualizationDays) &&
       taskA.settings.annualizationDays !== taskB.settings.annualizationDays
     )
-      warnings.push(
-        zh
-          ? "原任务年化天数不同；对比统一按 252 天计算"
-          : "Annualization differs; comparison uses 252 days",
-      );
+      warnings.push(t("compare.annualization_differs_comparison_uses_252"));
     if ((taskA.source || []).join() !== (taskB.source || []).join())
-      warnings.push(zh ? "上游预测任务不同" : "Prediction sources differ");
+      warnings.push(t("compare.prediction_sources_differ"));
     if (dailyA.length !== points.length || dailyB.length !== points.length)
-      warnings.push(
-        zh
-          ? "比较仅使用共同且收益有效的交易日"
-          : "Only shared days with valid returns are compared",
-      );
+      warnings.push(t("compare.only_shared_days_with_valid"));
   }
   const metricRows = [
     {
-      label: zh ? "净累计收益" : "Net cumulative return",
+      label: t("compare.net_cumulative_return"),
       a: statsA.cumulative,
       b: statsB.cumulative,
       format: percent,
     },
     {
-      label: zh ? "净年化收益" : "Net annualized return",
+      label: t("compare.net_annualized_return"),
       a: statsA.annualized,
       b: statsB.annualized,
       format: percent,
     },
     {
-      label: zh ? "年化波动率" : "Annualized volatility",
+      label: t("compare.annualized_volatility"),
       a: statsA.volatility,
       b: statsB.volatility,
       format: percent,
     },
     {
-      label: zh ? "最大回撤" : "Max drawdown",
+      label: t("compare.max_drawdown"),
       a: statsA.maxDrawdown,
       b: statsB.maxDrawdown,
       format: percent,
     },
     {
-      label: zh ? "胜率" : "Win rate",
+      label: t("compare.win_rate"),
       a: statsA.winRate,
       b: statsB.winRate,
       format: percent,
     },
     {
-      label: zh ? "平均换手率" : "Average turnover",
+      label: t("compare.average_turnover"),
       a: statsA.turnover,
       b: statsB.turnover,
       format: percent,
@@ -441,12 +435,8 @@ export function StrategyComparePage({
       <div className="page-heading">
         <div>
           <p className="eyebrow">RESEARCH / COMPARE</p>
-          <h1>{zh ? "策略对比" : "Strategy comparison"}</h1>
-          <span>
-            {zh
-              ? "在相同交易日和持仓数量下，观察两份回测的差异"
-              : "Compare backtests on shared trading days and portfolio size"}
-          </span>
+          <h1>{t("compare.strategy_comparison")}</h1>
+          <span>{t("compare.compare_backtests_on_shared_trading")}</span>
         </div>
       </div>
       <div className="compare-layout">
@@ -454,7 +444,7 @@ export function StrategyComparePage({
           <header className="run-index-header rail-header">
             <div className="run-index-heading rail-heading">
               <small>TASK VERSIONS</small>
-              <strong>{zh ? "任务版本" : "Task versions"}</strong>
+              <strong>{t("compare.task_versions")}</strong>
             </div>
             <div className="run-index-tools">
               <em>{tasks.length}</em>
@@ -462,7 +452,7 @@ export function StrategyComparePage({
                 type="button"
                 className="run-index-refresh rail-refresh"
                 onClick={() => setReload((value) => value + 1)}
-                aria-label={zh ? "刷新任务" : "Refresh tasks"}
+                aria-label={t("compare.refresh_tasks")}
               >
                 <RefreshCw className={listLoading ? "spin" : ""} />
               </button>
@@ -473,19 +463,17 @@ export function StrategyComparePage({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={zh ? "搜索 task_id" : "Search task_id"}
+              placeholder={t("compare.search_task_id")}
             />
           </label>
           <div className="compare-picker-list rail-scroll">
             <p className="compare-picker-hint">
-              {zh
-                ? "点击两个版本进行对比；再次点击可取消"
-                : "Click two versions to compare; click again to remove"}
+              {t("compare.click_two_versions_to_compare")}
             </p>
             {listLoading && (
               <p className="compare-state">
                 <LoaderCircle className="spin" />
-                {zh ? "正在读取任务" : "Loading tasks"}
+                {t("compare.loading_tasks")}
               </p>
             )}
             {listError && (
@@ -496,7 +484,7 @@ export function StrategyComparePage({
             )}
             {!listLoading && !listError && !tasks.length && (
               <p className="compare-state">
-                {zh ? "暂无可用回测任务" : "No backtests available"}
+                {t("compare.no_backtests_available")}
               </p>
             )}
             {availableTasks.map((task) => (
@@ -526,12 +514,8 @@ export function StrategyComparePage({
                     </code>
                     <small>
                       {task.created_at
-                        ? new Date(task.created_at).toLocaleString(
-                            zh ? "zh-CN" : "en",
-                          )
-                        : zh
-                          ? "元数据不可用"
-                          : "Metadata unavailable"}
+                        ? new Date(task.created_at).toLocaleString(locale)
+                        : t("compare.metadata_unavailable")}
                     </small>
                   </span>
                   <span
@@ -557,10 +541,9 @@ export function StrategyComparePage({
               >
                 <span>{index === 0 ? "A" : "B"}</span>
                 <div>
-                  <small>{zh ? "回测任务" : "Backtest task"}</small>
+                  <small>{t("compare.backtest_task")}</small>
                   <strong title={task?.config.task_id}>
-                    {task?.config.task_id ||
-                      (zh ? "从左侧选择" : "Choose from the list")}
+                    {task?.config.task_id || t("compare.choose_from_the_list")}
                   </strong>
                 </div>
               </div>
@@ -573,7 +556,7 @@ export function StrategyComparePage({
                 setIdA(idB);
                 setIdB(idA);
               }}
-              aria-label={zh ? "交换 A 和 B" : "Swap A and B"}
+              aria-label={t("compare.swap_a_and_b")}
             >
               <ArrowLeftRight />
             </button>
@@ -581,47 +564,33 @@ export function StrategyComparePage({
           {!taskA || !taskB ? (
             <div className="compare-empty">
               <GitCompareArrows />
-              <strong>
-                {zh
-                  ? "选择两份回测任务开始对比"
-                  : "Select two backtests to compare"}
-              </strong>
+              <strong>{t("compare.select_two_backtests_to_compare")}</strong>
               <span>
                 {tasks.length === 1
-                  ? zh
-                    ? "目前只有一份回测任务；需要再运行一份回测才能比较"
-                    : "Only one backtest is available; run another to compare"
-                  : zh
-                    ? "点击左侧两个任务版本，分别设为 A 和 B"
-                    : "Click two task versions on the left to assign A and B"}
+                  ? t("compare.only_one_backtest_is_available")
+                  : t("compare.click_two_task_versions_on")}
               </span>
             </div>
           ) : dataError ? (
             <div className="compare-empty error">
               <AlertTriangle />
-              <strong>
-                {zh ? "无法读取回测数据" : "Unable to load backtests"}
-              </strong>
+              <strong>{t("compare.unable_to_load_backtests")}</strong>
               <span>{dataError}</span>
             </div>
           ) : dataLoading || loadedPair !== `${idA}\n${idB}` ? (
             <div className="compare-empty">
               <LoaderCircle className="spin" />
-              <strong>
-                {zh ? "正在计算共同区间" : "Calculating shared window"}
-              </strong>
+              <strong>{t("compare.calculating_shared_window")}</strong>
             </div>
           ) : !commonTopNs.length ? (
             <div className="compare-empty error">
               <AlertTriangle />
-              <strong>{zh ? "没有共同的 Top N" : "No shared Top N"}</strong>
+              <strong>{t("compare.no_shared_top_n")}</strong>
             </div>
           ) : !points.length ? (
             <div className="compare-empty error">
               <CalendarDays />
-              <strong>
-                {zh ? "没有共同且有效的交易日" : "No shared valid trading days"}
-              </strong>
+              <strong>{t("compare.no_shared_valid_trading_days")}</strong>
             </div>
           ) : (
             <>
@@ -629,10 +598,10 @@ export function StrategyComparePage({
                 <div className="compare-window">
                   <CalendarDays />
                   <div>
-                    <small>{zh ? "共同区间" : "Shared window"}</small>
+                    <small>{t("compare.shared_window")}</small>
                     <strong>
                       {points[0].date} — {points.at(-1)?.date} · {points.length}{" "}
-                      {zh ? "日" : "days"}
+                      {t("compare.days")}
                     </strong>
                   </div>
                 </div>
@@ -650,7 +619,7 @@ export function StrategyComparePage({
                   </select>
                 </label>
                 <label>
-                  {zh ? "开始" : "From"}
+                  {t("compare.from")}
                   <input
                     type="date"
                     min={dateInput(points[0].date)}
@@ -660,7 +629,7 @@ export function StrategyComparePage({
                   />
                 </label>
                 <label>
-                  {zh ? "结束" : "To"}
+                  {t("compare.to")}
                   <input
                     type="date"
                     min={dateInput(points[0].date)}
@@ -677,7 +646,7 @@ export function StrategyComparePage({
                       setTo("");
                     }}
                   >
-                    {zh ? "重置日期" : "Reset dates"}
+                    {t("compare.reset_dates")}
                   </button>
                 )}
               </div>
@@ -692,26 +661,22 @@ export function StrategyComparePage({
               {!visible.length ? (
                 <div className="compare-empty">
                   <CalendarDays />
-                  <strong>
-                    {zh
-                      ? "所选日期范围没有共同交易日"
-                      : "No shared days in this date range"}
-                  </strong>
+                  <strong>{t("compare.no_shared_days_in_this")}</strong>
                 </div>
               ) : (
                 <>
                   <nav
                     className="compare-tabs"
-                    aria-label={zh ? "对比维度" : "Comparison dimensions"}
+                    aria-label={t("compare.comparison_dimensions")}
                   >
-                    {tabs.map(([key, cn, en]) => (
+                    {tabs.map((key) => (
                       <button
                         key={key}
                         type="button"
                         className={tab === key ? "active" : ""}
                         onClick={() => setTab(key)}
                       >
-                        {zh ? cn : en}
+                        {t(`compare.tabs.${key}`)}
                       </button>
                     ))}
                   </nav>
@@ -730,75 +695,64 @@ export function StrategyComparePage({
                               </span>
                             </div>
                             <em>
-                              {zh ? "差值" : "Difference"}{" "}
+                              {t("compare.difference")}{" "}
                               {metric.format(metric.b - metric.a)}
                             </em>
                           </article>
                         ))}
                       </div>
                       <ComparisonChart
-                        title={
-                          zh
-                            ? "净收益累计 · 同起点"
-                            : "Cumulative net return · shared start"
-                        }
-                        rows={cumulativeSeries(visible, selectedTopN)}
+                        title={t("compare.cumulative_net_return_shared_start")}
+                        rows={localizeStart(
+                          cumulativeSeries(visible, selectedTopN),
+                        )}
                         series={chartSeries}
-                        zh={zh}
                       />
-                      <ComparisonTable rows={metricRows} zh={zh} />
+                      <ComparisonTable rows={metricRows} />
                     </div>
                   )}
                   {tab === "returns" && (
                     <div className="compare-content">
                       <div className="compare-toolbar">
-                        <span>{zh ? "收益口径" : "Return basis"}</span>
+                        <span>{t("compare.return_basis")}</span>
                         <button
                           type="button"
                           className={returnMode === "net" ? "active" : ""}
                           onClick={() => setReturnMode("net")}
                         >
-                          {zh ? "净收益" : "Net"}
+                          {t("compare.net")}
                         </button>
                         <button
                           type="button"
                           className={returnMode === "gross" ? "active" : ""}
                           onClick={() => setReturnMode("gross")}
                         >
-                          {zh ? "毛收益" : "Gross"}
+                          {t("compare.gross")}
                         </button>
                       </div>
                       <ComparisonChart
                         title={
                           returnMode === "net"
-                            ? zh
-                              ? "净收益累计"
-                              : "Cumulative net return"
-                            : zh
-                              ? "毛收益算术累计"
-                              : "Cumulative gross return"
+                            ? t("compare.cumulative_net_return")
+                            : t("compare.cumulative_gross_return")
                         }
-                        rows={cumulativeSeries(
-                          visible,
-                          selectedTopN,
-                          returnMode,
+                        rows={localizeStart(
+                          cumulativeSeries(visible, selectedTopN, returnMode),
                         )}
                         series={chartSeries}
-                        zh={zh}
                       />
                       <ComparisonChart
-                        title={zh ? "净值回撤" : "Net drawdown"}
+                        title={t("compare.net_drawdown")}
                         rows={drawdownRows(visible, selectedTopN)}
                         series={chartSeries}
-                        zh={zh}
                       />
-                      <ComparisonTable rows={metricRows} zh={zh} />
+                      <ComparisonTable rows={metricRows} />
                     </div>
                   )}
                   {tab === "periods" && (
                     <div className="compare-content">
                       <div className="compare-toolbar">
-                        <span>{zh ? "时间维度" : "Period"}</span>
+                        <span>{t("compare.period")}</span>
                         {(["year", "quarter", "month"] as const).map((unit) => (
                           <button
                             type="button"
@@ -807,16 +761,10 @@ export function StrategyComparePage({
                             onClick={() => setPeriodUnit(unit)}
                           >
                             {unit === "year"
-                              ? zh
-                                ? "分年"
-                                : "Year"
+                              ? t("compare.year")
                               : unit === "quarter"
-                                ? zh
-                                  ? "分季度"
-                                  : "Quarter"
-                                : zh
-                                  ? "分月"
-                                  : "Month"}
+                                ? t("compare.quarter")
+                                : t("compare.month")}
                           </button>
                         ))}
                       </div>
@@ -824,11 +772,11 @@ export function StrategyComparePage({
                         <table className="compare-table">
                           <thead>
                             <tr>
-                              <th>{zh ? "时间" : "Period"}</th>
-                              <th>{zh ? "交易日" : "Days"}</th>
-                              <th>A · {zh ? "净收益" : "Net return"}</th>
-                              <th>B · {zh ? "净收益" : "Net return"}</th>
-                              <th>{zh ? "差值 B − A" : "Difference B − A"}</th>
+                              <th>{t("compare.period")}</th>
+                              <th>{t("compare.days_2")}</th>
+                              <th>A · {t("compare.net_return")}</th>
+                              <th>B · {t("compare.net_return")}</th>
+                              <th>{t("compare.difference_b_a")}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -865,7 +813,7 @@ export function StrategyComparePage({
                   {tab === "quality" && (
                     <div className="compare-content">
                       <div className="compare-toolbar">
-                        <span>{zh ? "信号走势" : "Signal trend"}</span>
+                        <span>{t("compare.signal_trend")}</span>
                         <select
                           value={qualityKey}
                           onChange={(event) =>
@@ -886,7 +834,6 @@ export function StrategyComparePage({
                           ...series,
                           format: "precise",
                         }))}
-                        zh={zh}
                         percentAxis={false}
                       />
                       <ComparisonTable
@@ -894,7 +841,7 @@ export function StrategyComparePage({
                           ...qualityMetrics.map((metric) => {
                             const mean = pairedMean(visible, metric.key);
                             return {
-                              label: `${metric.label} ${zh ? "均值" : "mean"}`,
+                              label: `${metric.label} ${t("compare.mean")}`,
                               a: mean.a,
                               b: mean.b,
                               format: (value: number) =>
@@ -915,7 +862,6 @@ export function StrategyComparePage({
                             };
                           }),
                         ]}
-                        zh={zh}
                       />
                     </div>
                   )}
@@ -925,7 +871,7 @@ export function StrategyComparePage({
                         rows={[
                           metricRows[5],
                           {
-                            label: zh ? "平均日交易成本" : "Average daily cost",
+                            label: t("compare.average_daily_cost"),
                             a:
                               statsA.turnover *
                               (taskA.settings.transactionCost ?? NaN),
@@ -935,26 +881,24 @@ export function StrategyComparePage({
                             format: percent,
                           },
                         ]}
-                        zh={zh}
                       />
                       <ComparisonChart
-                        title={zh ? "每日换手率" : "Daily turnover"}
+                        title={t("compare.daily_turnover")}
                         rows={visible.map((point) => ({
                           date: point.date,
                           a: point.a[`top${selectedTopN}_turnover`],
                           b: point.b[`top${selectedTopN}_turnover`],
                         }))}
                         series={chartSeries}
-                        zh={zh}
                       />
                       <section className="viz-card compare-holdings">
                         <header>
                           <div>
                             <small>TOP 30 HOLDINGS</small>
-                            <h3>{zh ? "持仓对照" : "Holdings comparison"}</h3>
+                            <h3>{t("compare.holdings_comparison")}</h3>
                           </div>
                           <label>
-                            {zh ? "交易日" : "Trading day"}
+                            {t("compare.trading_day")}
                             <select
                               value={activeDay?.date || ""}
                               onChange={(event) =>
@@ -971,17 +915,17 @@ export function StrategyComparePage({
                         </header>
                         <div className="compare-overlap">
                           <strong>
-                            {zh ? "共同持仓" : "Shared holdings"}{" "}
+                            {t("compare.shared_holdings")}{" "}
                             {overlap.common.length}
                           </strong>
                           <span>
-                            {zh ? "重合度" : "Overlap"} {percent(overlap.ratio)}
+                            {t("compare.overlap")} {percent(overlap.ratio)}
                           </span>
                           <span>
-                            A {zh ? "独有" : "only"} {overlap.onlyA.length}
+                            A {t("compare.only")} {overlap.onlyA.length}
                           </span>
                           <span>
-                            B {zh ? "独有" : "only"} {overlap.onlyB.length}
+                            B {t("compare.only")} {overlap.onlyB.length}
                           </span>
                         </div>
                         <div className="compare-holdings-grid">
@@ -994,11 +938,9 @@ export function StrategyComparePage({
                                     <thead>
                                       <tr>
                                         <th>#</th>
-                                        <th>{zh ? "代码" : "Code"}</th>
-                                        <th>{zh ? "名称" : "Name"}</th>
-                                        <th>
-                                          {zh ? "当日收益" : "Daily return"}
-                                        </th>
+                                        <th>{t("compare.code")}</th>
+                                        <th>{t("compare.name")}</th>
+                                        <th>{t("compare.daily_return")}</th>
                                       </tr>
                                     </thead>
                                     <tbody>

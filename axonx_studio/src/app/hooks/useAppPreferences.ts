@@ -1,20 +1,11 @@
 import { useEffect, useState } from "react";
-import type { Language, ThemePreference } from "../types";
+import type { ThemePreference } from "../types";
 
 export function useAppPreferences() {
-  const [language, setLanguage] = useState<Language>(() =>
-    localStorage.getItem("axonx-language") === "zh" ? "zh" : "en",
-  );
   const [theme, setTheme] = useState<ThemePreference>(() => {
     const saved = localStorage.getItem("axonx-theme");
     return saved === "light" || saved === "dark" ? saved : "system";
   });
-
-  useEffect(() => {
-    localStorage.setItem("axonx-language", language);
-    document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
-    document.title = "AxonX Studio";
-  }, [language]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -31,5 +22,5 @@ export function useAppPreferences() {
     return () => media.removeEventListener("change", apply);
   }, [theme]);
 
-  return { language, setLanguage, theme, setTheme };
+  return { theme, setTheme };
 }

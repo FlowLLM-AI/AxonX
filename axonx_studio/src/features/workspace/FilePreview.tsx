@@ -9,54 +9,17 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { formatBytes } from "../../shared/lib/format";
-import type { Language } from "../../app/types";
+import { useTranslation } from "react-i18next";
 import type { WorkspacePreview } from "./types";
-
-const copy = {
-  zh: {
-    unsupported: "暂不支持预览此文件",
-    parquet: "Parquet 数据预览",
-    rowCount: "总行数",
-    rowGroups: "Row Groups",
-    fields: "字段数",
-    schema: "字段结构",
-    truncated: "内容过大，仅展示前 512 KiB",
-    invalidJson: "JSON 格式有误",
-    invalidYaml: "YAML 格式有误",
-    frontmatter: "Frontmatter",
-    rows: "行",
-    previous: "上一页",
-    next: "下一页",
-    size: "文件大小",
-  },
-  en: {
-    unsupported: "Preview is not supported for this file",
-    parquet: "Parquet data preview",
-    rowCount: "Rows",
-    rowGroups: "Row groups",
-    fields: "Fields",
-    schema: "Schema",
-    truncated: "Large file: showing the first 512 KiB",
-    invalidJson: "Invalid JSON",
-    invalidYaml: "Invalid YAML",
-    frontmatter: "Frontmatter",
-    rows: "rows",
-    previous: "Previous",
-    next: "Next",
-    size: "File size",
-  },
-} as const;
 
 export function FilePreview({
   preview,
-  language,
   onPage,
 }: {
   preview: WorkspacePreview;
-  language: Language;
   onPage: (offset: number) => void;
 }) {
-  const text = copy[language];
+  const { t } = useTranslation();
   if (preview.kind === "parquet") {
     const offset = preview.offset || 0;
     const limit = preview.limit || 200;
@@ -64,28 +27,28 @@ export function FilePreview({
       <div className="workspace-parquet">
         <div className="parquet-summary">
           <article>
-            <small>{text.rowCount}</small>
+            <small>{t("workspacePreview.rowCount")}</small>
             <strong>{(preview.row_count ?? 0).toLocaleString()}</strong>
           </article>
           <article>
-            <small>{text.fields}</small>
+            <small>{t("workspacePreview.fields")}</small>
             <strong>
               {preview.column_schema?.length ?? preview.columns?.length ?? 0}
             </strong>
           </article>
           <article>
-            <small>{text.rowGroups}</small>
+            <small>{t("workspacePreview.rowGroups")}</small>
             <strong>{preview.row_group_count ?? 0}</strong>
           </article>
           <article>
-            <small>{text.size}</small>
+            <small>{t("workspacePreview.size")}</small>
             <strong>{formatBytes(preview.size)}</strong>
           </article>
         </div>
         <section className="parquet-schema">
           <header>
             <Database />
-            <strong>{text.schema}</strong>
+            <strong>{t("workspacePreview.schema")}</strong>
           </header>
           <div>
             {(preview.column_schema || []).map((field) => (
@@ -100,12 +63,12 @@ export function FilePreview({
         <section className="parquet-sample">
           <header>
             <FileSpreadsheet />
-            <strong>{text.parquet}</strong>
+            <strong>{t("workspacePreview.parquet")}</strong>
             <small>
               {preview.rows?.length
                 ? `${offset + 1}–${offset + preview.rows.length}`
                 : "0"}{" "}
-              {text.rows}
+              {t("workspacePreview.rows")}
             </small>
           </header>
           <DataTable
@@ -118,13 +81,13 @@ export function FilePreview({
               disabled={offset === 0}
               onClick={() => onPage(Math.max(0, offset - limit))}
             >
-              {text.previous}
+              {t("workspacePreview.previous")}
             </button>
             <button
               disabled={!preview.has_more}
               onClick={() => onPage(offset + limit)}
             >
-              {text.next}
+              {t("workspacePreview.next")}
             </button>
           </footer>
         </section>
@@ -135,7 +98,7 @@ export function FilePreview({
     return (
       <div className="workspace-preview-message">
         <File />
-        <strong>{text.unsupported}</strong>
+        <strong>{t("workspacePreview.unsupported")}</strong>
       </div>
     );
   if (preview.kind === "csv") {
@@ -155,20 +118,20 @@ export function FilePreview({
             {preview.rows?.length
               ? `${offset + 1}–${offset + preview.rows.length}`
               : "0"}{" "}
-            {text.rows}
+            {t("workspacePreview.rows")}
           </span>
           <div>
             <button
               disabled={offset === 0}
               onClick={() => onPage(Math.max(0, offset - limit))}
             >
-              {text.previous}
+              {t("workspacePreview.previous")}
             </button>
             <button
               disabled={!preview.has_more}
               onClick={() => onPage(offset + limit)}
             >
-              {text.next}
+              {t("workspacePreview.next")}
             </button>
           </div>
         </footer>
@@ -184,20 +147,20 @@ export function FilePreview({
       {preview.truncated && (
         <div className="workspace-notice">
           <AlertTriangle />
-          {text.truncated}
+          {t("workspacePreview.truncated")}
         </div>
       )}
       {preview.kind === "json" && preview.parse_error && (
         <div className="workspace-notice error">
           <AlertTriangle />
-          <strong>{text.invalidJson}</strong>
+          <strong>{t("workspacePreview.invalidJson")}</strong>
           <span>{preview.parse_error}</span>
         </div>
       )}
       {preview.kind === "yaml" && preview.parse_error && (
         <div className="workspace-notice error">
           <AlertTriangle />
-          <strong>{text.invalidYaml}</strong>
+          <strong>{t("workspacePreview.invalidYaml")}</strong>
           <span>{preview.parse_error}</span>
         </div>
       )}
@@ -205,7 +168,7 @@ export function FilePreview({
         preview.frontmatter !== null &&
         preview.frontmatter !== undefined && (
           <section className="workspace-frontmatter">
-            <header>{text.frontmatter}</header>
+            <header>{t("workspacePreview.frontmatter")}</header>
             <pre>{JSON.stringify(preview.frontmatter, null, 2)}</pre>
           </section>
         )}
@@ -298,6 +261,7 @@ function StructuredNode({
   value: unknown;
   depth: number;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(depth === 0);
   const isArray = Array.isArray(value);
   const isObject = value !== null && typeof value === "object";
@@ -330,9 +294,12 @@ function StructuredNode({
       >
         {expanded ? <span>−</span> : <ChevronRight />}
         <span className="structured-key">{name}</span>
-        <b>{isArray ? "List" : "Dict"}</b>
+        <b>
+          {isArray ? t("workspacePreview.list") : t("workspacePreview.dict")}
+        </b>
         <small>
-          {entries.length} {isArray ? "items" : "keys"}
+          {entries.length}{" "}
+          {isArray ? t("workspacePreview.items") : t("workspacePreview.keys")}
         </small>
       </button>
       {expanded && (

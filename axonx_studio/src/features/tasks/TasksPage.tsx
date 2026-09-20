@@ -3,8 +3,8 @@ import {
   AlertTriangle,
   Ban,
   Check,
-  ChevronRight,
   Copy,
+  GitBranch,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -12,10 +12,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { interpolate, t } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { usePolling } from "../../shared/hooks/usePolling";
-import type { ContextOption, Language } from "../../app/types";
+import type { ContextOption } from "../../app/types";
 import type { TaskState, TaskStatus } from "./types";
 import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
@@ -24,21 +24,21 @@ const ACTIVE = new Set<TaskState>(["queued", "running"]);
 const ATTENTION = new Set<TaskState>(["failed", "cancelled"]);
 
 export function TasksPage({
-  language,
   remoteIp,
   onSubmit,
   onOpenTask,
+  onOpenGraph,
   onTasksChange,
   onConnection,
 }: {
-  language: Language;
   remoteIp?: string;
   onSubmit: () => void;
   onOpenTask: (taskId: string) => void;
+  onOpenGraph: (taskId: string) => void;
   onTasksChange?: (options: ContextOption[]) => void;
   onConnection: (online: boolean) => void;
 }) {
-  const text = t(language);
+  const { t } = useTranslation();
   const [tasks, setTasks] = useState<TaskStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -162,7 +162,7 @@ export function TasksPage({
     setCancelling(true);
     try {
       const cancelled = await cancelTask(cancelTarget.task_id, remoteIp);
-      if (!cancelled) throw new Error(text.cancelFailed);
+      if (!cancelled) throw new Error(t("cancelFailed"));
       setCancelTarget(null);
       await load(true);
     } catch (reason) {
@@ -188,7 +188,7 @@ export function TasksPage({
       await load(true);
       if (deleted.length !== requested.length)
         throw new Error(
-          interpolate(text.deletePartial, {
+          t("deletePartial", {
             deleted: deleted.length,
             total: requested.length,
           }),
@@ -206,28 +206,26 @@ export function TasksPage({
       <div className="page-heading">
         <div>
           <p className="eyebrow">TASK RUNTIME / 01</p>
-          <h1>{text.taskTitle}</h1>
-          <span>{text.taskLead}</span>
+          <h1>{t("taskTitle")}</h1>
+          <span>{t("taskLead")}</span>
         </div>
         <div className="heading-actions">
-          <label className="auto-toggle" title={text.autoRefresh}>
+          <label className="auto-toggle" title={t("autoRefresh")}>
             <input
               type="checkbox"
               checked={autoRefresh}
               onChange={(event) => setAutoRefresh(event.target.checked)}
-              aria-label={text.autoRefresh}
+              aria-label={t("autoRefresh")}
             />
             <i />
-            {autoRefresh && (
-              <small>{interpolate(text.nextRefresh, { seconds })}</small>
-            )}
+            {autoRefresh && <small>{t("nextRefresh", { seconds })}</small>}
           </label>
           <button
             className="secondary-button"
             onClick={() => void load(true)}
             disabled={refreshing}
-            title={text.refreshNow}
-            aria-label={text.refreshNow}
+            title={t("refreshNow")}
+            aria-label={t("refreshNow")}
           >
             <RefreshCw size={16} className={refreshing ? "spin" : ""} />
           </button>
@@ -238,12 +236,12 @@ export function TasksPage({
         <div className="error-banner">
           <AlertTriangle size={18} />
           <div>
-            <strong>{text.requestFailed}</strong>
+            <strong>{t("requestFailed")}</strong>
             <span>
-              {error} · {text.staleHint}
+              {error} · {t("staleHint")}
             </span>
           </div>
-          <button onClick={() => void load()}>{text.retry}</button>
+          <button onClick={() => void load()}>{t("retry")}</button>
         </div>
       )}
 
@@ -255,7 +253,7 @@ export function TasksPage({
                 <th className="select-column">
                   <input
                     type="checkbox"
-                    aria-label={text.selectAll}
+                    aria-label={t("selectAll")}
                     checked={allVisibleSelected}
                     disabled={!selectableIds.length}
                     onChange={toggleAllVisible}
@@ -263,13 +261,13 @@ export function TasksPage({
                 </th>
                 <th className="task-filter-column">
                   <div className="table-search-head">
-                    <span>{text.taskId}</span>
+                    <span>{t("taskId")}</span>
                     <label className="search-field">
                       <Search size={15} />
                       <input
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
-                        placeholder={text.search}
+                        placeholder={t("search")}
                       />
                     </label>
                     <small>
@@ -280,16 +278,16 @@ export function TasksPage({
                 <th className="type-column">
                   <select
                     className="table-filter-select"
-                    aria-label={text.type}
+                    aria-label={t("type")}
                     value={type}
                     onChange={(event) => setType(event.target.value)}
                   >
                     <option value="">
-                      {text.allTypes} · {tasks.length}
+                      {t("allTypes")} · {tasks.length}
                     </option>
                     {types.map((value) => (
                       <option key={value} value={value}>
-                        {text.types[value] || value} ·{" "}
+                        {t(`types.${value}`, value)} ·{" "}
                         {
                           tasks.filter((task) => task.task_type === value)
                             .length
@@ -301,7 +299,7 @@ export function TasksPage({
                 <th className="state-column">
                   <select
                     className="table-filter-select"
-                    aria-label={text.state}
+                    aria-label={t("state")}
                     value={state}
                     onChange={(event) =>
                       setState(
@@ -311,15 +309,20 @@ export function TasksPage({
                     }
                   >
                     <option value="">
-                      {text.allStates} · {stats.total}
+                      {t("allStates")} · {stats.total}
                     </option>
                     <option value="active">
-                      {text.active} · {stats.active}
+                      {t("active")} · {stats.active}
                     </option>
                     <option value="attention">
-                      {text.attention} · {stats.attention}
+                      {t("attention")} · {stats.attention}
                     </option>
-                    {Object.entries(text.states).map(([key, label]) => (
+                    {Object.entries(
+                      t("states", { returnObjects: true }) as Record<
+                        string,
+                        string
+                      >,
+                    ).map(([key, label]) => (
                       <option key={key} value={key}>
                         {label} ·{" "}
                         {tasks.filter((task) => task.state === key).length}
@@ -327,9 +330,9 @@ export function TasksPage({
                     ))}
                   </select>
                 </th>
-                <th className="progress-column">{text.progress}</th>
-                <th className="started-column">{text.started}</th>
-                <th className="duration-column">{text.duration}</th>
+                <th className="progress-column">{t("progress")}</th>
+                <th className="started-column">{t("started")}</th>
+                <th className="duration-column">{t("duration")}</th>
                 <th className="action-column">
                   {selected.size > 0 ? (
                     <button
@@ -340,7 +343,7 @@ export function TasksPage({
                       {selected.size}
                     </button>
                   ) : (
-                    text.action
+                    t("action")
                   )}
                 </th>
               </tr>
@@ -350,10 +353,10 @@ export function TasksPage({
                 <TaskRow
                   key={task.task_id}
                   task={task}
-                  language={language}
                   selected={selected.has(task.task_id)}
                   onSelect={() => toggleTask(task.task_id)}
                   onOpen={() => onOpenTask(task.task_id)}
+                  onOpenGraph={() => onOpenGraph(task.task_id)}
                   onCancel={() => setCancelTarget(task)}
                 />
               ))}
@@ -362,19 +365,19 @@ export function TasksPage({
           {!loading && filtered.length === 0 && (
             <div className="empty-state">
               <span className="empty-glyph">⌁</span>
-              <strong>{tasks.length ? text.noMatches : text.noTasks}</strong>
-              <p>{tasks.length ? text.noMatches : text.noTasksHint}</p>
+              <strong>{tasks.length ? t("noMatches") : t("noTasks")}</strong>
+              <p>{tasks.length ? t("noMatches") : t("noTasksHint")}</p>
               {!tasks.length && (
                 <button className="primary-button" onClick={onSubmit}>
                   <Plus size={17} />
-                  {text.pages.submit}
+                  {t("pages.submit")}
                 </button>
               )}
             </div>
           )}
           {loading && (
             <div className="loading-state">
-              <LoaderCircle className="spin" /> Loading AxonX runtime…
+              <LoaderCircle className="spin" /> {t("tasks.loadingRuntime")}
             </div>
           )}
         </div>
@@ -399,21 +402,21 @@ export function TasksPage({
             <span className="danger-icon">
               <Ban />
             </span>
-            <h2>{text.cancelConfirm}</h2>
+            <h2>{t("cancelConfirm")}</h2>
             <code>{cancelTarget.task_id}</code>
             <div>
               <button
                 className="secondary-button"
                 onClick={() => setCancelTarget(null)}
               >
-                {text.close}
+                {t("close")}
               </button>
               <button
                 className="danger-button"
                 onClick={() => void confirmCancel()}
                 disabled={cancelling}
               >
-                {cancelling ? text.cancelling : text.confirmCancel}
+                {cancelling ? t("cancelling") : t("confirmCancel")}
               </button>
             </div>
           </div>
@@ -439,21 +442,21 @@ export function TasksPage({
             <span className="danger-icon">
               <Trash2 />
             </span>
-            <h2>{interpolate(text.deleteConfirm, { count: selected.size })}</h2>
-            <p>{text.deleteHint}</p>
+            <h2>{t("deleteConfirm", { count: selected.size })}</h2>
+            <p>{t("deleteHint")}</p>
             <div>
               <button
                 className="secondary-button"
                 onClick={() => setDeleteOpen(false)}
               >
-                {text.close}
+                {t("close")}
               </button>
               <button
                 className="danger-button"
                 onClick={() => void confirmDelete()}
                 disabled={deleting}
               >
-                {deleting ? text.deleting : text.confirmDelete}
+                {deleting ? t("deleting") : t("confirmDelete")}
               </button>
             </div>
           </div>
@@ -474,20 +477,20 @@ function taskTimestamp(task: TaskStatus) {
 
 function TaskRow({
   task,
-  language,
   selected,
   onSelect,
   onOpen,
+  onOpenGraph,
   onCancel,
 }: {
   task: TaskStatus;
-  language: Language;
   selected: boolean;
   onSelect: () => void;
   onOpen: () => void;
+  onOpenGraph: () => void;
   onCancel: () => void;
 }) {
-  const text = t(language);
+  const { t } = useTranslation();
   const progress = taskStepProgress(task);
   const selectable = !ACTIVE.has(task.state);
   const clipboard = useCopyFeedback();
@@ -500,7 +503,7 @@ function TaskRow({
       >
         <input
           type="checkbox"
-          aria-label={interpolate(text.selectTask, { taskId: task.task_id })}
+          aria-label={t("selectTask", { taskId: task.task_id })}
           checked={selected}
           disabled={!selectable}
           onChange={onSelect}
@@ -517,8 +520,8 @@ function TaskRow({
               <button
                 type="button"
                 className={copied ? "copied" : ""}
-                aria-label={copied ? text.copied : text.copyTaskId}
-                title={copied ? text.copied : text.copyTaskId}
+                aria-label={copied ? t("copied") : t("copyTaskId")}
+                title={copied ? t("copied") : t("copyTaskId")}
                 onClick={(event) => {
                   event.stopPropagation();
                   void clipboard.copy(task.task_id);
@@ -527,7 +530,7 @@ function TaskRow({
                 {copied ? (
                   <>
                     <Check />
-                    <span aria-live="polite">{text.copied}</span>
+                    <span aria-live="polite">{t("copied")}</span>
                   </>
                 ) : (
                   <Copy />
@@ -540,17 +543,17 @@ function TaskRow({
       </td>
       <td className="type-column">
         <span className="type-chip">
-          {text.types[task.task_type] || task.task_type}
+          {t(`types.${task.task_type}`, task.task_type)}
         </span>
       </td>
       <td className="state-column">
-        <Status state={task.state} language={language} />
+        <Status state={task.state} />
       </td>
       <td className="progress-column">
         {progress ? (
           <div className="progress-cell">
             <span className="progress-step">
-              <small>{text.step}</small>
+              <small>{t("step")}</small>
               <strong>{progress.current}</strong>
             </span>
             <span
@@ -566,15 +569,28 @@ function TaskRow({
             </span>
           </div>
         ) : (
-          <span className="muted">{text.notStarted}</span>
+          <span className="muted">{t("notStarted")}</span>
         )}
       </td>
       <td className="started-column">
-        {formatDate(task.started_at || task.created_at, language)}
+        {formatDate(task.started_at || task.created_at)}
       </td>
-      <td className="duration-column">{formatDuration(task, language)}</td>
+      <td className="duration-column">{formatDuration(task, t)}</td>
       <td className="action-column">
         <div className="row-actions">
+          <button
+            className="task-graph-action"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenGraph();
+            }}
+            aria-label={t("tasks.locateRelationshipsWithId", {
+              taskId: task.task_id,
+            })}
+            title={t("tasks.locateRelationships")}
+          >
+            <GitBranch />
+          </button>
           {ACTIVE.has(task.state) && (
             <button
               className="text-danger"
@@ -583,29 +599,21 @@ function TaskRow({
                 onCancel();
               }}
             >
-              {text.cancel}
+              {t("cancel")}
             </button>
           )}
-          <button aria-label={text.details}>
-            <ChevronRight />
-          </button>
         </div>
       </td>
     </tr>
   );
 }
 
-export function Status({
-  state,
-  language,
-}: {
-  state: TaskState;
-  language: Language;
-}) {
+export function Status({ state }: { state: TaskState }) {
+  const { t } = useTranslation();
   return (
     <span className={`status-badge ${state}`}>
       <i />
-      {t(language).states[state]}
+      {t(`states.${state}`)}
     </span>
   );
 }

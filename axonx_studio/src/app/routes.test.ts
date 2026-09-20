@@ -24,7 +24,7 @@ describe("application routes", () => {
   it("round-trips encoded routes", () => {
     const route = {
       section: "runtime" as const,
-      view: "tasks",
+      view: "overview",
       resource: "task#20260916",
     };
     expect(parseHash(routeHash("local", route))).toEqual({
@@ -47,12 +47,16 @@ describe("application routes", () => {
     expect(
       parseHash(
         routeHash("local", {
-          section: "lineage",
-          view: "runs",
+          section: "runtime",
+          view: "relations",
           resource: "predict#123",
         }),
-      ).route.resource,
-    ).toBe("predict#123");
+      ).route,
+    ).toEqual({
+      section: "runtime",
+      view: "relations",
+      resource: "predict#123",
+    });
   });
 
   it("keeps strategy comparison on its own route", () => {

@@ -10,9 +10,10 @@ import {
   Settings2,
   Sun,
 } from "lucide-react";
-import { t } from "../i18n";
+import { useTranslation } from "react-i18next";
+import { changeLanguage } from "../i18n";
 import { RailResizer } from "../shared/ui/RailResizer";
-import type { ContextOption, Language, ThemePreference } from "./types";
+import type { ContextOption, ThemePreference } from "./types";
 import type { MachineNode } from "../features/machines/types";
 import {
   navigationGroups,
@@ -37,8 +38,6 @@ interface SidebarState {
 interface AppShellProps {
   children: ReactNode;
   route: AppRoute;
-  language: Language;
-  setLanguage: (language: Language) => void;
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
   serviceOnline: boolean | null;
@@ -54,8 +53,6 @@ export function AppShell(props: AppShellProps) {
   const {
     children,
     route,
-    language,
-    setLanguage,
     theme,
     setTheme,
     serviceOnline,
@@ -66,7 +63,8 @@ export function AppShell(props: AppShellProps) {
     sidebar,
     navigate,
   } = props;
-  const text = t(language);
+  const { t, i18n } = useTranslation();
+  const language = i18n.resolvedLanguage === "zh" ? "zh" : "en";
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     run: true,
@@ -75,25 +73,17 @@ export function AppShell(props: AppShellProps) {
   });
   const section = navigationItemForRoute(route);
   const machineLabel = selectedMachine.isLocal
-    ? language === "zh"
-      ? "本机"
-      : "Local"
+    ? t("shell.local")
     : selectedMachine.address;
   const resourceOption = resourceOptions.find(
     (item) => item.value === route.resource,
   );
   const resourceLabel = resourceOption?.label || route.resource;
   const serviceLabel = serviceOnline
-    ? language === "zh"
-      ? "在线"
-      : "Online"
+    ? t("shell.online")
     : serviceOnline === false
-      ? language === "zh"
-        ? "离线"
-        : "Offline"
-      : language === "zh"
-        ? "连接中"
-        : "Connecting";
+      ? t("shell.offline")
+      : t("shell.connecting");
   const serviceState =
     serviceOnline === null
       ? "connecting"
@@ -103,26 +93,27 @@ export function AppShell(props: AppShellProps) {
   const rawFileSelected =
     route.section === "raw" &&
     resourceOption &&
-    !["目录", "Folder"].includes(resourceOption.detail || "");
+    resourceOption.detail !== t("workspace.folder");
+  const taskDetail =
+    route.section === "runtime" &&
+    ["overview", "logs", "relations"].includes(route.view || "");
   const finalLabel =
     route.resource &&
     (rawFileSelected
-      ? language === "zh"
-        ? "文件预览"
-        : "File preview"
-      : researchSections.has(route.section)
-        ? language === "zh"
-          ? "数据预览"
-          : "Data preview"
-        : route.section === "apis"
-          ? language === "zh"
-            ? "接口调用"
-            : "API call"
-          : route.section === "task-defs"
-            ? language === "zh"
-              ? "参数与提交"
-              : "Configure & submit"
-            : undefined);
+      ? t("shell.filePreview")
+      : taskDetail
+        ? route.view === "logs"
+          ? t("shell.logs")
+          : route.view === "relations"
+            ? t("shell.relationships")
+            : t("shell.overview")
+        : researchSections.has(route.section)
+          ? t("shell.dataPreview")
+          : route.section === "apis"
+            ? t("shell.apiCall")
+            : route.section === "task-defs"
+              ? t("shell.configureSubmit")
+              : undefined);
 
   return (
     <div
@@ -134,7 +125,7 @@ export function AppShell(props: AppShellProps) {
           <button
             className="mobile-menu"
             onClick={() => sidebar.setMobileOpen(true)}
-            aria-label="Open navigation"
+            aria-label={t("shell.openNavigation")}
           >
             <Menu />
           </button>
@@ -152,35 +143,22 @@ export function AppShell(props: AppShellProps) {
             </strong>
           </span>
         </button>
-        <nav
-          className="pathbar"
-          aria-label={language === "zh" ? "当前位置" : "Current path"}
-        >
+        <nav className="pathbar" aria-label={t("shell.currentPath")}>
           <PathPicker
             label={machineLabel}
             options={machines.map((machine) => ({
               value: machine.id,
-              label: machine.isLocal
-                ? language === "zh"
-                  ? "本机"
-                  : "Local"
-                : machine.address,
-              detail: machine.healthy
-                ? language === "zh"
-                  ? "在线"
-                  : "Online"
-                : language === "zh"
-                  ? "离线"
-                  : "Offline",
+              label: machine.isLocal ? t("shell.local") : machine.address,
+              detail: machine.healthy ? t("shell.online") : t("shell.offline"),
             }))}
             onSelect={(id) => navigate(route, id)}
           />
           <ChevronRight />
           <PathPicker
-            label={section[language]}
+            label={t(section.labelKey)}
             options={navigationItems.map((item) => ({
               value: item.id,
-              label: item[language],
+              label: t(item.labelKey),
             }))}
             onSelect={(id) => {
               const item = navigationItems.find((option) => option.id === id);
@@ -188,14 +166,13 @@ export function AppShell(props: AppShellProps) {
             }}
           />
           {route.section !== "home" &&
-            (route.section !== "runtime" || route.view === "tasks") && (
+            (route.section !== "runtime" ||
+              route.view === "tasks" ||
+              taskDetail) && (
               <>
                 <ChevronRight />
                 <PathPicker
-                  label={
-                    resourceLabel ||
-                    (language === "zh" ? "选择资源" : "Select resource")
-                  }
+                  label={resourceLabel || t("shell.selectResource")}
                   options={resourceOptions}
                   muted={!route.resource}
                   onSelect={(resource) => navigate({ ...route, resource })}
@@ -212,10 +189,10 @@ export function AppShell(props: AppShellProps) {
         <div className="studio-actions">
           <button
             className="topbar-control language-button"
-            onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
+            onClick={() => void changeLanguage(language === "zh" ? "en" : "zh")}
           >
             <Languages />
-            <span>{language === "zh" ? "EN" : "中文"}</span>
+            <span>{t("shell.switchLanguageLabel")}</span>
           </button>
           <div className="theme-picker">
             <button className="topbar-control theme-trigger">
@@ -226,7 +203,7 @@ export function AppShell(props: AppShellProps) {
               ) : (
                 <span className="system-icon">◐</span>
               )}
-              <span>{text[theme]}</span>
+              <span>{t(theme)}</span>
               <ChevronDown />
             </button>
             <div className="theme-menu">
@@ -237,7 +214,7 @@ export function AppShell(props: AppShellProps) {
                     className={theme === value ? "active" : ""}
                     onClick={() => setTheme(value)}
                   >
-                    {text[value]}
+                    {t(value)}
                   </button>
                 ),
               )}
@@ -255,8 +232,8 @@ export function AppShell(props: AppShellProps) {
           <button
             className="topbar-control settings-trigger"
             onClick={() => setSettingsOpen(true)}
-            aria-label={language === "zh" ? "打开设置" : "Open settings"}
-            title={language === "zh" ? "设置" : "Settings"}
+            aria-label={t("shell.openSettings")}
+            title={t("shell.settings")}
           >
             <Settings2 />
           </button>
@@ -276,7 +253,7 @@ export function AppShell(props: AppShellProps) {
                   className="primary-group-toggle"
                   aria-expanded={openGroups[group.id]}
                   aria-controls={`nav-group-${group.id}`}
-                  title={group[language]}
+                  title={t(group.labelKey)}
                   onClick={() =>
                     setOpenGroups((current) => ({
                       ...current,
@@ -284,7 +261,7 @@ export function AppShell(props: AppShellProps) {
                     }))
                   }
                 >
-                  <span>{group[language]}</span>
+                  <span>{t(group.labelKey)}</span>
                   <ChevronDown />
                 </button>
                 {openGroups[group.id] && (
@@ -293,7 +270,7 @@ export function AppShell(props: AppShellProps) {
                     id={`nav-group-${group.id}`}
                   >
                     {group.items.map(
-                      ({ id, route: target, icon: Icon, zh, en }) => (
+                      ({ id, route: target, icon: Icon, labelKey }) => (
                         <button
                           key={id}
                           className={`nav-${id}${section.id === id ? " active" : ""}`}
@@ -301,10 +278,10 @@ export function AppShell(props: AppShellProps) {
                             navigate(target);
                             sidebar.setMobileOpen(false);
                           }}
-                          title={language === "zh" ? zh : en}
+                          title={t(labelKey)}
                         >
                           <Icon />
-                          <span>{language === "zh" ? zh : en}</span>
+                          <span>{t(labelKey)}</span>
                         </button>
                       ),
                     )}
@@ -323,21 +300,13 @@ export function AppShell(props: AppShellProps) {
               onClick={sidebar.toggle}
               aria-label={
                 sidebar.collapsed
-                  ? language === "zh"
-                    ? "展开导航"
-                    : "Expand navigation"
-                  : language === "zh"
-                    ? "收起导航"
-                    : "Collapse navigation"
+                  ? t("shell.expandNavigation")
+                  : t("shell.collapseNavigation")
               }
               title={
                 sidebar.collapsed
-                  ? language === "zh"
-                    ? "展开导航"
-                    : "Expand navigation"
-                  : language === "zh"
-                    ? "收起导航"
-                    : "Collapse navigation"
+                  ? t("shell.expandNavigation")
+                  : t("shell.collapseNavigation")
               }
             >
               {sidebar.collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
@@ -355,14 +324,13 @@ export function AppShell(props: AppShellProps) {
           <button
             className="primary-scrim"
             onClick={() => sidebar.setMobileOpen(false)}
-            aria-label="Close navigation"
+            aria-label={t("shell.closeNavigation")}
           />
         )}
         <main className="studio-workspace">{children}</main>
       </div>
       {settingsOpen && (
         <EnvironmentSettingsModal
-          language={language}
           machine={selectedMachine}
           remoteIp={remoteIp}
           onClose={() => setSettingsOpen(false)}

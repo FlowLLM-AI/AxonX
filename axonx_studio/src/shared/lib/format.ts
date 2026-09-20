@@ -1,4 +1,4 @@
-import type { Language } from "../../app/types";
+import { resolvedLocale } from "../../i18n";
 
 export function formatBytes(
   value: number | null | undefined,
@@ -22,10 +22,9 @@ export function formatBytes(
 
 export function formatDateTime(
   value: string | number | Date | null | undefined,
-  language: Language,
 ): string {
   if (value === null || value === undefined || value === "") return "—";
-  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
+  return new Intl.DateTimeFormat(resolvedLocale(), {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",

@@ -34,7 +34,9 @@ import {
 } from "../workspace/api";
 import { formatBytes } from "../../shared/lib/format";
 import { RailResizer } from "../../shared/ui/RailResizer";
-import type { ContextOption, Language } from "../../app/types";
+import type { ContextOption } from "../../app/types";
+import { useTranslation } from "react-i18next";
+import { resolvedLocale } from "../../i18n";
 import type {
   ResearchArtifact,
   ResearchKind,
@@ -56,42 +58,18 @@ const TrainingCurveChart = lazy(() =>
 type Meta = ResearchArtifact;
 type Kind = ResearchKind;
 
-const copy = {
-  analysis: {
-    zh: ["分析结果", "查看分析指标与产物"],
-    en: ["Analysis results", "Inspect analysis scores and artifacts"],
-  },
-  backtest: {
-    zh: ["回测分析", "收益曲线、绩效指标与每日持仓检查"],
-    en: [
-      "Backtest analytics",
-      "Equity curves, performance metrics, and daily holdings",
-    ],
-  },
-  etl: {
-    zh: ["ETL 数据集", "查看数据规模、列信息与产物"],
-    en: ["ETL datasets", "Inspect dataset size, columns, and artifacts"],
-  },
-  train: {
-    zh: ["模型管理", "查看模型、指标与生效参数"],
-    en: ["Model registry", "Inspect models, metrics, and effective parameters"],
-  },
-  predict: {
-    zh: ["预测结果", "查看样本范围、列信息与产物"],
-    en: ["Predictions", "Inspect sample coverage, columns, and artifacts"],
-  },
-} as const;
-
 const fmt = (value: unknown, digits = 2) => {
   if (value === null || value === undefined || value === "") return "—";
   const number = Number(value);
   if (!Number.isFinite(number)) return String(value);
   if (Math.abs(number) >= 1_000_000)
-    return new Intl.NumberFormat("zh-CN", {
+    return new Intl.NumberFormat(resolvedLocale(), {
       notation: "compact",
       maximumFractionDigits: 2,
     }).format(number);
-  return number.toLocaleString("zh-CN", { maximumFractionDigits: digits });
+  return number.toLocaleString(resolvedLocale(), {
+    maximumFractionDigits: digits,
+  });
 };
 
 function normalizeTrainingCurve(value: unknown): TrainingCurveData | undefined {
@@ -237,7 +215,6 @@ function useTasks(
 
 export function ResearchPage({
   kind,
-  language,
   remoteIp,
   initialSelectedId,
   onSelected,
@@ -246,7 +223,6 @@ export function ResearchPage({
   onNavigate,
 }: {
   kind: Kind;
-  language: Language;
   remoteIp?: string;
   initialSelectedId?: string;
   onSelected?: (taskId: string) => void;
@@ -254,8 +230,12 @@ export function ResearchPage({
   onConnection: (online: boolean) => void;
   onNavigate: (page: ResearchPageId | "runtime", resource?: string) => void;
 }) {
-  const zh = language === "zh";
-  const labels = copy[kind][language];
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage === "zh" ? "zh-CN" : "en-US";
+  const labels = [
+    t(`research.pages.${kind}.title`),
+    t(`research.pages.${kind}.lead`),
+  ];
   const { tasks, loading, error, load } = useTasks(
     kind,
     remoteIp,
@@ -372,7 +352,7 @@ export function ResearchPage({
         {kind !== "etl" && (
           <button className="secondary-button" onClick={load}>
             <RefreshCw className={loading ? "spin" : ""} />
-            {zh ? "刷新" : "Refresh"}
+            {t("research.refresh")}
           </button>
         )}
       </div>
@@ -380,13 +360,11 @@ export function ResearchPage({
         <div className="error-banner">
           <AlertTriangle />
           <div>
-            <strong>
-              {zh ? "无法读取任务产物" : "Unable to load artifacts"}
-            </strong>
+            <strong>{t("research.unable_to_load_artifacts")}</strong>
             <span>{error}</span>
           </div>
           <button type="button" onClick={load}>
-            {zh ? "重试" : "Retry"}
+            {t("research.retry")}
           </button>
         </div>
       )}
@@ -398,13 +376,13 @@ export function ResearchPage({
             <header className="run-index-header rail-header">
               <div className="run-index-heading rail-heading">
                 <small>TASK VERSIONS</small>
-                <strong>{zh ? "任务版本" : "Task versions"}</strong>
+                <strong>{t("research.task_versions")}</strong>
               </div>
               <div className="run-index-tools">
                 <em>{tasks.length}</em>
                 <button
                   className="run-index-refresh rail-refresh"
-                  aria-label={zh ? "刷新" : "Refresh"}
+                  aria-label={t("research.refresh")}
                   onClick={load}
                 >
                   <RefreshCw className={loading ? "spin" : ""} />
@@ -416,7 +394,7 @@ export function ResearchPage({
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={zh ? "搜索 task_id" : "Search task_id"}
+                placeholder={t("research.search_task_id")}
               />
             </label>
             <div className="rail-scroll">
@@ -447,7 +425,7 @@ export function ResearchPage({
                     {selectionMode && (
                       <button
                         className="run-check"
-                        aria-label={`${zh ? "选择" : "Select"} ${task.config.task_id}`}
+                        aria-label={`${t("research.select")} ${task.config.task_id}`}
                         onClick={() => toggleTask(task)}
                       >
                         {checked[task._path] && <Check />}
@@ -475,12 +453,8 @@ export function ResearchPage({
                         <code>{task.config.task_id}</code>
                         <small>
                           {task.created_at
-                            ? new Date(task.created_at).toLocaleString(
-                                language === "zh" ? "zh-CN" : "en",
-                              )
-                            : zh
-                              ? "元数据不可用"
-                              : "Metadata unavailable"}
+                            ? new Date(task.created_at).toLocaleString(locale)
+                            : t("research.metadata_unavailable")}
                         </small>
                       </span>
                       {!selectionMode && <ArrowRight />}
@@ -493,7 +467,7 @@ export function ResearchPage({
               <footer className="run-selection">
                 <span>
                   <strong>{selectedCount}</strong>
-                  {zh ? " 个已选" : " selected"}
+                  {t("research.selected")}
                 </span>
                 <button
                   onClick={() => {
@@ -501,16 +475,12 @@ export function ResearchPage({
                     setChecked({});
                   }}
                 >
-                  {zh ? "完成" : "Done"}
+                  {t("research.done")}
                 </button>
                 <button onClick={toggleVisible}>
                   {allVisibleSelected
-                    ? zh
-                      ? "取消全选"
-                      : "Deselect"
-                    : zh
-                      ? "全选"
-                      : "Select all"}
+                    ? t("research.deselect")
+                    : t("research.select_all")}
                 </button>
                 <button
                   className="danger"
@@ -521,7 +491,7 @@ export function ResearchPage({
                   }}
                 >
                   <Trash2 />
-                  {zh ? "删除" : "Delete"}
+                  {t("research.delete")}
                 </button>
               </footer>
             )}
@@ -536,7 +506,6 @@ export function ResearchPage({
               <ArtifactDetail
                 kind={kind}
                 meta={selected}
-                language={language}
                 remoteIp={remoteIp}
                 onNavigate={onNavigate}
               />
@@ -546,21 +515,13 @@ export function ResearchPage({
                   <Database />
                   <strong>
                     {tasks.length
-                      ? zh
-                        ? "选择一个任务版本"
-                        : "Select a task version"
-                      : zh
-                        ? `暂无 ${kind} 任务`
-                        : `No ${kind} tasks`}
+                      ? t("research.select_a_task_version")
+                      : t("research.noKindTasks", { kind })}
                   </strong>
                   <span>
                     {tasks.length
-                      ? zh
-                        ? "右侧将显示该任务的数据与产物。"
-                        : "Its data and artifacts will appear here."
-                      : zh
-                        ? "任务产出后会自动出现在这里。"
-                        : "Task artifacts will appear here automatically."}
+                      ? t("research.its_data_and_artifacts_will")
+                      : t("research.task_artifacts_will_appear_here")}
                   </span>
                 </div>
               )
@@ -589,7 +550,7 @@ export function ResearchPage({
             }}
           >
             <CheckSquare2 />
-            {zh ? "多选" : "Select"}
+            {t("research.select")}
           </button>
           <button
             className="danger"
@@ -601,7 +562,7 @@ export function ResearchPage({
             }}
           >
             <Trash2 />
-            {zh ? "删除" : "Delete"}
+            {t("research.delete")}
           </button>
         </div>
       )}
@@ -620,7 +581,7 @@ export function ResearchPage({
           >
             <button
               className="close-button"
-              aria-label={zh ? "取消" : "Cancel"}
+              aria-label={t("research.cancel")}
               disabled={deleting}
               onClick={() => setDeleteTargets([])}
             >
@@ -631,12 +592,8 @@ export function ResearchPage({
             </div>
             <h2 id="task-version-delete-title">
               {deleteTargets.length > 1
-                ? zh
-                  ? "删除所选任务版本？"
-                  : "Delete selected task versions?"
-                : zh
-                  ? "删除这个任务版本？"
-                  : "Delete this task version?"}
+                ? t("research.delete_selected_task_versions")
+                : t("research.delete_this_task_version")}
             </h2>
             <div className="workspace-delete-list">
               {deleteTargets.slice(0, 6).map((task) => (
@@ -646,14 +603,10 @@ export function ResearchPage({
                 <span>+{deleteTargets.length - 6}</span>
               )}
             </div>
-            <p>
-              {zh
-                ? "对应任务目录及其中的产物文件会被永久删除，此操作无法撤销。"
-                : "The task directories and all artifact files inside them will be permanently deleted. This cannot be undone."}
-            </p>
+            <p>{t("research.the_task_directories_and_all")}</p>
             {deleteError && (
               <div className="inline-error">
-                <strong>{zh ? "删除失败" : "Delete failed"}</strong>
+                <strong>{t("research.delete_failed")}</strong>
                 <span>{deleteError}</span>
               </div>
             )}
@@ -663,7 +616,7 @@ export function ResearchPage({
                 disabled={deleting}
                 onClick={() => setDeleteTargets([])}
               >
-                {zh ? "取消" : "Cancel"}
+                {t("research.cancel")}
               </button>
               <button
                 className="danger-button"
@@ -672,10 +625,8 @@ export function ResearchPage({
               >
                 {deleting ? <LoaderCircle className="spin" /> : <Trash2 />}
                 {deleting
-                  ? zh
-                    ? "删除中…"
-                    : "Deleting…"
-                  : `${zh ? "确认删除" : "Delete"} (${deleteTargets.length})`}
+                  ? t("research.deleting")
+                  : `${t("research.delete")} (${deleteTargets.length})`}
               </button>
             </div>
           </div>
@@ -688,17 +639,15 @@ export function ResearchPage({
 function ArtifactDetail({
   kind,
   meta,
-  language,
   remoteIp,
   onNavigate,
 }: {
   kind: Kind;
   meta: Meta;
-  language: Language;
   remoteIp?: string;
   onNavigate: (page: ResearchPageId | "runtime", resource?: string) => void;
 }) {
-  const zh = language === "zh";
+  const { t } = useTranslation();
   const [copiedLineage, setCopiedLineage] = useState("");
   const pageByType: Partial<Record<string, ResearchPageId>> = {
     etl: "etl",
@@ -734,8 +683,8 @@ function ArtifactDetail({
                   type="button"
                   className="artifact-id-copy"
                   onClick={() => void copyLineageId(meta.config.task_id)}
-                  title={zh ? "复制 Task ID" : "Copy Task ID"}
-                  aria-label={zh ? "复制 Task ID" : "Copy Task ID"}
+                  title={t("research.copy_task_id")}
+                  aria-label={t("research.copy_task_id")}
                 >
                   {copiedLineage === meta.config.task_id ? <Check /> : <Copy />}
                 </button>
@@ -750,12 +699,12 @@ function ArtifactDetail({
                 onClick={() => onNavigate("compare", meta.config.task_id)}
               >
                 <GitCompareArrows />
-                {zh ? "加入对比" : "Compare"}
+                {t("research.compare")}
               </button>
             )}
             <span className="ready-badge">
               <CheckCircle2 />
-              {zh ? "产物就绪" : "Artifacts ready"}
+              {t("research.artifacts_ready")}
             </span>
           </div>
         </header>
@@ -764,7 +713,7 @@ function ArtifactDetail({
         <div className="lineage-strip">
           <span>
             <GitBranch />
-            {zh ? "上游任务" : "UPSTREAM TASKS"}
+            {t("research.upstream_tasks")}
           </span>
           <div className="lineage-sources">
             {upstreams.map((upstream) => (
@@ -772,7 +721,7 @@ function ArtifactDetail({
                 <button
                   className="lineage-link"
                   onClick={() => onNavigate(upstream.page, upstream.taskId)}
-                  title={`${zh ? "打开上游任务" : "Open upstream task"}: ${upstream.taskId}`}
+                  title={`${t("research.open_upstream_task")}: ${upstream.taskId}`}
                 >
                   <em>{upstream.type.toUpperCase()}</em>
                   <code>{upstream.taskId}</code>
@@ -781,7 +730,7 @@ function ArtifactDetail({
                 <button
                   className="lineage-copy"
                   onClick={() => void copyLineageId(upstream.taskId)}
-                  aria-label={zh ? "复制上游 Task ID" : "Copy upstream task ID"}
+                  aria-label={t("research.copy_upstream_task_id")}
                 >
                   {copiedLineage === upstream.taskId ? <Check /> : <Copy />}
                 </button>
@@ -790,7 +739,7 @@ function ArtifactDetail({
           </div>
         </div>
       )}
-      <BaseOutputView meta={meta} kind={kind} zh={zh} />
+      <BaseOutputView meta={meta} kind={kind} />
       {kind === "backtest" && meta.task_key === "backtest" && (
         <Suspense
           fallback={
@@ -799,7 +748,7 @@ function ArtifactDetail({
             </div>
           }
         >
-          <BacktestView meta={meta} zh={zh} remoteIp={remoteIp} />
+          <BacktestView meta={meta} remoteIp={remoteIp} />
         </Suspense>
       )}
     </>
@@ -838,11 +787,10 @@ function Kpis({
 
 function AnalysisScores({
   scores,
-  zh,
 }: {
   scores: Record<string, Record<string, number>>;
-  zh: boolean;
 }) {
+  const { t } = useTranslation();
   const [chosenMetric, setChosenMetric] = useState("");
   const [chosenLabel, setChosenLabel] = useState("");
   const groups = Object.entries(scores).map(([key, values]) => {
@@ -878,11 +826,11 @@ function AnalysisScores({
       <header>
         <div>
           <small>SCORES</small>
-          <h3>{zh ? "因子评分" : "Factor scores"}</h3>
+          <h3>{t("research.factor_scores")}</h3>
         </div>
         <div className="analysis-score-controls">
           <label>
-            <span>{zh ? "指标" : "Metric"}</span>
+            <span>{t("research.metric")}</span>
             <select
               value={metric}
               onChange={(event) => setChosenMetric(event.target.value)}
@@ -895,7 +843,7 @@ function AnalysisScores({
             </select>
           </label>
           <label>
-            <span>{zh ? "标签" : "Label"}</span>
+            <span>{t("research.label")}</span>
             <select
               value={label}
               onChange={(event) => setChosenLabel(event.target.value)}
@@ -914,9 +862,9 @@ function AnalysisScores({
         <table>
           <thead>
             <tr>
-              <th>{zh ? "因子" : "Factor"}</th>
-              <th>{zh ? "分布" : "Magnitude"}</th>
-              <th>{zh ? "评分" : "Score"}</th>
+              <th>{t("research.factor")}</th>
+              <th>{t("research.magnitude")}</th>
+              <th>{t("research.score")}</th>
             </tr>
           </thead>
           <tbody>
@@ -949,20 +897,8 @@ function AnalysisScores({
   );
 }
 
-const predictionColumnDetails: Record<string, [string, string]> = {
-  trade_date: ["交易日期", "Trading date"],
-  ts_code: ["股票代码", "Stock code"],
-  pred: ["模型排名分数", "Model ranking score"],
-  actual_return: [
-    "下一交易日复权收益率 · 小数",
-    "Next day adjusted return · decimal",
-  ],
-  label_valid: ["实际收益率是否有效", "Whether realized return is valid"],
-  name: ["股票名称", "Stock name"],
-  is_buyable: ["当日是否满足可买条件", "Whether buyable on this date"],
-};
-
-function PredictionOverview({ meta, zh }: { meta: Meta; zh: boolean }) {
+function PredictionOverview({ meta }: { meta: Meta }) {
+  const { t } = useTranslation();
   const stats = meta.prediction_statistics;
   const columns = meta.output_columns?.length
     ? meta.output_columns
@@ -987,55 +923,55 @@ function PredictionOverview({ meta, zh }: { meta: Meta; zh: boolean }) {
         <header>
           <div>
             <small>OVERVIEW</small>
-            <h3>{zh ? "预测结果概览" : "Prediction overview"}</h3>
+            <h3>{t("research.prediction_overview")}</h3>
           </div>
         </header>
         <div className="prediction-stat-grid">
           <div className="prediction-score-block">
-            <small>{zh ? "预测分数 · 均值" : "Prediction score · mean"}</small>
+            <small>{t("research.prediction_score_mean")}</small>
             <strong>{fmt(stats?.pred.mean, 4)}</strong>
             <div className="prediction-score-range">
               <span>
-                {zh ? "最小" : "Min"} <b>{fmt(stats?.pred.min, 4)}</b>
+                {t("research.min")} <b>{fmt(stats?.pred.min, 4)}</b>
               </span>
               <span>
-                {zh ? "中位" : "Median"} <b>{fmt(stats?.pred.median, 4)}</b>
+                {t("research.median")} <b>{fmt(stats?.pred.median, 4)}</b>
               </span>
               <span>
-                {zh ? "最大" : "Max"} <b>{fmt(stats?.pred.max, 4)}</b>
+                {t("research.max")} <b>{fmt(stats?.pred.max, 4)}</b>
               </span>
             </div>
           </div>
           <div className="prediction-coverage-block">
-            <small>{zh ? "样本覆盖" : "Sample coverage"}</small>
+            <small>{t("research.sample_coverage")}</small>
             <div>
-              <span>{zh ? "股票 / 交易日" : "Symbols / days"}</span>
+              <span>{t("research.symbols_days")}</span>
               <strong>
                 {fmt(stats?.symbols, 0)} / {fmt(stats?.days, 0)}
               </strong>
             </div>
             <div>
-              <span>{zh ? "可买" : "Buyable"}</span>
+              <span>{t("research.buyable")}</span>
               <strong>{rate(stats?.buyable_rows)}</strong>
             </div>
             <div>
-              <span>{zh ? "收益有效" : "Valid return"}</span>
+              <span>{t("research.valid_return")}</span>
               <strong>{rate(stats?.valid_return_rows)}</strong>
             </div>
             <div>
-              <span>{zh ? "可回测" : "Backtest candidates"}</span>
+              <span>{t("research.backtest_candidates")}</span>
               <strong>{rate(stats?.candidate_rows)}</strong>
             </div>
           </div>
         </div>
         <div className="prediction-index-strip">
-          <small>{zh ? "指数权重" : "Index weights"}</small>
+          <small>{t("research.index_weights")}</small>
           {indices.length ? (
             indices.map(([column, value]) => (
               <span key={column}>
                 <code>{column.replace("index_weight_", "").toUpperCase()}</code>
-                {fmt(value.constituents, 0)} {zh ? "只股票" : "symbols"} ·{" "}
-                {fmt(value.days_with_weights, 0)} {zh ? "天" : "days"}
+                {fmt(value.constituents, 0)} {t("research.symbols")} ·{" "}
+                {fmt(value.days_with_weights, 0)} {t("research.days")}
               </span>
             ))
           ) : (
@@ -1053,7 +989,7 @@ function PredictionOverview({ meta, zh }: { meta: Meta; zh: boolean }) {
         <header>
           <div>
             <small>SCHEMA</small>
-            <h3>{zh ? "结果列" : "Result columns"}</h3>
+            <h3>{t("research.result_columns")}</h3>
           </div>
           <span>{columns.length}</span>
         </header>
@@ -1063,33 +999,20 @@ function PredictionOverview({ meta, zh }: { meta: Meta; zh: boolean }) {
               <code>{column}</code>
               <span>
                 {column.startsWith("index_weight_")
-                  ? zh
-                    ? "指数成分权重 · 小数"
-                    : "Index weight · decimal"
-                  : predictionColumnDetails[column]?.[zh ? 0 : 1] || "—"}
+                  ? t("research.index_weight_decimal")
+                  : t(`research.columns.${column}`, { defaultValue: "—" })}
               </span>
             </div>
           ))}
         </div>
-        <p>
-          {zh
-            ? "pred 是排名分数，不代表预期收益率或概率。"
-            : "pred is a ranking score, not an expected return or probability."}
-        </p>
+        <p>{t("research.pred_is_a_ranking_score")}</p>
       </section>
     </>
   );
 }
 
-function BaseOutputView({
-  meta,
-  kind,
-  zh,
-}: {
-  meta: Meta;
-  kind: Kind;
-  zh: boolean;
-}) {
+function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
+  const { t } = useTranslation();
   const count =
     kind === "train"
       ? meta.train_rows
@@ -1098,20 +1021,12 @@ function BaseOutputView({
         : meta.rows;
   const countLabel =
     kind === "train"
-      ? zh
-        ? "训练行数"
-        : "TRAIN ROWS"
+      ? t("research.train_rows")
       : kind === "backtest"
-        ? zh
-          ? "回测天数"
-          : "DAYS"
+        ? t("research.days_2")
         : kind === "predict"
-          ? zh
-            ? "预测行数"
-            : "PREDICTION ROWS"
-          : zh
-            ? "数据行数"
-            : "ROWS";
+          ? t("research.prediction_rows")
+          : t("research.rows");
   const paths =
     kind === "etl"
       ? [["output_file", meta.output_file]]
@@ -1128,13 +1043,13 @@ function BaseOutputView({
   const columns =
     kind === "etl"
       ? [
-          [zh ? "特征列" : "Feature columns", meta.feature_columns],
-          [zh ? "标签列" : "Label columns", meta.label_columns],
+          [t("research.feature_columns"), meta.feature_columns],
+          [t("research.label_columns"), meta.label_columns],
         ]
       : kind === "train"
         ? [
-            [zh ? "特征列" : "Feature columns", meta.feature_columns],
-            [zh ? "目标列" : "Target columns", meta.target_columns],
+            [t("research.feature_columns"), meta.feature_columns],
+            [t("research.target_columns"), meta.target_columns],
           ]
         : [];
   const columnCards = columns.map(([title, values]) =>
@@ -1163,7 +1078,7 @@ function BaseOutputView({
           ...(kind === "train"
             ? [
                 {
-                  label: zh ? "模型名称" : "MODEL",
+                  label: t("research.model"),
                   value: meta.model_name || "—",
                 },
               ]
@@ -1171,17 +1086,17 @@ function BaseOutputView({
           ...(kind === "etl" || kind === "predict" || kind === "backtest"
             ? [
                 {
-                  label: zh ? "开始日期" : "START",
+                  label: t("research.start"),
                   value: meta.date_range?.start || "—",
                 },
                 {
-                  label: zh ? "结束日期" : "END",
+                  label: t("research.end"),
                   value: meta.date_range?.end || "—",
                 },
               ]
             : []),
           {
-            label: zh ? "产物数" : "ARTIFACTS",
+            label: t("research.artifacts"),
             value: fmt(Object.keys(meta.artifacts || {}).length, 0),
           },
         ]}
@@ -1193,7 +1108,7 @@ function BaseOutputView({
             <header>
               <div>
                 <small>PARAMETERS</small>
-                <h3>{zh ? "生效参数" : "Effective parameters"}</h3>
+                <h3>{t("research.effective_parameters")}</h3>
               </div>
               <span>{Object.keys(meta.parameters || {}).length}</span>
             </header>
@@ -1210,19 +1125,17 @@ function BaseOutputView({
           </section>
         </div>
       ) : kind === "predict" ? (
-        <PredictionOverview meta={meta} zh={zh} />
+        <PredictionOverview meta={meta} />
       ) : (
         columnCards
       )}
-      {kind === "analysis" && (
-        <AnalysisScores scores={meta.scores || {}} zh={zh} />
-      )}
+      {kind === "analysis" && <AnalysisScores scores={meta.scores || {}} />}
       {kind === "train" && (
         <section className="viz-card wide train-curve-card">
           <header>
             <div>
               <small>TRAINING</small>
-              <h3>{zh ? "训练曲线" : "Training curves"}</h3>
+              <h3>{t("research.training_curves")}</h3>
             </div>
           </header>
           {meta.training_curve?.x.length ? (
@@ -1233,13 +1146,11 @@ function BaseOutputView({
                 </div>
               }
             >
-              <TrainingCurveChart curve={meta.training_curve} zh={zh} />
+              <TrainingCurveChart curve={meta.training_curve} />
             </Suspense>
           ) : (
             <div className="train-curve-empty">
-              {zh
-                ? "当前任务未提供训练曲线"
-                : "No training curve is available for this task"}
+              {t("research.no_training_curve_is_available")}
             </div>
           )}
           {meta.training_curve &&
@@ -1250,9 +1161,7 @@ function BaseOutputView({
               name.endsWith("_l1"),
             ) && (
               <p className="train-curve-note">
-                {zh
-                  ? "左轴 L2：均方误差；右轴 L1：平均绝对误差。实线为训练，虚线为验证；两轴数值不可直接比较。"
-                  : "Left axis L2: mean squared error; right axis L1: mean absolute error. Solid lines show training, dashed lines validation. Do not compare heights across axes."}
+                {t("research.left_axis_l2_mean_squared")}
               </p>
             )}
           {Object.keys(meta.metrics || {}).length > 0 && (
@@ -1271,7 +1180,7 @@ function BaseOutputView({
         <header>
           <div>
             <small>OUTPUT</small>
-            <h3>{zh ? "输出文件" : "Output files"}</h3>
+            <h3>{t("research.output_files")}</h3>
           </div>
         </header>
         <div className="artifact-files">
@@ -1290,7 +1199,7 @@ function BaseOutputView({
         </div>
         {kind === "etl" && meta.config.input_dir && (
           <div className="artifact-input-dir">
-            <small>{zh ? "输入目录" : "Input directory"}</small>
+            <small>{t("research.input_directory")}</small>
             <code>{meta.config.input_dir}</code>
           </div>
         )}
@@ -1299,7 +1208,7 @@ function BaseOutputView({
         <header>
           <div>
             <small>ARTIFACTS</small>
-            <h3>{zh ? "产物清单" : "Artifacts"}</h3>
+            <h3>{t("research.artifacts_2")}</h3>
           </div>
         </header>
         <ArtifactFiles meta={meta} />

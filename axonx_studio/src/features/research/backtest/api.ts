@@ -6,10 +6,11 @@ import type {
   NumericRow,
   SummaryRow,
 } from "./types";
+import i18n from "../../../i18n";
 
 const rowsOf = <T extends NumericRow>(preview: WorkspacePreview): T[] => {
   if (preview.kind !== "parquet")
-    throw new Error("回测产物必须是 Parquet 文件");
+    throw new Error(i18n.t("backtest.errors.parquetRequired"));
   const columns = preview.columns || [];
   return (preview.rows || []).map(
     (row) =>
@@ -35,7 +36,7 @@ const loadParquetRows = async <T extends NumericRow>(
       signal,
     );
     if (preview.kind !== "parquet")
-      throw new Error("回测产物必须是 Parquet 文件");
+      throw new Error(i18n.t("backtest.errors.parquetRequired"));
     rows.push(...rowsOf<T>(preview));
     if (!preview.has_more) return rows;
   }
@@ -49,7 +50,7 @@ export async function loadBacktest(
   const daily = meta.artifacts?.daily?.path;
   const summary = meta.artifacts?.summary?.path;
   if (!daily || !summary)
-    throw new Error("回测 metadata 缺少 daily 或 summary 产物");
+    throw new Error(i18n.t("backtest.errors.missingDailySummary"));
   const [dailyPreview, summaryPreview] = await Promise.all([
     loadParquetRows<DailyRow>(`${meta._path}/${daily}`, remoteIp, signal),
     loadParquetRows<SummaryRow>(`${meta._path}/${summary}`, remoteIp, signal),
@@ -66,6 +67,6 @@ export async function loadBacktestDaily(
   signal?: AbortSignal,
 ) {
   const daily = meta.artifacts?.daily?.path;
-  if (!daily) throw new Error("回测 metadata 缺少 daily 产物");
+  if (!daily) throw new Error(i18n.t("backtest.errors.missingDaily"));
   return loadParquetRows<DailyRow>(`${meta._path}/${daily}`, remoteIp, signal);
 }

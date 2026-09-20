@@ -25,8 +25,6 @@ from ....task.catalog import resolve_task
 from ....task.contracts import TaskHandle
 from ....task.query import (
     TaskGraph,
-    TaskGraphList,
-    graph_summaries,
     stream_task,
     task_graph,
 )
@@ -179,13 +177,8 @@ class LocalTaskManager(BaseTaskManager):
     async def get_status(self, task_id: str) -> TaskStatus:
         return (await self._status_of(task_id)).model_copy(deep=True)
 
-    async def list_graphs(
-        self, query: str = "", offset: int = 0, limit: int = 50
-    ) -> TaskGraphList:
-        return graph_summaries(await self.repository.records(), query, offset, limit)
-
     async def get_graph(self, task_id: str) -> TaskGraph:
-        return task_graph(await self.repository.records(), task_id)
+        return task_graph(await self.repository.entries(), task_id)
 
     async def read_log(
         self, task_id: str, offset: int = -1, limit: int = LOG_WINDOW_BYTES

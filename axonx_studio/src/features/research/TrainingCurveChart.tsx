@@ -9,6 +9,7 @@ import {
 import { init, use as registerECharts } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import type { TrainingCurveData } from "./types";
+import { useTranslation } from "react-i18next";
 
 registerECharts([
   LineChart,
@@ -19,13 +20,8 @@ registerECharts([
   CanvasRenderer,
 ]);
 
-export function TrainingCurveChart({
-  curve,
-  zh,
-}: {
-  curve: TrainingCurveData;
-  zh: boolean;
-}) {
+export function TrainingCurveChart({ curve }: { curve: TrainingCurveData }) {
+  const { t } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState(
     () => document.documentElement.dataset.theme,
@@ -85,14 +81,10 @@ export function TrainingCurveChart({
         side === "left"
           ? l2Left
             ? "L2 · MSE"
-            : zh
-              ? "左轴"
-              : "Left axis"
+            : t("trainingCurve.left_axis")
           : l1Right
             ? "L1 · MAE"
-            : zh
-              ? "右轴"
-              : "Right axis",
+            : t("trainingCurve.right_axis"),
       nameTextStyle: { color: token("--muted"), fontSize: 11 },
       ...axisRange(entries),
       axisLabel: {
@@ -106,8 +98,8 @@ export function TrainingCurveChart({
     });
     const displayName = (name: string) =>
       name
-        .replace(/^train_/, zh ? "训练 " : "Train ")
-        .replace(/^validation_/, zh ? "验证 " : "Validation ")
+        .replace(/^train_/, t("trainingCurve.train"))
+        .replace(/^validation_/, t("trainingCurve.validation"))
         .replace(/_l([12])$/, " L$1");
     const zoom = curve.x.length > 80;
     const chart = init(host.current, undefined, { renderer: "canvas" });
@@ -215,7 +207,7 @@ export function TrainingCurveChart({
       resize.disconnect();
       chart.dispose();
     };
-  }, [curve, theme, zh]);
+  }, [curve, theme, t]);
 
   return <div className="train-curve-chart" ref={host} />;
 }

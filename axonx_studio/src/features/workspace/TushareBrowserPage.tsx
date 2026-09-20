@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import { formatBytes } from "../../shared/lib/format";
-import type { ContextOption, Language } from "../../app/types";
+import type { ContextOption } from "../../app/types";
+import { useTranslation } from "react-i18next";
 import type {
   WorkspaceDirectory,
   WorkspaceEntry,
@@ -37,27 +38,6 @@ const FilePreview = lazy(() =>
 
 const ROOT = "tushare";
 
-const copy = {
-  zh: {
-    title: "Tushare数据",
-    folder: "目录",
-    empty: "目录为空",
-    select: "选择文件查看内容",
-    loadFailed: "无法读取 Tushare 目录",
-    previewFailed: "无法预览文件",
-    refresh: "刷新",
-  },
-  en: {
-    title: "Tushare data",
-    folder: "Folder",
-    empty: "This folder is empty",
-    select: "Select a file to preview it",
-    loadFailed: "Unable to read the Tushare directory",
-    previewFailed: "Unable to preview file",
-    refresh: "Refresh",
-  },
-} as const;
-
 function iconFor(entry: WorkspaceEntry) {
   if (entry.kind === "directory") return Folder;
   if (entry.preview_kind === "markdown") return FileText;
@@ -70,21 +50,19 @@ function iconFor(entry: WorkspaceEntry) {
 }
 
 export function TushareBrowserPage({
-  language,
   remoteIp,
   initialPath,
   onConnection,
   onPathChange,
   onOptionsChange,
 }: {
-  language: Language;
   remoteIp?: string;
   initialPath?: string;
   onConnection: (online: boolean) => void;
   onPathChange?: (path: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
 }) {
-  const text = copy[language];
+  const { t } = useTranslation();
   const [directories, setDirectories] = useState<
     Record<string, WorkspaceDirectory>
   >({});
@@ -256,12 +234,12 @@ export function TushareBrowserPage({
           label: entry.name,
           detail:
             entry.kind === "directory"
-              ? text.folder
+              ? t("workspace.folder")
               : entry.preview_kind || "File",
         }),
       );
     onOptionsChange?.([...options.values()]);
-  }, [directories, onOptionsChange, text.folder]);
+  }, [directories, onOptionsChange, t]);
 
   const renderEntries = (path: string, depth: number): React.ReactNode => {
     const directory = directories[path];
@@ -316,7 +294,7 @@ export function TushareBrowserPage({
         className="tushare-tree-empty"
         style={{ "--tree-level": depth } as React.CSSProperties}
       >
-        {text.empty}
+        {t("workspace.empty")}
       </div>
     );
   };
@@ -327,10 +305,10 @@ export function TushareBrowserPage({
         <div className="error-banner">
           <AlertTriangle />
           <div>
-            <strong>{text.loadFailed}</strong>
+            <strong>{t("workspace.loadFailed")}</strong>
             <span>{error}</span>
           </div>
-          <button onClick={refresh}>{text.refresh}</button>
+          <button onClick={refresh}>{t("refresh")}</button>
         </div>
       )}
       <div className="workspace-browser tushare-browser">
@@ -343,7 +321,7 @@ export function TushareBrowserPage({
                 <small>workspace_dir/tushare</small>
               </span>
             </div>
-            <button onClick={refresh} aria-label={text.refresh}>
+            <button onClick={refresh} aria-label={t("refresh")}>
               <RefreshCw className={loading.has(ROOT) ? "spin" : ""} />
             </button>
           </header>
@@ -357,7 +335,7 @@ export function TushareBrowserPage({
                 <HardDrive />
               </div>
               <small>FILE PREVIEW</small>
-              <strong>{text.select}</strong>
+              <strong>{t("workspace.select")}</strong>
               <span>
                 CSV&nbsp;&nbsp;·&nbsp;&nbsp;PARQUET&nbsp;&nbsp;·&nbsp;&nbsp;JSON
               </span>
@@ -377,7 +355,7 @@ export function TushareBrowserPage({
                 </div>
                 <div>
                   <span>
-                    {language === "zh" ? "文件大小" : "Size"}
+                    {t("workspace.size")}
                     <strong>{formatBytes(selected.size)}</strong>
                   </span>
                 </div>
@@ -389,7 +367,7 @@ export function TushareBrowserPage({
               ) : previewError ? (
                 <div className="workspace-preview-message error">
                   <AlertTriangle />
-                  <strong>{text.previewFailed}</strong>
+                  <strong>{t("workspace.previewFailed")}</strong>
                   <span>{previewError}</span>
                 </div>
               ) : (
@@ -403,7 +381,6 @@ export function TushareBrowserPage({
                   >
                     <FilePreview
                       preview={preview}
-                      language={language}
                       onPage={(offset) => void loadPreview(selected, offset)}
                     />
                   </Suspense>

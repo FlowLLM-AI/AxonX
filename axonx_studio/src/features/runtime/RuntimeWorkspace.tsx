@@ -12,11 +12,11 @@ import { useMachineInfo } from "../machines/useMachineInfo";
 import { listTaskStatuses } from "../tasks/api";
 import { TaskDetailPage } from "../tasks/TaskDetailPage";
 import { TasksPage } from "../tasks/TasksPage";
-import type { ContextOption, Language } from "../../app/types";
+import type { ContextOption } from "../../app/types";
 import type { MachineNode } from "../machines/types";
+import { useTranslation } from "react-i18next";
 
 export function RuntimeWorkspace({
-  language,
   machine,
   remoteIp,
   view,
@@ -26,13 +26,14 @@ export function RuntimeWorkspace({
   onOptionsChange,
   onConnection,
 }: {
-  language: Language;
   machine: MachineNode;
   remoteIp?: string;
-  view: "resources" | "tasks" | "environment";
+  view:
+    "resources" | "tasks" | "environment" | "overview" | "logs" | "relations";
   taskId?: string;
   onNavigate: (
-    view: "resources" | "tasks" | "environment",
+    view:
+      "resources" | "tasks" | "environment" | "overview" | "logs" | "relations",
     resource?: string,
   ) => void;
   onSubmit: () => void;
@@ -40,7 +41,12 @@ export function RuntimeWorkspace({
   onConnection: (online: boolean) => void;
 }) {
   useEffect(() => {
-    if (view !== "tasks" || !taskId || !onOptionsChange) return;
+    if (
+      !["overview", "logs", "relations"].includes(view) ||
+      !taskId ||
+      !onOptionsChange
+    )
+      return;
     const controller = new AbortController();
     listTaskStatuses(remoteIp, controller.signal)
       .then((tasks) =>
@@ -60,32 +66,32 @@ export function RuntimeWorkspace({
       <main className="workspace-canvas">
         {view === "resources" ? (
           <CurrentMachineResources
-            language={language}
             machine={machine}
             remoteIp={remoteIp}
             onConnection={onConnection}
           />
         ) : view === "environment" ? (
           <RuntimeEnvironment
-            language={language}
             machine={machine}
             remoteIp={remoteIp}
             onConnection={onConnection}
           />
-        ) : taskId ? (
+        ) : view !== "tasks" && taskId ? (
           <TaskDetailPage
             taskId={taskId}
-            language={language}
+            tab={view as "overview" | "logs" | "relations"}
             remoteIp={remoteIp}
             onBack={() => onNavigate("tasks")}
+            onTabChange={(tab) => onNavigate(tab, taskId)}
+            onOpenTask={(id) => onNavigate("overview", id)}
             onConnection={onConnection}
           />
         ) : (
           <TasksPage
-            language={language}
             remoteIp={remoteIp}
             onSubmit={onSubmit}
-            onOpenTask={(id) => onNavigate("tasks", id)}
+            onOpenTask={(id) => onNavigate("overview", id)}
+            onOpenGraph={(id) => onNavigate("relations", id)}
             onTasksChange={onOptionsChange}
             onConnection={onConnection}
           />
@@ -96,17 +102,15 @@ export function RuntimeWorkspace({
 }
 
 function RuntimeEnvironment({
-  language,
   machine,
   remoteIp,
   onConnection,
 }: {
-  language: Language;
   machine: MachineNode;
   remoteIp?: string;
   onConnection: (online: boolean) => void;
 }) {
-  const zh = language === "zh";
+  const { t } = useTranslation();
   const {
     data: info,
     loading,
@@ -118,16 +122,12 @@ function RuntimeEnvironment({
       <header className="canvas-heading">
         <div>
           <small>RUNTIME / ENVIRONMENT</small>
-          <h1>{zh ? "运行环境" : "Environment"}</h1>
-          <p>
-            {zh
-              ? "当前机器的 AxonX 与代码版本信息"
-              : "AxonX and source revision for the current machine"}
-          </p>
+          <h1>{t("runtime.environment")}</h1>
+          <p>{t("runtime.environmentLead")}</p>
         </div>
         <button className="secondary-button" onClick={() => void reload()}>
           <RefreshCw className={loading ? "spin" : ""} />
-          {zh ? "刷新" : "Refresh"}
+          {t("refresh")}
         </button>
       </header>
       {loading && !info ? (
@@ -139,7 +139,7 @@ function RuntimeEnvironment({
           <span>
             <Server />
           </span>
-          <h2>{zh ? "无法读取运行环境" : "Environment unavailable"}</h2>
+          <h2>{t("runtime.environmentUnavailable")}</h2>
           <p>{error}</p>
         </div>
       ) : (
@@ -147,11 +147,11 @@ function RuntimeEnvironment({
           <section className="runtime-environment-card">
             <header>
               <SlidersHorizontal />
-              <strong>{zh ? "版本信息" : "Version information"}</strong>
+              <strong>{t("runtime.versionInformation")}</strong>
             </header>
             <div>
               <EnvironmentValue
-                label={zh ? "AxonX 版本" : "AXONX VERSION"}
+                label={t("runtime.axonxVersion")}
                 value={`v${info.axonx.version}`}
               />
               <EnvironmentValue
@@ -165,7 +165,7 @@ function RuntimeEnvironment({
                 icon={<GitBranch />}
               />
               <EnvironmentValue
-                label={zh ? "服务地址" : "ENDPOINT"}
+                label={t("runtime.endpoint")}
                 value={machine.address}
               />
             </div>
@@ -197,17 +197,15 @@ function EnvironmentValue({
 }
 
 function CurrentMachineResources({
-  language,
   machine,
   remoteIp,
   onConnection,
 }: {
-  language: Language;
   machine: MachineNode;
   remoteIp?: string;
   onConnection: (online: boolean) => void;
 }) {
-  const zh = language === "zh";
+  const { t } = useTranslation();
   const {
     data: info,
     loading,
@@ -220,7 +218,7 @@ function CurrentMachineResources({
       <header className="canvas-heading">
         <div>
           <small>MACHINE / LIVE</small>
-          <h1>{zh ? "机器资源" : "Machine resources"}</h1>
+          <h1>{t("runtime.machineResources")}</h1>
           <p className="machine-heading-meta">
             <span>
               <Server />
@@ -228,15 +226,15 @@ function CurrentMachineResources({
             </span>
             <span className="online">
               <i />
-              {zh ? "在线" : "Online"}
+              {t("shell.online")}
             </span>
           </p>
         </div>
         <button
           className="secondary-button machine-refresh-button"
           onClick={() => void reload()}
-          aria-label={zh ? "刷新机器资源" : "Refresh machine resources"}
-          title={zh ? "刷新机器资源" : "Refresh machine resources"}
+          aria-label={t("runtime.refreshMachine")}
+          title={t("runtime.refreshMachine")}
         >
           <RefreshCw className={loading ? "spin" : ""} />
         </button>
@@ -250,11 +248,11 @@ function CurrentMachineResources({
           <span>
             <Server />
           </span>
-          <h2>{zh ? "无法连接当前机器" : "Machine unavailable"}</h2>
+          <h2>{t("runtime.machineUnavailable")}</h2>
           <p>{error}</p>
         </div>
       ) : (
-        info && <MachineDashboard node={node} language={language} />
+        info && <MachineDashboard node={node} />
       )}
     </section>
   );

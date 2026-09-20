@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   ArrowDown,
@@ -63,15 +64,14 @@ function movingAverage(rows: DailyRow[], key: string, window = 20) {
 function SeriesMeans({
   rows,
   series,
-  zh,
 }: {
   rows: DailyRow[];
   series: ChartSeries[];
-  zh: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="backtest-series-means">
-      <small>{zh ? "区间日均" : "Daily mean in range"}</small>
+      <small>{t("backtest.daily_mean_in_range")}</small>
       {series.map(({ key, label, sourceKey }) => {
         const values = rows
           .map((row) => number(row[sourceKey || key]))
@@ -95,6 +95,7 @@ function cumulativeRows(
   topNs: number[],
   benchmarks: BenchmarkDefinition[],
   compound: boolean,
+  startLabel: string,
 ): ChartRow[] {
   const totals = new Map<string, number>();
   const definitions = [
@@ -112,7 +113,7 @@ function cumulativeRows(
   for (const [key] of definitions) totals.set(key, compound ? 1 : 0);
   const result: ChartRow[] = [
     {
-      date: "起点",
+      date: startLabel,
       ...Object.fromEntries(definitions.map(([key]) => [key, 0])),
     },
   ];
@@ -153,13 +154,12 @@ function signalRows(rows: DailyRow[]) {
 
 export function BacktestView({
   meta,
-  zh,
   remoteIp,
 }: {
   meta: BacktestArtifact;
-  zh: boolean;
   remoteIp?: string;
 }) {
+  const { t } = useTranslation();
   const [daily, setDaily] = useState<DailyRow[]>([]);
   const [summary, setSummary] = useState<SummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,31 +191,26 @@ export function BacktestView({
     return (
       <div className="data-gap">
         <AlertTriangle />
-        <strong>
-          {zh ? "无法读取新版回测产物" : "Unable to load backtest artifacts"}
-        </strong>
-        <span>
-          {error || (zh ? "daily.parquet 为空" : "daily.parquet is empty")}
-        </span>
+        <strong>{t("backtest.unable_to_load_backtest_artifacts")}</strong>
+        <span>{error || t("backtest.daily_parquet_is_empty")}</span>
       </div>
     );
-  return <BacktestReport meta={meta} daily={daily} summary={summary} zh={zh} />;
+  return <BacktestReport meta={meta} daily={daily} summary={summary} />;
 }
 
 function BacktestReport({
   meta,
   daily,
   summary,
-  zh,
 }: {
   meta: BacktestArtifact;
   daily: DailyRow[];
   summary: SummaryRow[];
-  zh: boolean;
 }) {
+  const { t } = useTranslation();
   const topNs = meta.dimensions?.top_ns || [1, 2, 3, 5, 10, 15, 20, 30];
   const benchmarks = meta.dimensions?.benchmarks || [
-    { key: "universe", label: "全市场平均" },
+    { key: "universe", label: t("backtest.marketAverage") },
   ];
   const [tab, setTab] = useState<
     "gross" | "net" | "quality" | "overall" | "year" | "quarter" | "month"
@@ -224,13 +219,13 @@ function BacktestReport({
   const [hoveredDate, setHoveredDate] = useState("");
   const [lockedDate, setLockedDate] = useState("");
   const tabs = [
-    ["gross", zh ? "毛收益" : "Gross return"],
-    ["net", zh ? "净收益" : "Net return"],
-    ["quality", zh ? "模型质量" : "Model quality"],
-    ["overall", zh ? "总体" : "Overall"],
-    ["year", zh ? "分年" : "Yearly"],
-    ["quarter", zh ? "分季度" : "Quarterly"],
-    ["month", zh ? "分月" : "Monthly"],
+    ["gross", t("backtest.gross_return")],
+    ["net", t("backtest.net_return")],
+    ["quality", t("backtest.model_quality")],
+    ["overall", t("backtest.overall")],
+    ["year", t("backtest.yearly")],
+    ["quarter", t("backtest.quarterly")],
+    ["month", t("backtest.monthly")],
   ];
   return (
     <div className="backtest-report">
@@ -257,14 +252,12 @@ function BacktestReport({
           setHoveredDate={setHoveredDate}
           lockedDate={lockedDate}
           setLockedDate={setLockedDate}
-          zh={zh}
         />
       ) : (
         <SummaryView
           rows={summary.filter((row) => row.period_type === tab)}
           topNs={topNs}
           benchmarks={benchmarks}
-          zh={zh}
         />
       )}
     </div>
@@ -282,7 +275,6 @@ function Overview({
   setHoveredDate,
   lockedDate,
   setLockedDate,
-  zh,
 }: {
   view: "gross" | "net" | "quality";
   daily: DailyRow[];
@@ -294,8 +286,8 @@ function Overview({
   setHoveredDate: React.Dispatch<React.SetStateAction<string>>;
   lockedDate: string;
   setLockedDate: React.Dispatch<React.SetStateAction<string>>;
-  zh: boolean;
 }) {
+  const { t } = useTranslation();
   const updateRange = (position: 0 | 1, value: number) =>
     setRange((current) => {
       const [start, end] = current;
@@ -323,16 +315,16 @@ function Overview({
     daily.find((row) => row.trade_date === activeDate) || selected.at(-1);
   const hover = useCallback(
     (date: string) => {
-      if (date !== "起点") setHoveredDate(date);
+      if (date !== t("common.start")) setHoveredDate(date);
     },
-    [setHoveredDate],
+    [setHoveredDate, t],
   );
   const lock = useCallback(
     (date: string) => {
-      if (date !== "起点")
+      if (date !== t("common.start"))
         setLockedDate((current) => (current === date ? "" : date));
     },
-    [setLockedDate],
+    [setLockedDate, t],
   );
   const returnSeries = useMemo<ChartSeries[]>(
     () => [
@@ -346,18 +338,18 @@ function Overview({
     [benchmarks, topNs],
   );
   const grossRows = useMemo(
-    () => cumulativeRows(selected, topNs, benchmarks, false),
-    [benchmarks, selected, topNs],
+    () => cumulativeRows(selected, topNs, benchmarks, false, t("common.start")),
+    [benchmarks, selected, topNs, t],
   );
   const netRows = useMemo(
-    () => cumulativeRows(selected, topNs, benchmarks, true),
-    [benchmarks, selected, topNs],
+    () => cumulativeRows(selected, topNs, benchmarks, true, t("common.start")),
+    [benchmarks, selected, topNs, t],
   );
   return (
     <div className="backtest-overview">
       <section className="range-toolbar">
         <label>
-          <span>{zh ? "开始日期" : "From"}</span>
+          <span>{t("backtest.from")}</span>
           <input
             type="date"
             value={inputDate(daily[range[0]].trade_date)}
@@ -379,10 +371,10 @@ function Overview({
           range={range}
           count={daily.length}
           onChange={updateRange}
-          labels={zh ? ["开始日期", "结束日期"] : ["Start date", "End date"]}
+          labels={[t("backtest.dateRange.start"), t("backtest.dateRange.end")]}
         />
         <label>
-          <span>{zh ? "结束日期" : "To"}</span>
+          <span>{t("backtest.to")}</span>
           <input
             type="date"
             value={inputDate(daily[range[1]].trade_date)}
@@ -395,23 +387,19 @@ function Overview({
           />
         </label>
         <strong>
-          {selected.length} {zh ? "个交易日" : "days"}
+          {selected.length} {t("backtest.days")}
         </strong>
         <button
           onClick={() => setRange([0, daily.length - 1])}
-          title={zh ? "恢复全部" : "Reset"}
+          title={t("backtest.reset")}
         >
           <RotateCcw />
         </button>
       </section>
       {view === "gross" && (
         <ChartCard
-          title={zh ? "毛收益累计" : "Cumulative gross return"}
-          hint={
-            zh
-              ? "日收益算术累加，区间起点归零"
-              : "Arithmetic sum rebased to zero"
-          }
+          title={t("backtest.cumulative_gross_return")}
+          hint={t("backtest.arithmetic_sum_rebased_to_zero")}
         >
           <BacktestChart
             rows={grossRows}
@@ -424,12 +412,8 @@ function Overview({
       )}
       {view === "net" && (
         <ChartCard
-          title={zh ? "净收益复利" : "Compounded net return"}
-          hint={
-            zh
-              ? "策略扣除换手手续费，基准不扣费"
-              : "Strategies include turnover costs"
-          }
+          title={t("backtest.compounded_net_return")}
+          hint={t("backtest.strategies_include_turnover_costs")}
         >
           <BacktestChart
             rows={netRows}
@@ -443,9 +427,9 @@ function Overview({
       {view === "quality" && (
         <ChartCard
           title="IC / RankIC · MA20"
-          hint={zh ? "候选股票池内计算" : "Candidate universe"}
+          hint={t("backtest.candidate_universe")}
         >
-          <SeriesMeans rows={selected} series={IC_SERIES} zh={zh} />
+          <SeriesMeans rows={selected} series={IC_SERIES} />
           <BacktestChart
             rows={signals}
             series={IC_SERIES}
@@ -457,11 +441,9 @@ function Overview({
       {view === "quality" && (
         <ChartCard
           title="NDCG · MA20"
-          hint={
-            zh ? "实际收益截面百分位 relevance" : "Return-percentile relevance"
-          }
+          hint={t("backtest.return_percentile_relevance")}
         >
-          <SeriesMeans rows={selected} series={NDCG_SERIES} zh={zh} />
+          <SeriesMeans rows={selected} series={NDCG_SERIES} />
           <BacktestChart
             rows={signals}
             series={NDCG_SERIES}
@@ -474,7 +456,6 @@ function Overview({
         <HoldingsPanel
           row={active}
           locked={Boolean(lockedDate && selectedDates.has(lockedDate))}
-          zh={zh}
           onUnlock={() => setLockedDate("")}
           onLatest={() => {
             setLockedDate("");
@@ -512,16 +493,15 @@ function ChartCard({
 function HoldingsPanel({
   row,
   locked,
-  zh,
   onUnlock,
   onLatest,
 }: {
   row?: DailyRow;
   locked: boolean;
-  zh: boolean;
   onUnlock: () => void;
   onLatest: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const holdings = (row?.top30_holdings || []) as Holding[];
   const [sort, setSort] = useState<SummarySort>(null);
   const sortedHoldings = sort
@@ -531,7 +511,10 @@ function HoldingsPanel({
         const comparison =
           typeof left === "number" && typeof right === "number"
             ? left - right
-            : String(left).localeCompare(String(right), zh ? "zh-CN" : "en");
+            : String(left).localeCompare(
+                String(right),
+                i18n.resolvedLanguage === "zh" ? "zh-CN" : "en",
+              );
         return comparison * (sort.direction === "asc" ? 1 : -1);
       })
     : holdings;
@@ -561,11 +544,13 @@ function HoldingsPanel({
           type="button"
           className={`summary-sort-button${active ? " active" : ""}`}
           onClick={() => setSort((current) => nextSummarySort(current, key))}
-          aria-label={
-            zh
-              ? `按${label}${active && sort.direction === "asc" ? "降序" : "升序"}排列`
-              : `Sort ${label} ${active && sort.direction === "asc" ? "descending" : "ascending"}`
-          }
+          aria-label={t("backtest.sortBy", {
+            label,
+            direction:
+              active && sort.direction === "asc"
+                ? t("backtest.descending")
+                : t("backtest.ascending"),
+          })}
         >
           <span>{label}</span>
           {active ? (
@@ -587,8 +572,7 @@ function HoldingsPanel({
         <div>
           <small>TOP 30 HOLDINGS</small>
           <h3>
-            {row?.trade_date || "—"} · {holdings.length}{" "}
-            {zh ? "只股票" : "stocks"}
+            {row?.trade_date || "—"} · {holdings.length} {t("backtest.stocks")}
           </h3>
         </div>
         <div className="holdings-actions">
@@ -597,29 +581,25 @@ function HoldingsPanel({
             className="summary-sort-reset"
             onClick={() => setSort(null)}
             disabled={!sort}
-            aria-label={zh ? "重置持仓表排序" : "Reset holdings sorting"}
-            title={zh ? "重置排序" : "Reset sorting"}
+            aria-label={t("backtest.reset_holdings_sorting")}
+            title={t("backtest.reset_sorting")}
           >
             <ListRestart />
-            {zh ? "重置排序" : "Reset sort"}
+            {t("backtest.reset_sort")}
           </button>
           {locked && (
             <button type="button" onClick={onUnlock}>
               <LockKeyhole />
-              {zh ? "取消锁定" : "Unlock"}
+              {t("backtest.unlock")}
             </button>
           )}
           <button
             type="button"
             onClick={onLatest}
-            title={
-              zh
-                ? "回到所选区间的最后一个交易日"
-                : "Show the latest day in the selected range"
-            }
+            title={t("backtest.show_the_latest_day_in")}
           >
             <RotateCcw />
-            {zh ? "回到最新" : "Latest"}
+            {t("backtest.latest")}
           </button>
         </div>
       </header>
@@ -628,11 +608,11 @@ function HoldingsPanel({
           <thead>
             <tr>
               {holdingHeader("rank", "#")}
-              {holdingHeader("ts_code", zh ? "代码" : "Code")}
-              {holdingHeader("name", zh ? "名称" : "Name")}
-              {holdingHeader("prediction", zh ? "预测值" : "Prediction")}
-              {holdingHeader("daily_return", zh ? "当日收益" : "Return")}
-              {holdingHeader("weight", zh ? "权重" : "Weight")}
+              {holdingHeader("ts_code", t("backtest.code"))}
+              {holdingHeader("name", t("backtest.name"))}
+              {holdingHeader("prediction", t("backtest.prediction"))}
+              {holdingHeader("daily_return", t("backtest.return"))}
+              {holdingHeader("weight", t("backtest.weight"))}
             </tr>
           </thead>
           <tbody>
@@ -677,8 +657,6 @@ function HoldingsPanel({
 
 type SummaryMetric = {
   key: string;
-  label: string;
-  english: string;
   format: (value: unknown) => string;
   percent: boolean;
 };
@@ -686,57 +664,41 @@ type SummaryMetric = {
 const performanceMetrics: SummaryMetric[] = [
   {
     key: "net_cumulative_return",
-    label: "净累计收益",
-    english: "Net cumulative return",
     format: percent,
     percent: true,
   },
   {
     key: "net_annualized_return",
-    label: "净年化收益",
-    english: "Net annualized return",
     format: percent,
     percent: true,
   },
   {
     key: "net_annualized_volatility",
-    label: "年化波动率",
-    english: "Annualized volatility",
     format: percent,
     percent: true,
   },
   {
     key: "net_max_drawdown",
-    label: "最大回撤",
-    english: "Max drawdown",
     format: percent,
     percent: true,
   },
   {
     key: "net_win_rate",
-    label: "胜率",
-    english: "Win rate",
     format: percent,
     percent: true,
   },
   {
     key: "average_turnover",
-    label: "平均换手率",
-    english: "Average turnover",
     format: percent,
     percent: true,
   },
   {
     key: "gross_cumulative_return",
-    label: "毛累计收益",
-    english: "Gross cumulative return",
     format: percent,
     percent: true,
   },
   {
     key: "gross_sharpe",
-    label: "Sharpe",
-    english: "Sharpe",
     format: fixed,
     percent: false,
   },
@@ -745,43 +707,31 @@ const performanceMetrics: SummaryMetric[] = [
 const signalMetrics: SummaryMetric[] = [
   {
     key: "trading_days",
-    label: "交易日数",
-    english: "Trading days",
     format: (value) => fixed(value, 0),
     percent: false,
   },
   {
     key: "ic_mean",
-    label: "IC 均值",
-    english: "IC mean",
     format: (value) => fixed(value, 4),
     percent: false,
   },
   {
     key: "icir",
-    label: "ICIR",
-    english: "ICIR",
     format: fixed,
     percent: false,
   },
   {
     key: "rank_ic_mean",
-    label: "RankIC 均值",
-    english: "RankIC mean",
     format: (value) => fixed(value, 4),
     percent: false,
   },
   {
     key: "rank_icir",
-    label: "RankICIR",
-    english: "RankICIR",
     format: fixed,
     percent: false,
   },
 ];
 
-const metricName = (metric: SummaryMetric, zh: boolean) =>
-  zh ? metric.label : metric.english;
 const metricValue = (row: SummaryRow, topN: number, key: string) =>
   row[`top${topN}_${key}`];
 const valueTone = (value: unknown) =>
@@ -852,13 +802,12 @@ function SummaryView({
   rows,
   topNs,
   benchmarks,
-  zh,
 }: {
   rows: SummaryRow[];
   topNs: number[];
   benchmarks: BenchmarkDefinition[];
-  zh: boolean;
 }) {
+  const { t } = useTranslation();
   const [topN, setTopN] = useState(topNs.includes(30) ? 30 : topNs[0]);
   const [signalSort, setSignalSort] = useState<SummarySort>(null);
   const [detailSort, setDetailSort] = useState<SummarySort>(null);
@@ -876,7 +825,8 @@ function SummaryView({
   ];
   const periodName = (row: SummaryRow) =>
     overall ? `${row.period_start}—${row.period_end}` : row.period;
-  if (!rows.length) return <div className="chart-empty">NO SUMMARY DATA</div>;
+  if (!rows.length)
+    return <div className="chart-empty">{t("backtest.noSummaryData")}</div>;
   const detailRows = overall
     ? topNs.map((n) => ({ row: periods[0], topN: n, key: `top-${n}` }))
     : periods.map((row) => ({ row, topN, key: row.period }));
@@ -950,11 +900,13 @@ function SummaryView({
           type="button"
           className={`summary-sort-button${active ? " active" : ""}`}
           onClick={() => onSort(key)}
-          aria-label={
-            zh
-              ? `按${label}${active && sort.direction === "asc" ? "降序" : "升序"}排列`
-              : `Sort ${label} ${active && sort.direction === "asc" ? "descending" : "ascending"}`
-          }
+          aria-label={t("backtest.sortBy", {
+            label,
+            direction:
+              active && sort.direction === "asc"
+                ? t("backtest.descending")
+                : t("backtest.ascending"),
+          })}
         >
           <span>{label}</span>
           {active ? (
@@ -974,7 +926,7 @@ function SummaryView({
     <label className="summary-select-label">
       <span>Top N</span>
       <select
-        aria-label={zh ? "选择 Top N" : "Select Top N"}
+        aria-label={t("backtest.select_top_n")}
         value={topN}
         onChange={(event) => setTopN(Number(event.target.value))}
       >
@@ -992,15 +944,15 @@ function SummaryView({
         <div className="summary-section-heading">
           <span className="summary-section-index">01</span>
           <div>
-            <small>{zh ? "与 Top N 无关" : "INDEPENDENT OF TOP N"}</small>
-            <h3>{zh ? "整体指标" : "Overall metrics"}</h3>
+            <small>{t("backtest.independent_of_top_n")}</small>
+            <h3>{t("backtest.overall_metrics")}</h3>
           </div>
         </div>
         {overall && (
           <div className="summary-signal-cards">
-            {signalMetrics.map(({ key, label, english, format }) => (
+            {signalMetrics.map(({ key, format }) => (
               <article key={key} className="viz-card">
-                <span>{zh ? label : english}</span>
+                <span>{t(`backtest.metrics.${key}`)}</span>
                 <strong>{format(rows[0][key])}</strong>
               </article>
             ))}
@@ -1010,17 +962,15 @@ function SummaryView({
           <header>
             <div>
               <small>BASE METRICS</small>
-              <h3>{zh ? "整体指标明细" : "Overall metric details"}</h3>
+              <h3>{t("backtest.overall_metric_details")}</h3>
             </div>
             <button
               type="button"
               className="summary-sort-reset"
               onClick={() => setSignalSort(null)}
               disabled={!signalSort}
-              aria-label={
-                zh ? "重置整体指标排序" : "Reset overall metric sorting"
-              }
-              title={zh ? "重置排序" : "Reset sorting"}
+              aria-label={t("backtest.reset_overall_metric_sorting")}
+              title={t("backtest.reset_sorting")}
             >
               <RotateCcw />
             </button>
@@ -1028,7 +978,7 @@ function SummaryView({
           <div
             className="mini-table"
             role="region"
-            aria-label={zh ? "整体指标明细" : "Overall metric details"}
+            aria-label={t("backtest.overall_metric_details")}
             tabIndex={0}
           >
             <table>
@@ -1036,7 +986,7 @@ function SummaryView({
                 <tr>
                   {sortHeader(
                     "period",
-                    zh ? "时间" : "Period",
+                    t("backtest.period"),
                     signalSort,
                     (key) =>
                       setSignalSort((current) => nextSummarySort(current, key)),
@@ -1044,7 +994,7 @@ function SummaryView({
                   {signalMetrics.map((metric) =>
                     sortHeader(
                       metric.key,
-                      metricName(metric, zh),
+                      t(`backtest.metrics.${metric.key}`),
                       signalSort,
                       (key) =>
                         setSignalSort((current) =>
@@ -1082,8 +1032,8 @@ function SummaryView({
         <div className="summary-section-heading">
           <span className="summary-section-index">02</span>
           <div>
-            <small>{zh ? "按持仓数量筛选" : "FILTER BY PORTFOLIO SIZE"}</small>
-            <h3>Top N {zh ? "指标" : "metrics"}</h3>
+            <small>{t("backtest.filter_by_portfolio_size")}</small>
+            <h3>Top N {t("backtest.metrics_2")}</h3>
           </div>
         </div>
         <section className="viz-card summary-table summary-detail-table">
@@ -1092,26 +1042,22 @@ function SummaryView({
               <small>TOP N DETAIL</small>
               <h3>
                 {overall
-                  ? zh
-                    ? "各 Top N · 全部指标"
-                    : "All Top N metrics"
-                  : zh
-                    ? `Top ${topN} · 全部指标`
-                    : `Top ${topN} · All metrics`}
+                  ? t("backtest.all_top_n_metrics")
+                  : t("backtest.topNAllMetrics", { topN })}
               </h3>
             </div>
             <div className="summary-chart-controls">
               {!overall && topNControl}
               <span className="summary-table-hint">
-                {zh ? "左右滑动查看" : "Scroll sideways"}
+                {t("backtest.scroll_sideways")}
               </span>
               <button
                 type="button"
                 className="summary-sort-reset"
                 onClick={() => setDetailSort(null)}
                 disabled={!detailSort}
-                aria-label={zh ? "重置表格排序" : "Reset table sorting"}
-                title={zh ? "重置排序" : "Reset sorting"}
+                aria-label={t("backtest.reset_table_sorting")}
+                title={t("backtest.reset_sorting")}
               >
                 <RotateCcw />
               </button>
@@ -1122,12 +1068,8 @@ function SummaryView({
             role="region"
             aria-label={
               overall
-                ? zh
-                  ? "各 Top N 总体指标"
-                  : "Overall metrics by Top N"
-                : zh
-                  ? "Top N 分期指标明细"
-                  : "Top N period metric details"
+                ? t("backtest.overall_metrics_by_top_n")
+                : t("backtest.top_n_period_metric_details")
             }
             tabIndex={0}
           >
@@ -1136,7 +1078,7 @@ function SummaryView({
                 <tr>
                   {sortHeader(
                     overall ? "top_n" : "period",
-                    overall ? "Top N" : zh ? "时间" : "Period",
+                    overall ? "Top N" : t("backtest.period"),
                     detailSort,
                     (key) =>
                       setDetailSort((current) => nextSummarySort(current, key)),
@@ -1144,7 +1086,7 @@ function SummaryView({
                   {metrics.map((metric) =>
                     sortHeader(
                       metric.key,
-                      metricName(metric, zh),
+                      t(`backtest.metrics.${metric.key}`),
                       detailSort,
                       (key) =>
                         setDetailSort((current) =>

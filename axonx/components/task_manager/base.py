@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator, Sequence
 from ...components.job.events import JobEvent
 from ...enums import ComponentEnum
 from ...task.contracts import TaskHandle
-from ...task.query.graph import TaskGraph, TaskGraphList
+from ...task.query.graph import TaskGraph
 from ...task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
 from ...task.storage.workspace import TaskStatus
 from ..base import BaseComponent
@@ -40,12 +40,6 @@ class BaseTaskManager(BaseComponent, ABC):
     @abstractmethod
     async def delete(self, task_ids: Sequence[str]) -> list[str]:
         """Delete terminal task directories and return their IDs."""
-
-    @abstractmethod
-    async def list_graphs(
-        self, query: str = "", offset: int = 0, limit: int = 50
-    ) -> TaskGraphList:
-        """List task dependency graphs."""
 
     @abstractmethod
     async def get_graph(self, task_id: str) -> TaskGraph:

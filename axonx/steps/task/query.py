@@ -40,16 +40,6 @@ class ReadTaskLogStep(TaskManagerStep):
         self.response.answer = chunk
 
 
-@provider("list_task_graphs_step")
-class ListTaskGraphsStep(TaskManagerStep):
-    async def execute(self):
-        self.response.answer = await self.task_manager.list_graphs(
-            self.context.get("q", ""),
-            self.context.get("offset", 0),
-            self.context.get("limit", 50),
-        )
-
-
 @provider("get_task_graph_step")
 class GetTaskGraphStep(TaskManagerStep):
     async def execute(self):

@@ -13,7 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { listInstalledTaskDefinitions, submitTask } from "../tasks/api";
-import { interpolate, t } from "../../i18n";
+import { useTranslation } from "react-i18next";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import {
   initialSchemaValues,
@@ -21,11 +21,10 @@ import {
 } from "../../shared/schema/values";
 import type { SchemaFormValues } from "../../shared/schema/values";
 import { SchemaField } from "../../shared/ui/SchemaForm/SchemaField";
-import type { ContextOption, Language } from "../../app/types";
+import type { ContextOption } from "../../app/types";
 import type { TaskDefinition } from "../tasks/types";
 
 export function SubmitPage({
-  language,
   remoteIp,
   initialName,
   onSelected,
@@ -33,7 +32,6 @@ export function SubmitPage({
   onViewTasks,
   onConnection,
 }: {
-  language: Language;
   remoteIp?: string;
   initialName?: string;
   onSelected?: (name: string) => void;
@@ -41,7 +39,7 @@ export function SubmitPage({
   onViewTasks: () => void;
   onConnection: (online: boolean) => void;
 }) {
-  const text = t(language);
+  const { t } = useTranslation();
   const [tasks, setTasks] = useState<TaskDefinition[]>([]);
   const [selectedName, setSelectedName] = useState("");
   const [search, setSearch] = useState("");
@@ -85,10 +83,10 @@ export function SubmitPage({
       tasks.map((task) => ({
         value: task.name,
         label: task.name,
-        detail: text.types[task.task_type] || task.task_type,
+        detail: t(`types.${task.task_type}`, task.task_type),
       })),
     );
-  }, [tasks, text.types, onOptionsChange]);
+  }, [tasks, t, onOptionsChange]);
   const selected = tasks.find((task) => task.name === selectedName);
   const filtered = useMemo(
     () =>
@@ -103,7 +101,7 @@ export function SubmitPage({
     const plugins = new Map<string, TaskDefinition[]>();
     for (const task of filtered) {
       if (task.source !== "plugin") continue;
-      const plugin = task.plugin || text.pluginTasks;
+      const plugin = task.plugin || t("pluginTasks");
       const group = plugins.get(plugin) || [];
       group.push(task);
       plugins.set(plugin, group);
@@ -111,7 +109,7 @@ export function SubmitPage({
     return [
       {
         id: "native",
-        label: text.nativeTasks,
+        label: t("nativeTasks"),
         tasks: filtered.filter((task) => task.source !== "plugin"),
       },
       ...Array.from(plugins, ([plugin, pluginTasks]) => ({
@@ -120,7 +118,7 @@ export function SubmitPage({
         tasks: pluginTasks,
       })).sort((a, b) => a.label.localeCompare(b.label)),
     ];
-  }, [filtered, text.nativeTasks, text.pluginTasks]);
+  }, [filtered, t]);
 
   useEffect(() => {
     if (!selected) return;
@@ -148,8 +146,8 @@ export function SubmitPage({
       selected.input_schema,
       values,
       {
-        required: text.required,
-        invalidJson: text.jsonHint,
+        required: t("required"),
+        invalidJson: t("jsonHint"),
       },
     );
     setFieldErrors(errors);
@@ -173,23 +171,21 @@ export function SubmitPage({
       <div className="page-heading">
         <div>
           <p className="eyebrow">TASK LAUNCHER / 02</p>
-          <h1>{text.submitTitle}</h1>
-          <span>{text.submitLead}</span>
+          <h1>{t("submitTitle")}</h1>
+          <span>{t("submitLead")}</span>
         </div>
       </div>
       <div className="submit-layout">
         <aside className="catalog-panel rail-panel">
           <header className="catalog-header rail-header">
             <div className="catalog-heading rail-heading">
-              <strong>{text.taskCatalog}</strong>
-              <span>
-                {interpolate(text.tasksAvailable, { count: tasks.length })}
-              </span>
+              <strong>{t("taskCatalog")}</strong>
+              <span>{t("tasksAvailable", { count: tasks.length })}</span>
             </div>
             <button
               className="catalog-refresh rail-refresh"
               onClick={() => void load()}
-              aria-label="Refresh"
+              aria-label={t("refresh")}
             >
               <RefreshCw className={loading ? "spin" : ""} />
             </button>
@@ -199,7 +195,7 @@ export function SubmitPage({
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={text.findTask}
+              placeholder={t("findTask")}
             />
           </label>
           <div className="task-catalog rail-scroll">
@@ -234,9 +230,10 @@ export function SubmitPage({
                         <CatalogTask
                           key={task.name}
                           task={task}
-                          typeLabel={
-                            text.types[task.task_type] || task.task_type
-                          }
+                          typeLabel={t(
+                            `types.${task.task_type}`,
+                            task.task_type,
+                          )}
                           active={selectedName === task.name}
                           onChoose={chooseTask}
                         />
@@ -247,7 +244,7 @@ export function SubmitPage({
               );
             })}
             {!loading && !filtered.length && (
-              <div className="catalog-empty">{text.noInstalled}</div>
+              <div className="catalog-empty">{t("noInstalled")}</div>
             )}
           </div>
         </aside>
@@ -255,30 +252,24 @@ export function SubmitPage({
         <div className="form-panel">
           {loading && !selected && (
             <div className="loading-state tall">
-              <LoaderCircle className="spin" /> Loading Task catalog…
+              <LoaderCircle className="spin" /> {t("submitPage.loadingCatalog")}
             </div>
           )}
           {error && !selected && (
             <div className="form-message error">
               <Braces />
-              <h2>{text.catalogFailed}</h2>
+              <h2>{t("catalogFailed")}</h2>
               <p>{error}</p>
               <button className="secondary-button" onClick={() => void load()}>
-                {text.retry}
+                {t("retry")}
               </button>
             </div>
           )}
           {!loading && !error && !selected && (
             <div className="empty-workspace">
               <Sparkles />
-              <strong>
-                {language === "zh" ? "选择一个 Task" : "Select a Task"}
-              </strong>
-              <span>
-                {language === "zh"
-                  ? "查看说明、配置参数并提交运行"
-                  : "Review its inputs and submit a run"}
-              </span>
+              <strong>{t("submitPage.selectTask")}</strong>
+              <span>{t("submitPage.selectTaskHint")}</span>
             </div>
           )}
           {selected && !submitted && (
@@ -289,7 +280,7 @@ export function SubmitPage({
                 </div>
                 <div>
                   <span className="type-label">
-                    {text.types[selected.task_type] || selected.task_type}
+                    {t(`types.${selected.task_type}`, selected.task_type)}
                   </span>
                   <h2>{selected.name}</h2>
                   <p>{selected.description}</p>
@@ -301,7 +292,7 @@ export function SubmitPage({
                     <span className="section-heading-icon">
                       <CircleDot />
                     </span>
-                    <span>{text.configure}</span>
+                    <span>{t("configure")}</span>
                   </div>
                   <small>
                     {Object.keys(selected.input_schema.properties || {}).length}{" "}
@@ -320,7 +311,6 @@ export function SubmitPage({
                         ).includes(name)}
                         value={values[name] ?? ""}
                         error={fieldErrors[name]}
-                        language={language}
                         onChange={(value) =>
                           setValues((current) => ({
                             ...current,
@@ -337,7 +327,7 @@ export function SubmitPage({
                 <div className="output-preview">
                   <span>
                     <Braces />
-                    {text.output}
+                    {t("output")}
                   </span>
                   <div>
                     {Object.keys(selected.output_schema.properties || {}).map(
@@ -356,7 +346,7 @@ export function SubmitPage({
                   disabled={submitting}
                 >
                   {submitting ? <LoaderCircle className="spin" /> : <Send />}{" "}
-                  {submitting ? text.submitting : text.submit}
+                  {submitting ? t("submitting") : t("submit")}
                   <ArrowRight />
                 </button>
               </footer>
@@ -370,18 +360,18 @@ export function SubmitPage({
                 <Check />
               </span>
               <p>SUBMITTED</p>
-              <h2>{text.submitted}</h2>
-              <span>{text.submittedHint}</span>
+              <h2>{t("submitted")}</h2>
+              <span>{t("submittedHint")}</span>
               <code>{selected.name}</code>
               <button className="primary-button" onClick={onViewTasks}>
-                {text.viewTasks}
+                {t("viewTasks")}
                 <ArrowRight />
               </button>
               <button
                 className="link-button"
                 onClick={() => setSubmitted(false)}
               >
-                {language === "zh" ? "再提交一次" : "Submit another"}
+                {t("submitPage.submitAnother")}
               </button>
             </div>
           )}

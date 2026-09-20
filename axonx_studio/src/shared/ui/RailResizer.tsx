@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 export function RailResizer({
   min,
@@ -13,6 +14,7 @@ export function RailResizer({
   onResize?: (width: number) => void;
   onResizeEnd?: (width: number) => void;
 }) {
+  const { t } = useTranslation();
   const handleRef = useRef<HTMLDivElement>(null);
 
   const resizeTo = (panel: HTMLElement, width: number) => {
@@ -31,7 +33,7 @@ export function RailResizer({
       className={`rail-resizer ${className}`}
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize panel"
+      aria-label={t("common.resizePanel")}
       tabIndex={0}
       onPointerDown={(event) => {
         const panel = handleRef.current

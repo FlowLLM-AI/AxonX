@@ -10,21 +10,19 @@ import {
 } from "lucide-react";
 import { machineStatus } from "../machines/api";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
-import type { Language } from "../../app/types";
 import type { MachineNode } from "../machines/types";
+import { useTranslation } from "react-i18next";
 
 export function EnvironmentSettingsModal({
-  language,
   machine,
   remoteIp,
   onClose,
 }: {
-  language: Language;
   machine: MachineNode;
   remoteIp?: string;
   onClose: () => void;
 }) {
-  const zh = language === "zh";
+  const { t } = useTranslation();
   const closeButton = useRef<HTMLButtonElement>(null);
   const loadStatus = useCallback(
     (signal: AbortSignal) => machineStatus(remoteIp, signal),
@@ -60,13 +58,13 @@ export function EnvironmentSettingsModal({
           </span>
           <div>
             <small>AXONX STUDIO</small>
-            <h2 id="settings-title">{zh ? "设置" : "Settings"}</h2>
+            <h2 id="settings-title">{t("shell.settings")}</h2>
           </div>
           <button
             ref={closeButton}
             className="settings-close"
             onClick={onClose}
-            aria-label={zh ? "关闭设置" : "Close settings"}
+            aria-label={t("runtimeSettings.close")}
           >
             <X />
           </button>
@@ -75,22 +73,22 @@ export function EnvironmentSettingsModal({
           <div className="settings-section-heading">
             <div>
               <span className="settings-kicker">
-                {zh ? "当前机器" : "CURRENT MACHINE"}
+                {t("runtimeSettings.currentMachine")}
               </span>
-              <h3>{zh ? "运行环境" : "Environment"}</h3>
-              <p>{zh ? "版本与代码信息" : "Version and source details"}</p>
+              <h3>{t("runtimeSettings.environment")}</h3>
+              <p>{t("runtimeSettings.versionSource")}</p>
             </div>
           </div>
           {loading && !info ? (
             <div className="settings-message">
               <LoaderCircle className="spin" />
-              {zh ? "正在读取运行环境…" : "Loading environment…"}
+              {t("runtimeSettings.loading")}
             </div>
           ) : error ? (
             <div className="settings-message settings-error">
               <Server />
               <span>
-                {zh ? "无法读取运行环境" : "Environment unavailable"}
+                {t("runtimeSettings.unavailable")}
                 <small>{error}</small>
               </span>
             </div>
@@ -98,7 +96,7 @@ export function EnvironmentSettingsModal({
             <div className="settings-info-grid">
               <InfoItem
                 icon={<Tag />}
-                label={zh ? "AxonX 版本" : "AXONX VERSION"}
+                label={t("runtimeSettings.axonxVersion")}
                 value={`v${info.axonx.version}`}
               />
               <InfoItem
@@ -113,7 +111,7 @@ export function EnvironmentSettingsModal({
               />
               <InfoItem
                 icon={<Server />}
-                label={zh ? "服务地址" : "ENDPOINT"}
+                label={t("runtimeSettings.endpoint")}
                 value={machine.address}
               />
             </div>

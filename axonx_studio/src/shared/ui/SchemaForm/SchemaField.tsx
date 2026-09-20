@@ -1,5 +1,4 @@
-import { t } from "../../../i18n";
-import type { Language } from "../../../app/types";
+import { useTranslation } from "react-i18next";
 import type { JsonSchema } from "../../schema/types";
 import { humanizeFieldName, schemaType } from "../../schema/values";
 import type { SchemaFieldValue } from "../../schema/values";
@@ -10,7 +9,6 @@ interface SchemaFieldProps {
   required: boolean;
   value: SchemaFieldValue;
   error?: string;
-  language: Language;
   variant?: "default" | "compact";
   onChange: (value: SchemaFieldValue) => void;
 }
@@ -21,18 +19,17 @@ export function SchemaField({
   required,
   value,
   error,
-  language,
   variant = "default",
   onChange,
 }: SchemaFieldProps) {
-  const text = t(language);
+  const { t } = useTranslation();
   const type = schemaType(schema);
   const id = `field-${variant}-${name}`;
   const title =
     schema.title || (variant === "default" ? humanizeFieldName(name) : name);
   const requirement = (
     <em className={required ? "required" : ""}>
-      {required ? text.required : text.optional}
+      {required ? t("required") : t("optional")}
     </em>
   );
   const content = (
@@ -56,7 +53,7 @@ export function SchemaField({
           required={required}
           onChange={(event) => onChange(event.target.value)}
         >
-          <option value="">{variant === "default" ? text.choose : "—"}</option>
+          <option value="">{variant === "default" ? t("choose") : "—"}</option>
           {schema.enum.map((item) => (
             <option key={JSON.stringify(item)} value={JSON.stringify(item)}>
               {String(item)}
@@ -73,7 +70,7 @@ export function SchemaField({
           aria-checked={Boolean(value)}
         >
           <i />
-          <span>{value ? "True" : "False"}</span>
+          <span>{value ? t("common.true") : t("common.false")}</span>
         </button>
       ) : name === "source_tasks" ? (
         <input
@@ -81,11 +78,7 @@ export function SchemaField({
           type="text"
           value={String(value)}
           required={required}
-          placeholder={
-            language === "zh"
-              ? "多个 Task ID 用逗号分隔，可留空"
-              : "Task IDs separated by commas (optional)"
-          }
+          placeholder={t("schemaForm.sourceTasksPlaceholder")}
           onChange={(event) => onChange(event.target.value)}
         />
       ) : type === "object" || type === "array" ? (

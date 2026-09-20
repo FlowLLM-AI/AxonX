@@ -1,4 +1,3 @@
-export type Language = "zh" | "en";
 export type ThemePreference = "light" | "dark" | "system";
 export type PageId =
   | "home"

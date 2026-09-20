@@ -287,7 +287,6 @@
 .primary-rail > nav .nav-etl {
   --nav-icon: var(--violet);
 }
-.primary-rail > nav .nav-lineage,
 .primary-rail > nav .nav-backtest,
 .primary-rail > nav .nav-compare {
   --nav-icon: var(--accent);
@@ -1575,6 +1574,287 @@
   }
   .task-graph-canvas {
     padding: 24px 16px;
+  }
+}
+
+/* Task detail is one workspace with overview, logs, and relationships. */
+.task-detail-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 4px;
+  width: max-content;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+.task-detail-tabs button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 650;
+  cursor: pointer;
+}
+.task-detail-tabs button:hover {
+  color: var(--ink);
+}
+.task-detail-tabs button.active {
+  color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+.task-detail-tabs svg {
+  width: 16px;
+  height: 16px;
+}
+.task-detail-layout.single-panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+.task-detail-layout.single-panel .task-detail-summary {
+  border-right: 0;
+}
+.task-detail-layout.single-panel.logs {
+  min-height: 520px;
+}
+.row-actions .task-graph-action svg {
+  color: var(--accent);
+}
+.task-relations-panel {
+  min-height: 520px;
+  height: clamp(560px, calc(100vh - 292px), 780px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.task-relations-toolbar {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.task-relations-toolbar > div,
+.task-relations-toolbar > div > span {
+  display: flex;
+  align-items: center;
+}
+.task-relations-toolbar > div {
+  gap: 11px;
+}
+.task-relations-toolbar > div > svg {
+  width: 22px;
+  color: var(--accent);
+}
+.task-relations-toolbar > div > span {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+}
+.task-relations-toolbar small {
+  color: var(--muted);
+}
+.task-relations-toolbar button svg {
+  width: 16px;
+}
+.task-relations-provisional {
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 24%, var(--line));
+  color: var(--muted);
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+  font-size: 12px;
+}
+.task-relations-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  flex: 1;
+}
+.task-relations-viewport {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background:
+    radial-gradient(
+        circle,
+        color-mix(in srgb, var(--faint) 24%, transparent) 1px,
+        transparent 1px
+      )
+      0 0 / 22px 22px,
+    var(--surface-2);
+}
+.task-relations-graph {
+  position: relative;
+}
+.task-relations-graph > svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.task-relations-graph > svg path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 38%, var(--line));
+  stroke-width: 1.5;
+}
+.task-relation-node {
+  --node-color: var(--accent);
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--node-color);
+  border-radius: 11px;
+  color: var(--ink);
+  background: var(--surface);
+  text-align: left;
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--ink) 7%, transparent);
+  cursor: pointer;
+}
+.task-relation-node:hover,
+.task-relation-node.inspected {
+  border-color: var(--node-color);
+}
+.task-relation-node.current {
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.task-relation-node.missing {
+  border-style: dashed;
+  opacity: 0.7;
+}
+.task-relation-node.analysis {
+  --node-color: var(--pink);
+}
+.task-relation-node.train {
+  --node-color: var(--blue);
+}
+.task-relation-node.predict {
+  --node-color: var(--orange);
+}
+.task-relation-node.backtest {
+  --node-color: var(--danger);
+}
+.task-relation-node > span {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.task-relation-node strong {
+  color: var(--node-color);
+  font-size: 12px;
+}
+.task-relation-node code {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-relation-node small {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.relation-state {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.relation-state.running,
+.relation-state.queued {
+  color: var(--blue);
+}
+.relation-state.succeeded {
+  color: var(--accent);
+}
+.relation-state.failed,
+.relation-state.cancelled {
+  color: var(--danger);
+}
+.task-relation-inspector {
+  min-width: 0;
+  padding: 20px;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+}
+.task-relation-inspector > small {
+  color: var(--accent);
+  font-weight: 700;
+}
+.task-relation-inspector h3 {
+  margin: 7px 0 12px;
+}
+.task-relation-inspector > code {
+  display: block;
+  padding: 9px;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  background: var(--surface-2);
+  font-size: 11px;
+}
+.task-relation-inspector p,
+.task-relation-inspector .missing-note {
+  display: block;
+  margin: 13px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.task-relation-inspector .primary-button {
+  width: 100%;
+  justify-content: center;
+  margin-top: 18px;
+}
+.task-relation-inspector .primary-button svg {
+  width: 15px;
+}
+.task-relations-message {
+  min-height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+}
+.task-relations-message.error {
+  color: var(--danger);
+}
+.task-relations-message.error > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+@media (max-width: 900px) {
+  .task-relations-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .task-relation-inspector {
+    border-top: 1px solid var(--line);
+    border-left: 0;
   }
 }
 
