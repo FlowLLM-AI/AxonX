@@ -1,7 +1,8 @@
 import { lazy, Suspense } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { ResearchPageId } from "../features/research/types";
-import type { ContextOption, Language, MachineNode } from "../types";
+import type { ContextOption, Language } from "./types";
+import type { MachineNode } from "../features/machines/types";
 import { researchSections } from "./navigation";
 import { defaultRoute } from "./routes";
 import type { AppRoute, SectionId } from "./routes";

@@ -12,7 +12,8 @@ import { useMachineInfo } from "../machines/useMachineInfo";
 import { listTaskStatuses } from "../tasks/api";
 import { TaskDetailPage } from "../tasks/TaskDetailPage";
 import { TasksPage } from "../tasks/TasksPage";
-import type { ContextOption, Language, MachineNode } from "../../types";
+import type { ContextOption, Language } from "../../app/types";
+import type { MachineNode } from "../machines/types";
 
 export function RuntimeWorkspace({
   language,

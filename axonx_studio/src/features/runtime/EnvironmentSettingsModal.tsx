@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { machineStatus } from "../machines/api";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
-import type { Language, MachineNode } from "../../types";
+import type { Language } from "../../app/types";
+import type { MachineNode } from "../machines/types";
 
 export function EnvironmentSettingsModal({
   language,
@@ -29,9 +30,7 @@ export function EnvironmentSettingsModal({
     (signal: AbortSignal) => machineStatus(remoteIp, signal),
     [remoteIp],
   );
-  const { data: info, loading, error } = useAsyncResource(
-    loadStatus,
-  );
+  const { data: info, loading, error } = useAsyncResource(loadStatus);
 
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
@@ -56,7 +55,9 @@ export function EnvironmentSettingsModal({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="settings-dialog-header">
-          <span className="settings-dialog-icon"><Settings2 /></span>
+          <span className="settings-dialog-icon">
+            <Settings2 />
+          </span>
           <div>
             <small>AXONX STUDIO</small>
             <h2 id="settings-title">{zh ? "设置" : "Settings"}</h2>
@@ -73,24 +74,48 @@ export function EnvironmentSettingsModal({
         <div className="settings-dialog-body">
           <div className="settings-section-heading">
             <div>
-              <span className="settings-kicker">{zh ? "当前机器" : "CURRENT MACHINE"}</span>
+              <span className="settings-kicker">
+                {zh ? "当前机器" : "CURRENT MACHINE"}
+              </span>
               <h3>{zh ? "运行环境" : "Environment"}</h3>
               <p>{zh ? "版本与代码信息" : "Version and source details"}</p>
             </div>
           </div>
           {loading && !info ? (
-            <div className="settings-message"><LoaderCircle className="spin" />{zh ? "正在读取运行环境…" : "Loading environment…"}</div>
+            <div className="settings-message">
+              <LoaderCircle className="spin" />
+              {zh ? "正在读取运行环境…" : "Loading environment…"}
+            </div>
           ) : error ? (
             <div className="settings-message settings-error">
               <Server />
-              <span>{zh ? "无法读取运行环境" : "Environment unavailable"}<small>{error}</small></span>
+              <span>
+                {zh ? "无法读取运行环境" : "Environment unavailable"}
+                <small>{error}</small>
+              </span>
             </div>
           ) : info ? (
             <div className="settings-info-grid">
-              <InfoItem icon={<Tag />} label={zh ? "AxonX 版本" : "AXONX VERSION"} value={`v${info.axonx.version}`} />
-              <InfoItem icon={<GitCommitHorizontal />} label="GIT COMMIT" value={info.axonx.git_commit || "—"} />
-              <InfoItem icon={<GitBranch />} label="GIT BRANCH" value={info.axonx.git_branch || "—"} />
-              <InfoItem icon={<Server />} label={zh ? "服务地址" : "ENDPOINT"} value={machine.address} />
+              <InfoItem
+                icon={<Tag />}
+                label={zh ? "AxonX 版本" : "AXONX VERSION"}
+                value={`v${info.axonx.version}`}
+              />
+              <InfoItem
+                icon={<GitCommitHorizontal />}
+                label="GIT COMMIT"
+                value={info.axonx.git_commit || "—"}
+              />
+              <InfoItem
+                icon={<GitBranch />}
+                label="GIT BRANCH"
+                value={info.axonx.git_branch || "—"}
+              />
+              <InfoItem
+                icon={<Server />}
+                label={zh ? "服务地址" : "ENDPOINT"}
+                value={machine.address}
+              />
             </div>
           ) : null}
         </div>
@@ -99,7 +124,15 @@ export function EnvironmentSettingsModal({
   );
 }
 
-function InfoItem({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function InfoItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="settings-info-item">
       <span className="settings-info-icon">{icon}</span>

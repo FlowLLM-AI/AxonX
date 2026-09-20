@@ -1,72 +1,121 @@
-import type { ApiResponse } from "../../types";
+import type { JobCatalog, JobResponse } from "./types";
 
 const configuredUrl = import.meta.env.VITE_AXONX_API_URL || "";
-export const API_URL = configuredUrl.replace(/\/$/, "");
+const configuredToken = import.meta.env.VITE_AXONX_TOKEN || "";
 
-async function json(response: Response): Promise<unknown> {
+export interface RequestOptions {
+  signal?: AbortSignal;
+  remoteIp?: string;
+}
+
+export class AxonXError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "AxonXError";
+  }
+}
+
+async function decode(response: Response): Promise<unknown> {
   try {
     return await response.json();
   } catch {
-    throw new Error(`Invalid server response (HTTP ${response.status})`);
+    throw new AxonXError(
+      `Invalid server response (HTTP ${response.status})`,
+      response.status,
+    );
   }
 }
 
-export async function parseJobResponse<T>(response: Response): Promise<T> {
-  const payload = (await json(response)) as
-    ApiResponse<T> | { detail?: unknown };
+export async function readJobResponse<T>(response: Response): Promise<T> {
+  const payload = await decode(response);
   if (!response.ok) {
-    const detail = "detail" in payload ? payload.detail : undefined;
-    throw new Error(
+    const detail =
+      payload && typeof payload === "object" && "detail" in payload
+        ? payload.detail
+        : undefined;
+    throw new AxonXError(
       typeof detail === "string"
         ? detail
-        : detail
-          ? JSON.stringify(detail)
-          : `HTTP ${response.status}`,
+        : detail == null
+          ? `HTTP ${response.status}`
+          : JSON.stringify(detail),
+      response.status,
     );
   }
-  const result = payload as ApiResponse<T>;
+  if (!payload || typeof payload !== "object" || !("success" in payload))
+    throw new AxonXError("Invalid AxonX response envelope", response.status);
+  const result = payload as JobResponse<T>;
   if (!result.success)
-    throw new Error(String(result.answer || "Request failed"));
+    throw new AxonXError(
+      String(result.answer || "Job failed"),
+      response.status,
+    );
   return result.answer;
 }
 
-export async function parseJsonResponse<T>(response: Response): Promise<T> {
-  const payload = await json(response);
-  if (!response.ok) {
-    const detail =
-      typeof payload === "object" && payload !== null && "detail" in payload
-        ? payload.detail
-        : undefined;
-    throw new Error(
-      typeof detail === "string"
-        ? detail
-        : detail
-          ? JSON.stringify(detail)
-          : `HTTP ${response.status}`,
-    );
+export class AxonXClient {
+  readonly baseUrl: string;
+
+  constructor(
+    baseUrl = configuredUrl,
+    private readonly token = configuredToken,
+  ) {
+    this.baseUrl = baseUrl.replace(/\/$/, "");
   }
-  return payload as T;
+
+  private headers(extra?: HeadersInit): Headers {
+    const headers = new Headers(extra);
+    if (this.token) headers.set("Authorization", `Bearer ${this.token}`);
+    return headers;
+  }
+
+  invocation(arguments_: Record<string, unknown>, remoteIp?: string) {
+    return {
+      arguments: arguments_,
+      ...(remoteIp ? { remote_ip: remoteIp } : {}),
+    };
+  }
+
+  async invoke<T>(
+    name: string,
+    arguments_: Record<string, unknown> = {},
+    options: RequestOptions = {},
+  ): Promise<T> {
+    const response = await fetch(
+      `${this.baseUrl}/jobs/${encodeURIComponent(name)}`,
+      {
+        method: "POST",
+        headers: this.headers({ "Content-Type": "application/json" }),
+        body: JSON.stringify(this.invocation(arguments_, options.remoteIp)),
+        signal: options.signal,
+      },
+    );
+    return readJobResponse<T>(response);
+  }
+
+  async jobs(signal?: AbortSignal): Promise<JobCatalog> {
+    const response = await fetch(`${this.baseUrl}/jobs`, {
+      headers: this.headers(),
+      signal,
+    });
+    return readJobResponse<JobCatalog>(response);
+  }
+
+  eventsUrl(name: string): string {
+    return `${this.baseUrl}/jobs/${encodeURIComponent(name)}/events`;
+  }
+
+  requestHeaders(extra?: HeadersInit): Headers {
+    return this.headers(extra);
+  }
 }
 
-export async function callJob<T>(
-  name: string,
-  body: Record<string, unknown> = {},
-  signal?: AbortSignal,
-): Promise<T> {
-  return fetch(`${API_URL}/jobs/${encodeURIComponent(name)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  }).then(parseJobResponse<T>);
-}
+export const axonx = new AxonXClient();
 
-export function remoteBody(remoteIp?: string): Record<string, string> {
-  return remoteIp ? { remote_ip: remoteIp } : {};
-}
-
-export function remoteBase(remoteAddress?: string): string {
-  return remoteAddress
-    ? `${window.location.protocol}//${remoteAddress}`
-    : API_URL;
+export function clientForAddress(address?: string): AxonXClient {
+  if (!address) return axonx;
+  return new AxonXClient(`${window.location.protocol}//${address}`);
 }

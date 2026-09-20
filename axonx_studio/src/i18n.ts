@@ -1,4 +1,5 @@
-import type { Language, PageId, TaskState } from "./types";
+import type { Language, PageId } from "./app/types";
+import type { TaskState } from "./features/tasks/types";
 
 const shared = {
   zh: {
@@ -225,7 +226,8 @@ const shared = {
     selectTask: "Select task {taskId}",
     deleteSelected: "Delete selected ({count})",
     deleteConfirm: "Permanently delete {count} selected tasks?",
-    deleteHint: "Task directories, status, artifacts, and dedicated logs will be removed.",
+    deleteHint:
+      "Task directories, status, artifacts, and dedicated logs will be removed.",
     confirmDelete: "Delete",
     deleting: "Deleting",
     deletePartial:

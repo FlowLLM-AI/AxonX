@@ -15,12 +15,9 @@ import {
 } from "../../shared/schema/values";
 import type { SchemaFormValues } from "../../shared/schema/values";
 import { SchemaField } from "../../shared/ui/SchemaForm/SchemaField";
-import type {
-  ContextOption,
-  JobInfo,
-  Language,
-  MachineNode,
-} from "../../types";
+import type { ContextOption, Language } from "../../app/types";
+import type { MachineNode } from "../machines/types";
+import type { JobInfo } from "./types";
 import { invokeApi, listJobs } from "./api";
 
 export function ApiWorkspace({
@@ -53,7 +50,8 @@ export function ApiWorkspace({
     setLoading(true);
     setError("");
     listJobs(machine.isLocal ? undefined : machine.address, controller.signal)
-      .then((items) => {
+      .then((catalog) => {
+        const items = catalog.items;
         setApis(items);
         setSelectedName((current) =>
           items.some((item) => item.name === current) ? current : "",
@@ -92,7 +90,7 @@ export function ApiWorkspace({
   );
   useEffect(() => {
     if (!selected) return;
-    setValues(initialSchemaValues(selected.inputSchema));
+    setValues(initialSchemaValues(selected.input_schema));
     setResult(undefined);
     setError("");
   }, [selected]);
@@ -104,7 +102,7 @@ export function ApiWorkspace({
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!selected) return;
-    const parsed = parseSchemaValues(selected.inputSchema, values, {
+    const parsed = parseSchemaValues(selected.input_schema, values, {
       required: zh ? "必填" : "Required",
       invalidJson: zh ? "请输入合法 JSON" : "Enter valid JSON",
     });
@@ -200,18 +198,18 @@ export function ApiWorkspace({
                   <strong>{zh ? "请求参数" : "Request parameters"}</strong>
                 </div>
                 <small>
-                  {Object.keys(selected.inputSchema.properties || {}).length}{" "}
+                  {Object.keys(selected.input_schema.properties || {}).length}{" "}
                   fields
                 </small>
               </header>
               <div className="api-fields">
-                {Object.entries(selected.inputSchema.properties || {}).map(
+                {Object.entries(selected.input_schema.properties || {}).map(
                   ([name, schema]) => (
                     <SchemaField
                       key={name}
                       name={name}
                       schema={schema}
-                      required={(selected.inputSchema.required || []).includes(
+                      required={(selected.input_schema.required || []).includes(
                         name,
                       )}
                       value={values[name] ?? ""}

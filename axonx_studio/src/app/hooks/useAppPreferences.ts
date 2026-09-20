@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Language, ThemePreference } from "../../types";
+import type { Language, ThemePreference } from "../types";
 
 export function useAppPreferences() {
   const [language, setLanguage] = useState<Language>(() =>

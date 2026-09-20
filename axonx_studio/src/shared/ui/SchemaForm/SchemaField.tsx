@@ -1,5 +1,6 @@
 import { t } from "../../../i18n";
-import type { JsonSchema, Language } from "../../../types";
+import type { Language } from "../../../app/types";
+import type { JsonSchema } from "../../schema/types";
 import { humanizeFieldName, schemaType } from "../../schema/values";
 import type { SchemaFieldValue } from "../../schema/values";
 

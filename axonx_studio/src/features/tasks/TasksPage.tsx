@@ -15,12 +15,8 @@ import {
 import { interpolate, t } from "../../i18n";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { usePolling } from "../../shared/hooks/usePolling";
-import type {
-  ContextOption,
-  Language,
-  TaskState,
-  TaskStatus,
-} from "../../types";
+import type { ContextOption, Language } from "../../app/types";
+import type { TaskState, TaskStatus } from "./types";
 import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 

@@ -17,18 +17,21 @@ import {
 } from "lucide-react";
 import { t } from "../../i18n";
 import { formatBytes } from "../../shared/lib/format";
-import type { Language, TaskStatus } from "../../types";
-import { cancelTask, getTaskStatus, readTaskLog, submitTask } from "./api";
+import { isAbortError } from "../../shared/lib/errors";
+import type { JobEvent } from "../../shared/api/event";
+import type { Language } from "../../app/types";
+import type { TaskStatus } from "./types";
+import {
+  cancelTask,
+  getTaskStatus,
+  readTaskLog,
+  streamTask,
+  submitTask,
+} from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 import { Status } from "./TasksPage";
 
 const ACTIVE = new Set(["queued", "running"]);
-const RENAMED_TASKS: Record<string, string> = {
-  alpha158_etl: "a158_etl",
-  alpha158_factor_analysis: "a158_factor",
-  alpha158_lgbm_train: "a158_train",
-  alpha158_lgbm_predict: "a158_predict",
-};
 const LOG_CHUNK_BYTES = 65_536;
 const MAX_LOG_CHARACTERS = 524_288;
 
@@ -65,7 +68,6 @@ export function TaskDetailPage({
           taskMissing: "无法读取任务详情",
           config: "任务配置",
           effectiveConfig: "本次实际执行的配置快照",
-          configUnavailable: "旧运行未保存配置快照",
           noConfig: "本任务没有额外配置参数",
           copyConfig: "复制配置",
           rerun: "重新运行",
@@ -99,8 +101,6 @@ export function TaskDetailPage({
           taskMissing: "Unable to load task details",
           config: "Task configuration",
           effectiveConfig: "Effective configuration snapshot for this run",
-          configUnavailable:
-            "No configuration snapshot was saved for this legacy run",
           noConfig: "This task has no additional configuration",
           copyConfig: "Copy config",
           rerun: "Run again",
@@ -140,6 +140,7 @@ export function TaskDetailPage({
   const logViewport = useRef<HTMLPreElement>(null);
   const logRequest = useRef(false);
   const logLength = useRef(0);
+  const taskState = task?.state;
 
   const loadStatus = useCallback(
     async (quiet = false) => {
@@ -220,20 +221,68 @@ export function TaskDetailPage({
 
   useEffect(() => {
     void loadStatus().then((result) => {
-      if (result?.log_path) void loadLog(-1, "replace");
+      if (result?.log_path && !ACTIVE.has(result.state))
+        void loadLog(-1, "replace");
     });
   }, [loadLog, loadStatus]);
   useEffect(() => {
     setConfigOpen(false);
   }, [taskId]);
   useEffect(() => {
-    if (!task || !ACTIVE.has(task.state)) return;
-    const timer = window.setInterval(() => {
-      void loadStatus(true);
-      if (task.log_path) void loadLog(nextOffset, "append");
-    }, 2_000);
-    return () => window.clearInterval(timer);
-  }, [loadLog, loadStatus, nextOffset, task]);
+    if (!taskState || !ACTIVE.has(taskState)) return;
+    const controller = new AbortController();
+    const onEvent = (event: JobEvent<TaskStatus>) => {
+      if (event.kind === "progress") {
+        setTask((current) => {
+          if (!current) return current;
+          const step = {
+            name: event.name,
+            started_at: event.started_at,
+            finished_at: event.finished_at,
+            percentage: event.percentage,
+          };
+          const index = current.steps.findIndex(
+            (item) => item.name === event.name,
+          );
+          const steps = [...current.steps];
+          if (index < 0) steps.push(step);
+          else steps[index] = step;
+          return { ...current, steps };
+        });
+      }
+      if (event.kind === "log") {
+        setFileSize(event.file_size);
+        setStartOffset(event.start_offset);
+        setNextOffset(event.next_offset);
+        setHasEarlier(event.has_more_before);
+        setLogText((current) => {
+          const combined = event.reset
+            ? event.content
+            : current + event.content;
+          if (combined.length <= MAX_LOG_CHARACTERS) {
+            logLength.current = combined.length;
+            return combined;
+          }
+          setTrimmed(true);
+          setHasEarlier(false);
+          logLength.current = MAX_LOG_CHARACTERS;
+          return combined.slice(-MAX_LOG_CHARACTERS);
+        });
+      }
+    };
+    void streamTask(taskId, remoteIp, controller.signal, onEvent)
+      .then((result) => {
+        setTask(result);
+        setError("");
+        onConnection(true);
+      })
+      .catch((reason) => {
+        if (isAbortError(reason)) return;
+        setError(reason instanceof Error ? reason.message : String(reason));
+        void loadStatus(true);
+      });
+    return () => controller.abort();
+  }, [loadStatus, onConnection, remoteIp, taskId, taskState]);
   useEffect(() => {
     if (followTail && logViewport.current)
       logViewport.current.scrollTop = logViewport.current.scrollHeight;
@@ -263,11 +312,7 @@ export function TaskDetailPage({
     try {
       const config = { ...task.config };
       delete config.task_name;
-      await submitTask(
-        RENAMED_TASKS[task.task_name] || task.task_name,
-        config,
-        remoteIp,
-      );
+      await submitTask(task.task_name, config, remoteIp);
       setRerunOpen(false);
       setRerunMessage(labels.rerunSubmitted);
       onConnection(true);
@@ -402,18 +447,13 @@ export function TaskDetailPage({
                 </span>
                 <span>
                   <h2>{labels.config}</h2>
-                  <p>
-                    {task.task_name
-                      ? labels.effectiveConfig
-                      : labels.configUnavailable}
-                  </p>
+                  <p>{labels.effectiveConfig}</p>
                 </span>
                 <ChevronDown className="config-chevron" />
               </button>
               <button
                 className="config-copy-button"
                 onClick={() => void copyConfig()}
-                disabled={!task.task_name}
               >
                 <Copy />
                 {configCopied ? labels.copied : labels.copyConfig}
@@ -421,37 +461,30 @@ export function TaskDetailPage({
             </header>
             {configOpen && (
               <div id="task-config-content">
-                {task.task_name ? (
-                  <>
-                    <div className="config-source">
-                      <span>{language === "zh" ? "任务" : "Task"}</span>
-                      <code>{task.task_name}</code>
-                      <i>{language === "zh" ? "完整快照" : "Snapshot"}</i>
-                    </div>
-                    {configEntries.length ? (
-                      <dl className="task-config-list">
-                        {configEntries.map(([key, value]) => (
-                          <div key={key}>
-                            <dt>{key}</dt>
-                            <dd title={formatConfigValue(value)}>
-                              {formatConfigValue(value)}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    ) : (
-                      <div className="task-config-empty">
-                        <FileJson />
-                        {labels.noConfig}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="task-config-empty legacy">
-                    <FileJson />
-                    {labels.configUnavailable}
+                <div>
+                  <div className="config-source">
+                    <span>{language === "zh" ? "任务" : "Task"}</span>
+                    <code>{task.task_name}</code>
+                    <i>{language === "zh" ? "完整快照" : "Snapshot"}</i>
                   </div>
-                )}
+                  {configEntries.length ? (
+                    <dl className="task-config-list">
+                      {configEntries.map(([key, value]) => (
+                        <div key={key}>
+                          <dt>{key}</dt>
+                          <dd title={formatConfigValue(value)}>
+                            {formatConfigValue(value)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : (
+                    <div className="task-config-empty">
+                      <FileJson />
+                      {labels.noConfig}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </section>

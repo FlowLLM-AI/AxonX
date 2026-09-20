@@ -12,12 +12,8 @@ import {
 } from "lucide-react";
 import { t } from "../i18n";
 import { RailResizer } from "../shared/ui/RailResizer";
-import type {
-  ContextOption,
-  Language,
-  MachineNode,
-  ThemePreference,
-} from "../types";
+import type { ContextOption, Language, ThemePreference } from "./types";
+import type { MachineNode } from "../features/machines/types";
 import {
   navigationGroups,
   navigationItems,
@@ -390,7 +386,10 @@ function PathPicker({
   if (options.length === 0) {
     return (
       <div className="path-picker">
-        <span className={`path-placeholder${muted ? " muted" : ""}`} title={label}>
+        <span
+          className={`path-placeholder${muted ? " muted" : ""}`}
+          title={label}
+        >
           {label}
         </span>
       </div>

@@ -29,12 +29,12 @@ import {
 } from "lucide-react";
 import {
   deleteWorkspaceEntries,
-  listWorkspaceEntries,
+  listTaskRuns,
   previewWorkspaceFile,
 } from "../workspace/api";
 import { formatBytes } from "../../shared/lib/format";
 import { RailResizer } from "../../shared/ui/RailResizer";
-import type { ContextOption, Language } from "../../types";
+import type { ContextOption, Language } from "../../app/types";
 import type {
   ResearchArtifact,
   ResearchKind,
@@ -96,27 +96,12 @@ const fmt = (value: unknown, digits = 2) => {
 
 function normalizeTrainingCurve(value: unknown): TrainingCurveData | undefined {
   if (!value || typeof value !== "object") return undefined;
-  const curve = value as Partial<TrainingCurveData> & {
-    y?: Record<string, number[]>;
-  };
+  const curve = value as Partial<TrainingCurveData>;
   if (!Array.isArray(curve.x)) return undefined;
-  if (curve.y_left || curve.y_right) {
-    return {
-      x: curve.x,
-      y_left: curve.y_left || {},
-      y_right: curve.y_right || {},
-    };
-  }
-  // Earlier artifacts stored all series under y. Keep them readable.
-  const legacy = Object.entries(curve.y || {});
   return {
     x: curve.x,
-    y_left: Object.fromEntries(
-      legacy.filter(([name]) => !name.endsWith("_l1")),
-    ),
-    y_right: Object.fromEntries(
-      legacy.filter(([name]) => name.endsWith("_l1")),
-    ),
+    y_left: curve.y_left || {},
+    y_right: curve.y_right || {},
   };
 }
 
@@ -134,7 +119,7 @@ function useTasks(
     setLoading(true);
     setError("");
     setTasks([]);
-    listWorkspaceEntries(kind, remoteIp, undefined, true)
+    listTaskRuns(kind, remoteIp)
       .then(async (directory) => {
         const dirs = directory.entries.filter(
           (entry) => entry.kind === "directory",
@@ -149,11 +134,15 @@ function useTasks(
                 remoteIp,
               );
               if (
+                preview.kind !== "json" ||
                 !preview.data ||
                 typeof preview.data !== "object" ||
                 Array.isArray(preview.data)
               ) {
-                throw new Error(preview.parse_error || "Invalid task metadata");
+                throw new Error(
+                  (preview.kind === "json" && preview.parse_error) ||
+                    "Invalid task metadata",
+                );
               }
               const metadata = preview.data as Record<string, unknown>;
               const output = (metadata.output_params || {}) as Record<
@@ -1337,7 +1326,7 @@ function ArtifactFiles({
               <strong>{name}</strong>
               <code>{file.path}</code>
             </span>
-            <em>{formatBytes(file.bytes, false)}</em>
+            <em>{formatBytes(file.size, false)}</em>
           </div>
         ))}
     </div>

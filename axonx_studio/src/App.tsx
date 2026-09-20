@@ -7,7 +7,7 @@ import { useServiceStatus } from "./app/hooks/useServiceStatus";
 import { useSidebar } from "./app/hooks/useSidebar";
 import { PageOutlet } from "./app/PageOutlet";
 import { parseHash } from "./app/routes";
-import type { ContextOption } from "./types";
+import type { ContextOption } from "./app/types";
 import { useAxonXWebMcp } from "./webmcp";
 
 export default function App() {

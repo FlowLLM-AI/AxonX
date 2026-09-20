@@ -8,11 +8,8 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import type { Language } from "../../../types";
-import {
-  listWorkspaceEntries,
-  previewWorkspaceFile,
-} from "../../workspace/api";
+import type { Language } from "../../../app/types";
+import { listTaskRuns, previewWorkspaceFile } from "../../workspace/api";
 import { BacktestChart } from "../backtest/BacktestChart";
 import { loadBacktestDaily } from "../backtest/api";
 import type {
@@ -61,12 +58,7 @@ async function loadTasks(
   remoteIp: string | undefined,
   signal: AbortSignal,
 ): Promise<CompareTask[]> {
-  const directory = await listWorkspaceEntries(
-    "backtest",
-    remoteIp,
-    signal,
-    true,
-  );
+  const directory = await listTaskRuns("backtest", remoteIp, signal);
   const records = await Promise.all(
     directory.entries
       .filter((entry) => entry.kind === "directory")
@@ -77,10 +69,10 @@ async function loadTasks(
             0,
             200,
             remoteIp,
-            false,
             signal,
           );
           if (
+            preview.kind !== "json" ||
             !preview.data ||
             typeof preview.data !== "object" ||
             Array.isArray(preview.data)
