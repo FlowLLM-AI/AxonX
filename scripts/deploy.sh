@@ -14,7 +14,7 @@ for command in git npm pip; do
 done
 
 log "更新 main 分支"
-git switch main
+git checkout main
 git pull --ff-only origin main
 
 log "安装前端依赖"
