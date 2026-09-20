@@ -51,6 +51,8 @@ class LocalSyncComponent(BaseSyncComponent):
         max_archives_per_flush: int = MAX_ARCHIVES_PER_FLUSH,
         timeout_seconds: float = SYNC_TIMEOUT_SECONDS,
         sync_on_start: bool = True,
+        task_ids: Sequence[str] | None = None,
+        task_id_prefixes: Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -73,6 +75,15 @@ class LocalSyncComponent(BaseSyncComponent):
         self.max_archives_per_flush = max_archives_per_flush
         self.timeout = timeout_seconds
         self.sync_on_start = sync_on_start
+        if isinstance(task_ids, str) or isinstance(task_id_prefixes, str):
+            raise ValueError("Task filters must be lists of strings")
+        self.task_ids = frozenset(task_ids or ())
+        self.task_id_prefixes = tuple(task_id_prefixes or ())
+        if any(
+            not isinstance(value, str) or not value
+            for value in (*self.task_ids, *self.task_id_prefixes)
+        ):
+            raise ValueError("Task filters must contain non-empty strings")
         self.root = self.workspace_path.expanduser().resolve()
         self._state = SyncStateStore(self.root, self.remote_ip)
         self.node: RemoteNode | None = None
@@ -130,6 +141,11 @@ class LocalSyncComponent(BaseSyncComponent):
     async def _requeue(self, task_ids: Sequence[str]) -> None:
         async with self._change_lock:
             self._pending.update(task_ids)
+
+    def _should_sync(self, task_id: str) -> bool:
+        return not (self.task_ids or self.task_id_prefixes) or (
+            task_id in self.task_ids or task_id.startswith(self.task_id_prefixes)
+        )
 
     def _plan(self, task_ids: Sequence[str]) -> dict[str, TaskPlan]:
         return {
@@ -259,9 +275,11 @@ class LocalSyncComponent(BaseSyncComponent):
                 queued |= current
             # The receiver names task directories by their kind and ID together.
             removed = sorted(
-                task_directory(task_id) for task_id in self._acknowledged - current
+                task_directory(task_id)
+                for task_id in self._acknowledged - current
+                if self._should_sync(task_id)
             )
-            pending = sorted(queued & current)
+            pending = sorted(filter(self._should_sync, queued & current))
             if pending:
                 settled = set(await asyncio.to_thread(self._settled, pending))
                 # A task that is still writing goes back in the queue rather than out
