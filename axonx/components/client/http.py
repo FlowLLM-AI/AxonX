@@ -26,14 +26,8 @@ from ...constants import (
     REMOTE_IP_ARGUMENT,
 )
 from ...workspace.models import FileCopy
-from ..job.base import (
-    JOB_EVENT_ADAPTER,
-    JobCatalog,
-    JobEvent,
-    JobInfo,
-    JobResponse,
-    ResultEvent,
-)
+from ..job.contracts import JobCatalog, JobInfo, JobResponse
+from ..job.events import JOB_EVENT_ADAPTER, JobEvent, ResultEvent
 from .base import BaseClient, RemoteServiceError
 
 _UPLOAD_CHUNK_BYTES = 1024 * 1024

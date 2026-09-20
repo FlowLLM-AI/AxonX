@@ -5,10 +5,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from ...components.registry import ProviderRegistry
 from ...enums import ComponentEnum, TaskType
 from ...plugin_kit import index_contributions, list_installed_plugins
 from ...plugin_kit.loading import load_symbol
-from ...providers import create_builtin_registry
 from ..core.task import BaseTask
 
 
@@ -39,7 +39,7 @@ def _plugin_task_targets() -> tuple[dict[str, str], dict[str, str]]:
 
 
 def _task_catalog() -> tuple[dict[str, type[BaseTask]], dict[str, str]]:
-    tasks = create_builtin_registry().get_all(ComponentEnum.TASK, BaseTask)
+    tasks = ProviderRegistry.from_builtins().get_all(ComponentEnum.TASK, BaseTask)
     plugin_targets, plugin_names = _plugin_task_targets()
     modules = {}
     tasks.update(
@@ -61,7 +61,10 @@ def installed_tasks() -> dict[str, type[BaseTask]]:
 def list_installed_task_definitions() -> list[TaskDefinition]:
     """Return sorted definitions for every installed Task."""
     definitions = []
-    native_tasks = create_builtin_registry().get_all(ComponentEnum.TASK, BaseTask)
+    native_tasks = ProviderRegistry.from_builtins().get_all(
+        ComponentEnum.TASK,
+        BaseTask,
+    )
     tasks, plugin_names = _task_catalog()
     for name, task_class in sorted(tasks.items()):
         task_type = task_class.task_type
@@ -84,7 +87,7 @@ def list_installed_task_definitions() -> list[TaskDefinition]:
 
 def resolve_task(name: str) -> type[BaseTask]:
     """Resolve only the requested Task so an unrelated broken plugin is isolated."""
-    native = create_builtin_registry().get_all(ComponentEnum.TASK, BaseTask)
+    native = ProviderRegistry.from_builtins().get_all(ComponentEnum.TASK, BaseTask)
     if task_class := native.get(name):
         return task_class
 

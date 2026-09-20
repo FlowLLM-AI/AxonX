@@ -1,13 +1,15 @@
 """Application configuration parsing and resolution."""
 
-from .resolver import (
+from .models import (
     ApplicationConfig,
     ComponentConfig,
-    ConfigResolver,
     JobConfig,
     PluginConfig,
     RemoteNode,
     ScheduleConfig,
+)
+from .resolver import (
+    ConfigResolver,
     convert_value,
     deep_merge_config,
     expand_env_vars,

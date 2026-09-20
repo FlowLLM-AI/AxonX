@@ -1,12 +1,14 @@
-"""Transport public Jobs to a remote AxonX node."""
+"""Invoke public Jobs through a short-lived remote client."""
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from typing import Any
 
-from ..components.client import BaseClient, HttpClient
-from ..components.job.base import JobEvent, JobResponse
+from ..job.contracts import JobResponse
+from ..job.events import JobEvent
+from .base import BaseClient
+from .http import HttpClient
 
 type RemotePreflight = Callable[
     [BaseClient, str, Mapping[str, Any]], Awaitable[None]

@@ -6,7 +6,8 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 
 from ...enums import ComponentEnum
-from ..job.base import JobEvent, JobResponse, fold_events
+from ..job.contracts import JobResponse
+from ..job.events import JobEvent, fold_events
 from ..base import BaseComponent
 
 

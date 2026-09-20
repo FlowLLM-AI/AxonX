@@ -9,9 +9,10 @@ from typing import Any
 
 from .._version import VERSION
 from ..components.base import BaseComponent
-from ..components.job.base import JobEvent, JobResponse
+from ..components.job.contracts import JobResponse
+from ..components.job.events import JobEvent
+from ..components.registry import ProviderRegistry
 from ..config import ApplicationConfig
-from ..providers import create_builtin_registry
 from .composition import compose_application
 from .context import ApplicationContext
 from .graph import ComponentGraph
@@ -21,15 +22,13 @@ class Application:
     """Own one isolated component graph and expose Job invocation."""
 
     def __init__(self, *, providers: Iterable[type] = (), **config: Any) -> None:
-        registry = create_builtin_registry()
+        registry = ProviderRegistry.from_builtins()
         for implementation in providers:
             registry.add(implementation)
         self.context: ApplicationContext = compose_application(
             registry, VERSION, config
         )
-        self._startup_order = ComponentGraph(
-            self.context.components
-        ).startup_order()
+        self._startup_order = ComponentGraph(self.context.components).resolve()
         self._started: list[BaseComponent] = []
         self._lifecycle_lock = asyncio.Lock()
         self.is_started = False

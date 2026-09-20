@@ -22,42 +22,48 @@ def compose_application(
     config: dict[str, Any],
 ) -> ApplicationContext:
     """Discover contributions and return a sealed application context."""
-    context = ApplicationContext(registry, **config)
+    app_config = ApplicationConfig(**config)
     configure_logging(
         LoggingConfig(
-            log_dir=context.app_config.log_dir,
-            log_to_console=context.app_config.log_to_console,
-            log_to_file=context.app_config.log_to_file,
-        )
+            log_dir=app_config.log_dir,
+            log_to_console=app_config.log_to_console,
+            log_to_file=app_config.log_to_file,
+        ),
     )
     logger = get_logger()
-    logger.info(
-        f"Initializing {context.app_config.app_name} Application v{version}"
+    logger.info(f"Initializing {app_config.app_name} Application v{version}")
+
+    plugin_jobs = load_plugin_providers(app_config, registry)
+    app_config = _merge_plugin_jobs(app_config, plugin_jobs)
+    context = ApplicationContext(
+        registry,
+        app_config,
+        remote_preflight=verify_remote_submission,
     )
+    for category, group in app_config.components.items():
+        context._set_component_group(
+            category,
+            {name: _instantiate(context, category, name, spec, BaseComponent) for name, spec in group.items()},
+        )
 
-    plugin_jobs = load_plugin_providers(context.app_config, registry)
-    for category, group in context.app_config.components.items():
-        context.components[category] = {
-            name: _instantiate(context, category, name, spec, BaseComponent)
-            for name, spec in group.items()
-        }
-
-    context.app_config = _merge_plugin_jobs(context.app_config, plugin_jobs)
-    context.jobs = {
-        name: _instantiate(context, "job", name, spec, BaseJob)
-        for name, spec in context.app_config.jobs.items()
-    }
-    context.schedulers = {
-        name: _instantiate(context, "scheduler", name, spec, BaseScheduler)
-        for name, spec in context.app_config.schedules.items()
-    }
-    if context.app_config.service is not None:
-        context.service = _instantiate(
-            context,
-            "service",
-            "service",
-            context.app_config.service,
-            BaseService,
+    context._set_jobs(
+        {name: _instantiate(context, "job", name, spec, BaseJob) for name, spec in app_config.jobs.items()},
+    )
+    context._set_schedulers(
+        {
+            name: _instantiate(context, "scheduler", name, spec, BaseScheduler)
+            for name, spec in app_config.schedules.items()
+        },
+    )
+    if app_config.service is not None:
+        context._set_service(
+            _instantiate(
+                context,
+                "service",
+                "service",
+                app_config.service,
+                BaseService,
+            ),
         )
 
     component_names = [
@@ -73,7 +79,7 @@ def compose_application(
         f"Schedules ({len(context.schedulers)}): "
         f"{', '.join(context.schedulers) or '-'}"
     )
-    context.finalize(remote_preflight=verify_remote_submission)
+    context.finalize()
     return context
 
 

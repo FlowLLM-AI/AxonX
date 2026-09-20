@@ -13,7 +13,8 @@ from ...core.context import ApplicationContext
 from ...enums import ComponentEnum
 from ...steps.base import BaseStep
 from ..registry import provider
-from .base import BaseJob, JobEvent, ResultEvent
+from .base import BaseJob
+from .events import JobEvent, ResultEvent
 from .context import RuntimeContext
 
 

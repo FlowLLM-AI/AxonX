@@ -12,7 +12,7 @@ from ....constants import (
 )
 from ....utils import format_log_arguments
 from ....workspace.models import FileCopy
-from ...job.base import JobResponse
+from ...job.contracts import JobResponse
 
 
 def create_files_router(service, staged_files) -> APIRouter:

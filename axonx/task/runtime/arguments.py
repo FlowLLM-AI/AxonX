@@ -5,7 +5,10 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from ...config import convert_value
+
 _CONFIG_KEY = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
+_OPTION = re.compile(r"^--[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)*$")
 
 
 def split_task_arguments(arguments: Mapping[str, Any]) -> tuple[str, dict]:
@@ -18,6 +21,36 @@ def split_task_arguments(arguments: Mapping[str, Any]) -> tuple[str, dict]:
     if not isinstance(name, str) or not name:
         raise ValueError("--task must be a non-empty string")
     return name, config
+
+
+def parse_task_argv(argv: Sequence[str]) -> tuple[str, dict]:
+    """Decode Task CLI option pairs without depending on the CLI entry layer."""
+    tokens = tuple(argv)
+    if len(tokens) % 2:
+        raise ValueError("Options must be pairs like --field value")
+
+    arguments: dict[str, Any] = {}
+    for option, raw_value in zip(tokens[::2], tokens[1::2], strict=True):
+        if raw_value.startswith("--"):
+            raise ValueError(f"Missing value for option: {option}")
+        if not _OPTION.fullmatch(option):
+            raise ValueError(f"Invalid option: {option!r}; expected --field value")
+
+        path = tuple(part.replace("-", "_") for part in option[2:].split("."))
+        dotted = ".".join(path)
+        current = arguments
+        for key in path[:-1]:
+            if key in current and not isinstance(current[key], dict):
+                raise ValueError(
+                    f"Cannot set nested option '{dotted}': '{key}' is already a value",
+                )
+            current = current.setdefault(key, {})
+        final = path[-1]
+        if final in current:
+            raise ValueError(f"Duplicate or conflicting option: --{dotted}")
+        current[final] = convert_value(raw_value)
+
+    return split_task_arguments(arguments)
 
 
 def build_task_argv(name: str, config: Mapping[str, Any]) -> list[str]:

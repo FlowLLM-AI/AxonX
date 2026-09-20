@@ -21,6 +21,7 @@ class ComponentGraph:
         }
 
     def startup_order(self) -> tuple[BaseComponent, ...]:
+        """Validate dependencies and return their stable startup order."""
         positions = {key: index for index, key in enumerate(self._nodes)}
         in_degree = dict.fromkeys(self._nodes, 0)
         dependants = {key: [] for key in self._nodes}
@@ -34,6 +35,12 @@ class ComponentGraph:
                     raise ValueError(
                         f"Component {key[0]}:{key[1]} depends on missing "
                         f"{dependency.component_type}:{dependency.name}",
+                    )
+                target = self._nodes[dependency_key]
+                if not isinstance(target, dependency.expected_type):
+                    raise TypeError(
+                        f"Dependency {dependency.component_type}:{dependency.name} "
+                        f"must be a {dependency.expected_type.__name__}",
                     )
                 in_degree[key] += 1
                 dependants[dependency_key].append(key)
@@ -58,6 +65,11 @@ class ComponentGraph:
                 + ", ".join(unresolved)
             )
 
+        return tuple(ordered)
+
+    def resolve(self) -> tuple[BaseComponent, ...]:
+        """Validate the graph, inject dependencies, and return startup order."""
+        ordered = self.startup_order()
         for component in ordered:
             component.inject_dependencies(self._nodes)
-        return tuple(ordered)
+        return ordered

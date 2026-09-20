@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import TypeAdapter
 
 from ...constants import AGENT_DEPTH_ARGUMENT, REMOTE_IP_ARGUMENT
-from ..job.base import JobResponse
+from ..job.contracts import JobResponse
 
 if TYPE_CHECKING:
     from ...core.context import ApplicationContext
@@ -27,7 +27,7 @@ _ANSWER_ADAPTER = TypeAdapter(Any)
 _SERVER_NAME = "axonx"
 
 
-class _JobToolServer:
+class JobToolServer:
     """The Jobs one agent may call, presented as a single MCP server.
 
     Resolved once, when the agent starts, and attached to every turn's options:
@@ -40,7 +40,11 @@ class _JobToolServer:
         self._dispatcher = dispatcher
 
     @classmethod
-    def resolve(cls, names: Sequence[str], app_context: "ApplicationContext | None") -> "_JobToolServer | None":
+    def resolve(
+        cls,
+        names: Sequence[str],
+        app_context: "ApplicationContext | None",
+    ) -> "JobToolServer | None":
         """Return the server for one component's configured Job names, if any.
 
         Rejects at startup rather than at the first tool call: a name an operator
@@ -70,7 +74,9 @@ class _JobToolServer:
         if not isinstance(servers, dict):
             raise ValueError("job_tools require mcp_servers to be a mapping")
         if _SERVER_NAME in servers:
-            raise ValueError(f"mcp_servers already contains the reserved name {_SERVER_NAME!r}")
+            raise ValueError(
+                f"mcp_servers already contains the reserved name {_SERVER_NAME!r}",
+            )
         options["mcp_servers"] = {
             **servers,
             _SERVER_NAME: create_sdk_mcp_server(
@@ -82,7 +88,9 @@ class _JobToolServer:
         if not isinstance(allowed, list):
             raise ValueError("job_tools require allowed_tools to be a list")
         options["allowed_tools"] = list(
-            dict.fromkeys([*allowed, *(f"mcp__{_SERVER_NAME}__{job.name}" for job in self._jobs)]),
+            dict.fromkeys(
+                [*allowed, *(f"mcp__{_SERVER_NAME}__{job.name}" for job in self._jobs)],
+            ),
         )
 
 

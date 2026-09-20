@@ -12,7 +12,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..components.job.base import BackendEvent, JobEvent
+from ..components.job.events import BackendEvent, JobEvent
 from ..constants import (
     AXONX_DEFAULT_BIND_HOST,
     AXONX_DEFAULT_CONNECT_HOST,

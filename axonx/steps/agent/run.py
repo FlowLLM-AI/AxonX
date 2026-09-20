@@ -3,7 +3,8 @@
 from contextlib import aclosing
 from typing import ClassVar
 
-from ...components.job.base import JobResponse, ResultEvent
+from ...components.job.contracts import JobResponse
+from ...components.job.events import ResultEvent
 from ...components.registry import provider
 from ...constants import AGENT_DEPTH_ARGUMENT
 from ...enums import ComponentEnum

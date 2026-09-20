@@ -1,4 +1,4 @@
-"""Command-line models, parsing, and presentation helpers."""
+"""Command-line models and argument parsing."""
 
 from __future__ import annotations
 

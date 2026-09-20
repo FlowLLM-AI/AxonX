@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...components.job.base import JobEvent
+from ...components.job.events import JobEvent
 from ...constants import AXONX_DEFAULT_ENCODING
 
 LOG_WINDOW_BYTES = 65_536

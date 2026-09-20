@@ -19,7 +19,7 @@ from ...constants import (
 )
 from ...enums import ComponentEnum
 from ..base import BaseComponent
-from ..job.base import JobInfo, JobResponse
+from ..job.contracts import JobInfo, JobResponse
 
 
 class ClientOptions(BaseModel):

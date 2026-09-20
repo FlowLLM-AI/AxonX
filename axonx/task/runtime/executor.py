@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, Protocol
 
 from ...constants import (
     AXONX_DEFAULT_TIMEZONE,
@@ -22,8 +23,12 @@ from ..storage.workspace import TaskStatus
 from .arguments import split_task_arguments
 from .runner import TaskRunner
 
-if TYPE_CHECKING:
-    from ...cli.parser import Command
+
+class TaskCommand(Protocol):
+    """Structural input accepted from the command-line adapter."""
+
+    action: str
+    arguments: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -55,7 +60,7 @@ class TaskCommandExecutor:
         self.workspace_path = Path(workspace_dir).expanduser().resolve()
         self.timezone = timezone
 
-    def execute(self, command: Command) -> TaskCatalog | TaskExecution:
+    def execute(self, command: TaskCommand) -> TaskCatalog | TaskExecution:
         """Execute or enumerate tasks for one validated command."""
         if command.action != CLI_EXEC_COMMAND:
             raise ValueError(f"Unsupported Task command: {command.action}")

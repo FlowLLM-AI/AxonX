@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
-from .base import JobResponse
+from .contracts import JobResponse
 
 
 class RuntimeContext(dict[str, Any]):

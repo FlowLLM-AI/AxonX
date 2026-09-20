@@ -10,10 +10,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ...constants import AGENT_DEPTH_ARGUMENT
-from ..job.base import BackendEvent, JobEvent, JobResponse, ResultEvent
+from ..job.contracts import JobResponse
+from ..job.events import BackendEvent, JobEvent, ResultEvent
 from ..registry import provider
 from .base import BaseAgentComponent
-from .tools import _JobToolServer
+from .tools import JobToolServer
 
 if TYPE_CHECKING:
     from claude_agent_sdk import ClaudeAgentOptions, ResultMessage
@@ -97,7 +98,7 @@ class ClaudeAgentComponent(BaseAgentComponent):
         }
         self.job_tools = tuple(job_tools)
         self.state_dir = state_dir
-        self._job_tool_server: _JobToolServer | None = None
+        self._job_tool_server: JobToolServer | None = None
 
     @classmethod
     def _known_options(
@@ -183,7 +184,7 @@ class ClaudeAgentComponent(BaseAgentComponent):
         self.cwd.mkdir(parents=True, exist_ok=True)
         if config_dir := self.config_dir:
             config_dir.mkdir(parents=True, exist_ok=True)
-        self._job_tool_server = _JobToolServer.resolve(self.job_tools, self.app_context)
+        self._job_tool_server = JobToolServer.resolve(self.job_tools, self.app_context)
         self.logger.info(
             f"Agent backend ready: name={self.name} package={self.SDK_PACKAGE} version={__version__}"
         )

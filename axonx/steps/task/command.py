@@ -1,6 +1,6 @@
 """Task mutation Steps."""
 
-from ...components.job.base import ProgressEvent
+from ...components.job.events import ProgressEvent
 from ...components.registry import provider
 from ...task.runtime.arguments import build_task_argv, split_task_arguments
 from .base import TaskManagerStep

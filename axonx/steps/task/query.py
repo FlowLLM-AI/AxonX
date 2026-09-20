@@ -1,6 +1,6 @@
 """Read-only Task query Steps."""
 
-from ...components.job.base import LogEvent
+from ...components.job.events import LogEvent
 from ...components.registry import provider
 from ...task.storage.events import LOG_WINDOW_BYTES
 from .base import TaskManagerStep

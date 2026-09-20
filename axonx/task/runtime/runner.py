@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from time import perf_counter
 from typing import TYPE_CHECKING
 
-from ...components.job.base import ProgressEvent
+from ...components.job.events import ProgressEvent
 from ...enums import TaskState
 from ..core.identity import task_type_from_id
 from ..storage.events import append_event

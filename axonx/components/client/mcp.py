@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from ...constants import PROTOCOL_ROUTE_MCP
-from ..job.base import JobInfo, JobResponse
+from ..job.contracts import JobInfo, JobResponse
 from .base import BaseClient, RemoteServiceError
 
 
@@ -68,8 +68,8 @@ class McpClient(BaseClient[Any]):
                 JobInfo(
                     name=tool.name,
                     description=tool.description or "",
-                    input_schema=tool.input_schema,
-                    output_schema=tool.output_schema or {},
+                    input_schema=tool.inputSchema,
+                    output_schema=tool.outputSchema or {},
                 )
                 for tool in tools
             ]

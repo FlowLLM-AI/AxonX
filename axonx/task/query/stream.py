@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from ...components.job.base import JOB_EVENT_ADAPTER, JobEvent, LogEvent
+from ...components.job.events import JOB_EVENT_ADAPTER, JobEvent, LogEvent
 from ..storage.events import LOG_WINDOW_BYTES, read_event_lines
 from ..storage.logs import TaskLogReader
 from ..storage.workspace import EVENTS_FILE, TaskStatus, task_path

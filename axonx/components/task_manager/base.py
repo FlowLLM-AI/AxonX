@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence
 
-from ...components.job.base import JobEvent
+from ...components.job.events import JobEvent
 from ...enums import ComponentEnum
 from ...task.contracts import TaskHandle
 from ...task.query.graph import TaskGraph, TaskGraphList

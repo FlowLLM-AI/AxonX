@@ -9,7 +9,6 @@ from axonx.constants import CLI_RAW_ARGUMENTS
 from axonx.core import Application
 from axonx.core.graph import ComponentGraph
 from axonx.enums import ComponentEnum
-from axonx.providers import create_builtin_registry
 from axonx.steps.base import BaseStep
 
 
@@ -40,12 +39,21 @@ def test_registry_is_explicit_and_rejects_ambiguous_owners():
 
 
 def test_builtin_provider_is_registered_by_decorator():
-    registry = create_builtin_registry()
+    registry = ProviderRegistry.from_builtins()
 
     assert (
         registry.require(ComponentEnum.AGENT, "claude", BaseComponent)
         is ClaudeAgentComponent
     )
+
+
+def test_application_context_indexes_are_read_only_after_composition(tmp_path):
+    app = Application(**_config(tmp_path, jobs={"empty": {}}))
+
+    with pytest.raises(TypeError):
+        app.context.jobs["other"] = app.context.jobs["empty"]
+    with pytest.raises(RuntimeError, match="already finalized"):
+        app.context._set_jobs({})
 
 
 def test_graph_injects_dependencies_after_validating_order():
@@ -70,6 +78,9 @@ def test_graph_injects_dependencies_after_validating_order():
     )
 
     assert graph.startup_order() == (repository, manager)
+    assert not hasattr(manager, "repository")
+
+    assert graph.resolve() == (repository, manager)
     assert manager.repository is repository
 
 

@@ -11,8 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from ....cli.parser import parse_command
-from ....components.job.base import JobEvent
+from ....components.job.events import JobEvent
 from ....constants import (
     AXONX_TASK_CREATED_AT,
     AXONX_TASK_ID,
@@ -20,8 +19,6 @@ from ....constants import (
     AXONX_TASK_RUN_ID,
     AXONX_TASK_TIMEZONE,
     AXONX_TASK_WORKSPACE_DIR,
-    CLI_EXEC_COMMAND,
-    CLI_RAW_ARGUMENTS,
 )
 from ....enums import TaskState
 from ....task.catalog import resolve_task
@@ -33,7 +30,7 @@ from ....task.query import (
     stream_task,
     task_graph,
 )
-from ....task.runtime.arguments import build_task_argv, split_task_arguments
+from ....task.runtime.arguments import build_task_argv, parse_task_argv
 from ....task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
 from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import (
@@ -111,13 +108,7 @@ class LocalTaskManager(BaseTaskManager):
         argv = tuple(argv)
         if not all(isinstance(value, str) for value in argv):
             raise TypeError("Task arguments must be a sequence of strings")
-        command, _ = parse_command((CLI_EXEC_COMMAND, *argv))
-        arguments = {
-            key: value
-            for key, value in command.arguments.items()
-            if key != CLI_RAW_ARGUMENTS
-        }
-        task_name, config = split_task_arguments(arguments)
+        task_name, config = parse_task_argv(argv)
         run_id = uuid4().hex
         task = resolve_task(task_name)(
             config,

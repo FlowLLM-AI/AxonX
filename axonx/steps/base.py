@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, ClassVar
 
 from ..components.base import ComponentBase
-from ..components.job.base import JobEvent
+from ..components.job.events import JobEvent
 from ..enums import ComponentEnum
 
 

@@ -8,7 +8,7 @@ from axonx import Application
 from axonx.components.client import ClientOptions
 from axonx.components.job import JobResponse, ResultEvent
 from axonx.config import ConfigResolver
-from axonx.core.remote import stream_remote_job
+from axonx.components.client.remote import stream_remote_job
 from axonx.plugin_kit import PluginArtifact, PluginInfo, index_contributions
 from axonx.plugin_kit.cli import plugin_cli
 from axonx.plugin_kit.installer import install_staged_plugin
@@ -204,7 +204,10 @@ async def test_streamed_submit_verifies_plugins_before_remote_job(monkeypatch):
         assert job_name == "submit"
         verified.append(arguments["task"])
 
-    monkeypatch.setattr("axonx.core.remote.HttpClient", lambda **_options: Client())
+    monkeypatch.setattr(
+        "axonx.components.client.remote.HttpClient",
+        lambda **_options: Client(),
+    )
 
     events = [
         event

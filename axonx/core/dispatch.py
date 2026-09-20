@@ -5,10 +5,15 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING, Any
 
-from ..components.job.base import JobEvent, JobResponse
+from ..components.client.remote import (
+    RemotePreflight,
+    run_remote_job,
+    stream_remote_job,
+)
+from ..components.job.contracts import JobResponse
+from ..components.job.events import JobEvent
 from ..constants import CLI_RAW_ARGUMENTS
 from ..utils import format_log_arguments
-from .remote import RemotePreflight, run_remote_job, stream_remote_job
 
 if TYPE_CHECKING:
     from ..components.job.base import BaseJob

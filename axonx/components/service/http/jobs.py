@@ -20,7 +20,8 @@ from ....constants import (
     PROTOCOL_SSE_EVENT_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
-from ...job.base import JobCatalog, JobEvent, JobResponse, ResultEvent
+from ...job.contracts import JobCatalog, JobResponse
+from ...job.events import JobEvent, ResultEvent
 
 
 class JobInvocation(BaseModel):

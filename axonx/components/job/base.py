@@ -5,116 +5,24 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Mapping
 from copy import deepcopy
-from datetime import datetime
-from typing import Annotated, Any, Literal, cast
+from typing import Any, cast
 
 from jsonschema.validators import validator_for
-from pydantic import BaseModel, Field, TypeAdapter
 
 from ...constants import REMOTE_IP_ARGUMENT
 from ...enums import ComponentEnum
 from ..base import BaseComponent
-
-
-class JobResponse(BaseModel):
-    """Canonical result of a Job invocation across every transport."""
-
-    answer: Any = Field(default="", description="response content")
-    success: bool = Field(default=True, description="whether succeeded")
-    metadata: dict = Field(default_factory=dict, description="metadata")
-
-    def fail(self, error: BaseException) -> JobResponse:
-        self.success = False
-        self.answer = f"{type(error).__name__}: {error}"
-        return self
-
-
-class JobInfo(BaseModel):
-    name: str
-    description: str = ""
-    input_schema: dict[str, Any]
-    output_schema: dict[str, Any]
-
-
-class JobCatalog(BaseModel):
-    items: list[JobInfo] = Field(default_factory=list)
-    total: int = 0
-
-
-class ProgressEvent(BaseModel):
-    kind: Literal["progress"] = "progress"
-    name: str = Field(min_length=1)
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
-    percentage: float | None = Field(default=None, ge=0, le=100)
-
-    @classmethod
-    def from_status(cls, status: Any) -> ProgressEvent:
-        return cls.model_validate(status, from_attributes=True)
-
-
-class LogEvent(BaseModel):
-    kind: Literal["log"] = "log"
-    content: str = ""
-    start_offset: int = 0
-    next_offset: int = 0
-    file_size: int = 0
-    has_more_before: bool = False
-    has_more_after: bool = False
-    reset: bool = False
-    channel: str = "task"
-
-    @classmethod
-    def from_chunk(cls, chunk: Any) -> LogEvent:
-        return cls.model_validate(chunk, from_attributes=True)
-
-
-class ArtifactEvent(BaseModel):
-    kind: Literal["artifact"] = "artifact"
-    path: str
-    sha256: str = ""
-    size: int = 0
-    media_type: str | None = None
-    extra: dict[str, Any] = Field(default_factory=dict)
-
-
-class BackendEvent(BaseModel):
-    kind: Literal["backend"] = "backend"
-    type_name: str
-    message: dict[str, Any]
-
-
-class ResultEvent(JobResponse):
-    kind: Literal["result"] = "result"
-
-    @classmethod
-    def from_response(cls, response: JobResponse) -> ResultEvent:
-        return cls(
-            answer=response.answer, success=response.success, metadata=response.metadata
-        )
-
-    def response(self) -> JobResponse:
-        return JobResponse(
-            answer=self.answer, success=self.success, metadata=self.metadata
-        )
-
-
-type JobEvent = Annotated[
-    ProgressEvent | LogEvent | ArtifactEvent | BackendEvent | ResultEvent,
-    Field(discriminator="kind"),
-]
-JOB_EVENT_ADAPTER: TypeAdapter[JobEvent] = TypeAdapter(JobEvent)
-
-
-async def fold_events(events: AsyncIterator[JobEvent]) -> JobResponse:
-    terminal: ResultEvent | None = None
-    async for event in events:
-        if isinstance(event, ResultEvent):
-            terminal = event
-    if terminal is None:
-        return JobResponse(answer="Stream produced no terminal result", success=False)
-    return terminal.response()
-
+from .contracts import JobCatalog, JobInfo, JobResponse
+from .events import (
+    JOB_EVENT_ADAPTER,
+    ArtifactEvent,
+    BackendEvent,
+    JobEvent,
+    LogEvent,
+    ProgressEvent,
+    ResultEvent,
+    fold_events,
+)
 
 _RESPONSE_SCHEMA = JobResponse.model_json_schema()
 
@@ -257,3 +165,21 @@ class BaseJob(BaseComponent, ABC):
             input_schema=deepcopy(self.parameters),
             output_schema=deepcopy(_RESPONSE_SCHEMA),
         )
+
+
+# The concrete definitions live in ``contracts`` and ``events``; these names remain
+# available here for callers that used the original module before the split.
+__all__ = [
+    "ArtifactEvent",
+    "BackendEvent",
+    "BaseJob",
+    "JOB_EVENT_ADAPTER",
+    "JobCatalog",
+    "JobEvent",
+    "JobInfo",
+    "JobResponse",
+    "LogEvent",
+    "ProgressEvent",
+    "ResultEvent",
+    "fold_events",
+]

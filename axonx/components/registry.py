@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import TypeVar, cast
+from typing import Self, TypeVar, cast
 
 from ..enums import ComponentType, component_type_name
 
@@ -59,6 +59,14 @@ class ProviderRegistry:
     def __init__(self) -> None:
         self._providers: dict[tuple[str, str], Provider] = {}
         self._frozen = False
+
+    @classmethod
+    def from_builtins(cls) -> Self:
+        """Build a fresh registry from every imported built-in provider."""
+        registry = cls()
+        for implementation in builtin_providers():
+            registry.add(implementation)
+        return registry
 
     def add(
         self,
