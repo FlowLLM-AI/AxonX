@@ -54,7 +54,10 @@ def _sdk_value(value: Any) -> Any:
     if is_dataclass(value) and not isinstance(value, type):
         return {
             "type_name": type(value).__name__,
-            **{field.name: _sdk_value(getattr(value, field.name)) for field in fields(value)},
+            **{
+                field.name: _sdk_value(getattr(value, field.name))
+                for field in fields(value)
+            },
         }
     if isinstance(value, Mapping):
         return {key: _sdk_value(item) for key, item in value.items()}
@@ -65,7 +68,10 @@ def _sdk_value(value: Any) -> Any:
 
 def _message_payload(message: Any) -> dict[str, Any]:
     """Serialize one SDK message, tagging every nested content block."""
-    return {field.name: _sdk_value(getattr(message, field.name)) for field in fields(message)}
+    return {
+        field.name: _sdk_value(getattr(message, field.name))
+        for field in fields(message)
+    }
 
 
 @provider("claude")
@@ -79,26 +85,36 @@ class ClaudeAgentComponent(BaseAgentComponent):
 
     SDK_PACKAGE = "claude-agent-sdk"
 
-    def __init__(self, job_tools: Sequence[str] = (), state_dir: str = "agent", **kwargs) -> None:
+    def __init__(
+        self, job_tools: Sequence[str] = (), state_dir: str = "agent", **kwargs
+    ) -> None:
         super().__init__(**kwargs)
         if isinstance(job_tools, str):
             raise TypeError("job_tools must be a sequence of Job names, not a string")
-        self.options = self._known_options(self.extra_options)
+        known = _option_names()
+        self.options = {
+            name: value for name, value in self.kwargs.items() if name in known
+        }
         self.job_tools = tuple(job_tools)
         self.state_dir = state_dir
         self._job_tool_server: _JobToolServer | None = None
 
     @classmethod
-    def _known_options(cls, options: Mapping[str, Any], *, reserved: frozenset[str] = frozenset()) -> dict:
+    def _known_options(
+        cls, options: Mapping[str, Any], *, reserved: frozenset[str] = frozenset()
+    ) -> dict:
         """Return the SDK options among ``options``, rejecting every other name.
 
-        ``reserved`` names the arguments the event protocol itself passes, which a
-        turn may carry but a component configuration may not.
+        ``reserved`` names arguments passed by the event protocol rather than the
+        SDK. Component construction is intentionally more permissive: options it
+        does not consume remain available through ``self.kwargs``.
         """
         known = _option_names()
         unknown = sorted(set(options) - known - reserved)
         if unknown:
-            raise ValueError(f"Unknown agent options for {cls.__name__}: {', '.join(unknown)}")
+            raise ValueError(
+                f"Unknown agent options for {cls.__name__}: {', '.join(unknown)}"
+            )
         return {name: value for name, value in options.items() if name in known}
 
     @property
@@ -134,7 +150,9 @@ class ClaudeAgentComponent(BaseAgentComponent):
         workspace = self.workspace_path.resolve(strict=False)
         config_dir = (workspace / self.state_dir / self.name).resolve(strict=False)
         if not config_dir.is_relative_to(workspace):
-            raise ValueError("state_dir and component name must resolve inside the workspace")
+            raise ValueError(
+                "state_dir and component name must resolve inside the workspace"
+            )
         return config_dir
 
     @property
@@ -166,7 +184,9 @@ class ClaudeAgentComponent(BaseAgentComponent):
         if config_dir := self.config_dir:
             config_dir.mkdir(parents=True, exist_ok=True)
         self._job_tool_server = _JobToolServer.resolve(self.job_tools, self.app_context)
-        self.logger.info(f"Agent backend ready: name={self.name} package={self.SDK_PACKAGE} version={__version__}")
+        self.logger.info(
+            f"Agent backend ready: name={self.name} package={self.SDK_PACKAGE} version={__version__}"
+        )
 
     def _build_options(self, overrides: dict) -> ClaudeAgentOptions:
         """Merge component defaults with call-time options into one SDK options object."""
@@ -175,7 +195,9 @@ class ClaudeAgentComponent(BaseAgentComponent):
         depth = overrides.get(AGENT_DEPTH_ARGUMENT, 0)
         if isinstance(depth, bool) or not isinstance(depth, int) or depth < 0:
             raise ValueError(f"{AGENT_DEPTH_ARGUMENT} must be a non-negative integer")
-        call_options = self._known_options(overrides, reserved=frozenset({AGENT_DEPTH_ARGUMENT}))
+        call_options = self._known_options(
+            overrides, reserved=frozenset({AGENT_DEPTH_ARGUMENT})
+        )
         options = {**self.options, **call_options}
         options["cwd"] = str(self._resolve_cwd(options.get("cwd")))
         # Only the workspace's own .claude/ is honoured: the operator's personal
@@ -215,7 +237,9 @@ class ClaudeAgentComponent(BaseAgentComponent):
                     # non-zero exit, after an error result. The result is AxonX's
                     # terminal event, so close the SDK stream at this boundary.
                     return
-                yield BackendEvent(type_name=type(message).__name__, message=_message_payload(message))
+                yield BackendEvent(
+                    type_name=type(message).__name__, message=_message_payload(message)
+                )
         # A stream without its terminal event would leave every consumer to
         # invent an outcome; failing here names the backend as the culprit.
         raise RuntimeError(f"{type(self).__name__} produced no result message")

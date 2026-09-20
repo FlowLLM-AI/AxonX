@@ -38,9 +38,6 @@ class LocalTaskRepository(BaseTaskRepository):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if self.extra_options:
-            options = ", ".join(sorted(self.extra_options))
-            raise TypeError(f"Unsupported {type(self).__name__} options: {options}")
         self.root = self.workspace_path.expanduser().resolve()
         self._entries: dict[str, TaskEntry] = {}
         self._lock = asyncio.Lock()

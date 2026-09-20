@@ -61,9 +61,8 @@ class PipelineJob(BaseJob):
             ComponentEnum.STEP, config.backend, BaseStep
         )
         options = config.model_dump()
-        # Step instances are fresh per invocation, but construction is also the
-        # configuration validation boundary. Validate once while building the
-        # Job so an irrelevant or misspelled option cannot survive until runtime.
+        # Step instances are fresh per invocation. Construct once while building
+        # the Job so each implementation can validate or retain its own options.
         step_class(app_context=app_context, **deepcopy(options))
         return StepPlan(step_class, options)
 

@@ -34,16 +34,21 @@ def test_invalid_job_schema_is_reported_as_configuration_error(tmp_path):
         )
 
 
-def test_step_rejects_an_irrelevant_component_option(tmp_path):
-    with pytest.raises(TypeError, match="agent"):
-        Application(
-            **_config(
-                tmp_path,
-                jobs={
-                    "bad": {"steps": [{"backend": "version_step", "agent": "default"}]}
-                },
-            )
+def test_step_retains_an_unconsumed_component_option(tmp_path):
+    app = Application(
+        **_config(
+            tmp_path,
+            jobs={
+                "configured": {
+                    "steps": [{"backend": "version_step", "agent": "default"}]
+                }
+            },
         )
+    )
+
+    step = next(app.context.jobs["configured"]._build_steps())
+
+    assert step.kwargs == {"agent": "default"}
 
 
 @pytest.mark.asyncio
@@ -140,26 +145,26 @@ async def test_cron_scheduler_reuses_a_named_job_with_validated_arguments(tmp_pa
     app = Application(
         providers=[CaptureStep],
         **_config(
-                tmp_path,
-                jobs={
-                    "capture": {
-                        "enable_serve": False,
-                        "parameters": {
-                            "type": "object",
-                            "properties": {"value": {"type": "string"}},
-                            "required": ["value"],
-                            "additionalProperties": False,
-                        },
-                        "steps": [{"backend": "test_capture"}],
+            tmp_path,
+            jobs={
+                "capture": {
+                    "enable_serve": False,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"value": {"type": "string"}},
+                        "required": ["value"],
+                        "additionalProperties": False,
                     },
+                    "steps": [{"backend": "test_capture"}],
                 },
-                schedules={
-                    "capture_every_minute": {
-                        "job": "capture",
-                        "cron": "* * * * *",
-                        "arguments": {"value": "scheduled"},
-                    },
+            },
+            schedules={
+                "capture_every_minute": {
+                    "job": "capture",
+                    "cron": "* * * * *",
+                    "arguments": {"value": "scheduled"},
                 },
+            },
         ),
     )
 
@@ -184,20 +189,20 @@ async def test_scheduled_sync_job_flushes_the_selected_component(tmp_path):
     app = Application(
         providers=[CaptureSync],
         **_config(
-                tmp_path,
-                jobs={
-                    "sync_flush": {
-                        "enable_serve": False,
-                        "steps": [{"backend": "sync_flush_step", "sync": "replica"}],
-                    },
+            tmp_path,
+            jobs={
+                "sync_flush": {
+                    "enable_serve": False,
+                    "steps": [{"backend": "sync_flush_step", "sync": "replica"}],
                 },
-                schedules={
-                    "workspace_sync": {
-                        "job": "sync_flush",
-                        "cron": "* * * * *",
-                    },
+            },
+            schedules={
+                "workspace_sync": {
+                    "job": "sync_flush",
+                    "cron": "* * * * *",
                 },
-            ),
+            },
+        ),
         components={"sync": {"replica": {"backend": "test_capture"}}},
     )
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -13,11 +13,21 @@ from ..base import BaseComponent
 
 @dataclass(frozen=True, slots=True)
 class ProxyResponse:
-    """Unwrapped response returned by a proxy backend."""
+    """Streaming response returned by a proxy backend."""
 
     status_code: int
-    content: bytes
+    content: AsyncIterable[bytes]
     headers: tuple[tuple[str, str], ...] = ()
+    close: Callable[[], Awaitable[None]] | None = None
+
+    async def iter_bytes(self) -> AsyncIterator[bytes]:
+        """Yield the body and always release its upstream transport."""
+        try:
+            async for chunk in self.content:
+                yield chunk
+        finally:
+            if self.close is not None:
+                await self.close()
 
 
 class ProxyError(Exception):
@@ -62,6 +72,6 @@ class BaseProxyComponent(BaseComponent, ABC):
         *,
         query: Sequence[tuple[str, str]] = (),
         headers: Sequence[tuple[str, str]] = (),
-        content: bytes = b"",
+        content: bytes | AsyncIterable[bytes] = b"",
     ) -> ProxyResponse:
-        """Forward one request and return its unwrapped response."""
+        """Forward one streaming request and return a streaming response."""

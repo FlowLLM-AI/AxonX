@@ -15,7 +15,7 @@ _BUILTIN_PROVIDERS: dict[tuple[str, str], type] = {}
 
 
 def provider(name: str):
-    """Declare a provider name and catalog implementations shipped by AxonX."""
+    """Declare and register a built-in provider implementation."""
     if not isinstance(name, str) or not name:
         raise ValueError("Provider name must be a non-empty string")
 
@@ -31,7 +31,7 @@ def provider(name: str):
 
 
 def builtin_providers() -> tuple[type, ...]:
-    """Return the provider classes declared by AxonX modules."""
+    """Return provider classes registered by imported AxonX modules."""
     return tuple(_BUILTIN_PROVIDERS.values())
 
 

@@ -25,9 +25,6 @@ class BaseStep(ComponentBase, ABC):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if self.extra_options:
-            options = ", ".join(sorted(self.extra_options))
-            raise TypeError(f"Unsupported {type(self).__name__} options: {options}")
         self.context = None
         self._emit: Callable[[JobEvent], Awaitable[None]] | None = None
 

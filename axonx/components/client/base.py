@@ -4,7 +4,7 @@ import json
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import Generic, Literal, Self, TypeVar
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, model_validator
 
@@ -18,10 +18,8 @@ from ...constants import (
     SERVICE_INFO_PORT_KEY,
 )
 from ...enums import ComponentEnum
-from ..job.base import JobInfo, JobResponse
 from ..base import BaseComponent
-
-ClientT = TypeVar("ClientT")
+from ..job.base import JobInfo, JobResponse
 
 
 class ClientOptions(BaseModel):
@@ -45,8 +43,11 @@ class ClientOptions(BaseModel):
     def from_service_info(cls, service_info: str) -> Self:
         data = json.loads(service_info)
         if not isinstance(data, dict):
-            raise ValueError("service info must be a JSON object")
-        options = cls(host_ip=data.get(SERVICE_INFO_HOST_KEY), host_port=data.get(SERVICE_INFO_PORT_KEY))
+            raise ValueError("service info must be a JSON object")  # noqa: TRY004
+        options = cls(
+            host_ip=data.get(SERVICE_INFO_HOST_KEY),
+            host_port=data.get(SERVICE_INFO_PORT_KEY),
+        )
         if options.host_ip is None:
             raise ValueError("service info must declare both host and port")
         return options
@@ -60,7 +61,7 @@ class RemoteServiceError(RuntimeError):
         self.status_code = status_code
 
 
-class BaseClient(BaseComponent, ABC, Generic[ClientT]):
+class BaseClient[ClientT](BaseComponent, ABC):
     """Own one connection to an AxonX service transport."""
 
     component_type = ComponentEnum.CLIENT

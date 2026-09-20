@@ -39,7 +39,7 @@ def test_registry_is_explicit_and_rejects_ambiguous_owners():
         registry.add(Second, owner="second")
 
 
-def test_builtin_provider_is_discovered_from_its_decorator():
+def test_builtin_provider_is_registered_by_decorator():
     registry = create_builtin_registry()
 
     assert (

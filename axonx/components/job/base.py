@@ -89,10 +89,14 @@ class ResultEvent(JobResponse):
 
     @classmethod
     def from_response(cls, response: JobResponse) -> ResultEvent:
-        return cls(answer=response.answer, success=response.success, metadata=response.metadata)
+        return cls(
+            answer=response.answer, success=response.success, metadata=response.metadata
+        )
 
     def response(self) -> JobResponse:
-        return JobResponse(answer=self.answer, success=self.success, metadata=self.metadata)
+        return JobResponse(
+            answer=self.answer, success=self.success, metadata=self.metadata
+        )
 
 
 type JobEvent = Annotated[
@@ -115,7 +119,9 @@ async def fold_events(events: AsyncIterator[JobEvent]) -> JobResponse:
 _RESPONSE_SCHEMA = JobResponse.model_json_schema()
 
 
-def _object_schema(schema: Mapping[str, Any] | None, *, label: str) -> tuple[dict[str, Any], Any]:
+def _object_schema(
+    schema: Mapping[str, Any] | None, *, label: str
+) -> tuple[dict[str, Any], Any]:
     """Validate and compile one JSON object schema."""
     value: dict[str, Any] = deepcopy(dict(schema or {}))
     value.setdefault("type", "object")
@@ -146,24 +152,27 @@ class BaseJob(BaseComponent, ABC):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if self.extra_options:
-            options = ", ".join(sorted(self.extra_options))
-            raise TypeError(f"Unsupported {type(self).__name__} options: {options}")
 
         self.description = description
         self.enable_serve = enable_serve
         self.enable_remote = enable_remote
         self.enable_stream = enable_stream
         self.requires_auth = requires_auth
-        self.parameters, self._argument_validator = _object_schema(parameters, label="Job parameters")
+        self.parameters, self._argument_validator = _object_schema(
+            parameters, label="Job parameters"
+        )
         if self.enable_remote and REMOTE_IP_ARGUMENT in self.parameters["properties"]:
-            raise ValueError(f"{REMOTE_IP_ARGUMENT!r} is reserved for transport targeting")
+            raise ValueError(
+                f"{REMOTE_IP_ARGUMENT!r} is reserved for transport targeting"
+            )
 
         injected = dict(self._injected_parameters())
         conflicts = set(self.parameters["properties"]) & injected.keys()
         if conflicts:
             names = ", ".join(sorted(conflicts))
-            raise ValueError(f"Job parameters conflict with injected parameters: {names}")
+            raise ValueError(
+                f"Job parameters conflict with injected parameters: {names}"
+            )
         injected_schema = {
             "type": "object",
             "properties": deepcopy(injected),
@@ -200,21 +209,27 @@ class BaseJob(BaseComponent, ABC):
         conflicts = set(arguments) & self._injected_schema["properties"].keys()
         if conflicts:
             names = ", ".join(sorted(conflicts))
-            raise ValueError(f"System-owned arguments cannot be supplied by callers: {names}")
+            raise ValueError(
+                f"System-owned arguments cannot be supplied by callers: {names}"
+            )
         self._raise_first_error(self._argument_validator, arguments, "arguments")
 
     def validate_system(self, system: Mapping[str, Any]) -> None:
         """Validate framework-owned invocation data."""
         self._raise_first_error(self._injected_validator, system, "system arguments")
 
-    def _raise_first_error(self, validator: Any, value: Mapping[str, Any], label: str) -> None:
+    def _raise_first_error(
+        self, validator: Any, value: Mapping[str, Any], label: str
+    ) -> None:
         try:
             error = next(validator.iter_errors(dict(value)))
         except StopIteration:
             return
         location = ".".join(map(str, error.absolute_path))
         prefix = f"{location}: " if location else ""
-        raise ValueError(f"Invalid {label} for job {self.name!r}: {prefix}{error.message}")
+        raise ValueError(
+            f"Invalid {label} for job {self.name!r}: {prefix}{error.message}"
+        )
 
     @abstractmethod
     def stream(

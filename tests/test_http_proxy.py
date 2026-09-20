@@ -3,6 +3,7 @@
 import httpx
 import pytest
 
+from axonx.components.proxy import HttpProxyComponent
 from axonx.components.service import HttpService
 from axonx.config import ConfigResolver
 from axonx.core import Application
@@ -92,6 +93,49 @@ async def test_named_proxy_forwards_request_and_upstream_response(tmp_path):
         "content-length": str(len(payload)),
     }
     assert "x-local-hop" not in headers
+
+
+@pytest.mark.asyncio
+async def test_proxy_does_not_prebuffer_request_or_response():
+    request_started = False
+    response_started = False
+    response_closed = False
+    received_request: httpx.Request | None = None
+
+    async def request_body():
+        nonlocal request_started
+        request_started = True
+        yield b"request"
+
+    class ResponseBody(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            nonlocal response_started
+            response_started = True
+            yield b"response"
+
+        async def aclose(self):
+            nonlocal response_closed
+            response_closed = True
+
+    class Transport(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+            nonlocal received_request
+            received_request = request
+            return httpx.Response(200, stream=ResponseBody(), request=request)
+
+    proxy = HttpProxyComponent(
+        upstream_base_url="http://upstream",
+        transport=Transport(),
+    )
+    async with proxy:
+        result = await proxy.forward("POST", "stream", content=request_body())
+
+        assert request_started is False
+        assert response_started is False
+        assert received_request is not None
+        assert await received_request.aread() == b"request"
+        assert b"".join([chunk async for chunk in result.iter_bytes()]) == b"response"
+        assert response_closed is True
 
 
 def test_default_config_does_not_enable_tushare_proxy():

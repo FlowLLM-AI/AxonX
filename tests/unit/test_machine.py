@@ -148,9 +148,10 @@ def test_collect_cpu_and_memory(monkeypatch):
     }
 
 
-def test_machine_status_step_rejects_unknown_options():
-    with pytest.raises(TypeError, match="cpu_sample_intervl"):
-        MachineStatusStep(cpu_sample_intervl=0)
+def test_machine_status_step_retains_unconsumed_options():
+    step = MachineStatusStep(cpu_sample_intervl=0)
+
+    assert step.kwargs == {"cpu_sample_intervl": 0}
 
 
 def test_gpu_schema_rejects_invalid_metrics():

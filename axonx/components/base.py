@@ -27,14 +27,14 @@ class ComponentBase:
         name: str | None = None,
         backend: str = "",
         app_context: ApplicationContext | None = None,
-        **options,
+        **kwargs,
     ) -> None:
         self.name = name or type(self).__name__
         self.backend = backend
         self.app_context = app_context
-        self.extra_options = options
+        self.kwargs = kwargs
         self._component_names = {
-            domain: self.extra_options.pop(domain.value, "default")
+            domain: self.kwargs.pop(domain.value, "default")
             for domain in self.component_domains
         }
         self.logger = get_logger(self.name)
