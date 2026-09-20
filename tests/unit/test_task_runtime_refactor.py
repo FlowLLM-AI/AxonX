@@ -1,6 +1,7 @@
 """Focused contracts for the refactored Task runtime and manager services."""
 
 import asyncio
+import re
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta
 
@@ -12,10 +13,11 @@ from axonx.components.task_manager.local.supervisor import WorkerExit
 from axonx.core import Application
 from axonx.enums import TaskState, TaskType
 from axonx.task.builtins import DemoTask
+from axonx.task.core import task_type_from_id
 from axonx.task.query.stream import stream_task
 from axonx.task.storage.events import LOG_WINDOW_BYTES, read_event_lines
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import TaskStatus
+from axonx.task.storage.workspace import TaskStatus, write_status
 
 
 def test_task_context_is_immutable_and_step_state_is_separate(tmp_path):
@@ -28,12 +30,43 @@ def test_task_context_is_immutable_and_step_state_is_separate(tmp_path):
         task.context.task_id = "changed"
 
 
-def test_generated_task_ids_have_subsecond_precision(tmp_path):
-    first = DemoTask({"x": 1, "y": 1}, workspace_path=tmp_path, reg_name="demo")
-    second = DemoTask({"x": 1, "y": 1}, workspace_path=tmp_path, reg_name="demo")
+def test_named_task_id_is_stable(tmp_path):
+    task = DemoTask(
+        {"x": 1, "y": 1, "task_name": "sample"},
+        workspace_path=tmp_path,
+        reg_name="demo",
+        created_at=datetime(2026, 9, 21, 14, 35, 27, tzinfo=UTC),
+    )
 
-    assert first.task_id != second.task_id
-    assert len(first.task_id.rsplit("#", 1)[1]) == 20
+    assert task.task_id == "base#demo#sample"
+    assert task.is_generated_name is False
+
+
+def test_unnamed_task_gets_hour_prefixed_random_name(tmp_path):
+    task = DemoTask(
+        {"x": 1, "y": 1},
+        workspace_path=tmp_path,
+        reg_name="demo",
+        created_at=datetime(2026, 9, 21, 14, 35, 27, tzinfo=UTC),
+    )
+
+    assert re.fullmatch(r"2026092114[A-Za-z0-9]{4}", task.input_params.task_name)
+    assert task.task_id == f"base#demo#{task.input_params.task_name}"
+    assert task.is_generated_name is True
+
+
+def test_old_timestamped_task_ids_are_rejected():
+    with pytest.raises(ValueError, match="Invalid task ID"):
+        task_type_from_id("base#demo#sample#2026092114")
+
+
+def test_include_time_is_not_a_task_option(tmp_path):
+    with pytest.raises(ValueError, match="include_time"):
+        DemoTask(
+            {"x": 1, "y": 1, "include_time": True},
+            workspace_path=tmp_path,
+            reg_name="demo",
+        )
 
 
 def test_task_status_reads_legacy_execution_id_as_run_id():
@@ -311,3 +344,69 @@ async def test_submission_returns_queryable_task_handle(tmp_path):
     assert status.run_id == handle.run_id
     assert status.state == TaskState.SUCCEEDED
     assert status.result["result"] == 5
+
+
+async def test_named_submission_replaces_completed_task(tmp_path):
+    app = Application(
+        workspace_dir=str(tmp_path),
+        log_dir=str(tmp_path / "logs"),
+        enable_logo=False,
+        log_to_console=False,
+        log_to_file=False,
+        components={
+            "task_repository": {"default": {"backend": "local"}},
+            "task_manager": {"default": {"backend": "local"}},
+        },
+        jobs={"submit": {"steps": [{"backend": "submit_task"}]}},
+    )
+
+    async with app:
+        manager = app.context.components["task_manager"]["default"]
+        first = (
+            await app.run_job(
+                "submit", {"task": "demo", "task_name": "latest", "x": 2, "y": 3}
+            )
+        ).answer
+        for _ in range(50):
+            if (await manager.get_status(first.task_id)).state.is_terminal:
+                break
+            await asyncio.sleep(0.1)
+
+        second = (
+            await app.run_job(
+                "submit", {"task": "demo", "task_name": "latest", "x": 4, "y": 5}
+            )
+        ).answer
+        for _ in range(50):
+            status = await manager.get_status(second.task_id)
+            if status.state.is_terminal:
+                break
+            await asyncio.sleep(0.1)
+
+    assert first.task_id == second.task_id == "base#demo#latest"
+    assert first.run_id != second.run_id
+    assert status.state == TaskState.SUCCEEDED
+    assert status.result["result"] == 9
+
+
+async def test_named_submission_cannot_replace_active_task(tmp_path):
+    task = DemoTask(
+        {"x": 1, "y": 1, "task_name": "active"},
+        workspace_path=tmp_path,
+        reg_name="demo",
+    )
+    task.task_dir.mkdir(parents=True)
+    write_status(
+        task.task_dir,
+        TaskStatus(
+            task_id=task.task_id,
+            run_id="active-run",
+            task_type=task.task_type,
+            state=TaskState.RUNNING,
+        ),
+    )
+    class Manager:
+        workspace_path = tmp_path
+
+    with pytest.raises(FileExistsError, match="Active Task"):
+        await LocalTaskManager._reserve(Manager(), task, replace=True)

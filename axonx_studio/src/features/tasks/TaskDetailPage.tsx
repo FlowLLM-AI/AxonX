@@ -10,9 +10,7 @@ import {
   FileText,
   GitBranch,
   LoaderCircle,
-  Play,
-  RefreshCw,
-  RotateCw,
+  LocateFixed,
   Settings2,
   X,
 } from "lucide-react";
@@ -21,13 +19,7 @@ import { formatBytes } from "../../shared/lib/format";
 import { isAbortError } from "../../shared/lib/errors";
 import type { JobEvent } from "../../shared/api/event";
 import type { TaskStatus } from "./types";
-import {
-  cancelTask,
-  getTaskStatus,
-  readTaskLog,
-  streamTask,
-  submitTask,
-} from "./api";
+import { cancelTask, getTaskStatus, readTaskLog, streamTask } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 import { Status } from "./TasksPage";
 import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
@@ -38,18 +30,14 @@ const MAX_LOG_CHARACTERS = 524_288;
 
 export function TaskDetailPage({
   taskId,
-  tab,
   remoteIp,
   onBack,
-  onTabChange,
   onOpenTask,
   onConnection,
 }: {
   taskId: string;
-  tab: "overview" | "logs" | "relations";
   remoteIp?: string;
   onBack: () => void;
-  onTabChange: (tab: "overview" | "logs" | "relations") => void;
   onOpenTask: (taskId: string) => void;
   onConnection: (online: boolean) => void;
 }) {
@@ -60,7 +48,6 @@ export function TaskDetailPage({
   >;
   const [task, setTask] = useState<TaskStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
   const [logText, setLogText] = useState("");
@@ -74,36 +61,35 @@ export function TaskDetailPage({
   const [followTail, setFollowTail] = useState(true);
   const [copied, setCopied] = useState(false);
   const [configCopied, setConfigCopied] = useState(false);
-  const [configOpen, setConfigOpen] = useState(false);
-  const [rerunOpen, setRerunOpen] = useState(false);
-  const [rerunning, setRerunning] = useState(false);
-  const [rerunMessage, setRerunMessage] = useState("");
+  const [locateRequest, setLocateRequest] = useState(0);
+  const [aligned, setAligned] = useState(true);
+  const [panels, setPanels] = useState({
+    config: false,
+    relations: false,
+    details: true,
+    logs: true,
+  });
   const logViewport = useRef<HTMLPreElement>(null);
   const logRequest = useRef(false);
   const logLength = useRef(0);
   const taskState = task?.state;
 
-  const loadStatus = useCallback(
-    async (quiet = false) => {
-      if (quiet) setRefreshing(true);
-      else setLoading(true);
-      try {
-        const result = await getTaskStatus(taskId, remoteIp);
-        setTask(result);
-        setError("");
-        onConnection(true);
-        return result;
-      } catch (reason) {
-        setError(reason instanceof Error ? reason.message : String(reason));
-        onConnection(false);
-        return null;
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [onConnection, remoteIp, taskId],
-  );
+  const loadStatus = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await getTaskStatus(taskId, remoteIp);
+      setTask(result);
+      setError("");
+      onConnection(true);
+      return result;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      onConnection(false);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [onConnection, remoteIp, taskId]);
 
   const loadLog = useCallback(
     async (offset: number, mode: "replace" | "append" | "prepend") => {
@@ -167,7 +153,13 @@ export function TaskDetailPage({
     });
   }, [loadLog, loadStatus]);
   useEffect(() => {
-    setConfigOpen(false);
+    setPanels({
+      config: false,
+      relations: false,
+      details: true,
+      logs: true,
+    });
+    setAligned(true);
   }, [taskId]);
   useEffect(() => {
     if (!taskState || !ACTIVE.has(taskState)) return;
@@ -220,7 +212,7 @@ export function TaskDetailPage({
       .catch((reason) => {
         if (isAbortError(reason)) return;
         setError(reason instanceof Error ? reason.message : String(reason));
-        void loadStatus(true);
+        void loadStatus();
       });
     return () => controller.abort();
   }, [loadStatus, onConnection, remoteIp, taskId, taskState]);
@@ -229,10 +221,6 @@ export function TaskDetailPage({
       logViewport.current.scrollTop = logViewport.current.scrollHeight;
   }, [followTail, logText]);
 
-  const refresh = async () => {
-    const result = await loadStatus(true);
-    if (result?.log_path) await loadLog(-1, "replace");
-  };
   const copyLog = async () => {
     await navigator.clipboard.writeText(logText);
     setCopied(true);
@@ -246,33 +234,13 @@ export function TaskDetailPage({
     setConfigCopied(true);
     window.setTimeout(() => setConfigCopied(false), 1_500);
   };
-  const rerun = async () => {
-    if (!task?.task_name) return;
-    setRerunning(true);
-    setRerunMessage("");
-    try {
-      const config = { ...task.config };
-      delete config.task_name;
-      await submitTask(task.task_name, config, remoteIp);
-      setRerunOpen(false);
-      setRerunMessage(labels.rerunSubmitted);
-      onConnection(true);
-    } catch (reason) {
-      setRerunMessage(
-        `${labels.rerunFailed}: ${reason instanceof Error ? reason.message : String(reason)}`,
-      );
-      onConnection(false);
-    } finally {
-      setRerunning(false);
-    }
-  };
   const cancel = async () => {
     if (!task || !window.confirm(t("cancelConfirm"))) return;
     setCancelling(true);
     try {
       const cancelled = await cancelTask(task.task_id, remoteIp);
       if (!cancelled) throw new Error(t("cancelFailed"));
-      await refresh();
+      await loadStatus();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -302,10 +270,18 @@ export function TaskDetailPage({
     );
   const progress = taskStepProgress(task);
   const configEntries = Object.entries(task.config || {});
-  const canRerun = Boolean(task.task_name);
   const completedSteps = task.steps.filter(
     (step) => step.percentage === 100,
   ).length;
+  const togglePanel = (panel: keyof typeof panels) => {
+    setAligned(false);
+    setPanels((current) => ({ ...current, [panel]: !current[panel] }));
+  };
+  const locateCurrentTask = () => {
+    setAligned(false);
+    setPanels((current) => ({ ...current, relations: true }));
+    setLocateRequest((current) => current + 1);
+  };
 
   return (
     <section className="workspace-page task-detail-page">
@@ -317,276 +293,225 @@ export function TaskDetailPage({
         <div>
           <p className="eyebrow">TASK RUN / DETAIL</p>
           <h1>{task.task_id}</h1>
-          <span>
+          <span className="task-detail-subtitle">
+            <Status state={task.state} />
             {t(`types.${task.task_type}`, task.task_type)} · PID{" "}
             {task.pid || "—"}
           </span>
         </div>
-        <div className="heading-actions">
+        {ACTIVE.has(task.state) && (
           <button
-            className="secondary-button task-detail-icon-button"
-            onClick={() => void refresh()}
-            disabled={refreshing}
-            title={t("refreshNow")}
-            aria-label={t("refreshNow")}
+            className="danger-outline task-detail-cancel"
+            onClick={() => void cancel()}
+            disabled={cancelling}
           >
-            <RefreshCw className={refreshing ? "spin" : ""} />
+            <Ban />
+            {cancelling ? t("cancelling") : t("cancel")}
           </button>
-          {ACTIVE.has(task.state) ? (
-            <button
-              className="danger-outline task-detail-icon-button"
-              onClick={() => void cancel()}
-              disabled={cancelling}
-              title={cancelling ? t("cancelling") : t("cancel")}
-              aria-label={cancelling ? t("cancelling") : t("cancel")}
-            >
-              <Ban />
-            </button>
-          ) : (
-            <button
-              className="primary-button task-rerun-button"
-              onClick={() => setRerunOpen(true)}
-              disabled={!canRerun || rerunning}
-              title={canRerun ? labels.rerun : labels.unavailableRerun}
-            >
-              <RotateCw />
-              {labels.rerun}
-            </button>
-          )}
-        </div>
+        )}
       </div>
       {error && (
         <div className="error-banner">
           <strong>{t("requestFailed")}</strong>
           <span>{error}</span>
+          <button onClick={() => void loadStatus()}>{t("retry")}</button>
         </div>
       )}
-      {rerunMessage && (
-        <div
-          className={`task-rerun-notice ${rerunMessage.startsWith(labels.rerunFailed) ? "error" : ""}`}
-        >
-          <Play />
-          {rerunMessage}
-        </div>
-      )}
-      <nav className="task-detail-tabs" aria-label={t("taskDetail.views")}>
-        <button
-          className={tab === "overview" ? "active" : ""}
-          onClick={() => onTabChange("overview")}
-        >
-          <Settings2 />
-          {labels.overview}
-        </button>
-        <button
-          className={tab === "logs" ? "active" : ""}
-          onClick={() => onTabChange("logs")}
-        >
-          <FileText />
-          {labels.logs}
-        </button>
-        <button
-          className={tab === "relations" ? "active" : ""}
-          onClick={() => onTabChange("relations")}
-        >
-          <GitBranch />
-          {labels.relations}
-        </button>
-      </nav>
-      {tab === "relations" ? (
-        <TaskGraphPanel
-          taskId={taskId}
-          remoteIp={remoteIp}
-          onOpenTask={onOpenTask}
-          onConnection={onConnection}
-        />
-      ) : (
-        <div className={`task-detail-layout single-panel ${tab}`}>
-          {tab === "overview" && (
-            <div className="task-detail-summary">
-              <section
-                className={`task-config-section ${configOpen ? "open" : "collapsed"}`}
+      <div
+        className={`task-detail-dashboard ${aligned ? "initially-aligned" : ""}`}
+      >
+        <div className="task-detail-column task-detail-left">
+          <DetailCard
+            className="task-config-card"
+            title={labels.config}
+            summary={t("taskDetail.configSummary", {
+              count: configEntries.length,
+            })}
+            icon={<Settings2 />}
+            open={panels.config}
+            onToggle={() => togglePanel("config")}
+            actions={
+              <button
+                onClick={() => void copyConfig()}
+                title={configCopied ? labels.copied : labels.copyConfig}
+                aria-label={configCopied ? labels.copied : labels.copyConfig}
               >
-                <header className="detail-section-heading">
-                  <button
-                    className="config-section-toggle"
-                    type="button"
-                    onClick={() => setConfigOpen((open) => !open)}
-                    aria-expanded={configOpen}
-                    aria-controls="task-config-content"
-                    title={
-                      configOpen ? labels.collapseConfig : labels.expandConfig
-                    }
-                  >
-                    <span className="detail-section-icon">
-                      <Settings2 />
-                    </span>
-                    <span>
-                      <h2>{labels.config}</h2>
-                      <p>{labels.effectiveConfig}</p>
-                    </span>
-                    <ChevronDown className="config-chevron" />
-                  </button>
-                  <button
-                    className="config-copy-button"
-                    onClick={() => void copyConfig()}
-                  >
-                    <Copy />
-                    {configCopied ? labels.copied : labels.copyConfig}
-                  </button>
-                </header>
-                {configOpen && (
-                  <div id="task-config-content">
-                    <div>
-                      <div className="config-source">
-                        <span>{t("taskDetail.task")}</span>
-                        <code>{task.task_name}</code>
-                        <i>{t("taskDetail.snapshot")}</i>
-                      </div>
-                      {configEntries.length ? (
-                        <dl className="task-config-list">
-                          {configEntries.map(([key, value]) => (
-                            <div key={key}>
-                              <dt>{key}</dt>
-                              <dd title={formatConfigValue(value)}>
-                                {formatConfigValue(value)}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      ) : (
-                        <div className="task-config-empty">
-                          <FileJson />
-                          {labels.noConfig}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </section>
-
-              <section className="task-run-section">
-                <header className="detail-section-heading run-heading">
-                  <div>
-                    <span className={`task-orb ${task.state}`}>
-                      {task.task_type.slice(0, 1).toUpperCase()}
-                    </span>
-                    <div>
-                      <h2>{labels.runDetails}</h2>
-                      <p>
-                        <Status state={task.state} /> · {completedSteps}{" "}
-                        {labels.completedSteps}
-                      </p>
-                    </div>
-                  </div>
-                </header>
-                <div className="task-run-meta">
-                  <div>
-                    <small>{t("started")}</small>
-                    <strong>{formatDate(task.started_at)}</strong>
-                  </div>
-                  <div>
-                    <small>{t("duration")}</small>
-                    <strong>{formatDuration(task, t)}</strong>
-                  </div>
-                  <div>
-                    <small>EXIT CODE</small>
-                    <strong>{task.exit_code}</strong>
-                  </div>
-                </div>
-                {progress && (
-                  <div className="task-current-step">
-                    <span>{t("progress")}</span>
-                    <code title={progress.name}>{progress.name}</code>
-                    <strong>{progress.percentage}%</strong>
-                  </div>
-                )}
-                <DetailSection title={t("steps")}>
-                  <div className="step-list">
-                    {task.steps.length ? (
-                      task.steps.map((step, index) => {
-                        const percentage = Math.max(
-                          0,
-                          Math.min(100, step.percentage ?? 0),
-                        );
-                        const failed =
-                          task.state === "failed" &&
-                          index === task.steps.length - 1;
-                        const done = !failed && step.percentage === 100;
-                        return (
-                          <div
-                            className={`step-item ${failed ? "failed" : ""}`}
-                            key={`${step.name}-${index}`}
-                          >
-                            <span
-                              className={
-                                failed ? "failed" : done ? "done" : "active"
-                              }
-                              style={
-                                !failed && !done
-                                  ? ({
-                                      "--step-progress": `${percentage}%`,
-                                    } as React.CSSProperties)
-                                  : undefined
-                              }
-                            >
-                              {failed ? <X /> : done ? <Check /> : index + 1}
-                            </span>
-                            <div>
-                              <strong>{step.name}</strong>
-                              <small>
-                                {failed
-                                  ? task.error || t("error")
-                                  : step.finished_at
-                                    ? formatDate(step.finished_at)
-                                    : step.started_at
-                                      ? `${Math.round(percentage)}%`
-                                      : t("notStarted")}
-                              </small>
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="muted">{t("notStarted")}</p>
-                    )}
-                  </div>
-                </DetailSection>
-                {Object.keys(task.result).length > 0 && (
-                  <DetailSection title={t("result")}>
-                    <pre>{JSON.stringify(task.result, null, 2)}</pre>
-                  </DetailSection>
-                )}
-              </section>
+                {configCopied ? <Check /> : <Copy />}
+              </button>
+            }
+          >
+            <div className="config-source">
+              <span>{labels.task}</span>
+              <code>{task.task_name}</code>
+              <i>{labels.snapshot}</i>
             </div>
-          )}
-          {tab === "logs" && (
-            <section className="log-panel">
-              <header>
-                <div>
-                  <span className="log-title">
-                    <FileText />
-                    {labels.live}
-                    {ACTIVE.has(task.state) && <i />}
-                  </span>
-                  <code title={task.log_path}>
-                    {task.log_path || labels.logUnavailable}
-                  </code>
-                </div>
-                <div>
-                  <label className="log-follow">
-                    <input
-                      type="checkbox"
-                      checked={followTail}
-                      onChange={(event) => setFollowTail(event.target.checked)}
-                    />
-                    {labels.follow}
-                  </label>
-                  <button onClick={() => void copyLog()} disabled={!logText}>
-                    <Copy />
-                    {copied ? labels.copied : labels.copy}
-                  </button>
-                </div>
-              </header>
+            {configEntries.length ? (
+              <dl className="task-config-list">
+                {configEntries.map(([key, value]) => (
+                  <div key={key}>
+                    <dt>{key}</dt>
+                    <dd title={formatConfigValue(value)}>
+                      {formatConfigValue(value)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <div className="task-config-empty">
+                <FileJson />
+                {labels.noConfig}
+              </div>
+            )}
+          </DetailCard>
+
+          <DetailCard
+            className="task-run-card"
+            title={labels.runDetails}
+            summary={`${completedSteps} ${labels.completedSteps}`}
+            icon={
+              <span className={`task-orb ${task.state}`}>
+                {task.task_type.slice(0, 1).toUpperCase()}
+              </span>
+            }
+            open={panels.details}
+            onToggle={() => togglePanel("details")}
+          >
+            <div className="task-run-meta">
+              <div>
+                <small>{t("started")}</small>
+                <strong>{formatDate(task.started_at)}</strong>
+              </div>
+              <div>
+                <small>{t("duration")}</small>
+                <strong>{formatDuration(task, t)}</strong>
+              </div>
+              <div>
+                <small>EXIT CODE</small>
+                <strong>{task.exit_code}</strong>
+              </div>
+            </div>
+            {progress && (
+              <div className="task-current-step">
+                <span>{t("progress")}</span>
+                <code title={progress.name}>{progress.name}</code>
+                <strong>{progress.percentage}%</strong>
+              </div>
+            )}
+            <DetailSection title={t("steps")}>
+              <div className="step-list">
+                {task.steps.length ? (
+                  task.steps.map((step, index) => {
+                    const percentage = Math.max(
+                      0,
+                      Math.min(100, step.percentage ?? 0),
+                    );
+                    const failed =
+                      task.state === "failed" &&
+                      index === task.steps.length - 1;
+                    const done = !failed && step.percentage === 100;
+                    return (
+                      <div
+                        className={`step-item ${failed ? "failed" : ""}`}
+                        key={`${step.name}-${index}`}
+                      >
+                        <span
+                          className={
+                            failed ? "failed" : done ? "done" : "active"
+                          }
+                          style={
+                            !failed && !done
+                              ? ({
+                                  "--step-progress": `${percentage}%`,
+                                } as React.CSSProperties)
+                              : undefined
+                          }
+                        >
+                          {failed ? <X /> : done ? <Check /> : index + 1}
+                        </span>
+                        <div>
+                          <strong>{step.name}</strong>
+                          <small>
+                            {failed
+                              ? task.error || t("error")
+                              : step.finished_at
+                                ? formatDate(step.finished_at)
+                                : step.started_at
+                                  ? `${Math.round(percentage)}%`
+                                  : t("notStarted")}
+                          </small>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="muted">{t("notStarted")}</p>
+                )}
+              </div>
+            </DetailSection>
+            {Object.keys(task.result).length > 0 && (
+              <DetailSection title={t("result")}>
+                <pre>{JSON.stringify(task.result, null, 2)}</pre>
+              </DetailSection>
+            )}
+          </DetailCard>
+        </div>
+
+        <div className="task-detail-column task-detail-right">
+          <DetailCard
+            className="task-relations-card"
+            title={labels.relations}
+            summary={labels.relationsSummary}
+            icon={<GitBranch />}
+            open={panels.relations}
+            onToggle={() => togglePanel("relations")}
+            actions={
+              <button
+                onClick={locateCurrentTask}
+                title={t("taskGraph.locate_current_task")}
+                aria-label={t("taskGraph.locate_current_task")}
+              >
+                <LocateFixed />
+              </button>
+            }
+          >
+            <TaskGraphPanel
+              taskId={taskId}
+              remoteIp={remoteIp}
+              locateRequest={locateRequest}
+              onOpenTask={onOpenTask}
+              onConnection={onConnection}
+            />
+          </DetailCard>
+
+          <DetailCard
+            className="task-log-card"
+            title={labels.logs}
+            summary={task.log_path || labels.logUnavailable}
+            icon={<FileText />}
+            open={panels.logs}
+            onToggle={() => togglePanel("logs")}
+            actions={
+              <>
+                <label className="log-follow">
+                  <input
+                    type="checkbox"
+                    checked={followTail}
+                    onChange={(event) => setFollowTail(event.target.checked)}
+                  />
+                  {labels.follow}
+                </label>
+                <button
+                  onClick={() => void copyLog()}
+                  disabled={!logText}
+                  title={copied ? labels.copied : labels.copy}
+                  aria-label={copied ? labels.copied : labels.copy}
+                >
+                  {copied ? <Check /> : <Copy />}
+                </button>
+              </>
+            }
+          >
+            <div className="log-panel">
               <div className="log-meta">
                 <span>
                   {labels.loaded}{" "}
@@ -629,58 +554,65 @@ export function TaskDetailPage({
                   {logLoading && <span className="log-cursor" />}
                 </pre>
               )}
-            </section>
-          )}
+            </div>
+          </DetailCard>
         </div>
-      )}
-      {rerunOpen && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.currentTarget === event.target) setRerunOpen(false);
-          }}
+      </div>
+    </section>
+  );
+}
+
+function DetailCard({
+  className,
+  title,
+  summary,
+  icon,
+  open,
+  onToggle,
+  actions,
+  children,
+}: {
+  className: string;
+  title: string;
+  summary: React.ReactNode;
+  icon: React.ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const contentId = `${className}-content`;
+  return (
+    <section
+      className={`task-detail-card ${className} ${open ? "open" : "collapsed"}`}
+    >
+      <header>
+        <button
+          className="task-detail-card-toggle"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls={contentId}
         >
-          <section
-            className="confirm-modal rerun-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="rerun-title"
-          >
-            <button
-              className="close-button"
-              onClick={() => setRerunOpen(false)}
-              aria-label={t("close")}
-            >
-              <X />
-            </button>
-            <span className="rerun-icon">
-              <RotateCw />
-            </span>
-            <h2 id="rerun-title">{labels.rerunConfirm}</h2>
-            <p>{labels.rerunHint}</p>
-            <div className="rerun-config-summary">
-              <strong>{task.task_name}</strong>
-              <span>
-                {configEntries.length} {t("taskDetail.configurationValues")}
-              </span>
-            </div>
-            <div>
-              <button
-                className="secondary-button"
-                onClick={() => setRerunOpen(false)}
-              >
-                {t("close")}
-              </button>
-              <button
-                className="primary-button"
-                onClick={() => void rerun()}
-                disabled={rerunning}
-              >
-                {rerunning ? <LoaderCircle className="spin" /> : <RotateCw />}
-                {rerunning ? labels.rerunning : labels.confirmRerun}
-              </button>
-            </div>
-          </section>
+          <span className="task-detail-card-icon">{icon}</span>
+          <span>
+            <strong>{title}</strong>
+            <small>{summary}</small>
+          </span>
+        </button>
+        {actions && <div className="task-detail-card-actions">{actions}</div>}
+        <button
+          className="task-detail-card-chevron"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls={contentId}
+          aria-label={title}
+        >
+          <ChevronDown />
+        </button>
+      </header>
+      {open && (
+        <div className="task-detail-card-body" id={contentId}>
+          {children}
         </div>
       )}
     </section>

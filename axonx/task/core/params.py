@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import secrets
-import string
+import re
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -12,20 +11,24 @@ from ...constants import TASK_NAME_PATTERN
 from ...enums import TaskType
 from .identity import task_type_from_id
 
-_TASK_NAME_ALPHABET = string.ascii_letters + string.digits
-
-
-def _short_task_name() -> str:
-    return "".join(secrets.choice(_TASK_NAME_ALPHABET) for _ in range(4))
+_TASK_NAME = re.compile(TASK_NAME_PATTERN)
 
 
 class BaseInputParams(BaseModel):
     """Validated user-supplied parameters for one Task invocation."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
-    task_name: str = Field(default_factory=_short_task_name, pattern=TASK_NAME_PATTERN)
-    include_time: bool = True
+    task_name: str | None = None
     source_tasks: list[str] = Field(default_factory=list)
+
+    @field_validator("task_name", mode="before")
+    @classmethod
+    def validate_task_name(cls, name: Any) -> str | None:
+        if name is None or name == "":
+            return None
+        if not isinstance(name, str) or not _TASK_NAME.fullmatch(name):
+            raise ValueError("task_name must contain 1-32 letters, digits, or hyphens")
+        return name
 
     @field_validator("source_tasks")
     @classmethod

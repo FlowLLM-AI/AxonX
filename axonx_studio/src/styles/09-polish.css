@@ -1577,58 +1577,36 @@
   }
 }
 
-/* Task detail is one workspace with overview, logs, and relationships. */
-.task-detail-tabs {
+.task-detail-page {
+  container-type: inline-size;
+}
+.runtime-workspace .workspace-canvas > .task-detail-page {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+.task-detail-dashboard {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 0 0 16px;
-  padding: 4px;
-  width: max-content;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  background: var(--surface-2);
+  flex-direction: column;
+  gap: 14px;
 }
-.task-detail-tabs button {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 13px;
-  border: 0;
-  border-radius: 8px;
-  color: var(--muted);
-  background: transparent;
-  font-weight: 650;
-  cursor: pointer;
+.task-detail-column {
+  display: contents;
 }
-.task-detail-tabs button:hover {
-  color: var(--ink);
+.task-config-card {
+  order: 1;
 }
-.task-detail-tabs button.active {
-  color: var(--accent);
-  background: var(--surface);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 10%, transparent);
+.task-relations-card {
+  order: 2;
 }
-.task-detail-tabs svg {
-  width: 16px;
-  height: 16px;
+.task-run-card {
+  order: 3;
 }
-.task-detail-layout.single-panel {
-  grid-template-columns: minmax(0, 1fr);
+.task-log-card {
+  order: 4;
 }
-.task-detail-layout.single-panel .task-detail-summary {
-  border-right: 0;
-}
-.task-detail-layout.single-panel.logs {
-  min-height: 520px;
-}
-.row-actions .task-graph-action svg {
-  color: var(--accent);
-}
-.task-relations-panel {
-  min-height: 520px;
-  height: clamp(560px, calc(100vh - 292px), 780px);
+.task-detail-card {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
@@ -1637,37 +1615,248 @@
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-.task-relations-toolbar {
-  min-height: 68px;
+.task-detail-card > header {
+  min-height: 70px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
+  gap: 12px;
+  padding: 10px 14px;
+}
+.task-detail-card.open > header {
   border-bottom: 1px solid var(--line);
 }
-.task-relations-toolbar > div,
-.task-relations-toolbar > div > span {
+.task-detail-card-toggle {
+  min-width: 0;
   display: flex;
   align-items: center;
-}
-.task-relations-toolbar > div {
+  flex: 1;
   gap: 11px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
-.task-relations-toolbar > div > svg {
-  width: 22px;
+.task-detail-card-toggle:focus-visible {
+  border-radius: 10px;
+  outline: 2px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 4px;
+}
+.task-detail-card-toggle > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.task-detail-card-toggle strong,
+.task-detail-card-toggle small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-detail-card-toggle strong {
+  font-size: 13px;
+}
+.task-detail-card-toggle small {
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: 10px;
+}
+.task-detail-card-chevron {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--faint);
+  background: transparent;
+  cursor: pointer;
+}
+.task-detail-card-chevron:hover,
+.task-detail-card-chevron:focus-visible {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.task-detail-card-chevron > svg {
+  width: 16px;
+  transform: rotate(-90deg);
+  transition: transform 0.18s;
+}
+.task-detail-card.open .task-detail-card-chevron > svg {
+  transform: rotate(0);
+}
+.task-detail-card-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 10px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.task-detail-card-icon > svg {
+  width: 17px;
+}
+.task-detail-card-icon .task-orb {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+.task-detail-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.task-detail-card-actions button {
+  width: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--surface-2);
+  font-size: 10px;
+  cursor: pointer;
+}
+.task-detail-card-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.task-detail-card-actions button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
   color: var(--accent);
 }
-.task-relations-toolbar > div > span {
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 3px;
+.task-detail-card-actions button svg {
+  width: 13px;
 }
-.task-relations-toolbar small {
+.task-detail-card-actions .log-follow {
   color: var(--muted);
 }
-.task-relations-toolbar button svg {
-  width: 16px;
+.task-detail-card-body {
+  padding: 18px;
+}
+.task-run-card .task-detail-card-body {
+  padding: 18px 20px 22px;
+}
+.task-run-card .detail-section {
+  margin-top: 0;
+}
+.task-run-card .detail-section + .detail-section {
+  margin-top: 20px;
+}
+.task-run-card .step-item {
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.task-run-card .step-item > span svg {
+  width: 13px;
+}
+.task-run-card .step-item > div {
+  min-width: 0;
+  padding-top: 3px;
+}
+.task-run-card .step-item strong {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+}
+.task-run-card .step-item small {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.task-log-card .task-detail-card-body,
+.task-relations-card .task-detail-card-body {
+  padding: 0;
+}
+.task-log-card .log-panel {
+  min-height: 460px;
+  height: clamp(460px, calc(100vh - 360px), 680px);
+}
+.task-log-card .log-content,
+.task-log-card .log-placeholder {
+  min-height: 0;
+  height: auto;
+  flex: 1;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.task-detail-subtitle {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+.task-detail-cancel {
+  align-self: end;
+}
+.task-detail-cancel svg {
+  width: 15px;
+}
+@container (min-width: 1050px) {
+  .task-detail-dashboard {
+    display: grid;
+    grid-template-columns: minmax(360px, 0.9fr) minmax(500px, 1.1fr);
+    align-items: start;
+  }
+  .task-detail-column {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .task-detail-dashboard.initially-aligned {
+    align-items: stretch;
+  }
+  .task-detail-dashboard.initially-aligned .task-detail-column {
+    display: contents;
+  }
+  .task-detail-dashboard.initially-aligned
+    .task-relations-card
+    .task-detail-card-body,
+  .task-detail-dashboard.initially-aligned
+    .task-log-card
+    .task-detail-card-body {
+    min-height: 0;
+    display: flex;
+    flex: 1;
+  }
+  .task-detail-dashboard.initially-aligned .task-relations-panel,
+  .task-detail-dashboard.initially-aligned .task-log-card .log-panel {
+    height: auto;
+    flex: 1;
+  }
+  .task-detail-dashboard.initially-aligned .task-log-card .log-panel {
+    min-height: 0;
+    height: 0;
+  }
+}
+@container (max-width: 560px) {
+  .task-run-meta {
+    grid-template-columns: 1fr;
+  }
+  .task-run-meta > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .task-run-meta > div:last-child {
+    border-bottom: 0;
+  }
+}
+.task-relations-panel {
+  min-height: 340px;
+  height: clamp(340px, 42vh, 460px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
 }
 .task-relations-provisional {
   margin: 0;
@@ -1679,13 +1868,13 @@
 }
 .task-relations-body {
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 250px;
+  display: flex;
   flex: 1;
 }
 .task-relations-viewport {
   min-width: 0;
   min-height: 0;
+  flex: 1;
   overflow: auto;
   background:
     radial-gradient(
@@ -1727,8 +1916,7 @@
   box-shadow: 0 5px 16px color-mix(in srgb, var(--ink) 7%, transparent);
   cursor: pointer;
 }
-.task-relation-node:hover,
-.task-relation-node.inspected {
+.task-relation-node:hover {
   border-color: var(--node-color);
 }
 .task-relation-node.current {
@@ -1738,6 +1926,7 @@
 .task-relation-node.missing {
   border-style: dashed;
   opacity: 0.7;
+  cursor: default;
 }
 .task-relation-node.analysis {
   --node-color: var(--pink);
@@ -1760,21 +1949,14 @@
 }
 .task-relation-node strong {
   color: var(--node-color);
-  font-size: 12px;
+  font-size: 11px;
 }
 .task-relation-node code {
   max-width: 100%;
   overflow: hidden;
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.task-relation-node small {
-  max-width: 100%;
-  overflow: hidden;
   color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1795,43 +1977,6 @@
 .relation-state.cancelled {
   color: var(--danger);
 }
-.task-relation-inspector {
-  min-width: 0;
-  padding: 20px;
-  border-left: 1px solid var(--line);
-  background: var(--surface);
-}
-.task-relation-inspector > small {
-  color: var(--accent);
-  font-weight: 700;
-}
-.task-relation-inspector h3 {
-  margin: 7px 0 12px;
-}
-.task-relation-inspector > code {
-  display: block;
-  padding: 9px;
-  border-radius: 8px;
-  overflow-wrap: anywhere;
-  color: var(--muted);
-  background: var(--surface-2);
-  font-size: 11px;
-}
-.task-relation-inspector p,
-.task-relation-inspector .missing-note {
-  display: block;
-  margin: 13px 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-.task-relation-inspector .primary-button {
-  width: 100%;
-  justify-content: center;
-  margin-top: 18px;
-}
-.task-relation-inspector .primary-button svg {
-  width: 15px;
-}
 .task-relations-message {
   min-height: 420px;
   display: flex;
@@ -1848,16 +1993,6 @@
   flex-direction: column;
   gap: 4px;
 }
-@media (max-width: 900px) {
-  .task-relations-body {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .task-relation-inspector {
-    border-top: 1px solid var(--line);
-    border-left: 0;
-  }
-}
-
 /* Home: research sequence, brand, and harness manifest. */
 .overview-page .overview-hero {
   display: grid;

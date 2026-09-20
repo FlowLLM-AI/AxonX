@@ -28,12 +28,10 @@ export function RuntimeWorkspace({
 }: {
   machine: MachineNode;
   remoteIp?: string;
-  view:
-    "resources" | "tasks" | "environment" | "overview" | "logs" | "relations";
+  view: "resources" | "tasks" | "environment" | "task";
   taskId?: string;
   onNavigate: (
-    view:
-      "resources" | "tasks" | "environment" | "overview" | "logs" | "relations",
+    view: "resources" | "tasks" | "environment" | "task",
     resource?: string,
   ) => void;
   onSubmit: () => void;
@@ -41,12 +39,7 @@ export function RuntimeWorkspace({
   onConnection: (online: boolean) => void;
 }) {
   useEffect(() => {
-    if (
-      !["overview", "logs", "relations"].includes(view) ||
-      !taskId ||
-      !onOptionsChange
-    )
-      return;
+    if (view !== "task" || !taskId || !onOptionsChange) return;
     const controller = new AbortController();
     listTaskStatuses(remoteIp, controller.signal)
       .then((tasks) =>
@@ -79,19 +72,16 @@ export function RuntimeWorkspace({
         ) : view !== "tasks" && taskId ? (
           <TaskDetailPage
             taskId={taskId}
-            tab={view as "overview" | "logs" | "relations"}
             remoteIp={remoteIp}
             onBack={() => onNavigate("tasks")}
-            onTabChange={(tab) => onNavigate(tab, taskId)}
-            onOpenTask={(id) => onNavigate("overview", id)}
+            onOpenTask={(id) => onNavigate("task", id)}
             onConnection={onConnection}
           />
         ) : (
           <TasksPage
             remoteIp={remoteIp}
             onSubmit={onSubmit}
-            onOpenTask={(id) => onNavigate("overview", id)}
-            onOpenGraph={(id) => onNavigate("relations", id)}
+            onOpenTask={(id) => onNavigate("task", id)}
             onTasksChange={onOptionsChange}
             onConnection={onConnection}
           />

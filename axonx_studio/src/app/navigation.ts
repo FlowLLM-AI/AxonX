@@ -122,8 +122,7 @@ export function navigationItemForRoute(route: AppRoute): NavigationItem {
         item.route.section === route.section &&
         (route.section !== "runtime" ||
           item.route.view === route.view ||
-          (item.id === "tasks" &&
-            ["overview", "logs", "relations"].includes(route.view || ""))),
+          (item.id === "tasks" && route.view === "task")),
     ) || navigationItems[0]
   );
 }

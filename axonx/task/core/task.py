@@ -14,13 +14,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from ...constants import (
     AXONX_DEFAULT_TIMEZONE,
     TASK_ID_SEPARATOR,
-    TASK_ID_TIMESTAMP_FORMAT,
 )
 from ...enums import ComponentEnum, TaskType
 from ...utils import get_log_path, get_logger
 from ..storage.workspace import METADATA_FILE, task_path
 from .context import TaskContext
-from .identity import validate_registration_name
+from .identity import generated_task_name, validate_registration_name
 from .params import BaseInputParams, BaseOutputParams
 
 TaskStep: TypeAlias = Callable[[], None]
@@ -57,12 +56,12 @@ class BaseTask(ABC):
             raise ValueError(f"Unknown timezone: {timezone!r}") from None
         created_at = created_at or datetime.now(task_timezone)
 
-        parts = [self.task_type.value, registration_name, self.input_params.task_name]
-        if self.input_params.include_time:
-            # Microsecond precision prevents ordinary concurrent submissions with
-            # the same human name from claiming the same workspace directory.
-            parts.append(created_at.strftime(TASK_ID_TIMESTAMP_FORMAT))
-        generated_task_id = TASK_ID_SEPARATOR.join(parts)
+        self.is_generated_name = self.input_params.task_name is None
+        resolved_name = self.input_params.task_name or generated_task_name(created_at)
+        self.input_params.task_name = resolved_name
+        generated_task_id = TASK_ID_SEPARATOR.join(
+            (self.task_type.value, registration_name, resolved_name)
+        )
         task_id = task_id or generated_task_id
         if task_id != generated_task_id:
             raise ValueError(f"Assigned Task ID does not match its inputs: {task_id!r}")

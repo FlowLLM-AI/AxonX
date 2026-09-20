@@ -81,8 +81,8 @@ export function PageOutlet({
     const view =
       route.view === "environment" || route.view === "resources"
         ? route.view
-        : ["overview", "logs", "relations"].includes(route.view || "")
-          ? (route.view as "overview" | "logs" | "relations")
+        : route.view === "task"
+          ? "task"
           : "tasks";
     page = (
       <RuntimeWorkspace
@@ -138,7 +138,7 @@ export function PageOutlet({
         onNavigate={(target: ResearchPageId | "runtime", resource?: string) =>
           navigate(
             target === "runtime"
-              ? { section: "runtime", view: "overview", resource }
+              ? { section: "runtime", view: "task", resource }
               : {
                   section:
                     target === "factors" ? "factors" : (target as SectionId),

@@ -94,19 +94,13 @@ export function AppShell(props: AppShellProps) {
     route.section === "raw" &&
     resourceOption &&
     resourceOption.detail !== t("workspace.folder");
-  const taskDetail =
-    route.section === "runtime" &&
-    ["overview", "logs", "relations"].includes(route.view || "");
+  const taskDetail = route.section === "runtime" && route.view === "task";
   const finalLabel =
     route.resource &&
     (rawFileSelected
       ? t("shell.filePreview")
       : taskDetail
-        ? route.view === "logs"
-          ? t("shell.logs")
-          : route.view === "relations"
-            ? t("shell.relationships")
-            : t("shell.overview")
+        ? t("taskDetails")
         : researchSections.has(route.section)
           ? t("shell.dataPreview")
           : route.section === "apis"

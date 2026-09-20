@@ -17,10 +17,10 @@ from axonx.workspace.browser import (
 from axonx.workspace.preview import preview_workspace_file
 from axonx.workspace.staging import StagedFiles
 
-TASK_ID = "etl#demo#run#1234567890"
+TASK_ID = "etl#demo#run1234567890"
 TASK_DIRECTORY = f"etl/{TASK_ID}"
 TERMINAL_STATUS = (
-    b'{"task_id":"etl#demo#run#1234567890","run_id":"remote",'
+    b'{"task_id":"etl#demo#run1234567890","run_id":"remote",'
     b'"task_type":"etl",'
     b'"state":"succeeded","exit_code":0}'
 )

@@ -168,7 +168,6 @@ function useTasks(
                   task_id: String(metadata.task_id),
                   task_type: metadata.task_type as Kind,
                   task_name: String(input.task_name),
-                  include_time: Boolean(input.include_time),
                   input_dir:
                     typeof input.input_dir === "string"
                       ? input.input_dir

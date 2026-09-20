@@ -24,7 +24,7 @@ describe("application routes", () => {
   it("round-trips encoded routes", () => {
     const route = {
       section: "runtime" as const,
-      view: "overview",
+      view: "task",
       resource: "task#20260916",
     };
     expect(parseHash(routeHash("local", route))).toEqual({
@@ -48,13 +48,13 @@ describe("application routes", () => {
       parseHash(
         routeHash("local", {
           section: "runtime",
-          view: "relations",
+          view: "task",
           resource: "predict#123",
         }),
       ).route,
     ).toEqual({
       section: "runtime",
-      view: "relations",
+      view: "task",
       resource: "predict#123",
     });
   });

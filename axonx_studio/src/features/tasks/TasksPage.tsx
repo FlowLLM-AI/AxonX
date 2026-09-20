@@ -3,8 +3,8 @@ import {
   AlertTriangle,
   Ban,
   Check,
+  CheckSquare2,
   Copy,
-  GitBranch,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -27,14 +27,12 @@ export function TasksPage({
   remoteIp,
   onSubmit,
   onOpenTask,
-  onOpenGraph,
   onTasksChange,
   onConnection,
 }: {
   remoteIp?: string;
   onSubmit: () => void;
   onOpenTask: (taskId: string) => void;
-  onOpenGraph: (taskId: string) => void;
   onTasksChange?: (options: ContextOption[]) => void;
   onConnection: (online: boolean) => void;
 }) {
@@ -52,6 +50,12 @@ export function TasksPage({
   const [cancelTarget, setCancelTarget] = useState<TaskStatus | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    task: TaskStatus;
+    x: number;
+    y: number;
+  } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -100,6 +104,23 @@ export function TasksPage({
       })),
     );
   }, [tasks, onTasksChange]);
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("click", close);
+    window.addEventListener("blur", close);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("blur", close);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [contextMenu]);
   const poll = useCallback(() => {
     void load(true);
   }, [load]);
@@ -157,6 +178,18 @@ export function TasksPage({
       return next;
     });
 
+  const beginSelection = (task: TaskStatus) => {
+    if (ACTIVE.has(task.state)) return;
+    setSelectionMode(true);
+    setSelected((previous) => new Set(previous).add(task.task_id));
+    setContextMenu(null);
+  };
+
+  const finishSelection = () => {
+    setSelectionMode(false);
+    setSelected(new Set());
+  };
+
   const confirmCancel = async () => {
     if (!cancelTarget) return;
     setCancelling(true);
@@ -184,6 +217,7 @@ export function TasksPage({
         deleted.forEach((taskId) => next.delete(taskId));
         return next;
       });
+      if (deleted.length === requested.length) setSelectionMode(false);
       setDeleteOpen(false);
       await load(true);
       if (deleted.length !== requested.length)
@@ -210,6 +244,23 @@ export function TasksPage({
           <span>{t("taskLead")}</span>
         </div>
         <div className="heading-actions">
+          {selectionMode && (
+            <div className="task-selection-actions">
+              <span>{t("selectedCount", { count: selected.size })}</span>
+              <button
+                className="danger-outline"
+                onClick={() => setDeleteOpen(true)}
+                disabled={!selected.size}
+              >
+                <Trash2 size={14} />
+                {t("confirmDelete")}
+              </button>
+              <button className="secondary-button" onClick={finishSelection}>
+                <X size={14} />
+                {t("finishSelection")}
+              </button>
+            </div>
+          )}
           <label className="auto-toggle" title={t("autoRefresh")}>
             <input
               type="checkbox"
@@ -250,15 +301,17 @@ export function TasksPage({
           <table>
             <thead>
               <tr>
-                <th className="select-column">
-                  <input
-                    type="checkbox"
-                    aria-label={t("selectAll")}
-                    checked={allVisibleSelected}
-                    disabled={!selectableIds.length}
-                    onChange={toggleAllVisible}
-                  />
-                </th>
+                {selectionMode && (
+                  <th className="select-column">
+                    <input
+                      type="checkbox"
+                      aria-label={t("selectAll")}
+                      checked={allVisibleSelected}
+                      disabled={!selectableIds.length}
+                      onChange={toggleAllVisible}
+                    />
+                  </th>
+                )}
                 <th className="task-filter-column">
                   <div className="table-search-head">
                     <span>{t("taskId")}</span>
@@ -333,19 +386,6 @@ export function TasksPage({
                 <th className="progress-column">{t("progress")}</th>
                 <th className="started-column">{t("started")}</th>
                 <th className="duration-column">{t("duration")}</th>
-                <th className="action-column">
-                  {selected.size > 0 ? (
-                    <button
-                      className="danger-outline bulk-delete"
-                      onClick={() => setDeleteOpen(true)}
-                    >
-                      <Trash2 size={14} />
-                      {selected.size}
-                    </button>
-                  ) : (
-                    t("action")
-                  )}
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -353,11 +393,24 @@ export function TasksPage({
                 <TaskRow
                   key={task.task_id}
                   task={task}
+                  selectionMode={selectionMode}
                   selected={selected.has(task.task_id)}
                   onSelect={() => toggleTask(task.task_id)}
                   onOpen={() => onOpenTask(task.task_id)}
-                  onOpenGraph={() => onOpenGraph(task.task_id)}
-                  onCancel={() => setCancelTarget(task)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    setContextMenu({
+                      task,
+                      x: Math.max(
+                        6,
+                        Math.min(event.clientX, window.innerWidth - 224),
+                      ),
+                      y: Math.max(
+                        6,
+                        Math.min(event.clientY, window.innerHeight - 240),
+                      ),
+                    });
+                  }}
                 />
               ))}
             </tbody>
@@ -382,6 +435,51 @@ export function TasksPage({
           )}
         </div>
       </div>
+      {contextMenu && (
+        <div
+          className="workspace-context-menu task-context-menu"
+          role="menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <header>
+            <span>{contextMenu.task.task_id}</span>
+            <small>{t(`types.${contextMenu.task.task_type}`)}</small>
+          </header>
+          <button
+            role="menuitem"
+            onClick={() => {
+              onOpenTask(contextMenu.task.task_id);
+              setContextMenu(null);
+            }}
+          >
+            <Search />
+            {t("details")}
+          </button>
+          {!ACTIVE.has(contextMenu.task.state) && (
+            <button
+              role="menuitem"
+              onClick={() => beginSelection(contextMenu.task)}
+            >
+              <CheckSquare2 />
+              {t("enableMultiSelect")}
+            </button>
+          )}
+          {ACTIVE.has(contextMenu.task.state) && (
+            <button
+              className="danger"
+              role="menuitem"
+              onClick={() => {
+                setCancelTarget(contextMenu.task);
+                setContextMenu(null);
+              }}
+            >
+              <Ban />
+              {t("cancel")}
+            </button>
+          )}
+        </div>
+      )}
       {cancelTarget && (
         <div
           className="modal-backdrop"
@@ -468,27 +566,23 @@ export function TasksPage({
 
 function taskTimestamp(task: TaskStatus) {
   const value = task.started_at || task.created_at || task.finished_at;
-  if (value) return new Date(value).getTime();
-  const compact = task.task_id.split("#")[3];
-  if (!/^\d{10}(?:\d{4})?$/.test(compact || "")) return 0;
-  const iso = `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}T${compact.slice(8, 10)}:${compact.slice(10, 12) || "00"}:${compact.slice(12, 14) || "00"}Z`;
-  return new Date(iso).getTime();
+  return value ? new Date(value).getTime() : 0;
 }
 
 function TaskRow({
   task,
+  selectionMode,
   selected,
   onSelect,
   onOpen,
-  onOpenGraph,
-  onCancel,
+  onContextMenu,
 }: {
   task: TaskStatus;
+  selectionMode: boolean;
   selected: boolean;
   onSelect: () => void;
   onOpen: () => void;
-  onOpenGraph: () => void;
-  onCancel: () => void;
+  onContextMenu: (event: React.MouseEvent<HTMLTableRowElement>) => void;
 }) {
   const { t } = useTranslation();
   const progress = taskStepProgress(task);
@@ -496,19 +590,25 @@ function TaskRow({
   const clipboard = useCopyFeedback();
   const copied = clipboard.copied === task.task_id;
   return (
-    <tr className={selected ? "selected" : ""} onClick={onOpen}>
-      <td
-        className="select-column"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <input
-          type="checkbox"
-          aria-label={t("selectTask", { taskId: task.task_id })}
-          checked={selected}
-          disabled={!selectable}
-          onChange={onSelect}
-        />
-      </td>
+    <tr
+      className={selected ? "selected" : ""}
+      onClick={selectionMode ? (selectable ? onSelect : undefined) : onOpen}
+      onContextMenu={onContextMenu}
+    >
+      {selectionMode && (
+        <td
+          className="select-column"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            aria-label={t("selectTask", { taskId: task.task_id })}
+            checked={selected}
+            disabled={!selectable}
+            onChange={onSelect}
+          />
+        </td>
+      )}
       <td className="task-id-column">
         <div className="task-identity">
           <span className={`task-orb ${task.state}`}>
@@ -576,34 +676,6 @@ function TaskRow({
         {formatDate(task.started_at || task.created_at)}
       </td>
       <td className="duration-column">{formatDuration(task, t)}</td>
-      <td className="action-column">
-        <div className="row-actions">
-          <button
-            className="task-graph-action"
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenGraph();
-            }}
-            aria-label={t("tasks.locateRelationshipsWithId", {
-              taskId: task.task_id,
-            })}
-            title={t("tasks.locateRelationships")}
-          >
-            <GitBranch />
-          </button>
-          {ACTIVE.has(task.state) && (
-            <button
-              className="text-danger"
-              onClick={(event) => {
-                event.stopPropagation();
-                onCancel();
-              }}
-            >
-              {t("cancel")}
-            </button>
-          )}
-        </div>
-      </td>
     </tr>
   );
 }

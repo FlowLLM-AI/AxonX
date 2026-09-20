@@ -92,7 +92,6 @@ async function loadTasks(
               task_id: String(raw.task_id || entry.name),
               task_type: "backtest" as const,
               task_name: String(input.task_name || "backtest"),
-              include_time: Boolean(input.include_time),
             },
             artifacts,
             dimensions: output.dimensions as BacktestArtifact["dimensions"],

@@ -23,6 +23,7 @@ from ....constants import (
 from ....enums import TaskState
 from ....task.catalog import resolve_task
 from ....task.contracts import TaskHandle
+from ....task.core import BaseTask
 from ....task.query import (
     TaskGraph,
     stream_task,
@@ -106,33 +107,36 @@ class LocalTaskManager(BaseTaskManager):
         argv = tuple(argv)
         if not all(isinstance(value, str) for value in argv):
             raise TypeError("Task arguments must be a sequence of strings")
-        task_name, config = parse_task_argv(argv)
+        registration_name, config = parse_task_argv(argv)
         run_id = uuid4().hex
-        task = resolve_task(task_name)(
-            config,
-            workspace_path=self.workspace_path,
-            reg_name=task_name,
-            timezone=self.app_config.timezone,
-            run_id=run_id,
-        )
-        directory = task_path(self.workspace_path, task.task_id)
-        if directory.parent.is_symlink():
-            raise ValueError(
-                f"Task type directory cannot be a symlink: {directory.parent}"
+        task_type = resolve_task(registration_name)
+        for _ in range(100):
+            task = task_type(
+                config,
+                workspace_path=self.workspace_path,
+                reg_name=registration_name,
+                timezone=self.app_config.timezone,
+                run_id=run_id,
             )
-        directory.mkdir(parents=True, exist_ok=False)
-        status = TaskStatus(
-            task_id=task.task_id,
-            run_id=run_id,
-            task_type=task.task_type,
-            task_name=task_name,
-            config=task.input_params.model_dump(mode="json"),
-            state=TaskState.QUEUED,
-            created_at=task.created_at,
-        )
-        await self.repository.put_status(status)
+            async with self._lock:
+                if not await self._reserve(task, not task.is_generated_name):
+                    continue
+                status = TaskStatus(
+                    task_id=task.task_id,
+                    run_id=run_id,
+                    task_type=task.task_type,
+                    task_name=registration_name,
+                    config=task.input_params.model_dump(mode="json"),
+                    state=TaskState.QUEUED,
+                    created_at=task.created_at,
+                )
+                await self.repository.put_status(status)
+            break
+        else:
+            raise RuntimeError("Could not allocate a unique Task name")
+
         worker_argv = build_task_argv(
-            task_name,
+            registration_name,
             task.input_params.model_dump(mode="json"),
         )
         handed_over = {
@@ -148,7 +152,7 @@ class LocalTaskManager(BaseTaskManager):
                 worker_argv,
                 {**self.app_config.environment, **handed_over},
                 task.task_id,
-                task_name,
+                registration_name,
                 run_id,
             )
         except BaseException as exc:
@@ -156,7 +160,39 @@ class LocalTaskManager(BaseTaskManager):
                 status, TaskState.FAILED, 1, f"Worker could not start: {exc}"
             )
             raise
-        return TaskHandle(task.task_id, run_id, task_name)
+        return TaskHandle(task.task_id, run_id, registration_name)
+
+    async def _reserve(self, task: BaseTask, replace: bool) -> bool:
+        """Claim a Task directory, replacing only a completed named Task."""
+        directory = task_path(self.workspace_path, task.task_id)
+        if directory.parent.is_symlink():
+            raise ValueError(
+                f"Task type directory cannot be a symlink: {directory.parent}"
+            )
+        try:
+            directory.mkdir(parents=True, exist_ok=False)
+            return True
+        except FileExistsError:
+            if not replace:
+                return False
+
+        entry = await asyncio.to_thread(read_entry, self.workspace_path, task.task_id)
+        status = entry.status if entry else None
+        if entry is None or (status is not None and not status.state.is_terminal):
+            raise FileExistsError(f"Active Task already exists: {task.task_id}")
+
+        log_path = self._logs.path(status)
+        if not await self.repository.delete_terminal(task.task_id):
+            raise FileExistsError(f"Task cannot be replaced: {task.task_id}")
+        directory.mkdir(parents=True, exist_ok=False)
+
+        remaining = await self.repository.statuses()
+        if (
+            self._logs.is_task_log(log_path)
+            and all(self._logs.path(item) != log_path for item in remaining.values())
+        ):
+            await asyncio.to_thread(log_path.unlink, missing_ok=True)
+        return True
 
     async def list_statuses(self) -> list[TaskStatus]:
         statuses = [

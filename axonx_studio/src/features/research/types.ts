@@ -70,7 +70,6 @@ export interface ResearchArtifact {
     task_id: string;
     task_type: ResearchKind;
     task_name: string;
-    include_time: boolean;
     input_dir?: string;
   };
   artifacts: Record<string, ArtifactFile>;

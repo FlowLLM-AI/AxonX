@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import shutil
 from collections.abc import Callable
 from datetime import UTC, datetime
 from time import perf_counter
@@ -102,13 +103,24 @@ class TaskRunner:
             raise ValueError(
                 f"Task type directory cannot be a symlink: {task.task_dir.parent}"
             )
+        if task.task_dir.is_symlink():
+            raise ValueError(f"Task directory cannot be a symlink: {task.task_dir}")
         if task.task_dir.exists():
             queued = read_status(task.task_dir, task.task_id)
-            if (
-                queued is None
-                or queued.state != TaskState.QUEUED
-                or queued.run_id != task.context.run_id
-            ):
+            handed_over = (
+                queued is not None
+                and queued.state == TaskState.QUEUED
+                and queued.run_id == task.context.run_id
+            )
+            replaceable = (
+                not task.is_generated_name
+                and queued is not None
+                and queued.state.is_terminal
+            )
+            if replaceable:
+                shutil.rmtree(task.task_dir)
+                task.task_dir.mkdir(parents=True)
+            elif not handed_over:
                 raise FileExistsError(f"Task directory already exists: {task.task_dir}")
         else:
             task.task_dir.mkdir(parents=True)

@@ -1288,9 +1288,6 @@
   .hero-copy h1 {
     font-size: 46px;
   }
-  .task-detail-layout {
-    grid-template-columns: minmax(350px, 0.8fr) minmax(460px, 1.2fr);
-  }
 }
 @media (max-width: 980px) {
   .overview-hero {
@@ -1303,23 +1300,8 @@
     max-width: 650px;
   }
   .plugin-grid,
-  .job-grid,
-  .task-detail-layout {
+  .job-grid {
     grid-template-columns: 1fr;
-  }
-  .task-detail-layout {
-    height: auto;
-    min-height: 0;
-  }
-  .task-detail-summary {
-    max-height: none;
-    overflow: visible;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .task-detail-layout .log-panel {
-    height: 520px;
-    min-height: 520px;
   }
   .log-panel {
     position: static;
@@ -1507,30 +1489,6 @@
   }
   .task-detail-heading {
     grid-template-columns: 1fr;
-  }
-  .task-detail-heading .heading-actions {
-    justify-content: flex-start;
-  }
-  .task-detail-summary {
-    padding: 0;
-  }
-  .task-config-section,
-  .task-run-section {
-    padding: 16px;
-  }
-  .task-run-meta {
-    grid-template-columns: 1fr 1fr;
-  }
-  .task-run-meta > div:nth-child(2) {
-    border-right: 0;
-  }
-  .task-run-meta > div:last-child {
-    grid-column: 1/-1;
-    border-top: 1px solid var(--line);
-  }
-  .log-panel > header {
-    align-items: flex-start;
-    flex-direction: column;
   }
   .log-meta {
     align-items: flex-start;

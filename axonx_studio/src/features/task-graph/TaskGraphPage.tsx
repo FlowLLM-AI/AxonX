@@ -1,22 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlertTriangle,
-  ExternalLink,
-  GitBranch,
-  LocateFixed,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getTaskGraph } from "./api";
 import type { TaskGraph, TaskGraphNode } from "./types";
 
 const NODE_WIDTH = 216;
-const NODE_HEIGHT = 76;
+const NODE_HEIGHT = 68;
 const COLUMN_GAP = 104;
-const ROW_GAP = 34;
-const PADDING = 42;
+const ROW_GAP = 28;
+const PADDING = 32;
 
-function shortTaskId(taskId: string) {
-  return `#${taskId.split("#")[2] || taskId}`;
+function taskIdentity(node: TaskGraphNode) {
+  const [kind = node.kind, registration = node.task_name, name = node.task_id] =
+    node.task_id.split("#");
+  return {
+    scope: registration
+      ? `${kind.toUpperCase()}: ${registration}`
+      : kind.toUpperCase(),
+    name,
+  };
 }
 
 function graphLayout(graph: TaskGraph) {
@@ -67,7 +69,7 @@ function graphLayout(graph: TaskGraph) {
     ...[...columns.values()].map((items) => items.length),
   );
   const height = Math.max(
-    380,
+    300,
     PADDING * 2 + maxRows * NODE_HEIGHT + (maxRows - 1) * ROW_GAP,
   );
   const width = Math.max(
@@ -93,17 +95,18 @@ function graphLayout(graph: TaskGraph) {
 export function TaskGraphPanel({
   taskId,
   remoteIp,
+  locateRequest,
   onOpenTask,
   onConnection,
 }: {
   taskId: string;
   remoteIp?: string;
+  locateRequest: number;
   onOpenTask: (taskId: string) => void;
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [graph, setGraph] = useState<TaskGraph | null>(null);
-  const [inspectedId, setInspectedId] = useState(taskId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const viewport = useRef<HTMLDivElement>(null);
@@ -112,7 +115,6 @@ export function TaskGraphPanel({
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    setInspectedId(taskId);
     getTaskGraph(taskId, remoteIp, controller.signal)
       .then((result) => {
         setGraph(result);
@@ -132,8 +134,7 @@ export function TaskGraphPanel({
   }, [onConnection, remoteIp, taskId]);
 
   const layout = useMemo(() => (graph ? graphLayout(graph) : null), [graph]);
-  const inspected = graph?.nodes.find((node) => node.task_id === inspectedId);
-  const centerCurrent = () => {
+  const centerCurrent = useCallback(() => {
     if (!layout || !viewport.current) return;
     const point = layout.positions.get(taskId);
     if (!point) return;
@@ -148,7 +149,11 @@ export function TaskGraphPanel({
       ),
       behavior: "smooth",
     });
-  };
+  }, [layout, taskId]);
+
+  useEffect(() => {
+    if (locateRequest) centerCurrent();
+  }, [centerCurrent, locateRequest]);
 
   if (loading)
     return (
@@ -168,26 +173,8 @@ export function TaskGraphPanel({
     );
   if (!graph || !layout) return null;
 
-  const singleton = graph.nodes.length === 1;
   return (
-    <section className="task-relations-panel">
-      <header className="task-relations-toolbar">
-        <div>
-          <GitBranch />
-          <span>
-            <strong>{t("taskGraph.task_relationships")}</strong>
-            <small>
-              {singleton
-                ? t("taskGraph.no_known_upstream_or_downstream")
-                : `${graph.nodes.length} ${t("taskGraph.related_tasks")}`}
-            </small>
-          </span>
-        </div>
-        <button className="secondary-button" onClick={centerCurrent}>
-          <LocateFixed />
-          {t("taskGraph.locate_current_task")}
-        </button>
-      </header>
+    <div className="task-relations-panel">
       {graph.nodes.some((node) => node.provisional) && (
         <p className="task-relations-provisional">
           {t("taskGraph.some_tasks_use_provisional_relationships")}
@@ -219,65 +206,36 @@ export function TaskGraphPanel({
             </svg>
             {graph.nodes.map((node) => {
               const point = layout.positions.get(node.task_id)!;
+              const identity = taskIdentity(node);
               return (
                 <button
                   key={node.task_id}
-                  className={`task-relation-node ${node.kind} ${node.task_id === taskId ? "current" : ""} ${node.task_id === inspectedId ? "inspected" : ""} ${node.missing ? "missing" : ""}`}
+                  className={`task-relation-node ${node.kind} ${node.task_id === taskId ? "current" : ""} ${node.missing ? "missing" : ""}`}
                   style={{
                     left: point.x,
                     top: point.y,
                     width: NODE_WIDTH,
                     height: NODE_HEIGHT,
                   }}
-                  onClick={() => setInspectedId(node.task_id)}
-                  aria-pressed={node.task_id === inspectedId}
+                  onClick={() => !node.missing && onOpenTask(node.task_id)}
+                  disabled={node.missing}
+                  title={node.missing ? undefined : t("taskGraph.open_task")}
                 >
                   <span>
-                    <strong>{t(`taskGraph.kinds.${node.kind}`)}</strong>
+                    <strong>{identity.scope}</strong>
                     {node.state && (
                       <i className={`relation-state ${node.state}`}>
                         {t(`states.${node.state}`)}
                       </i>
                     )}
                   </span>
-                  <code title={node.task_id}>{shortTaskId(node.task_id)}</code>
-                  <small>
-                    {node.missing
-                      ? t("taskGraph.record_missing")
-                      : node.task_name ||
-                        (node.provisional ? t("taskGraph.provisional") : "")}
-                  </small>
+                  <code title={node.task_id}>{identity.name}</code>
                 </button>
               );
             })}
           </div>
         </div>
-        {inspected && (
-          <aside className="task-relation-inspector">
-            <small>
-              {inspected.task_id === taskId
-                ? t("taskGraph.current_task")
-                : t("taskGraph.selected_node")}
-            </small>
-            <h3>{t(`taskGraph.kinds.${inspected.kind}`)}</h3>
-            <code>{inspected.task_id}</code>
-            {inspected.task_name && <p>{inspected.task_name}</p>}
-            {inspected.missing ? (
-              <span className="missing-note">
-                {t("taskGraph.the_task_record_was_deleted")}
-              </span>
-            ) : (
-              <button
-                className="primary-button"
-                onClick={() => onOpenTask(inspected.task_id)}
-              >
-                <ExternalLink />
-                {t("taskGraph.open_task_overview")}
-              </button>
-            )}
-          </aside>
-        )}
       </div>
-    </section>
+    </div>
   );
 }

@@ -90,9 +90,9 @@ PROTOCOL_SSE_EVENT_PREFIX = "event: "
 PROTOCOL_SSE_DATA_PREFIX = "data: "
 
 # Canonical Task identity. One module builds an ID and another parses it, so the
-# separator, the optional timestamp format and the name pattern live here.
+# separator and name rules live here.
 TASK_ID_SEPARATOR = "#"
-TASK_ID_TIMESTAMP_FORMAT = "%Y%m%d%H%M%S%f"
+GENERATED_TASK_NAME_TIME_FORMAT = "%Y%m%d%H"
 TASK_NAME_PATTERN = r"^[A-Za-z0-9-]{1,32}$"
 
 # The largest file one upload request may stage, and the largest archive the sync

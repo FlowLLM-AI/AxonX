@@ -14,10 +14,10 @@ from axonx.task.sync import (
     plan_task,
 )
 
-TASK_ID = "etl#demo#run#1234567890"
+TASK_ID = "etl#demo#run1234567890"
 TASK_DIRECTORY = f"etl/{TASK_ID}"
 STATUS = (
-    b'{"task_id":"etl#demo#run#1234567890","run_id":"remote",'
+    b'{"task_id":"etl#demo#run1234567890","run_id":"remote",'
     b'"task_type":"etl","state":"succeeded","exit_code":0}'
 )
 
