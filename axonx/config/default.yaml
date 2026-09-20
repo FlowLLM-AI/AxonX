@@ -1,9 +1,9 @@
 # =========== Remote nodes ===========
-# remote_nodes: []
-remote_nodes:
-  - host_ip: ${AXONX_REMOTE_HOST_IP}
-    host_port: 1024
-    token: ${AXONX_REMOTE_TOKEN:-null}
+remote_nodes: []
+#remote_nodes:
+#  - host_ip: ${AXONX_REMOTE_HOST_IP}
+#    host_port: 1024
+#    token: ${AXONX_REMOTE_TOKEN:-null}
 
 plugins:
   sources: []
