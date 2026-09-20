@@ -211,9 +211,11 @@ export function BacktestChart({
     });
     if (dualAxis && showZoom) {
       chart.on("datazoom", () => {
-        const state = (chart.getOption() as {
-          dataZoom?: { start?: number; end?: number }[];
-        }).dataZoom?.[0];
+        const state = (
+          chart.getOption() as {
+            dataZoom?: { start?: number; end?: number }[];
+          }
+        ).dataZoom?.[0];
         const next = axisRanges(state?.start ?? 0, state?.end ?? 100);
         chart.setOption({ yAxis: next }, { lazyUpdate: true });
       });

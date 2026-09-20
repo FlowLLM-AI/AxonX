@@ -1,5 +1,5 @@
 import { previewWorkspaceFile } from "../../workspace/api";
-import type { WorkspacePreview } from "../../../types";
+import type { WorkspacePreview } from "../../workspace/types";
 import type {
   BacktestArtifact,
   DailyRow,
@@ -19,6 +19,28 @@ const rowsOf = <T extends NumericRow>(preview: WorkspacePreview): T[] => {
   );
 };
 
+const loadParquetRows = async <T extends NumericRow>(
+  path: string,
+  remoteIp?: string,
+  signal?: AbortSignal,
+): Promise<T[]> => {
+  const pageSize = 5000;
+  const rows: T[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const preview = await previewWorkspaceFile(
+      path,
+      offset,
+      pageSize,
+      remoteIp,
+      signal,
+    );
+    if (preview.kind !== "parquet")
+      throw new Error("回测产物必须是 Parquet 文件");
+    rows.push(...rowsOf<T>(preview));
+    if (!preview.has_more) return rows;
+  }
+};
+
 export async function loadBacktest(
   meta: BacktestArtifact,
   remoteIp?: string,
@@ -29,26 +51,12 @@ export async function loadBacktest(
   if (!daily || !summary)
     throw new Error("回测 metadata 缺少 daily 或 summary 产物");
   const [dailyPreview, summaryPreview] = await Promise.all([
-    previewWorkspaceFile(
-      `${meta._path}/${daily}`,
-      0,
-      200,
-      remoteIp,
-      true,
-      signal,
-    ),
-    previewWorkspaceFile(
-      `${meta._path}/${summary}`,
-      0,
-      200,
-      remoteIp,
-      true,
-      signal,
-    ),
+    loadParquetRows<DailyRow>(`${meta._path}/${daily}`, remoteIp, signal),
+    loadParquetRows<SummaryRow>(`${meta._path}/${summary}`, remoteIp, signal),
   ]);
   return {
-    daily: rowsOf<DailyRow>(dailyPreview),
-    summary: rowsOf<SummaryRow>(summaryPreview),
+    daily: dailyPreview,
+    summary: summaryPreview,
   };
 }
 
@@ -59,13 +67,5 @@ export async function loadBacktestDaily(
 ) {
   const daily = meta.artifacts?.daily?.path;
   if (!daily) throw new Error("回测 metadata 缺少 daily 产物");
-  const preview = await previewWorkspaceFile(
-    `${meta._path}/${daily}`,
-    0,
-    200,
-    remoteIp,
-    true,
-    signal,
-  );
-  return rowsOf<DailyRow>(preview);
+  return loadParquetRows<DailyRow>(`${meta._path}/${daily}`, remoteIp, signal);
 }

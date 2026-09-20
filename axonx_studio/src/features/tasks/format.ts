@@ -1,5 +1,6 @@
 import { formatDateTime } from "../../shared/lib/format";
-import type { Language, TaskStatus } from "../../types";
+import type { Language } from "../../app/types";
+import type { TaskStatus } from "./types";
 
 export interface TaskStepProgress {
   current: number;

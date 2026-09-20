@@ -9,13 +9,13 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { formatBytes } from "../../shared/lib/format";
-import type { Language, WorkspacePreview } from "../../types";
+import type { Language } from "../../app/types";
+import type { WorkspacePreview } from "./types";
 
 const copy = {
   zh: {
     unsupported: "暂不支持预览此文件",
     parquet: "Parquet 数据预览",
-    sample: "前 5 行",
     rowCount: "总行数",
     rowGroups: "Row Groups",
     fields: "字段数",
@@ -32,7 +32,6 @@ const copy = {
   en: {
     unsupported: "Preview is not supported for this file",
     parquet: "Parquet data preview",
-    sample: "First 5 rows",
     rowCount: "Rows",
     rowGroups: "Row groups",
     fields: "Fields",
@@ -58,7 +57,9 @@ export function FilePreview({
   onPage: (offset: number) => void;
 }) {
   const text = copy[language];
-  if (preview.kind === "parquet")
+  if (preview.kind === "parquet") {
+    const offset = preview.offset || 0;
+    const limit = preview.limit || 200;
     return (
       <div className="workspace-parquet">
         <div className="parquet-summary">
@@ -69,7 +70,7 @@ export function FilePreview({
           <article>
             <small>{text.fields}</small>
             <strong>
-              {preview.schema?.length ?? preview.columns?.length ?? 0}
+              {preview.column_schema?.length ?? preview.columns?.length ?? 0}
             </strong>
           </article>
           <article>
@@ -87,7 +88,7 @@ export function FilePreview({
             <strong>{text.schema}</strong>
           </header>
           <div>
-            {(preview.schema || []).map((field) => (
+            {(preview.column_schema || []).map((field) => (
               <span key={field.name}>
                 <code>{field.name}</code>
                 <small>{field.type}</small>
@@ -100,15 +101,36 @@ export function FilePreview({
           <header>
             <FileSpreadsheet />
             <strong>{text.parquet}</strong>
-            <small>{text.sample}</small>
+            <small>
+              {preview.rows?.length
+                ? `${offset + 1}–${offset + preview.rows.length}`
+                : "0"}{" "}
+              {text.rows}
+            </small>
           </header>
           <DataTable
             columns={preview.columns || []}
             rows={preview.rows || []}
+            offset={offset}
           />
+          <footer>
+            <button
+              disabled={offset === 0}
+              onClick={() => onPage(Math.max(0, offset - limit))}
+            >
+              {text.previous}
+            </button>
+            <button
+              disabled={!preview.has_more}
+              onClick={() => onPage(offset + limit)}
+            >
+              {text.next}
+            </button>
+          </footer>
         </section>
       </div>
     );
+  }
   if (preview.kind === "unsupported")
     return (
       <div className="workspace-preview-message">

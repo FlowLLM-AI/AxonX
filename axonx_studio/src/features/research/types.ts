@@ -5,7 +5,7 @@ export type ResearchPageId =
 
 export interface ArtifactFile {
   path: string;
-  bytes: number;
+  size: number;
   sha256: string;
 }
 

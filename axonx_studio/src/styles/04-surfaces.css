@@ -1,0 +1,471 @@
+/* Plugin, definition, and roadmap surfaces. */
+.plugin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+.plugin-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.plugin-card > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 19px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(
+    105deg,
+    color-mix(in srgb, var(--accent) 6%, var(--surface)),
+    var(--surface)
+  );
+}
+.plugin-card > header > span {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  color: #fff;
+  background: linear-gradient(145deg, #0d987b, #3265cf);
+}
+.plugin-card > header svg {
+  width: 20px;
+}
+.plugin-card > header small {
+  color: var(--accent);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+.plugin-card h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+.plugin-card > header em {
+  padding: 5px 8px;
+  border-radius: 7px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-style: normal;
+}
+.plugin-contributions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.plugin-contributions > section {
+  min-width: 0;
+  min-height: 130px;
+  padding: 16px;
+  border-right: 1px solid var(--line);
+}
+.plugin-contributions > section:last-child {
+  border-right: 0;
+}
+.plugin-contributions section > header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--faint);
+  font-size: 9px;
+  letter-spacing: 0.07em;
+}
+.plugin-contributions section > header svg {
+  width: 14px;
+  color: var(--accent);
+}
+.plugin-contributions section > header b {
+  margin-left: auto;
+}
+.plugin-contributions section > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 13px;
+}
+.plugin-contributions code {
+  max-width: 100%;
+  padding: 4px 6px;
+  overflow: hidden;
+  border-radius: 5px;
+  color: var(--muted);
+  background: var(--surface-3);
+  font-size: 9px;
+  text-overflow: ellipsis;
+}
+.plugin-card > footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 18px;
+  border-top: 1px solid var(--line);
+  color: var(--faint);
+  background: var(--surface-2);
+  font-size: 10px;
+}
+.plugin-card > footer span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+}
+.plugin-card > footer svg {
+  width: 13px;
+}
+.empty-surface {
+  grid-column: 1/-1;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  color: var(--muted);
+  background: var(--surface);
+  text-align: center;
+}
+.empty-surface > svg {
+  width: 38px;
+  color: var(--faint);
+}
+.empty-surface h2 {
+  margin: 14px 0 5px;
+  color: var(--ink);
+}
+.empty-surface p {
+  margin: 0;
+}
+.catalog-filter {
+  width: min(520px, 100%);
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 17px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.catalog-filter svg {
+  width: 17px;
+  color: var(--faint);
+}
+.catalog-filter input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+}
+.definition-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+}
+.definition-grid > article {
+  min-height: 235px;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: 0 6px 20px rgba(20, 48, 38, 0.035);
+}
+.definition-grid article > header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.definition-grid article > header small {
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.definition-grid h2 {
+  margin: 3px 0 0;
+  font-size: 16px;
+}
+.definition-grid article > p {
+  display: -webkit-box;
+  margin: 17px 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+.definition-grid article > footer {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+.definition-grid article > footer span {
+  padding: 5px 7px;
+  border-radius: 6px;
+  color: var(--faint);
+  background: var(--surface-3);
+  font-size: 9px;
+}
+.catalog-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 17px;
+}
+.catalog-toolbar .catalog-filter {
+  margin-bottom: 0;
+}
+.catalog-toolbar > span {
+  color: var(--faint);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+}
+.job-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+.job-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(20, 48, 38, 0.045);
+  overflow: hidden;
+}
+.job-card > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 17px 18px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--accent-2) 5%, var(--surface)),
+    var(--surface)
+  );
+}
+.job-card > header > span {
+  width: 39px;
+  height: 39px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+}
+.job-card > header svg {
+  width: 18px;
+}
+.job-card > header small {
+  color: var(--faint);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+.job-card h2 {
+  margin: 3px 0 0;
+  overflow: hidden;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.job-card > header em {
+  padding: 4px 7px;
+  border-radius: 6px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+}
+.job-card > p {
+  min-height: 58px;
+  margin: 0;
+  padding: 16px 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.job-card > section {
+  margin: 0 18px 16px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+.job-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+}
+.job-fields {
+  display: grid;
+  gap: 5px;
+}
+.job-fields > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 29px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: var(--surface);
+}
+.job-fields code {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.job-fields span {
+  color: var(--faint);
+  font-size: 9px;
+}
+.job-fields i {
+  color: var(--warning);
+  font-size: 8px;
+  font-style: normal;
+}
+.job-card > details {
+  margin: auto 18px 16px;
+}
+.job-card > details summary {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.job-card > details pre {
+  max-height: 230px;
+  margin: 10px 0 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--surface-2);
+  font-size: 9px;
+  line-height: 1.55;
+}
+.job-card > footer {
+  padding: 10px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.job-card > footer code {
+  color: var(--faint);
+  font-size: 9px;
+}
+.planned-page {
+  min-height: calc(100vh - 64px);
+  display: grid;
+  place-items: center;
+}
+.planned-card {
+  width: min(620px, 100%);
+  padding: 52px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background:
+    radial-gradient(
+      circle at 50% 0,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      transparent 50%
+    ),
+    var(--surface);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.planned-icon {
+  width: 70px;
+  height: 70px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 22px;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
+  border-radius: 21px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.planned-icon svg {
+  width: 30px;
+}
+.development-badge {
+  display: inline-block;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: var(--warning);
+  background: var(--warning-soft);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.development-badge.partial {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.planned-card h1 {
+  margin: 13px 0 9px;
+  font-size: 34px;
+  letter-spacing: -0.04em;
+}
+.planned-card > p {
+  max-width: 470px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.planned-card > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+.planned-card > a svg {
+  width: 15px;
+}
+.planned-rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 34px;
+  color: var(--faint);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+}
+.planned-rule i {
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}

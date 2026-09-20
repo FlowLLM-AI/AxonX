@@ -1,4 +1,4 @@
-import type { JsonSchema } from "../../types";
+import type { JsonSchema } from "./types";
 
 export type SchemaFieldValue = string | boolean;
 export type SchemaFormValues = Record<string, SchemaFieldValue>;

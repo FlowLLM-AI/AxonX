@@ -1,5 +1,5 @@
-import { API_URL, callJob, remoteBody } from "../../shared/api/client";
-import type { MachineInfo, MachineNode } from "../../types";
+import { axonx } from "../../shared/api/client";
+import type { MachineInfo, MachineNode } from "./types";
 
 interface RemoteMachineStatus {
   address: string;
@@ -13,18 +13,18 @@ export function machineHost(address: string): string {
 }
 
 export const machineStatus = (remoteIp?: string, signal?: AbortSignal) =>
-  callJob<MachineInfo>("machine_status", remoteBody(remoteIp), signal);
+  axonx.invoke<MachineInfo>("machine_status", {}, { remoteIp, signal });
 
 export async function listMachineOptions(
   signal?: AbortSignal,
 ): Promise<MachineNode[]> {
-  const remotes = await callJob<RemoteMachineStatus[]>(
+  const remotes = await axonx.invoke<RemoteMachineStatus[]>(
     "list_machines",
     {},
-    signal,
+    { signal },
   );
   const localAddress =
-    new URL(API_URL || window.location.href, window.location.href).host ||
+    new URL(axonx.baseUrl || window.location.href, window.location.href).host ||
     "localhost";
   return [
     { id: "local", address: localAddress, isLocal: true, healthy: true },

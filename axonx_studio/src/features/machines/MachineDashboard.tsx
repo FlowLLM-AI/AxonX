@@ -1,7 +1,8 @@
 import { Cpu, Gauge, HardDrive, MemoryStick, Microchip } from "lucide-react";
 import { t } from "../../i18n";
 import { formatBytes } from "../../shared/lib/format";
-import type { GpuInfo, Language, MachineNode } from "../../types";
+import type { Language } from "../../app/types";
+import type { GpuInfo, MachineNode } from "./types";
 
 export function MachineDashboard({
   node,
@@ -13,6 +14,10 @@ export function MachineDashboard({
   const text = t(language);
   const info = node.info;
   if (!info) return null;
+  const estimatedUsedCores =
+    info.cpu.total_cores == null
+      ? null
+      : Math.round(info.cpu.total_cores * info.cpu.usage_percent) / 100;
 
   return (
     <>
@@ -30,7 +35,7 @@ export function MachineDashboard({
             value={info.cpu.usage_percent}
             tone="cpu"
             icon={<Cpu />}
-            detail={`${info.cpu.used_cores} / ${info.cpu.total_cores} ${text.coresUsed}`}
+            detail={`${estimatedUsedCores ?? "—"} / ${info.cpu.total_cores ?? "—"} ${text.coresUsed}`}
           />
           <ResourceGauge
             label={text.memoryUsage}
@@ -49,21 +54,21 @@ export function MachineDashboard({
             </header>
             <CapacityRow
               label={text.totalCores}
-              value={`${info.cpu.total_cores}`}
-              percent={100}
+              value={`${info.cpu.total_cores ?? "—"}`}
+              percent={info.cpu.total_cores == null ? 0 : 100}
             />
             <CapacityRow
               label={text.physicalCores}
               value={`${info.cpu.physical_cores ?? "—"}`}
               percent={
-                info.cpu.physical_cores
+                info.cpu.physical_cores && info.cpu.total_cores
                   ? (info.cpu.physical_cores / info.cpu.total_cores) * 100
                   : 0
               }
             />
             <CapacityRow
               label={text.coresUsed}
-              value={`${info.cpu.used_cores}`}
+              value={`${estimatedUsedCores ?? "—"}`}
               percent={info.cpu.usage_percent}
             />
           </article>
@@ -99,9 +104,9 @@ export function MachineDashboard({
             <Microchip />
             <span>{text.gpuResources}</span>
           </div>
-          <small>{info.gpus?.length || 0} DEVICES</small>
+          <small>{info.gpus.length} DEVICES</small>
         </div>
-        {info.gpus?.length ? (
+        {info.gpus.length ? (
           <div className="gpu-grid">
             {info.gpus.map((gpu) => (
               <GpuCard

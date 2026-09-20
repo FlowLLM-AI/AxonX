@@ -1,36 +1,43 @@
-import { callJob, remoteBody } from "../../shared/api/client";
-import type { WorkspaceDirectory, WorkspacePreview } from "../../types";
+import { axonx } from "../../shared/api/client";
+import type { WorkspaceDirectory, WorkspacePreview } from "./types";
 
 export const listWorkspaceEntries = (
   path = "",
   remoteIp?: string,
   signal?: AbortSignal,
-  requireMetadata = false,
 ) =>
-  callJob<WorkspaceDirectory>(
+  axonx.invoke<WorkspaceDirectory>(
     "list_entries",
-    {
-      path,
-      ...(requireMetadata ? { require_metadata: true } : {}),
-      ...remoteBody(remoteIp),
-    },
-    signal,
+    { path },
+    { remoteIp, signal },
   );
+
+export const listTaskRuns = (
+  taskType: string,
+  remoteIp?: string,
+  signal?: AbortSignal,
+) =>
+  axonx.invoke<WorkspaceDirectory>(
+    "list_task_runs",
+    { task_type: taskType },
+    { remoteIp, signal },
+  );
+
 export const previewWorkspaceFile = (
   path: string,
   offset = 0,
   limit = 200,
   remoteIp?: string,
-  full = false,
   signal?: AbortSignal,
 ) =>
-  callJob<WorkspacePreview>(
+  axonx.invoke<WorkspacePreview>(
     "preview_file",
-    { path, offset, limit, full, ...remoteBody(remoteIp) },
-    signal,
+    { path, offset, limit },
+    { remoteIp, signal },
   );
 export const deleteWorkspaceEntries = (paths: string[], remoteIp?: string) =>
-  callJob<{ deleted: string; kind: "file" | "directory" }[]>(
+  axonx.invoke<{ deleted: string; kind: "file" | "directory" }[]>(
     "delete_entries",
-    { paths, ...remoteBody(remoteIp) },
+    { paths },
+    { remoteIp },
   );

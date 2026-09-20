@@ -23,13 +23,12 @@ import {
 } from "lucide-react";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import { formatBytes } from "../../shared/lib/format";
+import type { ContextOption, Language } from "../../app/types";
 import type {
-  ContextOption,
-  Language,
   WorkspaceDirectory,
   WorkspaceEntry,
   WorkspacePreview,
-} from "../../types";
+} from "./types";
 import { listWorkspaceEntries, previewWorkspaceFile } from "./api";
 
 const FilePreview = lazy(() =>

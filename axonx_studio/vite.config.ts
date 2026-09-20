@@ -8,7 +8,13 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       port: 4173,
-      proxy: { "/health": backend, "/jobs": backend },
+      proxy: {
+        "/health": backend,
+        "/jobs": backend,
+        "/files": backend,
+        "/mcp": backend,
+        "/proxy": backend,
+      },
     },
   };
 });

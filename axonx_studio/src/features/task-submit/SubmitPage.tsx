@@ -21,7 +21,8 @@ import {
 } from "../../shared/schema/values";
 import type { SchemaFormValues } from "../../shared/schema/values";
 import { SchemaField } from "../../shared/ui/SchemaForm/SchemaField";
-import type { ContextOption, Language, TaskDefinition } from "../../types";
+import type { ContextOption, Language } from "../../app/types";
+import type { TaskDefinition } from "../tasks/types";
 
 export function SubmitPage({
   language,
@@ -207,8 +208,7 @@ export function SubmitPage({
               const expanded =
                 (group.id === "native"
                   ? !collapsedGroups.has(group.id)
-                  : collapsedGroups.has(group.id)) ||
-                Boolean(search.trim());
+                  : collapsedGroups.has(group.id)) || Boolean(search.trim());
               const itemsId = `task-group-${group.id}`;
               return (
                 <section
@@ -304,10 +304,7 @@ export function SubmitPage({
                     <span>{text.configure}</span>
                   </div>
                   <small>
-                    {
-                      Object.keys(selected.input_schema.properties || {})
-                        .length
-                    }{" "}
+                    {Object.keys(selected.input_schema.properties || {}).length}{" "}
                     fields
                   </small>
                 </div>
@@ -335,16 +332,19 @@ export function SubmitPage({
                   )}
                 </div>
               </section>
-              {!!Object.keys(selected.output_schema.properties || {}).length && (
+              {!!Object.keys(selected.output_schema.properties || {})
+                .length && (
                 <div className="output-preview">
                   <span>
                     <Braces />
                     {text.output}
                   </span>
                   <div>
-                    {Object.keys(selected.output_schema.properties || {}).map((key) => (
-                      <code key={key}>{key}</code>
-                    ))}
+                    {Object.keys(selected.output_schema.properties || {}).map(
+                      (key) => (
+                        <code key={key}>{key}</code>
+                      ),
+                    )}
                   </div>
                 </div>
               )}

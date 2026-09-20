@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { listMachineOptions, machineHost } from "../../features/machines/api";
-import type { MachineNode } from "../../types";
+import type { MachineNode } from "../../features/machines/types";
 
 const fallbackMachine: MachineNode = {
   id: "local",

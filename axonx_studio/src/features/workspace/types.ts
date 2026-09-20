@@ -18,23 +18,61 @@ export interface WorkspaceDirectory {
   truncated: boolean;
 }
 
-export interface WorkspacePreview {
-  kind: WorkspacePreviewKind;
+interface PreviewBase {
   size: number;
-  content?: string;
-  data?: unknown;
-  truncated?: boolean;
-  frontmatter?: unknown;
-  frontmatter_error?: string | null;
-  parse_error?: string | null;
-  columns?: string[];
-  rows?: unknown[][];
-  schema?: { name: string; type: string; nullable: boolean }[];
-  row_count?: number;
-  row_group_count?: number;
-  preview_limit?: number;
-  full?: boolean;
-  offset?: number;
-  limit?: number;
-  has_more?: boolean;
 }
+
+export interface UnsupportedPreview extends PreviewBase {
+  kind: "unsupported";
+}
+
+export interface TextPreview extends PreviewBase {
+  kind: "text";
+  content: string;
+  truncated: boolean;
+}
+
+export interface MarkdownPreview extends PreviewBase {
+  kind: "markdown";
+  content: string;
+  frontmatter: unknown;
+  frontmatter_error: string | null;
+  truncated: boolean;
+}
+
+export interface StructuredPreview extends PreviewBase {
+  kind: "json" | "yaml";
+  content: string;
+  data: unknown;
+  parse_error: string | null;
+  truncated: boolean;
+}
+
+export interface CsvPreview extends PreviewBase {
+  kind: "csv";
+  columns: string[];
+  rows: unknown[][];
+  offset: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface ParquetPreview extends PreviewBase {
+  kind: "parquet";
+  columns: string[];
+  rows: unknown[][];
+  column_schema: { name: string; type: string; nullable: boolean }[];
+  row_count: number;
+  row_group_count: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export type WorkspacePreview =
+  | UnsupportedPreview
+  | TextPreview
+  | MarkdownPreview
+  | StructuredPreview
+  | CsvPreview
+  | ParquetPreview;

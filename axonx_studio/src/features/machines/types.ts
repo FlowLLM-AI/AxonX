@@ -1,8 +1,7 @@
 export interface CpuInfo {
-  total_cores: number;
+  total_cores: number | null;
   physical_cores: number | null;
   usage_percent: number;
-  used_cores: number;
 }
 
 export interface MemoryInfo {
@@ -13,7 +12,7 @@ export interface MemoryInfo {
 }
 
 export interface GpuInfo {
-  vendor: string;
+  vendor: "nvidia" | "amd";
   index: number;
   uuid: string | null;
   name: string | null;
@@ -32,7 +31,7 @@ export interface MachineInfo {
   };
   cpu: CpuInfo;
   memory: MemoryInfo;
-  gpus: GpuInfo[] | null;
+  gpus: GpuInfo[];
 }
 
 export interface MachineNode {

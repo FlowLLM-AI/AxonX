@@ -12,6 +12,7 @@ export interface TaskStepStatus {
 
 export interface TaskStatus {
   task_id: string;
+  run_id: string;
   task_type: string;
   task_name: string;
   config: Record<string, unknown>;
@@ -35,6 +36,7 @@ export interface TaskLogChunk {
   has_more_before: boolean;
   has_more_after: boolean;
   reset: boolean;
+  channel?: string;
 }
 
 export interface TaskDefinition {
@@ -45,4 +47,10 @@ export interface TaskDefinition {
   description: string;
   input_schema: JsonSchema;
   output_schema: JsonSchema;
+}
+
+export interface TaskHandle {
+  task_id: string;
+  run_id: string;
+  task: string;
 }
