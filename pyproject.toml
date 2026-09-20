@@ -47,6 +47,7 @@ dependencies = [
     "starlette>=1.6.0",
     "uvicorn>=0.53.0",
     "watchfiles>=1.2.0,<2",
+    "claude-agent-sdk>=0.2.157",
 ]
 
 [project.optional-dependencies]
@@ -72,6 +73,12 @@ include = ["axonx*"]
 asyncio_mode = "auto"
 pythonpath = [".", "plugins/alpha158/src", "tests"]
 testpaths = ["tests"]
+# tests/integration needs API keys, so a bare `pytest` run must not pick it up.
+# Run it explicitly with `pytest -m integration`.
+addopts = '-m "not integration"'
+markers = [
+    "integration: needs API keys or live external services; run with `-m integration`",
+]
 
 [tool.setuptools.package-data]
 axonx = ["config/*.yaml"]

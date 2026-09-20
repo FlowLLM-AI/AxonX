@@ -1,16 +1,16 @@
 """Package-version step."""
 
-from ...components.registry import R
+from ...components.registry import provider
+from ...utils.build_info import get_build_info
 from ..base import BaseStep
 
 
-@R.register("version_step")
+@provider("version_step")
 class VersionStep(BaseStep):
     """Expose the installed AxonX version."""
 
     async def execute(self):
-        from ... import __version__
-
-        self.logger.info(f"[{self.name}] version={__version__}")
-        self.response.answer = __version__
-        self.response.metadata["version"] = __version__
+        version = get_build_info().version
+        self.logger.info(f"[{self.name}] version={version}")
+        self.response.answer = version
+        self.response.metadata["version"] = version

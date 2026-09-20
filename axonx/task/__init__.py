@@ -1,5 +1,14 @@
-"""Built-in synchronous task domains."""
+"""Task authoring, execution, persistence, and built-in capabilities."""
 
-from . import common, core, data
+from .core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
+from .storage.metadata import TaskMetadata
+from . import builtins as builtins
 
-__all__ = ["common", "core", "data"]
+__all__ = [
+    "BaseInputParams",
+    "BaseOutputParams",
+    "BaseTask",
+    "TaskMetadata",
+    "TaskStep",
+    "builtins",
+]

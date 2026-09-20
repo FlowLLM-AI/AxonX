@@ -9,13 +9,13 @@ import polars as pl
 from pydantic import Field
 
 from axonx.enums import TaskType
-from axonx.task.artifacts import read_metadata, artifact_path, artifact_record
-from axonx.task.base import TaskStep
-from axonx.task.core import (
+from axonx.task.contracts import (
     BaseAnalysisInputParams,
     BaseAnalysisOutputParams,
     BaseAnalysisTask,
 )
+from axonx.task.core import TaskStep
+from axonx.task.storage import artifact_path, artifact_record, read_metadata
 from axonx.utils.fs import atomic_write
 
 from .internal.analysis import FactorMetricsCalculator
@@ -62,7 +62,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
         source_metadata = read_metadata(source_metadata_path)
         dataset_path = artifact_path(source_dir, source_metadata, "dataset")
         output_dir = self.task_dir
-        self.context.update(
+        self.state.update(
             source_dir=source_dir,
             source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
@@ -76,10 +76,10 @@ class FactorAnalysisTask(BaseAnalysisTask):
         )
 
     def load_and_validate_dataset(self) -> None:
-        dataset_path: Path = self.context["dataset_path"]
+        dataset_path: Path = self.state["dataset_path"]
         if not dataset_path.is_file():
             raise FileNotFoundError(f"Alpha158 数据不存在: {dataset_path}")
-        metadata = self.context["source_metadata"]
+        metadata = self.state["source_metadata"]
         features = tuple(metadata.get("output_params", {}).get("feature_columns", ()))
         if not features:
             raise ValueError("ETL metadata 缺少 feature_columns")
@@ -103,7 +103,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
         self.report_progress(90)
         if not stats["rows"]:
             raise ValueError("Alpha158 数据为空")
-        self.context.update(features=features, input_stats=stats)
+        self.state.update(features=features, input_stats=stats)
         self.report_progress(95)
         self.logger.info(
             f"Factor analysis data validated rows={stats['rows']} features={len(features)} "
@@ -113,7 +113,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
     def calculate_factor_metrics(self) -> None:
         results: list[pl.DataFrame] = []
         quantile_results: list[pl.DataFrame] = []
-        features: tuple[str, ...] = self.context["features"]
+        features: tuple[str, ...] = self.state["features"]
         total = len(features)
         calculator = FactorMetricsCalculator(self.input_params.minimum_daily_samples, self.input_params.quantiles)
         for offset in range(0, total, self.input_params.feature_batch_size):
@@ -121,7 +121,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
             columns = ("trade_date", *batch, *LABELS)
             if self.input_params.tradable_only:
                 columns = (*columns, "is_buyable")
-            source = pl.scan_parquet(self.context["dataset_path"]).select(columns)
+            source = pl.scan_parquet(self.state["dataset_path"]).select(columns)
             if self.input_params.tradable_only:
                 source = source.filter("is_buyable").drop("is_buyable")
             frame = source.collect()
@@ -132,16 +132,16 @@ class FactorAnalysisTask(BaseAnalysisTask):
             percentage = completed / total * 95
             self.report_progress(percentage)
             self.logger.info(f"Factor diagnostics progress completed={completed}/{total} last_factor={batch[-1]}")
-        self.context["results"] = pl.concat(results, how="vertical")
-        self.context["quantile_results"] = pl.concat(quantile_results, how="vertical").sort(
+        self.state["results"] = pl.concat(results, how="vertical")
+        self.state["quantile_results"] = pl.concat(quantile_results, how="vertical").sort(
             "factor",
             "label",
             "quantile",
         )
 
     def rank_factors(self) -> None:
-        results: pl.DataFrame = self.context["results"]
-        self.context["results"] = results.with_columns(
+        results: pl.DataFrame = self.state["results"]
+        self.state["results"] = results.with_columns(
             (pl.col("rankic_mean").abs().rank(method="average", descending=True).over("label")).alias(
                 "rank_by_abs_rankic",
             ),
@@ -158,28 +158,28 @@ class FactorAnalysisTask(BaseAnalysisTask):
             ("quantile_results", "quantiles_path"),
         )
         for index, (key, path_key) in enumerate(outputs, start=1):
-            path: Path = self.context[path_key]
-            atomic_write(path, self.context[key].write_csv)
+            path: Path = self.state[path_key]
+            atomic_write(path, self.state[key].write_csv)
             self.report_progress(index / len(outputs) * 95)
         self.logger.info(
-            f"Factor analysis outputs written result={self.context['result_path']} "
-            f"quantiles={self.context['quantiles_path']} rows={self.context['results'].height}",
+            f"Factor analysis outputs written result={self.state['result_path']} "
+            f"quantiles={self.state['quantiles_path']} rows={self.state['results'].height}",
         )
 
     def build_output_params(self) -> FactorAnalysisOutputParams:
         output_dir: Path = self.task_dir
-        result_record = artifact_record(self.context["result_path"], output_dir)
-        quantiles_record = artifact_record(self.context["quantiles_path"], output_dir)
+        result_record = artifact_record(self.state["result_path"], output_dir)
+        quantiles_record = artifact_record(self.state["quantiles_path"], output_dir)
         scores: dict[str, dict[str, float]] = {}
-        for row in self.context["results"].iter_rows(named=True):
+        for row in self.state["results"].iter_rows(named=True):
             for metric in ("ic_mean", "rankic_mean"):
                 value = row[metric]
                 if value is not None and math.isfinite(value):
                     scores.setdefault(f"{metric}/{row['label']}", {})[row["factor"]] = float(value)
         return self.output_cls(
-            feature_count=len(self.context["features"]),
+            feature_count=len(self.state["features"]),
             labels=list(LABELS),
-            rows=self.context["results"].height,
+            rows=self.state["results"].height,
             scores=scores,
             definitions={
                 "icir": "mean daily cross-sectional Pearson IC divided by its sample standard deviation",
@@ -192,6 +192,6 @@ class FactorAnalysisTask(BaseAnalysisTask):
                 "result": result_record,
                 "quantiles": quantiles_record,
             },
-            result_file=str(self.context["result_path"]),
-            quantiles_file=str(self.context["quantiles_path"]),
+            result_file=str(self.state["result_path"]),
+            quantiles_file=str(self.state["quantiles_path"]),
         )

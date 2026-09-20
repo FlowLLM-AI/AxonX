@@ -1,6 +1,25 @@
 """Component domains."""
 
-from . import client, job, machine, plugin, proxy, service, task_manager, workspace
-from .graph import ComponentGraph
+from . import (
+    agent,
+    client,
+    job,
+    proxy,
+    scheduler,
+    service,
+    sync,
+    task_manager,
+    task_repository,
+)
 
-__all__ = ["ComponentGraph", "client", "job", "machine", "plugin", "proxy", "service", "task_manager", "workspace"]
+__all__ = [
+    "agent",
+    "client",
+    "job",
+    "proxy",
+    "scheduler",
+    "service",
+    "sync",
+    "task_manager",
+    "task_repository",
+]

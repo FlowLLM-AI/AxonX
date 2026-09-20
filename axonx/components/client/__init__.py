@@ -1,7 +1,7 @@
-"""Client component implementations for AxonX service transports."""
+"""AxonX HTTP client."""
 
-from .base import BaseClient
+from .base import BaseClient, ClientOptions, RemoteServiceError
 from .http import HttpClient
 from .mcp import McpClient
 
-__all__ = ["BaseClient", "HttpClient", "McpClient"]
+__all__ = ["BaseClient", "ClientOptions", "HttpClient", "McpClient", "RemoteServiceError"]

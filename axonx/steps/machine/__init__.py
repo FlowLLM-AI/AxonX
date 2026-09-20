@@ -1,6 +1,5 @@
-"""Machine steps."""
+"""Machine Job Steps and response contracts."""
 
-from .list_machines import ListMachinesStep
-from .status import MachineStatusStep
+from .steps import ListMachinesStep, MachineStatusStep, ShellStep
 
-__all__ = ["ListMachinesStep", "MachineStatusStep"]
+__all__ = ["ListMachinesStep", "MachineStatusStep", "ShellStep"]

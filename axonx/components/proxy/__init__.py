@@ -1,7 +1,21 @@
 """Generic proxy component contracts and implementations."""
 
-from ...schema import ProxyResponse
-from .base import BaseProxyComponent
+from .base import (
+    BaseProxyComponent,
+    ProxyError,
+    ProxyRequestError,
+    ProxyResponse,
+    ProxyUpstreamError,
+    ProxyUpstreamTimeoutError,
+)
 from .http import HttpProxyComponent
 
-__all__ = ["BaseProxyComponent", "HttpProxyComponent", "ProxyResponse"]
+__all__ = [
+    "BaseProxyComponent",
+    "HttpProxyComponent",
+    "ProxyError",
+    "ProxyRequestError",
+    "ProxyResponse",
+    "ProxyUpstreamError",
+    "ProxyUpstreamTimeoutError",
+]

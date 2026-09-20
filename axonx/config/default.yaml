@@ -1,84 +1,172 @@
-remote_nodes:
-  - host_ip: 11.160.132.45
-    host_port: 1024
+# =========== Remote nodes ===========
+remote_nodes: []
+# remote_nodes:
+#   - host_ip: ${AXONX_REMOTE_HOST_IP}
+#     host_port: 1024
+#     token: ${AXONX_REMOTE_TOKEN:-null}
+
+plugins:
+  sources: []
+  # Enable only on a token-protected service.
+  allow_remote_management: false
 
 components:
-  plugin:
+  # =========== Task runtime components ===========
+  task_repository:
     default:
       backend: local
-      auto_install: true
-      allow_remote_install: true
+      recursive: true
+      force_polling: true
+      debounce: 3000
+      step: 3000
+      poll_delay_ms: 1000
 
   task_manager:
     default:
       backend: local
+      task_repository: default
       terminate_grace_seconds: 5
       reaper_interval_seconds: 5
-      recursive: true
-      force_polling: true
-      debounce: 60000
-      step: 3000
-      poll_delay_ms: 3000
 
-  machine:
+  # =========== Agent components ===========
+  agent:
     default:
-      backend: machine
+      backend: claude
+      env:
+        ANTHROPIC_AUTH_TOKEN: ${CLAUDE_CODE_API_KEY:-}
+        ANTHROPIC_BASE_URL: ${CLAUDE_CODE_BASE_URL:-}
+        ANTHROPIC_MODEL: ${CLAUDE_CODE_MODEL_NAME:-}
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: ${CLAUDE_CODE_MODEL_NAME:-}
+        ANTHROPIC_DEFAULT_SONNET_MODEL: ${CLAUDE_CODE_MODEL_NAME:-}
+        ANTHROPIC_DEFAULT_OPUS_MODEL: ${CLAUDE_CODE_MODEL_NAME:-}
+      permission_mode: bypassPermissions
+      # Load only workspace-level Claude settings.
+      setting_sources: [project]
+      state_dir: agent
+      system_prompt: >-
+        You are the AxonX agent for this workspace. Use the provided tools to
+        inspect workspace tasks and artifacts, and answer from what they return
+        rather than from memory. Reply in the user's language.
+      job_tools:
+        - list_entries
+        - preview_file
+        - list_task_ids
+        - list_task_statuses
+        - status
+        - read_task_log
+      # skills: all
+      # plugins:
+      #   - {type: local, path: /absolute/path/to/skills-plugin}
 
-  workspace:
-    default:
-      backend: local
+  # =========== Network components ===========
+  # Uncomment to enable; requires AXONX_TUSHARE_BASE_URL.
+  # proxy:
+  #   tushare:
+  #     backend: http
+  #     upstream_base_url: ${AXONX_TUSHARE_BASE_URL}
+  #     timeout: ${AXONX_TUSHARE_PROXY_TIMEOUT:-600}
+
+  # Sync requires a configured remote node.
+  # sync:
+  #   default:
+  #     backend: local
+  #     task_repository: default
+  #     remote_ip: ${AXONX_REMOTE_HOST_IP}
+  #     sync_on_start: true
+  #     max_archives_per_flush: 4
+  #     max_file_bytes: 104857600
+  #     max_archive_bytes: 268435456
+  #     timeout_seconds: 300
+
+# =========== HTTP service ===========
+service:
+  backend: http
+  host: 0.0.0.0
+  port: 1024
+  shutdown_timeout: ${AXONX_SERVICE_SHUTDOWN_TIMEOUT:-1}
+  web_enabled: ${AXONX_SERVICE_WEB_ENABLED:-true}
+  # Proxy routes use upstream authentication rather than this token.
+  token: ${AXONX_SERVICE_TOKEN:-null}
 
 jobs:
+  # =========== System jobs ===========
+  version:
+    description: Return the installed AxonX version.
+    steps:
+      - backend: version_step
+
+  # =========== Plugin jobs ===========
   list_plugins:
     description: List installed plugins and their contributions.
     steps:
       - backend: list_plugins_step
 
-  status_plugins:
-    description: Show the saved status of one managed plugin.
+  inspect_plugin:
+    description: Inspect one plugin installed on this service machine.
     parameters:
       type: object
       properties:
         plugin:
           type: string
           minLength: 1
-          description: Name of the managed plugin to query.
+          description: Distribution or plugin name to inspect.
       required: [plugin]
     steps:
-      - backend: status_plugins_step
+      - backend: inspect_plugin_step
 
-  inspect_plugins:
-    description: Inspect one managed plugin wheel on this service machine.
+  install_plugin:
+    description: Install a plugin wheel already copied into this workspace.
+    enable_remote: false
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          minLength: 1
+          description: Workspace-relative path returned by POST /files.
+        sha256:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+          description: SHA-256 returned by POST /files.
+      required: [path, sha256]
+      additionalProperties: false
+    steps:
+      - backend: install_plugin_step
+
+  uninstall_plugin:
+    description: Uninstall a plugin distribution from this service machine.
+    enable_remote: false
+    requires_auth: true
     parameters:
       type: object
       properties:
         plugin:
           type: string
           minLength: 1
-          description: Name of the managed plugin wheel to inspect.
+          description: Distribution or plugin name to uninstall.
       required: [plugin]
+      additionalProperties: false
     steps:
-      - backend: inspect_plugins_step
+      - backend: uninstall_plugin_step
 
-  machine_status:
-    description: Get local or remote AxonX machine status.
-    steps:
-      - backend: machine_status_step
-
+  # =========== Machine jobs ===========
   list_machines:
     description: Check the health of all configured remote AxonX machines.
     enable_remote: false
     steps:
-      - backend: list_machines_step
+      - backend: machine_list
 
-  demo:
-    description: Show the installed AxonX version.
+  machine_status:
+    description: Get local or remote AxonX machine status.
     steps:
-      - backend: version_step
-      - backend: demo_step
+      - backend: machine_status
+        # psutil blocks for this long to sample CPU load in a worker thread:
+        # cpu_sample_interval: 0.1
 
   shell:
     description: Execute a shell command on the selected AxonX machine.
+    requires_auth: true
     parameters:
       type: object
       properties:
@@ -95,9 +183,14 @@ jobs:
       required: [command]
       additionalProperties: false
     steps:
-      - backend: shell_step
+      - backend: machine_shell
 
   # =========== Task jobs ===========
+  list_installed_task_definitions:
+    description: List all installed Task definitions.
+    steps:
+      - backend: list_installed_task_definitions
+
   submit:
     description: Submit a task for asynchronous execution.
     parameters:
@@ -121,11 +214,6 @@ jobs:
     description: List Task status snapshots.
     steps:
       - backend: list_statuses
-
-  list_installed_task_definitions:
-    description: List all installed Task definitions.
-    steps:
-      - backend: list_installed_task_definitions
 
   status:
     description: Get one task status.
@@ -163,6 +251,26 @@ jobs:
         - task_id
     steps:
       - backend: read_log
+
+  stream_task:
+    description: Follow one Task, streaming its progress and log until it stops.
+    parameters:
+      type: object
+      properties:
+        task_id:
+          type: string
+          minLength: 1
+          description: ID of the task to follow.
+        poll_interval:
+          type: number
+          exclusiveMinimum: 0
+          default: 0.5
+          description: Seconds between checks for newly written progress and log bytes.
+      required:
+        - task_id
+      additionalProperties: false
+    steps:
+      - backend: stream_task
 
   list_task_graphs:
     description: List dependency graphs from indexed workspace Tasks.
@@ -242,13 +350,24 @@ jobs:
           type: string
           default: ""
           description: Workspace-relative directory to list; empty string lists the workspace root.
-        require_metadata:
-          type: boolean
-          default: false
-          description: Skip task directories that do not contain metadata.json.
       additionalProperties: false
     steps:
-      - backend: list_entries_step
+      - backend: workspace_list
+
+  list_task_runs:
+    description: List task-run directories containing metadata.json.
+    parameters:
+      type: object
+      properties:
+        task_type:
+          type: string
+          minLength: 1
+          pattern: "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          description: Workspace-relative task type directory.
+      required: [task_type]
+      additionalProperties: false
+    steps:
+      - backend: task_runs
 
   preview_file:
     description: Preview one supported file inside the configured workspace.
@@ -268,19 +387,16 @@ jobs:
           minimum: 1
           maximum: 5000
           default: 200
-          description: Maximum number of rows to return for row-based previews such as CSV.
-        full:
-          type: boolean
-          default: false
-          description: Return every Parquet row instead of the sampled preview.
+          description: Maximum number of rows to return for CSV or Parquet previews.
       required:
         - path
       additionalProperties: false
     steps:
-      - backend: preview_file_step
+      - backend: workspace_preview
 
   delete_entries:
     description: Delete multiple files or directories inside the configured workspace.
+    requires_auth: true
     parameters:
       type: object
       properties:
@@ -296,4 +412,87 @@ jobs:
         - paths
       additionalProperties: false
     steps:
-      - backend: delete_entries_step
+      - backend: workspace_delete
+
+  # =========== Sync jobs ===========
+  # Enable together with the sync component and workspace_sync schedule.
+  # sync_flush:
+  #   description: Flush task changes queued for workspace replication.
+  #   enable_serve: false
+  #   enable_remote: false
+  #   steps:
+  #     - backend: sync_flush_step
+  #       sync: default
+
+  sync_tasks:
+    description: Replace task directories from one uploaded sync archive.
+    requires_auth: true
+    enable_remote: false
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          minLength: 1
+          description: Workspace-relative path of the staged sync archive; omit to only apply deletions.
+        deletions:
+          type: array
+          maxItems: 200
+          default: []
+          description: Workspace-relative task directories to delete before applying.
+          items:
+            type: string
+            minLength: 1
+      additionalProperties: false
+    steps:
+      - backend: sync_tasks_step
+        task_repository: default
+
+  # =========== Agent jobs ===========
+  agent_chat:
+    description: Run one Claude Code agent turn over the workspace.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          description: Instruction for the agent.
+        session_id:
+          type: string
+          description: Session ID from an earlier call, to continue that conversation.
+      required: [prompt]
+      additionalProperties: false
+    steps:
+      - backend: agent_stream
+        agent: default
+        max_depth: 3
+
+  agent_ask:
+    description: Run one Claude Code agent turn and return only its final answer.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          description: Instruction for the agent.
+        session_id:
+          type: string
+          description: Session ID from an earlier call, to continue that conversation.
+      required: [prompt]
+      additionalProperties: false
+    steps:
+      - backend: agent
+        agent: default
+        max_depth: 3
+
+schedules: {}
+# schedules:
+#   workspace_sync:
+#     backend: cron
+#     job: sync_flush
+#     cron: "* * * * *"
+#     concurrency_policy: forbid

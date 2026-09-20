@@ -1,19 +1,29 @@
 """Task-management steps."""
 
-from .list_installed import ListInstalledTaskDefinitionsStep
-from .manager import CancelTaskStep, DeleteTasksStep, GetTaskStatusStep, ListTaskIdsStep, ListTaskStatusesStep, ReadTaskLogStep
-from .submit import SubmitTaskStep
-from .task_graph import GetTaskGraphStep, ListTaskGraphsStep
+from .catalog import ListInstalledTaskDefinitionsStep
+from .command import CancelTaskStep, DeleteTasksStep, SubmitTaskStep
+from .query import (
+    GetTaskGraphStep,
+    GetTaskStatusStep,
+    ListTaskGraphsStep,
+    ListTaskIdsStep,
+    ListTaskStatusesStep,
+    ReadTaskLogStep,
+)
+from .runs import ListTaskRunsStep
+from .stream import StreamTaskStep
 
 __all__ = [
     "CancelTaskStep",
     "DeleteTasksStep",
-    "GetTaskStatusStep",
     "GetTaskGraphStep",
+    "GetTaskStatusStep",
     "ListInstalledTaskDefinitionsStep",
-    "ListTaskIdsStep",
-    "ListTaskStatusesStep",
     "ListTaskGraphsStep",
+    "ListTaskIdsStep",
+    "ListTaskRunsStep",
+    "ListTaskStatusesStep",
     "ReadTaskLogStep",
+    "StreamTaskStep",
     "SubmitTaskStep",
 ]

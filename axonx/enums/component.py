@@ -8,14 +8,15 @@ class ComponentEnum(StrEnum):
 
     BASE = "base"
     JOB = "job"
+    SCHEDULER = "scheduler"
     STEP = "step"
     TASK = "task"
+    TASK_REPOSITORY = "task_repository"
     TASK_MANAGER = "task_manager"
     SERVICE = "service"
     CLIENT = "client"
-    MACHINE = "machine"
-    WORKSPACE = "workspace"
-    PLUGIN = "plugin"
+    AGENT = "agent"
+    SYNC = "sync"
     PROXY = "proxy"
 
 

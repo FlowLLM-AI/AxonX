@@ -1,0 +1,35 @@
+"""Safe loading boundary for third-party Python entry points."""
+
+from importlib import metadata
+from typing import Any
+
+
+def find_entry_points(group: str, name: str) -> list[metadata.EntryPoint]:
+    """Return all matching entry points without importing their providers."""
+    return list(metadata.entry_points().select(group=group, name=name))
+
+
+def find_all_entry_points(group: str) -> list[metadata.EntryPoint]:
+    """Return every installed entry point in a group, ordered by name."""
+    entries = metadata.entry_points().select(group=group)
+    return sorted(entries, key=lambda entry: (entry.name, entry.value))
+
+
+def unique_entry_point(
+    entries: list[metadata.EntryPoint],
+    name: str,
+    provider: str,
+) -> metadata.EntryPoint | None:
+    """Return the sole matching entry point, rejecting ambiguous providers."""
+    if len(entries) > 1:
+        values = ", ".join(sorted(entry.value for entry in entries))
+        raise ValueError(
+            f"{provider} '{name}' has multiple installed providers: {values}"
+        )
+    return entries[0] if entries else None
+
+
+def load_entry_point(entry: metadata.EntryPoint, *, invoke: bool = False) -> Any:
+    """Load and optionally invoke an entry point."""
+    loaded = entry.load()
+    return loaded() if invoke and callable(loaded) else loaded

@@ -1,154 +1,153 @@
-"""Registry mapping ``(component type, backend)`` to implementation classes."""
+"""Explicit provider declarations and application-local provider lookup."""
 
-from collections.abc import Iterator
-from contextlib import contextmanager
-from threading import RLock
-from typing import Callable, TypeVar
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
+from typing import TypeVar, cast
 
 from ..enums import ComponentType, component_type_name
 
-T = TypeVar("T")
+ProviderT = TypeVar("ProviderT", bound=type)
+_PROVIDER_NAME = "__axonx_provider_name__"
+_BUILTIN_PROVIDERS: dict[tuple[str, str], type] = {}
 
 
-class ComponentRegistry:
-    """Two-level registry: ``component_type -> name -> class``.
+def provider(name: str):
+    """Declare a provider name and catalog implementations shipped by AxonX."""
+    if not isinstance(name, str) or not name:
+        raise ValueError("Provider name must be a non-empty string")
 
-    Supports both direct calls — ``R.register(MyClass, "name")`` — and
-    decorator usage — ``@R.register("name")``.
-    """
-
-    def __init__(
-        self,
-        registry: dict[str, dict[str, type]] | None = None,
-        owners: dict[tuple[str, str], str] | None = None,
-    ) -> None:
-        self._registry = registry or {}
-        self._owners = owners or {}
-        self._lock = RLock()
-        self._frozen = False
-
-    def _ensure_mutable(self) -> None:
-        """Reject changes after this registry becomes an immutable template."""
-        if self._frozen:
-            raise RuntimeError("Component registry is frozen")
-
-    def _do_register(self, cls: type[T], name: str, *, owner: str | None = None) -> type[T]:
-        """Insert ``cls`` under its component type and reject ambiguous providers."""
-        raw_component_type = getattr(cls, "component_type", None)
-        if not isinstance(raw_component_type, str) or not raw_component_type:
-            raise TypeError(f"{cls.__name__} must have a non-empty string 'component_type' attribute")
-        component_type = component_type_name(raw_component_type)
-        if not name:
-            raise ValueError("Component name cannot be empty")
-
-        with self._lock:
-            self._ensure_mutable()
-            group = self._registry.setdefault(component_type, {})
-            key = (component_type, name)
-            provider = owner or cls.__module__
-            if name in group:
-                existing = group[name]
-                existing_owner = self._owners[key]
-                if existing is cls and existing_owner == provider:
-                    return cls
-                raise ValueError(
-                    f"Backend '{component_type}:{name}' is provided by both " f"'{existing_owner}' and '{provider}'",
-                )
-            group[name] = cls
-            self._owners[key] = provider
+    def decorate(cls: ProviderT) -> ProviderT:
+        if _PROVIDER_NAME in cls.__dict__:
+            raise TypeError(f"{cls.__name__} already declares a provider name")
+        setattr(cls, _PROVIDER_NAME, name)
+        if cls.__module__ == "axonx" or cls.__module__.startswith("axonx."):
+            _BUILTIN_PROVIDERS[(cls.__module__, cls.__qualname__)] = cls
         return cls
 
-    def add(self, name: str, cls: type[T], owner: str) -> type[T]:
-        """Register one explicitly owned plugin contribution."""
-        return self._do_register(cls, name, owner=owner)
+    return decorate
 
-    def register(
+
+def builtin_providers() -> tuple[type, ...]:
+    """Return the provider classes declared by AxonX modules."""
+    return tuple(_BUILTIN_PROVIDERS.values())
+
+
+def declared_provider_name(cls: type) -> str:
+    """Return the backend name explicitly declared on ``cls``."""
+    name = cls.__dict__.get(_PROVIDER_NAME)
+    if not isinstance(name, str) or not name:
+        raise TypeError(f"{cls.__name__} must be decorated with @provider(name)")
+    return name
+
+
+@dataclass(frozen=True, slots=True)
+class Provider:
+    """One uniquely owned provider implementation."""
+
+    component_type: str
+    name: str
+    implementation: type
+    owner: str
+
+
+class ProviderRegistry:
+    """Application-local mapping from ``(component type, backend)`` to a class."""
+
+    def __init__(self) -> None:
+        self._providers: dict[tuple[str, str], Provider] = {}
+        self._frozen = False
+
+    def add(
         self,
-        cls_or_name: type[T] | str,
+        implementation: type,
+        *,
         name: str | None = None,
-    ) -> Callable[[type[T]], type[T]] | type[T]:
-        """Register a component class directly, or return a decorator that does so."""
-        # Direct call: register(MyClass) or register(MyClass, "alias").
-        if isinstance(cls_or_name, type):
-            cls = cls_or_name
-            return self._do_register(cls, name if name is not None else cls.__name__)
+        owner: str | None = None,
+    ) -> None:
+        """Add one provider and reject ambiguous ownership."""
+        if self._frozen:
+            raise RuntimeError("Provider registry is frozen")
+        if not isinstance(implementation, type):
+            raise TypeError("Provider implementation must be a class")
 
-        # Decorator call: @R.register("alias") — must receive a string name.
-        if not isinstance(cls_or_name, str):
-            raise TypeError(f"Expected a class or string, got {type(cls_or_name).__name__}")
-        if name is not None:
-            raise TypeError("name is only valid when registering a class directly")
+        component_type = component_type_name(
+            getattr(implementation, "component_type", None)
+        )
+        provider_name = declared_provider_name(implementation) if name is None else name
+        if not isinstance(provider_name, str) or not provider_name:
+            raise ValueError("Provider name must be a non-empty string")
 
-        registration_name = cls_or_name
+        key = (component_type, provider_name)
+        provider_owner = owner or implementation.__module__
+        existing = self._providers.get(key)
+        if existing is not None:
+            if (
+                existing.implementation is implementation
+                and existing.owner == provider_owner
+            ):
+                return
+            raise ValueError(
+                f"Provider '{component_type}:{provider_name}' is supplied by both "
+                f"'{existing.owner}' and '{provider_owner}'",
+            )
+        self._providers[key] = Provider(
+            component_type=component_type,
+            name=provider_name,
+            implementation=implementation,
+            owner=provider_owner,
+        )
 
-        def decorator(decorated_cls: type[T]) -> type[T]:
-            return self._do_register(decorated_cls, registration_name)
+    def require[T](
+        self,
+        component_type: ComponentType,
+        name: str,
+        expected_base: type[T],
+    ) -> type[T]:
+        """Resolve and type-check one provider or raise a configuration error."""
+        normalized_type = component_type_name(component_type)
+        provider = self._providers.get((normalized_type, name))
+        if provider is None:
+            raise ValueError(f"Unknown {normalized_type} backend: {name}")
+        implementation = provider.implementation
+        if not issubclass(implementation, expected_base):
+            raise TypeError(
+                f"Provider {normalized_type}:{name} must subclass "
+                f"{expected_base.__name__}",
+            )
+        return cast(type[T], implementation)
 
-        return decorator
-
-    def get(self, component_type: ComponentType, name: str) -> type | None:
-        """Look up a registered class; return None if not found."""
-        with self._lock:
-            return self._registry.get(component_type_name(component_type), {}).get(name)
-
-    def get_all(self, component_type: ComponentType) -> dict[str, type]:
-        """Return a shallow copy of all classes registered under `component_type`."""
-        with self._lock:
-            return dict(self._registry.get(component_type_name(component_type), {}))
-
-    def unregister(self, component_type: ComponentType, name: str) -> bool:
-        """Remove an entry; return True if it existed, False otherwise."""
-        component_type = component_type_name(component_type)
-        with self._lock:
-            self._ensure_mutable()
-            if (group := self._registry.get(component_type)) and name in group:
-                del group[name]
-                self._owners.pop((component_type, name), None)
-                return True
-            return False
-
-    def clear(self) -> None:
-        """Drop every registered entry."""
-        with self._lock:
-            self._ensure_mutable()
-            self._registry.clear()
-            self._owners.clear()
+    def get_all[T](
+        self,
+        component_type: ComponentType,
+        expected_base: type[T],
+    ) -> dict[str, type[T]]:
+        """Return all type-checked implementations in one component domain."""
+        normalized_type = component_type_name(component_type)
+        implementations: dict[str, type[T]] = {}
+        for (provider_type, name), item in self._providers.items():
+            if provider_type != normalized_type:
+                continue
+            implementation = item.implementation
+            if not issubclass(implementation, expected_base):
+                raise TypeError(
+                    f"Provider {provider_type}:{name} must subclass "
+                    f"{expected_base.__name__}",
+                )
+            implementations[name] = cast(type[T], implementation)
+        return implementations
 
     def freeze(self) -> None:
-        """Make this registry an immutable template for future copies."""
-        with self._lock:
-            self._frozen = True
+        """Prevent further mutation after application composition."""
+        self._frozen = True
 
     @property
     def frozen(self) -> bool:
-        """Whether mutating operations are disabled."""
-        with self._lock:
-            return self._frozen
+        return self._frozen
 
-    def copy(self) -> "ComponentRegistry":
-        """Return an independent registry containing the same providers."""
-        with self._lock:
-            registry = {component_type: dict(group) for component_type, group in self._registry.items()}
-            owners = dict(self._owners)
-        return ComponentRegistry(registry, owners)
-
-    @contextmanager
-    def preserve(self, *, allow_mutation: bool = False) -> Iterator[None]:
-        """Restore the registry after code that may register through import side effects."""
-        with self._lock:
-            registry = {component_type: dict(group) for component_type, group in self._registry.items()}
-            owners = dict(self._owners)
-            frozen = self._frozen
-            if allow_mutation:
-                self._frozen = False
-            try:
-                yield
-            finally:
-                self._registry = registry
-                self._owners = owners
-                self._frozen = frozen
-
-
-# Import-time registry for built-in implementations. Runtime code should copy
-# this template rather than mutate it.
-R = ComponentRegistry()
+    @property
+    def providers(self) -> Mapping[tuple[str, str], Provider]:
+        """Expose a read-only provider index for diagnostics."""
+        return MappingProxyType(self._providers)

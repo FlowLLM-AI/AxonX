@@ -10,14 +10,13 @@ import polars as pl
 from pydantic import Field, field_validator, model_validator
 
 from axonx.enums import TaskType
-from axonx.task.artifacts import read_metadata, artifact_path, artifact_record
-from axonx.task.base import TaskStep
-from axonx.task.identity import task_type_from_id
-from axonx.task.core import (
+from axonx.task.contracts import (
     BasePredictInputParams,
     BasePredictOutputParams,
     BasePredictTask,
 )
+from axonx.task.core import TaskStep, task_type_from_id
+from axonx.task.storage import artifact_path, artifact_record, read_metadata
 from axonx.utils.fs import atomic_write, file_sha256
 
 from .internal.modeling import feature_matrix
@@ -82,7 +81,7 @@ class LgbmPredictTask(BasePredictTask):
         if expected_hash and file_sha256(model_path) != expected_hash:
             raise ValueError(f"模型文件 SHA256 与训练 metadata 不一致: {model_path}")
         output_dir = self.task_dir
-        self.context.update(
+        self.state.update(
             train_dir=train_dir,
             train_metadata_path=train_metadata_path,
             train_metadata=train_metadata,
@@ -96,7 +95,7 @@ class LgbmPredictTask(BasePredictTask):
         )
 
     def resolve_source_dataset(self) -> None:
-        sources = self.context["train_metadata"].get("input_params", {}).get("source_tasks", [])
+        sources = self.state["train_metadata"].get("input_params", {}).get("source_tasks", [])
         etl_sources = [task_id for task_id in sources if task_type_from_id(task_id) == TaskType.ETL]
         if len(etl_sources) != 1:
             raise ValueError("训练 metadata 必须包含一个 ETL 上游任务")
@@ -105,7 +104,7 @@ class LgbmPredictTask(BasePredictTask):
         etl_metadata_path = etl_dir / "metadata.json"
         etl_metadata = read_metadata(etl_metadata_path)
         dataset_path = artifact_path(etl_dir, etl_metadata, "dataset")
-        self.context.update(
+        self.state.update(
             etl_task_id=etl_task_id,
             etl_dir=etl_dir,
             etl_metadata_path=etl_metadata_path,
@@ -115,10 +114,10 @@ class LgbmPredictTask(BasePredictTask):
         self.logger.info(f"Prediction dataset resolved etl_task_id={etl_task_id} dataset={dataset_path}")
 
     def load_and_validate_prediction_data(self) -> None:
-        path: Path = self.context["dataset_path"]
+        path: Path = self.state["dataset_path"]
         if not path.is_file():
             raise FileNotFoundError(f"Alpha158 数据不存在: {path}")
-        features = tuple(self.context["train_metadata"].get("output_params", {}).get("feature_columns", ()))
+        features = tuple(self.state["train_metadata"].get("output_params", {}).get("feature_columns", ()))
         if not features:
             raise ValueError("训练 metadata 缺少 feature_columns")
         schema = pl.read_parquet_schema(path)
@@ -157,7 +156,7 @@ class LgbmPredictTask(BasePredictTask):
             )
         if frame.select("trade_date", "ts_code").n_unique() != frame.height:
             raise ValueError("预测数据包含重复的 trade_date, ts_code")
-        self.context.update(
+        self.state.update(
             frame=frame,
             features=features,
             index_columns=index_columns,
@@ -174,24 +173,24 @@ class LgbmPredictTask(BasePredictTask):
             import lightgbm as lgb
         except ImportError as exc:
             raise RuntimeError("预测需要安装 lightgbm；请重新安装项目依赖") from exc
-        model = lgb.Booster(model_file=str(self.context["model_path"]))
-        if tuple(model.feature_name()) != self.context["features"]:
+        model = lgb.Booster(model_file=str(self.state["model_path"]))
+        if tuple(model.feature_name()) != self.state["features"]:
             raise ValueError("模型特征名称或顺序与训练 metadata 不一致")
-        self.context["model"] = model
+        self.state["model"] = model
 
     def predict_full_cross_section(self) -> None:
-        frame: pl.DataFrame = self.context["frame"]
-        matrix = feature_matrix(frame, self.context["features"])
+        frame: pl.DataFrame = self.state["frame"]
+        matrix = feature_matrix(frame, self.state["features"])
         self.report_progress(30)
-        best_iteration = self.context["train_metadata"]["output_params"]["model"]["best_iteration"]
+        best_iteration = self.state["train_metadata"]["output_params"]["model"]["best_iteration"]
         prediction = np.asarray(
-            self.context["model"].predict(matrix, num_iteration=best_iteration),
+            self.state["model"].predict(matrix, num_iteration=best_iteration),
             dtype=float,
         )
         self.report_progress(80)
         if len(prediction) != frame.height or not np.isfinite(prediction).all():
             raise FloatingPointError("模型预测数量不匹配或包含非有限值")
-        self.context["predictions"] = frame.select(
+        self.state["predictions"] = frame.select(
             "trade_date",
             "ts_code",
             pl.Series("pred", prediction),
@@ -199,7 +198,7 @@ class LgbmPredictTask(BasePredictTask):
             pl.col("label_1d_is_valid").alias("label_valid"),
             "name",
             "is_buyable",
-            *self.context["index_columns"],
+            *self.state["index_columns"],
         )
         self.report_progress(95)
         self.logger.info(
@@ -208,25 +207,25 @@ class LgbmPredictTask(BasePredictTask):
         )
 
     def write_outputs(self) -> None:
-        path: Path = self.context["predictions_path"]
+        path: Path = self.state["predictions_path"]
         atomic_write(
             path,
-            lambda temporary: self.context["predictions"].write_parquet(temporary, compression="zstd"),
+            lambda temporary: self.state["predictions"].write_parquet(temporary, compression="zstd"),
         )
         self.report_progress(95)
         self.logger.info(
-            f"Predictions written path={path} rows={self.context['predictions'].height} bytes={path.stat().st_size}",
+            f"Predictions written path={path} rows={self.state['predictions'].height} bytes={path.stat().st_size}",
         )
 
     def build_output_params(self) -> LgbmPredictOutputParams:
         output_dir: Path = self.task_dir
-        predictions: pl.DataFrame = self.context["predictions"]
-        prediction_record = artifact_record(self.context["predictions_path"], output_dir)
-        model_target = self.context["train_metadata"]["output_params"]["protocol"]["label_column"]
+        predictions: pl.DataFrame = self.state["predictions"]
+        prediction_record = artifact_record(self.state["predictions_path"], output_dir)
+        model_target = self.state["train_metadata"]["output_params"]["protocol"]["label_column"]
         scores = predictions["pred"].to_numpy()
         buyable = predictions["is_buyable"]
         valid = predictions["label_valid"]
-        index_columns = list(self.context["index_columns"])
+        index_columns = list(self.state["index_columns"])
         index_statistics = {}
         for column in index_columns:
             weights = predictions[column]
@@ -237,9 +236,9 @@ class LgbmPredictTask(BasePredictTask):
             }
         return self.output_cls(
             protocol={
-                "train_end_exclusive": self.context["train_end"],
+                "train_end_exclusive": self.state["train_end"],
                 "pred_start_inclusive": self.input_params.pred_start,
-                "pred_end_inclusive": self.context["actual_pred_end"],
+                "pred_end_inclusive": self.state["actual_pred_end"],
                 "cross_section_filter": "none",
                 "execution_filter": "deferred to backtest via is_buyable",
                 "actual_return_column": "label_1d",
@@ -273,5 +272,5 @@ class LgbmPredictTask(BasePredictTask):
             artifacts={
                 "predictions": prediction_record,
             },
-            predictions_file=str(self.context["predictions_path"]),
+            predictions_file=str(self.state["predictions_path"]),
         )

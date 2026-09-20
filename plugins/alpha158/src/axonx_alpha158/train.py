@@ -11,9 +11,9 @@ import polars as pl
 from pydantic import Field, field_validator, model_validator
 
 from axonx.enums import TaskType
-from axonx.task.artifacts import read_metadata, artifact_path, artifact_record
-from axonx.task.base import TaskStep
-from axonx.task.core import BaseTrainInputParams, BaseTrainOutputParams, BaseTrainTask
+from axonx.task.contracts import BaseTrainInputParams, BaseTrainOutputParams, BaseTrainTask
+from axonx.task.core import TaskStep
+from axonx.task.storage import artifact_path, artifact_record, read_metadata
 from axonx.utils.fs import atomic_write
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
@@ -106,7 +106,7 @@ class LgbmTrainTask(BaseTrainTask):
         source_metadata = read_metadata(source_metadata_path)
         dataset_path = artifact_path(source_dir, source_metadata, "dataset")
         output_dir = self.task_dir
-        self.context.update(
+        self.state.update(
             source_dir=source_dir,
             source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
@@ -121,10 +121,10 @@ class LgbmTrainTask(BaseTrainTask):
         )
 
     def load_and_validate_train_data(self) -> None:
-        path: Path = self.context["dataset_path"]
+        path: Path = self.state["dataset_path"]
         if not path.is_file():
             raise FileNotFoundError(f"Alpha158 数据不存在: {path}")
-        features = tuple(self.context["source_metadata"].get("output_params", {}).get("feature_columns", ()))
+        features = tuple(self.state["source_metadata"].get("output_params", {}).get("feature_columns", ()))
         if not features:
             raise ValueError("ETL metadata 缺少 feature_columns")
         valid_label = f"{self.raw_label}_is_valid"
@@ -163,7 +163,7 @@ class LgbmTrainTask(BaseTrainTask):
         )
         if frame.is_empty():
             raise ValueError("训练日期范围内没有有效标签")
-        self.context.update(
+        self.state.update(
             frame=frame,
             features=features,
             valid_label=valid_label,
@@ -176,14 +176,14 @@ class LgbmTrainTask(BaseTrainTask):
         )
 
     def trim_daily_label_tails(self) -> None:
-        frame: pl.DataFrame = self.context["frame"]
+        frame: pl.DataFrame = self.state["frame"]
         raw = pl.col(self.raw_label)
         lower = raw.quantile(self.input_params.trim_tail, interpolation="linear").over("trade_date")
         upper = raw.quantile(1 - self.input_params.trim_tail, interpolation="linear").over("trade_date")
         trimmed = frame.filter(raw.is_between(lower, upper, closed="both"))
         if trimmed.is_empty():
             raise ValueError("每日标签尾部过滤后没有训练样本")
-        self.context.update(frame=trimmed, pre_trim_rows=frame.height)
+        self.state.update(frame=trimmed, pre_trim_rows=frame.height)
         self.report_progress(95)
         self.logger.info(
             f"Training tails trimmed raw_label={self.raw_label} tail={self.input_params.trim_tail:.2%} "
@@ -191,7 +191,7 @@ class LgbmTrainTask(BaseTrainTask):
         )
 
     def split_temporal_validation(self) -> None:
-        frame: pl.DataFrame = self.context["frame"]
+        frame: pl.DataFrame = self.state["frame"]
         dates = frame["trade_date"].unique().sort().to_list()
         if len(dates) < 2:
             raise ValueError("训练至少需要两个有效交易日")
@@ -202,7 +202,7 @@ class LgbmTrainTask(BaseTrainTask):
         validation = frame.filter(pl.col("trade_date") >= validation_start)
         if fit.is_empty() or validation.is_empty():
             raise ValueError("无法构造时间顺序训练/验证集")
-        self.context.update(
+        self.state.update(
             tuning_train=fit,
             validation=validation,
             validation_start=validation_start,
@@ -214,7 +214,7 @@ class LgbmTrainTask(BaseTrainTask):
 
     def _matrix(self, frame: pl.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         return (
-            feature_matrix(frame, self.context["features"]),
+            feature_matrix(frame, self.state["features"]),
             frame[self.input_params.label_column].cast(pl.Float64).to_numpy(),
         )
 
@@ -267,15 +267,15 @@ class LgbmTrainTask(BaseTrainTask):
 
     def select_best_iteration(self) -> None:
         lgb = self._lightgbm()
-        fit_x, fit_y = self._matrix(self.context["tuning_train"])
+        fit_x, fit_y = self._matrix(self.state["tuning_train"])
         self.report_progress(10)
-        valid_x, valid_y = self._matrix(self.context["validation"])
+        valid_x, valid_y = self._matrix(self.state["validation"])
         self.report_progress(20)
         history: dict[str, dict[str, list[float]]] = {}
         train_dataset = lgb.Dataset(
             fit_x,
             label=fit_y,
-            feature_name=list(self.context["features"]),
+            feature_name=list(self.state["features"]),
         )
         validation_dataset = lgb.Dataset(valid_x, label=valid_y, reference=train_dataset)
         model = lgb.train(
@@ -295,7 +295,7 @@ class LgbmTrainTask(BaseTrainTask):
             ],
         )
         best_iteration = model.best_iteration or self.input_params.num_boost_round
-        self.context.update(
+        self.state.update(
             tuning_model=model,
             evaluation_history=history,
             best_iteration=best_iteration,
@@ -306,11 +306,11 @@ class LgbmTrainTask(BaseTrainTask):
         )
 
     def evaluate_validation(self) -> None:
-        validation: pl.DataFrame = self.context["validation"]
+        validation: pl.DataFrame = self.state["validation"]
         valid_x, valid_y = self._matrix(validation)
         self.report_progress(25)
         pred = np.asarray(
-            self.context["tuning_model"].predict(valid_x, num_iteration=self.context["best_iteration"]),
+            self.state["tuning_model"].predict(valid_x, num_iteration=self.state["best_iteration"]),
             dtype=float,
         )
         self.report_progress(65)
@@ -328,42 +328,42 @@ class LgbmTrainTask(BaseTrainTask):
                 pl.corr("pred", "actual", method="spearman").alias("rank_ic"),
             )
         )
-        self.context["validation_metrics"] = {
+        self.state["validation_metrics"] = {
             "l2": float(np.mean(np.square(pred - valid_y))),
             "ic_mean": self._finite_mean(diagnostic["ic"]),
             "rankic_mean": self._finite_mean(diagnostic["rank_ic"]),
         }
-        evaluation_history = self.context["evaluation_history"]
+        evaluation_history = self.state["evaluation_history"]
         history_columns = {
             f"{dataset}_{metric}": values
             for dataset, metrics in evaluation_history.items()
             for metric, values in metrics.items()
         }
         history_length = len(next(iter(history_columns.values())))
-        self.context["history"] = pl.DataFrame(
+        self.state["history"] = pl.DataFrame(
             {"iteration": range(1, history_length + 1), **history_columns},
         )
         self.report_progress(95)
 
     def fit_final_model(self) -> None:
         lgb = self._lightgbm()
-        full_x, full_y = self._matrix(self.context["frame"])
+        full_x, full_y = self._matrix(self.state["frame"])
         self.report_progress(15)
-        self.context["model"] = lgb.train(
+        self.state["model"] = lgb.train(
             self._parameters(),
-            lgb.Dataset(full_x, label=full_y, feature_name=list(self.context["features"])),
-            num_boost_round=self.context["best_iteration"],
-            callbacks=[self._progress_callback(self.context["best_iteration"], "final-fit", start=15)],
+            lgb.Dataset(full_x, label=full_y, feature_name=list(self.state["features"])),
+            num_boost_round=self.state["best_iteration"],
+            callbacks=[self._progress_callback(self.state["best_iteration"], "final-fit", start=15)],
         )
-        self.context.pop("tuning_model", None)
+        self.state.pop("tuning_model", None)
         self.report_progress(95)
-        self.logger.info(f"Final LightGBM fitted rows={len(full_y)} iterations={self.context['best_iteration']}")
+        self.logger.info(f"Final LightGBM fitted rows={len(full_y)} iterations={self.state['best_iteration']}")
 
     def calculate_feature_importance(self) -> None:
-        model = self.context["model"]
-        self.context["importance"] = pl.DataFrame(
+        model = self.state["model"]
+        self.state["importance"] = pl.DataFrame(
             {
-                "feature": self.context["features"],
+                "feature": self.state["features"],
                 "importance_gain": model.feature_importance(importance_type="gain"),
                 "importance_split": model.feature_importance(importance_type="split"),
             },
@@ -377,23 +377,23 @@ class LgbmTrainTask(BaseTrainTask):
 
     def write_outputs(self) -> None:
         atomic_write(
-            self.context["model_path"],
-            lambda temporary: self.context["model"].save_model(str(temporary)),
+            self.state["model_path"],
+            lambda temporary: self.state["model"].save_model(str(temporary)),
         )
         self.report_progress(40)
         outputs = (("importance", "importance_path"), ("history", "history_path"))
         for index, (key, path_key) in enumerate(outputs, start=1):
-            path: Path = self.context[path_key]
-            atomic_write(path, self.context[key].write_csv)
+            path: Path = self.state[path_key]
+            atomic_write(path, self.state[key].write_csv)
             self.report_progress(40 + index / len(outputs) * 55)
         self.logger.info(
-            f"Training artifacts written model={self.context['model_path']} "
-            f"importance={self.context['importance_path']} history={self.context['history_path']}",
+            f"Training artifacts written model={self.state['model_path']} "
+            f"importance={self.state['importance_path']} history={self.state['history_path']}",
         )
 
     def build_output_params(self) -> LgbmTrainOutputParams:
         output_dir: Path = self.task_dir
-        frame: pl.DataFrame = self.context["frame"]
+        frame: pl.DataFrame = self.state["frame"]
         artifacts = {}
         artifact_paths = (
             ("model", "model_path"),
@@ -401,39 +401,39 @@ class LgbmTrainTask(BaseTrainTask):
             ("evaluation_history", "history_path"),
         )
         for index, (name, path_key) in enumerate(artifact_paths, start=1):
-            artifacts[name] = artifact_record(self.context[path_key], output_dir)
+            artifacts[name] = artifact_record(self.state[path_key], output_dir)
         return self.output_cls(
             protocol={
                 "train_start_inclusive": self.input_params.train_start,
                 "train_end_exclusive": self.input_params.train_end,
-                "validation_start_inclusive": self.context["validation_start"],
+                "validation_start_inclusive": self.state["validation_start"],
                 "label_column": self.input_params.label_column,
                 "raw_label_for_trimming": self.raw_label,
                 "daily_trim_tail": self.input_params.trim_tail,
                 "prediction_rows_are_not_trimmed": True,
                 "sample_filter": "is_buyable and valid finite label",
             },
-            feature_columns=list(self.context["features"]),
+            feature_columns=list(self.state["features"]),
             target_columns=[self.input_params.label_column],
             model_name="LightGBM",
             metrics={
-                name: value for name, value in self.context["validation_metrics"].items()
+                name: value for name, value in self.state["validation_metrics"].items()
                 if isinstance(value, (int, float)) and math.isfinite(value)
             },
             parameters=self._parameters(),
             training_curve={
-                "x": [str(iteration) for iteration in self.context["history"]["iteration"].to_list()],
+                "x": [str(iteration) for iteration in self.state["history"]["iteration"].to_list()],
                 # L2 is mean squared error and L1 is mean absolute error.
                 # Their numeric ranges differ, so training and validation
                 # series for each metric share one dedicated y-axis.
                 "y_left": {
-                    column: self.context["history"][column].to_list()
-                    for column in self.context["history"].columns
+                    column: self.state["history"][column].to_list()
+                    for column in self.state["history"].columns
                     if column.endswith("_l2")
                 },
                 "y_right": {
-                    column: self.context["history"][column].to_list()
-                    for column in self.context["history"].columns
+                    column: self.state["history"][column].to_list()
+                    for column in self.state["history"].columns
                     if column.endswith("_l1")
                 },
             },
@@ -441,21 +441,21 @@ class LgbmTrainTask(BaseTrainTask):
                 "library": "lightgbm",
                 "library_version": self._lightgbm().__version__,
                 "parameters": self._parameters(),
-                "best_iteration": self.context["best_iteration"],
+                "best_iteration": self.state["best_iteration"],
             },
             rows={
-                "loaded": self.context["loaded_rows"],
-                "eligible": self.context["pre_trim_rows"],
-                "before_trim": self.context["pre_trim_rows"],
+                "loaded": self.state["loaded_rows"],
+                "eligible": self.state["pre_trim_rows"],
+                "before_trim": self.state["pre_trim_rows"],
                 "after_trim": frame.height,
-                "tuning_train": self.context["tuning_train"].height,
-                "validation": self.context["validation"].height,
+                "tuning_train": self.state["tuning_train"].height,
+                "validation": self.state["validation"].height,
             },
-            validation_metrics=self.context["validation_metrics"],
+            validation_metrics=self.state["validation_metrics"],
             artifacts=artifacts,
-            model_file=str(self.context["model_path"]),
-            feature_importance_file=str(self.context["importance_path"]),
-            evaluation_history_file=str(self.context["history_path"]),
+            model_file=str(self.state["model_path"]),
+            feature_importance_file=str(self.state["importance_path"]),
+            evaluation_history_file=str(self.state["history_path"]),
             train_rows=frame.height,
-            best_iteration=self.context["best_iteration"],
+            best_iteration=self.state["best_iteration"],
         )

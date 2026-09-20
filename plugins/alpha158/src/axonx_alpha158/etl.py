@@ -9,9 +9,9 @@ import polars as pl
 from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from axonx.task.artifacts import artifact_record
-from axonx.task.base import TaskStep
-from axonx.task.core import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
+from axonx.task.contracts import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
+from axonx.task.core import TaskStep
+from axonx.task.storage import artifact_record
 
 from .internal import etl_pipeline
 from .internal.etl_pipeline import (
@@ -137,7 +137,7 @@ class Alpha158Task(BaseETLTask):
         statistics_path = output_path.with_suffix(".csv")
         if statistics_path == output_path:
             raise ValueError("output_file 必须使用非 CSV 扩展名")
-        self.context.update(
+        self.state.update(
             daily_files=daily_files,
             factor_files=factor_files,
             weight_files=weight_files,
@@ -155,20 +155,20 @@ class Alpha158Task(BaseETLTask):
     def load_and_validate_market_data(self) -> None:
         """Load the quote and adjustment-factor partitions and validate their rows."""
         frame = load_market_data(
-            self.context["daily_files"],
-            self.context["factor_files"],
+            self.state["daily_files"],
+            self.state["factor_files"],
         )
         self.report_progress(70)
         frame, missing_rows, unresolved_rows = fill_missing_adj_factors(frame)
-        self.context["filled_adj_factor_rows"] = missing_rows - unresolved_rows
+        self.state["filled_adj_factor_rows"] = missing_rows - unresolved_rows
         self.logger.info(
             f"Adjustment factors checked missing_rows={missing_rows} "
-            f"filled_rows={self.context['filled_adj_factor_rows']} "
+            f"filled_rows={self.state['filled_adj_factor_rows']} "
             f"unresolved_rows={unresolved_rows}",
         )
         self.report_progress(80)
         validate_market_data(frame)
-        self.context["frame"] = frame
+        self.state["frame"] = frame
         self.report_progress(95)
         self.logger.info(
             f"Market data loaded rows={frame.height} "
@@ -180,7 +180,7 @@ class Alpha158Task(BaseETLTask):
         """Load the authoritative calendar, stock lifecycle, and historical names."""
         calendar = (
             pl.read_parquet(
-                self.context["trade_cal_file"],
+                self.state["trade_cal_file"],
                 columns=("cal_date", "is_open"),
             )
             .with_columns(
@@ -194,7 +194,7 @@ class Alpha158Task(BaseETLTask):
         )
         stocks = (
             pl.read_parquet(
-                self.context["stock_basic_file"],
+                self.state["stock_basic_file"],
                 columns=("ts_code", "name", "list_date", "delist_date"),
             )
             .with_columns(
@@ -206,7 +206,7 @@ class Alpha158Task(BaseETLTask):
         )
         names = (
             pl.read_parquet(
-                self.context["namechange_file"],
+                self.state["namechange_file"],
                 columns=("ts_code", "name", "start_date", "ann_date"),
             )
             .with_columns(
@@ -227,11 +227,11 @@ class Alpha158Task(BaseETLTask):
 
     def build_trading_panel(self) -> None:
         """Align every stock to the market calendar and derive adjusted inputs."""
-        frame: pl.DataFrame = self.context["frame"]
+        frame: pl.DataFrame = self.state["frame"]
         calendar, stocks, names = self.load_reference_data()
         calendar = align_calendar(frame, calendar)
         bounds, missing_stock_basic = infer_lifecycle_bounds(frame, stocks)
-        self.context["missing_stock_basic_symbols"] = missing_stock_basic.height
+        self.state["missing_stock_basic_symbols"] = missing_stock_basic.height
         if not missing_stock_basic.is_empty():
             sample = missing_stock_basic["ts_code"].head(10).to_list()
             self.logger.warning(
@@ -240,20 +240,20 @@ class Alpha158Task(BaseETLTask):
             )
         self.report_progress(20)
         frame = assemble_trading_panel(frame, bounds, calendar)
-        self.context.update(stocks=stocks, names=names)
-        self.context["frame"] = frame
+        self.state.update(stocks=stocks, names=names)
+        self.state["frame"] = frame
         self.report_progress(95)
         self.logger.info(
             f"Trading panel built rows={frame.height} "
             f"symbols={frame['ts_code'].n_unique()} calendar_days={calendar.height} "
-            f"missing_stock_basic_symbols={self.context['missing_stock_basic_symbols']}",
+            f"missing_stock_basic_symbols={self.state['missing_stock_basic_symbols']}",
         )
 
     def attach_market_status(self) -> None:
         """Attach point-in-time names, official price limits, and a reusable buyability flag."""
-        frame: pl.DataFrame = self.context["frame"]
-        names: pl.DataFrame = self.context["names"]
-        limits = load_price_limits(self.context["limit_files"])
+        frame: pl.DataFrame = self.state["frame"]
+        names: pl.DataFrame = self.state["names"]
+        limits = load_price_limits(self.state["limit_files"])
         self.report_progress(20)
         frame = join_historical_names_and_limits(frame, names, limits)
         self.report_progress(45)
@@ -264,25 +264,25 @@ class Alpha158Task(BaseETLTask):
             HISTORY_DAYS,
             self.input_params.min_history_coverage,
         )
-        self.context["missing_limit_rows"] = frame.filter(
+        self.state["missing_limit_rows"] = frame.filter(
             pl.col("_has_market_data") & ~pl.col("_has_valid_limits"),
         ).height
-        self.context["fallback_limit_rows"] = frame.filter(
+        self.state["fallback_limit_rows"] = frame.filter(
             pl.col("_used_limit_fallback") & pl.col("_has_valid_limits"),
         ).height
-        self.context["frame"] = frame
+        self.state["frame"] = frame
         self.report_progress(95)
         self.logger.info(
             f"Market status attached limit_rows={limits.height} "
-            f"fallback_limit_rows={self.context['fallback_limit_rows']} "
-            f"missing_limit_rows={self.context['missing_limit_rows']}",
+            f"fallback_limit_rows={self.state['fallback_limit_rows']} "
+            f"missing_limit_rows={self.state['missing_limit_rows']}",
         )
 
     def calculate_base_features(self) -> None:
         """Calculate candlestick features and inputs shared by rolling features."""
-        frame = self._price_features(self.context["frame"])
+        frame = self._price_features(self.state["frame"])
         self.report_progress(65)
-        self.context["frame"] = self._rolling_inputs(frame)
+        self.state["frame"] = self._rolling_inputs(frame)
         self.report_progress(95)
         self.logger.info(
             f"Base features calculated rows={frame.height} features={len(KBAR) + len(PRICE)}",
@@ -290,7 +290,7 @@ class Alpha158Task(BaseETLTask):
 
     def calculate_rolling_features(self) -> None:
         """Calculate independent rolling windows concurrently in Polars."""
-        frame: pl.DataFrame = self.context["frame"]
+        frame: pl.DataFrame = self.state["frame"]
         milestones = (10, 23, 41, 64, 95)
         rolling_frames = []
         for window, percentage in zip(WINDOWS, milestones, strict=True):
@@ -302,15 +302,15 @@ class Alpha158Task(BaseETLTask):
                 f"Rolling features calculated window={window} progress={percentage}%",
             )
         rolling_columns = [column for rolling_frame in rolling_frames for column in rolling_frame.get_columns()]
-        self.context["frame"] = frame.hstack(rolling_columns)
+        self.state["frame"] = frame.hstack(rolling_columns)
 
     def calculate_labels(self) -> None:
         """Calculate forward returns and their cross-sectional transformations."""
         self.logger.info(
             f"Calculating labels horizons={len(LABELS)} " f"winsorize_tail={self.input_params.csz_winsorize_tail}",
         )
-        self.context["frame"] = self._labels(
-            self.context["frame"],
+        self.state["frame"] = self._labels(
+            self.state["frame"],
             progress=self.report_progress,
         )
         self.logger.info("Labels calculated")
@@ -318,15 +318,15 @@ class Alpha158Task(BaseETLTask):
     def attach_index_weights(self) -> None:
         """Attach the latest available HS300 constituent-weight snapshot."""
         self.report_progress(10)
-        self.context["frame"] = self._weights(self.context["frame"])
+        self.state["frame"] = self._weights(self.state["frame"])
         self.report_progress(95)
         self.logger.info(
-            f"HS300 weights attached files={len(self.context['weight_files'])}",
+            f"HS300 weights attached files={len(self.state['weight_files'])}",
         )
 
     def finalize_dataset(self) -> None:
         """Apply the requested date range and project the public output schema."""
-        frame: pl.DataFrame = self.context["frame"]
+        frame: pl.DataFrame = self.state["frame"]
 
         if self.input_params.start_date:
             frame = frame.filter(pl.col("trade_date") >= self.input_params.start_date)
@@ -346,8 +346,8 @@ class Alpha158Task(BaseETLTask):
         )
         if output.is_empty():
             raise ValueError("输出日期范围内没有数据")
-        self.context["output"] = output
-        self.context.pop("frame", None)
+        self.state["output"] = output
+        self.state.pop("frame", None)
         self.report_progress(95)
         self.logger.info(
             f"Dataset finalized rows={output.height} columns={output.width} "
@@ -357,12 +357,12 @@ class Alpha158Task(BaseETLTask):
 
     def calculate_statistics(self) -> None:
         """Calculate data-quality statistics with bounded progress updates."""
-        self.context["statistics"] = self._statistics(
-            self.context["output"],
+        self.state["statistics"] = self._statistics(
+            self.state["output"],
             progress=self.report_progress,
         )
         self.logger.info(
-            f"Data-quality statistics calculated " f"columns={self.context['statistics'].height}",
+            f"Data-quality statistics calculated " f"columns={self.state['statistics'].height}",
         )
 
     def _labels(
@@ -380,7 +380,7 @@ class Alpha158Task(BaseETLTask):
 
     def _weights(self, frame: pl.DataFrame) -> pl.DataFrame:
         """Attach index snapshots while keeping Task logging at the boundary."""
-        paths = self.context["weight_files"]
+        paths = self.state["weight_files"]
         if not paths:
             self.logger.warning("No HS300 weight files found; index weights will be null")
             return frame.with_columns(pl.lit(None, dtype=pl.Float64).alias("index_weight_hs300"))
@@ -390,10 +390,10 @@ class Alpha158Task(BaseETLTask):
 
     def write_outputs(self) -> None:
         """Write the dataset and statistics files before publishing metadata."""
-        output: pl.DataFrame = self.context["output"]
-        statistics: pl.DataFrame = self.context["statistics"]
-        path: Path = self.context["output_path"]
-        statistics_path: Path = self.context["statistics_path"]
+        output: pl.DataFrame = self.state["output"]
+        statistics: pl.DataFrame = self.state["statistics"]
+        path: Path = self.state["output_path"]
+        statistics_path: Path = self.state["statistics_path"]
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
         statistics_temporary = statistics_path.with_name(
@@ -409,7 +409,7 @@ class Alpha158Task(BaseETLTask):
         finally:
             temporary.unlink(missing_ok=True)
             statistics_temporary.unlink(missing_ok=True)
-        self.context.update(
+        self.state.update(
             output_file=str(path),
             statistics_file=str(statistics_path),
             rows=output.height,
@@ -424,10 +424,10 @@ class Alpha158Task(BaseETLTask):
 
     def build_output_params(self) -> Alpha158OutputParams:
         """Publish the dataset contract used by every downstream Alpha158 task."""
-        output: pl.DataFrame = self.context["output"]
+        output: pl.DataFrame = self.state["output"]
         task_dir: Path = self.task_dir
-        dataset_record = artifact_record(self.context["output_path"], task_dir)
-        statistics_record = artifact_record(self.context["statistics_path"], task_dir)
+        dataset_record = artifact_record(self.state["output_path"], task_dir)
+        statistics_record = artifact_record(self.state["statistics_path"], task_dir)
         return self.output_cls(
             date_range={
                 "start": output["trade_date"].min(),
@@ -472,19 +472,19 @@ class Alpha158Task(BaseETLTask):
                 ),
                 "minimum_history_days": HISTORY_DAYS,
                 "minimum_history_coverage": self.input_params.min_history_coverage,
-                "missing_stock_basic_symbols": self.context["missing_stock_basic_symbols"],
+                "missing_stock_basic_symbols": self.state["missing_stock_basic_symbols"],
                 "missing_stock_basic_policy": (
                     "name=ts_code, list_date=first_quote, panel_end=last_quote, delist_date=null"
                 ),
-                "fallback_limit_rows": self.context["fallback_limit_rows"],
-                "missing_limit_rows": self.context["missing_limit_rows"],
+                "fallback_limit_rows": self.state["fallback_limit_rows"],
+                "missing_limit_rows": self.state["missing_limit_rows"],
             },
             schema={name: str(dtype) for name, dtype in output.schema.items()},
             artifacts={
                 "dataset": dataset_record,
                 "statistics": statistics_record,
             },
-            output_file=self.context["output_file"],
-            statistics_file=self.context["statistics_file"],
-            feature_count=self.context["feature_count"],
+            output_file=self.state["output_file"],
+            statistics_file=self.state["statistics_file"],
+            feature_count=self.state["feature_count"],
         )

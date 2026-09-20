@@ -1,140 +1,168 @@
-"""Asynchronous component lifecycle."""
+"""Context-bound objects and managed asynchronous components."""
+
+from __future__ import annotations
 
 import asyncio
-from typing import Callable, TypeVar, cast
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar
 
-from .mixin import ComponentMixin
+from ..config import ApplicationConfig
 from ..enums import ComponentEnum, component_type_name
+from ..utils import get_logger
 
-T = TypeVar("T", bound="BaseComponent")
-
-
-class Dependency:
-    """A named component reference resolved immediately before startup."""
-
-    __slots__ = ("ctype", "name", "default_factory", "optional")
-
-    def __init__(self, ctype, name, default_factory=None, optional=True):
-        self.ctype = component_type_name(ctype)
-        self.name = name
-        self.default_factory = default_factory
-        self.optional = optional
-
-    def __getattr__(self, item):
-        raise RuntimeError(
-            f"Dependency {self.ctype}:{self.name} accessed before start() " f"(attribute {item!r})",
-        )
+if TYPE_CHECKING:
+    from ..core.context import ApplicationContext
 
 
-class BaseComponent(ComponentMixin):
-    """Provide idempotent, concurrency-safe asynchronous lifecycle methods."""
+class ComponentBase:
+    """Common identity, configuration, logging, and application access."""
 
-    def __init__(self, **kwargs):
+    component_type = ComponentEnum.BASE
+    component_domains: ClassVar[tuple[ComponentEnum, ...]] = ()
+
+    def __init__(
+        self,
+        name: str | None = None,
+        backend: str = "",
+        app_context: ApplicationContext | None = None,
+        **options,
+    ) -> None:
+        self.name = name or type(self).__name__
+        self.backend = backend
+        self.app_context = app_context
+        self.extra_options = options
+        self._component_names = {
+            domain: self.extra_options.pop(domain.value, "default")
+            for domain in self.component_domains
+        }
+        self.logger = get_logger(self.name)
+
+    @property
+    def workspace_path(self) -> Path:
+        if self.app_context is None:
+            return Path.cwd()
+        return Path(self.app_config.workspace_dir).expanduser()
+
+    @property
+    def app_config(self) -> ApplicationConfig:
+        if self.app_context is None:
+            raise RuntimeError("Application config requires an application context")
+        return self.app_context.app_config
+
+    def get_component(self, component_type, name: str = "default"):
+        if self.app_context is None:
+            raise RuntimeError("Component access requires an application context")
+        return self.app_context.components[component_type_name(component_type)][name]
+
+
+@dataclass(frozen=True, slots=True)
+class DependencySpec:
+    """A component attribute that must be injected before startup."""
+
+    attribute: str
+    component_type: str
+    name: str
+    required: bool
+    expected_type: type[BaseComponent]
+
+
+class BaseComponent(ComponentBase):
+    """Provide deterministic dependency injection and asynchronous lifecycle."""
+
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.is_started = False
         self._lifecycle_lock = asyncio.Lock()
-        self._binding_specs: dict[str, Dependency] = {}
-        self._owned_components: list[BaseComponent] = []
+        self._dependencies: dict[str, DependencySpec] = {}
 
-    @staticmethod
-    def bind(
+    def depend(
+        self,
+        attribute: str,
         name: str | None,
-        base_cls: type[T],
+        base_cls: type[BaseComponent],
         *,
-        default_factory: Callable[[], T] | None = None,
-        optional: bool = True,
-    ) -> T | None:
-        """Declare a dependency on one named component."""
+        required: bool = True,
+    ) -> None:
+        """Declare an attribute that the application graph must inject."""
+        if not isinstance(attribute, str) or not attribute.isidentifier():
+            raise ValueError(f"Invalid dependency attribute: {attribute!r}")
+        if attribute in self._dependencies:
+            raise ValueError(f"Dependency attribute already declared: {attribute}")
         if not name:
-            return None
-        ctype = component_type_name(base_cls.component_type)
-        if ctype == ComponentEnum.BASE.value:
-            raise TypeError(f"{base_cls.__name__} must declare a non-BASE component_type")
-        return cast(T, Dependency(ctype, name, default_factory, optional))
+            if required:
+                raise ValueError(f"Dependency {attribute!r} requires a component name")
+            setattr(self, attribute, None)
+            return
+        component_type = component_type_name(base_cls.component_type)
+        if component_type == ComponentEnum.BASE.value:
+            raise TypeError(
+                f"{base_cls.__name__} must declare a non-BASE component_type"
+            )
+        self._dependencies[attribute] = DependencySpec(
+            attribute=attribute,
+            component_type=component_type,
+            name=name,
+            required=required,
+            expected_type=base_cls,
+        )
 
     @property
-    def dependency_bindings(self) -> dict[str, Dependency]:
-        """Return dependency declarations keyed by their bound attribute."""
-        bindings = dict(self._binding_specs)
-        bindings.update((name, value) for name, value in self.__dict__.items() if isinstance(value, Dependency))
-        return bindings
+    def dependencies(self) -> tuple[DependencySpec, ...]:
+        return tuple(self._dependencies.values())
 
-    @property
-    def dependencies(self) -> list[Dependency]:
-        """Return all dependency declarations for this component."""
-        return list(self.dependency_bindings.values())
+    def inject_dependencies(
+        self,
+        components: Mapping[tuple[str, str], BaseComponent],
+    ) -> None:
+        """Bind every declared dependency after graph validation succeeds."""
+        for dependency in self._dependencies.values():
+            target = components.get((dependency.component_type, dependency.name))
+            if target is None and dependency.required:
+                raise RuntimeError(
+                    "Validated dependency disappeared: "
+                    f"{dependency.component_type}:{dependency.name}"
+                )
+            if target is not None and not isinstance(target, dependency.expected_type):
+                raise TypeError(
+                    f"Dependency {dependency.component_type}:{dependency.name} must be "
+                    f"a {dependency.expected_type.__name__}"
+                )
+            setattr(self, dependency.attribute, target)
 
-    async def _resolve_dependencies(self):
-        for attribute, dependency in list(self.__dict__.items()):
-            if not isinstance(dependency, Dependency):
-                continue
-            self._binding_specs[attribute] = dependency
-            target = None
-            if self.app_context is not None:
-                target = self.app_context.components.get(dependency.ctype, {}).get(dependency.name)
-            elif dependency.default_factory is not None:
-                target = dependency.default_factory()
-                self._owned_components.append(target)
-            if target is None and not dependency.optional:
-                raise ValueError(f"Missing component dependency: {dependency.ctype}:{dependency.name}")
-            setattr(self, attribute, target)
-
-    @staticmethod
-    async def _close_owned(components) -> list[BaseException]:
-        errors = []
-        for component in reversed(components):
-            try:
-                await component.close()
-            except BaseException as exc:
-                errors.append(exc)
-        return errors
-
-    async def start(self):
-        """Start this component once and clean up a partial failed start."""
+    async def start(self) -> None:
+        """Start once, preserving both startup and rollback failures."""
         async with self._lifecycle_lock:
             if self.is_started:
                 return
-            started_owned = []
-            start_hook_entered = False
             try:
-                await self._resolve_dependencies()
-                for component in self._owned_components:
-                    await component.start()
-                    started_owned.append(component)
-                start_hook_entered = True
                 await self._start()
-            except BaseException:
-                if start_hook_entered:
-                    # noinspection PyBroadException
-                    try:
-                        await self._close()
-                    except BaseException:
-                        self.logger.exception("Startup cleanup failed")
-                for error in await self._close_owned(started_owned):
-                    self.logger.error(f"Owned component cleanup failed: {error}")
+            except BaseException as start_error:
+                try:
+                    await self._close()
+                except BaseException as cleanup_error:  # noqa: BLE001 - preserve rollback failure.
+                    raise BaseExceptionGroup(
+                        f"{self.name} startup failed and rollback was incomplete",
+                        [start_error, cleanup_error],
+                    ) from None
                 raise
             self.is_started = True
 
-    async def close(self):
-        """Close this component once if it has successfully started."""
+    async def close(self) -> None:
+        """Close once after a successful start."""
         async with self._lifecycle_lock:
-            if self.is_started:
-                errors = []
-                try:
-                    await self._close()
-                except BaseException as exc:
-                    errors.append(exc)
-                errors.extend(await self._close_owned(self._owned_components))
+            if not self.is_started:
+                return
+            try:
+                await self._close()
+            finally:
                 self.is_started = False
-                if len(errors) == 1:
-                    raise errors[0]
-                if errors:
-                    raise BaseExceptionGroup("Component cleanup failed", errors)
 
-    async def _start(self):
+    async def _start(self) -> None:
         pass
 
-    async def _close(self):
+    async def _close(self) -> None:
         pass
 
     async def __aenter__(self):

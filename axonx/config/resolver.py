@@ -5,13 +5,21 @@ import os
 import re
 from collections.abc import Mapping
 from importlib.metadata import EntryPoint
+from ipaddress import ip_address
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, Self
 
 import yaml
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..constants import CONFIG_ENTRY_POINT_GROUP
-from ..utils.entry_points import (
+from ..constants import (
+    AXONX_DEFAULT_ENCODING,
+    AXONX_DEFAULT_LOG_DIR,
+    AXONX_DEFAULT_TIMEZONE,
+    AXONX_NAME,
+    CONFIG_ENTRY_POINT_GROUP,
+)
+from .entry_points import (
     find_entry_points,
     load_entry_point,
     unique_entry_point,
@@ -21,6 +29,120 @@ _CONFIG_DIR = Path(__file__).parent
 _SUPPORTED_EXTENSIONS = (".yaml", ".yml", ".json")
 _ENV_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?}")
 _LEADING_ZERO_RE = re.compile(r"^-?0\d")
+
+
+class ComponentConfig(BaseModel):
+    """Select a component backend and retain backend-specific options."""
+
+    model_config = ConfigDict(extra="allow")
+    backend: str = Field(min_length=1)
+
+
+class JobConfig(ComponentConfig):
+    """Configure a Job's public contract and ordered Steps."""
+
+    backend: str = Field(default="pipeline", min_length=1)
+    description: str = ""
+    parameters: dict[str, Any] = Field(
+        default_factory=lambda: {"type": "object", "properties": {}}
+    )
+    enable_serve: bool = True
+    enable_remote: bool = True
+    enable_stream: bool = True
+    requires_auth: bool = False
+    steps: list[ComponentConfig] = Field(default_factory=list)
+    defaults: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("parameters")
+    @classmethod
+    def validate_parameters(cls, value: dict[str, Any]) -> dict[str, Any]:
+        schema = {**value}
+        schema.setdefault("type", "object")
+        if schema["type"] != "object":
+            raise ValueError("job parameters must describe a JSON object")
+        return schema
+
+
+class ScheduleConfig(ComponentConfig):
+    """Configure one trigger that invokes a named Job."""
+
+    backend: str = Field(default="cron", min_length=1)
+    job: str = Field(min_length=1)
+    cron: str = Field(min_length=1)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    timezone: str | None = Field(default=None, min_length=1)
+    concurrency_policy: Literal["forbid", "allow", "replace"] = "forbid"
+
+
+class PluginConfig(BaseModel):
+    """Configure startup plugin sources and privileged remote mutation."""
+
+    model_config = ConfigDict(extra="forbid")
+    sources: list[str] = Field(default_factory=list)
+    allow_remote_management: bool = False
+
+    @field_validator("sources")
+    @classmethod
+    def validate_sources(cls, values: list[str]) -> list[str]:
+        if any(not value.strip() for value in values):
+            raise ValueError("Plugin source paths must be non-empty strings")
+        return values
+
+
+class RemoteNode(BaseModel):
+    """Address of a configured remote AxonX node."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+    host_ip: str = Field(min_length=1)
+    host_port: int = Field(ge=1, le=65535)
+    token: str | None = Field(default=None, min_length=1, repr=False)
+
+    @field_validator("host_ip")
+    @classmethod
+    def validate_host_ip(cls, value: str) -> str:
+        return ip_address(value).compressed
+
+    @property
+    def address(self) -> str:
+        host = f"[{self.host_ip}]" if ":" in self.host_ip else self.host_ip
+        return f"{host}:{self.host_port}"
+
+
+class ApplicationConfig(BaseModel):
+    """Describe one complete AxonX application instance."""
+
+    model_config = ConfigDict(extra="forbid")
+    app_name: str = AXONX_NAME
+    workspace_dir: str = ".axonx"
+    log_dir: str = AXONX_DEFAULT_LOG_DIR
+    timezone: str = AXONX_DEFAULT_TIMEZONE
+    enable_logo: bool = True
+    log_to_console: bool = True
+    log_to_file: bool = True
+    plugins: PluginConfig = Field(default_factory=PluginConfig)
+    remote_nodes: list[RemoteNode] = Field(default_factory=list)
+    environment: dict[str, str] = Field(default_factory=dict)
+    components: dict[str, dict[str, ComponentConfig]] = Field(default_factory=dict)
+    jobs: dict[str, JobConfig] = Field(default_factory=dict)
+    schedules: dict[str, ScheduleConfig] = Field(default_factory=dict)
+    service: ComponentConfig | None = None
+
+    @model_validator(mode="after")
+    def validate_remote_nodes(self) -> Self:
+        addresses = [node.host_ip for node in self.remote_nodes]
+        if len(addresses) != len(set(addresses)):
+            raise ValueError("Remote node IPs must be unique")
+        return self
+
+    def resolve_remote_node(self, remote_ip: str) -> RemoteNode:
+        try:
+            normalized_ip = ip_address(remote_ip).compressed
+        except ValueError as exc:
+            raise ValueError(f"Invalid remote IP: {remote_ip!r}") from exc
+        for node in self.remote_nodes:
+            if node.host_ip == normalized_ip:
+                return node
+        raise ValueError(f"Remote AxonX is not configured: {normalized_ip!r}")
 
 
 def convert_value(value: str) -> Any:
@@ -70,7 +192,7 @@ def expand_env_vars(value: Any, env: Mapping[str, str] | None = None) -> Any:
 def deep_merge_config(
     base: Mapping[str, Any],
     update: Mapping[str, Any],
-) -> dict[str, Any]:
+) -> dict:
     """Recursively merge mappings without mutating either input."""
     result = dict(base)
     for key, value in update.items():
@@ -88,7 +210,7 @@ class ConfigResolver:
         self,
         config_dir: Path | str = _CONFIG_DIR,
         *,
-        encoding: str = "utf-8",
+        encoding: str = AXONX_DEFAULT_ENCODING,
     ) -> None:
         self.config_dir = Path(config_dir)
         self.encoding = encoding
@@ -98,7 +220,11 @@ class ConfigResolver:
         if not self.config_dir.is_dir():
             return {}
         files = sorted(
-            (path for path in self.config_dir.iterdir() if path.is_file() and path.suffix in _SUPPORTED_EXTENSIONS),
+            (
+                path
+                for path in self.config_dir.iterdir()
+                if path.is_file() and path.suffix in _SUPPORTED_EXTENSIONS
+            ),
             key=lambda path: (_SUPPORTED_EXTENSIONS.index(path.suffix), path.name),
         )
         return {path.stem: path for path in reversed(files)}
@@ -130,7 +256,9 @@ class ConfigResolver:
 
         path = Path(name_or_path)
         if path.suffix in _SUPPORTED_EXTENSIONS:
-            candidates = (path,) if path.is_absolute() else (path, self.config_dir / path)
+            candidates = (
+                (path,) if path.is_absolute() else (path, self.config_dir / path)
+            )
             for candidate in candidates:
                 if candidate.is_file():
                     return candidate
@@ -141,7 +269,7 @@ class ConfigResolver:
             f"Config file not found: {name_or_path}. Available: {known}",
         )
 
-    def _read(self, path: Path) -> dict[str, Any]:
+    def _read(self, path: Path) -> dict:
         with path.open(encoding=self.encoding) as file:
             config = json.load(file) if path.suffix == ".json" else yaml.safe_load(file)
         if config is None:
@@ -150,14 +278,15 @@ class ConfigResolver:
             raise ValueError(f"Config root must be a mapping/object: {path}")
         config = expand_env_vars(config)
         plugins = config.get("plugins")
-        if isinstance(plugins, list):
-            config["plugins"] = [
+        if isinstance(plugins, dict) and isinstance(plugins.get("sources"), list):
+            plugins["sources"] = [
                 (
                     str((path.parent / plugin).resolve())
-                    if isinstance(plugin, str) and not Path(plugin).expanduser().is_absolute()
+                    if isinstance(plugin, str)
+                    and not Path(plugin).expanduser().is_absolute()
                     else plugin
                 )
-                for plugin in plugins
+                for plugin in plugins["sources"]
             ]
         return config
 
@@ -165,7 +294,7 @@ class ConfigResolver:
         self,
         name_or_path: str,
         stack: tuple[tuple[str, str], ...],
-    ) -> dict[str, Any]:
+    ) -> dict:
         path = self._locate(name_or_path)
         identity = str(path.resolve())
         if identity in {item[0] for item in stack}:
@@ -174,8 +303,10 @@ class ConfigResolver:
 
         config = self._read(path)
         raw_parents = config.pop("extends", ())
-        parents = (raw_parents,) if isinstance(raw_parents, str) else tuple(raw_parents or ())
-        merged: dict[str, Any] = {}
+        parents = (
+            (raw_parents,) if isinstance(raw_parents, str) else tuple(raw_parents or ())
+        )
+        merged: dict = {}
         next_stack = (*stack, (identity, name_or_path))
 
         for parent in parents:
@@ -188,30 +319,30 @@ class ConfigResolver:
             merged = deep_merge_config(merged, self._load(parent_source, next_stack))
         return deep_merge_config(merged, config)
 
-    def load(self, name_or_path: str | Path) -> dict[str, Any]:
+    def load(self, name_or_path: str | Path) -> dict:
         """Load one named or path-based configuration, including its parents."""
         return self._load(str(name_or_path), ())
 
-    def resolve(self, *, log_config: bool = True, **overrides: Any) -> dict[str, Any]:
+    def resolve(self, *, log_config: bool = True, **overrides) -> dict:
         """Resolve a selected/default configuration and apply explicit overrides."""
         from ..utils import get_logger
 
         source = overrides.get("config")
-        base: dict[str, Any] = {}
+        base: dict = {}
         if isinstance(source, str):
             overrides.pop("config")
             if log_config:
-                get_logger(log_to_file=False).info(f"Loading config: {source}")
+                get_logger().info(f"Loading config: {source}")
             base = self.load(source)
         elif "default" in self.registry:
             if log_config:
-                get_logger(log_to_file=False).info(
+                get_logger().info(
                     "No config specified, loading 'default'",
                 )
             base = self.load("default")
         return deep_merge_config(base, overrides)
 
 
-def resolve_app_config(*, log_config: bool = True, **kwargs: Any) -> dict[str, Any]:
+def resolve_app_config(*, log_config: bool = True, **kwargs) -> dict:
     """Resolve application configuration using the built-in config directory."""
     return ConfigResolver().resolve(log_config=log_config, **kwargs)

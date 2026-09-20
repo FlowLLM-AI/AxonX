@@ -1,10 +1,10 @@
 """Demo step."""
 
-from ...components.registry import R
+from ...components.registry import provider
 from ..base import BaseStep
 
 
-@R.register("demo_step")
+@provider("demo_step")
 class DemoStep(BaseStep):
     """Add a readable prefix to the version demo response."""
 

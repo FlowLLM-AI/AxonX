@@ -1,7 +1,13 @@
 """Plugin steps."""
 
-from .inspect_plugins import InspectPluginsStep
+from .inspect_plugin import InspectPluginStep
+from .install_plugin import InstallPluginStep
 from .list_plugins import ListPluginsStep
-from .status_plugins import StatusPluginsStep
+from .uninstall_plugin import UninstallPluginStep
 
-__all__ = ["InspectPluginsStep", "ListPluginsStep", "StatusPluginsStep"]
+__all__ = [
+    "InspectPluginStep",
+    "InstallPluginStep",
+    "ListPluginsStep",
+    "UninstallPluginStep",
+]
