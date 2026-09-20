@@ -26,11 +26,20 @@ async def stream_task(
     """Merge one Task's journal and text log until it becomes terminal."""
     if poll_interval <= 0:
         raise ValueError("poll_interval must be positive")
-    log_path = logs.path(await read_status(task_id))
     events_path = task_path(workspace, task_id) / EVENTS_FILE
+    log_path = None
     log_offset = events_offset = 0
     log_warned = False
+    terminal_idle = False
     while True:
+        status = await read_status(task_id)
+        current_log_path = logs.path(status)
+        if current_log_path != log_path:
+            log_path = current_log_path
+            log_offset = 0
+            log_warned = False
+            terminal_idle = False
+
         events_offset, lines = await asyncio.to_thread(
             read_event_lines, events_path, events_offset
         )
@@ -61,10 +70,19 @@ async def stream_task(
             log_has_more = chunk.has_more_after
 
         status = await read_status(task_id)
-        if status.state.is_terminal:
-            if not log_has_more or not log_advanced:
-                return
+        if logs.path(status) != log_path:
+            terminal_idle = False
             continue
+        if status.state.is_terminal:
+            if log_has_more or log_advanced:
+                terminal_idle = False
+                continue
+            if terminal_idle:
+                return
+            terminal_idle = True
+            await asyncio.sleep(poll_interval)
+            continue
+        terminal_idle = False
         if log_has_more and log_advanced:
             continue
         await asyncio.sleep(poll_interval)

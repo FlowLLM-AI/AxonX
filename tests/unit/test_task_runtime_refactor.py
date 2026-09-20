@@ -178,6 +178,46 @@ async def test_terminal_stream_drains_all_log_windows(tmp_path):
     assert len(events) == 3
 
 
+async def test_stream_follows_log_path_created_after_subscription(tmp_path):
+    log_path = tmp_path / "task.log"
+    log_path.write_text("live log\n", encoding="utf-8")
+    queued = TaskStatus(
+        task_id="analysis#sample#late-log",
+        run_id="late-log",
+        task_type=TaskType.ANALYSIS,
+        state=TaskState.QUEUED,
+    )
+    finished = queued.model_copy(
+        update={"state": TaskState.SUCCEEDED, "log_path": str(log_path)}
+    )
+    calls = 0
+
+    async def read_status(_task_id):
+        nonlocal calls
+        calls += 1
+        return queued if calls == 1 else finished
+
+    class Logger:
+        def warning(self, _message):
+            pass
+
+    events = [
+        event
+        async for event in stream_task(
+            tmp_path,
+            TaskLogReader(tmp_path),
+            read_status,
+            Logger(),
+            queued.task_id,
+            0.001,
+        )
+    ]
+
+    assert "".join(event.content for event in events if isinstance(event, LogEvent)) == (
+        "live log\n"
+    )
+
+
 async def test_statuses_are_sorted_by_creation_time_not_task_id():
     now = datetime.now(UTC)
     older = TaskStatus(
