@@ -34,6 +34,3 @@ class JobCatalog(BaseModel):
 
     items: list[JobInfo] = Field(default_factory=list)
     total: int = 0
-
-
-__all__ = ["JobCatalog", "JobInfo", "JobResponse"]

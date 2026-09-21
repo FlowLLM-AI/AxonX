@@ -56,6 +56,3 @@ class HttpService(BaseService):
             port=self.port,
             timeout_graceful_shutdown=self.shutdown_timeout,
         )
-
-
-__all__ = ["HttpService"]

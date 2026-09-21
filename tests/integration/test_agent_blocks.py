@@ -1,4 +1,4 @@
-"""Live complete-block Agent presentation test."""
+"""Live Agent terminal protocol test."""
 
 import pytest
 
@@ -9,13 +9,9 @@ from ._agent_cli import run_live_cli
 
 
 @pytest.mark.integration
-def test_agent_ask_prints_complete_labelled_blocks(live_agent_service) -> None:
-    """Print complete reasoning, text, tool-call and tool-result blocks."""
-    output = run_live_cli(live_agent_service, "agent_ask")
+def test_agent_chat_preserves_raw_sdk_result(live_agent_service) -> None:
+    output = run_live_cli(live_agent_service)
 
-    assert "Backend / StreamEvent" not in output
-    assert "Backend / AssistantMessage / TextBlock" in output
-    assert "Backend / AssistantMessage / ToolUseBlock" in output
-    assert "Backend / UserMessage / ToolResultBlock" in output
-    assert output.count('"name": "mcp__axonx__version"') == 2
-    assert output.count('"name": "mcp__axonx__shell"') == 1
+    assert "Agent / ResultMessage" in output
+    assert '"terminal_reason"' in output
+    assert "===== BLOCK: ResultEvent =====" in output

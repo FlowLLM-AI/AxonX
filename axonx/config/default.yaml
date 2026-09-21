@@ -1,9 +1,9 @@
 # =========== Remote nodes ===========
-remote_nodes: []
-#remote_nodes:
-#  - host_ip: ${AXONX_REMOTE_HOST_IP}
-#    host_port: 1024
-#    token: ${AXONX_REMOTE_TOKEN:-null}
+#remote_nodes: []
+remote_nodes:
+  - host_ip: ${AXONX_REMOTE_HOST_IP}
+    host_port: 1024
+    token: ${AXONX_REMOTE_TOKEN:-null}
 
 plugins:
   sources: []
@@ -42,11 +42,18 @@ components:
       permission_mode: bypassPermissions
       # Load only workspace-level Claude settings.
       setting_sources: [project]
-      state_dir: agent
-      system_prompt: >-
-        You are the AxonX agent for this workspace. Use the provided tools to
-        inspect workspace tasks and artifacts, and answer from what they return
-        rather than from memory. Reply in the user's language.
+      state_dir: agent/claude
+      session_store:
+        backend: local
+        path: agent/session-store
+      session_store_flush: batched
+      system_prompt:
+        type: preset
+        preset: claude_code
+        append: >-
+          You are the AxonX agent for this workspace. Use the provided tools to
+          inspect workspace tasks and artifacts, and answer from what they return
+          rather than from memory. Reply in the user's language.
       job_tools:
         - list_entries
         - preview_file
@@ -54,6 +61,7 @@ components:
         - list_task_statuses
         - status
         - read_task_log
+        - get_task_graph
       # skills: all
       # plugins:
       #   - {type: local, path: /absolute/path/to/skills-plugin}
@@ -428,44 +436,128 @@ jobs:
 
   # =========== Agent jobs ===========
   agent_chat:
-    description: Run one Claude Code agent turn over the workspace.
+    description: Run one interactive Agent session turn over the workspace.
     requires_auth: true
     parameters:
       type: object
       properties:
-        prompt:
+        message:
           type: string
           minLength: 1
-          description: Instruction for the agent.
+          description: User message for this Agent turn.
         session_id:
           type: string
-          description: Session ID from an earlier call, to continue that conversation.
-      required: [prompt]
+          pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          description: Existing Backend session UUID; omit to create a new Session.
+      required: [message]
       additionalProperties: false
     steps:
       - backend: agent_stream
         agent: default
         max_depth: 3
 
-  agent_ask:
-    description: Run one Claude Code agent turn and return only its final answer.
+  list_agent_sessions:
+    description: List Agent Sessions for this workspace, newest first.
     requires_auth: true
     parameters:
       type: object
       properties:
-        prompt:
-          type: string
-          minLength: 1
-          description: Instruction for the agent.
-        session_id:
-          type: string
-          description: Session ID from an earlier call, to continue that conversation.
-      required: [prompt]
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
       additionalProperties: false
     steps:
-      - backend: agent
+      - backend: list_agent_sessions_step
         agent: default
-        max_depth: 3
+
+  get_agent_session:
+    description: Return one Agent Session and its visible message history.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
+        limit: {type: integer, minimum: 1, maximum: 1000}
+        offset: {type: integer, minimum: 0, default: 0}
+      required: [session_id]
+      additionalProperties: false
+    steps:
+      - backend: get_agent_session_step
+        agent: default
+
+  rename_agent_session:
+    description: Set the custom title of an Agent Session.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
+        title: {type: string, minLength: 1}
+      required: [session_id, title]
+      additionalProperties: false
+    steps:
+      - backend: rename_agent_session_step
+        agent: default
+
+  tag_agent_session:
+    description: Set or clear an Agent Session tag.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
+        tag: {type: [string, "null"]}
+      required: [session_id, tag]
+      additionalProperties: false
+    steps:
+      - backend: tag_agent_session_step
+        agent: default
+
+  delete_agent_session:
+    description: Permanently delete an Agent Session and its subagent transcripts.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
+      required: [session_id]
+      additionalProperties: false
+    steps:
+      - backend: delete_agent_session_step
+        agent: default
+
+  fork_agent_session:
+    description: Fork an Agent Session, optionally at one message UUID.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
+        up_to_message_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
+        title: {type: string, minLength: 1}
+      required: [session_id]
+      additionalProperties: false
+    steps:
+      - backend: fork_agent_session_step
+        agent: default
+
+  cancel_agent_turn:
+    description: Interrupt the running turn in an Agent Session.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
+      required: [session_id]
+      additionalProperties: false
+    steps:
+      - backend: cancel_agent_turn_step
+        agent: default
 
 schedules: {}
 # schedules:

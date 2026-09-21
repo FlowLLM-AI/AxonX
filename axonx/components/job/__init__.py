@@ -4,8 +4,9 @@ from .base import BaseJob
 from .contracts import JobCatalog, JobInfo, JobResponse
 from .events import (
     JOB_EVENT_ADAPTER,
+    AgentBlockPatch,
+    AgentMessageEvent,
     ArtifactEvent,
-    BackendEvent,
     JobEvent,
     LogEvent,
     ProgressEvent,
@@ -17,7 +18,8 @@ from .pipeline import PipelineJob
 
 __all__ = [
     "ArtifactEvent",
-    "BackendEvent",
+    "AgentBlockPatch",
+    "AgentMessageEvent",
     "BaseJob",
     "JOB_EVENT_ADAPTER",
     "JobCatalog",

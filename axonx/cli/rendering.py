@@ -12,7 +12,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..components.job.events import BackendEvent, JobEvent
+from ..components.job.events import AgentMessageEvent, JobEvent
 from ..constants import (
     AXONX_DEFAULT_BIND_HOST,
     AXONX_DEFAULT_CONNECT_HOST,
@@ -101,37 +101,14 @@ def print_json(value: object) -> None:
 
 def _event_blocks(event: JobEvent) -> list[tuple[str, object]]:
     """Split one event into labelled blocks without dropping message fields."""
-    if not isinstance(event, BackendEvent):
+    if not isinstance(event, AgentMessageEvent):
         return [(type(event).__name__, event.model_dump(mode="json"))]
-
-    message = dict(event.message)
-    content = message.pop("content", None)
-    if event.type_name == "StreamEvent":
-        sdk_event = message.get("event") or {}
-        event_type = (
-            sdk_event.get("type", "unknown")
-            if isinstance(sdk_event, dict)
-            else "unknown"
-        )
-        delta = sdk_event.get("delta") if isinstance(sdk_event, dict) else None
-        delta_type = delta.get("type") if isinstance(delta, dict) else None
-        suffix = f" / {delta_type}" if delta_type else ""
-        return [(f"Backend / StreamEvent / {event_type}{suffix}", event.message)]
-
-    blocks: list[tuple[str, object]] = []
-    if message:
-        blocks.append((f"Backend / {event.type_name} / Metadata", message))
-    if isinstance(content, list):
-        for block in content:
-            block_type = (
-                block.get("type_name", "UnknownBlock")
-                if isinstance(block, dict)
-                else type(block).__name__
-            )
-            blocks.append((f"Backend / {event.type_name} / {block_type}", block))
-    elif content is not None:
-        blocks.append((f"Backend / {event.type_name} / Content", content))
-    return blocks or [(f"Backend / {event.type_name}", event.message)]
+    if event.presentation:
+        return [
+            (f"Agent / {patch.block_type} / {patch.operation}", patch.model_dump(mode="json"))
+            for patch in event.presentation
+        ]
+    return [(f"Agent / {event.type_name}", event.message)]
 
 
 def print_event_blocks(event: JobEvent) -> None:

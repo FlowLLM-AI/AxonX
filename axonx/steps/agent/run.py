@@ -1,9 +1,8 @@
-"""Run one agent turn and adapt its event stream to a Job Step."""
+"""Run one interactive Agent session turn as a streaming Job Step."""
 
 from contextlib import aclosing
 from typing import ClassVar
 
-from ...components.job.contracts import JobResponse
 from ...components.job.events import ResultEvent
 from ...components.registry import provider
 from ...constants import AGENT_DEPTH_ARGUMENT
@@ -11,9 +10,8 @@ from ...enums import ComponentEnum
 from ..base import BaseStep
 
 
-class BaseAgentStep(BaseStep):
-    """Drive one agent backend while bounding recursive Job tool calls."""
-
+@provider("agent_stream")
+class AgentStreamStep(BaseStep):
     component_domains = (ComponentEnum.AGENT,)
     injected_parameters: ClassVar = {
         AGENT_DEPTH_ARGUMENT: {
@@ -47,25 +45,16 @@ class BaseAgentStep(BaseStep):
             "session_id": self.context.get("session_id"),
         }
 
-    def _adopt(self, response: JobResponse) -> None:
-        self.response.answer = response.answer
-        self.response.success = response.success
-        self.response.metadata = dict(response.metadata)
-
-    async def run_turn(self, *, partial: bool) -> None:
+    async def execute(self):
         if self.depth >= self.max_depth:
             self._refuse_depth()
             return
 
-        options = {AGENT_DEPTH_ARGUMENT: self.depth}
-        if partial:
-            options["include_partial_messages"] = True
-        if session_id := self.context.get("session_id"):
-            options["resume"] = session_id
-
         result_seen = False
         stream_source = self.agent_wrapper.reply_stream(
-            self.context["prompt"], **options
+            self.context["message"],
+            session_id=self.context.get("session_id"),
+            depth=self.depth,
         )
         async with aclosing(stream_source) as stream:
             async for event in stream:
@@ -73,7 +62,10 @@ class BaseAgentStep(BaseStep):
                     if result_seen:
                         raise RuntimeError("Agent backend produced multiple results")
                     result_seen = True
-                    self._adopt(event)
+                    response = event.response()
+                    self.response.answer = response.answer
+                    self.response.success = response.success
+                    self.response.metadata = dict(response.metadata)
                 else:
                     if result_seen:
                         raise RuntimeError(
@@ -82,19 +74,3 @@ class BaseAgentStep(BaseStep):
                     await self.emit(event)
         if not result_seen:
             raise RuntimeError("Agent backend produced no result")
-
-
-@provider("agent_stream")
-class AgentStreamStep(BaseAgentStep):
-    """Publish incremental backend events and fold the terminal result."""
-
-    async def execute(self):
-        await self.run_turn(partial=True)
-
-
-@provider("agent")
-class AgentStep(BaseAgentStep):
-    """Publish complete backend messages and fold the terminal result."""
-
-    async def execute(self):
-        await self.run_turn(partial=False)

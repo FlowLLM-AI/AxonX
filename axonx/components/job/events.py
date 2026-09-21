@@ -48,10 +48,21 @@ class ArtifactEvent(BaseModel):
     extra: dict[str, Any] = Field(default_factory=dict)
 
 
-class BackendEvent(BaseModel):
-    kind: Literal["backend"] = "backend"
+class AgentBlockPatch(BaseModel):
+    operation: Literal["start", "append", "replace", "finish"]
+    block_id: str = Field(min_length=1)
+    block_type: Literal["thinking", "text", "tool", "system", "error"]
+    delta: str = ""
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentMessageEvent(BaseModel):
+    kind: Literal["agent_message"] = "agent_message"
+    session_id: str = Field(min_length=1)
     type_name: str
     message: dict[str, Any]
+    sequence: int = Field(ge=0)
+    presentation: list[AgentBlockPatch] = Field(default_factory=list)
 
 
 class ResultEvent(JobResponse):
@@ -74,7 +85,7 @@ class ResultEvent(JobResponse):
 
 
 type JobEvent = Annotated[
-    ProgressEvent | LogEvent | ArtifactEvent | BackendEvent | ResultEvent,
+    ProgressEvent | LogEvent | ArtifactEvent | AgentMessageEvent | ResultEvent,
     Field(discriminator="kind"),
 ]
 JOB_EVENT_ADAPTER: TypeAdapter[JobEvent] = TypeAdapter(JobEvent)
@@ -89,15 +100,3 @@ async def fold_events(events: AsyncIterator[JobEvent]) -> JobResponse:
     if terminal is None:
         return JobResponse(answer="Stream produced no terminal result", success=False)
     return terminal.response()
-
-
-__all__ = [
-    "ArtifactEvent",
-    "BackendEvent",
-    "JOB_EVENT_ADAPTER",
-    "JobEvent",
-    "LogEvent",
-    "ProgressEvent",
-    "ResultEvent",
-    "fold_events",
-]

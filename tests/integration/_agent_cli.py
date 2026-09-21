@@ -19,7 +19,7 @@ AXONX_REACT_DONE and briefly report both versions and the shell output.
 """
 
 
-def run_live_cli(service: dict, job: str) -> str:
+def run_live_cli(service: dict, job: str = "agent_chat") -> str:
     """Run the real CLI, teeing each block to the terminal as it arrives."""
     command = [
         sys.executable,
@@ -38,7 +38,7 @@ def run_live_cli(service: dict, job: str) -> str:
         "--token",
         service["token"],
         job,
-        "--prompt",
+        "--message",
         PROMPT,
     ]
     process = subprocess.Popen(
@@ -68,7 +68,7 @@ def run_live_cli(service: dict, job: str) -> str:
             f"CLI failed with exit code {return_code}\n"
             f"output:\n{rendered}\nservice log:\n{service_log}",
         )
-    assert "===== BLOCK: Result =====" in rendered
+    assert "===== BLOCK: ResultEvent =====" in rendered
     assert '"success": true' in rendered
     assert "AXONX_REACT_DONE" in rendered
     return rendered

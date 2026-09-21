@@ -15,8 +15,9 @@ from ..base import BaseComponent
 from .contracts import JobCatalog, JobInfo, JobResponse
 from .events import (
     JOB_EVENT_ADAPTER,
+    AgentBlockPatch,
+    AgentMessageEvent,
     ArtifactEvent,
-    BackendEvent,
     JobEvent,
     LogEvent,
     ProgressEvent,
@@ -165,21 +166,3 @@ class BaseJob(BaseComponent, ABC):
             input_schema=deepcopy(self.parameters),
             output_schema=deepcopy(_RESPONSE_SCHEMA),
         )
-
-
-# The concrete definitions live in ``contracts`` and ``events``; these names remain
-# available here for callers that used the original module before the split.
-__all__ = [
-    "ArtifactEvent",
-    "BackendEvent",
-    "BaseJob",
-    "JOB_EVENT_ADAPTER",
-    "JobCatalog",
-    "JobEvent",
-    "JobInfo",
-    "JobResponse",
-    "LogEvent",
-    "ProgressEvent",
-    "ResultEvent",
-    "fold_events",
-]

@@ -9,13 +9,11 @@ from ._agent_cli import run_live_cli
 
 
 @pytest.mark.integration
-def test_agent_chat_prints_all_labelled_stream_events(live_agent_service) -> None:
-    """Print every partial reasoning, text and tool-input event immediately."""
-    output = run_live_cli(live_agent_service, "agent_chat")
+def test_agent_chat_prints_projected_stream_events(live_agent_service) -> None:
+    """Print UI projections without exposing Claude delta parsing to consumers."""
+    output = run_live_cli(live_agent_service)
 
-    assert "Backend / StreamEvent / content_block_delta / text_delta" in output
-    assert "Backend / StreamEvent / content_block_delta / input_json_delta" in output
-    assert "Backend / AssistantMessage / ToolUseBlock" in output
-    assert "Backend / UserMessage / ToolResultBlock" in output
-    assert output.count('"name": "mcp__axonx__version"') >= 2
-    assert output.count('"name": "mcp__axonx__shell"') >= 1
+    assert "Agent / text / append" in output
+    assert "Agent / tool / start" in output
+    assert "Agent / tool / finish" in output
+    assert '"session_id"' in output

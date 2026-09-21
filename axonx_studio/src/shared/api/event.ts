@@ -35,10 +35,21 @@ export interface ArtifactEvent {
   extra: Record<string, unknown>;
 }
 
-export interface BackendEvent {
-  kind: "backend";
+export interface AgentBlockPatch {
+  operation: "start" | "append" | "replace" | "finish";
+  block_id: string;
+  block_type: "thinking" | "text" | "tool" | "system" | "error";
+  delta: string;
+  payload: Record<string, unknown>;
+}
+
+export interface AgentMessageEvent {
+  kind: "agent_message";
+  session_id: string;
   type_name: string;
   message: Record<string, unknown>;
+  sequence: number;
+  presentation: AgentBlockPatch[];
 }
 
 export interface ResultEvent<T = unknown> extends JobResponse<T> {
@@ -46,7 +57,11 @@ export interface ResultEvent<T = unknown> extends JobResponse<T> {
 }
 
 export type JobEvent<T = unknown> =
-  ProgressEvent | LogEvent | ArtifactEvent | BackendEvent | ResultEvent<T>;
+  | ProgressEvent
+  | LogEvent
+  | ArtifactEvent
+  | AgentMessageEvent
+  | ResultEvent<T>;
 
 export interface StreamOptions<T> extends RequestOptions {
   onEvent?: (event: JobEvent<T>) => void;
