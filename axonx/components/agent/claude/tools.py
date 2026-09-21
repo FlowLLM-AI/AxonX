@@ -1,10 +1,4 @@
-"""Expose AxonX Jobs to an agent as in-process MCP tools.
-
-A tool call goes through the application's shared job dispatcher, so what the
-model invokes gets the same argument validation, logging, and remote routing an
-external caller gets — and what comes back is one Job's answer rendered as text
-the model can read.
-"""
+"""Expose AxonX Jobs to Claude Code as in-process MCP tools."""
 
 from __future__ import annotations
 
@@ -14,42 +8,27 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import TypeAdapter
 
-from ...constants import AGENT_DEPTH_ARGUMENT, REMOTE_IP_ARGUMENT
-from ..job.contracts import JobResponse
+from ....constants import AGENT_DEPTH_ARGUMENT, REMOTE_IP_ARGUMENT
+from ...job.contracts import JobResponse
 
 if TYPE_CHECKING:
-    from ...core.context import ApplicationContext
-    from ...core.dispatch import JobDispatcher
-    from ..job.base import BaseJob
+    from ....core.context import ApplicationContext
+    from ....core.dispatch import JobDispatcher
+    from ...job.base import BaseJob
 
 _ANSWER_ADAPTER = TypeAdapter(Any)
-
 _SERVER_NAME = "axonx"
 
 
 class JobToolServer:
-    """The Jobs one agent may call, presented as a single MCP server.
-
-    Resolved once, when the agent starts, and attached to every turn's options:
-    which Jobs an agent may call is configuration, while how deep the current
-    turn sits in a call chain is a property of the turn itself.
-    """
-
-    def __init__(self, jobs: Sequence["BaseJob"], dispatcher: "JobDispatcher") -> None:
+    def __init__(self, jobs: Sequence[BaseJob], dispatcher: JobDispatcher) -> None:
         self._jobs = tuple(jobs)
         self._dispatcher = dispatcher
 
     @classmethod
     def resolve(
-        cls,
-        names: Sequence[str],
-        app_context: "ApplicationContext | None",
-    ) -> "JobToolServer | None":
-        """Return the server for one component's configured Job names, if any.
-
-        Rejects at startup rather than at the first tool call: a name an operator
-        mistyped is a configuration error, not something to discover mid-turn.
-        """
+        cls, names: Sequence[str], app_context: ApplicationContext | None
+    ) -> JobToolServer | None:
         if not names:
             return None
         if app_context is None:
@@ -66,17 +45,14 @@ class JobToolServer:
             jobs.append(job)
         return cls(jobs, app_context.dispatcher)
 
-    def attach(self, options: dict, depth: int) -> None:
-        """Add this server, and permission for its tools, to one options mapping."""
+    def attach(self, options: dict[str, Any], depth: int) -> None:
         from claude_agent_sdk import create_sdk_mcp_server
 
         servers = options.get("mcp_servers") or {}
         if not isinstance(servers, dict):
             raise ValueError("job_tools require mcp_servers to be a mapping")
         if _SERVER_NAME in servers:
-            raise ValueError(
-                f"mcp_servers already contains the reserved name {_SERVER_NAME!r}",
-            )
+            raise ValueError(f"mcp_servers contains reserved name {_SERVER_NAME!r}")
         options["mcp_servers"] = {
             **servers,
             _SERVER_NAME: create_sdk_mcp_server(
@@ -89,19 +65,12 @@ class JobToolServer:
             raise ValueError("job_tools require allowed_tools to be a list")
         options["allowed_tools"] = list(
             dict.fromkeys(
-                [*allowed, *(f"mcp__{_SERVER_NAME}__{job.name}" for job in self._jobs)],
-            ),
+                [*allowed, *(f"mcp__{_SERVER_NAME}__{job.name}" for job in self._jobs)]
+            )
         )
 
 
-def _job_tool(job: "BaseJob", dispatcher: "JobDispatcher", depth: int) -> Any:
-    """Wrap one AxonX Job as an SDK MCP tool.
-
-    A Job that declares the recursion counter is handed the depth this call sits
-    at, so a Job that runs an agent of its own can refuse to descend further. The
-    counter stays out of the schema the model sees, and is filled back in here —
-    which is the only reason a tool call needs to know about it at all.
-    """
+def _job_tool(job: BaseJob, dispatcher: JobDispatcher, depth: int) -> Any:
     from claude_agent_sdk import SdkMcpTool
 
     nested = AGENT_DEPTH_ARGUMENT in job.injected_parameters
@@ -112,10 +81,7 @@ def _job_tool(job: "BaseJob", dispatcher: "JobDispatcher", depth: int) -> Any:
         remote_ip = payload.pop(REMOTE_IP_ARGUMENT, None) if supports_target else None
         system = {AGENT_DEPTH_ARGUMENT: depth + 1} if nested else None
         response = await dispatcher.run(
-            job.name,
-            payload,
-            system=system,
-            remote_ip=remote_ip,
+            job.name, payload, system=system, remote_ip=remote_ip
         )
         return {
             "content": [{"type": "text", "text": _render_answer(response)}],
@@ -130,8 +96,7 @@ def _job_tool(job: "BaseJob", dispatcher: "JobDispatcher", depth: int) -> Any:
     )
 
 
-def _tool_input_schema(job: "BaseJob") -> dict:
-    """Add agent-surface transport targeting without mutating the Job schema."""
+def _tool_input_schema(job: BaseJob) -> dict:
     schema = deepcopy(job.parameters)
     if job.is_remotely_invocable and not job.injected_parameters:
         schema.setdefault("properties", {})[REMOTE_IP_ARGUMENT] = {
@@ -142,14 +107,6 @@ def _tool_input_schema(job: "BaseJob") -> dict:
 
 
 def _render_answer(response: JobResponse) -> str:
-    """Render one Job answer as the text the model reads.
-
-    A Job answers with a payload model as often as with a string, and ``str()``
-    on one is a Python repr: nested entries arrive as ``WorkspaceEntry(...)``
-    rather than as the fields they hold. The HTTP and MCP routes serialize those
-    same models as JSON, and this is that rendering.
-    """
-    answer = response.answer
-    if isinstance(answer, str):
-        return answer
-    return _ANSWER_ADAPTER.dump_json(answer).decode()
+    if isinstance(response.answer, str):
+        return response.answer
+    return _ANSWER_ADAPTER.dump_json(response.answer).decode()

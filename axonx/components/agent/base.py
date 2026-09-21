@@ -1,39 +1,66 @@
-"""Agent component contract, expressed in AxonX event terms."""
+"""Backend-neutral Agent component contract."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
+from typing import Any
 
 from ...enums import ComponentEnum
+from ..base import BaseComponent
 from ..job.contracts import JobResponse
 from ..job.events import JobEvent, fold_events
-from ..base import BaseComponent
 
 
 class BaseAgentComponent(BaseComponent, ABC):
-    """Run one agent turn and hand back AxonX events.
-
-    The protocol is AxonX's own ``JobEvent`` union, not the backend's message
-    vocabulary: each backend message rides inside a ``BackendEvent`` envelope that
-    keeps its payload verbatim, and the turn ends with the stream's single
-    ``ResultEvent``. Callers read ``kind`` and never import the backend's SDK, while
-    the backend's own fields survive untouched — an envelope to pass through, not
-    a vocabulary to translate into.
-
-    Streaming and non-streaming are two ways of consuming the same stream, not
-    two implementations: :meth:`reply` folds it, :meth:`reply_stream` yields it.
-    Nothing here names a backend: what a turn *is*, and whatever commands a
-    particular CLI adds on top of it, belong to the backend owning that
-    vocabulary.
-    """
+    """Own Agent sessions and expose them through AxonX Job events."""
 
     component_type = ComponentEnum.AGENT
 
     @abstractmethod
-    def reply_stream(self, prompt: str, **options) -> AsyncIterator[JobEvent]:
-        """Yield this turn's events in arrival order, terminal ``ResultEvent`` last."""
+    def reply_stream(
+        self,
+        message: str,
+        *,
+        session_id: str | None = None,
+        depth: int = 0,
+    ) -> AsyncIterator[JobEvent]:
+        """Run one turn, creating a backend session when the ID is absent."""
 
-    async def reply(self, prompt: str, **options) -> JobResponse:
-        """Drain :meth:`reply_stream` and return its terminal response."""
-        return await fold_events(self.reply_stream(prompt, **options))
+    async def reply(
+        self, message: str, *, session_id: str | None = None, depth: int = 0
+    ) -> JobResponse:
+        return await fold_events(
+            self.reply_stream(message, session_id=session_id, depth=depth)
+        )
+
+    @abstractmethod
+    async def list_sessions(
+        self, *, limit: int | None = None, offset: int = 0
+    ) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    async def get_session(
+        self, session_id: str, *, limit: int | None = None, offset: int = 0
+    ) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def rename_session(self, session_id: str, title: str) -> None: ...
+
+    @abstractmethod
+    async def tag_session(self, session_id: str, tag: str | None) -> None: ...
+
+    @abstractmethod
+    async def delete_session(self, session_id: str) -> None: ...
+
+    @abstractmethod
+    async def fork_session(
+        self,
+        session_id: str,
+        *,
+        up_to_message_id: str | None = None,
+        title: str | None = None,
+    ) -> str: ...
+
+    @abstractmethod
+    async def cancel_turn(self, session_id: str) -> None: ...
