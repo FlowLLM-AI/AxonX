@@ -5,9 +5,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-from pathlib import Path
 import sys
-from typing import Any, Sequence
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
 from pydantic import TypeAdapter
 
@@ -51,6 +52,7 @@ def _json_value(value: Any) -> Any:
             **value.contributions_dict(),
             "requirements": list(value.requirements),
             "wheel": str(value.wheel),
+            "content_sha256": value.content_sha256,
             "sha256": value.sha256,
         }
     if isinstance(value, list):

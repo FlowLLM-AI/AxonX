@@ -1,4 +1,4 @@
-"""Compare installed plugin wheels before submitting remote Tasks."""
+"""Compare installed plugin contents before submitting remote Tasks."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ SUBMIT_JOB = "submit"
 
 
 def verify_remote_plugin(task_name: str, remote_records: object) -> None:
-    """Reject a plugin Task when its installed local and remote wheels differ."""
+    """Reject a plugin Task when its local and remote contents differ."""
     if not isinstance(remote_records, list):
         raise TypeError("Remote plugin list has an invalid response")
     matches = [
@@ -24,7 +24,7 @@ def verify_remote_plugin(task_name: str, remote_records: object) -> None:
         if local is not None:
             raise ValueError(
                 f"Task {task_name!r} is provided by locally installed plugin {local[0]!r}, "
-                "but the remote service has no managed wheel for it. Deploy the plugin before submitting.",
+                "but the remote service does not provide it. Deploy the plugin before submitting.",
             )
         return
     if len(matches) != 1:
@@ -34,24 +34,35 @@ def verify_remote_plugin(task_name: str, remote_records: object) -> None:
         raise ValueError(
             f"Task {task_name!r} is provided by a remote plugin but is not installed locally"
         )
-    local_name, local_hash = local
+    local_name, local_content_hash, local_wheel_hash = local
     remote_name = remote.get("distribution", "")
     if canonicalize_name(local_name) != canonicalize_name(remote_name):
         raise ValueError(
             f"Task {task_name!r} has different plugin providers: local {local_name!r}, remote {remote_name!r}",
         )
-    if not local_hash:
+    remote_content_hash = remote.get("content_sha256")
+    if local_content_hash and remote_content_hash:
+        if local_content_hash == remote_content_hash:
+            return
         raise ValueError(
-            f"Cannot verify locally installed plugin {local_name!r}: its wheel SHA-256 is unavailable. "
-            "Install it locally from a wheel before submitting remote Tasks.",
+            f"Plugin {local_name!r} content SHA-256 differs for Task {task_name!r}: "
+            f"local {local_content_hash}, remote {remote_content_hash}. "
+            "Install or deploy the same plugin content before submitting.",
         )
-    remote_hash = remote.get("sha256")
-    if local_hash != remote_hash:
+    remote_wheel_hash = remote.get("sha256")
+    if local_wheel_hash and remote_wheel_hash:
+        if local_wheel_hash == remote_wheel_hash:
+            return
         raise ValueError(
             f"Plugin {local_name!r} wheel SHA-256 differs for Task {task_name!r}: "
-            f"local {local_hash}, remote {remote_hash or 'missing'}. "
+            f"local {local_wheel_hash}, remote {remote_wheel_hash}. "
             "Install the plugin locally and deploy the same source to the remote service before submitting.",
         )
+    raise ValueError(
+        f"Cannot verify plugin {local_name!r} for Task {task_name!r}: "
+        "a shared content or wheel SHA-256 is unavailable. "
+        "Upgrade both AxonX services so plugin content fingerprints are reported.",
+    )
 
 
 async def verify_remote_submission(
@@ -59,7 +70,7 @@ async def verify_remote_submission(
     job_name: str,
     arguments,
 ) -> None:
-    """Verify plugin wheel identity before sending a Task submission."""
+    """Verify plugin content identity before sending a Task submission."""
     if job_name != SUBMIT_JOB:
         return
     task_name = arguments.get("task")

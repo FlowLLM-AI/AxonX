@@ -18,6 +18,7 @@ class PluginArtifact:
     tasks: dict[str, str]
     requirements: tuple[str, ...]
     wheel: Path
+    content_sha256: str
     sha256: str
     components: dict[str, dict[str, str]]
     jobs: dict[str, JobConfig]
@@ -47,6 +48,7 @@ class PluginInfo(BaseModel):
     components: dict[str, dict[str, str]] = Field(default_factory=dict)
     jobs: dict[str, JobConfig] = Field(default_factory=dict)
     requirements: list[str] = Field(default_factory=list)
+    content_sha256: str | None = None
     sha256: str | None = None
     error: str | None = None
 

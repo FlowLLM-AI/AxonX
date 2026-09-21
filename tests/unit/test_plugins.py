@@ -1,16 +1,23 @@
 """Plugin lifecycle tests for the environment-backed implementation."""
 
 from pathlib import Path
+from types import SimpleNamespace
+from zipfile import ZipFile
 
 import pytest
 
 from axonx import Application
 from axonx.components.client import ClientOptions
+from axonx.components.client.remote import stream_remote_job
 from axonx.components.job import JobResponse, ResultEvent
 from axonx.config import ConfigResolver
-from axonx.components.client.remote import stream_remote_job
 from axonx.plugin_kit import PluginArtifact, PluginInfo, index_contributions
 from axonx.plugin_kit.cli import plugin_cli
+from axonx.plugin_kit.discovery import _package_path
+from axonx.plugin_kit.identity import (
+    content_sha256_from_directories,
+    content_sha256_from_wheel,
+)
 from axonx.plugin_kit.installer import install_staged_plugin
 from axonx.plugin_kit.verification import verify_remote_plugin
 from axonx.workspace.models import FileCopy
@@ -25,10 +32,75 @@ def _artifact(path: Path, sha256: str) -> PluginArtifact:
         tasks={},
         requirements=(),
         wheel=path,
+        content_sha256="content",
         sha256=sha256,
         components={},
         jobs={},
     )
+
+
+def test_content_sha_is_independent_of_directory_or_wheel_packaging(tmp_path):
+    source = tmp_path / "source" / "demo_plugin"
+    source.mkdir(parents=True)
+    (source / "__init__.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (source / "plugin.yaml").write_text("tasks: {}\n", encoding="utf-8")
+    cache = source / "__pycache__"
+    cache.mkdir()
+    (cache / "ignored.pyc").write_bytes(b"host-specific")
+
+    wheel = tmp_path / "demo.whl"
+    with ZipFile(wheel, "w") as archive:
+        archive.writestr("demo_plugin/plugin.yaml", "tasks: {}\n")
+        archive.writestr("demo_plugin/__init__.py", "VALUE = 1\n")
+        archive.writestr("demo_plugin/__pycache__/ignored.pyc", b"other-host")
+        archive.writestr("demo_plugin-1.0.dist-info/RECORD", "volatile")
+
+    arguments = {
+        "distribution": "demo-plugin",
+        "version": "1.0",
+        "requirements": ["dependency>=1"],
+        "plugins": {"demo": "demo_plugin"},
+    }
+    directory_hash = content_sha256_from_directories(
+        **arguments, package_paths={"demo_plugin": source}
+    )
+    with ZipFile(wheel) as archive:
+        wheel_hash = content_sha256_from_wheel(archive, **arguments)
+
+    assert directory_hash == wheel_hash
+
+
+def test_content_sha_changes_when_plugin_content_changes(tmp_path):
+    package = tmp_path / "demo_plugin"
+    package.mkdir()
+    source = package / "__init__.py"
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    arguments = {
+        "distribution": "demo-plugin",
+        "version": "1.0",
+        "requirements": [],
+        "plugins": {"demo": "demo_plugin"},
+        "package_paths": {"demo_plugin": package},
+    }
+    before = content_sha256_from_directories(**arguments)
+
+    source.write_text("VALUE = 2\n", encoding="utf-8")
+
+    assert content_sha256_from_directories(**arguments) != before
+
+
+def test_editable_plugin_package_uses_import_location(monkeypatch, tmp_path):
+    package = tmp_path / "src" / "demo_plugin"
+    package.mkdir(parents=True)
+    distribution = SimpleNamespace(
+        locate_file=lambda relative: tmp_path / "site-packages" / relative
+    )
+    specification = SimpleNamespace(submodule_search_locations=[str(package)])
+    monkeypatch.setattr(
+        "axonx.plugin_kit.discovery.util.find_spec", lambda _package: specification
+    )
+
+    assert _package_path(distribution, "demo_plugin") == package.resolve()
 
 
 def test_existing_artifact_cache_is_verified_before_install(monkeypatch, tmp_path):
@@ -167,10 +239,67 @@ def test_remote_install_discards_upload_when_job_fails(monkeypatch, tmp_path):
     assert discarded == ["copies/demo.whl"]
 
 
-def test_remote_verification_compares_active_wheel_digest(monkeypatch):
+def test_remote_verification_compares_active_content_digest(monkeypatch):
     monkeypatch.setattr(
         "axonx.plugin_kit.verification.installed_plugin_for_task",
-        lambda _task: ("demo", "local"),
+        lambda _task: ("demo", "local-content", None),
+    )
+
+    with pytest.raises(ValueError, match="content SHA-256 differs"):
+        verify_remote_plugin(
+            "demo_task",
+            [
+                {
+                    "distribution": "demo",
+                    "tasks": {"demo_task": "demo:Task"},
+                    "content_sha256": "remote-content",
+                    "sha256": None,
+                }
+            ],
+        )
+
+
+def test_remote_verification_accepts_matching_content_for_source_installs(monkeypatch):
+    monkeypatch.setattr(
+        "axonx.plugin_kit.verification.installed_plugin_for_task",
+        lambda _task: ("demo", "same-content", None),
+    )
+
+    verify_remote_plugin(
+        "demo_task",
+        [
+            {
+                "distribution": "demo",
+                "tasks": {"demo_task": "demo:Task"},
+                "content_sha256": "same-content",
+                "sha256": None,
+            }
+        ],
+    )
+
+
+def test_remote_verification_falls_back_to_wheel_digest(monkeypatch):
+    monkeypatch.setattr(
+        "axonx.plugin_kit.verification.installed_plugin_for_task",
+        lambda _task: ("demo", "local-content", "same-wheel"),
+    )
+
+    verify_remote_plugin(
+        "demo_task",
+        [
+            {
+                "distribution": "demo",
+                "tasks": {"demo_task": "demo:Task"},
+                "sha256": "same-wheel",
+            }
+        ],
+    )
+
+
+def test_remote_verification_rejects_different_fallback_wheels(monkeypatch):
+    monkeypatch.setattr(
+        "axonx.plugin_kit.verification.installed_plugin_for_task",
+        lambda _task: ("demo", None, "local-wheel"),
     )
 
     with pytest.raises(ValueError, match="wheel SHA-256 differs"):
@@ -180,7 +309,7 @@ def test_remote_verification_compares_active_wheel_digest(monkeypatch):
                 {
                     "distribution": "demo",
                     "tasks": {"demo_task": "demo:Task"},
-                    "sha256": "remote",
+                    "sha256": "remote-wheel",
                 }
             ],
         )

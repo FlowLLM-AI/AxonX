@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from importlib import invalidate_caches
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from importlib import invalidate_caches
+from pathlib import Path
 
 from packaging.utils import canonicalize_name
 
@@ -46,6 +46,11 @@ def install_plugin(artifact: PluginArtifact) -> PluginInfo:
             f"Installed plugin provenance mismatch: expected {artifact.sha256}, "
             f"got {installed.sha256 or 'missing'}",
         )
+    if installed.content_sha256 != artifact.content_sha256:
+        raise RuntimeError(
+            f"Installed plugin content mismatch: expected {artifact.content_sha256}, "
+            f"got {installed.content_sha256 or 'missing'}",
+        )
     return installed
 
 
@@ -83,7 +88,11 @@ def install_staged_plugin(
         ),
         None,
     )
-    if previous is not None and previous.sha256 == stored.sha256:
+    if (
+        previous is not None
+        and previous.sha256 == stored.sha256
+        and previous.content_sha256 == stored.content_sha256
+    ):
         installed = previous
     else:
         try:
@@ -117,7 +126,11 @@ def ensure_plugin_sources(
             ),
             None,
         )
-        if installed is None or installed.sha256 != artifact.sha256:
+        if (
+            installed is None
+            or installed.sha256 != artifact.sha256
+            or installed.content_sha256 != artifact.content_sha256
+        ):
             install_plugin(artifact)
     return list_installed_plugins()
 

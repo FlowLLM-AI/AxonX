@@ -1,20 +1,21 @@
 """Build, inspect, and install plugin wheels."""
 
 import configparser
+import subprocess
+import sys
 from email.parser import Parser
 from importlib import invalidate_caches
 from pathlib import Path
-import subprocess
-import sys
 from tempfile import TemporaryDirectory
 from zipfile import BadZipFile, ZipFile
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
-from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
 from ..config import JobConfig
+from ..constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
 from ..utils.fs import directory_sha256, file_sha256
+from .identity import content_sha256_from_wheel
 from .manifest import parse_plugin_manifest
 from .models import PluginArtifact
 
@@ -100,6 +101,7 @@ def _read_artifact(path: Path) -> PluginArtifact:
         components: dict[str, dict[str, str]] = {}
         jobs: dict[str, JobConfig] = {}
         plugin_names = []
+        plugin_packages = {}
         for plugin_name, package in entries.items(PLUGIN_ENTRY_POINT_GROUP):
             if ":" in package:
                 raise ValueError("Plugin entry point must target a package")
@@ -131,18 +133,29 @@ def _read_artifact(path: Path) -> PluginArtifact:
                 )
             jobs.update(manifest.jobs)
             plugin_names.append(plugin_name)
+            plugin_packages[plugin_name] = package
 
-    distribution = metadata.get("Name")
-    version = metadata.get("Version")
-    if not distribution or not version:
-        raise ValueError("Wheel metadata must contain Name and Version")
+        distribution = metadata.get("Name")
+        version = metadata.get("Version")
+        if not distribution or not version:
+            raise ValueError("Wheel metadata must contain Name and Version")
+        requirements = tuple(metadata.get_all("Requires-Dist") or ())
+        content_sha256 = content_sha256_from_wheel(
+            archive,
+            distribution=distribution,
+            version=version,
+            requirements=requirements,
+            plugins=plugin_packages,
+        )
+
     return PluginArtifact(
         distribution=distribution,
         version=version,
         plugin_names=tuple(plugin_names),
         tasks=tasks,
-        requirements=tuple(metadata.get_all("Requires-Dist") or ()),
+        requirements=requirements,
         wheel=path,
+        content_sha256=content_sha256,
         sha256=file_sha256(path),
         components=components,
         jobs=jobs,

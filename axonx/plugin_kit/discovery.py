@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from importlib import metadata
 import json
+from importlib import metadata, util
+from pathlib import Path
 from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from ..constants import AXONX_DEFAULT_ENCODING, PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
+from ..constants import (
+    AXONX_DEFAULT_ENCODING,
+    PLUGIN_ENTRY_POINT_GROUP,
+    PLUGIN_MANIFEST,
+)
+from .identity import content_sha256_from_directories
 from .manifest import parse_plugin_manifest
 from .models import PluginInfo
 
@@ -32,6 +38,20 @@ def _wheel_sha256(distribution: Any) -> str | None:
     return None
 
 
+def _package_path(distribution: Any, package: str) -> Path:
+    """Locate a regular or editable-installed plugin package."""
+    installed = Path(distribution.locate_file(package.replace(".", "/"))).resolve()
+    if installed.is_dir():
+        return installed
+    specification = util.find_spec(package)
+    locations = (
+        list(specification.submodule_search_locations or ()) if specification else []
+    )
+    if len(locations) != 1:
+        raise FileNotFoundError(f"Cannot locate plugin package: {package}")
+    return Path(locations[0]).resolve()
+
+
 def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None:
     entries = [
         entry
@@ -45,13 +65,17 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
     components: dict[str, dict[str, str]] = {}
     jobs = {}
     plugin_names: list[str] = []
+    plugin_packages: dict[str, str] = {}
+    package_paths: dict[str, Path] = {}
     for entry in entries:
         package = entry.value
         if ":" in package:
             raise ValueError(f"Plugin entry point {entry.name!r} must target a package")
-        manifest_path = distribution.locate_file(
-            f"{package.replace('.', '/')}/{PLUGIN_MANIFEST}"
-        )
+        package_path = package_paths.get(package)
+        if package_path is None:
+            package_path = _package_path(distribution, package)
+            package_paths[package] = package_path
+        manifest_path = package_path / PLUGIN_MANIFEST
         if not manifest_path.is_file():
             raise ValueError(
                 f"Plugin {entry.name!r} does not contain {PLUGIN_MANIFEST}"
@@ -82,11 +106,13 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
             )
         jobs.update(manifest.jobs)
         plugin_names.append(entry.name)
+        plugin_packages[entry.name] = package
 
     name = distribution.metadata.get("Name")
     version = distribution.version
     if not name or not version:
         raise ValueError("Installed plugin metadata must contain Name and Version")
+    requirements = list(distribution.requires or ())
     return PluginInfo(
         distribution=name,
         version=version,
@@ -94,7 +120,14 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
         tasks=tasks,
         components=components,
         jobs=jobs,
-        requirements=list(distribution.requires or ()),
+        requirements=requirements,
+        content_sha256=content_sha256_from_directories(
+            distribution=name,
+            version=version,
+            requirements=requirements,
+            plugins=plugin_packages,
+            package_paths=package_paths,
+        ),
         sha256=_wheel_sha256(distribution),
     )
 
@@ -119,6 +152,7 @@ def list_installed_plugins() -> list[PluginInfo]:
                 version=distribution.version or "unknown",
                 plugins=[entry.name for entry in entries],
                 requirements=list(distribution.requires or ()),
+                content_sha256=None,
                 sha256=_wheel_sha256(distribution),
                 error=str(exc),
             )
@@ -148,8 +182,10 @@ def get_installed_plugin(name: str) -> PluginInfo:
     return matches[0]
 
 
-def installed_plugin_for_task(task_name: str) -> tuple[str, str | None] | None:
-    """Return the installed distribution and wheel digest providing a Task."""
+def installed_plugin_for_task(
+    task_name: str,
+) -> tuple[str, str | None, str | None] | None:
+    """Return the installed distribution and its content and wheel digests."""
     matches = [info for info in list_installed_plugins() if task_name in info.tasks]
     if len(matches) > 1:
         raise ValueError(
@@ -157,4 +193,4 @@ def installed_plugin_for_task(task_name: str) -> tuple[str, str | None] | None:
         )
     if not matches:
         return None
-    return matches[0].distribution, matches[0].sha256
+    return matches[0].distribution, matches[0].content_sha256, matches[0].sha256
