@@ -19,8 +19,10 @@ AXONX_REACT_DONE and briefly report both versions and the shell output.
 """
 
 
-def run_live_cli(service: dict, job: str = "agent_chat") -> str:
-    """Run the real CLI, teeing each block to the terminal as it arrives."""
+def run_live_cli(
+    service: dict, job: str = "agent_chat", *, stream: bool = True
+) -> str:
+    """Run the real CLI, optionally teeing streamed blocks as they arrive."""
     command = [
         sys.executable,
         "-m",
@@ -32,7 +34,7 @@ def run_live_cli(service: dict, job: str = "agent_chat") -> str:
         "--timeout",
         "180",
         "--stream",
-        "true",
+        str(stream).lower(),
         "--stream-format",
         "blocks",
         "--token",
@@ -68,7 +70,8 @@ def run_live_cli(service: dict, job: str = "agent_chat") -> str:
             f"CLI failed with exit code {return_code}\n"
             f"output:\n{rendered}\nservice log:\n{service_log}",
         )
-    assert "===== BLOCK: ResultEvent =====" in rendered
+    if stream:
+        assert "===== BLOCK: ResultEvent =====" in rendered
     assert '"success": true' in rendered
     assert "AXONX_REACT_DONE" in rendered
     return rendered

@@ -11,7 +11,7 @@ from ._agent_cli import run_live_cli
 @pytest.mark.integration
 def test_agent_chat_prints_projected_stream_events(live_agent_service) -> None:
     """Print UI projections without exposing Claude delta parsing to consumers."""
-    output = run_live_cli(live_agent_service)
+    output = run_live_cli(live_agent_service, stream=True)
 
     assert "Agent / text / append" in output
     assert "Agent / tool / start" in output
