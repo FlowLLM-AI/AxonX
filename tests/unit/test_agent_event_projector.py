@@ -7,7 +7,10 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
-from axonx.components.agent.claude.projector import ClaudeMessageProjector
+from axonx.components.agent.claude.projector import (
+    ClaudeMessageProjector,
+    history_blocks,
+)
 
 
 def test_projector_coalesces_text_delta_with_complete_message():
@@ -53,12 +56,38 @@ def test_projector_pairs_tool_result_with_tool_use_id():
         )
     )
     finished = projector.project(
-        UserMessage(
-            content=[ToolResultBlock(tool_use_id="tool-one", content="ok")]
-        )
+        UserMessage(content=[ToolResultBlock(tool_use_id="tool-one", content="ok")])
     )
 
     assert started[0].block_id == "tool-one"
     assert finished[0].block_id == "tool-one"
     assert finished[0].operation == "finish"
     assert finished[0].payload["status"] == "succeeded"
+
+
+def test_history_blocks_include_message_ownership():
+    messages = [
+        {
+            "type": "user",
+            "uuid": "user-message",
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": "hello"}],
+            },
+        },
+        {
+            "type": "assistant",
+            "uuid": "assistant-message",
+            "message": {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "hi"}],
+            },
+        },
+    ]
+
+    blocks = history_blocks(messages)
+
+    assert [(block["role"], block["message_uuid"]) for block in blocks] == [
+        ("user", "user-message"),
+        ("assistant", "assistant-message"),
+    ]

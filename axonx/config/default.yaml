@@ -62,6 +62,7 @@ components:
         - status
         - read_task_log
         - get_task_graph
+        - get_task_context
       # skills: all
       # plugins:
       #   - {type: local, path: /absolute/path/to/skills-plugin}
@@ -261,6 +262,22 @@ jobs:
         - task_id
     steps:
       - backend: read_log
+
+  get_task_context:
+    description: Return bounded Task status, paths, and relationship context for an Agent.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        task_id:
+          type: string
+          minLength: 1
+          description: ID of the Task whose Agent context is requested.
+      required: [task_id]
+      additionalProperties: false
+    steps:
+      - backend: get_task_context_step
+        task_manager: default
 
   stream_task:
     description: Follow one Task, streaming its progress and log until it stops.

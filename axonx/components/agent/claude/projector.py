@@ -13,7 +13,10 @@ def sdk_value(value: Any) -> Any:
     if is_dataclass(value) and not isinstance(value, type):
         return {
             "type_name": type(value).__name__,
-            **{field.name: sdk_value(getattr(value, field.name)) for field in fields(value)},
+            **{
+                field.name: sdk_value(getattr(value, field.name))
+                for field in fields(value)
+            },
         }
     if isinstance(value, Mapping):
         return {key: sdk_value(item) for key, item in value.items()}
@@ -25,7 +28,9 @@ def sdk_value(value: Any) -> Any:
 def message_payload(message: Any) -> dict[str, Any]:
     if not is_dataclass(message):
         raise TypeError(f"Unsupported Claude message: {type(message).__name__}")
-    return {field.name: sdk_value(getattr(message, field.name)) for field in fields(message)}
+    return {
+        field.name: sdk_value(getattr(message, field.name)) for field in fields(message)
+    }
 
 
 class ClaudeMessageProjector:
@@ -72,12 +77,16 @@ class ClaudeMessageProjector:
         if isinstance(message, StreamEvent):
             return self._stream(message.uuid, message.event)
         if isinstance(message, AssistantMessage):
-            return self._assistant(message.uuid or message.message_id or "assistant", message.content)
+            return self._assistant(
+                message.uuid or message.message_id or "assistant", message.content
+            )
         if isinstance(message, UserMessage) and isinstance(message.content, list):
             return self._tool_results(message.content)
         return []
 
-    def _stream(self, message_uuid: str, event: Mapping[str, Any]) -> list[AgentBlockPatch]:
+    def _stream(
+        self, message_uuid: str, event: Mapping[str, Any]
+    ) -> list[AgentBlockPatch]:
         event_type = event.get("type")
         index = event.get("index")
         if not isinstance(index, int):
@@ -156,7 +165,9 @@ class ClaudeMessageProjector:
             ]
         return []
 
-    def _assistant(self, message_uuid: str, content: list[Any]) -> list[AgentBlockPatch]:
+    def _assistant(
+        self, message_uuid: str, content: list[Any]
+    ) -> list[AgentBlockPatch]:
         patches: list[AgentBlockPatch] = []
         for index, raw in enumerate(content):
             block = sdk_value(raw)
@@ -166,7 +177,9 @@ class ClaudeMessageProjector:
             if kind is None:
                 continue
             tool_id = block.get("id") if kind == "tool" else None
-            block_id = str(tool_id or self._indices.get(index) or f"{message_uuid}:{index}")
+            block_id = str(
+                tool_id or self._indices.get(index) or f"{message_uuid}:{index}"
+            )
             if isinstance(tool_id, str):
                 self._tools[tool_id] = block_id
             if block_id not in self._blocks:
@@ -260,6 +273,13 @@ def history_blocks(messages: list[Any]) -> list[dict[str, Any]]:
         message = item.message if hasattr(item, "message") else item.get("message")
         if not isinstance(message, Mapping):
             continue
+        message_uuid = item.uuid if hasattr(item, "uuid") else item.get("uuid")
+        message_uuid = str(message_uuid or f"message-{len(blocks)}")
+        role = item.type if hasattr(item, "type") else item.get("type")
+        if role not in {"user", "assistant"}:
+            role = message.get("role")
+        if role not in {"user", "assistant", "system"}:
+            role = "system"
         content = message.get("content")
         if not isinstance(content, list):
             continue
@@ -270,20 +290,24 @@ def history_blocks(messages: list[Any]) -> list[dict[str, Any]]:
             if block_type in {"text", "thinking"}:
                 blocks.append(
                     {
-                        "block_id": f"{item.uuid}:{len(blocks)}",
+                        "block_id": f"{message_uuid}:{len(blocks)}",
                         "block_type": block_type,
+                        "message_uuid": message_uuid,
+                        "role": role,
                         "status": "completed",
                         "text": raw.get("text") or raw.get("thinking") or "",
                         "payload": {},
                     }
                 )
             elif block_type in {"tool_use", "server_tool_use"}:
-                tool_id = str(raw.get("id") or f"{item.uuid}:{len(blocks)}")
+                tool_id = str(raw.get("id") or f"{message_uuid}:{len(blocks)}")
                 tool_positions[tool_id] = len(blocks)
                 blocks.append(
                     {
                         "block_id": tool_id,
                         "block_type": "tool",
+                        "message_uuid": message_uuid,
+                        "role": role,
                         "status": "running",
                         "text": "",
                         "payload": {
@@ -300,6 +324,9 @@ def history_blocks(messages: list[Any]) -> list[dict[str, Any]]:
                     target = blocks[position]
                     target["status"] = "failed" if raw.get("is_error") else "completed"
                     target["payload"].update(
-                        {"result": raw.get("content"), "is_error": bool(raw.get("is_error"))}
+                        {
+                            "result": raw.get("content"),
+                            "is_error": bool(raw.get("is_error")),
+                        }
                     )
     return blocks

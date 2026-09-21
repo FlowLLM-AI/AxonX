@@ -1,5 +1,6 @@
 """Agent turn and Session Steps."""
 
+from .context import GetTaskContextStep
 from .run import AgentStreamStep
 from .sessions import (
     CancelAgentTurnStep,
@@ -17,6 +18,7 @@ __all__ = [
     "DeleteAgentSessionStep",
     "ForkAgentSessionStep",
     "GetAgentSessionStep",
+    "GetTaskContextStep",
     "ListAgentSessionsStep",
     "RenameAgentSessionStep",
     "TagAgentSessionStep",
