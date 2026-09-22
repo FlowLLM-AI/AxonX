@@ -63,8 +63,6 @@ export interface ResearchArtifact {
   result_file?: string;
   model_file?: string;
   predictions_file?: string;
-  daily_file?: string;
-  summary_file?: string;
   source?: string[];
   config: {
     task_id: string;

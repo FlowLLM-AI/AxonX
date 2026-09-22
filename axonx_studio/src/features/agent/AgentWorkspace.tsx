@@ -31,6 +31,20 @@ import { SessionRail } from "./SessionRail";
 import type { AgentSessionInfo } from "./types";
 import { AxonXMark } from "./AxonXMark";
 
+interface AgentWorkspaceProps {
+  view: "new" | "chat" | "task";
+  resource?: string;
+  remoteIp?: string;
+  navigate: (route: AppRoute) => void;
+  replace: (route: AppRoute) => void;
+  onOptionsChange: (options: ContextOption[]) => void;
+  onConnection: (online: boolean) => void;
+}
+
+function errorMessage(reason: unknown) {
+  return reason instanceof Error ? reason.message : String(reason);
+}
+
 export function AgentWorkspace({
   view,
   resource,
@@ -39,15 +53,7 @@ export function AgentWorkspace({
   replace,
   onOptionsChange,
   onConnection,
-}: {
-  view: "new" | "chat" | "task";
-  resource?: string;
-  remoteIp?: string;
-  navigate: (route: AppRoute) => void;
-  replace: (route: AppRoute) => void;
-  onOptionsChange: (options: ContextOption[]) => void;
-  onConnection: (online: boolean) => void;
-}) {
+}: AgentWorkspaceProps) {
   const { t } = useTranslation();
   const sessionId = view === "chat" ? resource : undefined;
   const [sessions, setSessions] = useState<AgentSessionInfo[]>([]);
@@ -62,7 +68,7 @@ export function AgentWorkspace({
   const activeSession = useRef<string | undefined>(sessionId);
   const controller = useRef<AbortController | null>(null);
   const runningRef = useRef(false);
-  const taskStarted = useRef<string | undefined>(undefined);
+  const draftRoute = useRef("");
 
   const refreshSessions = useCallback(async () => {
     setSessionsLoading(true);
@@ -83,7 +89,7 @@ export function AgentWorkspace({
       onConnection(true);
     } catch (reason) {
       if (!isAbortError(reason)) {
-        setError(reason instanceof Error ? reason.message : String(reason));
+        setError(errorMessage(reason));
         onConnection(false);
       }
     } finally {
@@ -115,7 +121,6 @@ export function AgentWorkspace({
       controller.current?.abort();
     activeSession.current = sessionId;
     setError("");
-    setDraft("");
     if (!sessionId) {
       setConversation(emptyConversation());
       setHistoryLoading(false);
@@ -131,7 +136,7 @@ export function AgentWorkspace({
       })
       .catch((reason) => {
         if (isAbortError(reason)) return;
-        setError(reason instanceof Error ? reason.message : String(reason));
+        setError(errorMessage(reason));
         onConnection(false);
       })
       .finally(() => {
@@ -140,92 +145,85 @@ export function AgentWorkspace({
     return () => request.abort();
   }, [onConnection, remoteIp, sessionId]);
 
-  const send = useCallback(
-    async (provided?: string) => {
-      const message = (provided ?? draft).trim();
-      if (!message || runningRef.current) return;
-      const requestedSession = activeSession.current;
-      const localId = `local-${crypto.randomUUID()}`;
-      setConversation((current) =>
-        optimisticUserBlock(current, message, localId),
-      );
-      setDraft("");
-      setError("");
-      setRunning(true);
-      runningRef.current = true;
-      const streamController = new AbortController();
-      controller.current = streamController;
-      let resolvedSession = requestedSession;
-      let terminalReason = "";
-      const onEvent = (event: JobEvent<unknown>) => {
-        if (event.kind === "agent_message") {
-          const agentEvent = event as AgentMessageEvent;
-          if (!resolvedSession) {
-            resolvedSession = agentEvent.session_id;
-            activeSession.current = resolvedSession;
-            replace({
-              section: "agent",
-              view: "chat",
-              resource: resolvedSession,
-            });
-          }
-          setConversation((current) => applyAgentEvent(current, agentEvent));
-        } else if (event.kind === "result") {
-          const result = event as ResultEvent<unknown>;
-          terminalReason =
-            typeof result.metadata.terminal_reason === "string"
-              ? result.metadata.terminal_reason
-              : "";
+  const send = useCallback(async () => {
+    const message = draft.trim();
+    if (!message || runningRef.current) return;
+    const requestedSession = activeSession.current;
+    const localId = `local-${crypto.randomUUID()}`;
+    setConversation((current) =>
+      optimisticUserBlock(current, message, localId),
+    );
+    setDraft("");
+    setError("");
+    setRunning(true);
+    runningRef.current = true;
+    const streamController = new AbortController();
+    controller.current = streamController;
+    let resolvedSession = requestedSession;
+    let terminalReason = "";
+    const onEvent = (event: JobEvent<unknown>) => {
+      if (event.kind === "agent_message") {
+        const agentEvent = event as AgentMessageEvent;
+        if (!resolvedSession) {
+          resolvedSession = agentEvent.session_id;
+          activeSession.current = resolvedSession;
+          replace({
+            section: "agent",
+            view: "chat",
+            resource: resolvedSession,
+          });
         }
-      };
-      try {
-        await streamAgentChat(
-          message,
-          requestedSession,
-          remoteIp,
-          streamController.signal,
-          onEvent,
-        );
-        onConnection(true);
-      } catch (reason) {
-        if (!isAbortError(reason))
-          setError(reason instanceof Error ? reason.message : String(reason));
-      } finally {
-        runningRef.current = false;
-        setRunning(false);
-        setStopping(false);
-        controller.current = null;
-        if (resolvedSession) {
-          try {
-            await reconcile(resolvedSession);
-            await refreshSessions();
-          } catch (reason) {
-            if (!isAbortError(reason))
-              setError(
-                reason instanceof Error ? reason.message : String(reason),
-              );
-          }
-        }
-        if (
-          terminalReason === "aborted_streaming" ||
-          terminalReason === "aborted_tools"
-        )
-          setError(t("agent.cancelled"));
+        setConversation((current) => applyAgentEvent(current, agentEvent));
+      } else if (event.kind === "result") {
+        const result = event as ResultEvent<unknown>;
+        terminalReason =
+          typeof result.metadata.terminal_reason === "string"
+            ? result.metadata.terminal_reason
+            : "";
       }
-    },
-    [draft, onConnection, reconcile, refreshSessions, remoteIp, replace, t],
-  );
+    };
+    try {
+      await streamAgentChat(
+        message,
+        requestedSession,
+        remoteIp,
+        streamController.signal,
+        onEvent,
+      );
+      onConnection(true);
+    } catch (reason) {
+      if (!isAbortError(reason)) setError(errorMessage(reason));
+    } finally {
+      runningRef.current = false;
+      setRunning(false);
+      setStopping(false);
+      controller.current = null;
+      if (resolvedSession) {
+        try {
+          await reconcile(resolvedSession);
+          await refreshSessions();
+        } catch (reason) {
+          if (!isAbortError(reason)) setError(errorMessage(reason));
+        }
+      }
+      if (
+        terminalReason === "aborted_streaming" ||
+        terminalReason === "aborted_tools"
+      )
+        setError(t("agent.cancelled"));
+    }
+  }, [draft, onConnection, reconcile, refreshSessions, remoteIp, replace, t]);
 
   useEffect(() => {
-    if (view !== "task" || !resource || taskStarted.current === resource)
-      return;
-    taskStarted.current = resource;
-    const timer = window.setTimeout(
-      () => void send(t("agent.taskPrompt", { taskId: resource })),
-      0,
+    const route = `${view}:${resource || ""}`;
+    if (route === draftRoute.current) return;
+    draftRoute.current = route;
+    setDraft(
+      view === "task" && resource
+        ? t("agent.taskPrompt", { taskId: resource })
+        : "",
     );
-    return () => window.clearTimeout(timer);
-  }, [resource, send, t, view]);
+  }, [resource, t, view]);
 
   const stop = async () => {
     const id = activeSession.current;
@@ -235,7 +233,7 @@ export function AgentWorkspace({
       await cancelAgentTurn(id, remoteIp);
     } catch (reason) {
       setStopping(false);
-      setError(reason instanceof Error ? reason.message : String(reason));
+      setError(errorMessage(reason));
     }
   };
 
@@ -266,6 +264,9 @@ export function AgentWorkspace({
       navigate({ section: "agent", view: "new" });
     await refreshSessions();
   };
+  const mutate = (operation: Promise<void>) => {
+    void operation.catch((reason) => setError(errorMessage(reason)));
+  };
 
   return (
     <section className="agent-workspace">
@@ -279,18 +280,10 @@ export function AgentWorkspace({
         onSelect={(id) =>
           navigate({ section: "agent", view: "chat", resource: id })
         }
-        onRename={(session) =>
-          void rename(session).catch((reason) => setError(String(reason)))
-        }
-        onTag={(session) =>
-          void tag(session).catch((reason) => setError(String(reason)))
-        }
-        onFork={(session) =>
-          void fork(session).catch((reason) => setError(String(reason)))
-        }
-        onDelete={(session) =>
-          void remove(session).catch((reason) => setError(String(reason)))
-        }
+        onRename={(session) => mutate(rename(session))}
+        onTag={(session) => mutate(tag(session))}
+        onFork={(session) => mutate(fork(session))}
+        onDelete={(session) => mutate(remove(session))}
       />
       <main className="agent-chat-pane">
         <header className="agent-chat-header">

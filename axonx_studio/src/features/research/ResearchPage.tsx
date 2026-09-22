@@ -140,8 +140,6 @@ function useTasks(
                 result_file: output.result_file,
                 model_file: output.model_file,
                 predictions_file: output.predictions_file,
-                daily_file: output.daily_file,
-                summary_file: output.summary_file,
                 feature_columns: output.feature_columns,
                 label_columns: output.label_columns,
                 target_columns: output.target_columns,
@@ -691,7 +689,7 @@ function ArtifactDetail({
             </div>
           </div>
           <div className="artifact-header-actions">
-            {kind === "backtest" && meta.task_key === "backtest" && (
+            {kind === "backtest" && (
               <button
                 type="button"
                 className="secondary-button"
@@ -739,7 +737,7 @@ function ArtifactDetail({
         </div>
       )}
       <BaseOutputView meta={meta} kind={kind} />
-      {kind === "backtest" && meta.task_key === "backtest" && (
+      {kind === "backtest" && (
         <Suspense
           fallback={
             <div className="research-loading">
@@ -1036,8 +1034,16 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
           : kind === "predict"
             ? [["predictions_file", meta.predictions_file]]
             : [
-                ["daily_file", meta.daily_file],
-                ["summary_file", meta.summary_file],
+                [
+                  "daily_file",
+                  meta.artifacts.daily?.path &&
+                    `${meta._path}/${meta.artifacts.daily.path}`,
+                ],
+                [
+                  "summary_file",
+                  meta.artifacts.summary?.path &&
+                    `${meta._path}/${meta.artifacts.summary.path}`,
+                ],
               ];
   const columns =
     kind === "etl"

@@ -626,6 +626,7 @@
   color: var(--ink);
   background: transparent;
   font: 14px/1.45 inherit;
+  field-sizing: content;
   resize: vertical;
 }
 .agent-composer button {

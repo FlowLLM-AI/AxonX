@@ -2,9 +2,9 @@ import {
   Activity,
   ArrowDown,
   ArrowRight,
-  Box,
+  Bot,
+  ChartNoAxesCombined,
   FileCode2,
-  GitBranch,
   Network,
   Puzzle,
   Send,
@@ -23,37 +23,13 @@ const quantSteps: SectionId[] = [
 ];
 
 const harnessFeatures = [
-  {
-    icon: Puzzle,
-    code: "PLUGIN",
-    id: "plugin",
-  },
-  {
-    icon: Network,
-    code: "MACHINE",
-    id: "machine",
-  },
-  {
-    icon: FileCode2,
-    code: "JOB",
-    id: "job",
-  },
-  {
-    icon: Activity,
-    code: "TASK",
-    id: "task",
-  },
-  {
-    icon: Box,
-    code: "WORKSPACE",
-    id: "workspace",
-  },
-  {
-    icon: GitBranch,
-    code: "LINEAGE",
-    id: "lineage",
-  },
-];
+  { id: "plugin", code: "PLUGIN", icon: Puzzle },
+  { id: "machine", code: "MACHINE", icon: Network },
+  { id: "job", code: "JOB", icon: FileCode2 },
+  { id: "task", code: "TASK", icon: Activity },
+  { id: "agent", code: "AGENT", icon: Bot },
+  { id: "feedback", code: "FEEDBACK", icon: ChartNoAxesCombined },
+] as const;
 
 function QuantIcon({ id }: { id: SectionId }) {
   const Icon = navigationItems.find((item) => item.id === id)?.icon;
@@ -109,7 +85,9 @@ export function HomePage({
             <span />
           </div>
           <div className="hero-brand-content">
-            <span className="hero-brand-kicker">AXONX / QUANT HARNESS</span>
+            <span className="hero-brand-kicker">
+              AXONX / AGENT-NATIVE QUANT HARNESS
+            </span>
             <img src="/axonx-logo.svg" alt="AxonX" />
             <h1>{t("home.brandTitle")}</h1>
             <p>{t("home.brandLead")}</p>
@@ -131,11 +109,13 @@ export function HomePage({
               </button>
             </div>
             <div className="hero-brand-footer">
+              <span>PLUGIN</span>
+              <i />
               <span>JOB</span>
               <i />
               <span>TASK</span>
               <i />
-              <span>ARTIFACT</span>
+              <span>RESULT</span>
             </div>
           </div>
         </section>

@@ -3,3 +3,4 @@ tasks:
   a158_factor: axonx_alpha158.analysis:FactorAnalysisTask
   a158_train: axonx_alpha158.train:LgbmTrainTask
   a158_predict: axonx_alpha158.predict:LgbmPredictTask
+  a158_backtest: axonx_alpha158.backtest:Alpha158BacktestTask

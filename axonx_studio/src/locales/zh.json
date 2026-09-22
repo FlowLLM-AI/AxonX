@@ -293,14 +293,14 @@
     "quantAria": "量化基础框架",
     "quantTitle": "量化基础框架",
     "quantLead": "从数据准备到策略验证",
-    "brandAria": "AxonX 量化 Harness 框架",
+    "brandAria": "AxonX Agent 原生量化 Harness 框架",
     "brandTitle": "量化 Harness 框架",
-    "brandLead": "用可组合 Task 连接研究能力，让运行、扩展与产物追踪都有统一底座。",
+    "brandLead": "以插件承载研究能力，通过 CLI / MCP 连接 Agent 与 Job，形成代码修改、任务运行与效果验证闭环。",
     "submitTask": "提交任务",
     "manageTasks": "任务管理",
     "capabilitiesAria": "Harness 框架能力",
     "capabilitiesTitle": "Harness 框架能力",
-    "capabilitiesLead": "从插件扩展到产物追踪",
+    "capabilitiesLead": "插件驱动、Agent 协作的研发闭环",
     "steps": {
       "raw": {
         "title": "Tushare 数据",
@@ -330,27 +330,27 @@
     "features": {
       "plugin": {
         "title": "插件化扩展",
-        "detail": "自动安装 · 支持远端安装"
+        "detail": "局部开发 · 独立安装 · 能力注册"
       },
       "machine": {
         "title": "多机器节点",
-        "detail": "节点发现 · 健康检查"
+        "detail": "资源监测 · 远端运行 · 统一管理"
       },
       "job": {
         "title": "声明式 Job 接口",
-        "detail": "参数 Schema · 可组合 Steps"
+        "detail": "Schema 驱动 · CLI / MCP 双入口"
       },
       "task": {
         "title": "Task 生命周期",
-        "detail": "提交 · 状态 · 日志 · 取消"
+        "detail": "提交执行 · 状态日志 · 取消清理"
       },
-      "workspace": {
-        "title": "工作区管理",
-        "detail": "目录浏览 · 文件预览与清理"
+      "agent": {
+        "title": "Agent 研发协作",
+        "detail": "理解上下文 · 修改代码 · 调用框架"
       },
-      "lineage": {
-        "title": "产物关系图",
-        "detail": "跨任务搜索 · 上下游追踪"
+      "feedback": {
+        "title": "运行效果闭环",
+        "detail": "日志诊断 · 产物查看 · 迭代验证"
       }
     }
   },
@@ -662,7 +662,7 @@
     "tagPrompt": "输入标签；留空将清除标签",
     "deleteConfirm": "确定永久删除这个会话？",
     "interpretTask": "AxonX 解读",
-    "taskPrompt": "解读任务 {{taskId}}，先获取任务上下文",
+    "taskPrompt": "解读任务 {{taskId}}：先调用 get_task_context，再按需查看 metadata 或 log，总结状态、依赖、风险和下一步。",
     "roles": {
       "user": "你",
       "assistant": "AxonX",

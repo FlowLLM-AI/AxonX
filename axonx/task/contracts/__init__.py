@@ -5,6 +5,13 @@ from .analysis import (
     BaseAnalysisOutputParams,
     BaseAnalysisTask,
 )
+from .backtest import (
+    BacktestBenchmark,
+    BacktestDimensions,
+    BaseBacktestInputParams,
+    BaseBacktestOutputParams,
+    BaseBacktestTask,
+)
 from .etl import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
 from .predict import BasePredictInputParams, BasePredictOutputParams, BasePredictTask
 from .submission import TaskHandle
@@ -19,6 +26,11 @@ __all__ = [
     "BaseAnalysisInputParams",
     "BaseAnalysisOutputParams",
     "BaseAnalysisTask",
+    "BacktestBenchmark",
+    "BacktestDimensions",
+    "BaseBacktestInputParams",
+    "BaseBacktestOutputParams",
+    "BaseBacktestTask",
     "BaseETLInputParams",
     "BaseETLOutputParams",
     "BaseETLTask",

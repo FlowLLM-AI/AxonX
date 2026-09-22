@@ -293,14 +293,14 @@
     "quantAria": "Quant research framework",
     "quantTitle": "Quant research",
     "quantLead": "From market data to strategy validation",
-    "brandAria": "AxonX Quant Harness",
+    "brandAria": "AxonX Agent-Native Quant Harness",
     "brandTitle": "A harness for quant research",
-    "brandLead": "Compose research Tasks on one foundation for execution, extension, and artifact lineage.",
+    "brandLead": "Package research capabilities as plugins and connect Agents to Jobs through CLI and MCP, closing the loop from code changes to Task execution and result validation.",
     "submitTask": "Submit Task",
     "manageTasks": "Manage Tasks",
     "capabilitiesAria": "Harness framework capabilities",
     "capabilitiesTitle": "Harness capabilities",
-    "capabilitiesLead": "From plugins to artifact lineage",
+    "capabilitiesLead": "A plugin-driven, Agent-assisted research loop",
     "steps": {
       "raw": {
         "title": "Market data",
@@ -330,27 +330,27 @@
     "features": {
       "plugin": {
         "title": "Plugin extensions",
-        "detail": "Auto install · remote install support"
+        "detail": "Local changes · independent install · capability registration"
       },
       "machine": {
         "title": "Multiple machines",
-        "detail": "Node discovery · health checks"
+        "detail": "Resource monitoring · remote runs · unified management"
       },
       "job": {
         "title": "Declarative Job API",
-        "detail": "Parameter schemas · composed steps"
+        "detail": "Schema-driven · CLI / MCP access"
       },
       "task": {
         "title": "Task lifecycle",
-        "detail": "Submit · status · logs · cancel"
+        "detail": "Submit · status and logs · cancel and clean up"
       },
-      "workspace": {
-        "title": "Workspace management",
-        "detail": "Browse · preview · cleanup"
+      "agent": {
+        "title": "Agent research workflow",
+        "detail": "Understand context · edit code · invoke AxonX"
       },
-      "lineage": {
-        "title": "Artifact lineage",
-        "detail": "Cross-task search · dependency tracing"
+      "feedback": {
+        "title": "Execution feedback loop",
+        "detail": "Diagnose logs · inspect artifacts · iterate"
       }
     }
   },
@@ -662,7 +662,7 @@
     "tagPrompt": "Enter a tag; leave blank to clear it",
     "deleteConfirm": "Permanently delete this session?",
     "interpretTask": "Ask AxonX",
-    "taskPrompt": "Analyze task {{taskId}}. Get its task context first.",
+    "taskPrompt": "Analyze task {{taskId}}: call get_task_context first, inspect metadata or logs as needed, then summarize its status, dependencies, risks, and next steps.",
     "roles": {
       "user": "You",
       "assistant": "AxonX",

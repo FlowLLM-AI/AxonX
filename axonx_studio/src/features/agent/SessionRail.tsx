@@ -47,6 +47,18 @@ export function SessionRail({
   const { t, i18n } = useTranslation();
   const [contextMenu, setContextMenu] = useState<SessionContextMenu>();
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const actions = [
+    { id: "rename", icon: Pencil, label: t("agent.rename"), run: onRename },
+    { id: "tag", icon: Tag, label: t("agent.tag"), run: onTag },
+    { id: "fork", icon: GitFork, label: t("agent.fork"), run: onFork },
+    {
+      id: "delete",
+      icon: Trash2,
+      label: t("agent.delete"),
+      run: onDelete,
+      danger: true,
+    },
+  ];
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -72,9 +84,7 @@ export function SessionRail({
     };
   }, [contextMenu]);
 
-  const runContextAction = (
-    action: (session: AgentSessionInfo) => void,
-  ) => {
+  const runContextAction = (action: (session: AgentSessionInfo) => void) => {
     if (!contextMenu) return;
     const { session } = contextMenu;
     setContextMenu(undefined);
@@ -145,31 +155,16 @@ export function SessionRail({
                   </button>
                   {selected && (
                     <div className="agent-session-actions">
-                      <button
-                        onClick={() => onRename(session)}
-                        title={t("agent.rename")}
-                      >
-                        <Pencil />
-                      </button>
-                      <button
-                        onClick={() => onTag(session)}
-                        title={t("agent.tag")}
-                      >
-                        <Tag />
-                      </button>
-                      <button
-                        onClick={() => onFork(session)}
-                        title={t("agent.fork")}
-                      >
-                        <GitFork />
-                      </button>
-                      <button
-                        className="danger"
-                        onClick={() => onDelete(session)}
-                        title={t("agent.delete")}
-                      >
-                        <Trash2 />
-                      </button>
+                      {actions.map((action) => (
+                        <button
+                          className={action.danger ? "danger" : ""}
+                          key={action.id}
+                          onClick={() => action.run(session)}
+                          title={action.label}
+                        >
+                          <action.icon />
+                        </button>
+                      ))}
                     </div>
                   )}
                 </article>
@@ -187,29 +182,17 @@ export function SessionRail({
           role="menu"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          <button
-            onClick={() => runContextAction(onRename)}
-            role="menuitem"
-          >
-            <Pencil />
-            {t("agent.rename")}
-          </button>
-          <button onClick={() => runContextAction(onTag)} role="menuitem">
-            <Tag />
-            {t("agent.tag")}
-          </button>
-          <button onClick={() => runContextAction(onFork)} role="menuitem">
-            <GitFork />
-            {t("agent.fork")}
-          </button>
-          <button
-            className="danger"
-            onClick={() => runContextAction(onDelete)}
-            role="menuitem"
-          >
-            <Trash2 />
-            {t("agent.delete")}
-          </button>
+          {actions.map((action) => (
+            <button
+              className={action.danger ? "danger" : ""}
+              key={action.id}
+              onClick={() => runContextAction(action.run)}
+              role="menuitem"
+            >
+              <action.icon />
+              {action.label}
+            </button>
+          ))}
         </div>
       )}
       {open && (
