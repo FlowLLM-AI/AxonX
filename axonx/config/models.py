@@ -32,7 +32,7 @@ class JobConfig(ComponentConfig):
     enable_serve: bool = True
     enable_remote: bool = True
     enable_stream: bool = True
-    requires_auth: bool = False
+    requires_auth: bool = True
     steps: list[ComponentConfig] = Field(default_factory=list)
     defaults: dict[str, Any] = Field(default_factory=dict)
 

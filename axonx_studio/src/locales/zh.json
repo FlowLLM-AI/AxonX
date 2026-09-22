@@ -38,6 +38,7 @@
     "navigation": {
       "tasks": "任务管理",
       "resources": "机器资源",
+      "agent": "智能体",
       "taskDefs": "提交任务",
       "apis": "API接口",
       "raw": "Tushare数据",
@@ -636,6 +637,37 @@
     "reset_table_sorting": "重置表格排序",
     "overall_metrics_by_top_n": "各 Top N 总体指标",
     "top_n_period_metric_details": "Top N 分期指标明细"
+  },
+  "agent": {
+    "sessions": "会话",
+    "newChat": "新建会话",
+    "noSessions": "还没有会话",
+    "conversation": "AxonX 对话",
+    "loadingConversation": "正在恢复会话…",
+    "welcomeTitle": "从工作区开始分析",
+    "welcomeLead": "询问代码、任务、日志和产物，AxonX 会按需使用工作区工具。",
+    "working": "AxonX 正在处理",
+    "composerPlaceholder": "向 AxonX 发送消息…",
+    "composerHint": "Enter 发送，Shift + Enter 换行",
+    "send": "发送",
+    "stop": "停止生成",
+    "cancelled": "本轮生成已取消",
+    "closeSessions": "关闭会话列表",
+    "sessionMenu": "会话操作",
+    "rename": "重命名",
+    "tag": "设置标签",
+    "fork": "创建分支",
+    "delete": "删除会话",
+    "renamePrompt": "输入新的会话标题",
+    "tagPrompt": "输入标签；留空将清除标签",
+    "deleteConfirm": "确定永久删除这个会话？",
+    "interpretTask": "AxonX 解读",
+    "taskPrompt": "解读任务 {{taskId}}，先获取任务上下文",
+    "roles": {
+      "user": "你",
+      "assistant": "AxonX",
+      "system": "系统"
+    }
   },
   "taskGraph": {
     "kinds": {

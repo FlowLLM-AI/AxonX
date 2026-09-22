@@ -275,6 +275,9 @@
 .primary-rail > nav .nav-home {
   --nav-icon: var(--accent);
 }
+.primary-rail > nav .nav-agent {
+  --nav-icon: var(--accent);
+}
 .primary-rail > nav .nav-runtime,
 .primary-rail > nav .nav-predict {
   --nav-icon: var(--blue);

@@ -281,6 +281,19 @@ def history_blocks(messages: list[Any]) -> list[dict[str, Any]]:
         if role not in {"user", "assistant", "system"}:
             role = "system"
         content = message.get("content")
+        if isinstance(content, str):
+            blocks.append(
+                {
+                    "block_id": f"{message_uuid}:0",
+                    "block_type": "text",
+                    "message_uuid": message_uuid,
+                    "role": role,
+                    "status": "completed",
+                    "text": content,
+                    "payload": {},
+                }
+            )
+            continue
         if not isinstance(content, list):
             continue
         for raw in content:

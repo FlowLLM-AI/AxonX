@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  Bot,
   BrainCircuit,
   Cpu,
   Database,
@@ -11,12 +12,13 @@ import {
   Sparkles,
   Workflow,
 } from "lucide-react";
+import type { ComponentType } from "react";
 import type { AppRoute, SectionId } from "./routes";
 
 export interface NavigationItem {
   id: string;
   route: AppRoute;
-  icon: typeof Cpu;
+  icon: ComponentType<{ className?: string }>;
   labelKey: string;
 }
 
@@ -42,6 +44,12 @@ export const navigationGroups: NavigationGroup[] = [
         route: { section: "runtime", view: "resources" },
         icon: Cpu,
         labelKey: "shell.navigation.resources",
+      },
+      {
+        id: "agent",
+        route: { section: "agent", view: "new" },
+        icon: Bot,
+        labelKey: "shell.navigation.agent",
       },
     ],
   },

@@ -20,7 +20,12 @@ def _application(tmp_path, **extra):
         "enable_logo": False,
         "log_to_console": False,
         "log_to_file": False,
-        "jobs": {"version": {"steps": [{"backend": "version_step"}]}},
+        "jobs": {
+            "version": {
+                "requires_auth": False,
+                "steps": [{"backend": "version_step"}],
+            }
+        },
     }
     config.update(extra)
     return Application(**config)
@@ -117,15 +122,15 @@ async def test_mcp_client_calls_the_ordinary_response_surface(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_jobs_requiring_auth_are_hidden_without_service_token(tmp_path):
+async def test_jobs_require_auth_by_default_and_can_be_made_public(tmp_path):
     app = _application(
         tmp_path / "workspace",
         jobs={
-            "public": {"steps": [{"backend": "version_step"}]},
-            "protected": {
-                "requires_auth": True,
+            "public": {
+                "requires_auth": False,
                 "steps": [{"backend": "version_step"}],
             },
+            "protected": {"steps": [{"backend": "version_step"}]},
         },
     )
     server = HttpService(web_enabled=False).build_service(app)

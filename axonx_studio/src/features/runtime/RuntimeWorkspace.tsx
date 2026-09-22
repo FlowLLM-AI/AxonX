@@ -23,6 +23,7 @@ export function RuntimeWorkspace({
   taskId,
   onNavigate,
   onSubmit,
+  onInterpretTask,
   onOptionsChange,
   onConnection,
 }: {
@@ -35,6 +36,7 @@ export function RuntimeWorkspace({
     resource?: string,
   ) => void;
   onSubmit: () => void;
+  onInterpretTask: (taskId: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
   onConnection: (online: boolean) => void;
 }) {
@@ -75,6 +77,7 @@ export function RuntimeWorkspace({
             remoteIp={remoteIp}
             onBack={() => onNavigate("tasks")}
             onOpenTask={(id) => onNavigate("task", id)}
+            onInterpretTask={onInterpretTask}
             onConnection={onConnection}
           />
         ) : (

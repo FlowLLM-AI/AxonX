@@ -13,7 +13,7 @@ import { useAxonXWebMcp } from "./webmcp";
 export default function App() {
   useAxonXWebMcp();
   const { theme, setTheme } = useAppPreferences();
-  const { machineId, route, navigate } = useHashRoute();
+  const { machineId, route, navigate, replace } = useHashRoute();
   const navigateToMachine = useCallback(
     (nextMachineId: string) => {
       navigate(parseHash(window.location.hash).route, nextMachineId);
@@ -51,6 +51,7 @@ export default function App() {
         machine={selectedMachine}
         remoteIp={remoteIp}
         navigate={navigate}
+        replace={replace}
         setResourceOptions={setResourceOptions}
         setServiceOnline={setServiceOnline}
       />

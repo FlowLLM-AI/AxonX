@@ -44,6 +44,11 @@ describe("application routes", () => {
       view: "runs",
       resource: undefined,
     });
+    expect(defaultRoute("agent")).toEqual({
+      section: "agent",
+      view: "new",
+      resource: undefined,
+    });
     expect(
       parseHash(
         routeHash("local", {
@@ -54,6 +59,27 @@ describe("application routes", () => {
       ).route,
     ).toEqual({
       section: "runtime",
+      view: "task",
+      resource: "predict#123",
+    });
+  });
+
+  it("round-trips agent session and task routes", () => {
+    expect(
+      parseHash(
+        routeHash("local", {
+          section: "agent",
+          view: "chat",
+          resource: "3ca32703-42fe-4c8f-990a-67ef49e0fe12",
+        }),
+      ).route,
+    ).toEqual({
+      section: "agent",
+      view: "chat",
+      resource: "3ca32703-42fe-4c8f-990a-67ef49e0fe12",
+    });
+    expect(parseHash("#m/local/agent/task/predict%23123").route).toEqual({
+      section: "agent",
       view: "task",
       resource: "predict#123",
     });

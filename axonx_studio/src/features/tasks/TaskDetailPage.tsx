@@ -9,6 +9,7 @@ import {
   FileJson,
   FileText,
   GitBranch,
+  Bot,
   LoaderCircle,
   LocateFixed,
   Settings2,
@@ -33,12 +34,14 @@ export function TaskDetailPage({
   remoteIp,
   onBack,
   onOpenTask,
+  onInterpretTask,
   onConnection,
 }: {
   taskId: string;
   remoteIp?: string;
   onBack: () => void;
   onOpenTask: (taskId: string) => void;
+  onInterpretTask: (taskId: string) => void;
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -299,16 +302,25 @@ export function TaskDetailPage({
             {task.pid || "—"}
           </span>
         </div>
-        {ACTIVE.has(task.state) && (
+        <div className="task-detail-heading-actions">
           <button
-            className="danger-outline task-detail-cancel"
-            onClick={() => void cancel()}
-            disabled={cancelling}
+            className="secondary-button"
+            onClick={() => onInterpretTask(task.task_id)}
           >
-            <Ban />
-            {cancelling ? t("cancelling") : t("cancel")}
+            <Bot />
+            {t("agent.interpretTask")}
           </button>
-        )}
+          {ACTIVE.has(task.state) && (
+            <button
+              className="danger-outline task-detail-cancel"
+              onClick={() => void cancel()}
+              disabled={cancelling}
+            >
+              <Ban />
+              {cancelling ? t("cancelling") : t("cancel")}
+            </button>
+          )}
+        </div>
       </div>
       {error && (
         <div className="error-banner">

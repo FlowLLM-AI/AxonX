@@ -91,3 +91,27 @@ def test_history_blocks_include_message_ownership():
         ("user", "user-message"),
         ("assistant", "assistant-message"),
     ]
+
+
+def test_history_blocks_include_string_user_messages():
+    blocks = history_blocks(
+        [
+            {
+                "type": "user",
+                "uuid": "user-message",
+                "message": {"role": "user", "content": "original question"},
+            }
+        ]
+    )
+
+    assert blocks == [
+        {
+            "block_id": "user-message:0",
+            "block_type": "text",
+            "message_uuid": "user-message",
+            "role": "user",
+            "status": "completed",
+            "text": "original question",
+            "payload": {},
+        }
+    ]

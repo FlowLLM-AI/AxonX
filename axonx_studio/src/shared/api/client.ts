@@ -1,6 +1,8 @@
 import type { JobCatalog, JobResponse } from "./types";
 
 const configuredUrl = import.meta.env.VITE_AXONX_API_URL || "";
+// Vite maps the workspace-level AXONX_SERVICE_TOKEN to this private build
+// constant, so local Studio and AxonX share one configuration source.
 const configuredToken = import.meta.env.VITE_AXONX_TOKEN || "";
 
 export interface RequestOptions {

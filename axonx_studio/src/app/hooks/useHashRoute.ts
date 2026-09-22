@@ -23,5 +23,14 @@ export function useHashRoute() {
     [location.machineId],
   );
 
-  return { ...location, navigate };
+  const replace = useCallback(
+    (route: AppRoute, machineId = location.machineId) => {
+      const nextHash = routeHash(machineId, route);
+      window.history.replaceState(null, "", nextHash);
+      setLocation({ machineId, route });
+    },
+    [location.machineId],
+  );
+
+  return { ...location, navigate, replace };
 }

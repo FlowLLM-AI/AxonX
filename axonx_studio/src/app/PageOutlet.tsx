@@ -43,12 +43,18 @@ const SubmitPage = lazy(() =>
     default: module.SubmitPage,
   })),
 );
+const AgentWorkspace = lazy(() =>
+  import("../features/agent/AgentWorkspace").then((module) => ({
+    default: module.AgentWorkspace,
+  })),
+);
 
 interface PageOutletProps {
   route: AppRoute;
   machine: MachineNode;
   remoteIp?: string;
   navigate: (route: AppRoute) => void;
+  replace: (route: AppRoute) => void;
   setResourceOptions: Dispatch<SetStateAction<ContextOption[]>>;
   setServiceOnline: Dispatch<SetStateAction<boolean | null>>;
 }
@@ -58,6 +64,7 @@ export function PageOutlet({
   machine,
   remoteIp,
   navigate,
+  replace,
   setResourceOptions,
   setServiceOnline,
 }: PageOutletProps) {
@@ -77,6 +84,21 @@ export function PageOutlet({
         }
       />
     );
+  } else if (route.section === "agent") {
+    const view =
+      route.view === "chat" || route.view === "task" ? route.view : "new";
+    page = (
+      <AgentWorkspace
+        key={machine.id}
+        view={view}
+        resource={route.resource}
+        remoteIp={remoteIp}
+        navigate={navigate}
+        replace={replace}
+        onOptionsChange={setResourceOptions}
+        onConnection={setServiceOnline}
+      />
+    );
   } else if (route.section === "runtime") {
     const view =
       route.view === "environment" || route.view === "resources"
@@ -94,6 +116,9 @@ export function PageOutlet({
           navigate({ section: "runtime", view: nextView, resource })
         }
         onSubmit={() => navigate(defaultRoute("task-defs"))}
+        onInterpretTask={(taskId) =>
+          navigate({ section: "agent", view: "task", resource: taskId })
+        }
         onOptionsChange={setResourceOptions}
         onConnection={setServiceOnline}
       />

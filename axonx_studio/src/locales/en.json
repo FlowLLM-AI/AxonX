@@ -38,6 +38,7 @@
     "navigation": {
       "tasks": "Task management",
       "resources": "Machine resources",
+      "agent": "Agent",
       "taskDefs": "Submit task",
       "apis": "API interfaces",
       "raw": "Tushare data",
@@ -636,6 +637,37 @@
     "reset_table_sorting": "Reset table sorting",
     "overall_metrics_by_top_n": "Overall metrics by Top N",
     "top_n_period_metric_details": "Top N period metric details"
+  },
+  "agent": {
+    "sessions": "Sessions",
+    "newChat": "New chat",
+    "noSessions": "No sessions yet",
+    "conversation": "AxonX conversation",
+    "loadingConversation": "Restoring conversation…",
+    "welcomeTitle": "Start with your workspace",
+    "welcomeLead": "Ask about code, tasks, logs, and artifacts. AxonX will use workspace tools as needed.",
+    "working": "AxonX is working",
+    "composerPlaceholder": "Message AxonX…",
+    "composerHint": "Enter to send, Shift + Enter for a new line",
+    "send": "Send",
+    "stop": "Stop generation",
+    "cancelled": "This turn was cancelled",
+    "closeSessions": "Close session list",
+    "sessionMenu": "Session actions",
+    "rename": "Rename",
+    "tag": "Set tag",
+    "fork": "Fork",
+    "delete": "Delete session",
+    "renamePrompt": "Enter a new session title",
+    "tagPrompt": "Enter a tag; leave blank to clear it",
+    "deleteConfirm": "Permanently delete this session?",
+    "interpretTask": "Ask AxonX",
+    "taskPrompt": "Analyze task {{taskId}}. Get its task context first.",
+    "roles": {
+      "user": "You",
+      "assistant": "AxonX",
+      "system": "System"
+    }
   },
   "taskGraph": {
     "kinds": {

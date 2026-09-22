@@ -1,6 +1,7 @@
 export const sectionIds = [
   "home",
   "runtime",
+  "agent",
   "apis",
   "task-defs",
   "raw",
@@ -69,13 +70,15 @@ export function defaultRoute(section: SectionId): AppRoute {
   const view =
     section === "home"
       ? "overview"
-      : section === "runtime"
-        ? "tasks"
-        : section === "raw"
-          ? "files"
-          : section === "apis" || section === "task-defs"
-            ? "catalog"
-            : "runs";
+      : section === "agent"
+        ? "new"
+        : section === "runtime"
+          ? "tasks"
+          : section === "raw"
+            ? "files"
+            : section === "apis" || section === "task-defs"
+              ? "catalog"
+              : "runs";
 
   return {
     section,
