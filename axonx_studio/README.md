@@ -35,7 +35,8 @@ npm run build
 
 开发服务器默认将 `/health` 和 `/jobs` 代理到 `http://127.0.0.1:1024`。可以通过
 `VITE_AXONX_API_URL` 使用其他服务地址。
-受保护的服务可通过 `VITE_AXONX_TOKEN` 配置 Bearer token。
+受保护的服务会提示在 Studio 设置中输入 Bearer token。令牌只保存在当前页面内存中，
+不会通过 Vite 环境变量写入公开的 JavaScript 构建产物。
 
 ## 构建并由 AxonX 托管
 

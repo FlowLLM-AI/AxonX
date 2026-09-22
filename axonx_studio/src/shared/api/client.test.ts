@@ -42,4 +42,24 @@ describe("AxonXClient", () => {
       new AxonXError("Unknown job", 404),
     );
   });
+
+  it("adds only a runtime-provided token to requests and derived clients", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ answer: { items: [] }, success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new AxonXClient();
+    expect(client.hasToken()).toBe(false);
+    client.setToken("  session-secret  ");
+    await client.forBaseUrl("http://remote.test").jobs();
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get("Authorization")).toBe(
+      "Bearer session-secret",
+    );
+  });
 });

@@ -173,6 +173,56 @@
 .settings-dialog-body {
   padding: 26px;
 }
+.settings-auth {
+  margin-bottom: 26px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-token-row {
+  display: flex;
+  gap: 10px;
+}
+.settings-token-row label {
+  min-width: 0;
+  height: 42px;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.settings-token-row label:focus-within {
+  border-color: var(--accent);
+}
+.settings-token-row svg {
+  width: 17px;
+  flex: none;
+  color: var(--accent);
+}
+.settings-token-row input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+}
+.settings-token-row button {
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+.settings-token-row button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .settings-section-heading {
   display: flex;
   align-items: center;

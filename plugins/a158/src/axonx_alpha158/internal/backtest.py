@@ -387,9 +387,9 @@ def _summarize_period(
                 (pl.col(equity) / peak - 1).min().alias(f"{prefix}_net_max_drawdown"),
                 (pl.col(net) > 0).mean().alias(f"{prefix}_net_win_rate"),
                 pl.col(f"{prefix}_turnover").mean().alias(f"{prefix}_average_turnover"),
-                pl.col(f"{prefix}_gross_return")
-                .sum()
-                .alias(f"{prefix}_gross_cumulative_return"),
+                ((pl.col(f"{prefix}_gross_return") + 1).product() - 1).alias(
+                    f"{prefix}_gross_cumulative_return"
+                ),
                 (_ratio(f"_{prefix}_gross_excess") * annual_scale).alias(
                     f"{prefix}_gross_sharpe"
                 ),

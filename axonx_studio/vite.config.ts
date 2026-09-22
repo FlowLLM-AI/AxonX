@@ -9,11 +9,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     envDir: workspaceRoot,
-    define: {
-      "import.meta.env.VITE_AXONX_TOKEN": JSON.stringify(
-        env.AXONX_SERVICE_TOKEN || "",
-      ),
-    },
     server: {
       port: 4173,
       proxy: {

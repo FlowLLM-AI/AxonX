@@ -13,6 +13,9 @@ export default function App() {
       theme={studio.theme}
       setTheme={studio.setTheme}
       serviceOnline={studio.serviceOnline}
+      authRequired={studio.authRequired}
+      authTokenConfigured={studio.authTokenConfigured}
+      setAuthToken={studio.setAuthToken}
       machines={studio.machines}
       selectedMachine={studio.selectedMachine}
       remoteIp={studio.remoteIp}
@@ -21,6 +24,7 @@ export default function App() {
       navigate={studio.navigate}
     >
       <PageOutlet
+        key={studio.authRevision}
         route={studio.route}
         machine={studio.selectedMachine}
         remoteIp={studio.remoteIp}

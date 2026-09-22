@@ -7,6 +7,7 @@ import {
 import type { MachineNode } from "../features/machines/types";
 import type { ContextOption, ThemePreference } from "./types";
 import { parseHash, routeHash, type AppRoute } from "./routes";
+import { axonx, AxonXError } from "../shared/api/client";
 
 const LOCAL_MACHINE: MachineNode = {
   id: "local",
@@ -82,6 +83,7 @@ function useTheme() {
 function useMachines(
   machineId: string,
   onMissing: (machineId: string) => void,
+  authRevision: number,
 ) {
   const [machines, setMachines] = useState<MachineNode[]>([LOCAL_MACHINE]);
   const [loaded, setLoaded] = useState(false);
@@ -97,7 +99,7 @@ function useMachines(
         if (!controller.signal.aborted) setLoaded(true);
       });
     return () => controller.abort();
-  }, []);
+  }, [authRevision]);
 
   useEffect(() => {
     if (loaded && !machines.some((machine) => machine.id === machineId))
@@ -117,17 +119,29 @@ function useMachines(
   };
 }
 
-function useServiceStatus(remoteIp?: string) {
+function useServiceStatus(remoteIp: string | undefined, authRevision: number) {
   const [serviceOnline, setServiceOnline] = useState<boolean | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
+    setServiceOnline(null);
+    setAuthRequired(false);
     const check = () =>
       machineStatus(remoteIp, controller.signal)
-        .then(() => setServiceOnline(true))
+        .then(() => {
+          setServiceOnline(true);
+          setAuthRequired(false);
+        })
         .catch((reason: unknown) => {
-          if (!(reason instanceof DOMException && reason.name === "AbortError"))
+          if (!(
+            reason instanceof DOMException && reason.name === "AbortError"
+          )) {
             setServiceOnline(false);
+            setAuthRequired(
+              reason instanceof AxonXError && reason.status === 401,
+            );
+          }
         });
     void check();
     const timer = window.setInterval(check, 15_000);
@@ -135,20 +149,25 @@ function useServiceStatus(remoteIp?: string) {
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [remoteIp]);
+  }, [authRevision, remoteIp]);
 
-  return { serviceOnline, setServiceOnline };
+  return { serviceOnline, setServiceOnline, authRequired };
 }
 
 export function useStudio() {
   const { machineId, route, navigate, replace } = useLocation();
   const theme = useTheme();
+  const [authRevision, setAuthRevision] = useState(0);
+  const setAuthToken = useCallback((token: string) => {
+    axonx.setToken(token);
+    setAuthRevision((revision) => revision + 1);
+  }, []);
   const navigateToMachine = useCallback(
     (nextMachineId: string) => navigate(route, nextMachineId),
     [navigate, route],
   );
-  const machineState = useMachines(machineId, navigateToMachine);
-  const service = useServiceStatus(machineState.remoteIp);
+  const machineState = useMachines(machineId, navigateToMachine, authRevision);
+  const service = useServiceStatus(machineState.remoteIp, authRevision);
   const [resourceOptions, setResourceOptions] = useState<ContextOption[]>([]);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("axonx-sidebar") === "collapsed",
@@ -191,6 +210,9 @@ export function useStudio() {
     ...theme,
     ...machineState,
     ...service,
+    authRevision,
+    authTokenConfigured: axonx.hasToken(),
+    setAuthToken,
     route,
     navigate,
     replace,

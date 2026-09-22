@@ -138,7 +138,9 @@ async def test_proxy_does_not_prebuffer_request_or_response():
         assert response_closed is True
 
 
-def test_default_config_does_not_enable_tushare_proxy():
+def test_default_config_does_not_enable_optional_remote_services(monkeypatch):
+    monkeypatch.delenv("AXONX_REMOTE_HOST_IP", raising=False)
     config = ConfigResolver().load("default")
 
+    assert config["remote_nodes"] == []
     assert "proxy" not in config["components"]

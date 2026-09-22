@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -32,6 +32,9 @@ interface AppShellProps {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
   serviceOnline: boolean | null;
+  authRequired: boolean;
+  authTokenConfigured: boolean;
+  setAuthToken: (token: string) => void;
   machines: MachineNode[];
   selectedMachine: MachineNode;
   remoteIp?: string;
@@ -47,6 +50,9 @@ export function AppShell(props: AppShellProps) {
     theme,
     setTheme,
     serviceOnline,
+    authRequired,
+    authTokenConfigured,
+    setAuthToken,
     machines,
     selectedMachine,
     remoteIp,
@@ -57,6 +63,9 @@ export function AppShell(props: AppShellProps) {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage === "zh" ? "zh" : "en";
   const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => {
+    if (authRequired) setSettingsOpen(true);
+  }, [authRequired]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     run: true,
     submit: true,
@@ -318,6 +327,9 @@ export function AppShell(props: AppShellProps) {
         <EnvironmentSettingsModal
           machine={selectedMachine}
           remoteIp={remoteIp}
+          authRequired={authRequired}
+          authTokenConfigured={authTokenConfigured}
+          onSaveToken={setAuthToken}
           onClose={() => setSettingsOpen(false)}
         />
       )}

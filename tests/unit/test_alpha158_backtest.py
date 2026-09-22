@@ -53,3 +53,9 @@ def test_backtest_engine_builds_standard_artifacts():
     for top_n in TOP_NS:
         assert f"top{top_n}_net_return" in result.daily.columns
         assert f"top{top_n}_net_cumulative_return" in result.summary.columns
+        daily_gross = result.daily[f"top{top_n}_gross_return"]
+        expected_gross = (daily_gross + 1).product() - 1
+        overall = result.summary.filter(pl.col("period_type") == "overall").row(
+            0, named=True
+        )
+        assert overall[f"top{top_n}_gross_cumulative_return"] == expected_gross

@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   GitBranch,
   GitCommitHorizontal,
+  KeyRound,
   LoaderCircle,
   Server,
   Settings2,
@@ -16,19 +24,31 @@ import { useTranslation } from "react-i18next";
 export function EnvironmentSettingsModal({
   machine,
   remoteIp,
+  authRequired,
+  authTokenConfigured,
+  onSaveToken,
   onClose,
 }: {
   machine: MachineNode;
   remoteIp?: string;
+  authRequired: boolean;
+  authTokenConfigured: boolean;
+  onSaveToken: (token: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const closeButton = useRef<HTMLButtonElement>(null);
+  const [token, setToken] = useState("");
   const loadStatus = useCallback(
     (signal: AbortSignal) => machineStatus(remoteIp, signal),
     [remoteIp],
   );
   const { data: info, loading, error } = useAsyncResource(loadStatus);
+  const saveToken = (event: FormEvent) => {
+    event.preventDefault();
+    onSaveToken(token);
+    onClose();
+  };
 
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
@@ -70,6 +90,48 @@ export function EnvironmentSettingsModal({
           </button>
         </header>
         <div className="settings-dialog-body">
+          <form className="settings-auth" onSubmit={saveToken}>
+            <div className="settings-section-heading">
+              <div>
+                <span className="settings-kicker">
+                  {t("runtimeSettings.authentication")}
+                </span>
+                <h3>{t("runtimeSettings.serviceToken")}</h3>
+                <p>
+                  {authRequired
+                    ? t("runtimeSettings.tokenRequired")
+                    : t("runtimeSettings.tokenHelp")}
+                </p>
+              </div>
+            </div>
+            <div className="settings-token-row">
+              <label>
+                <KeyRound />
+                <input
+                  type="password"
+                  value={token}
+                  onChange={(event) => setToken(event.target.value)}
+                  placeholder={
+                    authTokenConfigured
+                      ? t("runtimeSettings.tokenConfigured")
+                      : t("runtimeSettings.tokenPlaceholder")
+                  }
+                  autoComplete="current-password"
+                  aria-label={t("runtimeSettings.serviceToken")}
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={!token.trim() && !authTokenConfigured}
+              >
+                {token.trim()
+                  ? t("runtimeSettings.applyToken")
+                  : authTokenConfigured
+                    ? t("runtimeSettings.clearToken")
+                    : t("runtimeSettings.applyToken")}
+              </button>
+            </div>
+          </form>
           <div className="settings-section-heading">
             <div>
               <span className="settings-kicker">
