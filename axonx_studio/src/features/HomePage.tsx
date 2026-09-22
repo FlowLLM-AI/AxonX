@@ -36,7 +36,7 @@ function QuantIcon({ id }: { id: SectionId }) {
   return Icon ? <Icon aria-hidden="true" /> : null;
 }
 
-export function HomePage({
+export default function HomePage({
   onNavigate,
 }: {
   onNavigate: (page: "submit" | "tasks" | SectionId) => void;

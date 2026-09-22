@@ -24,16 +24,7 @@ import {
 import { defaultRoute } from "./routes";
 import { EnvironmentSettingsModal } from "../features/runtime/EnvironmentSettingsModal";
 import type { AppRoute } from "./routes";
-
-interface SidebarState {
-  collapsed: boolean;
-  width: number;
-  mobileOpen: boolean;
-  setMobileOpen: (open: boolean) => void;
-  toggle: () => void;
-  resize: (width: number) => void;
-  finishResize: (width: number) => void;
-}
+import type { SidebarState } from "./useStudio";
 
 interface AppShellProps {
   children: ReactNode;

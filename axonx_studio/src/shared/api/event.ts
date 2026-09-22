@@ -57,11 +57,7 @@ export interface ResultEvent<T = unknown> extends JobResponse<T> {
 }
 
 export type JobEvent<T = unknown> =
-  | ProgressEvent
-  | LogEvent
-  | ArtifactEvent
-  | AgentMessageEvent
-  | ResultEvent<T>;
+  ProgressEvent | LogEvent | ArtifactEvent | AgentMessageEvent | ResultEvent<T>;
 
 export interface StreamOptions<T> extends RequestOptions {
   onEvent?: (event: JobEvent<T>) => void;

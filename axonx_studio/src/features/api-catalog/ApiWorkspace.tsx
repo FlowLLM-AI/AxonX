@@ -17,11 +17,11 @@ import type { SchemaFormValues } from "../../shared/schema/values";
 import { SchemaField } from "../../shared/ui/SchemaForm/SchemaField";
 import type { ContextOption } from "../../app/types";
 import type { MachineNode } from "../machines/types";
-import type { JobInfo } from "./types";
+import type { JobInfo } from "../../shared/api/types";
 import { invokeApi, listJobs } from "./api";
 import { useTranslation } from "react-i18next";
 
-export function ApiWorkspace({
+export default function ApiWorkspace({
   machine,
   initialName,
   onSelected,

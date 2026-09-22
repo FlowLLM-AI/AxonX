@@ -1,3 +1,86 @@
+/* Studio shell — vertical navigation and a machine-scoped working surface. */
+.mobile-menu {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--surface);
+  cursor: pointer;
+}
+.mobile-menu svg {
+  width: 17px;
+}
+.mobile-menu {
+  display: none;
+}
+.topbar-control {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--toolbar-ink);
+  background: var(--surface);
+  box-shadow: 0 2px 7px rgba(20, 48, 38, 0.025);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    border-color 0.16s,
+    color 0.16s,
+    background 0.16s,
+    transform 0.16s;
+}
+.topbar-control:hover {
+  border-color: color-mix(in srgb, var(--toolbar-ink) 34%, var(--line));
+  color: var(--toolbar-ink);
+  background: var(--toolbar-hover);
+  transform: translateY(-1px);
+}
+.topbar-control > svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+.language-button {
+  min-width: 74px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.theme-trigger {
+  min-width: 104px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.theme-trigger > svg:last-child {
+  width: 13px;
+  color: currentColor;
+  opacity: 0.58;
+}
+.github-link {
+  width: 42px;
+  padding: 0;
+}
+.github-link svg {
+  width: 20px;
+  height: 20px;
+  stroke: none;
+}
+@keyframes statusPulse {
+  50% {
+    opacity: 0.32;
+  }
+}
+
+/* Overview — calm, technical, and recognizably AxonX. */
+
 /* Unified machine-scoped workspace */
 .studio-shell {
   height: 100vh;

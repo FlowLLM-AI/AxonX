@@ -27,6 +27,20 @@ export interface AppLocation {
 }
 
 const sectionSet = new Set<string>(sectionIds);
+const defaultViews: Record<SectionId, string> = {
+  home: "overview",
+  runtime: "tasks",
+  agent: "new",
+  apis: "catalog",
+  "task-defs": "catalog",
+  raw: "files",
+  etl: "runs",
+  factors: "runs",
+  train: "runs",
+  predict: "runs",
+  backtest: "runs",
+  compare: "strategies",
+};
 
 export function parseHash(hash: string): AppLocation {
   const parts = hash.replace(/^#/, "").split("/").filter(Boolean);
@@ -36,18 +50,18 @@ export function parseHash(hash: string): AppLocation {
   const [candidate, view, ...resourceParts] = machineScoped
     ? parts.slice(2)
     : [];
-  const section = sectionSet.has(candidate)
+  const section: SectionId = sectionSet.has(candidate)
     ? (candidate as SectionId)
     : "runtime";
-  const validSection = sectionSet.has(candidate);
+  const valid = sectionSet.has(candidate);
 
   return {
     machineId,
     route: {
       section,
-      view: validSection ? view || defaultRoute(section).view : "tasks",
+      view: valid ? view || defaultViews[section] : defaultViews.runtime,
       resource:
-        validSection && resourceParts.length
+        valid && resourceParts.length
           ? decodeURIComponent(resourceParts.join("/"))
           : undefined,
     },
@@ -67,22 +81,9 @@ export function routeHash(machineId: string, route: AppRoute): string {
 }
 
 export function defaultRoute(section: SectionId): AppRoute {
-  const view =
-    section === "home"
-      ? "overview"
-      : section === "agent"
-        ? "new"
-        : section === "runtime"
-          ? "tasks"
-          : section === "raw"
-            ? "files"
-            : section === "apis" || section === "task-defs"
-              ? "catalog"
-              : "runs";
-
   return {
     section,
-    view,
+    view: defaultViews[section],
     resource: section === "raw" ? "tushare" : undefined,
   };
 }

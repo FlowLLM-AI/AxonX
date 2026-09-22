@@ -1,59 +1,33 @@
-import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "./app/AppShell";
-import { useAppPreferences } from "./app/hooks/useAppPreferences";
-import { useHashRoute } from "./app/hooks/useHashRoute";
-import { useMachines } from "./app/hooks/useMachines";
-import { useServiceStatus } from "./app/hooks/useServiceStatus";
-import { useSidebar } from "./app/hooks/useSidebar";
 import { PageOutlet } from "./app/PageOutlet";
-import { parseHash } from "./app/routes";
-import type { ContextOption } from "./app/types";
+import { useStudio } from "./app/useStudio";
 import { useAxonXWebMcp } from "./webmcp";
 
 export default function App() {
   useAxonXWebMcp();
-  const { theme, setTheme } = useAppPreferences();
-  const { machineId, route, navigate, replace } = useHashRoute();
-  const navigateToMachine = useCallback(
-    (nextMachineId: string) => {
-      navigate(parseHash(window.location.hash).route, nextMachineId);
-    },
-    [navigate],
-  );
-  const { machines, selectedMachine, remoteIp } = useMachines(
-    machineId,
-    navigateToMachine,
-  );
-  const [serviceOnline, setServiceOnline] = useServiceStatus(remoteIp);
-  const [resourceOptions, setResourceOptions] = useState<ContextOption[]>([]);
-  const sidebar = useSidebar();
-
-  useEffect(
-    () => setResourceOptions([]),
-    [machineId, route.section, route.view],
-  );
+  const studio = useStudio();
 
   return (
     <AppShell
-      route={route}
-      theme={theme}
-      setTheme={setTheme}
-      serviceOnline={serviceOnline}
-      machines={machines}
-      selectedMachine={selectedMachine}
-      remoteIp={remoteIp}
-      resourceOptions={resourceOptions}
-      sidebar={sidebar}
-      navigate={navigate}
+      route={studio.route}
+      theme={studio.theme}
+      setTheme={studio.setTheme}
+      serviceOnline={studio.serviceOnline}
+      machines={studio.machines}
+      selectedMachine={studio.selectedMachine}
+      remoteIp={studio.remoteIp}
+      resourceOptions={studio.resourceOptions}
+      sidebar={studio.sidebar}
+      navigate={studio.navigate}
     >
       <PageOutlet
-        route={route}
-        machine={selectedMachine}
-        remoteIp={remoteIp}
-        navigate={navigate}
-        replace={replace}
-        setResourceOptions={setResourceOptions}
-        setServiceOnline={setServiceOnline}
+        route={studio.route}
+        machine={studio.selectedMachine}
+        remoteIp={studio.remoteIp}
+        navigate={studio.navigate}
+        replace={studio.replace}
+        setResourceOptions={studio.setResourceOptions}
+        setServiceOnline={studio.setServiceOnline}
       />
     </AppShell>
   );

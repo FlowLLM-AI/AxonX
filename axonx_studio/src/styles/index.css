@@ -1,10 +1,7 @@
-@import "./01-foundation.css";
-@import "./02-shell.css";
-@import "./03-home.css";
-@import "./04-surfaces.css";
-@import "./05-workspace.css";
-@import "./06-research.css";
-@import "./07-runtime.css";
-@import "./08-api.css";
-@import "./09-polish.css";
-@import "./10-agent.css";
+@import "./foundation.css";
+@import "./workspace.css";
+@import "./research.css";
+@import "./shell-runtime.css";
+@import "./api.css";
+@import "./features.css";
+@import "./agent.css";

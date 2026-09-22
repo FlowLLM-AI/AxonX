@@ -1,5 +1,4 @@
-import { lazy, Suspense } from "react";
-import type { Dispatch, SetStateAction } from "react";
+import { lazy, Suspense, type Dispatch, type SetStateAction } from "react";
 import type { ResearchPageId } from "../features/research/types";
 import type { ContextOption } from "./types";
 import { useTranslation } from "react-i18next";
@@ -8,46 +7,20 @@ import { researchSections } from "./navigation";
 import { defaultRoute } from "./routes";
 import type { AppRoute, SectionId } from "./routes";
 
-const HomePage = lazy(() =>
-  import("../features/HomePage").then((module) => ({
-    default: module.HomePage,
-  })),
+const HomePage = lazy(() => import("../features/HomePage"));
+const RuntimeWorkspace = lazy(
+  () => import("../features/runtime/RuntimeWorkspace"),
 );
-const RuntimeWorkspace = lazy(() =>
-  import("../features/runtime/RuntimeWorkspace").then((module) => ({
-    default: module.RuntimeWorkspace,
-  })),
+const TushareBrowserPage = lazy(
+  () => import("../features/workspace/TushareBrowserPage"),
 );
-const TushareBrowserPage = lazy(() =>
-  import("../features/workspace/TushareBrowserPage").then((module) => ({
-    default: module.TushareBrowserPage,
-  })),
+const ResearchPage = lazy(() => import("../features/research/ResearchPage"));
+const StrategyComparePage = lazy(
+  () => import("../features/research/compare/StrategyComparePage"),
 );
-const ResearchPage = lazy(() =>
-  import("../features/research/ResearchPage").then((module) => ({
-    default: module.ResearchPage,
-  })),
-);
-const StrategyComparePage = lazy(() =>
-  import("../features/research/compare/StrategyComparePage").then((module) => ({
-    default: module.StrategyComparePage,
-  })),
-);
-const ApiWorkspace = lazy(() =>
-  import("../features/api-catalog/ApiWorkspace").then((module) => ({
-    default: module.ApiWorkspace,
-  })),
-);
-const SubmitPage = lazy(() =>
-  import("../features/task-submit/SubmitPage").then((module) => ({
-    default: module.SubmitPage,
-  })),
-);
-const AgentWorkspace = lazy(() =>
-  import("../features/agent/AgentWorkspace").then((module) => ({
-    default: module.AgentWorkspace,
-  })),
-);
+const ApiWorkspace = lazy(() => import("../features/api-catalog/ApiWorkspace"));
+const SubmitPage = lazy(() => import("../features/task-submit/SubmitPage"));
+const AgentWorkspace = lazy(() => import("../features/agent/AgentWorkspace"));
 
 interface PageOutletProps {
   route: AppRoute;
@@ -68,7 +41,7 @@ export function PageOutlet({
   setResourceOptions,
   setServiceOnline,
 }: PageOutletProps) {
-  let page: React.ReactNode;
+  let page: React.ReactNode = null;
 
   if (route.section === "home") {
     page = (
@@ -199,8 +172,6 @@ export function PageOutlet({
         onConnection={setServiceOnline}
       />
     );
-  } else {
-    page = <UnknownPage section={route.section} />;
   }
 
   return <Suspense fallback={<PageLoading />}>{page}</Suspense>;
@@ -209,9 +180,4 @@ export function PageOutlet({
 function PageLoading() {
   const { t } = useTranslation();
   return <div className="loading-state tall">{t("shell.loading")}</div>;
-}
-
-function UnknownPage({ section }: { section: string }) {
-  const { t } = useTranslation();
-  return <div className="data-gap">{t("shell.unknownPage", { section })}</div>;
 }

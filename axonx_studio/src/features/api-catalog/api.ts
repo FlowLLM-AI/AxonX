@@ -1,5 +1,5 @@
 import { clientForAddress } from "../../shared/api/client";
-import type { JobCatalog } from "./types";
+import type { JobCatalog } from "../../shared/api/types";
 
 export const listJobs = (remoteAddress?: string, signal?: AbortSignal) =>
   clientForAddress(remoteAddress).jobs(signal) as Promise<JobCatalog>;

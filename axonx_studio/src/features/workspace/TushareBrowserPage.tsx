@@ -49,7 +49,7 @@ function iconFor(entry: WorkspaceEntry) {
   return File;
 }
 
-export function TushareBrowserPage({
+export default function TushareBrowserPage({
   remoteIp,
   initialPath,
   onConnection,

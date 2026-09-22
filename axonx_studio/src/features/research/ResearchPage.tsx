@@ -210,7 +210,7 @@ function useTasks(
   return { tasks, loading, error, load };
 }
 
-export function ResearchPage({
+export default function ResearchPage({
   kind,
   remoteIp,
   initialSelectedId,

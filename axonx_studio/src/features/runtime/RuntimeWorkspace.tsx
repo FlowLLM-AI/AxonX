@@ -16,7 +16,7 @@ import type { ContextOption } from "../../app/types";
 import type { MachineNode } from "../machines/types";
 import { useTranslation } from "react-i18next";
 
-export function RuntimeWorkspace({
+export default function RuntimeWorkspace({
   machine,
   remoteIp,
   view,

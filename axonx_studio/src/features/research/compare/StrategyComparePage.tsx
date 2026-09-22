@@ -196,7 +196,7 @@ function drawdownRows(points: PairedDay[], topN: number): ChartRow[] {
   });
 }
 
-export function StrategyComparePage({
+export default function StrategyComparePage({
   remoteIp,
   initialTaskId,
   onConnection,

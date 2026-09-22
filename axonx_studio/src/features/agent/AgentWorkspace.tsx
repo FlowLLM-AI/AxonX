@@ -8,7 +8,7 @@ import type {
   JobEvent,
   ResultEvent,
 } from "../../shared/api/event";
-import { isAbortError } from "../../shared/lib/errors";
+import { errorMessage, isAbortError } from "../../shared/lib/errors";
 import {
   cancelAgentTurn,
   deleteAgentSession,
@@ -41,11 +41,7 @@ interface AgentWorkspaceProps {
   onConnection: (online: boolean) => void;
 }
 
-function errorMessage(reason: unknown) {
-  return reason instanceof Error ? reason.message : String(reason);
-}
-
-export function AgentWorkspace({
+export default function AgentWorkspace({
   view,
   resource,
   remoteIp,

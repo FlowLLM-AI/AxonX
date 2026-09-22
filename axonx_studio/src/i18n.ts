@@ -3,8 +3,8 @@ import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
 import zh from "./locales/zh.json";
 
-export const supportedLanguages = ["en", "zh"] as const;
-export type AppLanguage = (typeof supportedLanguages)[number];
+const supportedLanguages = ["en", "zh"] as const;
+type AppLanguage = (typeof supportedLanguages)[number];
 
 function initialLanguage(): AppLanguage {
   const saved =

@@ -24,7 +24,7 @@ import { SchemaField } from "../../shared/ui/SchemaForm/SchemaField";
 import type { ContextOption } from "../../app/types";
 import type { TaskDefinition } from "../tasks/types";
 
-export function SubmitPage({
+export default function SubmitPage({
   remoteIp,
   initialName,
   onSelected,
