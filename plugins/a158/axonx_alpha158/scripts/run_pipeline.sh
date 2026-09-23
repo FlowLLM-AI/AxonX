@@ -51,6 +51,11 @@ etl_id=$(submit_and_wait "Alpha158 ETL" --task a158_etl --start-date 20150101)
 submit_and_wait "Factor analysis" --task a158_factor --source-tasks "[\"${etl_id}\"]" >/dev/null
 train_id=$(submit_and_wait "LightGBM training" --task a158_train --source-tasks "[\"${etl_id}\"]" --train-start 20150101)
 predict_id=$(submit_and_wait "Prediction" --task a158_predict --source-tasks "[\"${train_id}\"]")
+prediction_status=$(axonx status --task-id "$predict_id")
+pred_end=$(printf '%s' "$prediction_status" | python3 plugins/a158/axonx_alpha158/backtest_window.py)
+if [[ -n $pred_end ]]; then
+    predict_id=$(submit_and_wait "Settled prediction" --task a158_predict --source-tasks "[\"${train_id}\"]" --pred-end "$pred_end")
+fi
 backtest_id=$(submit_and_wait "Backtest" --task a158_backtest --source-tasks "[\"${predict_id}\"]")
 
 echo "Pipeline complete: ${backtest_id}"
