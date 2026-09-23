@@ -51,7 +51,10 @@ def _run_server(command: Command) -> int:
 
 
 def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
+    load_env(override=False)
     options = client_options.model_dump(exclude={"stream", "stream_format"})
+    if options["token"] is None:
+        options["token"] = os.environ.get("AXONX_SERVICE_TOKEN") or None
     arguments = dict(command.arguments)
     arguments.pop(CLI_RAW_ARGUMENTS, None)
     target_ip = arguments.pop(REMOTE_IP_ARGUMENT, None)
