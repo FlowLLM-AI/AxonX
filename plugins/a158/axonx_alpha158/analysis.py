@@ -1,4 +1,4 @@
-"""Analyze every Alpha158 factor against all five realized-return horizons."""
+"""Analyze Alpha158 factors against the next-open holding return."""
 
 from __future__ import annotations
 import math
@@ -33,13 +33,13 @@ class FactorAnalysisInputParams(BaseAnalysisInputParams):
     """Configure factor diagnostics sourced from one Alpha158 ETL task."""
 
     quantiles: int = Field(default=10, ge=3, le=50, description="Number of factor-value groups used to compare subsequent returns.")
-    minimum_daily_samples: int = Field(default=20, ge=2, description="Minimum valid stocks per day for a factor and return horizon.")
+    minimum_daily_samples: int = Field(default=20, ge=2, description="Minimum valid stocks per day for a factor and return.")
     feature_batch_size: int = Field(default=8, ge=1, le=32, description="Number of factors processed together in each batch.")
     tradable_only: bool = Field(default=True, description="Analyze only stocks marked buyable in the source dataset.")
 
 
 class FactorAnalysisTask(BaseAnalysisTask):
-    """Evaluate Alpha158 factors against five future return horizons.
+    """Evaluate Alpha158 factors against the one-day next-open return.
 
     Reports correlation, stability, and quantile-based measures for each factor.
     """

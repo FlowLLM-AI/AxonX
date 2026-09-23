@@ -79,6 +79,10 @@ class Alpha158BacktestTask(BaseBacktestTask):
         "actual_return",
         "label_valid",
         "is_buyable",
+        "entry_is_buyable",
+        "exit_is_sellable",
+        "entry_date",
+        "exit_date",
     )
 
     def build_task_steps(self) -> Iterable[TaskStep]:
@@ -111,7 +115,7 @@ class Alpha158BacktestTask(BaseBacktestTask):
         schema = pl.read_parquet_schema(path)
         if missing := [name for name in self.REQUIRED_COLUMNS if name not in schema]:
             raise ValueError(f"预测文件缺少字段: {', '.join(missing)}")
-        for name in ("label_valid", "is_buyable"):
+        for name in ("label_valid", "is_buyable", "entry_is_buyable", "exit_is_sellable"):
             if schema[name] != pl.Boolean:
                 raise TypeError(f"{name} 必须是 Boolean")
         index_columns = tuple(
@@ -122,13 +126,15 @@ class Alpha158BacktestTask(BaseBacktestTask):
             predictions=(
                 pl.scan_parquet(path)
                 .select(
-                    pl.col("trade_date", "ts_code", "name").cast(pl.String),
+                    pl.col("trade_date", "ts_code", "name", "entry_date", "exit_date").cast(pl.String),
                     pl.col("pred", "actual_return", *index_columns).cast(
                         pl.Float64,
                         strict=False,
                     ),
                     "label_valid",
                     "is_buyable",
+                    "entry_is_buyable",
+                    "exit_is_sellable",
                 )
                 .collect()
                 .sort("trade_date", "ts_code")
@@ -183,17 +189,19 @@ class Alpha158BacktestTask(BaseBacktestTask):
                 ],
             ),
             protocol={
-                "actual_return": "decimal realized return supplied by the prediction task",
-                "candidate_filter": "is_buyable and finite prediction and valid actual_return; selected index_weight_* > 0",
+                "actual_return": "adjusted entry_date open to exit_date open; trade_date is signal date",
+                "candidate_filter": "signal-date is_buyable and finite prediction; selected index_weight_* > 0",
+                "execution": "rank before next-open fill; unfilled entries remain cash; refuse positions without a sellable exit open",
                 "index_codes": self.input_params.index_codes,
                 "portfolio": "daily equal-weight top-N ranked by descending prediction",
-                "initial_turnover": 0.0,
-                "turnover": "half L1 distance between consecutive target portfolios",
+                "initial_turnover": "invested fraction of the initial target portfolio",
+                "turnover": "half L1 distance between consecutive filled portfolios, including cash",
                 "net_return": "gross return minus turnover times transaction_cost_rate",
                 "ic": "daily Pearson correlation in the candidate universe",
                 "rank_ic": "daily Spearman correlation in the candidate universe",
                 "ndcg": "actual-return cross-sectional percentile relevance in the candidate universe",
                 "icir": "annualized mean divided by sample standard deviation",
+                "return_period_date": "exit_date; daily.trade_date is the signal date",
             },
             date_range={
                 "start": result.daily["trade_date"].min(),

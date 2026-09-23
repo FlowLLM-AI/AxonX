@@ -47,7 +47,7 @@ RAW_FEATURES = (
     *(f"{name}{window}" for name in ROLLING for window in WINDOWS),
 )
 FEATURES = tuple(f"f_alpha158_{name}" for name in RAW_FEATURES)
-LABELS = tuple(f"label_{horizon}d" for horizon in range(1, 6))
+LABELS = ("label_1d",)
 CSZ_LABELS = tuple(f"{label}_csz" for label in LABELS)
 RANK_LABELS = tuple(f"{label}_rank" for label in LABELS)
 VALID_LABELS = tuple(f"{label}_is_valid" for label in LABELS)
@@ -67,6 +67,10 @@ MARKET_STATE_COLUMNS = (
     "is_limit_down",
     "is_insufficient_history",
     "is_buyable",
+    "entry_is_buyable",
+    "exit_is_sellable",
+    "entry_date",
+    "exit_date",
 )
 
 
@@ -104,26 +108,6 @@ def load_market_data(daily_files: list[Path], factor_files: list[Path]) -> pl.Da
     return daily.join(factors, on=["ts_code", "trade_date"], how="left").collect().sort("ts_code", "trade_date")
 
 
-def fill_missing_adj_factors(frame: pl.DataFrame) -> tuple[pl.DataFrame, int, int]:
-    """Fill missing factors from the next quote and return before/after null counts."""
-    if frame.is_empty():
-        raise ValueError("daily 与 adj_factor 没有可匹配的数据")
-    if frame.select("ts_code", "trade_date").n_unique() != frame.height:
-        raise ValueError("输入包含重复的 ts_code, trade_date")
-    missing_rows = frame["adj_factor"].null_count()
-    if missing_rows:
-        fallback = (
-            pl.col("adj_factor").shift(-1).over("ts_code")
-            * pl.col("pre_close").shift(-1).over("ts_code")
-            / pl.col("close")
-        )
-        frame = frame.with_columns(
-            pl.coalesce("adj_factor", fallback).alias("adj_factor"),
-        )
-    unresolved_rows = frame["adj_factor"].null_count()
-    return frame, missing_rows, unresolved_rows
-
-
 def validate_market_data(frame: pl.DataFrame) -> None:
     """Reject invalid quote dates and missing or out-of-range numeric values."""
     positive = pl.col("open", "high", "low", "close", "adj_factor")
@@ -143,6 +127,8 @@ def validate_market_data(frame: pl.DataFrame) -> None:
     )
     if frame.filter(invalid).height:
         raise ValueError("daily 或 adj_factor 包含缺失、非有限或越界数据")
+    if frame.select("ts_code", "trade_date").n_unique() != frame.height:
+        raise ValueError("输入包含重复的 ts_code, trade_date")
 
 
 def align_calendar(frame: pl.DataFrame, calendar: pl.DataFrame) -> pl.DataFrame:
@@ -352,60 +338,49 @@ def calculate_labels(
     *,
     progress: Callable[[float], None] | None = None,
 ) -> pl.DataFrame:
-    """Build forward returns, validity, winsorized z-scores, and ranks."""
+    """Build next-open to following-open returns and execution dates."""
     frame = frame.with_columns(
-        *(
-            (pl.col("_close").shift(-horizon).over("ts_code") / pl.col("_close") - 1).alias(label)
-            for horizon, label in enumerate(LABELS, start=1)
-        ),
+        (pl.col("_open").shift(-2).over("ts_code") / pl.col("_open").shift(-1).over("ts_code") - 1).alias("label_1d"),
+        pl.col("trade_date").shift(-1).over("ts_code").alias("entry_date"),
+        pl.col("trade_date").shift(-2).over("ts_code").alias("exit_date"),
+        (
+            pl.col("_has_market_data").shift(-1).over("ts_code").fill_null(False)
+            & pl.col("_has_valid_limits").shift(-1).over("ts_code").fill_null(False)
+            & ~pl.col("is_st").shift(-1).over("ts_code").fill_null(True)
+            & ~pl.col("is_delisting").shift(-1).over("ts_code").fill_null(True)
+            & (
+                pl.col("open").shift(-1).over("ts_code")
+                < pl.col("up_limit").shift(-1).over("ts_code") - 1e-6
+            ).fill_null(False)
+        ).alias("entry_is_buyable"),
+        (
+            pl.col("_has_market_data").shift(-2).over("ts_code").fill_null(False)
+            & pl.col("_has_valid_limits").shift(-2).over("ts_code").fill_null(False)
+            & (
+                pl.col("open").shift(-2).over("ts_code")
+                > pl.col("down_limit").shift(-2).over("ts_code") + 1e-6
+            ).fill_null(False)
+        ).alias("exit_is_sellable"),
     )
-    frame = frame.with_columns(
-        *(
-            pl.col(label).is_finite().fill_null(False).alias(valid_label)
-            for label, valid_label in zip(LABELS, VALID_LABELS, strict=True)
-        ),
-    )
+    frame = frame.with_columns(pl.col("label_1d").is_finite().fill_null(False).alias("label_1d_is_valid"))
     if progress is not None:
         progress(30)
-    winsorized_columns: dict[str, str] = {}
-    winsorized_expressions: list[pl.Expr] = []
-    for label, valid_label in zip(LABELS, VALID_LABELS, strict=True):
-        finite = pl.when(pl.col(valid_label)).then(pl.col(label))
-        lower = finite.quantile(winsorize_tail, interpolation="linear").over(
-            "trade_date",
-        )
-        upper = finite.quantile(1 - winsorize_tail, interpolation="linear").over(
-            "trade_date",
-        )
-        column = f"_{label}_winsorized"
-        winsorized_columns[label] = column
-        winsorized_expressions.append(finite.clip(lower, upper).alias(column))
-    frame = frame.with_columns(*winsorized_expressions)
+    finite = pl.when(pl.col("label_1d_is_valid")).then(pl.col("label_1d"))
+    lower = finite.quantile(winsorize_tail, interpolation="linear").over("trade_date")
+    upper = finite.quantile(1 - winsorize_tail, interpolation="linear").over("trade_date")
+    frame = frame.with_columns(finite.clip(lower, upper).alias("_label_1d_winsorized"))
     if progress is not None:
         progress(60)
-
-    expressions: list[pl.Expr] = []
-    for label, csz_label, rank_label, valid_label in zip(
-        LABELS,
-        CSZ_LABELS,
-        RANK_LABELS,
-        VALID_LABELS,
-        strict=True,
-    ):
-        finite = pl.when(pl.col(valid_label)).then(pl.col(label))
-        winsorized = pl.col(winsorized_columns[label])
-        mean = winsorized.mean().over("trade_date")
-        std = winsorized.std(ddof=0).over("trade_date")
-        count = finite.count().over("trade_date")
-        expressions.extend(
-            (
-                pl.when(std > EPSILON).then((winsorized - mean) / std).alias(csz_label),
-                pl.when(pl.col(valid_label) & (count > 0))
-                .then(finite.rank(method="average").over("trade_date") / count)
-                .alias(rank_label),
-            ),
-        )
-    frame = frame.with_columns(*expressions)
+    winsorized = pl.col("_label_1d_winsorized")
+    mean = winsorized.mean().over("trade_date")
+    std = winsorized.std(ddof=0).over("trade_date")
+    count = finite.count().over("trade_date")
+    frame = frame.with_columns(
+        pl.when(std > EPSILON).then((winsorized - mean) / std).alias("label_1d_csz"),
+        pl.when(pl.col("label_1d_is_valid") & (count > 0))
+        .then(finite.rank(method="average").over("trade_date") / count)
+        .alias("label_1d_rank"),
+    ).drop("_label_1d_winsorized")
     if progress is not None:
         progress(95)
     return frame

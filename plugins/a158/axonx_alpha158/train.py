@@ -132,6 +132,7 @@ class LgbmTrainTask(BaseTrainTask):
         self.report_progress(10)
         required = (
             "trade_date",
+            "exit_date",
             "ts_code",
             "is_buyable",
             self.raw_label,
@@ -157,6 +158,7 @@ class LgbmTrainTask(BaseTrainTask):
         loaded_rows = frame.height
         frame = frame.filter(
             pl.col("is_buyable")
+            & (pl.col("exit_date") <= pl.lit(self.input_params.train_end))
             & pl.col(valid_label)
             & pl.col(self.raw_label).is_finite()
             & pl.col(self.input_params.label_column).is_finite(),
@@ -198,7 +200,7 @@ class LgbmTrainTask(BaseTrainTask):
         validation_days = max(1, math.ceil(len(dates) * self.input_params.validation_ratio))
         validation_days = min(validation_days, len(dates) - 1)
         validation_start = dates[-validation_days]
-        fit = frame.filter(pl.col("trade_date") < validation_start)
+        fit = frame.filter(pl.col("exit_date") <= validation_start)
         validation = frame.filter(pl.col("trade_date") >= validation_start)
         if fit.is_empty() or validation.is_empty():
             raise ValueError("无法构造时间顺序训练/验证集")
@@ -411,7 +413,7 @@ class LgbmTrainTask(BaseTrainTask):
                 "raw_label_for_trimming": self.raw_label,
                 "daily_trim_tail": self.input_params.trim_tail,
                 "prediction_rows_are_not_trimmed": True,
-                "sample_filter": "is_buyable and valid finite label",
+                "sample_filter": "signal-date is_buyable, valid finite label, and exit_date <= train_end",
             },
             feature_columns=list(self.state["features"]),
             target_columns=[self.input_params.label_column],

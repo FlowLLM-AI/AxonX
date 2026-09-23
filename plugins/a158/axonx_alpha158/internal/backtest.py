@@ -44,16 +44,27 @@ def run_backtest(
             f"预测文件没有指数权重列: {', '.join(unknown)}；可选指数: {available}"
         )
 
-    candidate_filter = (
-        pl.col("is_buyable") & pl.col("label_valid") & pl.col("pred").is_not_null()
-    )
+    candidate_filter = pl.col("is_buyable") & pl.col("pred").is_not_null()
     if config.index_codes:
         candidate_filter &= pl.any_horizontal(
             *(pl.col(available_indices[code]) > 0 for code in config.index_codes)
         )
-    candidates = _enrich_candidates(frame.filter(candidate_filter))
+    settled_dates = frame.filter("label_valid").select("trade_date").unique()
+    candidates = frame.filter(candidate_filter).join(settled_dates, on="trade_date", how="inner")
     if candidates.is_empty():
         raise ValueError("预测文件没有可回测的可买样本")
+    candidates = candidates.sort("trade_date", "pred", "ts_code", descending=(False, True, False)).with_columns(
+        pl.col("ts_code").cum_count().over("trade_date").alias("rank")
+    )
+    if candidates.filter(
+        (pl.col("rank") <= max(TOP_NS)) & pl.col("entry_is_buyable") & ~pl.col("label_valid")
+    ).height:
+        raise ValueError("目标股票已开盘买入，但缺少下一交易日开盘价；无法可靠结算回测")
+    if candidates.filter(
+        (pl.col("rank") <= max(TOP_NS)) & pl.col("entry_is_buyable") & ~pl.col("exit_is_sellable")
+    ).height:
+        raise ValueError("目标股票在退出日开盘无法卖出；单日收益模型无法可靠结算回测")
+    candidates = _enrich_candidates(candidates)
 
     daily = candidates.group_by("trade_date").agg(
         pl.len().alias("candidate_count"),
@@ -65,7 +76,11 @@ def run_backtest(
         .group_by("trade_date")
         .agg(pl.col("actual_return").mean().alias("benchmark_universe_return"))
     )
-    daily = daily.join(universe, on="trade_date", how="left")
+    dates = candidates.group_by("trade_date").agg(
+        pl.col("entry_date").drop_nulls().first().alias("entry_date"),
+        pl.col("exit_date").drop_nulls().first().alias("exit_date"),
+    )
+    daily = daily.join(dates, on="trade_date", how="left").join(universe, on="trade_date", how="left")
     indices = _index_benchmarks(
         frame,
         index_columns,
@@ -144,11 +159,9 @@ def _correlation(method: str, name: str) -> pl.Expr:
 
 
 def _enrich_candidates(candidates: pl.DataFrame) -> pl.DataFrame:
-    ranked = candidates.sort(
-        "trade_date", "pred", "ts_code", descending=(False, True, False)
-    ).with_columns(pl.col("ts_code").cum_count().over("trade_date").alias("rank"))
+    ranked = candidates
     ideal = (
-        ranked.sort(
+        ranked.filter("label_valid").sort(
             "trade_date", "actual_return", "ts_code", descending=(False, True, False)
         )
         .with_columns(
@@ -156,9 +169,9 @@ def _enrich_candidates(candidates: pl.DataFrame) -> pl.DataFrame:
         )
         .select("trade_date", "ts_code", "ideal_rank")
     )
-    count = pl.len().over("trade_date")
+    count = pl.col("actual_return").is_not_null().sum().over("trade_date")
     actual_rank = pl.col("actual_return").rank(method="average").over("trade_date")
-    return ranked.join(ideal, on=("trade_date", "ts_code")).with_columns(
+    return ranked.join(ideal, on=("trade_date", "ts_code"), how="left").with_columns(
         pl.when(count > 1)
         .then((actual_rank - 1) / (count - 1))
         .otherwise(1.0)
@@ -201,7 +214,7 @@ def _portfolio_daily(
 ) -> pl.DataFrame:
     prefix = f"top{top_n}"
     selected = candidates.filter(pl.col("rank") <= top_n).with_columns(
-        (1 / pl.len().over("trade_date")).alias("weight")
+        pl.when("entry_is_buyable").then(1 / pl.len().over("trade_date")).otherwise(0).alias("weight")
     )
     dates = (
         selected.select("trade_date").unique().sort("trade_date").with_row_index("_day")
@@ -214,6 +227,9 @@ def _portfolio_daily(
         "ts_code",
         pl.col("weight").alias("_previous_weight"),
     )
+    previous_invested = weights.group_by("_day").agg(
+        pl.col("weight").sum().alias("_previous_invested")
+    ).with_columns((pl.col("_day") + 1).alias("_day"))
     gain = pl.lit(2.0).pow(pl.col("relevance")) - 1
     idcg = (
         candidates.filter(pl.col("ideal_rank") <= top_n)
@@ -225,7 +241,7 @@ def _portfolio_daily(
         .group_by("_day", "trade_date")
         .agg(
             pl.len().alias(f"{prefix}_count"),
-            (pl.col("actual_return") * pl.col("weight"))
+            (pl.col("actual_return").fill_null(0) * pl.col("weight"))
             .sum()
             .alias(f"{prefix}_gross_return"),
             (gain / (pl.col("rank") + 1).log(2)).sum().alias("_dcg"),
@@ -234,14 +250,13 @@ def _portfolio_daily(
             .otherwise(0)
             .sum()
             .alias("_overlap"),
+            pl.col("weight").sum().alias("_invested"),
         )
         .join(idcg, on="trade_date")
+        .join(previous_invested, on="_day", how="left")
         .sort("_day")
         .with_columns(
-            pl.when(pl.col("_day") == 0)
-            .then(0.0)
-            .otherwise(1 - pl.col("_overlap").fill_null(0))
-            .alias(f"{prefix}_turnover"),
+            (pl.max_horizontal("_invested", pl.col("_previous_invested").fill_null(0)) - pl.col("_overlap").fill_null(0)).alias(f"{prefix}_turnover"),
             pl.when(pl.col("_idcg") > 0)
             .then(pl.col("_dcg") / pl.col("_idcg"))
             .otherwise(0.0)
@@ -257,7 +272,7 @@ def _portfolio_daily(
                 pl.col(f"{prefix}_gross_return") - pl.col(f"{prefix}_transaction_cost")
             ).alias(f"{prefix}_net_return")
         )
-        .drop("_day", "_dcg", "_idcg", "_overlap")
+        .drop("_day", "_dcg", "_idcg", "_overlap", "_invested", "_previous_invested")
     )
 
 
@@ -265,7 +280,7 @@ def _holding_details(candidates: pl.DataFrame) -> pl.DataFrame:
     selected = (
         candidates.filter(pl.col("rank") <= HOLDING_DETAIL_TOP_N)
         .with_columns(
-            (1 / pl.len().over("trade_date")).alias("weight"),
+            pl.when("entry_is_buyable").then(1 / pl.len().over("trade_date")).otherwise(0).alias("weight"),
             pl.col("pred").alias("prediction"),
             pl.col("actual_return").alias("daily_return"),
         )
@@ -290,18 +305,18 @@ def _period_column(period_type: str) -> pl.Expr:
     if period_type == "overall":
         return pl.lit("all")
     if period_type == "year":
-        return pl.col("trade_date").str.slice(0, 4)
+        return pl.col("exit_date").str.slice(0, 4)
     if period_type == "quarter":
-        month = pl.col("trade_date").str.slice(4, 2).cast(pl.Int8)
+        month = pl.col("exit_date").str.slice(4, 2).cast(pl.Int8)
         return (
-            pl.col("trade_date").str.slice(0, 4)
+            pl.col("exit_date").str.slice(0, 4)
             + "Q"
             + (((month - 1) // 3) + 1).cast(pl.String)
         )
     return (
-        pl.col("trade_date").str.slice(0, 4)
+        pl.col("exit_date").str.slice(0, 4)
         + "-"
-        + pl.col("trade_date").str.slice(4, 2)
+        + pl.col("exit_date").str.slice(4, 2)
     )
 
 
@@ -335,7 +350,7 @@ def _summarize_period(
 ) -> pl.DataFrame:
     daily_rf = (1 + annual_risk_free_rate) ** (1 / annualization_days) - 1
     frame = daily.with_columns(_period_column(period_type).alias("_period")).sort(
-        "_period", "trade_date"
+        "_period", "exit_date"
     )
     derived: list[pl.Expr] = []
     for top_n in TOP_NS:
@@ -360,8 +375,8 @@ def _summarize_period(
     frame = frame.with_columns(*derived)
     annual_scale = math.sqrt(annualization_days)
     metrics: list[pl.Expr] = [
-        pl.col("trade_date").min().alias("period_start"),
-        pl.col("trade_date").max().alias("period_end"),
+        pl.col("exit_date").min().alias("period_start"),
+        pl.col("exit_date").max().alias("period_end"),
         pl.len().alias("trading_days"),
         pl.col("ic").mean().alias("ic_mean"),
         (_ratio("ic") * annual_scale).alias("icir"),

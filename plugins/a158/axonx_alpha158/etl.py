@@ -34,7 +34,6 @@ from .internal.etl_pipeline import (
     assemble_trading_panel,
     attach_market_flags,
     calculate_labels,
-    fill_missing_adj_factors,
     infer_lifecycle_bounds,
     join_historical_names_and_limits,
     join_index_weights,
@@ -87,7 +86,7 @@ class Alpha158InputParams(BaseETLInputParams):
 class Alpha158Task(BaseETLTask):
     """Build an Alpha158 dataset from downloaded Tushare market data.
 
-    Produces adjusted features, one- to five-day future return labels, market
+    Produces adjusted features, one-day next-open return labels, market
     status, and HS300 weights for training and analysis.
     """
 
@@ -153,13 +152,6 @@ class Alpha158Task(BaseETLTask):
             self.state["factor_files"],
         )
         self.report_progress(70)
-        frame, missing_rows, unresolved_rows = fill_missing_adj_factors(frame)
-        self.state["filled_adj_factor_rows"] = missing_rows - unresolved_rows
-        self.logger.info(
-            f"Adjustment factors checked missing_rows={missing_rows} "
-            f"filled_rows={self.state['filled_adj_factor_rows']} "
-            f"unresolved_rows={unresolved_rows}",
-        )
         self.report_progress(80)
         validate_market_data(frame)
         self.state["frame"] = frame
@@ -301,7 +293,7 @@ class Alpha158Task(BaseETLTask):
     def calculate_labels(self) -> None:
         """Calculate forward returns and their cross-sectional transformations."""
         self.logger.info(
-            f"Calculating labels horizons={len(LABELS)} " f"winsorize_tail={self.input_params.csz_winsorize_tail}",
+            f"Calculating next-open label winsorize_tail={self.input_params.csz_winsorize_tail}",
         )
         self.state["frame"] = self._labels(
             self.state["frame"],
@@ -456,7 +448,7 @@ class Alpha158Task(BaseETLTask):
                 "rank": list(RANK_LABELS),
                 "valid": list(VALID_LABELS),
                 "return_unit": "decimal",
-                "definition": "adjusted close return from trade_date to the Nth following market trading day",
+                "definition": "adjusted open return from the next market trading day to the following market trading day; trade_date is signal date",
             },
             index_weight_columns=["index_weight_hs300"],
             market_state_columns=list(MARKET_STATE_COLUMNS),
@@ -464,6 +456,8 @@ class Alpha158Task(BaseETLTask):
                 "buyable_definition": (
                     "listed, quoted, valid limits, non-ST, non-delisting, non-limit, sufficient history"
                 ),
+                "entry_is_buyable_definition": "next market day's open is quoted and below its upper price limit; excludes ST and delisting",
+                "exit_is_sellable_definition": "following market day's open is quoted and above its lower price limit",
                 "minimum_history_days": HISTORY_DAYS,
                 "minimum_history_coverage": self.input_params.min_history_coverage,
                 "missing_stock_basic_symbols": self.state["missing_stock_basic_symbols"],
