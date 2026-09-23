@@ -145,7 +145,7 @@ export default function AgentWorkspace({
     const message = draft.trim();
     if (!message || runningRef.current) return;
     const requestedSession = activeSession.current;
-    const localId = `local-${crypto.randomUUID()}`;
+    const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setConversation((current) =>
       optimisticUserBlock(current, message, localId),
     );
