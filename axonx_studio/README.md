@@ -47,3 +47,8 @@ axonx start
 ```
 
 AxonX 会自动发现 `axonx_studio/dist` 并通过同一个 HTTP 服务提供 Studio 与 API。
+
+如果本机服务需要连接使用相同令牌的远程节点，在 `.env` 中设置
+`AXONX_REMOTE_HOST_IP` 和 `AXONX_SERVICE_TOKEN`，然后运行
+`axonx start --config remote`。这个配置使用 1024 端口，并将本机服务令牌
+用于连接远程节点；远程节点的 `AXONX_SERVICE_TOKEN` 必须与之相同。

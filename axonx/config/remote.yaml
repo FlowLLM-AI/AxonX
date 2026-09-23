@@ -1,0 +1,8 @@
+# Start with `axonx start --config remote` after setting both variables in .env.
+extends: default
+
+remote_nodes:
+  - host_ip: ${AXONX_REMOTE_HOST_IP}
+    host_port: 1024
+    # This remote service must use the same AXONX_SERVICE_TOKEN.
+    token: ${AXONX_SERVICE_TOKEN}
