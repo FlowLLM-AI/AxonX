@@ -9,31 +9,46 @@ cd "$repo_root"
 command -v axonx >/dev/null || { echo "axonx command not found" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 command not found" >&2; exit 1; }
 
+echo "Installing Alpha158 plugin..." >&2
+axonx plugin install plugins/a158 >&2
+
+task_catalog=$(axonx exec)
+for task in download_tushare_task a158_etl a158_factor a158_train a158_predict a158_backtest; do
+    if ! grep -q "^${task}[[:space:]]" <<< "$task_catalog"; then
+        echo "Task ${task} is not installed. Reinstall the a158 plugin before running this pipeline." >&2
+        exit 1
+    fi
+done
+
 submit_and_wait() {
     local stage=$1
     shift
     local response task_id status state error
 
     echo "Submitting ${stage}..." >&2
-    response=$(axonx submit "$@")
+    response=$(axonx submit "$@") || return 1
     task_id=$(printf '%s' "$response" | python3 -c '
 import json, sys
 response = json.load(sys.stdin)
 if not response.get("success"):
     raise SystemExit("Submission failed: %s" % response.get("answer"))
 print(response["answer"]["task_id"])
-')
+') || return 1
+    if [[ -z $task_id ]]; then
+        echo "${stage} submission returned an empty task ID" >&2
+        return 1
+    fi
     echo "${stage}: ${task_id}" >&2
 
     while :; do
-        status=$(axonx status --task-id "$task_id")
+        status=$(axonx status --task-id "$task_id") || return 1
         state=$(printf '%s' "$status" | python3 -c '
 import json, sys
 response = json.load(sys.stdin)
 if not response.get("success"):
     raise SystemExit("Status request failed: %s" % response.get("answer"))
 print(response["answer"]["state"])
-')
+') || return 1
         case "$state" in
             succeeded)
                 echo "${stage} succeeded" >&2
@@ -41,7 +56,7 @@ print(response["answer"]["state"])
                 return 0
                 ;;
             failed|cancelled)
-                error=$(printf '%s' "$status" | python3 -c 'import json,sys; print(json.load(sys.stdin)["answer"].get("error", ""))')
+                error=$(printf '%s' "$status" | python3 -c 'import json,sys; print(json.load(sys.stdin)["answer"].get("error", ""))') || return 1
                 echo "${stage} ${state}: ${error}" >&2
                 return 1
                 ;;
