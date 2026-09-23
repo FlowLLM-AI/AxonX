@@ -2,6 +2,7 @@
 
 from ...components.job.events import ProgressEvent
 from ...components.registry import provider
+from ...enums import TaskState
 from ...task.runtime.arguments import build_task_argv, split_task_arguments
 from .base import TaskManagerStep
 
@@ -16,6 +17,20 @@ class SubmitTaskStep(TaskManagerStep):
         handle = await self.task_manager.submit(arguments)
         await self.emit(ProgressEvent(name="submitted", percentage=100))
         self.response.answer = handle
+
+
+@provider("wait_task")
+class WaitTaskStep(TaskManagerStep):
+    """Wait for a submitted run and return its terminal status."""
+
+    async def execute(self):
+        status = await self.task_manager.wait(
+            self.context["task_id"],
+            self.context["run_id"],
+            self.context.get("poll_interval", 1.0),
+        )
+        self.response.answer = status
+        self.response.success = status.state == TaskState.SUCCEEDED
 
 
 @provider("cancel")

@@ -1,5 +1,6 @@
 """Component contract for asynchronously managing task runs."""
 
+import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence
 
@@ -32,6 +33,20 @@ class BaseTaskManager(BaseComponent, ABC):
     @abstractmethod
     async def get_status(self, task_id: str) -> TaskStatus:
         """Return one task status; raise KeyError if the ID is absent."""
+
+    async def wait(
+        self, task_id: str, run_id: str, poll_interval: float = 1.0
+    ) -> TaskStatus:
+        """Wait for one specific run to finish and return its final status."""
+        if poll_interval <= 0:
+            raise ValueError("poll_interval must be positive")
+        while True:
+            status = await self.get_status(task_id)
+            if status.run_id != run_id:
+                raise ValueError(f"Task run changed: {task_id}")
+            if status.state.is_terminal:
+                return status
+            await asyncio.sleep(poll_interval)
 
     @abstractmethod
     async def cancel(self, task_id: str) -> bool:

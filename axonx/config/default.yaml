@@ -215,6 +215,19 @@ jobs:
     steps:
       - backend: submit_task
 
+  wait_task:
+    description: Wait for one submitted Task run to finish.
+    parameters:
+      type: object
+      properties:
+        task_id: {type: string, minLength: 1}
+        run_id: {type: string, minLength: 1}
+        poll_interval: {type: number, exclusiveMinimum: 0, default: 1}
+      required: [task_id, run_id]
+      additionalProperties: false
+    steps:
+      - backend: wait_task
+
   list_task_ids:
     description: List Task IDs with a status file.
     steps:

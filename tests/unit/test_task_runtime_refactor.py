@@ -367,23 +367,40 @@ async def test_submission_returns_queryable_task_handle(tmp_path):
                 }
             },
         },
-        jobs={"submit": {"steps": [{"backend": "submit_task"}]}},
+        jobs={
+            "submit": {"steps": [{"backend": "submit_task"}]},
+            "wait_task": {"steps": [{"backend": "wait_task"}]},
+        },
     )
 
     async with app:
         response = await app.run_job("submit", {"task": "demo", "x": 2, "y": 3})
         handle = response.answer
-        manager = app.context.components["task_manager"]["default"]
-        for _ in range(50):
-            status = await manager.get_status(handle.task_id)
-            if status.state.is_terminal:
-                break
-            await asyncio.sleep(0.1)
+        waited = await app.run_job(
+            "wait_task", {"task_id": handle.task_id, "run_id": handle.run_id}
+        )
+        status = waited.answer
+
+        failed_handle = (
+            await app.run_job("submit", {"task": "demo", "x": 2, "y": 3, "fail": True})
+        ).answer
+        failed = await app.run_job(
+            "wait_task",
+            {"task_id": failed_handle.task_id, "run_id": failed_handle.run_id},
+        )
+        wrong_run = await app.run_job(
+            "wait_task", {"task_id": handle.task_id, "run_id": "wrong"}
+        )
 
     assert response.success is True
+    assert waited.success is True
     assert status.run_id == handle.run_id
     assert status.state == TaskState.SUCCEEDED
     assert status.result["result"] == 5
+    assert failed.success is False
+    assert failed.answer.state == TaskState.FAILED
+    assert wrong_run.success is False
+    assert "Task run changed" in wrong_run.answer
 
 
 async def test_named_submission_replaces_completed_task(tmp_path):

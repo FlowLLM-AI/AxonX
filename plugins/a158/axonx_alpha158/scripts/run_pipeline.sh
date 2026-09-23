@@ -23,47 +23,26 @@ done
 submit_and_wait() {
     local stage=$1
     shift
-    local response task_id status state error
+    local response handle task_id run_id wait_response
 
     echo "Submitting ${stage}..." >&2
     response=$(axonx submit "$@") || return 1
-    task_id=$(printf '%s' "$response" | python3 -c '
+    handle=$(printf '%s' "$response" | python3 -c '
 import json, sys
 response = json.load(sys.stdin)
 if not response.get("success"):
     raise SystemExit("Submission failed: %s" % response.get("answer"))
-print(response["answer"]["task_id"])
+print(response["answer"]["task_id"], response["answer"]["run_id"], sep="\t")
 ') || return 1
-    if [[ -z $task_id ]]; then
-        echo "${stage} submission returned an empty task ID" >&2
-        return 1
-    fi
+    IFS=$'\t' read -r task_id run_id <<< "$handle"
     echo "${stage}: ${task_id}" >&2
 
-    while :; do
-        status=$(axonx status --task-id "$task_id") || return 1
-        state=$(printf '%s' "$status" | python3 -c '
-import json, sys
-response = json.load(sys.stdin)
-if not response.get("success"):
-    raise SystemExit("Status request failed: %s" % response.get("answer"))
-print(response["answer"]["state"])
-') || return 1
-        case "$state" in
-            succeeded)
-                echo "${stage} succeeded" >&2
-                printf '%s\n' "$task_id"
-                return 0
-                ;;
-            failed|cancelled)
-                error=$(printf '%s' "$status" | python3 -c 'import json,sys; print(json.load(sys.stdin)["answer"].get("error", ""))') || return 1
-                echo "${stage} ${state}: ${error}" >&2
-                return 1
-                ;;
-            queued|running) sleep 5 ;;
-            *) echo "Unexpected ${stage} state: ${state}" >&2; return 1 ;;
-        esac
-    done
+    if ! wait_response=$(axonx --timeout 86400 wait_task --task-id "$task_id" --run-id "$run_id"); then
+        echo "${stage} failed: ${wait_response}" >&2
+        return 1
+    fi
+    echo "${stage} succeeded" >&2
+    printf '%s\n' "$task_id"
 }
 
 # The native and plugin tasks are submitted by their registered names.
