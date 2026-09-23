@@ -4,6 +4,7 @@ import json
 import os
 import re
 from collections.abc import Mapping
+from importlib import import_module
 from importlib.metadata import EntryPoint
 from pathlib import Path
 from typing import Any
@@ -121,7 +122,25 @@ class ConfigResolver:
     def _external_config_path(self, name: str, entry: EntryPoint | None) -> Path | None:
         if entry is None:
             return None
-        path = Path(load_entry_point(entry, invoke=True))
+        module = import_module(entry.module)
+        if entry.attr and hasattr(module, entry.attr):
+            path = Path(load_entry_point(entry, invoke=True))
+        else:
+            locations = list(getattr(module, "__path__", ()))
+            if len(locations) != 1:
+                raise ValueError(
+                    f"Config entry point '{name}' must target one package directory",
+                )
+            directory = Path(locations[0])
+            stem = entry.attr or name
+            path = next(
+                (
+                    candidate
+                    for extension in _SUPPORTED_EXTENSIONS
+                    if (candidate := directory / f"{stem}{extension}").is_file()
+                ),
+                directory / f"{stem}.yaml",
+            )
         if path.suffix not in _SUPPORTED_EXTENSIONS or not path.is_file():
             raise ValueError(
                 f"Config entry point '{name}' did not resolve to a YAML or JSON file",

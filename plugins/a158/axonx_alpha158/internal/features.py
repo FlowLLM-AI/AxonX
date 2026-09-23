@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import polars as pl
 
-from .etl_pipeline import EPSILON, FEATURES, LABEL_OUTPUTS, WINDOWS
+from .etl_pipeline import EPSILON, FEATURES, LABEL_OUTPUTS
 
 
 def price_features(frame: pl.DataFrame) -> pl.DataFrame:
@@ -43,14 +43,6 @@ def rolling_inputs(frame: pl.DataFrame) -> pl.DataFrame:
         .then((pl.col("_volume") / pl.col("_prev_volume") + 1).log())
         .alias("_volume_ratio"),
     )
-
-
-def all_features(frame: pl.DataFrame) -> pl.DataFrame:
-    """Build all features in one call for callers that use the helper directly."""
-    frame = rolling_inputs(price_features(frame))
-    for window in WINDOWS:
-        frame = rolling_features(frame, window)
-    return frame
 
 
 def rolling_features(

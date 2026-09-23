@@ -1,6 +1,7 @@
 """Build a compact Alpha158 dataset from DownloadTushareTask output."""
 
 from __future__ import annotations
+
 import os
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -13,7 +14,6 @@ from axonx.task.contracts import BaseETLInputParams, BaseETLOutputParams, BaseET
 from axonx.task.core import TaskStep
 from axonx.task.storage import artifact_record
 
-from .internal import etl_pipeline
 from .internal.etl_pipeline import (
     CSZ_LABELS,
     FEATURES,
@@ -44,14 +44,11 @@ from .internal.etl_pipeline import (
     validate_market_data,
 )
 from .internal.features import (
-    all_features,
     dataset_statistics,
     price_features,
     rolling_features,
     rolling_inputs,
 )
-
-EPSILON = etl_pipeline.EPSILON
 
 
 class Alpha158OutputParams(BaseETLOutputParams):
@@ -100,7 +97,6 @@ class Alpha158Task(BaseETLTask):
 
     _price_features = staticmethod(price_features)
     _rolling_inputs = staticmethod(rolling_inputs)
-    _features = staticmethod(all_features)
     _rolling = staticmethod(rolling_features)
     _statistics = staticmethod(dataset_statistics)
 
@@ -135,8 +131,6 @@ class Alpha158Task(BaseETLTask):
             raise ValueError("start_date 不能晚于 end_date")
         output_path = self.task_dir / "alpha158.parquet"
         statistics_path = output_path.with_suffix(".csv")
-        if statistics_path == output_path:
-            raise ValueError("output_file 必须使用非 CSV 扩展名")
         self.state.update(
             daily_files=daily_files,
             factor_files=factor_files,
@@ -240,7 +234,7 @@ class Alpha158Task(BaseETLTask):
             )
         self.report_progress(20)
         frame = assemble_trading_panel(frame, bounds, calendar)
-        self.state.update(stocks=stocks, names=names)
+        self.state["names"] = names
         self.state["frame"] = frame
         self.report_progress(95)
         self.logger.info(

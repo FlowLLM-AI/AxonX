@@ -17,11 +17,11 @@ dependencies = [
 alpha158 = "axonx_alpha158"
 
 [project.entry-points."axonx.configs"]
-alpha158 = "axonx_alpha158.config:config_path"
+alpha158 = "axonx_alpha158.config:alpha158_demo"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 include = ["axonx_alpha158*"]
 
 [tool.setuptools.package-data]
-axonx_alpha158 = ["plugin.yaml", "config.yaml"]
+axonx_alpha158 = ["plugin.yaml", "config/*.yaml"]
