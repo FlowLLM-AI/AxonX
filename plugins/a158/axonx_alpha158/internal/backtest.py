@@ -34,6 +34,7 @@ def run_backtest(
 ) -> BacktestResult:
     """Validate predictions and calculate daily and period-level results."""
     _validate_predictions(frame, index_columns)
+    frame = frame.with_columns(pl.col("entry_date", "exit_date").cast(pl.String))
     available_indices = {
         column.removeprefix("index_weight_").lower(): column for column in index_columns
     }
@@ -49,38 +50,46 @@ def run_backtest(
         candidate_filter &= pl.any_horizontal(
             *(pl.col(available_indices[code]) > 0 for code in config.index_codes)
         )
-    settled_dates = frame.filter("label_valid").select("trade_date").unique()
-    candidates = frame.filter(candidate_filter).join(settled_dates, on="trade_date", how="inner")
+    candidates = frame.filter(candidate_filter)
     if candidates.is_empty():
         raise ValueError("预测文件没有可回测的可买样本")
     candidates = candidates.sort("trade_date", "pred", "ts_code", descending=(False, True, False)).with_columns(
         pl.col("ts_code").cum_count().over("trade_date").alias("rank")
     )
-    if candidates.filter(
-        (pl.col("rank") <= max(TOP_NS)) & pl.col("entry_is_buyable") & ~pl.col("label_valid")
-    ).height:
-        raise ValueError("目标股票已开盘买入，但缺少下一交易日开盘价；无法可靠结算回测")
-    if candidates.filter(
-        (pl.col("rank") <= max(TOP_NS)) & pl.col("entry_is_buyable") & ~pl.col("exit_is_sellable")
-    ).height:
-        raise ValueError("目标股票在退出日开盘无法卖出；单日收益模型无法可靠结算回测")
     candidates = _enrich_candidates(candidates)
+    top_candidates = candidates.filter(pl.col("rank") <= max(TOP_NS))
+    strict_diagnostics = candidates.filter(
+        pl.col("label_valid") & ~pl.col("exit_delayed")
+        & ((pl.col("rank") <= max(TOP_NS)) | (pl.col("ideal_rank") <= max(TOP_NS)))
+    )
 
-    daily = candidates.group_by("trade_date").agg(
-        pl.len().alias("candidate_count"),
+    diagnostics = candidates.filter(pl.col("label_valid") & ~pl.col("exit_delayed")).group_by("trade_date").agg(
         _correlation("pearson", "ic"),
         _correlation("spearman", "rank_ic"),
     )
-    universe = (
-        frame.filter(pl.col("label_valid") & pl.col("actual_return").is_not_null())
-        .group_by("trade_date")
-        .agg(pl.col("actual_return").mean().alias("benchmark_universe_return"))
-    )
-    dates = candidates.group_by("trade_date").agg(
+    signals = candidates.group_by("trade_date").agg(
+        pl.len().alias("candidate_count"),
         pl.col("entry_date").drop_nulls().first().alias("entry_date"),
-        pl.col("exit_date").drop_nulls().first().alias("exit_date"),
+        pl.when(pl.col("exit_date").n_unique() == 1)
+        .then(pl.col("exit_date").first())
+        .alias("exit_date"),
     )
-    daily = daily.join(dates, on="trade_date", how="left").join(universe, on="trade_date", how="left")
+    calendar = sorted(
+        set(candidates["trade_date"].unique().to_list())
+        | set(top_candidates["entry_date"].drop_nulls().to_list())
+        | set(top_candidates["exit_date"].drop_nulls().to_list())
+        | set(frame.filter(pl.col("label_valid") & ~pl.col("exit_delayed"))["exit_date"].drop_nulls().unique().to_list())
+    )
+    daily = pl.DataFrame({"trade_date": calendar}).join(signals, on="trade_date", how="left").join(
+        diagnostics, on="trade_date", how="left"
+    ).with_columns(pl.col("candidate_count").fill_null(0))
+    universe = (
+        frame.filter(pl.col("label_valid") & ~pl.col("exit_delayed") & pl.col("actual_return").is_not_null())
+        .group_by("exit_date")
+        .agg(pl.col("actual_return").mean().alias("benchmark_universe_return"))
+        .rename({"exit_date": "trade_date"})
+    )
+    daily = daily.join(universe, on="trade_date", how="left")
     indices = _index_benchmarks(
         frame,
         index_columns,
@@ -88,14 +97,12 @@ def run_backtest(
     )
     if indices is not None:
         daily = daily.join(indices, on="trade_date", how="left")
-    for portfolio in pl.collect_all(
-        [
-            _portfolio_daily(candidates, top_n, config.transaction_cost_rate).lazy()
-            for top_n in TOP_NS
-        ]
-    ):
-        daily = daily.join(portfolio, on="trade_date", how="left")
-    daily = daily.join(_holding_details(candidates), on="trade_date", how="left").sort(
+    for top_n in TOP_NS:
+        daily = daily.join(
+            _portfolio_daily(top_candidates, strict_diagnostics, calendar, top_n, config.transaction_cost_rate),
+            on="trade_date", how="left",
+        )
+    daily = daily.join(_holding_details(top_candidates), on="trade_date", how="left").sort(
         "trade_date"
     )
     if daily.filter(
@@ -139,6 +146,11 @@ def _validate_predictions(
         & (pl.col("actual_return").is_null() | (pl.col("actual_return") <= -1))
     ).height:
         raise ValueError("有效 actual_return 必须非空且大于 -1")
+    if frame.filter(
+        pl.col("label_valid")
+        & (pl.col("entry_date").is_null() | pl.col("exit_date").is_null() | (pl.col("exit_date") <= pl.col("entry_date")))
+    ).height:
+        raise ValueError("有效收益必须有晚于买入日的实际退出日期")
     for column in index_columns:
         weight = pl.col(column)
         if frame.filter(
@@ -161,7 +173,7 @@ def _correlation(method: str, name: str) -> pl.Expr:
 def _enrich_candidates(candidates: pl.DataFrame) -> pl.DataFrame:
     ranked = candidates
     ideal = (
-        ranked.filter("label_valid").sort(
+        ranked.filter(pl.col("label_valid") & ~pl.col("exit_delayed")).sort(
             "trade_date", "actual_return", "ts_code", descending=(False, True, False)
         )
         .with_columns(
@@ -169,8 +181,9 @@ def _enrich_candidates(candidates: pl.DataFrame) -> pl.DataFrame:
         )
         .select("trade_date", "ts_code", "ideal_rank")
     )
-    count = pl.col("actual_return").is_not_null().sum().over("trade_date")
-    actual_rank = pl.col("actual_return").rank(method="average").over("trade_date")
+    strict_return = pl.when(pl.col("label_valid") & ~pl.col("exit_delayed")).then(pl.col("actual_return"))
+    count = strict_return.is_not_null().sum().over("trade_date")
+    actual_rank = strict_return.rank(method="average").over("trade_date")
     return ranked.join(ideal, on=("trade_date", "ts_code"), how="left").with_columns(
         pl.when(count > 1)
         .then((actual_rank - 1) / (count - 1))
@@ -189,6 +202,7 @@ def _index_benchmarks(
         key = column.removeprefix("index_weight_")
         valid = (
             pl.col("label_valid")
+            & ~pl.col("exit_delayed")
             & pl.col("actual_return").is_not_null()
             & pl.col(column).is_not_null()
         )
@@ -204,76 +218,93 @@ def _index_benchmarks(
                 .alias(f"benchmark_{key}_return"),
             )
         )
-    return frame.group_by("trade_date").agg(*expressions) if expressions else None
+    return frame.group_by("exit_date").agg(*expressions).rename({"exit_date": "trade_date"}) if expressions else None
 
 
 def _portfolio_daily(
     candidates: pl.DataFrame,
+    strict_diagnostics: pl.DataFrame,
+    calendar: list[str],
     top_n: int,
     cost_rate: float,
 ) -> pl.DataFrame:
+    """Book returns on actual exit dates while capital stays locked in positions."""
     prefix = f"top{top_n}"
-    selected = candidates.filter(pl.col("rank") <= top_n).with_columns(
-        pl.when("entry_is_buyable").then(1 / pl.len().over("trade_date")).otherwise(0).alias("weight")
-    )
-    dates = (
-        selected.select("trade_date").unique().sort("trade_date").with_row_index("_day")
-    )
-    weights = selected.join(dates, on="trade_date").select(
-        "_day", "trade_date", "ts_code", "weight", "actual_return", "rank", "relevance"
-    )
-    previous = weights.select(
-        (pl.col("_day") + 1).alias("_day"),
-        "ts_code",
-        pl.col("weight").alias("_previous_weight"),
-    )
-    previous_invested = weights.group_by("_day").agg(
-        pl.col("weight").sum().alias("_previous_invested")
-    ).with_columns((pl.col("_day") + 1).alias("_day"))
-    gain = pl.lit(2.0).pow(pl.col("relevance")) - 1
-    idcg = (
-        candidates.filter(pl.col("ideal_rank") <= top_n)
-        .group_by("trade_date")
-        .agg((gain / (pl.col("ideal_rank") + 1).log(2)).sum().alias("_idcg"))
-    )
-    return (
-        weights.join(previous, on=("_day", "ts_code"), how="left")
-        .group_by("_day", "trade_date")
-        .agg(
-            pl.len().alias(f"{prefix}_count"),
-            (pl.col("actual_return").fill_null(0) * pl.col("weight"))
-            .sum()
-            .alias(f"{prefix}_gross_return"),
-            (gain / (pl.col("rank") + 1).log(2)).sum().alias("_dcg"),
-            pl.when(pl.col("_previous_weight").is_not_null())
-            .then(pl.min_horizontal("weight", "_previous_weight"))
-            .otherwise(0)
-            .sum()
-            .alias("_overlap"),
-            pl.col("weight").sum().alias("_invested"),
+    entry_events: dict[str, list[dict]] = {}
+    signal_rows: dict[str, list[dict]] = {}
+    for row in candidates.filter(pl.col("rank") <= top_n).to_dicts():
+        if row["entry_date"] is not None:
+            entry_events.setdefault(row["entry_date"], []).append(row)
+    for row in strict_diagnostics.filter(
+        (pl.col("rank") <= top_n) | (pl.col("ideal_rank") <= top_n)
+    ).to_dicts():
+        signal_rows.setdefault(row["trade_date"], []).append(row)
+
+    cash = 1.0
+    positions: list[dict] = []
+    records: list[dict] = []
+
+    def gain(row: dict) -> float:
+        return 2 ** row["relevance"] - 1 if row["relevance"] is not None else 0.0
+
+    for date in calendar:
+        opening_equity = cash + sum(position["principal"] for position in positions)
+        if opening_equity <= 0:
+            raise ValueError("组合权益必须大于零")
+        exiting = [position for position in positions if position["exit_date"] == date]
+        positions = [position for position in positions if position["exit_date"] != date]
+        sold_principal = sum(position["principal"] for position in exiting)
+        realized_profit = sum(position["principal"] * position["actual_return"] for position in exiting)
+        cash += sold_principal + realized_profit
+
+        available = max(cash - cost_rate * (cash + sum(position["principal"] for position in positions)), 0.0)
+        target_principal = max(cash + sum(position["principal"] for position in positions), 0.0) * (1 - cost_rate) / top_n
+        bought = 0.0
+        unfilled = 0
+        for row in entry_events.get(date, ()):
+            if not row["entry_is_buyable"]:
+                unfilled += 1
+                continue
+            if len(positions) >= top_n or any(position["ts_code"] == row["ts_code"] for position in positions):
+                continue
+            principal = min(target_principal, available)
+            if principal <= 1e-12:
+                continue
+            if row["exit_date"] is not None and (not row["label_valid"] or row["actual_return"] is None):
+                raise ValueError("已知退出日期的买入样本缺少有效收益")
+            positions.append({**row, "principal": principal})
+            cash -= principal
+            available -= principal
+            bought += principal
+
+        traded = max(bought, sold_principal)
+        cost_value = cost_rate * traded
+        cash -= cost_value
+        gross = realized_profit / opening_equity
+        transaction_cost = cost_value / opening_equity
+        strict = [row for row in signal_rows.get(date, ()) if row["label_valid"] and not row["exit_delayed"]]
+        selected_strict = [row for row in strict if row["rank"] <= top_n]
+        dcg = sum(gain(row) / math.log2(row["rank"] + 1) for row in selected_strict)
+        idcg = sum(
+            gain(row) / math.log2(row["ideal_rank"] + 1)
+            for row in strict if row["ideal_rank"] is not None and row["ideal_rank"] <= top_n
         )
-        .join(idcg, on="trade_date")
-        .join(previous_invested, on="_day", how="left")
-        .sort("_day")
-        .with_columns(
-            (pl.max_horizontal("_invested", pl.col("_previous_invested").fill_null(0)) - pl.col("_overlap").fill_null(0)).alias(f"{prefix}_turnover"),
-            pl.when(pl.col("_idcg") > 0)
-            .then(pl.col("_dcg") / pl.col("_idcg"))
-            .otherwise(0.0)
-            .alias(f"{prefix}_ndcg"),
-        )
-        .with_columns(
-            (pl.col(f"{prefix}_turnover") * cost_rate).alias(
-                f"{prefix}_transaction_cost"
-            )
-        )
-        .with_columns(
-            (
-                pl.col(f"{prefix}_gross_return") - pl.col(f"{prefix}_transaction_cost")
-            ).alias(f"{prefix}_net_return")
-        )
-        .drop("_day", "_dcg", "_idcg", "_overlap", "_invested", "_previous_invested")
-    )
+        records.append({
+            "trade_date": date,
+            f"{prefix}_count": len(positions),
+            f"{prefix}_gross_return": gross,
+            f"{prefix}_turnover": traded / opening_equity,
+            f"{prefix}_transaction_cost": transaction_cost,
+            f"{prefix}_net_return": gross - transaction_cost,
+            f"{prefix}_ndcg": dcg / idcg if idcg > 0 else 0.0,
+            f"{prefix}_open_positions": len(positions),
+            f"{prefix}_delayed_open_positions": sum(bool(position["exit_delayed"]) for position in positions),
+            f"{prefix}_unsettled_positions": sum(position["exit_date"] is None for position in positions),
+            f"{prefix}_exits": len(exiting),
+            f"{prefix}_delayed_exits": sum(bool(position["exit_delayed"]) for position in exiting),
+            f"{prefix}_unfilled_entries": unfilled,
+        })
+    return pl.DataFrame(records)
 
 
 def _holding_details(candidates: pl.DataFrame) -> pl.DataFrame:
@@ -288,7 +319,7 @@ def _holding_details(candidates: pl.DataFrame) -> pl.DataFrame:
     )
     return selected.group_by("trade_date", maintain_order=True).agg(
         pl.struct(
-            "rank", "ts_code", "name", "prediction", "daily_return", "weight"
+            "rank", "ts_code", "name", "prediction", "daily_return", "weight", "entry_date", "exit_date", "exit_delayed"
         ).alias("top30_holdings")
     )
 
@@ -305,18 +336,18 @@ def _period_column(period_type: str) -> pl.Expr:
     if period_type == "overall":
         return pl.lit("all")
     if period_type == "year":
-        return pl.col("exit_date").str.slice(0, 4)
+        return pl.col("trade_date").str.slice(0, 4)
     if period_type == "quarter":
-        month = pl.col("exit_date").str.slice(4, 2).cast(pl.Int8)
+        month = pl.col("trade_date").str.slice(4, 2).cast(pl.Int8)
         return (
-            pl.col("exit_date").str.slice(0, 4)
+            pl.col("trade_date").str.slice(0, 4)
             + "Q"
             + (((month - 1) // 3) + 1).cast(pl.String)
         )
     return (
-        pl.col("exit_date").str.slice(0, 4)
+        pl.col("trade_date").str.slice(0, 4)
         + "-"
-        + pl.col("exit_date").str.slice(4, 2)
+        + pl.col("trade_date").str.slice(4, 2)
     )
 
 
@@ -350,7 +381,7 @@ def _summarize_period(
 ) -> pl.DataFrame:
     daily_rf = (1 + annual_risk_free_rate) ** (1 / annualization_days) - 1
     frame = daily.with_columns(_period_column(period_type).alias("_period")).sort(
-        "_period", "exit_date"
+        "_period", "trade_date"
     )
     derived: list[pl.Expr] = []
     for top_n in TOP_NS:
@@ -375,8 +406,8 @@ def _summarize_period(
     frame = frame.with_columns(*derived)
     annual_scale = math.sqrt(annualization_days)
     metrics: list[pl.Expr] = [
-        pl.col("exit_date").min().alias("period_start"),
-        pl.col("exit_date").max().alias("period_end"),
+        pl.col("trade_date").min().alias("period_start"),
+        pl.col("trade_date").max().alias("period_end"),
         pl.len().alias("trading_days"),
         pl.col("ic").mean().alias("ic_mean"),
         (_ratio("ic") * annual_scale).alias("icir"),
@@ -402,6 +433,8 @@ def _summarize_period(
                 (pl.col(equity) / peak - 1).min().alias(f"{prefix}_net_max_drawdown"),
                 (pl.col(net) > 0).mean().alias(f"{prefix}_net_win_rate"),
                 pl.col(f"{prefix}_turnover").mean().alias(f"{prefix}_average_turnover"),
+                pl.col(f"{prefix}_delayed_exits").sum().alias(f"{prefix}_delayed_exits"),
+                pl.col(f"{prefix}_unsettled_positions").last().alias(f"{prefix}_unsettled_positions"),
                 ((pl.col(f"{prefix}_gross_return") + 1).product() - 1).alias(
                     f"{prefix}_gross_cumulative_return"
                 ),

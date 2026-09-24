@@ -85,7 +85,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
             raise ValueError("ETL metadata 缺少 feature_columns")
         schema = pl.read_parquet_schema(dataset_path)
         self.report_progress(15)
-        required = ("trade_date", "ts_code", *features, *LABELS)
+        required = ("trade_date", "ts_code", "label_1d_is_valid", "exit_delayed", *features, *LABELS)
         if self.input_params.tradable_only:
             required = (*required, "is_buyable")
         if missing := [column for column in required if column not in schema]:
@@ -118,10 +118,13 @@ class FactorAnalysisTask(BaseAnalysisTask):
         calculator = FactorMetricsCalculator(self.input_params.minimum_daily_samples, self.input_params.quantiles)
         for offset in range(0, total, self.input_params.feature_batch_size):
             batch = features[offset : offset + self.input_params.feature_batch_size]
-            columns = ("trade_date", *batch, *LABELS)
+            columns = ("trade_date", "label_1d_is_valid", "exit_delayed", *batch, *LABELS)
             if self.input_params.tradable_only:
                 columns = (*columns, "is_buyable")
             source = pl.scan_parquet(self.state["dataset_path"]).select(columns)
+            source = source.filter(pl.col("label_1d_is_valid") & ~pl.col("exit_delayed")).drop(
+                "label_1d_is_valid", "exit_delayed"
+            )
             if self.input_params.tradable_only:
                 source = source.filter("is_buyable").drop("is_buyable")
             frame = source.collect()
@@ -186,7 +189,11 @@ class FactorAnalysisTask(BaseAnalysisTask):
                 "rankicir": "mean daily cross-sectional Spearman RankIC divided by its sample standard deviation",
                 "quantile_spread": "highest quantile mean raw return minus lowest quantile mean raw return",
                 "quantile_monotonicity": "Spearman correlation between quantile order and mean raw return",
-                "sample_filter": "is_buyable" if self.input_params.tradable_only else "none",
+                "sample_filter": (
+                    "valid strict one-day label, not exit_delayed, and is_buyable"
+                    if self.input_params.tradable_only
+                    else "valid strict one-day label, not exit_delayed"
+                ),
             },
             artifacts={
                 "result": result_record,

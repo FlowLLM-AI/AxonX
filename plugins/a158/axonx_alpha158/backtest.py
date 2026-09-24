@@ -83,6 +83,7 @@ class Alpha158BacktestTask(BaseBacktestTask):
         "exit_is_sellable",
         "entry_date",
         "exit_date",
+        "exit_delayed",
     )
 
     def build_task_steps(self) -> Iterable[TaskStep]:
@@ -115,7 +116,7 @@ class Alpha158BacktestTask(BaseBacktestTask):
         schema = pl.read_parquet_schema(path)
         if missing := [name for name in self.REQUIRED_COLUMNS if name not in schema]:
             raise ValueError(f"预测文件缺少字段: {', '.join(missing)}")
-        for name in ("label_valid", "is_buyable", "entry_is_buyable", "exit_is_sellable"):
+        for name in ("label_valid", "is_buyable", "entry_is_buyable", "exit_is_sellable", "exit_delayed"):
             if schema[name] != pl.Boolean:
                 raise TypeError(f"{name} 必须是 Boolean")
         index_columns = tuple(
@@ -135,6 +136,7 @@ class Alpha158BacktestTask(BaseBacktestTask):
                     "is_buyable",
                     "entry_is_buyable",
                     "exit_is_sellable",
+                    "exit_delayed",
                 )
                 .collect()
                 .sort("trade_date", "ts_code")
@@ -189,19 +191,20 @@ class Alpha158BacktestTask(BaseBacktestTask):
                 ],
             ),
             protocol={
-                "actual_return": "adjusted entry_date open to exit_date open; trade_date is signal date",
+                "actual_return": "adjusted entry_date open to first sellable exit_date open; prediction.trade_date is signal date",
                 "candidate_filter": "signal-date is_buyable and finite prediction; selected index_weight_* > 0",
-                "execution": "rank before next-open fill; unfilled entries remain cash; refuse positions without a sellable exit open",
+                "execution": "rank on signal date; next-open unfilled entries remain cash; positions retain capital until actual exit_date",
                 "index_codes": self.input_params.index_codes,
-                "portfolio": "daily equal-weight top-N ranked by descending prediction",
+                "portfolio": "top-N signal targets, funded from available cash after actual exits; locked positions retain capital",
                 "initial_turnover": "invested fraction of the initial target portfolio",
-                "turnover": "half L1 distance between consecutive filled portfolios, including cash",
-                "net_return": "gross return minus turnover times transaction_cost_rate",
-                "ic": "daily Pearson correlation in the candidate universe",
-                "rank_ic": "daily Spearman correlation in the candidate universe",
-                "ndcg": "actual-return cross-sectional percentile relevance in the candidate universe",
+                "turnover": "maximum of executed buys and sells divided by opening book equity",
+                "net_return": "realized exit profit minus transaction cost, divided by opening book equity; open positions remain at cost",
+                "top30_holdings": "signal-date top-30 targets, including candidates that could not be bought; not the live position book",
+                "ic": "signal-date Pearson correlation on strict one-day labels only",
+                "rank_ic": "signal-date Spearman correlation on strict one-day labels only",
+                "ndcg": "strict one-day actual-return relevance in the signal-date candidate universe",
                 "icir": "annualized mean divided by sample standard deviation",
-                "return_period_date": "exit_date; daily.trade_date is the signal date",
+                "return_period_date": "daily.trade_date is the calendar date on which realized exits are booked",
             },
             date_range={
                 "start": result.daily["trade_date"].min(),

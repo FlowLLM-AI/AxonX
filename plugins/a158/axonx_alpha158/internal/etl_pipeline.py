@@ -71,6 +71,7 @@ MARKET_STATE_COLUMNS = (
     "exit_is_sellable",
     "entry_date",
     "exit_date",
+    "exit_delayed",
 )
 
 
@@ -338,11 +339,24 @@ def calculate_labels(
     *,
     progress: Callable[[float], None] | None = None,
 ) -> pl.DataFrame:
-    """Build next-open to following-open returns and execution dates."""
+    """Build returns through the first sellable open on or after the planned exit."""
+    sellable = (
+        pl.col("_has_market_data")
+        & pl.col("_has_valid_limits")
+        & (pl.col("open") > pl.col("down_limit") + 1e-6)
+    ).fill_null(False)
     frame = frame.with_columns(
-        (pl.col("_open").shift(-2).over("ts_code") / pl.col("_open").shift(-1).over("ts_code") - 1).alias("label_1d"),
+        pl.when(sellable).then(pl.col("_open")).alias("_sellable_open"),
+        pl.when(sellable).then(pl.col("trade_date")).alias("_sellable_date"),
+    ).with_columns(
+        pl.col("_sellable_open").backward_fill().over("ts_code").alias("_next_sellable_open"),
+        pl.col("_sellable_date").backward_fill().over("ts_code").alias("_next_sellable_date"),
+    )
+    frame = frame.with_columns(
+        (pl.col("_next_sellable_open").shift(-2).over("ts_code") / pl.col("_open").shift(-1).over("ts_code") - 1).alias("label_1d"),
         pl.col("trade_date").shift(-1).over("ts_code").alias("entry_date"),
-        pl.col("trade_date").shift(-2).over("ts_code").alias("exit_date"),
+        pl.col("_next_sellable_date").shift(-2).over("ts_code").alias("exit_date"),
+        pl.col("trade_date").shift(-2).over("ts_code").alias("_planned_exit_date"),
         (
             pl.col("_has_market_data").shift(-1).over("ts_code").fill_null(False)
             & pl.col("_has_valid_limits").shift(-1).over("ts_code").fill_null(False)
@@ -353,19 +367,17 @@ def calculate_labels(
                 < pl.col("up_limit").shift(-1).over("ts_code") - 1e-6
             ).fill_null(False)
         ).alias("entry_is_buyable"),
-        (
-            pl.col("_has_market_data").shift(-2).over("ts_code").fill_null(False)
-            & pl.col("_has_valid_limits").shift(-2).over("ts_code").fill_null(False)
-            & (
-                pl.col("open").shift(-2).over("ts_code")
-                > pl.col("down_limit").shift(-2).over("ts_code") + 1e-6
-            ).fill_null(False)
-        ).alias("exit_is_sellable"),
+        sellable.shift(-2).over("ts_code").fill_null(False).alias("exit_is_sellable"),
     )
-    frame = frame.with_columns(pl.col("label_1d").is_finite().fill_null(False).alias("label_1d_is_valid"))
+    frame = frame.with_columns(
+        pl.col("label_1d").is_finite().fill_null(False).alias("label_1d_is_valid"),
+        (pl.col("exit_date") != pl.col("_planned_exit_date"))
+        .fill_null(pl.col("_planned_exit_date").is_not_null())
+        .alias("exit_delayed"),
+    )
     if progress is not None:
         progress(30)
-    finite = pl.when(pl.col("label_1d_is_valid")).then(pl.col("label_1d"))
+    finite = pl.when(pl.col("label_1d_is_valid") & ~pl.col("exit_delayed")).then(pl.col("label_1d"))
     lower = finite.quantile(winsorize_tail, interpolation="linear").over("trade_date")
     upper = finite.quantile(1 - winsorize_tail, interpolation="linear").over("trade_date")
     frame = frame.with_columns(finite.clip(lower, upper).alias("_label_1d_winsorized"))
@@ -377,10 +389,10 @@ def calculate_labels(
     count = finite.count().over("trade_date")
     frame = frame.with_columns(
         pl.when(std > EPSILON).then((winsorized - mean) / std).alias("label_1d_csz"),
-        pl.when(pl.col("label_1d_is_valid") & (count > 0))
+        pl.when(pl.col("label_1d_is_valid") & ~pl.col("exit_delayed") & (count > 0))
         .then(finite.rank(method="average").over("trade_date") / count)
         .alias("label_1d_rank"),
-    ).drop("_label_1d_winsorized")
+    ).drop("_label_1d_winsorized", "_sellable_open", "_sellable_date", "_next_sellable_open", "_next_sellable_date", "_planned_exit_date")
     if progress is not None:
         progress(95)
     return frame

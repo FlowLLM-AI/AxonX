@@ -132,6 +132,7 @@ class LgbmPredictTask(BasePredictTask):
             "exit_is_sellable",
             "entry_date",
             "exit_date",
+            "exit_delayed",
             "label_1d",
             "label_1d_is_valid",
             *features,
@@ -206,6 +207,7 @@ class LgbmPredictTask(BasePredictTask):
             "exit_is_sellable",
             "entry_date",
             "exit_date",
+            "exit_delayed",
             *self.state["index_columns"],
         )
         self.report_progress(95)
@@ -250,7 +252,7 @@ class LgbmPredictTask(BasePredictTask):
                 "cross_section_filter": "none",
                 "execution_filter": "signal eligibility at trade_date; next-open fill via entry_is_buyable in backtest",
                 "actual_return_column": "label_1d",
-                "actual_return_window": "entry_date open to exit_date open; trade_date is signal date",
+                "actual_return_window": "entry_date open to first sellable exit_date open; exit_delayed marks a holding longer than one trading day",
                 "actual_return_unit": "decimal",
                 "prediction_score": "model output trained on cross-sectional return rank; not a return or probability",
                 "row_key": ["trade_date", "ts_code"],

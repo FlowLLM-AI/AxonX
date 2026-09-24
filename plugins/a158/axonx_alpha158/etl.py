@@ -86,7 +86,7 @@ class Alpha158InputParams(BaseETLInputParams):
 class Alpha158Task(BaseETLTask):
     """Build an Alpha158 dataset from downloaded Tushare market data.
 
-    Produces adjusted features, one-day next-open return labels, market
+    Produces adjusted features, next-open returns through the first sellable exit, market
     status, and HS300 weights for training and analysis.
     """
 
@@ -448,7 +448,8 @@ class Alpha158Task(BaseETLTask):
                 "rank": list(RANK_LABELS),
                 "valid": list(VALID_LABELS),
                 "return_unit": "decimal",
-                "definition": "adjusted open return from the next market trading day to the following market trading day; trade_date is signal date",
+                "definition": "adjusted open return from the next market trading day to the first sellable open on or after the planned one-day exit; trade_date is signal date",
+                "strict_one_day_flag": "label_1d_is_valid and not exit_delayed",
             },
             index_weight_columns=["index_weight_hs300"],
             market_state_columns=list(MARKET_STATE_COLUMNS),
@@ -458,6 +459,7 @@ class Alpha158Task(BaseETLTask):
                 ),
                 "entry_is_buyable_definition": "next market day's open is quoted and below its upper price limit; excludes ST and delisting",
                 "exit_is_sellable_definition": "following market day's open is quoted and above its lower price limit",
+                "exit_delayed_definition": "actual first sellable exit is later than the planned following market day",
                 "minimum_history_days": HISTORY_DAYS,
                 "minimum_history_coverage": self.input_params.min_history_coverage,
                 "missing_stock_basic_symbols": self.state["missing_stock_basic_symbols"],

@@ -133,6 +133,7 @@ class LgbmTrainTask(BaseTrainTask):
         required = (
             "trade_date",
             "exit_date",
+            "exit_delayed",
             "ts_code",
             "is_buyable",
             self.raw_label,
@@ -160,6 +161,7 @@ class LgbmTrainTask(BaseTrainTask):
             pl.col("is_buyable")
             & (pl.col("exit_date") <= pl.lit(self.input_params.train_end))
             & pl.col(valid_label)
+            & ~pl.col("exit_delayed")
             & pl.col(self.raw_label).is_finite()
             & pl.col(self.input_params.label_column).is_finite(),
         )
@@ -413,7 +415,7 @@ class LgbmTrainTask(BaseTrainTask):
                 "raw_label_for_trimming": self.raw_label,
                 "daily_trim_tail": self.input_params.trim_tail,
                 "prediction_rows_are_not_trimmed": True,
-                "sample_filter": "signal-date is_buyable, valid finite label, and exit_date <= train_end",
+                "sample_filter": "signal-date is_buyable, valid finite strict one-day label, not exit_delayed, and exit_date <= train_end",
             },
             feature_columns=list(self.state["features"]),
             target_columns=[self.input_params.label_column],
