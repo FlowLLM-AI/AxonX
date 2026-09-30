@@ -139,8 +139,8 @@ async def test_proxy_does_not_prebuffer_request_or_response():
 
 
 def test_default_config_does_not_enable_optional_remote_services(monkeypatch):
-    monkeypatch.delenv("AXONX_REMOTE_HOST_IP", raising=False)
+    monkeypatch.delenv("AXONX_TARGET", raising=False)
     config = ConfigResolver().load("default")
 
-    assert config["remote_nodes"] == []
+    assert config["targets"] == []
     assert "proxy" not in config["components"]

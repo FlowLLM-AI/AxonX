@@ -24,13 +24,13 @@ const ACTIVE = new Set<TaskState>(["queued", "running"]);
 const ATTENTION = new Set<TaskState>(["failed", "cancelled"]);
 
 export function TasksPage({
-  remoteIp,
+  target,
   onSubmit,
   onOpenTask,
   onTasksChange,
   onConnection,
 }: {
-  remoteIp?: string;
+  target?: string;
   onSubmit: () => void;
   onOpenTask: (taskId: string) => void;
   onTasksChange?: (options: ContextOption[]) => void;
@@ -64,7 +64,7 @@ export function TasksPage({
       if (quiet) setRefreshing(true);
       else setLoading(true);
       try {
-        const result = await listTaskStatuses(remoteIp);
+        const result = await listTaskStatuses(target);
         const ordered = [...result].sort(
           (left, right) => taskTimestamp(right) - taskTimestamp(left),
         );
@@ -89,7 +89,7 @@ export function TasksPage({
         setRefreshing(false);
       }
     },
-    [onConnection, remoteIp],
+    [onConnection, target],
   );
 
   useEffect(() => {
@@ -194,7 +194,7 @@ export function TasksPage({
     if (!cancelTarget) return;
     setCancelling(true);
     try {
-      const cancelled = await cancelTask(cancelTarget.task_id, remoteIp);
+      const cancelled = await cancelTask(cancelTarget.task_id, target);
       if (!cancelled) throw new Error(t("cancelFailed"));
       setCancelTarget(null);
       await load(true);
@@ -211,7 +211,7 @@ export function TasksPage({
     const requested = selectedIds;
     setDeleting(true);
     try {
-      const deleted = await deleteTasks(requested, remoteIp);
+      const deleted = await deleteTasks(requested, target);
       setSelected((previous) => {
         const next = new Set(previous);
         deleted.forEach((taskId) => next.delete(taskId));

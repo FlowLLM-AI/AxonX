@@ -21,7 +21,7 @@ async def test_sync_filters_pending_tasks_and_deletions(tmp_path):
     removed = "etl#group#old1234567890"
     removed_excluded = "etl#other#old1234567890"
     sync = LocalSyncComponent(
-        remote_ip="127.0.0.1",
+        target="127.0.0.1:1024",
         task_ids=[exact],
         task_id_prefixes=["etl#group#"],
     )
@@ -46,6 +46,6 @@ async def test_sync_filters_pending_tasks_and_deletions(tmp_path):
 
 
 def test_empty_sync_filters_include_every_task():
-    sync = LocalSyncComponent(remote_ip="127.0.0.1", task_ids=[], task_id_prefixes=[])
+    sync = LocalSyncComponent(target="127.0.0.1:1024", task_ids=[], task_id_prefixes=[])
 
     assert sync._should_sync("etl#any#run1234567890")

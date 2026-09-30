@@ -1,10 +1,10 @@
-# =========== Remote nodes ===========
-remote_nodes: []
+# =========== Known target services ===========
+targets: []
 
 plugins:
   sources: []
   # Enable only on a token-protected service.
-  allow_remote_management: false
+  allow_management: false
 
 components:
   # =========== Task runtime components ===========
@@ -77,12 +77,12 @@ components:
   #     upstream_base_url: ${AXONX_TUSHARE_BASE_URL}
   #     timeout: ${AXONX_TUSHARE_PROXY_TIMEOUT:-600}
 
-  # Sync requires a configured remote node.
+  # Sync requires a configured target service.
   # sync:
   #   default:
   #     backend: local
   #     task_repository: default
-  #     remote_ip: ${AXONX_REMOTE_HOST_IP}
+  #     target: ${AXONX_SYNC_TARGET}
   #     sync_on_start: true
   #     task_ids: []
   #     task_id_prefixes: []
@@ -129,7 +129,6 @@ jobs:
 
   install_plugin:
     description: Install a plugin wheel already copied into this workspace.
-    enable_remote: false
     parameters:
       type: object
       properties:
@@ -148,7 +147,6 @@ jobs:
 
   uninstall_plugin:
     description: Uninstall a plugin distribution from this service machine.
-    enable_remote: false
     parameters:
       type: object
       properties:
@@ -164,7 +162,6 @@ jobs:
   # =========== Machine jobs ===========
   list_machines:
     description: Check the health of all configured remote AxonX machines.
-    enable_remote: false
     steps:
       - backend: machine_list
 
@@ -432,14 +429,12 @@ jobs:
   # sync_flush:
   #   description: Flush task changes queued for workspace replication.
   #   enable_serve: false
-  #   enable_remote: false
   #   steps:
   #     - backend: sync_flush_step
   #       sync: default
 
   sync_tasks:
     description: Replace task directories from one uploaded sync archive.
-    enable_remote: false
     parameters:
       type: object
       properties:

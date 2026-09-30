@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from ipaddress import ip_address
 from typing import Any, Literal, Self
 
@@ -12,6 +13,7 @@ from ..constants import (
     AXONX_DEFAULT_TIMEZONE,
     AXONX_NAME,
 )
+from ..utils.target import normalize_target
 
 
 class ComponentConfig(BaseModel):
@@ -30,7 +32,6 @@ class JobConfig(ComponentConfig):
         default_factory=lambda: {"type": "object", "properties": {}}
     )
     enable_serve: bool = True
-    enable_remote: bool = True
     enable_stream: bool = True
     requires_auth: bool = True
     steps: list[ComponentConfig] = Field(default_factory=list)
@@ -58,11 +59,22 @@ class ScheduleConfig(ComponentConfig):
 
 
 class PluginConfig(BaseModel):
-    """Configure startup plugin sources and privileged remote mutation."""
+    """Configure startup plugin sources and service-side management."""
 
     model_config = ConfigDict(extra="forbid")
     sources: list[str] = Field(default_factory=list)
-    allow_remote_management: bool = False
+    allow_management: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_remote_management(cls, value: Any) -> Any:
+        if not isinstance(value, Mapping) or "allow_remote_management" not in value:
+            return value
+        migrated = dict(value)
+        legacy = migrated.pop("allow_remote_management")
+        if not migrated.get("allow_management"):
+            migrated["allow_management"] = legacy
+        return migrated
 
     @field_validator("sources")
     @classmethod
@@ -72,23 +84,17 @@ class PluginConfig(BaseModel):
         return values
 
 
-class RemoteNode(BaseModel):
-    """Address of a configured remote AxonX node."""
+class TargetConfig(BaseModel):
+    """A configured AxonX service target and its credential."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-    host_ip: str = Field(min_length=1)
-    host_port: int = Field(ge=1, le=65535)
+    address: str = Field(min_length=1)
     token: str | None = Field(default=None, min_length=1, repr=False)
 
-    @field_validator("host_ip")
+    @field_validator("address")
     @classmethod
-    def validate_host_ip(cls, value: str) -> str:
-        return ip_address(value).compressed
-
-    @property
-    def address(self) -> str:
-        host = f"[{self.host_ip}]" if ":" in self.host_ip else self.host_ip
-        return f"{host}:{self.host_port}"
+    def validate_address(cls, value: str) -> str:
+        return normalize_target(value)
 
 
 class ApplicationConfig(BaseModel):
@@ -103,29 +109,75 @@ class ApplicationConfig(BaseModel):
     log_to_console: bool = True
     log_to_file: bool = True
     plugins: PluginConfig = Field(default_factory=PluginConfig)
-    remote_nodes: list[RemoteNode] = Field(default_factory=list)
+    targets: list[TargetConfig] = Field(default_factory=list)
     environment: dict[str, str] = Field(default_factory=dict)
     components: dict[str, dict[str, ComponentConfig]] = Field(default_factory=dict)
     jobs: dict[str, JobConfig] = Field(default_factory=dict)
     schedules: dict[str, ScheduleConfig] = Field(default_factory=dict)
     service: ComponentConfig | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_remote_nodes(cls, value: Any) -> Any:
+        if not isinstance(value, Mapping) or "remote_nodes" not in value:
+            return value
+        migrated = dict(value)
+        nodes = migrated.pop("remote_nodes")
+        if nodes and migrated.get("targets"):
+            raise ValueError("Configure either remote_nodes or targets, not both")
+        if nodes:
+
+            def address(node: Mapping[str, Any]) -> str:
+                host = node["host_ip"]
+                if ":" in host:
+                    host = f"[{host}]"
+                return f"{host}:{node['host_port']}"
+
+            migrated["targets"] = [
+                {
+                    "address": address(node),
+                    "token": node.get("token"),
+                }
+                for node in nodes
+            ]
+            components = migrated.get("components")
+            if isinstance(components, Mapping) and isinstance(
+                components.get("sync"), Mapping
+            ):
+                sync = dict(components["sync"])
+                for name, spec in sync.items():
+                    if not isinstance(spec, Mapping) or "remote_ip" not in spec:
+                        continue
+                    if "target" in spec:
+                        raise ValueError("Sync cannot configure both remote_ip and target")
+                    remote_ip = ip_address(spec["remote_ip"])
+                    matches = [
+                        node
+                        for node in nodes
+                        if ip_address(node["host_ip"]) == remote_ip
+                    ]
+                    if len(matches) != 1:
+                        raise ValueError(
+                            f"Sync remote_ip has no unique remote node: {spec['remote_ip']!r}"
+                        )
+                    sync[name] = {**spec, "target": address(matches[0])}
+                    sync[name].pop("remote_ip")
+                migrated["components"] = {**components, "sync": sync}
+        return migrated
+
     @model_validator(mode="after")
-    def validate_remote_nodes(self) -> Self:
-        addresses = [node.host_ip for node in self.remote_nodes]
+    def validate_targets(self) -> Self:
+        addresses = [target.address for target in self.targets]
         if len(addresses) != len(set(addresses)):
-            raise ValueError("Remote node IPs must be unique")
+            raise ValueError("Target addresses must be unique")
         return self
 
-    def resolve_remote_node(self, remote_ip: str) -> RemoteNode:
-        try:
-            normalized_ip = ip_address(remote_ip).compressed
-        except ValueError as exc:
-            raise ValueError(f"Invalid remote IP: {remote_ip!r}") from exc
-        for node in self.remote_nodes:
-            if node.host_ip == normalized_ip:
-                return node
-        raise ValueError(f"Remote AxonX is not configured: {normalized_ip!r}")
+    def resolve_target(self, address: str) -> TargetConfig:
+        normalized = normalize_target(address)
+        for target in self.targets:
+            if target.address == normalized:
+                return target
+        raise ValueError(f"AxonX target is not configured: {normalized!r}")
 
 
 __all__ = [
@@ -133,6 +185,6 @@ __all__ = [
     "ComponentConfig",
     "JobConfig",
     "PluginConfig",
-    "RemoteNode",
+    "TargetConfig",
     "ScheduleConfig",
 ]

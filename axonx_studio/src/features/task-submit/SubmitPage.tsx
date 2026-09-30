@@ -25,14 +25,14 @@ import type { ContextOption } from "../../app/types";
 import type { TaskDefinition } from "../tasks/types";
 
 export default function SubmitPage({
-  remoteIp,
+  target,
   initialName,
   onSelected,
   onOptionsChange,
   onViewTasks,
   onConnection,
 }: {
-  remoteIp?: string;
+  target?: string;
   initialName?: string;
   onSelected?: (name: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
@@ -57,7 +57,7 @@ export default function SubmitPage({
     setLoading(true);
     setError("");
     try {
-      const result = await listInstalledTaskDefinitions(remoteIp);
+      const result = await listInstalledTaskDefinitions(target);
       setTasks(result);
       setSelectedName((current) =>
         result.some((task) => task.name === current) ? current : "",
@@ -69,7 +69,7 @@ export default function SubmitPage({
     } finally {
       setLoading(false);
     }
-  }, [onConnection, remoteIp]);
+  }, [onConnection, target]);
 
   useEffect(() => {
     void load();
@@ -155,7 +155,7 @@ export default function SubmitPage({
     setSubmitting(true);
     setError("");
     try {
-      await submitTask(selected.name, parsed, remoteIp);
+      await submitTask(selected.name, parsed, target);
       setSubmitted(true);
       onConnection(true);
     } catch (reason) {

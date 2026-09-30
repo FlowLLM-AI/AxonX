@@ -1,4 +1,4 @@
-"""Replicate queued task-directory changes to a remote node."""
+"""Replicate queued task-directory changes to a target service."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from contextlib import suppress
 from pathlib import Path
 
-from ...config import RemoteNode
+from ...config import TargetConfig
 from ...constants import MAX_ARCHIVE_BYTES
 from ...task.storage.workspace import read_status, task_directory, task_path
 from ...task.sync import (
@@ -34,7 +34,7 @@ SYNC_TIMEOUT_SECONDS = 300.0
 
 @provider("local")
 class LocalSyncComponent(BaseSyncComponent):
-    """Replicate workspace task directories to a configured remote AxonX node.
+    """Replicate workspace task directories to a configured AxonX target.
 
     Change detection comes from the shared Task repository. Calling :meth:`flush` is a
     separate policy, normally owned by a scheduled Job.
@@ -44,7 +44,7 @@ class LocalSyncComponent(BaseSyncComponent):
 
     def __init__(
         self,
-        remote_ip: str,
+        target: str,
         task_repository: str = "default",
         max_file_bytes: int = MAX_FILE_BYTES,
         max_archive_bytes: int = MAX_ARCHIVE_BYTES,
@@ -56,10 +56,8 @@ class LocalSyncComponent(BaseSyncComponent):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if not isinstance(remote_ip, str) or not remote_ip.strip():
-            raise ValueError(
-                "remote_ip must be a non-empty address of a configured remote node"
-            )
+        if not isinstance(target, str) or not target.strip():
+            raise ValueError("target must be a non-empty configured service address")
         if max_file_bytes <= 0:
             raise ValueError("max_file_bytes must be positive")
         if max_archive_bytes <= max_file_bytes:
@@ -68,7 +66,7 @@ class LocalSyncComponent(BaseSyncComponent):
             raise ValueError("max_archives_per_flush must be positive")
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
-        self.remote_ip = remote_ip.strip()
+        self.target = target.strip()
         self.depend("repository", task_repository, BaseTaskRepository)
         self.max_file_bytes = max_file_bytes
         self.max_archive_bytes = max_archive_bytes
@@ -85,8 +83,8 @@ class LocalSyncComponent(BaseSyncComponent):
         ):
             raise ValueError("Task filters must contain non-empty strings")
         self.root = self.workspace_path.expanduser().resolve()
-        self._state = SyncStateStore(self.root, self.remote_ip)
-        self.node: RemoteNode | None = None
+        self._state = SyncStateStore(self.root, self.target)
+        self.configured_target: TargetConfig | None = None
         self._pending: set[str] = set()
         self._acknowledged: set[str] = set()
         self._resync = False
@@ -98,7 +96,7 @@ class LocalSyncComponent(BaseSyncComponent):
     async def _start(self) -> None:
         # Resolve the target once so a misconfigured address fails startup rather
         # than every flush.
-        self.node = self.app_config.resolve_remote_node(self.remote_ip)
+        self.configured_target = self.app_config.resolve_target(self.target)
         self._changes = self.repository.subscribe()
         self._change_consumer = asyncio.create_task(
             self._consume_changes(), name="axonx-sync-queue"
@@ -166,20 +164,21 @@ class LocalSyncComponent(BaseSyncComponent):
     def _settled(self, task_ids: Sequence[str]) -> list[str]:
         return [task_id for task_id in task_ids if self._is_settled(task_id)]
 
-    async def _send(self, target: Path | None, deletions: Sequence[str]) -> None:
+    async def _send(self, archive: Path | None, deletions: Sequence[str]) -> None:
         """Upload one archive for the receiver to apply, and report removals."""
-        node = self.node or self.app_config.resolve_remote_node(self.remote_ip)
+        configured = self.configured_target or self.app_config.resolve_target(
+            self.target
+        )
         async with HttpClient(
-            host_ip=node.host_ip,
-            host_port=node.host_port,
+            target=configured.address,
             timeout=self.timeout,
-            token=node.token,
+            token=configured.token,
         ) as client:
             staged: str | None = None
             try:
-                if target is not None:
-                    digest = await asyncio.to_thread(file_sha256, target)
-                    copied = await client.copy_file(target, filename=SYNC_ARCHIVE_NAME)
+                if archive is not None:
+                    digest = await asyncio.to_thread(file_sha256, archive)
+                    copied = await client.copy_file(archive, filename=SYNC_ARCHIVE_NAME)
                     staged = copied.path
                     # The receiver recomputes the digest of what actually arrived.
                     if copied.sha256 != digest:
@@ -220,18 +219,18 @@ class LocalSyncComponent(BaseSyncComponent):
         delivered = False
         if batches:
             with tempfile.TemporaryDirectory(prefix="axonx-sync-") as staging:
-                target = Path(staging) / SYNC_ARCHIVE_NAME
+                archive = Path(staging) / SYNC_ARCHIVE_NAME
                 for index, batch in enumerate(batches):
                     included = await asyncio.to_thread(
-                        build_archive, plans, batch, target
+                        build_archive, plans, batch, archive
                     )
-                    if target.stat().st_size > self.max_archive_bytes:
+                    if archive.stat().st_size > self.max_archive_bytes:
                         raise ValueError(
                             f"Built sync archive exceeds {self.max_archive_bytes} bytes"
                         )
                     # Deletions ride along with the first archive so they are reported
                     # even when the removed tasks were the only thing that changed.
-                    await self._send(target, removed if index == 0 else [])
+                    await self._send(archive, removed if index == 0 else [])
                     delivered = True
                     uploaded.extend(included)
         elif removed:

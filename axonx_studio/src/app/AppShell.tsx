@@ -37,7 +37,7 @@ interface AppShellProps {
   setAuthToken: (token: string) => void;
   machines: MachineNode[];
   selectedMachine: MachineNode;
-  remoteIp?: string;
+  target?: string;
   resourceOptions: ContextOption[];
   sidebar: SidebarState;
   navigate: (route: AppRoute, machineId?: string) => void;
@@ -55,7 +55,7 @@ export function AppShell(props: AppShellProps) {
     setAuthToken,
     machines,
     selectedMachine,
-    remoteIp,
+    target,
     resourceOptions,
     sidebar,
     navigate,
@@ -326,7 +326,7 @@ export function AppShell(props: AppShellProps) {
       {settingsOpen && (
         <EnvironmentSettingsModal
           machine={selectedMachine}
-          remoteIp={remoteIp}
+          target={target}
           authRequired={authRequired}
           authTokenConfigured={authTokenConfigured}
           onSaveToken={setAuthToken}

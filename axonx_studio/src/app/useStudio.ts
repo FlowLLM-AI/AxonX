@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  listMachineOptions,
-  machineHost,
-  machineStatus,
-} from "../features/machines/api";
+import { listMachineOptions, machineStatus } from "../features/machines/api";
 import type { MachineNode } from "../features/machines/types";
 import type { ContextOption, ThemePreference } from "./types";
 import { parseHash, routeHash, type AppRoute } from "./routes";
-import { axonx, AxonXError } from "../shared/api/client";
+import { AxonXError, clientForTarget } from "../shared/api/client";
 
 const LOCAL_MACHINE: MachineNode = {
   id: "local",
@@ -113,13 +109,11 @@ function useMachines(
   return {
     machines,
     selectedMachine,
-    remoteIp: selectedMachine.isLocal
-      ? undefined
-      : machineHost(selectedMachine.address),
+    target: selectedMachine.isLocal ? undefined : selectedMachine.address,
   };
 }
 
-function useServiceStatus(remoteIp: string | undefined, authRevision: number) {
+function useServiceStatus(target: string | undefined, authRevision: number) {
   const [serviceOnline, setServiceOnline] = useState<boolean | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
 
@@ -128,7 +122,7 @@ function useServiceStatus(remoteIp: string | undefined, authRevision: number) {
     setServiceOnline(null);
     setAuthRequired(false);
     const check = () =>
-      machineStatus(remoteIp, controller.signal)
+      machineStatus(target, controller.signal)
         .then(() => {
           setServiceOnline(true);
           setAuthRequired(false);
@@ -149,7 +143,7 @@ function useServiceStatus(remoteIp: string | undefined, authRevision: number) {
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [authRevision, remoteIp]);
+  }, [authRevision, target]);
 
   return { serviceOnline, setServiceOnline, authRequired };
 }
@@ -158,16 +152,19 @@ export function useStudio() {
   const { machineId, route, navigate, replace } = useLocation();
   const theme = useTheme();
   const [authRevision, setAuthRevision] = useState(0);
-  const setAuthToken = useCallback((token: string) => {
-    axonx.setToken(token);
-    setAuthRevision((revision) => revision + 1);
-  }, []);
   const navigateToMachine = useCallback(
     (nextMachineId: string) => navigate(route, nextMachineId),
     [navigate, route],
   );
   const machineState = useMachines(machineId, navigateToMachine, authRevision);
-  const service = useServiceStatus(machineState.remoteIp, authRevision);
+  const setAuthToken = useCallback(
+    (token: string) => {
+      clientForTarget(machineState.target).setToken(token);
+      setAuthRevision((revision) => revision + 1);
+    },
+    [machineState.target],
+  );
+  const service = useServiceStatus(machineState.target, authRevision);
   const [resourceOptions, setResourceOptions] = useState<ContextOption[]>([]);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("axonx-sidebar") === "collapsed",
@@ -211,7 +208,7 @@ export function useStudio() {
     ...machineState,
     ...service,
     authRevision,
-    authTokenConfigured: axonx.hasToken(),
+    authTokenConfigured: clientForTarget(machineState.target).hasToken(),
     setAuthToken,
     route,
     navigate,

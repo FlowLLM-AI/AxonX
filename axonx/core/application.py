@@ -89,22 +89,22 @@ class Application:
         name: str,
         arguments: Mapping[str, Any] | None = None,
         *,
-        remote_ip: str | None = None,
+        target: str | None = None,
     ) -> JobResponse:
         if not self.is_started:
             raise RuntimeError("Application is not running")
-        return await self.context.dispatcher.run(name, arguments, remote_ip=remote_ip)
+        return await self.context.dispatcher.run(name, arguments, target=target)
 
     def stream_job(
         self,
         name: str,
         arguments: Mapping[str, Any] | None = None,
         *,
-        remote_ip: str | None = None,
+        target: str | None = None,
     ) -> AsyncIterator[JobEvent]:
         if not self.is_started:
             raise RuntimeError("Application is not running")
-        return self.context.dispatcher.stream(name, arguments, remote_ip=remote_ip)
+        return self.context.dispatcher.stream(name, arguments, target=target)
 
     async def __aenter__(self):
         await self.start()

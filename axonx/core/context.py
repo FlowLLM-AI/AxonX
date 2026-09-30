@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
-from ..components.client.remote import RemotePreflight
 from ..config import ApplicationConfig
 from .dispatch import JobDispatcher
 
@@ -25,14 +24,14 @@ class ApplicationContext:
         self,
         registry: ProviderRegistry,
         app_config: ApplicationConfig | None = None,
-        *,
-        remote_preflight: RemotePreflight | None = None,
         **config: Any,
     ) -> None:
         if app_config is not None and config:
             raise TypeError("Pass either app_config or configuration values, not both")
         self.registry = registry
-        self.app_config = app_config if app_config is not None else ApplicationConfig(**config)
+        self.app_config = (
+            app_config if app_config is not None else ApplicationConfig(**config)
+        )
         self._components: dict[str, Mapping[str, BaseComponent]] = {}
         self._jobs: dict[str, BaseJob] = {}
         self._schedulers: dict[str, BaseScheduler] = {}
@@ -41,7 +40,7 @@ class ApplicationContext:
         self._schedulers_view = MappingProxyType(self._schedulers)
         self.service: BaseService | None = None
         self.metadata: dict[str, Any] = {}
-        self.dispatcher = JobDispatcher(self, remote_preflight=remote_preflight)
+        self.dispatcher = JobDispatcher(self)
         self._finalized = False
 
     @property

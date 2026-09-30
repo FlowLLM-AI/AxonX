@@ -23,14 +23,14 @@ import { useTranslation } from "react-i18next";
 
 export function EnvironmentSettingsModal({
   machine,
-  remoteIp,
+  target,
   authRequired,
   authTokenConfigured,
   onSaveToken,
   onClose,
 }: {
   machine: MachineNode;
-  remoteIp?: string;
+  target?: string;
   authRequired: boolean;
   authTokenConfigured: boolean;
   onSaveToken: (token: string) => void;
@@ -40,8 +40,8 @@ export function EnvironmentSettingsModal({
   const closeButton = useRef<HTMLButtonElement>(null);
   const [token, setToken] = useState("");
   const loadStatus = useCallback(
-    (signal: AbortSignal) => machineStatus(remoteIp, signal),
-    [remoteIp],
+    (signal: AbortSignal) => machineStatus(target, signal),
+    [target],
   );
   const { data: info, loading, error } = useAsyncResource(loadStatus);
   const saveToken = (event: FormEvent) => {
@@ -99,7 +99,11 @@ export function EnvironmentSettingsModal({
                 <h3>{t("runtimeSettings.serviceToken")}</h3>
                 <p>
                   {authRequired
-                    ? t("runtimeSettings.tokenRequired")
+                    ? t(
+                        authTokenConfigured
+                          ? "runtimeSettings.tokenInvalid"
+                          : "runtimeSettings.tokenRequired",
+                      )
                     : t("runtimeSettings.tokenHelp")}
                 </p>
               </div>

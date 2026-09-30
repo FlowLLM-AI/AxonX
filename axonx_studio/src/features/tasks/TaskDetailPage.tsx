@@ -12,6 +12,8 @@ import {
   Bot,
   LoaderCircle,
   LocateFixed,
+  RefreshCw,
+  ArrowUpRight,
   Settings2,
   X,
 } from "lucide-react";
@@ -24,6 +26,7 @@ import { cancelTask, getTaskStatus, readTaskLog, streamTask } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 import { Status } from "./TasksPage";
 import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
+import { previewWorkspaceFile } from "../workspace/api";
 
 const ACTIVE = new Set(["queued", "running"]);
 const LOG_CHUNK_BYTES = 65_536;
@@ -31,17 +34,19 @@ const MAX_LOG_CHARACTERS = 524_288;
 
 export function TaskDetailPage({
   taskId,
-  remoteIp,
+  target,
   onBack,
   onOpenTask,
   onInterpretTask,
+  onOpenResearch,
   onConnection,
 }: {
   taskId: string;
-  remoteIp?: string;
+  target?: string;
   onBack: () => void;
   onOpenTask: (taskId: string) => void;
   onInterpretTask: (taskId: string) => void;
+  onOpenResearch: (taskType: string, taskId: string) => void;
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -64,6 +69,7 @@ export function TaskDetailPage({
   const [followTail, setFollowTail] = useState(true);
   const [copied, setCopied] = useState(false);
   const [configCopied, setConfigCopied] = useState(false);
+  const [hasResearch, setHasResearch] = useState(false);
   const [locateRequest, setLocateRequest] = useState(0);
   const [aligned, setAligned] = useState(true);
   const [panels, setPanels] = useState({
@@ -77,10 +83,46 @@ export function TaskDetailPage({
   const logLength = useRef(0);
   const taskState = task?.state;
 
+  useEffect(() => {
+    const kind = task?.task_type;
+    if (
+      !kind ||
+      !taskState ||
+      ACTIVE.has(taskState) ||
+      !["etl", "analysis", "train", "predict", "backtest"].includes(kind)
+    ) {
+      setHasResearch(false);
+      return;
+    }
+    const controller = new AbortController();
+    setHasResearch(false);
+    void previewWorkspaceFile(
+      `${kind}/${taskId}/metadata.json`,
+      0,
+      1,
+      target,
+      controller.signal,
+    )
+      .then((preview) => {
+        if (!controller.signal.aborted)
+          setHasResearch(
+            preview.kind === "json" &&
+              !!preview.data &&
+              !Array.isArray(preview.data) &&
+              typeof preview.data === "object" &&
+              (preview.data as Record<string, unknown>).task_id === taskId,
+          );
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setHasResearch(false);
+      });
+    return () => controller.abort();
+  }, [target, task?.task_type, taskId, taskState]);
+
   const loadStatus = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await getTaskStatus(taskId, remoteIp);
+      const result = await getTaskStatus(taskId, target);
       setTask(result);
       setError("");
       onConnection(true);
@@ -92,7 +134,7 @@ export function TaskDetailPage({
     } finally {
       setLoading(false);
     }
-  }, [onConnection, remoteIp, taskId]);
+  }, [onConnection, target, taskId]);
 
   const loadLog = useCallback(
     async (offset: number, mode: "replace" | "append" | "prepend") => {
@@ -107,7 +149,7 @@ export function TaskDetailPage({
                 Math.max(1024, MAX_LOG_CHARACTERS - logLength.current),
               )
             : LOG_CHUNK_BYTES;
-        const chunk = await readTaskLog(taskId, offset, limit, remoteIp);
+        const chunk = await readTaskLog(taskId, offset, limit, target);
         setFileSize(chunk.file_size);
         setLogError("");
         if (mode === "replace" || chunk.reset) {
@@ -146,7 +188,7 @@ export function TaskDetailPage({
         setLogLoading(false);
       }
     },
-    [remoteIp, taskId],
+    [target, taskId],
   );
 
   useEffect(() => {
@@ -155,15 +197,6 @@ export function TaskDetailPage({
         void loadLog(-1, "replace");
     });
   }, [loadLog, loadStatus]);
-  useEffect(() => {
-    setPanels({
-      config: false,
-      relations: false,
-      details: true,
-      logs: true,
-    });
-    setAligned(true);
-  }, [taskId]);
   useEffect(() => {
     if (!taskState || !ACTIVE.has(taskState)) return;
     const controller = new AbortController();
@@ -206,7 +239,7 @@ export function TaskDetailPage({
         });
       }
     };
-    void streamTask(taskId, remoteIp, controller.signal, onEvent)
+    void streamTask(taskId, target, controller.signal, onEvent)
       .then((result) => {
         setTask(result);
         setError("");
@@ -218,7 +251,7 @@ export function TaskDetailPage({
         void loadStatus();
       });
     return () => controller.abort();
-  }, [loadStatus, onConnection, remoteIp, taskId, taskState]);
+  }, [loadStatus, onConnection, target, taskId, taskState]);
   useEffect(() => {
     if (followTail && logViewport.current)
       logViewport.current.scrollTop = logViewport.current.scrollHeight;
@@ -241,7 +274,7 @@ export function TaskDetailPage({
     if (!task || !window.confirm(t("cancelConfirm"))) return;
     setCancelling(true);
     try {
-      const cancelled = await cancelTask(task.task_id, remoteIp);
+      const cancelled = await cancelTask(task.task_id, target);
       if (!cancelled) throw new Error(t("cancelFailed"));
       await loadStatus();
     } catch (reason) {
@@ -303,6 +336,15 @@ export function TaskDetailPage({
           </span>
         </div>
         <div className="task-detail-heading-actions">
+          {hasResearch && (
+            <button
+              className="secondary-button"
+              onClick={() => onOpenResearch(task.task_type, task.task_id)}
+            >
+              <ArrowUpRight />
+              {labels.openResearch}
+            </button>
+          )}
           <button
             className="secondary-button"
             onClick={() => onInterpretTask(task.task_id)}
@@ -488,9 +530,10 @@ export function TaskDetailPage({
           >
             <TaskGraphPanel
               taskId={taskId}
-              remoteIp={remoteIp}
+              target={target}
               locateRequest={locateRequest}
               onOpenTask={onOpenTask}
+              onInterpretTask={onInterpretTask}
               onConnection={onConnection}
             />
           </DetailCard>
@@ -504,6 +547,14 @@ export function TaskDetailPage({
             onToggle={() => togglePanel("logs")}
             actions={
               <>
+                <button
+                  onClick={() => void loadLog(-1, "replace")}
+                  disabled={logLoading || !task.log_path}
+                  title={labels.refreshLog}
+                  aria-label={labels.refreshLog}
+                >
+                  <RefreshCw className={logLoading ? "spin" : undefined} />
+                </button>
                 <label className="log-follow">
                   <input
                     type="checkbox"

@@ -19,7 +19,6 @@ from axonx.plugin_kit.identity import (
     content_sha256_from_wheel,
 )
 from axonx.plugin_kit.installer import install_staged_plugin
-from axonx.plugin_kit.verification import verify_remote_plugin
 from axonx.workspace.models import FileCopy
 from axonx.workspace.staging import StagedFiles
 
@@ -138,7 +137,7 @@ async def test_install_job_discards_staged_wheel_when_installation_fails(
         enable_logo=False,
         log_to_console=False,
         log_to_file=False,
-        plugins={"allow_remote_management": True},
+        plugins={"allow_management": True},
         jobs={
             "install_plugin": {
                 "parameters": {
@@ -185,12 +184,39 @@ def test_plugin_config_resolves_source_paths_relative_to_config(tmp_path):
     assert loaded["plugins"]["sources"] == [str(source.resolve())]
 
 
-def test_plugin_cli_uses_local_environment_without_client_address(monkeypatch, capsys):
+def test_plugin_cli_uses_default_service_without_target(monkeypatch, capsys):
     plugin = PluginInfo(distribution="demo", version="1")
-    monkeypatch.setattr("axonx.plugin_kit.cli.list_installed_plugins", lambda: [plugin])
+
+    async def remote(args, options):
+        assert args.command == "list"
+        assert options.target is None
+        return [plugin]
+
+    monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", remote)
 
     assert plugin_cli(["list"], ClientOptions()) == 0
     assert '"distribution": "demo"' in capsys.readouterr().out
+
+
+def test_plugin_cli_can_list_local_environment(monkeypatch, capsys):
+    plugin = PluginInfo(distribution="local-demo", version="1")
+    monkeypatch.setattr(
+        "axonx.plugin_kit.cli.list_installed_plugins", lambda: [plugin]
+    )
+    assert plugin_cli(["list", "--local"], ClientOptions()) == 0
+    assert '"distribution": "local-demo"' in capsys.readouterr().out
+
+
+def test_plugin_cli_can_install_locally(monkeypatch, capsys):
+    plugin = PluginInfo(distribution="local-demo", version="1")
+    artifact = object()
+    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
+    monkeypatch.setattr(
+        "axonx.plugin_kit.cli.install_plugin",
+        lambda received: plugin if received is artifact else None,
+    )
+    assert plugin_cli(["install", "source", "--local"], ClientOptions()) == 0
+    assert '"distribution": "local-demo"' in capsys.readouterr().out
 
 
 def test_plugin_cli_uses_jobs_when_client_address_is_supplied(monkeypatch, capsys):
@@ -198,12 +224,12 @@ def test_plugin_cli_uses_jobs_when_client_address_is_supplied(monkeypatch, capsy
 
     async def remote(args, options):
         assert args.command == "list"
-        assert options.host_ip == "127.0.0.1"
+        assert options.target == "http://127.0.0.1:1024"
         return [plugin]
 
     monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", remote)
 
-    options = ClientOptions(host_ip="127.0.0.1", host_port=1024)
+    options = ClientOptions(target="127.0.0.1:1024")
     assert plugin_cli(["list"], options) == 0
     assert '"distribution": "remote-demo"' in capsys.readouterr().out
 
@@ -234,91 +260,13 @@ def test_remote_install_discards_upload_when_job_fails(monkeypatch, tmp_path):
     monkeypatch.setattr("axonx.plugin_kit.cli.HttpClient", lambda **_options: Client())
     monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
 
-    options = ClientOptions(host_ip="127.0.0.1", host_port=1024)
+    options = ClientOptions(target="127.0.0.1:1024")
     assert plugin_cli(["install", str(wheel)], options) == 1
     assert discarded == ["copies/demo.whl"]
 
 
-def test_remote_verification_compares_active_content_digest(monkeypatch):
-    monkeypatch.setattr(
-        "axonx.plugin_kit.verification.installed_plugin_for_task",
-        lambda _task: ("demo", "local-content", None),
-    )
-
-    with pytest.raises(ValueError, match="content SHA-256 differs"):
-        verify_remote_plugin(
-            "demo_task",
-            [
-                {
-                    "distribution": "demo",
-                    "tasks": {"demo_task": "demo:Task"},
-                    "content_sha256": "remote-content",
-                    "sha256": None,
-                }
-            ],
-        )
-
-
-def test_remote_verification_accepts_matching_content_for_source_installs(monkeypatch):
-    monkeypatch.setattr(
-        "axonx.plugin_kit.verification.installed_plugin_for_task",
-        lambda _task: ("demo", "same-content", None),
-    )
-
-    verify_remote_plugin(
-        "demo_task",
-        [
-            {
-                "distribution": "demo",
-                "tasks": {"demo_task": "demo:Task"},
-                "content_sha256": "same-content",
-                "sha256": None,
-            }
-        ],
-    )
-
-
-def test_remote_verification_falls_back_to_wheel_digest(monkeypatch):
-    monkeypatch.setattr(
-        "axonx.plugin_kit.verification.installed_plugin_for_task",
-        lambda _task: ("demo", "local-content", "same-wheel"),
-    )
-
-    verify_remote_plugin(
-        "demo_task",
-        [
-            {
-                "distribution": "demo",
-                "tasks": {"demo_task": "demo:Task"},
-                "sha256": "same-wheel",
-            }
-        ],
-    )
-
-
-def test_remote_verification_rejects_different_fallback_wheels(monkeypatch):
-    monkeypatch.setattr(
-        "axonx.plugin_kit.verification.installed_plugin_for_task",
-        lambda _task: ("demo", None, "local-wheel"),
-    )
-
-    with pytest.raises(ValueError, match="wheel SHA-256 differs"):
-        verify_remote_plugin(
-            "demo_task",
-            [
-                {
-                    "distribution": "demo",
-                    "tasks": {"demo_task": "demo:Task"},
-                    "sha256": "remote-wheel",
-                }
-            ],
-        )
-
-
 @pytest.mark.asyncio
-async def test_streamed_submit_verifies_plugins_before_remote_job(monkeypatch):
-    verified: list[str] = []
-
+async def test_streamed_submit_calls_selected_service(monkeypatch):
     class Client:
         async def __aenter__(self):
             return self
@@ -326,27 +274,21 @@ async def test_streamed_submit_verifies_plugins_before_remote_job(monkeypatch):
         async def __aexit__(self, *_args):
             return None
 
-        async def stream_job(self, _name, _arguments, *, remote_ip=None):
-            yield ResultEvent(answer={"remote_ip": remote_ip})
-
-    async def verify(_client, job_name, arguments):
-        assert job_name == "submit"
-        verified.append(arguments["task"])
+        async def stream_job(self, name, arguments):
+            assert name == "submit"
+            assert arguments == {"task": "demo_task"}
+            yield ResultEvent(answer="ok")
 
     monkeypatch.setattr(
         "axonx.components.client.remote.HttpClient",
-        lambda **_options: Client(),
+        lambda **options: Client(),
     )
 
     events = [
         event
         async for event in stream_remote_job(
-            "submit",
-            {"task": "demo_task"},
-            target_ip="10.0.0.2",
-            preflight=verify,
+            "submit", {"task": "demo_task"}, target="10.0.0.2:1024"
         )
     ]
 
-    assert verified == ["demo_task"]
-    assert events[0].answer == {"remote_ip": "10.0.0.2"}
+    assert events[0].answer == "ok"

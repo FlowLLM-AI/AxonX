@@ -180,17 +180,3 @@ def get_installed_plugin(name: str) -> PluginInfo:
     if len(matches) > 1:
         raise ValueError(f"Ambiguous plugin: {name!r}")
     return matches[0]
-
-
-def installed_plugin_for_task(
-    task_name: str,
-) -> tuple[str, str | None, str | None] | None:
-    """Return the installed distribution and its content and wheel digests."""
-    matches = [info for info in list_installed_plugins() if task_name in info.tasks]
-    if len(matches) > 1:
-        raise ValueError(
-            f"Task {task_name!r} has multiple locally installed plugin providers"
-        )
-    if not matches:
-        return None
-    return matches[0].distribution, matches[0].content_sha256, matches[0].sha256

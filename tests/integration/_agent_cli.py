@@ -19,19 +19,16 @@ AXONX_REACT_DONE and briefly report both versions and the shell output.
 """
 
 
-def run_live_cli(
-    service: dict, job: str = "agent_chat", *, stream: bool = True
-) -> str:
+def run_live_cli(service: dict, job: str = "agent_chat", *, stream: bool = True) -> str:
     """Run the real CLI, optionally teeing streamed blocks as they arrive."""
     command = [
         sys.executable,
         "-m",
         "axonx.cli",
-        "--host-ip",
-        "127.0.0.1",
-        "--host-port",
-        str(service["port"]),
-        "--timeout",
+        job,
+        "--message",
+        PROMPT,
+        "--client-timeout",
         "180",
         "--stream",
         str(stream).lower(),
@@ -39,9 +36,8 @@ def run_live_cli(
         "blocks",
         "--token",
         service["token"],
-        job,
-        "--message",
-        PROMPT,
+        "--target",
+        f"127.0.0.1:{service['port']}",
     ]
     process = subprocess.Popen(
         command,

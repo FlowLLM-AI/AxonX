@@ -12,7 +12,7 @@ from ...utils.fs import atomic_write_json
 
 
 class SyncStateStore:
-    """Persist which Task IDs a remote node has acknowledged."""
+    """Persist which Task IDs a target service has acknowledged."""
 
     def __init__(self, workspace: Path, remote: str) -> None:
         key = hashlib.sha256(remote.encode()).hexdigest()[:16]

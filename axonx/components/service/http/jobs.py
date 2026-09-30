@@ -29,7 +29,6 @@ class JobInvocation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     arguments: dict[str, Any] = Field(default_factory=dict)
-    remote_ip: str | None = Field(default=None, min_length=1)
 
 
 def _event_frame(event: JobEvent) -> str:
@@ -75,7 +74,6 @@ def create_jobs_router(app, public_jobs) -> APIRouter:
             return await app.run_job(
                 name,
                 arguments=invocation.arguments,
-                remote_ip=invocation.remote_ip,
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
@@ -92,7 +90,6 @@ def create_jobs_router(app, public_jobs) -> APIRouter:
             events = app.stream_job(
                 name,
                 arguments=invocation.arguments,
-                remote_ip=invocation.remote_ip,
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc

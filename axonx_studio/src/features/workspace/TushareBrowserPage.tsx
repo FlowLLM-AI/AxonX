@@ -50,13 +50,13 @@ function iconFor(entry: WorkspaceEntry) {
 }
 
 export default function TushareBrowserPage({
-  remoteIp,
+  target,
   initialPath,
   onConnection,
   onPathChange,
   onOptionsChange,
 }: {
-  remoteIp?: string;
+  target?: string;
   initialPath?: string;
   onConnection: (online: boolean) => void;
   onPathChange?: (path: string) => void;
@@ -79,7 +79,7 @@ export default function TushareBrowserPage({
     async (path: string, signal?: AbortSignal) => {
       setLoading((current) => new Set(current).add(path));
       try {
-        const result = await listWorkspaceEntries(path, remoteIp, signal);
+        const result = await listWorkspaceEntries(path, target, signal);
         setDirectories((current) => ({ ...current, [path]: result }));
         setError("");
         onConnection(true);
@@ -96,7 +96,7 @@ export default function TushareBrowserPage({
         });
       }
     },
-    [remoteIp, onConnection],
+    [target, onConnection],
   );
 
   const loadPreview = useCallback(
@@ -111,7 +111,7 @@ export default function TushareBrowserPage({
           entry.path,
           offset,
           200,
-          remoteIp,
+          target,
         );
         if (request === previewRequest.current) {
           setPreview(result);
@@ -128,7 +128,7 @@ export default function TushareBrowserPage({
         if (request === previewRequest.current) setPreviewLoading(false);
       }
     },
-    [remoteIp, onConnection],
+    [target, onConnection],
   );
 
   const selectFile = useCallback(
@@ -176,7 +176,7 @@ export default function TushareBrowserPage({
       controller.abort();
       previewRequest.current += 1;
     };
-  }, [remoteIp, loadDirectory]);
+  }, [target, loadDirectory]);
 
   useEffect(() => {
     if (!initialPath || !initialPath.startsWith(ROOT) || initialPath === ROOT)
@@ -188,28 +188,25 @@ export default function TushareBrowserPage({
         const loaded: Record<string, WorkspaceDirectory> = {};
         const open = new Set([ROOT]);
         let parent = ROOT;
-        let target: WorkspaceEntry | undefined;
+        let entry: WorkspaceEntry | undefined;
         for (const part of parts.slice(1)) {
           const directory =
-            loaded[parent] || (await listWorkspaceEntries(parent, remoteIp));
+            loaded[parent] || (await listWorkspaceEntries(parent, target));
           loaded[parent] = directory;
-          target = directory.entries.find((entry) => entry.name === part);
-          if (!target) return;
-          if (target.kind === "directory") {
-            parent = target.path;
+          entry = directory.entries.find((item) => item.name === part);
+          if (!entry) return;
+          if (entry.kind === "directory") {
+            parent = entry.path;
             open.add(parent);
           }
         }
-        if (!alive || !target) return;
-        if (target.kind === "directory")
-          loaded[target.path] = await listWorkspaceEntries(
-            target.path,
-            remoteIp,
-          );
+        if (!alive || !entry) return;
+        if (entry.kind === "directory")
+          loaded[entry.path] = await listWorkspaceEntries(entry.path, target);
         setDirectories((current) => ({ ...current, ...loaded }));
         setExpanded(open);
         onConnection(true);
-        if (target.kind === "file") void loadPreview(target);
+        if (entry.kind === "file") void loadPreview(entry);
       } catch (reason) {
         if (alive) {
           setError(reason instanceof Error ? reason.message : String(reason));
@@ -221,7 +218,7 @@ export default function TushareBrowserPage({
     return () => {
       alive = false;
     };
-  }, [initialPath, remoteIp, loadPreview, onConnection]);
+  }, [initialPath, target, loadPreview, onConnection]);
 
   useEffect(() => {
     const options = new Map<string, ContextOption>();

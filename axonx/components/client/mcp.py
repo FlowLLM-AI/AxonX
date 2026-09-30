@@ -43,9 +43,7 @@ class McpClient(BaseClient[Any]):
         if stack is not None:
             await stack.aclose()
 
-    async def run_job(self, name: str, arguments=None, *, remote_ip: str | None = None) -> JobResponse:
-        if remote_ip is not None:
-            raise ValueError("MCP client does not support relayed remote execution")
+    async def run_job(self, name: str, arguments=None) -> JobResponse:
         try:
             result = await self._require_client().call_tool(name, dict(arguments or {}))
             payload = (

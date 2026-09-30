@@ -11,7 +11,6 @@ from ..components.scheduler import BaseScheduler
 from ..components.service import BaseService
 from ..config import ApplicationConfig, ComponentConfig, JobConfig
 from ..plugin_kit.runtime import load_plugin_providers
-from ..plugin_kit.verification import verify_remote_submission
 from ..utils import LoggingConfig, configure_logging, get_logger
 from .context import ApplicationContext
 
@@ -35,19 +34,21 @@ def compose_application(
 
     plugin_jobs = load_plugin_providers(app_config, registry)
     app_config = _merge_plugin_jobs(app_config, plugin_jobs)
-    context = ApplicationContext(
-        registry,
-        app_config,
-        remote_preflight=verify_remote_submission,
-    )
+    context = ApplicationContext(registry, app_config)
     for category, group in app_config.components.items():
         context._set_component_group(
             category,
-            {name: _instantiate(context, category, name, spec, BaseComponent) for name, spec in group.items()},
+            {
+                name: _instantiate(context, category, name, spec, BaseComponent)
+                for name, spec in group.items()
+            },
         )
 
     context._set_jobs(
-        {name: _instantiate(context, "job", name, spec, BaseJob) for name, spec in app_config.jobs.items()},
+        {
+            name: _instantiate(context, "job", name, spec, BaseJob)
+            for name, spec in app_config.jobs.items()
+        },
     )
     context._set_schedulers(
         {
@@ -76,8 +77,7 @@ def compose_application(
     )
     logger.info(f"Jobs ({len(context.jobs)}): {', '.join(context.jobs) or '-'}")
     logger.info(
-        f"Schedules ({len(context.schedulers)}): "
-        f"{', '.join(context.schedulers) or '-'}"
+        f"Schedules ({len(context.schedulers)}): {', '.join(context.schedulers) or '-'}"
     )
     context.finalize()
     return context

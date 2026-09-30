@@ -34,7 +34,7 @@ import { AxonXMark } from "./AxonXMark";
 interface AgentWorkspaceProps {
   view: "new" | "chat" | "task";
   resource?: string;
-  remoteIp?: string;
+  target?: string;
   navigate: (route: AppRoute) => void;
   replace: (route: AppRoute) => void;
   onOptionsChange: (options: ContextOption[]) => void;
@@ -44,7 +44,7 @@ interface AgentWorkspaceProps {
 export default function AgentWorkspace({
   view,
   resource,
-  remoteIp,
+  target,
   navigate,
   replace,
   onOptionsChange,
@@ -69,7 +69,7 @@ export default function AgentWorkspace({
   const refreshSessions = useCallback(async () => {
     setSessionsLoading(true);
     try {
-      const result = await listAgentSessions(remoteIp);
+      const result = await listAgentSessions(target);
       setSessions(result);
       onOptionsChange(
         result.map((session) => ({
@@ -91,25 +91,25 @@ export default function AgentWorkspace({
     } finally {
       setSessionsLoading(false);
     }
-  }, [onConnection, onOptionsChange, remoteIp]);
+  }, [onConnection, onOptionsChange, target]);
 
   const reconcile = useCallback(
     async (id: string) => {
-      const result = await getAgentSession(id, remoteIp);
+      const result = await getAgentSession(id, target);
       if (activeSession.current === id) {
         setConversation(fromHistory(result.blocks));
         setError("");
       }
       return result;
     },
-    [remoteIp],
+    [target],
   );
 
   useEffect(() => {
     void refreshSessions();
   }, [refreshSessions]);
 
-  useEffect(() => () => controller.current?.abort(), [remoteIp]);
+  useEffect(() => () => controller.current?.abort(), [target]);
 
   useEffect(() => {
     if (sessionId === activeSession.current && runningRef.current) return;
@@ -124,7 +124,7 @@ export default function AgentWorkspace({
     }
     const request = new AbortController();
     setHistoryLoading(true);
-    getAgentSession(sessionId, remoteIp, request.signal)
+    getAgentSession(sessionId, target, request.signal)
       .then((result) => {
         if (activeSession.current === sessionId)
           setConversation(fromHistory(result.blocks));
@@ -139,7 +139,7 @@ export default function AgentWorkspace({
         if (activeSession.current === sessionId) setHistoryLoading(false);
       });
     return () => request.abort();
-  }, [onConnection, remoteIp, sessionId]);
+  }, [onConnection, target, sessionId]);
 
   const send = useCallback(async () => {
     const message = draft.trim();
@@ -182,7 +182,7 @@ export default function AgentWorkspace({
       await streamAgentChat(
         message,
         requestedSession,
-        remoteIp,
+        target,
         streamController.signal,
         onEvent,
       );
@@ -208,7 +208,7 @@ export default function AgentWorkspace({
       )
         setError(t("agent.cancelled"));
     }
-  }, [draft, onConnection, reconcile, refreshSessions, remoteIp, replace, t]);
+  }, [draft, onConnection, reconcile, refreshSessions, target, replace, t]);
 
   useEffect(() => {
     const route = `${view}:${resource || ""}`;
@@ -226,7 +226,7 @@ export default function AgentWorkspace({
     if (!id || stopping) return;
     setStopping(true);
     try {
-      await cancelAgentTurn(id, remoteIp);
+      await cancelAgentTurn(id, target);
     } catch (reason) {
       setStopping(false);
       setError(errorMessage(reason));
@@ -239,23 +239,23 @@ export default function AgentWorkspace({
       session.custom_title || "",
     );
     if (!title?.trim()) return;
-    await renameAgentSession(session.session_id, title.trim(), remoteIp);
+    await renameAgentSession(session.session_id, title.trim(), target);
     await refreshSessions();
   };
   const tag = async (session: AgentSessionInfo) => {
     const value = window.prompt(t("agent.tagPrompt"), session.tag || "");
     if (value === null) return;
-    await tagAgentSession(session.session_id, value.trim() || null, remoteIp);
+    await tagAgentSession(session.session_id, value.trim() || null, target);
     await refreshSessions();
   };
   const fork = async (session: AgentSessionInfo) => {
-    const result = await forkAgentSession(session.session_id, remoteIp);
+    const result = await forkAgentSession(session.session_id, target);
     await refreshSessions();
     navigate({ section: "agent", view: "chat", resource: result.session_id });
   };
   const remove = async (session: AgentSessionInfo) => {
     if (!window.confirm(t("agent.deleteConfirm"))) return;
-    await deleteAgentSession(session.session_id, remoteIp);
+    await deleteAgentSession(session.session_id, target);
     if (activeSession.current === session.session_id)
       navigate({ section: "agent", view: "new" });
     await refreshSessions();

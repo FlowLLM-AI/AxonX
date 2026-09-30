@@ -16,7 +16,6 @@ from ..constants import (
     CLI_PASSTHROUGH_COMMANDS,
     CLI_PLUGIN_COMMAND,
     CLI_RAW_ARGUMENTS,
-    REMOTE_IP_ARGUMENT,
 )
 
 _OPTION_RE = re.compile(
@@ -40,64 +39,77 @@ class Command:
 def parse_command(argv: Sequence[str]) -> tuple[Command, ClientOptions]:
     """Parse command-line tokens and client connection options."""
     tokens = tuple(argv)
-    client, action_index = _parse_client_options(tokens)
-    client_options_supplied = action_index > 0
-
-    if action_index == len(tokens):
-        if client_options_supplied:
-            raise ValueError("Missing command after client options")
+    if not tokens:
         return Command(
             action=CLI_HELP_COMMAND, arguments={CLI_RAW_ARGUMENTS: []}
-        ), client
-
+        ), ClientOptions()
+    leading_client: dict[str, Any] = {}
+    action_index = 0
+    legacy_names = CLI_CLIENT_OPTIONS | {"host_ip", "host_port"}
+    while action_index < len(tokens):
+        option = tokens[action_index]
+        name = option.removeprefix("--").replace("-", "_")
+        if not option.startswith("--") or name not in legacy_names:
+            break
+        if action_index + 1 == len(tokens) or tokens[action_index + 1].startswith("--"):
+            raise ValueError(f"Missing value for client option: {option}")
+        key = "timeout" if name == "client_timeout" else name
+        if key in leading_client:
+            raise ValueError(f"Duplicate client option: {option}")
+        leading_client[key] = convert_value(tokens[action_index + 1])
+        action_index += 2
+    if action_index == len(tokens):
+        raise ValueError("Missing command after client options")
     raw_action = tokens[action_index]
     action = CLI_HELP_COMMAND if raw_action in {"-h", "--help"} else raw_action
-    if (
-        client_options_supplied
-        and action in CLI_LOCAL_COMMANDS
-        and action != CLI_PLUGIN_COMMAND
-    ):
+    if action in CLI_LOCAL_COMMANDS - {CLI_PLUGIN_COMMAND} and leading_client:
         raise ValueError(f"Client options cannot be used with local command: {action}")
-
-    raw_arguments = tokens[action_index + 1 :]
+    raw_arguments, trailing_client = _extract_trailing_client_options(
+        action, tokens[action_index + 1 :]
+    )
+    for key in trailing_client:
+        if key in leading_client:
+            raise ValueError(f"Duplicate client option: --{key.replace('_', '-')}")
+    client = ClientOptions.model_validate({**leading_client, **trailing_client})
     arguments = (
         {} if action in CLI_PASSTHROUGH_COMMANDS else _parse_arguments(raw_arguments)
     )
-    arguments[CLI_RAW_ARGUMENTS] = _task_arguments(raw_arguments, arguments)
+    arguments[CLI_RAW_ARGUMENTS] = list(raw_arguments)
     return Command(action=action, arguments=arguments), client
 
 
-def _task_arguments(tokens: tuple[str, ...], arguments: dict) -> list[str]:
-    """Keep routing arguments out of the argv passed to a submitted Task."""
-    if REMOTE_IP_ARGUMENT not in arguments:
-        return list(tokens)
-    task_arguments = []
-    for option, value in zip(tokens[::2], tokens[1::2], strict=True):
-        name = option.removeprefix("--").replace("-", "_")
-        if name != REMOTE_IP_ARGUMENT:
-            task_arguments.extend((option, value))
-    return task_arguments
-
-
-def _parse_client_options(tokens: tuple[str, ...]) -> tuple[ClientOptions, int]:
-    """Parse the leading client options and return the action's index."""
-    values: dict = {}
+def _extract_trailing_client_options(
+    action: str, tokens: tuple[str, ...]
+) -> tuple[tuple[str, ...], dict[str, Any]]:
+    """Take client options from a Job or plugin command."""
+    if action in CLI_LOCAL_COMMANDS and action != CLI_PLUGIN_COMMAND:
+        for option in ("--target", "--client-timeout", "--host-ip", "--host-port"):
+            if option in tokens:
+                raise ValueError(f"{option} cannot be used with local command: {action}")
+        return tokens, {}
+    # A trailing --timeout belongs to the Job, except for built-in Jobs whose
+    # legacy CLI used it as a connection timeout. --client-timeout is unambiguous.
+    client_names = (CLI_CLIENT_OPTIONS - {"timeout"}) | {"host_ip", "host_port"}
+    if action in {"wait_task", "agent_chat"}:
+        client_names = client_names | {"timeout"}
+    remaining: list[str] = []
+    client: dict[str, Any] = {}
     index = 0
-
     while index < len(tokens):
         option = tokens[index]
-        key = option.removeprefix("--").replace("-", "_")
-        if not option.startswith("--") or key not in CLI_CLIENT_OPTIONS:
-            break
-        if index + 1 == len(tokens) or tokens[index + 1].startswith("--"):
-            raise ValueError(f"Missing value for client option: {option}")
-        if key in values:
-            raise ValueError(f"Duplicate client option: {option}")
-
-        values[key] = convert_value(tokens[index + 1])
-        index += 2
-
-    return ClientOptions.model_validate(values), index
+        name = option.removeprefix("--").replace("-", "_")
+        if option.startswith("--") and name in client_names:
+            if index + 1 == len(tokens) or tokens[index + 1].startswith("--"):
+                raise ValueError(f"Missing value for client option: {option}")
+            client_name = "timeout" if name == "client_timeout" else name
+            if client_name in client:
+                raise ValueError(f"Duplicate client option: {option}")
+            client[client_name] = convert_value(tokens[index + 1])
+            index += 2
+        else:
+            remaining.append(option)
+            index += 1
+    return tuple(remaining), client
 
 
 def _parse_arguments(tokens: tuple[str, ...]) -> dict:

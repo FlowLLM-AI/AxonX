@@ -12,8 +12,8 @@ class UninstallPluginStep(BaseStep):
     """Uninstall one plugin distribution from this service machine."""
 
     async def execute(self):
-        if not self.app_config.plugins.allow_remote_management:
-            raise PermissionError("Remote plugin management is disabled")
+        if not self.app_config.plugins.allow_management:
+            raise PermissionError("Plugin management is disabled")
         self.response.answer = await asyncio.to_thread(
             uninstall_plugin, self.context["plugin"]
         )

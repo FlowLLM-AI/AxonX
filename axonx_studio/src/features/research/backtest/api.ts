@@ -22,7 +22,7 @@ const rowsOf = <T extends NumericRow>(preview: WorkspacePreview): T[] => {
 
 const loadParquetRows = async <T extends NumericRow>(
   path: string,
-  remoteIp?: string,
+  target?: string,
   signal?: AbortSignal,
 ): Promise<T[]> => {
   const pageSize = 5000;
@@ -32,7 +32,7 @@ const loadParquetRows = async <T extends NumericRow>(
       path,
       offset,
       pageSize,
-      remoteIp,
+      target,
       signal,
     );
     if (preview.kind !== "parquet")
@@ -44,7 +44,7 @@ const loadParquetRows = async <T extends NumericRow>(
 
 export async function loadBacktest(
   meta: BacktestArtifact,
-  remoteIp?: string,
+  target?: string,
   signal?: AbortSignal,
 ) {
   const daily = meta.artifacts?.daily?.path;
@@ -52,8 +52,8 @@ export async function loadBacktest(
   if (!daily || !summary)
     throw new Error(i18n.t("backtest.errors.missingDailySummary"));
   const [dailyPreview, summaryPreview] = await Promise.all([
-    loadParquetRows<DailyRow>(`${meta._path}/${daily}`, remoteIp, signal),
-    loadParquetRows<SummaryRow>(`${meta._path}/${summary}`, remoteIp, signal),
+    loadParquetRows<DailyRow>(`${meta._path}/${daily}`, target, signal),
+    loadParquetRows<SummaryRow>(`${meta._path}/${summary}`, target, signal),
   ]);
   return {
     daily: dailyPreview,
@@ -63,10 +63,10 @@ export async function loadBacktest(
 
 export async function loadBacktestDaily(
   meta: BacktestArtifact,
-  remoteIp?: string,
+  target?: string,
   signal?: AbortSignal,
 ) {
   const daily = meta.artifacts?.daily?.path;
   if (!daily) throw new Error(i18n.t("backtest.errors.missingDaily"));
-  return loadParquetRows<DailyRow>(`${meta._path}/${daily}`, remoteIp, signal);
+  return loadParquetRows<DailyRow>(`${meta._path}/${daily}`, target, signal);
 }

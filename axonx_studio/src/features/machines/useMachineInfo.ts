@@ -3,12 +3,12 @@ import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { machineStatus } from "./api";
 
 export function useMachineInfo(
-  remoteIp: string | undefined,
+  target: string | undefined,
   onConnection: (online: boolean) => void,
 ) {
   const request = useCallback(
-    (signal: AbortSignal) => machineStatus(remoteIp, signal),
-    [remoteIp],
+    (signal: AbortSignal) => machineStatus(target, signal),
+    [target],
   );
   const resource = useAsyncResource(request);
 

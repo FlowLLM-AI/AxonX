@@ -170,6 +170,8 @@
     "loadingRuntime": "Loading AxonX runtime…"
   },
   "taskDetail": {
+    "refreshLog": "Refresh log",
+    "openResearch": "View research",
     "loadEarlier": "Load earlier",
     "follow": "Follow tail",
     "copy": "Copy",
@@ -210,8 +212,9 @@
     "close": "Close settings",
     "authentication": "AUTHENTICATION",
     "serviceToken": "Service token",
-    "tokenRequired": "This service requires a Bearer token. Enter it for this browser session.",
-    "tokenHelp": "Kept in memory only and never included in the Studio build.",
+    "tokenRequired": "This service requires a Bearer token. Enter the token.",
+    "tokenInvalid": "The token is invalid. Enter the new token.",
+    "tokenHelp": "Saved in this browser and restored when you reopen the page.",
     "tokenConfigured": "Token configured",
     "tokenPlaceholder": "Enter Bearer token",
     "applyToken": "Apply",
@@ -612,6 +615,7 @@
     }
   },
   "taskGraph": {
+    "copy_task_id": "Copy task ID",
     "kinds": {
       "base": "Base task",
       "api": "API",

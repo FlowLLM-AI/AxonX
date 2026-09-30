@@ -3,41 +3,41 @@ import type { WorkspaceDirectory, WorkspacePreview } from "./types";
 
 export const listWorkspaceEntries = (
   path = "",
-  remoteIp?: string,
+  target?: string,
   signal?: AbortSignal,
 ) =>
   axonx.invoke<WorkspaceDirectory>(
     "list_entries",
     { path },
-    { remoteIp, signal },
+    { target, signal },
   );
 
 export const listTaskRuns = (
   taskType: string,
-  remoteIp?: string,
+  target?: string,
   signal?: AbortSignal,
 ) =>
   axonx.invoke<WorkspaceDirectory>(
     "list_task_runs",
     { task_type: taskType },
-    { remoteIp, signal },
+    { target, signal },
   );
 
 export const previewWorkspaceFile = (
   path: string,
   offset = 0,
   limit = 200,
-  remoteIp?: string,
+  target?: string,
   signal?: AbortSignal,
 ) =>
   axonx.invoke<WorkspacePreview>(
     "preview_file",
     { path, offset, limit },
-    { remoteIp, signal },
+    { target, signal },
   );
-export const deleteWorkspaceEntries = (paths: string[], remoteIp?: string) =>
+export const deleteWorkspaceEntries = (paths: string[], target?: string) =>
   axonx.invoke<{ deleted: string; kind: "file" | "directory" }[]>(
     "delete_entries",
     { paths },
-    { remoteIp },
+    { target },
   );
