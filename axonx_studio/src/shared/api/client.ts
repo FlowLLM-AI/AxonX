@@ -1,10 +1,27 @@
 import type { JobCatalog, JobResponse } from "./types";
 
 const configuredUrl = import.meta.env.VITE_AXONX_API_URL || "";
+const tokenStorageKey = "axonx-service-token";
+const memoryTokens = new Map<string, string>();
+
+function storageKey(baseUrl: string): string {
+  return baseUrl
+    ? `${tokenStorageKey}:${baseUrl.replace(/\/$/, "")}`
+    : tokenStorageKey;
+}
+
+function storedToken(baseUrl: string): string {
+  const key = storageKey(baseUrl);
+  try {
+    return localStorage.getItem(key)?.trim() || "";
+  } catch {
+    return memoryTokens.get(key) || "";
+  }
+}
 
 export interface RequestOptions {
   signal?: AbortSignal;
-  remoteIp?: string;
+  target?: string;
 }
 
 export class AxonXError extends Error {
@@ -60,13 +77,21 @@ export class AxonXClient {
 
   constructor(
     baseUrl = configuredUrl,
-    private token = "",
+    private token = storedToken(baseUrl),
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
   }
 
   setToken(token: string): void {
     this.token = token.trim();
+    const key = storageKey(this.baseUrl);
+    try {
+      if (this.token) localStorage.setItem(key, this.token);
+      else localStorage.removeItem(key);
+    } catch {
+      if (this.token) memoryTokens.set(key, this.token);
+      else memoryTokens.delete(key);
+    }
   }
 
   hasToken(): boolean {
@@ -74,7 +99,7 @@ export class AxonXClient {
   }
 
   forBaseUrl(baseUrl: string): AxonXClient {
-    return new AxonXClient(baseUrl, this.token);
+    return new AxonXClient(baseUrl);
   }
 
   private headers(extra?: HeadersInit): Headers {
@@ -83,11 +108,15 @@ export class AxonXClient {
     return headers;
   }
 
-  invocation(arguments_: Record<string, unknown>, remoteIp?: string) {
-    return {
-      arguments: arguments_,
-      ...(remoteIp ? { remote_ip: remoteIp } : {}),
-    };
+  forTarget(target: string): AxonXClient {
+    const url = target.includes("://")
+      ? target
+      : `${this.baseUrl ? new URL(this.baseUrl).protocol : window.location.protocol}//${target}`;
+    return this.forBaseUrl(url);
+  }
+
+  invocation(arguments_: Record<string, unknown>) {
+    return { arguments: arguments_ };
   }
 
   async invoke<T>(
@@ -95,12 +124,13 @@ export class AxonXClient {
     arguments_: Record<string, unknown> = {},
     options: RequestOptions = {},
   ): Promise<T> {
+    const client = options.target ? this.forTarget(options.target) : this;
     const response = await fetch(
-      `${this.baseUrl}/jobs/${encodeURIComponent(name)}`,
+      `${client.baseUrl}/jobs/${encodeURIComponent(name)}`,
       {
         method: "POST",
-        headers: this.headers({ "Content-Type": "application/json" }),
-        body: JSON.stringify(this.invocation(arguments_, options.remoteIp)),
+        headers: client.headers({ "Content-Type": "application/json" }),
+        body: JSON.stringify(this.invocation(arguments_)),
         signal: options.signal,
       },
     );
@@ -126,7 +156,7 @@ export class AxonXClient {
 
 export const axonx = new AxonXClient();
 
-export function clientForAddress(address?: string): AxonXClient {
-  if (!address) return axonx;
-  return axonx.forBaseUrl(`${window.location.protocol}//${address}`);
+export function clientForTarget(target?: string): AxonXClient {
+  if (!target) return axonx;
+  return axonx.forTarget(target);
 }

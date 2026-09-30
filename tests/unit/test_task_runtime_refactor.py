@@ -15,9 +15,28 @@ from axonx.enums import TaskState, TaskType
 from axonx.task.builtins import DemoTask
 from axonx.task.core import task_type_from_id
 from axonx.task.query.stream import stream_task
+from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.events import LOG_WINDOW_BYTES, read_event_lines
 from axonx.task.storage.logs import TaskLogReader
 from axonx.task.storage.workspace import TaskStatus, write_status
+
+
+def test_success_status_is_published_after_metadata(tmp_path):
+    task = DemoTask(
+        {"x": 2, "y": 3, "task_name": "finished"},
+        workspace_path=tmp_path,
+        reg_name="demo",
+    )
+    observed = []
+
+    def on_status(status):
+        if status.state == TaskState.SUCCEEDED:
+            observed.append((task.task_dir / "metadata.json").exists())
+
+    result = TaskRunner(emit=on_status).run(task)
+
+    assert result.state == TaskState.SUCCEEDED
+    assert observed == [True]
 
 
 def test_task_context_is_immutable_and_step_state_is_separate(tmp_path):

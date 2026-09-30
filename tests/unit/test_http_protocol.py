@@ -110,9 +110,7 @@ async def test_mcp_client_calls_the_ordinary_response_surface(tmp_path):
     while not server.started:
         await asyncio.sleep(0.01)
     try:
-        async with McpClient(
-            host_ip="127.0.0.1", host_port=port, token="secret"
-        ) as client:
+        async with McpClient(target=f"127.0.0.1:{port}", token="secret") as client:
             assert [job.name for job in await client.list_jobs()] == ["version"]
             response = await client.run_job("version")
             assert response.success is True

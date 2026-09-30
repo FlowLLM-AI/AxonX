@@ -18,17 +18,18 @@ import { useTranslation } from "react-i18next";
 
 export default function RuntimeWorkspace({
   machine,
-  remoteIp,
+  target,
   view,
   taskId,
   onNavigate,
   onSubmit,
   onInterpretTask,
+  onOpenResearch,
   onOptionsChange,
   onConnection,
 }: {
   machine: MachineNode;
-  remoteIp?: string;
+  target?: string;
   view: "resources" | "tasks" | "environment" | "task";
   taskId?: string;
   onNavigate: (
@@ -37,13 +38,14 @@ export default function RuntimeWorkspace({
   ) => void;
   onSubmit: () => void;
   onInterpretTask: (taskId: string) => void;
+  onOpenResearch: (taskType: string, taskId: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
   onConnection: (online: boolean) => void;
 }) {
   useEffect(() => {
     if (view !== "task" || !taskId || !onOptionsChange) return;
     const controller = new AbortController();
-    listTaskStatuses(remoteIp, controller.signal)
+    listTaskStatuses(target, controller.signal)
       .then((tasks) =>
         onOptionsChange(
           tasks.map((task) => ({
@@ -55,34 +57,36 @@ export default function RuntimeWorkspace({
       )
       .catch(() => undefined);
     return () => controller.abort();
-  }, [view, taskId, remoteIp, onOptionsChange]);
+  }, [view, taskId, target, onOptionsChange]);
   return (
     <section className="runtime-workspace unified-workspace">
       <main className="workspace-canvas">
         {view === "resources" ? (
           <CurrentMachineResources
             machine={machine}
-            remoteIp={remoteIp}
+            target={target}
             onConnection={onConnection}
           />
         ) : view === "environment" ? (
           <RuntimeEnvironment
             machine={machine}
-            remoteIp={remoteIp}
+            target={target}
             onConnection={onConnection}
           />
         ) : view !== "tasks" && taskId ? (
           <TaskDetailPage
+            key={`${target || "local"}:${taskId}`}
             taskId={taskId}
-            remoteIp={remoteIp}
+            target={target}
             onBack={() => onNavigate("tasks")}
             onOpenTask={(id) => onNavigate("task", id)}
             onInterpretTask={onInterpretTask}
+            onOpenResearch={onOpenResearch}
             onConnection={onConnection}
           />
         ) : (
           <TasksPage
-            remoteIp={remoteIp}
+            target={target}
             onSubmit={onSubmit}
             onOpenTask={(id) => onNavigate("task", id)}
             onTasksChange={onOptionsChange}
@@ -96,11 +100,11 @@ export default function RuntimeWorkspace({
 
 function RuntimeEnvironment({
   machine,
-  remoteIp,
+  target,
   onConnection,
 }: {
   machine: MachineNode;
-  remoteIp?: string;
+  target?: string;
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -109,7 +113,7 @@ function RuntimeEnvironment({
     loading,
     error,
     reload,
-  } = useMachineInfo(remoteIp, onConnection);
+  } = useMachineInfo(target, onConnection);
   return (
     <section className="runtime-environment-page">
       <header className="canvas-heading">
@@ -191,11 +195,11 @@ function EnvironmentValue({
 
 function CurrentMachineResources({
   machine,
-  remoteIp,
+  target,
   onConnection,
 }: {
   machine: MachineNode;
-  remoteIp?: string;
+  target?: string;
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -204,7 +208,7 @@ function CurrentMachineResources({
     loading,
     error,
     reload,
-  } = useMachineInfo(remoteIp, onConnection);
+  } = useMachineInfo(target, onConnection);
   const node = info ? { ...machine, info } : machine;
   return (
     <section className="current-machine-page">

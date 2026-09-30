@@ -18,8 +18,6 @@ class InstallPluginStep(BaseStep):
         staged_files = StagedFiles(self.workspace_path)
         staged = staged_files.file(path)
         try:
-            if not self.app_config.plugins.allow_remote_management:
-                raise PermissionError("Remote plugin management is disabled")
             artifact_directory = self.workspace_path / "plugins" / "artifacts"
             self.response.answer = await asyncio.to_thread(
                 install_staged_plugin,

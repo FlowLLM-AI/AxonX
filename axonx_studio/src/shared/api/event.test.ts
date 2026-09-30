@@ -22,23 +22,29 @@ describe("streamJob", () => {
         controller.close();
       },
     });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(body, {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        }),
-      ),
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(body, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }),
     );
+    vi.stubGlobal("fetch", fetchMock);
     const events: string[] = [];
     const result = await streamJob<{ done: boolean }>(
       new AxonXClient("http://axonx.test"),
       "stream_task",
       { task_id: "task" },
-      { onEvent: (event) => events.push(event.kind) },
+      {
+        target: "http://remote.test:1024",
+        onEvent: (event) => events.push(event.kind),
+      },
     );
     expect(result).toEqual({ done: true });
     expect(events).toEqual(["progress", "result"]);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://remote.test:1024/jobs/stream_task/events");
+    expect(JSON.parse(String(init.body))).toEqual({
+      arguments: { task_id: "task" },
+    });
   });
 });

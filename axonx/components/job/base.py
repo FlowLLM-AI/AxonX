@@ -9,21 +9,11 @@ from typing import Any, cast
 
 from jsonschema.validators import validator_for
 
-from ...constants import REMOTE_IP_ARGUMENT
+from ...constants import TARGET_ARGUMENT
 from ...enums import ComponentEnum
 from ..base import BaseComponent
-from .contracts import JobCatalog, JobInfo, JobResponse
-from .events import (
-    JOB_EVENT_ADAPTER,
-    AgentBlockPatch,
-    AgentMessageEvent,
-    ArtifactEvent,
-    JobEvent,
-    LogEvent,
-    ProgressEvent,
-    ResultEvent,
-    fold_events,
-)
+from .contracts import JobInfo, JobResponse
+from .events import JobEvent, fold_events
 
 _RESPONSE_SCHEMA = JobResponse.model_json_schema()
 
@@ -55,7 +45,6 @@ class BaseJob(BaseComponent, ABC):
         description: str = "",
         parameters: Mapping[str, Any] | None = None,
         enable_serve: bool = True,
-        enable_remote: bool = True,
         enable_stream: bool = True,
         requires_auth: bool = True,
         **kwargs,
@@ -64,16 +53,13 @@ class BaseJob(BaseComponent, ABC):
 
         self.description = description
         self.enable_serve = enable_serve
-        self.enable_remote = enable_remote
         self.enable_stream = enable_stream
         self.requires_auth = requires_auth
         self.parameters, self._argument_validator = _object_schema(
             parameters, label="Job parameters"
         )
-        if self.enable_remote and REMOTE_IP_ARGUMENT in self.parameters["properties"]:
-            raise ValueError(
-                f"{REMOTE_IP_ARGUMENT!r} is reserved for transport targeting"
-            )
+        if TARGET_ARGUMENT in self.parameters["properties"]:
+            raise ValueError(f"{TARGET_ARGUMENT!r} is reserved for transport targeting")
 
         injected = dict(self._injected_parameters())
         conflicts = set(self.parameters["properties"]) & injected.keys()
@@ -104,10 +90,6 @@ class BaseJob(BaseComponent, ABC):
     @property
     def is_servable(self) -> bool:
         return self.enable_serve
-
-    @property
-    def is_remotely_invocable(self) -> bool:
-        return self.enable_remote
 
     @property
     def is_streamable(self) -> bool:

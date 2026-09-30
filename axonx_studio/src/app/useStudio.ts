@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   listMachineOptions,
-  machineHost,
+  machineFromTargetAddress,
   machineStatus,
 } from "../features/machines/api";
 import type { MachineNode } from "../features/machines/types";
 import type { ContextOption, ThemePreference } from "./types";
 import { parseHash, routeHash, type AppRoute } from "./routes";
-import { axonx, AxonXError } from "../shared/api/client";
+import { AxonXError, clientForTarget } from "../shared/api/client";
 
 const LOCAL_MACHINE: MachineNode = {
   id: "local",
@@ -85,16 +85,25 @@ function useMachines(
   onMissing: (machineId: string) => void,
   authRevision: number,
 ) {
-  const [machines, setMachines] = useState<MachineNode[]>([LOCAL_MACHINE]);
+  const [machines, setMachines] = useState<MachineNode[]>(() => {
+    const target = machineFromTargetAddress(machineId);
+    return target ? [LOCAL_MACHINE, target] : [LOCAL_MACHINE];
+  });
   const [loaded, setLoaded] = useState(false);
+  const [listFailed, setListFailed] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     listMachineOptions(controller.signal)
       .then((result) => {
-        setMachines(result);
+        if (!controller.signal.aborted) {
+          setMachines(result);
+          setListFailed(false);
+        }
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (!controller.signal.aborted) setListFailed(true);
+      })
       .finally(() => {
         if (!controller.signal.aborted) setLoaded(true);
       });
@@ -102,24 +111,34 @@ function useMachines(
   }, [authRevision]);
 
   useEffect(() => {
-    if (loaded && !machines.some((machine) => machine.id === machineId))
+    if (
+      loaded &&
+      !listFailed &&
+      !machines.some((machine) => machine.id === machineId)
+    )
       onMissing("local");
-  }, [loaded, machineId, machines, onMissing]);
+  }, [listFailed, loaded, machineId, machines, onMissing]);
 
+  const visibleMachines = useMemo(() => {
+    const fallback = listFailed ? machineFromTargetAddress(machineId) : null;
+    return fallback && !machines.some((machine) => machine.id === machineId)
+      ? [...machines, fallback]
+      : machines;
+  }, [listFailed, machineId, machines]);
   const selectedMachine = useMemo(
-    () => machines.find((machine) => machine.id === machineId) || machines[0],
-    [machineId, machines],
+    () =>
+      visibleMachines.find((machine) => machine.id === machineId) ||
+      visibleMachines[0],
+    [machineId, visibleMachines],
   );
   return {
-    machines,
+    machines: visibleMachines,
     selectedMachine,
-    remoteIp: selectedMachine.isLocal
-      ? undefined
-      : machineHost(selectedMachine.address),
+    target: selectedMachine.isLocal ? undefined : selectedMachine.address,
   };
 }
 
-function useServiceStatus(remoteIp: string | undefined, authRevision: number) {
+function useServiceStatus(target: string | undefined, authRevision: number) {
   const [serviceOnline, setServiceOnline] = useState<boolean | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
 
@@ -128,7 +147,7 @@ function useServiceStatus(remoteIp: string | undefined, authRevision: number) {
     setServiceOnline(null);
     setAuthRequired(false);
     const check = () =>
-      machineStatus(remoteIp, controller.signal)
+      machineStatus(target, controller.signal)
         .then(() => {
           setServiceOnline(true);
           setAuthRequired(false);
@@ -149,7 +168,7 @@ function useServiceStatus(remoteIp: string | undefined, authRevision: number) {
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [authRevision, remoteIp]);
+  }, [authRevision, target]);
 
   return { serviceOnline, setServiceOnline, authRequired };
 }
@@ -158,16 +177,19 @@ export function useStudio() {
   const { machineId, route, navigate, replace } = useLocation();
   const theme = useTheme();
   const [authRevision, setAuthRevision] = useState(0);
-  const setAuthToken = useCallback((token: string) => {
-    axonx.setToken(token);
-    setAuthRevision((revision) => revision + 1);
-  }, []);
   const navigateToMachine = useCallback(
     (nextMachineId: string) => navigate(route, nextMachineId),
     [navigate, route],
   );
   const machineState = useMachines(machineId, navigateToMachine, authRevision);
-  const service = useServiceStatus(machineState.remoteIp, authRevision);
+  const setAuthToken = useCallback(
+    (token: string) => {
+      clientForTarget(machineState.target).setToken(token);
+      setAuthRevision((revision) => revision + 1);
+    },
+    [machineState.target],
+  );
+  const service = useServiceStatus(machineState.target, authRevision);
   const [resourceOptions, setResourceOptions] = useState<ContextOption[]>([]);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("axonx-sidebar") === "collapsed",
@@ -211,7 +233,7 @@ export function useStudio() {
     ...machineState,
     ...service,
     authRevision,
-    authTokenConfigured: axonx.hasToken(),
+    authTokenConfigured: clientForTarget(machineState.target).hasToken(),
     setAuthToken,
     route,
     navigate,

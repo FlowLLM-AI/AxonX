@@ -1,23 +1,18 @@
 """Transport-independent remote client lifecycle."""
 
-import json
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import Literal, Self
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, field_validator
 
 from ...constants import (
-    AXONX_DEFAULT_CONNECT_HOST,
-    AXONX_DEFAULT_PORT,
     AXONX_DEFAULT_REQUEST_TIMEOUT,
-    AXONX_DEFAULT_SCHEME,
-    AXONX_SERVICE_INFO,
-    SERVICE_INFO_HOST_KEY,
-    SERVICE_INFO_PORT_KEY,
+    AXONX_SERVICE_TARGET,
 )
 from ...enums import ComponentEnum
+from ...utils.target import default_target, normalize_target
 from ..base import BaseComponent
 from ..job.contracts import JobInfo, JobResponse
 
@@ -26,31 +21,16 @@ class ClientOptions(BaseModel):
     """Validated options for one remote AxonX connection."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-    host_ip: str | None = Field(default=None, min_length=1)
-    host_port: int | None = Field(default=None, ge=1, le=65535)
+    target: str | None = None
     timeout: PositiveFloat = AXONX_DEFAULT_REQUEST_TIMEOUT
     stream: bool = False
     token: str | None = Field(default=None, min_length=1, repr=False)
     stream_format: Literal["blocks", "json"] = "blocks"
 
-    @model_validator(mode="after")
-    def validate_address(self) -> Self:
-        if (self.host_ip is None) != (self.host_port is None):
-            raise ValueError("host_ip and host_port must be provided together")
-        return self
-
+    @field_validator("target")
     @classmethod
-    def from_service_info(cls, service_info: str) -> Self:
-        data = json.loads(service_info)
-        if not isinstance(data, dict):
-            raise ValueError("service info must be a JSON object")  # noqa: TRY004
-        options = cls(
-            host_ip=data.get(SERVICE_INFO_HOST_KEY),
-            host_port=data.get(SERVICE_INFO_PORT_KEY),
-        )
-        if options.host_ip is None:
-            raise ValueError("service info must declare both host and port")
-        return options
+    def validate_target(cls, value: str | None) -> str | None:
+        return normalize_target(value) if value is not None else None
 
 
 class RemoteServiceError(RuntimeError):
@@ -70,21 +50,15 @@ class BaseClient[ClientT](BaseComponent, ABC):
     def __init__(
         self,
         *,
-        host_ip: str | None = None,
-        host_port: int | None = None,
+        target: str | None = None,
         timeout: float = AXONX_DEFAULT_REQUEST_TIMEOUT,
         token: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        options = ClientOptions(
-            host_ip=host_ip, host_port=host_port, timeout=timeout, token=token
-        )
-        self.host_ip, self.host_port = self._resolve_address(options)
-        url_host = f"[{self.host_ip}]" if ":" in self.host_ip else self.host_ip
-        self.url = (
-            f"{AXONX_DEFAULT_SCHEME}://{url_host}:{self.host_port}{self.url_path}"
-        )
+        options = ClientOptions(target=target, timeout=timeout, token=token)
+        self.target = self._resolve_target(options)
+        self.url = f"{self.target}{self.url_path}"
         self.timeout = options.timeout
         self.token = options.token
         self._client: ClientT | None = None
@@ -102,21 +76,18 @@ class BaseClient[ClientT](BaseComponent, ABC):
             raise RuntimeError("Client is not started")
         return self._client
 
-    def _resolve_address(self, options: ClientOptions) -> tuple[str, int]:
-        if options.host_ip is not None and options.host_port is not None:
-            return options.host_ip, options.host_port
-        advertised = os.environ.get(AXONX_SERVICE_INFO)
+    def _resolve_target(self, options: ClientOptions) -> str:
+        if options.target is not None:
+            return options.target
+        advertised = os.environ.get(AXONX_SERVICE_TARGET)
         if advertised:
             try:
-                discovered = ClientOptions.from_service_info(advertised)
+                return normalize_target(advertised)
             except ValueError:
-                self.logger.warning(f"Invalid {AXONX_SERVICE_INFO} value: {advertised}")
-            else:
-                assert (
-                    discovered.host_ip is not None and discovered.host_port is not None
+                self.logger.warning(
+                    f"Invalid {AXONX_SERVICE_TARGET} value: {advertised}"
                 )
-                return discovered.host_ip, discovered.host_port
-        return AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_PORT
+        return default_target()
 
     @abstractmethod
     async def _connect(self) -> ClientT:
@@ -131,8 +102,6 @@ class BaseClient[ClientT](BaseComponent, ABC):
         self,
         name: str,
         arguments: Mapping | None = None,
-        *,
-        remote_ip: str | None = None,
     ) -> JobResponse:
         """Invoke one remote Job."""
 

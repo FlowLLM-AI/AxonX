@@ -154,10 +154,10 @@ function signalRows(rows: DailyRow[]) {
 
 export function BacktestView({
   meta,
-  remoteIp,
+  target,
 }: {
   meta: BacktestArtifact;
-  remoteIp?: string;
+  target?: string;
 }) {
   const { t } = useTranslation();
   const [daily, setDaily] = useState<DailyRow[]>([]);
@@ -168,7 +168,7 @@ export function BacktestView({
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    loadBacktest(meta, remoteIp, controller.signal)
+    loadBacktest(meta, target, controller.signal)
       .then((data) => {
         setDaily(data.daily);
         setSummary(data.summary);
@@ -179,7 +179,7 @@ export function BacktestView({
       })
       .finally(() => !controller.signal.aborted && setLoading(false));
     return () => controller.abort();
-  }, [meta, remoteIp]);
+  }, [meta, target]);
 
   if (loading)
     return (

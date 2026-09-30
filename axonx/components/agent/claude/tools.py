@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import TypeAdapter
 
-from ....constants import AGENT_DEPTH_ARGUMENT, REMOTE_IP_ARGUMENT
+from ....constants import AGENT_DEPTH_ARGUMENT, TARGET_ARGUMENT
 from ...job.contracts import JobResponse
 
 if TYPE_CHECKING:
@@ -74,15 +74,13 @@ def _job_tool(job: BaseJob, dispatcher: JobDispatcher, depth: int) -> Any:
     from claude_agent_sdk import SdkMcpTool
 
     nested = AGENT_DEPTH_ARGUMENT in job.injected_parameters
-    supports_target = job.is_remotely_invocable and not job.injected_parameters
+    supports_target = not job.injected_parameters
 
     async def call(arguments: dict[str, Any]) -> dict[str, Any]:
         payload = dict(arguments)
-        remote_ip = payload.pop(REMOTE_IP_ARGUMENT, None) if supports_target else None
+        target = payload.pop(TARGET_ARGUMENT, None) if supports_target else None
         system = {AGENT_DEPTH_ARGUMENT: depth + 1} if nested else None
-        response = await dispatcher.run(
-            job.name, payload, system=system, remote_ip=remote_ip
-        )
+        response = await dispatcher.run(job.name, payload, system=system, target=target)
         return {
             "content": [{"type": "text", "text": _render_answer(response)}],
             "is_error": not response.success,
@@ -98,10 +96,10 @@ def _job_tool(job: BaseJob, dispatcher: JobDispatcher, depth: int) -> Any:
 
 def _tool_input_schema(job: BaseJob) -> dict:
     schema = deepcopy(job.parameters)
-    if job.is_remotely_invocable and not job.injected_parameters:
-        schema.setdefault("properties", {})[REMOTE_IP_ARGUMENT] = {
+    if not job.injected_parameters:
+        schema.setdefault("properties", {})[TARGET_ARGUMENT] = {
             "type": "string",
-            "description": "Optional IP of a configured remote AxonX node.",
+            "description": "Optional address of a configured AxonX target service.",
         }
     return schema
 

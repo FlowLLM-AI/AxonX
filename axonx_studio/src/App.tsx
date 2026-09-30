@@ -18,16 +18,16 @@ export default function App() {
       setAuthToken={studio.setAuthToken}
       machines={studio.machines}
       selectedMachine={studio.selectedMachine}
-      remoteIp={studio.remoteIp}
+      target={studio.target}
       resourceOptions={studio.resourceOptions}
       sidebar={studio.sidebar}
       navigate={studio.navigate}
     >
       <PageOutlet
-        key={studio.authRevision}
+        key={`${studio.authRevision}:${studio.selectedMachine.id}`}
         route={studio.route}
         machine={studio.selectedMachine}
-        remoteIp={studio.remoteIp}
+        target={studio.target}
         navigate={studio.navigate}
         replace={studio.replace}
         setResourceOptions={studio.setResourceOptions}

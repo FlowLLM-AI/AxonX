@@ -1,24 +1,41 @@
 import { axonx } from "../../shared/api/client";
 import type { MachineInfo, MachineNode } from "./types";
 
-interface RemoteMachineStatus {
+interface TargetStatus {
   address: string;
   healthy: boolean;
 }
 
-export function machineHost(address: string): string {
-  if (address.startsWith("[")) return address.slice(1, address.indexOf("]"));
-  const separator = address.lastIndexOf(":");
-  return separator < 0 ? address : address.slice(0, separator);
+export function machineFromTargetAddress(address: string): MachineNode | null {
+  const match = /^https?:\/\/(?:\[[^\]]+\]|[^:/?#]+):([0-9]{1,5})\/?$/.exec(
+    address,
+  );
+  if (!match || Number(match[1]) < 1 || Number(match[1]) > 65535) return null;
+  try {
+    const url = new URL(address);
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      !url.hostname ||
+      url.username ||
+      url.password ||
+      url.pathname !== "/" ||
+      url.search ||
+      url.hash
+    )
+      return null;
+    return { id: address, address, isLocal: false, healthy: false };
+  } catch {
+    return null;
+  }
 }
 
-export const machineStatus = (remoteIp?: string, signal?: AbortSignal) =>
-  axonx.invoke<MachineInfo>("machine_status", {}, { remoteIp, signal });
+export const machineStatus = (target?: string, signal?: AbortSignal) =>
+  axonx.invoke<MachineInfo>("machine_status", {}, { target, signal });
 
 export async function listMachineOptions(
   signal?: AbortSignal,
 ): Promise<MachineNode[]> {
-  const remotes = await axonx.invoke<RemoteMachineStatus[]>(
+  const targets = await axonx.invoke<TargetStatus[]>(
     "list_machines",
     {},
     { signal },
@@ -28,11 +45,11 @@ export async function listMachineOptions(
     "localhost";
   return [
     { id: "local", address: localAddress, isLocal: true, healthy: true },
-    ...remotes.map((remote) => ({
-      id: remote.address,
-      address: remote.address,
+    ...targets.map((target) => ({
+      id: target.address,
+      address: target.address,
       isLocal: false,
-      healthy: remote.healthy,
+      healthy: target.healthy,
     })),
   ];
 }

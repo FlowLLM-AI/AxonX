@@ -1,6 +1,5 @@
 """ASGI application factory for the HTTP service."""
 
-import json
 import os
 import hmac
 from contextlib import asynccontextmanager
@@ -15,14 +14,13 @@ from ....constants import (
     AXONX_DEFAULT_BIND_HOST,
     AXONX_DEFAULT_CONNECT_HOST,
     AXONX_DEFAULT_ENCODING,
-    AXONX_SERVICE_INFO,
+    AXONX_SERVICE_TARGET,
     PROTOCOL_AUTH_HEADER,
     PROTOCOL_AUTH_ROOTS,
     PROTOCOL_AUTH_SCHEME,
     PROTOCOL_ROUTE_MCP,
-    SERVICE_INFO_HOST_KEY,
-    SERVICE_INFO_PORT_KEY,
 )
+from ....utils.target import normalize_target
 from .files import create_files_router
 from .jobs import create_jobs_router, create_mcp_server
 from .proxy import create_proxy_router
@@ -72,20 +70,16 @@ def create_http_app(app, service) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_server):
         async with app:
-            previous_service_info = os.environ.get(AXONX_SERVICE_INFO)
+            previous_target = os.environ.get(AXONX_SERVICE_TARGET)
             advertised_host = (
                 AXONX_DEFAULT_CONNECT_HOST
                 if service.host == AXONX_DEFAULT_BIND_HOST
                 else service.host
             )
-            service_info = json.dumps(
-                {
-                    SERVICE_INFO_HOST_KEY: advertised_host,
-                    SERVICE_INFO_PORT_KEY: service.port,
-                },
-            )
-            os.environ[AXONX_SERVICE_INFO] = service_info
-            service.logger.info(f"Service started: {AXONX_SERVICE_INFO}={service_info}")
+            host = f"[{advertised_host}]" if ":" in advertised_host else advertised_host
+            target = normalize_target(f"{host}:{service.port}")
+            os.environ[AXONX_SERVICE_TARGET] = target
+            service.logger.info(f"Service started: {AXONX_SERVICE_TARGET}={target}")
             if service.token is None:
                 service.logger.warning(
                     "The HTTP service is unauthenticated; set service.token before "
@@ -94,10 +88,10 @@ def create_http_app(app, service) -> FastAPI:
             try:
                 yield
             finally:
-                if previous_service_info is None:
-                    os.environ.pop(AXONX_SERVICE_INFO, None)
+                if previous_target is None:
+                    os.environ.pop(AXONX_SERVICE_TARGET, None)
                 else:
-                    os.environ[AXONX_SERVICE_INFO] = previous_service_info
+                    os.environ[AXONX_SERVICE_TARGET] = previous_target
 
     mcp_app = create_mcp_server(app, public_jobs).http_app(
         path=PROTOCOL_ROUTE_MCP,

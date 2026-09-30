@@ -5,11 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING, Any
 
-from ..components.client.remote import (
-    RemotePreflight,
-    run_remote_job,
-    stream_remote_job,
-)
+from ..components.client.remote import run_remote_job, stream_remote_job
 from ..components.job.contracts import JobResponse
 from ..components.job.events import JobEvent
 from ..constants import CLI_RAW_ARGUMENTS
@@ -23,14 +19,8 @@ if TYPE_CHECKING:
 class JobDispatcher:
     """Keep business arguments, system context, and transport targeting separate."""
 
-    def __init__(
-        self,
-        context: ApplicationContext,
-        *,
-        remote_preflight: RemotePreflight | None = None,
-    ) -> None:
+    def __init__(self, context: ApplicationContext) -> None:
         self._context = context
-        self._remote_preflight = remote_preflight
 
     def _resolve(
         self,
@@ -46,7 +36,9 @@ class JobDispatcher:
         internal = dict(system or {})
         if CLI_RAW_ARGUMENTS in public:
             raise ValueError(f"Reserved Job argument: {CLI_RAW_ARGUMENTS}")
-        job.logger.info(f"Job called: name={name} arguments={format_log_arguments(public)}")
+        job.logger.info(
+            f"Job called: name={name} arguments={format_log_arguments(public)}"
+        )
         job.validate_arguments(public)
         job.validate_system(internal)
         return job, public, internal
@@ -57,25 +49,23 @@ class JobDispatcher:
         arguments: Mapping[str, Any] | None = None,
         *,
         system: Mapping[str, Any] | None = None,
-        remote_ip: str | None = None,
+        target: str | None = None,
     ) -> JobResponse:
-        """Run one Job locally, or explicitly target a configured remote node."""
-        job, public, internal = self._resolve(name, arguments, system)
-        if remote_ip is None:
+        """Run one Job locally or connect directly to a configured target."""
+        if target is None:
+            job, public, internal = self._resolve(name, arguments, system)
             return await job.run(public, internal)
-        if not job.is_remotely_invocable:
-            raise ValueError(f"Job {name!r} does not support remote execution")
-        if internal:
-            raise ValueError("System arguments cannot be forwarded to a remote Job")
-
-        node = self._context.app_config.resolve_remote_node(remote_ip)
+        if system:
+            raise ValueError("System arguments cannot be sent to a target service")
+        public = dict(arguments or {})
+        if CLI_RAW_ARGUMENTS in public:
+            raise ValueError(f"Reserved Job argument: {CLI_RAW_ARGUMENTS}")
+        configured = self._context.app_config.resolve_target(target)
         return await run_remote_job(
             name,
             public,
-            host_ip=node.host_ip,
-            host_port=node.host_port,
-            token=node.token,
-            preflight=self._remote_preflight,
+            target=configured.address,
+            token=configured.token,
         )
 
     def stream(
@@ -84,24 +74,23 @@ class JobDispatcher:
         arguments: Mapping[str, Any] | None = None,
         *,
         system: Mapping[str, Any] | None = None,
-        remote_ip: str | None = None,
+        target: str | None = None,
     ) -> AsyncIterator[JobEvent]:
         """Validate synchronously, then return the canonical local event stream."""
-        job, public, internal = self._resolve(name, arguments, system)
-        if not job.is_streamable:
-            raise ValueError(f"Job {name!r} does not support streaming")
-        if remote_ip is not None:
-            if not job.is_remotely_invocable:
-                raise ValueError(f"Job {name!r} does not support remote execution")
-            if internal:
-                raise ValueError("System arguments cannot be forwarded to a remote Job")
-            node = self._context.app_config.resolve_remote_node(remote_ip)
+        if target is not None:
+            if system:
+                raise ValueError("System arguments cannot be sent to a target service")
+            public = dict(arguments or {})
+            if CLI_RAW_ARGUMENTS in public:
+                raise ValueError(f"Reserved Job argument: {CLI_RAW_ARGUMENTS}")
+            configured = self._context.app_config.resolve_target(target)
             return stream_remote_job(
                 name,
                 public,
-                host_ip=node.host_ip,
-                host_port=node.host_port,
-                token=node.token,
-                preflight=self._remote_preflight,
+                target=configured.address,
+                token=configured.token,
             )
+        job, public, internal = self._resolve(name, arguments, system)
+        if not job.is_streamable:
+            raise ValueError(f"Job {name!r} does not support streaming")
         return job.stream(public, internal)

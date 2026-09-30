@@ -77,13 +77,14 @@ export async function streamJob<T>(
   arguments_: Record<string, unknown>,
   options: StreamOptions<T> = {},
 ): Promise<T> {
-  const response = await fetch(client.eventsUrl(name), {
+  const selected = options.target ? client.forTarget(options.target) : client;
+  const response = await fetch(selected.eventsUrl(name), {
     method: "POST",
-    headers: client.requestHeaders({
+    headers: selected.requestHeaders({
       Accept: "text/event-stream",
       "Content-Type": "application/json",
     }),
-    body: JSON.stringify(client.invocation(arguments_, options.remoteIp)),
+    body: JSON.stringify(client.invocation(arguments_)),
     signal: options.signal,
   });
   if (!response.ok) await readJobResponse(response);

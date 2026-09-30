@@ -55,10 +55,10 @@ const dateInput = (value: string) =>
 const compactDate = (value: string) => value.replaceAll("-", "");
 
 async function loadTasks(
-  remoteIp: string | undefined,
+  target: string | undefined,
   signal: AbortSignal,
 ): Promise<CompareTask[]> {
-  const directory = await listTaskRuns("backtest", remoteIp, signal);
+  const directory = await listTaskRuns("backtest", target, signal);
   const records = await Promise.all(
     directory.entries
       .filter((entry) => entry.kind === "directory")
@@ -68,7 +68,7 @@ async function loadTasks(
             `${entry.path}/metadata.json`,
             0,
             200,
-            remoteIp,
+            target,
             signal,
           );
           if (
@@ -197,11 +197,11 @@ function drawdownRows(points: PairedDay[], topN: number): ChartRow[] {
 }
 
 export default function StrategyComparePage({
-  remoteIp,
+  target,
   initialTaskId,
   onConnection,
 }: {
-  remoteIp?: string;
+  target?: string;
   initialTaskId?: string;
   onConnection: (online: boolean) => void;
 }) {
@@ -245,7 +245,7 @@ export default function StrategyComparePage({
     const controller = new AbortController();
     setListLoading(true);
     setListError("");
-    loadTasks(remoteIp, controller.signal)
+    loadTasks(target, controller.signal)
       .then((values) => {
         if (!controller.signal.aborted) {
           setTasks(values);
@@ -262,7 +262,7 @@ export default function StrategyComparePage({
         if (!controller.signal.aborted) setListLoading(false);
       });
     return () => controller.abort();
-  }, [remoteIp, reload, onConnection]);
+  }, [target, reload, onConnection]);
 
   const taskA = tasks.find((task) => task.config.task_id === idA);
   const taskB = tasks.find((task) => task.config.task_id === idB);
@@ -277,8 +277,8 @@ export default function StrategyComparePage({
     setDataLoading(true);
     setDataError("");
     Promise.all([
-      loadBacktestDaily(taskA, remoteIp, controller.signal),
-      loadBacktestDaily(taskB, remoteIp, controller.signal),
+      loadBacktestDaily(taskA, target, controller.signal),
+      loadBacktestDaily(taskB, target, controller.signal),
     ])
       .then(([a, b]) => {
         setDailyA(a);
@@ -296,7 +296,7 @@ export default function StrategyComparePage({
         if (!controller.signal.aborted) setDataLoading(false);
       });
     return () => controller.abort();
-  }, [taskA, taskB, idA, idB, remoteIp, onConnection]);
+  }, [taskA, taskB, idA, idB, target, onConnection]);
 
   const commonTopNs =
     taskA && taskB

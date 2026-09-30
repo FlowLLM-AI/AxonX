@@ -1,4 +1,4 @@
-"""Component contract for replicating workspace task directories to a remote node."""
+"""Component contract for replicating workspace task directories to a target service."""
 
 from abc import ABC, abstractmethod
 
@@ -8,7 +8,7 @@ from ..base import BaseComponent
 
 
 class BaseSyncComponent(BaseComponent, ABC):
-    """Define batched, workspace-backed replication to a configured remote node."""
+    """Define batched, workspace-backed replication to a configured target service."""
 
     component_type = ComponentEnum.SYNC
 

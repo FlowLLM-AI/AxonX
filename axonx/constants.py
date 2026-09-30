@@ -17,14 +17,8 @@ CONFIG_ENTRY_POINT_GROUP = "axonx.configs"
 
 PLUGIN_MANIFEST = "plugin.yaml"
 
-# Environment variable used by a running service to advertise its address to
-# clients created in the same process.
-AXONX_SERVICE_INFO = "AXONX_SERVICE_INFO"
-
-# The JSON envelope ``AXONX_SERVICE_INFO`` carries. Its producer runs in the
-# service process and its consumer in a client one, so both keys are named here.
-SERVICE_INFO_HOST_KEY = "host"
-SERVICE_INFO_PORT_KEY = "port"
+# Address advertised to clients created in the service process.
+AXONX_SERVICE_TARGET = "AXONX_SERVICE_TARGET"
 
 # Internal handoff from an application task manager to its Task subprocess.
 AXONX_TASK_WORKSPACE_DIR = "AXONX_TASK_WORKSPACE_DIR"
@@ -115,14 +109,14 @@ CLI_PLUGIN_COMMAND = "plugin"
 CLI_START_COMMAND = "start"
 
 CLI_CLIENT_OPTIONS = frozenset(
-    {"host_ip", "host_port", "timeout", "token", "stream", "stream_format"},
+    {"target", "client_timeout", "token", "stream", "stream_format"},
 )
 
 # Internal Job argument carrying the original tokens after the command name.
 CLI_RAW_ARGUMENTS = "_axonx_argv"
 
-# Reserved Job argument used by Application to select a configured remote node.
-REMOTE_IP_ARGUMENT = "remote_ip"
+# Connection target is never a Job business argument.
+TARGET_ARGUMENT = "target"
 
 # Reserved Job argument counting how deep a job sits in an agent's call chain.
 # Jobs that declare it may be invoked by an agent, and the agent increments it
@@ -136,13 +130,14 @@ CLI_LOCAL_COMMANDS = frozenset(
 CLI_PASSTHROUGH_COMMANDS = frozenset({CLI_PLUGIN_COMMAND})
 
 CLI_USAGE = f"""Usage:
-  axonx [--host-ip IP] [--host-port PORT] [--timeout SECONDS] [--token TOKEN]
-        [--stream true] [--stream-format blocks|json] COMMAND ...
+  axonx JOB [--field value ...] [--client-timeout SECONDS] [--token TOKEN] [--stream true]
+        [--stream-format blocks|json] [--target HOST:PORT]
+  axonx wait_task --task-id ID --run-id ID [--client-timeout SECONDS]
   axonx exec [--task TASK] [--field value ...]
   axonx submit --task TASK [--field value ...]
   axonx start [--config app.yaml]
-  axonx plugin list|show|inspect|build|install|uninstall ...
-  axonx JOB [--field value ...]
+  axonx plugin list|show|inspect|install|uninstall ... [--target HOST:PORT]
+  axonx plugin build SOURCE [--output DIRECTORY]
 
-Remote Job options: host_ip={AXONX_DEFAULT_CONNECT_HOST} host_port={AXONX_DEFAULT_PORT}
-timeout={AXONX_DEFAULT_REQUEST_TIMEOUT:g} token=null stream=false stream_format=blocks"""
+Service options: target={AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}
+client_timeout={AXONX_DEFAULT_REQUEST_TIMEOUT:g} token=null stream=false stream_format=blocks"""

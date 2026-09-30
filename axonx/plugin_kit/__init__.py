@@ -3,7 +3,6 @@
 from .contributions import PluginContributions, index_contributions
 from .discovery import (
     get_installed_plugin,
-    installed_plugin_for_task,
     list_installed_plugins,
 )
 from .installer import (
@@ -40,7 +39,6 @@ __all__ = [
     "install_plugin",
     "install_artifact",
     "install_staged_plugin",
-    "installed_plugin_for_task",
     "index_contributions",
     "list_installed_plugins",
     "parse_plugin_manifest",

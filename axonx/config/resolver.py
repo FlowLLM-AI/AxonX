@@ -25,7 +25,7 @@ from .models import (
     ComponentConfig,
     JobConfig,
     PluginConfig,
-    RemoteNode,
+    TargetConfig,
     ScheduleConfig,
 )
 
@@ -264,7 +264,7 @@ __all__ = [
     "ConfigResolver",
     "JobConfig",
     "PluginConfig",
-    "RemoteNode",
+    "TargetConfig",
     "ScheduleConfig",
     "convert_value",
     "deep_merge_config",

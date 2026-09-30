@@ -638,7 +638,8 @@
 }
 .analysis-score-scroll table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
 }
 .analysis-score-scroll th,
@@ -729,7 +730,8 @@
 }
 .mini-table table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   white-space: nowrap;
 }
 .mini-table th,
@@ -744,6 +746,7 @@
 .mini-table th {
   position: sticky;
   top: 0;
+  z-index: 3;
   color: var(--faint);
   background: var(--surface-2);
   font:

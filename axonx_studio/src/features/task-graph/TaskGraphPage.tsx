@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Bot, Copy, Search } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { getTaskGraph } from "./api";
 import type { TaskGraph, TaskGraphNode } from "./types";
@@ -94,28 +95,55 @@ function graphLayout(graph: TaskGraph) {
 
 export function TaskGraphPanel({
   taskId,
-  remoteIp,
+  target,
   locateRequest,
   onOpenTask,
+  onInterpretTask,
   onConnection,
 }: {
   taskId: string;
-  remoteIp?: string;
+  target?: string;
   locateRequest: number;
   onOpenTask: (taskId: string) => void;
+  onInterpretTask: (taskId: string) => void;
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [graph, setGraph] = useState<TaskGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [contextMenu, setContextMenu] = useState<{
+    node: TaskGraphNode;
+    x: number;
+    y: number;
+  } | null>(null);
   const viewport = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("click", close);
+    window.addEventListener("blur", close);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("blur", close);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [contextMenu]);
+
+  useEffect(() => setContextMenu(null), [taskId]);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    getTaskGraph(taskId, remoteIp, controller.signal)
+    getTaskGraph(taskId, target, controller.signal)
       .then((result) => {
         setGraph(result);
         onConnection(true);
@@ -131,7 +159,7 @@ export function TaskGraphPanel({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [onConnection, remoteIp, taskId]);
+  }, [onConnection, target, taskId]);
 
   const layout = useMemo(() => (graph ? graphLayout(graph) : null), [graph]);
   const centerCurrent = useCallback(() => {
@@ -218,6 +246,21 @@ export function TaskGraphPanel({
                     height: NODE_HEIGHT,
                   }}
                   onClick={() => !node.missing && onOpenTask(node.task_id)}
+                  onContextMenu={(event) => {
+                    if (node.missing) return;
+                    event.preventDefault();
+                    setContextMenu({
+                      node,
+                      x: Math.max(
+                        6,
+                        Math.min(event.clientX, window.innerWidth - 224),
+                      ),
+                      y: Math.max(
+                        6,
+                        Math.min(event.clientY, window.innerHeight - 180),
+                      ),
+                    });
+                  }}
                   disabled={node.missing}
                   title={node.missing ? undefined : t("taskGraph.open_task")}
                 >
@@ -236,6 +279,53 @@ export function TaskGraphPanel({
           </div>
         </div>
       </div>
+      {contextMenu &&
+        createPortal(
+          <div
+            className="workspace-context-menu task-context-menu"
+            role="menu"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <span title={contextMenu.node.task_id}>
+                {contextMenu.node.task_id}
+              </span>
+              <small>{t(`taskGraph.kinds.${contextMenu.node.kind}`)}</small>
+            </header>
+            <button
+              role="menuitem"
+              onClick={() => {
+                onOpenTask(contextMenu.node.task_id);
+                setContextMenu(null);
+              }}
+            >
+              <Search />
+              {t("taskGraph.open_task")}
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                onInterpretTask(contextMenu.node.task_id);
+                setContextMenu(null);
+              }}
+            >
+              <Bot />
+              {t("agent.interpretTask")}
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                void navigator.clipboard.writeText(contextMenu.node.task_id);
+                setContextMenu(null);
+              }}
+            >
+              <Copy />
+              {t("taskGraph.copy_task_id")}
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

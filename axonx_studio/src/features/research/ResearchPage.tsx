@@ -85,7 +85,7 @@ function normalizeTrainingCurve(value: unknown): TrainingCurveData | undefined {
 
 function useTasks(
   kind: Kind,
-  remoteIp?: string,
+  target?: string,
   onConnection?: (online: boolean) => void,
 ) {
   const [tasks, setTasks] = useState<Meta[]>([]);
@@ -97,7 +97,7 @@ function useTasks(
     setLoading(true);
     setError("");
     setTasks([]);
-    listTaskRuns(kind, remoteIp)
+    listTaskRuns(kind, target)
       .then(async (directory) => {
         const dirs = directory.entries.filter(
           (entry) => entry.kind === "directory",
@@ -109,7 +109,7 @@ function useTasks(
                 `${entry.path}/metadata.json`,
                 0,
                 200,
-                remoteIp,
+                target,
               );
               if (
                 preview.kind !== "json" ||
@@ -200,7 +200,7 @@ function useTasks(
       .finally(() => {
         if (currentRequest === requestId.current) setLoading(false);
       });
-  }, [kind, onConnection, remoteIp]);
+  }, [kind, onConnection, target]);
   useEffect(() => {
     load();
     return () => {
@@ -212,7 +212,7 @@ function useTasks(
 
 export default function ResearchPage({
   kind,
-  remoteIp,
+  target,
   initialSelectedId,
   onSelected,
   onOptionsChange,
@@ -220,7 +220,7 @@ export default function ResearchPage({
   onNavigate,
 }: {
   kind: Kind;
-  remoteIp?: string;
+  target?: string;
   initialSelectedId?: string;
   onSelected?: (taskId: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
@@ -233,11 +233,7 @@ export default function ResearchPage({
     t(`research.pages.${kind}.title`),
     t(`research.pages.${kind}.lead`),
   ];
-  const { tasks, loading, error, load } = useTasks(
-    kind,
-    remoteIp,
-    onConnection,
-  );
+  const { tasks, loading, error, load } = useTasks(kind, target, onConnection);
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
   const [selectionMode, setSelectionMode] = useState(false);
@@ -274,7 +270,7 @@ export default function ResearchPage({
     setChecked({});
     setDeleteTargets([]);
     setContextMenu(null);
-  }, [kind, remoteIp]);
+  }, [kind, target]);
   useEffect(() => {
     if (!contextMenu) return;
     const close = () => setContextMenu(null);
@@ -324,7 +320,7 @@ export default function ResearchPage({
     try {
       await deleteWorkspaceEntries(
         deleteTargets.map((task) => task._path),
-        remoteIp,
+        target,
       );
       setDeleteTargets([]);
       setChecked({});
@@ -503,7 +499,7 @@ export default function ResearchPage({
               <ArtifactDetail
                 kind={kind}
                 meta={selected}
-                remoteIp={remoteIp}
+                target={target}
                 onNavigate={onNavigate}
               />
             ) : (
@@ -636,12 +632,12 @@ export default function ResearchPage({
 function ArtifactDetail({
   kind,
   meta,
-  remoteIp,
+  target,
   onNavigate,
 }: {
   kind: Kind;
   meta: Meta;
-  remoteIp?: string;
+  target?: string;
   onNavigate: (page: ResearchPageId | "runtime", resource?: string) => void;
 }) {
   const { t } = useTranslation();
@@ -745,7 +741,7 @@ function ArtifactDetail({
             </div>
           }
         >
-          <BacktestView meta={meta} remoteIp={remoteIp} />
+          <BacktestView meta={meta} target={target} />
         </Suspense>
       )}
     </>

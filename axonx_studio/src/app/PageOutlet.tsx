@@ -25,7 +25,7 @@ const AgentWorkspace = lazy(() => import("../features/agent/AgentWorkspace"));
 interface PageOutletProps {
   route: AppRoute;
   machine: MachineNode;
-  remoteIp?: string;
+  target?: string;
   navigate: (route: AppRoute) => void;
   replace: (route: AppRoute) => void;
   setResourceOptions: Dispatch<SetStateAction<ContextOption[]>>;
@@ -35,7 +35,7 @@ interface PageOutletProps {
 export function PageOutlet({
   route,
   machine,
-  remoteIp,
+  target,
   navigate,
   replace,
   setResourceOptions,
@@ -65,7 +65,7 @@ export function PageOutlet({
         key={machine.id}
         view={view}
         resource={route.resource}
-        remoteIp={remoteIp}
+        target={target}
         navigate={navigate}
         replace={replace}
         onOptionsChange={setResourceOptions}
@@ -82,7 +82,7 @@ export function PageOutlet({
     page = (
       <RuntimeWorkspace
         machine={machine}
-        remoteIp={remoteIp}
+        target={target}
         view={view}
         taskId={route.resource}
         onNavigate={(nextView, resource) =>
@@ -92,6 +92,14 @@ export function PageOutlet({
         onInterpretTask={(taskId) =>
           navigate({ section: "agent", view: "task", resource: taskId })
         }
+        onOpenResearch={(taskType, taskId) =>
+          navigate({
+            section:
+              taskType === "analysis" ? "factors" : (taskType as SectionId),
+            view: "runs",
+            resource: taskId,
+          })
+        }
         onOptionsChange={setResourceOptions}
         onConnection={setServiceOnline}
       />
@@ -99,7 +107,7 @@ export function PageOutlet({
   } else if (route.section === "raw") {
     page = (
       <TushareBrowserPage
-        remoteIp={remoteIp}
+        target={target}
         initialPath={route.resource}
         onConnection={setServiceOnline}
         onPathChange={(path) =>
@@ -115,7 +123,7 @@ export function PageOutlet({
   } else if (route.section === "compare") {
     page = (
       <StrategyComparePage
-        remoteIp={remoteIp}
+        target={target}
         initialTaskId={route.resource}
         onConnection={setServiceOnline}
       />
@@ -124,9 +132,9 @@ export function PageOutlet({
     const kind = route.section === "factors" ? "analysis" : route.section;
     page = (
       <ResearchPage
-        key={`${kind}:${remoteIp || "local"}`}
+        key={`${kind}:${target || "local"}`}
         kind={kind as "analysis" | "backtest" | "etl" | "train" | "predict"}
-        remoteIp={remoteIp}
+        target={target}
         initialSelectedId={route.resource}
         onSelected={(resource) =>
           navigate({ section: route.section, view: "runs", resource })
@@ -162,7 +170,7 @@ export function PageOutlet({
   } else if (route.section === "task-defs") {
     page = (
       <SubmitPage
-        remoteIp={remoteIp}
+        target={target}
         initialName={route.resource}
         onSelected={(resource) =>
           navigate({ section: "task-defs", view: "catalog", resource })

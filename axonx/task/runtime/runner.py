@@ -158,9 +158,9 @@ class TaskRunner:
                 "" if exit_code == 0 else f"Task exited with code {exit_code}"
             )
             status.finished_at = datetime.now(UTC)
-            self._publish()
             if exit_code == 0:
                 write_task_metadata(task)
+            self._publish()
             task.logger.info(
                 f"Task completed task_id={task.task_id} exit_code={exit_code} "
                 f"elapsed_seconds={perf_counter() - started:.3f}",

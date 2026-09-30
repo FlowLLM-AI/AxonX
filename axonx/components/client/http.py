@@ -23,7 +23,6 @@ from ...constants import (
     PROTOCOL_ROUTE_JOBS,
     PROTOCOL_SSE_DATA_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
-    REMOTE_IP_ARGUMENT,
 )
 from ...workspace.models import FileCopy
 from ..job.contracts import JobCatalog, JobInfo, JobResponse
@@ -58,16 +57,13 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
     def __init__(
         self,
         *,
-        host_ip: str | None = None,
-        host_port: int | None = None,
+        target: str | None = None,
         timeout: float = AXONX_DEFAULT_REQUEST_TIMEOUT,
         token: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(
-            host_ip=host_ip, host_port=host_port, timeout=timeout, token=token, **kwargs
-        )
+        super().__init__(target=target, timeout=timeout, token=token, **kwargs)
         self._transport = transport
 
     async def _connect(self) -> httpx.AsyncClient:
@@ -112,21 +108,17 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
                 f"Remote service returned an invalid {model.__name__} payload"
             ) from exc
 
-    async def run_job(
-        self, name: str, arguments=None, *, remote_ip: str | None = None
-    ) -> JobResponse:
+    async def run_job(self, name: str, arguments=None) -> JobResponse:
         return await self._response(
             "POST",
             PROTOCOL_ROUTE_JOB.format(name=quote(name, safe="")),
-            json={"arguments": dict(arguments or {}), REMOTE_IP_ARGUMENT: remote_ip},
+            json={"arguments": dict(arguments or {})},
         )
 
     async def stream_job(
         self,
         name: str,
         arguments=None,
-        *,
-        remote_ip: str | None = None,
     ) -> AsyncIterator[JobEvent]:
         """Decode one Job's Server-Sent Events without buffering its response."""
         endpoint = PROTOCOL_ROUTE_JOB_EVENTS.format(name=quote(name, safe=""))
@@ -134,10 +126,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
             async with self._require_client().stream(
                 "POST",
                 endpoint,
-                json={
-                    "arguments": dict(arguments or {}),
-                    REMOTE_IP_ARGUMENT: remote_ip,
-                },
+                json={"arguments": dict(arguments or {})},
                 headers={"accept": PROTOCOL_SSE_MEDIA_TYPE},
             ) as response:
                 if not response.is_success:

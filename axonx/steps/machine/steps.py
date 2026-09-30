@@ -35,7 +35,7 @@ class MachineStatusStep(BaseStep):
 class ListMachinesStep(BaseStep):
     async def execute(self):
         self.response.answer = await check_machines(
-            self.app_config.remote_nodes, self.logger
+            self.app_config.targets, self.logger
         )
 
 

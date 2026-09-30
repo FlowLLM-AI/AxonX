@@ -21,10 +21,8 @@ from ..constants import (
     CLI_RAW_ARGUMENTS,
     CLI_START_COMMAND,
     CLI_USAGE,
-    REMOTE_IP_ARGUMENT,
 )
 from ..core import Application, run_remote_job, stream_remote_job
-from ..plugin_kit.verification import verify_remote_submission
 from ..task.runtime import TaskCatalog, TaskCommandExecutor
 from ..utils import LoggingConfig, configure_logging, load_env
 from .parser import Command, parse_command
@@ -53,11 +51,10 @@ def _run_server(command: Command) -> int:
 def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
     load_env(override=False)
     options = client_options.model_dump(exclude={"stream", "stream_format"})
-    if options["token"] is None:
+    if options["token"] is None and client_options.target is None:
         options["token"] = os.environ.get("AXONX_SERVICE_TOKEN") or None
     arguments = dict(command.arguments)
     arguments.pop(CLI_RAW_ARGUMENTS, None)
-    target_ip = arguments.pop(REMOTE_IP_ARGUMENT, None)
 
     if client_options.stream:
 
@@ -66,8 +63,6 @@ def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
             async for event in stream_remote_job(
                 command.action,
                 arguments,
-                target_ip=target_ip,
-                preflight=verify_remote_submission,
                 **options,
             ):
                 if client_options.stream_format == "json":
@@ -84,8 +79,6 @@ def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
         return await run_remote_job(
             command.action,
             arguments,
-            target_ip=target_ip,
-            preflight=verify_remote_submission,
             **options,
         )
 
@@ -119,6 +112,7 @@ def _run_exec(command: Command) -> int:
 def _run_plugin(command: Command, client_options: ClientOptions | None = None) -> int:
     from ..plugin_kit.cli import plugin_cli
 
+    load_env(override=False)
     return plugin_cli(command.arguments.get(CLI_RAW_ARGUMENTS, ()), client_options)
 
 
