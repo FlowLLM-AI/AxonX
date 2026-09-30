@@ -1,7 +1,6 @@
-# Start with `axonx start --config remote` after setting both variables in .env.
+# Start with `axonx start --config remote` after setting the target variables.
 extends: default
 
 targets:
   - address: ${AXONX_TARGET}
-    # This remote service must use the same AXONX_SERVICE_TOKEN.
-    token: ${AXONX_SERVICE_TOKEN}
+    token: ${AXONX_TARGET_TOKEN}

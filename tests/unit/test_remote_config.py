@@ -4,16 +4,17 @@ from pydantic import ValidationError
 from axonx.config import ApplicationConfig, ConfigResolver
 
 
-def test_remote_config_uses_service_token_for_target(monkeypatch):
+def test_remote_config_uses_separate_target_token(monkeypatch):
     monkeypatch.setenv("AXONX_TARGET", "192.0.2.10:1024")
-    monkeypatch.setenv("AXONX_SERVICE_TOKEN", "shared-secret")
+    monkeypatch.setenv("AXONX_SERVICE_TOKEN", "local-secret")
+    monkeypatch.setenv("AXONX_TARGET_TOKEN", "target-secret")
 
     config = ApplicationConfig.model_validate(ConfigResolver().load("remote"))
 
-    assert config.service.token == "shared-secret"
+    assert config.service.token == "local-secret"
     assert len(config.targets) == 1
     assert config.targets[0].address == "http://192.0.2.10:1024"
-    assert config.targets[0].token == "shared-secret"
+    assert config.targets[0].token == "target-secret"
 
 
 def test_target_sync_uses_current_names():
