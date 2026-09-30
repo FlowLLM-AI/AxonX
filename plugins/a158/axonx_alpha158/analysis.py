@@ -1,4 +1,4 @@
-"""Analyze Alpha158 factors against the next-open holding return."""
+"""Analyze Alpha158 factors against the close-to-close holding return."""
 
 from __future__ import annotations
 import math
@@ -32,14 +32,28 @@ class FactorAnalysisOutputParams(BaseAnalysisOutputParams):
 class FactorAnalysisInputParams(BaseAnalysisInputParams):
     """Configure factor diagnostics sourced from one Alpha158 ETL task."""
 
-    quantiles: int = Field(default=10, ge=3, le=50, description="Number of factor-value groups used to compare subsequent returns.")
-    minimum_daily_samples: int = Field(default=20, ge=2, description="Minimum valid stocks per day for a factor and return.")
-    feature_batch_size: int = Field(default=8, ge=1, le=32, description="Number of factors processed together in each batch.")
+    quantiles: int = Field(
+        default=10,
+        ge=3,
+        le=50,
+        description="Number of factor-value groups used to compare subsequent returns.",
+    )
+    minimum_daily_samples: int = Field(
+        default=20,
+        ge=2,
+        description="Minimum valid stocks per day for a factor and return.",
+    )
+    feature_batch_size: int = Field(
+        default=8,
+        ge=1,
+        le=32,
+        description="Number of factors processed together in each batch.",
+    )
     tradable_only: bool = Field(default=True, description="Analyze only stocks marked buyable in the source dataset.")
 
 
 class FactorAnalysisTask(BaseAnalysisTask):
-    """Evaluate Alpha158 factors against the one-day next-open return.
+    """Evaluate Alpha158 factors against the one-day close-to-close return.
 
     Reports correlation, stability, and quantile-based measures for each factor.
     """
@@ -123,7 +137,8 @@ class FactorAnalysisTask(BaseAnalysisTask):
                 columns = (*columns, "is_buyable")
             source = pl.scan_parquet(self.state["dataset_path"]).select(columns)
             source = source.filter(pl.col("label_1d_is_valid") & ~pl.col("exit_delayed")).drop(
-                "label_1d_is_valid", "exit_delayed"
+                "label_1d_is_valid",
+                "exit_delayed",
             )
             if self.input_params.tradable_only:
                 source = source.filter("is_buyable").drop("is_buyable")

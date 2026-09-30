@@ -30,8 +30,14 @@ class LgbmPredictOutputParams(BasePredictOutputParams):
 class LgbmPredictInputParams(BasePredictInputParams):
     """Configure an out-of-sample prediction interval for a training task."""
 
-    pred_start: str = Field(default="20230101", description="First prediction date in YYYYMMDD format; must follow the training period.")
-    pred_end: str | None = Field(default=None, description="Last prediction date in YYYYMMDD format; omit for the latest dataset date.")
+    pred_start: str = Field(
+        default="20230101",
+        description="First prediction date in YYYYMMDD format; must follow the training period.",
+    )
+    pred_end: str | None = Field(
+        default=None,
+        description="Last prediction date in YYYYMMDD format; omit for the latest dataset date.",
+    )
 
     @field_validator("pred_start", "pred_end", mode="before")
     @classmethod
@@ -148,7 +154,8 @@ class LgbmPredictTask(BasePredictTask):
         frame = (
             pl.scan_parquet(path)
             .filter(
-                (pl.col("trade_date") >= pl.lit(self.input_params.pred_start)) & (pl.col("trade_date") <= pl.lit(pred_end)),
+                (pl.col("trade_date") >= pl.lit(self.input_params.pred_start))
+                & (pl.col("trade_date") <= pl.lit(pred_end)),
             )
             .select(*required, *index_columns)
             .collect()
@@ -250,9 +257,9 @@ class LgbmPredictTask(BasePredictTask):
                 "pred_start_inclusive": self.input_params.pred_start,
                 "pred_end_inclusive": self.state["actual_pred_end"],
                 "cross_section_filter": "none",
-                "execution_filter": "signal eligibility at trade_date; next-open fill via entry_is_buyable in backtest",
+                "execution_filter": "当天信号筛选，按当天收盘及 entry_is_buyable 代理模拟买入，不保证盘后成交",
                 "actual_return_column": "label_1d",
-                "actual_return_window": "entry_date open to first sellable exit_date open; exit_delayed marks a holding longer than one trading day",
+                "actual_return_window": "entry_date 复权收盘至首个可卖 exit_date 复权收盘；exit_delayed 表示持仓超过一个交易日",
                 "actual_return_unit": "decimal",
                 "prediction_score": "model output trained on cross-sectional return rank; not a return or probability",
                 "row_key": ["trade_date", "ts_code"],

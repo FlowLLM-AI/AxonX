@@ -33,7 +33,7 @@ def test_backtest_engine_builds_standard_artifacts():
             "entry_date": ["20260106"] * 3 + ["20260107"] * 3,
             "exit_date": ["20260107"] * 3 + ["20260108"] * 3,
             "index_weight_hs300": [0.4, 0.3, 0.3] * 2,
-        }
+        },
     )
     result = run_backtest(
         frame,
@@ -62,7 +62,8 @@ def test_backtest_engine_builds_standard_artifacts():
         daily_gross = result.daily[f"top{top_n}_gross_return"]
         expected_gross = (daily_gross + 1).product() - 1
         overall = result.summary.filter(pl.col("period_type") == "overall").row(
-            0, named=True
+            0,
+            named=True,
         )
         assert overall[f"top{top_n}_gross_cumulative_return"] == expected_gross
 
@@ -82,7 +83,7 @@ def test_unfilled_top_pick_stays_cash_without_replacing_it():
             "entry_is_buyable": [False, True],
             "exit_is_sellable": [True, True],
             "exit_delayed": [False, False],
-        }
+        },
     )
     result = run_backtest(
         frame,
@@ -109,7 +110,7 @@ def test_delayed_exit_keeps_capital_locked_until_actual_exit():
             "is_buyable": [True, True],
             "entry_is_buyable": [True, True],
             "exit_is_sellable": [False, True],
-        }
+        },
     )
     result = run_backtest(frame, (), BacktestConfig(0.0, 0.012, 252, 0.9, ()))
     daily = result.daily.sort("trade_date")
@@ -135,7 +136,7 @@ def test_unresolved_exit_is_reported_as_open_position():
             "is_buyable": [True],
             "entry_is_buyable": [True],
             "exit_is_sellable": [False],
-        }
+        },
     )
     result = run_backtest(frame, (), BacktestConfig(0.0, 0.012, 252, 0.9, ()))
     assert result.daily["top1_unsettled_positions"].to_list() == [0, 1]
@@ -157,7 +158,44 @@ def test_known_exit_requires_valid_return_for_bought_position():
             "is_buyable": [True],
             "entry_is_buyable": [True],
             "exit_is_sellable": [False],
-        }
+        },
     )
     with pytest.raises(ValueError, match="已知退出日期的买入样本缺少有效收益"):
         run_backtest(frame, (), BacktestConfig(0.0, 0.012, 252, 0.9, ()))
+
+
+def test_close_labels_fund_same_day_rebalance_after_next_close_exit():
+    """次日收盘卖出后，用释放的资金买入当日信号，遵循 T+1。"""
+    from axonx_alpha158.internal.etl_pipeline import calculate_labels
+
+    quotes = pl.DataFrame(
+        {
+            "ts_code": ["A"] * 3,
+            "trade_date": ["20260921", "20260922", "20260923"],
+            "close": [10.0, 11.0, 12.1],
+            "_close": [10.0, 11.0, 12.1],
+            "up_limit": [20.0] * 3,
+            "down_limit": [1.0] * 3,
+            "_has_market_data": [True] * 3,
+            "_has_valid_limits": [True] * 3,
+            "is_st": [False] * 3,
+            "is_delisting": [False] * 3,
+        },
+    )
+    predictions = (
+        calculate_labels(quotes, 0.025)
+        .head(2)
+        .with_columns(
+            pl.col("label_1d").alias("actual_return"),
+            pl.col("label_1d_is_valid").alias("label_valid"),
+            pl.lit(1.0).alias("pred"),
+            pl.lit(True).alias("is_buyable"),
+            pl.lit("甲").alias("name"),
+        )
+    )
+    result = run_backtest(predictions, (), BacktestConfig(0.0, 0.012, 252, 0.9, ()))
+    daily = result.daily.sort("trade_date")
+    assert daily["trade_date"].to_list() == quotes["trade_date"].to_list()
+    assert daily["top1_gross_return"].to_list() == pytest.approx([0.0, 0.1, 0.1])
+    assert daily["top1_open_positions"].to_list() == [1, 1, 0]
+    assert daily["top1_exits"].to_list() == [0, 1, 1]

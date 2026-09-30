@@ -66,15 +66,26 @@ class Alpha158InputParams(BaseETLInputParams):
     """Configure source data and the dates included in the Alpha158 dataset."""
 
     input_dir: SkipJsonSchema[Path] = Path("tushare")
-    start_date: str | None = Field(default="20140101", description="First output trading date in YYYYMMDD format; set null for all available dates.")
-    end_date: str | None = Field(default=None, description="Last output trading date in YYYYMMDD format; defaults to the latest available date.")
+    start_date: str | None = Field(
+        default="20140101",
+        description="First output trading date in YYYYMMDD format; set null for all available dates.",
+    )
+    end_date: str | None = Field(
+        default=None,
+        description="Last output trading date in YYYYMMDD format; defaults to the latest available date.",
+    )
     csz_winsorize_tail: float = Field(
         default=0.025,
         ge=0.0,
         lt=0.5,
         description="Fraction clipped from each daily return tail before label z-scoring.",
     )
-    min_history_coverage: float = Field(default=0.8, gt=0.0, le=1.0, description="Minimum observed price history required for rolling features.")
+    min_history_coverage: float = Field(
+        default=0.8,
+        gt=0.0,
+        le=1.0,
+        description="Minimum observed price history required for rolling features.",
+    )
 
     @field_validator("start_date", "end_date", mode="before")
     @classmethod
@@ -86,7 +97,7 @@ class Alpha158InputParams(BaseETLInputParams):
 class Alpha158Task(BaseETLTask):
     """Build an Alpha158 dataset from downloaded Tushare market data.
 
-    Produces adjusted features, next-open returns through the first sellable exit, market
+    Produces adjusted features, close-to-close returns through the first sellable exit, market
     status, and HS300 weights for training and analysis.
     """
 
@@ -126,7 +137,11 @@ class Alpha158Task(BaseETLTask):
             raise FileNotFoundError(
                 f"缺少 Alpha158 主数据: {', '.join(map(str, missing))}",
             )
-        if self.input_params.start_date and self.input_params.end_date and self.input_params.start_date > self.input_params.end_date:
+        if (
+            self.input_params.start_date
+            and self.input_params.end_date
+            and self.input_params.start_date > self.input_params.end_date
+        ):
             raise ValueError("start_date 不能晚于 end_date")
         output_path = self.task_dir / "alpha158.parquet"
         statistics_path = output_path.with_suffix(".csv")
@@ -293,7 +308,7 @@ class Alpha158Task(BaseETLTask):
     def calculate_labels(self) -> None:
         """Calculate forward returns and their cross-sectional transformations."""
         self.logger.info(
-            f"Calculating next-open label winsorize_tail={self.input_params.csz_winsorize_tail}",
+            f"Calculating close-to-close label winsorize_tail={self.input_params.csz_winsorize_tail}",
         )
         self.state["frame"] = self._labels(
             self.state["frame"],
@@ -448,7 +463,7 @@ class Alpha158Task(BaseETLTask):
                 "rank": list(RANK_LABELS),
                 "valid": list(VALID_LABELS),
                 "return_unit": "decimal",
-                "definition": "adjusted open return from the next market trading day to the first sellable open on or after the planned one-day exit; trade_date is signal date",
+                "definition": "当天复权收盘至下一交易日复权收盘收益；不可卖时延至首个可卖收盘，延迟样本不进入一天期训练；trade_date 是信号日及买入日",
                 "strict_one_day_flag": "label_1d_is_valid and not exit_delayed",
             },
             index_weight_columns=["index_weight_hs300"],
@@ -457,9 +472,9 @@ class Alpha158Task(BaseETLTask):
                 "buyable_definition": (
                     "listed, quoted, valid limits, non-ST, non-delisting, non-limit, sufficient history"
                 ),
-                "entry_is_buyable_definition": "next market day's open is quoted and below its upper price limit; excludes ST and delisting",
-                "exit_is_sellable_definition": "following market day's open is quoted and above its lower price limit",
-                "exit_delayed_definition": "actual first sellable exit is later than the planned following market day",
+                "entry_is_buyable_definition": "当天有有效行情及涨跌停价，收盘低于涨停；排除 ST 和退市，仅为日线可买代理，不保证盘后成交",
+                "exit_is_sellable_definition": "下一交易日有有效行情及涨跌停价，收盘高于跌停；仅为日线可卖代理，不保证盘后成交",
+                "exit_delayed_definition": "首个可卖收盘晚于计划的下一交易日，或计划日已知但尚无可卖日",
                 "minimum_history_days": HISTORY_DAYS,
                 "minimum_history_coverage": self.input_params.min_history_coverage,
                 "missing_stock_basic_symbols": self.state["missing_stock_basic_symbols"],
