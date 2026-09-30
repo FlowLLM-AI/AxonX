@@ -1,7 +1,7 @@
 """Installed Task catalog Steps."""
 
 from ...components.registry import provider
-from ...task.catalog import list_installed_task_definitions
+from ...task.catalog import get_task_definition, list_installed_task_definitions
 from ..base import BaseStep
 
 
@@ -11,3 +11,11 @@ class ListInstalledTaskDefinitionsStep(BaseStep):
 
     async def execute(self):
         self.response.answer = list_installed_task_definitions()
+
+
+@provider("get_task_definition")
+class GetTaskDefinitionStep(BaseStep):
+    """Return the definition for one registered Task."""
+
+    async def execute(self):
+        self.response.answer = get_task_definition(self.context["task"])

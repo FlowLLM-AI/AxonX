@@ -59,8 +59,11 @@ axonx plugin install plugins/a158
 
 #### 3. 确认插件与 Task 注册
 
-使用 `axonx plugin list` 确认插件已安装，再使用 `axonx list_installed_task_definitions` 确认服务中可提交的 Task 注册名。
-远程执行时，两条命令均追加同一个 `--target 192.168.1.10:1024`。
+- **确认安装**：使用 `axonx plugin list` 确认目标插件已安装且 `error` 为空；返回的 `tasks` 映射键可作为 `--task` 注册名。
+- **查看定义**：使用 `axonx get_task_definition --task a158_etl` 查看所选 Task 的描述、类型及输入输出 schema；返回的 `name` 就是注册名。
+- **统一目标**：远程查询和提交均追加同一个 `--target 192.168.1.10:1024`；本机服务使用不同 Python 环境时，也应显式指定服务地址。
+- **本地环境**：`plugin list` 省略 `--target` 时检查当前 CLI 的 Python 环境，定义查询和提交则连接服务。
+- **确认加载**：插件声明存在不代表 Task 一定能加载；单个定义查询只加载所选 Task，注册名冲突会报错。
 
 #### 4. 查看执行资源
 
@@ -80,6 +83,8 @@ a158 ETL 提交前，需确认执行机器工作区已有 `tushare` 数据。
 | `submit` | 提交 Predict，使用指定 Train 模型及其关联的 ETL 数据生成预测。 | `axonx submit --task a158_predict --source-tasks '<train_task_id>'` | `--target 192.168.1.10:1024` |
 | `submit` | 提交 Backtest，评估指定 Predict 的预测结果。 | `axonx submit --task a158_backtest --source-tasks '<predict_task_id>'` | `--target 192.168.1.10:1024` |
 
+- **Task 注册名**：从 `axonx plugin list` 返回的 `tasks` 映射键选取 `--task`；需要参数说明时使用
+  `axonx get_task_definition --task a158_etl` 查看该 Task 的完整定义。
 - 默认省略 `--task-name`。框架生成的名称是提交时间的 `YYYYMMDDHH` 加 4 位随机字母或数字，Task ID 形如
   `etl#a158_etl#<生成名称>`；只有用户指定名称时才传，例如 `--task-name default`。重复使用同一个显式名称会复用 Task
   ID，并在前一次完成后替换其产物。
@@ -124,7 +129,7 @@ a158 ETL 提交前，需确认执行机器工作区已有 `tushare` 数据。
 
 | 命令名称           | 具体描述                                                                     | 命令                                                           | 远程参数                     |
 |--------------------|------------------------------------------------------------------------------|----------------------------------------------------------------|------------------------------|
-| `plugin list`      | 列出当前环境或目标服务已安装的插件。                                         | `axonx plugin list`                                            | `--target 192.168.1.10:1024` |
+| `plugin list`      | 列出当前环境或目标服务已安装的插件；`tasks` 键为 Task 注册名。                                         | `axonx plugin list`                                            | `--target 192.168.1.10:1024` |
 | `plugin show`      | 查看指定插件的版本、注册贡献和依赖等信息。                                   | `axonx plugin show axonx-alpha158`                             | `--target 192.168.1.10:1024` |
 | `plugin inspect`   | 从本机源码构建或复用缓存 wheel，检查插件元数据，不安装。                     | `axonx plugin inspect plugins/a158`                            | —                            |
 | `plugin inspect`   | 检查本机已有 wheel 的插件元数据，不重新构建或安装；将路径替换为实际文件。    | `axonx plugin inspect '<plugin_wheel_path>'`                   | —                            |
@@ -146,7 +151,7 @@ a158 ETL 提交前，需确认执行机器工作区已有 `tushare` 数据。
 
 | 命令名称                          | 具体描述                                                                      | 命令                                                                     | 远程参数                     |
 |-----------------------------------|-------------------------------------------------------------------------------|--------------------------------------------------------------------------|------------------------------|
-| `list_installed_task_definitions` | 列出所连接服务已安装的 Task 定义，用于确认提交时的注册名。                    | `axonx list_installed_task_definitions`                                  | `--target 192.168.1.10:1024` |
+| `get_task_definition` | 查询一个 Task 的完整定义；`--task` 填注册名，不是 Task ID 或实例名称。 | `axonx get_task_definition --task a158_etl` | `--target 192.168.1.10:1024` |
 | `submit`                          | 提交 ETL Task，由框架生成名称；记录响应中的 `answer.task_id`。                | `axonx submit --task a158_etl --start-date 20150101`                     | `--target 192.168.1.10:1024` |
 | `submit`                          | 使用显式名称生成固定 Task ID；重复使用该名称会在前次完成后替换其产物。        | `axonx submit --task a158_etl --task-name default --start-date 20150101` | `--target 192.168.1.10:1024` |
 | `submit`                          | 使用成功 ETL 的实际 Task ID 作为数据来源，提交训练 Task。                     | `axonx submit --task a158_train --source-tasks '<etl_task_id>'`          | `--target 192.168.1.10:1024` |
