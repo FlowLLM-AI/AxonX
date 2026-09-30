@@ -24,7 +24,7 @@ export default function App() {
       navigate={studio.navigate}
     >
       <PageOutlet
-        key={studio.authRevision}
+        key={`${studio.authRevision}:${studio.selectedMachine.id}`}
         route={studio.route}
         machine={studio.selectedMachine}
         target={studio.target}

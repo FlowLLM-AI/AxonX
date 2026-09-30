@@ -6,6 +6,29 @@ interface TargetStatus {
   healthy: boolean;
 }
 
+export function machineFromTargetAddress(address: string): MachineNode | null {
+  const match = /^https?:\/\/(?:\[[^\]]+\]|[^:/?#]+):([0-9]{1,5})\/?$/.exec(
+    address,
+  );
+  if (!match || Number(match[1]) < 1 || Number(match[1]) > 65535) return null;
+  try {
+    const url = new URL(address);
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      !url.hostname ||
+      url.username ||
+      url.password ||
+      url.pathname !== "/" ||
+      url.search ||
+      url.hash
+    )
+      return null;
+    return { id: address, address, isLocal: false, healthy: false };
+  } catch {
+    return null;
+  }
+}
+
 export const machineStatus = (target?: string, signal?: AbortSignal) =>
   axonx.invoke<MachineInfo>("machine_status", {}, { target, signal });
 

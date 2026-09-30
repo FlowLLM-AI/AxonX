@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { listMachineOptions, machineStatus } from "../features/machines/api";
+import {
+  listMachineOptions,
+  machineFromTargetAddress,
+  machineStatus,
+} from "../features/machines/api";
 import type { MachineNode } from "../features/machines/types";
 import type { ContextOption, ThemePreference } from "./types";
 import { parseHash, routeHash, type AppRoute } from "./routes";
@@ -81,16 +85,25 @@ function useMachines(
   onMissing: (machineId: string) => void,
   authRevision: number,
 ) {
-  const [machines, setMachines] = useState<MachineNode[]>([LOCAL_MACHINE]);
+  const [machines, setMachines] = useState<MachineNode[]>(() => {
+    const target = machineFromTargetAddress(machineId);
+    return target ? [LOCAL_MACHINE, target] : [LOCAL_MACHINE];
+  });
   const [loaded, setLoaded] = useState(false);
+  const [listFailed, setListFailed] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     listMachineOptions(controller.signal)
       .then((result) => {
-        setMachines(result);
+        if (!controller.signal.aborted) {
+          setMachines(result);
+          setListFailed(false);
+        }
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (!controller.signal.aborted) setListFailed(true);
+      })
       .finally(() => {
         if (!controller.signal.aborted) setLoaded(true);
       });
@@ -98,16 +111,28 @@ function useMachines(
   }, [authRevision]);
 
   useEffect(() => {
-    if (loaded && !machines.some((machine) => machine.id === machineId))
+    if (
+      loaded &&
+      !listFailed &&
+      !machines.some((machine) => machine.id === machineId)
+    )
       onMissing("local");
-  }, [loaded, machineId, machines, onMissing]);
+  }, [listFailed, loaded, machineId, machines, onMissing]);
 
+  const visibleMachines = useMemo(() => {
+    const fallback = listFailed ? machineFromTargetAddress(machineId) : null;
+    return fallback && !machines.some((machine) => machine.id === machineId)
+      ? [...machines, fallback]
+      : machines;
+  }, [listFailed, machineId, machines]);
   const selectedMachine = useMemo(
-    () => machines.find((machine) => machine.id === machineId) || machines[0],
-    [machineId, machines],
+    () =>
+      visibleMachines.find((machine) => machine.id === machineId) ||
+      visibleMachines[0],
+    [machineId, visibleMachines],
   );
   return {
-    machines,
+    machines: visibleMachines,
     selectedMachine,
     target: selectedMachine.isLocal ? undefined : selectedMachine.address,
   };
