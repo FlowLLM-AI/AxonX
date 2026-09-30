@@ -1,6 +1,6 @@
 """Task-management steps."""
 
-from .catalog import ListInstalledTaskDefinitionsStep
+from .catalog import GetTaskDefinitionStep, ListInstalledTaskDefinitionsStep
 from .command import CancelTaskStep, DeleteTasksStep, SubmitTaskStep, WaitTaskStep
 from .query import (
     GetTaskGraphStep,
@@ -15,6 +15,7 @@ from .stream import StreamTaskStep
 __all__ = [
     "CancelTaskStep",
     "DeleteTasksStep",
+    "GetTaskDefinitionStep",
     "GetTaskGraphStep",
     "GetTaskStatusStep",
     "ListInstalledTaskDefinitionsStep",

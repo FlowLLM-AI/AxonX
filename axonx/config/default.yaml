@@ -196,6 +196,20 @@ jobs:
     steps:
       - backend: list_installed_task_definitions
 
+  get_task_definition:
+    description: Get one registered Task's description and input/output schemas.
+    parameters:
+      type: object
+      properties:
+        task:
+          type: string
+          minLength: 1
+          description: Registered task name, not a Task ID or instance name.
+      required: [task]
+      additionalProperties: false
+    steps:
+      - backend: get_task_definition
+
   submit:
     description: Submit a task for asynchronous execution.
     parameters:

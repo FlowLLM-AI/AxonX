@@ -32,71 +32,61 @@ def _task_description(name: str, task_class: type[BaseTask]) -> str:
     return cleandoc(description)
 
 
-def _plugin_task_targets() -> tuple[dict[str, str], dict[str, str]]:
-    """Return plugin Task targets and their providers."""
-    contributions = index_contributions(list_installed_plugins())
-    return contributions.tasks, contributions.task_owners
-
-
-def _task_catalog() -> tuple[dict[str, type[BaseTask]], dict[str, str]]:
-    tasks = ProviderRegistry.from_builtins().get_all(ComponentEnum.TASK, BaseTask)
-    plugin_targets, plugin_names = _plugin_task_targets()
+def _task_catalog(
+    name: str | None = None,
+) -> dict[str, tuple[type[BaseTask], str | None]]:
+    """Discover registrations, then load all Tasks or only the requested one."""
+    native = ProviderRegistry.from_builtins().get_all(ComponentEnum.TASK, BaseTask)
+    plugins = index_contributions(list_installed_plugins())
+    duplicates = native.keys() & plugins.tasks.keys()
+    if duplicates:
+        raise ValueError(f"Plugin Task names conflict with built-ins: {', '.join(sorted(duplicates))}")
+    targets = native | plugins.tasks
+    if name is not None:
+        if name not in targets:
+            available = ", ".join(sorted(targets)) or "none"
+            raise ValueError(f"Unknown Task: {name}. Available: {available}")
+        targets = {name: targets[name]}
     modules = {}
-    tasks.update(
-        {
-            name: load_symbol(target, BaseTask, kind="Task", modules=modules)
-            for name, target in plugin_targets.items()
-        },
-    )
-    for name, task_class in tasks.items():
-        _task_description(name, task_class)
-    return tasks, plugin_names
+    tasks = {}
+    for task_name, target in sorted(targets.items()):
+        task_class = load_symbol(target, BaseTask, kind="Task", modules=modules) if isinstance(target, str) else target
+        _task_description(task_name, task_class)
+        tasks[task_name] = task_class, plugins.task_owners.get(task_name)
+    return tasks
 
 
 def installed_tasks() -> dict[str, type[BaseTask]]:
-    """Return built-in and installed plugin tasks."""
-    return _task_catalog()[0]
+    """Return built-in and installed plugin tasks for local execution."""
+    return {name: task for name, (task, _) in _task_catalog().items()}
 
 
 def list_installed_task_definitions() -> list[TaskDefinition]:
     """Return sorted definitions for every installed Task."""
-    definitions = []
-    native_tasks = ProviderRegistry.from_builtins().get_all(
-        ComponentEnum.TASK,
-        BaseTask,
+    return [_task_definition(name, task, plugin) for name, (task, plugin) in _task_catalog().items()]
+
+
+def _task_definition(name: str, task_class: type[BaseTask], plugin: str | None) -> TaskDefinition:
+    task_type = task_class.task_type
+    if not isinstance(task_type, TaskType):
+        raise TypeError(f"Task {name!r} must declare a fixed TaskType")
+    return TaskDefinition(
+        name=name,
+        source="plugin" if plugin is not None else "native",
+        plugin=plugin,
+        task_type=task_type,
+        description=_task_description(name, task_class),
+        input_schema=task_class.input_cls.model_json_schema(),
+        output_schema=task_class.output_cls.model_json_schema(),
     )
-    tasks, plugin_names = _task_catalog()
-    for name, task_class in sorted(tasks.items()):
-        task_type = task_class.task_type
-        if not isinstance(task_type, TaskType):
-            raise TypeError(f"Task {name!r} must declare a fixed TaskType")
-        source = "native" if native_tasks.get(name) is task_class else "plugin"
-        definitions.append(
-            TaskDefinition(
-                name=name,
-                source=source,
-                plugin=plugin_names.get(name) if source == "plugin" else None,
-                task_type=task_type,
-                description=_task_description(name, task_class),
-                input_schema=task_class.input_cls.model_json_schema(),
-                output_schema=task_class.output_cls.model_json_schema(),
-            ),
-        )
-    return definitions
+
+
+def get_task_definition(name: str) -> TaskDefinition:
+    """Describe one registered Task without loading unrelated plugin Tasks."""
+    task, plugin = _task_catalog(name)[name]
+    return _task_definition(name, task, plugin)
 
 
 def resolve_task(name: str) -> type[BaseTask]:
-    """Resolve only the requested Task so an unrelated broken plugin is isolated."""
-    native = ProviderRegistry.from_builtins().get_all(ComponentEnum.TASK, BaseTask)
-    if task_class := native.get(name):
-        return task_class
-
-    plugin_targets, _ = _plugin_task_targets()
-    target = plugin_targets.get(name)
-    if target is not None:
-        task_class = load_symbol(target, BaseTask, kind="Task")
-        _task_description(name, task_class)
-        return task_class
-
-    available = ", ".join(sorted(native.keys() | plugin_targets.keys())) or "none"
-    raise ValueError(f"Unknown Task: {name}. Available: {available}")
+    """Resolve one Task using the same registrations as definition queries."""
+    return _task_catalog(name)[name][0]
