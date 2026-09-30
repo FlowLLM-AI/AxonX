@@ -17,8 +17,8 @@ npm run dev
 - `src/shared`：其余无业务归属的 hooks、Schema 表单和 UI 基础组件。
 - `src/styles`：主题 token、reset，以及按级联顺序拆分的基础、壳层、工作区、研究、运行时和 API 样式。
 
-页面组件只负责组合展示。业务参数不得包含 `remote_ip`；远程节点属于请求选项，
-由 `AxonXClient` 写入 Job invocation envelope。领域协议类型由所属 feature 管理，
+页面组件只负责组合展示。目标服务地址由 `AxonXClient` 选择；Job 请求体只包含业务参数。
+领域协议类型由所属 feature 管理，
 不得通过根目录聚合类型重新导出。
 
 运行中的任务通过 `stream_task` 的 SSE 事件更新进度和日志，终态任务才按需读取日志文件。
@@ -48,7 +48,6 @@ axonx start
 
 AxonX 会自动发现 `axonx_studio/dist` 并通过同一个 HTTP 服务提供 Studio 与 API。
 
-如果本机服务需要连接使用相同令牌的远程节点，在 `.env` 中设置
-`AXONX_REMOTE_HOST_IP` 和 `AXONX_SERVICE_TOKEN`，然后运行
-`axonx start --config remote`。这个配置使用 1024 端口，并将本机服务令牌
-用于连接远程节点；远程节点的 `AXONX_SERVICE_TOKEN` 必须与之相同。
+如果本机服务需要检查或同步其他目标服务，在 `.env` 中设置
+`AXONX_TARGET=<host:port>` 和 `AXONX_SERVICE_TOKEN`，然后运行
+`axonx start --config remote`。Studio 使用目标地址直连所选服务；目标服务须接受配置的令牌。
