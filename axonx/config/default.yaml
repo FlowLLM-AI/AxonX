@@ -3,8 +3,6 @@ targets: []
 
 plugins:
   sources: []
-  # Enable only on a token-protected service.
-  allow_management: false
 
 components:
   # =========== Task runtime components ===========

@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, field_validator
 
 from ...constants import (
     AXONX_DEFAULT_REQUEST_TIMEOUT,
@@ -26,21 +26,6 @@ class ClientOptions(BaseModel):
     stream: bool = False
     token: str | None = Field(default=None, min_length=1, repr=False)
     stream_format: Literal["blocks", "json"] = "blocks"
-
-    @model_validator(mode="before")
-    @classmethod
-    def migrate_host_options(cls, value):
-        if not isinstance(value, Mapping) or not ({"host_ip", "host_port"} & value.keys()):
-            return value
-        migrated = dict(value)
-        host = migrated.pop("host_ip", None)
-        port = migrated.pop("host_port", None)
-        if host is None or port is None:
-            raise ValueError("host_ip and host_port must be provided together")
-        if migrated.get("target") is not None:
-            raise ValueError("target cannot be combined with host_ip and host_port")
-        migrated["target"] = f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
-        return migrated
 
     @field_validator("target")
     @classmethod
@@ -66,21 +51,12 @@ class BaseClient[ClientT](BaseComponent, ABC):
         self,
         *,
         target: str | None = None,
-        host_ip: str | None = None,
-        host_port: int | None = None,
         timeout: float = AXONX_DEFAULT_REQUEST_TIMEOUT,
         token: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        address_options = (
-            {"host_ip": host_ip, "host_port": host_port}
-            if host_ip is not None or host_port is not None
-            else {}
-        )
-        options = ClientOptions(
-            target=target, timeout=timeout, token=token, **address_options
-        )
+        options = ClientOptions(target=target, timeout=timeout, token=token)
         self.target = self._resolve_target(options)
         self.url = f"{self.target}{self.url_path}"
         self.timeout = options.timeout

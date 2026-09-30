@@ -10,7 +10,7 @@ from axonx.components.client import ClientOptions
 from axonx.components.job import JobResponse
 
 
-def test_wait_task_accepts_trailing_client_timeout():
+def test_wait_task_accepts_client_timeout():
     command, client = parse_command(
         [
             "wait_task",
@@ -18,7 +18,7 @@ def test_wait_task_accepts_trailing_client_timeout():
             "etl#a158_etl#demo",
             "--run-id",
             "run-001",
-            "--timeout",
+            "--client-timeout",
             "86400",
         ]
     )
@@ -73,24 +73,10 @@ def test_custom_job_timeout_remains_business_argument():
     assert client.timeout == 30
 
 
-def test_legacy_leading_address_options_still_work():
-    command, client = parse_command(
-        ["--host-ip", "192.0.2.10", "--host-port", "1024", "status"]
-    )
-    assert command.action == "status"
-    assert client.target == "http://192.0.2.10:1024"
-
-
-def test_legacy_trailing_address_options_still_work():
-    command, client = parse_command(
-        ["status", "--host-ip", "192.0.2.10", "--host-port", "1024"]
-    )
-    assert command.arguments == {"_axonx_argv": []}
-    assert client.target == "http://192.0.2.10:1024"
-
-
 def test_agent_client_timeout_is_not_sent_as_job_argument():
-    command, client = parse_command(["agent_chat", "--message", "hi", "--timeout", "180"])
+    command, client = parse_command(
+        ["agent_chat", "--message", "hi", "--client-timeout", "180"]
+    )
     assert "timeout" not in command.arguments
     assert client.timeout == 180
 
@@ -130,13 +116,8 @@ def test_job_only_defaults_to_local_token_without_target(
     assert received["token"] == expected_token
 
 
-@pytest.mark.parametrize(
-    ("target", "expected_token"),
-    [(None, "local-secret"), ("192.0.2.10:1024", None)],
-)
-def test_plugin_only_defaults_to_local_token_without_target(
-    monkeypatch, target, expected_token
-):
+@pytest.mark.parametrize("target", [None, "192.0.2.10:1024"])
+def test_plugin_passes_target_without_injecting_local_token(monkeypatch, target):
     monkeypatch.setenv("AXONX_SERVICE_TOKEN", "local-secret")
     received = {}
 
@@ -147,4 +128,4 @@ def test_plugin_only_defaults_to_local_token_without_target(
     monkeypatch.setattr("axonx.plugin_kit.cli.plugin_cli", plugin_cli)
     command, _ = parse_command(["plugin", "list"])
     assert _run_plugin(command, ClientOptions(target=target)) == 0
-    assert received["token"] == expected_token
+    assert received["token"] is None

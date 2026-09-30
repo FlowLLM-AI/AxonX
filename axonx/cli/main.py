@@ -113,12 +113,7 @@ def _run_plugin(command: Command, client_options: ClientOptions | None = None) -
     from ..plugin_kit.cli import plugin_cli
 
     load_env(override=False)
-    options = client_options or ClientOptions()
-    if options.token is None and options.target is None:
-        options = options.model_copy(
-            update={"token": os.environ.get("AXONX_SERVICE_TOKEN") or None}
-        )
-    return plugin_cli(command.arguments.get(CLI_RAW_ARGUMENTS, ()), options)
+    return plugin_cli(command.arguments.get(CLI_RAW_ARGUMENTS, ()), client_options)
 
 
 def _show_help(_command: Command) -> int:

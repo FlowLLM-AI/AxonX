@@ -1,4 +1,4 @@
-"""Local plugin CLI with optional Job-backed remote execution."""
+"""Plugin CLI for the current environment or an explicit target service."""
 
 from __future__ import annotations
 
@@ -124,32 +124,25 @@ def _run_local(args):
         return install_plugin(_artifact(args.plugin, args.output))
     if args.command == "uninstall":
         return uninstall_plugin(args.plugin)
-    raise ValueError(f"Command {args.command!r} does not support --local")
+    raise ValueError(f"Unknown plugin command: {args.command!r}")
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="axonx plugin",
-        description="Build locally or manage plugins on a service or in this Python environment.",
+        description="Manage plugins locally or on an explicit target service.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    listing = commands.add_parser("list", help="List installed plugins.")
-    listing.add_argument(
-        "--local", action="store_true", help="Use this Python environment."
-    )
+    commands.add_parser("list", help="List installed plugins.")
     for name, help_text in (
         ("show", "Show one installed plugin."),
         ("inspect", "Inspect an installed plugin, wheel, or source tree."),
         ("build", "Build and inspect a plugin wheel locally."),
-        ("install", "Install a plugin on the service or with --local."),
-        ("uninstall", "Uninstall a plugin on the service or with --local."),
+        ("install", "Install a plugin locally or on the target service."),
+        ("uninstall", "Uninstall a plugin locally or on the target service."),
     ):
         command = commands.add_parser(name, help=help_text)
         command.add_argument("plugin")
-        if name != "build":
-            command.add_argument(
-                "--local", action="store_true", help="Use this Python environment."
-            )
         if name in {"inspect", "build", "install"}:
             command.add_argument("--output", help="Wheel output directory.")
     return parser
@@ -162,14 +155,12 @@ def plugin_cli(argv: Sequence[str], client_options: ClientOptions | None = None)
     try:
         if args.command == "build" and options.target is not None:
             raise ValueError("plugin build does not accept --target")
-        if getattr(args, "local", False) and options.target is not None:
-            raise ValueError("--local cannot be combined with --target")
         if args.command == "build":
             result = _artifact(args.plugin, args.output)
-        elif args.local:
-            result = _run_local(args)
-        else:
+        elif options.target is not None:
             result = asyncio.run(_run_remote(args, options))
+        else:
+            result = _run_local(args)
         _print(result)
         return 0
     except (FileNotFoundError, OSError, RuntimeError, TypeError, ValueError) as exc:

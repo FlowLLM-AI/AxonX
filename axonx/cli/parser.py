@@ -45,11 +45,10 @@ def parse_command(argv: Sequence[str]) -> tuple[Command, ClientOptions]:
         ), ClientOptions()
     leading_client: dict[str, Any] = {}
     action_index = 0
-    legacy_names = CLI_CLIENT_OPTIONS | {"host_ip", "host_port"}
     while action_index < len(tokens):
         option = tokens[action_index]
         name = option.removeprefix("--").replace("-", "_")
-        if not option.startswith("--") or name not in legacy_names:
+        if not option.startswith("--") or name not in CLI_CLIENT_OPTIONS:
             break
         if action_index + 1 == len(tokens) or tokens[action_index + 1].startswith("--"):
             raise ValueError(f"Missing value for client option: {option}")
@@ -83,15 +82,11 @@ def _extract_trailing_client_options(
 ) -> tuple[tuple[str, ...], dict[str, Any]]:
     """Take client options from a Job or plugin command."""
     if action in CLI_LOCAL_COMMANDS and action != CLI_PLUGIN_COMMAND:
-        for option in ("--target", "--client-timeout", "--host-ip", "--host-port"):
+        for option in ("--target", "--client-timeout"):
             if option in tokens:
                 raise ValueError(f"{option} cannot be used with local command: {action}")
         return tokens, {}
-    # A trailing --timeout belongs to the Job, except for built-in Jobs whose
-    # legacy CLI used it as a connection timeout. --client-timeout is unambiguous.
-    client_names = (CLI_CLIENT_OPTIONS - {"timeout"}) | {"host_ip", "host_port"}
-    if action in {"wait_task", "agent_chat"}:
-        client_names = client_names | {"timeout"}
+    client_names = CLI_CLIENT_OPTIONS
     remaining: list[str] = []
     client: dict[str, Any] = {}
     index = 0

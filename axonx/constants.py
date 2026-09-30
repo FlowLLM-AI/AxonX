@@ -109,7 +109,7 @@ CLI_PLUGIN_COMMAND = "plugin"
 CLI_START_COMMAND = "start"
 
 CLI_CLIENT_OPTIONS = frozenset(
-    {"target", "timeout", "client_timeout", "token", "stream", "stream_format"},
+    {"target", "client_timeout", "token", "stream", "stream_format"},
 )
 
 # Internal Job argument carrying the original tokens after the command name.
@@ -132,12 +132,12 @@ CLI_PASSTHROUGH_COMMANDS = frozenset({CLI_PLUGIN_COMMAND})
 CLI_USAGE = f"""Usage:
   axonx JOB [--field value ...] [--client-timeout SECONDS] [--token TOKEN] [--stream true]
         [--stream-format blocks|json] [--target HOST:PORT]
-  axonx wait_task --task-id ID --run-id ID [--timeout SECONDS]
+  axonx wait_task --task-id ID --run-id ID [--client-timeout SECONDS]
   axonx exec [--task TASK] [--field value ...]
   axonx submit --task TASK [--field value ...]
   axonx start [--config app.yaml]
-  axonx plugin list|show|inspect|install|uninstall ... [--target HOST:PORT | --local]
+  axonx plugin list|show|inspect|install|uninstall ... [--target HOST:PORT]
   axonx plugin build SOURCE [--output DIRECTORY]
 
 Service options: target={AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}
-timeout={AXONX_DEFAULT_REQUEST_TIMEOUT:g} token=null stream=false stream_format=blocks"""
+client_timeout={AXONX_DEFAULT_REQUEST_TIMEOUT:g} token=null stream=false stream_format=blocks"""

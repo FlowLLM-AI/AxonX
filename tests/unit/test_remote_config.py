@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from axonx.config import ApplicationConfig, ConfigResolver
 
 
@@ -13,22 +16,15 @@ def test_remote_config_uses_service_token_for_target(monkeypatch):
     assert config.targets[0].token == "shared-secret"
 
 
-def test_legacy_remote_node_and_plugin_setting_are_migrated():
+def test_target_sync_uses_current_names():
     config = ApplicationConfig.model_validate(
         {
-            "targets": [],
-            "remote_nodes": [
-                {"host_ip": "192.0.2.10", "host_port": 1024, "token": "secret"}
-            ],
-            "plugins": {
-                "allow_management": False,
-                "allow_remote_management": True,
-            },
+            "targets": [{"address": "192.0.2.10:1024", "token": "secret"}],
             "components": {
                 "sync": {
                     "default": {
                         "backend": "local",
-                        "remote_ip": "192.0.2.10",
+                        "target": "192.0.2.10:1024",
                     }
                 }
             },
@@ -36,22 +32,18 @@ def test_legacy_remote_node_and_plugin_setting_are_migrated():
     )
     assert config.targets[0].address == "http://192.0.2.10:1024"
     assert config.targets[0].token == "secret"
-    assert config.plugins.allow_management is True
     assert config.components["sync"]["default"].model_extra["target"] == "192.0.2.10:1024"
-    assert "remote_ip" not in config.components["sync"]["default"].model_extra
 
 
-def test_legacy_sync_matches_equivalent_ipv6_spelling():
+def test_target_sync_accepts_ipv6_address():
     config = ApplicationConfig.model_validate(
         {
-            "remote_nodes": [
-                {"host_ip": "::1", "host_port": 1024},
-            ],
+            "targets": [{"address": "[0:0:0:0:0:0:0:1]:1024"}],
             "components": {
                 "sync": {
                     "default": {
                         "backend": "local",
-                        "remote_ip": "0:0:0:0:0:0:0:1",
+                        "target": "[::1]:1024",
                     }
                 }
             },
@@ -60,3 +52,10 @@ def test_legacy_sync_matches_equivalent_ipv6_spelling():
 
     assert config.targets[0].address == "http://[::1]:1024"
     assert config.components["sync"]["default"].model_extra["target"] == "[::1]:1024"
+
+
+def test_removed_config_names_are_rejected():
+    with pytest.raises(ValidationError, match="remote_nodes"):
+        ApplicationConfig.model_validate({"remote_nodes": []})
+    with pytest.raises(ValidationError, match="allow_management"):
+        ApplicationConfig.model_validate({"plugins": {"allow_management": True}})

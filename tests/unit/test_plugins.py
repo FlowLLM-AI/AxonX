@@ -137,7 +137,6 @@ async def test_install_job_discards_staged_wheel_when_installation_fails(
         enable_logo=False,
         log_to_console=False,
         log_to_file=False,
-        plugins={"allow_management": True},
         jobs={
             "install_plugin": {
                 "parameters": {
@@ -184,30 +183,16 @@ def test_plugin_config_resolves_source_paths_relative_to_config(tmp_path):
     assert loaded["plugins"]["sources"] == [str(source.resolve())]
 
 
-def test_plugin_cli_uses_default_service_without_target(monkeypatch, capsys):
-    plugin = PluginInfo(distribution="demo", version="1")
-
-    async def remote(args, options):
-        assert args.command == "list"
-        assert options.target is None
-        return [plugin]
-
-    monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", remote)
-
-    assert plugin_cli(["list"], ClientOptions()) == 0
-    assert '"distribution": "demo"' in capsys.readouterr().out
-
-
-def test_plugin_cli_can_list_local_environment(monkeypatch, capsys):
+def test_plugin_cli_lists_local_environment_by_default(monkeypatch, capsys):
     plugin = PluginInfo(distribution="local-demo", version="1")
     monkeypatch.setattr(
         "axonx.plugin_kit.cli.list_installed_plugins", lambda: [plugin]
     )
-    assert plugin_cli(["list", "--local"], ClientOptions()) == 0
+    assert plugin_cli(["list"], ClientOptions()) == 0
     assert '"distribution": "local-demo"' in capsys.readouterr().out
 
 
-def test_plugin_cli_can_install_locally(monkeypatch, capsys):
+def test_plugin_cli_installs_locally_by_default(monkeypatch, capsys):
     plugin = PluginInfo(distribution="local-demo", version="1")
     artifact = object()
     monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
@@ -215,7 +200,7 @@ def test_plugin_cli_can_install_locally(monkeypatch, capsys):
         "axonx.plugin_kit.cli.install_plugin",
         lambda received: plugin if received is artifact else None,
     )
-    assert plugin_cli(["install", "source", "--local"], ClientOptions()) == 0
+    assert plugin_cli(["install", "source"], ClientOptions()) == 0
     assert '"distribution": "local-demo"' in capsys.readouterr().out
 
 
