@@ -96,12 +96,7 @@ class Alpha158BacktestTask(BaseBacktestTask):
         prediction_task_id = self.input_params.source_task(TaskType.PREDICT)
         source_dir = self.source_task_dir(prediction_task_id)
         metadata = read_metadata(source_dir / "metadata.json")
-        if (
-            metadata.get("output_params", {})
-            .get("protocol", {})
-            .get("actual_return_unit")
-            != "decimal"
-        ):
+        if metadata.get("output_params", {}).get("protocol", {}).get("actual_return_unit") != "decimal":
             raise ValueError("Backtest requires decimal actual returns")
         self.state.update(
             predictions_path=artifact_path(source_dir, metadata, "predictions"),
@@ -119,9 +114,7 @@ class Alpha158BacktestTask(BaseBacktestTask):
         for name in ("label_valid", "is_buyable", "entry_is_buyable", "exit_is_sellable", "exit_delayed"):
             if schema[name] != pl.Boolean:
                 raise TypeError(f"{name} 必须是 Boolean")
-        index_columns = tuple(
-            name for name in schema if name.startswith("index_weight_")
-        )
+        index_columns = tuple(name for name in schema if name.startswith("index_weight_"))
         self.state.update(
             index_columns=index_columns,
             predictions=(
@@ -191,15 +184,24 @@ class Alpha158BacktestTask(BaseBacktestTask):
                 ],
             ),
             protocol={
-                "actual_return": "adjusted entry_date open to first sellable exit_date open; prediction.trade_date is signal date",
+                "actual_return": "entry_date 复权收盘至首个可卖 exit_date 复权收盘；prediction.trade_date 是信号日及买入日",
                 "candidate_filter": "signal-date is_buyable and finite prediction; selected index_weight_* > 0",
-                "execution": "rank on signal date; next-open unfilled entries remain cash; positions retain capital until actual exit_date",
+                "execution": "当天排名并按收盘价模拟买入；日线代理判定不可买则留现金，持仓占用资金至退出；未模拟盘后排队和部分成交",
                 "index_codes": self.input_params.index_codes,
-                "portfolio": "top-N signal targets, funded from available cash after actual exits; locked positions retain capital",
+                "portfolio": (
+                    "top-N signal targets, funded from available cash after actual exits; "
+                    "locked positions retain capital"
+                ),
                 "initial_turnover": "invested fraction of the initial target portfolio",
                 "turnover": "maximum of executed buys and sells divided by opening book equity",
-                "net_return": "realized exit profit minus transaction cost, divided by opening book equity; open positions remain at cost",
-                "top30_holdings": "signal-date top-30 targets, including candidates that could not be bought; not the live position book",
+                "net_return": (
+                    "realized exit profit minus transaction cost, divided by opening book "
+                    "equity; open positions remain at cost"
+                ),
+                "top30_holdings": (
+                    "signal-date top-30 targets, including candidates that could not be "
+                    "bought; not the live position book"
+                ),
                 "ic": "signal-date Pearson correlation on strict one-day labels only",
                 "rank_ic": "signal-date Spearman correlation on strict one-day labels only",
                 "ndcg": "strict one-day actual-return relevance in the signal-date candidate universe",
@@ -212,7 +214,6 @@ class Alpha158BacktestTask(BaseBacktestTask):
             },
             days=result.daily.height,
             artifacts={
-                name: artifact_record(self.state[f"{name}_path"], self.task_dir)
-                for name in ("daily", "summary")
+                name: artifact_record(self.state[f"{name}_path"], self.task_dir) for name in ("daily", "summary")
             },
         )
