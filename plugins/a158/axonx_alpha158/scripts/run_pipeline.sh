@@ -48,9 +48,9 @@ print(response["answer"]["task_id"], response["answer"]["run_id"], sep="\t")
 # The native and plugin tasks are submitted by their registered names.
 submit_and_wait "Tushare download" --task download_tushare_task --days-back 7 >/dev/null
 etl_id=$(submit_and_wait "Alpha158 ETL" --task a158_etl --start-date 20150101)
-submit_and_wait "Factor analysis" --task a158_factor --source-tasks "[\"${etl_id}\"]" >/dev/null
-train_id=$(submit_and_wait "LightGBM training" --task a158_train --source-tasks "[\"${etl_id}\"]" --train-start 20150101)
-predict_id=$(submit_and_wait "Prediction" --task a158_predict --source-tasks "[\"${train_id}\"]")
-backtest_id=$(submit_and_wait "Backtest" --task a158_backtest --source-tasks "[\"${predict_id}\"]")
+submit_and_wait "Factor analysis" --task a158_factor --source-tasks "${etl_id}" >/dev/null
+train_id=$(submit_and_wait "LightGBM training" --task a158_train --source-tasks "${etl_id}" --train-start 20150101)
+predict_id=$(submit_and_wait "Prediction" --task a158_predict --source-tasks "${train_id}")
+backtest_id=$(submit_and_wait "Backtest" --task a158_backtest --source-tasks "${predict_id}")
 
 echo "Pipeline complete: ${backtest_id}"

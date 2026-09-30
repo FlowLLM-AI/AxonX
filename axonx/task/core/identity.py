@@ -43,6 +43,20 @@ def task_type_from_id(task_id: str) -> TaskType:
         raise ValueError(f"Invalid task type in ID: {task_id!r}") from None
 
 
+def parse_source_tasks(value: str) -> list[str]:
+    """Parse task IDs separated by ASCII commas; reject malformed dependencies."""
+    if not isinstance(value, str):
+        raise ValueError("source_tasks must be a comma-separated string")
+    if not value.strip():
+        return []
+    sources = [item.strip() for item in value.split(",")]
+    for task_id in sources:
+        task_type_from_id(task_id)
+    if len(sources) != len(set(sources)):
+        raise ValueError("source_tasks contains duplicate task IDs")
+    return sources
+
+
 def validate_registration_name(name: str) -> str:
     """Validate and return one Task catalog name."""
     if not isinstance(name, str) or not _REG_NAME.fullmatch(name):

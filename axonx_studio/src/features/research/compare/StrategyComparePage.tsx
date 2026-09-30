@@ -1,3 +1,4 @@
+import { parseSourceTasks } from "../../../shared/lib/sourceTasks";
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -97,11 +98,7 @@ async function loadTasks(
             dimensions: output.dimensions as BacktestArtifact["dimensions"],
             date_range: output.date_range as BacktestArtifact["date_range"],
             days: numeric(output.days),
-            source: Array.isArray(input.source_tasks)
-              ? input.source_tasks.filter(
-                  (value): value is string => typeof value === "string",
-                )
-              : [],
+            source: parseSourceTasks(input.source_tasks),
             settings: {
               transactionCost: numeric(input.transaction_cost_rate),
               annualizationDays: numeric(input.annualization_days),

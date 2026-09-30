@@ -56,9 +56,9 @@ describe("JSON schema values", () => {
     expect(result.errors).toEqual({ config: "invalid" });
   });
 
-  it("submits comma-separated source tasks as an array", () => {
+  it("submits source tasks as a string", () => {
     const sourceSchema: JsonSchema = {
-      properties: { source_tasks: { type: "array", default: [] } },
+      properties: { source_tasks: { type: "string", default: "" } },
     };
     expect(initialSchemaValues(sourceSchema).source_tasks).toBe("");
     expect(
@@ -67,6 +67,6 @@ describe("JSON schema values", () => {
         { source_tasks: "etl#one#first, etl#two#second" },
         { required: "required", invalidJson: "invalid" },
       ).data.source_tasks,
-    ).toEqual(["etl#one#first", "etl#two#second"]);
+    ).toBe("etl#one#first, etl#two#second");
   });
 });

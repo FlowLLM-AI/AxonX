@@ -72,15 +72,6 @@ export function SchemaField({
           <i />
           <span>{value ? t("common.true") : t("common.false")}</span>
         </button>
-      ) : name === "source_tasks" ? (
-        <input
-          id={id}
-          type="text"
-          value={String(value)}
-          required={required}
-          placeholder={t("schemaForm.sourceTasksPlaceholder")}
-          onChange={(event) => onChange(event.target.value)}
-        />
       ) : type === "object" || type === "array" ? (
         <textarea
           id={id}
@@ -104,6 +95,11 @@ export function SchemaField({
           max={schema.maximum}
           value={String(value)}
           required={required}
+          placeholder={
+            name === "source_tasks"
+              ? t("schemaForm.sourceTasksPlaceholder")
+              : undefined
+          }
           onChange={(event) => onChange(event.target.value)}
         />
       )}
@@ -113,18 +109,14 @@ export function SchemaField({
 
   return variant === "default" ? (
     <label
-      className={`schema-field ${name !== "source_tasks" && (type === "object" || type === "array") ? "wide" : ""}`}
+      className={`schema-field ${type === "object" || type === "array" ? "wide" : ""}`}
       htmlFor={id}
     >
       {content}
     </label>
   ) : (
     <label
-      className={
-        name !== "source_tasks" && (type === "object" || type === "array")
-          ? "wide"
-          : ""
-      }
+      className={type === "object" || type === "array" ? "wide" : ""}
       htmlFor={id}
     >
       {content}

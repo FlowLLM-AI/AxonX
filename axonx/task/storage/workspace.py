@@ -27,7 +27,7 @@ from pydantic import AliasChoices, BaseModel, Field
 from ...constants import AXONX_DEFAULT_ENCODING
 from ...enums import TaskState, TaskType
 from ...utils.fs import atomic_write_json
-from ..core.identity import task_type_from_id
+from ..core.identity import parse_source_tasks, task_type_from_id
 
 #: One workspace directory per task category holds that category's task directories.
 KINDS = tuple(kind.value for kind in TaskType)
@@ -81,7 +81,7 @@ class TaskRecord:
     task_type: TaskType
     reg_name: str | None
     created_at: str | None
-    source_tasks: tuple[str, ...]
+    source_tasks: str
 
 
 @dataclass(frozen=True)
@@ -271,21 +271,13 @@ def _text(value: dict, key: str) -> str | None:
     return field if isinstance(field, str) else None
 
 
-def _source_tasks(input_params: Any, task_id: str) -> tuple[str, ...]:
+def _source_tasks(input_params: Any, task_id: str) -> str:
     """Return the parent task IDs a record declares.
 
-    A declared parent that does not name a task is dropped, and so is a task naming
-    itself: the graph is drawn from records other processes wrote, so it survives a
-    hand-edited or half-written one instead of failing on it.
+    Invalid declarations and self-references do not contribute graph edges.
     """
     params = input_params if isinstance(input_params, dict) else {}
-    sources = params.get("source_tasks")
-    parents: list[str] = []
-    for source in sources if isinstance(sources, list) else []:
-        try:
-            task_type_from_id(source)
-        except ValueError:
-            continue
-        if source != task_id and source not in parents:
-            parents.append(source)
-    return tuple(parents)
+    try:
+        return ",".join(source for source in parse_source_tasks(params.get("source_tasks", "")) if source != task_id)
+    except ValueError:
+        return ""

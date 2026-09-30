@@ -1,3 +1,4 @@
+import { parseSourceTasks } from "../../shared/lib/sourceTasks";
 import {
   lazy,
   Suspense,
@@ -157,11 +158,7 @@ function useTasks(
                 task_id: String(metadata.task_id),
                 task_type: metadata.task_type as Kind,
                 created_at: String(metadata.created_at),
-                source: Array.isArray(input.source_tasks)
-                  ? input.source_tasks.filter(
-                      (item): item is string => typeof item === "string",
-                    )
-                  : [],
+                source: parseSourceTasks(input.source_tasks),
                 config: {
                   task_id: String(metadata.task_id),
                   task_type: metadata.task_type as Kind,

@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..core.identity import task_type_from_id
+from ..core.identity import parse_source_tasks, task_type_from_id
 from ..storage.workspace import KINDS, TaskEntry
 
 KIND_ORDER = {kind: index for index, kind in enumerate(KINDS)}
@@ -72,17 +72,10 @@ def task_graph(entries: Mapping[str, TaskEntry], task_id: str) -> TaskGraph:
 
 
 def _status_sources(config: Mapping[str, Any] | None) -> list[str]:
-    raw = config.get("source_tasks") if config else None
-    sources: list[str] = []
-    for source in raw if isinstance(raw, list) else []:
-        if not isinstance(source, str) or source in sources:
-            continue
-        try:
-            task_type_from_id(source)
-        except ValueError:
-            continue
-        sources.append(source)
-    return sources
+    try:
+        return parse_source_tasks(config.get("source_tasks", "") if config else "")
+    except ValueError:
+        return []
 
 
 def _node(task_id: str, entries: Mapping[str, TaskEntry]) -> TaskGraphNode:
@@ -90,7 +83,7 @@ def _node(task_id: str, entries: Mapping[str, TaskEntry]) -> TaskGraphNode:
     record = entry.record if entry else None
     status = entry.status if entry else None
     parents = (
-        list(record.source_tasks)
+        parse_source_tasks(record.source_tasks)
         if record is not None
         else _status_sources(status.config if status else None)
     )

@@ -19,7 +19,7 @@ def _status(task_id: str, task_type: TaskType, sources=(), *, log_path=""):
         run_id=f"run-{task_id}",
         task_type=task_type,
         task_name="example",
-        config={"source_tasks": list(sources)},
+        config={"source_tasks": ",".join(sources)},
         state=TaskState.RUNNING,
         created_at=datetime(2026, 9, 22, tzinfo=UTC),
         log_path=log_path,
@@ -53,7 +53,7 @@ async def test_get_task_context_job_uses_task_manager_queries(tmp_path):
                 "task_type": "analysis",
                 "reg_name": "factor",
                 "created_at": "2026-09-22T00:00:00+00:00",
-                "input_params": {"source_tasks": [parent]},
+                "input_params": {"source_tasks": parent},
             }
         ),
         encoding="utf-8",
