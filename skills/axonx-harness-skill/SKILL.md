@@ -11,12 +11,12 @@ AxonX 是面向金融量化研究的 Harness 框架，将数据获取与 ETL、�
 研究实现由插件注册，Task 通过 Task ID 关联上下游，CLI 和 HTTP 服务支持在本地或远程机器提交执行，并查询机器资源、运行状态与日志。
 框架在工作区记录任务配置、依赖、结果元数据和产物，向 Agent 提供任务、依赖图和文件查询工具，便于验证研究结果、排查失败并复用上游数据。
 
-- **鉴权**：服务启用鉴权时，提前在环境变量或 `.env` 中配置本地 `AXONX_SERVICE_TOKEN` 或远程 `AXONX_TARGET_TOKEN`。
-- **本地操作**：使用表格中的“命令”，不传 `--target`。通过本机 AxonX HTTP 服务直接提交、查询 Task 和查询机器资源。
-- **发现远程机器**：使用 `axonx list_machines` 查询本地服务 `targets` 中所有已配置机器的地址（`address`，如
+- 鉴权：服务启用鉴权时，提前在环境变量或 `.env` 中配置本地 `AXONX_SERVICE_TOKEN` 或远程 `AXONX_TARGET_TOKEN`。
+- 本地操作：使用表格中的“命令”，不传 `--target`。通过本机 AxonX HTTP 服务直接提交、查询 Task 和查询机器资源。
+- 发现远程机器：使用 `axonx list_machines` 查询本地服务 `targets` 中所有已配置机器的地址（`address`，如
   `http://192.168.1.10:1024`）及对应的健康状态（`healthy`），再用 `axonx machine_status --target <host:port>` 查看候选机器的
   CPU、内存和 GPU。
-- **远程操作**：已知目标地址时，在支持远程的命令末尾追加“远程参数”列中的 `--target <host:port>`。
+- 远程操作：已知目标地址时，在支持远程的命令末尾追加“远程参数”列中的 `--target <host:port>`。
 
 表格中的 `192.168.1.10:1024` 是示例目标地址，执行前替换。`—` 表示不支持远程。
 
@@ -98,10 +98,6 @@ alpha158 = "axonx_alpha158"
 axonx_alpha158 = ["plugin.yaml"]
 ```
 
-- **核对注册**：确认注册名、入口类和输入输出契约一致。
-- **关联产物**：下游 Task 通过上游元数据定位产物。
-- **检查改动**：使用 `git status --short -- plugins/a158` 查看插件目录的变更。
-
 #### 2. 安装插件
 
 从源码构建 wheel 并安装到当前 Python 环境：
@@ -114,12 +110,9 @@ axonx plugin install plugins/a158
 
 #### 3. 确认插件与 Task 注册
 
-- **确认安装**：使用 `axonx plugin list` 确认目标插件已安装且 `error` 为空；返回的 `tasks` 映射键可作为 `--task` 注册名。
-- **查看定义**：使用 `axonx get_task_definition --task a158_etl` 查看所选 Task 的描述、类型及输入输出 schema；返回的 `name`
-  就是注册名。
-- **统一目标**：远程查询和提交均追加同一个 `--target 192.168.1.10:1024`；本机服务使用不同 Python 环境时，也应显式指定服务地址。
-- **本地环境**：`plugin list` 省略 `--target` 时检查当前 CLI 的 Python 环境，定义查询和提交则连接服务。
-- **确认加载**：插件声明存在不代表 Task 一定能加载；单个定义查询只加载所选 Task，注册名冲突会报错。
+- 确认安装：使用 `axonx plugin list` 确认目标插件已安装且 `error` 为空；返回的 `tasks` 映射键可作为 `--task` 注册名。
+- 查看定义：使用 `axonx get_task_definition --task a158_etl` 查看所选 Task 的描述、类型及输入输出 schema。
+- 统一目标：远程查询和提交均追加同一个 `--target 192.168.1.10:1024`；本机服务使用不同 Python 环境时，也应显式指定服务地址。
 
 #### 4. 查看执行资源
 
@@ -136,17 +129,16 @@ axonx plugin install plugins/a158
 | `submit` | 提交 Predict，使用指定 Train 模型及其关联的 ETL 数据生成预测。 | `axonx submit --task a158_predict --source-tasks '<train_task_id>'`    | `--target 192.168.1.10:1024` |
 | `submit` | 提交 Backtest，评估指定 Predict 的预测结果。                   | `axonx submit --task a158_backtest --source-tasks '<predict_task_id>'` | `--target 192.168.1.10:1024` |
 
-- **Task 注册名**：`--task a158_etl` 对应 `plugin.yaml` 中 `tasks` 的键，指向 `axonx_alpha158.etl:Alpha158Task`；Task 注册名取自
+- Task 注册名：`--task a158_etl` 对应 `plugin.yaml` 中 `tasks` 的键，指向 `axonx_alpha158.etl:Alpha158Task`；Task 注册名取自
   `axonx plugin list` 返回的 `tasks` 键， 用 `axonx get_task_definition --task a158_etl` 查看该 Task 的完整定义。
-- **输入参数**：由 Task 的 `input_cls` 定义类型和默认值，CLI 将连字符转为下划线，例如 `--start-date` 对应
+- 输入参数：由 Task 的 `input_cls` 定义类型和默认值，CLI 将连字符转为下划线，例如 `--start-date` 对应
   `Alpha158InputParams.start_date`，通过 `self.input_params.start_date` 读取；`--input-dir` 对应 `input_dir`，未声明的字段会被拒绝。
-- **命名与返回值**：默认省略 `--task-name`，名称自动生成为 `YYYYMMDDHH` 加 4 位随机字母或数字，Task ID 如
-  `etl#a158_etl#<生成名称>`。仅在用户指定名称时传入；复用显式名称会在前次完成后替换产物。每次提交后记录 `answer.task_id`
-  ，后续使用实际返回值，不猜测 ID。
-- **上下游关联**：将成功上游返回的 Task ID 填入 `--source-tasks`，替换表中占位符；多个 ID 用英文逗号连接，如 `'<id1>,<id2>'`
-  ，留空表示无上游。下游通过上游 `metadata.json` 定位产物，Predict 还会从 Train 找到关联的 ETL 数据。
-- **执行目标**：本地省略 `--target`，远程追加表中的参数并替换为真实地址；提交、上游查询和产物检查使用同一服务。`--target` 属于
-  CLI 连接参数，不属于 Task 输入模型。
+- Task命名：默认省略 `--task-name`，名称自动生成为 `YYYYMMDDHH` 加 4 位随机字母或数字，Task ID 如 `etl#a158_etl#<生成名称>`。
+  仅在用户指定名称时传入；**复用显式名称会在前次完成后替换产物**。
+  - 返回值：每次提交后记录 `answer.task_id`，后续使用实际返回值在下游的 `source-tasks` 引用上游的 `task_id`，不猜测 ID。
+- 上下游关联：将成功上游返回的 Task ID 填入 `--source-tasks`；多个 ID 用英文逗号连接，如 `'<id1>,<id2>'`，留空表示无上游。 
+  下游通过上游 `metadata.json` 定位产物。
+- 执行目标：本地省略 `--target`，远程追加表中的参数并替换为真实地址。
 
 #### 6. 跟踪运行与检查产物
 
@@ -163,10 +155,10 @@ axonx plugin install plugins/a158
 
 ## CLI API
 
-- **示例值**：IP、Task ID 和上传路径占位符须替换为配置或服务返回的真实值。
-- **参数格式**：普通 Job 参数放在 Job 名之后；JSON 数组须作为一个 shell 参数传入。
-- **执行超时**：`shell` 的 `--timeout` 是 Job 执行超时。
-- **执行条件**：破坏性 Job 与 `shell` 仅在当前任务确有需要且目标已确认时执行。
+- 示例值：IP、Task ID 和上传路径占位符须替换为配置或服务返回的真实值。
+- 参数格式：普通 Job 参数放在 Job 名之后；JSON 数组须作为一个 shell 参数传入。
+- 执行超时：`shell` 的 `--timeout` 是 Job 执行超时。
+- 执行条件：**破坏性 Job 与 `shell` 仅在当前任务确有需要且目标已确认时执行**。
 
 ### 启动与本地执行
 
@@ -181,9 +173,9 @@ axonx plugin install plugins/a158
 
 ### 插件管理
 
-- **本地管理**：不传 `--target`，直接操作当前 Python 环境。
-- **远程管理**：传入 `--target`，查询或修改目标服务的插件。
-- **检查与构建**：源码检查和 wheel 构建在本机完成。
+- 本地管理：不传 `--target`，直接操作当前 Python 环境。
+- 远程管理：传入 `--target`，查询或修改目标服务的插件。
+- 检查与构建：源码检查和 wheel 构建在本机完成。
 
 | 命令名称           | 具体描述                                                                     | 命令                                                           | 远程参数                     |
 |--------------------|------------------------------------------------------------------------------|----------------------------------------------------------------|------------------------------|
@@ -238,5 +230,5 @@ axonx plugin install plugins/a158
 | `delete_entries` | 一次删除多个工作区文件或目录，路径均相对于工作区。                                     | `axonx delete_entries --paths '["<workspace_path_1>","<workspace_path_2>"]'` | `--target 192.168.1.10:1024` |
 | `sync_tasks`     | 使用目标服务返回的暂存归档路径，替换归档携带的 Task 目录；该命令本身不上传文件。       | `axonx sync_tasks --path '<staged_archive_path>'`                            | `--target 192.168.1.10:1024` |
 
-- **产物路径**：成功运行后，元数据写入 `工作区/<task_type>/<task_id>/metadata.json`；`preview_file` 使用工作区相对路径。
-- **实际取值**：上传归档路径、目标服务地址和 Task ID 均从真实配置或服务响应取得，再执行对应命令。
+- 产物路径：成功运行后，元数据写入 `工作区/<task_type>/<task_id>/metadata.json`；`preview_file` 使用工作区相对路径。
+- 实际取值：上传归档路径、目标服务地址和 Task ID 均从真实配置或服务响应取得，再执行对应命令。
