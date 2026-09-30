@@ -22,9 +22,7 @@ def test_running_task_has_a_provisional_graph_from_status_config():
     task_id = "analysis#native#factor"
     entries = {
         source_id: TaskEntry(status(source_id, TaskType.ETL), None),
-        task_id: TaskEntry(
-            status(task_id, TaskType.ANALYSIS, source_tasks=[source_id]), None
-        ),
+        task_id: TaskEntry(status(task_id, TaskType.ANALYSIS, source_tasks=source_id), None),
     }
 
     graph = task_graph(entries, task_id)
@@ -44,13 +42,9 @@ def test_metadata_lineage_wins_over_provisional_status_config():
         task_type=TaskType.ANALYSIS,
         reg_name="example",
         created_at="2026-09-20T00:00:00+00:00",
-        source_tasks=(formal_source,),
+        source_tasks=formal_source,
     )
-    entries = {
-        task_id: TaskEntry(
-            status(task_id, TaskType.ANALYSIS, source_tasks=[stale_source]), record
-        )
-    }
+    entries = {task_id: TaskEntry(status(task_id, TaskType.ANALYSIS, source_tasks=stale_source), record)}
 
     graph = task_graph(entries, task_id)
 

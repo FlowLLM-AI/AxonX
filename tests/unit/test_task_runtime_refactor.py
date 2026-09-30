@@ -1,6 +1,7 @@
 """Focused contracts for the refactored Task runtime and manager services."""
 
 import asyncio
+import json
 import re
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta
@@ -393,7 +394,8 @@ async def test_submission_returns_queryable_task_handle(tmp_path):
     )
 
     async with app:
-        response = await app.run_job("submit", {"task": "demo", "x": 2, "y": 3})
+        sources = "etl#native#prices,train#native#model"
+        response = await app.run_job("submit", {"task": "demo", "x": 2, "y": 3, "source_tasks": sources})
         handle = response.answer
         waited = await app.run_job(
             "wait_task", {"task_id": handle.task_id, "run_id": handle.run_id}
@@ -416,6 +418,9 @@ async def test_submission_returns_queryable_task_handle(tmp_path):
     assert status.run_id == handle.run_id
     assert status.state == TaskState.SUCCEEDED
     assert status.result["result"] == 5
+    assert status.config["source_tasks"] == sources
+    metadata = json.loads((tmp_path / "base" / handle.task_id / "metadata.json").read_text())
+    assert metadata["input_params"]["source_tasks"] == sources
     assert failed.success is False
     assert failed.answer.state == TaskState.FAILED
     assert wrong_run.success is False

@@ -161,7 +161,7 @@
     "loadingCatalog": "正在加载 Task 目录…"
   },
   "schemaForm": {
-    "sourceTasksPlaceholder": "多个 Task ID 用逗号分隔，可留空"
+    "sourceTasksPlaceholder": "多个 Task ID 用英文逗号分隔，可留空"
   },
   "machine": {
     "cpuMemory": "CPU 与内存"

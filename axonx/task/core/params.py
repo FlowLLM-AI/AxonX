@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ...constants import TASK_NAME_PATTERN
 from ...enums import TaskType
-from .identity import task_type_from_id
+from .identity import parse_source_tasks, task_type_from_id
 
 _TASK_NAME = re.compile(TASK_NAME_PATTERN)
 
@@ -19,7 +19,7 @@ class BaseInputParams(BaseModel):
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
     task_name: str | None = None
-    source_tasks: list[str] = Field(default_factory=list)
+    source_tasks: str = Field(default="", description="Upstream Task IDs separated by ASCII commas.")
 
     @field_validator("task_name", mode="before")
     @classmethod
@@ -32,15 +32,13 @@ class BaseInputParams(BaseModel):
 
     @field_validator("source_tasks")
     @classmethod
-    def validate_source_tasks(cls, sources: list[str]) -> list[str]:
-        for task_id in sources:
-            task_type_from_id(task_id)
-        if len(sources) != len(set(sources)):
-            raise ValueError("source_tasks contains duplicate task IDs")
-        return sources
+    def validate_source_tasks(cls, sources: str) -> str:
+        return ",".join(parse_source_tasks(sources))
 
     def source_task(self, task_type: TaskType) -> str:
-        matches = [task_id for task_id in self.source_tasks if task_type_from_id(task_id) == task_type]
+        matches = [
+            task_id for task_id in parse_source_tasks(self.source_tasks) if task_type_from_id(task_id) == task_type
+        ]
         if len(matches) == 1:
             return matches[0]
         if matches:

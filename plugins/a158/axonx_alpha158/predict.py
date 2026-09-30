@@ -15,7 +15,7 @@ from axonx.task.contracts import (
     BasePredictOutputParams,
     BasePredictTask,
 )
-from axonx.task.core import TaskStep, task_type_from_id
+from axonx.task.core import TaskStep, parse_source_tasks, task_type_from_id
 from axonx.task.storage import artifact_path, artifact_record, read_metadata
 from axonx.utils.fs import atomic_write, file_sha256
 
@@ -95,7 +95,7 @@ class LgbmPredictTask(BasePredictTask):
         )
 
     def resolve_source_dataset(self) -> None:
-        sources = self.state["train_metadata"].get("input_params", {}).get("source_tasks", [])
+        sources = parse_source_tasks(self.state["train_metadata"].get("input_params", {}).get("source_tasks", ""))
         etl_sources = [task_id for task_id in sources if task_type_from_id(task_id) == TaskType.ETL]
         if len(etl_sources) != 1:
             raise ValueError("训练 metadata 必须包含一个 ETL 上游任务")
