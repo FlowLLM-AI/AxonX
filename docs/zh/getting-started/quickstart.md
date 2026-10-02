@@ -4,18 +4,29 @@
 
 ![First Task execution loop](../../figures/getting-started/quickstart.svg)
 
-## 安装源码环境
+## 安装
 
-AxonX 要求 Python 3.12 或更高版本，本地 TaskManager 支持 macOS 与 Linux。从仓库根目录安装：
+AxonX 要求 Python 3.12 或更高版本，本地 TaskManager 支持 macOS 与 Linux。创建虚拟环境：
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
+python -m pip install axonx
 axonx help
 ```
 
-使用 `pip install -e .` 后，代码变动会由当前环境读取。开发依赖另见[框架扩展](../development/framework-extensions.md)。
+按需选择安装项：
+
+| 安装命令                                | 包含内容                |
+| --------------------------------------- | ----------------------- |
+| `python -m pip install axonx`           | 核心、CLI、API 与 MCP   |
+| `python -m pip install "axonx[studio]"` | 核心与 Studio           |
+| `python -m pip install "axonx[dev]"`    | 核心与开发工具          |
+| `python -m pip install "axonx[full]"`   | 核心、Studio 与开发工具 |
+
+源码开发时，从仓库根目录执行 `python -m pip install -e ".[full]"`。
+
+研究插件单独安装，见[研究工作流](../research/workflow.md)。从源码构建 Studio，见[Studio 开发](../development/studio.md)。
 
 ## 配置并启动服务
 

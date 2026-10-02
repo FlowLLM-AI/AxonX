@@ -6,6 +6,7 @@ import importlib
 from email.parser import BytesParser
 from importlib import metadata, resources
 from pathlib import Path
+import runpy
 import tarfile
 import tomllib
 from zipfile import ZipFile
@@ -20,10 +21,20 @@ PACKAGES = (
 )
 
 
+def read_project(source: Path) -> dict:
+    """Read project metadata, resolving AxonX's source-tree version."""
+    config = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))
+    project = config["project"]
+    if "version" in project.get("dynamic", []):
+        assert config["tool"]["setuptools"]["dynamic"]["version"]["attr"] == "axonx._version.VERSION"
+        project["version"] = runpy.run_path(str(source / "axonx/_version.py"))["VERSION"]
+    return project
+
+
 def verify_distributions(dist_dir: Path, expected_version: str | None = None) -> None:
     """Check metadata, package data, entry points, and source version consistency."""
     for directory, source, package, plugin in PACKAGES:
-        project = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        project = read_project(source)
         if directory == "axonx" and expected_version:
             assert Version(project["version"]) == Version(
                 expected_version.removeprefix("v")
@@ -64,7 +75,7 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
 def verify_installation() -> None:
     """Exercise imports, resources, plugin discovery, and file-based config entries."""
     for _, source, package, plugin in PACKAGES:
-        project = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        project = read_project(source)
         module = importlib.import_module(package)
         assert not Path(module.__file__).resolve().is_relative_to(ROOT), "Import resolved to source checkout"
         distribution = metadata.distribution(project["name"])

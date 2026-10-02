@@ -54,7 +54,7 @@ axonx start
 
 AxonX 通过 `axonx_studio.static_dir()` 加载 Python 包中的页面，通过同一个 HTTP 服务提供 Studio 与 API。
 
-直接使用发行版时执行 `python -m pip install axonx-studio`。npm 包 `@flowllm-ai/axonx-studio` 分发相同的 `dist` 静态资源，可用于独立静态托管。
+使用发行版时执行 `python -m pip install "axonx[studio]"`；`axonx[full]` 还包含开发工具。npm 包 `@flowllm-ai/axonx-studio` 分发相同的 `dist` 静态资源，可用于独立静态托管。
 
 如果本机服务需要检查或同步其他目标服务，在 `.env` 中设置
 `AXONX_TARGET=<host:port>` 和 `AXONX_SERVICE_TOKEN`，然后运行

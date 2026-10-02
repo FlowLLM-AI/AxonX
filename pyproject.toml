@@ -4,18 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axonx"
-version = "0.1.0"
-description = "An agent-native harness for quantitative research."
+dynamic = ["version"]
+description = "Agent-native harness for quantitative research, with plugin-based tasks, traceable artifacts, and CLI, Studio, and MCP interfaces."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [
     { name = "FlowLLM AI", email = "FlowLLM-AI@users.noreply.github.com" },
 ]
-keywords = ["asyncio", "jobs", "orchestration", "plugins", "task-runner"]
+keywords = ["agent-harness", "ai-agents", "quantitative-research", "mcp", "plugins", "backtesting", "workflow"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "Operating System :: MacOS",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
@@ -24,6 +26,8 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
     "croniter>=6.2.4",
@@ -32,12 +36,10 @@ dependencies = [
     "httpx>=0.28.1,<1",
     "jsonschema>=4.26.0,<5",
     "loguru>=0.7.3,<1",
-    "matplotlib>=3.11.2,<4",
     "packaging>=26.3",
     "pandas>=3.0.6,<4",
     "psutil>=7.2.2,<8",
     "pydantic>=2.13.5,<3",
-    "polars>=1.44.2,<2",
     "pyarrow>=25.0.1,<26",
     "PyYAML>=6.0.3,<7",
     "requests>=2.34.2,<3",
@@ -55,6 +57,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
 ]
+full = ["axonx[dev,studio]"]
 
 [project.scripts]
 axonx = "axonx.cli:main"
@@ -64,6 +67,9 @@ Homepage = "https://github.com/FlowLLM-AI/AxonX"
 Documentation = "https://flowllm-ai.github.io/AxonX/en/docs"
 Issues = "https://github.com/FlowLLM-AI/AxonX/issues"
 Source = "https://github.com/FlowLLM-AI/AxonX"
+
+[tool.setuptools.dynamic]
+version = { attr = "axonx._version.VERSION" }
 
 [tool.setuptools.packages.find]
 include = ["axonx", "axonx.*"]

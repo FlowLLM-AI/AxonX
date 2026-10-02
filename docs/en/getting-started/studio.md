@@ -8,10 +8,10 @@ The screenshots on this page use the English interface; the source text is in Ch
 
 ## Open Studio
 
-Install the Studio package, then start the service:
+Install AxonX with Studio, then start the service (`axonx[full]` also includes Studio):
 
 ```bash
-python -m pip install axonx-studio
+python -m pip install "axonx[studio]"
 axonx start --service.host 127.0.0.1
 ```
 

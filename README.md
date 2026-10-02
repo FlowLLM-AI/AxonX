@@ -41,15 +41,15 @@ See [Getting started with Studio](https://flowllm-ai.github.io/AxonX/en/getting-
 
 ## Quick start
 
-Requires **Python 3.12+**. The local TaskManager supports **macOS and Linux**. Install from source:
+Requires **Python 3.12+**. The local TaskManager supports **macOS and Linux**:
 
 ```bash
-git clone https://github.com/FlowLLM-AI/AxonX.git
-cd AxonX
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
+python -m pip install "axonx[studio]"
 ```
+
+For development tools as well, use `python -m pip install "axonx[full]"`. See [installation options](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart) for a minimal install.
 
 ### Run your first Task
 
@@ -91,13 +91,7 @@ Submission success means the request was accepted. Wait for state `succeeded`; t
 
 ### Open Studio
 
-Install the Studio Python package:
-
-```bash
-python -m pip install axonx-studio
-```
-
-Restart the service in terminal A, keeping the same service token. Open <http://127.0.0.1:1024/> and enter that token in **Settings → Service token**. AxonX loads the UI from the Studio package and serves Studio and API from the same address.
+The install above includes Studio. With the service running in terminal A, open <http://127.0.0.1:1024/> and enter that token in **Settings → Service token**. AxonX loads the UI from the Studio package and serves Studio and API from the same address.
 
 ## Research with an Agent
 

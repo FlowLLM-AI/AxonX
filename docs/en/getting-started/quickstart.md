@@ -4,18 +4,29 @@ This page uses the built-in `demo` Task to walk through installation, service co
 
 ![First Task execution loop](../../figures/getting-started/quickstart.svg)
 
-## Install from source
+## Install
 
-AxonX requires Python 3.12 or later. The local TaskManager supports macOS and Linux. Install from the repository root:
+AxonX requires Python 3.12 or later. The local TaskManager supports macOS and Linux. Create a virtual environment:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
+python -m pip install axonx
 axonx help
 ```
 
-After `pip install -e .`, the current environment reads code changes directly. For development dependencies, see [Framework extensions](../development/framework-extensions.md).
+Choose extras as needed:
+
+| Install                                 | Includes                            |
+| --------------------------------------- | ----------------------------------- |
+| `python -m pip install axonx`           | Core, CLI, API, and MCP             |
+| `python -m pip install "axonx[studio]"` | Core and Studio                     |
+| `python -m pip install "axonx[dev]"`    | Core and development tools          |
+| `python -m pip install "axonx[full]"`   | Core, Studio, and development tools |
+
+For source development, run `python -m pip install -e ".[full]"` from the repository root.
+
+Research plugins are installed separately; see [Research workflow](../research/workflow.md). To build Studio from source, see [Studio development](../development/studio.md).
 
 ## Configure and start the service
 

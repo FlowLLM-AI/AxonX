@@ -4,11 +4,13 @@
 
 ## 安装与配置
 
-源码环境要求 Python 3.12 或更高；Studio 构建要求 Node.js 22.13+（22.x）、24.x 或 26+。在仓库根安装：
+要求 Python 3.12 或更高版本。创建虚拟环境：
 
 ```bash
-uv sync
-uv run axonx help
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install axonx
+axonx help
 ```
 
 创建 `server.yaml`：
@@ -30,7 +32,7 @@ service:
 
 ```bash
 export AXONX_SERVICE_TOKEN='<独立服务 token>'
-uv run axonx start --config server.yaml
+axonx start --config server.yaml
 ```
 
 若需要其他机器直连，可改 host 为 `0.0.0.0`，并配置网络入口。默认配置本来监听这个地址，示例选择回环地址用于外部反向代理。
@@ -40,21 +42,15 @@ uv run axonx start --config server.yaml
 ```bash
 curl -fsS 'http://127.0.0.1:1024/health' \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
-uv run axonx version
-uv run axonx list_installed_task_definitions
+axonx version
+axonx list_installed_task_definitions
 ```
 
 设置 token 后，health 也需要 Bearer header。健康表示服务可响应，不证明模型 SDK、外部数据源或每个插件运行正常；继续用 demo 验证提交与等待。
 
 ## 安装并托管 Studio
 
-```bash
-python -m pip install axonx-studio
-```
-
-重启服务后，AxonX 从 Studio Python 包加载页面。未安装 Studio 时仅跳过页面托管，API 继续工作。`web_enabled: false` 关闭页面托管，不影响 Job、MCP 或文件接口。
-
-从源码部署时，先在 `axonx_studio/` 执行 `npm ci` 和 `npm run build`，再从仓库根目录执行 `python -m pip install ./axonx_studio`。Vite 开发服务器仅用于前端开发；见 [Studio 入门](../getting-started/studio.md)。
+执行 `python -m pip install "axonx[studio]"`，然后重启服务。详见 [Studio 入门](../getting-started/studio.md)与[源码构建](../development/studio.md)。`web_enabled: false` 关闭页面托管，API 继续可用。
 
 ## 后台进程托管示例
 

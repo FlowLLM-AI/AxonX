@@ -8,10 +8,10 @@ AxonX Studio 是任务与研究工作台。它读取服务提供的 Job 和 Task
 
 ## 打开 Studio
 
-安装 Studio 包后启动服务：
+安装 AxonX 与 Studio 后启动服务（`axonx[full]` 也包含 Studio）：
 
 ```bash
-python -m pip install axonx-studio
+python -m pip install "axonx[studio]"
 axonx start --service.host 127.0.0.1
 ```
 

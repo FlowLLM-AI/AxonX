@@ -4,11 +4,13 @@ A minimal deployment consists of a Python service, workspace, and optional Studi
 
 ## Installation and configuration
 
-The source environment requires Python 3.12 or later; Studio builds require Node.js 22.13+ (22.x), 24.x, or 26+. Install from the repository root:
+Requires Python 3.12 or later. Create a virtual environment:
 
 ```bash
-uv sync
-uv run axonx help
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install axonx
+axonx help
 ```
 
 Create `server.yaml`:
@@ -30,7 +32,7 @@ The absolute directories are Linux examples, not the project's default paths. En
 
 ```bash
 export AXONX_SERVICE_TOKEN='<separate service token>'
-uv run axonx start --config server.yaml
+axonx start --config server.yaml
 ```
 
 For direct connections from other machines, change host to `0.0.0.0` and configure network access. The default configuration already listens on this address; the example uses loopback for an external reverse proxy.
@@ -40,21 +42,15 @@ For direct connections from other machines, change host to `0.0.0.0` and configu
 ```bash
 curl -fsS 'http://127.0.0.1:1024/health' \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
-uv run axonx version
-uv run axonx list_installed_task_definitions
+axonx version
+axonx list_installed_task_definitions
 ```
 
 After configuring a token, health also requires a Bearer header. Health means the service responds; it does not prove the model SDK, external data sources, or every plugin works. Continue with demo to verify submission and waiting.
 
 ## Install and host Studio
 
-```bash
-python -m pip install axonx-studio
-```
-
-Restart the service to load pages from the Studio Python package. Without Studio, only page hosting is skipped; the API continues to work. `web_enabled: false` disables page hosting without affecting Job, MCP, or file interfaces.
-
-For source deployments, run `npm ci` and `npm run build` in `axonx_studio/`, then `python -m pip install ./axonx_studio` from the repository root. Vite's development server is for frontend development; see [Getting started with Studio](../getting-started/studio.md).
+Install with `python -m pip install "axonx[studio]"`, then restart the service. See [Studio setup](../getting-started/studio.md) or [building from source](../development/studio.md). `web_enabled: false` disables page hosting while keeping the API available.
 
 ## Example background process supervision
 
