@@ -21,7 +21,7 @@
     "lucide-react": "^0.544.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-i18next": "^17.0.14",
+    "react-i18next": "^17.0.15",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },
