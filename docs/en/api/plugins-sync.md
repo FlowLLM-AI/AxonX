@@ -247,7 +247,7 @@ sync_flush is commented out by default in default.yaml; enable_serve=false in th
 ## Related documentation
 
 - [Protocol, authentication, and errors](overview.md)
-- [Plugin management](../guides/plugin-management.md)
+- [Plugin management](../plugins/management.md)
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 

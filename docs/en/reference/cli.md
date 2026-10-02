@@ -142,7 +142,7 @@ Ordinary Jobs print complete JSON; exec prints Task output rather than JobRespon
 
 - [Quickstart](../getting-started/quickstart.md)
 - [Task API](../api/tasks.md)
-- [Plugin management](../guides/plugin-management.md)
+- [Plugin management](../plugins/management.md)
 - [Existing development quick reference](../dev_guide.md)
 
 Implementation references: `axonx/cli/parser.py`, `main.py`, `constants.py`, `plugin_kit/cli.py`.

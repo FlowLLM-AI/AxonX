@@ -27,8 +27,7 @@ npm install @flowllm-ai/axonx-studio
 ```bash
 pip install -e '.[dev]'
 cd axonx_studio
-npm ci
-npm run build
+npm ci && npm run build
 cd ..
 pip install ./axonx_studio
 ```

@@ -92,6 +92,6 @@ Normal service shutdown stops managed workers and records the corresponding runs
 
 For migration, stop writes first, copy the workspace, logs, and configuration, restore a matching plugin environment, then check historical records and artifacts. Do not copy only Python packages while overlooking experiment files.
 
-[Authentication](authentication.md) · [Operations and recovery](operations.md) · [Configuration reference](../reference/configuration.md) · [Plugin management](plugin-management.md)
+[Authentication](authentication.md) · [Operations and recovery](operations.md) · [Configuration reference](../reference/configuration.md) · [Plugin management](../plugins/management.md)
 
 Source: [HTTP service](../../../axonx/components/service/http/service.py), [Studio directory discovery](../../../axonx/components/service/http/studio.py), [TaskManager shutdown](../../../axonx/components/task_manager/local/manager.py).

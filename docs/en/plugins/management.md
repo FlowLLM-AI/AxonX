@@ -117,6 +117,10 @@ Uninstallation affects future code loading but does not automatically delete his
 | Wheel checksum failed                         | Use the upload receipt sha256 and transfer the correct file again        |
 | Missing model dependencies                    | requirements and device libraries in the target environment              |
 
-[Plugin manifest](../reference/plugin-manifest.md) · [Remote machines](remote-machines.md) · [Existing development guide](../dev_guide.md)
+[Plugin manifest](../reference/plugin-manifest.md) · [Remote machines](../guides/remote-machines.md) · [Existing development guide](../dev_guide.md)
 
 Source: [Plugin CLI](../../../axonx/plugin_kit/cli.py), [Wheel building](../../../axonx/plugin_kit/wheel.py), [Installer](../../../axonx/plugin_kit/installer.py).
+
+## Research plugins
+
+[Alpha158](../../../plugins/a158/README.md) · [Alpha158 Enhanced](../../../plugins/a158_enhanced/README.md)

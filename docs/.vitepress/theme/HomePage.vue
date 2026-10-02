@@ -107,7 +107,7 @@ const capabilities = [
     "Research, independently extensible",
     "将算法和任务打包为插件，保留清晰的输入输出契约。",
     "Package algorithms and tasks as plugins with explicit input and output contracts.",
-    "guides/plugin-management",
+    "plugins/management",
   ],
   [
     "TASK",

@@ -117,6 +117,10 @@ axonx plugin uninstall '<distribution 或插件名>' \
 | wheel 校验失败       | 使用上传回执 sha256，重新传输正确文件       |
 | 缺模型依赖           | 检查 requirements 与目标环境的设备库        |
 
-[插件 manifest](../reference/plugin-manifest.md) · [远程机器](remote-machines.md) · [已有开发指南](../dev_guide.md)
+[插件 manifest](../reference/plugin-manifest.md) · [远程机器](../guides/remote-machines.md) · [已有开发指南](../dev_guide.md)
 
 源码：[插件 CLI](../../../axonx/plugin_kit/cli.py)、[wheel 构建](../../../axonx/plugin_kit/wheel.py)、[安装器](../../../axonx/plugin_kit/installer.py)。
+
+## 研究插件
+
+[Alpha158](../../../plugins/a158/README_ZH.md) · [Alpha158 Enhanced](../../../plugins/a158_enhanced/README_ZH.md)

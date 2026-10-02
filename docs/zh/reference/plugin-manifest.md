@@ -162,7 +162,7 @@ axonx_example = ["plugin.yaml", "config/*.yaml"]
 
 ## 相关文档
 
-- [插件管理](../guides/plugin-management.md)
+- [插件管理](../plugins/management.md)
 - [插件 API](../api/plugins-sync.md)
 - [CLI 参考](cli.md)
 

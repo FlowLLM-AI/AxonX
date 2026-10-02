@@ -6,13 +6,13 @@ AxonX 将量化研究能力封装为插件，通过 Task 运行计算，通过 J
 
 ## 从这里开始
 
-| 目标         | 阅读路径                                                                                                                      |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| 首次体验     | [项目介绍](getting-started/introduction.md) → [快速开始](getting-started/quickstart.md) → [Studio](getting-started/studio.md) |
-| 开展量化研究 | [研究流程](research/workflow.md) → [结果解读](research/results.md) → [回测](research/backtest.md)                             |
-| 调用服务     | [API 总览](api/overview.md) → [Task API](api/tasks.md) → [CLI](reference/cli.md) / [Python](reference/python.md)              |
-| 接入 Agent   | [Agent 配置](agent/configuration.md) → [使用](agent/usage.md) / [MCP 接入](agent/mcp-integration.md)                          |
-| 扩展项目     | [开发指南](dev_guide.md) → [插件协议](reference/plugin-manifest.md) → [框架扩展](development/framework-extensions.md)         |
+| 目标         | 阅读路径                                                                                                              |
+| ------------ | --------------------------------------------------------------------------------------------------------------------- |
+| 首次体验     | [项目概览](../../README_ZH.md) → [快速开始](getting-started/quickstart.md) → [Studio](getting-started/studio.md)      |
+| 开展量化研究 | [研究流程](research/workflow.md) → [结果解读](research/results.md) → [回测](research/backtest.md)                     |
+| 调用服务     | [API 总览](api/overview.md) → [Task API](api/tasks.md) → [CLI](reference/cli.md) / [Python](reference/python.md)      |
+| 接入 Agent   | [Agent 配置](agent/configuration.md) → [使用](agent/usage.md) / [MCP 接入](agent/mcp-integration.md)                  |
+| 扩展项目     | [开发指南](dev_guide.md) → [插件协议](reference/plugin-manifest.md) → [框架扩展](development/framework-extensions.md) |
 
 内置 demo 不需要外部数据或模型凭据。研究插件、远程机器、Agent 和同步功能各自有配置前置条件，请按对应指南准备。
 
@@ -20,7 +20,7 @@ AxonX 将量化研究能力封装为插件，通过 Task 运行计算，通过 J
 
 ### 入门
 
-- [AxonX 项目介绍](getting-started/introduction.md)
+- [AxonX 项目概览](../../README_ZH.md)
 - [快速开始](getting-started/quickstart.md)
 - [Studio 入门](getting-started/studio.md)
 
@@ -38,7 +38,6 @@ AxonX 将量化研究能力封装为插件，通过 Task 运行计算，通过 J
 - [服务部署与 Studio 托管](guides/deployment.md)
 - [HTTP 上游代理](guides/http-proxy.md)
 - [日志排障与备份恢复](guides/operations.md)
-- [插件安装与部署](guides/plugin-management.md)
 - [远程机器使用](guides/remote-machines.md)
 - [定时 Job 调度](guides/scheduling.md)
 - [任务提交与管理](guides/task-management.md)
@@ -53,6 +52,12 @@ AxonX 将量化研究能力封装为插件，通过 Task 运行计算，通过 J
 - [策略比较](research/strategy-comparison.md)
 - [Tushare 数据下载](research/tushare.md)
 - [量化研究流程](research/workflow.md)
+
+### 插件
+
+- [插件管理](plugins/management.md)
+- [Alpha158](../../plugins/a158/README_ZH.md)
+- [Alpha158 Enhanced](../../plugins/a158_enhanced/README_ZH.md)
 
 ### Agent
 
@@ -82,6 +87,7 @@ AxonX 将量化研究能力封装为插件，通过 Task 运行计算，通过 J
 
 ### 开发与扩展
 
+- [参与贡献](../../CONTRIBUTING_ZH.md)
 - [框架扩展](development/framework-extensions.md)
 - [扩展 Studio](development/studio.md)
 

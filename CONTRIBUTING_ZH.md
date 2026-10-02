@@ -12,14 +12,14 @@
 
 ## 选择修改位置
 
-| 位置 | 职责 |
-| --- | --- |
-| `axonx/` | Application 组装、Component、Job、CLI、服务与 Task 运行时 |
-| `plugins/` | 研究 Task、算法、插件 manifest 与插件测试 |
-| `axonx_studio/` | 浏览器 UI、API 客户端、任务表单与研究图表 |
-| `tests/` | 框架单元测试与集成测试 |
-| `docs/en/`、`docs/zh/`、`docs/figures/` | 双语指南与共享截图、示意图 |
-| `docs/.vitepress/`、`github-pages/` | 文档主题与站点构建工具 |
+| 位置                                    | 职责                                                      |
+| --------------------------------------- | --------------------------------------------------------- |
+| `axonx/`                                | Application 组装、Component、Job、CLI、服务与 Task 运行时 |
+| `plugins/`                              | 研究 Task、算法、插件 manifest 与插件测试                 |
+| `axonx_studio/`                         | 浏览器 UI、API 客户端、任务表单与研究图表                 |
+| `tests/`                                | 框架单元测试与集成测试                                    |
+| `docs/en/`、`docs/zh/`、`docs/figures/` | 双语指南与共享截图、示意图                                |
+| `docs/.vitepress/`、`github-pages/`     | 文档主题与站点构建工具                                    |
 
 实现契约见 [Task 开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide)、[框架扩展](https://flowllm-ai.github.io/AxonX/zh/development/framework-extensions)和[插件协议](https://flowllm-ai.github.io/AxonX/zh/reference/plugin-manifest)。
 
@@ -41,7 +41,7 @@ axonx plugin install -e ./plugins/a158
 # Or: axonx plugin install -e ./plugins/a158_enhanced
 ```
 
-默认 pytest 配置包含 enhanced 插件测试及两个插件的源码路径。运行这些测试时，通过上述安装准备研究依赖。插件发现和重启行为见[插件指南](https://flowllm-ai.github.io/AxonX/zh/guides/plugin-management)。
+默认 pytest 配置包含 enhanced 插件测试及两个插件的源码路径。运行这些测试时，通过上述安装准备研究依赖。插件发现和重启行为见[插件指南](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
 Studio 使用 Node.js 22.13+（22.x）、24.x 或 26+，运行：
 
@@ -85,15 +85,14 @@ npm run build
 文档或主题改动在 `github-pages/` 中运行：
 
 ```bash
-npm ci
-npm run build
+npm ci && npm run build
 ```
 
-构建会验证渲染页面和 Markdown 导出。根 README/贡献指南改动应检查本地链接、文档路由和示例命令；这些文件不在文档站构建的渲染范围内。
+构建会验证渲染页面和 Markdown 导出。根目录及插件 README 和贡献指南由同一构建直接渲染；同步更新中英文，并核查示例命令。
 
 ## 文档贡献
 
-修改 `docs/` 下的规范源文件，同步更新对应中英文指南。保持相同路径，共享素材放在 `docs/figures/`。站点导航定义位于 `docs/.vitepress/navigation.ts`。
+修改 `docs/` 下的规范指南，或站点引用的根目录/插件 README 与贡献指南，同步更新中英文。保持相同路径，共享素材放在 `docs/figures/`。站点导航定义位于 `docs/.vitepress/navigation.mjs`。
 
 不修改 `github-pages/.generated/` 或 `github-pages/dist/`，它们会重新生成。站点开发与部署见 [github-pages/README.md](github-pages/README.md)。根目录 README 和贡献指南中的说明变化也应保持双语一致。
 

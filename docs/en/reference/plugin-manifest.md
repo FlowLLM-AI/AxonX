@@ -162,7 +162,7 @@ The repository's a158 uses the separate distribution axonx-alpha158, plugin entr
 
 ## Related documentation
 
-- [Plugin management](../guides/plugin-management.md)
+- [Plugin management](../plugins/management.md)
 - [Plugin API](../api/plugins-sync.md)
 - [CLI reference](cli.md)
 

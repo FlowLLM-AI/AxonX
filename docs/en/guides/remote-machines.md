@@ -95,6 +95,6 @@ To reuse local upstream artifacts, first transfer the required task snapshots or
 | Schema or response fields differ  | Compare service and plugin versions on both sides                                          |
 | Target task has no upstream files | Confirm data and Task directories were transferred to the target                           |
 
-[Authentication](authentication.md) · [Plugin management](plugin-management.md) · [Task synchronization](task-sync.md) · [Machine API](../api/machines.md)
+[Authentication](authentication.md) · [Plugin management](../plugins/management.md) · [Task synchronization](task-sync.md) · [Machine API](../api/machines.md)
 
 Source: [targets model](../../../axonx/config/models.py), [Remote client](../../../axonx/components/client/base.py), [Job routing](../../../axonx/components/service/http/jobs.py).

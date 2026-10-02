@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitepress";
-import { sections } from "./navigation";
+import { groups, groupRoutes } from "./navigation.mjs";
+import { mapLinks } from "./links.mjs";
 
 const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repository = "https://github.com/FlowLLM-AI/AxonX";
@@ -25,103 +26,15 @@ function locale(lang: "zh" | "en") {
       text: title(`${lang}/${file}.md`),
       link: link(file),
     }));
-  const section = (directory: string, omit: string[] = []) => {
-    const [, cn, en, files] = sections.find(([name]) => name === directory)!;
-    return {
+  const navigation = groups.map((group) => ({
+    text: group.labels[zh ? 0 : 1],
+    page: group.page,
+    routes: groupRoutes(group).map(link),
+    items: group.sections.map(([cn, en, files]) => ({
       text: zh ? cn : en,
-      items: pages(
-        files
-          .filter((file) => !omit.includes(file))
-          .map((file) => `${directory}/${file}`),
-      ),
-    };
-  };
-  const groups = [
-    {
-      text: zh ? "文档" : "Docs",
-      page: "docs",
-      items: [
-        { text: zh ? "文档导航" : "Documentation", items: pages(["docs"]) },
-        section("getting-started", ["studio"]),
-        section("concepts"),
-        {
-          text: zh ? "日常操作" : "Task operations",
-          items: pages([
-            "guides/task-management",
-            "guides/workspace-files",
-            "guides/plugin-management",
-            "guides/remote-machines",
-            "guides/task-sync",
-            "guides/scheduling",
-          ]),
-        },
-        {
-          text: zh ? "部署与运维" : "Deployment & operations",
-          items: pages([
-            "guides/authentication",
-            "guides/deployment",
-            "guides/http-proxy",
-            "guides/operations",
-          ]),
-        },
-        {
-          text: zh ? "CLI 与配置" : "CLI & configuration",
-          items: pages([
-            "reference/cli",
-            "reference/client-configuration",
-            "reference/configuration",
-          ]),
-        },
-        { text: zh ? "常见问题" : "FAQ", items: pages(["faq"]) },
-      ],
-    },
-    {
-      text: zh ? "量化研究" : "Research",
-      page: "research/workflow",
-      items: [section("research")],
-    },
-    {
-      text: "Studio",
-      page: "getting-started/studio",
-      items: [
-        {
-          text: "Studio",
-          items: pages(["getting-started/studio", "development/studio"]),
-        },
-      ],
-    },
-    {
-      text: "Agent",
-      page: "agent/configuration",
-      items: [
-        section("agent"),
-        { text: "Agent API", items: pages(["api/agent"]) },
-      ],
-    },
-    {
-      text: zh ? "开发者" : "Developers",
-      page: "development/framework-extensions",
-      items: [
-        {
-          text: zh ? "开发指南" : "Development guide",
-          items: pages(["dev_guide"]),
-        },
-        section("development", ["studio"]),
-        section("api", ["agent"]),
-        {
-          text: zh ? "Python 与扩展协议" : "Python & extension contracts",
-          items: pages([
-            "reference/python",
-            "reference/task-contracts",
-            "reference/plugin-manifest",
-            "reference/research-artifacts",
-          ]),
-        },
-      ],
-    },
-  ];
-  const routes = (group: (typeof groups)[number]) =>
-    group.items.flatMap(({ items }) => items.map(({ link }) => link));
+      items: pages(files),
+    })),
+  }));
   return {
     label: zh ? "简体中文" : "English",
     lang: zh ? "zh-CN" : "en",
@@ -135,15 +48,15 @@ function locale(lang: "zh" | "en") {
           link: link(""),
           activeMatch: zh ? "^/zh/$" : "^(?:/en/|/)$",
         },
-        ...groups.map((group) => ({
+        ...navigation.map((group) => ({
           text: group.text,
           link: link(group.page),
-          activeMatch: `^(?:${routes(group).join("|")})$`,
+          activeMatch: `^(?:${group.routes.join("|")})$`,
         })),
       ],
       sidebar: Object.fromEntries(
-        groups.flatMap((group) =>
-          routes(group).map((route) => [route, group.items]),
+        navigation.flatMap((group) =>
+          group.routes.map((route) => [route, group.items]),
         ),
       ),
       outline: {
@@ -155,7 +68,7 @@ function locale(lang: "zh" | "en") {
         next: zh ? "下一篇" : "Next",
       },
       editLink: {
-        pattern: `${repository}/edit/main/docs/:path`,
+        pattern: `${repository}/edit/main/:path`,
         text: zh ? "在 GitHub 编辑此页" : "Edit this page on GitHub",
       },
       returnToTopLabel: zh ? "回到顶部" : "Back to top",
@@ -211,9 +124,7 @@ export default defineConfig({
     },
   },
   transformPageData(page) {
-    page.filePath = (
-      sourceMap[page.relativePath] || `docs/${page.relativePath}`
-    ).replace(/^docs\//, "");
+    page.filePath = sourceMap[page.relativePath] || page.relativePath;
   },
   buildEnd(config) {
     // Static hosts may serve text without a charset; the BOM makes UTF-8 unambiguous.
@@ -231,23 +142,19 @@ export default defineConfig({
     ];
     const full = ["# AxonX Documentation", ""];
     for (const [page, original] of Object.entries(sourceMap)) {
-      const content = fs
-        .readFileSync(path.join(source, page), "utf8")
-        .replace(
-          /(!?\[[^\]\n]*\]\()([^\s)]+)([^)]*\))/g,
-          (match, start, href, end) => {
-            if (/^(?:[a-z]+:|#)/i.test(href)) return match;
-            const relative = href.startsWith("/")
-              ? href.slice(1)
-              : path.posix.normalize(
-                  path.posix.join(path.posix.dirname(page), href),
-                );
-            const url = start.startsWith("!")
-              ? `https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/${relative}`
-              : `${siteUrl}${base}${relative}`;
-            return `${start}${url}${end}`;
-          },
-        );
+      const content = mapLinks(
+        fs.readFileSync(path.join(source, page), "utf8"),
+        (href) => {
+          if (/^(?:[a-z]+:|#)/i.test(href)) return href;
+          if (href.startsWith(base)) return `${siteUrl}${href}`;
+          const relative = href.startsWith("/")
+            ? href.slice(1)
+            : path.posix.normalize(
+                path.posix.join(path.posix.dirname(page), href),
+              );
+          return `${siteUrl}${base}${relative}`;
+        },
+      );
       index.push(
         `- [${title(page)}](${siteUrl}${base}${page.replace(/\.md$/, "")})`,
       );

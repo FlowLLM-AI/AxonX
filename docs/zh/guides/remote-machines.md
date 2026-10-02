@@ -95,6 +95,6 @@ axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
 | Schema 或返回字段不同 | 比较双方 version 和插件版本                            |
 | 目标任务没有上游文件  | 先确认数据和 Task 目录已传到目标                       |
 
-[鉴权](authentication.md) · [插件管理](plugin-management.md) · [Task 同步](task-sync.md) · [机器 API](../api/machines.md)
+[鉴权](authentication.md) · [插件管理](../plugins/management.md) · [Task 同步](task-sync.md) · [机器 API](../api/machines.md)
 
 源码：[targets 模型](../../../axonx/config/models.py)、[远程客户端](../../../axonx/components/client/base.py)、[Job 路由](../../../axonx/components/service/http/jobs.py)。

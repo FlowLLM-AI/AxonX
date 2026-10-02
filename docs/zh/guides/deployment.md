@@ -92,6 +92,6 @@ service.env 保存所需环境变量，应限制读取权限。macOS 可使用�
 
 迁移时先停止写入，复制工作区、日志与配置，恢复匹配插件环境，再核对历史记录与产物。不要只复制 Python 包而忽略实验文件。
 
-[鉴权](authentication.md) · [运维与恢复](operations.md) · [配置参考](../reference/configuration.md) · [插件管理](plugin-management.md)
+[鉴权](authentication.md) · [运维与恢复](operations.md) · [配置参考](../reference/configuration.md) · [插件管理](../plugins/management.md)
 
 源码：[HTTP 服务](../../../axonx/components/service/http/service.py)、[Studio 目录发现](../../../axonx/components/service/http/studio.py)、[TaskManager 关闭](../../../axonx/components/task_manager/local/manager.py)。

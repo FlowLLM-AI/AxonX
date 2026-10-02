@@ -32,7 +32,7 @@ Task ID 标识工作区内的任务目录；run_id 标识一次执行。同名�
 
 ## 本地 Python 修改后为什么 worker 没生效？
 
-检查插件的安装方式与所在 Python 环境。开发时使用可编辑安装；长驻服务需要按变更重启以刷新注册状态。后台 worker 是独立进程。见 [插件指南](guides/plugin-management.md)。
+检查插件的安装方式与所在 Python 环境。开发时使用可编辑安装；长驻服务需要按变更重启以刷新注册状态。后台 worker 是独立进程。见 [插件指南](plugins/management.md)。
 
 ## 为什么回测收益和曲线解读不同？
 

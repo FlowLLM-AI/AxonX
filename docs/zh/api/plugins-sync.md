@@ -247,7 +247,7 @@ sync_flush 在 default.yaml 中默认被注释；启用示例中的 enable_serve
 ## 相关文档
 
 - [协议、鉴权与错误](overview.md)
-- [插件管理](../guides/plugin-management.md)
+- [插件管理](../plugins/management.md)
 - [CLI 参考](../reference/cli.md)
 - [事件协议](events.md)
 

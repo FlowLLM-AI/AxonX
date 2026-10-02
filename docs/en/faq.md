@@ -32,7 +32,7 @@ Research plugins provide them; installing the core package alone does not guaran
 
 ## Why Does a Local Python Change Not Take Effect in the Worker?
 
-Check how the plugin is installed and which Python environment it uses. Use editable installation during development; restart persistent services as required by your changes to refresh registrations. Background workers are separate processes. See the [Plugin Guide](guides/plugin-management.md).
+Check how the plugin is installed and which Python environment it uses. Use editable installation during development; restart persistent services as required by your changes to refresh registrations. Background workers are separate processes. See the [Plugin Guide](plugins/management.md).
 
 ## Why Do Backtest Returns and Curve Interpretations Differ?
 

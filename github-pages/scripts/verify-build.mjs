@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { groups, groupRoutes } from "../../docs/.vitepress/navigation.mjs";
+import { mapLinks } from "../../docs/.vitepress/links.mjs";
 import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -21,20 +23,16 @@ const pages = [
   "en/index.html",
   ...Object.keys(map).map((page) => page.replace(/\.md$/, ".html")),
 ];
+const owners = new Map();
+for (const group of groups) {
+  for (const route of groupRoutes(group)) {
+    assert(!owners.has(route), `Document belongs to multiple tabs: ${route}`);
+    owners.set(route, group.id);
+  }
+}
 const groupFor = (page) => {
-  if (["getting-started/studio", "development/studio"].includes(page))
-    return "studio";
-  if (page.startsWith("research/")) return "research";
-  if (page.startsWith("agent/") || page === "api/agent") return "agent";
-  if (
-    /^(api|development)\//.test(page) ||
-    page === "dev_guide" ||
-    /^reference\/(python|task-contracts|plugin-manifest|research-artifacts)$/.test(
-      page,
-    )
-  )
-    return "developers";
-  return "docs";
+  assert(owners.has(page), `Document has no navigation tab: ${page}`);
+  return owners.get(page);
 };
 const groupPages = Object.keys(map).map((page) => page.replace(/\.md$/, ""));
 const checked = new Set();
@@ -48,6 +46,23 @@ for (const file of ["llms.txt", "llms-full.txt", ...Object.keys(map)]) {
     `Missing UTF-8 marker: ${file}`,
   );
   new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+}
+for (const lang of ["en", "zh"]) {
+  for (const route of owners.keys())
+    assert(
+      map[`${lang}/${route}.md`],
+      `Navigation has no source: ${lang}/${route}`,
+    );
+}
+for (const legacy of [
+  "getting-started/introduction",
+  "guides/plugin-management",
+]) {
+  for (const lang of ["en", "zh"]) {
+    await assert.rejects(stat(`${site}${lang}/${legacy}.html`), {
+      code: "ENOENT",
+    });
+  }
 }
 for (const page of pages) {
   const html = await readFile(site + page, "utf8");
@@ -101,6 +116,33 @@ for (const page of pages) {
     assert(
       html.includes(`github.com/FlowLLM-AI/AxonX/edit/main/${original}`),
       `Incorrect edit link: ${page}`,
+    );
+  }
+}
+for (const page of Object.keys(map)) {
+  const content = await readFile(site + page, "utf8");
+  const urls = [];
+  mapLinks(content, (href) => {
+    urls.push(href);
+    return href;
+  });
+  const origin = (
+    process.env.DOCS_SITE_URL || "https://flowllm-ai.github.io"
+  ).replace(/\/$/, "");
+  for (const href of urls) {
+    if (href.startsWith("#")) continue;
+    assert(
+      /^[a-z]+:/i.test(href),
+      `Relative URL in Markdown export ${page}: ${href}`,
+    );
+    if (!href.startsWith(`${origin}${base}`)) continue;
+    const target = new URL(href).pathname.slice(base.length);
+    await exists(
+      /\.[^/]+$/.test(target)
+        ? target
+        : target.endsWith("/")
+          ? `${target}index.html`
+          : `${target}.html`,
     );
   }
 }

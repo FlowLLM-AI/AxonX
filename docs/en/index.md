@@ -8,7 +8,7 @@ AxonX packages quantitative research capabilities as plugins, runs computations 
 
 | Goal                          | Reading path                                                                                                                                      |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| First experience              | [Introduction](getting-started/introduction.md) → [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)               |
+| First experience              | [Overview](../../README.md) → [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)                                   |
 | Conduct quantitative research | [Research Workflow](research/workflow.md) → [Reading Results](research/results.md) → [Backtesting](research/backtest.md)                          |
 | Call the service              | [API Overview](api/overview.md) → [Task API](api/tasks.md) → [CLI](reference/cli.md) / [Python](reference/python.md)                              |
 | Connect an Agent              | [Agent Configuration](agent/configuration.md) → [Usage](agent/usage.md) / [MCP Integration](agent/mcp-integration.md)                             |
@@ -20,7 +20,7 @@ The built-in demo requires no external data or model credentials. Research plugi
 
 ### Getting Started
 
-- [Introduction to AxonX](getting-started/introduction.md)
+- [AxonX overview](../../README.md)
 - [Quickstart](getting-started/quickstart.md)
 - [Getting Started with Studio](getting-started/studio.md)
 
@@ -38,7 +38,6 @@ The built-in demo requires no external data or model credentials. Research plugi
 - [Service Deployment and Studio Hosting](guides/deployment.md)
 - [HTTP Upstream Proxy](guides/http-proxy.md)
 - [Log Troubleshooting, Backup, and Recovery](guides/operations.md)
-- [Plugin Installation and Deployment](guides/plugin-management.md)
 - [Using Remote Machines](guides/remote-machines.md)
 - [Scheduled Jobs](guides/scheduling.md)
 - [Task Submission and Management](guides/task-management.md)
@@ -53,6 +52,12 @@ The built-in demo requires no external data or model credentials. Research plugi
 - [Strategy Comparison](research/strategy-comparison.md)
 - [Tushare Data Downloads](research/tushare.md)
 - [Quantitative Research Workflow](research/workflow.md)
+
+### Plugins
+
+- [Plugin management](plugins/management.md)
+- [Alpha158](../../plugins/a158/README.md)
+- [Alpha158 Enhanced](../../plugins/a158_enhanced/README.md)
 
 ### Agent
 
@@ -82,6 +87,7 @@ The built-in demo requires no external data or model credentials. Research plugi
 
 ### Development and Extensions
 
+- [Contributing](../../CONTRIBUTING.md)
 - [Framework Extensions](development/framework-extensions.md)
 - [Extending Studio](development/studio.md)
 

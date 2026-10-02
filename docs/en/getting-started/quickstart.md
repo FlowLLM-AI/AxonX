@@ -19,13 +19,19 @@ For the prebuilt browser UI, use `pip install "axonx[studio]"`. Development tool
 
 ### Install from source
 
+Requires Node.js 22.13+ (22.x), 24.x, or 26+ to build Studio:
+
 ```bash
 git clone https://github.com/FlowLLM-AI/AxonX.git
 cd AxonX
-pip install -e ".[studio]"
+pip install -e .
+cd axonx_studio
+npm ci && npm run build
+cd ..
+pip install ./axonx_studio
 ```
 
-Activate your virtual environment before installing. This uses core source and published Studio assets. For frontend changes, see [Studio development](../development/studio.md); for development dependencies, see [Contributing](../../../CONTRIBUTING.md).
+Activate your virtual environment before installing. This installs the core from source and builds and installs Studio locally. For frontend changes, see [Studio development](../development/studio.md); for development dependencies, see [Contributing](../../../CONTRIBUTING.md).
 
 Research plugins are installed separately; see [Research workflow](../research/workflow.md).
 

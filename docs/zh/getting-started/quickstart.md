@@ -19,13 +19,19 @@ axonx help
 
 ### 从源码安装
 
+构建 Studio 需要 Node.js 22.13+（22.x）、24.x 或 26+：
+
 ```bash
 git clone https://github.com/FlowLLM-AI/AxonX.git
 cd AxonX
-pip install -e ".[studio]"
+pip install -e .
+cd axonx_studio
+npm ci && npm run build
+cd ..
+pip install ./axonx_studio
 ```
 
-安装前激活虚拟环境。此方式使用核心源码和已发布的 Studio 资源。修改前端见 [Studio 开发](../development/studio.md)，开发依赖见[贡献指南](../../../CONTRIBUTING_ZH.md)。
+安装前激活虚拟环境。此方式从源码安装核心，并在本地构建和安装 Studio。修改前端见 [Studio 开发](../development/studio.md)，开发依赖见[贡献指南](../../../CONTRIBUTING_ZH.md)。
 
 研究插件单独安装，见[研究工作流](../research/workflow.md)。
 

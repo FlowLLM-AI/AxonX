@@ -12,14 +12,14 @@ For changes to public CLI/API/configuration contracts, persisted task records, o
 
 ## Find the right area
 
-| Location | Responsibility |
-| --- | --- |
-| `axonx/` | Application composition, Components, Jobs, CLI, service, and Task runtime |
-| `plugins/` | Research Tasks, algorithms, plugin manifests, and plugin tests |
-| `axonx_studio/` | Browser UI, API client, task forms, and research charts |
-| `tests/` | Framework unit and integration tests |
-| `docs/en/`, `docs/zh/`, `docs/figures/` | Bilingual guides and shared screenshots/diagrams |
-| `docs/.vitepress/`, `github-pages/` | Documentation theme and site build tooling |
+| Location                                | Responsibility                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------- |
+| `axonx/`                                | Application composition, Components, Jobs, CLI, service, and Task runtime |
+| `plugins/`                              | Research Tasks, algorithms, plugin manifests, and plugin tests            |
+| `axonx_studio/`                         | Browser UI, API client, task forms, and research charts                   |
+| `tests/`                                | Framework unit and integration tests                                      |
+| `docs/en/`, `docs/zh/`, `docs/figures/` | Bilingual guides and shared screenshots/diagrams                          |
+| `docs/.vitepress/`, `github-pages/`     | Documentation theme and site build tooling                                |
 
 See the [Task development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide), [framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions), and [plugin manifest](https://flowllm-ai.github.io/AxonX/en/reference/plugin-manifest) for implementation contracts.
 
@@ -41,7 +41,7 @@ axonx plugin install -e ./plugins/a158
 # Or: axonx plugin install -e ./plugins/a158_enhanced
 ```
 
-The default pytest configuration includes enhanced-plugin tests and both plugin source paths. Install the research dependencies above when running those tests. See the [plugin guide](https://flowllm-ai.github.io/AxonX/en/guides/plugin-management) for discovery and restart behavior.
+The default pytest configuration includes enhanced-plugin tests and both plugin source paths. Install the research dependencies above when running those tests. See the [plugin guide](https://flowllm-ai.github.io/AxonX/en/plugins/management) for discovery and restart behavior.
 
 For Studio, use Node.js 22.13+ (22.x), 24.x, or 26+, and run:
 
@@ -85,15 +85,14 @@ Check relevant UI flows in English and Chinese, including empty data and request
 For documentation or theme changes, run from `github-pages/`:
 
 ```bash
-npm ci
-npm run build
+npm ci && npm run build
 ```
 
-The build verifies rendered pages and Markdown exports. For root README/contribution-guide changes, check local links, documentation routes, and example commands; those files are not rendered by the documentation build.
+The build verifies rendered pages and Markdown exports. Root and plugin READMEs and contribution guides are rendered from their canonical sources by the same build; update both languages together and verify example commands.
 
 ## Documentation contributions
 
-Edit canonical sources under `docs/`, and update corresponding English and Chinese guides together. Keep matching paths and shared assets under `docs/figures/`. Site navigation is defined in `docs/.vitepress/navigation.ts`.
+Edit the canonical guide under `docs/`, or the root/plugin README or contribution guide imported into the site, and update both languages together. Keep matching paths and shared assets under `docs/figures/`. Site navigation is defined in `docs/.vitepress/navigation.mjs`.
 
 Do not edit `github-pages/.generated/` or `github-pages/dist/`; they are regenerated. For site development and deployment details, see [github-pages/README.md](github-pages/README.md). Keep the two root READMEs and contribution guides aligned when their instructions change.
 
