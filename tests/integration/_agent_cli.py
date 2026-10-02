@@ -39,32 +39,31 @@ def run_live_cli(service: dict, job: str = "agent_chat", *, stream: bool = True)
         "--target",
         f"127.0.0.1:{service['port']}",
     ]
-    process = subprocess.Popen(
+    with subprocess.Popen(
         command,
         cwd=PROJECT_ROOT,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         bufsize=1,
-    )
-    assert process.stdout is not None
-    output = []
-    try:
-        for line in process.stdout:
-            print(line, end="", flush=True)
-            output.append(line)
-        return_code = process.wait(timeout=240)
-    except BaseException:
-        process.kill()
-        process.wait(timeout=10)
-        raise
+    ) as process:
+        assert process.stdout is not None
+        output = []
+        try:
+            for line in process.stdout:
+                print(line, end="", flush=True)
+                output.append(line)
+            return_code = process.wait(timeout=240)
+        except BaseException:
+            process.kill()
+            process.wait(timeout=10)
+            raise
 
     rendered = "".join(output)
     if return_code != 0:
         service_log = Path(service["log_path"]).read_text(encoding="utf-8")
         pytest.fail(
-            f"CLI failed with exit code {return_code}\n"
-            f"output:\n{rendered}\nservice log:\n{service_log}",
+            f"CLI failed with exit code {return_code}\n" f"output:\n{rendered}\nservice log:\n{service_log}",
         )
     if stream:
         assert "===== BLOCK: ResultEvent =====" in rendered

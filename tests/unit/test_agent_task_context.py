@@ -65,9 +65,7 @@ async def test_get_task_context_job_uses_task_manager_queries(tmp_path):
         log_to_file=False,
         components={
             "task_repository": {"default": {"backend": "local"}},
-            "task_manager": {
-                "default": {"backend": "local", "task_repository": "default"}
-            },
+            "task_manager": {"default": {"backend": "local", "task_repository": "default"}},
         },
         jobs={
             "get_task_context": {

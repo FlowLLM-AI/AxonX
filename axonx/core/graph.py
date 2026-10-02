@@ -15,9 +15,7 @@ class ComponentGraph:
 
     def __init__(self, components: Mapping[str, Mapping[str, BaseComponent]]) -> None:
         self._nodes: dict[ComponentKey, BaseComponent] = {
-            (category, name): component
-            for category, group in components.items()
-            for name, component in group.items()
+            (category, name): component for category, group in components.items() for name, component in group.items()
         }
 
     def startup_order(self) -> tuple[BaseComponent, ...]:
@@ -57,13 +55,8 @@ class ComponentGraph:
                     heapq.heappush(ready, (positions[dependant], dependant))
 
         if len(ordered) != len(self._nodes):
-            unresolved = [
-                f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree
-            ]
-            raise ValueError(
-                "Components unresolved due to circular dependencies: "
-                + ", ".join(unresolved)
-            )
+            unresolved = [f"{key[0]}:{key[1]}" for key, degree in in_degree.items() if degree]
+            raise ValueError("Components unresolved due to circular dependencies: " + ", ".join(unresolved))
 
         return tuple(ordered)
 

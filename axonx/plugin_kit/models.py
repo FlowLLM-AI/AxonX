@@ -26,13 +26,8 @@ class PluginArtifact:
     def contributions_dict(self) -> dict:
         return {
             "tasks": dict(self.tasks),
-            "components": {
-                name: dict(backends) for name, backends in self.components.items()
-            },
-            "jobs": {
-                name: config.model_dump(mode="json", exclude_unset=True)
-                for name, config in self.jobs.items()
-            },
+            "components": {name: dict(backends) for name, backends in self.components.items()},
+            "jobs": {name: config.model_dump(mode="json", exclude_unset=True) for name, config in self.jobs.items()},
         }
 
 

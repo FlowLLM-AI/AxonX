@@ -23,9 +23,7 @@ def mount_studio(server, static_root: Path) -> None:
     """Mount assets and the SPA fallback after API and Job routes."""
     assets_dir = static_root / "assets"
     if assets_dir.is_dir():
-        server.mount(
-            "/assets", StaticFiles(directory=str(assets_dir)), name="web-assets"
-        )
+        server.mount("/assets", StaticFiles(directory=str(assets_dir)), name="web-assets")
     index_file = static_root / "index.html"
     no_cache_headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
 

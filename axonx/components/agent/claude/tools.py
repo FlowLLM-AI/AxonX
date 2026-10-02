@@ -26,9 +26,7 @@ class JobToolServer:
         self._dispatcher = dispatcher
 
     @classmethod
-    def resolve(
-        cls, names: Sequence[str], app_context: ApplicationContext | None
-    ) -> JobToolServer | None:
+    def resolve(cls, names: Sequence[str], app_context: ApplicationContext | None) -> JobToolServer | None:
         if not names:
             return None
         if app_context is None:
@@ -64,9 +62,7 @@ class JobToolServer:
         if not isinstance(allowed, list):
             raise ValueError("job_tools require allowed_tools to be a list")
         options["allowed_tools"] = list(
-            dict.fromkeys(
-                [*allowed, *(f"mcp__{_SERVER_NAME}__{job.name}" for job in self._jobs)]
-            )
+            dict.fromkeys([*allowed, *(f"mcp__{_SERVER_NAME}__{job.name}" for job in self._jobs)])
         )
 
 

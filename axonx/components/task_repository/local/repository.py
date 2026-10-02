@@ -58,9 +58,7 @@ class LocalTaskRepository(BaseTaskRepository):
 
     async def _start(self) -> None:
         await self.reconcile()
-        self._watch_task = asyncio.create_task(
-            self._watcher.run(), name="axonx-task-repository"
-        )
+        self._watch_task = asyncio.create_task(self._watcher.run(), name="axonx-task-repository")
         await asyncio.sleep(0)
         await self.reconcile()
 
@@ -94,34 +92,20 @@ class LocalTaskRepository(BaseTaskRepository):
 
     async def statuses(self) -> Mapping[str, TaskStatus]:
         async with self._lock:
-            return {
-                task_id: entry.status
-                for task_id, entry in self._entries.items()
-                if entry.status is not None
-            }
+            return {task_id: entry.status for task_id, entry in self._entries.items() if entry.status is not None}
 
     async def records(self) -> Mapping[str, TaskRecord]:
         async with self._lock:
-            return {
-                task_id: entry.record
-                for task_id, entry in self._entries.items()
-                if entry.record is not None
-            }
+            return {task_id: entry.record for task_id, entry in self._entries.items() if entry.record is not None}
 
     async def put_status(self, status: TaskStatus) -> None:
         async with self._lock:
             directory = task_path(self.root, status.task_id)
-            if (
-                not directory.is_dir()
-                or directory.is_symlink()
-                or directory.parent.is_symlink()
-            ):
+            if not directory.is_dir() or directory.is_symlink() or directory.parent.is_symlink():
                 return
             await asyncio.to_thread(write_status, directory, status)
             entry = self._entries.get(status.task_id)
-            self._entries[status.task_id] = TaskEntry(
-                status, entry.record if entry else None
-            )
+            self._entries[status.task_id] = TaskEntry(status, entry.record if entry else None)
 
     async def forget(self, task_id: str) -> None:
         async with self._lock:
@@ -133,9 +117,7 @@ class LocalTaskRepository(BaseTaskRepository):
             if directory.is_symlink() or directory.parent.is_symlink():
                 return False
             entry = await asyncio.to_thread(read_entry, self.root, task_id)
-            if entry is None or (
-                entry.status is not None and not entry.status.state.is_terminal
-            ):
+            if entry is None or (entry.status is not None and not entry.status.state.is_terminal):
                 return False
             try:
                 await asyncio.to_thread(shutil.rmtree, directory)
@@ -171,9 +153,7 @@ class LocalTaskRepository(BaseTaskRepository):
                 archive_name,
             )
             self._entries = await asyncio.to_thread(scan_entries, self.root)
-        changed = frozenset(
-            path.split("/", 1)[1] for path in report.applied + report.deleted
-        )
+        changed = frozenset(path.split("/", 1)[1] for path in report.applied + report.deleted)
         self._publish(TaskChanges(changed))
         return report
 

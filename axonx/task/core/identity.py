@@ -31,11 +31,7 @@ def task_type_from_id(task_id: str) -> TaskType:
     if not isinstance(task_id, str) or Path(task_id).name != task_id:
         raise ValueError(f"Invalid task ID: {task_id!r}")
     parts = task_id.split(TASK_ID_SEPARATOR)
-    if (
-        len(parts) != 3
-        or not _REG_NAME.fullmatch(parts[1])
-        or not _TASK_NAME.fullmatch(parts[2])
-    ):
+    if len(parts) != 3 or not _REG_NAME.fullmatch(parts[1]) or not _TASK_NAME.fullmatch(parts[2]):
         raise ValueError(f"Invalid task ID: {task_id!r}")
     try:
         return TaskType(parts[0])

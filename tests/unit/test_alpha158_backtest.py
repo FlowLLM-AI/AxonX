@@ -3,12 +3,13 @@
 import polars as pl
 import pytest
 
-from axonx.task.contracts import BaseBacktestTask
 from axonx_alpha158.backtest import (
     Alpha158BacktestInputParams,
     Alpha158BacktestTask,
 )
 from axonx_alpha158.internal.backtest import BacktestConfig, TOP_NS, run_backtest
+
+from axonx.task.contracts import BaseBacktestTask
 
 
 def test_alpha158_backtest_implements_the_standard_contract():

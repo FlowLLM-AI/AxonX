@@ -33,9 +33,7 @@ async def run_shell(command: str, timeout: float) -> tuple[bool, ShellOutput]:
         await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
         raise
 
-    (stdout, stdout_truncated), (stderr, stderr_truncated) = await asyncio.gather(
-        stdout_task, stderr_task
-    )
+    (stdout, stdout_truncated), (stderr, stderr_truncated) = await asyncio.gather(stdout_task, stderr_task)
     if timed_out:
         timeout_message = f"Command timed out after {timeout:g} seconds"
         stderr = f"{stderr}\n{timeout_message}" if stderr else timeout_message

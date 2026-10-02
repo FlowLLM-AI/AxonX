@@ -1,5 +1,8 @@
 """Compose one complete, isolated application runtime."""
 
+# Internal wiring intentionally uses private runtime hooks.
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 from typing import Any
@@ -38,17 +41,11 @@ def compose_application(
     for category, group in app_config.components.items():
         context._set_component_group(
             category,
-            {
-                name: _instantiate(context, category, name, spec, BaseComponent)
-                for name, spec in group.items()
-            },
+            {name: _instantiate(context, category, name, spec, BaseComponent) for name, spec in group.items()},
         )
 
     context._set_jobs(
-        {
-            name: _instantiate(context, "job", name, spec, BaseJob)
-            for name, spec in app_config.jobs.items()
-        },
+        {name: _instantiate(context, "job", name, spec, BaseJob) for name, spec in app_config.jobs.items()},
     )
     context._set_schedulers(
         {
@@ -67,18 +64,10 @@ def compose_application(
             ),
         )
 
-    component_names = [
-        f"{category}:{name}"
-        for category, group in context.components.items()
-        for name in group
-    ]
-    logger.info(
-        f"Components ({len(component_names)}): {', '.join(component_names) or '-'}"
-    )
+    component_names = [f"{category}:{name}" for category, group in context.components.items() for name in group]
+    logger.info(f"Components ({len(component_names)}): {', '.join(component_names) or '-'}")
     logger.info(f"Jobs ({len(context.jobs)}): {', '.join(context.jobs) or '-'}")
-    logger.info(
-        f"Schedules ({len(context.schedulers)}): {', '.join(context.schedulers) or '-'}"
-    )
+    logger.info(f"Schedules ({len(context.schedulers)}): {', '.join(context.schedulers) or '-'}")
     context.finalize()
     return context
 
@@ -90,8 +79,7 @@ def _merge_plugin_jobs(
     conflicts = plugin_jobs.keys() & config.jobs.keys()
     if conflicts:
         raise ValueError(
-            "Jobs provided by both application config and plugins: "
-            + ", ".join(sorted(conflicts)),
+            "Jobs provided by both application config and plugins: " + ", ".join(sorted(conflicts)),
         )
     if not plugin_jobs:
         return config

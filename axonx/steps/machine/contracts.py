@@ -22,11 +22,7 @@ class CpuInfo(MachineModel):
 
     @model_validator(mode="after")
     def validate_core_counts(self) -> "CpuInfo":
-        if (
-            self.total_cores is not None
-            and self.physical_cores is not None
-            and self.physical_cores > self.total_cores
-        ):
+        if self.total_cores is not None and self.physical_cores is not None and self.physical_cores > self.total_cores:
             raise ValueError("physical_cores cannot exceed total_cores")
         return self
 
@@ -61,15 +57,9 @@ class GpuInfo(MachineModel):
     def validate_memory_capacity(self) -> "GpuInfo":
         if self.memory_total_bytes is None:
             return self
-        if (
-            self.memory_used_bytes is not None
-            and self.memory_used_bytes > self.memory_total_bytes
-        ):
+        if self.memory_used_bytes is not None and self.memory_used_bytes > self.memory_total_bytes:
             raise ValueError("memory_used_bytes cannot exceed memory_total_bytes")
-        if (
-            self.memory_available_bytes is not None
-            and self.memory_available_bytes > self.memory_total_bytes
-        ):
+        if self.memory_available_bytes is not None and self.memory_available_bytes > self.memory_total_bytes:
             raise ValueError("memory_available_bytes cannot exceed memory_total_bytes")
         return self
 

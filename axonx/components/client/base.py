@@ -84,9 +84,7 @@ class BaseClient[ClientT](BaseComponent, ABC):
             try:
                 return normalize_target(advertised)
             except ValueError:
-                self.logger.warning(
-                    f"Invalid {AXONX_SERVICE_TARGET} value: {advertised}"
-                )
+                self.logger.warning(f"Invalid {AXONX_SERVICE_TARGET} value: {advertised}")
         return default_target()
 
     @abstractmethod

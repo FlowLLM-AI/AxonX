@@ -139,9 +139,7 @@ def test_workspace_functions_own_only_browse_preview_and_delete(tmp_path):
     assert not path.exists()
 
 
-def test_workspace_listing_applies_filter_and_directory_order_before_limit(
-    tmp_path, monkeypatch
-):
+def test_workspace_listing_applies_filter_and_directory_order_before_limit(tmp_path, monkeypatch):
     monkeypatch.setattr("axonx.workspace.browser.MAX_DIRECTORY_ENTRIES", 2)
     (tmp_path / "a-file.txt").write_text("a", encoding="utf-8")
     for name in ("z-task", "y-task", "x-invalid"):
@@ -152,9 +150,7 @@ def test_workspace_listing_applies_filter_and_directory_order_before_limit(
     listing = list_workspace_entries(
         tmp_path,
         ".",
-        include=lambda path, entry: (
-            entry.kind == "directory" and (path / "metadata.json").is_file()
-        ),
+        include=lambda path, entry: (entry.kind == "directory" and (path / "metadata.json").is_file()),
     )
 
     assert listing.path == ""

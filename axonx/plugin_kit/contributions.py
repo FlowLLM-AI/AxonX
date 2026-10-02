@@ -28,16 +28,12 @@ def index_contributions(plugins: list[PluginInfo]) -> PluginContributions:
         owner = plugin.distribution
         for name, target in plugin.tasks.items():
             if name in task_owners:
-                raise ValueError(
-                    f"Task {name!r} is provided by plugins {task_owners[name]!r} and {owner!r}"
-                )
+                raise ValueError(f"Task {name!r} is provided by plugins {task_owners[name]!r} and {owner!r}")
             tasks[name] = target
             task_owners[name] = owner
         for name, config in plugin.jobs.items():
             if name in job_owners:
-                raise ValueError(
-                    f"Job {name!r} is provided by plugins {job_owners[name]!r} and {owner!r}"
-                )
+                raise ValueError(f"Job {name!r} is provided by plugins {job_owners[name]!r} and {owner!r}")
             jobs[name] = config.model_copy(deep=True)
             job_owners[name] = owner
         for component_type, backends in plugin.components.items():

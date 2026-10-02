@@ -27,9 +27,7 @@ def plan_task(root: Path, task_id: str, max_file_bytes: int) -> TaskPlan:
         if stat.st_size > max_file_bytes:
             rejected.append(relative)
             continue
-        files.append(
-            TaskFile(path, relative, stat.st_size, stat.st_mtime_ns, stat.st_ino)
-        )
+        files.append(TaskFile(path, relative, stat.st_size, stat.st_mtime_ns, stat.st_ino))
     return TaskPlan(
         tuple(files),
         tuple(sorted(rejected)),

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from abc import ABC
+
 from ...components.registry import provider
 from ...enums import ComponentEnum
 from ..base import BaseStep
 
 
-class AgentSessionStep(BaseStep):
+class AgentSessionStep(BaseStep, ABC):
     component_domains = (ComponentEnum.AGENT,)
 
 
@@ -32,18 +34,14 @@ class GetAgentSessionStep(AgentSessionStep):
 @provider("rename_agent_session_step")
 class RenameAgentSessionStep(AgentSessionStep):
     async def execute(self):
-        await self.agent_wrapper.rename_session(
-            self.context["session_id"], self.context["title"]
-        )
+        await self.agent_wrapper.rename_session(self.context["session_id"], self.context["title"])
         self.response.answer = {"session_id": self.context["session_id"]}
 
 
 @provider("tag_agent_session_step")
 class TagAgentSessionStep(AgentSessionStep):
     async def execute(self):
-        await self.agent_wrapper.tag_session(
-            self.context["session_id"], self.context.get("tag")
-        )
+        await self.agent_wrapper.tag_session(self.context["session_id"], self.context.get("tag"))
         self.response.answer = {"session_id": self.context["session_id"]}
 
 

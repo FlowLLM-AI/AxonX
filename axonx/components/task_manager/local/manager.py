@@ -69,17 +69,13 @@ class LocalTaskManager(BaseTaskManager):
         self._lock = asyncio.Lock()
         self._reaper: asyncio.Task | None = None
         self._reaper_interval = reaper_interval_seconds
-        self._supervisor = TaskProcessSupervisor(
-            terminate_grace_seconds, self.logger, self._handle_worker_exit
-        )
+        self._supervisor = TaskProcessSupervisor(terminate_grace_seconds, self.logger, self._handle_worker_exit)
 
     async def _start(self) -> None:
         if os.name != "posix":
             raise NotImplementedError("LocalTaskManager supports macOS and Linux")
         await self._repair_dead_tasks(repair_queued=True)
-        self._reaper = asyncio.create_task(
-            self._reap_periodically(), name="axonx-task-reaper"
-        )
+        self._reaper = asyncio.create_task(self._reap_periodically(), name="axonx-task-reaper")
 
     async def _close(self) -> None:
         if self._reaper is not None:
@@ -90,14 +86,8 @@ class LocalTaskManager(BaseTaskManager):
         terminated = await self._supervisor.shutdown()
         for entry in (await self.repository.entries()).values():
             status = entry.status
-            if (
-                status is not None
-                and status.run_id in terminated
-                and not status.state.is_terminal
-            ):
-                await self._finish(
-                    status, TaskState.CANCELLED, 130, "Task manager stopped"
-                )
+            if status is not None and status.run_id in terminated and not status.state.is_terminal:
+                await self._finish(status, TaskState.CANCELLED, 130, "Task manager stopped")
 
     async def submit(self, argv: Sequence[str]) -> TaskHandle:
         if not self.is_started:
@@ -156,9 +146,7 @@ class LocalTaskManager(BaseTaskManager):
                 run_id,
             )
         except BaseException as exc:
-            await self._finish(
-                status, TaskState.FAILED, 1, f"Worker could not start: {exc}"
-            )
+            await self._finish(status, TaskState.FAILED, 1, f"Worker could not start: {exc}")
             raise
         return TaskHandle(task.task_id, run_id, registration_name)
 
@@ -166,9 +154,7 @@ class LocalTaskManager(BaseTaskManager):
         """Claim a Task directory, replacing only a completed named Task."""
         directory = task_path(self.workspace_path, task.task_id)
         if directory.parent.is_symlink():
-            raise ValueError(
-                f"Task type directory cannot be a symlink: {directory.parent}"
-            )
+            raise ValueError(f"Task type directory cannot be a symlink: {directory.parent}")
         try:
             directory.mkdir(parents=True, exist_ok=False)
             return True
@@ -187,23 +173,15 @@ class LocalTaskManager(BaseTaskManager):
         directory.mkdir(parents=True, exist_ok=False)
 
         remaining = await self.repository.statuses()
-        if (
-            self._logs.is_task_log(log_path)
-            and all(self._logs.path(item) != log_path for item in remaining.values())
-        ):
+        if self._logs.is_task_log(log_path) and all(self._logs.path(item) != log_path for item in remaining.values()):
             await asyncio.to_thread(log_path.unlink, missing_ok=True)
         return True
 
     async def list_statuses(self) -> list[TaskStatus]:
-        statuses = [
-            status.model_copy(deep=True)
-            for status in (await self.repository.statuses()).values()
-        ]
+        statuses = [status.model_copy(deep=True) for status in (await self.repository.statuses()).values()]
         statuses.sort(
             key=lambda status: (
-                status.created_at.timestamp()
-                if status.created_at is not None
-                else float("-inf"),
+                status.created_at.timestamp() if status.created_at is not None else float("-inf"),
                 status.task_id,
             ),
             reverse=True,
@@ -216,9 +194,7 @@ class LocalTaskManager(BaseTaskManager):
     async def get_graph(self, task_id: str) -> TaskGraph:
         return task_graph(await self.repository.entries(), task_id)
 
-    async def read_log(
-        self, task_id: str, offset: int = -1, limit: int = LOG_WINDOW_BYTES
-    ) -> TaskLogChunk:
+    async def read_log(self, task_id: str, offset: int = -1, limit: int = LOG_WINDOW_BYTES) -> TaskLogChunk:
         return await asyncio.to_thread(
             self._logs.read,
             self._logs.path(await self._status_of(task_id)),
@@ -226,7 +202,8 @@ class LocalTaskManager(BaseTaskManager):
             limit,
         )
 
-    async def stream(
+    # Async generators satisfy the base contract returning an AsyncIterator.
+    async def stream(  # pylint: disable=invalid-overridden-method
         self, task_id: str, poll_interval: float = 0.5
     ) -> AsyncIterator[JobEvent]:
         """Replay one Task's progress and log until it reaches a terminal state."""
@@ -251,9 +228,7 @@ class LocalTaskManager(BaseTaskManager):
             return True
 
     async def delete(self, task_ids: Sequence[str]) -> list[str]:
-        if isinstance(task_ids, (str, bytes)) or not all(
-            isinstance(task_id, str) for task_id in task_ids
-        ):
+        if isinstance(task_ids, (str, bytes)) or not all(isinstance(task_id, str) for task_id in task_ids):
             raise TypeError("task_ids must be a sequence of strings")
         deleted = []
         async with self._lock:
@@ -266,16 +241,11 @@ class LocalTaskManager(BaseTaskManager):
                 except ValueError:
                     continue
                 entry = entries.get(task_id)
-                if (
-                    entry is None
-                    or directory.is_symlink()
-                    or directory.parent.is_symlink()
-                ):
+                if entry is None or directory.is_symlink() or directory.parent.is_symlink():
                     continue
                 status = entry.status
                 if status is not None and (
-                    not status.state.is_terminal
-                    or self._supervisor.is_managed_run(status.run_id)
+                    not status.state.is_terminal or self._supervisor.is_managed_run(status.run_id)
                 ):
                     continue
                 if not await self.repository.delete_terminal(task_id):
@@ -302,9 +272,7 @@ class LocalTaskManager(BaseTaskManager):
             return
         await self.repository.put_status(status)
 
-    async def _finish(
-        self, status: TaskStatus, state: TaskState, code: int, error: str
-    ) -> None:
+    async def _finish(self, status: TaskStatus, state: TaskState, code: int, error: str) -> None:
         status = status.model_copy(deep=True)
         status.state = state
         status.finished_at = datetime.now(UTC)
@@ -317,12 +285,8 @@ class LocalTaskManager(BaseTaskManager):
             await asyncio.sleep(self._reaper_interval)
             try:
                 await self._repair_dead_tasks()
-            except asyncio.CancelledError:
-                raise
             except Exception:
-                self.logger.exception(
-                    "Failed to repair dead Tasks; retrying on the next interval"
-                )
+                self.logger.exception("Failed to repair dead Tasks; retrying on the next interval")
 
     async def _repair_dead_tasks(self, *, repair_queued: bool = False) -> None:
         """Fail every task whose worker died without reporting an outcome itself."""
@@ -335,9 +299,7 @@ class LocalTaskManager(BaseTaskManager):
                 and status.state == TaskState.QUEUED
             )
             if orphaned:
-                await self._settle_dead_task(
-                    task_id, 1, "Task process ended without a final status"
-                )
+                await self._settle_dead_task(task_id, 1, "Task process ended without a final status")
 
     async def _handle_worker_exit(self, worker_exit: WorkerExit) -> None:
         """Report the outcome of a worker this process launched and watched exit."""
@@ -349,16 +311,10 @@ class LocalTaskManager(BaseTaskManager):
             status = (await self.repository.entry(worker_exit.task_id)).status
         except KeyError:
             return
-        if (
-            status is not None
-            and status.run_id == worker_exit.run_id
-            and not status.state.is_terminal
-        ):
+        if status is not None and status.run_id == worker_exit.run_id and not status.state.is_terminal:
             await self._settle_dead_task(worker_exit.task_id, code, error, gone=True)
 
-    async def _settle_dead_task(
-        self, task_id: str, code: int, error: str, *, gone: bool = False
-    ) -> None:
+    async def _settle_dead_task(self, task_id: str, code: int, error: str, *, gone: bool = False) -> None:
         """Write the outcome of a task whose worker is gone.
 
         The task directory decides, not the index: a worker writes its own final
@@ -379,9 +335,7 @@ class LocalTaskManager(BaseTaskManager):
             if entry is None or entry.status is None:
                 await self.repository.forget(task_id)
                 return
-            if entry.status.state.is_terminal or (
-                not gone and pid_alive(entry.status.pid)
-            ):
+            if entry.status.state.is_terminal or (not gone and pid_alive(entry.status.pid)):
                 await self.repository.put_status(entry.status)
                 return
             await self._finish(entry.status, TaskState.FAILED, code, error)

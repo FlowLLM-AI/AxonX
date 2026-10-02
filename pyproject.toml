@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "axonx"
 version = "0.1.0"
-description = "An asynchronous component, job, plugin, and isolated task runtime for Python applications."
+description = "An agent-native harness for quantitative research."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -60,12 +60,12 @@ axonx = "axonx.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/FlowLLM-AI/AxonX"
-Documentation = "https://github.com/FlowLLM-AI/AxonX#readme"
+Documentation = "https://flowllm-ai.github.io/AxonX/en/docs"
 Issues = "https://github.com/FlowLLM-AI/AxonX/issues"
 Source = "https://github.com/FlowLLM-AI/AxonX"
 
 [tool.setuptools.packages.find]
-include = ["axonx*"]
+include = ["axonx", "axonx.*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

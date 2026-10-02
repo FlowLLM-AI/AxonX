@@ -60,9 +60,7 @@ def test_content_sha_is_independent_of_directory_or_wheel_packaging(tmp_path):
         "requirements": ["dependency>=1"],
         "plugins": {"demo": "demo_plugin"},
     }
-    directory_hash = content_sha256_from_directories(
-        **arguments, package_paths={"demo_plugin": source}
-    )
+    directory_hash = content_sha256_from_directories(**arguments, package_paths={"demo_plugin": source})
     with ZipFile(wheel) as archive:
         wheel_hash = content_sha256_from_wheel(archive, **arguments)
 
@@ -91,13 +89,9 @@ def test_content_sha_changes_when_plugin_content_changes(tmp_path):
 def test_editable_plugin_package_uses_import_location(monkeypatch, tmp_path):
     package = tmp_path / "src" / "demo_plugin"
     package.mkdir(parents=True)
-    distribution = SimpleNamespace(
-        locate_file=lambda relative: tmp_path / "site-packages" / relative
-    )
+    distribution = SimpleNamespace(locate_file=lambda relative: tmp_path / "site-packages" / relative)
     specification = SimpleNamespace(submodule_search_locations=[str(package)])
-    monkeypatch.setattr(
-        "axonx.plugin_kit.discovery.util.find_spec", lambda _package: specification
-    )
+    monkeypatch.setattr("axonx.plugin_kit.discovery.util.find_spec", lambda _package: specification)
 
     assert _package_path(distribution, "demo_plugin") == package.resolve()
 
@@ -112,9 +106,7 @@ def test_existing_artifact_cache_is_verified_before_install(monkeypatch, tmp_pat
 
     monkeypatch.setattr(
         "axonx.plugin_kit.installer.inspect_wheel",
-        lambda path: _artifact(
-            Path(path), expected if Path(path) == staged else "b" * 64
-        ),
+        lambda path: _artifact(Path(path), expected if Path(path) == staged else "b" * 64),
     )
 
     with pytest.raises(ValueError, match="Stored plugin wheel SHA-256 mismatch"):
@@ -122,9 +114,7 @@ def test_existing_artifact_cache_is_verified_before_install(monkeypatch, tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_install_job_discards_staged_wheel_when_installation_fails(
-    monkeypatch, tmp_path
-):
+async def test_install_job_discards_staged_wheel_when_installation_fails(monkeypatch, tmp_path):
     staged_files = StagedFiles(tmp_path)
     copied = staged_files.store(b"wheel", "demo.whl")
 
@@ -185,9 +175,7 @@ def test_plugin_config_resolves_source_paths_relative_to_config(tmp_path):
 
 def test_plugin_cli_lists_local_environment_by_default(monkeypatch, capsys):
     plugin = PluginInfo(distribution="local-demo", version="1")
-    monkeypatch.setattr(
-        "axonx.plugin_kit.cli.list_installed_plugins", lambda: [plugin]
-    )
+    monkeypatch.setattr("axonx.plugin_kit.cli.list_installed_plugins", lambda: [plugin])
     assert plugin_cli(["list"], ClientOptions()) == 0
     assert '"distribution": "local-demo"' in capsys.readouterr().out
 
@@ -269,12 +257,7 @@ async def test_streamed_submit_calls_selected_service(monkeypatch):
         lambda **options: Client(),
     )
 
-    events = [
-        event
-        async for event in stream_remote_job(
-            "submit", {"task": "demo_task"}, target="10.0.0.2:1024"
-        )
-    ]
+    events = [event async for event in stream_remote_job("submit", {"task": "demo_task"}, target="10.0.0.2:1024")]
 
     assert events[0].answer == "ok"
 
@@ -356,7 +339,9 @@ def test_editable_install_checks_plugin_in_new_interpreter(monkeypatch, tmp_path
 
     artifact = _artifact(tmp_path / "demo.whl", "digest")
     plugin = PluginInfo(
-        distribution=artifact.distribution, version="1", error="invalid" if failure == "invalid" else None,
+        distribution=artifact.distribution,
+        version="1",
+        error="invalid" if failure == "invalid" else None,
     )
     monkeypatch.setattr("axonx.plugin_kit.installer.install_artifact", lambda *_args, **_kwargs: None)
 

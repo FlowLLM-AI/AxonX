@@ -46,9 +46,7 @@ def apply_env(
     override: bool = False,
 ) -> dict[str, str]:
     """Apply values and return only entries written to ``os.environ``."""
-    applied = {
-        key: value for key, value in values.items() if override or key not in os.environ
-    }
+    applied = {key: value for key, value in values.items() if override or key not in os.environ}
     os.environ.update(applied)
     return applied
 
@@ -60,9 +58,7 @@ def load_env(
     search_depth: int = 5,
 ) -> dict[str, str]:
     """Load a file and return its keys with their effective environment values."""
-    env_path = (
-        Path(path) if path is not None else find_env_file(search_depth=search_depth)
-    )
+    env_path = Path(path) if path is not None else find_env_file(search_depth=search_depth)
     if env_path is None or not env_path.is_file():
         return {}
     values = parse_env_file(env_path)

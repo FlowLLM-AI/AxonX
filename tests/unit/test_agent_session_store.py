@@ -23,9 +23,7 @@ async def test_local_session_store_round_trips_deduplicates_and_reopens(tmp_path
 
     reopened = LocalAgentSessionStore(tmp_path / "sessions")
     assert await reopened.load(key) == [first, metadata, metadata]
-    assert [item["session_id"] for item in await reopened.list_sessions("workspace")] == [
-        session_id
-    ]
+    assert [item["session_id"] for item in await reopened.list_sessions("workspace")] == [session_id]
 
 
 @pytest.mark.asyncio

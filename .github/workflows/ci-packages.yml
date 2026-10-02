@@ -1,0 +1,38 @@
+name: CI / Python packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'axonx/**'
+      - 'plugins/**'
+      - 'pyproject.toml'
+      - 'README.md'
+      - 'LICENSE'
+      - '.github/scripts/verify-packages.py'
+      - '.github/workflows/ci-packages.yml'
+      - '.github/workflows/_build-python-packages.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'axonx/**'
+      - 'plugins/**'
+      - 'pyproject.toml'
+      - 'README.md'
+      - 'LICENSE'
+      - '.github/scripts/verify-packages.py'
+      - '.github/workflows/ci-packages.yml'
+      - '.github/workflows/_build-python-packages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  distributions:
+    name: Build and verify distributions
+    uses: ./.github/workflows/_build-python-packages.yml

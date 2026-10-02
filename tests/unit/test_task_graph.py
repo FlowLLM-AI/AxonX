@@ -48,9 +48,7 @@ def test_metadata_lineage_wins_over_provisional_status_config():
 
     graph = task_graph(entries, task_id)
 
-    assert [(edge.from_, edge.to) for edge in graph.edges] == [
-        (formal_source, task_id)
-    ]
+    assert [(edge.from_, edge.to) for edge in graph.edges] == [(formal_source, task_id)]
     selected = next(node for node in graph.nodes if node.task_id == task_id)
     assert not selected.provisional
     assert next(node for node in graph.nodes if node.task_id == formal_source).missing
@@ -58,9 +56,7 @@ def test_metadata_lineage_wins_over_provisional_status_config():
 
 def test_task_without_dependencies_is_a_single_node_graph():
     task_id = "base#native#standalone"
-    graph = task_graph(
-        {task_id: TaskEntry(status(task_id, TaskType.BASE), None)}, task_id
-    )
+    graph = task_graph({task_id: TaskEntry(status(task_id, TaskType.BASE), None)}, task_id)
 
     assert graph.root_id == task_id
     assert [node.task_id for node in graph.nodes] == [task_id]

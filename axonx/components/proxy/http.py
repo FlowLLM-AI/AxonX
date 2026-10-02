@@ -55,19 +55,13 @@ def _response_headers(response: httpx.Response) -> list[tuple[str, str]]:
     pairs = response.headers.multi_items()
     # ``aiter_bytes`` decodes content encodings, so both encoding and the encoded
     # body's length must be regenerated/omitted downstream.
-    excluded = (
-        _HOP_BY_HOP_HEADERS
-        | {"content-encoding", "content-length"}
-        | _connection_headers(pairs)
-    )
+    excluded = _HOP_BY_HOP_HEADERS | {"content-encoding", "content-length"} | _connection_headers(pairs)
     return [(key, value) for key, value in pairs if key.lower() not in excluded]
 
 
 def _validate_path(path: str) -> None:
     """Prevent a routed path from escaping the configured upstream prefix."""
-    if path and (
-        path.startswith("/") or any(part in {".", ".."} for part in path.split("/"))
-    ):
+    if path and (path.startswith("/") or any(part in {".", ".."} for part in path.split("/"))):
         raise ProxyRequestError("Invalid proxy request path")
 
 
@@ -137,9 +131,7 @@ class HttpProxyComponent(BaseProxyComponent):
         except httpx.InvalidURL as exc:
             raise ProxyRequestError("Invalid proxy request path") from exc
         except httpx.TimeoutException as exc:
-            raise ProxyUpstreamTimeoutError(
-                f"Proxy upstream timed out: {self.upstream_base_url}"
-            ) from exc
+            raise ProxyUpstreamTimeoutError(f"Proxy upstream timed out: {self.upstream_base_url}") from exc
         except httpx.HTTPError as exc:
             self.logger.warning(f"Proxy upstream request failed: {exc}")
             raise ProxyUpstreamError("Proxy upstream request failed") from exc

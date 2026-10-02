@@ -37,9 +37,7 @@ class AgentStreamStep(BaseStep):
     def _refuse_depth(self) -> None:
         self.logger.warning(f"Agent call chain reached max_depth={self.max_depth}")
         self.response.success = False
-        self.response.answer = (
-            f"Agent call chain is limited to {self.max_depth} nested turns."
-        )
+        self.response.answer = f"Agent call chain is limited to {self.max_depth} nested turns."
         self.response.metadata = {
             AGENT_DEPTH_ARGUMENT: self.depth,
             "session_id": self.context.get("session_id"),
@@ -68,9 +66,7 @@ class AgentStreamStep(BaseStep):
                     self.response.metadata = dict(response.metadata)
                 else:
                     if result_seen:
-                        raise RuntimeError(
-                            "Agent backend produced an event after its result"
-                        )
+                        raise RuntimeError("Agent backend produced an event after its result")
                     await self.emit(event)
         if not result_seen:
             raise RuntimeError("Agent backend produced no result")

@@ -10,9 +10,7 @@ HEALTH_TIMEOUT_SECONDS = 5.0
 
 
 async def check_machines(targets: list[TargetConfig], logger) -> list[MachineHealth]:
-    return list(
-        await asyncio.gather(*(_check_machine(target, logger) for target in targets))
-    )
+    return list(await asyncio.gather(*(_check_machine(target, logger) for target in targets)))
 
 
 async def _check_machine(target: TargetConfig, logger) -> MachineHealth:
@@ -23,8 +21,6 @@ async def _check_machine(target: TargetConfig, logger) -> MachineHealth:
             token=target.token,
         ) as client:
             healthy = await client.health()
-    except asyncio.CancelledError:
-        raise
     except Exception as exc:
         logger.warning(f"Machine health check failed for {target.address}: {exc}")
         healthy = False

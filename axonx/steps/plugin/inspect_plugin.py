@@ -12,6 +12,4 @@ class InspectPluginStep(BaseStep):
     """Inspect one plugin installed on the addressed machine."""
 
     async def execute(self):
-        self.response.answer = await asyncio.to_thread(
-            get_installed_plugin, self.context["plugin"]
-        )
+        self.response.answer = await asyncio.to_thread(get_installed_plugin, self.context["plugin"])

@@ -13,10 +13,7 @@ def sdk_value(value: Any) -> Any:
     if is_dataclass(value) and not isinstance(value, type):
         return {
             "type_name": type(value).__name__,
-            **{
-                field.name: sdk_value(getattr(value, field.name))
-                for field in fields(value)
-            },
+            **{field.name: sdk_value(getattr(value, field.name)) for field in fields(value)},
         }
     if isinstance(value, Mapping):
         return {key: sdk_value(item) for key, item in value.items()}
@@ -28,9 +25,7 @@ def sdk_value(value: Any) -> Any:
 def message_payload(message: Any) -> dict[str, Any]:
     if not is_dataclass(message):
         raise TypeError(f"Unsupported Claude message: {type(message).__name__}")
-    return {
-        field.name: sdk_value(getattr(message, field.name)) for field in fields(message)
-    }
+    return {field.name: sdk_value(getattr(message, field.name)) for field in fields(message)}
 
 
 class ClaudeMessageProjector:
@@ -63,13 +58,9 @@ class ClaudeMessageProjector:
             return str(block.get("thinking") or "")
         return ""
 
-    def _start(
-        self, block_id: str, kind: str, *, payload: dict[str, Any] | None = None
-    ) -> AgentBlockPatch:
+    def _start(self, block_id: str, kind: str, *, payload: dict[str, Any] | None = None) -> AgentBlockPatch:
         self._blocks[block_id] = {"kind": kind, "text": "", "finished": False}
-        return AgentBlockPatch(
-            operation="start", block_id=block_id, block_type=kind, payload=payload or {}
-        )
+        return AgentBlockPatch(operation="start", block_id=block_id, block_type=kind, payload=payload or {})
 
     def project(self, message: Any) -> list[AgentBlockPatch]:
         from claude_agent_sdk import AssistantMessage, StreamEvent, UserMessage
@@ -77,97 +68,97 @@ class ClaudeMessageProjector:
         if isinstance(message, StreamEvent):
             return self._stream(message.uuid, message.event)
         if isinstance(message, AssistantMessage):
-            return self._assistant(
-                message.uuid or message.message_id or "assistant", message.content
-            )
+            return self._assistant(message.uuid or message.message_id or "assistant", message.content)
         if isinstance(message, UserMessage) and isinstance(message.content, list):
             return self._tool_results(message.content)
         return []
 
-    def _stream(
-        self, message_uuid: str, event: Mapping[str, Any]
-    ) -> list[AgentBlockPatch]:
+    def _stream(self, message_uuid: str, event: Mapping[str, Any]) -> list[AgentBlockPatch]:
         event_type = event.get("type")
         index = event.get("index")
         if not isinstance(index, int):
             return []
         if event_type == "content_block_start":
-            block = event.get("content_block")
-            if not isinstance(block, Mapping):
-                return []
-            kind = self._kind(block)
-            if kind is None:
-                return []
-            tool_id = block.get("id") if kind == "tool" else None
-            block_id = str(tool_id or f"{message_uuid}:{index}")
-            self._indices[index] = block_id
-            if isinstance(tool_id, str):
-                self._tools[tool_id] = block_id
-            payload = (
-                {
-                    "tool_use_id": tool_id,
-                    "name": block.get("name"),
-                    "input": block.get("input") or {},
-                    "input_text": "",
-                    "result": None,
-                    "is_error": False,
-                    "status": "building_input",
-                }
-                if kind == "tool"
-                else {}
-            )
-            return [self._start(block_id, kind, payload=payload)]
+            return self._stream_start(message_uuid, index, event)
         block_id = self._indices.get(index)
         if block_id is None:
             return []
-        state = self._blocks[block_id]
         if event_type == "content_block_delta":
-            delta = event.get("delta")
-            if not isinstance(delta, Mapping):
-                return []
-            delta_type = delta.get("type")
-            text = ""
-            payload: dict[str, Any] = {}
-            if delta_type == "text_delta":
-                text = str(delta.get("text") or "")
-            elif delta_type == "thinking_delta":
-                text = str(delta.get("thinking") or "")
-            elif delta_type == "input_json_delta":
-                text = str(delta.get("partial_json") or "")
-                payload = {"input_text_delta": text}
-            else:
-                return []
-            state["text"] += text
-            return [
-                AgentBlockPatch(
-                    operation="append",
-                    block_id=block_id,
-                    block_type=state["kind"],
-                    delta=text,
-                    payload=payload,
-                )
-            ]
+            return self._stream_delta(block_id, event)
         if event_type == "content_block_stop":
-            if state["kind"] == "tool":
-                return [
-                    AgentBlockPatch(
-                        operation="replace",
-                        block_id=block_id,
-                        block_type="tool",
-                        payload={"status": "running"},
-                    )
-                ]
-            state["finished"] = True
-            return [
-                AgentBlockPatch(
-                    operation="finish", block_id=block_id, block_type=state["kind"]
-                )
-            ]
+            return self._stream_stop(block_id)
         return []
 
-    def _assistant(
-        self, message_uuid: str, content: list[Any]
-    ) -> list[AgentBlockPatch]:
+    def _stream_start(self, message_uuid: str, index: int, event: Mapping[str, Any]) -> list[AgentBlockPatch]:
+        block = event.get("content_block")
+        if not isinstance(block, Mapping):
+            return []
+        kind = self._kind(block)
+        if kind is None:
+            return []
+        tool_id = block.get("id") if kind == "tool" else None
+        block_id = str(tool_id or f"{message_uuid}:{index}")
+        self._indices[index] = block_id
+        if isinstance(tool_id, str):
+            self._tools[tool_id] = block_id
+        payload = (
+            {
+                "tool_use_id": tool_id,
+                "name": block.get("name"),
+                "input": block.get("input") or {},
+                "input_text": "",
+                "result": None,
+                "is_error": False,
+                "status": "building_input",
+            }
+            if kind == "tool"
+            else {}
+        )
+        return [self._start(block_id, kind, payload=payload)]
+
+    def _stream_delta(self, block_id: str, event: Mapping[str, Any]) -> list[AgentBlockPatch]:
+        state = self._blocks[block_id]
+        delta = event.get("delta")
+        if not isinstance(delta, Mapping):
+            return []
+        delta_type = delta.get("type")
+        text = ""
+        payload: dict[str, Any] = {}
+        if delta_type == "text_delta":
+            text = str(delta.get("text") or "")
+        elif delta_type == "thinking_delta":
+            text = str(delta.get("thinking") or "")
+        elif delta_type == "input_json_delta":
+            text = str(delta.get("partial_json") or "")
+            payload = {"input_text_delta": text}
+        else:
+            return []
+        state["text"] += text
+        return [
+            AgentBlockPatch(
+                operation="append",
+                block_id=block_id,
+                block_type=state["kind"],
+                delta=text,
+                payload=payload,
+            )
+        ]
+
+    def _stream_stop(self, block_id: str) -> list[AgentBlockPatch]:
+        state = self._blocks[block_id]
+        if state["kind"] == "tool":
+            return [
+                AgentBlockPatch(
+                    operation="replace",
+                    block_id=block_id,
+                    block_type="tool",
+                    payload={"status": "running"},
+                )
+            ]
+        state["finished"] = True
+        return [AgentBlockPatch(operation="finish", block_id=block_id, block_type=state["kind"])]
+
+    def _assistant(self, message_uuid: str, content: list[Any]) -> list[AgentBlockPatch]:
         patches: list[AgentBlockPatch] = []
         for index, raw in enumerate(content):
             block = sdk_value(raw)
@@ -177,9 +168,7 @@ class ClaudeMessageProjector:
             if kind is None:
                 continue
             tool_id = block.get("id") if kind == "tool" else None
-            block_id = str(
-                tool_id or self._indices.get(index) or f"{message_uuid}:{index}"
-            )
+            block_id = str(tool_id or self._indices.get(index) or f"{message_uuid}:{index}")
             if isinstance(tool_id, str):
                 self._tools[tool_id] = block_id
             if block_id not in self._blocks:
@@ -208,11 +197,7 @@ class ClaudeMessageProjector:
                 )
             if kind in {"text", "thinking"} and not state["finished"]:
                 state["finished"] = True
-                patches.append(
-                    AgentBlockPatch(
-                        operation="finish", block_id=block_id, block_type=kind
-                    )
-                )
+                patches.append(AgentBlockPatch(operation="finish", block_id=block_id, block_type=kind))
         return patches
 
     def _tool_results(self, content: list[Any]) -> list[AgentBlockPatch]:

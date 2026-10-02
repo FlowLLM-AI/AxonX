@@ -1,8 +1,9 @@
 """Read and parse an AxonX plugin manifest."""
 
+from typing import Annotated
+
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
-from typing import Annotated
 
 from ..config import JobConfig
 

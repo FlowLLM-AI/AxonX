@@ -112,16 +112,10 @@ class TaskProcessSupervisor:
 
     async def _cancel(self, pid: int) -> bool:
         process = self.processes.get(pid)
-        if (
-            process is None
-            or process.returncode is not None
-            or not self._signal(pid, signal.SIGTERM)
-        ):
+        if process is None or process.returncode is not None or not self._signal(pid, signal.SIGTERM):
             return False
         try:
-            await asyncio.wait_for(
-                asyncio.shield(process.wait()), timeout=self.grace_seconds
-            )
+            await asyncio.wait_for(asyncio.shield(process.wait()), timeout=self.grace_seconds)
         except TimeoutError:
             if process.returncode is None:
                 self._signal(pid, signal.SIGKILL)
@@ -130,32 +124,20 @@ class TaskProcessSupervisor:
 
     async def shutdown(self) -> set[str]:
         """Terminate and reap all workers, escalating to SIGKILL after grace."""
-        processes = tuple(
-            process for process in self.processes.values() if process.returncode is None
-        )
+        processes = tuple(process for process in self.processes.values() if process.returncode is None)
         if not processes:
             return set()
 
         pids = {process.pid for process in processes}
         run_pids = {run_id: pid for run_id, pid in self.run_pids.items() if pid in pids}
         self._shutdown_pids.update(process.pid for process in processes)
-        terminated = {
-            process.pid
-            for process in processes
-            if self._signal(process.pid, signal.SIGTERM)
-        }
+        terminated = {process.pid for process in processes if self._signal(process.pid, signal.SIGTERM)}
         monitors = tuple(self.monitors)
         if monitors and self.grace_seconds > 0:
             await asyncio.wait(monitors, timeout=self.grace_seconds)
 
-        survivors = tuple(
-            process for process in processes if process.returncode is None
-        )
-        terminated.update(
-            process.pid
-            for process in survivors
-            if self._signal(process.pid, signal.SIGKILL)
-        )
+        survivors = tuple(process for process in processes if process.returncode is None)
+        terminated.update(process.pid for process in survivors if self._signal(process.pid, signal.SIGKILL))
 
         if monitors:
             # A killed worker only has to drain its pipe, so this is a short drain, not a second grace period.
@@ -166,9 +148,7 @@ class TaskProcessSupervisor:
                 await asyncio.gather(*pending, return_exceptions=True)
         return {run_id for run_id, pid in run_pids.items() if pid in terminated}
 
-    async def _monitor(
-        self, process: Any, task_id: str, task_name: str, run_id: str
-    ) -> None:
+    async def _monitor(self, process: Any, task_id: str, task_name: str, run_id: str) -> None:
         stderr_tail = bytearray()
         stopped_during_shutdown = False
         try:
@@ -181,9 +161,7 @@ class TaskProcessSupervisor:
                         del stderr_tail[:-STDERR_TAIL_BYTES]
             return_code = await process.wait()
         except Exception:
-            self.logger.exception(
-                f"Failed to monitor task process {process.pid} ({task_name})"
-            )
+            self.logger.exception(f"Failed to monitor task process {process.pid} ({task_name})")
             return
         finally:
             stopped_during_shutdown = process.pid in self._shutdown_pids
@@ -196,28 +174,18 @@ class TaskProcessSupervisor:
                 self.run_pids.pop(run_id, None)
 
         if stopped_during_shutdown:
-            self.logger.info(
-                f"Task process {process.pid} ({task_name}) stopped during task-manager shutdown"
-            )
+            self.logger.info(f"Task process {process.pid} ({task_name}) stopped during task-manager shutdown")
             return
 
         detail = stderr_tail.decode(errors="replace").strip()
         if return_code:
-            self.logger.error(
-                f"Task process {process.pid} ({task_name}) exited with code {return_code}: {detail}"
-            )
+            self.logger.error(f"Task process {process.pid} ({task_name}) exited with code {return_code}: {detail}")
         else:
-            self.logger.info(
-                f"Task process {process.pid} ({task_name}) completed successfully"
-            )
+            self.logger.info(f"Task process {process.pid} ({task_name}) completed successfully")
         try:
             await self.on_exit(WorkerExit(return_code, detail, task_id, run_id))
-        except asyncio.CancelledError:
-            raise
         except Exception:
-            self.logger.exception(
-                f"Failed to settle task process {process.pid} ({task_name})"
-            )
+            self.logger.exception(f"Failed to settle task process {process.pid} ({task_name})")
 
     @staticmethod
     def _signal(pid: int, sig: signal.Signals) -> bool:

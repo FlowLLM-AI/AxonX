@@ -19,9 +19,7 @@ ChangeHandler = Callable[[TaskChanges], Awaitable[None]]
 class TaskWorkspaceWatcher:
     """Watch Task directories and recover from watcher failures."""
 
-    def __init__(
-        self, root: Path, options: dict[str, Any], handler: ChangeHandler, logger: Any
-    ) -> None:
+    def __init__(self, root: Path, options: dict[str, Any], handler: ChangeHandler, logger: Any) -> None:
         self.root = root
         self.options = options
         self.handler = handler
@@ -31,9 +29,7 @@ class TaskWorkspaceWatcher:
     async def run(self) -> None:
         recovering = False
         while True:
-            self.directories = await asyncio.to_thread(
-                ensure_kind_directories, self.root
-            )
+            self.directories = await asyncio.to_thread(ensure_kind_directories, self.root)
             pump = asyncio.create_task(self._pump(), name="axonx-task-repository-pump")
             try:
                 await asyncio.sleep(0)
@@ -62,9 +58,7 @@ class TaskWorkspaceWatcher:
             **self.options,
         ):
             task_ids = frozenset(
-                task_id
-                for _, raw_path in changes
-                if (task_id := task_id_from_path(self.root, raw_path)) is not None
+                task_id for _, raw_path in changes if (task_id := task_id_from_path(self.root, raw_path)) is not None
             )
             if task_ids:
                 await self.handler(TaskChanges(task_ids))

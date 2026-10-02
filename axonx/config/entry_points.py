@@ -23,9 +23,7 @@ def unique_entry_point(
     """Return the sole matching entry point, rejecting ambiguous providers."""
     if len(entries) > 1:
         values = ", ".join(sorted(entry.value for entry in entries))
-        raise ValueError(
-            f"{provider} '{name}' has multiple installed providers: {values}"
-        )
+        raise ValueError(f"{provider} '{name}' has multiple installed providers: {values}")
     return entries[0] if entries else None
 
 

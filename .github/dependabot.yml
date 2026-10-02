@@ -1,0 +1,37 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+  - package-ecosystem: pip
+    directories:
+      - /
+      - /plugins/a158
+      - /plugins/a158_enhanced
+    schedule:
+      interval: weekly
+    groups:
+      development:
+        dependency-type: development
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+  - package-ecosystem: npm
+    directories:
+      - /axonx_studio
+      - /github-pages
+    schedule:
+      interval: weekly
+    groups:
+      development:
+        dependency-type: development
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore

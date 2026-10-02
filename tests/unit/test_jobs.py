@@ -38,11 +38,7 @@ def test_step_retains_an_unconsumed_component_option(tmp_path):
     app = Application(
         **_config(
             tmp_path,
-            jobs={
-                "configured": {
-                    "steps": [{"backend": "version_step", "agent": "default"}]
-                }
-            },
+            jobs={"configured": {"steps": [{"backend": "version_step", "agent": "default"}]}},
         )
     )
 

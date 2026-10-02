@@ -41,10 +41,7 @@ def test_registry_is_explicit_and_rejects_ambiguous_owners():
 def test_builtin_provider_is_registered_by_decorator():
     registry = ProviderRegistry.from_builtins()
 
-    assert (
-        registry.require(ComponentEnum.AGENT, "claude", BaseComponent)
-        is ClaudeAgentComponent
-    )
+    assert registry.require(ComponentEnum.AGENT, "claude", BaseComponent) is ClaudeAgentComponent
 
 
 def test_application_context_indexes_are_read_only_after_composition(tmp_path):

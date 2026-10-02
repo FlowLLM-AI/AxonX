@@ -18,9 +18,7 @@ class SnapshotChangedError(OSError):
     """A planned Task changed before its snapshot finished building."""
 
 
-def build_archive(
-    plans: dict[str, TaskPlan], task_ids: Sequence[str], target: Path
-) -> list[str]:
+def build_archive(plans: dict[str, TaskPlan], task_ids: Sequence[str], target: Path) -> list[str]:
     included: list[str] = []
     with (
         target.open("wb") as raw,
@@ -30,9 +28,7 @@ def build_archive(
         for task_id in task_ids:
             plan = plans[task_id]
             if not plan.transferable:
-                raise SnapshotChangedError(
-                    f"Task snapshot is incomplete: {task_directory(task_id)}"
-                )
+                raise SnapshotChangedError(f"Task snapshot is incomplete: {task_directory(task_id)}")
             for item in plan.files:
                 _add_file(archive, task_id, item)
             included.append(task_directory(task_id))
@@ -51,9 +47,7 @@ def _add_file(archive: tarfile.TarFile, task_id: str, item: TaskFile) -> None:
             item.modified_ns,
             item.inode,
         ):
-            raise SnapshotChangedError(
-                f"Task file changed before archiving: {item.path}"
-            )
+            raise SnapshotChangedError(f"Task file changed before archiving: {item.path}")
         info = tarfile.TarInfo(f"{task_directory(task_id)}/{item.relative}")
         info.size = item.size
         info.mtime = 0
@@ -65,6 +59,4 @@ def _add_file(archive: tarfile.TarFile, task_id: str, item: TaskFile) -> None:
             item.modified_ns,
             item.inode,
         ):
-            raise SnapshotChangedError(
-                f"Task file changed while archiving: {item.path}"
-            )
+            raise SnapshotChangedError(f"Task file changed while archiving: {item.path}")

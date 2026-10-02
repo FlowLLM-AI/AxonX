@@ -23,15 +23,9 @@ class TaskLogReader:
         return Path(status.log_path).expanduser().resolve()
 
     def is_task_log(self, path: Path | None) -> bool:
-        return (
-            path is not None
-            and path.suffix == ".log"
-            and path.is_relative_to(self.directory)
-        )
+        return path is not None and path.suffix == ".log" and path.is_relative_to(self.directory)
 
-    def read(
-        self, path: Path | None, offset: int = -1, limit: int = LOG_WINDOW_BYTES
-    ) -> TaskLogChunk:
+    def read(self, path: Path | None, offset: int = -1, limit: int = LOG_WINDOW_BYTES) -> TaskLogChunk:
         if offset < -1 or limit <= 0:
             raise ValueError("Invalid task log range")
         if path is None:

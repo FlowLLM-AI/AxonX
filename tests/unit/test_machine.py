@@ -24,9 +24,7 @@ from axonx.steps.machine.steps import MachineStatusStep
 
 
 def test_parse_nvidia_output():
-    devices = parse_nvidia_output(
-        '0, GPU-1, "NVIDIA A100, PCIe", 81920, 40960, 40960, 75\n'
-    )
+    devices = parse_nvidia_output('0, GPU-1, "NVIDIA A100, PCIe", 81920, 40960, 40960, 75\n')
 
     assert [device.model_dump() for device in devices] == [
         {
@@ -116,7 +114,7 @@ def test_collection_uses_discovered_path_and_preserves_failures(monkeypatch):
 
     result = collect_gpus()
 
-    assert result.devices == ()
+    assert not result.devices
     assert len(result.warnings) == 1
     assert "nvidia-smi" in result.warnings[0]
     assert "timed out" in result.warnings[0]
@@ -127,9 +125,7 @@ def test_collect_cpu_and_memory(monkeypatch):
         "axonx.steps.machine.metrics.psutil.cpu_count",
         lambda logical: 8 if logical else 4,
     )
-    monkeypatch.setattr(
-        "axonx.steps.machine.metrics.psutil.cpu_percent", lambda interval: 25.0
-    )
+    monkeypatch.setattr("axonx.steps.machine.metrics.psutil.cpu_percent", lambda interval: 25.0)
     monkeypatch.setattr(
         "axonx.steps.machine.metrics.psutil.virtual_memory",
         lambda: SimpleNamespace(total=1_000, used=400, available=550, percent=45.0),
@@ -165,11 +161,7 @@ def test_no_gpu_is_an_empty_list(monkeypatch):
     step = MachineStatusStep(cpu_sample_interval=0)
     monkeypatch.setattr(
         "axonx.steps.machine.metrics.get_build_info",
-        lambda: type(
-            "BuildInfo",
-            (),
-            {"version": "1.2.3", "git_commit": None, "git_branch": None},
-        )(),
+        lambda: SimpleNamespace(version="1.2.3", git_commit=None, git_branch=None),
     )
     monkeypatch.setattr(
         "axonx.steps.machine.metrics.collect_cpu",
@@ -177,12 +169,8 @@ def test_no_gpu_is_an_empty_list(monkeypatch):
     )
     monkeypatch.setattr(
         "axonx.steps.machine.metrics.collect_memory",
-        lambda: MemoryInfo(
-            total_bytes=1, used_bytes=0, available_bytes=1, usage_percent=0
-        ),
+        lambda: MemoryInfo(total_bytes=1, used_bytes=0, available_bytes=1, usage_percent=0),
     )
-    monkeypatch.setattr(
-        "axonx.steps.machine.metrics.collect_gpus", lambda: GpuCollection()
-    )
+    monkeypatch.setattr("axonx.steps.machine.metrics.collect_gpus", GpuCollection)
 
     assert collect_machine_info(step.cpu_sample_interval, step.logger).gpus == []

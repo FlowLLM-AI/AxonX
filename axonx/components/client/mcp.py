@@ -26,9 +26,7 @@ class McpClient(BaseClient[Any]):
         stack = AsyncExitStack()
         auth = BearerAuth(self.token) if self.token else None
         try:
-            client = await stack.enter_async_context(
-                FastMCPClient(self.url, timeout=self.timeout, auth=auth)
-            )
+            client = await stack.enter_async_context(FastMCPClient(self.url, timeout=self.timeout, auth=auth))
         except Exception as exc:
             await stack.aclose()
             raise RemoteServiceError(f"Remote MCP connection failed: {exc}") from exc
@@ -46,16 +44,10 @@ class McpClient(BaseClient[Any]):
     async def run_job(self, name: str, arguments=None) -> JobResponse:
         try:
             result = await self._require_client().call_tool(name, dict(arguments or {}))
-            payload = (
-                result.structured_content
-                if result.structured_content is not None
-                else result.data
-            )
+            payload = result.structured_content if result.structured_content is not None else result.data
             return JobResponse.model_validate(payload)
         except ValidationError as exc:
-            raise RemoteServiceError(
-                "Remote MCP service returned an invalid response envelope"
-            ) from exc
+            raise RemoteServiceError("Remote MCP service returned an invalid response envelope") from exc
         except Exception as exc:
             raise RemoteServiceError(f"Remote MCP request failed: {exc}") from exc
 
@@ -72,9 +64,7 @@ class McpClient(BaseClient[Any]):
                 for tool in tools
             ]
         except ValidationError as exc:
-            raise RemoteServiceError(
-                "Remote MCP service returned an invalid job catalog"
-            ) from exc
+            raise RemoteServiceError("Remote MCP service returned an invalid job catalog") from exc
         except Exception as exc:
             raise RemoteServiceError(f"Remote MCP request failed: {exc}") from exc
 

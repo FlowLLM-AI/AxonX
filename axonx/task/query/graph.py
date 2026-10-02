@@ -61,11 +61,7 @@ def task_graph(entries: Mapping[str, TaskEntry], task_id: str) -> TaskGraph:
             ),
         ),
         edges=sorted(
-            (
-                TaskGraphEdge(from_=parent, to=node.task_id)
-                for node in graph
-                for parent in node.parent_ids
-            ),
+            (TaskGraphEdge(from_=parent, to=node.task_id) for node in graph for parent in node.parent_ids),
             key=lambda edge: (edge.from_, edge.to),
         ),
     )
@@ -91,8 +87,7 @@ def _node(task_id: str, entries: Mapping[str, TaskEntry]) -> TaskGraphNode:
     return TaskGraphNode(
         task_id=task_id,
         kind=task_type_from_id(task_id).value,
-        task_name=(record.reg_name if record else None)
-        or (status.task_name if status else None),
+        task_name=(record.reg_name if record else None) or (status.task_name if status else None),
         created_at=(record.created_at if record else None)
         or (status.created_at.isoformat() if status and status.created_at else None),
         parent_ids=parents,

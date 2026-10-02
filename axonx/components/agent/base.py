@@ -27,22 +27,14 @@ class BaseAgentComponent(BaseComponent, ABC):
     ) -> AsyncIterator[JobEvent]:
         """Run one turn, creating a backend session when the ID is absent."""
 
-    async def reply(
-        self, message: str, *, session_id: str | None = None, depth: int = 0
-    ) -> JobResponse:
-        return await fold_events(
-            self.reply_stream(message, session_id=session_id, depth=depth)
-        )
+    async def reply(self, message: str, *, session_id: str | None = None, depth: int = 0) -> JobResponse:
+        return await fold_events(self.reply_stream(message, session_id=session_id, depth=depth))
 
     @abstractmethod
-    async def list_sessions(
-        self, *, limit: int | None = None, offset: int = 0
-    ) -> list[dict[str, Any]]: ...
+    async def list_sessions(self, *, limit: int | None = None, offset: int = 0) -> list[dict[str, Any]]: ...
 
     @abstractmethod
-    async def get_session(
-        self, session_id: str, *, limit: int | None = None, offset: int = 0
-    ) -> dict[str, Any]: ...
+    async def get_session(self, session_id: str, *, limit: int | None = None, offset: int = 0) -> dict[str, Any]: ...
 
     @abstractmethod
     async def rename_session(self, session_id: str, title: str) -> None: ...

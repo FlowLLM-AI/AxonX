@@ -36,9 +36,7 @@ class JobDispatcher:
         internal = dict(system or {})
         if CLI_RAW_ARGUMENTS in public:
             raise ValueError(f"Reserved Job argument: {CLI_RAW_ARGUMENTS}")
-        job.logger.info(
-            f"Job called: name={name} arguments={format_log_arguments(public)}"
-        )
+        job.logger.info(f"Job called: name={name} arguments={format_log_arguments(public)}")
         job.validate_arguments(public)
         job.validate_system(internal)
         return job, public, internal

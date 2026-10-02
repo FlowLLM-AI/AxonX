@@ -20,16 +20,12 @@ from .models import (
 from .wheel import build_wheel, inspect_wheel, install_artifact, source_sha256
 
 
-def prepare_artifact(
-    source: Path | str, output: Path, *, use_cache: bool = True
-) -> PluginArtifact:
+def prepare_artifact(source: Path | str, output: Path, *, use_cache: bool = True) -> PluginArtifact:
     """Inspect a wheel or build and inspect a plugin project."""
     path = Path(source).expanduser().resolve()
     if path.is_file():
         if path.suffix != ".whl":
-            raise ValueError(
-                f"Plugin path must be a project directory or a wheel: {path}"
-            )
+            raise ValueError(f"Plugin path must be a project directory or a wheel: {path}")
         return inspect_wheel(path)
     digest = source_sha256(path)
     return inspect_wheel(build_wheel(path, output / digest, use_cache=use_cache))
@@ -103,16 +99,11 @@ def install_staged_plugin(
         (
             item
             for item in list_installed_plugins()
-            if canonicalize_name(item.distribution)
-            == canonicalize_name(stored.distribution)
+            if canonicalize_name(item.distribution) == canonicalize_name(stored.distribution)
         ),
         None,
     )
-    if (
-        previous is not None
-        and previous.sha256 == stored.sha256
-        and previous.content_sha256 == stored.content_sha256
-    ):
+    if previous is not None and previous.sha256 == stored.sha256 and previous.content_sha256 == stored.content_sha256:
         installed = previous
     else:
         try:
@@ -122,18 +113,12 @@ def install_staged_plugin(
                 destination.unlink(missing_ok=True)
             raise
     restart_required = bool(
-        installed.components
-        or installed.jobs
-        or (previous is not None and (previous.components or previous.jobs))
+        installed.components or installed.jobs or (previous is not None and (previous.components or previous.jobs))
     )
-    return PluginInstallResult(
-        **installed.model_dump(), restart_required=restart_required
-    )
+    return PluginInstallResult(**installed.model_dump(), restart_required=restart_required)
 
 
-def ensure_plugin_sources(
-    sources: list[str], artifact_directory: Path
-) -> list[PluginInfo]:
+def ensure_plugin_sources(sources: list[str], artifact_directory: Path) -> list[PluginInfo]:
     """Build configured sources and install only artifacts not already active."""
     for source in sources:
         artifact = prepare_artifact(source, artifact_directory)
@@ -141,8 +126,7 @@ def ensure_plugin_sources(
             (
                 item
                 for item in list_installed_plugins()
-                if canonicalize_name(item.distribution)
-                == canonicalize_name(artifact.distribution)
+                if canonicalize_name(item.distribution) == canonicalize_name(artifact.distribution)
             ),
             None,
         )
@@ -165,9 +149,7 @@ def uninstall_plugin(name: str) -> PluginUninstallResult:
         text=True,
     )
     if result.returncode:
-        raise RuntimeError(
-            f"Plugin uninstall failed: {(result.stderr or result.stdout).strip()}"
-        )
+        raise RuntimeError(f"Plugin uninstall failed: {(result.stderr or result.stdout).strip()}")
     invalidate_caches()
     return PluginUninstallResult(
         distribution=plugin.distribution,

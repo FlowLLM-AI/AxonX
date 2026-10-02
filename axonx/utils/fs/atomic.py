@@ -30,13 +30,9 @@ def atomic_write(path: Path, writer: Callable[[Path], object]) -> None:
         temporary_path.unlink(missing_ok=True)
 
 
-def atomic_write_text(
-    path: Path, content: str, *, encoding: str = AXONX_DEFAULT_ENCODING
-) -> None:
+def atomic_write_text(path: Path, content: str, *, encoding: str = AXONX_DEFAULT_ENCODING) -> None:
     """Atomically write text using the project default encoding."""
-    atomic_write(
-        path, lambda temporary: temporary.write_text(content, encoding=encoding)
-    )
+    atomic_write(path, lambda temporary: temporary.write_text(content, encoding=encoding))
 
 
 def atomic_write_json(path: Path, value: Any) -> None:

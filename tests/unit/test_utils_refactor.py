@@ -74,9 +74,7 @@ def test_symbol_loading_never_reexecutes_an_imported_module(tmp_path, monkeypatc
 
 
 def test_logging_configuration_is_explicit(tmp_path):
-    configure_logging(
-        LoggingConfig(log_dir=tmp_path, log_to_console=False, log_to_file=True)
-    )
+    configure_logging(LoggingConfig(log_dir=tmp_path, log_to_console=False, log_to_file=True))
     get_logger("probe").info("configured")
 
     path = get_log_path()

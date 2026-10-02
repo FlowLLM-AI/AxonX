@@ -12,9 +12,11 @@ def test_config_entry_points_can_name_files_in_a_package(tmp_path, monkeypatch):
     directory = package / "config"
     directory.mkdir(parents=True)
     (package / "__init__.py").write_text(
-        "from pathlib import Path\n"
-        "def config_path():\n"
-        "    return Path(__file__).parent / 'config' / 'a1.yaml'\n",
+        (
+            "from pathlib import Path\n"
+            "def config_path():\n"
+            "    return Path(__file__).parent / 'config' / 'a1.yaml'\n"
+        ),
         encoding="utf-8",
     )
     (directory / "a1.yaml").write_text("source: first\n", encoding="utf-8")

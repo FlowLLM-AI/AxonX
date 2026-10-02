@@ -147,11 +147,7 @@ def is_task_directory(directory: Path) -> bool:
     would land outside the workspace, and it would recreate a directory that a
     concurrent delete had just removed.
     """
-    return (
-        not directory.is_symlink()
-        and not directory.parent.is_symlink()
-        and directory.is_dir()
-    )
+    return not directory.is_symlink() and not directory.parent.is_symlink() and directory.is_dir()
 
 
 def read_entry(root: Path, task_id: str) -> TaskEntry | None:
@@ -190,16 +186,10 @@ def read_status(directory: Path, task_id: str) -> TaskStatus | None:
     if path.is_symlink():
         return None
     try:
-        status = TaskStatus.model_validate_json(
-            path.read_text(encoding=AXONX_DEFAULT_ENCODING)
-        )
+        status = TaskStatus.model_validate_json(path.read_text(encoding=AXONX_DEFAULT_ENCODING))
     except (OSError, UnicodeError, ValueError):
         return None
-    return (
-        status
-        if status.task_id == task_id and status.task_type == task_type_from_id(task_id)
-        else None
-    )
+    return status if status.task_id == task_id and status.task_type == task_type_from_id(task_id) else None
 
 
 def read_record(directory: Path, task_id: str) -> TaskRecord | None:

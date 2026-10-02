@@ -57,10 +57,7 @@ def _identity(
 
 
 def _included(relative: Path) -> bool:
-    return not (
-        any(part in _IGNORED_PARTS for part in relative.parts)
-        or relative.suffix == ".pyc"
-    )
+    return not (any(part in _IGNORED_PARTS for part in relative.parts) or relative.suffix == ".pyc")
 
 
 def content_sha256_from_directories(
@@ -104,9 +101,7 @@ def content_sha256_from_wheel(
     plugins: Mapping[str, str],
 ) -> str:
     """Hash the same logical plugin contents directly from a wheel archive."""
-    prefixes = tuple(
-        f"{package.replace('.', '/')}/" for package in sorted(set(plugins.values()))
-    )
+    prefixes = tuple(f"{package.replace('.', '/')}/" for package in sorted(set(plugins.values())))
     files: dict[str, bytes] = {}
     for name in archive.namelist():
         if name.endswith("/") or not name.startswith(prefixes):

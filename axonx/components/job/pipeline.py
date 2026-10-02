@@ -55,12 +55,8 @@ class PipelineJob(BaseJob):
     ) -> StepPlan:
         config = ComponentConfig.model_validate(raw)
         if app_context is None:
-            raise RuntimeError(
-                f"{cls.__name__} needs an application context to resolve Steps"
-            )
-        step_class = app_context.registry.require(
-            ComponentEnum.STEP, config.backend, BaseStep
-        )
+            raise RuntimeError(f"{cls.__name__} needs an application context to resolve Steps")
+        step_class = app_context.registry.require(ComponentEnum.STEP, config.backend, BaseStep)
         options = config.model_dump()
         # Step instances are fresh per invocation. Construct once while building
         # the Job so each implementation can validate or retain its own options.
@@ -88,9 +84,7 @@ class PipelineJob(BaseJob):
 
     def _build_steps(self) -> Iterator[BaseStep]:
         for plan in self._plans:
-            yield plan.step_class(
-                app_context=self.app_context, **deepcopy(plan.options)
-            )
+            yield plan.step_class(app_context=self.app_context, **deepcopy(plan.options))
 
     @staticmethod
     async def _drain(
@@ -124,7 +118,8 @@ class PipelineJob(BaseJob):
             await step_task
             return
 
-    async def stream(
+    # Async generators satisfy the base contract returning an AsyncIterator.
+    async def stream(  # pylint: disable=invalid-overridden-method
         self,
         arguments: Mapping[str, Any],
         system: Mapping[str, Any],

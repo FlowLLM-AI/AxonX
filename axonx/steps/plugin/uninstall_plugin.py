@@ -12,6 +12,4 @@ class UninstallPluginStep(BaseStep):
     """Uninstall one plugin distribution from this service machine."""
 
     async def execute(self):
-        self.response.answer = await asyncio.to_thread(
-            uninstall_plugin, self.context["plugin"]
-        )
+        self.response.answer = await asyncio.to_thread(uninstall_plugin, self.context["plugin"])

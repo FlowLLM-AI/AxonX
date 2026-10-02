@@ -38,17 +38,31 @@ class LgbmTrainInputParams(BaseTrainInputParams):
     train_start: str = Field(default="20150101", description="First training date in YYYYMMDD format, inclusive.")
     train_end: str = Field(default="20230101", description="Training cutoff in YYYYMMDD format, exclusive.")
     label_column: str = Field(default="label_1d_rank", description="Target label from the Alpha158 dataset to predict.")
-    trim_tail: float = Field(default=0.025, ge=0.0, lt=0.5, description="Fraction of daily raw-return extremes removed from each tail.")
-    validation_ratio: float = Field(default=0.10, gt=0.0, lt=0.5, description="Fraction of training dates reserved at the end for validation.")
-    num_boost_round: int = Field(default=1000, gt=0, description="Maximum boosting rounds when selecting the best iteration.")
-    early_stopping_rounds: int = Field(default=50, gt=0, description="Rounds without validation improvement before stopping.")
+    trim_tail: float = Field(
+        default=0.025, ge=0.0, lt=0.5, description="Fraction of daily raw-return extremes removed from each tail."
+    )
+    validation_ratio: float = Field(
+        default=0.10, gt=0.0, lt=0.5, description="Fraction of training dates reserved at the end for validation."
+    )
+    num_boost_round: int = Field(
+        default=1000, gt=0, description="Maximum boosting rounds when selecting the best iteration."
+    )
+    early_stopping_rounds: int = Field(
+        default=50, gt=0, description="Rounds without validation improvement before stopping."
+    )
     learning_rate: float = Field(default=0.03, gt=0.0, description="Step size applied to each boosting round.")
     num_leaves: int = Field(default=31, ge=2, description="Maximum number of leaves in each tree.")
     max_depth: int = Field(default=-1, ge=-1, description="Maximum tree depth; -1 allows unlimited depth.")
     min_data_in_leaf: int = Field(default=20, gt=0, description="Minimum number of training rows in a leaf.")
-    feature_fraction: float = Field(default=0.9, gt=0.0, le=1.0, description="Fraction of features sampled for each tree.")
-    bagging_fraction: float = Field(default=0.9, gt=0.0, le=1.0, description="Fraction of training rows sampled during bagging.")
-    bagging_freq: int = Field(default=1, ge=0, description="Boosting rounds between bagging samples; 0 disables bagging.")
+    feature_fraction: float = Field(
+        default=0.9, gt=0.0, le=1.0, description="Fraction of features sampled for each tree."
+    )
+    bagging_fraction: float = Field(
+        default=0.9, gt=0.0, le=1.0, description="Fraction of training rows sampled during bagging."
+    )
+    bagging_freq: int = Field(
+        default=1, ge=0, description="Boosting rounds between bagging samples; 0 disables bagging."
+    )
     lambda_l1: float = Field(default=0.0, ge=0.0, description="L1 penalty applied to leaf weights.")
     lambda_l2: float = Field(default=0.0, ge=0.0, description="L2 penalty applied to leaf weights.")
     random_seed: int = Field(default=42, ge=0, description="Seed for reproducible LightGBM sampling.")
@@ -404,7 +418,7 @@ class LgbmTrainTask(BaseTrainTask):
             ("feature_importance", "importance_path"),
             ("evaluation_history", "history_path"),
         )
-        for index, (name, path_key) in enumerate(artifact_paths, start=1):
+        for name, path_key in artifact_paths:
             artifacts[name] = artifact_record(self.state[path_key], output_dir)
         return self.output_cls(
             protocol={
@@ -415,13 +429,17 @@ class LgbmTrainTask(BaseTrainTask):
                 "raw_label_for_trimming": self.raw_label,
                 "daily_trim_tail": self.input_params.trim_tail,
                 "prediction_rows_are_not_trimmed": True,
-                "sample_filter": "signal-date is_buyable, valid finite strict one-day label, not exit_delayed, and exit_date <= train_end",
+                "sample_filter": (
+                    "signal-date is_buyable, valid finite strict one-day label, "
+                    "not exit_delayed, and exit_date <= train_end"
+                ),
             },
             feature_columns=list(self.state["features"]),
             target_columns=[self.input_params.label_column],
             model_name="LightGBM",
             metrics={
-                name: value for name, value in self.state["validation_metrics"].items()
+                name: value
+                for name, value in self.state["validation_metrics"].items()
                 if isinstance(value, (int, float)) and math.isfinite(value)
             },
             parameters=self._parameters(),

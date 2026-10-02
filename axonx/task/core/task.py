@@ -59,9 +59,7 @@ class BaseTask(ABC):
         self.is_generated_name = self.input_params.task_name is None
         resolved_name = self.input_params.task_name or generated_task_name(created_at)
         self.input_params.task_name = resolved_name
-        generated_task_id = TASK_ID_SEPARATOR.join(
-            (self.task_type.value, registration_name, resolved_name)
-        )
+        generated_task_id = TASK_ID_SEPARATOR.join((self.task_type.value, registration_name, resolved_name))
         task_id = task_id or generated_task_id
         if task_id != generated_task_id:
             raise ValueError(f"Assigned Task ID does not match its inputs: {task_id!r}")
@@ -113,9 +111,7 @@ class BaseTask(ABC):
 
     @staticmethod
     def normalize_yyyymmdd(value: object, *, optional: bool = False) -> str | None:
-        if optional and (
-            value is None or isinstance(value, str) and value.lower() in {"", "none"}
-        ):
+        if optional and (value is None or isinstance(value, str) and value.lower() in {"", "none"}):
             return None
         normalized = str(value)
         try:
@@ -152,16 +148,15 @@ class BaseTask(ABC):
         """Build one typed result after all steps complete."""
         output = self.build_output_params()
         if not isinstance(output, self.output_cls):
-            raise TypeError(
-                f"{type(self).__name__}.build_output_params must return {self.output_cls.__name__}"
-            )
+            raise TypeError(f"{type(self).__name__}.build_output_params must return {self.output_cls.__name__}")
         self._output_params = output
         return output
 
     def report_progress(self, percentage: float) -> None:
         if self._progress is None:
             raise RuntimeError("Progress can only be reported while a Task is running")
-        self._progress(percentage)
+        # TaskRunner installs the callable for the duration of a run.
+        self._progress(percentage)  # pylint: disable=not-callable
 
     @staticmethod
     def exit_code(_output: dict) -> int:

@@ -18,9 +18,7 @@ from ..session_store import (
 class ClaudeSessionStoreAdapter:
     def __init__(self, store: AgentSessionStore) -> None:
         self.store = store
-        self._locks: defaultdict[tuple[str, str], asyncio.Lock] = defaultdict(
-            asyncio.Lock
-        )
+        self._locks: defaultdict[tuple[str, str], asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def append(self, key, entries) -> None:
         from claude_agent_sdk import fold_session_summary
@@ -34,9 +32,7 @@ class ClaudeSessionStoreAdapter:
                 summary_key = cast(AgentSessionListKey, agent_key)
                 previous = await self.store.load_summary(summary_key)
                 summary = fold_session_summary(previous, key, entries)
-                await self.store.save_summary(
-                    summary_key, cast(AgentSessionSummary, summary)
-                )
+                await self.store.save_summary(summary_key, cast(AgentSessionSummary, summary))
 
     async def load(self, key):
         return await self.store.load(cast(AgentSessionKey, key))

@@ -83,10 +83,7 @@ async def test_named_proxy_forwards_request_and_upstream_response(tmp_path):
     assert received["content"] == payload
     headers = received["headers"]
     assert isinstance(headers, dict)
-    assert {
-        name: headers[name]
-        for name in ("authorization", "content-type", "x-custom", "content-length")
-    } == {
+    assert {name: headers[name] for name in ("authorization", "content-type", "x-custom", "content-length")} == {
         "authorization": "Bearer upstream-token",
         "content-type": "application/json",
         "x-custom": "preserved",

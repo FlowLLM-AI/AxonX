@@ -23,9 +23,7 @@ async def test_claude_adapter_satisfies_sdk_store_contract(tmp_path):
     def make_store():
         nonlocal counter
         counter += 1
-        return ClaudeSessionStoreAdapter(
-            LocalAgentSessionStore(tmp_path / f"contract-{counter}")
-        )
+        return ClaudeSessionStoreAdapter(LocalAgentSessionStore(tmp_path / f"contract-{counter}"))
 
     await run_session_store_conformance(make_store)
 
@@ -70,9 +68,7 @@ async def test_claude_adapter_supports_sdk_session_lifecycle(tmp_path):
 
     sessions = await list_sessions_from_store(store, directory=directory)
     assert [item.session_id for item in sessions] == [session_id]
-    messages = await get_session_messages_from_store(
-        store, session_id, directory=directory
-    )
+    messages = await get_session_messages_from_store(store, session_id, directory=directory)
     assert [item.type for item in messages] == ["user", "assistant"]
 
     await rename_session_via_store(store, session_id, "Renamed", directory=directory)

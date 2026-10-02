@@ -91,9 +91,7 @@ def parse_nvidia_output(output: str) -> list[GpuInfo]:
     for row in csv.reader(output.splitlines(), skipinitialspace=True):
         if len(row) != len(NVIDIA_COLUMNS):
             continue
-        index, uuid, name, total, used, available, usage = (
-            value.strip() for value in row
-        )
+        index, uuid, name, total, used, available, usage = (value.strip() for value in row)
         parsed_index = _non_negative_int(index)
         if parsed_index is None:
             continue
@@ -135,9 +133,7 @@ def parse_rocm_output(output: str) -> list[GpuInfo]:
                 vendor="amd",
                 index=index,
                 uuid=_optional_string(values.get("Unique ID")),
-                name=_optional_string(
-                    values.get("Card series") or values.get("Card model")
-                ),
+                name=_optional_string(values.get("Card series") or values.get("Card model")),
                 memory_total_bytes=_byte_count(values.get("VRAM Total Memory (B)")),
                 memory_used_bytes=_byte_count(values.get("VRAM Total Used Memory (B)")),
                 usage_percent=_percent(values.get("GPU use (%)")),
@@ -158,16 +154,10 @@ def _gpu(
     memory_available_bytes: int | None = None,
 ) -> GpuInfo:
     """Build one validated GPU payload and derive consistent memory metrics."""
-    if (
-        memory_total_bytes is not None
-        and memory_used_bytes is not None
-        and memory_used_bytes > memory_total_bytes
-    ):
+    if memory_total_bytes is not None and memory_used_bytes is not None and memory_used_bytes > memory_total_bytes:
         memory_used_bytes = None
     memory_is_consistent = (
-        memory_total_bytes is not None
-        and memory_used_bytes is not None
-        and memory_used_bytes <= memory_total_bytes
+        memory_total_bytes is not None and memory_used_bytes is not None and memory_used_bytes <= memory_total_bytes
     )
     if memory_available_bytes is None and memory_is_consistent:
         memory_available_bytes = memory_total_bytes - memory_used_bytes
@@ -205,9 +195,7 @@ def _run(*command: str) -> tuple[str, str | None]:
         return "", f"timed out after {TIMEOUT_SECONDS:g}s"
     except subprocess.CalledProcessError as exc:
         detail = " ".join((exc.stderr or "").splitlines())[:300]
-        return "", f"exited with status {exc.returncode}" + (
-            f": {detail}" if detail else ""
-        )
+        return "", f"exited with status {exc.returncode}" + (f": {detail}" if detail else "")
     except OSError as exc:
         return "", str(exc)
     return result.stdout, None

@@ -74,7 +74,8 @@ def live_agent_service(tmp_path_factory, require_claude_gateway):
     environment = {**os.environ, "PYTHONUNBUFFERED": "1"}
 
     with log_path.open("w+", encoding="utf-8") as log:
-        process = subprocess.Popen(
+        # The fixture owns the process across its yield and shuts it down in finally.
+        process = subprocess.Popen(  # pylint: disable=consider-using-with
             [sys.executable, "-m", "axonx.cli", "start", "--config", str(config_path)],
             cwd=PROJECT_ROOT,
             env=environment,
@@ -82,33 +83,33 @@ def live_agent_service(tmp_path_factory, require_claude_gateway):
             stderr=subprocess.STDOUT,
             text=True,
         )
-        deadline = time.monotonic() + 30
-        url = f"http://127.0.0.1:{port}"
-        while time.monotonic() < deadline:
-            if process.poll() is not None:
-                log.seek(0)
-                pytest.fail(f"AxonX service exited during startup:\n{log.read()}")
-            try:
-                if httpx.get(
-                    f"{url}/health",
-                    headers={"authorization": f"Bearer {token}"},
-                    timeout=0.5,
-                ).is_success:
-                    break
-            except httpx.HTTPError:
-                pass
-            time.sleep(0.1)
-        else:
-            process.terminate()
-            process.wait(timeout=10)
-            log.seek(0)
-            pytest.fail(f"AxonX service did not become healthy:\n{log.read()}")
-
-        yield {"port": port, "token": token, "log_path": log_path}
-
-        process.terminate()
         try:
-            process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=10)
+            deadline = time.monotonic() + 30
+            url = f"http://127.0.0.1:{port}"
+            while time.monotonic() < deadline:
+                if process.poll() is not None:
+                    log.seek(0)
+                    pytest.fail(f"AxonX service exited during startup:\n{log.read()}")
+                try:
+                    if httpx.get(
+                        f"{url}/health",
+                        headers={"authorization": f"Bearer {token}"},
+                        timeout=0.5,
+                    ).is_success:
+                        break
+                except httpx.HTTPError:
+                    pass
+                time.sleep(0.1)
+            else:
+                log.seek(0)
+                pytest.fail(f"AxonX service did not become healthy:\n{log.read()}")
+
+            yield {"port": port, "token": token, "log_path": log_path}
+
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=10)

@@ -26,9 +26,7 @@ class SyncStateStore:
         except (OSError, UnicodeError, ValueError) as exc:
             raise ValueError(f"Cannot read sync state: {self.path}") from exc
         task_ids = value.get("acknowledged") if isinstance(value, dict) else None
-        if not isinstance(task_ids, list) or not all(
-            isinstance(task_id, str) for task_id in task_ids
-        ):
+        if not isinstance(task_ids, list) or not all(isinstance(task_id, str) for task_id in task_ids):
             raise ValueError(f"Invalid sync state: {self.path}")
         for task_id in task_ids:
             task_type_from_id(task_id)

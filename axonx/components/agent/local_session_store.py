@@ -41,17 +41,16 @@ class LocalAgentSessionStore:
     @classmethod
     def _subpath(cls, value: str) -> PurePosixPath:
         path = PurePosixPath(value)
-        if path.is_absolute() or not path.parts or any(
-            part in {"", ".", ".."} or not _KEY_PART.fullmatch(part)
-            for part in path.parts
+        if (
+            path.is_absolute()
+            or not path.parts
+            or any(part in {"", ".", ".."} or not _KEY_PART.fullmatch(part) for part in path.parts)
         ):
             raise ValueError(f"Invalid Agent session subpath: {value!r}")
         return path
 
     def _session_dir(self, project_key: str, session_id: str) -> Path:
-        return self.root / self._part(project_key, "project_key") / self._part(
-            session_id, "session_id"
-        )
+        return self.root / self._part(project_key, "project_key") / self._part(session_id, "session_id")
 
     def _path(self, key: AgentSessionKey) -> Path:
         directory = self._session_dir(key["project_key"], key["session_id"])
@@ -80,9 +79,7 @@ class LocalAgentSessionStore:
             entries.append(cast(AgentSessionEntry, value))
         return entries
 
-    async def append(
-        self, key: AgentSessionKey, entries: list[AgentSessionEntry]
-    ) -> None:
+    async def append(self, key: AgentSessionKey, entries: list[AgentSessionEntry]) -> None:
         if not entries:
             return
         path = self._path(key)
@@ -91,11 +88,7 @@ class LocalAgentSessionStore:
             known = self._seen_uuids.get(cache_key)
             if known is None:
                 existing = await asyncio.to_thread(self._read, path) or []
-                known = {
-                    entry["uuid"]
-                    for entry in existing
-                    if isinstance(entry.get("uuid"), str)
-                }
+                known = {entry["uuid"] for entry in existing if isinstance(entry.get("uuid"), str)}
                 self._seen_uuids[cache_key] = known
             appended: list[AgentSessionEntry] = []
             for entry in entries:
@@ -110,10 +103,7 @@ class LocalAgentSessionStore:
                 appended.append(cast(AgentSessionEntry, json.loads(json.dumps(entry))))
             if not appended:
                 return
-            content = "".join(
-                json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n"
-                for entry in appended
-            )
+            content = "".join(json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n" for entry in appended)
 
             def append_file() -> None:
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,9 +143,7 @@ class LocalAgentSessionStore:
 
         return await asyncio.to_thread(scan)
 
-    async def load_summary(
-        self, key: AgentSessionListKey
-    ) -> AgentSessionSummary | None:
+    async def load_summary(self, key: AgentSessionListKey) -> AgentSessionSummary | None:
         path = self._summary_path(key)
 
         def read() -> AgentSessionSummary | None:
@@ -175,9 +163,7 @@ class LocalAgentSessionStore:
         async with self._locks[str(path)]:
             return await asyncio.to_thread(read)
 
-    async def save_summary(
-        self, key: AgentSessionListKey, summary: AgentSessionSummary
-    ) -> AgentSessionSummary:
+    async def save_summary(self, key: AgentSessionListKey, summary: AgentSessionSummary) -> AgentSessionSummary:
         path = self._summary_path(key)
         transcript = self._path(key)
         if summary["session_id"] != key["session_id"]:
@@ -250,11 +236,7 @@ class LocalAgentSessionStore:
 
         def scan() -> list[str]:
             try:
-                paths = tuple(
-                    path
-                    for path in base.rglob("*.jsonl")
-                    if path != base / "transcript.jsonl"
-                )
+                paths = tuple(path for path in base.rglob("*.jsonl") if path != base / "transcript.jsonl")
             except FileNotFoundError:
                 return []
             return sorted(str(path.relative_to(base).with_suffix("")) for path in paths)

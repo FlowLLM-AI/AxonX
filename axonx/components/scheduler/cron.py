@@ -96,16 +96,12 @@ class CronScheduler(BaseScheduler):
 
     async def _execute(self) -> None:
         try:
-            response = await self.app_context.dispatcher.run(
-                self.job_name, self.arguments
-            )
+            response = await self.app_context.dispatcher.run(self.job_name, self.arguments)
         except Exception:
             self.logger.exception(f"Scheduled Job {self.job_name!r} raised")
             return
         if not response.success:
-            self.logger.warning(
-                f"Scheduled Job {self.job_name!r} failed: {response.answer}"
-            )
+            self.logger.warning(f"Scheduled Job {self.job_name!r} failed: {response.answer}")
 
     async def _close(self) -> None:
         runner, self._runner = self._runner, None

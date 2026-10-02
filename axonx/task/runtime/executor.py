@@ -54,9 +54,7 @@ class TaskExecution:
 class TaskCommandExecutor:
     """Turn one validated ``exec`` Command into a Task result."""
 
-    def __init__(
-        self, workspace_dir: str | Path, timezone: str = AXONX_DEFAULT_TIMEZONE
-    ) -> None:
+    def __init__(self, workspace_dir: str | Path, timezone: str = AXONX_DEFAULT_TIMEZONE) -> None:
         self.workspace_path = Path(workspace_dir).expanduser().resolve()
         self.timezone = timezone
 
@@ -65,11 +63,7 @@ class TaskCommandExecutor:
         if command.action != CLI_EXEC_COMMAND:
             raise ValueError(f"Unsupported Task command: {command.action}")
 
-        arguments = {
-            key: value
-            for key, value in command.arguments.items()
-            if key != CLI_RAW_ARGUMENTS
-        }
+        arguments = {key: value for key, value in command.arguments.items() if key != CLI_RAW_ARGUMENTS}
         if not arguments:
             return TaskCatalog(installed_tasks())
 

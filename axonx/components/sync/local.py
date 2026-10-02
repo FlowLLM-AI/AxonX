@@ -77,10 +77,7 @@ class LocalSyncComponent(BaseSyncComponent):
             raise ValueError("Task filters must be lists of strings")
         self.task_ids = frozenset(task_ids or ())
         self.task_id_prefixes = tuple(task_id_prefixes or ())
-        if any(
-            not isinstance(value, str) or not value
-            for value in (*self.task_ids, *self.task_id_prefixes)
-        ):
+        if any(not isinstance(value, str) or not value for value in (*self.task_ids, *self.task_id_prefixes)):
             raise ValueError("Task filters must contain non-empty strings")
         self.root = self.workspace_path.expanduser().resolve()
         self._state = SyncStateStore(self.root, self.target)
@@ -98,17 +95,13 @@ class LocalSyncComponent(BaseSyncComponent):
         # than every flush.
         self.configured_target = self.app_config.resolve_target(self.target)
         self._changes = self.repository.subscribe()
-        self._change_consumer = asyncio.create_task(
-            self._consume_changes(), name="axonx-sync-queue"
-        )
+        self._change_consumer = asyncio.create_task(self._consume_changes(), name="axonx-sync-queue")
         self._acknowledged = await asyncio.to_thread(self._state.load)
         current = set((await self.repository.entries()).keys())
         if self.sync_on_start and current:
             # A restart replays the whole workspace rather than assuming the target
             # still holds what it held last time.
-            self.logger.info(
-                f"Workspace sync queued its whole workspace: tasks={len(current)}"
-            )
+            self.logger.info(f"Workspace sync queued its whole workspace: tasks={len(current)}")
             await self._requeue(current)
 
     async def _close(self) -> None:
@@ -146,10 +139,7 @@ class LocalSyncComponent(BaseSyncComponent):
         )
 
     def _plan(self, task_ids: Sequence[str]) -> dict[str, TaskPlan]:
-        return {
-            task_id: plan_task(self.root, task_id, self.max_file_bytes)
-            for task_id in task_ids
-        }
+        return {task_id: plan_task(self.root, task_id, self.max_file_bytes) for task_id in task_ids}
 
     def _is_settled(self, task_id: str) -> bool:
         """Whether a task has stopped writing, so its files are safe to ship whole.
@@ -166,9 +156,7 @@ class LocalSyncComponent(BaseSyncComponent):
 
     async def _send(self, archive: Path | None, deletions: Sequence[str]) -> None:
         """Upload one archive for the receiver to apply, and report removals."""
-        configured = self.configured_target or self.app_config.resolve_target(
-            self.target
-        )
+        configured = self.configured_target or self.app_config.resolve_target(self.target)
         async with HttpClient(
             target=configured.address,
             timeout=self.timeout,
@@ -182,9 +170,7 @@ class LocalSyncComponent(BaseSyncComponent):
                     staged = copied.path
                     # The receiver recomputes the digest of what actually arrived.
                     if copied.sha256 != digest:
-                        raise ValueError(
-                            "Remote workspace copy does not match the uploaded archive"
-                        )
+                        raise ValueError("Remote workspace copy does not match the uploaded archive")
                 response = await client.run_job(
                     "sync_tasks",
                     {"path": staged, "deletions": list(deletions)},
@@ -198,9 +184,7 @@ class LocalSyncComponent(BaseSyncComponent):
         if not response.success:
             raise ValueError(f"Remote sync apply failed: {response.answer}")
 
-    async def _transfer(
-        self, pending: Sequence[str], removed: Sequence[str]
-    ) -> SyncReport:
+    async def _transfer(self, pending: Sequence[str], removed: Sequence[str]) -> SyncReport:
         plans = await asyncio.to_thread(self._plan, pending)
         batches, oversized, deferred = pack_batches(
             plans,
@@ -210,24 +194,16 @@ class LocalSyncComponent(BaseSyncComponent):
         # Every plan is reported, not just the ones that reached an archive: a task
         # whose files are all too large never gets a batch, and dropping it without
         # a word is what the report and these warnings exist to prevent.
-        rejected = [
-            f"{task_directory(task_id)}/{name}"
-            for task_id, plan in plans.items()
-            for name in plan.rejected
-        ]
+        rejected = [f"{task_directory(task_id)}/{name}" for task_id, plan in plans.items() for name in plan.rejected]
         uploaded: list[str] = []
         delivered = False
         if batches:
             with tempfile.TemporaryDirectory(prefix="axonx-sync-") as staging:
                 archive = Path(staging) / SYNC_ARCHIVE_NAME
                 for index, batch in enumerate(batches):
-                    included = await asyncio.to_thread(
-                        build_archive, plans, batch, archive
-                    )
+                    included = await asyncio.to_thread(build_archive, plans, batch, archive)
                     if archive.stat().st_size > self.max_archive_bytes:
-                        raise ValueError(
-                            f"Built sync archive exceeds {self.max_archive_bytes} bytes"
-                        )
+                        raise ValueError(f"Built sync archive exceeds {self.max_archive_bytes} bytes")
                     # Deletions ride along with the first archive so they are reported
                     # even when the removed tasks were the only thing that changed.
                     await self._send(archive, removed if index == 0 else [])
@@ -244,9 +220,7 @@ class LocalSyncComponent(BaseSyncComponent):
         if oversized:
             await self._requeue(oversized)
         if rejected:
-            self.logger.warning(
-                f"Rejecting incomplete Task snapshots: files={', '.join(rejected)}"
-            )
+            self.logger.warning(f"Rejecting incomplete Task snapshots: files={', '.join(rejected)}")
         for task_id in oversized:
             self.logger.warning(
                 f"Skipping a task that cannot be replicated within the size limits: task={task_directory(task_id)}",
@@ -268,24 +242,18 @@ class LocalSyncComponent(BaseSyncComponent):
             if resync:
                 # The watcher missed a window, so the whole workspace is re-examined
                 # rather than only what it managed to report.
-                self.logger.warning(
-                    "Task repository watcher was down; re-examining the whole workspace"
-                )
+                self.logger.warning("Task repository watcher was down; re-examining the whole workspace")
                 queued |= current
             # The receiver names task directories by their kind and ID together.
             removed = sorted(
-                task_directory(task_id)
-                for task_id in self._acknowledged - current
-                if self._should_sync(task_id)
+                task_directory(task_id) for task_id in self._acknowledged - current if self._should_sync(task_id)
             )
             pending = sorted(filter(self._should_sync, queued & current))
             if pending:
                 settled = set(await asyncio.to_thread(self._settled, pending))
                 # A task that is still writing goes back in the queue rather than out
                 # of it, so it is picked up as soon as it finishes.
-                await self._requeue(
-                    [task_id for task_id in pending if task_id not in settled]
-                )
+                await self._requeue([task_id for task_id in pending if task_id not in settled])
                 pending = [task_id for task_id in pending if task_id in settled]
             if not pending and not removed:
                 return SyncReport()

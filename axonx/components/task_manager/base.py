@@ -34,9 +34,7 @@ class BaseTaskManager(BaseComponent, ABC):
     async def get_status(self, task_id: str) -> TaskStatus:
         """Return one task status; raise KeyError if the ID is absent."""
 
-    async def wait(
-        self, task_id: str, run_id: str, poll_interval: float = 1.0
-    ) -> TaskStatus:
+    async def wait(self, task_id: str, run_id: str, poll_interval: float = 1.0) -> TaskStatus:
         """Wait for one specific run to finish and return its final status."""
         if poll_interval <= 0:
             raise ValueError("poll_interval must be positive")
@@ -61,15 +59,11 @@ class BaseTaskManager(BaseComponent, ABC):
         """Return the graph containing one task; raise KeyError if absent."""
 
     @abstractmethod
-    async def read_log(
-        self, task_id: str, offset: int = -1, limit: int = LOG_WINDOW_BYTES
-    ) -> TaskLogChunk:
+    async def read_log(self, task_id: str, offset: int = -1, limit: int = LOG_WINDOW_BYTES) -> TaskLogChunk:
         """Read a bounded range of a task log; raise KeyError if the ID is absent."""
 
     @abstractmethod
-    def stream(
-        self, task_id: str, poll_interval: float = 0.5
-    ) -> AsyncIterator[JobEvent]:
+    def stream(self, task_id: str, poll_interval: float = 0.5) -> AsyncIterator[JobEvent]:
         """Follow one task until it stops, emitting its progress and log.
 
         The stream carries only what happened — ``ProgressEvent`` and ``LogEvent`` — and

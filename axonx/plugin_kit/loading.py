@@ -31,7 +31,5 @@ def load_symbol[T](
         value = getattr(value, part)
 
     if not isinstance(value, type) or not issubclass(value, expected_base):
-        raise TypeError(
-            f"{kind} target must subclass {expected_base.__name__}: {target}"
-        )
+        raise TypeError(f"{kind} target must subclass {expected_base.__name__}: {target}")
     return cast(type[T], value)

@@ -1,5 +1,8 @@
 """Run a Task and persist each state transition."""
 
+# Internal wiring intentionally uses private runtime hooks.
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import inspect
@@ -41,9 +44,7 @@ class TaskRunner:
         # follower that observes a terminal status has therefore already had a
         # chance to read every progress event leading to it.
         if self.emit is None and self.step is not None:
-            append_event(
-                task.task_dir / EVENTS_FILE, ProgressEvent.from_status(self.step)
-            )
+            append_event(task.task_dir / EVENTS_FILE, ProgressEvent.from_status(self.step))
         write_status(task.task_dir, status)
         if self.emit is not None:
             self.emit(status.model_copy(deep=True))
@@ -51,9 +52,7 @@ class TaskRunner:
     def progress(self, percentage: float) -> None:
         step = self.step
         if step is None:
-            raise RuntimeError(
-                "Progress can only be reported while a task step is running"
-            )
+            raise RuntimeError("Progress can only be reported while a task step is running")
         if not 0 <= percentage <= 100:
             raise ValueError("percentage must be between 0 and 100")
         if step.percentage is not None and percentage < step.percentage:
@@ -92,31 +91,21 @@ class TaskRunner:
         current.finished_at = datetime.now(UTC)
         self._publish()
         self.step = None
-        task.logger.info(
-            f"Task step completed step={name} elapsed_seconds={perf_counter() - started:.3f}"
-        )
+        task.logger.info(f"Task step completed step={name} elapsed_seconds={perf_counter() - started:.3f}")
 
     def run(self, task: BaseTask) -> TaskStatus:
         if task_type_from_id(task.task_id) != task.task_type:
             raise ValueError(f"Task type does not match its ID: {task.task_id}")
         if task.task_dir.parent.is_symlink():
-            raise ValueError(
-                f"Task type directory cannot be a symlink: {task.task_dir.parent}"
-            )
+            raise ValueError(f"Task type directory cannot be a symlink: {task.task_dir.parent}")
         if task.task_dir.is_symlink():
             raise ValueError(f"Task directory cannot be a symlink: {task.task_dir}")
         if task.task_dir.exists():
             queued = read_status(task.task_dir, task.task_id)
             handed_over = (
-                queued is not None
-                and queued.state == TaskState.QUEUED
-                and queued.run_id == task.context.run_id
+                queued is not None and queued.state == TaskState.QUEUED and queued.run_id == task.context.run_id
             )
-            replaceable = (
-                not task.is_generated_name
-                and queued is not None
-                and queued.state.is_terminal
-            )
+            replaceable = not task.is_generated_name and queued is not None and queued.state.is_terminal
             if replaceable:
                 shutil.rmtree(task.task_dir)
                 task.task_dir.mkdir(parents=True)
@@ -140,9 +129,7 @@ class TaskRunner:
         started = perf_counter()
         try:
             self._publish()
-            task.logger.info(
-                f"Task started task_id={task.task_id} task_type={task.task_type.value}"
-            )
+            task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
             status.state = TaskState.RUNNING
             status.started_at = datetime.now(UTC)
             self._publish()
@@ -154,9 +141,7 @@ class TaskRunner:
             status.exit_code = exit_code
             status.result = output
             status.state = TaskState.SUCCEEDED if exit_code == 0 else TaskState.FAILED
-            status.error = (
-                "" if exit_code == 0 else f"Task exited with code {exit_code}"
-            )
+            status.error = "" if exit_code == 0 else f"Task exited with code {exit_code}"
             status.finished_at = datetime.now(UTC)
             if exit_code == 0:
                 write_task_metadata(task)

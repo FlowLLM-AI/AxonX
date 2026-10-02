@@ -435,7 +435,7 @@ class LgbmTrainTask(BaseTrainTask):
             ("feature_importance", "importance_path"),
             ("evaluation_history", "history_path"),
         )
-        for index, (name, path_key) in enumerate(artifact_paths, start=1):
+        for name, path_key in artifact_paths:
             artifacts[name] = artifact_record(self.state[path_key], output_dir)
         return self.output_cls(
             protocol={
@@ -447,7 +447,10 @@ class LgbmTrainTask(BaseTrainTask):
                 "raw_label_for_trimming": self.raw_label,
                 "daily_trim_tail": self.input_params.trim_tail,
                 "prediction_rows_are_not_trimmed": True,
-                "sample_filter": "signal-date is_buyable, valid finite strict one-day label, not exit_delayed, and exit_date <= train_end",
+                "sample_filter": (
+                    "signal-date is_buyable, valid finite strict one-day label, "
+                    "not exit_delayed, and exit_date <= train_end"
+                ),
             },
             feature_columns=list(self.state["features"]),
             target_columns=[self.input_params.label_column],

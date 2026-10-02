@@ -83,9 +83,7 @@ def configure_logging(config: LoggingConfig) -> None:
 
 def get_logger(name: str = "axonx") -> Any:
     """Return a named view without changing the logging configuration."""
-    qualified_name = (
-        name if name == "axonx" or name.startswith("axonx.") else f"axonx.{name}"
-    )
+    qualified_name = name if name == "axonx" or name.startswith("axonx.") else f"axonx.{name}"
     return logger.bind(name=qualified_name)
 
 

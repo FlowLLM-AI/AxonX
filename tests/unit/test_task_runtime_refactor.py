@@ -207,9 +207,7 @@ async def test_stream_follows_log_path_created_after_subscription(tmp_path):
         task_type=TaskType.ANALYSIS,
         state=TaskState.QUEUED,
     )
-    finished = queued.model_copy(
-        update={"state": TaskState.SUCCEEDED, "log_path": str(log_path)}
-    )
+    finished = queued.model_copy(update={"state": TaskState.SUCCEEDED, "log_path": str(log_path)})
     calls = 0
 
     async def read_status(_task_id):
@@ -233,9 +231,7 @@ async def test_stream_follows_log_path_created_after_subscription(tmp_path):
         )
     ]
 
-    assert "".join(event.content for event in events if isinstance(event, LogEvent)) == (
-        "live log\n"
-    )
+    assert "".join(event.content for event in events if isinstance(event, LogEvent)) == ("live log\n")
 
 
 async def test_statuses_are_sorted_by_creation_time_not_task_id():
@@ -320,9 +316,7 @@ async def test_worker_exit_targets_its_task_and_run_directly():
     manager.repository = Repository()
     manager._settle_dead_task = settle
 
-    await manager._handle_worker_exit(
-        WorkerExit(7, "boom", status.task_id, status.run_id)
-    )
+    await manager._handle_worker_exit(WorkerExit(7, "boom", status.task_id, status.run_id))
 
     assert settled == [
         (
@@ -397,21 +391,15 @@ async def test_submission_returns_queryable_task_handle(tmp_path):
         sources = "etl#native#prices,train#native#model"
         response = await app.run_job("submit", {"task": "demo", "x": 2, "y": 3, "source_tasks": sources})
         handle = response.answer
-        waited = await app.run_job(
-            "wait_task", {"task_id": handle.task_id, "run_id": handle.run_id}
-        )
+        waited = await app.run_job("wait_task", {"task_id": handle.task_id, "run_id": handle.run_id})
         status = waited.answer
 
-        failed_handle = (
-            await app.run_job("submit", {"task": "demo", "x": 2, "y": 3, "fail": True})
-        ).answer
+        failed_handle = (await app.run_job("submit", {"task": "demo", "x": 2, "y": 3, "fail": True})).answer
         failed = await app.run_job(
             "wait_task",
             {"task_id": failed_handle.task_id, "run_id": failed_handle.run_id},
         )
-        wrong_run = await app.run_job(
-            "wait_task", {"task_id": handle.task_id, "run_id": "wrong"}
-        )
+        wrong_run = await app.run_job("wait_task", {"task_id": handle.task_id, "run_id": "wrong"})
 
     assert response.success is True
     assert waited.success is True
@@ -443,21 +431,13 @@ async def test_named_submission_replaces_completed_task(tmp_path):
 
     async with app:
         manager = app.context.components["task_manager"]["default"]
-        first = (
-            await app.run_job(
-                "submit", {"task": "demo", "task_name": "latest", "x": 2, "y": 3}
-            )
-        ).answer
+        first = (await app.run_job("submit", {"task": "demo", "task_name": "latest", "x": 2, "y": 3})).answer
         for _ in range(50):
             if (await manager.get_status(first.task_id)).state.is_terminal:
                 break
             await asyncio.sleep(0.1)
 
-        second = (
-            await app.run_job(
-                "submit", {"task": "demo", "task_name": "latest", "x": 4, "y": 5}
-            )
-        ).answer
+        second = (await app.run_job("submit", {"task": "demo", "task_name": "latest", "x": 4, "y": 5})).answer
         for _ in range(50):
             status = await manager.get_status(second.task_id)
             if status.state.is_terminal:
@@ -486,6 +466,7 @@ async def test_named_submission_cannot_replace_active_task(tmp_path):
             state=TaskState.RUNNING,
         ),
     )
+
     class Manager:
         workspace_path = tmp_path
 

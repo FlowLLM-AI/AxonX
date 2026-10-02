@@ -107,9 +107,7 @@ class WorkspacePaths:
         if "\x00" in filename:
             raise ValueError("Upload filename cannot contain a NUL byte")
         if len(filename) > MAX_FILENAME_LENGTH:
-            raise ValueError(
-                f"Upload filename exceeds {MAX_FILENAME_LENGTH} characters"
-            )
+            raise ValueError(f"Upload filename exceeds {MAX_FILENAME_LENGTH} characters")
         return filename
 
     def copy_directory(self, directory: str | None) -> Path:
@@ -120,14 +118,10 @@ class WorkspacePaths:
         """
         relative = self.copy_dir if directory is None else directory
         if not isinstance(relative, str) or not relative.strip():
-            raise ValueError(
-                "Upload directory must be a non-empty workspace-relative path"
-            )
+            raise ValueError("Upload directory must be a non-empty workspace-relative path")
         target = self.resolve(relative)
         if not target.is_relative_to(self.copy_root):
-            raise ValueError(
-                f"Uploads are confined to the workspace {self.copy_dir!r} directory"
-            )
+            raise ValueError(f"Uploads are confined to the workspace {self.copy_dir!r} directory")
         return target
 
     def staged(self, relative_path: str) -> Path:
@@ -141,9 +135,7 @@ class WorkspacePaths:
             raise ValueError("Staged path must be a non-empty workspace-relative path")
         target = self.resolve(relative_path)
         if target == self.copy_root or not target.is_relative_to(self.copy_root):
-            raise ValueError(
-                f"Staged files are confined to the workspace {self.copy_dir!r} directory"
-            )
+            raise ValueError(f"Staged files are confined to the workspace {self.copy_dir!r} directory")
         if (self.root / relative_path).is_symlink():
             raise ValueError(f"Staged paths cannot be symlinks: {relative_path}")
         return target

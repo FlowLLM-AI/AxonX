@@ -81,9 +81,7 @@ class ProviderRegistry:
         if not isinstance(implementation, type):
             raise TypeError("Provider implementation must be a class")
 
-        component_type = component_type_name(
-            getattr(implementation, "component_type", None)
-        )
+        component_type = component_type_name(getattr(implementation, "component_type", None))
         provider_name = declared_provider_name(implementation) if name is None else name
         if not isinstance(provider_name, str) or not provider_name:
             raise ValueError("Provider name must be a non-empty string")
@@ -92,10 +90,7 @@ class ProviderRegistry:
         provider_owner = owner or implementation.__module__
         existing = self._providers.get(key)
         if existing is not None:
-            if (
-                existing.implementation is implementation
-                and existing.owner == provider_owner
-            ):
+            if existing.implementation is implementation and existing.owner == provider_owner:
                 return
             raise ValueError(
                 f"Provider '{component_type}:{provider_name}' is supplied by both "
@@ -116,14 +111,13 @@ class ProviderRegistry:
     ) -> type[T]:
         """Resolve and type-check one provider or raise a configuration error."""
         normalized_type = component_type_name(component_type)
-        provider = self._providers.get((normalized_type, name))
-        if provider is None:
+        registered = self._providers.get((normalized_type, name))
+        if registered is None:
             raise ValueError(f"Unknown {normalized_type} backend: {name}")
-        implementation = provider.implementation
+        implementation = registered.implementation
         if not issubclass(implementation, expected_base):
             raise TypeError(
-                f"Provider {normalized_type}:{name} must subclass "
-                f"{expected_base.__name__}",
+                f"Provider {normalized_type}:{name} must subclass " f"{expected_base.__name__}",
             )
         return cast(type[T], implementation)
 
@@ -141,8 +135,7 @@ class ProviderRegistry:
             implementation = item.implementation
             if not issubclass(implementation, expected_base):
                 raise TypeError(
-                    f"Provider {provider_type}:{name} must subclass "
-                    f"{expected_base.__name__}",
+                    f"Provider {provider_type}:{name} must subclass " f"{expected_base.__name__}",
                 )
             implementations[name] = cast(type[T], implementation)
         return implementations

@@ -26,18 +26,12 @@ def _artifact(source: str, output: str | None = None):
     path = Path(source).expanduser().resolve()
     if path.is_file():
         if path.suffix != ".whl":
-            raise ValueError(
-                f"Plugin path must be a project directory or a wheel: {path}"
-            )
+            raise ValueError(f"Plugin path must be a project directory or a wheel: {path}")
         if output:
             raise ValueError("--output cannot be combined with an existing wheel")
         return inspect_wheel(path)
     digest = source_sha256(path)
-    directory = (
-        Path(output).expanduser().resolve()
-        if output
-        else Path(".axonx/plugins/artifacts") / digest
-    )
+    directory = Path(output).expanduser().resolve() if output else Path(".axonx/plugins/artifacts") / digest
     return inspect_wheel(build_wheel(path, directory, use_cache=output is None))
 
 
@@ -65,13 +59,9 @@ def _print(value: Any) -> None:
 
 
 async def _run_remote(args, options: ClientOptions):
-    client_values = options.model_dump(
-        exclude={"stream", "stream_format"}, exclude_none=True
-    )
+    client_values = options.model_dump(exclude={"stream", "stream_format"}, exclude_none=True)
     if args.command == "install":
-        client_values["timeout"] = max(
-            float(client_values.get("timeout", 0)), _DEPLOY_TIMEOUT
-        )
+        client_values["timeout"] = max(float(client_values.get("timeout", 0)), _DEPLOY_TIMEOUT)
     async with HttpClient(**client_values) as client:
         if args.command == "list":
             response = await client.run_job("list_plugins")
@@ -93,9 +83,7 @@ async def _run_remote(args, options: ClientOptions):
             copied = await client.copy_file(artifact.wheel)
             try:
                 if copied.sha256 != artifact.sha256:
-                    raise RuntimeError(
-                        "Remote workspace copy does not match the plugin wheel"
-                    )
+                    raise RuntimeError("Remote workspace copy does not match the plugin wheel")
                 response = await client.run_job(
                     "install_plugin",
                     {"path": copied.path, "sha256": copied.sha256},
@@ -115,11 +103,7 @@ def _run_local(args):
         return get_installed_plugin(args.plugin)
     if args.command == "inspect":
         path = Path(args.plugin).expanduser()
-        return (
-            _artifact(args.plugin, args.output)
-            if path.exists()
-            else get_installed_plugin(args.plugin)
-        )
+        return _artifact(args.plugin, args.output) if path.exists() else get_installed_plugin(args.plugin)
     if args.command == "install":
         source = Path(args.plugin).expanduser().resolve() if args.editable else None
         if source is not None and not source.is_dir():
@@ -148,7 +132,10 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument("plugin")
         if name == "install":
             command.add_argument(
-                "-e", "--editable", action="store_true", help="Install a local source directory in editable mode.",
+                "-e",
+                "--editable",
+                action="store_true",
+                help="Install a local source directory in editable mode.",
             )
         if name in {"inspect", "build", "install"}:
             command.add_argument("--output", help="Wheel output directory.")

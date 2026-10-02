@@ -50,16 +50,12 @@ class StagedFiles:
             raise ValueError("Staged file content does not match its path")
         return target
 
-    def store(
-        self, data: bytes, filename: str, directory: str | None = None
-    ) -> StagedFile:
+    def store(self, data: bytes, filename: str, directory: str | None = None) -> StagedFile:
         """Store uploaded bytes and report where they landed."""
         if not isinstance(data, (bytes, bytearray)):
             raise TypeError("Uploaded content must be bytes")
         self._check_size(len(data))
-        return self._place(
-            self.paths.copy_directory(directory), self.paths.copy_name(filename), data
-        )
+        return self._place(self.paths.copy_directory(directory), self.paths.copy_name(filename), data)
 
     async def store_stream(
         self,
@@ -84,9 +80,7 @@ class StagedFiles:
 
         digest = hashlib.sha256()
         written = 0
-        descriptor, temporary = tempfile.mkstemp(
-            dir=target_dir, prefix=f".{name}.", suffix=".tmp"
-        )
+        descriptor, temporary = tempfile.mkstemp(dir=target_dir, prefix=f".{name}.", suffix=".tmp")
         pending: Path | None = Path(temporary)
         try:
             with os.fdopen(descriptor, "wb") as handle:
@@ -101,9 +95,7 @@ class StagedFiles:
                     # body takes to land.
                     await asyncio.to_thread(handle.write, chunk)
             if size is not None and written != size:
-                raise ValueError(
-                    f"Uploaded content size {written} does not match declared size {size}"
-                )
+                raise ValueError(f"Uploaded content size {written} does not match declared size {size}")
             hexdigest = digest.hexdigest()
             target = self._target(target_dir, name, hexdigest)
             if not target.exists():
@@ -129,9 +121,7 @@ class StagedFiles:
         if target.is_file():
             target.unlink()
         directory = target.parent
-        while directory != self.paths.root and directory.is_relative_to(
-            self.paths.copy_root
-        ):
+        while directory != self.paths.root and directory.is_relative_to(self.paths.copy_root):
             try:
                 directory.rmdir()
             except OSError:
@@ -141,9 +131,7 @@ class StagedFiles:
 
     def _check_size(self, size: int) -> None:
         if size > self.max_upload_bytes:
-            raise ValueError(
-                f"Upload exceeds the configured limit of {self.max_upload_bytes} bytes"
-            )
+            raise ValueError(f"Upload exceeds the configured limit of {self.max_upload_bytes} bytes")
 
     def _place(self, target_dir: Path, name: str, data: bytes) -> StagedFile:
         digest = hashlib.sha256(data).hexdigest()
@@ -164,9 +152,7 @@ class StagedFiles:
         if target.is_symlink():
             raise FileExistsError(f"Workspace copy cannot be a symlink: {target.name}")
         if target.exists() and (not target.is_file() or file_sha256(target) != digest):
-            raise FileExistsError(
-                f"Workspace copy already holds different content: {target.name}"
-            )
+            raise FileExistsError(f"Workspace copy already holds different content: {target.name}")
         return target
 
     def _report(self, target: Path, digest: str, size: int) -> StagedFile:

@@ -37,9 +37,7 @@ def test_projector_coalesces_text_delta_with_complete_message():
             },
         )
     )
-    complete = projector.project(
-        AssistantMessage(content=[TextBlock("hello")], model="test", uuid="message-one")
-    )
+    complete = projector.project(AssistantMessage(content=[TextBlock("hello")], model="test", uuid="message-one"))
 
     assert [item.operation for item in start] == ["start"]
     assert append[0].delta == "hello"
@@ -55,9 +53,7 @@ def test_projector_pairs_tool_result_with_tool_use_id():
             uuid="message-one",
         )
     )
-    finished = projector.project(
-        UserMessage(content=[ToolResultBlock(tool_use_id="tool-one", content="ok")])
-    )
+    finished = projector.project(UserMessage(content=[ToolResultBlock(tool_use_id="tool-one", content="ok")]))
 
     assert started[0].block_id == "tool-one"
     assert finished[0].block_id == "tool-one"

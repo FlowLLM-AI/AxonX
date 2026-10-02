@@ -29,9 +29,7 @@ class ApplicationContext:
         if app_config is not None and config:
             raise TypeError("Pass either app_config or configuration values, not both")
         self.registry = registry
-        self.app_config = (
-            app_config if app_config is not None else ApplicationConfig(**config)
-        )
+        self.app_config = app_config if app_config is not None else ApplicationConfig(**config)
         self._components: dict[str, Mapping[str, BaseComponent]] = {}
         self._jobs: dict[str, BaseJob] = {}
         self._schedulers: dict[str, BaseScheduler] = {}

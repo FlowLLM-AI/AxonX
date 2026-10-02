@@ -87,9 +87,7 @@ class DingTalkClient:
                 except (httpx.HTTPError, RuntimeError, TypeError, ValueError) as exc:
                     failures.append(f"group[{index}]: {type(exc).__name__}")
             if failures:
-                raise RuntimeError(
-                    "Failed to send DingTalk message: " + "; ".join(failures)
-                )
+                raise RuntimeError("Failed to send DingTalk message: " + "; ".join(failures))
             return tuple(keys)
         finally:
             if owned:
@@ -104,9 +102,7 @@ class DingTalkClient:
             response.raise_for_status()
             token = _json(response).get("accessToken")
         except (httpx.HTTPError, RuntimeError, TypeError, ValueError) as exc:
-            raise RuntimeError(
-                f"Failed to obtain DingTalk access token: {type(exc).__name__}"
-            ) from exc
+            raise RuntimeError(f"Failed to obtain DingTalk access token: {type(exc).__name__}") from exc
         if not isinstance(token, str) or not token:
             raise RuntimeError("DingTalk access token response did not contain a token")
         return token

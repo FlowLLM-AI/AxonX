@@ -40,27 +40,19 @@ async def stream_task(
             log_warned = False
             terminal_idle = False
 
-        events_offset, lines = await asyncio.to_thread(
-            read_event_lines, events_path, events_offset
-        )
+        events_offset, lines = await asyncio.to_thread(read_event_lines, events_path, events_offset)
         for line in lines:
             try:
                 yield JOB_EVENT_ADAPTER.validate_json(line)
             except ValueError as exc:
-                logger.warning(
-                    f"Ignoring malformed Task event: task_id={task_id} error={exc}"
-                )
+                logger.warning(f"Ignoring malformed Task event: task_id={task_id} error={exc}")
         try:
-            chunk = await asyncio.to_thread(
-                logs.read, log_path, log_offset, LOG_WINDOW_BYTES
-            )
+            chunk = await asyncio.to_thread(logs.read, log_path, log_offset, LOG_WINDOW_BYTES)
         except (OSError, ValueError) as exc:
             log_has_more = False
             log_advanced = False
             if not log_warned:
-                logger.warning(
-                    f"Task log cannot be followed: task_id={task_id} error={exc}"
-                )
+                logger.warning(f"Task log cannot be followed: task_id={task_id} error={exc}")
                 log_warned = True
         else:
             if chunk.content:

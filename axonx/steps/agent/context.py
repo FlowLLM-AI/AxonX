@@ -39,12 +39,8 @@ class GetTaskContextStep(BaseStep):
             "relations": {
                 "direct_upstream": sorted(parents.get(task_id, ())),
                 "ancestors": sorted(ancestors),
-                "direct_downstream": sorted(
-                    edge.to for edge in graph.edges if edge.from_ == task_id
-                ),
+                "direct_downstream": sorted(edge.to for edge in graph.edges if edge.from_ == task_id),
                 "missing": sorted(node.task_id for node in graph.nodes if node.missing),
-                "provisional": sorted(
-                    node.task_id for node in graph.nodes if node.provisional
-                ),
+                "provisional": sorted(node.task_id for node in graph.nodes if node.provisional),
             },
         }

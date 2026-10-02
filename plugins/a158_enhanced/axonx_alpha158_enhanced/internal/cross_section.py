@@ -197,12 +197,23 @@ def context_protocol() -> dict:
     return {
         "feature_groups": {name: list(columns) for name, columns in FEATURE_GROUPS.items()},
         "signal_time": "T close; no forward labels or future tradability used",
-        "market_pool": "SH/SZ quoted positive-volume/amount rows with finite adjacent-calendar adjusted return; includes limit stocks",
-        "amount_group": "daily historical-amount average-rank thirds; 20 calendar trading days through T-1, min 10; suspension amount=0; ties stay together",
+        "market_pool": (
+            "SH/SZ quoted positive-volume/amount rows with finite adjacent-calendar adjusted "
+            "return; includes limit stocks"
+        ),
+        "amount_group": (
+            "daily historical-amount average-rank thirds; 20 calendar trading days through T-1, "
+            "min 10; suspension amount=0; ties stay together"
+        ),
         "amount_unit": "unchanged Tushare daily.amount; ratios/ranks are unitless; not market capitalization",
-        "amount_concentration": "current amount in average-rank top ceil(10% of market pool) divided by pool amount; ties may alter selected count",
+        "amount_concentration": (
+            "current amount in average-rank top ceil(10% of market pool) divided by pool amount; "
+            "ties may alter selected count"
+        ),
         "market_trend": "compound equal-weight market returns over 5/20 trading days",
         "market_shock": "(current market return - prior20 mean)/prior20 sample std; min10",
         "relative_return": "stock adjusted return minus contemporaneous equal-weight market/group return",
-        "common_context_diagnostic": "daily-constant context has no single-factor cross-sectional IC; evaluate by model ablation",
+        "common_context_diagnostic": (
+            "daily-constant context has no single-factor cross-sectional IC; evaluate by model " "ablation"
+        ),
     }

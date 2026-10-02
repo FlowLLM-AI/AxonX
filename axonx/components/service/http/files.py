@@ -22,9 +22,7 @@ def create_files_router(service, staged_files) -> APIRouter:
     @router.post(PROTOCOL_ROUTE_FILES)
     async def copy_file(request: Request):
         filename = request.headers.get(PROTOCOL_FILE_NAME_HEADER, "")
-        directory = (
-            request.headers.get(PROTOCOL_FILE_DIRECTORY_HEADER, "").strip() or None
-        )
+        directory = request.headers.get(PROTOCOL_FILE_DIRECTORY_HEADER, "").strip() or None
         arguments = format_log_arguments(
             {
                 "filename": filename,
@@ -32,14 +30,10 @@ def create_files_router(service, staged_files) -> APIRouter:
                 "content_length": request.headers.get("content-length", ""),
             },
         )
-        service.logger.info(
-            f"File endpoint called: name=copy_file arguments={arguments}"
-        )
+        service.logger.info(f"File endpoint called: name=copy_file arguments={arguments}")
         _check_upload_size(request, staged_files.max_upload_bytes)
         copied = await _copy_request(staged_files, request, filename, directory)
-        return JobResponse(
-            answer=FileCopy(path=copied.path, sha256=copied.sha256, size=copied.size)
-        )
+        return JobResponse(answer=FileCopy(path=copied.path, sha256=copied.sha256, size=copied.size))
 
     @router.delete(PROTOCOL_ROUTE_FILES)
     async def discard_file(path: str):
@@ -65,14 +59,10 @@ def _check_upload_size(request: Request, limit: int) -> None:
     if size < 0:
         raise HTTPException(400, "Invalid Content-Length header")
     if size > limit:
-        raise HTTPException(
-            413, f"Upload exceeds the configured limit of {limit} bytes"
-        )
+        raise HTTPException(413, f"Upload exceeds the configured limit of {limit} bytes")
 
 
-async def _copy_request(
-    staged_files, request: Request, filename: str, directory: str | None
-):
+async def _copy_request(staged_files, request: Request, filename: str, directory: str | None):
     """Stream one request body into the configured workspace."""
     limit = staged_files.max_upload_bytes
     written = 0
@@ -82,9 +72,7 @@ async def _copy_request(
         async for chunk in request.stream():
             written += len(chunk)
             if written > limit:
-                raise HTTPException(
-                    413, f"Upload exceeds the configured limit of {limit} bytes"
-                )
+                raise HTTPException(413, f"Upload exceeds the configured limit of {limit} bytes")
             yield chunk
 
     try:

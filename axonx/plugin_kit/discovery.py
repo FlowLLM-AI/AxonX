@@ -44,20 +44,14 @@ def _package_path(distribution: Any, package: str) -> Path:
     if installed.is_dir():
         return installed
     specification = util.find_spec(package)
-    locations = (
-        list(specification.submodule_search_locations or ()) if specification else []
-    )
+    locations = list(specification.submodule_search_locations or ()) if specification else []
     if len(locations) != 1:
         raise FileNotFoundError(f"Cannot locate plugin package: {package}")
     return Path(locations[0]).resolve()
 
 
 def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None:
-    entries = [
-        entry
-        for entry in distribution.entry_points
-        if entry.group == PLUGIN_ENTRY_POINT_GROUP
-    ]
+    entries = [entry for entry in distribution.entry_points if entry.group == PLUGIN_ENTRY_POINT_GROUP]
     if not entries:
         return None
 
@@ -77,18 +71,12 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
             package_paths[package] = package_path
         manifest_path = package_path / PLUGIN_MANIFEST
         if not manifest_path.is_file():
-            raise ValueError(
-                f"Plugin {entry.name!r} does not contain {PLUGIN_MANIFEST}"
-            )
-        manifest = parse_plugin_manifest(
-            manifest_path.read_text(encoding=AXONX_DEFAULT_ENCODING), entry.name
-        )
+            raise ValueError(f"Plugin {entry.name!r} does not contain {PLUGIN_MANIFEST}")
+        manifest = parse_plugin_manifest(manifest_path.read_text(encoding=AXONX_DEFAULT_ENCODING), entry.name)
 
         duplicate_tasks = tasks.keys() & manifest.tasks.keys()
         if duplicate_tasks:
-            raise ValueError(
-                f"Duplicate Task names in distribution: {', '.join(sorted(duplicate_tasks))}"
-            )
+            raise ValueError(f"Duplicate Task names in distribution: {', '.join(sorted(duplicate_tasks))}")
         tasks.update(manifest.tasks)
         for component_type, backends in manifest.components.items():
             registered = components.setdefault(component_type, {})
@@ -101,9 +89,7 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
             registered.update(backends)
         duplicate_jobs = jobs.keys() & manifest.jobs.keys()
         if duplicate_jobs:
-            raise ValueError(
-                f"Duplicate Job names in distribution: {', '.join(sorted(duplicate_jobs))}"
-            )
+            raise ValueError(f"Duplicate Job names in distribution: {', '.join(sorted(duplicate_jobs))}")
         jobs.update(manifest.jobs)
         plugin_names.append(entry.name)
         plugin_packages[entry.name] = package
@@ -136,11 +122,7 @@ def list_installed_plugins() -> list[PluginInfo]:
     """Return every AxonX plugin distribution, including broken installations."""
     found: dict[str, PluginInfo] = {}
     for distribution in metadata.distributions():
-        entries = [
-            entry
-            for entry in distribution.entry_points
-            if entry.group == PLUGIN_ENTRY_POINT_GROUP
-        ]
+        entries = [entry for entry in distribution.entry_points if entry.group == PLUGIN_ENTRY_POINT_GROUP]
         if not entries:
             continue
         try:

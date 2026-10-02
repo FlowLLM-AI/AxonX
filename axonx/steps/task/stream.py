@@ -15,9 +15,7 @@ class StreamTaskStep(TaskManagerStep):
 
     async def execute(self):
         task_id = self.context["task_id"]
-        async for event in self.task_manager.stream(
-            task_id, self.context.get("poll_interval", 0.5)
-        ):
+        async for event in self.task_manager.stream(task_id, self.context.get("poll_interval", 0.5)):
             await self.emit(event)
         # The stream only ends once the task is terminal, so this is its outcome.
         status = await self.task_manager.get_status(task_id)

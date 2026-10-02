@@ -82,11 +82,14 @@ def test_native_plugin_name_conflicts_are_rejected(plugins, query):
         )
     )
     with pytest.raises(ValueError, match="Plugin Task names conflict with built-ins: demo"):
-        query("demo") if query in (get_task_definition, resolve_task) else query()
+        if query in (get_task_definition, resolve_task):
+            query("demo")
+        else:
+            query()
 
 
 async def test_definition_jobs_over_http(tmp_path, plugins):
-    defaults = yaml.safe_load(Path("axonx/config/default.yaml").read_text())["jobs"]
+    defaults = yaml.safe_load(Path("axonx/config/default.yaml").read_text(encoding="utf-8"))["jobs"]
     app = Application(
         workspace_dir=str(tmp_path),
         enable_logo=False,

@@ -20,20 +20,16 @@ def normalize_target(value: str) -> str:
         port = parsed.port
     except ValueError as exc:
         raise ValueError(f"Invalid target port: {value!r}") from exc
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or port is None or not 1 <= port <= 65535:
+        raise ValueError(f"Invalid target: {value!r}; expected host:port or HTTP(S) URL")
     if (
-        parsed.scheme not in {"http", "https"}
-        or not parsed.hostname
-        or port is None
-        or not 1 <= port <= 65535
-        or parsed.username is not None
+        parsed.username is not None
         or parsed.password is not None
         or parsed.path not in {"", "/"}
         or parsed.query
         or parsed.fragment
     ):
-        raise ValueError(
-            f"Invalid target: {value!r}; expected host:port or HTTP(S) URL"
-        )
+        raise ValueError(f"Invalid target: {value!r}; expected host:port or HTTP(S) URL")
     host = parsed.hostname
     try:
         host = ip_address(host).compressed

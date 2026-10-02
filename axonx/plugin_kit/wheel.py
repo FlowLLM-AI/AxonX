@@ -83,12 +83,8 @@ def inspect_wheel(path: Path) -> PluginArtifact:
 def _read_artifact(path: Path) -> PluginArtifact:
     with ZipFile(path) as archive:
         names = archive.namelist()
-        metadata_files = [
-            name for name in names if name.endswith(".dist-info/METADATA")
-        ]
-        entry_files = [
-            name for name in names if name.endswith(".dist-info/entry_points.txt")
-        ]
+        metadata_files = [name for name in names if name.endswith(".dist-info/METADATA")]
+        entry_files = [name for name in names if name.endswith(".dist-info/entry_points.txt")]
         if len(metadata_files) != 1 or len(entry_files) != 1:
             raise ValueError("Wheel must contain one METADATA and entry_points.txt")
         metadata = Parser().parsestr(archive.read(metadata_files[0]).decode())
@@ -108,9 +104,7 @@ def _read_artifact(path: Path) -> PluginArtifact:
             manifest_path = f"{package.replace('.', '/')}/{PLUGIN_MANIFEST}"
             if manifest_path not in names:
                 raise ValueError(f"Wheel does not contain {manifest_path}")
-            manifest = parse_plugin_manifest(
-                archive.read(manifest_path).decode(), plugin_name
-            )
+            manifest = parse_plugin_manifest(archive.read(manifest_path).decode(), plugin_name)
             duplicate = tasks.keys() & manifest.tasks.keys()
             if duplicate:
                 raise ValueError(

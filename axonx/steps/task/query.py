@@ -21,9 +21,7 @@ class ListTaskStatusesStep(TaskManagerStep):
 @provider("get_status")
 class GetTaskStatusStep(TaskManagerStep):
     async def execute(self):
-        self.response.answer = await self.task_manager.get_status(
-            self.context["task_id"]
-        )
+        self.response.answer = await self.task_manager.get_status(self.context["task_id"])
 
 
 @provider("read_log")
@@ -43,6 +41,4 @@ class ReadTaskLogStep(TaskManagerStep):
 @provider("get_task_graph_step")
 class GetTaskGraphStep(TaskManagerStep):
     async def execute(self):
-        self.response.answer = await self.task_manager.get_graph(
-            self.context["task_id"]
-        )
+        self.response.answer = await self.task_manager.get_graph(self.context["task_id"])

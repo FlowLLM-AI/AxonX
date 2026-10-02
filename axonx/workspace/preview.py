@@ -139,9 +139,7 @@ def _preview_structured(path: Path, size: int, kind: str) -> StructuredPreview:
         content = path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError as exc:
         raise ValueError("File is not valid UTF-8 text") from exc
-    return (
-        _preview_json(content, size) if kind == "json" else _preview_yaml(content, size)
-    )
+    return _preview_json(content, size) if kind == "json" else _preview_yaml(content, size)
 
 
 def _preview_json(content: str, size: int) -> StructuredPreview:
@@ -174,14 +172,8 @@ def _preview_yaml(content: str, size: int) -> StructuredPreview:
     except yaml.YAMLError as exc:
         mark = getattr(exc, "problem_mark", None)
         problem = getattr(exc, "problem", None) or str(exc)
-        error = (
-            f"Line {mark.line + 1}, column {mark.column + 1}: {problem}"
-            if mark is not None
-            else problem
-        )
-        return StructuredPreview(
-            kind="yaml", size=size, content=content, parse_error=error
-        )
+        error = f"Line {mark.line + 1}, column {mark.column + 1}: {problem}" if mark is not None else problem
+        return StructuredPreview(kind="yaml", size=size, content=content, parse_error=error)
 
 
 def _preview_csv(path: Path, size: int, offset: int, limit: int) -> CsvPreview:
@@ -227,14 +219,9 @@ def _preview_parquet(path: Path, size: int, offset: int, limit: int) -> ParquetP
         row_group_count=parquet.metadata.num_row_groups,
         columns=columns,
         column_schema=[
-            ParquetColumn(
-                name=field.name, type=str(field.type), nullable=field.nullable
-            )
-            for field in fields
+            ParquetColumn(name=field.name, type=str(field.type), nullable=field.nullable) for field in fields
         ],
-        rows=[
-            [_json_compatible(row.get(column)) for column in columns] for row in records
-        ],
+        rows=[[_json_compatible(row.get(column)) for column in columns] for row in records],
         offset=offset,
         limit=limit,
         has_more=offset + len(records) < row_count,

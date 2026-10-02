@@ -33,10 +33,7 @@ class ComponentBase:
         self.backend = backend
         self.app_context = app_context
         self.kwargs = kwargs
-        self._component_names = {
-            domain: self.kwargs.pop(domain.value, "default")
-            for domain in self.component_domains
-        }
+        self._component_names = {domain: self.kwargs.pop(domain.value, "default") for domain in self.component_domains}
         self.logger = get_logger(self.name)
 
     @property
@@ -97,9 +94,7 @@ class BaseComponent(ComponentBase):
             return
         component_type = component_type_name(base_cls.component_type)
         if component_type == ComponentEnum.BASE.value:
-            raise TypeError(
-                f"{base_cls.__name__} must declare a non-BASE component_type"
-            )
+            raise TypeError(f"{base_cls.__name__} must declare a non-BASE component_type")
         self._dependencies[attribute] = DependencySpec(
             attribute=attribute,
             component_type=component_type,
@@ -121,8 +116,7 @@ class BaseComponent(ComponentBase):
             target = components.get((dependency.component_type, dependency.name))
             if target is None and dependency.required:
                 raise RuntimeError(
-                    "Validated dependency disappeared: "
-                    f"{dependency.component_type}:{dependency.name}"
+                    "Validated dependency disappeared: " f"{dependency.component_type}:{dependency.name}"
                 )
             if target is not None and not isinstance(target, dependency.expected_type):
                 raise TypeError(

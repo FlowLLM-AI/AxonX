@@ -25,9 +25,7 @@ class Application:
         registry = ProviderRegistry.from_builtins()
         for implementation in providers:
             registry.add(implementation)
-        self.context: ApplicationContext = compose_application(
-            registry, VERSION, config
-        )
+        self.context: ApplicationContext = compose_application(registry, VERSION, config)
         self._startup_order = ComponentGraph(self.context.components).resolve()
         self._started: list[BaseComponent] = []
         self._lifecycle_lock = asyncio.Lock()

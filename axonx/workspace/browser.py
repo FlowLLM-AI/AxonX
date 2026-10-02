@@ -36,16 +36,12 @@ def list_workspace_entries(
     )
 
 
-def delete_workspace_entries(
-    workspace_path: Path, requested_paths: list[str]
-) -> list[DeletedEntry]:
+def delete_workspace_entries(workspace_path: Path, requested_paths: list[str]) -> list[DeletedEntry]:
     """Validate the whole selection, then delete only its top-level roots."""
     if not requested_paths:
         raise ValueError("At least one workspace entry is required")
     if len(requested_paths) > MAX_DELETE_ENTRIES:
-        raise ValueError(
-            f"At most {MAX_DELETE_ENTRIES} workspace entries can be deleted at once"
-        )
+        raise ValueError(f"At most {MAX_DELETE_ENTRIES} workspace entries can be deleted at once")
 
     paths = WorkspacePaths(workspace_path)
     selected: list[str] = []
@@ -58,11 +54,7 @@ def delete_workspace_entries(
         selected.append(paths.relative(target))
 
     names = set(selected)
-    roots = [
-        path
-        for path in selected
-        if not any(str(parent) in names for parent in PurePosixPath(path).parents)
-    ]
+    roots = [path for path in selected if not any(str(parent) in names for parent in PurePosixPath(path).parents)]
     return [_delete_entry(paths, path) for path in roots]
 
 

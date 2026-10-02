@@ -67,11 +67,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         self._transport = transport
 
     async def _connect(self) -> httpx.AsyncClient:
-        headers = (
-            {PROTOCOL_AUTH_HEADER: f"{PROTOCOL_AUTH_SCHEME} {self.token}"}
-            if self.token
-            else None
-        )
+        headers = {PROTOCOL_AUTH_HEADER: f"{PROTOCOL_AUTH_SCHEME} {self.token}"} if self.token else None
         return httpx.AsyncClient(
             base_url=self.url,
             timeout=self.timeout,
@@ -95,18 +91,14 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         try:
             return JobResponse.model_validate_json(response.content)
         except ValidationError as exc:
-            raise RemoteServiceError(
-                "Remote service returned an invalid response envelope"
-            ) from exc
+            raise RemoteServiceError("Remote service returned an invalid response envelope") from exc
 
     @staticmethod
     def _payload(response: JobResponse, model: type[PayloadT]) -> PayloadT:
         try:
             return model.model_validate(response.answer)
         except ValidationError as exc:
-            raise RemoteServiceError(
-                f"Remote service returned an invalid {model.__name__} payload"
-            ) from exc
+            raise RemoteServiceError(f"Remote service returned an invalid {model.__name__} payload") from exc
 
     async def run_job(self, name: str, arguments=None) -> JobResponse:
         return await self._response(
@@ -135,28 +127,18 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
                         f"Remote request was rejected: {_error_detail(response)}",
                         status_code=response.status_code,
                     )
-                if not response.headers.get("content-type", "").startswith(
-                    PROTOCOL_SSE_MEDIA_TYPE
-                ):
-                    raise RemoteServiceError(
-                        "Remote service returned a non-event stream response"
-                    )
+                if not response.headers.get("content-type", "").startswith(PROTOCOL_SSE_MEDIA_TYPE):
+                    raise RemoteServiceError("Remote service returned a non-event stream response")
                 async for line in response.aiter_lines():
                     if line.startswith(PROTOCOL_SSE_DATA_PREFIX):
                         try:
-                            event = JOB_EVENT_ADAPTER.validate_json(
-                                line[len(PROTOCOL_SSE_DATA_PREFIX) :]
-                            )
+                            event = JOB_EVENT_ADAPTER.validate_json(line[len(PROTOCOL_SSE_DATA_PREFIX) :])
                         except ValidationError as exc:
-                            raise RemoteServiceError(
-                                "Remote service returned an invalid stream event"
-                            ) from exc
+                            raise RemoteServiceError("Remote service returned an invalid stream event") from exc
                         yield event
                         if isinstance(event, ResultEvent):
                             return
-                raise RemoteServiceError(
-                    "Remote event stream ended without a terminal result"
-                )
+                raise RemoteServiceError("Remote event stream ended without a terminal result")
         except httpx.HTTPError as exc:
             raise RemoteServiceError(f"Remote stream failed: {exc}") from exc
 
@@ -169,9 +151,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
             response = await self._response("GET", PROTOCOL_ROUTE_HEALTH)
         except RemoteServiceError:
             return False
-        return (
-            isinstance(response.answer, dict) and response.answer.get("running") is True
-        )
+        return isinstance(response.answer, dict) and response.answer.get("running") is True
 
     async def copy_file(
         self,
@@ -189,19 +169,13 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         }
         if directory:
             headers[PROTOCOL_FILE_DIRECTORY_HEADER] = directory
-        response = await self._response(
-            "POST", PROTOCOL_ROUTE_FILES, content=_file_chunks(path), headers=headers
-        )
+        response = await self._response("POST", PROTOCOL_ROUTE_FILES, content=_file_chunks(path), headers=headers)
         return self._payload(response, FileCopy)
 
     async def discard_file(self, path: str) -> str:
         """Discard one staged remote file, including an already-consumed one."""
-        response = await self._response(
-            "DELETE", PROTOCOL_ROUTE_FILES, params={"path": path}
-        )
+        response = await self._response("DELETE", PROTOCOL_ROUTE_FILES, params={"path": path})
         answer = response.answer
         if not isinstance(answer, dict) or not isinstance(answer.get("path"), str):
-            raise RemoteServiceError(
-                "Remote service returned an invalid file cleanup payload"
-            )
+            raise RemoteServiceError("Remote service returned an invalid file cleanup payload")
         return answer["path"]

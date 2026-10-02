@@ -127,7 +127,7 @@ def test_ties_short_history_and_feature_group_validation():
     assert features.filter(pl.col("trade_date") == "20200105")["f_context_amount_rank20"].null_count() == 12
     assert features.filter(pl.col("trade_date") == "20200112")["f_context_amount_rank20"].n_unique() == 1
     assert daily["amount_spread"].null_count() == 12
-    assert selected_features("none") == ()
+    assert not selected_features("none")
     assert selected_features("relative,market") == (*FEATURE_GROUPS["market"], *FEATURE_GROUPS["relative"])
     with pytest.raises(ValueError):
         selected_features("market,unknown")

@@ -32,9 +32,7 @@ def create_proxy_router(app) -> APIRouter:
         except ProxyError as exc:
             raise HTTPException(exc.status_code, str(exc)) from exc
 
-        response = StreamingResponse(
-            result.iter_bytes(), status_code=result.status_code
-        )
+        response = StreamingResponse(result.iter_bytes(), status_code=result.status_code)
         for key, value in result.headers:
             response.headers.append(key, value)
         return response

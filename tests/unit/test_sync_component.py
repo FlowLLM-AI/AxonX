@@ -30,7 +30,7 @@ async def test_sync_filters_pending_tasks_and_deletions(tmp_path):
     sync._pending = {exact, prefixed, excluded}
     sync._acknowledged = {removed, removed_excluded}
     sync._state = SimpleNamespace(save=lambda _: None)
-    sync._settled = lambda task_ids: list(task_ids)
+    sync._settled = list
     captured = None
 
     async def transfer(pending, deletions):

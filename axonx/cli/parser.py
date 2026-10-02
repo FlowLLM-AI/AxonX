@@ -40,9 +40,7 @@ def parse_command(argv: Sequence[str]) -> tuple[Command, ClientOptions]:
     """Parse command-line tokens and client connection options."""
     tokens = tuple(argv)
     if not tokens:
-        return Command(
-            action=CLI_HELP_COMMAND, arguments={CLI_RAW_ARGUMENTS: []}
-        ), ClientOptions()
+        return Command(action=CLI_HELP_COMMAND, arguments={CLI_RAW_ARGUMENTS: []}), ClientOptions()
     leading_client: dict[str, Any] = {}
     action_index = 0
     while action_index < len(tokens):
@@ -63,23 +61,17 @@ def parse_command(argv: Sequence[str]) -> tuple[Command, ClientOptions]:
     action = CLI_HELP_COMMAND if raw_action in {"-h", "--help"} else raw_action
     if action in CLI_LOCAL_COMMANDS - {CLI_PLUGIN_COMMAND} and leading_client:
         raise ValueError(f"Client options cannot be used with local command: {action}")
-    raw_arguments, trailing_client = _extract_trailing_client_options(
-        action, tokens[action_index + 1 :]
-    )
+    raw_arguments, trailing_client = _extract_trailing_client_options(action, tokens[action_index + 1 :])
     for key in trailing_client:
         if key in leading_client:
             raise ValueError(f"Duplicate client option: --{key.replace('_', '-')}")
     client = ClientOptions.model_validate({**leading_client, **trailing_client})
-    arguments = (
-        {} if action in CLI_PASSTHROUGH_COMMANDS else _parse_arguments(raw_arguments)
-    )
+    arguments = {} if action in CLI_PASSTHROUGH_COMMANDS else _parse_arguments(raw_arguments)
     arguments[CLI_RAW_ARGUMENTS] = list(raw_arguments)
     return Command(action=action, arguments=arguments), client
 
 
-def _extract_trailing_client_options(
-    action: str, tokens: tuple[str, ...]
-) -> tuple[tuple[str, ...], dict[str, Any]]:
+def _extract_trailing_client_options(action: str, tokens: tuple[str, ...]) -> tuple[tuple[str, ...], dict[str, Any]]:
     """Take client options from a Job or plugin command."""
     if action in CLI_LOCAL_COMMANDS and action != CLI_PLUGIN_COMMAND:
         for option in ("--target", "--client-timeout"):

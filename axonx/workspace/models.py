@@ -102,11 +102,4 @@ class ParquetPreview(PreviewBase):
     row_group_count: int = Field(ge=0)
 
 
-FilePreview = (
-    UnsupportedPreview
-    | TextPreview
-    | MarkdownPreview
-    | StructuredPreview
-    | CsvPreview
-    | ParquetPreview
-)
+FilePreview = UnsupportedPreview | TextPreview | MarkdownPreview | StructuredPreview | CsvPreview | ParquetPreview

@@ -54,13 +54,9 @@ class TrainingCurve(BaseModel):
             raise ValueError("Training curve series names must be unique across axes")
         for name, values in (*self.y_left.items(), *self.y_right.items()):
             if len(values) != len(self.x):
-                raise ValueError(
-                    f"Training curve series {name!r} must match the x-axis length"
-                )
+                raise ValueError(f"Training curve series {name!r} must match the x-axis length")
             if not all(isfinite(value) for value in values):
-                raise ValueError(
-                    f"Training curve series {name!r} must contain finite values"
-                )
+                raise ValueError(f"Training curve series {name!r} must contain finite values")
         return self
 
 

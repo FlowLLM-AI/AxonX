@@ -10,9 +10,7 @@ from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 
 class BaseETLInputParams(BaseInputParams):
-    input_dir: Path = Field(
-        description="Directory containing the source data to transform."
-    )
+    input_dir: Path = Field(description="Directory containing the source data to transform.")
 
 
 class BaseETLOutputParams(BaseOutputParams):

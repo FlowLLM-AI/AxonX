@@ -38,8 +38,7 @@ def load_plugin_providers(
             actual_type = component_type_name(implementation.component_type)
             if actual_type != component_type:
                 raise TypeError(
-                    f"Component target {target} declares type {actual_type!r}, "
-                    f"expected {component_type!r}",
+                    f"Component target {target} declares type {actual_type!r}, " f"expected {component_type!r}",
                 )
             registry.add(
                 implementation,

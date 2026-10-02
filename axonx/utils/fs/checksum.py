@@ -63,9 +63,7 @@ def directory_sha256(path: Path, ignored_parts: Iterable[str] = ()) -> str:
         if ignored(item):
             continue
         if item.is_symlink():
-            raise ValueError(
-                f"Directory hash does not allow symlinks: {item.relative_to(root)}"
-            )
+            raise ValueError(f"Directory hash does not allow symlinks: {item.relative_to(root)}")
         if not item.is_file():
             continue
         relative = item.relative_to(root).as_posix().encode("utf-8")
