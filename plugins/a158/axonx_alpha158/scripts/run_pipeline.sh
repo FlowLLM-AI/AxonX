@@ -37,7 +37,7 @@ print(response["answer"]["task_id"], response["answer"]["run_id"], sep="\t")
     IFS=$'\t' read -r task_id run_id <<< "$handle"
     echo "${stage}: ${task_id}" >&2
 
-    if ! wait_response=$(axonx --timeout 86400 wait_task --task-id "$task_id" --run-id "$run_id"); then
+    if ! wait_response=$(axonx --client-timeout 86400 wait_task --task-id "$task_id" --run-id "$run_id"); then
         echo "${stage} failed: ${wait_response}" >&2
         return 1
     fi

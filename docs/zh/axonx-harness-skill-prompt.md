@@ -88,7 +88,7 @@
 | 可用 Task | 浏览服务中全部内置及插件 Task 的完整定义。 | `axonx list_installed_task_definitions` |
 | 单个 Task 定义 | 查询所选 Task 的描述、类型及输入输出 schema；`--task` 填注册名。 | `axonx get_task_definition --task a158_etl` |
 | 提交 Task | 异步提交，读取返回的 `answer.task_id` 和 `answer.run_id`。 | `axonx submit --task a158_etl --task-name demo --start-date 20150101` |
-| 等待指定运行 | 同一 `task_id` 可对应新的 `run_id`；等待时两者都要传。 | `axonx wait_task --task-id 'etl#a158_etl#demo' --run-id 'run-001' --timeout 86400` |
+| 等待指定运行 | 同一 `task_id` 可对应新的 `run_id`；等待时两者都要传。 | `axonx wait_task --task-id 'etl#a158_etl#demo' --run-id 'run-001' --client-timeout 86400` |
 | 实时跟踪 | 流式查看 Task 进度和日志。 | `axonx --stream true stream_task --task-id 'etl#a158_etl#demo'` |
 | Task ID 列表 | 列出有状态文件的 Task ID。 | `axonx list_task_ids` |
 | 状态列表 | 列出 Task 状态快照。 | `axonx list_task_statuses` |

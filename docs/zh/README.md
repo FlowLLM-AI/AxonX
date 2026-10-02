@@ -44,7 +44,7 @@ curl -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
   http://127.0.0.1:1024/jobs/version
 ```
 
-命令行也可以把任务名作为命令执行，例如 `axonx version`。在命令末尾使用 `--target <host:port>` 直连目标服务；省略时连接 `127.0.0.1:1024`。还可传 `--token`、`--timeout` 和流式输出选项。使用 `axonx help` 查看完整格式。
+命令行也可以把任务名作为命令执行，例如 `axonx version`。在命令末尾使用 `--target <host:port>` 直连目标服务；省略时连接 `127.0.0.1:1024`。还可传 `--token`、`--client-timeout` 和流式输出选项。`--client-timeout` 设置客户端请求超时；`shell` 的 `--timeout` 设置命令执行超时。使用 `axonx help` 查看完整格式。
 
 ## 默认组件
 
