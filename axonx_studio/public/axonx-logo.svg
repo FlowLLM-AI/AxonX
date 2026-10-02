@@ -22,10 +22,10 @@
     </mask>
   </defs>
 
-  <g fill="none" stroke="url(#axonx-brand)" stroke-width="36" stroke-linecap="round" stroke-linejoin="round">
+  <g fill="none" stroke="url(#axonx-brand)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
     <!-- A: the original wordmark proportions, with the icon's signal-wave crossbar. -->
     <path d="M42 232 103 61c5-15 14-23 27-23s22 8 27 23l61 171"/>
-    <path d="M76 158c26-21 55 21 108 0" stroke-width="30" mask="url(#axonx-a-junction)"/>
+    <path d="M76 158c26-21 55 21 108 0" stroke-width="24" mask="url(#axonx-a-junction)"/>
 
     <!-- x: kept at x-height so the terminal X remains the signature. -->
     <path d="M270 111c24 29 50 68 90 121"/>
