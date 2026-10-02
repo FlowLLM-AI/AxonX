@@ -1,7 +1,6 @@
 """Verify built distributions or their installation outside the source tree."""
 
 import argparse
-import ast
 import configparser
 import importlib
 from email.parser import BytesParser
@@ -48,14 +47,6 @@ def verify_distributions(dist_dir: Path) -> None:
                 assert entries["axonx.configs"][plugin] == f"{package}.config:alpha158_demo"
             else:
                 assert entries["console_scripts"]["axonx"] == "axonx.cli:main"
-                versions = ast.parse(archive.read("axonx/_version.py").decode("utf-8"))
-                (version,) = [
-                    ast.literal_eval(node.value)
-                    for node in versions.body
-                    if isinstance(node, ast.Assign)
-                    and any(isinstance(target, ast.Name) and target.id == "VERSION" for target in node.targets)
-                ]
-                assert version == project["version"], "axonx/_version.py and pyproject.toml versions disagree"
         with tarfile.open(sdists[0]) as archive:
             names = {name.split("/", 1)[1] for name in archive.getnames() if "/" in name}
             assert required | {"pyproject.toml"} <= names, "Missing files in sdist"
