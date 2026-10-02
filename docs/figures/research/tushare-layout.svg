@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+  <title id="title">Two Locations for Download Outputs</title>
+  <desc id="desc">Runtime records and market data files are stored separately.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
+    </marker>
+  </defs>
+  <rect width="1000" height="440" rx="20" fill="#f5f9ff" />
+  <g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#163450">
+    <text x="500" y="60" font-size="30" font-weight="700" text-anchor="middle">Two Locations for Download Outputs</text>
+    <text x="500" y="102" font-size="19" text-anchor="middle">Runtime records and market data files are stored separately.</text>
+    <rect x="50.0" y="160" width="198.75" height="192" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
+    <text x="149.375" y="202" text-anchor="middle" font-size="22" font-weight="700">Request</text>
+    <text x="149.375" y="240" text-anchor="middle" font-size="18">Date interval</text>
+    <text x="149.375" y="300" text-anchor="middle" font-size="18">
+      <tspan x="149.375" dy="0">Selected data</tspan>
+      <tspan x="149.375" dy="28">groups</tspan>
+    </text>
+    <path d="M 252.75 256 H 277.75" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="283.75" y="160" width="198.75" height="192" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
+    <text x="383.125" y="202" text-anchor="middle" font-size="22" font-weight="700">Query</text>
+    <text x="383.125" y="240" text-anchor="middle" font-size="18">Daily / monthly</text>
+    <text x="383.125" y="300" text-anchor="middle" font-size="18">Retries and checks</text>
+    <path d="M 486.5 256 H 511.5" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="517.5" y="160" width="198.75" height="192" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
+    <text x="616.875" y="202" text-anchor="middle" font-size="22" font-weight="700">Market Data</text>
+    <text x="616.875" y="240" text-anchor="middle" font-size="18">Static snapshots</text>
+    <text x="616.875" y="300" text-anchor="middle" font-size="18">
+      <tspan x="616.875" dy="0">Year / date</tspan>
+      <tspan x="616.875" dy="28">partitions</tspan>
+    </text>
+    <path d="M 720.25 256 H 745.25" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="751.25" y="160" width="198.75" height="192" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
+    <text x="850.625" y="202" text-anchor="middle" font-size="22" font-weight="700">Task Record</text>
+    <text x="850.625" y="240" text-anchor="middle" font-size="18">Status / metadata</text>
+    <text x="850.625" y="300" text-anchor="middle" font-size="18">
+      <tspan x="850.625" dy="0">File list / row</tspan>
+      <tspan x="850.625" dy="28">counts</tspan>
+    </text>
+    <text x="50" y="386" font-size="19">
+      <tspan x="50" dy="0">Repeated downloads replace matching files. Task snapshots do not include raw market data.</tspan>
+    </text>
+  </g>
+</svg>

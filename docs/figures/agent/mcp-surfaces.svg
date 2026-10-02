@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+<title id="title">Three Agent Integration Surfaces</title><desc id="desc">Discover and invoke each surface through its own interface.</desc>
+<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
+<rect width="1000" height="440" rx="20" fill="#f5f9ff" />
+<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#163450">
+<text text-anchor="middle" x="500" y="60" font-size="30" font-weight="700">Three Agent Integration Surfaces</text>
+<text text-anchor="middle" x="500" y="102" font-size="19">Discover and invoke each surface through its own interface.</text>
+<rect x="50.0" y="160" width="276.6666666666667" height="168" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
+<text x="188.33333333333334" y="202" text-anchor="middle" font-size="22" font-weight="700">External MCP</text>
+<text x="188.33333333333334" y="244" text-anchor="middle" font-size="18">/mcp + Bearer</text>
+<text x="188.33333333333334" y="274" text-anchor="middle" font-size="18">Public Job catalog</text>
+<path stroke-linecap="round" stroke-linejoin="round" d="M 330.6666666666667 242 H 355.6666666666667" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
+<rect x="361.6666666666667" y="160" width="276.6666666666667" height="168" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
+<text x="500.0" y="202" text-anchor="middle" font-size="22" font-weight="700">Built-in Agent</text>
+<text x="500.0" y="244" text-anchor="middle" font-size="18">In-process Job bridge</text>
+<text x="500.0" y="274" text-anchor="middle" font-size="18">job_tools allowlist</text>
+<path stroke-linecap="round" stroke-linejoin="round" d="M 642.3333333333334 242 H 667.3333333333334" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
+<rect x="673.3333333333334" y="160" width="276.6666666666667" height="168" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
+<text x="811.6666666666667" y="202" text-anchor="middle" font-size="22" font-weight="700">Studio WebMCP</text>
+<text x="811.6666666666667" y="244" text-anchor="middle" font-size="18">Optional browser API</text>
+<text x="811.6666666666667" y="274" text-anchor="middle" font-size="18">List / submit tools</text>
+<text x="50" y="386" font-size="19"><tspan x="50" dy="0">Ordinary MCP returns JobResponse. HTTP SSE carries live logs and Agent message updates.</tspan></text>
+</g></svg>

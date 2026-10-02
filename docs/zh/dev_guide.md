@@ -90,7 +90,7 @@ tasks:
 
 `a158_etl` 是提交时的 `--task` 值；冒号前是 Python 模块，冒号后是 Task 类名。
 
-新建插件时，包目录需包含 `__init__.py`，并在 `../../pyproject.toml` 中声明插件入口和随包分发的注册文件；已有 a158 插件已配置这些内容：
+新建插件时，包目录需包含 `__init__.py`，并在 `../../plugins/a158/pyproject.toml` 中声明插件入口和随包分发的注册文件；已有 a158 插件已配置这些内容：
 
 ```toml
 [project.entry-points."axonx.plugins"]

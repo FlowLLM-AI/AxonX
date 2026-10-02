@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="480" viewBox="0 0 1080 480" role="img" aria-labelledby="title desc">
+  <title id="title">Studio Navigation</title>
+  <desc id="desc">Move from submission to runtime inspection and research evidence.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
+    </marker>
+  </defs>
+  <rect width="1080" height="480" rx="22" fill="#f7f9fc" />
+  <g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#172c49">
+    <text x="540" y="54" font-size="30" font-weight="700" text-anchor="middle">Studio Navigation</text>
+    <text x="540" y="86" font-size="18" fill="#53627a" text-anchor="middle">Move from submission to runtime inspection and research evidence.</text>
+    <path d="M260 197H294" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M518 197H552" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M776 197H810" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M410 255V267" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M668 255V267" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="44" y="143" width="216" height="108" rx="14" fill="#e6f1ff" stroke="#b8c8df" />
+    <text x="62" y="176" font-size="22" font-weight="700">Submit</text>
+    <text x="62" y="205" font-size="17">Task Schema form</text>
+    <rect x="302" y="143" width="216" height="108" rx="14" fill="#e2f4f0" stroke="#b8c8df" />
+    <text x="320" y="176" font-size="22" font-weight="700">Runtime</text>
+    <text x="320" y="205" font-size="17">Status / logs / graph</text>
+    <rect x="560" y="143" width="216" height="108" rx="14" fill="#e6f1ff" stroke="#b8c8df" />
+    <text x="578" y="176" font-size="22" font-weight="700">Research</text>
+    <text x="578" y="205" font-size="17">Metadata / charts</text>
+    <rect x="818" y="143" width="216" height="108" rx="14" fill="#e2f4f0" stroke="#b8c8df" />
+    <text x="836" y="176" font-size="22" font-weight="700">Compare</text>
+    <text x="836" y="205" font-size="17">
+      <tspan x="836" dy="0">Common-window</tspan>
+      <tspan x="836" dy="28">metrics</tspan>
+    </text>
+    <rect x="302" y="275" width="216" height="108" rx="14" fill="#eef2fa" stroke="#b8c8df" />
+    <text x="320" y="308" font-size="22" font-weight="700">Resources</text>
+    <text x="320" y="337" font-size="17">CPU / memory / GPU</text>
+    <rect x="560" y="275" width="216" height="108" rx="14" fill="#e2f4f0" stroke="#b8c8df" />
+    <text x="578" y="308" font-size="22" font-weight="700">Agent</text>
+    <text x="578" y="337" font-size="17">
+      <tspan x="578" dy="0">Task-grounded</tspan>
+      <tspan x="578" dy="28">analysis</tspan>
+    </text>
+    <rect x="44" y="391" width="992" height="48" rx="12" fill="#e9eff8" />
+    <text x="64" y="422" font-size="18">The browser calls its local backend. Remote target credentials stay in server configuration.</text>
+  </g>
+</svg>

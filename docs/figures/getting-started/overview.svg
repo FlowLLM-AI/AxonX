@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="480" viewBox="0 0 1080 480" role="img" aria-labelledby="title desc">
+  <title id="title">AxonX Research Harness</title>
+  <desc id="desc">Plugins define research capabilities; the runtime records execution and results.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
+    </marker>
+  </defs>
+  <rect width="1080" height="480" rx="22" fill="#f7f9fc" />
+  <g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#172c49">
+    <text x="540" y="54" font-size="30" font-weight="700" text-anchor="middle">AxonX Research Harness</text>
+    <text x="540" y="86" font-size="18" fill="#53627a" text-anchor="middle">Plugins define research capabilities; the runtime records execution and results.</text>
+    <path d="M260 194H294" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M518 194H552" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M776 194H810" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M410 252V260" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M668 252V260" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="44" y="140" width="216" height="108" rx="14" fill="#e8eafd" stroke="#b8c8df" />
+    <text x="62" y="173" font-size="22" font-weight="700">Research plugin</text>
+    <text x="62" y="202" font-size="17">
+      <tspan x="62" dy="0">ETL / Train /</tspan>
+      <tspan x="62" dy="28">Backtest</tspan>
+    </text>
+    <rect x="302" y="140" width="216" height="108" rx="14" fill="#e6f1ff" stroke="#b8c8df" />
+    <text x="320" y="173" font-size="22" font-weight="700">Job interfaces</text>
+    <text x="320" y="202" font-size="17">CLI / HTTP / MCP</text>
+    <rect x="560" y="140" width="216" height="108" rx="14" fill="#e2f4f0" stroke="#b8c8df" />
+    <text x="578" y="173" font-size="22" font-weight="700">Task workers</text>
+    <text x="578" y="202" font-size="17">Isolated execution</text>
+    <rect x="818" y="140" width="216" height="108" rx="14" fill="#e8f0fa" stroke="#b8c8df" />
+    <text x="836" y="173" font-size="22" font-weight="700">Workspace</text>
+    <text x="836" y="202" font-size="17">Status and artifacts</text>
+    <rect x="302" y="268" width="216" height="108" rx="14" fill="#e6f1ff" stroke="#b8c8df" />
+    <text x="320" y="301" font-size="22" font-weight="700">Studio</text>
+    <text x="320" y="330" font-size="17">
+      <tspan x="320" dy="0">Inspect runs and</tspan>
+      <tspan x="320" dy="28">results</tspan>
+    </text>
+    <rect x="560" y="268" width="216" height="108" rx="14" fill="#e2f4f0" stroke="#b8c8df" />
+    <text x="578" y="301" font-size="22" font-weight="700">Agent</text>
+    <text x="578" y="330" font-size="17">
+      <tspan x="578" dy="0">Query evidence with</tspan>
+      <tspan x="578" dy="28">tools</tspan>
+    </text>
+    <rect x="44" y="391" width="992" height="48" rx="12" fill="#e9eff8" />
+    <text x="64" y="422" font-size="18">Research logic lives in plugins. Shared contracts connect execution, evidence, and inspection.</text>
+  </g>
+</svg>

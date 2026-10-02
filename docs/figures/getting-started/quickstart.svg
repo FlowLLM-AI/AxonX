@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="480" viewBox="0 0 1080 480" role="img" aria-labelledby="title desc">
+  <title id="title">Your First Task</title>
+  <desc id="desc">Submit a built-in Demo and verify its durable result.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
+    </marker>
+  </defs>
+  <rect width="1080" height="480" rx="22" fill="#f7f9fc" />
+  <g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#172c49">
+    <text x="540" y="54" font-size="30" font-weight="700" text-anchor="middle">Your First Task</text>
+    <text x="540" y="86" font-size="18" fill="#53627a" text-anchor="middle">Submit a built-in Demo and verify its durable result.</text>
+    <path d="M260 199H294" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M518 199H552" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M776 199H810" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M410 257V269" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M668 257V269" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="44" y="145" width="216" height="108" rx="14" fill="#e6f1ff" stroke="#b8c8df" />
+    <text x="62" y="178" font-size="22" font-weight="700">1. Connect</text>
+    <text x="62" y="207" font-size="17">Start service + token</text>
+    <rect x="302" y="145" width="216" height="108" rx="14" fill="#e2f4f0" stroke="#b8c8df" />
+    <text x="320" y="178" font-size="22" font-weight="700">2. Submit</text>
+    <text x="320" y="207" font-size="17">Demo: x = 2, y = 3</text>
+    <rect x="560" y="145" width="216" height="108" rx="14" fill="#e6f1ff" stroke="#b8c8df" />
+    <text x="578" y="178" font-size="22" font-weight="700">3. Wait</text>
+    <text x="578" y="207" font-size="17">Task ID + Run ID</text>
+    <rect x="818" y="145" width="216" height="108" rx="14" fill="#e2f4f0" stroke="#b8c8df" />
+    <text x="836" y="178" font-size="22" font-weight="700">4. Inspect</text>
+    <text x="836" y="207" font-size="17">Status + metadata</text>
+    <rect x="302" y="277" width="216" height="108" rx="14" fill="#eef2fa" stroke="#b8c8df" />
+    <text x="320" y="310" font-size="22" font-weight="700">Task handle</text>
+    <text x="320" y="339" font-size="17">
+      <tspan x="320" dy="0">Accepted, not</tspan>
+      <tspan x="320" dy="28">completed</tspan>
+    </text>
+    <rect x="560" y="277" width="216" height="108" rx="14" fill="#e2f4f0" stroke="#b8c8df" />
+    <text x="578" y="310" font-size="22" font-weight="700">Final result</text>
+    <text x="578" y="339" font-size="17">succeeded; result = 5</text>
+    <rect x="44" y="391" width="992" height="48" rx="12" fill="#e9eff8" />
+    <text x="64" y="422" font-size="18">Use the returned Run ID when waiting. Preserve each experiment with a distinct Task name.</text>
+  </g>
+</svg>

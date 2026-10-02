@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="470" viewBox="0 0 1000 470" role="img" aria-labelledby="title desc">
+<title id="title">Agent Research Evidence Loop</title><desc id="desc">Default Job tools query the workspace; SDK capabilities have separate controls.</desc>
+<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
+<rect width="1000" height="470" rx="20" fill="#f5f9ff" />
+<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#163450">
+<text text-anchor="middle" x="500" y="60" font-size="30" font-weight="700">Agent Research Evidence Loop</text>
+<text text-anchor="middle" x="500" y="102" font-size="19">Default Job tools query the workspace; SDK capabilities have separate controls.</text>
+<rect x="50.0" y="160" width="198.75" height="194" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
+<text x="149.375" y="202" text-anchor="middle" font-size="22" font-weight="700">Question</text>
+<text x="149.375" y="239" text-anchor="middle" font-size="18">Provide Task IDs</text>
+<text x="149.375" y="269" text-anchor="middle" font-size="18">Define analysis</text>
+<text x="149.375" y="299" text-anchor="middle" font-size="18">scope</text>
+
+<path stroke-linecap="round" stroke-linejoin="round" d="M 252.75 242 H 277.75" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
+<rect x="283.75" y="160" width="198.75" height="194" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
+<text x="383.125" y="202" text-anchor="middle" font-size="22" font-weight="700">Read Evidence</text>
+<text x="383.125" y="239" text-anchor="middle" font-size="18">Status / logs</text>
+<text x="383.125" y="269" text-anchor="middle" font-size="18">Lineage</text>
+<text x="383.125" y="299" text-anchor="middle" font-size="18">Metadata / previews</text>
+
+<path stroke-linecap="round" stroke-linejoin="round" d="M 486.5 242 H 511.5" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
+<rect x="517.5" y="160" width="198.75" height="194" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
+<text x="616.875" y="202" text-anchor="middle" font-size="22" font-weight="700">Check Context</text>
+<text x="616.875" y="238" text-anchor="middle" font-size="18">Completion</text>
+<text x="616.875" y="268" text-anchor="middle" font-size="18">Artifacts</text>
+<text x="616.875" y="298" text-anchor="middle" font-size="18">Dates / units</text>
+<text x="616.875" y="328" text-anchor="middle" font-size="18">Protocol</text>
+
+<path stroke-linecap="round" stroke-linejoin="round" d="M 720.25 242 H 745.25" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
+<rect x="751.25" y="160" width="198.75" height="194" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
+<text x="850.625" y="202" text-anchor="middle" font-size="22" font-weight="700">Respond</text>
+<text x="850.625" y="239" text-anchor="middle" font-size="18">Evidence-based</text>
+<text x="850.625" y="269" text-anchor="middle" font-size="18">claims</text>
+<text x="850.625" y="299" text-anchor="middle" font-size="18">Continue the session</text>
+
+<text x="50" y="408" font-size="19"><tspan x="50" dy="0">Stopping an Agent turn interrupts the session.</tspan><tspan x="50" dy="30">Cancelling a research Task is a separate action.</tspan></text>
+</g></svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+<title id="title">Agent Configuration and Permission Layers</title><desc id="desc">Framework fields, SDK options and project settings have different responsibilities.</desc>
+<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
+<rect width="1000" height="440" rx="20" fill="#f5f9ff" />
+<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#163450">
+<text text-anchor="middle" x="500" y="60" font-size="30" font-weight="700">Agent Configuration and Permission Layers</text>
+<text text-anchor="middle" x="500" y="102" font-size="19">Framework fields, SDK options and project settings have different responsibilities.</text>
+<rect x="50.0" y="160" width="198.75" height="168" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
+<text x="149.375" y="202" text-anchor="middle" font-size="22" font-weight="700">AxonX Fields</text>
+<text x="149.375" y="244" text-anchor="middle" font-size="18">backend / job_tools</text>
+<text x="149.375" y="274" text-anchor="middle" font-size="18">State / session store</text>
+<path stroke-linecap="round" stroke-linejoin="round" d="M 252.75 242 H 277.75" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
+<rect x="283.75" y="160" width="198.75" height="168" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
+<text x="383.125" y="202" text-anchor="middle" font-size="22" font-weight="700">SDK Options</text>
+<text x="383.125" y="244" text-anchor="middle" font-size="18">Model / env / cwd</text>
+<text x="383.125" y="274" text-anchor="middle" font-size="18">Permission mode</text>
+<path stroke-linecap="round" stroke-linejoin="round" d="M 486.5 242 H 511.5" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
+<rect x="517.5" y="160" width="198.75" height="168" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
+<text x="616.875" y="202" text-anchor="middle" font-size="22" font-weight="700">Project Settings</text>
+<text x="616.875" y="244" text-anchor="middle" font-size="18">setting_sources</text>
+<text x="616.875" y="274" text-anchor="middle" font-size="18">Skills / plugins</text>
+<path stroke-linecap="round" stroke-linejoin="round" d="M 720.25 242 H 745.25" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
+<rect x="751.25" y="160" width="198.75" height="168" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
+<text x="850.625" y="202" text-anchor="middle" font-size="22" font-weight="700">Session Runtime</text>
+<text x="850.625" y="244" text-anchor="middle" font-size="18">Managed UUID</text>
+<text x="850.625" y="274" text-anchor="middle" font-size="18">Depth / event stream</text>
+<text x="50" y="386" font-size="19"><tspan x="50" dy="0">Default: bypassPermissions. Query-only Job tools do not make the entire Agent read-only.</tspan></text>
+</g></svg>

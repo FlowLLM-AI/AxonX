@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="600" viewBox="0 0 1040 600" role="img" aria-labelledby="title desc">
+<title id="title">Research lineage and explicit execution</title><desc id="desc">Edges represent source_tasks references; each stage must be submitted explicitly. A separate legend explains provisional and missing record flags.</desc>
+<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
+<rect width="1040" height="600" rx="20" fill="#f8fafc" />
+<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#143252">
+<text text-anchor="middle" x="520" y="55" font-size="30" font-weight="700">Research lineage and explicit execution</text>
+<path stroke-linecap="round" stroke-linejoin="round" d="M 255 193 L 285 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
+<path stroke-linecap="round" stroke-linejoin="round" d="M 510 193 L 540 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
+<path stroke-linecap="round" stroke-linejoin="round" d="M 765 193 L 795 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
+<path stroke-linecap="round" stroke-linejoin="round" d="M 145.0 274 L 145.0 315 L 145.0 315 L 145.0 332" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
+<rect x="40" y="140" width="210" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
+<text x="145.0" y="177" text-anchor="middle" font-size="23" font-weight="600">ETL</text>
+<text x="145.0" y="214" text-anchor="middle" font-size="18">Prepare data</text>
+<rect x="295" y="140" width="210" height="132" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
+<text x="400.0" y="177" text-anchor="middle" font-size="23" font-weight="600">Train</text>
+<text x="400.0" y="214" text-anchor="middle" font-size="18">Fit a model</text>
+<rect x="550" y="140" width="210" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
+<text x="655.0" y="177" text-anchor="middle" font-size="23" font-weight="600">Predict</text>
+<text x="655.0" y="214" text-anchor="middle" font-size="18">Generate scores</text>
+<rect x="805" y="140" width="195" height="132" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
+<text x="902.5" y="177" text-anchor="middle" font-size="23" font-weight="600">Backtest</text>
+<text x="902.5" y="214" text-anchor="middle" font-size="18">Evaluate strategy</text>
+<rect x="40" y="340" width="210" height="160" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
+<text x="145.0" y="377" text-anchor="middle" font-size="23" font-weight="600">Analysis</text>
+<g role="group" aria-label="Record flags legend">
+<rect x="295" y="340" width="705" height="160" rx="12" fill="#f8fafc" stroke="#739bcc" stroke-width="1.5" stroke-dasharray="6 5" />
+<text x="319" y="374" font-size="20" font-weight="700">Record flags (not workflow stages)</text>
+<path d="M 319 391 H 976" fill="none" stroke="#739bcc" stroke-width="1" />
+<text x="319" y="425" font-size="18" font-weight="700">provisional</text>
+<text x="490" y="425" font-size="17" fill="#52677e">Status exists; no final metadata.</text>
+<text x="319" y="466" font-size="18" font-weight="700">missing</text>
+<text x="490" y="466" font-size="17" fill="#52677e">Referenced Task has no valid record here.</text>
+</g>
+<text x="44" y="548" font-size="19" fill="#52677e">The graph queries recorded relationships. It does not execute a DAG or create upstream data.</text>
+<text text-anchor="middle" x="520" y="92.0" font-size="19" fill="#52677e">Edges represent source_tasks references; each stage must be submitted explicitly.</text><text x="145.0" y="414" text-anchor="middle" font-size="18">Inspect factor</text><text x="145.0" y="444" text-anchor="middle" font-size="18">quality</text></g></svg>

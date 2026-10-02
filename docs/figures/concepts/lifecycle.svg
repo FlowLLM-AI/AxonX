@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="600" viewBox="0 0 1040 600" role="img" aria-labelledby="title desc">
+<title id="title">Task lifecycle</title><desc id="desc">task_id identifies a directory; run_id identifies one execution.</desc>
+<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
+<rect width="1040" height="600" rx="20" fill="#f8fafc" />
+<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#143252">
+<text text-anchor="middle" x="520" y="55" font-size="30" font-weight="700">Task lifecycle</text>
+<path stroke-linecap="round" stroke-linejoin="round" d="M 315 193 L 375 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
+<path stroke-linecap="round" stroke-linejoin="round" d="M 660 193 L 720 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
+<path stroke-linecap="round" stroke-linejoin="round" d="M 175.0 274 L 175.0 315 L 175.0 315 L 175.0 332" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
+<path stroke-linecap="round" stroke-linejoin="round" d="M 520.0 274 L 520.0 315 L 520.0 315 L 520.0 332" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
+<path stroke-linecap="round" stroke-linejoin="round" d="M 865.0 274 L 865.0 315 L 865.0 315 L 865.0 332" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
+<rect x="40" y="140" width="270" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
+<text x="175.0" y="177" text-anchor="middle" font-size="23" font-weight="600">queued</text>
+<text x="175.0" y="214" text-anchor="middle" font-size="18">Accepted; worker handoff</text>
+<rect x="385" y="140" width="270" height="132" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
+<text x="520.0" y="177" text-anchor="middle" font-size="23" font-weight="600">running</text>
+<text x="520.0" y="214" text-anchor="middle" font-size="18">Steps, progress and logs</text>
+<rect x="730" y="140" width="270" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
+<text x="865.0" y="177" text-anchor="middle" font-size="23" font-weight="600">succeeded</text>
+<rect x="40" y="340" width="270" height="160" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
+<text x="175.0" y="377" text-anchor="middle" font-size="23" font-weight="600">cancelled</text>
+<text x="175.0" y="414" text-anchor="middle" font-size="18">Cancellation or shutdown</text>
+<rect x="385" y="340" width="270" height="160" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
+<text x="520.0" y="377" text-anchor="middle" font-size="23" font-weight="600">failed</text>
+<text x="520.0" y="414" text-anchor="middle" font-size="18">Exception or nonzero exit</text>
+<rect x="730" y="340" width="270" height="160" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
+<text x="865.0" y="377" text-anchor="middle" font-size="23" font-weight="600">Named rerun</text>
+<text x="44" y="548" font-size="19" fill="#52677e">Failure and cancellation are terminal. Named reruns replace files and create a new run_id.</text>
+<text text-anchor="middle" x="520" y="92.0" font-size="19" fill="#52677e">task_id identifies a directory; run_id identifies one execution.</text><text x="865.0" y="214" text-anchor="middle" font-size="18">Validated output +</text><text x="865.0" y="244" text-anchor="middle" font-size="18">metadata</text><text x="865.0" y="414" text-anchor="middle" font-size="18">Replace a terminal</text><text x="865.0" y="444" text-anchor="middle" font-size="18">directory</text></g></svg>
