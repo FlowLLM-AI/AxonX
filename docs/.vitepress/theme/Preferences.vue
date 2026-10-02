@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onClickOutside, useStorage } from "@vueuse/core";
+import { useEventListener, useStorage } from "@vueuse/core";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useData, useRouter, withBase } from "vitepress";
 
@@ -12,7 +12,8 @@ const language = useStorage("axonx-language", "browser");
 const appearance = useStorage("vitepress-theme-appearance", "auto");
 const root = ref<HTMLElement>();
 const open = ref<string | null>(null);
-onClickOutside(root, () => (open.value = null));
+const close = () => (open.value = null);
+watch(() => page.value.relativePath, close);
 const menus = computed(() => [
   {
     id: "language",
@@ -60,6 +61,14 @@ function applyLanguage() {
 }
 
 onMounted(() => {
+  const closeOutside = (event: Event) => {
+    if (!event.composedPath().includes(root.value!)) close();
+  };
+  useEventListener(window, "pointerdown", closeOutside, { capture: true });
+  useEventListener(window, "focusin", closeOutside);
+  useEventListener(window, "keydown", (event) => {
+    if (event.key === "Escape") close();
+  });
   applyLanguage();
   watch(language, applyLanguage);
   window.addEventListener("languagechange", followBrowser);
@@ -71,8 +80,14 @@ function followBrowser() {
 </script>
 
 <template>
-  <div ref="root" class="site-preferences" @keydown.esc="open = null">
-    <div v-for="menu in menus" :key="menu.id" class="preference-menu">
+  <div ref="root" class="site-preferences">
+    <div
+      v-for="menu in menus"
+      :key="menu.id"
+      class="preference-menu"
+      @pointerenter="$event.pointerType === 'mouse' && (open = menu.id)"
+      @pointerleave="$event.pointerType === 'mouse' && close()"
+    >
       <button
         type="button"
         class="preference-trigger"
@@ -95,6 +110,7 @@ function followBrowser() {
             :name="`site-${menu.id}`"
             :value="value"
             :checked="menu.selected === value"
+            @click="select(menu.id, value)"
             @change="select(menu.id, value)"
           />
           <span>{{ label }}</span
