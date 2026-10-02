@@ -4,6 +4,17 @@
 
 本文件是插件说明、实验文档和复现材料的统一入口。源代码在 `axonx_alpha158_enhanced`，不依赖原插件的Python包。
 
+## 安装
+
+在执行服务的 Python 环境安装，再重启服务：
+
+```bash
+pip install axonx-alpha158-enhanced
+axonx plugin list
+```
+
+源码开发时使用 `pip install -e ./plugins/a158_enhanced`。下文保留实验复现与远程部署说明。
+
 ## 1. 实验文档索引
 
 建议按以下顺序阅读：

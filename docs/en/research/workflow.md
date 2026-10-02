@@ -17,11 +17,10 @@ AxonX provides research task execution, records, artifacts, and Studio visualiza
 - Keep research tasks and upstream artifacts in the same workspace, or prepare complete upstream directories using [task synchronization](../guides/task-sync.md).
 
 ```bash
-axonx plugin install plugins/a158
-axonx list_installed_task_definitions
+pip install axonx-alpha158
 ```
 
-If the service is already running, restart it after installation as instructed by the installation result, then check the task catalog. Expect `a158_etl`, `a158_factor`, `a158_train`, `a158_predict`, and `a158_backtest`.
+If the service is already running, restart it after installation, then query its task catalog with `axonx list_installed_task_definitions`. Expect `a158_etl`, `a158_factor`, `a158_train`, `a158_predict`, and `a158_backtest`.
 
 ## What each research stage produces
 

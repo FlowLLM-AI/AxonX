@@ -14,7 +14,7 @@ npm run dev
 
 The complete development toolchain requires Node.js 22.13+ (22.x), 24.x, or 26+ to satisfy the locked Vite, ESLint, and Vitest dependencies. Vite listens on 4173 by default, and the development proxy connects to `http://127.0.0.1:1024` by default. Use `AXONX_DEV_SERVER` to point to another backend and restart Vite after changing it. The proxy covers `/health`, `/jobs`, `/files`, `/mcp`, and `/proxy`.
 
-`npm run build` performs TypeScript checks first, then outputs `dist`. Install the Python package with `python -m pip install ./axonx_studio` from the repository root to let AxonX serve those assets. The development server provides hot updates.
+`npm run build` performs TypeScript checks first, then outputs `dist`. Install the Python package with `pip install ./axonx_studio` from the repository root to let AxonX serve those assets. The development server provides hot updates.
 
 ## Directory responsibilities
 

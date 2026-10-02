@@ -30,7 +30,7 @@ Fork the repository and clone your fork. From its root, use Python 3.12+ on macO
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e '.[dev]'
+pip install -e '.[dev]'
 pre-commit install
 ```
 

@@ -11,22 +11,23 @@ AxonX requires Python 3.12 or later. The local TaskManager supports macOS and Li
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install axonx
+pip install axonx
 axonx help
 ```
 
-Choose extras as needed:
+For the prebuilt browser UI, use `pip install "axonx[studio]"`. Development tools are available through `axonx[dev]`; `axonx[full]` includes both.
 
-| Install                                 | Includes                            |
-| --------------------------------------- | ----------------------------------- |
-| `python -m pip install axonx`           | Core, CLI, API, and MCP             |
-| `python -m pip install "axonx[studio]"` | Core and Studio                     |
-| `python -m pip install "axonx[dev]"`    | Core and development tools          |
-| `python -m pip install "axonx[full]"`   | Core, Studio, and development tools |
+### Install from source
 
-For source development, run `python -m pip install -e ".[full]"` from the repository root.
+```bash
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+pip install -e ".[studio]"
+```
 
-Research plugins are installed separately; see [Research workflow](../research/workflow.md). To build Studio from source, see [Studio development](../development/studio.md).
+Activate your virtual environment before installing. This uses core source and published Studio assets. For frontend changes, see [Studio development](../development/studio.md); for development dependencies, see [Contributing](../../../CONTRIBUTING.md).
+
+Research plugins are installed separately; see [Research workflow](../research/workflow.md).
 
 ## Configure and start the service
 

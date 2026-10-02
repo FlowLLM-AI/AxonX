@@ -17,11 +17,10 @@ AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使
 - 研究任务与上游产物位于同一工作区，或者已按[任务同步](../guides/task-sync.md)准备好完整上游目录。
 
 ```bash
-axonx plugin install plugins/a158
-axonx list_installed_task_definitions
+pip install axonx-alpha158
 ```
 
-服务已运行时，安装插件后按安装结果要求重启服务，再检查任务目录。预期找到 `a158_etl`、`a158_factor`、`a158_train`、`a158_predict` 和 `a158_backtest`。
+服务已运行时，安装插件后重启服务，再运行 `axonx list_installed_task_definitions` 查询任务目录。预期找到 `a158_etl`、`a158_factor`、`a158_train`、`a158_predict` 和 `a158_backtest`。
 
 ## 研究链中每一步产生什么
 

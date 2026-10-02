@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
+  <img src="https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
 </p>
 
 <p align="center"><strong>An agent-native harness for quantitative research.</strong></p>
@@ -35,63 +35,50 @@ Researchers can inspect how a result was produced, reuse upstream data, compare 
 
 Studio provides task submission, run details, machine resources, workspace browsing, and research result views.
 
-![AxonX Studio home](docs/figures/studio/home.png)
+![AxonX Studio home](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
 
 See [Getting started with Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) for setup and connection instructions.
 
 ## Quick start
 
-Requires **Python 3.12+**. The local TaskManager supports **macOS and Linux**:
+Requires **Python 3.12+**, with local Task execution on **macOS and Linux**. Use an activated virtual environment.
+
+### Install from PyPI
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install "axonx[studio]"
+pip install "axonx[studio]"
 ```
 
-For development tools as well, use `python -m pip install "axonx[full]"`. See [installation options](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart) for a minimal install.
+This includes the CLI, API, MCP, and prebuilt Studio. For the core alone, install `axonx`.
 
-### Run your first Task
-
-The built-in Demo adds two integers and needs no service, market data, or model credentials:
+### Install from source
 
 ```bash
-axonx exec --task demo --task-name first-demo --x 2 --y 3
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+pip install -e ".[studio]"
 ```
 
-The command prints Task output with `result` equal to `5`. Task records are stored under `.axonx/` in the current directory; logs use `logs/`. Use a different task name, or omit `--task-name`, to keep separate experiments: reusing a name replaces a finished Task directory.
+This uses the core source and the published Studio package. See [Contributing](CONTRIBUTING.md) for development setup and [Studio development](https://flowllm-ai.github.io/AxonX/en/development/studio) to modify the frontend.
 
-### Submit through the service
+### Run a Demo
 
-In terminal A, choose a service token and start the local service:
+```bash
+axonx exec --task demo --x 2 --y 3
+```
+
+The output contains `result: 5`; no service, market data, or model credentials are needed. Records are saved under `.axonx/` and logs under `logs/` in the current directory.
+
+### Open Studio
+
+Choose a service token, then start the service:
 
 ```bash
 export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
 axonx start --service.host 127.0.0.1
 ```
 
-In terminal B, activate the same environment and set the same token:
-
-```bash
-source .venv/bin/activate
-export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
-axonx get_task_definition --task demo
-axonx submit --task demo --task-name submitted-demo --x 2 --y 3
-```
-
-Save `answer.run_id` from the submission response, then replace the placeholder below with that value:
-
-```bash
-axonx wait_task --task-id 'base#demo#submitted-demo' \
-  --run-id '<actual returned run_id>' --client-timeout 120
-axonx status --task-id 'base#demo#submitted-demo'
-```
-
-Submission success means the request was accepted. Wait for state `succeeded`; the status response should contain `result.result: 5`. The default service port is `1024`. See the [full quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart) for configuration, logs, and persistent records.
-
-### Open Studio
-
-The install above includes Studio. With the service running in terminal A, open <http://127.0.0.1:1024/> and enter that token in **Settings → Service token**. AxonX loads the UI from the Studio package and serves Studio and API from the same address.
+Open <http://127.0.0.1:1024/> and enter the same token in **Settings → Service token**. See the [full quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart) for asynchronous submission, waiting, and result inspection.
 
 ## Research with an Agent
 
@@ -114,7 +101,7 @@ Research plugins supply the algorithms. Upstream Task IDs record relationships, 
 
 ## Quantitative research and plugins
 
-![AxonX research and execution overview](docs/figures/getting-started/overview.svg)
+![AxonX research and execution overview](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/getting-started/overview.svg)
 
 A typical research chain is **raw data → ETL → training → prediction → backtesting**, with factor analysis branching from ETL. Tasks record upstream IDs through `source_tasks`, so datasets and predictions can be reused across experiments. Users or calling programs submit each stage.
 
@@ -125,11 +112,18 @@ The core supplies Task contracts and runtime infrastructure. Research plugins im
 | [Alpha158](plugins/a158/) | Alpha158 research task implementations |
 | [Alpha158 Enhanced](plugins/a158_enhanced/README.md) | Extended Alpha158 research tasks and experiment guidance |
 
+Install a research plugin in the execution service's Python environment, then restart the service:
+
+```bash
+pip install axonx-alpha158
+# Or: pip install axonx-alpha158-enhanced
+```
+
 Start with the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) for plugin installation and data prerequisites. Market-data and Agent features need their own provider configuration. See [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) for return definitions, costs, and trading assumptions.
 
 Studio reads the resulting artifacts to display training metrics, predictions, and backtest summaries. For example, the backtest view shows overall signal metrics alongside period summaries:
 
-![AxonX Studio backtest overall metrics](docs/figures/studio/backtest-overall.png)
+![AxonX Studio backtest overall metrics](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/backtest-overall.png)
 
 This screenshot illustrates an existing experiment's result view. See [Research results](https://flowllm-ai.github.io/AxonX/en/research/results) for how to read each stage's outputs.
 

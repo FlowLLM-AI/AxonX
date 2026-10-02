@@ -26,6 +26,18 @@ axonx plugin inspect '<distribution 或插件名>'
 
 本地 CLI 直接检查当前环境，不经 HTTP。服务使用另一虚拟环境时，CLI 本地结果不一定代表常驻服务环境。
 
+## 从 PyPI 安装
+
+在执行服务的 Python 环境安装，再重启服务：
+
+```bash
+pip install axonx-alpha158
+# Or: pip install axonx-alpha158-enhanced
+axonx plugin list
+```
+
+以下源码与 wheel 命令用于插件开发和部署。
+
 ## 从源码构建和检查
 
 仓库中的 a158 目录可作为源码路径示例：

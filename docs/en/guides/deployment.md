@@ -9,7 +9,7 @@ Requires Python 3.12 or later. Create a virtual environment:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install axonx
+pip install axonx
 axonx help
 ```
 
@@ -50,7 +50,7 @@ After configuring a token, health also requires a Bearer header. Health means th
 
 ## Install and host Studio
 
-Install with `python -m pip install "axonx[studio]"`, then restart the service. See [Studio setup](../getting-started/studio.md) or [building from source](../development/studio.md). `web_enabled: false` disables page hosting while keeping the API available.
+Install with `pip install "axonx[studio]"`, then restart the service. See [Studio setup](../getting-started/studio.md) or [building from source](../development/studio.md). `web_enabled: false` disables page hosting while keeping the API available.
 
 ## Example background process supervision
 

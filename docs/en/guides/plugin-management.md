@@ -26,6 +26,18 @@ Displayed fields include distribution, version, entry name, requirements, and co
 
 The local CLI checks the current environment directly, without HTTP. If the service uses another virtual environment, local CLI results may not represent the persistent service's environment.
 
+## Install from PyPI
+
+Install in the execution service's Python environment, then restart the service:
+
+```bash
+pip install axonx-alpha158
+# Or: pip install axonx-alpha158-enhanced
+axonx plugin list
+```
+
+The following source and wheel commands are for plugin development and deployment.
+
 ## Build and inspect from source
 
 The repository's a158 directory is an example source path:

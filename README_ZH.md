@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
+  <img src="https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
 </p>
 
 <p align="center"><strong>面向金融量化研究的 Agent Harness。</strong></p>
@@ -35,69 +35,50 @@ AxonX 将研究代码、任务执行、日志和结果连接到同一个工作�
 
 Studio 提供任务提交、运行详情、机器资源、工作区浏览和研究结果视图。
 
-![AxonX Studio 首页](docs/figures/studio/home.png)
+![AxonX Studio 首页](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
 
 安装和连接方式见 [Studio 入门](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio)。
 
 ## 快速开始
 
-要求 **Python 3.12+**，本地 TaskManager 支持 **macOS 和 Linux**。从源码安装：
+要求 **Python 3.12+**，本地 Task 执行支持 **macOS 和 Linux**。请使用已激活的虚拟环境。
+
+### 从 PyPI 安装
+
+```bash
+pip install "axonx[studio]"
+```
+
+包含 CLI、API、MCP 和预构建的 Studio。只需核心功能时，安装 `axonx`。
+
+### 从源码安装
 
 ```bash
 git clone https://github.com/FlowLLM-AI/AxonX.git
 cd AxonX
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
+pip install -e ".[studio]"
 ```
 
-### 运行第一个 Task
+使用核心源码和已发布的 Studio 包。开发环境见[贡献指南](CONTRIBUTING_ZH.md)，修改前端见 [Studio 开发](https://flowllm-ai.github.io/AxonX/zh/development/studio)。
 
-内置 Demo 对两个整数求和，无需服务、行情数据或模型凭据：
+### 运行 Demo
 
 ```bash
-axonx exec --task demo --task-name first-demo --x 2 --y 3
+axonx exec --task demo --x 2 --y 3
 ```
 
-命令打印 Task 输出，其中 `result` 为 `5`。任务记录保存在当前目录的 `.axonx/` 下，日志使用 `logs/`。需要保留不同实验时，使用不同任务名或省略 `--task-name`；复用名字会替换已结束的 Task 目录。
+输出包含 `result: 5`，无需服务、行情数据或模型凭据。记录保存在当前目录的 `.axonx/`，日志保存在 `logs/`。
 
-### 通过服务提交
+### 打开 Studio
 
-在终端 A 设置自己的服务 token，启动本地服务：
+设置自己的服务 token，再启动服务：
 
 ```bash
 export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
 axonx start --service.host 127.0.0.1
 ```
 
-在终端 B 激活同一环境，设置与服务相同的 token：
-
-```bash
-source .venv/bin/activate
-export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
-axonx get_task_definition --task demo
-axonx submit --task demo --task-name submitted-demo --x 2 --y 3
-```
-
-保留提交响应中的 `answer.run_id`，用真实值替换下面的占位符：
-
-```bash
-axonx wait_task --task-id 'base#demo#submitted-demo' \
-  --run-id '<actual returned run_id>' --client-timeout 120
-axonx status --task-id 'base#demo#submitted-demo'
-```
-
-提交成功表示请求已接受。等待状态变为 `succeeded`，状态响应应包含 `result.result: 5`。默认服务端口为 `1024`。配置、日志和持久记录的完整说明见[快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)。
-
-### 打开 Studio
-
-安装 Studio Python 包：
-
-```bash
-python -m pip install axonx-studio
-```
-
-在终端 A 重启服务，保持相同的服务 token。打开 <http://127.0.0.1:1024/>，在 **Settings → Service token** 中填入该 token。AxonX 从 Studio 包加载页面，在同一地址提供 Studio 和 API。
+打开 <http://127.0.0.1:1024/>，在 **Settings → Service token** 中填入相同 token。异步提交、等待和结果检查见[完整快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)。
 
 ## 使用 Agent 辅助研究
 
@@ -120,7 +101,7 @@ Job 校验调用参数并协调框架能力。提交研究任务时，TaskManage
 
 ## 量化研究与插件
 
-![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg)
+![AxonX 研究与执行总览](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/getting-started/overview.svg)
 
 典型研究链路为 **原始数据 → ETL → 训练 → 预测 → 回测**，因子分析从 ETL 分支执行。任务通过 `source_tasks` 记录上游 ID，可以在不同实验间复用数据集和预测结果。每个阶段由用户或调用程序组织提交。
 
@@ -131,11 +112,18 @@ Job 校验调用参数并协调框架能力。提交研究任务时，TaskManage
 | [Alpha158](plugins/a158/) | Alpha158 研究任务实现 |
 | [Alpha158 Enhanced](plugins/a158_enhanced/README.md) | 扩展的 Alpha158 研究任务与实验说明 |
 
+在执行服务的 Python 环境安装研究插件，再重启服务：
+
+```bash
+pip install axonx-alpha158
+# Or: pip install axonx-alpha158-enhanced
+```
+
 插件安装和数据准备见[量化研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow)。行情数据与 Agent 功能需要各自的服务商配置。收益定义、成本和交易假设见[回测解读](https://flowllm-ai.github.io/AxonX/zh/research/backtest)。
 
 Studio 读取生成的产物，展示训练指标、预测结果和回测汇总。例如，回测视图提供整体信号指标与分期汇总：
 
-![AxonX Studio 回测整体指标](docs/figures/studio/backtest-overall.png)
+![AxonX Studio 回测整体指标](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/backtest-overall.png)
 
 截图展示已有实验的结果页面。各阶段输出的阅读方式见[研究结果解读](https://flowllm-ai.github.io/AxonX/zh/research/results)。
 

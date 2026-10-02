@@ -11,22 +11,23 @@ AxonX 要求 Python 3.12 或更高版本，本地 TaskManager 支持 macOS 与 L
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install axonx
+pip install axonx
 axonx help
 ```
 
-按需选择安装项：
+需要预构建的浏览器界面时，使用 `pip install "axonx[studio]"`。开发工具通过 `axonx[dev]` 安装，`axonx[full]` 包含两者。
 
-| 安装命令                                | 包含内容                |
-| --------------------------------------- | ----------------------- |
-| `python -m pip install axonx`           | 核心、CLI、API 与 MCP   |
-| `python -m pip install "axonx[studio]"` | 核心与 Studio           |
-| `python -m pip install "axonx[dev]"`    | 核心与开发工具          |
-| `python -m pip install "axonx[full]"`   | 核心、Studio 与开发工具 |
+### 从源码安装
 
-源码开发时，从仓库根目录执行 `python -m pip install -e ".[full]"`。
+```bash
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+pip install -e ".[studio]"
+```
 
-研究插件单独安装，见[研究工作流](../research/workflow.md)。从源码构建 Studio，见[Studio 开发](../development/studio.md)。
+安装前激活虚拟环境。此方式使用核心源码和已发布的 Studio 资源。修改前端见 [Studio 开发](../development/studio.md)，开发依赖见[贡献指南](../../../CONTRIBUTING_ZH.md)。
+
+研究插件单独安装，见[研究工作流](../research/workflow.md)。
 
 ## 配置并启动服务
 

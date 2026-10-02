@@ -11,21 +11,13 @@ The screenshots on this page use the English interface; the source text is in Ch
 Install AxonX with Studio, then start the service (`axonx[full]` also includes Studio):
 
 ```bash
-python -m pip install "axonx[studio]"
+pip install "axonx[studio]"
 axonx start --service.host 127.0.0.1
 ```
 
 Configure the [Service token](../guides/authentication.md) before starting, then open `http://127.0.0.1:1024/`. AxonX loads static assets from the `axonx_studio` Python package. The API still works when Studio is not installed.
 
-For development mode, run in another terminal:
-
-```bash
-cd axonx_studio
-npm ci
-npm run dev
-```
-
-The default browser URL is `http://localhost:4173/`. Vite proxies `/health`, `/jobs`, `/files`, `/mcp`, and `/proxy` to `http://127.0.0.1:1024`; set `AXONX_DEV_SERVER` if your backend address differs. See [Studio development](../development/studio.md) for the complete configuration.
+For frontend development and proxy configuration, see [Studio development](../development/studio.md).
 
 ## Configure the connection
 

@@ -9,7 +9,7 @@
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install axonx
+pip install axonx
 axonx help
 ```
 
@@ -50,7 +50,7 @@ axonx list_installed_task_definitions
 
 ## 安装并托管 Studio
 
-执行 `python -m pip install "axonx[studio]"`，然后重启服务。详见 [Studio 入门](../getting-started/studio.md)与[源码构建](../development/studio.md)。`web_enabled: false` 关闭页面托管，API 继续可用。
+执行 `pip install "axonx[studio]"`，然后重启服务。详见 [Studio 入门](../getting-started/studio.md)与[源码构建](../development/studio.md)。`web_enabled: false` 关闭页面托管，API 继续可用。
 
 ## 后台进程托管示例
 

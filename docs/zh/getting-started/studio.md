@@ -11,21 +11,13 @@ AxonX Studio 是任务与研究工作台。它读取服务提供的 Job 和 Task
 安装 AxonX 与 Studio 后启动服务（`axonx[full]` 也包含 Studio）：
 
 ```bash
-python -m pip install "axonx[studio]"
+pip install "axonx[studio]"
 axonx start --service.host 127.0.0.1
 ```
 
 启动前配置[服务 token](../guides/authentication.md)，然后打开 `http://127.0.0.1:1024/`。AxonX 从 `axonx_studio` Python 包加载静态页面。未安装 Studio 时，API 仍可工作。
 
-开发模式在另一个终端运行：
-
-```bash
-cd axonx_studio
-npm ci
-npm run dev
-```
-
-默认浏览器地址为 `http://localhost:4173/`。Vite 将 `/health`、`/jobs`、`/files`、`/mcp`、`/proxy` 代理到 `http://127.0.0.1:1024`；后端地址不同则设置 `AXONX_DEV_SERVER`。完整配置见[Studio 开发](../development/studio.md)。
+前端开发与代理配置见 [Studio 开发](../development/studio.md)。
 
 ## 配置连接
 

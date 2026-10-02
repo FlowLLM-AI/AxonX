@@ -30,7 +30,7 @@ Fork 仓库并克隆自己的 fork。在仓库根目录使用 Python 3.12+，本
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e '.[dev]'
+pip install -e '.[dev]'
 pre-commit install
 ```
 
