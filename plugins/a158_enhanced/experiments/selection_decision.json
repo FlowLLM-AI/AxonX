@@ -1,0 +1,5 @@
+{
+  "variant": "all",
+  "selection_gate_passed": true,
+  "rule": "Require RankIC and both Top10/20 net annual returns to improve; choose highest RankIC. If none qualify, confirm highest-RankIC candidate and report tradeoffs; no more tuning."
+}

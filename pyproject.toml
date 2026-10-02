@@ -69,8 +69,8 @@ include = ["axonx*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-pythonpath = [".", "plugins/a158", "tests"]
-testpaths = ["tests"]
+pythonpath = [".", "plugins/a158", "plugins/a158_enhanced", "tests"]
+testpaths = ["tests", "plugins/a158_enhanced/tests"]
 # tests/integration needs API keys, so a bare `pytest` run must not pick it up.
 # Run it explicitly with `pytest -m integration`.
 addopts = '-m "not integration"'

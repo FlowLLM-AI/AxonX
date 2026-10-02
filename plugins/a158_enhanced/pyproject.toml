@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axonx-alpha158-enhanced"
+version = "0.1.2"
+requires-python = ">=3.12"
+dependencies = [
+    "axonx>=0.1.0",
+    "lightgbm>=4.7.0,<5",
+    "numpy>=2.5.3,<3",
+    "polars>=1.44.2,<2",
+]
+
+[project.entry-points."axonx.plugins"]
+alpha158_enhanced = "axonx_alpha158_enhanced"
+
+[project.entry-points."axonx.configs"]
+alpha158_enhanced = "axonx_alpha158_enhanced.config:alpha158_demo"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["axonx_alpha158_enhanced*"]
+
+[tool.setuptools.package-data]
+axonx_alpha158_enhanced = ["plugin.yaml", "config/*.yaml"]
