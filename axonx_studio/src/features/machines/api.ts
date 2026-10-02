@@ -6,11 +6,12 @@ interface TargetStatus {
   healthy: boolean;
 }
 
-export function machineFromTargetAddress(address: string): MachineNode | null {
-  const match = /^https?:\/\/(?:\[[^\]]+\]|[^:/?#]+):([0-9]{1,5})\/?$/.exec(
-    address,
+export function machineFromTargetAddress(id: string): MachineNode | null {
+  const match = /^(?:https:\/\/)?(?:\[[^\]]+\]|[^:/?#]+):([0-9]{1,5})$/.exec(
+    id,
   );
   if (!match || Number(match[1]) < 1 || Number(match[1]) > 65535) return null;
+  const address = id.startsWith("https://") ? id : `http://${id}`;
   try {
     const url = new URL(address);
     if (
@@ -23,7 +24,7 @@ export function machineFromTargetAddress(address: string): MachineNode | null {
       url.hash
     )
       return null;
-    return { id: address, address, isLocal: false, healthy: false };
+    return { id, address, isLocal: false, healthy: false };
   } catch {
     return null;
   }
@@ -46,7 +47,7 @@ export async function listMachineOptions(
   return [
     { id: "local", address: localAddress, isLocal: true, healthy: true },
     ...targets.map((target) => ({
-      id: target.address,
+      id: target.address.replace(/^http:\/\//, ""),
       address: target.address,
       isLocal: false,
       healthy: target.healthy,

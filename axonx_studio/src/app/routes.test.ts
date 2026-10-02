@@ -3,16 +3,38 @@ import { defaultRoute, parseHash, routeHash } from "./routes";
 
 describe("application routes", () => {
   it("parses a machine-scoped resource route", () => {
-    expect(parseHash("#m/10.0.0.1%3A1024/raw/files/tushare%2Fdaily")).toEqual({
+    expect(parseHash("#m/10.0.0.1:1024/raw/files/tushare%2Fdaily")).toEqual({
       machineId: "10.0.0.1:1024",
       route: { section: "raw", view: "files", resource: "tushare/daily" },
     });
   });
 
-  it("falls back to task management for unknown routes and retains home links", () => {
+  it("uses a compact machine address with a readable port", () => {
+    const route = { section: "raw" as const, view: "files", resource: "tushare" };
+    expect(routeHash("11.160.132.45:1024", route)).toBe(
+      "#m/11.160.132.45:1024/raw/files/tushare",
+    );
+    expect(parseHash(routeHash("11.160.132.45:1024", route))).toEqual({
+      machineId: "11.160.132.45:1024",
+      route,
+    });
+    expect(parseHash(routeHash("https://axonx.example.com:443", route))).toEqual({
+      machineId: "https://axonx.example.com:443",
+      route,
+    });
+  });
+
+  it("opens home by default", () => {
+    expect(parseHash("")).toEqual({
+      machineId: "local",
+      route: { section: "home", view: "overview", resource: undefined },
+    });
+  });
+
+  it("falls back to home for unknown routes and retains home links", () => {
     expect(parseHash("#m/local/unknown")).toEqual({
       machineId: "local",
-      route: { section: "runtime", view: "tasks", resource: undefined },
+      route: { section: "home", view: "overview", resource: undefined },
     });
     expect(parseHash("#m/local/home/overview").route).toEqual({
       section: "home",

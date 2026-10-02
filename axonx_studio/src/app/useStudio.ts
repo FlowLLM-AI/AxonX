@@ -28,7 +28,7 @@ function useLocation() {
   );
 
   useEffect(() => {
-    if (!window.location.hash) window.location.hash = "m/local/runtime/tasks";
+    if (!window.location.hash) window.location.hash = "m/local/home/overview";
     const sync = () => setLocation(parseHash(window.location.hash));
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);

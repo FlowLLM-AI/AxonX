@@ -52,14 +52,14 @@ export function parseHash(hash: string): AppLocation {
     : [];
   const section: SectionId = sectionSet.has(candidate)
     ? (candidate as SectionId)
-    : "runtime";
+    : "home";
   const valid = sectionSet.has(candidate);
 
   return {
     machineId,
     route: {
       section,
-      view: valid ? view || defaultViews[section] : defaultViews.runtime,
+      view: valid ? view || defaultViews[section] : defaultViews.home,
       resource:
         valid && resourceParts.length
           ? decodeURIComponent(resourceParts.join("/"))
@@ -77,7 +77,7 @@ export function routeHash(machineId: string, route: AppRoute): string {
     .filter(Boolean)
     .join("/");
 
-  return `#m/${encodeURIComponent(machineId)}/${path}`;
+  return `#m/${encodeURIComponent(machineId).replace(/%3A/g, ":")}/${path}`;
 }
 
 export function defaultRoute(section: SectionId): AppRoute {
