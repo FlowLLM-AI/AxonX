@@ -4,7 +4,7 @@
 
 复制 `plugins/a158` 为独立插件 `plugins/a158_enhanced`，保留原始158个特征、标签、样本过滤、LightGBM参数和回测成交假设。增加成交金额活跃度、市场环境、个股相对表现和少量交互，寻找样本外 RankIC 与扣费后 TopN 的稳定增量。不下载 daily_basic，不将成交金额分组称为大小市值分组，不预先保证提升。
 
-执行遵循 `skills/axonx-harness-skill/SKILL.md`。独立发行包 `axonx-alpha158-enhanced`、Python 包 `axonx_alpha158_enhanced`、插件入口 `alpha158_enhanced`、Task 注册名前缀 `a158e_`。保留原插件和已有任务。所有研究任务提交到 用户指定的远程 AxonX 服务（地址仅保存在本地配置），凭据由现有环境配置加载，不写入文档或产物。
+执行遵循 `../../docs/zh/dev_guide.md`。独立发行包 `axonx-alpha158-enhanced`、Python 包 `axonx_alpha158_enhanced`、插件入口 `alpha158_enhanced`、Task 注册名前缀 `a158e_`。保留原插件和已有任务。所有研究任务提交到 用户指定的远程 AxonX 服务（地址仅保存在本地配置），凭据由现有环境配置加载，不写入文档或产物。
 
 ## 数据与时点
 
