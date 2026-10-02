@@ -5,7 +5,7 @@ AxonX 的本地任务工作台，提供运行状态管理和基于 Task JSON Sch
 ## 开发
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -48,10 +48,13 @@ Studio 始终使用同源 `/jobs` 接口；开发服务器通过 Vite 代理连�
 ```bash
 npm run build
 cd ..
+python -m pip install ./axonx_studio
 axonx start
 ```
 
-AxonX 会自动发现 `axonx_studio/dist` 并通过同一个 HTTP 服务提供 Studio 与 API。
+AxonX 通过 `axonx_studio.static_dir()` 加载 Python 包中的页面，通过同一个 HTTP 服务提供 Studio 与 API。
+
+直接使用发行版时执行 `python -m pip install axonx-studio`。npm 包 `@flowllm-ai/axonx-studio` 分发相同的 `dist` 静态资源，可用于独立静态托管。
 
 如果本机服务需要检查或同步其他目标服务，在 `.env` 中设置
 `AXONX_TARGET=<host:port>` 和 `AXONX_SERVICE_TOKEN`，然后运行

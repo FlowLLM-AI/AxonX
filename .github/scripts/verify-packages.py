@@ -10,6 +10,8 @@ import tarfile
 import tomllib
 from zipfile import ZipFile
 
+from packaging.version import Version
+
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGES = (
     ("axonx", ROOT, "axonx", None),
@@ -18,10 +20,14 @@ PACKAGES = (
 )
 
 
-def verify_distributions(dist_dir: Path) -> None:
+def verify_distributions(dist_dir: Path, expected_version: str | None = None) -> None:
     """Check metadata, package data, entry points, and source version consistency."""
     for directory, source, package, plugin in PACKAGES:
         project = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        if directory == "axonx" and expected_version:
+            assert Version(project["version"]) == Version(
+                expected_version.removeprefix("v")
+            ), "Release version mismatch"
         wheels = list((dist_dir / directory).glob("*.whl"))
         sdists = list((dist_dir / directory).glob("*.tar.gz"))
         assert len(wheels) == len(sdists) == 1, f"Expected one wheel and sdist for {project['name']}"
@@ -88,10 +94,11 @@ def verify_installation() -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--expected-version")
     parser.add_argument("--installed", action="store_true")
     parser.add_argument("--dist-dir", type=Path, default=ROOT / "dist")
     options = parser.parse_args()
     if options.installed:
         verify_installation()
     else:
-        verify_distributions(options.dist_dir)
+        verify_distributions(options.dist_dir, options.expected_version)

@@ -102,3 +102,16 @@ Do not edit `github-pages/.generated/` or `github-pages/dist/`; they are regener
 Use a descriptive title; Conventional Commits such as `fix(tasks): preserve run status` or `docs: clarify quick start` are encouraged. Explain the problem, resulting behavior, compatibility impact, and validation. Include screenshots for visible UI changes and note any external-service tests that were skipped.
 
 Contributions are covered by the project's [Apache License 2.0](LICENSE).
+
+## Releases
+
+AxonX and Studio release independently. Commit version updates and pass the relevant CI before tagging. Integration tests require model API keys and run locally when needed.
+
+- **AxonX**: synchronize `pyproject.toml` and `axonx/_version.py`, then create and push `v<version>`. Publishing a GitHub Release for that tag automatically publishes `axonx` to PyPI. Alternatively, run `Release / AxonX Python package` manually with the version without `v`.
+- **Studio**: synchronize `axonx_studio/pyproject.toml`, `package.json`, and `package-lock.json`, then create and push `studio-v<version>`. Run `Release / AxonX Studio` manually. The default `both` publishes PyPI before npm; `pypi` and `npm` publish independently. The npm tag is selected automatically: `latest` for stable versions and `next` for prereleases.
+
+Every release builds from its tag and verifies distribution versions. Studio's Python and npm packages contain identical static assets; Python prerelease metadata is normalized according to PEP 440. The AxonX release does not publish research plugins.
+
+Configure PyPI Trusted Publishers for `axonx` and `axonx-studio` with their respective workflows and the `pypi` environment. Configure npm Trusted Publishing for `@flowllm-ai/axonx-studio` with `release-axonx-studio.yml` and the `npm` environment. A new npm package needs its initial publication before Trusted Publishing can be configured.
+
+Existing versions fail publication rather than being overwritten or silently skipped. If npm fails during a dual release, publish `npm` alone from the same tag. Do not move release tags.

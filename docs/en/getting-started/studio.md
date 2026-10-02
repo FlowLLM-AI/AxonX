@@ -8,22 +8,20 @@ The screenshots on this page use the English interface; the source text is in Ch
 
 ## Open Studio
 
-Building from source requires Node.js 22.13+ (22.x), 24.x, or 26+ to meet the locked dependencies' requirements:
+Install the Studio package, then start the service:
 
 ```bash
-cd axonx_studio
-npm ci
-npm run build
-cd ..
+python -m pip install axonx-studio
 axonx start --service.host 127.0.0.1
 ```
 
-Configure the [Service token](../guides/authentication.md) before starting, then open `http://127.0.0.1:1024/`. AxonX automatically looks for `axonx_studio/dist` in the source directory; you can also specify the build directory through `service.web_static_dir`. If `index.html` is missing, only Studio is skipped; the API still works.
+Configure the [Service token](../guides/authentication.md) before starting, then open `http://127.0.0.1:1024/`. AxonX loads static assets from the `axonx_studio` Python package. The API still works when Studio is not installed.
 
 For development mode, run in another terminal:
 
 ```bash
 cd axonx_studio
+npm ci
 npm run dev
 ```
 

@@ -6,17 +6,16 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 
-def resolve_studio_dir(configured_dir: str | None) -> Path | None:
-    """Find a usable Studio build, favoring an explicit directory."""
-    candidates = []
-    if configured_dir:
-        candidates.append(Path(configured_dir).expanduser())
-    candidates.append(Path(__file__).resolve().parents[4] / "axonx_studio" / "dist")
-    for candidate in candidates:
-        resolved = candidate.resolve()
-        if (resolved / "index.html").is_file():
-            return resolved
-    return None
+def resolve_studio_dir() -> Path | None:
+    """Find static assets provided by the optional Studio package."""
+    try:
+        from axonx_studio import static_dir
+    except ModuleNotFoundError as exc:
+        if exc.name != "axonx_studio":
+            raise
+        return None
+    root = static_dir()
+    return root if (root / "index.html").is_file() else None
 
 
 def mount_studio(server, static_root: Path) -> None:

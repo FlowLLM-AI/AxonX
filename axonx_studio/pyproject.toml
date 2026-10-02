@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axonx-studio"
+version = "0.1.0"
+description = "AxonX Studio static frontend."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+
+[project.urls]
+Homepage = "https://github.com/FlowLLM-AI/AxonX/tree/main/axonx_studio"
+Documentation = "https://flowllm-ai.github.io/AxonX/en/getting-started/studio"
+Source = "https://github.com/FlowLLM-AI/AxonX"
+
+[tool.setuptools]
+packages = ["axonx_studio"]
+package-dir = {axonx_studio = "."}
+include-package-data = false
+
+[tool.setuptools.package-data]
+axonx_studio = ["dist/**"]

@@ -31,3 +31,8 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Python packaging output
+build/
+*.egg-info/
+__pycache__/

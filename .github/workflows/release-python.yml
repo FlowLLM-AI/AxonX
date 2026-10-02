@@ -1,0 +1,49 @@
+name: Release / AxonX Python package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: AxonX version to publish from its v<version> tag (without v)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-axonx
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v')
+    uses: ./.github/workflows/ci-python-tests.yml
+    with:
+      ref: ${{ format('refs/tags/{0}', github.event.release.tag_name || format('v{0}', inputs.version)) }}
+
+  build:
+    needs: tests
+    uses: ./.github/workflows/_build-python-packages.yml
+    with:
+      ref: ${{ format('refs/tags/{0}', github.event.release.tag_name || format('v{0}', inputs.version)) }}
+      expected_version: ${{ github.event.release.tag_name || inputs.version }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: python-distributions
+          path: dist
+      - name: Publish AxonX
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          packages-dir: dist/axonx

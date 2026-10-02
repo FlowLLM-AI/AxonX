@@ -1,0 +1,76 @@
+name: _Build Studio packages
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Expected Studio release version
+        required: false
+        type: string
+        default: ''
+      ref:
+        description: Git ref to build
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: axonx_studio/package-lock.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: axonx_studio/pyproject.toml
+      - name: Validate package versions
+        env:
+          STUDIO_VERSION: ${{ inputs.version }}
+        run: |
+          python -m pip install build twine
+          python .github/scripts/verify-studio-packages.py --expected-version "${STUDIO_VERSION}"
+      - name: Check and build Studio
+        working-directory: axonx_studio
+        run: |
+          npm ci
+          npm run format:check
+          npm run lint
+          npm test
+          npm run build
+      - name: Build and verify distributions
+        run: |
+          mkdir -p dist/studio/python dist/studio/npm
+          npm pack ./axonx_studio --ignore-scripts --pack-destination dist/studio/npm
+          python -m build axonx_studio --outdir dist/studio/python
+          python -m twine check dist/studio/python/*
+          python .github/scripts/verify-studio-packages.py --dist-dir dist/studio
+      - name: Verify installed static assets outside the source tree
+        run: |
+          python -m venv "${RUNNER_TEMP}/studio-smoke"
+          "${RUNNER_TEMP}/studio-smoke/bin/python" -m pip install dist/studio/python/*.whl
+          cd "${RUNNER_TEMP}"
+          "${RUNNER_TEMP}/studio-smoke/bin/python" - <<'PY'
+          from axonx_studio import static_dir
+
+          assert (static_dir() / "index.html").is_file()
+          assert list((static_dir() / "assets").glob("*.js"))
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: studio-distributions
+          path: dist/studio/
+          if-no-files-found: error
+          retention-days: 14

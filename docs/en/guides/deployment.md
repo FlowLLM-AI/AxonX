@@ -1,6 +1,6 @@
 # Service deployment and Studio hosting
 
-A minimal deployment consists of a Python service, workspace, and optional Studio static build on one machine. Make the authenticated API available first, then build the pages and configure process supervision. The process supervision and HTTPS examples below require adaptation to your system.
+A minimal deployment consists of a Python service, workspace, and optional Studio package on one machine. Make the authenticated API available first, then install Studio and configure process supervision. The process supervision and HTTPS examples below require adaptation to your system.
 
 ## Installation and configuration
 
@@ -46,26 +46,15 @@ uv run axonx list_installed_task_definitions
 
 After configuring a token, health also requires a Bearer header. Health means the service responds; it does not prove the model SDK, external data sources, or every plugin works. Continue with demo to verify submission and waiting.
 
-## Build and host Studio
+## Install and host Studio
 
 ```bash
-cd axonx_studio
-npm ci
-npm run build
-cd ..
+python -m pip install axonx-studio
 ```
 
-By default, the service looks for the repository's `axonx_studio/dist/index.html`. If found, it mounts assets and an SPA fallback; visit the service root to open Studio. If your production directory is not beside the source, configure it explicitly:
+Restart the service to load pages from the Studio Python package. Without Studio, only page hosting is skipped; the API continues to work. `web_enabled: false` disables page hosting without affecting Job, MCP, or file interfaces.
 
-```yaml
-service:
-  web_enabled: true
-  web_static_dir: /srv/axonx/studio-dist
-```
-
-If no build is found, Studio unavailable is logged and the API continues to work. `web_enabled: false` only disables page hosting, not Job, MCP, or file interfaces.
-
-The Vite development service is for frontend development; use built files for production. Do not treat the Vite preview port as the backend service port; see [Getting started with Studio](../getting-started/studio.md).
+For source deployments, run `npm ci` and `npm run build` in `axonx_studio/`, then `python -m pip install ./axonx_studio` from the repository root. Vite's development server is for frontend development; see [Getting started with Studio](../getting-started/studio.md).
 
 ## Example background process supervision
 

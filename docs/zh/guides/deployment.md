@@ -1,6 +1,6 @@
 # 服务部署与 Studio 托管
 
-最小部署是一台机器上的 Python 服务、工作区和可选 Studio 静态构建。先让带鉴权的 API 可用，再构建页面和配置进程托管。以下进程托管与 HTTPS 是部署示例，需要按自己的系统调整。
+最小部署是一台机器上的 Python 服务、工作区和可选 Studio 包。先让带鉴权的 API 可用，再安装 Studio 和配置进程托管。以下进程托管与 HTTPS 是部署示例，需要按自己的系统调整。
 
 ## 安装与配置
 
@@ -46,26 +46,15 @@ uv run axonx list_installed_task_definitions
 
 设置 token 后，health 也需要 Bearer header。健康表示服务可响应，不证明模型 SDK、外部数据源或每个插件运行正常；继续用 demo 验证提交与等待。
 
-## 构建与托管 Studio
+## 安装并托管 Studio
 
 ```bash
-cd axonx_studio
-npm ci
-npm run build
-cd ..
+python -m pip install axonx-studio
 ```
 
-默认服务查找仓库的 `axonx_studio/dist/index.html`。找到后挂载 assets 与 SPA 回退，访问服务根路径即可打开 Studio。生产目录不在源码旁时显式配置：
+重启服务后，AxonX 从 Studio Python 包加载页面。未安装 Studio 时仅跳过页面托管，API 继续工作。`web_enabled: false` 关闭页面托管，不影响 Job、MCP 或文件接口。
 
-```yaml
-service:
-  web_enabled: true
-  web_static_dir: /srv/axonx/studio-dist
-```
-
-未找到构建时会记录 Studio unavailable，API 仍可正常工作。`web_enabled: false` 仅关闭页面托管，不关闭 Job、MCP 或文件接口。
-
-Vite 开发服务用于前端开发，生产建议使用构建文件。不要把 Vite preview 的端口当成后端服务端口，详见[Studio 入门](../getting-started/studio.md)。
+从源码部署时，先在 `axonx_studio/` 执行 `npm ci` 和 `npm run build`，再从仓库根目录执行 `python -m pip install ./axonx_studio`。Vite 开发服务器仅用于前端开发；见 [Studio 入门](../getting-started/studio.md)。
 
 ## 后台进程托管示例
 

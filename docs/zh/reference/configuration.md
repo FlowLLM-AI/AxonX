@@ -153,7 +153,6 @@ TargetConfig 严格禁止额外字段：address 必填非空，token 默认 null
 | port             | 1024      | 监听端口                                      |
 | shutdown_timeout | 1         | Uvicorn 优雅退出秒数，非负                    |
 | web_enabled      | true      | 是否挂载 Studio 静态构建                      |
-| web_static_dir   | null      | 指定静态构建目录                              |
 | token            | null      | 非空 Bearer token；null 时按 Job 规则筛选目录 |
 
 服务默认没有 TLS 配置。Studio 构建缺失时记录不可用日志，API 仍可运行。配置更新不会热装配；重启后重新核对目录。

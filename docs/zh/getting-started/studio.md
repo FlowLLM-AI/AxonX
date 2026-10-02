@@ -8,22 +8,20 @@ AxonX Studio 是任务与研究工作台。它读取服务提供的 Job 和 Task
 
 ## 打开 Studio
 
-从源码构建需要 Node.js 22.13+（22.x）、24.x 或 26+，以满足锁定依赖的要求：
+安装 Studio 包后启动服务：
 
 ```bash
-cd axonx_studio
-npm ci
-npm run build
-cd ..
+python -m pip install axonx-studio
 axonx start --service.host 127.0.0.1
 ```
 
-启动前配置[服务 token](../guides/authentication.md)，然后打开 `http://127.0.0.1:1024/`。AxonX 自动查找源码目录中的 `axonx_studio/dist`，也可通过 `service.web_static_dir` 指定构建目录。找不到 `index.html` 时，只跳过 Studio，API 仍可工作。
+启动前配置[服务 token](../guides/authentication.md)，然后打开 `http://127.0.0.1:1024/`。AxonX 从 `axonx_studio` Python 包加载静态页面。未安装 Studio 时，API 仍可工作。
 
 开发模式在另一个终端运行：
 
 ```bash
 cd axonx_studio
+npm ci
 npm run dev
 ```
 

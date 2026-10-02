@@ -153,7 +153,6 @@ TargetConfig strictly prohibits extra fields: address is required and nonempty; 
 | port             | 1024           | Listening port                                                         |
 | shutdown_timeout | 1              | Uvicorn graceful-shutdown seconds; nonnegative                         |
 | web_enabled      | true           | Whether to mount the Studio static build                               |
-| web_static_dir   | null           | Explicit static-build directory                                        |
 | token            | null           | Nonempty Bearer token; null filters the catalog according to Job rules |
 
 The service has no TLS configuration by default. A missing Studio build is logged as unavailable; the API can still run. Configuration updates do not recompose the application live; restart and verify the catalog again.

@@ -26,7 +26,7 @@ npm run build
 
 log "安装后端依赖"
 cd ..
-python -m pip install -e .
+python -m pip install -e . ./axonx_studio
 
 log "停止占用 1024 端口的旧进程"
 python - <<'PY'

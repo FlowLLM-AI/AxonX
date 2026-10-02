@@ -91,16 +91,13 @@ Submission success means the request was accepted. Wait for state `succeeded`; t
 
 ### Open Studio
 
-With Node.js 22.13+ (22.x), 24.x, or 26+, build the browser UI from the repository root:
+Install the Studio Python package:
 
 ```bash
-cd axonx_studio
-npm ci
-npm run build
-cd ..
+python -m pip install axonx-studio
 ```
 
-Restart the service from terminal A after building, keeping the same service token. Open <http://127.0.0.1:1024/> and enter that token in **Settings → Service token**. AxonX serves the built Studio and API from the same address.
+Restart the service in terminal A, keeping the same service token. Open <http://127.0.0.1:1024/> and enter that token in **Settings → Service token**. AxonX loads the UI from the Studio package and serves Studio and API from the same address.
 
 ## Research with an Agent
 

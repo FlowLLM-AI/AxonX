@@ -108,9 +108,9 @@ def create_http_app(app, service) -> FastAPI:
     server.include_router(create_files_router(service, service.staged_files))
     server.include_router(create_proxy_router(app))
     if service.web_enabled:
-        static_dir = resolve_studio_dir(service.web_static_dir)
+        static_dir = resolve_studio_dir()
         if static_dir is None:
-            service.logger.info("AxonX Studio is unavailable; no static build was found")
+            service.logger.info("AxonX Studio is unavailable; install axonx-studio to enable it")
         else:
             mount_studio(server, static_dir)
     return server

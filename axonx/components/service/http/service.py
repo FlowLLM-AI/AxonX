@@ -23,7 +23,6 @@ class HttpService(BaseService):
         port: int = AXONX_DEFAULT_PORT,
         shutdown_timeout: int = 1,
         web_enabled: bool = True,
-        web_static_dir: str | None = None,
         token: str | None = None,
         **kwargs,
     ) -> None:
@@ -35,7 +34,6 @@ class HttpService(BaseService):
         self.host, self.port = host, port
         self.shutdown_timeout = shutdown_timeout
         self.web_enabled = web_enabled
-        self.web_static_dir = web_static_dir
         self.token = token
         self.staged_files: StagedFiles | None = None
 

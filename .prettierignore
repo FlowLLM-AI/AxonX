@@ -3,3 +3,5 @@
 **/coverage/
 **/.generated/
 **/package-lock.json
+**/build/
+**/*.egg-info/

@@ -91,16 +91,13 @@ axonx status --task-id 'base#demo#submitted-demo'
 
 ### 打开 Studio
 
-使用 Node.js 22.13+（22.x）、24.x 或 26+，从仓库根目录构建浏览器界面：
+安装 Studio Python 包：
 
 ```bash
-cd axonx_studio
-npm ci
-npm run build
-cd ..
+python -m pip install axonx-studio
 ```
 
-构建完成后，在终端 A 重启服务，保持相同的服务 token。打开 <http://127.0.0.1:1024/>，在 **Settings → Service token** 中填入该 token。AxonX 在同一地址提供构建后的 Studio 和 API。
+在终端 A 重启服务，保持相同的服务 token。打开 <http://127.0.0.1:1024/>，在 **Settings → Service token** 中填入该 token。AxonX 从 Studio 包加载页面，在同一地址提供 Studio 和 API。
 
 ## 使用 Agent 辅助研究
 
