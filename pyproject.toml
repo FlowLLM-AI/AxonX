@@ -13,7 +13,19 @@ license-files = ["LICENSE"]
 authors = [
     { name = "FlowLLM AI", email = "FlowLLM-AI@users.noreply.github.com" },
 ]
-keywords = ["agent-harness", "ai-agents", "quantitative-research", "mcp", "plugins", "backtesting", "workflow"]
+keywords = [
+    "agent-harness",
+    "ai-agents",
+    "finance",
+    "financial-agents",
+    "financial-harness",
+    "quantitative-finance",
+    "quantitative-research",
+    "mcp",
+    "plugins",
+    "backtesting",
+    "workflow",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
