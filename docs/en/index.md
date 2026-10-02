@@ -6,13 +6,13 @@ AxonX packages quantitative research capabilities as plugins, runs computations 
 
 ## Start Here
 
-| Goal | Reading path |
-| --- | --- |
-| First experience | [Introduction](getting-started/introduction.md) → [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md) |
-| Conduct quantitative research | [Research Workflow](research/workflow.md) → [Reading Results](research/results.md) → [Backtesting](research/backtest.md) |
-| Call the service | [API Overview](api/overview.md) → [Task API](api/tasks.md) → [CLI](reference/cli.md) / [Python](reference/python.md) |
-| Connect an Agent | [Agent Configuration](agent/configuration.md) → [Usage](agent/usage.md) / [MCP Integration](agent/mcp-integration.md) |
-| Extend the project | [Development Guide](dev_guide.md) → [Plugin Protocol](reference/plugin-manifest.md) → [Framework Extensions](development/framework-extensions.md) |
+| Goal                          | Reading path                                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| First experience              | [Introduction](getting-started/introduction.md) → [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)               |
+| Conduct quantitative research | [Research Workflow](research/workflow.md) → [Reading Results](research/results.md) → [Backtesting](research/backtest.md)                          |
+| Call the service              | [API Overview](api/overview.md) → [Task API](api/tasks.md) → [CLI](reference/cli.md) / [Python](reference/python.md)                              |
+| Connect an Agent              | [Agent Configuration](agent/configuration.md) → [Usage](agent/usage.md) / [MCP Integration](agent/mcp-integration.md)                             |
+| Extend the project            | [Development Guide](dev_guide.md) → [Plugin Protocol](reference/plugin-manifest.md) → [Framework Extensions](development/framework-extensions.md) |
 
 The built-in demo requires no external data or model credentials. Research plugins, remote machines, Agent, and synchronization each have configuration prerequisites; prepare them using the relevant guides.
 

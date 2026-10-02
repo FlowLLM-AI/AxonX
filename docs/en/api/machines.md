@@ -12,12 +12,12 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 ## Endpoint list
 
-| Job | Purpose |
-| --- | --- |
-| `version` | Read the installed package version. |
-| `list_machines` | Check the health of all configured targets. |
-| `machine_status` | Sample service-machine resources. |
-| `shell` | Execute a shell command on the selected service machine. |
+| Job              | Purpose                                                  |
+| ---------------- | -------------------------------------------------------- |
+| `version`        | Read the installed package version.                      |
+| `list_machines`  | Check the health of all configured targets.              |
+| `machine_status` | Sample service-machine resources.                        |
+| `shell`          | Execute a shell command on the selected service machine. |
 
 ## version
 
@@ -41,7 +41,7 @@ answer is a version string; metadata.version also provides that version.
 {
   "answer": "0.1.0",
   "success": true,
-  "metadata": {"version": "0.1.0"}
+  "metadata": { "version": "0.1.0" }
 }
 ```
 
@@ -136,10 +136,10 @@ The cpu fields total_cores/physical_cores may be null; memory is measured in byt
 
 Execute a shell command on the selected service machine.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `command` | string | Yes | `— (omitted)` | Shell command to execute on the target service machine; minLength=1 |
-| `timeout` | number | No | `30` | Command timeout in seconds; exclusiveMinimum=0, maximum=300 |
+| Parameter | Type   | Required | Default       | Constraints and meaning                                             |
+| --------- | ------ | -------- | ------------- | ------------------------------------------------------------------- |
+| `command` | string | Yes      | `— (omitted)` | Shell command to execute on the target service machine; minLength=1 |
+| `timeout` | number | No       | `30`          | Command timeout in seconds; exclusiveMinimum=0, maximum=300         |
 
 Only the business fields listed in the table are accepted.
 
@@ -181,7 +181,17 @@ Each output stream retains at most 1 MiB. A timeout kills the process group, set
 A nonzero shell exit or timeout is a business failure returned through the normal protocol. For command="exit 3":
 
 ```json
-{"answer":{"stdout":"","stderr":"","exit_code":3,"stdout_truncated":false,"stderr_truncated":false},"success":false,"metadata":{}}
+{
+  "answer": {
+    "stdout": "",
+    "stderr": "",
+    "exit_code": 3,
+    "stdout_truncated": false,
+    "stderr_truncated": false
+  },
+  "success": false,
+  "metadata": {}
+}
 ```
 
 On timeout, exit_code=null and stderr includes `Command timed out after ... seconds`. timeout=0 or timeout>300 returns HTTP 422 during Schema validation. One target with healthy=false in list_machines does not automatically fail the entire query; interpret each machine's result separately.

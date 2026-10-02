@@ -12,25 +12,25 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 ## Endpoint list
 
-| Job | Purpose |
-| --- | --- |
-| `agent_chat` | Run one Agent conversation turn; omit session_id to create a session. |
-| `list_agent_sessions` | List sessions, newest first. |
-| `get_agent_session` | Read the session summary, message history, and presentation blocks. |
-| `rename_agent_session` | Set a custom title. |
-| `tag_agent_session` | Set or clear a tag. |
-| `delete_agent_session` | Permanently delete a session and its child Agent records. |
-| `fork_agent_session` | Create a new session from history. |
-| `cancel_agent_turn` | Interrupt the session's current turn. |
+| Job                    | Purpose                                                               |
+| ---------------------- | --------------------------------------------------------------------- |
+| `agent_chat`           | Run one Agent conversation turn; omit session_id to create a session. |
+| `list_agent_sessions`  | List sessions, newest first.                                          |
+| `get_agent_session`    | Read the session summary, message history, and presentation blocks.   |
+| `rename_agent_session` | Set a custom title.                                                   |
+| `tag_agent_session`    | Set or clear a tag.                                                   |
+| `delete_agent_session` | Permanently delete a session and its child Agent records.             |
+| `fork_agent_session`   | Create a new session from history.                                    |
+| `cancel_agent_turn`    | Interrupt the session's current turn.                                 |
 
 ## agent_chat
 
 Run one Agent conversation turn; omit session_id to create a session.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `message` | string | Yes | `— (omitted)` | User message for this turn; minLength=1 |
-| `session_id` | string | No | `— (omitted)` | Backend session UUID; UUID format |
+| Parameter    | Type   | Required | Default       | Constraints and meaning                 |
+| ------------ | ------ | -------- | ------------- | --------------------------------------- |
+| `message`    | string | Yes      | `— (omitted)` | User message for this turn; minLength=1 |
+| `session_id` | string | No       | `— (omitted)` | Backend session UUID; UUID format       |
 
 Only the business fields listed in the table are accepted.
 
@@ -64,10 +64,10 @@ To continue, pass back metadata.session_id. A backend lock serializes turns with
 
 List sessions, newest first.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `limit` | integer | No | `— (omitted)` | Number of sessions to return; minimum=1, maximum=200 |
-| `offset` | integer | No | `0` | Number of sessions to skip; minimum=0 |
+| Parameter | Type    | Required | Default       | Constraints and meaning                              |
+| --------- | ------- | -------- | ------------- | ---------------------------------------------------- |
+| `limit`   | integer | No       | `— (omitted)` | Number of sessions to return; minimum=1, maximum=200 |
+| `offset`  | integer | No       | `0`           | Number of sessions to skip; minimum=0                |
 
 Only the business fields listed in the table are accepted.
 
@@ -102,11 +102,11 @@ Omitting limit passes None to the SDK, rather than assuming 20. The current SDK 
 
 Read the session summary, message history, and presentation blocks.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | Yes | `— (omitted)` | Backend session UUID; UUID format |
-| `limit` | integer | No | `— (omitted)` | Number of historical messages to read; minimum=1, maximum=1000 |
-| `offset` | integer | No | `0` | Number of historical messages to skip; minimum=0 |
+| Parameter    | Type    | Required | Default       | Constraints and meaning                                        |
+| ------------ | ------- | -------- | ------------- | -------------------------------------------------------------- |
+| `session_id` | string  | Yes      | `— (omitted)` | Backend session UUID; UUID format                              |
+| `limit`      | integer | No       | `— (omitted)` | Number of historical messages to read; minimum=1, maximum=1000 |
+| `offset`     | integer | No       | `0`           | Number of historical messages to skip; minimum=0               |
 
 Only the business fields listed in the table are accepted.
 
@@ -148,10 +148,10 @@ offset counts messages; omitting limit passes None. Historical blocks are not th
 
 Set a custom title.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | Yes | `— (omitted)` | Backend session UUID; UUID format |
-| `title` | string | Yes | `— (omitted)` | Custom session title; minLength=1 |
+| Parameter    | Type   | Required | Default       | Constraints and meaning           |
+| ------------ | ------ | -------- | ------------- | --------------------------------- |
+| `session_id` | string | Yes      | `— (omitted)` | Backend session UUID; UUID format |
+| `title`      | string | Yes      | `— (omitted)` | Custom session title; minLength=1 |
 
 Only the business fields listed in the table are accepted.
 
@@ -188,10 +188,10 @@ title must contain at least one character.
 
 Set or clear a tag.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | Yes | `— (omitted)` | Backend session UUID; UUID format |
-| `tag` | string/null | Yes | `— (omitted)` | Session tag; null clears it |
+| Parameter    | Type        | Required | Default       | Constraints and meaning           |
+| ------------ | ----------- | -------- | ------------- | --------------------------------- |
+| `session_id` | string      | Yes      | `— (omitted)` | Backend session UUID; UUID format |
+| `tag`        | string/null | Yes      | `— (omitted)` | Session tag; null clears it       |
 
 Only the business fields listed in the table are accepted.
 
@@ -228,9 +228,9 @@ tag is required; null means clear it, rather than omit it.
 
 Permanently delete a session and its child Agent records.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | Yes | `— (omitted)` | Backend session UUID; UUID format |
+| Parameter    | Type   | Required | Default       | Constraints and meaning           |
+| ------------ | ------ | -------- | ------------- | --------------------------------- |
+| `session_id` | string | Yes      | `— (omitted)` | Backend session UUID; UUID format |
 
 Only the business fields listed in the table are accepted.
 
@@ -266,11 +266,11 @@ Running sessions cannot be deleted; stop the turn before deleting the session.
 
 Create a new session from history.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | Yes | `— (omitted)` | Backend session UUID; UUID format |
-| `up_to_message_id` | string | No | `— (omitted)` | Optional message UUID at which to end the fork; UUID format |
-| `title` | string | No | `— (omitted)` | Custom session title; minLength=1 |
+| Parameter          | Type   | Required | Default       | Constraints and meaning                                     |
+| ------------------ | ------ | -------- | ------------- | ----------------------------------------------------------- |
+| `session_id`       | string | Yes      | `— (omitted)` | Backend session UUID; UUID format                           |
+| `up_to_message_id` | string | No       | `— (omitted)` | Optional message UUID at which to end the fork; UUID format |
+| `title`            | string | No       | `— (omitted)` | Custom session title; minLength=1                           |
 
 Only the business fields listed in the table are accepted.
 
@@ -307,9 +307,9 @@ up_to_message_id is optional; when a message UUID is specified, the fork ends at
 
 Interrupt the session's current turn.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | Yes | `— (omitted)` | Backend session UUID; UUID format |
+| Parameter    | Type   | Required | Default       | Constraints and meaning           |
+| ------------ | ------ | -------- | ------------- | --------------------------------- |
+| `session_id` | string | Yes      | `— (omitted)` | Backend session UUID; UUID format |
 
 Only the business fields listed in the table are accepted.
 
@@ -346,7 +346,11 @@ A session that is not running returns KeyError; this does not cancel independent
 A session_id that does not match the UUID regex returns HTTP 422. If the UUID is valid but no turn is running, cancel_agent_turn returns a business failure:
 
 ```json
-{"answer":"KeyError: 'Agent session is not running: 17eeef86-6bc7-4565-a4a2-41249b5576ab'","success":false,"metadata":{}}
+{
+  "answer": "KeyError: 'Agent session is not running: 17eeef86-6bc7-4565-a4a2-41249b5576ab'",
+  "success": false,
+  "metadata": {}
+}
 ```
 
 Model connectivity, SDK permissions, and session restoration failures may produce other errors. Once a streaming request starts, use the final result.success to determine success; connection status cannot establish that the turn succeeded. SDK summary/message structures vary with dependency versions. The stable AxonX top-level fields are JobResponse and the info/messages/blocks groups.

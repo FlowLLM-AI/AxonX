@@ -29,13 +29,13 @@ Access scope, quotas, and authorization are determined upstream; this page only 
 
 Select `download_tushare_task` in **Submit task**. The form displays dates, calendar-day lookback, request timeout, and dataset groups according to the task Schema. The screenshot shows unsubmitted defaults; confirm data credentials on the execution machine before filling it in.
 
-| Field | Default | Purpose |
-| --- | --- | --- |
-| `start_date` | Empty | Start date, inclusive |
-| `end_date` | Empty | End date; empty means today locally, future dates are capped at today |
-| `days_back` | `7` | Calendar-day lookback when no start date is given |
-| `timeout` | `600` seconds | Timeout per network request, must be greater than zero |
-| `datasets` | All five groups | Comma-separated string; also accepts a JSON list of strings |
+| Field        | Default         | Purpose                                                               |
+| ------------ | --------------- | --------------------------------------------------------------------- |
+| `start_date` | Empty           | Start date, inclusive                                                 |
+| `end_date`   | Empty           | End date; empty means today locally, future dates are capped at today |
+| `days_back`  | `7`             | Calendar-day lookback when no start date is given                     |
+| `timeout`    | `600` seconds   | Timeout per network request, must be greater than zero                |
+| `datasets`   | All five groups | Comma-separated string; also accepts a JSON list of strings           |
 
 Dates accept `YYYYMMDD` and ISO formats; eight-digit integer dates from the CLI are converted back to strings. Date ranges enumerate calendar days. No file is written when a holiday request returns empty data. `days_back` counts calendar days, not trading days.
 
@@ -50,12 +50,12 @@ Retain the TaskHandle after submission and call `wait_task` to confirm completio
 
 ## Dataset groups
 
-| Optional group | Query content | Output location |
-| --- | --- | --- |
-| `static` | `stock_basic`, `namechange`, `trade_cal` | `tushare/` root |
-| `stk_limit` | Official price limits | Corresponding date partition |
-| `daily` | Unadjusted daily market data | Corresponding date partition |
-| `adj_factor` | Adjustment factors | Corresponding date partition |
+| Optional group | Query content                            | Output location              |
+| -------------- | ---------------------------------------- | ---------------------------- |
+| `static`       | `stock_basic`, `namechange`, `trade_cal` | `tushare/` root              |
+| `stk_limit`    | Official price limits                    | Corresponding date partition |
+| `daily`        | Unadjusted daily market data             | Corresponding date partition |
+| `adj_factor`   | Adjustment factors                       | Corresponding date partition |
 | `index_weight` | CSI 300 constituent weights, `000300.SH` | Weight record date partition |
 
 `static` queries stock statuses L, D, P, and G, merges the results, and removes duplicates. Static files are snapshots at query time; the `stock_basic` snapshot itself is not complete historical constituent data. Historical name changes come separately from `namechange`.
@@ -105,13 +105,13 @@ The client performs limited retries for network errors and specified transient e
 
 Static queries use pagination, deduplicate page results, and detect repeated pages and maximum page counts. Daily and weight queries require complete single-request results. A response with `has_more=true` raises an error to avoid treating truncated data as a complete partition.
 
-| Symptom | Checks and actions |
-| --- | --- |
-| Upstream error or authorization failure | Token, compatible URL, and data service permissions |
-| Long retry waits | Rate-limit reasons and retry budget in task logs |
-| Zero rows for a dataset in metadata | Whether the group was selected, whether the date was a trading day, and whether upstream returned an empty set |
-| ETL lacks master data | Download `static` separately and check all three static files |
-| Insufficient ETL history | Download earlier history; the latest 7 days cannot support multi-year training |
+| Symptom                                 | Checks and actions                                                                                             |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Upstream error or authorization failure | Token, compatible URL, and data service permissions                                                            |
+| Long retry waits                        | Rate-limit reasons and retry budget in task logs                                                               |
+| Zero rows for a dataset in metadata     | Whether the group was selected, whether the date was a trading day, and whether upstream returned an empty set |
+| ETL lacks master data                   | Download `static` separately and check all three static files                                                  |
+| Insufficient ETL history                | Download earlier history; the latest 7 days cannot support multi-year training                                 |
 
 Raw data lives outside task directories, so task snapshot synchronization does not automatically copy `tushare/`. When migrating a research environment, back up the data root separately, or first generate and save the data needed for research as ETL task artifacts.
 

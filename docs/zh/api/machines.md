@@ -12,12 +12,12 @@
 
 ## 接口清单
 
-| Job | 用途 |
-| --- | --- |
-| `version` | 读取安装包的版本。 |
-| `list_machines` | 检查全部配置的 targets 健康。 |
-| `machine_status` | 采样服务机器资源。 |
-| `shell` | 在所选服务机器上执行 shell 命令。 |
+| Job              | 用途                              |
+| ---------------- | --------------------------------- |
+| `version`        | 读取安装包的版本。                |
+| `list_machines`  | 检查全部配置的 targets 健康。     |
+| `machine_status` | 采样服务机器资源。                |
+| `shell`          | 在所选服务机器上执行 shell 命令。 |
 
 ## version
 
@@ -41,7 +41,7 @@ answer 是版本字符串，metadata.version 同时提供该版本。
 {
   "answer": "0.1.0",
   "success": true,
-  "metadata": {"version": "0.1.0"}
+  "metadata": { "version": "0.1.0" }
 }
 ```
 
@@ -136,10 +136,10 @@ cpu 的 total_cores/physical_cores 可为 null；内存单位字节。GPU vendor
 
 在所选服务机器上执行 shell 命令。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `command` | string | 是 | `—（省略）` | 在目标服务机器执行的 shell 命令；minLength=1 |
-| `timeout` | number | 否 | `30` | 命令超时秒数；exclusiveMinimum=0, maximum=300 |
+| 参数      | 类型   | 必填 | 默认值      | 约束与含义                                    |
+| --------- | ------ | ---- | ----------- | --------------------------------------------- |
+| `command` | string | 是   | `—（省略）` | 在目标服务机器执行的 shell 命令；minLength=1  |
+| `timeout` | number | 否   | `30`        | 命令超时秒数；exclusiveMinimum=0, maximum=300 |
 
 只接受表中业务字段。
 
@@ -181,7 +181,17 @@ answer 为 ShellOutput：stdout、stderr、exit_code、stdout_truncated、stderr
 shell 的非零退出与超时都是正常协议返回的业务失败。请求 command="exit 3" 时：
 
 ```json
-{"answer":{"stdout":"","stderr":"","exit_code":3,"stdout_truncated":false,"stderr_truncated":false},"success":false,"metadata":{}}
+{
+  "answer": {
+    "stdout": "",
+    "stderr": "",
+    "exit_code": 3,
+    "stdout_truncated": false,
+    "stderr_truncated": false
+  },
+  "success": false,
+  "metadata": {}
+}
 ```
 
 超时时 exit_code=null；stderr 包含 `Command timed out after ... seconds`。timeout=0 或 timeout>300 则在 Schema 校验阶段返回 HTTP 422。list_machines 中某个目标 healthy=false 不会让整次列表查询自动失败，应逐台解释结果。

@@ -8,7 +8,7 @@ The screenshots on this page use the English interface; the source text is in Ch
 
 ## Open Studio
 
-Building from source requires Node.js 20.19+ (20.x), 22.13+ (22.x), or 24 and later to meet the locked dependencies' requirements:
+Building from source requires Node.js 22.13+ (22.x), 24.x, or 26+ to meet the locked dependencies' requirements:
 
 ```bash
 cd axonx_studio
@@ -67,14 +67,14 @@ The dependency graph shows tasks and upstream relationships. Relationships for r
 
 ## View research results
 
-| Page | Main content | Details |
-| --- | --- | --- |
-| Tushare data | Raw data directories and Parquet previews | [Data download](../research/tushare.md) |
-| ETL | Row counts, date ranges, features, and labels | [Interpreting results](../research/results.md) |
-| Factor analysis | Factor scores and metric groups | [Interpreting results](../research/results.md) |
-| Model training | Model configuration, metrics, and training curves | [Artifact protocol](../reference/research-artifacts.md) |
-| Offline prediction | Prediction data, statistics, and artifacts | [Interpreting results](../research/results.md) |
-| Offline backtest | Daily curves, quality, and period summaries | [Interpreting backtests](../research/backtest.md) |
+| Page                | Main content                                           | Details                                                   |
+| ------------------- | ------------------------------------------------------ | --------------------------------------------------------- |
+| Tushare data        | Raw data directories and Parquet previews              | [Data download](../research/tushare.md)                   |
+| ETL                 | Row counts, date ranges, features, and labels          | [Interpreting results](../research/results.md)            |
+| Factor analysis     | Factor scores and metric groups                        | [Interpreting results](../research/results.md)            |
+| Model training      | Model configuration, metrics, and training curves      | [Artifact protocol](../reference/research-artifacts.md)   |
+| Offline prediction  | Prediction data, statistics, and artifacts             | [Interpreting results](../research/results.md)            |
+| Offline backtest    | Daily curves, quality, and period summaries            | [Interpreting backtests](../research/backtest.md)         |
 | Strategy comparison | Comparison of two backtests over their shared interval | [Strategy comparison](../research/strategy-comparison.md) |
 
 Research pages read `metadata.json` and `output_params.artifacts`. A run record in the task list does not guarantee that displayable research metadata has been produced. For failed tasks, incomplete fields, or corrupt metadata, investigate details and logs first.
@@ -99,18 +99,18 @@ Language, theme, and panel width are saved in browser preferences and do not cha
 
 ## Feature screenshot index
 
-| Feature | Documentation containing screenshots |
-| --- | --- |
-| Home, demo submission, settings, API debugging | [Quick start](quickstart.md) and this page |
-| Task list, details, and logs | [Task management](../guides/task-management.md) |
-| Parameter snapshots and relationship graphs | [Task lineage](../concepts/task-lineage.md) |
-| CPU, memory, and GPU | [Remote machines](../guides/remote-machines.md) |
-| New Agent session | [Agent usage](../agent/usage.md) |
-| Data download form and Parquet preview | [Tushare data](../research/tushare.md) |
-| ETL, factors, training parameters and curves, prediction | [Research results](../research/results.md) |
-| Returns, quality, positions, overall and annual/quarterly/monthly summaries | [Interpreting backtests](../research/backtest.md) |
-| Five strategy comparison tabs | [Strategy comparison](../research/strategy-comparison.md) |
-| Notification task form | [Notifications](../research/notifications.md) |
+| Feature                                                                     | Documentation containing screenshots                      |
+| --------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Home, demo submission, settings, API debugging                              | [Quick start](quickstart.md) and this page                |
+| Task list, details, and logs                                                | [Task management](../guides/task-management.md)           |
+| Parameter snapshots and relationship graphs                                 | [Task lineage](../concepts/task-lineage.md)               |
+| CPU, memory, and GPU                                                        | [Remote machines](../guides/remote-machines.md)           |
+| New Agent session                                                           | [Agent usage](../agent/usage.md)                          |
+| Data download form and Parquet preview                                      | [Tushare data](../research/tushare.md)                    |
+| ETL, factors, training parameters and curves, prediction                    | [Research results](../research/results.md)                |
+| Returns, quality, positions, overall and annual/quarterly/monthly summaries | [Interpreting backtests](../research/backtest.md)         |
+| Five strategy comparison tabs                                               | [Strategy comparison](../research/strategy-comparison.md) |
+| Notification task form                                                      | [Notifications](../research/notifications.md)             |
 
 ## Empty state on first use
 
@@ -120,12 +120,12 @@ Before any tasks have run, the list shows an empty state. Submit this page's dem
 
 ## When problems occur
 
-| Symptom | Check first |
-| --- | --- |
-| Page opens, but API returns 401 | Whether the local token matches service configuration |
+| Symptom                                   | Check first                                                                                         |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Page opens, but API returns 401           | Whether the local token matches service configuration                                               |
 | Task definitions or API catalog are empty | Whether the service has a token, plugins are installed on the selected machine, and Jobs are public |
-| Research page has no results | Whether the corresponding metadata was generated and contains standard outputs |
-| Charts lack curves | Whether fields or files such as training_curve, daily, and summary exist |
-| Remote machine request fails | Backend targets addresses, tokens, and target service connectivity |
+| Research page has no results              | Whether the corresponding metadata was generated and contains standard outputs                      |
+| Charts lack curves                        | Whether fields or files such as training_curve, daily, and summary exist                            |
+| Remote machine request fails              | Backend targets addresses, tokens, and target service connectivity                                  |
 
 See [FAQ](../faq.md) and [Troubleshooting and recovery](../guides/operations.md) for more information.

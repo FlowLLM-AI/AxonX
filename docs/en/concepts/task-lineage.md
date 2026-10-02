@@ -32,13 +32,13 @@ The base protocol validates ID format, but does not verify that upstream directo
 
 A successful Task's metadata.input_params.source_tasks is the final source of relationships. For tasks without successful metadata, queries use status.config.source_tasks to generate provisional relationships.
 
-| Field | Explanation |
-| --- | --- |
-| parent_ids | Upstream Task IDs declared by the current node |
-| provisional=true | A status record exists, but final metadata does not yet exist |
-| missing=true | An upstream task is referenced, but has no valid workspace record |
-| state | Execution state when status exists; may be empty |
-| edges.from / edges.to | Direction from upstream to downstream |
+| Field                 | Explanation                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| parent_ids            | Upstream Task IDs declared by the current node                    |
+| provisional=true      | A status record exists, but final metadata does not yet exist     |
+| missing=true          | An upstream task is referenced, but has no valid workspace record |
+| state                 | Execution state when status exists; may be empty                  |
+| edges.from / edges.to | Direction from upstream to downstream                             |
 
 Graph queries return the connected component containing the selected task, including upstream and downstream nodes, rather than only direct parents. `root_id` is a root identifier in the graph, not a scheduling instruction for what to execute next.
 

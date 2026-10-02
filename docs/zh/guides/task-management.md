@@ -109,13 +109,13 @@ axonx delete_tasks --task-ids '["base#demo#failure-01"]'
 
 ## 常见失败
 
-| 现象 | 检查与处理 |
-| --- | --- |
-| Job 目录缺少 submit | 配置服务 token 并重启；查看实际 `/jobs` |
-| Unknown Task | 在执行机器安装插件，重新查询定义 |
-| 同名目录已存在 | 等活跃任务结束，或使用新名称 |
-| wait 的运行身份不匹配 | 检查是否同名重跑，使用原始 handle |
-| 任务列表有记录，研究页没有 | 检查是否研究类型及成功 metadata |
+| 现象                       | 检查与处理                              |
+| -------------------------- | --------------------------------------- |
+| Job 目录缺少 submit        | 配置服务 token 并重启；查看实际 `/jobs` |
+| Unknown Task               | 在执行机器安装插件，重新查询定义        |
+| 同名目录已存在             | 等活跃任务结束，或使用新名称            |
+| wait 的运行身份不匹配      | 检查是否同名重跑，使用原始 handle       |
+| 任务列表有记录，研究页没有 | 检查是否研究类型及成功 metadata         |
 
 [Task API](../api/tasks.md) · [生命周期](../concepts/task-lifecycle.md) · [Task 契约](../reference/task-contracts.md)
 

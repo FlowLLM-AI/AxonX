@@ -6,14 +6,14 @@ AxonX separates capability calls, research execution, and result storage. The CL
 
 ## Responsibilities by Layer
 
-| Layer | Responsibility | Typical objects |
-| --- | --- | --- |
-| Client | Assemble parameters and credentials; consume JSON or events | CLI, Studio, HttpClient, McpClient |
-| Protocol | HTTP, MCP, SSE, uploads, and Bearer authentication | HttpService |
-| Orchestration | Validate parameters, execute asynchronous steps, and produce JobResponse | Dispatcher, Job, BaseStep |
-| Component | Manage reusable capabilities and their lifecycles | TaskManager, TaskRepository, Agent, Proxy |
-| Task | Execute specific research steps and produce validated results | BaseTask and plugin Tasks |
-| Storage | Save status, successful metadata, progress, and research artifacts | Workspace and separate log directory |
+| Layer         | Responsibility                                                           | Typical objects                           |
+| ------------- | ------------------------------------------------------------------------ | ----------------------------------------- |
+| Client        | Assemble parameters and credentials; consume JSON or events              | CLI, Studio, HttpClient, McpClient        |
+| Protocol      | HTTP, MCP, SSE, uploads, and Bearer authentication                       | HttpService                               |
+| Orchestration | Validate parameters, execute asynchronous steps, and produce JobResponse | Dispatcher, Job, BaseStep                 |
+| Component     | Manage reusable capabilities and their lifecycles                        | TaskManager, TaskRepository, Agent, Proxy |
+| Task          | Execute specific research steps and produce validated results            | BaseTask and plugin Tasks                 |
+| Storage       | Save status, successful metadata, progress, and research artifacts       | Workspace and separate log directory      |
 
 Regular HTTP calls and SSE event calls pass through the same Job capability layer. MCP maps public Jobs to tools and returns regular responses. SSE is a separate HTTP endpoint for live events; these are different transports.
 

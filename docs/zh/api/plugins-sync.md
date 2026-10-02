@@ -12,13 +12,13 @@
 
 ## 接口清单
 
-| Job | 用途 |
-| --- | --- |
-| `list_plugins` | 检查服务 Python 环境的全部 AxonX 插件。 |
-| `inspect_plugin` | 检查一个已安装插件。 |
-| `install_plugin` | 安装已上传且校验通过的 wheel。 |
-| `uninstall_plugin` | 从服务环境卸载插件 distribution。 |
-| `sync_tasks` | 接收任务归档并替换目录，或只应用删除。 |
+| Job                | 用途                                    |
+| ------------------ | --------------------------------------- |
+| `list_plugins`     | 检查服务 Python 环境的全部 AxonX 插件。 |
+| `inspect_plugin`   | 检查一个已安装插件。                    |
+| `install_plugin`   | 安装已上传且校验通过的 wheel。          |
+| `uninstall_plugin` | 从服务环境卸载插件 distribution。       |
+| `sync_tasks`       | 接收任务归档并替换目录，或只应用删除。  |
 
 ## list_plugins
 
@@ -54,9 +54,9 @@ error 非空表示发现或解析问题；不是所有 Python 安装包都属于
 
 检查一个已安装插件。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `plugin` | string | 是 | `—（省略）` | distribution 名或插件 entry-point 名；minLength=1 |
+| 参数     | 类型   | 必填 | 默认值      | 约束与含义                                        |
+| -------- | ------ | ---- | ----------- | ------------------------------------------------- |
+| `plugin` | string | 是   | `—（省略）` | distribution 名或插件 entry-point 名；minLength=1 |
 
 Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 
@@ -79,9 +79,7 @@ answer 为单个 PluginInfo，与 list_plugins 每项同形。
   "answer": {
     "distribution": "axonx-example",
     "version": "0.1.0",
-    "plugins": [
-      "example"
-    ],
+    "plugins": ["example"],
     "tasks": {},
     "components": {},
     "jobs": {},
@@ -103,10 +101,10 @@ answer 为单个 PluginInfo，与 list_plugins 每项同形。
 
 安装已上传且校验通过的 wheel。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `path` | string | 是 | `—（省略）` | 服务工作区相对路径；minLength=1 |
-| `sha256` | string | 是 | `—（省略）` | 上传返回的 SHA-256；正则 `^[0-9a-fA-F]{64}$` |
+| 参数     | 类型   | 必填 | 默认值      | 约束与含义                                   |
+| -------- | ------ | ---- | ----------- | -------------------------------------------- |
+| `path`   | string | 是   | `—（省略）` | 服务工作区相对路径；minLength=1              |
+| `sha256` | string | 是   | `—（省略）` | 上传返回的 SHA-256；正则 `^[0-9a-fA-F]{64}$` |
 
 只接受表中业务字段。
 
@@ -130,9 +128,7 @@ answer 为 PluginInstallResult，在 PluginInfo 基础上增加 restart_required
   "answer": {
     "distribution": "axonx-example",
     "version": "0.1.0",
-    "plugins": [
-      "example"
-    ],
+    "plugins": ["example"],
     "tasks": {},
     "components": {},
     "jobs": {},
@@ -155,9 +151,9 @@ answer 为 PluginInstallResult，在 PluginInfo 基础上增加 restart_required
 
 从服务环境卸载插件 distribution。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `plugin` | string | 是 | `—（省略）` | distribution 名或插件 entry-point 名；minLength=1 |
+| 参数     | 类型   | 必填 | 默认值      | 约束与含义                                        |
+| -------- | ------ | ---- | ----------- | ------------------------------------------------- |
+| `plugin` | string | 是   | `—（省略）` | distribution 名或插件 entry-point 名；minLength=1 |
 
 只接受表中业务字段。
 
@@ -194,10 +190,10 @@ answer 为 PluginUninstallResult：distribution、restart_required。
 
 接收任务归档并替换目录，或只应用删除。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `path` | string | 否 | `—（省略）` | 服务工作区相对路径；minLength=1 |
-| `deletions` | array | 否 | `[]` | 待删除的任务目录路径；maxItems=200 |
+| 参数        | 类型   | 必填 | 默认值      | 约束与含义                         |
+| ----------- | ------ | ---- | ----------- | ---------------------------------- |
+| `path`      | string | 否   | `—（省略）` | 服务工作区相对路径；minLength=1    |
+| `deletions` | array  | 否   | `[]`        | 待删除的任务目录路径；maxItems=200 |
 
 只接受表中业务字段。
 
@@ -239,7 +235,7 @@ path 可省略，deletions 默认为 []，最多 200。path 只接受上传的�
 sync_tasks 对暂存路径/归档的 OSError、TypeError、ValueError 直接返回业务失败文本，例如一个暂存文件不存在：
 
 ```json
-{"answer":"Staged file does not exist","success":false,"metadata":{}}
+{ "answer": "Staged file does not exist", "success": false, "metadata": {} }
 ```
 
 接收端检查目录身份与归档路径，应用替换时保留回滚机制。这里传输的是终态任务目录快照，不迁移进程、插件环境、Agent 会话或原始数据树。

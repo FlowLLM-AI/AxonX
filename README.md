@@ -25,9 +25,9 @@ Researchers can inspect how a result was produced, reuse upstream data, compare 
 
 ## Why AxonX?
 
-- **Research tasks with explicit contracts.** Typed inputs and outputs describe what each Task consumes and produces. → [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts)
+- **Reuse research code as Tasks.** Typed inputs and outputs make data, model, and artifact requirements explicit. → [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts)
 - **Execution you can inspect.** Submit Tasks to independent worker processes and follow status, progress, logs, and results. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
-- **Traceable experiments.** Workspace records keep parameters, artifacts, and upstream Task IDs together for inspection and reuse. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)
+- **Trace results back to their inputs.** Workspace records keep parameters, artifacts, and upstream Task IDs together so you can reuse datasets and inspect experiment differences. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)
 - **One workflow across CLI, Studio, and Agent.** Use scripts, browser forms and charts, or an assistant that reads task evidence through configured tools. → [Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/en/agent/usage)
 - **Extend and run remotely.** Package research capabilities as plugins and explicitly choose a remote execution target. → [Plugins](https://flowllm-ai.github.io/AxonX/en/guides/plugin-management) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
 
@@ -89,6 +89,38 @@ axonx status --task-id 'base#demo#submitted-demo'
 
 Submission success means the request was accepted. Wait for state `succeeded`; the status response should contain `result.result: 5`. The default service port is `1024`. See the [full quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart) for configuration, logs, and persistent records.
 
+### Open Studio
+
+With Node.js 22.13+ (22.x), 24.x, or 26+, build the browser UI from the repository root:
+
+```bash
+cd axonx_studio
+npm ci
+npm run build
+cd ..
+```
+
+Restart the service from terminal A after building, keeping the same service token. Open <http://127.0.0.1:1024/> and enter that token in **Settings → Service token**. AxonX serves the built Studio and API from the same address.
+
+## Research with an Agent
+
+The built-in assistant uses the Claude Agent SDK and configured Job tools to inspect task status, logs, upstream relationships, and workspace artifacts. Configure the [Agent backend](https://flowllm-ai.github.io/AxonX/en/agent/configuration), then open **Agent** in Studio. Ordinary research Tasks can run without model credentials.
+
+Give it specific Task IDs and questions, for example:
+
+- “Check Task `<task_id>`'s status, tail logs, and upstream tasks. Explain where it failed and what to inspect next.”
+- “Compare Backtest Tasks `<A>` and `<B>`: check their common date window and cost assumptions before explaining the results.”
+
+External Agents can also connect to the service's Streamable HTTP MCP endpoint at `http://127.0.0.1:1024/mcp` using the service's Bearer token. Available tools depend on the service configuration. See [Agent usage](https://flowllm-ai.github.io/AxonX/en/agent/usage) and [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration) for tools and permissions.
+
+## How it works
+
+**CLI / Studio / external Agent → Job interfaces → Task execution → workspace records and artifacts.**
+
+Jobs validate calls and coordinate framework capabilities. For research submission, the TaskManager starts a worker process and returns a run identifier; the Task writes status, logs, and outputs. Query Jobs and Studio then read those records. `axonx exec` runs a Task directly in the current process.
+
+Research plugins supply the algorithms. Upstream Task IDs record relationships, while users or scripts organize stage-by-stage execution. See the [architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) for the component boundaries.
+
 ## Quantitative research and plugins
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg)
@@ -103,6 +135,12 @@ The core supplies Task contracts and runtime infrastructure. Research plugins im
 | [Alpha158 Enhanced](plugins/a158_enhanced/README.md) | Extended Alpha158 research tasks and experiment guidance |
 
 Start with the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) for plugin installation and data prerequisites. Market-data and Agent features need their own provider configuration. See [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) for return definitions, costs, and trading assumptions.
+
+Studio reads the resulting artifacts to display training metrics, predictions, and backtest summaries. For example, the backtest view shows overall signal metrics alongside period summaries:
+
+![AxonX Studio backtest overall metrics](docs/figures/studio/backtest-overall.png)
+
+This screenshot illustrates an existing experiment's result view. See [Research results](https://flowllm-ai.github.io/AxonX/en/research/results) for how to read each stage's outputs.
 
 ## Documentation
 

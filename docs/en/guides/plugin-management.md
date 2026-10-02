@@ -6,11 +6,11 @@ Plugins are Python packages providing AxonX Tasks, Components, and Jobs. Local m
 
 ## Three names
 
-| Name | Purpose | Source |
-| --- | --- | --- |
-| distribution | Python package installation and uninstallation | project.name in pyproject.toml |
-| plugin name | Discover and distinguish plugin entries | axonx.plugins entry point |
-| Task registered name | submit / exec / definition queries | tasks in plugin.yaml |
+| Name                 | Purpose                                        | Source                         |
+| -------------------- | ---------------------------------------------- | ------------------------------ |
+| distribution         | Python package installation and uninstallation | project.name in pyproject.toml |
+| plugin name          | Discover and distinguish plugin entries        | axonx.plugins entry point      |
+| Task registered name | submit / exec / definition queries             | tasks in plugin.yaml           |
 
 These three names may differ. Do not pass a distribution name directly to `--task`; first check the Task registered names in plugin contributions.
 
@@ -71,10 +71,10 @@ The CLI builds local source into a wheel, uploads it to remote `/files`, checks 
 
 ## Checksums and restart
 
-| Field | Explanation |
-| --- | --- |
-| content_sha256 | Content/source fingerprint for build caching and content identification |
-| sha256 | Specific wheel file checksum for transfer and installation verification |
+| Field            | Explanation                                                             |
+| ---------------- | ----------------------------------------------------------------------- |
+| content_sha256   | Content/source fingerprint for build caching and content identification |
+| sha256           | Specific wheel file checksum for transfer and installation verification |
 | restart_required | The current application must restart to reassemble plugin contributions |
 
 The two sha256 fields are not guaranteed to match: wheel compression and packaging change the specific file bytes. Pass the wheel sha256 from the upload receipt to the installation interface, not the source fingerprint.
@@ -97,13 +97,13 @@ axonx plugin uninstall '<distribution or plugin name>' \
 
 Uninstallation affects future code loading but does not automatically delete historical research artifacts. Existing metadata remains readable, though reruns may require restoring the original plugin version.
 
-| Problem | Check |
-| --- | --- |
-| Registered name conflict | Whether plugin contributions share names with built-ins or other plugins |
-| Invalid manifest | Types, module:Class, Task docstrings, and class base classes |
-| Installation succeeded but UI has not updated | restart_required, target machine, and runtime environment |
-| Wheel checksum failed | Use the upload receipt sha256 and transfer the correct file again |
-| Missing model dependencies | requirements and device libraries in the target environment |
+| Problem                                       | Check                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------ |
+| Registered name conflict                      | Whether plugin contributions share names with built-ins or other plugins |
+| Invalid manifest                              | Types, module:Class, Task docstrings, and class base classes             |
+| Installation succeeded but UI has not updated | restart_required, target machine, and runtime environment                |
+| Wheel checksum failed                         | Use the upload receipt sha256 and transfer the correct file again        |
+| Missing model dependencies                    | requirements and device libraries in the target environment              |
 
 [Plugin manifest](../reference/plugin-manifest.md) · [Remote machines](remote-machines.md) · [Existing development guide](../dev_guide.md)
 

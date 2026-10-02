@@ -43,7 +43,7 @@ axonx plugin install -e ./plugins/a158
 
 默认 pytest 配置包含 enhanced 插件测试及两个插件的源码路径。运行这些测试时，通过上述安装准备研究依赖。插件发现和重启行为见[插件指南](https://flowllm-ai.github.io/AxonX/zh/guides/plugin-management)。
 
-Studio 使用 Node.js 22.x 系列的 22.13+，或 24+，运行：
+Studio 使用 Node.js 22.13+（22.x）、24.x 或 26+，运行：
 
 ```bash
 cd axonx_studio
@@ -51,7 +51,7 @@ npm ci
 npm run dev
 ```
 
-按[快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)另行启动 Python 服务。代理配置和其他支持的 Node 版本见 [Studio 开发](https://flowllm-ai.github.io/AxonX/zh/development/studio)。文档站要求 Node.js 22+。
+按[快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)另行启动 Python 服务。代理配置见 [Studio 开发](https://flowllm-ai.github.io/AxonX/zh/development/studio)。文档站要求 Node.js 22+。
 
 ## 实现改动
 

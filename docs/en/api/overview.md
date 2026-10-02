@@ -10,16 +10,16 @@ Studio's **API interfaces** displays Jobs exposed by the current machine and gen
 
 ## Routes
 
-| Method | Path | Purpose | Successful response |
-| --- | --- | --- | --- |
-| GET | `/health` | Whether the current Application is running | JobResponse, answer.running |
-| GET | `/jobs` | Actual public Job catalog | JobResponse, answer.items/total |
-| POST | `/jobs/{name}` | Ordinary call | JobResponse |
-| POST | `/jobs/{name}/events` | Live events | text/event-stream, ending with result |
-| POST | `/files` | Upload raw bytes to staging | JobResponse, with FileCopy in answer |
-| DELETE | `/files?path=...` | Clean up staged files | JobResponse, answer.path |
-| MCP | `/mcp` | Streamable HTTP tool interface | MCP containing JobResponse |
-| Multiple HTTP methods | `/proxy/{name}/{path}` | Configured upstream proxy | Upstream response |
+| Method                | Path                   | Purpose                                    | Successful response                   |
+| --------------------- | ---------------------- | ------------------------------------------ | ------------------------------------- |
+| GET                   | `/health`              | Whether the current Application is running | JobResponse, answer.running           |
+| GET                   | `/jobs`                | Actual public Job catalog                  | JobResponse, answer.items/total       |
+| POST                  | `/jobs/{name}`         | Ordinary call                              | JobResponse                           |
+| POST                  | `/jobs/{name}/events`  | Live events                                | text/event-stream, ending with result |
+| POST                  | `/files`               | Upload raw bytes to staging                | JobResponse, with FileCopy in answer  |
+| DELETE                | `/files?path=...`      | Clean up staged files                      | JobResponse, answer.path              |
+| MCP                   | `/mcp`                 | Streamable HTTP tool interface             | MCP containing JobResponse            |
+| Multiple HTTP methods | `/proxy/{name}/{path}` | Configured upstream proxy                  | Upstream response                     |
 
 All business requests execute on the current service by default. `GET /jobs?target=http%3A%2F%2Fnode-b%3A1024` queries a configured target's catalog; target in Job requests follows the same configuration-matching rules. proxy is a separate upstream-forwarding capability; see [HTTP proxy](../guides/http-proxy.md).
 
@@ -44,7 +44,7 @@ Jobs default to `requires_auth=true`, so without a token in the default configur
 
 ```json
 {
-  "arguments": {"task": "demo", "x": 1, "y": 2},
+  "arguments": { "task": "demo", "x": 1, "y": 2 },
   "target": "http://node-b:1024"
 }
 ```
@@ -73,7 +73,7 @@ curl -s -X POST http://127.0.0.1:1024/jobs/version \
 Health response:
 
 ```json
-{"answer":{"running":true},"success":true,"metadata":{}}
+{ "answer": { "running": true }, "success": true, "metadata": {} }
 ```
 
 The catalog returns JobCatalog. Only one item is shown below to illustrate the field structure; the actual Schema is more complete:
@@ -81,12 +81,14 @@ The catalog returns JobCatalog. Only one item is shown below to illustrate the f
 ```json
 {
   "answer": {
-    "items": [{
-      "name": "version",
-      "description": "Return the installed AxonX version.",
-      "input_schema": {"type":"object","properties":{}},
-      "output_schema": {"type":"object"}
-    }],
+    "items": [
+      {
+        "name": "version",
+        "description": "Return the installed AxonX version.",
+        "input_schema": { "type": "object", "properties": {} },
+        "output_schema": { "type": "object" }
+      }
+    ],
     "total": 1
   },
   "success": true,
@@ -98,26 +100,26 @@ output_schema describes the shared JobResponse and does not guarantee that every
 
 ## Responses and errors
 
-| Field | Type | Default | Explanation |
-| --- | --- | --- | --- |
-| answer | Any JSON-serializable value | `""` | Business answer or error text |
-| success | boolean | true | Final business outcome of the Job |
-| metadata | object | `{}` | Additional information; the Agent provides session_id and related values here |
+| Field    | Type                        | Default | Explanation                                                                   |
+| -------- | --------------------------- | ------- | ----------------------------------------------------------------------------- |
+| answer   | Any JSON-serializable value | `""`    | Business answer or error text                                                 |
+| success  | boolean                     | true    | Final business outcome of the Job                                             |
+| metadata | object                      | `{}`    | Additional information; the Agent provides session_id and related values here |
 
 ```json
-{"answer":"KeyError: 'base#demo#missing'","success":false,"metadata":{}}
+{ "answer": "KeyError: 'base#demo#missing'", "success": false, "metadata": {} }
 ```
 
 This is an example of a business failure within HTTP 200. Clients must check both the HTTP status and success; a 200 alone is insufficient.
 
-| HTTP status | Common trigger | Response and handling |
-| --- | --- | --- |
-| 401 | Missing or mismatched token | `{"detail":"Invalid bearer token"}`; check the connection target and token source |
-| 404 | Job is not public, name is unknown, or streaming is disabled | `{"detail":"Unknown job"}`; query the catalog again |
-| 422 | Invalid request envelope, parameter Schema, or target configuration | detail text or FastAPI validation details; revise the request |
-| 502 | Connection or protocol failure in an ordinary remote call | detail text; check remote health and credentials |
-| 413 | Upload exceeds the size limit | detail text; reduce the artifact size |
-| 409 | Staging destination conflict | detail text; inspect staged content and symbolic links |
+| HTTP status | Common trigger                                                      | Response and handling                                                             |
+| ----------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 401         | Missing or mismatched token                                         | `{"detail":"Invalid bearer token"}`; check the connection target and token source |
+| 404         | Job is not public, name is unknown, or streaming is disabled        | `{"detail":"Unknown job"}`; query the catalog again                               |
+| 422         | Invalid request envelope, parameter Schema, or target configuration | detail text or FastAPI validation details; revise the request                     |
+| 502         | Connection or protocol failure in an ordinary remote call           | detail text; check remote health and credentials                                  |
+| 413         | Upload exceeds the size limit                                       | detail text; reduce the artifact size                                             |
+| 409         | Staging destination conflict                                        | detail text; inspect staged content and symbolic links                            |
 
 Exceptions within executing Steps usually become success=false. After a streaming call starts, exceptions become failed result events and can no longer be represented by HTTP status. A stream that disconnects without a terminal result is not successful.
 

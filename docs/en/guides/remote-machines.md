@@ -86,14 +86,14 @@ To reuse local upstream artifacts, first transfer the required task snapshots or
 
 ## Common failures
 
-| Symptom | Assessment and action |
-| --- | --- |
-| Connection refused | Check target process, listening host/port, and network entry |
-| 401 | For direct calls, check target token; for Studio, check both local and targets credentials |
-| Target unconfigured | Add the normalized address to local targets and restart |
-| Task registered name missing | Check target plugin installation and restart, rather than only the local environment |
-| Schema or response fields differ | Compare service and plugin versions on both sides |
-| Target task has no upstream files | Confirm data and Task directories were transferred to the target |
+| Symptom                           | Assessment and action                                                                      |
+| --------------------------------- | ------------------------------------------------------------------------------------------ |
+| Connection refused                | Check target process, listening host/port, and network entry                               |
+| 401                               | For direct calls, check target token; for Studio, check both local and targets credentials |
+| Target unconfigured               | Add the normalized address to local targets and restart                                    |
+| Task registered name missing      | Check target plugin installation and restart, rather than only the local environment       |
+| Schema or response fields differ  | Compare service and plugin versions on both sides                                          |
+| Target task has no upstream files | Confirm data and Task directories were transferred to the target                           |
 
 [Authentication](authentication.md) · [Plugin management](plugin-management.md) · [Task synchronization](task-sync.md) · [Machine API](../api/machines.md)
 

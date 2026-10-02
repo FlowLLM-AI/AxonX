@@ -27,22 +27,22 @@ extends is not a persistent ApplicationConfig field; the resolver removes it fir
 
 The table lists model defaults, which differ from the expanded built-in default.yaml. For example, model components/jobs are empty, while default.yaml configures task components, an Agent, and multiple Jobs.
 
-| Field | Type | Model default | Meaning and constraints |
-| --- | --- | --- | --- |
-| app_name | string | AxonX | Display name in logs and protocols |
-| workspace_dir | string | .axonx | Root directory for tasks, artifacts, and application state |
-| log_dir | string | logs | Service and task log directory |
-| timezone | string | Asia/Shanghai | Default application/task timezone |
-| enable_logo | boolean | true | CLI start prints the startup logo |
-| log_to_console | boolean | true | Console logging |
-| log_to_file | boolean | true | File logging |
-| plugins | PluginConfig | sources=[] | Startup plugin sources |
-| targets | TargetConfig[] | [] | Service targets to which the backend may forward |
-| environment | dict[string,string] | {} | Application environment injected into workers and Agents |
-| components | dict[category,dict[name,ComponentConfig]] | {} | Named component groups |
-| jobs | dict[public_name,JobConfig] | {} | Job definitions |
-| schedules | dict[name,ScheduleConfig] | {} | Schedulers |
-| service | ComponentConfig/null | null | Service component; CLI start requires service |
+| Field          | Type                                      | Model default | Meaning and constraints                                    |
+| -------------- | ----------------------------------------- | ------------- | ---------------------------------------------------------- |
+| app_name       | string                                    | AxonX         | Display name in logs and protocols                         |
+| workspace_dir  | string                                    | .axonx        | Root directory for tasks, artifacts, and application state |
+| log_dir        | string                                    | logs          | Service and task log directory                             |
+| timezone       | string                                    | Asia/Shanghai | Default application/task timezone                          |
+| enable_logo    | boolean                                   | true          | CLI start prints the startup logo                          |
+| log_to_console | boolean                                   | true          | Console logging                                            |
+| log_to_file    | boolean                                   | true          | File logging                                               |
+| plugins        | PluginConfig                              | sources=[]    | Startup plugin sources                                     |
+| targets        | TargetConfig[]                            | []            | Service targets to which the backend may forward           |
+| environment    | dict[string,string]                       | {}            | Application environment injected into workers and Agents   |
+| components     | dict[category,dict[name,ComponentConfig]] | {}            | Named component groups                                     |
+| jobs           | dict[public_name,JobConfig]               | {}            | Job definitions                                            |
+| schedules      | dict[name,ScheduleConfig]                 | {}            | Schedulers                                                 |
+| service        | ComponentConfig/null                      | null          | Service component; CLI start requires service              |
 
 The model prohibits unknown top-level fields. Normalized target addresses must not be duplicated. environment values must be strings, rather than numbers or nested objects.
 
@@ -112,29 +112,29 @@ task_repository is the category, default is the instance name, and local is the 
 
 ## JobConfig
 
-| Field | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| backend | Nonempty string | pipeline | Job implementation |
-| description | string | Empty string | Public description |
-| parameters | JSON Schema object | type=object,properties={} | Must describe an object; missing type is filled with object |
-| enable_serve | boolean | true | Eligible for the HTTP/MCP public catalog |
-| enable_stream | boolean | true | Allow live HTTP streaming |
-| requires_auth | boolean | true | Exclude this Job when no service token is configured |
-| steps | ComponentConfig[] | [] | Execute asynchronous Steps sequentially |
-| defaults | object | {} | Default Job context values |
+| Field         | Type               | Default                   | Meaning                                                     |
+| ------------- | ------------------ | ------------------------- | ----------------------------------------------------------- |
+| backend       | Nonempty string    | pipeline                  | Job implementation                                          |
+| description   | string             | Empty string              | Public description                                          |
+| parameters    | JSON Schema object | type=object,properties={} | Must describe an object; missing type is filled with object |
+| enable_serve  | boolean            | true                      | Eligible for the HTTP/MCP public catalog                    |
+| enable_stream | boolean            | true                      | Allow live HTTP streaming                                   |
+| requires_auth | boolean            | true                      | Exclude this Job when no service token is configured        |
+| steps         | ComponentConfig[]  | []                        | Execute asynchronous Steps sequentially                     |
+| defaults      | object             | {}                        | Default Job context values                                  |
 
 PipelineJob also supports event_buffer_size (default 64, a positive integer) as a backend-specific extra field. JSON Schema default in parameters is descriptive; do not assume the framework injects it uniformly. Actual defaults must be handled by defaults or a Step. System-injected values are isolated from public parameters.
 
 ## ScheduleConfig
 
-| Field | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| backend | Nonempty string | cron | Scheduler implementation |
-| job | Nonempty string | Required | Job name to invoke |
-| cron | Nonempty string | Required | Cron expression |
-| arguments | object | {} | Job arguments |
-| timezone | Nonempty string/null | null | null uses the application timezone |
-| concurrency_policy | forbid/allow/replace | forbid | Overlap policy for the same scheduled Job |
+| Field              | Type                 | Default  | Meaning                                   |
+| ------------------ | -------------------- | -------- | ----------------------------------------- |
+| backend            | Nonempty string      | cron     | Scheduler implementation                  |
+| job                | Nonempty string      | Required | Job name to invoke                        |
+| cron               | Nonempty string      | Required | Cron expression                           |
+| arguments          | object               | {}       | Job arguments                             |
+| timezone           | Nonempty string/null | null     | null uses the application timezone        |
+| concurrency_policy | forbid/allow/replace | forbid   | Overlap policy for the same scheduled Job |
 
 The default is schedules={}. Policies apply to execution of the scheduled Job; after submit returns, the background Task may still be running. See [Scheduling](../guides/scheduling.md) for an enabling example.
 
@@ -146,15 +146,15 @@ TargetConfig strictly prohibits extra fields: address is required and nonempty; 
 
 ## HTTP service
 
-| Field | Default | Explanation |
-| --- | --- | --- |
-| backend | Required: http | HTTP service implementation |
-| host | 0.0.0.0 | Bind address |
-| port | 1024 | Listening port |
-| shutdown_timeout | 1 | Uvicorn graceful-shutdown seconds; nonnegative |
-| web_enabled | true | Whether to mount the Studio static build |
-| web_static_dir | null | Explicit static-build directory |
-| token | null | Nonempty Bearer token; null filters the catalog according to Job rules |
+| Field            | Default        | Explanation                                                            |
+| ---------------- | -------------- | ---------------------------------------------------------------------- |
+| backend          | Required: http | HTTP service implementation                                            |
+| host             | 0.0.0.0        | Bind address                                                           |
+| port             | 1024           | Listening port                                                         |
+| shutdown_timeout | 1              | Uvicorn graceful-shutdown seconds; nonnegative                         |
+| web_enabled      | true           | Whether to mount the Studio static build                               |
+| web_static_dir   | null           | Explicit static-build directory                                        |
+| token            | null           | Nonempty Bearer token; null filters the catalog according to Job rules |
 
 The service has no TLS configuration by default. A missing Studio build is logged as unavailable; the API can still run. Configuration updates do not recompose the application live; restart and verify the catalog again.
 

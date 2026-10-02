@@ -25,14 +25,14 @@ If the service is already running, restart it after installation as instructed b
 
 ## What each research stage produces
 
-| Stage | Registered name | Input source | Main results |
-| --- | --- | --- | --- |
-| Download | `download_tushare_task` | Tushare API | Raw partitions in workspace `tushare/` |
-| ETL | `a158_etl` | Raw partitions and master data | `alpha158.parquet`, statistics CSV |
-| Factor analysis | `a158_factor` | One ETL Task | Factor diagnostics and quantile return CSV |
-| Training | `a158_train` | One ETL Task | LightGBM model, importance, validation history |
-| Prediction | `a158_predict` | One Train Task | Full cross-sectional prediction Parquet |
-| Backtest | `a158_backtest` | One Predict Task | Daily and summary Parquet |
+| Stage           | Registered name         | Input source                   | Main results                                   |
+| --------------- | ----------------------- | ------------------------------ | ---------------------------------------------- |
+| Download        | `download_tushare_task` | Tushare API                    | Raw partitions in workspace `tushare/`         |
+| ETL             | `a158_etl`              | Raw partitions and master data | `alpha158.parquet`, statistics CSV             |
+| Factor analysis | `a158_factor`           | One ETL Task                   | Factor diagnostics and quantile return CSV     |
+| Training        | `a158_train`            | One ETL Task                   | LightGBM model, importance, validation history |
+| Prediction      | `a158_predict`          | One Train Task                 | Full cross-sectional prediction Parquet        |
+| Backtest        | `a158_backtest`         | One Predict Task               | Daily and summary Parquet                      |
 
 Factor analysis is an independent downstream stage of ETL; training does not depend on its success. Prediction resolves the ETL upstream through training metadata, so retain both the training directory and ETL data.
 
@@ -105,14 +105,14 @@ The script installs the plugin, refreshes the latest 7 days of raw data, and use
 
 ## Common failures and actions
 
-| Symptom | First checks |
-| --- | --- |
-| Registered name does not exist | Plugin environment and restart status of the execution service |
-| Missing daily, adj_factor, or master data | `tushare/` partitions and static files |
-| No valid labels in the training interval | ETL dates, trading status, exit labels, and training boundaries |
-| Prediction starts before training ends | `pred_start` and metadata `train_end_exclusive` |
-| Model validation fails | Whether the model file in the training directory was replaced |
-| Backtest fields are missing | Whether prediction artifacts match the a158 protocol |
+| Symptom                                   | First checks                                                    |
+| ----------------------------------------- | --------------------------------------------------------------- |
+| Registered name does not exist            | Plugin environment and restart status of the execution service  |
+| Missing daily, adj_factor, or master data | `tushare/` partitions and static files                          |
+| No valid labels in the training interval  | ETL dates, trading status, exit labels, and training boundaries |
+| Prediction starts before training ends    | `pred_start` and metadata `train_end_exclusive`                 |
+| Model validation fails                    | Whether the model file in the training directory was replaced   |
+| Backtest fields are missing               | Whether prediction artifacts match the a158 protocol            |
 
 Lineage graphs record explicit upstream relationships. They do not automatically schedule, fill in, or rerun the research chain. Rerunning with a fixed `task_name` replaces the directory record of a finished task; use different names and retain artifacts when comparing experiments.
 

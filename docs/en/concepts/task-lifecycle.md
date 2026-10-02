@@ -6,12 +6,12 @@ A Task ID identifies a task directory in the workspace; `run_id` identifies one 
 
 ## Three Names and One Execution Identifier
 
-| Field | Meaning | Example |
-| --- | --- | --- |
-| Registered Task name | Finds the definition and input schema | `demo` |
-| input.task_name | Instance name specified by the user | `trial-01` |
-| task_id | Combination of type, registered name, and instance name | `base#demo#trial-01` |
-| run_id | Identifier generated independently for each execution | UUID hexadecimal string |
+| Field                | Meaning                                                 | Example                 |
+| -------------------- | ------------------------------------------------------- | ----------------------- |
+| Registered Task name | Finds the definition and input schema                   | `demo`                  |
+| input.task_name      | Instance name specified by the user                     | `trial-01`              |
+| task_id              | Combination of type, registered name, and instance name | `base#demo#trial-01`    |
+| run_id               | Identifier generated independently for each execution   | UUID hexadecimal string |
 
 `task_name` allows 1–32 English letters, digits, or hyphens. If omitted or passed as an empty string, the framework uses a name with an hourly timestamp prefix and random suffix. Keep the `#` characters in Task IDs and quote them in the shell.
 
@@ -19,13 +19,13 @@ The `task_name` field in persistent status currently stores the registered Task 
 
 ## State Meanings
 
-| state | Meaning | Terminal? |
-| --- | --- | --- |
-| queued | Accepted, awaiting worker handoff or execution | No |
-| running | Executing synchronous steps | No |
-| succeeded | Steps and output completed; exit code is 0 | Yes |
-| failed | Exception, nonzero exit code, or abnormal worker exit | Yes |
-| cancelled | Stopped by cancellation or manager shutdown | Yes |
+| state     | Meaning                                               | Terminal? |
+| --------- | ----------------------------------------------------- | --------- |
+| queued    | Accepted, awaiting worker handoff or execution        | No        |
+| running   | Executing synchronous steps                           | No        |
+| succeeded | Steps and output completed; exit code is 0            | Yes       |
+| failed    | Exception, nonzero exit code, or abnormal worker exit | Yes       |
+| cancelled | Stopped by cancellation or manager shutdown           | Yes       |
 
 The typical transition is queued → running → succeeded. Both queued and running can transition to cancelled; step exceptions, output validation failures, or nonzero exits can lead to failed.
 

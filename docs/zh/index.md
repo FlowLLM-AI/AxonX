@@ -6,13 +6,13 @@ AxonX 将量化研究能力封装为插件，通过 Task 运行计算，通过 J
 
 ## 从这里开始
 
-| 目标 | 阅读路径 |
-| --- | --- |
-| 首次体验 | [项目介绍](getting-started/introduction.md) → [快速开始](getting-started/quickstart.md) → [Studio](getting-started/studio.md) |
-| 开展量化研究 | [研究流程](research/workflow.md) → [结果解读](research/results.md) → [回测](research/backtest.md) |
-| 调用服务 | [API 总览](api/overview.md) → [Task API](api/tasks.md) → [CLI](reference/cli.md) / [Python](reference/python.md) |
-| 接入 Agent | [Agent 配置](agent/configuration.md) → [使用](agent/usage.md) / [MCP 接入](agent/mcp-integration.md) |
-| 扩展项目 | [开发指南](dev_guide.md) → [插件协议](reference/plugin-manifest.md) → [框架扩展](development/framework-extensions.md) |
+| 目标         | 阅读路径                                                                                                                      |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| 首次体验     | [项目介绍](getting-started/introduction.md) → [快速开始](getting-started/quickstart.md) → [Studio](getting-started/studio.md) |
+| 开展量化研究 | [研究流程](research/workflow.md) → [结果解读](research/results.md) → [回测](research/backtest.md)                             |
+| 调用服务     | [API 总览](api/overview.md) → [Task API](api/tasks.md) → [CLI](reference/cli.md) / [Python](reference/python.md)              |
+| 接入 Agent   | [Agent 配置](agent/configuration.md) → [使用](agent/usage.md) / [MCP 接入](agent/mcp-integration.md)                          |
+| 扩展项目     | [开发指南](dev_guide.md) → [插件协议](reference/plugin-manifest.md) → [框架扩展](development/framework-extensions.md)         |
 
 内置 demo 不需要外部数据或模型凭据。研究插件、远程机器、Agent 和同步功能各自有配置前置条件，请按对应指南准备。
 

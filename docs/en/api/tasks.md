@@ -12,21 +12,21 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 ## Endpoint list
 
-| Job | Purpose |
-| --- | --- |
+| Job                               | Purpose                                                                |
+| --------------------------------- | ---------------------------------------------------------------------- |
 | `list_installed_task_definitions` | Enumerate built-in and plugin Tasks in the current Python environment. |
-| `get_task_definition` | Query a registered definition and its input/output Schemas. |
-| `submit` | Start a separate subprocess to run a Task. |
-| `wait_task` | Wait for the specific execution returned by submission to finish. |
-| `list_task_ids` | List task identities with status files. |
-| `list_task_statuses` | List status snapshots. |
-| `status` | Read a task's current status. |
-| `read_task_log` | Read logs within a bounded byte window. |
-| `stream_task` | Follow progress and logs until the task stops. |
-| `get_task_graph` | Read the dependency graph containing the selected Task. |
-| `get_task_context` | Provide the Agent with task paths, status, and relationship context. |
-| `cancel` | Request cancellation of an active worker managed by this service. |
-| `delete_tasks` | Delete terminal or metadata-only Tasks and associated files. |
+| `get_task_definition`             | Query a registered definition and its input/output Schemas.            |
+| `submit`                          | Start a separate subprocess to run a Task.                             |
+| `wait_task`                       | Wait for the specific execution returned by submission to finish.      |
+| `list_task_ids`                   | List task identities with status files.                                |
+| `list_task_statuses`              | List status snapshots.                                                 |
+| `status`                          | Read a task's current status.                                          |
+| `read_task_log`                   | Read logs within a bounded byte window.                                |
+| `stream_task`                     | Follow progress and logs until the task stops.                         |
+| `get_task_graph`                  | Read the dependency graph containing the selected Task.                |
+| `get_task_context`                | Provide the Agent with task paths, status, and relationship context.   |
+| `cancel`                          | Request cancellation of an active worker managed by this service.      |
+| `delete_tasks`                    | Delete terminal or metadata-only Tasks and associated files.           |
 
 ## list_installed_task_definitions
 
@@ -62,9 +62,9 @@ Output is sorted by registration name. An invalid plugin type or missing detaile
 
 Query a registered definition and its input/output Schemas.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task` | string | Yes | `— (omitted)` | Task registration name, rather than a Task ID; minLength=1 |
+| Parameter | Type   | Required | Default       | Constraints and meaning                                    |
+| --------- | ------ | -------- | ------------- | ---------------------------------------------------------- |
+| `task`    | string | Yes      | `— (omitted)` | Task registration name, rather than a Task ID; minLength=1 |
 
 Only the business fields listed in the table are accepted.
 
@@ -92,10 +92,7 @@ answer is a TaskDefinition; the Schemas are JSON Schemas, rather than task execu
     "description": "Demonstrate synchronous Task execution with a small arithmetic workflow.",
     "input_schema": {
       "type": "object",
-      "required": [
-        "x",
-        "y"
-      ]
+      "required": ["x", "y"]
     },
     "output_schema": {
       "type": "object"
@@ -114,9 +111,9 @@ The Schema above is an excerpt; the complete Schema is authoritative as returned
 
 Start a separate subprocess to run a Task.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task` | string | Yes | `— (omitted)` | Task registration name, rather than a Task ID |
+| Parameter | Type   | Required | Default       | Constraints and meaning                       |
+| --------- | ------ | -------- | ------------- | --------------------------------------------- |
+| `task`    | string | Yes      | `— (omitted)` | Task registration name, rather than a Task ID |
 
 The submit Schema allows extra fields. Fields other than task are passed as Task inputs and validated by the corresponding input_cls; unknown input fields fail.
 
@@ -155,12 +152,12 @@ Pass all Task input fields at the same level as task. For demo, x and y are requ
 
 Shared Task inputs are published alongside the specific Task's input_schema:
 
-| Input | Type | Default | Rules |
-| --- | --- | --- | --- |
-| task_name | string/null | null | Omission or an empty string generates an anonymous name; fixed names contain 1–32 English letters, digits, or hyphens |
-| source_tasks | string | Empty string | Full upstream Task IDs separated by ASCII commas; not an array of strings |
-| demo.x / demo.y | integer | Required | Two calculation inputs; submit as x/y without the demo prefix |
-| demo.fail | boolean | false | Built-in failure-demonstration switch; not a shared parameter for all Tasks |
+| Input           | Type        | Default      | Rules                                                                                                                 |
+| --------------- | ----------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
+| task_name       | string/null | null         | Omission or an empty string generates an anonymous name; fixed names contain 1–32 English letters, digits, or hyphens |
+| source_tasks    | string      | Empty string | Full upstream Task IDs separated by ASCII commas; not an array of strings                                             |
+| demo.x / demo.y | integer     | Required     | Two calculation inputs; submit as x/y without the demo prefix                                                         |
+| demo.fail       | boolean     | false        | Built-in failure-demonstration switch; not a shared parameter for all Tasks                                           |
 
 Use get_task_definition for a plugin Task's research parameters; do not apply demo fields to other registration names. The shared task_name is optional and source_tasks defaults to an empty string. Fixed names may replace only finished tasks; an active directory produces FileExistsError. Retain run_id.
 
@@ -168,11 +165,11 @@ Use get_task_definition for a plugin Task's research parameters; do not apply de
 
 Wait for the specific execution returned by submission to finish.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | Yes | `— (omitted)` | Full Task ID; minLength=1 |
-| `run_id` | string | Yes | `— (omitted)` | Execution ID returned by submission; minLength=1 |
-| `poll_interval` | number | No | `1` | Polling interval in seconds; exclusiveMinimum=0 |
+| Parameter       | Type   | Required | Default       | Constraints and meaning                          |
+| --------------- | ------ | -------- | ------------- | ------------------------------------------------ |
+| `task_id`       | string | Yes      | `— (omitted)` | Full Task ID; minLength=1                        |
+| `run_id`        | string | Yes      | `— (omitted)` | Execution ID returned by submission; minLength=1 |
+| `poll_interval` | number | No       | `1`           | Polling interval in seconds; exclusiveMinimum=0  |
 
 Only the business fields listed in the table are accepted.
 
@@ -245,9 +242,7 @@ answer is an array of Task ID strings.
 
 ```json
 {
-  "answer": [
-    "base#demo#api-demo"
-  ],
+  "answer": ["base#demo#api-demo"],
   "success": true,
   "metadata": {}
 }
@@ -291,9 +286,9 @@ No server-side pagination or filtering parameters are provided. Clients can filt
 
 Read a task's current status.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | Yes | `— (omitted)` | Full Task ID |
+| Parameter | Type   | Required | Default       | Constraints and meaning |
+| --------- | ------ | -------- | ------------- | ----------------------- |
+| `task_id` | string | Yes      | `— (omitted)` | Full Task ID            |
 
 The Schema does not prohibit extra fields; this does not mean those fields will be used.
 
@@ -349,11 +344,11 @@ A nonexistent task, or a metadata-only task without status, returns a KeyError b
 
 Read logs within a bounded byte window.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | Yes | `— (omitted)` | Full Task ID |
-| `offset` | integer | No | `-1` | Starting byte offset for log reading; -1 reads the tail; minimum=-1 |
-| `limit` | integer | No | `65536` | Maximum number of bytes to read; minimum=1024, maximum=262144 |
+| Parameter | Type    | Required | Default       | Constraints and meaning                                             |
+| --------- | ------- | -------- | ------------- | ------------------------------------------------------------------- |
+| `task_id` | string  | Yes      | `— (omitted)` | Full Task ID                                                        |
+| `offset`  | integer | No       | `-1`          | Starting byte offset for log reading; -1 reads the tail; minimum=-1 |
+| `limit`   | integer | No       | `65536`       | Maximum number of bytes to read; minimum=1024, maximum=262144       |
 
 The Schema does not prohibit extra fields; this does not mean those fields will be used.
 
@@ -397,10 +392,10 @@ offset=-1 reads the tail; offset=0 starts at the beginning. limit is measured in
 
 Follow progress and logs until the task stops.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | Yes | `— (omitted)` | Full Task ID; minLength=1 |
-| `poll_interval` | number | No | `0.5` | Polling interval in seconds; exclusiveMinimum=0 |
+| Parameter       | Type   | Required | Default       | Constraints and meaning                         |
+| --------------- | ------ | -------- | ------------- | ----------------------------------------------- |
+| `task_id`       | string | Yes      | `— (omitted)` | Full Task ID; minLength=1                       |
+| `poll_interval` | number | No       | `0.5`         | Polling interval in seconds; exclusiveMinimum=0 |
 
 Only the business fields listed in the table are accepted.
 
@@ -456,9 +451,9 @@ poll_interval defaults to 0.5 seconds. An ordinary HTTP call also waits until a 
 
 Read the dependency graph containing the selected Task.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | Yes | `— (omitted)` | Full Task ID |
+| Parameter | Type   | Required | Default       | Constraints and meaning |
+| --------- | ------ | -------- | ------------- | ----------------------- |
+| `task_id` | string | Yes      | `— (omitted)` | Full Task ID            |
 
 Only the business fields listed in the table are accepted.
 
@@ -508,9 +503,9 @@ The graph comes from source_tasks in status/metadata and represents recorded rel
 
 Provide the Agent with task paths, status, and relationship context.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | Yes | `— (omitted)` | Full Task ID; minLength=1 |
+| Parameter | Type   | Required | Default       | Constraints and meaning   |
+| --------- | ------ | -------- | ------------- | ------------------------- |
+| `task_id` | string | Yes      | `— (omitted)` | Full Task ID; minLength=1 |
 
 Only the business fields listed in the table are accepted.
 
@@ -596,9 +591,9 @@ metadata_exists indicates whether a node in the graph has published metadata; su
 
 Request cancellation of an active worker managed by this service.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | Yes | `— (omitted)` | Full Task ID |
+| Parameter | Type   | Required | Default       | Constraints and meaning |
+| --------- | ------ | -------- | ------------- | ----------------------- |
+| `task_id` | string | Yes      | `— (omitted)` | Full Task ID            |
 
 The Schema does not prohibit extra fields; this does not mean those fields will be used.
 
@@ -632,9 +627,9 @@ Tasks already in a terminal state, or without a cancellable managed process, ret
 
 Delete terminal or metadata-only Tasks and associated files.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task_ids` | array | Yes | `— (omitted)` | List of full Task IDs to delete; minItems=1, uniqueItems=True |
+| Parameter  | Type  | Required | Default       | Constraints and meaning                                       |
+| ---------- | ----- | -------- | ------------- | ------------------------------------------------------------- |
+| `task_ids` | array | Yes      | `— (omitted)` | List of full Task IDs to delete; minItems=1, uniqueItems=True |
 
 The Schema does not prohibit extra fields; this does not mean those fields will be used.
 
@@ -643,9 +638,7 @@ The Schema does not prohibit extra fields; this does not mean those fields will 
 ```json
 {
   "arguments": {
-    "task_ids": [
-      "base#demo#api-demo"
-    ]
+    "task_ids": ["base#demo#api-demo"]
   }
 }
 ```
@@ -656,9 +649,7 @@ answer is the list of Task IDs actually deleted successfully.
 
 ```json
 {
-  "answer": [
-    "base#demo#api-demo"
-  ],
+  "answer": ["base#demo#api-demo"],
   "success": true,
   "metadata": {}
 }
@@ -673,7 +664,11 @@ Active tasks, invalid IDs, nonexistent tasks, and managed executions are skipped
 Schema failures return HTTP 422 before execution, for example when wait_task lacks run_id. Exceptions during Task execution or queries usually return HTTP 200 with success=false. Example of an unknown Task registration name:
 
 ```json
-{"answer":"ValueError: Unknown Task: missing. Available: demo","success":false,"metadata":{}}
+{
+  "answer": "ValueError: Unknown Task: missing. Available: demo",
+  "success": false,
+  "metadata": {}
+}
 ```
 
 The Available list is generated from the actual installed environment. When wait_task returns a failed task status, answer remains TaskStatus with state=failed/cancelled, retaining error and exit_code; do not assume that a failure answer is always a string.

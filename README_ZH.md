@@ -25,9 +25,9 @@ AxonX 将研究代码、任务执行、日志和结果连接到同一个工作�
 
 ## 为什么使用 AxonX？
 
-- **研究任务有明确契约。** 类型化输入输出描述每个 Task 消费和产生的内容。→ [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)
+- **将研究代码复用为 Task。** 类型化输入输出明确数据、模型和产物的要求。→ [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)
 - **执行过程可检查。** 将 Task 提交到独立 worker 进程，跟踪状态、进度、日志和结果。→ [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)
-- **实验来源可追踪。** 工作区同时保存参数、产物和上游 Task ID，便于检查与复用。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)
+- **从结果追溯输入。** 工作区同时保存参数、产物和上游 Task ID，便于复用数据集、检查实验差异。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)
 - **CLI、Studio 和 Agent 共用工作流程。** 使用脚本、浏览器表单与图表，或通过已配置工具读取任务证据的助手。→ [Studio](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/zh/agent/usage)
 - **插件扩展与远程执行。** 将研究能力打包为插件，并明确选择远程执行目标。→ [插件管理](https://flowllm-ai.github.io/AxonX/zh/guides/plugin-management) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
 
@@ -89,6 +89,38 @@ axonx status --task-id 'base#demo#submitted-demo'
 
 提交成功表示请求已接受。等待状态变为 `succeeded`，状态响应应包含 `result.result: 5`。默认服务端口为 `1024`。配置、日志和持久记录的完整说明见[快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)。
 
+### 打开 Studio
+
+使用 Node.js 22.13+（22.x）、24.x 或 26+，从仓库根目录构建浏览器界面：
+
+```bash
+cd axonx_studio
+npm ci
+npm run build
+cd ..
+```
+
+构建完成后，在终端 A 重启服务，保持相同的服务 token。打开 <http://127.0.0.1:1024/>，在 **Settings → Service token** 中填入该 token。AxonX 在同一地址提供构建后的 Studio 和 API。
+
+## 使用 Agent 辅助研究
+
+内置助手使用 Claude Agent SDK 和已配置的 Job 工具，检查任务状态、日志、上游关系和工作区产物。配置 [Agent 后端](https://flowllm-ai.github.io/AxonX/zh/agent/configuration)后，打开 Studio 的 **Agent** 页面。普通研究 Task 无需模型凭据也能运行。
+
+提供具体 Task ID 和问题，例如：
+
+- “检查 Task `<task_id>` 的状态、末尾日志和上游任务，说明失败发生在哪里，以及下一步应检查什么。”
+- “比较回测 Task `<A>` 与 `<B>`：先确认共同日期窗口和成本假设，再解释结果差异。”
+
+外部 Agent 也可以通过服务的 Bearer token 连接 Streamable HTTP MCP 端点 `http://127.0.0.1:1024/mcp`。可用工具取决于服务配置。工具与权限说明见 [Agent 使用](https://flowllm-ai.github.io/AxonX/zh/agent/usage)和 [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)。
+
+## 如何工作
+
+**CLI / Studio / 外部 Agent → Job 接口 → Task 执行 → 工作区记录与产物。**
+
+Job 校验调用参数并协调框架能力。提交研究任务时，TaskManager 启动 worker 进程并返回运行标识，Task 写入状态、日志和输出，查询 Job 与 Studio 再读取这些记录。`axonx exec` 在当前进程直接执行 Task。
+
+研究插件提供具体算法。上游 Task ID 记录任务关系，各阶段的执行由用户或脚本组织。组件边界见[架构说明](https://flowllm-ai.github.io/AxonX/zh/concepts/architecture)。
+
 ## 量化研究与插件
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg)
@@ -103,6 +135,12 @@ axonx status --task-id 'base#demo#submitted-demo'
 | [Alpha158 Enhanced](plugins/a158_enhanced/README.md) | 扩展的 Alpha158 研究任务与实验说明 |
 
 插件安装和数据准备见[量化研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow)。行情数据与 Agent 功能需要各自的服务商配置。收益定义、成本和交易假设见[回测解读](https://flowllm-ai.github.io/AxonX/zh/research/backtest)。
+
+Studio 读取生成的产物，展示训练指标、预测结果和回测汇总。例如，回测视图提供整体信号指标与分期汇总：
+
+![AxonX Studio 回测整体指标](docs/figures/studio/backtest-overall.png)
+
+截图展示已有实验的结果页面。各阶段输出的阅读方式见[研究结果解读](https://flowllm-ai.github.io/AxonX/zh/research/results)。
 
 ## 文档导航
 

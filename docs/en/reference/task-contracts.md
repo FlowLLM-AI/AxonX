@@ -6,10 +6,10 @@ This page defines the basic contracts shared by Task authors, API users, and fil
 
 BaseInputParams uses `extra="forbid"` and assignment validation. Each Task's input_cls declares business fields on top of the base class.
 
-| Base input field | Type and default | Constraints |
-| --- | --- | --- |
-| task_name | string or null; default null | 1–32 letters, digits, or hyphens; an empty string is treated as unspecified |
-| source_tasks | string; default empty string | Valid Task IDs separated by ASCII commas; duplicate IDs are rejected |
+| Base input field | Type and default             | Constraints                                                                 |
+| ---------------- | ---------------------------- | --------------------------------------------------------------------------- |
+| task_name        | string or null; default null | 1–32 letters, digits, or hyphens; an empty string is treated as unspecified |
+| source_tasks     | string; default empty string | Valid Task IDs separated by ASCII commas; duplicate IDs are rejected        |
 
 `source_tasks` strips whitespace around each item and rejoins them. `source_task(TaskType.X)` requires exactly one upstream task of the specified type; it does not automatically validate that the directory or artifacts exist.
 
@@ -32,14 +32,14 @@ class AddOutput(BaseOutputParams):
 
 TaskContext is a frozen dataclass attached to a Task, providing runtime-owned values:
 
-| Field | Type | Purpose |
-| --- | --- | --- |
-| workspace_path | Path | Resolved workspace root |
-| registration_name | string | Definition registration name |
-| task_id | string | Directory identity |
-| run_id | string | Execution identity |
-| created_at | datetime | Creation time for this execution |
-| logger | Logger object | Record step execution |
+| Field             | Type          | Purpose                          |
+| ----------------- | ------------- | -------------------------------- |
+| workspace_path    | Path          | Resolved workspace root          |
+| registration_name | string        | Definition registration name     |
+| task_id           | string        | Directory identity               |
+| run_id            | string        | Execution identity               |
+| created_at        | datetime      | Creation time for this execution |
+| logger            | Logger object | Record step execution            |
 
 Plugins should read these values without changing execution identity. `task.task_dir` is `<workspace>/<type>/<task_id>`; `source_task_dir(id)` locates an upstream directory in the same workspace.
 
@@ -61,21 +61,21 @@ The `task` field is the registration name. There is no `task_name` field or addr
 
 ## TaskStatus
 
-| Field | Type/default | Meaning |
-| --- | --- | --- |
-| task_id | string; required | Must match the directory ID |
-| run_id | Nonempty string; required | Current execution identity |
-| task_type | TaskType; required | Must match the type in the ID |
-| task_name | string; default empty string | The current implementation writes the registration name |
-| config | object; default {} | JSON representation of typed input, including the instance task_name |
-| state | TaskState; default queued | Current execution state |
-| pid | integer or null | Process identifier at that time |
-| created_at / started_at / finished_at | datetime or null | Creation, start, and finish times |
-| steps | TaskStepStatus[]; default [] | Snapshots of started steps |
-| result | object; default {} | Constructed typed output |
-| error | string; default empty string | Error description |
-| exit_code | integer; default 0 | 0–255 |
-| log_path | string; default empty string | Separate log file location |
+| Field                                 | Type/default                 | Meaning                                                              |
+| ------------------------------------- | ---------------------------- | -------------------------------------------------------------------- |
+| task_id                               | string; required             | Must match the directory ID                                          |
+| run_id                                | Nonempty string; required    | Current execution identity                                           |
+| task_type                             | TaskType; required           | Must match the type in the ID                                        |
+| task_name                             | string; default empty string | The current implementation writes the registration name              |
+| config                                | object; default {}           | JSON representation of typed input, including the instance task_name |
+| state                                 | TaskState; default queued    | Current execution state                                              |
+| pid                                   | integer or null              | Process identifier at that time                                      |
+| created_at / started_at / finished_at | datetime or null             | Creation, start, and finish times                                    |
+| steps                                 | TaskStepStatus[]; default [] | Snapshots of started steps                                           |
+| result                                | object; default {}           | Constructed typed output                                             |
+| error                                 | string; default empty string | Error description                                                    |
+| exit_code                             | integer; default 0           | 0–255                                                                |
+| log_path                              | string; default empty string | Separate log file location                                           |
 
 TaskStepStatus contains nonempty name, nullable started_at/finished_at, and nullable percentage (0–100). The percentage describes the current step, rather than progress of the entire research task.
 
@@ -87,14 +87,32 @@ A simplified complete example of a successful status:
   "run_id": "a9f248807a0a496abf3738422b379a51",
   "task_type": "base",
   "task_name": "demo",
-  "config": {"task_name":"contract-01","source_tasks":"","x":1,"y":2,"fail":false},
+  "config": {
+    "task_name": "contract-01",
+    "source_tasks": "",
+    "x": 1,
+    "y": 2,
+    "fail": false
+  },
   "state": "succeeded",
   "pid": 12345,
   "created_at": "2026-01-05T09:00:00+08:00",
   "started_at": "2026-01-05T01:00:00Z",
   "finished_at": "2026-01-05T01:00:01Z",
-  "steps": [{"name":"finish","started_at":"2026-01-05T01:00:00Z","finished_at":"2026-01-05T01:00:01Z","percentage":100}],
-  "result": {"artifacts":{},"result":3,"branch":"different","operands":["x","y"]},
+  "steps": [
+    {
+      "name": "finish",
+      "started_at": "2026-01-05T01:00:00Z",
+      "finished_at": "2026-01-05T01:00:01Z",
+      "percentage": 100
+    }
+  ],
+  "result": {
+    "artifacts": {},
+    "result": 3,
+    "branch": "different",
+    "operands": ["x", "y"]
+  },
   "error": "",
   "exit_code": 0,
   "log_path": ""
@@ -126,8 +144,19 @@ The metadata top level strictly represents successful tasks' inputs and outputs:
   "reg_name": "demo",
   "created_at": "2026-01-05T09:00:00+08:00",
   "task_type": "base",
-  "input_params": {"task_name":"contract-01","source_tasks":"","x":1,"y":2,"fail":false},
-  "output_params": {"artifacts":{},"result":3,"branch":"different","operands":["x","y"]}
+  "input_params": {
+    "task_name": "contract-01",
+    "source_tasks": "",
+    "x": 1,
+    "y": 2,
+    "fail": false
+  },
+  "output_params": {
+    "artifacts": {},
+    "result": 3,
+    "branch": "different",
+    "operands": ["x", "y"]
+  }
 }
 ```
 
@@ -140,7 +169,11 @@ A successful execution first constructs output and determines the exit code, the
 ```json
 {
   "artifacts": {
-    "dataset": {"path":"data/dataset.parquet","size":10240,"sha256":"<64-digit hexadecimal checksum>"}
+    "dataset": {
+      "path": "data/dataset.parquet",
+      "size": 10240,
+      "sha256": "<64-digit hexadecimal checksum>"
+    }
   }
 }
 ```

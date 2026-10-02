@@ -34,14 +34,14 @@ etl/<ETL Task ID>/data/features.parquet
 
 ## 格式与限制
 
-| 格式 | 返回内容 | 限制 |
-| --- | --- | --- |
-| txt | UTF-8 文本前缀 | 最多 512 KiB，标记 truncated |
-| md / markdown | 正文与 frontmatter | 同上，frontmatter_error 单独记录 |
-| json / yaml / yml | 解析内容与结构化 data | 超过 32 MiB 返回限制提示 |
-| csv | 列名与行窗口 | offset/limit 控制行数 |
-| parquet | 列、类型、总行数与行窗口 | offset/limit 控制行数 |
-| 其他扩展名 | unsupported 与大小 | 不自动解码模型、压缩包或图片 |
+| 格式              | 返回内容                 | 限制                             |
+| ----------------- | ------------------------ | -------------------------------- |
+| txt               | UTF-8 文本前缀           | 最多 512 KiB，标记 truncated     |
+| md / markdown     | 正文与 frontmatter       | 同上，frontmatter_error 单独记录 |
+| json / yaml / yml | 解析内容与结构化 data    | 超过 32 MiB 返回限制提示         |
+| csv               | 列名与行窗口             | offset/limit 控制行数            |
+| parquet           | 列、类型、总行数与行窗口 | offset/limit 控制行数            |
+| 其他扩展名        | unsupported 与大小       | 不自动解码模型、压缩包或图片     |
 
 文本默认按 UTF-8（支持 BOM）解析。二进制文件改后缀为 txt 不会使其变成有效文本。
 
@@ -86,12 +86,12 @@ axonx delete_entries --paths '["temporary/report.txt"]'
 
 ## 排查显示异常
 
-| 现象 | 检查 |
-| --- | --- |
-| 文件不在列表中 | 执行机器、工作区根、目录层级、truncated |
-| JSON 无结构化 data | parse_error 或文件超过结构化预览预算 |
-| 表格只显示部分行 | offset、limit、Parquet 的 row_count 与 has_more |
-| 研究页没有产物 | metadata 是否存在、artifact path 是否相对 Task 目录 |
+| 现象               | 检查                                                |
+| ------------------ | --------------------------------------------------- |
+| 文件不在列表中     | 执行机器、工作区根、目录层级、truncated             |
+| JSON 无结构化 data | parse_error 或文件超过结构化预览预算                |
+| 表格只显示部分行   | offset、limit、Parquet 的 row_count 与 has_more     |
+| 研究页没有产物     | metadata 是否存在、artifact path 是否相对 Task 目录 |
 
 [工作区概念](../concepts/workspace.md) · [研究产物协议](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)
 

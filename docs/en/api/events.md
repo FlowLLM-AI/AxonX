@@ -32,58 +32,58 @@ Native EventSource only supports GET and cannot directly construct this protocol
 
 ### progress
 
-| Field | Type and default | Meaning |
-| --- | --- | --- |
-| kind | `"progress"` | Discriminator field |
-| name | Nonempty string | Step/progress name |
+| Field                    | Type and default | Meaning                  |
+| ------------------------ | ---------------- | ------------------------ |
+| kind                     | `"progress"`     | Discriminator field      |
+| name                     | Nonempty string  | Step/progress name       |
 | started_at / finished_at | datetime or null | Timestamps; default null |
-| percentage | number or null | 0–100; default null |
+| percentage               | number or null   | 0–100; default null      |
 
 progress may update the same name multiple times. A single step's percentage is not the percentage of the entire research chain.
 
 ### log
 
-| Field | Type and default | Meaning |
-| --- | --- | --- |
-| content | string, empty string | Decoded text |
-| start_offset / next_offset | integer, 0 | Byte offsets for the start of this chunk and the next read |
-| file_size | integer, 0 | Known log file size |
-| has_more_before / has_more_after | boolean, false | Whether more content exists before/after the window |
-| reset | boolean, false | Log reset indicator |
-| channel | string, `"task"` | Log channel |
+| Field                            | Type and default     | Meaning                                                    |
+| -------------------------------- | -------------------- | ---------------------------------------------------------- |
+| content                          | string, empty string | Decoded text                                               |
+| start_offset / next_offset       | integer, 0           | Byte offsets for the start of this chunk and the next read |
+| file_size                        | integer, 0           | Known log file size                                        |
+| has_more_before / has_more_after | boolean, false       | Whether more content exists before/after the window        |
+| reset                            | boolean, false       | Log reset indicator                                        |
+| channel                          | string, `"task"`     | Log channel                                                |
 
 TaskLogChunk from the read API and log events share their main fields; log events additionally include kind/channel. Pagination uses byte offsets, rather than JavaScript character counts. When reset appears, reset local window state, then process the chunk using its offsets.
 
 ### artifact
 
-| Field | Type and default | Meaning |
-| --- | --- | --- |
-| path | string, required | Artifact path |
-| sha256 | string, `""` | Checksum |
-| size | integer, 0 | Size in bytes |
-| media_type | string/null, null | Media type |
-| extra | object, `{}` | Additional description |
+| Field      | Type and default  | Meaning                |
+| ---------- | ----------------- | ---------------------- |
+| path       | string, required  | Artifact path          |
+| sha256     | string, `""`      | Checksum               |
+| size       | integer, 0        | Size in bytes          |
+| media_type | string/null, null | Media type             |
+| extra      | object, `{}`      | Additional description |
 
 The protocol supports artifact events, but not every built-in Job emits them. Check the task's terminal status and metadata to determine whether an artifact is available.
 
 ### agent_message
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| session_id | Nonempty string | Current session |
-| type_name | string | Backend message type |
-| message | object | Backend message data |
-| sequence | integer ≥0 | Sequence number of the current event |
-| presentation | Array of AgentBlockPatch; default [] | Presentation block patches |
+| Field        | Type                                 | Meaning                              |
+| ------------ | ------------------------------------ | ------------------------------------ |
+| session_id   | Nonempty string                      | Current session                      |
+| type_name    | string                               | Backend message type                 |
+| message      | object                               | Backend message data                 |
+| sequence     | integer ≥0                           | Sequence number of the current event |
+| presentation | Array of AgentBlockPatch; default [] | Presentation block patches           |
 
 Each patch contains operation, block_id, block_type, delta (default `""`), and payload (default `{}`). block_type is thinking/text/tool/system/error; operation is:
 
-| operation | Client behavior |
-| --- | --- |
-| start | Create a block for block_id and record its type and payload |
-| append | Append delta to the same block's text |
-| replace | Replace the block with authoritative content; update presentation according to payload |
-| finish | Finish the block and retain its final content |
+| operation | Client behavior                                                                        |
+| --------- | -------------------------------------------------------------------------------------- |
+| start     | Create a block for block_id and record its type and payload                            |
+| append    | Append delta to the same block's text                                                  |
+| replace   | Replace the block with authoritative content; update presentation according to payload |
+| finish    | Finish the block and retain its final content                                          |
 
 The backend may send text deltas first and then a complete Assistant message, so replace is essential; appending all text again would duplicate it. presentation is AxonX's display projection, while message retains backend data. sequence is not a general cursor for resuming across requests, and block_id is not a message UUID.
 
@@ -124,18 +124,18 @@ The following example demonstrates framing and terminal-result handling; product
 
 ```typescript
 async function follow(token: string, taskId: string) {
-  const response = await fetch('/jobs/stream_task/events', {
-    method: 'POST',
+  const response = await fetch("/jobs/stream_task/events", {
+    method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({ arguments: { task_id: taskId } }),
   });
-  if (!response.ok || !response.body) throw new Error('Connection failed');
+  if (!response.ok || !response.body) throw new Error("Connection failed");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let pending = '';
+  let pending = "";
   let resultSeen = false;
   try {
     while (true) {
@@ -143,20 +143,22 @@ async function follow(token: string, taskId: string) {
       if (done) break;
       pending += decoder.decode(value, { stream: true });
       let boundary: number;
-      while ((boundary = pending.indexOf('\n\n')) >= 0) {
+      while ((boundary = pending.indexOf("\n\n")) >= 0) {
         const frame = pending.slice(0, boundary);
         pending = pending.slice(boundary + 2);
-        const data = frame.split('\n').find(line => line.startsWith('data: '));
+        const data = frame
+          .split("\n")
+          .find((line) => line.startsWith("data: "));
         if (!data) continue;
         const event = JSON.parse(data.slice(6));
-        if (event.kind === 'result') {
+        if (event.kind === "result") {
           resultSeen = true;
           return event;
         }
         console.log(event);
       }
     }
-    if (!resultSeen) throw new Error('No terminal result received');
+    if (!resultSeen) throw new Error("No terminal result received");
   } finally {
     await reader.cancel();
     reader.releaseLock();

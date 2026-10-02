@@ -87,10 +87,10 @@ The external MCP tool catalog can therefore differ from the Jobs available to th
 
 Studio registers these tools when the browser supports `document.modelContext.registerTool`:
 
-| Browser tool | Purpose |
-| --- | --- |
+| Browser tool           | Purpose                                                                |
+| ---------------------- | ---------------------------------------------------------------------- |
 | `list_axonx_task_runs` | Query task status on the local service hosting the current Studio page |
-| `submit_axonx_task` | Submit a registered task and a config object |
+| `submit_axonx_task`    | Submit a registered task and a config object                           |
 
 If the browser lacks this API, registration is simply skipped; other Studio features continue to work. These tools call existing frontend APIs and are not the same protocol entry point as the service `/mcp`. The current implementation does not pass `target`, so it always operates on the local service hosting the page and does not follow Studio's remote machine selection. When unsupported by the browser, they cannot replace an ordinary MCP connection.
 
@@ -98,13 +98,13 @@ The config for `submit_axonx_task` must satisfy the installed task Schema. It re
 
 ## Connection troubleshooting
 
-| Symptom | What to check |
-| --- | --- |
-| 401 | Bearer token and the connected machine |
-| Task capabilities missing from the tool list | Public Job configuration and filtering without a token |
-| Business result reports failure | Errors in `success` and `answer`, not just HTTP status |
-| No incremental logs | Whether HTTP events are being used instead of ordinary MCP |
-| Browser tools absent | Whether the host implements document.modelContext |
+| Symptom                                      | What to check                                              |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| 401                                          | Bearer token and the connected machine                     |
+| Task capabilities missing from the tool list | Public Job configuration and filtering without a token     |
+| Business result reports failure              | Errors in `success` and `answer`, not just HTTP status     |
+| No incremental logs                          | Whether HTTP events are being used instead of ordinary MCP |
+| Browser tools absent                         | Whether the host implements document.modelContext          |
 
 ## Related documentation and implementation
 

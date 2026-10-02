@@ -12,25 +12,25 @@
 
 ## 接口清单
 
-| Job | 用途 |
-| --- | --- |
-| `agent_chat` | 运行一轮 Agent 对话，省略 session_id 创建会话。 |
-| `list_agent_sessions` | 按最新优先列出会话。 |
-| `get_agent_session` | 读取会话摘要、历史消息与展示块。 |
-| `rename_agent_session` | 设置自定义标题。 |
-| `tag_agent_session` | 设置或清除标签。 |
-| `delete_agent_session` | 永久删除会话及子 Agent 记录。 |
-| `fork_agent_session` | 从历史创建一个新会话。 |
-| `cancel_agent_turn` | 中断会话当前轮次。 |
+| Job                    | 用途                                            |
+| ---------------------- | ----------------------------------------------- |
+| `agent_chat`           | 运行一轮 Agent 对话，省略 session_id 创建会话。 |
+| `list_agent_sessions`  | 按最新优先列出会话。                            |
+| `get_agent_session`    | 读取会话摘要、历史消息与展示块。                |
+| `rename_agent_session` | 设置自定义标题。                                |
+| `tag_agent_session`    | 设置或清除标签。                                |
+| `delete_agent_session` | 永久删除会话及子 Agent 记录。                   |
+| `fork_agent_session`   | 从历史创建一个新会话。                          |
+| `cancel_agent_turn`    | 中断会话当前轮次。                              |
 
 ## agent_chat
 
 运行一轮 Agent 对话，省略 session_id 创建会话。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `message` | string | 是 | `—（省略）` | 本轮用户消息；minLength=1 |
-| `session_id` | string | 否 | `—（省略）` | 后端会话 UUID；UUID 格式 |
+| 参数         | 类型   | 必填 | 默认值      | 约束与含义                |
+| ------------ | ------ | ---- | ----------- | ------------------------- |
+| `message`    | string | 是   | `—（省略）` | 本轮用户消息；minLength=1 |
+| `session_id` | string | 否   | `—（省略）` | 后端会话 UUID；UUID 格式  |
 
 只接受表中业务字段。
 
@@ -64,10 +64,10 @@ answer 是后端最终文本；metadata 来自 SDK ResultMessage，包含 sessio
 
 按最新优先列出会话。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `limit` | integer | 否 | `—（省略）` | 返回的会话数量；minimum=1, maximum=200 |
-| `offset` | integer | 否 | `0` | 跳过的会话数量；minimum=0 |
+| 参数     | 类型    | 必填 | 默认值      | 约束与含义                             |
+| -------- | ------- | ---- | ----------- | -------------------------------------- |
+| `limit`  | integer | 否   | `—（省略）` | 返回的会话数量；minimum=1, maximum=200 |
+| `offset` | integer | 否   | `0`         | 跳过的会话数量；minimum=0              |
 
 只接受表中业务字段。
 
@@ -102,11 +102,11 @@ answer 为 SDK 会话摘要数组；每项增加 backend 字段。
 
 读取会话摘要、历史消息与展示块。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | 是 | `—（省略）` | 后端会话 UUID；UUID 格式 |
-| `limit` | integer | 否 | `—（省略）` | 读取的历史消息数量；minimum=1, maximum=1000 |
-| `offset` | integer | 否 | `0` | 跳过的历史消息数量；minimum=0 |
+| 参数         | 类型    | 必填 | 默认值      | 约束与含义                                  |
+| ------------ | ------- | ---- | ----------- | ------------------------------------------- |
+| `session_id` | string  | 是   | `—（省略）` | 后端会话 UUID；UUID 格式                    |
+| `limit`      | integer | 否   | `—（省略）` | 读取的历史消息数量；minimum=1, maximum=1000 |
+| `offset`     | integer | 否   | `0`         | 跳过的历史消息数量；minimum=0               |
 
 只接受表中业务字段。
 
@@ -148,10 +148,10 @@ offset 按消息条数；省略 limit 传 None。历史块不等同于 SSE prese
 
 设置自定义标题。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | 是 | `—（省略）` | 后端会话 UUID；UUID 格式 |
-| `title` | string | 是 | `—（省略）` | 自定义会话标题；minLength=1 |
+| 参数         | 类型   | 必填 | 默认值      | 约束与含义                  |
+| ------------ | ------ | ---- | ----------- | --------------------------- |
+| `session_id` | string | 是   | `—（省略）` | 后端会话 UUID；UUID 格式    |
+| `title`      | string | 是   | `—（省略）` | 自定义会话标题；minLength=1 |
 
 只接受表中业务字段。
 
@@ -188,10 +188,10 @@ title 至少一个字符。
 
 设置或清除标签。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | 是 | `—（省略）` | 后端会话 UUID；UUID 格式 |
-| `tag` | string/null | 是 | `—（省略）` | 会话标签；null 清除 |
+| 参数         | 类型        | 必填 | 默认值      | 约束与含义               |
+| ------------ | ----------- | ---- | ----------- | ------------------------ |
+| `session_id` | string      | 是   | `—（省略）` | 后端会话 UUID；UUID 格式 |
+| `tag`        | string/null | 是   | `—（省略）` | 会话标签；null 清除      |
 
 只接受表中业务字段。
 
@@ -228,9 +228,9 @@ tag 为必填字段；null 表示清除，而不是省略。
 
 永久删除会话及子 Agent 记录。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | 是 | `—（省略）` | 后端会话 UUID；UUID 格式 |
+| 参数         | 类型   | 必填 | 默认值      | 约束与含义               |
+| ------------ | ------ | ---- | ----------- | ------------------------ |
+| `session_id` | string | 是   | `—（省略）` | 后端会话 UUID；UUID 格式 |
 
 只接受表中业务字段。
 
@@ -266,11 +266,11 @@ answer 为 {session_id: UUID}；fork 返回新会话 UUID，其余返回请求 U
 
 从历史创建一个新会话。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | 是 | `—（省略）` | 后端会话 UUID；UUID 格式 |
-| `up_to_message_id` | string | 否 | `—（省略）` | 可选分叉截止消息 UUID；UUID 格式 |
-| `title` | string | 否 | `—（省略）` | 自定义会话标题；minLength=1 |
+| 参数               | 类型   | 必填 | 默认值      | 约束与含义                       |
+| ------------------ | ------ | ---- | ----------- | -------------------------------- |
+| `session_id`       | string | 是   | `—（省略）` | 后端会话 UUID；UUID 格式         |
+| `up_to_message_id` | string | 否   | `—（省略）` | 可选分叉截止消息 UUID；UUID 格式 |
+| `title`            | string | 否   | `—（省略）` | 自定义会话标题；minLength=1      |
 
 只接受表中业务字段。
 
@@ -307,9 +307,9 @@ up_to_message_id 可选，指定消息 UUID 时截止到该消息；返回新的
 
 中断会话当前轮次。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `session_id` | string | 是 | `—（省略）` | 后端会话 UUID；UUID 格式 |
+| 参数         | 类型   | 必填 | 默认值      | 约束与含义               |
+| ------------ | ------ | ---- | ----------- | ------------------------ |
+| `session_id` | string | 是   | `—（省略）` | 后端会话 UUID；UUID 格式 |
 
 只接受表中业务字段。
 
@@ -346,7 +346,11 @@ answer 为 {session_id: UUID}；fork 返回新会话 UUID，其余返回请求 U
 session_id 不满足 UUID 正则时返回 HTTP 422。符合 UUID 但本轮未运行，cancel_agent_turn 返回业务失败：
 
 ```json
-{"answer":"KeyError: 'Agent session is not running: 17eeef86-6bc7-4565-a4a2-41249b5576ab'","success":false,"metadata":{}}
+{
+  "answer": "KeyError: 'Agent session is not running: 17eeef86-6bc7-4565-a4a2-41249b5576ab'",
+  "success": false,
+  "metadata": {}
+}
 ```
 
 模型连接、SDK 权限与会话恢复失败可能产生其他错误；流式请求一旦开始，用最终 result.success 判断，不能从连接状态推断轮次成功。SDK 摘要/消息结构随依赖版本变化，稳定的 AxonX 顶层字段是 JobResponse 与 info/messages/blocks 分组。

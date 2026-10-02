@@ -6,13 +6,13 @@ Framework extensions suit scenarios requiring new long-lived dependencies, async
 
 ## Choosing an extension point
 
-| Extension point | Typical responsibilities | Execution and state |
-| --- | --- | --- |
-| BaseComponent | Connections, caches, external resources, managed dependencies | _start/_close, application lifecycle |
-| BaseStep | Call components, combine results, emit events | async execute, a new instance for each Job |
-| PipelineJob | Compose multiple Steps sequentially | Public Schema, defaults, final result |
-| BaseJob | Custom event execution contracts | Implements stream(arguments, system) itself |
-| BaseTask | Research data computation and artifact publication | Synchronous steps; submit can start a worker |
+| Extension point | Typical responsibilities                                      | Execution and state                          |
+| --------------- | ------------------------------------------------------------- | -------------------------------------------- |
+| BaseComponent   | Connections, caches, external resources, managed dependencies | _start/_close, application lifecycle         |
+| BaseStep        | Call components, combine results, emit events                 | async execute, a new instance for each Job   |
+| PipelineJob     | Compose multiple Steps sequentially                           | Public Schema, defaults, final result        |
+| BaseJob         | Custom event execution contracts                              | Implements stream(arguments, system) itself  |
+| BaseTask        | Research data computation and artifact publication            | Synchronous steps; submit can start a worker |
 
 A Job is asynchronous orchestration inside an Application; Task steps are synchronous functions. Both use similarly named Steps, but their base classes and execution boundaries differ.
 
@@ -126,7 +126,7 @@ jobs:
     parameters:
       type: object
       properties:
-        text: {type: string}
+        text: { type: string }
       required: [text]
       additionalProperties: false
     defaults:

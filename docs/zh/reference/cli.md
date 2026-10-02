@@ -4,14 +4,14 @@ AxonX 的命令格式是 `axonx ACTION --field value`。start、exec、plugin、
 
 ## 命令分工
 
-| 命令 | 执行位置 | 用途 |
-| --- | --- | --- |
-| axonx start | 当前进程 | 启动配置中的服务 |
-| axonx exec | 当前进程 | 执行同步 Task；无参数时列目录 |
-| axonx submit | 所连服务的 worker | 通过 submit Job 异步提交 |
-| axonx JOB | 所连服务 | 普通或流式 Job 调用 |
-| axonx plugin | 当前环境或显式 target | 插件检查、构建、安装与卸载 |
-| axonx help | 当前进程 | 语法速查 |
+| 命令         | 执行位置              | 用途                          |
+| ------------ | --------------------- | ----------------------------- |
+| axonx start  | 当前进程              | 启动配置中的服务              |
+| axonx exec   | 当前进程              | 执行同步 Task；无参数时列目录 |
+| axonx submit | 所连服务的 worker     | 通过 submit Job 异步提交      |
+| axonx JOB    | 所连服务              | 普通或流式 Job 调用           |
+| axonx plugin | 当前环境或显式 target | 插件检查、构建、安装与卸载    |
+| axonx help   | 当前进程              | 语法速查                      |
 
 exec 不要求服务运行；submit 需要服务。进程隔离不构成安全沙箱。
 
@@ -72,13 +72,13 @@ axonx agent_chat --message '"123"'
 
 ## 客户端选项
 
-| 选项 | 默认值 | 含义 |
-| --- | --- | --- |
-| --target | null，默认连接本机 1024 | 直接连接目标服务 |
-| --token | null | 显式 Bearer token |
-| --client-timeout | 60 | 请求预算，必须大于 0 |
-| --stream | false | 改用 SSE 入口 |
-| --stream-format | blocks | blocks 或 json |
+| 选项             | 默认值                  | 含义                 |
+| ---------------- | ----------------------- | -------------------- |
+| --target         | null，默认连接本机 1024 | 直接连接目标服务     |
+| --token          | null                    | 显式 Bearer token    |
+| --client-timeout | 60                      | 请求预算，必须大于 0 |
+| --stream         | false                   | 改用 SSE 入口        |
+| --stream-format  | blocks                  | blocks 或 json       |
 
 客户端选项可在 ACTION 前或后，但不能重复；不会进入 Job arguments。
 
@@ -130,11 +130,11 @@ build 只在本地，不能配远程 target。editable 只支持本地源码目�
 
 ## 输出与退出码
 
-| 退出码 | 情况 |
-| --- | --- |
-| 0 | JobResponse.success=true，或本地操作成功 |
-| 1 | 业务失败、连接/运行错误；exec 可使用 Task 的具体退出码 |
-| 2 | 主 CLI 的 FileNotFoundError、KeyError、TypeError、ValueError；参数错误 |
+| 退出码 | 情况                                                                   |
+| ------ | ---------------------------------------------------------------------- |
+| 0      | JobResponse.success=true，或本地操作成功                               |
+| 1      | 业务失败、连接/运行错误；exec 可使用 Task 的具体退出码                 |
+| 2      | 主 CLI 的 FileNotFoundError、KeyError、TypeError、ValueError；参数错误 |
 
 普通 Job 打印完整 JSON；exec 打印 Task 输出而不是 JobResponse。失败时 stderr 可能含 `Error: 类型: 信息`。脚本应检查退出码，同时保留完整 response，区分“提交失败”与“任务后续失败”。
 

@@ -39,13 +39,13 @@ Resolving paths through downstream helpers does not itself automatically verify 
 
 Required below means the model has no default; not every field is displayed separately in Studio.
 
-| Type | Required base-class fields | Optional or default base-class fields |
-| --- | --- | --- |
-| ETL | `output_file`, `rows`, `date_range` | `feature_columns=[]`, `label_columns=[]` |
-| Analysis | `result_file`, `rows` | `scores={}` |
-| Train | `model_file`, `train_rows` | `model_name`, feature/target columns, metrics, parameters, training_curve |
-| Predict | `predictions_file`, `rows`, `date_range` | `output_columns=[]`, `protocol={}`, `statistics={}` |
-| Backtest | `dimensions`, `protocol`, `date_range`, `days` | Shared `artifacts={}` |
+| Type     | Required base-class fields                     | Optional or default base-class fields                                     |
+| -------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
+| ETL      | `output_file`, `rows`, `date_range`            | `feature_columns=[]`, `label_columns=[]`                                  |
+| Analysis | `result_file`, `rows`                          | `scores={}`                                                               |
+| Train    | `model_file`, `train_rows`                     | `model_name`, feature/target columns, metrics, parameters, training_curve |
+| Predict  | `predictions_file`, `rows`, `date_range`       | `output_columns=[]`, `protocol={}`, `statistics={}`                       |
+| Backtest | `dimensions`, `protocol`, `date_range`, `days` | Shared `artifacts={}`                                                     |
 
 All types extend `BaseOutputParams`; output subclasses must declare extra fields or `extra=forbid` validation fails. `date_range` is a string mapping; pages read `start` and `end`, so producers should use these keys.
 
@@ -53,10 +53,10 @@ All types extend `BaseOutputParams`; output subclasses must declare extra fields
 
 The base class stores output-file descriptions and column names. a158 adds feature_count, symbols, schema, labels, market_state, and related information, producing:
 
-| Artifact name | File | Purpose |
-| --- | --- | --- |
-| `dataset` | `alpha158.parquet` | Source data for training, factor analysis, and prediction |
-| `statistics` | `alpha158.csv` | Quality statistics for each column |
+| Artifact name | File               | Purpose                                                   |
+| ------------- | ------------------ | --------------------------------------------------------- |
+| `dataset`     | `alpha158.parquet` | Source data for training, factor analysis, and prediction |
+| `statistics`  | `alpha158.csv`     | Quality statistics for each column                        |
 
 a158 downstream consumers resolve data through `artifacts.dataset.path`; filling only `output_file` while omitting the mapping is insufficient. Historical fields may store full path strings, while standard artifacts should use paths relative to the Task directory.
 
@@ -67,8 +67,8 @@ a158 downstream consumers resolve data through `artifacts.dataset.path`; filling
 ```json
 {
   "scores": {
-    "quality": {"mean_abs_ic": 0.03, "positive_ratio": 0.6},
-    "coverage": {"valid_days": 120.0}
+    "quality": { "mean_abs_ic": 0.03, "positive_ratio": 0.6 },
+    "coverage": { "valid_days": 120.0 }
   }
 }
 ```
@@ -86,10 +86,10 @@ a158 actually generates `factor_analysis.csv` and `factor_quantiles.csv`, mapped
   "x": ["1", "2", "3"],
   "y_left": {
     "train_l2": [0.09, 0.07, 0.06],
-    "validation_l2": [0.10, 0.08, 0.085]
+    "validation_l2": [0.1, 0.08, 0.085]
   },
   "y_right": {
-    "validation_l1": [0.22, 0.20, 0.205]
+    "validation_l1": [0.22, 0.2, 0.205]
   }
 }
 ```
@@ -128,10 +128,10 @@ Columns required for backtesting belong to the plugin contract and are not autom
   "dimensions": {
     "top_ns": [1, 5, 10, 30],
     "holding_detail_top_n": 30,
-    "benchmarks": [{"key": "universe", "label": "Universe"}]
+    "benchmarks": [{ "key": "universe", "label": "Universe" }]
   },
-  "protocol": {"actual_return_unit": "decimal"},
-  "date_range": {"start": "20230103", "end": "20231229"},
+  "protocol": { "actual_return_unit": "decimal" },
+  "date_range": { "start": "20230103", "end": "20231229" },
   "days": 250
 }
 ```
@@ -142,16 +142,16 @@ Studio loads two tables from `artifacts.daily.path` and `artifacts.summary.path`
 
 ## Presentation fields in the daily table
 
-| Field | Current Studio use |
-| --- | --- |
-| `trade_date` | Date axis and date alignment between two strategies; uses YYYYMMDD strings |
-| `candidate_count` | Candidate count |
-| `ic`, `rank_ic` | Signal curves and moving averages |
-| `topN_net_return`, `topN_gross_return` | Net compounded and gross additive curves |
-| `topN_turnover`, `topN_transaction_cost` | Turnover and cost inspection |
-| `topN_ndcg` | Ranking diagnostics at the fixed display size |
-| `benchmark_<key>_return` | Benchmark return curves declared in dimensions |
-| `top30_holdings` | Currently fixed Top 30 details |
+| Field                                    | Current Studio use                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| `trade_date`                             | Date axis and date alignment between two strategies; uses YYYYMMDD strings |
+| `candidate_count`                        | Candidate count                                                            |
+| `ic`, `rank_ic`                          | Signal curves and moving averages                                          |
+| `topN_net_return`, `topN_gross_return`   | Net compounded and gross additive curves                                   |
+| `topN_turnover`, `topN_transaction_cost` | Turnover and cost inspection                                               |
+| `topN_ndcg`                              | Ranking diagnostics at the fixed display size                              |
+| `benchmark_<key>_return`                 | Benchmark return curves declared in dimensions                             |
+| `top30_holdings`                         | Currently fixed Top 30 details                                             |
 
 Details are arrays of structures; the frontend reads `rank`, `ts_code`, `name`, `prediction`, `daily_return`, and `weight`. a158 also stores entry_date, exit_date, and exit_delayed for protocol analysis.
 

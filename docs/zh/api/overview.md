@@ -10,16 +10,16 @@ Studio 的 **API interfaces** 展示当前机器公开的 Job，并由参数 Sch
 
 ## 路由
 
-| 方法 | 路径 | 用途 | 成功响应 |
-| --- | --- | --- | --- |
-| GET | `/health` | 当前 Application 是否启动 | JobResponse，answer.running |
-| GET | `/jobs` | 实际公开 Job 目录 | JobResponse，answer.items/total |
-| POST | `/jobs/{name}` | 普通调用 | JobResponse |
-| POST | `/jobs/{name}/events` | 实时事件 | text/event-stream，最后 result |
-| POST | `/files` | 上传原始字节暂存 | JobResponse，answer 为 FileCopy |
-| DELETE | `/files?path=...` | 清理暂存文件 | JobResponse，answer.path |
-| MCP | `/mcp` | Streamable HTTP 工具接口 | MCP 包含 JobResponse |
-| 多种 HTTP 方法 | `/proxy/{name}/{path}` | 已配置上游代理 | 上游响应 |
+| 方法           | 路径                   | 用途                      | 成功响应                        |
+| -------------- | ---------------------- | ------------------------- | ------------------------------- |
+| GET            | `/health`              | 当前 Application 是否启动 | JobResponse，answer.running     |
+| GET            | `/jobs`                | 实际公开 Job 目录         | JobResponse，answer.items/total |
+| POST           | `/jobs/{name}`         | 普通调用                  | JobResponse                     |
+| POST           | `/jobs/{name}/events`  | 实时事件                  | text/event-stream，最后 result  |
+| POST           | `/files`               | 上传原始字节暂存          | JobResponse，answer 为 FileCopy |
+| DELETE         | `/files?path=...`      | 清理暂存文件              | JobResponse，answer.path        |
+| MCP            | `/mcp`                 | Streamable HTTP 工具接口  | MCP 包含 JobResponse            |
+| 多种 HTTP 方法 | `/proxy/{name}/{path}` | 已配置上游代理            | 上游响应                        |
 
 所有业务请求默认向当前服务执行。`GET /jobs?target=http%3A%2F%2Fnode-b%3A1024` 查询配置目标的目录；Job 请求中的 target 使用相同配置匹配规则。proxy 是单独的上游转发能力，见 [HTTP 代理](../guides/http-proxy.md)。
 
@@ -44,7 +44,7 @@ Job 默认 `requires_auth=true`，因此默认配置未设置 token 时不能假
 
 ```json
 {
-  "arguments": {"task": "demo", "x": 1, "y": 2},
+  "arguments": { "task": "demo", "x": 1, "y": 2 },
   "target": "http://node-b:1024"
 }
 ```
@@ -73,7 +73,7 @@ curl -s -X POST http://127.0.0.1:1024/jobs/version \
 健康响应：
 
 ```json
-{"answer":{"running":true},"success":true,"metadata":{}}
+{ "answer": { "running": true }, "success": true, "metadata": {} }
 ```
 
 目录返回 JobCatalog；下面只展示一项以说明字段形状，实际 Schema 更完整：
@@ -81,12 +81,14 @@ curl -s -X POST http://127.0.0.1:1024/jobs/version \
 ```json
 {
   "answer": {
-    "items": [{
-      "name": "version",
-      "description": "Return the installed AxonX version.",
-      "input_schema": {"type":"object","properties":{}},
-      "output_schema": {"type":"object"}
-    }],
+    "items": [
+      {
+        "name": "version",
+        "description": "Return the installed AxonX version.",
+        "input_schema": { "type": "object", "properties": {} },
+        "output_schema": { "type": "object" }
+      }
+    ],
     "total": 1
   },
   "success": true,
@@ -98,26 +100,26 @@ output_schema 描述通用 JobResponse，不保证 answer 中各能力类型都�
 
 ## 响应与错误
 
-| 字段 | 类型 | 默认值 | 解释 |
-| --- | --- | --- | --- |
-| answer | 任意 JSON 可序列化值 | `""` | 业务答案或错误文本 |
-| success | boolean | true | Job 的最终业务结果 |
-| metadata | object | `{}` | 补充信息；Agent 在此提供 session_id 等 |
+| 字段     | 类型                 | 默认值 | 解释                                   |
+| -------- | -------------------- | ------ | -------------------------------------- |
+| answer   | 任意 JSON 可序列化值 | `""`   | 业务答案或错误文本                     |
+| success  | boolean              | true   | Job 的最终业务结果                     |
+| metadata | object               | `{}`   | 补充信息；Agent 在此提供 session_id 等 |
 
 ```json
-{"answer":"KeyError: 'base#demo#missing'","success":false,"metadata":{}}
+{ "answer": "KeyError: 'base#demo#missing'", "success": false, "metadata": {} }
 ```
 
 这是 HTTP 200 中的业务失败示例。客户端必须同时判断 HTTP 状态与 success，不能只看 200。
 
-| HTTP 状态 | 常见触发 | 响应与处理 |
-| --- | --- | --- |
-| 401 | token 缺失或不匹配 | `{"detail":"Invalid bearer token"}`；检查连接目标与 token 来源 |
-| 404 | Job 不公开、名称未知或流式关闭 | `{"detail":"Unknown job"}`；重新查询目录 |
-| 422 | 请求封装、参数 Schema、target 配置错误 | detail 文本或 FastAPI 校验详情；修改请求 |
-| 502 | 普通远程调用连接或协议失败 | detail 文本；检查远端健康与凭据 |
-| 413 | 上传超出大小限制 | detail 文本；缩小制品 |
-| 409 | 暂存目的位置冲突 | detail 文本；检查暂存内容与符号链接 |
+| HTTP 状态 | 常见触发                               | 响应与处理                                                     |
+| --------- | -------------------------------------- | -------------------------------------------------------------- |
+| 401       | token 缺失或不匹配                     | `{"detail":"Invalid bearer token"}`；检查连接目标与 token 来源 |
+| 404       | Job 不公开、名称未知或流式关闭         | `{"detail":"Unknown job"}`；重新查询目录                       |
+| 422       | 请求封装、参数 Schema、target 配置错误 | detail 文本或 FastAPI 校验详情；修改请求                       |
+| 502       | 普通远程调用连接或协议失败             | detail 文本；检查远端健康与凭据                                |
+| 413       | 上传超出大小限制                       | detail 文本；缩小制品                                          |
+| 409       | 暂存目的位置冲突                       | detail 文本；检查暂存内容与符号链接                            |
 
 执行 Step 内部异常通常折叠为 success=false。流式调用开始后异常会变成失败 result 事件，无法再用 HTTP 状态表达。没有终态 result 的断流不是成功。
 

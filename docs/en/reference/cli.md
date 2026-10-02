@@ -4,14 +4,14 @@ AxonX commands use `axonx ACTION --field value`. start, exec, plugin, and help a
 
 ## Command responsibilities
 
-| Command | Execution location | Purpose |
-| --- | --- | --- |
-| axonx start | Current process | Start the services in the configuration |
-| axonx exec | Current process | Execute a synchronous Task; list the catalog when no arguments are supplied |
-| axonx submit | Connected service's worker | Submit asynchronously through the submit Job |
-| axonx JOB | Connected service | Ordinary or streaming Job invocation |
-| axonx plugin | Current environment or explicit target | Plugin inspection, building, installation, and uninstallation |
-| axonx help | Current process | Syntax quick reference |
+| Command      | Execution location                     | Purpose                                                                     |
+| ------------ | -------------------------------------- | --------------------------------------------------------------------------- |
+| axonx start  | Current process                        | Start the services in the configuration                                     |
+| axonx exec   | Current process                        | Execute a synchronous Task; list the catalog when no arguments are supplied |
+| axonx submit | Connected service's worker             | Submit asynchronously through the submit Job                                |
+| axonx JOB    | Connected service                      | Ordinary or streaming Job invocation                                        |
+| axonx plugin | Current environment or explicit target | Plugin inspection, building, installation, and uninstallation               |
+| axonx help   | Current process                        | Syntax quick reference                                                      |
 
 exec does not require a running service; submit does. Process isolation does not constitute a security sandbox.
 
@@ -72,13 +72,13 @@ The actual message here is the string 123; `--message 123` becomes a number and 
 
 ## Client options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| --target | null; connects locally on 1024 by default | Connect directly to the target service |
-| --token | null | Explicit Bearer token |
-| --client-timeout | 60 | Request budget; must be greater than 0 |
-| --stream | false | Use the SSE endpoint |
-| --stream-format | blocks | blocks or json |
+| Option           | Default                                   | Meaning                                |
+| ---------------- | ----------------------------------------- | -------------------------------------- |
+| --target         | null; connects locally on 1024 by default | Connect directly to the target service |
+| --token          | null                                      | Explicit Bearer token                  |
+| --client-timeout | 60                                        | Request budget; must be greater than 0 |
+| --stream         | false                                     | Use the SSE endpoint                   |
+| --stream-format  | blocks                                    | blocks or json                         |
 
 Client options may appear before or after ACTION but cannot be repeated; they are excluded from Job arguments.
 
@@ -130,11 +130,11 @@ build is local only and cannot use a remote target. Editable installation suppor
 
 ## Output and exit codes
 
-| Exit code | Situation |
-| --- | --- |
-| 0 | JobResponse.success=true or a local operation succeeds |
-| 1 | Business failure or connection/runtime error; exec may use the Task's specific exit code |
-| 2 | FileNotFoundError, KeyError, TypeError, or ValueError in the main CLI; parameter errors |
+| Exit code | Situation                                                                                |
+| --------- | ---------------------------------------------------------------------------------------- |
+| 0         | JobResponse.success=true or a local operation succeeds                                   |
+| 1         | Business failure or connection/runtime error; exec may use the Task's specific exit code |
+| 2         | FileNotFoundError, KeyError, TypeError, or ValueError in the main CLI; parameter errors  |
 
 Ordinary Jobs print complete JSON; exec prints Task output rather than JobResponse. On failure, stderr may contain `Error: Type: message`. Scripts should check exit codes and retain the full response to distinguish submission failure from a subsequent task failure.
 

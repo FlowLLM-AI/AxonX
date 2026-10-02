@@ -37,6 +37,8 @@ npm run format:check
 npm run build
 ```
 
+`npm run format` 格式化源码、配置和 Markdown；提交时由根目录 pre-commit 统一检查。
+
 Studio 始终使用同源 `/jobs` 接口；开发服务器通过 Vite 代理连接本机后端。
 切换机器时仅发送 `target`，由后端读取 `targets` 配置及对应 token 转发普通请求、API 目录和事件流。
 浏览器只保存本机服务 token，不保存远程 token。远程目标配置不正确时应修改后端配置。

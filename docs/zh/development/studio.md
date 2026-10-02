@@ -12,22 +12,22 @@ npm ci
 npm run dev
 ```
 
-完整开发工具链需要 Node.js 20.19.0 或更新的 20.x、22.13.0 或更新的 22.x，或者 24.0.0 及以上版本；这些范围同时满足当前 Vite 与 ESLint 工具链依赖。Vite 默认监听 4173，开发代理默认连接 `http://127.0.0.1:1024`。可通过 `AXONX_DEV_SERVER` 指向另一个后端；修改后重启 Vite。代理覆盖 `/health`、`/jobs`、`/files`、`/mcp` 和 `/proxy`。
+完整开发工具链需要 Node.js 22.13+（22.x）、24.x 或 26+，以满足锁定的 Vite、ESLint 和 Vitest 依赖。Vite 默认监听 4173，开发代理默认连接 `http://127.0.0.1:1024`。可通过 `AXONX_DEV_SERVER` 指向另一个后端；修改后重启 Vite。代理覆盖 `/health`、`/jobs`、`/files`、`/mcp` 和 `/proxy`。
 
 `npm run build` 先执行 TypeScript 检查，再输出 `dist`。构建产物供后端静态托管，开发服务器用于热更新，两者启动方式不同。
 
 ## 目录职责
 
-| 位置 | 职责 |
-| --- | --- |
-| `src/app` | Hash 路由、导航、机器选择、页面分派和共享应用状态 |
-| `src/features` | 提交、运行中心、Agent、研究和工作区等业务页面 |
-| `src/shared/api` | Job 请求、响应解包、SSE 和公共类型 |
-| `src/shared/schema` | JSON Schema 的字段类型和表单值转换 |
-| `src/shared/ui` | SchemaForm、面板拖拽等复用组件 |
-| `src/shared/hooks` | 异步加载、轮询和复制反馈 |
-| `src/styles` | 设计变量、外壳和业务样式 |
-| `src/locales` | 中文、英文翻译资源 |
+| 位置                | 职责                                              |
+| ------------------- | ------------------------------------------------- |
+| `src/app`           | Hash 路由、导航、机器选择、页面分派和共享应用状态 |
+| `src/features`      | 提交、运行中心、Agent、研究和工作区等业务页面     |
+| `src/shared/api`    | Job 请求、响应解包、SSE 和公共类型                |
+| `src/shared/schema` | JSON Schema 的字段类型和表单值转换                |
+| `src/shared/ui`     | SchemaForm、面板拖拽等复用组件                    |
+| `src/shared/hooks`  | 异步加载、轮询和复制反馈                          |
+| `src/styles`        | 设计变量、外壳和业务样式                          |
+| `src/locales`       | 中文、英文翻译资源                                |
 
 ![Studio 功能地图](../../figures/getting-started/studio-map.svg)
 

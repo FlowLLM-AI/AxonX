@@ -6,14 +6,14 @@ Job 是 AxonX Application 内的异步能力调用；Task 是有类型输入输�
 
 ## 对比
 
-| 问题 | Job | Task |
-| --- | --- | --- |
-| 如何找到 | 配置中的 Job 名，例如 `submit` | 注册名，例如 `demo` |
-| 如何执行 | Dispatcher 校验后执行异步 Step | TaskRunner 顺序执行同步 callable |
-| 输入契约 | Job 的 JSON Schema 与 defaults | Pydantic input_cls |
-| 输出契约 | JobResponse 与可选事件 | Pydantic output_cls 与 metadata |
-| 生命周期 | 一次调用的开始到响应 | queued、running、终态及持久记录 |
-| 耗时执行 | 可以等待组件或外部 I/O | `submit` 通常在独立 worker 中运行 |
+| 问题     | Job                            | Task                              |
+| -------- | ------------------------------ | --------------------------------- |
+| 如何找到 | 配置中的 Job 名，例如 `submit` | 注册名，例如 `demo`               |
+| 如何执行 | Dispatcher 校验后执行异步 Step | TaskRunner 顺序执行同步 callable  |
+| 输入契约 | Job 的 JSON Schema 与 defaults | Pydantic input_cls                |
+| 输出契约 | JobResponse 与可选事件         | Pydantic output_cls 与 metadata   |
+| 生命周期 | 一次调用的开始到响应           | queued、running、终态及持久记录   |
+| 耗时执行 | 可以等待组件或外部 I/O         | `submit` 通常在独立 worker 中运行 |
 
 这里的“同步”是函数必须直接执行并返回，不能声明为 `async def`，也不能返回 awaitable。Task 的后台运行来自 TaskManager 启动进程，不是把 Task Step 改成异步函数。
 

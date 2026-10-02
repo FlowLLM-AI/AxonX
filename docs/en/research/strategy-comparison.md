@@ -51,14 +51,14 @@ This only aligns dates and values. It does not automatically establish that trai
 
 ## Who computes the metrics
 
-| Displayed content | Data source and calculation location |
-| --- | --- |
-| Original backtest summary table | Plugin-generated `summary.parquet` |
-| Comparison net return, annualized return, volatility, drawdown, win rate | Recalculated by the frontend over the common visible window |
-| Comparison average turnover | Mean of finite turnover values in the common window |
-| Comparison yearly/quarterly/monthly returns | Frontend grouping and recalculation of cumulative net return |
-| IC / RankIC comparison | Subsample of common dates where both metrics are finite |
-| Target overlap | Symbol sets in that day's `top30_holdings` |
+| Displayed content                                                        | Data source and calculation location                         |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Original backtest summary table                                          | Plugin-generated `summary.parquet`                           |
+| Comparison net return, annualized return, volatility, drawdown, win rate | Recalculated by the frontend over the common visible window  |
+| Comparison average turnover                                              | Mean of finite turnover values in the common window          |
+| Comparison yearly/quarterly/monthly returns                              | Frontend grouping and recalculation of cumulative net return |
+| IC / RankIC comparison                                                   | Subsample of common dates where both metrics are finite      |
+| Target overlap                                                           | Symbol sets in that day's `top30_holdings`                   |
 
 Even when both tasks originally include identical dates, shortening the window changes annualized return, volatility, and drawdown. Plugin summaries and the comparison page may differ; check the observation range and annualization settings first.
 
@@ -109,13 +109,13 @@ Return differences may come from scores, candidate universes, weight coverage, c
 
 ## Common questions
 
-| Symptom | What to investigate |
-| --- | --- |
+| Symptom                                             | What to investigate                                                 |
+| --------------------------------------------------- | ------------------------------------------------------------------- |
 | Comparison returns differ from the single-task page | Page windows, common valid dates, compounding/summation definitions |
-| Fewer valid IC days | Intersection of finite IC values on both sides |
-| Target tables remain similar after switching Top N | The target table always uses the Top 30 field |
-| Overlap is not common stock count divided by 30 | It uses intersection/union |
-| Risk metrics are empty | Observation count, non-finite values, or zero variance |
+| Fewer valid IC days                                 | Intersection of finite IC values on both sides                      |
+| Target tables remain similar after switching Top N  | The target table always uses the Top 30 field                       |
+| Overlap is not common stock count divided by 30     | It uses intersection/union                                          |
+| Risk metrics are empty                              | Observation count, non-finite values, or zero variance              |
 
 ## Related documentation and implementation
 

@@ -87,10 +87,10 @@ asyncio.run(main())
 
 Studio 在浏览器支持 `document.modelContext.registerTool` 时注册：
 
-| 浏览器工具 | 用途 |
-| --- | --- |
+| 浏览器工具             | 用途                                       |
+| ---------------------- | ------------------------------------------ |
 | `list_axonx_task_runs` | 查询托管当前 Studio 页面的本地服务任务状态 |
-| `submit_axonx_task` | 提交注册任务与 config 对象 |
+| `submit_axonx_task`    | 提交注册任务与 config 对象                 |
 
 浏览器不提供该 API 时直接跳过注册，Studio 其他功能不因此失效。这两个工具调用前端现有 API，与服务 `/mcp` 不是同一个协议入口。当前实现不传递 `target`，因此始终操作托管页面的本地服务，不跟随 Studio 的远程机器选择。浏览器环境不支持时不能用它替代普通 MCP 连接。
 
@@ -98,13 +98,13 @@ Studio 在浏览器支持 `document.modelContext.registerTool` 时注册：
 
 ## 连接排查
 
-| 现象 | 检查方向 |
-| --- | --- |
-| 401 | Bearer token 与连接机器 |
-| 工具列表缺少任务能力 | 公开 Job 配置、无 token 的筛选 |
-| 业务返回失败 | `success` 与 `answer` 中错误，不只看 HTTP |
-| 无增量日志 | 是否使用 HTTP events 而非普通 MCP |
-| 浏览器工具不存在 | 宿主是否实现 document.modelContext |
+| 现象                 | 检查方向                                  |
+| -------------------- | ----------------------------------------- |
+| 401                  | Bearer token 与连接机器                   |
+| 工具列表缺少任务能力 | 公开 Job 配置、无 token 的筛选            |
+| 业务返回失败         | `success` 与 `answer` 中错误，不只看 HTTP |
+| 无增量日志           | 是否使用 HTTP events 而非普通 MCP         |
+| 浏览器工具不存在     | 宿主是否实现 document.modelContext        |
 
 ## 相关文档与实现
 

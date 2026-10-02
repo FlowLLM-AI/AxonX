@@ -34,14 +34,14 @@ etl/<ETL Task ID>/data/features.parquet
 
 ## Formats and limits
 
-| Format | Returned content | Limits |
-| --- | --- | --- |
-| txt | UTF-8 text prefix | At most 512 KiB, marked truncated |
-| md / markdown | Body and frontmatter | Same as above; frontmatter_error recorded separately |
-| json / yaml / yml | Parsed content and structured data | Limit notice returned above 32 MiB |
-| csv | Column names and row window | offset/limit control rows |
-| parquet | Columns, types, total rows, and row window | offset/limit control rows |
-| Other extensions | unsupported and size | Models, archives, and images are not automatically decoded |
+| Format            | Returned content                           | Limits                                                     |
+| ----------------- | ------------------------------------------ | ---------------------------------------------------------- |
+| txt               | UTF-8 text prefix                          | At most 512 KiB, marked truncated                          |
+| md / markdown     | Body and frontmatter                       | Same as above; frontmatter_error recorded separately       |
+| json / yaml / yml | Parsed content and structured data         | Limit notice returned above 32 MiB                         |
+| csv               | Column names and row window                | offset/limit control rows                                  |
+| parquet           | Columns, types, total rows, and row window | offset/limit control rows                                  |
+| Other extensions  | unsupported and size                       | Models, archives, and images are not automatically decoded |
 
 Text is parsed as UTF-8 by default, with BOM support. Renaming a binary file to txt does not make it valid text.
 
@@ -86,11 +86,11 @@ Uploads are not general directory mirroring. Clean up staging files after succes
 
 ## Troubleshoot display issues
 
-| Symptom | Check |
-| --- | --- |
-| File missing from listing | Execution machine, workspace root, directory level, truncated |
-| JSON has no structured data | parse_error or file exceeds the structured preview budget |
-| Table only shows some rows | offset, limit, Parquet row_count, and has_more |
+| Symptom                        | Check                                                                       |
+| ------------------------------ | --------------------------------------------------------------------------- |
+| File missing from listing      | Execution machine, workspace root, directory level, truncated               |
+| JSON has no structured data    | parse_error or file exceeds the structured preview budget                   |
+| Table only shows some rows     | offset, limit, Parquet row_count, and has_more                              |
 | Research page has no artifacts | Whether metadata exists and artifact path is relative to the Task directory |
 
 [Workspace concepts](../concepts/workspace.md) · [Research artifact protocol](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)

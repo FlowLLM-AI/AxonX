@@ -8,7 +8,7 @@ AxonX Studio 是任务与研究工作台。它读取服务提供的 Job 和 Task
 
 ## 打开 Studio
 
-从源码构建需要 Node.js 20.19+（20.x）、22.13+（22.x）或 24 及以上版本，以满足锁定依赖的要求：
+从源码构建需要 Node.js 22.13+（22.x）、24.x 或 26+，以满足锁定依赖的要求：
 
 ```bash
 cd axonx_studio
@@ -67,15 +67,15 @@ npm run dev
 
 ## 查看研究结果
 
-| 页面 | 主要内容 | 详细说明 |
-| --- | --- | --- |
-| Tushare data | 原始数据目录与 Parquet 预览 | [数据下载](../research/tushare.md) |
-| ETL | 数据行数、日期范围、特征和标签 | [结果解读](../research/results.md) |
-| Factor analysis | 因子评分与指标分组 | [结果解读](../research/results.md) |
-| Model training | 模型配置、指标、训练曲线 | [产物协议](../reference/research-artifacts.md) |
-| Offline prediction | 预测数据、统计和产物 | [结果解读](../research/results.md) |
-| Offline backtest | 日频曲线、质量和分期汇总 | [回测解读](../research/backtest.md) |
-| Strategy comparison | 两个回测的共同区间比较 | [策略比较](../research/strategy-comparison.md) |
+| 页面                | 主要内容                       | 详细说明                                       |
+| ------------------- | ------------------------------ | ---------------------------------------------- |
+| Tushare data        | 原始数据目录与 Parquet 预览    | [数据下载](../research/tushare.md)             |
+| ETL                 | 数据行数、日期范围、特征和标签 | [结果解读](../research/results.md)             |
+| Factor analysis     | 因子评分与指标分组             | [结果解读](../research/results.md)             |
+| Model training      | 模型配置、指标、训练曲线       | [产物协议](../reference/research-artifacts.md) |
+| Offline prediction  | 预测数据、统计和产物           | [结果解读](../research/results.md)             |
+| Offline backtest    | 日频曲线、质量和分期汇总       | [回测解读](../research/backtest.md)            |
+| Strategy comparison | 两个回测的共同区间比较         | [策略比较](../research/strategy-comparison.md) |
 
 研究页面读取 `metadata.json` 及 `output_params.artifacts`。任务列表里有一条运行记录，并不保证它已产生可展示的研究元数据。失败任务、字段不完整或损坏的 metadata 应先在详情和日志中排查。
 
@@ -99,18 +99,18 @@ npm run dev
 
 ## 功能截图索引
 
-| 功能 | 截图所在文档 |
-| --- | --- |
-| 主页、提交 demo、设置、API 调试 | [快速开始](quickstart.md)与本文 |
-| 任务列表、详情和日志 | [任务管理](../guides/task-management.md) |
-| 参数快照和关系图 | [任务血缘](../concepts/task-lineage.md) |
-| CPU、内存和 GPU | [远程机器](../guides/remote-machines.md) |
-| Agent 新会话 | [Agent 使用](../agent/usage.md) |
-| 数据下载表单、Parquet 预览 | [Tushare 数据](../research/tushare.md) |
-| ETL、因子、训练参数与曲线、预测 | [研究结果](../research/results.md) |
-| 收益、质量、持仓、总体及年/季/月汇总 | [回测解读](../research/backtest.md) |
-| 策略比较五个页签 | [策略比较](../research/strategy-comparison.md) |
-| 通知任务表单 | [通知](../research/notifications.md) |
+| 功能                                 | 截图所在文档                                   |
+| ------------------------------------ | ---------------------------------------------- |
+| 主页、提交 demo、设置、API 调试      | [快速开始](quickstart.md)与本文                |
+| 任务列表、详情和日志                 | [任务管理](../guides/task-management.md)       |
+| 参数快照和关系图                     | [任务血缘](../concepts/task-lineage.md)        |
+| CPU、内存和 GPU                      | [远程机器](../guides/remote-machines.md)       |
+| Agent 新会话                         | [Agent 使用](../agent/usage.md)                |
+| 数据下载表单、Parquet 预览           | [Tushare 数据](../research/tushare.md)         |
+| ETL、因子、训练参数与曲线、预测      | [研究结果](../research/results.md)             |
+| 收益、质量、持仓、总体及年/季/月汇总 | [回测解读](../research/backtest.md)            |
+| 策略比较五个页签                     | [策略比较](../research/strategy-comparison.md) |
+| 通知任务表单                         | [通知](../research/notifications.md)           |
 
 ## 首次使用的空状态
 
@@ -120,12 +120,12 @@ npm run dev
 
 ## 出现问题时
 
-| 表现 | 先检查 |
-| --- | --- |
-| 页面能打开，但 API 返回 401 | 本机 token 与服务配置是否一致 |
-| 任务定义或 API 目录为空 | 服务是否配置 token、插件是否在选定机器安装、Job 是否公开 |
-| 研究页没有结果 | 对应 metadata 是否生成并包含标准输出 |
-| 图表缺少曲线 | training_curve、daily、summary 等字段或文件是否存在 |
-| 远程机器请求失败 | 后端 targets 的地址、token 与目标服务连通性 |
+| 表现                        | 先检查                                                   |
+| --------------------------- | -------------------------------------------------------- |
+| 页面能打开，但 API 返回 401 | 本机 token 与服务配置是否一致                            |
+| 任务定义或 API 目录为空     | 服务是否配置 token、插件是否在选定机器安装、Job 是否公开 |
+| 研究页没有结果              | 对应 metadata 是否生成并包含标准输出                     |
+| 图表缺少曲线                | training_curve、daily、summary 等字段或文件是否存在      |
+| 远程机器请求失败            | 后端 targets 的地址、token 与目标服务连通性              |
 
 更多说明见[常见问题](../faq.md)、[排障与恢复](../guides/operations.md)。

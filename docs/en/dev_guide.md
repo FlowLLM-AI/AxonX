@@ -22,13 +22,13 @@ paths, class names, registered names, and dependency chain here are illustrative
 
 ### Task Types
 
-| Type | Concept and purpose |
-|----------|----------------------------------------------------|
-| ETL | Clean and align raw data to generate datasets for subsequent research. |
-| Analysis | Analyze factors in an ETL dataset to diagnose factor quality and performance. |
-| Train | Train a model using an ETL dataset, producing the model and training results. |
-| Predict | Generate predictions using a model produced by Train and its associated ETL data. |
-| Backtest | Backtest Predict results to evaluate strategy performance. |
+| Type     | Concept and purpose                                                               |
+| -------- | --------------------------------------------------------------------------------- |
+| ETL      | Clean and align raw data to generate datasets for subsequent research.            |
+| Analysis | Analyze factors in an ETL dataset to diagnose factor quality and performance.     |
+| Train    | Train a model using an ETL dataset, producing the model and training results.     |
+| Predict  | Generate predictions using a model produced by Train and its associated ETL data. |
+| Backtest | Backtest Predict results to evaluate strategy performance.                        |
 
 Tasks link upstream and downstream through Task IDs. The a158 example's main dependency chain is ETL → Train → Predict → Backtest; Analysis uses ETL data for factor analysis.
 
@@ -131,13 +131,13 @@ Run only the Tasks needed for the current change and reuse unaffected successful
 
 Run Analysis only when factor diagnostics are needed. Select the following commands as required.
 
-| Command name | Description | Command | Remote arguments |
-|----------|----------------------------------------------------------------|------------------------------------------------------------------------|------------------------------|
-| `submit` | Submit ETL to clean data and generate a dataset; the example specifies the data start date. | `axonx submit --task a158_etl --start-date 20150101` | `--target 192.168.1.10:1024` |
-| `submit` | Submit Analysis to analyze factors in the specified ETL artifacts. | `axonx submit --task a158_factor --source-tasks '<etl_task_id>'` | `--target 192.168.1.10:1024` |
-| `submit` | Submit Train to train a model using the specified ETL dataset. | `axonx submit --task a158_train --source-tasks '<etl_task_id>'` | `--target 192.168.1.10:1024` |
-| `submit` | Submit Predict to generate predictions using the specified Train model and its associated ETL data. | `axonx submit --task a158_predict --source-tasks '<train_task_id>'` | `--target 192.168.1.10:1024` |
-| `submit` | Submit Backtest to evaluate the specified Predict results. | `axonx submit --task a158_backtest --source-tasks '<predict_task_id>'` | `--target 192.168.1.10:1024` |
+| Command name | Description                                                                                         | Command                                                                | Remote arguments             |
+| ------------ | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------- |
+| `submit`     | Submit ETL to clean data and generate a dataset; the example specifies the data start date.         | `axonx submit --task a158_etl --start-date 20150101`                   | `--target 192.168.1.10:1024` |
+| `submit`     | Submit Analysis to analyze factors in the specified ETL artifacts.                                  | `axonx submit --task a158_factor --source-tasks '<etl_task_id>'`       | `--target 192.168.1.10:1024` |
+| `submit`     | Submit Train to train a model using the specified ETL dataset.                                      | `axonx submit --task a158_train --source-tasks '<etl_task_id>'`        | `--target 192.168.1.10:1024` |
+| `submit`     | Submit Predict to generate predictions using the specified Train model and its associated ETL data. | `axonx submit --task a158_predict --source-tasks '<train_task_id>'`    | `--target 192.168.1.10:1024` |
+| `submit`     | Submit Backtest to evaluate the specified Predict results.                                          | `axonx submit --task a158_backtest --source-tasks '<predict_task_id>'` | `--target 192.168.1.10:1024` |
 
 - Registered Task name: `--task a158_etl` corresponds to a key in `plugin.yaml`'s `tasks`, pointing to `axonx_alpha158.etl:Alpha158Task`. Obtain registered Task names from
   `tasks` keys returned by `axonx plugin list`; use `axonx get_task_definition --task a158_etl` to view the complete definition.
@@ -161,12 +161,12 @@ Run Analysis only when factor diagnostics are needed. Select the following comma
   `--poll-interval 1` to set the polling interval in seconds (must exceed 0; default 1). For long tasks, use `--client-timeout 86400` to increase the client request timeout; it does not set
   a Task execution time limit. `wait_task` returns `success: true` only when the final state is `succeeded`.
 
-| Command name | Description | Command | Remote arguments |
-|-----------------|---------------------------------------------------------|--------------------------------------------------------------------------------------------|------------------------------|
-| `wait_task` | Wait for the specific run returned by submission and check final `answer.state`. | `axonx wait_task --task-id '<etl_task_id>' --run-id '<etl_run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
-| `status` | Query the submitted ETL Task's status to confirm success. | `axonx status --task-id '<etl_task_id>'` | `--target 192.168.1.10:1024` |
-| `read_task_log` | Read recent logs for this ETL Task to inspect output or investigate failures. | `axonx read_task_log --task-id '<etl_task_id>'` | `--target 192.168.1.10:1024` |
-| `preview_file` | Inspect successful ETL metadata to obtain the dataset artifact path for downstream use. | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'` | `--target 192.168.1.10:1024` |
+| Command name    | Description                                                                             | Command                                                                                    | Remote arguments             |
+| --------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------- |
+| `wait_task`     | Wait for the specific run returned by submission and check final `answer.state`.        | `axonx wait_task --task-id '<etl_task_id>' --run-id '<etl_run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
+| `status`        | Query the submitted ETL Task's status to confirm success.                               | `axonx status --task-id '<etl_task_id>'`                                                   | `--target 192.168.1.10:1024` |
+| `read_task_log` | Read recent logs for this ETL Task to inspect output or investigate failures.           | `axonx read_task_log --task-id '<etl_task_id>'`                                            | `--target 192.168.1.10:1024` |
+| `preview_file`  | Inspect successful ETL metadata to obtain the dataset artifact path for downstream use. | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'`                              | `--target 192.168.1.10:1024` |
 
 For other Tasks, use their actual Task IDs and workspace paths for the corresponding type. See the CLI API below for live tracking, dependency graph queries, and data preview commands.
 
@@ -179,14 +179,14 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 
 ### Startup and Local Execution
 
-| Command name | Description | Command | Remote arguments |
-|-----------|-----------------------------------------------------------------------------------------|----------------------------------------------------|------------------------------|
-| `help` | Show CLI usage, local commands, and how to call service Jobs. | `axonx help` | — |
-| `start` | Load the registered `default` configuration when none is specified and start the local HTTP service. | `axonx start` | — |
-| `start` | Start the service with an explicitly specified YAML file; the example path is relative to the AxonX repository root and can be replaced with the actual configuration file. | `axonx start --config axonx/config/default.yaml` | — |
-| `exec` | List executable registered Task names and entry classes in the current Python environment without running a Task. | `axonx exec` | — |
-| `exec` | Execute the specified ETL Task in the current process and output results without HTTP submission. | `axonx exec --task a158_etl --start-date 20150101` | — |
-| `version` | Query version information for the connected AxonX service. | `axonx version` | `--target 192.168.1.10:1024` |
+| Command name | Description                                                                                                                                                                 | Command                                            | Remote arguments             |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------- |
+| `help`       | Show CLI usage, local commands, and how to call service Jobs.                                                                                                               | `axonx help`                                       | —                            |
+| `start`      | Load the registered `default` configuration when none is specified and start the local HTTP service.                                                                        | `axonx start`                                      | —                            |
+| `start`      | Start the service with an explicitly specified YAML file; the example path is relative to the AxonX repository root and can be replaced with the actual configuration file. | `axonx start --config axonx/config/default.yaml`   | —                            |
+| `exec`       | List executable registered Task names and entry classes in the current Python environment without running a Task.                                                           | `axonx exec`                                       | —                            |
+| `exec`       | Execute the specified ETL Task in the current process and output results without HTTP submission.                                                                           | `axonx exec --task a158_etl --start-date 20150101` | —                            |
+| `version`    | Query version information for the connected AxonX service.                                                                                                                  | `axonx version`                                    | `--target 192.168.1.10:1024` |
 
 ### Plugin Management
 
@@ -196,60 +196,60 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 - Local `plugin inspect` accepts a source directory, wheel path, or installed plugin name; remote inspection accepts only a distribution or plugin name installed on the target service, such as
   `axonx-alpha158`. Do not simply append `--target` to local path examples; remote inspection does not upload source or wheels.
 
-| Command name | Description | Command | Remote arguments |
-|--------------------|------------------------------------------------------------------------------|----------------------------------------------------------------|------------------------------|
-| `plugin list` | List installed plugins in the current environment or target service; `tasks` keys are registered Task names. | `axonx plugin list` | `--target 192.168.1.10:1024` |
-| `plugin show` | View a plugin's version, registered contributions, dependencies, and other information. | `axonx plugin show axonx-alpha158` | `--target 192.168.1.10:1024` |
-| `plugin inspect` | Inspect a plugin installed in the current environment or target service; pass its distribution or plugin name. | `axonx plugin inspect axonx-alpha158` | `--target 192.168.1.10:1024` |
-| `plugin inspect` | Build a wheel from local source or reuse a cached wheel to inspect plugin metadata without installation. | `axonx plugin inspect plugins/a158` | — |
-| `plugin inspect` | Inspect plugin metadata from an existing local wheel without rebuilding or installing; replace the path with the actual file. | `axonx plugin inspect '<plugin_wheel_path>'` | — |
-| `plugin build` | Build from source or reuse a cached wheel and output its path, checksum, and plugin metadata without installation. | `axonx plugin build plugins/a158` | — |
-| `plugin build` | Generate a wheel in the specified directory for later distribution or installation. | `axonx plugin build plugins/a158 --output .axonx/plugins/dist` | — |
-| `plugin install` | Build a wheel locally from source and install it directly; with a remote target, upload and install it on the target service. | `axonx plugin install plugins/a158` | `--target 192.168.1.10:1024` |
-| `plugin install` | Install an existing local wheel; with a remote target, upload and install it on the target service. | `axonx plugin install '<plugin_wheel_path>'` | `--target 192.168.1.10:1024` |
-| `plugin uninstall` | Uninstall the specified plugin from the current environment or target service. | `axonx plugin uninstall axonx-alpha158` | `--target 192.168.1.10:1024` |
+| Command name       | Description                                                                                                                   | Command                                                        | Remote arguments             |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------- |
+| `plugin list`      | List installed plugins in the current environment or target service; `tasks` keys are registered Task names.                  | `axonx plugin list`                                            | `--target 192.168.1.10:1024` |
+| `plugin show`      | View a plugin's version, registered contributions, dependencies, and other information.                                       | `axonx plugin show axonx-alpha158`                             | `--target 192.168.1.10:1024` |
+| `plugin inspect`   | Inspect a plugin installed in the current environment or target service; pass its distribution or plugin name.                | `axonx plugin inspect axonx-alpha158`                          | `--target 192.168.1.10:1024` |
+| `plugin inspect`   | Build a wheel from local source or reuse a cached wheel to inspect plugin metadata without installation.                      | `axonx plugin inspect plugins/a158`                            | —                            |
+| `plugin inspect`   | Inspect plugin metadata from an existing local wheel without rebuilding or installing; replace the path with the actual file. | `axonx plugin inspect '<plugin_wheel_path>'`                   | —                            |
+| `plugin build`     | Build from source or reuse a cached wheel and output its path, checksum, and plugin metadata without installation.            | `axonx plugin build plugins/a158`                              | —                            |
+| `plugin build`     | Generate a wheel in the specified directory for later distribution or installation.                                           | `axonx plugin build plugins/a158 --output .axonx/plugins/dist` | —                            |
+| `plugin install`   | Build a wheel locally from source and install it directly; with a remote target, upload and install it on the target service. | `axonx plugin install plugins/a158`                            | `--target 192.168.1.10:1024` |
+| `plugin install`   | Install an existing local wheel; with a remote target, upload and install it on the target service.                           | `axonx plugin install '<plugin_wheel_path>'`                   | `--target 192.168.1.10:1024` |
+| `plugin uninstall` | Uninstall the specified plugin from the current environment or target service.                                                | `axonx plugin uninstall axonx-alpha158`                        | `--target 192.168.1.10:1024` |
 
 ### Machines
 
-| Command name | Description | Command | Remote arguments |
-|------------------|---------------------------------------------------------------------------|--------------------------------------------|------------------------------|
-| `list_machines` | Query addresses and health status for machines in the connected service's `targets` to select an execution target. | `axonx list_machines` | `--target 192.168.1.10:1024` |
-| `machine_status` | Query CPU, memory, and GPU information for the machine hosting the connected service. | `axonx machine_status` | `--target 192.168.1.10:1024` |
-| `shell` | Execute a shell command on the machine hosting the connected service; the example queries the current directory with a 30-second Job timeout. | `axonx shell --command 'pwd' --timeout 30` | `--target 192.168.1.10:1024` |
+| Command name     | Description                                                                                                                                   | Command                                    | Remote arguments             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------- |
+| `list_machines`  | Query addresses and health status for machines in the connected service's `targets` to select an execution target.                            | `axonx list_machines`                      | `--target 192.168.1.10:1024` |
+| `machine_status` | Query CPU, memory, and GPU information for the machine hosting the connected service.                                                         | `axonx machine_status`                     | `--target 192.168.1.10:1024` |
+| `shell`          | Execute a shell command on the machine hosting the connected service; the example queries the current directory with a 30-second Job timeout. | `axonx shell --command 'pwd' --timeout 30` | `--target 192.168.1.10:1024` |
 
 ### Task Submission and Execution
 
-| Command name | Description | Command | Remote arguments |
-|-----------------------|------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------|
-| `get_task_definition` | Query a complete Task definition; `--task` takes the registered name, not a Task ID or instance name. | `axonx get_task_definition --task a158_etl` | `--target 192.168.1.10:1024` |
-| `submit` | Submit ETL with a framework-generated name; record `answer.task_id`, `answer.run_id`, and `answer.task`. | `axonx submit --task a158_etl --start-date 20150101` | `--target 192.168.1.10:1024` |
-| `submit` | Use an explicit name to generate a fixed Task ID; reusing it replaces artifacts after the previous run finishes. | `axonx submit --task a158_etl --task-name default --start-date 20150101` | `--target 192.168.1.10:1024` |
-| `submit` | Submit training using the actual Task ID of a successful ETL as the data source. | `axonx submit --task a158_train --source-tasks '<etl_task_id>'` | `--target 192.168.1.10:1024` |
-| `wait_task` | Wait for the specified Run ID to finish and return complete status; the response succeeds only for `succeeded`. | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
-| `stream_task` | Continuously output a Task's progress and logs until completion, then return final status. | `axonx stream_task --task-id '<task_id>' --stream true` | `--target 192.168.1.10:1024` |
-| `list_task_ids` | List Task IDs with status files for subsequent queries. | `axonx list_task_ids` | `--target 192.168.1.10:1024` |
-| `list_task_statuses` | Get a list of Task status snapshots to inspect multiple tasks. | `axonx list_task_statuses` | `--target 192.168.1.10:1024` |
-| `status` | Get the current status snapshot for a Task without continuously following logs. | `axonx status --task-id '<task_id>'` | `--target 192.168.1.10:1024` |
-| `read_task_log` | Read the tail of a Task's log once, up to 65536 bytes by default, to inspect recent output. | `axonx read_task_log --task-id '<task_id>'` | `--target 192.168.1.10:1024` |
-| `read_task_log` | Read from a specified byte offset; the example starts at the beginning, and subsequent reads can use the response's `next_offset`. | `axonx read_task_log --task-id '<task_id>' --offset 0 --limit 65536` | `--target 192.168.1.10:1024` |
-| `get_task_context` | Collect status, metadata and log paths, dependency graph, and upstream/downstream relationships for investigation or further research. | `axonx get_task_context --task-id '<task_id>'` | `--target 192.168.1.10:1024` |
-| `get_task_graph` | Query the dependency graph containing a Task to inspect nodes, edges, and upstream/downstream links. | `axonx get_task_graph --task-id '<task_id>'` | `--target 192.168.1.10:1024` |
-| `cancel` | Cancel a queued or running Task. | `axonx cancel --task-id '<task_id>'` | `--target 192.168.1.10:1024` |
-| `delete_tasks` | Delete finished Tasks or Tasks with only metadata, together with their files; even one ID must be passed as a JSON array. | `axonx delete_tasks --task-ids '["<task_id>"]'` | `--target 192.168.1.10:1024` |
-| `delete_tasks` | Delete multiple finished Tasks or Tasks with only metadata, together with their files. | `axonx delete_tasks --task-ids '["<task_id_1>","<task_id_2>"]'` | `--target 192.168.1.10:1024` |
+| Command name          | Description                                                                                                                            | Command                                                                            | Remote arguments             |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------- |
+| `get_task_definition` | Query a complete Task definition; `--task` takes the registered name, not a Task ID or instance name.                                  | `axonx get_task_definition --task a158_etl`                                        | `--target 192.168.1.10:1024` |
+| `submit`              | Submit ETL with a framework-generated name; record `answer.task_id`, `answer.run_id`, and `answer.task`.                               | `axonx submit --task a158_etl --start-date 20150101`                               | `--target 192.168.1.10:1024` |
+| `submit`              | Use an explicit name to generate a fixed Task ID; reusing it replaces artifacts after the previous run finishes.                       | `axonx submit --task a158_etl --task-name default --start-date 20150101`           | `--target 192.168.1.10:1024` |
+| `submit`              | Submit training using the actual Task ID of a successful ETL as the data source.                                                       | `axonx submit --task a158_train --source-tasks '<etl_task_id>'`                    | `--target 192.168.1.10:1024` |
+| `wait_task`           | Wait for the specified Run ID to finish and return complete status; the response succeeds only for `succeeded`.                        | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
+| `stream_task`         | Continuously output a Task's progress and logs until completion, then return final status.                                             | `axonx stream_task --task-id '<task_id>' --stream true`                            | `--target 192.168.1.10:1024` |
+| `list_task_ids`       | List Task IDs with status files for subsequent queries.                                                                                | `axonx list_task_ids`                                                              | `--target 192.168.1.10:1024` |
+| `list_task_statuses`  | Get a list of Task status snapshots to inspect multiple tasks.                                                                         | `axonx list_task_statuses`                                                         | `--target 192.168.1.10:1024` |
+| `status`              | Get the current status snapshot for a Task without continuously following logs.                                                        | `axonx status --task-id '<task_id>'`                                               | `--target 192.168.1.10:1024` |
+| `read_task_log`       | Read the tail of a Task's log once, up to 65536 bytes by default, to inspect recent output.                                            | `axonx read_task_log --task-id '<task_id>'`                                        | `--target 192.168.1.10:1024` |
+| `read_task_log`       | Read from a specified byte offset; the example starts at the beginning, and subsequent reads can use the response's `next_offset`.     | `axonx read_task_log --task-id '<task_id>' --offset 0 --limit 65536`               | `--target 192.168.1.10:1024` |
+| `get_task_context`    | Collect status, metadata and log paths, dependency graph, and upstream/downstream relationships for investigation or further research. | `axonx get_task_context --task-id '<task_id>'`                                     | `--target 192.168.1.10:1024` |
+| `get_task_graph`      | Query the dependency graph containing a Task to inspect nodes, edges, and upstream/downstream links.                                   | `axonx get_task_graph --task-id '<task_id>'`                                       | `--target 192.168.1.10:1024` |
+| `cancel`              | Cancel a queued or running Task.                                                                                                       | `axonx cancel --task-id '<task_id>'`                                               | `--target 192.168.1.10:1024` |
+| `delete_tasks`        | Delete finished Tasks or Tasks with only metadata, together with their files; even one ID must be passed as a JSON array.              | `axonx delete_tasks --task-ids '["<task_id>"]'`                                    | `--target 192.168.1.10:1024` |
+| `delete_tasks`        | Delete multiple finished Tasks or Tasks with only metadata, together with their files.                                                 | `axonx delete_tasks --task-ids '["<task_id_1>","<task_id_2>"]'`                    | `--target 192.168.1.10:1024` |
 
 ### Workspace and Synchronization
 
-| Command name | Description | Command | Remote arguments |
-|------------------|----------------------------------------------------------------------------------------|------------------------------------------------------------------------------|------------------------------|
-| `list_entries` | Query the connected service's workspace root for existing Task type directories and other entries. | `axonx list_entries --path ''` | `--target 192.168.1.10:1024` |
-| `list_entries` | Query files and subdirectories in the specified ETL Task directory to locate actual artifact paths. | `axonx list_entries --path 'etl/<etl_task_id>'` | `--target 192.168.1.10:1024` |
-| `list_task_runs` | List run directories containing `metadata.json` by Task type; the example queries ETL. | `axonx list_task_runs --task-type etl` | `--target 192.168.1.10:1024` |
-| `preview_file` | Read a Task's `metadata.json` to inspect configuration, dependencies, and artifact paths. | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'` | `--target 192.168.1.10:1024` |
-| `preview_file` | Preview CSV or Parquet rows; the example skips 200 rows and returns at most 100. Obtain the path from actual artifacts. | `axonx preview_file --path '<artifact_path>' --offset 200 --limit 100` | `--target 192.168.1.10:1024` |
-| `delete_entries` | Delete workspace files or directories; even a single path must be passed as a JSON array. | `axonx delete_entries --paths '["etl/<etl_task_id>/old.csv"]'` | `--target 192.168.1.10:1024` |
-| `delete_entries` | Delete multiple workspace files or directories; all paths are relative to the workspace. | `axonx delete_entries --paths '["<workspace_path_1>","<workspace_path_2>"]'` | `--target 192.168.1.10:1024` |
-| `sync_tasks` | Use the staged archive path returned by the target service to replace Task directories carried in the archive; this command does not upload files itself. | `axonx sync_tasks --path '<staged_archive_path>'` | `--target 192.168.1.10:1024` |
+| Command name     | Description                                                                                                                                               | Command                                                                      | Remote arguments             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------- |
+| `list_entries`   | Query the connected service's workspace root for existing Task type directories and other entries.                                                        | `axonx list_entries --path ''`                                               | `--target 192.168.1.10:1024` |
+| `list_entries`   | Query files and subdirectories in the specified ETL Task directory to locate actual artifact paths.                                                       | `axonx list_entries --path 'etl/<etl_task_id>'`                              | `--target 192.168.1.10:1024` |
+| `list_task_runs` | List run directories containing `metadata.json` by Task type; the example queries ETL.                                                                    | `axonx list_task_runs --task-type etl`                                       | `--target 192.168.1.10:1024` |
+| `preview_file`   | Read a Task's `metadata.json` to inspect configuration, dependencies, and artifact paths.                                                                 | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'`                | `--target 192.168.1.10:1024` |
+| `preview_file`   | Preview CSV or Parquet rows; the example skips 200 rows and returns at most 100. Obtain the path from actual artifacts.                                   | `axonx preview_file --path '<artifact_path>' --offset 200 --limit 100`       | `--target 192.168.1.10:1024` |
+| `delete_entries` | Delete workspace files or directories; even a single path must be passed as a JSON array.                                                                 | `axonx delete_entries --paths '["etl/<etl_task_id>/old.csv"]'`               | `--target 192.168.1.10:1024` |
+| `delete_entries` | Delete multiple workspace files or directories; all paths are relative to the workspace.                                                                  | `axonx delete_entries --paths '["<workspace_path_1>","<workspace_path_2>"]'` | `--target 192.168.1.10:1024` |
+| `sync_tasks`     | Use the staged archive path returned by the target service to replace Task directories carried in the archive; this command does not upload files itself. | `axonx sync_tasks --path '<staged_archive_path>'`                            | `--target 192.168.1.10:1024` |
 
 - Artifact paths: after a successful run, metadata is written to `workspace/<task_type>/<task_id>/metadata.json`; `preview_file` uses workspace-relative paths.
 - Actual values: obtain upload archive paths, target service addresses, and Task IDs from real configuration or service responses before executing the corresponding commands.

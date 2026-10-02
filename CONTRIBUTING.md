@@ -43,7 +43,7 @@ axonx plugin install -e ./plugins/a158
 
 The default pytest configuration includes enhanced-plugin tests and both plugin source paths. Install the research dependencies above when running those tests. See the [plugin guide](https://flowllm-ai.github.io/AxonX/en/guides/plugin-management) for discovery and restart behavior.
 
-For Studio, use Node.js 22.13+ in the 22.x series, or 24+, and run:
+For Studio, use Node.js 22.13+ (22.x), 24.x, or 26+, and run:
 
 ```bash
 cd axonx_studio
@@ -51,7 +51,7 @@ npm ci
 npm run dev
 ```
 
-Start the Python service separately as described in the [quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart). See [Studio development](https://flowllm-ai.github.io/AxonX/en/development/studio) for proxy configuration and other supported Node versions. The documentation site requires Node.js 22+.
+Start the Python service separately as described in the [quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart). See [Studio development](https://flowllm-ai.github.io/AxonX/en/development/studio) for proxy configuration. The documentation site requires Node.js 22+.
 
 ## Making a change
 

@@ -40,12 +40,12 @@ Application 不自动读取 .env；resolve_app_config 只展开已存在的环�
 
 ## Application 方法
 
-| 方法 | 参数 | 返回与限制 |
-| --- | --- | --- |
-| start() | 无 | await，幂等启动 |
-| close() | 无 | await，反序清理；多清理错误可能聚合 |
-| run_job(name, arguments=None, *, target=None) | Job 名、参数映射、可选配置目标 | await 返回 JobResponse |
-| stream_job(name, arguments=None, *, target=None) | 同上 | 返回 AsyncIterator，不 await 方法本身 |
+| 方法                                             | 参数                           | 返回与限制                            |
+| ------------------------------------------------ | ------------------------------ | ------------------------------------- |
+| start()                                          | 无                             | await，幂等启动                       |
+| close()                                          | 无                             | await，反序清理；多清理错误可能聚合   |
+| run_job(name, arguments=None, *, target=None)    | Job 名、参数映射、可选配置目标 | await 返回 JobResponse                |
+| stream_job(name, arguments=None, *, target=None) | 同上                           | 返回 AsyncIterator，不 await 方法本身 |
 
 run_job 与 stream_job 均要求应用已启动。target 非空时必须在 ApplicationConfig.targets 中，使用其中地址/token；本机调用不受 HTTP public_jobs 筛选限制，但仍校验业务 Schema 与系统保留字段。
 
@@ -80,14 +80,14 @@ asyncio.run(main())
 
 远程 answer 是解码后的字典/列表；本机 Application.answer 也可能保留 Pydantic/dataclass 对象。要统一处理，先调用 response.model_dump(mode="json")，不要假定两条路径中的 answer 都具有同一 Python 对象类型。
 
-| HttpClient 方法 | 签名要点 | 返回 |
-| --- | --- | --- |
-| run_job | name, arguments=None | JobResponse |
-| stream_job | name, arguments=None | AsyncIterator[JobEvent] |
-| list_jobs | 无 | list[JobInfo] |
-| health | 无 | bool，失败折叠 false |
-| copy_file | Path，filename=None，directory=None | FileCopy |
-| discard_file | path: str | 清理的路径字符串 |
+| HttpClient 方法 | 签名要点                            | 返回                    |
+| --------------- | ----------------------------------- | ----------------------- |
+| run_job         | name, arguments=None                | JobResponse             |
+| stream_job      | name, arguments=None                | AsyncIterator[JobEvent] |
+| list_jobs       | 无                                  | list[JobInfo]           |
+| health          | 无                                  | bool，失败折叠 false    |
+| copy_file       | Path，filename=None，directory=None | FileCopy                |
+| discard_file    | path: str                           | 清理的路径字符串        |
 
 构造参数 target=None、timeout=60.0、token=None；可选 transport 用于注入 HTTP 传输（例如测试）。进入 async with 后才可调用。target 不含 `/mcp` 或 Job 子路径。
 

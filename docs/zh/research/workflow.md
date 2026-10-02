@@ -25,14 +25,14 @@ axonx list_installed_task_definitions
 
 ## 研究链中每一步产生什么
 
-| 阶段 | 注册名 | 输入来源 | 主要结果 |
-| --- | --- | --- | --- |
-| 下载 | `download_tushare_task` | Tushare 接口 | 工作区 `tushare/` 原始分区 |
-| ETL | `a158_etl` | 原始分区与主数据 | `alpha158.parquet`、统计 CSV |
-| 因子分析 | `a158_factor` | 一个 ETL Task | 因子诊断与分层收益 CSV |
-| 训练 | `a158_train` | 一个 ETL Task | LightGBM 模型、重要性、验证历史 |
-| 预测 | `a158_predict` | 一个 Train Task | 全截面预测 Parquet |
-| 回测 | `a158_backtest` | 一个 Predict Task | 日频与汇总 Parquet |
+| 阶段     | 注册名                  | 输入来源          | 主要结果                        |
+| -------- | ----------------------- | ----------------- | ------------------------------- |
+| 下载     | `download_tushare_task` | Tushare 接口      | 工作区 `tushare/` 原始分区      |
+| ETL      | `a158_etl`              | 原始分区与主数据  | `alpha158.parquet`、统计 CSV    |
+| 因子分析 | `a158_factor`           | 一个 ETL Task     | 因子诊断与分层收益 CSV          |
+| 训练     | `a158_train`            | 一个 ETL Task     | LightGBM 模型、重要性、验证历史 |
+| 预测     | `a158_predict`          | 一个 Train Task   | 全截面预测 Parquet              |
+| 回测     | `a158_backtest`         | 一个 Predict Task | 日频与汇总 Parquet              |
 
 因子分析是 ETL 的独立下游，训练不依赖因子分析成功。预测从训练 metadata 继续解析 ETL 上游，因此训练目录和 ETL 数据都需要保留。
 
@@ -105,14 +105,14 @@ bash plugins/a158/axonx_alpha158/scripts/run_pipeline.sh
 
 ## 常见失败与处理
 
-| 现象 | 优先检查 |
-| --- | --- |
-| 注册名不存在 | 执行服务的插件环境与重启状态 |
-| 缺少 daily、adj_factor 或主数据 | `tushare/` 分区和静态文件 |
-| 训练区间没有有效标签 | ETL 日期、交易状态、退出标签与训练边界 |
-| 预测开始早于训练结束 | `pred_start` 与 metadata 的 `train_end_exclusive` |
-| 模型校验失败 | 训练目录内 model 文件是否被替换 |
-| 回测缺少字段 | 是否为匹配 a158 协议的预测产物 |
+| 现象                            | 优先检查                                          |
+| ------------------------------- | ------------------------------------------------- |
+| 注册名不存在                    | 执行服务的插件环境与重启状态                      |
+| 缺少 daily、adj_factor 或主数据 | `tushare/` 分区和静态文件                         |
+| 训练区间没有有效标签            | ETL 日期、交易状态、退出标签与训练边界            |
+| 预测开始早于训练结束            | `pred_start` 与 metadata 的 `train_end_exclusive` |
+| 模型校验失败                    | 训练目录内 model 文件是否被替换                   |
+| 回测缺少字段                    | 是否为匹配 a158 协议的预测产物                    |
 
 血缘图记录显式上游关系，不自动调度、补齐或重跑研究链。使用固定 `task_name` 重跑会替换已结束任务的目录记录；需要比较实验时使用不同名称并保留产物。
 

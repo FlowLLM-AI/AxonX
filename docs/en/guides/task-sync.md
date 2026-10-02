@@ -79,16 +79,16 @@ The default minute-level schedule and Repository change-coalescing delay mean th
 
 ## Filters and budgets
 
-| Option | Meaning |
-| --- | --- |
-| task_ids | Exact Task ID allowlist |
-| task_id_prefixes | Match Task ID prefixes |
-| Both filter groups empty | No identity filtering |
-| Both groups have values | Either an exact or a prefix match qualifies |
-| max_file_bytes | Per-file budget, default 100 MiB |
-| max_archive_bytes | Per-uploaded-archive budget, default 256 MiB |
-| max_archives_per_flush | Archives per flush, default 4 |
-| timeout_seconds | Target HTTP call timeout, default 300 seconds |
+| Option                   | Meaning                                       |
+| ------------------------ | --------------------------------------------- |
+| task_ids                 | Exact Task ID allowlist                       |
+| task_id_prefixes         | Match Task ID prefixes                        |
+| Both filter groups empty | No identity filtering                         |
+| Both groups have values  | Either an exact or a prefix match qualifies   |
+| max_file_bytes           | Per-file budget, default 100 MiB              |
+| max_archive_bytes        | Per-uploaded-archive budget, default 256 MiB  |
+| max_archives_per_flush   | Archives per flush, default 4                 |
+| timeout_seconds          | Target HTTP call timeout, default 300 seconds |
 
 max_archive_bytes must exceed max_file_bytes and should not exceed the target's upload capacity. The default `/files` maximum upload is 256 MiB. For oversized files, do not simply increase source values while ignoring receiver limits.
 
@@ -106,14 +106,14 @@ Rollback covers the current application operation, not long-term historical reco
 
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
-| No transfers at all | Whether sync, sync_flush, and schedule are all enabled |
-| Startup fails | Whether target exists in targets, component dependencies, and configuration validity |
-| running tasks do not appear | Sender only copies terminal tasks; this filtering is expected |
-| 401/502 | Target token, connectivity, and receiver logs |
-| Artifacts too large | rejected/oversized, file and archive budgets |
-| No raw data on target | Raw data is outside the Task snapshot scope |
+| Symptom                     | Check                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------ |
+| No transfers at all         | Whether sync, sync_flush, and schedule are all enabled                               |
+| Startup fails               | Whether target exists in targets, component dependencies, and configuration validity |
+| running tasks do not appear | Sender only copies terminal tasks; this filtering is expected                        |
+| 401/502                     | Target token, connectivity, and receiver logs                                        |
+| Artifacts too large         | rejected/oversized, file and archive budgets                                         |
+| No raw data on target       | Raw data is outside the Task snapshot scope                                          |
 
 [Scheduling](scheduling.md) · [Remote machines](remote-machines.md) · [Backup and recovery](operations.md) · [Synchronization API](../api/plugins-sync.md)
 

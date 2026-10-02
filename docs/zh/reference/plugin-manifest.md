@@ -6,11 +6,11 @@
 
 ## 三种名称
 
-| 名称 | 示例 | 使用位置 |
-| --- | --- | --- |
-| distribution | axonx-example | pip 元数据、安装与卸载 |
-| plugin entry point | example | 插件发现与 manifest 所属包 |
-| Task 注册名 | example_task | submit.task、get_task_definition.task |
+| 名称               | 示例          | 使用位置                              |
+| ------------------ | ------------- | ------------------------------------- |
+| distribution       | axonx-example | pip 元数据、安装与卸载                |
+| plugin entry point | example       | 插件发现与 manifest 所属包            |
+| Task 注册名        | example_task  | submit.task、get_task_definition.task |
 
 这些名字不要求相同。Task ID 另由任务类型、注册名与实例名称组成，不能用 distribution 代替注册名执行任务。
 
@@ -60,11 +60,11 @@ components: {}
 jobs: {}
 ```
 
-| 字段 | 类型 | 默认值 | 契约 |
-| --- | --- | --- | --- |
-| tasks | dict[非空名,非空符号目标] | {} | 符号必须为 BaseTask 子类 |
-| components | dict[类别,dict[backend,符号目标]] | {} | 符号必须为 BaseComponent 子类且类别匹配 |
-| jobs | dict[非空名,JobConfig] | {} | JobConfig 使用服务配置同一模型 |
+| 字段       | 类型                              | 默认值 | 契约                                    |
+| ---------- | --------------------------------- | ------ | --------------------------------------- |
+| tasks      | dict[非空名,非空符号目标]         | {}     | 符号必须为 BaseTask 子类                |
+| components | dict[类别,dict[backend,符号目标]] | {}     | 符号必须为 BaseComponent 子类且类别匹配 |
+| jobs       | dict[非空名,JobConfig]            | {}     | JobConfig 使用服务配置同一模型          |
 
 顶层禁止额外字段；根必须是 YAML mapping。名称与字符串目标去掉首尾空白并要求非空。`module:Class` 目标先导入模块，再逐级取属性；字符串不满足格式、属性不存在或不是目标基类均失败。
 
@@ -126,12 +126,12 @@ Application 使用局部 registry，发现后的贡献按所有权合并。两�
 
 ## wheel 与内容指纹
 
-| 字段 | 含义 | 用途 |
-| --- | --- | --- |
-| sha256 | wheel 文件字节的 SHA-256 | 上传与安装制品校验 |
-| content_sha256 | 插件内容指纹 | 构建缓存与内容身份 |
-| requirements | wheel 的依赖元数据 | 安装环境需求 |
-| restart_required | 安装/卸载结果提示 | 服务贡献重新装配 |
+| 字段             | 含义                     | 用途               |
+| ---------------- | ------------------------ | ------------------ |
+| sha256           | wheel 文件字节的 SHA-256 | 上传与安装制品校验 |
+| content_sha256   | 插件内容指纹             | 构建缓存与内容身份 |
+| requirements     | wheel 的依赖元数据       | 安装环境需求       |
+| restart_required | 安装/卸载结果提示        | 服务贡献重新装配   |
 
 相同源内容与缓存不代表 wheel 字节必然相同；不要拿 content_sha256 替代上传返回的 sha256。远程 install 必须接收 POST /files 返回的 path 与 sha256。editable 只适用于本地源码环境，不能远程部署。
 

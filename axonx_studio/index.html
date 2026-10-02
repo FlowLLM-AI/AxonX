@@ -11,7 +11,10 @@
     <script>
       (() => {
         const saved = localStorage.getItem("axonx-theme") || "system";
-        const dark = saved === "dark" || (saved === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        const dark =
+          saved === "dark" ||
+          (saved === "system" &&
+            matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.theme = dark ? "dark" : "light";
       })();
     </script>

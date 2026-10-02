@@ -6,11 +6,11 @@
 
 ## 三种名称
 
-| 名称 | 用途 | 来源 |
-| --- | --- | --- |
-| distribution | Python 包安装与卸载 | pyproject.toml 的 project.name |
-| plugin name | 发现与区分插件入口 | axonx.plugins entry point |
-| Task 注册名 | submit / exec / 定义查询 | plugin.yaml 的 tasks |
+| 名称         | 用途                     | 来源                           |
+| ------------ | ------------------------ | ------------------------------ |
+| distribution | Python 包安装与卸载      | pyproject.toml 的 project.name |
+| plugin name  | 发现与区分插件入口       | axonx.plugins entry point      |
+| Task 注册名  | submit / exec / 定义查询 | plugin.yaml 的 tasks           |
 
 这三个名字可能不同。不要把 distribution 名直接传给 `--task`，先查看插件贡献中的 Task 注册名。
 
@@ -71,11 +71,11 @@ CLI 在本机把源码构建为 wheel，上传到远程 `/files`，核对返回 
 
 ## 校验和与重启
 
-| 字段 | 解释 |
-| --- | --- |
-| content_sha256 | 内容/源码指纹，用于构建缓存和内容识别 |
-| sha256 | 具体 wheel 文件的校验和，用于传输与安装核验 |
-| restart_required | 当前应用需重启以重新装配插件贡献 |
+| 字段             | 解释                                        |
+| ---------------- | ------------------------------------------- |
+| content_sha256   | 内容/源码指纹，用于构建缓存和内容识别       |
+| sha256           | 具体 wheel 文件的校验和，用于传输与安装核验 |
+| restart_required | 当前应用需重启以重新装配插件贡献            |
 
 两个 sha256 字段并不保证相同：wheel 的压缩与包内容封装会改变具体文件字节。安装接口应传上传回执的 wheel sha256，不传源码指纹。
 
@@ -97,13 +97,13 @@ axonx plugin uninstall '<distribution 或插件名>' \
 
 卸载影响后续加载代码，不自动删除历史研究产物。已有 metadata 仍可读，但重跑可能需要恢复原插件版本。
 
-| 问题 | 检查 |
-| --- | --- |
-| 注册名冲突 | 插件贡献是否与内置或其他插件同名 |
-| manifest 无效 | 类型、module:Class、Task docstring 与类基类 |
-| 安装成功但 UI 没更新 | restart_required、目标机器、运行环境 |
-| wheel 校验失败 | 使用上传回执 sha256，重新传输正确文件 |
-| 缺模型依赖 | 检查 requirements 与目标环境的设备库 |
+| 问题                 | 检查                                        |
+| -------------------- | ------------------------------------------- |
+| 注册名冲突           | 插件贡献是否与内置或其他插件同名            |
+| manifest 无效        | 类型、module:Class、Task docstring 与类基类 |
+| 安装成功但 UI 没更新 | restart_required、目标机器、运行环境        |
+| wheel 校验失败       | 使用上传回执 sha256，重新传输正确文件       |
+| 缺模型依赖           | 检查 requirements 与目标环境的设备库        |
 
 [插件 manifest](../reference/plugin-manifest.md) · [远程机器](remote-machines.md) · [已有开发指南](../dev_guide.md)
 

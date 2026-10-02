@@ -57,3 +57,11 @@ repos:
         # Packaging metadata is checked explicitly, rather than on every commit.
         stages: [manual]
         args: [--min=10, .]
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier (frontend and docs)
+        language: node
+        entry: prettier --check
+        additional_dependencies: [prettier@3.9.6]
+        files: '^(axonx_studio|github-pages|docs)/.*\.(ts|tsx|mts|js|mjs|json|css|html|vue|md)$'

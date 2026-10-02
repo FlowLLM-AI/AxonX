@@ -6,11 +6,11 @@ A plugin is a Python distribution with an `axonx.plugins` entry point and a pack
 
 ## Three kinds of names
 
-| Name | Example | Where it is used |
-| --- | --- | --- |
-| distribution | axonx-example | pip metadata, installation, and uninstallation |
-| plugin entry point | example | Plugin discovery and the package containing the manifest |
-| Task registration name | example_task | submit.task, get_task_definition.task |
+| Name                   | Example       | Where it is used                                         |
+| ---------------------- | ------------- | -------------------------------------------------------- |
+| distribution           | axonx-example | pip metadata, installation, and uninstallation           |
+| plugin entry point     | example       | Plugin discovery and the package containing the manifest |
+| Task registration name | example_task  | submit.task, get_task_definition.task                    |
 
 These names need not match. A Task ID is separately composed of task type, registration name, and instance name; a distribution name cannot substitute for a registration name when executing a task.
 
@@ -60,11 +60,11 @@ components: {}
 jobs: {}
 ```
 
-| Field | Type | Default | Contract |
-| --- | --- | --- | --- |
-| tasks | dict[nonempty_name,nonempty_symbol_target] | {} | Symbols must be BaseTask subclasses |
-| components | dict[category,dict[backend,symbol_target]] | {} | Symbols must be BaseComponent subclasses matching the category |
-| jobs | dict[nonempty_name,JobConfig] | {} | JobConfig uses the same model as service configuration |
+| Field      | Type                                       | Default | Contract                                                       |
+| ---------- | ------------------------------------------ | ------- | -------------------------------------------------------------- |
+| tasks      | dict[nonempty_name,nonempty_symbol_target] | {}      | Symbols must be BaseTask subclasses                            |
+| components | dict[category,dict[backend,symbol_target]] | {}      | Symbols must be BaseComponent subclasses matching the category |
+| jobs       | dict[nonempty_name,JobConfig]              | {}      | JobConfig uses the same model as service configuration         |
 
 Extra top-level fields are prohibited, and the root must be a YAML mapping. Names and string targets are stripped of surrounding whitespace and must be nonempty. A `module:Class` target imports the module, then resolves attributes one level at a time. Invalid target format, missing attributes, or a symbol that does not extend the required base class causes failure.
 
@@ -126,12 +126,12 @@ Application uses a local registry and merges discovered contributions according 
 
 ## Wheels and content fingerprints
 
-| Field | Meaning | Purpose |
-| --- | --- | --- |
-| sha256 | SHA-256 of wheel file bytes | Upload and installation artifact verification |
-| content_sha256 | Plugin content fingerprint | Build caching and content identity |
-| requirements | Wheel dependency metadata | Installation environment requirements |
-| restart_required | Installation/uninstallation result hint | Recompose service contributions |
+| Field            | Meaning                                 | Purpose                                       |
+| ---------------- | --------------------------------------- | --------------------------------------------- |
+| sha256           | SHA-256 of wheel file bytes             | Upload and installation artifact verification |
+| content_sha256   | Plugin content fingerprint              | Build caching and content identity            |
+| requirements     | Wheel dependency metadata               | Installation environment requirements         |
+| restart_required | Installation/uninstallation result hint | Recompose service contributions               |
 
 Identical source content and caching do not guarantee identical wheel bytes; do not substitute content_sha256 for the sha256 returned by upload. Remote install must receive the path and sha256 returned by POST /files. Editable installation applies only to local source environments and cannot be deployed remotely.
 

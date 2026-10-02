@@ -17,13 +17,13 @@ Query `/health` with a token to check protocol connectivity. A 401 caused by a m
 
 ## Log sources
 
-| Source | Helps determine |
-| --- | --- |
+| Source                      | Helps determine                                                               |
+| --------------------------- | ----------------------------------------------------------------------------- |
 | Service console and log_dir | Startup, configuration, forwarding, watcher, scheduling, and component errors |
-| status.error / exit_code | Final error for a Task run |
-| read_task_log | Detailed worker logs from steps, plugins, and model libraries |
-| events.jsonl | Progress event replay, distinct from text logs |
-| metadata.json | Successful configuration and output, without failure stack traces |
+| status.error / exit_code    | Final error for a Task run                                                    |
+| read_task_log               | Detailed worker logs from steps, plugins, and model libraries                 |
+| events.jsonl                | Progress event replay, distinct from text logs                                |
+| metadata.json               | Successful configuration and output, without failure stack traces             |
 
 ```bash
 axonx status --task-id '<Task ID>'
@@ -60,14 +60,14 @@ Research pages use directories containing metadata. Failed tasks, base demos, an
 
 ## Backup checklist
 
-| Content | Why it is needed |
-| --- | --- |
-| Complete workspace | Task records, research artifacts, raw data, and Agent state |
-| log_dir | Execution logs stored separately from task directories |
-| Service configuration and environment-variable inventory | targets, paths, schedules, and connection parameters |
-| Plugin source/wheels and versions | Restore the same algorithms for reruns |
-| Python and model dependency information | Restore data formats, device libraries, and model-loading conditions |
-| External credentials | Preserve through a separate secure method; documentation examples cannot recover them |
+| Content                                                  | Why it is needed                                                                      |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Complete workspace                                       | Task records, research artifacts, raw data, and Agent state                           |
+| log_dir                                                  | Execution logs stored separately from task directories                                |
+| Service configuration and environment-variable inventory | targets, paths, schedules, and connection parameters                                  |
+| Plugin source/wheels and versions                        | Restore the same algorithms for reruns                                                |
+| Python and model dependency information                  | Restore data formats, device libraries, and model-loading conditions                  |
+| External credentials                                     | Preserve through a separate secure method; documentation examples cannot recover them |
 
 On Linux/macOS, use your own backup tools after stopping writes. For example, if the workspace and logs are in the current directory:
 

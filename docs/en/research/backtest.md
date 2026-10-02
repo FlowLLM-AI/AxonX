@@ -19,13 +19,13 @@ axonx submit --task a158_backtest --source-tasks '<Predict Task ID>' \
 
 After submission, use the TaskHandle's `task_id` and `run_id` to wait for success, then open the Studio backtest page. Upstream inputs must pass a158 prediction-field and Boolean-type checks and declare `actual_return_unit=decimal`.
 
-| Parameter | Default | Meaning |
-| --- | --- | --- |
-| `transaction_cost_rate` | `0.002` | Transaction cost rate applied to turnover, in decimal units |
-| `annual_risk_free_rate` | `0.012` | Annual risk-free rate for risk-adjusted metrics |
-| `annualization_days` | `252` | Trading days per year used in plugin summaries |
-| `minimum_index_weight_coverage` | `0.90` | Minimum weight coverage required for index benchmarks |
-| `index_codes` | `[]` | Restricts candidate indices, for example `["hs300"]` |
+| Parameter                       | Default | Meaning                                                     |
+| ------------------------------- | ------- | ----------------------------------------------------------- |
+| `transaction_cost_rate`         | `0.002` | Transaction cost rate applied to turnover, in decimal units |
+| `annual_risk_free_rate`         | `0.012` | Annual risk-free rate for risk-adjusted metrics             |
+| `annualization_days`            | `252`   | Trading days per year used in plugin summaries              |
+| `minimum_index_weight_coverage` | `0.90`  | Minimum weight coverage required for index benchmarks       |
+| `index_codes`                   | `[]`    | Restricts candidate indices, for example `["hs300"]`        |
 
 Portfolio sizes are currently fixed at Top 1, 2, 3, 5, 10, 15, 20, and 30; this plugin's inputs do not allow arbitrary sizes. Benchmark definitions come from metadata `dimensions.benchmarks`.
 
@@ -41,17 +41,17 @@ Returns are booked on actual exit dates. Open positions remain on the books at p
 
 Using `top30_` as an example:
 
-| Field | Meaning |
-| --- | --- |
-| `gross_return` | Realized exit profit for the day / opening book equity |
-| `turnover` | Greater of actual buy and sell principal for the day / opening equity |
-| `transaction_cost` | Cost rate multiplied by turnover |
-| `net_return` | Gross return minus transaction costs |
-| `count`, `open_positions` | Number of positions not yet exited |
-| `delayed_open_positions` | Positions still held because exit is delayed |
-| `unsettled_positions` | Positions without an exit date yet |
-| `exits`, `delayed_exits` | Number of exits and delayed exits that day |
-| `unfilled_entries` | Targets failing the entry buyability check |
+| Field                     | Meaning                                                               |
+| ------------------------- | --------------------------------------------------------------------- |
+| `gross_return`            | Realized exit profit for the day / opening book equity                |
+| `turnover`                | Greater of actual buy and sell principal for the day / opening equity |
+| `transaction_cost`        | Cost rate multiplied by turnover                                      |
+| `net_return`              | Gross return minus transaction costs                                  |
+| `count`, `open_positions` | Number of positions not yet exited                                    |
+| `delayed_open_positions`  | Positions still held because exit is delayed                          |
+| `unsettled_positions`     | Positions without an exit date yet                                    |
+| `exits`, `delayed_exits`  | Number of exits and delayed exits that day                            |
+| `unfilled_entries`        | Targets failing the entry buyability check                            |
 
 `daily.trade_date` is the backtest calendar date. Portfolio returns correspond to exits actually realized that day; IC corresponds to signal diagnostics for that date. Do not merge them into one transaction.
 
@@ -114,17 +114,17 @@ Even if `dimensions.holding_detail_top_n` describes another size, the current pa
 
 Basic signal metrics in **Overall** are independent of portfolio size; Top N return metrics appear in their corresponding detail sections.
 
-| Metric | a158 summary definition |
-| --- | --- |
-| Cumulative net return | Compounded daily net returns |
-| Annualized net return | Cumulative equity annualized using observed days and annual trading days |
+| Metric                | a158 summary definition                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| Cumulative net return | Compounded daily net returns                                                                        |
+| Annualized net return | Cumulative equity annualized using observed days and annual trading days                            |
 | Annualized volatility | Sample standard deviation of daily net returns multiplied by the square root of annual trading days |
-| Maximum drawdown | Peak drawdown of the compounded net equity curve including initial equity of 1, negative |
-| Win rate | Proportion of days with positive net return; zero-return days are not wins |
-| Average turnover | Mean daily turnover |
-| Gross Sharpe | Mean/sample standard deviation of gross returns minus daily risk-free return, annualized |
-| Benchmark IR | Mean/sample standard deviation of gross returns minus benchmark returns, annualized |
-| ICIR / RankICIR | Mean/sample standard deviation of the corresponding daily correlations, annualized |
+| Maximum drawdown      | Peak drawdown of the compounded net equity curve including initial equity of 1, negative            |
+| Win rate              | Proportion of days with positive net return; zero-return days are not wins                          |
+| Average turnover      | Mean daily turnover                                                                                 |
+| Gross Sharpe          | Mean/sample standard deviation of gross returns minus daily risk-free return, annualized            |
+| Benchmark IR          | Mean/sample standard deviation of gross returns minus benchmark returns, annualized                 |
+| ICIR / RankICIR       | Mean/sample standard deviation of the corresponding daily correlations, annualized                  |
 
 Benchmarks may be empty when index weight coverage is insufficient; risk-adjusted metrics may also be missing. The `universe` benchmark is the mean return of candidates satisfying return conditions within the plugin's universe. Do not call it an exchange-wide market index.
 

@@ -52,10 +52,10 @@ For text mode, set `--message-type text`. `title` and `text` must each contain a
 
 Save the returned TaskHandle and wait for its `task_id` and `run_id`. Successful output includes:
 
-| Field | Meaning |
-| --- | --- |
-| `recipients` | Number of recipient groups after deduplication, at least 1 |
-| `process_query_keys` | Message processing query identifiers returned by DingTalk |
+| Field                | Meaning                                                    |
+| -------------------- | ---------------------------------------------------------- |
+| `recipients`         | Number of recipient groups after deduplication, at least 1 |
+| `process_query_keys` | Message processing query identifiers returned by DingTalk  |
 
 These identifiers mean the API accepted the request and returned references; they do not mean every group member read the message. Ordinary AxonX submission success also does not mean message delivery succeeded. Check the Task's final status.
 

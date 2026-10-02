@@ -6,13 +6,13 @@
 
 ## 选择扩展点
 
-| 扩展点 | 典型职责 | 执行与状态 |
-| --- | --- | --- |
-| BaseComponent | 连接、缓存、外部资源、托管依赖 | _start/_close，应用生命周期 |
-| BaseStep | 调用组件、组合结果、发送事件 | async execute，每次 Job 新实例 |
-| PipelineJob | 顺序组合多个 Step | 公共 Schema、defaults、最终结果 |
-| BaseJob | 需要自定义事件执行契约 | 自己实现 stream(arguments, system) |
-| BaseTask | 研究数据计算与产物发布 | 同步步骤；submit 可启动 worker |
+| 扩展点        | 典型职责                       | 执行与状态                         |
+| ------------- | ------------------------------ | ---------------------------------- |
+| BaseComponent | 连接、缓存、外部资源、托管依赖 | _start/_close，应用生命周期        |
+| BaseStep      | 调用组件、组合结果、发送事件   | async execute，每次 Job 新实例     |
+| PipelineJob   | 顺序组合多个 Step              | 公共 Schema、defaults、最终结果    |
+| BaseJob       | 需要自定义事件执行契约         | 自己实现 stream(arguments, system) |
+| BaseTask      | 研究数据计算与产物发布         | 同步步骤；submit 可启动 worker     |
 
 Job 是 Application 内的异步编排；Task 的步骤是同步函数。两者的 Step 名称相似，基类与执行边界不同。
 
@@ -126,7 +126,7 @@ jobs:
     parameters:
       type: object
       properties:
-        text: {type: string}
+        text: { type: string }
       required: [text]
       additionalProperties: false
     defaults:

@@ -109,13 +109,13 @@ Use `delete_tasks` for ordinary task cleanup and `delete_entries` for arbitrary 
 
 ## Common failures
 
-| Symptom | Checks and actions |
-| --- | --- |
-| submit is missing from the Job catalog | Configure the service token and restart; inspect the actual `/jobs` |
-| Unknown Task | Install the plugin on the execution machine and query definitions again |
-| Same-name directory already exists | Wait for the active task to finish, or use a new name |
-| wait reports a run identity mismatch | Check for a same-name rerun and use the original handle |
-| Record appears in task list but not research page | Check research type and successful metadata |
+| Symptom                                           | Checks and actions                                                      |
+| ------------------------------------------------- | ----------------------------------------------------------------------- |
+| submit is missing from the Job catalog            | Configure the service token and restart; inspect the actual `/jobs`     |
+| Unknown Task                                      | Install the plugin on the execution machine and query definitions again |
+| Same-name directory already exists                | Wait for the active task to finish, or use a new name                   |
+| wait reports a run identity mismatch              | Check for a same-name rerun and use the original handle                 |
+| Record appears in task list but not research page | Check research type and successful metadata                             |
 
 [Task API](../api/tasks.md) · [Lifecycle](../concepts/task-lifecycle.md) · [Task contracts](../reference/task-contracts.md)
 

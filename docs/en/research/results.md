@@ -25,14 +25,14 @@ The result summary presents date range, row count, and feature/label columns tog
 
 Main checks include date range, row count, feature columns, label columns, stock coverage, and statistics files.
 
-| Observation | Question to answer |
-| --- | --- |
-| `date_range` | Does it cover the research goal and retain enough history? |
-| `rows` and stock count | Is sample size abnormal, or limited to the latest few days? |
-| `feature_columns` | Are model feature names as expected? |
-| `label_columns` | Which return labels and transformed labels are available? |
-| Statistics CSV | Which columns have missing values, extremes, or insufficient coverage? |
-| Trading status and index weights | Is there enough data for buyability, delayed exits, and benchmarks? |
+| Observation                      | Question to answer                                                     |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| `date_range`                     | Does it cover the research goal and retain enough history?             |
+| `rows` and stock count           | Is sample size abnormal, or limited to the latest few days?            |
+| `feature_columns`                | Are model feature names as expected?                                   |
+| `label_columns`                  | Which return labels and transformed labels are available?              |
+| Statistics CSV                   | Which columns have missing values, extremes, or insufficient coverage? |
+| Trading status and index weights | Is there enough data for buyability, delayed exits, and benchmarks?    |
 
 a158 aligns market data to the trading calendar and combines listing lifecycle, historical names, and price limits to construct trading status. Feature statistics do not replace checks of those statuses. Without weight files, ETL generates empty weights and logs a warning; downstream index benchmarks may be missing.
 
@@ -90,14 +90,14 @@ The prediction overview shows score distribution, sample coverage, and output fi
 
 a158 saves the complete prediction cross-section, including samples that are not buyable, lack valid return labels, or have no index weights. Studio displays prediction rows, dates, stock count, score range, buyable rows, and index coverage statistics.
 
-| Statistic | Interpretation |
-| --- | --- |
-| `rows`, `days`, `symbols` | Overall prediction file size |
-| `pred.mean/min/median/max` | Model output distribution; units depend on the training target |
-| `buyable_rows` | Rows satisfying the buyable flag on the signal date |
-| `valid_return_rows` | Rows with valid return labels |
-| `candidate_rows` | Buyable candidate count in plugin statistics |
-| `indices.*` | Constituent coverage, weight coverage dates, and missing row counts |
+| Statistic                  | Interpretation                                                      |
+| -------------------------- | ------------------------------------------------------------------- |
+| `rows`, `days`, `symbols`  | Overall prediction file size                                        |
+| `pred.mean/min/median/max` | Model output distribution; units depend on the training target      |
+| `buyable_rows`             | Rows satisfying the buyable flag on the signal date                 |
+| `valid_return_rows`        | Rows with valid return labels                                       |
+| `candidate_rows`           | Buyable candidate count in plugin statistics                        |
+| `indices.*`                | Constituent coverage, weight coverage dates, and missing row counts |
 
 The default training target is cross-sectional return rank. `pred` is a score, neither a return nor a probability. Different targets or training plugins may use different score scales; directly comparing absolute scores usually has no common meaning.
 

@@ -30,10 +30,10 @@ upstream_base_url must be an HTTP(S) URL with a host; timeout must exceed 0. The
 
 ## Path mapping
 
-| Client route | Example upstream |
-| --- | --- |
-| /proxy/tushare | https://data.example/api/ |
-| /proxy/tushare/query | https://data.example/api/query |
+| Client route                       | Example upstream               |
+| ---------------------------------- | ------------------------------ |
+| /proxy/tushare                     | https://data.example/api/      |
+| /proxy/tushare/query               | https://data.example/api/query |
 | /proxy/tushare/query?date=20260105 | Same path with query preserved |
 
 name selects the proxy component, and the remaining path is appended to the upstream prefix. Paths containing `.` or `..` segments, or attempting to escape the prefix, are rejected.
@@ -64,12 +64,12 @@ Responses retain the upstream status code and end-to-end response headers. After
 
 ## Timeouts and errors
 
-| Situation | Result |
-| --- | --- |
-| Name does not exist | 404 Unknown proxy |
-| Invalid proxy path | 422 request error |
-| Upstream connection fails | 502 gateway error |
-| Upstream timeout | 504 gateway timeout |
+| Situation                         | Result                                      |
+| --------------------------------- | ------------------------------------------- |
+| Name does not exist               | 404 Unknown proxy                           |
+| Invalid proxy path                | 422 request error                           |
+| Upstream connection fails         | 502 gateway error                           |
+| Upstream timeout                  | 504 gateway timeout                         |
 | Upstream returns 4xx/5xx normally | Upstream status and response body preserved |
 
 Proxy responses have no `success` or `answer` wrapper; clients should assess HTTP status and the upstream body. Business success=false in Job forwarding and proxy errors have different diagnostic paths.

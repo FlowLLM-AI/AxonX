@@ -12,22 +12,22 @@ npm ci
 npm run dev
 ```
 
-The complete development toolchain requires Node.js 20.19.0 or later in the 20.x series, 22.13.0 or later in the 22.x series, or version 24.0.0 and above. These ranges satisfy both the current Vite and ESLint toolchain dependencies. Vite listens on 4173 by default, and the development proxy connects to `http://127.0.0.1:1024` by default. Use `AXONX_DEV_SERVER` to point to another backend and restart Vite after changing it. The proxy covers `/health`, `/jobs`, `/files`, `/mcp`, and `/proxy`.
+The complete development toolchain requires Node.js 22.13+ (22.x), 24.x, or 26+ to satisfy the locked Vite, ESLint, and Vitest dependencies. Vite listens on 4173 by default, and the development proxy connects to `http://127.0.0.1:1024` by default. Use `AXONX_DEV_SERVER` to point to another backend and restart Vite after changing it. The proxy covers `/health`, `/jobs`, `/files`, `/mcp`, and `/proxy`.
 
 `npm run build` performs TypeScript checks first, then outputs `dist`. Build artifacts are for backend static hosting; the development server provides hot updates. Their startup methods differ.
 
 ## Directory responsibilities
 
-| Location | Responsibility |
-| --- | --- |
-| `src/app` | Hash routing, navigation, machine selection, page dispatch, and shared application state |
-| `src/features` | Business pages for submission, run center, Agent, research, and workspace |
-| `src/shared/api` | Job requests, response unwrapping, SSE, and shared types |
-| `src/shared/schema` | JSON Schema field types and form-value conversion |
-| `src/shared/ui` | Reusable components such as SchemaForm and panel dragging |
-| `src/shared/hooks` | Asynchronous loading, polling, and copy feedback |
-| `src/styles` | Design variables, shell, and feature styles |
-| `src/locales` | Chinese and English translation resources |
+| Location            | Responsibility                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| `src/app`           | Hash routing, navigation, machine selection, page dispatch, and shared application state |
+| `src/features`      | Business pages for submission, run center, Agent, research, and workspace                |
+| `src/shared/api`    | Job requests, response unwrapping, SSE, and shared types                                 |
+| `src/shared/schema` | JSON Schema field types and form-value conversion                                        |
+| `src/shared/ui`     | Reusable components such as SchemaForm and panel dragging                                |
+| `src/shared/hooks`  | Asynchronous loading, polling, and copy feedback                                         |
+| `src/styles`        | Design variables, shell, and feature styles                                              |
+| `src/locales`       | Chinese and English translation resources                                                |
 
 ![Studio feature map](../../figures/getting-started/studio-map.svg)
 

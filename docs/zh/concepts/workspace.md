@@ -36,11 +36,11 @@ logs/                            # 独立日志目录，不一定在工作区内
 
 ## 三类记录
 
-| 文件 | 何时出现 | 负责什么 |
-| --- | --- | --- |
-| status.json | 受理与运行过程 | run_id、state、步骤、错误、退出码、日志路径、result |
-| metadata.json | 成功时 | 定义身份、创建时间、typed input/output、产物引用与血缘 |
-| events.jsonl | worker 记录进度时 | 按行记录可回放的进度事件 |
+| 文件          | 何时出现          | 负责什么                                               |
+| ------------- | ----------------- | ------------------------------------------------------ |
+| status.json   | 受理与运行过程    | run_id、state、步骤、错误、退出码、日志路径、result    |
+| metadata.json | 成功时            | 定义身份、创建时间、typed input/output、产物引用与血缘 |
+| events.jsonl  | worker 记录进度时 | 按行记录可回放的进度事件                               |
 
 status 是可变快照，metadata 是成功结果封装。它们不是同一内容的两个副本：metadata 不含 `run_id`，status 的 `result` 对应 metadata 的 `output_params`。
 

@@ -32,13 +32,13 @@ axonx submit --task '<已安装的预测 Task 注册名>' \
 
 成功 Task 的 metadata.input_params.source_tasks 是最终关系来源。没有成功 metadata 的任务，查询端使用 status.config.source_tasks 生成临时关系。
 
-| 字段 | 解释 |
-| --- | --- |
-| parent_ids | 当前节点声明的上游 Task ID |
-| provisional=true | 有状态记录，尚无最终 metadata |
-| missing=true | 某个上游被引用，但工作区没有有效记录 |
-| state | 有 status 时的执行状态，可为空 |
-| edges.from / edges.to | 从上游指向下游 |
+| 字段                  | 解释                                 |
+| --------------------- | ------------------------------------ |
+| parent_ids            | 当前节点声明的上游 Task ID           |
+| provisional=true      | 有状态记录，尚无最终 metadata        |
+| missing=true          | 某个上游被引用，但工作区没有有效记录 |
+| state                 | 有 status 时的执行状态，可为空       |
+| edges.from / edges.to | 从上游指向下游                       |
 
 图查询返回与选中任务相连的关系分量，包含上游和下游，并不只返回直接父节点。`root_id` 是图中的根标识，不是“下一步应执行”的调度指令。
 

@@ -41,10 +41,10 @@ components:
 
 默认配置把服务环境中的变量映射到 SDK 子进程：
 
-| 服务环境变量 | SDK 环境用途 |
-| --- | --- |
-| `CLAUDE_CODE_API_KEY` | `ANTHROPIC_AUTH_TOKEN` |
-| `CLAUDE_CODE_BASE_URL` | `ANTHROPIC_BASE_URL` |
+| 服务环境变量             | SDK 环境用途                     |
+| ------------------------ | -------------------------------- |
+| `CLAUDE_CODE_API_KEY`    | `ANTHROPIC_AUTH_TOKEN`           |
+| `CLAUDE_CODE_BASE_URL`   | `ANTHROPIC_BASE_URL`             |
 | `CLAUDE_CODE_MODEL_NAME` | `ANTHROPIC_MODEL` 及默认模型别名 |
 
 ```bash
@@ -59,14 +59,14 @@ export CLAUDE_CODE_MODEL_NAME='<可用模型名>'
 
 ## 框架管理字段
 
-| 字段 | 默认行为 | 说明 |
-| --- | --- | --- |
-| `backend` | 默认配置 `claude` | 当前内置实现 |
-| `job_tools` | 组件构造默认空列表，默认配置给出八个查询 Job | 进程内 AxonX MCP 工具名单 |
-| `state_dir` | `agent/claude` | 用于 SDK 配置目录，按组件名称再分一层 |
-| `session_store.backend` | `local` | 当前仅支持 local |
-| `session_store.path` | `agent/session-store` | 会话存储根目录 |
-| `cwd` | 工作区根目录 | SDK 选项，由框架解析执行目录 |
+| 字段                    | 默认行为                                     | 说明                                  |
+| ----------------------- | -------------------------------------------- | ------------------------------------- |
+| `backend`               | 默认配置 `claude`                            | 当前内置实现                          |
+| `job_tools`             | 组件构造默认空列表，默认配置给出八个查询 Job | 进程内 AxonX MCP 工具名单             |
+| `state_dir`             | `agent/claude`                               | 用于 SDK 配置目录，按组件名称再分一层 |
+| `session_store.backend` | `local`                                      | 当前仅支持 local                      |
+| `session_store.path`    | `agent/session-store`                        | 会话存储根目录                        |
+| `cwd`                   | 工作区根目录                                 | SDK 选项，由框架解析执行目录          |
 
 状态路径相对工作区解析，绝对状态路径也必须位于工作区内。默认组件名为 `default` 时，SDK 配置目录是 `<workspace>/agent/claude/default`。
 

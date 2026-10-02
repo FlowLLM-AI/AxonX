@@ -36,11 +36,11 @@ The directory rule is `<task_type>/<task_id>`, rather than `<task_type>/<registe
 
 ## Three Types of Records
 
-| File | When it appears | Responsibility |
-| --- | --- | --- |
-| status.json | Acceptance and execution | run_id, state, steps, errors, exit code, log path, result |
-| metadata.json | On success | Definition identity, creation time, typed input/output, artifact references, and lineage |
-| events.jsonl | When the worker records progress | Replayable progress events recorded line by line |
+| File          | When it appears                  | Responsibility                                                                           |
+| ------------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
+| status.json   | Acceptance and execution         | run_id, state, steps, errors, exit code, log path, result                                |
+| metadata.json | On success                       | Definition identity, creation time, typed input/output, artifact references, and lineage |
+| events.jsonl  | When the worker records progress | Replayable progress events recorded line by line                                         |
 
 Status is a mutable snapshot; metadata packages a successful result. They are not duplicates: metadata contains no `run_id`, and status `result` corresponds to metadata `output_params`.
 

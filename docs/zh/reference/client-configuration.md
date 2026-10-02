@@ -6,13 +6,13 @@
 
 ## ClientOptions
 
-| 字段 | 类型 | 默认值 | 含义 |
-| --- | --- | --- | --- |
-| target | string/null | null | 明确连接地址；null 使用发现规则 |
-| timeout | 正浮点数 | 60.0 | HTTP/MCP 请求等待预算 |
-| token | 非空 string/null | null | 协议 Bearer token |
-| stream | boolean | false | CLI 使用事件入口 |
-| stream_format | blocks/json | blocks | CLI 事件展示格式 |
+| 字段          | 类型             | 默认值 | 含义                            |
+| ------------- | ---------------- | ------ | ------------------------------- |
+| target        | string/null      | null   | 明确连接地址；null 使用发现规则 |
+| timeout       | 正浮点数         | 60.0   | HTTP/MCP 请求等待预算           |
+| token         | 非空 string/null | null   | 协议 Bearer token               |
+| stream        | boolean          | false  | CLI 使用事件入口                |
+| stream_format | blocks/json      | blocks | CLI 事件展示格式                |
 
 ClientOptions 为 strict、frozen 模型，禁止额外字段。Python 传入真正的数值、布尔值；不要传 `stream="true"`。CLI 会先做自然值转换，`--client-timeout` 映射到 timeout。HttpClient/McpClient 构造参数只接收连接相关值，stream 与 stream_format 应由调用者选择消费方法。
 
@@ -42,10 +42,10 @@ axonx version --target node-b:1024 --token your-target-token
 
 省略 --token 时，CLI 加载 .env（不覆盖已有环境），然后：
 
-| 场景 | 使用的环境变量 |
-| --- | --- |
+| 场景              | 使用的环境变量      |
+| ----------------- | ------------------- |
 | 没有显式 --target | AXONX_SERVICE_TOKEN |
-| 有显式 --target | AXONX_TARGET_TOKEN |
+| 有显式 --target   | AXONX_TARGET_TOKEN  |
 
 即使显式 target 指向本机，也会选 AXONX_TARGET_TOKEN。不能假定直连自动从 ApplicationConfig.targets 提取凭据。
 

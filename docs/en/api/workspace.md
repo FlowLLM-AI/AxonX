@@ -12,20 +12,20 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 ## Endpoint list
 
-| Job | Purpose |
-| --- | --- |
-| `list_entries` | List one directory level within the workspace. |
+| Job              | Purpose                                         |
+| ---------------- | ----------------------------------------------- |
+| `list_entries`   | List one directory level within the workspace.  |
 | `list_task_runs` | List task directories containing metadata.json. |
-| `preview_file` | Preview supported file types. |
-| `delete_entries` | Delete files or directories in the workspace. |
+| `preview_file`   | Preview supported file types.                   |
+| `delete_entries` | Delete files or directories in the workspace.   |
 
 ## list_entries
 
 List one directory level within the workspace.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `path` | string | No | `""` | Path relative to the service workspace |
+| Parameter | Type   | Required | Default | Constraints and meaning                |
+| --------- | ------ | -------- | ------- | -------------------------------------- |
+| `path`    | string | No       | `""`    | Path relative to the service workspace |
 
 Only the business fields listed in the table are accepted.
 
@@ -61,9 +61,9 @@ path defaults to an empty string, representing the root directory; directories s
 
 List task directories containing metadata.json.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `task_type` | string | Yes | `— (omitted)` | Task type directory; minLength=1, regex `^[A-Za-z0-9][A-Za-z0-9_-]*$` |
+| Parameter   | Type   | Required | Default       | Constraints and meaning                                               |
+| ----------- | ------ | -------- | ------------- | --------------------------------------------------------------------- |
+| `task_type` | string | Yes      | `— (omitted)` | Task type directory; minLength=1, regex `^[A-Za-z0-9][A-Za-z0-9_-]*$` |
 
 Only the business fields listed in the table are accepted.
 
@@ -101,11 +101,11 @@ Running or failed directories without metadata are excluded from the research-re
 
 Preview supported file types.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `path` | string | Yes | `— (omitted)` | Path relative to the service workspace |
-| `offset` | integer | No | `0` | Number of data rows to skip in CSV/Parquet previews; minimum=0 |
-| `limit` | integer | No | `200` | Maximum number of data rows returned in CSV/Parquet previews; minimum=1, maximum=5000 |
+| Parameter | Type    | Required | Default       | Constraints and meaning                                                               |
+| --------- | ------- | -------- | ------------- | ------------------------------------------------------------------------------------- |
+| `path`    | string  | Yes      | `— (omitted)` | Path relative to the service workspace                                                |
+| `offset`  | integer | No       | `0`           | Number of data rows to skip in CSV/Parquet previews; minimum=0                        |
+| `limit`   | integer | No       | `200`         | Maximum number of data rows returned in CSV/Parquet previews; minimum=1, maximum=5000 |
 
 Only the business fields listed in the table are accepted.
 
@@ -146,9 +146,9 @@ offset/limit apply only to CSV and Parquet data rows, default to 0/200, and have
 
 Delete files or directories in the workspace.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `paths` | array | Yes | `— (omitted)` | List of workspace-relative paths to delete; maxItems=200, minItems=1 |
+| Parameter | Type  | Required | Default       | Constraints and meaning                                              |
+| --------- | ----- | -------- | ------------- | -------------------------------------------------------------------- |
+| `paths`   | array | Yes      | `— (omitted)` | List of workspace-relative paths to delete; maxItems=200, minItems=1 |
 
 Only the business fields listed in the table are accepted.
 
@@ -157,9 +157,7 @@ Only the business fields listed in the table are accepted.
 ```json
 {
   "arguments": {
-    "paths": [
-      "tmp/example.txt"
-    ]
+    "paths": ["tmp/example.txt"]
   }
 }
 ```
@@ -234,13 +232,13 @@ The example path is a placeholder; replace it with the actual path. The cleanup 
 
 ## Preview response types
 
-| kind | Specific fields | Consumption guidance |
-| --- | --- | --- |
-| text | content, truncated | Do not infer the complete file from truncated content |
-| markdown | content, frontmatter, frontmatter_error, truncated | Read frontmatter separately and report its errors separately |
-| json / yaml | content, data, parse_error, truncated | Do not analyze data when parse_error is nonempty |
-| csv | columns, rows, offset, limit, has_more | Add the number of returned rows to offset for the next page |
-| parquet | CSV-style fields plus column_schema, row_count, row_group_count | schema supplies column types and nullable |
-| unsupported | size | The endpoint provides no preview content for this format |
+| kind        | Specific fields                                                 | Consumption guidance                                         |
+| ----------- | --------------------------------------------------------------- | ------------------------------------------------------------ |
+| text        | content, truncated                                              | Do not infer the complete file from truncated content        |
+| markdown    | content, frontmatter, frontmatter_error, truncated              | Read frontmatter separately and report its errors separately |
+| json / yaml | content, data, parse_error, truncated                           | Do not analyze data when parse_error is nonempty             |
+| csv         | columns, rows, offset, limit, has_more                          | Add the number of returned rows to offset for the next page  |
+| parquet     | CSV-style fields plus column_schema, row_count, row_group_count | schema supplies column types and nullable                    |
+| unsupported | size                                                            | The endpoint provides no preview content for this format     |
 
 Raw file size in bytes, row-pagination offset, and log-byte offset are distinct information. Text previews have no general character pagination. Parquet row counts and row-group information come from file metadata; returned rows represent only the current window.

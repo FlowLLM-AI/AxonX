@@ -6,13 +6,13 @@ Client configuration determines which service to connect to, how to authenticate
 
 ## ClientOptions
 
-| Field | Type | Default | Meaning |
-| --- | --- | --- | --- |
-| target | string/null | null | Explicit connection address; null uses discovery rules |
-| timeout | Positive float | 60.0 | HTTP/MCP request wait budget |
-| token | Nonempty string/null | null | Protocol Bearer token |
-| stream | boolean | false | CLI uses the event endpoint |
-| stream_format | blocks/json | blocks | CLI event display format |
+| Field         | Type                 | Default | Meaning                                                |
+| ------------- | -------------------- | ------- | ------------------------------------------------------ |
+| target        | string/null          | null    | Explicit connection address; null uses discovery rules |
+| timeout       | Positive float       | 60.0    | HTTP/MCP request wait budget                           |
+| token         | Nonempty string/null | null    | Protocol Bearer token                                  |
+| stream        | boolean              | false   | CLI uses the event endpoint                            |
+| stream_format | blocks/json          | blocks  | CLI event display format                               |
 
 ClientOptions is a strict, frozen model that prohibits extra fields. Pass actual numeric and boolean values in Python; do not pass `stream="true"`. The CLI first performs natural-value conversion and maps `--client-timeout` to timeout. HttpClient/McpClient constructors accept only connection-related values; callers choose consumption methods for stream and stream_format.
 
@@ -42,10 +42,10 @@ axonx version --target node-b:1024 --token your-target-token
 
 When --token is omitted, the CLI loads .env without overriding existing environment variables, then uses:
 
-| Scenario | Environment variable used |
-| --- | --- |
-| No explicit --target | AXONX_SERVICE_TOKEN |
-| Explicit --target | AXONX_TARGET_TOKEN |
+| Scenario             | Environment variable used |
+| -------------------- | ------------------------- |
+| No explicit --target | AXONX_SERVICE_TOKEN       |
+| Explicit --target    | AXONX_TARGET_TOKEN        |
 
 An explicit target selects AXONX_TARGET_TOKEN even when it points to the local machine. Do not assume direct connections automatically extract credentials from ApplicationConfig.targets.
 

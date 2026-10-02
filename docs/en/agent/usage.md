@@ -111,14 +111,14 @@ However, the Claude SDK's own tools, project settings, plugins, and `permission_
 
 ## Failure checks
 
-| Symptom | What to check |
-| --- | --- |
-| Agent Job missing from the catalog | Token, public Job settings, and component startup |
-| Model connection fails | Claude environment configuration on the service machine |
-| Session does not exist | Whether session_id belongs to the same machine and session store |
-| Requests in the same session wait | The session's turn lock may be held |
-| Tool cannot find a task | Current machine, Task ID, and workspace scope |
-| Session ends but research still runs | Manage the independent Task lifecycle separately |
+| Symptom                              | What to check                                                    |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| Agent Job missing from the catalog   | Token, public Job settings, and component startup                |
+| Model connection fails               | Claude environment configuration on the service machine          |
+| Session does not exist               | Whether session_id belongs to the same machine and session store |
+| Requests in the same session wait    | The session's turn lock may be held                              |
+| Tool cannot find a task              | Current machine, Task ID, and workspace scope                    |
+| Session ends but research still runs | Manage the independent Task lifecycle separately                 |
 
 ## Related documentation and implementation
 

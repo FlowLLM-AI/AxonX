@@ -30,11 +30,11 @@ upstream_base_url 必须是含主机的 HTTP(S) URL；timeout 必须大于 0。�
 
 ## 路径如何映射
 
-| 客户端路由 | 示例上游 |
-| --- | --- |
-| /proxy/tushare | https://data.example/api/ |
-| /proxy/tushare/query | https://data.example/api/query |
-| /proxy/tushare/query?date=20260105 | 同路径并保留 query |
+| 客户端路由                         | 示例上游                       |
+| ---------------------------------- | ------------------------------ |
+| /proxy/tushare                     | https://data.example/api/      |
+| /proxy/tushare/query               | https://data.example/api/query |
+| /proxy/tushare/query?date=20260105 | 同路径并保留 query             |
 
 name 选择 proxy 组件，后续 path 追加到上游前缀。包含 `.`、`..` 路径段或试图逃离前缀的路径会被拒绝。
 
@@ -64,12 +64,12 @@ curl -sS 'http://127.0.0.1:1024/proxy/tushare/trade_cal' \
 
 ## 超时与错误
 
-| 情况 | 结果 |
-| --- | --- |
-| 名字不存在 | 404 Unknown proxy |
-| 非法代理路径 | 422 请求错误 |
-| 上游连接失败 | 502 网关错误 |
-| 上游超时 | 504 网关超时 |
+| 情况                 | 结果                 |
+| -------------------- | -------------------- |
+| 名字不存在           | 404 Unknown proxy    |
+| 非法代理路径         | 422 请求错误         |
+| 上游连接失败         | 502 网关错误         |
+| 上游超时             | 504 网关超时         |
 | 上游正常返回 4xx/5xx | 保留上游状态与响应体 |
 
 代理响应没有 `success`、`answer` 包装，客户端应按 HTTP 状态和上游正文判断。Job 转发的业务 success=false 和 proxy 错误是不同诊断路径。

@@ -6,10 +6,10 @@
 
 BaseInputParams 使用 `extra="forbid"` 和赋值校验。每个 Task 的 input_cls 在基类上声明业务字段。
 
-| 基础输入字段 | 类型与默认值 | 约束 |
-| --- | --- | --- |
-| task_name | string 或 null，默认 null | 1–32 个字母、数字、连字符；空串视为未指定 |
-| source_tasks | string，默认空串 | 英文逗号分隔合法 Task ID，拒绝重复 ID |
+| 基础输入字段 | 类型与默认值              | 约束                                      |
+| ------------ | ------------------------- | ----------------------------------------- |
+| task_name    | string 或 null，默认 null | 1–32 个字母、数字、连字符；空串视为未指定 |
+| source_tasks | string，默认空串          | 英文逗号分隔合法 Task ID，拒绝重复 ID     |
 
 `source_tasks` 会去除每项周围空白并重新拼接。`source_task(TaskType.X)` 要求指定类型恰好一个上游，不会自动验证目录和产物存在。
 
@@ -32,14 +32,14 @@ class AddOutput(BaseOutputParams):
 
 TaskContext 是 frozen dataclass，附着在 Task 上，提供运行时拥有的值：
 
-| 字段 | 类型 | 用途 |
-| --- | --- | --- |
-| workspace_path | Path | 已解析工作区根 |
-| registration_name | string | 定义注册名 |
-| task_id | string | 目录身份 |
-| run_id | string | 执行身份 |
-| created_at | datetime | 本轮创建时刻 |
-| logger | 日志对象 | 记录步骤执行 |
+| 字段              | 类型     | 用途           |
+| ----------------- | -------- | -------------- |
+| workspace_path    | Path     | 已解析工作区根 |
+| registration_name | string   | 定义注册名     |
+| task_id           | string   | 目录身份       |
+| run_id            | string   | 执行身份       |
+| created_at        | datetime | 本轮创建时刻   |
+| logger            | 日志对象 | 记录步骤执行   |
 
 插件应读取这些值，不修改运行身份。`task.task_dir` 是 `<workspace>/<type>/<task_id>`；`source_task_dir(id)` 定位同工作区的上游目录。
 
@@ -61,21 +61,21 @@ TaskHandle 是 submit 返回的 immutable dataclass：
 
 ## TaskStatus
 
-| 字段 | 类型/默认 | 含义 |
-| --- | --- | --- |
-| task_id | string，必需 | 必须与目录 ID 一致 |
-| run_id | 非空 string，必需 | 当前执行身份 |
-| task_type | TaskType，必需 | 必须与 ID 中类型一致 |
-| task_name | string，默认空串 | 当前实现写入注册名 |
-| config | object，默认 {} | typed input 的 JSON 表示，含实例 task_name |
-| state | TaskState，默认 queued | 当前执行状态 |
-| pid | integer 或 null | 当时运行进程标识 |
-| created_at / started_at / finished_at | datetime 或 null | 创建、开始和结束时刻 |
-| steps | TaskStepStatus[]，默认 [] | 已开始步骤快照 |
-| result | object，默认 {} | 构建后的 typed output |
-| error | string，默认空串 | 错误说明 |
-| exit_code | integer，默认 0 | 0–255 |
-| log_path | string，默认空串 | 独立日志文件位置 |
+| 字段                                  | 类型/默认                 | 含义                                       |
+| ------------------------------------- | ------------------------- | ------------------------------------------ |
+| task_id                               | string，必需              | 必须与目录 ID 一致                         |
+| run_id                                | 非空 string，必需         | 当前执行身份                               |
+| task_type                             | TaskType，必需            | 必须与 ID 中类型一致                       |
+| task_name                             | string，默认空串          | 当前实现写入注册名                         |
+| config                                | object，默认 {}           | typed input 的 JSON 表示，含实例 task_name |
+| state                                 | TaskState，默认 queued    | 当前执行状态                               |
+| pid                                   | integer 或 null           | 当时运行进程标识                           |
+| created_at / started_at / finished_at | datetime 或 null          | 创建、开始和结束时刻                       |
+| steps                                 | TaskStepStatus[]，默认 [] | 已开始步骤快照                             |
+| result                                | object，默认 {}           | 构建后的 typed output                      |
+| error                                 | string，默认空串          | 错误说明                                   |
+| exit_code                             | integer，默认 0           | 0–255                                      |
+| log_path                              | string，默认空串          | 独立日志文件位置                           |
 
 TaskStepStatus 包含非空 name、可空 started_at/finished_at、可空 percentage（0–100）。百分比描述当前步骤，不是整项研究进度。
 
@@ -87,14 +87,32 @@ TaskStepStatus 包含非空 name、可空 started_at/finished_at、可空 percen
   "run_id": "a9f248807a0a496abf3738422b379a51",
   "task_type": "base",
   "task_name": "demo",
-  "config": {"task_name":"contract-01","source_tasks":"","x":1,"y":2,"fail":false},
+  "config": {
+    "task_name": "contract-01",
+    "source_tasks": "",
+    "x": 1,
+    "y": 2,
+    "fail": false
+  },
   "state": "succeeded",
   "pid": 12345,
   "created_at": "2026-01-05T09:00:00+08:00",
   "started_at": "2026-01-05T01:00:00Z",
   "finished_at": "2026-01-05T01:00:01Z",
-  "steps": [{"name":"finish","started_at":"2026-01-05T01:00:00Z","finished_at":"2026-01-05T01:00:01Z","percentage":100}],
-  "result": {"artifacts":{},"result":3,"branch":"different","operands":["x","y"]},
+  "steps": [
+    {
+      "name": "finish",
+      "started_at": "2026-01-05T01:00:00Z",
+      "finished_at": "2026-01-05T01:00:01Z",
+      "percentage": 100
+    }
+  ],
+  "result": {
+    "artifacts": {},
+    "result": 3,
+    "branch": "different",
+    "operands": ["x", "y"]
+  },
   "error": "",
   "exit_code": 0,
   "log_path": ""
@@ -126,8 +144,19 @@ metadata 顶层严格表达成功任务的输入与输出：
   "reg_name": "demo",
   "created_at": "2026-01-05T09:00:00+08:00",
   "task_type": "base",
-  "input_params": {"task_name":"contract-01","source_tasks":"","x":1,"y":2,"fail":false},
-  "output_params": {"artifacts":{},"result":3,"branch":"different","operands":["x","y"]}
+  "input_params": {
+    "task_name": "contract-01",
+    "source_tasks": "",
+    "x": 1,
+    "y": 2,
+    "fail": false
+  },
+  "output_params": {
+    "artifacts": {},
+    "result": 3,
+    "branch": "different",
+    "operands": ["x", "y"]
+  }
 }
 ```
 
@@ -140,7 +169,11 @@ metadata 没有顶层 run_id、state、result 或 error。TaskStatus.result 与 
 ```json
 {
   "artifacts": {
-    "dataset": {"path":"data/dataset.parquet","size":10240,"sha256":"<64 位十六进制校验和>"}
+    "dataset": {
+      "path": "data/dataset.parquet",
+      "size": 10240,
+      "sha256": "<64 位十六进制校验和>"
+    }
   }
 }
 ```

@@ -12,20 +12,20 @@
 
 ## 接口清单
 
-| Job | 用途 |
-| --- | --- |
-| `list_entries` | 列出工作区内一层目录。 |
+| Job              | 用途                              |
+| ---------------- | --------------------------------- |
+| `list_entries`   | 列出工作区内一层目录。            |
 | `list_task_runs` | 列出含 metadata.json 的任务目录。 |
-| `preview_file` | 预览支持类型的文件。 |
-| `delete_entries` | 删除工作区中的文件或目录。 |
+| `preview_file`   | 预览支持类型的文件。              |
+| `delete_entries` | 删除工作区中的文件或目录。        |
 
 ## list_entries
 
 列出工作区内一层目录。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `path` | string | 否 | `""` | 服务工作区相对路径 |
+| 参数   | 类型   | 必填 | 默认值 | 约束与含义         |
+| ------ | ------ | ---- | ------ | ------------------ |
+| `path` | string | 否   | `""`   | 服务工作区相对路径 |
 
 只接受表中业务字段。
 
@@ -61,9 +61,9 @@ path 默认空字符串表示根目录；目录优先排序。最多返回 5000 
 
 列出含 metadata.json 的任务目录。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task_type` | string | 是 | `—（省略）` | 任务类型目录；minLength=1, 正则 `^[A-Za-z0-9][A-Za-z0-9_-]*$` |
+| 参数        | 类型   | 必填 | 默认值      | 约束与含义                                                    |
+| ----------- | ------ | ---- | ----------- | ------------------------------------------------------------- |
+| `task_type` | string | 是   | `—（省略）` | 任务类型目录；minLength=1, 正则 `^[A-Za-z0-9][A-Za-z0-9_-]*$` |
 
 只接受表中业务字段。
 
@@ -101,11 +101,11 @@ answer 与 WorkspaceListing 相同，只保留任务结果目录。
 
 预览支持类型的文件。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `path` | string | 是 | `—（省略）` | 服务工作区相对路径 |
-| `offset` | integer | 否 | `0` | CSV/Parquet 预览跳过的数据行数；minimum=0 |
-| `limit` | integer | 否 | `200` | CSV/Parquet 预览最多返回的数据行数；minimum=1, maximum=5000 |
+| 参数     | 类型    | 必填 | 默认值      | 约束与含义                                                  |
+| -------- | ------- | ---- | ----------- | ----------------------------------------------------------- |
+| `path`   | string  | 是   | `—（省略）` | 服务工作区相对路径                                          |
+| `offset` | integer | 否   | `0`         | CSV/Parquet 预览跳过的数据行数；minimum=0                   |
+| `limit`  | integer | 否   | `200`       | CSV/Parquet 预览最多返回的数据行数；minimum=1, maximum=5000 |
 
 只接受表中业务字段。
 
@@ -146,9 +146,9 @@ offset/limit 仅对 CSV、Parquet 的数据行有效，默认 0/200，上限 500
 
 删除工作区中的文件或目录。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `paths` | array | 是 | `—（省略）` | 待删除的工作区相对路径列表；maxItems=200, minItems=1 |
+| 参数    | 类型  | 必填 | 默认值      | 约束与含义                                           |
+| ------- | ----- | ---- | ----------- | ---------------------------------------------------- |
+| `paths` | array | 是   | `—（省略）` | 待删除的工作区相对路径列表；maxItems=200, minItems=1 |
 
 只接受表中业务字段。
 
@@ -157,9 +157,7 @@ offset/limit 仅对 CSV、Parquet 的数据行有效，默认 0/200，上限 500
 ```json
 {
   "arguments": {
-    "paths": [
-      "tmp/example.txt"
-    ]
+    "paths": ["tmp/example.txt"]
   }
 }
 ```
@@ -234,13 +232,13 @@ curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fyour-digest%
 
 ## 预览响应分型
 
-| kind | 特有字段 | 消费建议 |
-| --- | --- | --- |
-| text | content、truncated | 内容截断时不要推断完整文件 |
-| markdown | content、frontmatter、frontmatter_error、truncated | frontmatter 单独读取，错误单独提示 |
-| json / yaml | content、data、parse_error、truncated | parse_error 非空时不能使用 data 分析 |
-| csv | columns、rows、offset、limit、has_more | 下一页 offset 加已返回行数 |
-| parquet | CSV 同类字段，以及 column_schema、row_count、row_group_count | schema 提供列类型与 nullable |
-| unsupported | size | 接口不提供该格式的预览内容 |
+| kind        | 特有字段                                                     | 消费建议                             |
+| ----------- | ------------------------------------------------------------ | ------------------------------------ |
+| text        | content、truncated                                           | 内容截断时不要推断完整文件           |
+| markdown    | content、frontmatter、frontmatter_error、truncated           | frontmatter 单独读取，错误单独提示   |
+| json / yaml | content、data、parse_error、truncated                        | parse_error 非空时不能使用 data 分析 |
+| csv         | columns、rows、offset、limit、has_more                       | 下一页 offset 加已返回行数           |
+| parquet     | CSV 同类字段，以及 column_schema、row_count、row_group_count | schema 提供列类型与 nullable         |
+| unsupported | size                                                         | 接口不提供该格式的预览内容           |
 
 原始文件字节大小、行分页 offset 与日志字节 offset 是三种不同信息。文本预览没有通用字符分页。Parquet 行数与分组信息来自文件元数据，返回 rows 只是当前窗口。

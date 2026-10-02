@@ -40,12 +40,12 @@ Application does not automatically read .env; resolve_app_config expands only ex
 
 ## Application methods
 
-| Method | Parameters | Return and constraints |
-| --- | --- | --- |
-| start() | None | await; idempotent startup |
-| close() | None | await; cleanup in reverse order; multiple cleanup errors may be aggregated |
-| run_job(name, arguments=None, *, target=None) | Job name, argument mapping, optional configured target | await returns JobResponse |
-| stream_job(name, arguments=None, *, target=None) | Same as above | Returns AsyncIterator; do not await the method itself |
+| Method                                           | Parameters                                             | Return and constraints                                                     |
+| ------------------------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------- |
+| start()                                          | None                                                   | await; idempotent startup                                                  |
+| close()                                          | None                                                   | await; cleanup in reverse order; multiple cleanup errors may be aggregated |
+| run_job(name, arguments=None, *, target=None)    | Job name, argument mapping, optional configured target | await returns JobResponse                                                  |
+| stream_job(name, arguments=None, *, target=None) | Same as above                                          | Returns AsyncIterator; do not await the method itself                      |
 
 run_job and stream_job both require a started application. A nonempty target must appear in ApplicationConfig.targets and uses its address/token. Local calls are not restricted by HTTP public_jobs filtering, but business Schemas and reserved system fields are still validated.
 
@@ -80,14 +80,14 @@ asyncio.run(main())
 
 Remote answer values are decoded dictionaries/lists; a local Application.answer may retain Pydantic/dataclass objects. For uniform processing, call response.model_dump(mode="json") first, rather than assuming answer has the same Python object type on both paths.
 
-| HttpClient method | Key signature details | Return |
-| --- | --- | --- |
-| run_job | name, arguments=None | JobResponse |
-| stream_job | name, arguments=None | AsyncIterator[JobEvent] |
-| list_jobs | None | list[JobInfo] |
-| health | None | bool; failures map to false |
-| copy_file | Path, filename=None, directory=None | FileCopy |
-| discard_file | path: str | Cleaned-up path string |
+| HttpClient method | Key signature details               | Return                      |
+| ----------------- | ----------------------------------- | --------------------------- |
+| run_job           | name, arguments=None                | JobResponse                 |
+| stream_job        | name, arguments=None                | AsyncIterator[JobEvent]     |
+| list_jobs         | None                                | list[JobInfo]               |
+| health            | None                                | bool; failures map to false |
+| copy_file         | Path, filename=None, directory=None | FileCopy                    |
+| discard_file      | path: str                           | Cleaned-up path string      |
 
 Constructor parameters are target=None, timeout=60.0, and token=None; optional transport injects an HTTP transport, for example in tests. Calls are available only after entering async with. target must not contain `/mcp` or a Job subpath.
 

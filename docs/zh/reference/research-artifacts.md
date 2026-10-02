@@ -39,13 +39,13 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 下表的必填指模型没有默认值；不是所有字段都在 Studio 单独展示。
 
-| 类型 | 基类必填 | 基类可选或默认字段 |
-| --- | --- | --- |
-| ETL | `output_file`、`rows`、`date_range` | `feature_columns=[]`、`label_columns=[]` |
-| Analysis | `result_file`、`rows` | `scores={}` |
-| Train | `model_file`、`train_rows` | `model_name`、特征/目标列、metrics、parameters、training_curve |
-| Predict | `predictions_file`、`rows`、`date_range` | `output_columns=[]`、`protocol={}`、`statistics={}` |
-| Backtest | `dimensions`、`protocol`、`date_range`、`days` | 共享的 `artifacts={}` |
+| 类型     | 基类必填                                       | 基类可选或默认字段                                             |
+| -------- | ---------------------------------------------- | -------------------------------------------------------------- |
+| ETL      | `output_file`、`rows`、`date_range`            | `feature_columns=[]`、`label_columns=[]`                       |
+| Analysis | `result_file`、`rows`                          | `scores={}`                                                    |
+| Train    | `model_file`、`train_rows`                     | `model_name`、特征/目标列、metrics、parameters、training_curve |
+| Predict  | `predictions_file`、`rows`、`date_range`       | `output_columns=[]`、`protocol={}`、`statistics={}`            |
+| Backtest | `dimensions`、`protocol`、`date_range`、`days` | 共享的 `artifacts={}`                                          |
 
 所有类型继承 `BaseOutputParams`；额外字段需通过输出子类声明，否则 `extra=forbid` 校验失败。`date_range` 是字符串映射，页面按 `start` 与 `end` 取值，生产者应采用这些 key。
 
@@ -53,10 +53,10 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 基类保存输出文件描述和列名。a158 扩展 feature_count、symbols、schema、labels、market_state 等信息，生成：
 
-| artifact 名 | 文件 | 用途 |
-| --- | --- | --- |
-| `dataset` | `alpha158.parquet` | 训练、因子分析和预测的源数据 |
-| `statistics` | `alpha158.csv` | 各列质量统计 |
+| artifact 名  | 文件               | 用途                         |
+| ------------ | ------------------ | ---------------------------- |
+| `dataset`    | `alpha158.parquet` | 训练、因子分析和预测的源数据 |
+| `statistics` | `alpha158.csv`     | 各列质量统计                 |
 
 a158 下游通过 `artifacts.dataset.path` 解析数据，不能仅填写 `output_file` 而省略映射。历史字段可能保存完整字符串路径，而标准 artifact 应是 Task 目录内相对路径。
 
@@ -67,8 +67,8 @@ a158 下游通过 `artifacts.dataset.path` 解析数据，不能仅填写 `outpu
 ```json
 {
   "scores": {
-    "quality": {"mean_abs_ic": 0.03, "positive_ratio": 0.6},
-    "coverage": {"valid_days": 120.0}
+    "quality": { "mean_abs_ic": 0.03, "positive_ratio": 0.6 },
+    "coverage": { "valid_days": 120.0 }
   }
 }
 ```
@@ -86,10 +86,10 @@ a158 实际生成 `factor_analysis.csv`、`factor_quantiles.csv`，映射名分�
   "x": ["1", "2", "3"],
   "y_left": {
     "train_l2": [0.09, 0.07, 0.06],
-    "validation_l2": [0.10, 0.08, 0.085]
+    "validation_l2": [0.1, 0.08, 0.085]
   },
   "y_right": {
-    "validation_l1": [0.22, 0.20, 0.205]
+    "validation_l1": [0.22, 0.2, 0.205]
   }
 }
 ```
@@ -128,10 +128,10 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
   "dimensions": {
     "top_ns": [1, 5, 10, 30],
     "holding_detail_top_n": 30,
-    "benchmarks": [{"key": "universe", "label": "Universe"}]
+    "benchmarks": [{ "key": "universe", "label": "Universe" }]
   },
-  "protocol": {"actual_return_unit": "decimal"},
-  "date_range": {"start": "20230103", "end": "20231229"},
+  "protocol": { "actual_return_unit": "decimal" },
+  "date_range": { "start": "20230103", "end": "20231229" },
   "days": 250
 }
 ```
@@ -142,16 +142,16 @@ Studio 从 `artifacts.daily.path` 和 `artifacts.summary.path` 加载两个表�
 
 ## 日频表的展示字段
 
-| 字段 | 当前 Studio 用途 |
-| --- | --- |
-| `trade_date` | 日期轴与两个策略的日期配对，采用 YYYYMMDD 字符串 |
-| `candidate_count` | 候选数量 |
-| `ic`、`rank_ic` | 信号曲线及移动均值 |
-| `topN_net_return`、`topN_gross_return` | 净复利、毛累加曲线 |
-| `topN_turnover`、`topN_transaction_cost` | 换手和成本观察 |
-| `topN_ndcg` | 固定展示规模的排名诊断 |
-| `benchmark_<key>_return` | dimensions 声明的基准收益曲线 |
-| `top30_holdings` | 当前固定 Top 30 明细 |
+| 字段                                     | 当前 Studio 用途                                 |
+| ---------------------------------------- | ------------------------------------------------ |
+| `trade_date`                             | 日期轴与两个策略的日期配对，采用 YYYYMMDD 字符串 |
+| `candidate_count`                        | 候选数量                                         |
+| `ic`、`rank_ic`                          | 信号曲线及移动均值                               |
+| `topN_net_return`、`topN_gross_return`   | 净复利、毛累加曲线                               |
+| `topN_turnover`、`topN_transaction_cost` | 换手和成本观察                                   |
+| `topN_ndcg`                              | 固定展示规模的排名诊断                           |
+| `benchmark_<key>_return`                 | dimensions 声明的基准收益曲线                    |
+| `top30_holdings`                         | 当前固定 Top 30 明细                             |
 
 明细是结构数组，前端读取 `rank`、`ts_code`、`name`、`prediction`、`daily_return`、`weight`。a158 还保存 entry_date、exit_date、exit_delayed 供协议分析。
 

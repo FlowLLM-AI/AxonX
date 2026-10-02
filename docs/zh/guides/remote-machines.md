@@ -86,14 +86,14 @@ axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
 
 ## 常见故障
 
-| 现象 | 判断与处理 |
-| --- | --- |
-| 连接拒绝 | 检查目标进程、监听 host/port、网络入口 |
-| 401 | 直连核对目标 token；Studio 同时核对本机和 targets 凭据 |
-| 目标未配置 | 把规范化地址加入本机 targets 并重启 |
-| Task 注册名不存在 | 检查目标插件安装与重启，勿只查本机环境 |
-| Schema 或返回字段不同 | 比较双方 version 和插件版本 |
-| 目标任务没有上游文件 | 先确认数据和 Task 目录已传到目标 |
+| 现象                  | 判断与处理                                             |
+| --------------------- | ------------------------------------------------------ |
+| 连接拒绝              | 检查目标进程、监听 host/port、网络入口                 |
+| 401                   | 直连核对目标 token；Studio 同时核对本机和 targets 凭据 |
+| 目标未配置            | 把规范化地址加入本机 targets 并重启                    |
+| Task 注册名不存在     | 检查目标插件安装与重启，勿只查本机环境                 |
+| Schema 或返回字段不同 | 比较双方 version 和插件版本                            |
+| 目标任务没有上游文件  | 先确认数据和 Task 目录已传到目标                       |
 
 [鉴权](authentication.md) · [插件管理](plugin-management.md) · [Task 同步](task-sync.md) · [机器 API](../api/machines.md)
 

@@ -30,12 +30,12 @@ Startup checks that the Job exists and validates arguments against its Schema. I
 
 ## Cron and time zones
 
-| Example | Intent |
-| --- | --- |
-| `* * * * *` | Every minute |
-| `0 * * * *` | Every hour on the hour |
-| `0 18 * * 1-5` | Weekdays at 18:00 |
-| `30 2 * * *` | Daily at 02:30 |
+| Example        | Intent                 |
+| -------------- | ---------------------- |
+| `* * * * *`    | Every minute           |
+| `0 * * * *`    | Every hour on the hour |
+| `0 18 * * 1-5` | Weekdays at 18:00      |
+| `30 2 * * *`   | Daily at 02:30         |
 
 The default scheduling time zone uses the Application's timezone, which defaults to Asia/Shanghai; each schedule can override it.
 
@@ -64,10 +64,10 @@ The outer Schema of `submit` permits passthrough parameters, but specific Task f
 
 ## Concurrency policies
 
-| Policy | When the previous Job is still running |
-| --- | --- |
-| forbid | Skip the new trigger and log it; default |
-| allow | Execute the new Job concurrently |
+| Policy  | When the previous Job is still running                                  |
+| ------- | ----------------------------------------------------------------------- |
+| forbid  | Skip the new trigger and log it; default                                |
+| allow   | Execute the new Job concurrently                                        |
 | replace | Cancel the old Job call, wait for cancellation, then trigger a new call |
 
 For example, submit returns a TaskHandle almost immediately, while a training worker can continue for hours. In this case, forbid sees the submit Job has ended, and the next trigger still submits a new training Task.

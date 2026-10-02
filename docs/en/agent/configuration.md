@@ -41,11 +41,11 @@ This configuration shows the field structure; model and permission settings stil
 
 The default configuration maps variables in the service environment to the SDK subprocess:
 
-| Service environment variable | SDK environment usage |
-| --- | --- |
-| `CLAUDE_CODE_API_KEY` | `ANTHROPIC_AUTH_TOKEN` |
-| `CLAUDE_CODE_BASE_URL` | `ANTHROPIC_BASE_URL` |
-| `CLAUDE_CODE_MODEL_NAME` | `ANTHROPIC_MODEL` and default model aliases |
+| Service environment variable | SDK environment usage                       |
+| ---------------------------- | ------------------------------------------- |
+| `CLAUDE_CODE_API_KEY`        | `ANTHROPIC_AUTH_TOKEN`                      |
+| `CLAUDE_CODE_BASE_URL`       | `ANTHROPIC_BASE_URL`                        |
+| `CLAUDE_CODE_MODEL_NAME`     | `ANTHROPIC_MODEL` and default model aliases |
 
 ```bash
 export CLAUDE_CODE_API_KEY='<model credentials>'
@@ -59,14 +59,14 @@ The exact URL and model name depend on the available backend. AxonX currently ha
 
 ## Framework-managed fields
 
-| Field | Default behavior | Description |
-| --- | --- | --- |
-| `backend` | `claude` in the default configuration | Current built-in implementation |
-| `job_tools` | Empty list in the component constructor; eight query Jobs in the default configuration | In-process AxonX MCP tool list |
-| `state_dir` | `agent/claude` | SDK configuration directory, with another level for the component name |
-| `session_store.backend` | `local` | Currently supports only local |
-| `session_store.path` | `agent/session-store` | Session storage root |
-| `cwd` | Workspace root | SDK option whose execution directory is resolved by the framework |
+| Field                   | Default behavior                                                                       | Description                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `backend`               | `claude` in the default configuration                                                  | Current built-in implementation                                        |
+| `job_tools`             | Empty list in the component constructor; eight query Jobs in the default configuration | In-process AxonX MCP tool list                                         |
+| `state_dir`             | `agent/claude`                                                                         | SDK configuration directory, with another level for the component name |
+| `session_store.backend` | `local`                                                                                | Currently supports only local                                          |
+| `session_store.path`    | `agent/session-store`                                                                  | Session storage root                                                   |
+| `cwd`                   | Workspace root                                                                         | SDK option whose execution directory is resolved by the framework      |
 
 State paths are resolved relative to the workspace. Absolute state paths must also be inside the workspace. When the default component name is `default`, the SDK configuration directory is `<workspace>/agent/claude/default`.
 

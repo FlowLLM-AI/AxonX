@@ -9,10 +9,13 @@
     "content": "node scripts/generate-content.mjs",
     "dev": "npm run content && vitepress dev .generated/site",
     "build": "npm run content && vitepress build .generated/site && node scripts/verify-build.mjs",
-    "preview": "vitepress preview .generated/site"
+    "preview": "vitepress preview .generated/site",
+    "format": "prettier --write . ../docs --ignore-path ../.prettierignore",
+    "format:check": "prettier --check . ../docs --ignore-path ../.prettierignore"
   },
   "devDependencies": {
     "@vueuse/core": "^12.8.2",
+    "prettier": "3.9.6",
     "vitepress": "1.6.4"
   },
   "overrides": {

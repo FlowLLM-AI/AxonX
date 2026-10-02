@@ -27,22 +27,22 @@ extends 不是 ApplicationConfig 的持久字段，由解析器先消除。Pytho
 
 下表为模型默认值，不等于内置 default.yaml 展开的结果；例如模型 components/jobs 为空，但 default.yaml 已配置任务组件、Agent 和多个 Job。
 
-| 字段 | 类型 | 模型默认值 | 含义与限制 |
-| --- | --- | --- | --- |
-| app_name | string | AxonX | 日志与协议显示名称 |
-| workspace_dir | string | .axonx | 任务、产物与应用状态根目录 |
-| log_dir | string | logs | 服务与任务日志目录 |
-| timezone | string | Asia/Shanghai | 默认应用/任务时区 |
-| enable_logo | boolean | true | CLI start 打印启动标识 |
-| log_to_console | boolean | true | 控制台日志 |
-| log_to_file | boolean | true | 文件日志 |
-| plugins | PluginConfig | sources=[] | 启动插件来源 |
-| targets | TargetConfig[] | [] | 后端可转发的服务目标 |
-| environment | dict[string,string] | {} | 注入 worker、Agent 的应用环境 |
-| components | dict[类别,dict[名称,ComponentConfig]] | {} | 命名组件组 |
-| jobs | dict[公开名,JobConfig] | {} | Job 定义 |
-| schedules | dict[名称,ScheduleConfig] | {} | 调度器 |
-| service | ComponentConfig/null | null | 服务组件；CLI start 必须有 service |
+| 字段           | 类型                                  | 模型默认值    | 含义与限制                         |
+| -------------- | ------------------------------------- | ------------- | ---------------------------------- |
+| app_name       | string                                | AxonX         | 日志与协议显示名称                 |
+| workspace_dir  | string                                | .axonx        | 任务、产物与应用状态根目录         |
+| log_dir        | string                                | logs          | 服务与任务日志目录                 |
+| timezone       | string                                | Asia/Shanghai | 默认应用/任务时区                  |
+| enable_logo    | boolean                               | true          | CLI start 打印启动标识             |
+| log_to_console | boolean                               | true          | 控制台日志                         |
+| log_to_file    | boolean                               | true          | 文件日志                           |
+| plugins        | PluginConfig                          | sources=[]    | 启动插件来源                       |
+| targets        | TargetConfig[]                        | []            | 后端可转发的服务目标               |
+| environment    | dict[string,string]                   | {}            | 注入 worker、Agent 的应用环境      |
+| components     | dict[类别,dict[名称,ComponentConfig]] | {}            | 命名组件组                         |
+| jobs           | dict[公开名,JobConfig]                | {}            | Job 定义                           |
+| schedules      | dict[名称,ScheduleConfig]             | {}            | 调度器                             |
+| service        | ComponentConfig/null                  | null          | 服务组件；CLI start 必须有 service |
 
 模型禁止未知顶层字段。目标地址规范化后不得重复。environment 值必须是字符串，不应放数字或嵌套对象。
 
@@ -112,28 +112,28 @@ task_repository 是类别，default 是实例名，local 是实现后端。TaskM
 
 ## JobConfig
 
-| 字段 | 类型 | 默认值 | 含义 |
-| --- | --- | --- | --- |
-| backend | 非空 string | pipeline | Job 实现 |
-| description | string | 空字符串 | 公开描述 |
-| parameters | JSON Schema object | type=object,properties={} | 必须描述对象；缺 type 自动补 object |
-| enable_serve | boolean | true | 进入 HTTP/MCP 候选公开目录 |
-| enable_stream | boolean | true | 允许 HTTP 实时流 |
-| requires_auth | boolean | true | 无服务 token 时筛除该 Job |
-| steps | ComponentConfig[] | [] | 顺序执行异步 Step |
-| defaults | object | {} | Job context 默认值 |
+| 字段          | 类型               | 默认值                    | 含义                                |
+| ------------- | ------------------ | ------------------------- | ----------------------------------- |
+| backend       | 非空 string        | pipeline                  | Job 实现                            |
+| description   | string             | 空字符串                  | 公开描述                            |
+| parameters    | JSON Schema object | type=object,properties={} | 必须描述对象；缺 type 自动补 object |
+| enable_serve  | boolean            | true                      | 进入 HTTP/MCP 候选公开目录          |
+| enable_stream | boolean            | true                      | 允许 HTTP 实时流                    |
+| requires_auth | boolean            | true                      | 无服务 token 时筛除该 Job           |
+| steps         | ComponentConfig[]  | []                        | 顺序执行异步 Step                   |
+| defaults      | object             | {}                        | Job context 默认值                  |
 
 PipelineJob 还支持 event_buffer_size（默认 64，正整数），作为 backend 特有额外字段。parameters 的 JSON Schema default 是描述信息，不能假定框架统一注入；需要真实默认值时由 defaults 或 Step 处理。system 注入值与公开参数隔离。
 
 ## ScheduleConfig
 
-| 字段 | 类型 | 默认值 | 含义 |
-| --- | --- | --- | --- |
-| backend | 非空 string | cron | 调度实现 |
-| job | 非空 string | 必填 | 调用的 Job 名 |
-| cron | 非空 string | 必填 | Cron 表达式 |
-| arguments | object | {} | Job 参数 |
-| timezone | 非空 string/null | null | null 使用应用时区 |
+| 字段               | 类型                 | 默认值 | 含义                    |
+| ------------------ | -------------------- | ------ | ----------------------- |
+| backend            | 非空 string          | cron   | 调度实现                |
+| job                | 非空 string          | 必填   | 调用的 Job 名           |
+| cron               | 非空 string          | 必填   | Cron 表达式             |
+| arguments          | object               | {}     | Job 参数                |
+| timezone           | 非空 string/null     | null   | null 使用应用时区       |
 | concurrency_policy | forbid/allow/replace | forbid | 同一调度 Job 的重叠策略 |
 
 默认 schedules={}。策略作用于被调度 Job 的执行；submit 返回后，后台 Task 可仍在运行。启用示例见 [定时调度](../guides/scheduling.md)。
@@ -146,15 +146,15 @@ TargetConfig 严格禁止额外字段：address 必填非空，token 默认 null
 
 ## HTTP service
 
-| 字段 | 默认值 | 解释 |
-| --- | --- | --- |
-| backend | 必填 http | HTTP 服务实现 |
-| host | 0.0.0.0 | 绑定地址 |
-| port | 1024 | 监听端口 |
-| shutdown_timeout | 1 | Uvicorn 优雅退出秒数，非负 |
-| web_enabled | true | 是否挂载 Studio 静态构建 |
-| web_static_dir | null | 指定静态构建目录 |
-| token | null | 非空 Bearer token；null 时按 Job 规则筛选目录 |
+| 字段             | 默认值    | 解释                                          |
+| ---------------- | --------- | --------------------------------------------- |
+| backend          | 必填 http | HTTP 服务实现                                 |
+| host             | 0.0.0.0   | 绑定地址                                      |
+| port             | 1024      | 监听端口                                      |
+| shutdown_timeout | 1         | Uvicorn 优雅退出秒数，非负                    |
+| web_enabled      | true      | 是否挂载 Studio 静态构建                      |
+| web_static_dir   | null      | 指定静态构建目录                              |
+| token            | null      | 非空 Bearer token；null 时按 Job 规则筛选目录 |
 
 服务默认没有 TLS 配置。Studio 构建缺失时记录不可用日志，API 仍可运行。配置更新不会热装配；重启后重新核对目录。
 

@@ -79,16 +79,16 @@ sync.target 必须与已配置 targets 地址匹配，否则启动失败。`sync
 
 ## 过滤与预算
 
-| 选项 | 含义 |
-| --- | --- |
-| task_ids | 精确 Task ID 白名单 |
-| task_id_prefixes | 按 Task ID 前缀匹配 |
-| 两组过滤都为空 | 不按身份过滤 |
-| 两组都有值 | 精确匹配或前缀匹配即可 |
-| max_file_bytes | 单个文件的预算，默认 100 MiB |
-| max_archive_bytes | 单个上传归档预算，默认 256 MiB |
-| max_archives_per_flush | 每次归档数，默认 4 |
-| timeout_seconds | 目标 HTTP 调用超时，默认 300 秒 |
+| 选项                   | 含义                            |
+| ---------------------- | ------------------------------- |
+| task_ids               | 精确 Task ID 白名单             |
+| task_id_prefixes       | 按 Task ID 前缀匹配             |
+| 两组过滤都为空         | 不按身份过滤                    |
+| 两组都有值             | 精确匹配或前缀匹配即可          |
+| max_file_bytes         | 单个文件的预算，默认 100 MiB    |
+| max_archive_bytes      | 单个上传归档预算，默认 256 MiB  |
+| max_archives_per_flush | 每次归档数，默认 4              |
+| timeout_seconds        | 目标 HTTP 调用超时，默认 300 秒 |
 
 max_archive_bytes 必须大于 max_file_bytes，并应不超过目标上传能力。默认 `/files` 最大上传 256 MiB。文件太大时不应单纯提高源端值而忽略接收端限制。
 
@@ -106,14 +106,14 @@ max_archive_bytes 必须大于 max_file_bytes，并应不超过目标上传能�
 
 ## 排障
 
-| 现象 | 检查 |
-| --- | --- |
-| 一直无传输 | sync、sync_flush、schedule 是否都启用 |
-| 启动失败 | target 是否存在于 targets，组件依赖与配置合法性 |
-| running 任务不出现 | 发送方仅复制终态，这是正常过滤 |
-| 401/502 | 目标 token、连通性和接收日志 |
-| 产物过大 | rejected/oversized、文件与归档预算 |
-| 目标没有原始数据 | 原始数据本来不属于 Task 快照 |
+| 现象               | 检查                                            |
+| ------------------ | ----------------------------------------------- |
+| 一直无传输         | sync、sync_flush、schedule 是否都启用           |
+| 启动失败           | target 是否存在于 targets，组件依赖与配置合法性 |
+| running 任务不出现 | 发送方仅复制终态，这是正常过滤                  |
+| 401/502            | 目标 token、连通性和接收日志                    |
+| 产物过大           | rejected/oversized、文件与归档预算              |
+| 目标没有原始数据   | 原始数据本来不属于 Task 快照                    |
 
 [调度](scheduling.md) · [远程机器](remote-machines.md) · [备份恢复](operations.md) · [同步 API](../api/plugins-sync.md)
 

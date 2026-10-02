@@ -12,13 +12,13 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 ## Endpoint list
 
-| Job | Purpose |
-| --- | --- |
-| `list_plugins` | Inspect all AxonX plugins in the service's Python environment. |
-| `inspect_plugin` | Inspect an installed plugin. |
-| `install_plugin` | Install an uploaded and verified wheel. |
-| `uninstall_plugin` | Uninstall a plugin distribution from the service environment. |
-| `sync_tasks` | Receive a task archive and replace directories, or apply deletions only. |
+| Job                | Purpose                                                                  |
+| ------------------ | ------------------------------------------------------------------------ |
+| `list_plugins`     | Inspect all AxonX plugins in the service's Python environment.           |
+| `inspect_plugin`   | Inspect an installed plugin.                                             |
+| `install_plugin`   | Install an uploaded and verified wheel.                                  |
+| `uninstall_plugin` | Uninstall a plugin distribution from the service environment.            |
+| `sync_tasks`       | Receive a task archive and replace directories, or apply deletions only. |
 
 ## list_plugins
 
@@ -54,9 +54,9 @@ A nonempty error indicates discovery or parsing problems; not every installed Py
 
 Inspect an installed plugin.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `plugin` | string | Yes | `— (omitted)` | Distribution name or plugin entry-point name; minLength=1 |
+| Parameter | Type   | Required | Default       | Constraints and meaning                                   |
+| --------- | ------ | -------- | ------------- | --------------------------------------------------------- |
+| `plugin`  | string | Yes      | `— (omitted)` | Distribution name or plugin entry-point name; minLength=1 |
 
 The Schema does not prohibit extra fields; this does not mean those fields will be used.
 
@@ -79,9 +79,7 @@ answer is a single PluginInfo with the same structure as each list_plugins item.
   "answer": {
     "distribution": "axonx-example",
     "version": "0.1.0",
-    "plugins": [
-      "example"
-    ],
+    "plugins": ["example"],
     "tasks": {},
     "components": {},
     "jobs": {},
@@ -103,10 +101,10 @@ Unknown or ambiguous plugin names return failure. Distinguish distribution names
 
 Install an uploaded and verified wheel.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `path` | string | Yes | `— (omitted)` | Path relative to the service workspace; minLength=1 |
-| `sha256` | string | Yes | `— (omitted)` | SHA-256 returned by upload; regex `^[0-9a-fA-F]{64}$` |
+| Parameter | Type   | Required | Default       | Constraints and meaning                               |
+| --------- | ------ | -------- | ------------- | ----------------------------------------------------- |
+| `path`    | string | Yes      | `— (omitted)` | Path relative to the service workspace; minLength=1   |
+| `sha256`  | string | Yes      | `— (omitted)` | SHA-256 returned by upload; regex `^[0-9a-fA-F]{64}$` |
 
 Only the business fields listed in the table are accepted.
 
@@ -130,9 +128,7 @@ answer is PluginInstallResult, which adds restart_required to PluginInfo.
   "answer": {
     "distribution": "axonx-example",
     "version": "0.1.0",
-    "plugins": [
-      "example"
-    ],
+    "plugins": ["example"],
     "tasks": {},
     "components": {},
     "jobs": {},
@@ -155,9 +151,9 @@ The example hash and path only illustrate their formats; replace them with value
 
 Uninstall a plugin distribution from the service environment.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `plugin` | string | Yes | `— (omitted)` | Distribution name or plugin entry-point name; minLength=1 |
+| Parameter | Type   | Required | Default       | Constraints and meaning                                   |
+| --------- | ------ | -------- | ------------- | --------------------------------------------------------- |
+| `plugin`  | string | Yes      | `— (omitted)` | Distribution name or plugin entry-point name; minLength=1 |
 
 Only the business fields listed in the table are accepted.
 
@@ -194,10 +190,10 @@ Uninstalling does not immediately remove in-memory contributions from a running 
 
 Receive a task archive and replace directories, or apply deletions only.
 
-| Parameter | Type | Required | Default | Constraints and meaning |
-| --- | --- | --- | --- | --- |
-| `path` | string | No | `— (omitted)` | Path relative to the service workspace; minLength=1 |
-| `deletions` | array | No | `[]` | Task directory paths to delete; maxItems=200 |
+| Parameter   | Type   | Required | Default       | Constraints and meaning                             |
+| ----------- | ------ | -------- | ------------- | --------------------------------------------------- |
+| `path`      | string | No       | `— (omitted)` | Path relative to the service workspace; minLength=1 |
+| `deletions` | array  | No       | `[]`          | Task directory paths to delete; maxItems=200        |
 
 Only the business fields listed in the table are accepted.
 
@@ -239,7 +235,7 @@ Submitting an invalid sha256 format for installation returns HTTP 422. If the fo
 sync_tasks directly returns business-failure text for OSError, TypeError, or ValueError involving staging paths/archives, for example when a staged file is missing:
 
 ```json
-{"answer":"Staged file does not exist","success":false,"metadata":{}}
+{ "answer": "Staged file does not exist", "success": false, "metadata": {} }
 ```
 
 The receiver validates directory identity and archive paths, retaining rollback support when applying replacements. The transfer consists of snapshots of terminal task directories; it does not migrate processes, plugin environments, Agent sessions, or raw data trees.

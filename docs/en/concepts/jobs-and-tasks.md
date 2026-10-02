@@ -6,14 +6,14 @@ A Job is an asynchronous capability call within an AxonX Application; a Task is 
 
 ## Comparison
 
-| Question | Job | Task |
-| --- | --- | --- |
-| How is it found? | A Job name in configuration, such as `submit` | A registered name, such as `demo` |
-| How does it execute? | Dispatcher validates it, then executes asynchronous Steps | TaskRunner executes synchronous callables sequentially |
-| Input contract | The Job's JSON Schema and defaults | Pydantic input_cls |
-| Output contract | JobResponse and optional events | Pydantic output_cls and metadata |
-| Lifecycle | From the start of a call to its response | queued, running, terminal states, and persistent records |
-| Long-running execution | Can wait for components or external I/O | `submit` usually runs in a separate worker |
+| Question               | Job                                                       | Task                                                     |
+| ---------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
+| How is it found?       | A Job name in configuration, such as `submit`             | A registered name, such as `demo`                        |
+| How does it execute?   | Dispatcher validates it, then executes asynchronous Steps | TaskRunner executes synchronous callables sequentially   |
+| Input contract         | The Job's JSON Schema and defaults                        | Pydantic input_cls                                       |
+| Output contract        | JobResponse and optional events                           | Pydantic output_cls and metadata                         |
+| Lifecycle              | From the start of a call to its response                  | queued, running, terminal states, and persistent records |
+| Long-running execution | Can wait for components or external I/O                   | `submit` usually runs in a separate worker               |
 
 Here, “synchronous” means a function must execute and return directly: it cannot be declared with `async def` or return an awaitable. Background Task execution comes from TaskManager starting a process, rather than making Task Steps asynchronous.
 

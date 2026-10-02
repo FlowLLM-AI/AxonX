@@ -4,7 +4,7 @@ A minimal deployment consists of a Python service, workspace, and optional Studi
 
 ## Installation and configuration
 
-The source environment requires Python 3.12 or later; Studio builds require Node.js 20.19+ (20.x), 22.13+ (22.x), or 24 and later. Install from the repository root:
+The source environment requires Python 3.12 or later; Studio builds require Node.js 22.13+ (22.x), 24.x, or 26+. Install from the repository root:
 
 ```bash
 uv sync

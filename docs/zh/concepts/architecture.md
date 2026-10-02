@@ -6,14 +6,14 @@ AxonX 将能力调用、研究执行和结果存储分开。CLI、Studio 与外�
 
 ## 各层职责
 
-| 层 | 负责什么 | 典型对象 |
-| --- | --- | --- |
-| 客户端 | 组织参数、凭据，消费 JSON 或事件 | CLI、Studio、HttpClient、McpClient |
-| 协议 | HTTP、MCP、SSE、上传与 Bearer 鉴权 | HttpService |
-| 编排 | 参数校验、执行异步步骤、形成 JobResponse | Dispatcher、Job、BaseStep |
-| 组件 | 管理可复用能力和生命周期 | TaskManager、TaskRepository、Agent、Proxy |
-| 任务 | 执行具体研究步骤，生成校验后的结果 | BaseTask 和插件 Task |
-| 存储 | 保存状态、成功元数据、进度与研究产物 | 工作区和独立日志目录 |
+| 层     | 负责什么                                 | 典型对象                                  |
+| ------ | ---------------------------------------- | ----------------------------------------- |
+| 客户端 | 组织参数、凭据，消费 JSON 或事件         | CLI、Studio、HttpClient、McpClient        |
+| 协议   | HTTP、MCP、SSE、上传与 Bearer 鉴权       | HttpService                               |
+| 编排   | 参数校验、执行异步步骤、形成 JobResponse | Dispatcher、Job、BaseStep                 |
+| 组件   | 管理可复用能力和生命周期                 | TaskManager、TaskRepository、Agent、Proxy |
+| 任务   | 执行具体研究步骤，生成校验后的结果       | BaseTask 和插件 Task                      |
+| 存储   | 保存状态、成功元数据、进度与研究产物     | 工作区和独立日志目录                      |
 
 HTTP 的普通调用与 SSE 事件调用经过相同 Job 能力层。MCP 把公开 Job 映射为工具，返回普通响应。SSE 是另一个 HTTP 入口，提供实时事件；两者不应作为同一种传输理解。
 

@@ -25,14 +25,14 @@ service:
 
 ## 协议保护范围
 
-| 路由 | 配置服务 token 后 |
-| --- | --- |
-| /health | 需要 Bearer |
-| /jobs 及其子路径 | 需要 Bearer，包括 SSE |
-| /files 及其子路径 | 需要 Bearer |
-| /mcp 及其子路径 | 需要 Bearer |
-| Studio 静态页面 | 不由协议 token 拦截，API 仍需凭据 |
-| /proxy/{name} | 使用上游鉴权，不检查服务 token |
+| 路由              | 配置服务 token 后                 |
+| ----------------- | --------------------------------- |
+| /health           | 需要 Bearer                       |
+| /jobs 及其子路径  | 需要 Bearer，包括 SSE             |
+| /files 及其子路径 | 需要 Bearer                       |
+| /mcp 及其子路径   | 需要 Bearer                       |
+| Studio 静态页面   | 不由协议 token 拦截，API 仍需凭据 |
+| /proxy/{name}     | 使用上游鉴权，不检查服务 token    |
 
 预检 OPTIONS 不执行这份 Bearer 校验。允许跨源请求不是允许无凭据执行 Job，真实协议调用仍需鉴权。
 
@@ -61,13 +61,13 @@ jobs:
 
 ## CLI 与远程凭据
 
-| 调用方式 | 默认凭据来源 |
-| --- | --- |
-| CLI 未显式 --target | AXONX_SERVICE_TOKEN |
-| CLI 显式 --target | AXONX_TARGET_TOKEN |
-| CLI --token | 覆盖默认环境来源 |
-| Studio 本机 API | 浏览器设置中的本机 token |
-| Studio 后端转发 | 本机服务配置 targets[].token |
+| 调用方式            | 默认凭据来源                 |
+| ------------------- | ---------------------------- |
+| CLI 未显式 --target | AXONX_SERVICE_TOKEN          |
+| CLI 显式 --target   | AXONX_TARGET_TOKEN           |
+| CLI --token         | 覆盖默认环境来源             |
+| Studio 本机 API     | 浏览器设置中的本机 token     |
+| Studio 后端转发     | 本机服务配置 targets[].token |
 
 ```bash
 export AXONX_TARGET_TOKEN='<目标服务 token>'

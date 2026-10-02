@@ -12,21 +12,21 @@
 
 ## 接口清单
 
-| Job | 用途 |
-| --- | --- |
-| `list_installed_task_definitions` | 枚举当前 Python 环境中的内置与插件 Task。 |
-| `get_task_definition` | 查询一个注册定义及输入输出 Schema。 |
-| `submit` | 启动独立子进程运行 Task。 |
-| `wait_task` | 等待提交返回的特定执行结束。 |
-| `list_task_ids` | 列出存在状态文件的任务身份。 |
-| `list_task_statuses` | 列出状态快照。 |
-| `status` | 读取一个任务的当前状态。 |
-| `read_task_log` | 按有界字节窗口读取日志。 |
-| `stream_task` | 持续跟踪进度与日志直到任务停止。 |
-| `get_task_graph` | 读取包含所选 Task 的依赖图。 |
-| `get_task_context` | 为 Agent 提供任务路径、状态与关系上下文。 |
-| `cancel` | 请求取消本服务管理的活跃 worker。 |
-| `delete_tasks` | 删除终态或 metadata-only Task 与关联文件。 |
+| Job                               | 用途                                       |
+| --------------------------------- | ------------------------------------------ |
+| `list_installed_task_definitions` | 枚举当前 Python 环境中的内置与插件 Task。  |
+| `get_task_definition`             | 查询一个注册定义及输入输出 Schema。        |
+| `submit`                          | 启动独立子进程运行 Task。                  |
+| `wait_task`                       | 等待提交返回的特定执行结束。               |
+| `list_task_ids`                   | 列出存在状态文件的任务身份。               |
+| `list_task_statuses`              | 列出状态快照。                             |
+| `status`                          | 读取一个任务的当前状态。                   |
+| `read_task_log`                   | 按有界字节窗口读取日志。                   |
+| `stream_task`                     | 持续跟踪进度与日志直到任务停止。           |
+| `get_task_graph`                  | 读取包含所选 Task 的依赖图。               |
+| `get_task_context`                | 为 Agent 提供任务路径、状态与关系上下文。  |
+| `cancel`                          | 请求取消本服务管理的活跃 worker。          |
+| `delete_tasks`                    | 删除终态或 metadata-only Task 与关联文件。 |
 
 ## list_installed_task_definitions
 
@@ -62,9 +62,9 @@ answer 是 TaskDefinition 数组。每项含 name、source（native/plugin）、
 
 查询一个注册定义及输入输出 Schema。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task` | string | 是 | `—（省略）` | Task 注册名，不是 Task ID；minLength=1 |
+| 参数   | 类型   | 必填 | 默认值      | 约束与含义                             |
+| ------ | ------ | ---- | ----------- | -------------------------------------- |
+| `task` | string | 是   | `—（省略）` | Task 注册名，不是 Task ID；minLength=1 |
 
 只接受表中业务字段。
 
@@ -92,10 +92,7 @@ answer 是一个 TaskDefinition；Schema 是 JSON Schema，不是任务执行结
     "description": "Demonstrate synchronous Task execution with a small arithmetic workflow.",
     "input_schema": {
       "type": "object",
-      "required": [
-        "x",
-        "y"
-      ]
+      "required": ["x", "y"]
     },
     "output_schema": {
       "type": "object"
@@ -114,9 +111,9 @@ answer 是一个 TaskDefinition；Schema 是 JSON Schema，不是任务执行结
 
 启动独立子进程运行 Task。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task` | string | 是 | `—（省略）` | Task 注册名，不是 Task ID |
+| 参数   | 类型   | 必填 | 默认值      | 约束与含义                |
+| ------ | ------ | ---- | ----------- | ------------------------- |
+| `task` | string | 是   | `—（省略）` | Task 注册名，不是 Task ID |
 
 submit 的 Schema 允许额外字段；除 task 外的字段作为 Task 输入传递，由对应 input_cls 校验，未知输入字段会失败。
 
@@ -155,12 +152,12 @@ answer 是 TaskHandle：task_id、run_id、task。success=true 表示提交成�
 
 通用 Task 输入由具体 Task 的 input_schema 一并公布：
 
-| 输入 | 类型 | 默认值 | 规则 |
-| --- | --- | --- | --- |
-| task_name | string/null | null | 省略或空字符串产生匿名名；固定名为 1–32 个英文字母、数字或连字符 |
-| source_tasks | string | 空字符串 | 完整上游 Task ID，以英文逗号分隔；不是字符串数组 |
-| demo.x / demo.y | integer | 必填 | 两个运算输入；提交时字段名是 x/y，没有 demo 前缀 |
-| demo.fail | boolean | false | 内置失败演示开关；不是全部 Task 的通用参数 |
+| 输入            | 类型        | 默认值   | 规则                                                             |
+| --------------- | ----------- | -------- | ---------------------------------------------------------------- |
+| task_name       | string/null | null     | 省略或空字符串产生匿名名；固定名为 1–32 个英文字母、数字或连字符 |
+| source_tasks    | string      | 空字符串 | 完整上游 Task ID，以英文逗号分隔；不是字符串数组                 |
+| demo.x / demo.y | integer     | 必填     | 两个运算输入；提交时字段名是 x/y，没有 demo 前缀                 |
+| demo.fail       | boolean     | false    | 内置失败演示开关；不是全部 Task 的通用参数                       |
 
 插件 Task 的研究参数以 get_task_definition 返回为准，不能把 demo 字段套到其他注册名上。通用 task_name 可省略，source_tasks 默认为空字符串。固定名称只能替换已结束任务，活跃目录产生 FileExistsError；必须保存 run_id。
 
@@ -168,11 +165,11 @@ answer 是 TaskHandle：task_id、run_id、task。success=true 表示提交成�
 
 等待提交返回的特定执行结束。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | 是 | `—（省略）` | 完整 Task ID；minLength=1 |
-| `run_id` | string | 是 | `—（省略）` | 提交返回的本次执行 ID；minLength=1 |
-| `poll_interval` | number | 否 | `1` | 轮询间隔，单位秒；exclusiveMinimum=0 |
+| 参数            | 类型   | 必填 | 默认值      | 约束与含义                           |
+| --------------- | ------ | ---- | ----------- | ------------------------------------ |
+| `task_id`       | string | 是   | `—（省略）` | 完整 Task ID；minLength=1            |
+| `run_id`        | string | 是   | `—（省略）` | 提交返回的本次执行 ID；minLength=1   |
+| `poll_interval` | number | 否   | `1`         | 轮询间隔，单位秒；exclusiveMinimum=0 |
 
 只接受表中业务字段。
 
@@ -245,9 +242,7 @@ answer 是字符串 Task ID 数组。
 
 ```json
 {
-  "answer": [
-    "base#demo#api-demo"
-  ],
+  "answer": ["base#demo#api-demo"],
   "success": true,
   "metadata": {}
 }
@@ -291,9 +286,9 @@ answer 是 TaskStatus 数组，按 created_at 与 task_id 倒序。
 
 读取一个任务的当前状态。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | 是 | `—（省略）` | 完整 Task ID |
+| 参数      | 类型   | 必填 | 默认值      | 约束与含义   |
+| --------- | ------ | ---- | ----------- | ------------ |
+| `task_id` | string | 是   | `—（省略）` | 完整 Task ID |
 
 Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 
@@ -349,11 +344,11 @@ answer 是 TaskStatus：身份、config、state、时间、pid、exit_code、err
 
 按有界字节窗口读取日志。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | 是 | `—（省略）` | 完整 Task ID |
-| `offset` | integer | 否 | `-1` | 日志读取起始字节偏移；-1 读取尾部；minimum=-1 |
-| `limit` | integer | 否 | `65536` | 最多读取的字节数；minimum=1024, maximum=262144 |
+| 参数      | 类型    | 必填 | 默认值      | 约束与含义                                     |
+| --------- | ------- | ---- | ----------- | ---------------------------------------------- |
+| `task_id` | string  | 是   | `—（省略）` | 完整 Task ID                                   |
+| `offset`  | integer | 否   | `-1`        | 日志读取起始字节偏移；-1 读取尾部；minimum=-1  |
+| `limit`   | integer | 否   | `65536`     | 最多读取的字节数；minimum=1024, maximum=262144 |
 
 Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 
@@ -397,10 +392,10 @@ offset=-1 读取尾部；offset=0 从头开始。limit 单位字节，不是行�
 
 持续跟踪进度与日志直到任务停止。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | 是 | `—（省略）` | 完整 Task ID；minLength=1 |
-| `poll_interval` | number | 否 | `0.5` | 轮询间隔，单位秒；exclusiveMinimum=0 |
+| 参数            | 类型   | 必填 | 默认值      | 约束与含义                           |
+| --------------- | ------ | ---- | ----------- | ------------------------------------ |
+| `task_id`       | string | 是   | `—（省略）` | 完整 Task ID；minLength=1            |
+| `poll_interval` | number | 否   | `0.5`       | 轮询间隔，单位秒；exclusiveMinimum=0 |
 
 只接受表中业务字段。
 
@@ -456,9 +451,9 @@ offset=-1 读取尾部；offset=0 从头开始。limit 单位字节，不是行�
 
 读取包含所选 Task 的依赖图。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | 是 | `—（省略）` | 完整 Task ID |
+| 参数      | 类型   | 必填 | 默认值      | 约束与含义   |
+| --------- | ------ | ---- | ----------- | ------------ |
+| `task_id` | string | 是   | `—（省略）` | 完整 Task ID |
 
 只接受表中业务字段。
 
@@ -508,9 +503,9 @@ answer 含 root_id、selected_id、nodes、edges；节点区分 missing、provis
 
 为 Agent 提供任务路径、状态与关系上下文。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | 是 | `—（省略）` | 完整 Task ID；minLength=1 |
+| 参数      | 类型   | 必填 | 默认值      | 约束与含义                |
+| --------- | ------ | ---- | ----------- | ------------------------- |
+| `task_id` | string | 是   | `—（省略）` | 完整 Task ID；minLength=1 |
 
 只接受表中业务字段。
 
@@ -596,9 +591,9 @@ metadata_exists 是图中节点已发布元数据的判断，不能仅靠任务�
 
 请求取消本服务管理的活跃 worker。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task_id` | string | 是 | `—（省略）` | 完整 Task ID |
+| 参数      | 类型   | 必填 | 默认值      | 约束与含义   |
+| --------- | ------ | ---- | ----------- | ------------ |
+| `task_id` | string | 是   | `—（省略）` | 完整 Task ID |
 
 Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 
@@ -632,9 +627,9 @@ answer 是布尔值；true 表示本次完成取消，false 表示没有取消�
 
 删除终态或 metadata-only Task 与关联文件。
 
-| 参数 | 类型 | 必填 | 默认值 | 约束与含义 |
-| --- | --- | --- | --- | --- |
-| `task_ids` | array | 是 | `—（省略）` | 待删除的完整 Task ID 列表；minItems=1, uniqueItems=True |
+| 参数       | 类型  | 必填 | 默认值      | 约束与含义                                              |
+| ---------- | ----- | ---- | ----------- | ------------------------------------------------------- |
+| `task_ids` | array | 是   | `—（省略）` | 待删除的完整 Task ID 列表；minItems=1, uniqueItems=True |
 
 Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 
@@ -643,9 +638,7 @@ Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 ```json
 {
   "arguments": {
-    "task_ids": [
-      "base#demo#api-demo"
-    ]
+    "task_ids": ["base#demo#api-demo"]
   }
 }
 ```
@@ -656,9 +649,7 @@ answer 是实际删除成功的 Task ID 列表。
 
 ```json
 {
-  "answer": [
-    "base#demo#api-demo"
-  ],
+  "answer": ["base#demo#api-demo"],
   "success": true,
   "metadata": {}
 }
@@ -673,7 +664,11 @@ answer 是实际删除成功的 Task ID 列表。
 Schema 失败在执行前返回 HTTP 422，例如 wait_task 缺 run_id；Task 执行或查询异常通常返回 HTTP 200 与 success=false。未知 Task 注册名示例：
 
 ```json
-{"answer":"ValueError: Unknown Task: missing. Available: demo","success":false,"metadata":{}}
+{
+  "answer": "ValueError: Unknown Task: missing. Available: demo",
+  "success": false,
+  "metadata": {}
+}
 ```
 
 Available 列表由实际安装环境生成。wait_task 返回失败任务状态时 answer 仍是 TaskStatus，state=failed/cancelled，并保留 error 与 exit_code；不能假定失败 answer 永远是字符串。

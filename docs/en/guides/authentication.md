@@ -25,14 +25,14 @@ Only a nonempty token is a valid credential; restart the service after changing 
 
 ## Protocol protection scope
 
-| Route | With a configured service token |
-| --- | --- |
-| /health | Requires Bearer |
-| /jobs and subpaths | Requires Bearer, including SSE |
-| /files and subpaths | Requires Bearer |
-| /mcp and subpaths | Requires Bearer |
+| Route               | With a configured service token                                   |
+| ------------------- | ----------------------------------------------------------------- |
+| /health             | Requires Bearer                                                   |
+| /jobs and subpaths  | Requires Bearer, including SSE                                    |
+| /files and subpaths | Requires Bearer                                                   |
+| /mcp and subpaths   | Requires Bearer                                                   |
 | Studio static pages | Not blocked by the protocol token; APIs still require credentials |
-| /proxy/{name} | Uses upstream authentication, without checking the service token |
+| /proxy/{name}       | Uses upstream authentication, without checking the service token  |
 
 Preflight OPTIONS requests do not perform this Bearer check. Allowing cross-origin requests does not allow executing Jobs without credentials; actual protocol calls still require authentication.
 
@@ -61,13 +61,13 @@ A missing Job in the catalog and HTTP 401 are therefore different cases: check p
 
 ## CLI and remote credentials
 
-| Calling method | Default credential source |
-| --- | --- |
-| CLI without explicit --target | AXONX_SERVICE_TOKEN |
-| CLI with explicit --target | AXONX_TARGET_TOKEN |
-| CLI --token | Overrides the default environment source |
-| Studio local API | Local token in browser settings |
-| Studio backend forwarding | Local service configuration targets[].token |
+| Calling method                | Default credential source                   |
+| ----------------------------- | ------------------------------------------- |
+| CLI without explicit --target | AXONX_SERVICE_TOKEN                         |
+| CLI with explicit --target    | AXONX_TARGET_TOKEN                          |
+| CLI --token                   | Overrides the default environment source    |
+| Studio local API              | Local token in browser settings             |
+| Studio backend forwarding     | Local service configuration targets[].token |
 
 ```bash
 export AXONX_TARGET_TOKEN='<target service token>'

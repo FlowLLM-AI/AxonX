@@ -8,13 +8,14 @@ cd github-pages
 npm ci
 npm run dev
 npm run build
+npm run format:check
 npm run preview
 ```
 
 Requires Node.js 22+. Restart development after changing canonical docs or theme files
 so the generated tree refreshes. Navigation order is defined in `docs/.vitepress/navigation.ts`;
 labels come from document headings. Repository-relative source links become GitHub links
-at build time. Existing Markdown guides remain unchanged.
+at build time. Run `npm run format` to format the site scripts, theme, and Markdown sources.
 
 The default deployment is `https://flowllm-ai.github.io/AxonX/`. For a custom domain,
 set `DOCS_BASE=/` and `DOCS_SITE_URL=https://your-domain` and configure Pages DNS.
