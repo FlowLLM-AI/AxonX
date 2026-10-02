@@ -198,7 +198,7 @@ def test_plugin_cli_installs_locally_by_default(monkeypatch, capsys):
     monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
     monkeypatch.setattr(
         "axonx.plugin_kit.cli.install_plugin",
-        lambda received: plugin if received is artifact else None,
+        lambda received, **_options: plugin if received is artifact else None,
     )
     assert plugin_cli(["install", "source"], ClientOptions()) == 0
     assert '"distribution": "local-demo"' in capsys.readouterr().out
@@ -277,3 +277,97 @@ async def test_streamed_submit_calls_selected_service(monkeypatch):
     ]
 
     assert events[0].answer == "ok"
+
+
+@pytest.mark.parametrize("flag", ["-e", "--editable"])
+def test_plugin_cli_installs_editable_locally(monkeypatch, tmp_path, flag):
+    plugin = PluginInfo(distribution="editable-demo", version="1")
+    artifact = object()
+    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
+
+    def install(received, *, editable_source):
+        assert received is artifact
+        assert editable_source == tmp_path.resolve()
+        return plugin
+
+    monkeypatch.setattr("axonx.plugin_kit.cli.install_plugin", install)
+    assert plugin_cli(["install", flag, str(tmp_path)]) == 0
+
+
+@pytest.mark.parametrize(
+    ("extra", "options", "message"),
+    [
+        ([], ClientOptions(target="127.0.0.1:1024"), "--target"),
+        (["--output", "dist"], ClientOptions(), "--output"),
+    ],
+)
+def test_editable_rejects_incompatible_options(extra, options, message, monkeypatch, capsys):
+    def unexpected(*_args):
+        pytest.fail("Invalid editable options must fail before building or installing")
+
+    monkeypatch.setattr("axonx.plugin_kit.cli.install_plugin", unexpected)
+    monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", unexpected)
+    assert plugin_cli(["install", "-e", "plugins/demo", *extra], options) == 1
+    assert message in capsys.readouterr().err
+
+
+def test_editable_rejects_wheel_before_build(monkeypatch, tmp_path, capsys):
+    wheel = tmp_path / "demo.whl"
+    wheel.write_bytes(b"wheel")
+
+    def unexpected(*_args):
+        pytest.fail("Editable wheels must fail before building or installing")
+
+    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", unexpected)
+    assert plugin_cli(["install", "-e", str(wheel)]) == 1
+    assert "project directory" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("editable", [False, True])
+def test_plugin_install_preserves_axonx_and_installs_dependencies(monkeypatch, tmp_path, editable):
+    from dataclasses import replace
+    from axonx.plugin_kit.wheel import install_artifact
+
+    artifact = replace(
+        _artifact(tmp_path / "demo.whl", "digest"),
+        requirements=("AxonX>=0.1", "example-dependency>=1"),
+    )
+    commands = []
+
+    def run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr("axonx.plugin_kit.wheel.subprocess.run", run)
+    source = tmp_path / "source" if editable else None
+    install_artifact(artifact, editable_source=source)
+    assert commands[0][3:] == ["install", "example-dependency>=1"]
+    assert "--no-deps" in commands[1]
+    if editable:
+        assert commands[1][-2:] == ["--editable", str(source)]
+    else:
+        assert commands[1][-1] == str(artifact.wheel)
+        assert "--editable" not in commands[1]
+
+
+@pytest.mark.parametrize("failure", [None, "discovery", "invalid"])
+def test_editable_install_checks_plugin_in_new_interpreter(monkeypatch, tmp_path, failure):
+    from axonx.plugin_kit.installer import install_plugin
+
+    artifact = _artifact(tmp_path / "demo.whl", "digest")
+    plugin = PluginInfo(
+        distribution=artifact.distribution, version="1", error="invalid" if failure == "invalid" else None,
+    )
+    monkeypatch.setattr("axonx.plugin_kit.installer.install_artifact", lambda *_args, **_kwargs: None)
+
+    def run(command, **_kwargs):
+        assert command[-1] == artifact.distribution
+        assert "get_installed_plugin" in command[-2]
+        return SimpleNamespace(returncode=int(failure == "discovery"), stdout=plugin.model_dump_json(), stderr="failed")
+
+    monkeypatch.setattr("axonx.plugin_kit.installer.subprocess.run", run)
+    if failure:
+        with pytest.raises(RuntimeError, match="discovery failed" if failure == "discovery" else "invalid"):
+            install_plugin(artifact, editable_source=tmp_path)
+    else:
+        assert install_plugin(artifact, editable_source=tmp_path) == plugin

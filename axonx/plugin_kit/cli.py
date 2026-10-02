@@ -121,7 +121,10 @@ def _run_local(args):
             else get_installed_plugin(args.plugin)
         )
     if args.command == "install":
-        return install_plugin(_artifact(args.plugin, args.output))
+        source = Path(args.plugin).expanduser().resolve() if args.editable else None
+        if source is not None and not source.is_dir():
+            raise ValueError(f"Editable plugin path must be a project directory: {source}")
+        return install_plugin(_artifact(args.plugin, args.output), editable_source=source)
     if args.command == "uninstall":
         return uninstall_plugin(args.plugin)
     raise ValueError(f"Unknown plugin command: {args.command!r}")
@@ -143,6 +146,10 @@ def _parser() -> argparse.ArgumentParser:
     ):
         command = commands.add_parser(name, help=help_text)
         command.add_argument("plugin")
+        if name == "install":
+            command.add_argument(
+                "-e", "--editable", action="store_true", help="Install a local source directory in editable mode.",
+            )
         if name in {"inspect", "build", "install"}:
             command.add_argument("--output", help="Wheel output directory.")
     return parser
@@ -153,6 +160,8 @@ def plugin_cli(argv: Sequence[str], client_options: ClientOptions | None = None)
     args = _parser().parse_args(list(argv))
     options = client_options or ClientOptions()
     try:
+        if args.command == "install" and args.editable and (options.target is not None or args.output is not None):
+            raise ValueError("--editable cannot be combined with --target or --output")
         if args.command == "build" and options.target is not None:
             raise ValueError("plugin build does not accept --target")
         if args.command == "build":
