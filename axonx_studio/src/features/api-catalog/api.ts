@@ -1,12 +1,11 @@
-import { clientForTarget } from "../../shared/api/client";
-import type { JobCatalog } from "../../shared/api/types";
+import { axonx } from "../../shared/api/client";
 
 export const listJobs = (target?: string, signal?: AbortSignal) =>
-  clientForTarget(target).jobs(signal) as Promise<JobCatalog>;
+  axonx.jobs({ target, signal });
 
 export const invokeApi = <T = unknown>(
   name: string,
   body: Record<string, unknown>,
   target?: string,
   signal?: AbortSignal,
-) => clientForTarget(target).invoke<T>(name, body, { signal });
+) => axonx.invoke<T>(name, body, { target, signal });

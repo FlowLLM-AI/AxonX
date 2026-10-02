@@ -23,8 +23,8 @@ axonx start
 | 接口 | 作用 |
 | --- | --- |
 | `GET /health` | 查询服务运行状态 |
-| `GET /jobs` | 列出可通过服务调用的任务 |
-| `POST /jobs/{name}` | 执行任务；请求体为 `{"arguments": {...}}` |
+| `GET /jobs` | 列出可通过服务调用的任务；可用 `target` 查询参数选择已配置的远程目标 |
+| `POST /jobs/{name}` | 执行任务；请求体为 `{"arguments": {...}, "target": "host:port"}`，省略 `target` 时在本机执行 |
 | `POST /jobs/{name}/events` | 以 SSE 事件流执行任务 |
 | `/mcp` | 通过 Streamable HTTP 暴露可公开的任务工具 |
 | `POST /files`、`DELETE /files` | 上传文件到工作区暂存区、清理暂存文件 |

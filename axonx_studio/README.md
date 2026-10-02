@@ -24,6 +24,10 @@ npm run dev
 运行中的任务通过 `stream_task` 的 SSE 事件更新进度和日志，终态任务才按需读取日志文件。
 Studio 只面向当前 AxonX 协议，不维护旧字段或旧请求格式兼容。
 
+页面路由统一为 `#机器/页面/视图/资源`，例如
+`#11.160.132.45:1024/task-defs/catalog`；本机使用 `local`，根地址默认进入首页。
+机器列表提供完整目标地址，前端只传递目标参数，由后端解析配置和协议。
+
 ## 验证
 
 ```bash
@@ -33,10 +37,9 @@ npm run format:check
 npm run build
 ```
 
-开发服务器默认将 `/health` 和 `/jobs` 代理到 `http://127.0.0.1:1024`。可以通过
-`VITE_AXONX_API_URL` 使用其他服务地址。
-受保护的服务会提示在 Studio 设置中输入 Bearer token。令牌只保存在当前页面内存中，
-不会通过 Vite 环境变量写入公开的 JavaScript 构建产物。
+Studio 始终使用同源 `/jobs` 接口；开发服务器通过 Vite 代理连接本机后端。
+切换机器时仅发送 `target`，由后端读取 `targets` 配置及对应 token 转发普通请求、API 目录和事件流。
+浏览器只保存本机服务 token，不保存远程 token。远程目标配置不正确时应修改后端配置。
 
 ## 构建并由 AxonX 托管
 
@@ -50,4 +53,4 @@ AxonX 会自动发现 `axonx_studio/dist` 并通过同一个 HTTP 服务提供 S
 
 如果本机服务需要检查或同步其他目标服务，在 `.env` 中设置
 `AXONX_TARGET=<host:port>` 和 `AXONX_SERVICE_TOKEN`，然后运行
-`axonx start --config remote`。Studio 使用目标地址直连所选服务；目标服务须接受配置的令牌。
+`axonx start --config remote`。Studio 请求本机后端，由后端使用目标配置中的令牌连接所选服务。

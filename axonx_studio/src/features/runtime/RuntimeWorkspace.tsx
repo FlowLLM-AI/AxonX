@@ -15,6 +15,7 @@ import { TasksPage } from "../tasks/TasksPage";
 import type { ContextOption } from "../../app/types";
 import type { MachineNode } from "../machines/types";
 import { useTranslation } from "react-i18next";
+import { formatMachineAddress } from "../../shared/lib/format";
 
 export default function RuntimeWorkspace({
   machine,
@@ -163,7 +164,7 @@ function RuntimeEnvironment({
               />
               <EnvironmentValue
                 label={t("runtime.endpoint")}
-                value={machine.address}
+                value={formatMachineAddress(machine.address)}
               />
             </div>
           </section>
@@ -219,7 +220,7 @@ function CurrentMachineResources({
           <p className="machine-heading-meta">
             <span>
               <Server />
-              {machine.address}
+              {formatMachineAddress(machine.address)}
             </span>
             <span className="online">
               <i />

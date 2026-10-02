@@ -43,27 +43,19 @@ const defaultViews: Record<SectionId, string> = {
 };
 
 export function parseHash(hash: string): AppLocation {
-  const parts = hash.replace(/^#/, "").split("/").filter(Boolean);
-  const machineScoped = parts[0] === "m";
-  const machineId =
-    machineScoped && parts[1] ? decodeURIComponent(parts[1]) : "local";
-  const [candidate, view, ...resourceParts] = machineScoped
-    ? parts.slice(2)
-    : [];
-  const section: SectionId = sectionSet.has(candidate)
-    ? (candidate as SectionId)
-    : "home";
+  const [machineId = "local", candidate = "home", view, resource] = hash
+    .replace(/^#/, "")
+    .split("/")
+    .filter(Boolean);
   const valid = sectionSet.has(candidate);
+  const section: SectionId = valid ? (candidate as SectionId) : "home";
 
   return {
-    machineId,
+    machineId: decodeURIComponent(machineId),
     route: {
       section,
-      view: valid ? view || defaultViews[section] : defaultViews.home,
-      resource:
-        valid && resourceParts.length
-          ? decodeURIComponent(resourceParts.join("/"))
-          : undefined,
+      view: valid && view ? view : defaultViews[section],
+      resource: valid && resource ? decodeURIComponent(resource) : undefined,
     },
   };
 }
@@ -71,13 +63,13 @@ export function parseHash(hash: string): AppLocation {
 export function routeHash(machineId: string, route: AppRoute): string {
   const path = [
     route.section,
-    route.view,
+    route.view || defaultViews[route.section],
     route.resource ? encodeURIComponent(route.resource) : "",
   ]
     .filter(Boolean)
     .join("/");
 
-  return `#m/${encodeURIComponent(machineId).replace(/%3A/g, ":")}/${path}`;
+  return `#${encodeURIComponent(machineId).replace(/%3A/g, ":")}/${path}`;
 }
 
 export function defaultRoute(section: SectionId): AppRoute {

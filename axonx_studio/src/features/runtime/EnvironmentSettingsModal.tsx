@@ -20,6 +20,7 @@ import { machineStatus } from "../machines/api";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import type { MachineNode } from "../machines/types";
 import { useTranslation } from "react-i18next";
+import { formatMachineAddress } from "../../shared/lib/format";
 
 export function EnvironmentSettingsModal({
   machine,
@@ -178,7 +179,7 @@ export function EnvironmentSettingsModal({
               <InfoItem
                 icon={<Server />}
                 label={t("runtimeSettings.endpoint")}
-                value={machine.address}
+                value={formatMachineAddress(machine.address)}
               />
             </div>
           ) : null}

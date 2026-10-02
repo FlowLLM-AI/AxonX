@@ -20,6 +20,7 @@ from ....constants import (
     PROTOCOL_SSE_EVENT_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
+from ...client.http import HttpClient
 from ...job.contracts import JobCatalog, JobResponse
 from ...job.events import JobEvent, ResultEvent
 
@@ -29,6 +30,7 @@ class JobInvocation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     arguments: dict[str, Any] = Field(default_factory=dict)
+    target: str | None = None
 
 
 def _event_frame(event: JobEvent) -> str:
@@ -48,9 +50,7 @@ async def _event_stream(events: AsyncIterator[JobEvent]) -> AsyncIterator[str]:
     except Exception as exc:
         yield _event_frame(ResultEvent.from_response(JobResponse().fail(exc)))
         return
-    yield _event_frame(
-        ResultEvent(answer="Stream produced no terminal result", success=False)
-    )
+    yield _event_frame(ResultEvent(answer="Stream produced no terminal result", success=False))
 
 
 def create_jobs_router(app, public_jobs) -> APIRouter:
@@ -62,18 +62,27 @@ def create_jobs_router(app, public_jobs) -> APIRouter:
         return JobResponse(answer={"running": app.is_started})
 
     @router.get(PROTOCOL_ROUTE_JOBS, response_model=JobResponse)
-    async def list_jobs():
-        items = [job.info for job in public_jobs.values()]
+    async def list_jobs(target: str | None = None):
+        if target is None:
+            items = [job.info for job in public_jobs.values()]
+        else:
+            try:
+                configured = app.app_config.resolve_target(target)
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
+            async with HttpClient(target=configured.address, token=configured.token) as client:
+                items = await client.list_jobs()
         return JobResponse(answer=JobCatalog(items=items, total=len(items)))
 
     @router.post(PROTOCOL_ROUTE_JOB, response_model=JobResponse)
     async def run_job(name: str, invocation: JobInvocation):
-        if name not in public_jobs:
+        if invocation.target is None and name not in public_jobs:
             raise HTTPException(404, "Unknown job")
         try:
             return await app.run_job(
                 name,
                 arguments=invocation.arguments,
+                target=invocation.target,
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
@@ -82,20 +91,19 @@ def create_jobs_router(app, public_jobs) -> APIRouter:
     async def stream_job(name: str, invocation: JobInvocation):
         """Stream one job's events as Server-Sent Events."""
         job = public_jobs.get(name)
-        if job is None or not job.is_streamable:
+        if invocation.target is None and (job is None or not job.is_streamable):
             raise HTTPException(404, "Unknown job")
         try:
-            # Resolved before the response body starts, so an unknown job or a bad
-            # argument still answers 404/422 rather than a 200 carrying an error.
+            # Validate local Jobs and target configuration before starting the body.
+            # Remote execution failures become terminal events in _event_stream.
             events = app.stream_job(
                 name,
                 arguments=invocation.arguments,
+                target=invocation.target,
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
-        return StreamingResponse(
-            _event_stream(events), media_type=PROTOCOL_SSE_MEDIA_TYPE
-        )
+        return StreamingResponse(_event_stream(events), media_type=PROTOCOL_SSE_MEDIA_TYPE)
 
     return router
 

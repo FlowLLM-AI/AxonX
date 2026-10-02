@@ -13,6 +13,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { changeLanguage } from "../i18n";
 import { RailResizer } from "../shared/ui/RailResizer";
+import { formatMachineAddress } from "../shared/lib/format";
 import type { ContextOption, ThemePreference } from "./types";
 import type { MachineNode } from "../features/machines/types";
 import {
@@ -74,7 +75,7 @@ export function AppShell(props: AppShellProps) {
   const section = navigationItemForRoute(route);
   const machineLabel = selectedMachine.isLocal
     ? t("shell.local")
-    : selectedMachine.address;
+    : formatMachineAddress(selectedMachine.address);
   const resourceOption = resourceOptions.find(
     (item) => item.value === route.resource,
   );
@@ -142,7 +143,9 @@ export function AppShell(props: AppShellProps) {
             label={machineLabel}
             options={machines.map((machine) => ({
               value: machine.id,
-              label: machine.isLocal ? t("shell.local") : machine.address,
+              label: machine.isLocal
+                ? t("shell.local")
+                : formatMachineAddress(machine.address),
               detail: machine.healthy ? t("shell.online") : t("shell.offline"),
             }))}
             onSelect={(id) => navigate(route, id)}

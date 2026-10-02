@@ -1,13 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  listMachineOptions,
-  machineFromTargetAddress,
-  machineStatus,
-} from "../features/machines/api";
+import { useCallback, useEffect, useState } from "react";
+import { listMachineOptions, machineStatus } from "../features/machines/api";
 import type { MachineNode } from "../features/machines/types";
 import type { ContextOption, ThemePreference } from "./types";
-import { parseHash, routeHash, type AppRoute } from "./routes";
-import { AxonXError, clientForTarget } from "../shared/api/client";
+import { defaultRoute, parseHash, routeHash, type AppRoute } from "./routes";
+import { AxonXError, axonx } from "../shared/api/client";
 
 const LOCAL_MACHINE: MachineNode = {
   id: "local",
@@ -28,7 +24,12 @@ function useLocation() {
   );
 
   useEffect(() => {
-    if (!window.location.hash) window.location.hash = "m/local/home/overview";
+    if (!window.location.hash)
+      window.history.replaceState(
+        null,
+        "",
+        routeHash("local", defaultRoute("home")),
+      );
     const sync = () => setLocation(parseHash(window.location.hash));
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -85,12 +86,8 @@ function useMachines(
   onMissing: (machineId: string) => void,
   authRevision: number,
 ) {
-  const [machines, setMachines] = useState<MachineNode[]>(() => {
-    const target = machineFromTargetAddress(machineId);
-    return target ? [LOCAL_MACHINE, target] : [LOCAL_MACHINE];
-  });
+  const [machines, setMachines] = useState<MachineNode[]>([LOCAL_MACHINE]);
   const [loaded, setLoaded] = useState(false);
-  const [listFailed, setListFailed] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -98,41 +95,28 @@ function useMachines(
       .then((result) => {
         if (!controller.signal.aborted) {
           setMachines(result);
-          setListFailed(false);
+          setLoaded(true);
         }
       })
-      .catch(() => {
-        if (!controller.signal.aborted) setListFailed(true);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoaded(true);
-      });
+      .catch(() => undefined);
     return () => controller.abort();
   }, [authRevision]);
 
   useEffect(() => {
-    if (
-      loaded &&
-      !listFailed &&
-      !machines.some((machine) => machine.id === machineId)
-    )
+    if (loaded && !machines.some((machine) => machine.id === machineId))
       onMissing("local");
-  }, [listFailed, loaded, machineId, machines, onMissing]);
+  }, [loaded, machineId, machines, onMissing]);
 
-  const visibleMachines = useMemo(() => {
-    const fallback = listFailed ? machineFromTargetAddress(machineId) : null;
-    return fallback && !machines.some((machine) => machine.id === machineId)
-      ? [...machines, fallback]
-      : machines;
-  }, [listFailed, machineId, machines]);
-  const selectedMachine = useMemo(
-    () =>
-      visibleMachines.find((machine) => machine.id === machineId) ||
-      visibleMachines[0],
-    [machineId, visibleMachines],
-  );
+  const selectedMachine = machines.find(
+    (machine) => machine.id === machineId,
+  ) || {
+    id: machineId,
+    address: machineId,
+    isLocal: false,
+    healthy: false,
+  };
   return {
-    machines: visibleMachines,
+    machines,
     selectedMachine,
     target: selectedMachine.isLocal ? undefined : selectedMachine.address,
   };
@@ -182,13 +166,10 @@ export function useStudio() {
     [navigate, route],
   );
   const machineState = useMachines(machineId, navigateToMachine, authRevision);
-  const setAuthToken = useCallback(
-    (token: string) => {
-      clientForTarget(machineState.target).setToken(token);
-      setAuthRevision((revision) => revision + 1);
-    },
-    [machineState.target],
-  );
+  const setAuthToken = useCallback((token: string) => {
+    axonx.setToken(token);
+    setAuthRevision((revision) => revision + 1);
+  }, []);
   const service = useServiceStatus(machineState.target, authRevision);
   const [resourceOptions, setResourceOptions] = useState<ContextOption[]>([]);
   const [collapsed, setCollapsed] = useState(
@@ -233,7 +214,7 @@ export function useStudio() {
     ...machineState,
     ...service,
     authRevision,
-    authTokenConfigured: clientForTarget(machineState.target).hasToken(),
+    authTokenConfigured: axonx.hasToken(),
     setAuthToken,
     route,
     navigate,

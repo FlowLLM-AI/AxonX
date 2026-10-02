@@ -1,5 +1,9 @@
 import { resolvedLocale } from "../../i18n";
 
+export function formatMachineAddress(address: string): string {
+  return address.replace(/^https?:\/\//, "");
+}
+
 export function formatBytes(
   value: number | null | undefined,
   binary = true,

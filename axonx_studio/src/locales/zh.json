@@ -211,10 +211,10 @@
   "runtimeSettings": {
     "close": "关闭设置",
     "authentication": "身份验证",
-    "serviceToken": "服务令牌",
+    "serviceToken": "本机服务令牌",
     "tokenRequired": "此服务需要 Bearer Token，请输入令牌。",
     "tokenInvalid": "令牌已失效，请输入新令牌。",
-    "tokenHelp": "令牌保存在此浏览器中，重新打开页面后仍可使用。",
+    "tokenHelp": "用于连接本机后端，保存在此浏览器中。远程令牌由后端 targets 配置管理。",
     "tokenConfigured": "已配置令牌",
     "tokenPlaceholder": "输入 Bearer Token",
     "applyToken": "应用",

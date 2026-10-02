@@ -211,10 +211,10 @@
   "runtimeSettings": {
     "close": "Close settings",
     "authentication": "AUTHENTICATION",
-    "serviceToken": "Service token",
+    "serviceToken": "Local service token",
     "tokenRequired": "This service requires a Bearer token. Enter the token.",
     "tokenInvalid": "The token is invalid. Enter the new token.",
-    "tokenHelp": "Saved in this browser and restored when you reopen the page.",
+    "tokenHelp": "Saved in this browser for the local backend. Remote tokens are managed by the backend targets configuration.",
     "tokenConfigured": "Token configured",
     "tokenPlaceholder": "Enter Bearer token",
     "applyToken": "Apply",

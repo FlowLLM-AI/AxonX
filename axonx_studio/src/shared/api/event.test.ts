@@ -31,7 +31,7 @@ describe("streamJob", () => {
     vi.stubGlobal("fetch", fetchMock);
     const events: string[] = [];
     const result = await streamJob<{ done: boolean }>(
-      new AxonXClient("http://axonx.test"),
+      new AxonXClient(),
       "stream_task",
       { task_id: "task" },
       {
@@ -42,9 +42,10 @@ describe("streamJob", () => {
     expect(result).toEqual({ done: true });
     expect(events).toEqual(["progress", "result"]);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://remote.test:1024/jobs/stream_task/events");
+    expect(url).toBe("/jobs/stream_task/events");
     expect(JSON.parse(String(init.body))).toEqual({
       arguments: { task_id: "task" },
+      target: "http://remote.test:1024",
     });
   });
 });

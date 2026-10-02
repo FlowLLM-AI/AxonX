@@ -21,6 +21,7 @@ from ....constants import (
     PROTOCOL_ROUTE_MCP,
 )
 from ....utils.target import normalize_target
+from ...client.base import RemoteServiceError
 from .files import create_files_router
 from .jobs import create_jobs_router, create_mcp_server
 from .proxy import create_proxy_router
@@ -32,23 +33,15 @@ class _ProtocolAuthMiddleware:
 
     def __init__(self, app, token: str | None) -> None:
         self.app = app
-        self.expected = (
-            f"{PROTOCOL_AUTH_SCHEME} {token}".encode() if token is not None else None
-        )
+        self.expected = f"{PROTOCOL_AUTH_SCHEME} {token}".encode() if token is not None else None
 
     async def __call__(self, scope, receive, send) -> None:
         if self.expected is not None and scope["type"] == "http":
             method = scope.get("method", "")
             path = scope.get("path", "")
-            protected = path in PROTOCOL_AUTH_ROOTS or any(
-                path.startswith(f"{root}/") for root in PROTOCOL_AUTH_ROOTS
-            )
+            protected = path in PROTOCOL_AUTH_ROOTS or any(path.startswith(f"{root}/") for root in PROTOCOL_AUTH_ROOTS)
             if method != "OPTIONS" and protected:
-                supplied = (
-                    Headers(scope=scope)
-                    .get(PROTOCOL_AUTH_HEADER, "")
-                    .encode(AXONX_DEFAULT_ENCODING)
-                )
+                supplied = Headers(scope=scope).get(PROTOCOL_AUTH_HEADER, "").encode(AXONX_DEFAULT_ENCODING)
                 if not hmac.compare_digest(supplied, self.expected):
                     response = JSONResponse(
                         status_code=401,
@@ -71,11 +64,7 @@ def create_http_app(app, service) -> FastAPI:
     async def lifespan(_server):
         async with app:
             previous_target = os.environ.get(AXONX_SERVICE_TARGET)
-            advertised_host = (
-                AXONX_DEFAULT_CONNECT_HOST
-                if service.host == AXONX_DEFAULT_BIND_HOST
-                else service.host
-            )
+            advertised_host = AXONX_DEFAULT_CONNECT_HOST if service.host == AXONX_DEFAULT_BIND_HOST else service.host
             host = f"[{advertised_host}]" if ":" in advertised_host else advertised_host
             target = normalize_target(f"{host}:{service.port}")
             os.environ[AXONX_SERVICE_TARGET] = target
@@ -101,6 +90,11 @@ def create_http_app(app, service) -> FastAPI:
         title=app.app_config.app_name,
         lifespan=combine_lifespans(lifespan, mcp_app.lifespan),
     )
+
+    @server.exception_handler(RemoteServiceError)
+    async def remote_error(_request, exc):
+        return JSONResponse(status_code=502, content={"detail": str(exc)})
+
     server.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -116,9 +110,7 @@ def create_http_app(app, service) -> FastAPI:
     if service.web_enabled:
         static_dir = resolve_studio_dir(service.web_static_dir)
         if static_dir is None:
-            service.logger.info(
-                "AxonX Studio is unavailable; no static build was found"
-            )
+            service.logger.info("AxonX Studio is unavailable; no static build was found")
         else:
             mount_studio(server, static_dir)
     return server

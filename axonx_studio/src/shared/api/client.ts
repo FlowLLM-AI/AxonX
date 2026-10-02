@@ -1,21 +1,12 @@
 import type { JobCatalog, JobResponse } from "./types";
 
-const configuredUrl = import.meta.env.VITE_AXONX_API_URL || "";
 const tokenStorageKey = "axonx-service-token";
-const memoryTokens = new Map<string, string>();
 
-function storageKey(baseUrl: string): string {
-  return baseUrl
-    ? `${tokenStorageKey}:${baseUrl.replace(/\/$/, "")}`
-    : tokenStorageKey;
-}
-
-function storedToken(baseUrl: string): string {
-  const key = storageKey(baseUrl);
+function storedToken(): string {
   try {
-    return localStorage.getItem(key)?.trim() || "";
+    return localStorage.getItem(tokenStorageKey)?.trim() || "";
   } catch {
-    return memoryTokens.get(key) || "";
+    return "";
   }
 }
 
@@ -73,24 +64,15 @@ export async function readJobResponse<T>(response: Response): Promise<T> {
 }
 
 export class AxonXClient {
-  readonly baseUrl: string;
-
-  constructor(
-    baseUrl = configuredUrl,
-    private token = storedToken(baseUrl),
-  ) {
-    this.baseUrl = baseUrl.replace(/\/$/, "");
-  }
+  private token = storedToken();
 
   setToken(token: string): void {
     this.token = token.trim();
-    const key = storageKey(this.baseUrl);
     try {
-      if (this.token) localStorage.setItem(key, this.token);
-      else localStorage.removeItem(key);
+      if (this.token) localStorage.setItem(tokenStorageKey, this.token);
+      else localStorage.removeItem(tokenStorageKey);
     } catch {
-      if (this.token) memoryTokens.set(key, this.token);
-      else memoryTokens.delete(key);
+      // Keep the token in memory when browser storage is unavailable.
     }
   }
 
@@ -98,25 +80,14 @@ export class AxonXClient {
     return Boolean(this.token);
   }
 
-  forBaseUrl(baseUrl: string): AxonXClient {
-    return new AxonXClient(baseUrl);
-  }
-
-  private headers(extra?: HeadersInit): Headers {
+  requestHeaders(extra?: HeadersInit): Headers {
     const headers = new Headers(extra);
     if (this.token) headers.set("Authorization", `Bearer ${this.token}`);
     return headers;
   }
 
-  forTarget(target: string): AxonXClient {
-    const url = target.includes("://")
-      ? target
-      : `${this.baseUrl ? new URL(this.baseUrl).protocol : window.location.protocol}//${target}`;
-    return this.forBaseUrl(url);
-  }
-
-  invocation(arguments_: Record<string, unknown>) {
-    return { arguments: arguments_ };
+  invocation(arguments_: Record<string, unknown>, target?: string) {
+    return { arguments: arguments_, target };
   }
 
   async invoke<T>(
@@ -124,39 +95,29 @@ export class AxonXClient {
     arguments_: Record<string, unknown> = {},
     options: RequestOptions = {},
   ): Promise<T> {
-    const client = options.target ? this.forTarget(options.target) : this;
-    const response = await fetch(
-      `${client.baseUrl}/jobs/${encodeURIComponent(name)}`,
-      {
-        method: "POST",
-        headers: client.headers({ "Content-Type": "application/json" }),
-        body: JSON.stringify(this.invocation(arguments_)),
-        signal: options.signal,
-      },
-    );
+    const response = await fetch(`/jobs/${encodeURIComponent(name)}`, {
+      method: "POST",
+      headers: this.requestHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(this.invocation(arguments_, options.target)),
+      signal: options.signal,
+    });
     return readJobResponse<T>(response);
   }
 
-  async jobs(signal?: AbortSignal): Promise<JobCatalog> {
-    const response = await fetch(`${this.baseUrl}/jobs`, {
-      headers: this.headers(),
-      signal,
+  async jobs(options: RequestOptions = {}): Promise<JobCatalog> {
+    const query = options.target
+      ? `?${new URLSearchParams({ target: options.target })}`
+      : "";
+    const response = await fetch(`/jobs${query}`, {
+      headers: this.requestHeaders(),
+      signal: options.signal,
     });
     return readJobResponse<JobCatalog>(response);
   }
 
   eventsUrl(name: string): string {
-    return `${this.baseUrl}/jobs/${encodeURIComponent(name)}/events`;
-  }
-
-  requestHeaders(extra?: HeadersInit): Headers {
-    return this.headers(extra);
+    return `/jobs/${encodeURIComponent(name)}/events`;
   }
 }
 
 export const axonx = new AxonXClient();
-
-export function clientForTarget(target?: string): AxonXClient {
-  if (!target) return axonx;
-  return axonx.forTarget(target);
-}
