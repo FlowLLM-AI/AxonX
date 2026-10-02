@@ -63,5 +63,5 @@ repos:
         name: prettier (frontend and docs)
         language: node
         entry: prettier --check
-        additional_dependencies: [prettier@3.9.6]
+        additional_dependencies: [prettier@3.9.9]
         files: '^(axonx_studio|github-pages|docs)/.*\.(ts|tsx|mts|js|mjs|json|css|html|vue|md)$'
