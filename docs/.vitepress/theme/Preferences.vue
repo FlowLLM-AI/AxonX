@@ -7,7 +7,7 @@ const { lang, page, isDark } = useData();
 const router = useRouter();
 const zh = computed(() => lang.value.startsWith("zh"));
 const t = (cn: string, en: string) => (zh.value ? cn : en);
-const language = useStorage("axonx-language", "browser");
+const language = useStorage("axonx-language", "en");
 // Share VitePress's preference: its appearance controller tracks system changes.
 const appearance = useStorage("vitepress-theme-appearance", "auto");
 const root = ref<HTMLElement>();
