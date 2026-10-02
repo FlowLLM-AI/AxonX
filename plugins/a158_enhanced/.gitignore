@@ -1,0 +1,17 @@
+# Local execution archives and scripts tied to a particular service and task IDs.
+/scripts/research.py
+/scripts/report.py
+/axonx_alpha158_enhanced/scripts/run_pipeline.sh
+/experiments/*
+
+# Small, portable experiment summaries retained for review.
+!/experiments/README.md
+!/experiments/selection_metrics.json
+!/experiments/selection_decision.json
+!/experiments/confirmation_metrics.json
+!/experiments/paired_diagnostics.csv
+!/experiments/regime_metrics.csv
+!/experiments/selected_feature_importance.csv
+!/experiments/baseline_data_parity.json
+!/experiments/training_parameters.json
+!/experiments/context_feature_coverage.csv
