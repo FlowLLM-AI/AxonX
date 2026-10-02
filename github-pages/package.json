@@ -1,0 +1,21 @@
+{
+  "name": "axonx-github-pages",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "content": "node scripts/generate-content.mjs",
+    "dev": "npm run content && vitepress dev .generated/site",
+    "build": "npm run content && vitepress build .generated/site && node scripts/verify-build.mjs",
+    "preview": "vitepress preview .generated/site"
+  },
+  "devDependencies": {
+    "@vueuse/core": "^12.8.2",
+    "vitepress": "1.6.4"
+  },
+  "overrides": {
+    "vite": "^6.4.3"
+  }
+}
