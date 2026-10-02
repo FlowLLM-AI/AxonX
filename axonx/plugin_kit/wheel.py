@@ -162,16 +162,13 @@ def _read_artifact(path: Path) -> PluginArtifact:
     )
 
 
-def install_artifact(artifact: PluginArtifact) -> None:
-    """Install plugin dependencies without replacing AxonX, then install its wheel."""
-    dependencies = [
-        value
-        for value in artifact.requirements
-        if canonicalize_name(Requirement(value).name) != "axonx"
-    ]
+def install_artifact(artifact: PluginArtifact, *, editable_source: Path | None = None) -> None:
+    """Install dependencies without replacing AxonX, then its wheel or source."""
+    dependencies = [value for value in artifact.requirements if canonicalize_name(Requirement(value).name) != "axonx"]
     commands = []
     if dependencies:
         commands.append([sys.executable, "-m", "pip", "install", *dependencies])
+    target = ["--editable", str(editable_source)] if editable_source is not None else [str(artifact.wheel)]
     commands.append(
         [
             sys.executable,
@@ -181,7 +178,7 @@ def install_artifact(artifact: PluginArtifact) -> None:
             "--upgrade",
             "--force-reinstall",
             "--no-deps",
-            str(artifact.wheel),
+            *target,
         ],
     )
     for command in commands:

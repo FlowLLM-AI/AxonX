@@ -35,12 +35,32 @@ def prepare_artifact(
     return inspect_wheel(build_wheel(path, output / digest, use_cache=use_cache))
 
 
-def install_plugin(artifact: PluginArtifact) -> PluginInfo:
-    """Install an artifact and return the distribution read back from the environment."""
-    install_artifact(artifact)
-    installed = get_installed_plugin(artifact.distribution)
+def install_plugin(artifact: PluginArtifact, *, editable_source: Path | None = None) -> PluginInfo:
+    """Install a wheel or editable source and validate the installed plugin."""
+    install_artifact(artifact, editable_source=editable_source)
+    if editable_source is None:
+        installed = get_installed_plugin(artifact.distribution)
+    else:
+        # Editable .pth files and import hooks are loaded at interpreter startup.
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import sys; from axonx.plugin_kit.discovery import get_installed_plugin; "
+                "print(get_installed_plugin(sys.argv[1]).model_dump_json())",
+                artifact.distribution,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode:
+            raise RuntimeError(f"Installed plugin discovery failed: {(result.stderr or result.stdout).strip()}")
+        installed = PluginInfo.model_validate_json(result.stdout)
     if installed.error:
         raise RuntimeError(f"Installed plugin is invalid: {installed.error}")
+    if editable_source is not None:
+        return installed
     if installed.sha256 != artifact.sha256:
         raise RuntimeError(
             f"Installed plugin provenance mismatch: expected {artifact.sha256}, "

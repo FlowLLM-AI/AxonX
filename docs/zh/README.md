@@ -100,6 +100,8 @@ Agent 从 `CLAUDE_CODE_API_KEY`、`CLAUDE_CODE_BASE_URL`、`CLAUDE_CODE_MODEL_NA
 
 所有服务命令都可用 `--target` 直连目标服务。`install_plugin` 和 `uninstall_plugin` 默认要求认证，通过 HTTP/MCP 调用时须配置目标服务的 `service.token`，并在客户端提供匹配令牌。不带 `--target` 的 `axonx plugin install` / `uninstall` 直接操作当前 Python 环境，无需启动服务或配置令牌；带 `--target` 时通过 HTTP 操作指定服务。删除类任务会修改工作区或会话数据，使用前应确认传入的 ID 或路径。
 
+本地开发插件时，可执行 `axonx plugin install -e plugins/xxx`（或 `--editable`）。源码修改会在新进程中生效，已运行的服务需要重启。editable 模式仅支持本地源码目录，不支持 wheel 文件、`--target` 或 `--output`。
+
 插件 Task 的注册名可直接从 `axonx plugin list --target <host:port>` 返回的 `tasks` 映射键取得，先确认目标插件的 `error` 为空。需要所选 Task 的参数和默认值时，执行：
 
 ```bash

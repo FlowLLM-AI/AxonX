@@ -138,6 +138,7 @@ CLI_USAGE = f"""Usage:
   axonx start [--config app.yaml]
   axonx plugin list|show|inspect|install|uninstall ... [--target HOST:PORT]
   axonx plugin build SOURCE [--output DIRECTORY]
+  axonx plugin install -e SOURCE
 
 Service options: target={AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}
 client_timeout={AXONX_DEFAULT_REQUEST_TIMEOUT:g} token=null stream=false stream_format=blocks"""
