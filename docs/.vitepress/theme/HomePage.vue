@@ -10,11 +10,28 @@ const { lang } = useData()
 const zh = computed(() => lang.value.startsWith('zh'))
 const t = (cn: string, en: string) => (zh.value ? cn : en)
 const link = (page: string) => withBase(`/${zh.value ? 'zh' : 'en'}/${page}`)
-const selected = ref(0)
-function moveTab(event: KeyboardEvent, direction: number) {
-  selected.value = (selected.value + direction + screens.length) % screens.length
-  const tabs = (event.currentTarget as HTMLElement).parentElement?.querySelectorAll('button')
-  tabs?.[selected.value].focus()
+const selected = ref(0);
+const viewport = ref<HTMLElement>();
+function selectScreen(index: number) {
+  viewport.value?.scrollTo({ left: index * viewport.value.clientWidth });
+}
+function syncScreen() {
+  const container = viewport.value;
+  if (!container?.clientWidth) return;
+  selected.value = Math.max(
+    0,
+    Math.min(
+      screens.length - 1,
+      Math.round(container.scrollLeft / container.clientWidth),
+    ),
+  );
+}
+function moveTab(event: KeyboardEvent, target: number) {
+  const index = (target + screens.length) % screens.length;
+  selectScreen(index);
+  (event.currentTarget as HTMLElement).parentElement
+    ?.querySelectorAll<HTMLButtonElement>("button")
+    [index]?.focus({ preventScroll: true });
 }
 const stages = [
   ['01', '市场数据', 'Market data', 'research/tushare', 'cyan'],
@@ -83,7 +100,6 @@ const screens = [
     'Understand strategy differences over a shared period.',
   ],
 ]
-const screen = computed(() => screens[selected.value])
 const capabilities = [
   [
     'PLUGIN',
@@ -208,7 +224,11 @@ const capabilities = [
             )
           }}
         </p>
-        <div class="screen-tabs" role="tablist" :aria-label="t('Studio 展示', 'Studio showcase')">
+        <div
+          class="screen-tabs"
+          role="tablist"
+          :aria-label="t('Studio 展示', 'Studio showcase')"
+        >
           <button
             v-for="(item, index) in screens"
             :id="`screen-tab-${index}`"
@@ -216,32 +236,87 @@ const capabilities = [
             type="button"
             role="tab"
             :aria-selected="selected === index"
-            aria-controls="studio-preview"
-            @click="selected = index"
-            @keydown.right.prevent="moveTab($event, 1)"
-            @keydown.left.prevent="moveTab($event, -1)"
+            :aria-controls="`studio-preview-${index}`"
+            @click="selectScreen(index)"
+            @keydown.right.prevent="moveTab($event, index + 1)"
+            @keydown.left.prevent="moveTab($event, index - 1)"
+            @keydown.home.prevent="moveTab($event, 0)"
+            @keydown.end.prevent="moveTab($event, screens.length - 1)"
             :tabindex="selected === index ? 0 : -1"
           >
             {{ t(item[0], item[1]) }}
           </button>
         </div>
-        <div
-          id="studio-preview"
-          class="screen-panel"
-          role="tabpanel"
-          :aria-labelledby="`screen-tab-${selected}`"
-        >
-          <div class="screen-top">
-            <span class="window-dots">● ● ●</span><span>AXONX STUDIO / {{ screen[1].toUpperCase() }}</span
-            ><span class="screen-live">{{ t('真实界面', 'ACTUAL INTERFACE') }}</span>
+        <div class="screen-carousel">
+          <button
+            class="screen-arrow screen-arrow-prev"
+            type="button"
+            :aria-label="t('上一张', 'Previous slide')"
+            :disabled="selected === 0"
+            @click="selectScreen(selected - 1)"
+          >
+            <span aria-hidden="true">←</span>
+          </button>
+          <div
+            ref="viewport"
+            class="screen-viewport"
+            @scroll.passive="syncScreen"
+          >
+            <div
+              v-for="(item, index) in screens"
+              :id="`studio-preview-${index}`"
+              :key="item[0]"
+              class="screen-slide"
+              role="tabpanel"
+              :aria-labelledby="`screen-tab-${index}`"
+              :inert="selected !== index"
+            >
+              <div class="screen-panel">
+                <div class="screen-top">
+                  <span class="window-dots">● ● ●</span>
+                  <span>AXONX STUDIO / {{ item[1].toUpperCase() }}</span>
+                  <span class="screen-live">{{
+                    t("真实界面", "ACTUAL INTERFACE")
+                  }}</span>
+                </div>
+                <a :href="link(item[3])">
+                  <img
+                    :src="item[2]"
+                    :alt="t(item[0], item[1])"
+                    loading="lazy"
+                    width="1440"
+                    height="900"
+                  />
+                </a>
+              </div>
+              <div class="screen-caption">
+                <p>{{ t(item[4], item[5]) }}</p>
+                <a class="text-link" :href="link(item[3])">
+                  {{ t("阅读指南", "Read the guide") }} ↗
+                </a>
+              </div>
+            </div>
           </div>
-          <a :href="link(screen[3])"
-            ><img :src="screen[2]" :alt="t(screen[0], screen[1])" loading="lazy" width="1440" height="900"
-          /></a>
+          <button
+            class="screen-arrow screen-arrow-next"
+            type="button"
+            :aria-label="t('下一张', 'Next slide')"
+            :disabled="selected === screens.length - 1"
+            @click="selectScreen(selected + 1)"
+          >
+            <span aria-hidden="true">→</span>
+          </button>
         </div>
-        <div class="screen-caption">
-          <p>{{ t(screen[4], screen[5]) }}</p>
-          <a class="text-link" :href="link(screen[3])">{{ t('阅读指南', 'Read the guide') }} ↗</a>
+        <div class="screen-progress" aria-hidden="true">
+          <span>{{ String(selected + 1).padStart(2, "0") }}</span>
+          <div class="screen-progress-bars">
+            <span
+              v-for="(_, index) in screens"
+              :key="index"
+              :class="{ active: selected === index }"
+            />
+          </div>
+          <span>{{ String(screens.length).padStart(2, "0") }}</span>
         </div>
       </div>
     </section>

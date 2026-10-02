@@ -476,10 +476,87 @@
   border-color: var(--vp-c-divider);
   color: var(--vp-c-brand-1);
 }
-.screen-panel,
-.screen-caption {
-  width: 50%;
+.screen-carousel {
+  position: relative;
+  width: min(76%, 1080px);
   margin-inline: auto;
+}
+.screen-viewport {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  border-radius: 12px;
+  overscroll-behavior-x: contain;
+}
+.screen-viewport::-webkit-scrollbar {
+  display: none;
+}
+.screen-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.screen-arrow {
+  position: absolute;
+  top: 42%;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 50%;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 22px;
+  transition:
+    border-color 180ms,
+    color 180ms,
+    opacity 180ms;
+}
+.screen-arrow:hover:not(:disabled) {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+}
+.screen-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.screen-arrow-prev {
+  left: -64px;
+}
+.screen-arrow-next {
+  right: -64px;
+}
+.screen-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 24px;
+  color: var(--vp-c-text-2);
+  font: 10px var(--vp-font-family-mono);
+}
+.screen-progress-bars {
+  display: flex;
+  gap: 6px;
+}
+.screen-progress-bars span {
+  width: 28px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--vp-c-divider);
+  transition: background 180ms;
+}
+.screen-progress-bars .active {
+  background: var(--vp-c-brand-1);
+}
+.screen-tabs button:focus-visible,
+.screen-arrow:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 4px;
 }
 .screen-panel {
   overflow: hidden;
@@ -676,6 +753,9 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .screen-viewport {
+    scroll-behavior: auto;
+  }
   .axon-home * {
     transition: none !important;
   }
@@ -685,9 +765,31 @@
 }
 
 @media (max-width: 767px) {
-  .screen-panel,
-  .screen-caption {
+  .screen-carousel {
     width: 100%;
+    padding-bottom: 52px;
+  }
+  .screen-arrow {
+    top: auto;
+    bottom: 0;
+    width: 36px;
+    height: 36px;
+  }
+  .screen-arrow-prev {
+    left: calc(50% - 46px);
+  }
+  .screen-arrow-next {
+    right: calc(50% - 46px);
+  }
+  .screen-tabs {
+    gap: 4px;
+  }
+  .screen-tabs button {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .screen-progress {
+    margin-top: 16px;
   }
 }
 
