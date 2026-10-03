@@ -19,27 +19,22 @@
 
 ## AxonX 是什么？
 
-**AxonX 是面向金融量化研究的 Agent-native Harness，即便于 Agent 调用的研究执行框架。**
+**AxonX 是面向金融量化研究的 Agent 原生框架。**
 
-它将数据处理、因子分析、训练、预测和回测封装为输入输出明确的 **Task（研究任务）**，由插件提供算法实现。框架负责执行、记录和产物管理。
+它将数据处理、因子分析、训练、预测和回测封装为输入输出明确的 **Task**。插件提供算法；框架负责执行、记录和产物管理。
 
-研究者通过 **AxonX Studio** 的表单和图表操作，Agent 与脚本通过 CLI / MCP 调用能力。各入口通过 **Job**
-提交、跟踪和查询任务，围绕同一工作区中的研究记录检查日志、产物和上下游关系。
+研究者使用 **AxonX Studio** 中的表单和图表，Agent 与脚本通过 CLI / MCP 调用能力。
+各入口通过 **Job** 提交、跟踪和查询任务，利用同一工作区中的研究记录检查日志、产物和上下游关系。
 
 ## 为什么使用 AxonX？
 
-- **将研究代码封装为可复用的 Task。**
-  通过带类型的输入输出定义，明确数据、模型和产物要求，便于调用前发现能力并检查参数。→ [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)
-- **执行过程可检查、可管理。** 通过服务将 Task
-  提交到独立工作进程，跟踪状态、进度、日志和结果，并支持等待与取消执行。→ [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)
-- **从结果追溯输入。** 工作区保存参数、产物和上游 Task
-  ID，任务依赖图展示上下游关系，便于复用数据集、追溯研究链路和检查实验差异。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)
-- **CLI、AxonX Studio 和 Agent 共用工作流程。** 脚本与 Agent 通过 CLI / MCP 调用能力，研究者通过浏览器表单和图表操作；各入口共享同一套
-  Job 与 Task 契约、任务记录和研究产物。→ [AxonX Studio](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/zh/agent/usage)
-- **扩展研究能力并在远程运行。**
-  将研究方法打包为插件，在明确选择的目标环境中执行任务并检查资源、日志与结果。→ [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
-- **Agent 研究过程与结果可检查。** Codex 扩展 Alpha158 后，独立确认期 Top10 扣费年化收益从 −5.74% 提高到 28.21%，RankIC 从
-  0.0915 提高到 0.0967；单次实验尚未证明稳定提升。→ [Benchmark](#benchmarkagent-开发市场横截面增强特征)
+- **可复用的研究 Task。** 带类型的输入输出明确数据、模型与产物要求。→ [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)
+- **管理执行过程。** 在工作进程中运行 Task，跟踪状态、进度、日志与结果，支持等待和取消。→ [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)
+- **追溯研究结果。** 保存的参数、产物和依赖图帮助你复用数据和比较实验。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)
+- **各入口共用工作流程。** CLI / MCP、Studio 与 Agent 共享 Job 和 Task 契约、记录及产物。→ [AxonX Studio](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/zh/agent/usage)
+- **扩展并远程运行。** 添加研究插件，在选定的目标环境中执行 Task。→ [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
+- **检查 Agent 研究。** Codex 对 Alpha158 的扩展使确认期 Top10 扣费年化收益从 −5.74% 升至 28.21%；稳定提升尚未证实。→ [Benchmark](#benchmarkagent-开发市场横截面增强特征)
+
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg)
 
