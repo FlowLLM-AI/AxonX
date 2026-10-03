@@ -104,13 +104,13 @@ Contributions are covered by the project's [Apache License 2.0](LICENSE).
 
 ## Releases
 
-AxonX and Studio release independently. Commit version updates and pass the relevant CI before tagging. Integration tests require model API keys and run locally when needed.
+AxonX and Studio release independently. Commit version updates and pass the relevant CI before publishing. Integration tests require model API keys and run locally when needed.
 
-- **AxonX**: synchronize `pyproject.toml` and `axonx/_version.py`, then create and push `v<version>`. Publishing a GitHub Release for that tag automatically publishes `axonx` to PyPI. Alternatively, run `Release / AxonX Python package` manually with the version without `v`.
-- **Studio**: synchronize `axonx_studio/pyproject.toml`, `package.json`, and `package-lock.json`, then create and push `studio-v<version>`. Run `Release / AxonX Studio` manually. The default `both` publishes PyPI before npm; `pypi` and `npm` publish independently. The npm tag is selected automatically: `latest` for stable versions and `next` for prereleases.
+- **AxonX**: update `axonx/_version.py`, then create and push `v<version>`. Publishing a GitHub Release for that tag automatically publishes `axonx` to PyPI. Alternatively, run `Release / AxonX Python package` manually with the version without `v`.
+- **Studio**: synchronize `axonx_studio/pyproject.toml`, `package.json`, and `package-lock.json`, then push to `main`. Run `Release / AxonX Studio` manually with the `main` branch selected. Versions are read from the manifests; no tag or version input is required. The default `both` publishes PyPI before npm; `pypi` and `npm` publish independently. The npm tag is selected automatically: `latest` for stable versions and `next` for prereleases.
 
-Every release builds from its tag and verifies distribution versions. Studio's Python and npm packages contain identical static assets; Python prerelease metadata is normalized according to PEP 440. The AxonX release does not publish research plugins.
+AxonX builds from its release tag; Studio builds from the exact `main` commit selected when the workflow starts. Both verify distribution versions. Studio's Python and npm packages contain identical static assets; Python prerelease metadata is normalized according to PEP 440. The AxonX release does not publish research plugins.
 
 Configure PyPI Trusted Publishers for `axonx` and `axonx-studio` with their respective workflows and the `pypi` environment. Configure npm Trusted Publishing for `@flowllm-ai/axonx-studio` with `release-axonx-studio.yml` and the `npm` environment. A new npm package needs its initial publication before Trusted Publishing can be configured.
 
-Existing versions fail publication rather than being overwritten or silently skipped. If npm fails during a dual release, publish `npm` alone from the same tag. Do not move release tags.
+Existing versions fail publication rather than being overwritten or silently skipped. If npm fails during a dual release, rerun the failed job in the original workflow run to reuse the same artifacts. Single-package publishing is also available; keep the Studio sources unchanged when recovering through a new run. Do not move AxonX release tags.

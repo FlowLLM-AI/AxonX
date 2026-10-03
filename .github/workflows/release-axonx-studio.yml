@@ -1,14 +1,10 @@
 name: Release / AxonX Studio
 
-run-name: Publish AxonX Studio ${{ inputs.version }} (${{ inputs.publish_target }})
+run-name: Publish AxonX Studio from main (${{ inputs.publish_target }})
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: Studio version to publish from its studio-v<version> tag
-        required: true
-        type: string
       publish_target:
         description: Packages to publish
         required: true
@@ -25,10 +21,8 @@ concurrency:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/_build-studio-packages.yml
-    with:
-      ref: ${{ format('refs/tags/studio-v{0}', inputs.version) }}
-      version: ${{ inputs.version }}
 
   publish-python:
     if: inputs.publish_target != 'npm'
@@ -70,5 +64,5 @@ jobs:
           path: dist
       - name: Publish Studio to npm
         env:
-          NPM_TAG: ${{ contains(inputs.version, '-') && 'next' || 'latest' }}
+          NPM_TAG: ${{ contains(needs.build.outputs.version, '-') && 'next' || 'latest' }}
         run: npm publish dist/npm/*.tgz --access public --tag "${NPM_TAG}" --provenance

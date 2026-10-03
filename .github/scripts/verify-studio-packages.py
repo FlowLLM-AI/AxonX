@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 STUDIO = ROOT / "axonx_studio"
 
 
-def verify_versions(expected_version: str | None) -> None:
+def verify_versions() -> str:
     """Require a single source version for both package registries."""
     project = tomllib.loads((STUDIO / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     package = json.loads((STUDIO / "package.json").read_text(encoding="utf-8"))
@@ -22,9 +22,9 @@ def verify_versions(expected_version: str | None) -> None:
     assert project["name"] == "axonx-studio"
     assert package["name"] == "@flowllm-ai/axonx-studio"
     assert project["version"] == package["version"] == lock["version"] == lock["packages"][""]["version"]
-    if expected_version:
-        assert package["version"] == expected_version, "Studio release version mismatch"
     assert not package.get("private"), "Studio npm package must be publishable"
+    Version(package["version"])
+    return package["version"]
 
 
 def verify_distributions(dist_dir: Path) -> None:
@@ -74,9 +74,10 @@ def verify_distributions(dist_dir: Path) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--expected-version")
     parser.add_argument("--dist-dir", type=Path)
     options = parser.parse_args()
-    verify_versions(options.expected_version)
+    studio_version = verify_versions()
     if options.dist_dir:
         verify_distributions(options.dist_dir)
+    else:
+        print(studio_version)

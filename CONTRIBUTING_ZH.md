@@ -106,11 +106,11 @@ npm ci && npm run build
 
 主包和 Studio 独立发布。发布前提交版本更新并确保相关 CI 通过；集成测试需要模型 API key，仅在本地按需执行。
 
-- **AxonX**：同步 `pyproject.toml` 与 `axonx/_version.py`，创建并推送 `v<version>` 标签。发布该标签的 GitHub Release 会自动上传 `axonx` 到 PyPI；也可手动运行 `Release / AxonX Python package`，输入不带 `v` 的版本号。
-- **Studio**：同步 `axonx_studio/pyproject.toml`、`package.json` 和 `package-lock.json` 的版本，创建并推送 `studio-v<version>` 标签。手动运行 `Release / AxonX Studio`，默认 `both` 先发布 PyPI 再发布 npm；`pypi`、`npm` 可独立发布。npm 标签自动选择：稳定版本使用 `latest`，预发布版本使用 `next`。
+- **AxonX**：更新 `axonx/_version.py`，创建并推送 `v<version>` 标签。发布该标签的 GitHub Release 会自动上传 `axonx` 到 PyPI；也可手动运行 `Release / AxonX Python package`，输入不带 `v` 的版本号。
+- **Studio**：同步 `axonx_studio/pyproject.toml`、`package.json` 和 `package-lock.json` 的版本，推送到 `main`。手动运行 `Release / AxonX Studio` 并选择 `main` 分支，版本自动读取，不需要标签或版本输入。默认 `both` 先发布 PyPI 再发布 npm；`pypi`、`npm` 可独立发布。npm 标签自动选择：稳定版本使用 `latest`，预发布版本使用 `next`。
 
-所有发布从对应标签构建，并校验产物版本。Studio 的 Python/npm 包携带同一份静态资源，预发布版本在 Python 产物中按 PEP 440 规范化。主包发布不会上传研究插件。
+AxonX 从发布标签构建；Studio 从手动运行时选定的 `main` 提交构建。两者都校验产物版本。Studio 的 Python/npm 包携带同一份静态资源，预发布版本在 Python 产物中按 PEP 440 规范化。主包发布不会上传研究插件。
 
 在 PyPI 为 `axonx` 和 `axonx-studio` 分别配置对应工作流的 Trusted Publisher，环境名为 `pypi`。在 npm 为 `@flowllm-ai/axonx-studio` 配置 `release-axonx-studio.yml` 的 Trusted Publisher，环境名为 `npm`。新的 npm 包需先完成首次发布，再配置 Trusted Publishing。
 
-版本已存在时发布失败，不覆盖或静默跳过。双发中 npm 失败后，以同一标签选择 `npm` 补发；发布标签不可移动。
+版本已存在时发布失败，不覆盖或静默跳过。双发中 npm 失败后，优先在原 workflow run 中重跑失败 job，复用同一份产物。也可单包发布；通过新运行补发时应保持 Studio 源码不变。AxonX 发布标签不可移动。
