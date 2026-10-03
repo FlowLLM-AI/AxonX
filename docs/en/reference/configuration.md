@@ -33,6 +33,7 @@ The table lists model defaults, which differ from the expanded built-in default.
 | workspace_dir  | string                                    | .axonx        | Root directory for tasks, artifacts, and application state |
 | log_dir        | string                                    | logs          | Service and task log directory                             |
 | timezone       | string                                    | Asia/Shanghai | Default application/task timezone                          |
+| language       | `en` / `zh`                               | en            | Built-in Agent guide language                              |
 | enable_logo    | boolean                                   | true          | CLI start prints the startup logo                          |
 | log_to_console | boolean                                   | true          | Console logging                                            |
 | log_to_file    | boolean                                   | true          | File logging                                               |

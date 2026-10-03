@@ -37,6 +37,25 @@ components:
 
 此配置展示字段结构；模型与权限设置继续继承默认值。服务启动时会校验 Job 名称是否已配置，名单不能为空字符串、不允许重复；字符串不能代替列表。
 
+## 内置开发指南
+
+应用级 `language` 支持 `en`（默认）和 `zh`，在需要指南的 Agent 上开启 `load_dev_guide`：
+
+```yaml
+extends: default
+language: zh
+components:
+  agent:
+    default:
+      load_dev_guide: true
+```
+
+`load_dev_guide` 默认是 `false`，关闭时不读取也不注入指南。开启后，Agent 在启动时读取一次对应语言的完整[开发指南](../dev_guide.md)。修改语言、开关或指南后需重启服务。没有应用上下文时使用 `en`；不支持的语言值会被拒绝。
+
+Claude 后端将指南追加到已有系统提示词，保留 preset 的其他选项和原有 `append` 内容。字符串提示词在原文后追加；未配置提示词时使用 Claude Code preset。对于 `type: file` 提示词，后端以 UTF-8 读取文件并在原文后追加指南；相对路径基于 Agent 的 `cwd` 解析。新建和恢复会话的每一轮都使用启动时加载的同一份指南，不会累积重复内容。
+
+`language` 只选择内置指南，不强制回复语言，Studio 仍使用自己的语言设置。指南资源随 Python 包分发；开启时若资源缺失或无法读取，启动失败。源码仓库中的资源链接到 `docs/en/dev_guide.md` 和 `docs/zh/dev_guide.md`，维护时只需编辑这两份原文。指南中的插件路径相对于源码仓库，并非 Agent 工作区。
+
 ## 模型环境
 
 默认配置把服务环境中的变量映射到 SDK 子进程：
@@ -59,14 +78,15 @@ export CLAUDE_CODE_MODEL_NAME='<可用模型名>'
 
 ## 框架管理字段
 
-| 字段                    | 默认行为                                     | 说明                                  |
-| ----------------------- | -------------------------------------------- | ------------------------------------- |
-| `backend`               | 默认配置 `claude`                            | 当前内置实现                          |
-| `job_tools`             | 组件构造默认空列表，默认配置给出八个查询 Job | 进程内 AxonX MCP 工具名单             |
-| `state_dir`             | `agent/claude`                               | 用于 SDK 配置目录，按组件名称再分一层 |
-| `session_store.backend` | `local`                                      | 当前仅支持 local                      |
-| `session_store.path`    | `agent/session-store`                        | 会话存储根目录                        |
-| `cwd`                   | 工作区根目录                                 | SDK 选项，由框架解析执行目录          |
+| 字段                    | 默认行为                                     | 说明                                     |
+| ----------------------- | -------------------------------------------- | ---------------------------------------- |
+| `backend`               | 默认配置 `claude`                            | 当前内置实现                             |
+| `load_dev_guide`        | `false`                                      | 追加应用级 `language` 对应的内置开发指南 |
+| `job_tools`             | 组件构造默认空列表，默认配置给出八个查询 Job | 进程内 AxonX MCP 工具名单                |
+| `state_dir`             | `agent/claude`                               | 用于 SDK 配置目录，按组件名称再分一层    |
+| `session_store.backend` | `local`                                      | 当前仅支持 local                         |
+| `session_store.path`    | `agent/session-store`                        | 会话存储根目录                           |
+| `cwd`                   | 工作区根目录                                 | SDK 选项，由框架解析执行目录             |
 
 状态路径相对工作区解析，绝对状态路径也必须位于工作区内。默认组件名为 `default` 时，SDK 配置目录是 `<workspace>/agent/claude/default`。
 

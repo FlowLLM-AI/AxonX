@@ -33,6 +33,7 @@ extends 不是 ApplicationConfig 的持久字段，由解析器先消除。Pytho
 | workspace_dir  | string                                | .axonx        | 任务、产物与应用状态根目录         |
 | log_dir        | string                                | logs          | 服务与任务日志目录                 |
 | timezone       | string                                | Asia/Shanghai | 默认应用/任务时区                  |
+| language       | `en` / `zh`                           | en            | Agent 内置指南语言                 |
 | enable_logo    | boolean                               | true          | CLI start 打印启动标识             |
 | log_to_console | boolean                               | true          | 控制台日志                         |
 | log_to_file    | boolean                               | true          | 文件日志                           |

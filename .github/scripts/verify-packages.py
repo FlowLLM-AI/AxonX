@@ -59,8 +59,8 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
         sdists = list((dist_dir / directory).glob("*.tar.gz"))
         assert len(wheels) == len(sdists) == 1, f"Expected one wheel and sdist for {project['name']}"
         required = {f"{package}/__init__.py"}
-        plugin_files = plugin_source_files(source, package) if plugin else {}
-        required.update(plugin_files)
+        source_files = plugin_source_files(source, package)
+        required.update(source_files)
         if plugin:
             required.update({f"{package}/plugin.yaml", f"{package}/config/alpha158_demo.yaml"})
         else:
@@ -68,7 +68,7 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
         with ZipFile(wheels[0]) as archive:
             names = set(archive.namelist())
             assert required <= names, f"Missing package files: {required - names}"
-            for name, content in plugin_files.items():
+            for name, content in source_files.items():
                 assert archive.read(name) == content, f"Wheel file differs from source: {name}"
             assert not any(name.startswith(("tests/", "axonx_studio/", "github-pages/")) for name in names)
             assert not any("node_modules/" in name for name in names)
@@ -93,7 +93,7 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
             names = set(members)
             missing = (required | {"pyproject.toml"}) - names
             assert not missing, f"Missing files in sdist: {missing}"
-            for name, content in plugin_files.items():
+            for name, content in source_files.items():
                 assert archive.extractfile(members[name]).read() == content, f"Sdist file differs from source: {name}"
             assert not any(name.startswith(("axonx_studio/", "github-pages/")) for name in names)
             assert not any("node_modules/" in name for name in names)
@@ -119,6 +119,9 @@ def verify_installation() -> None:
             assert module.__version__ == distribution.version
             assert files.joinpath("config/default.yaml").is_file()
             assert files.joinpath("config/remote.yaml").is_file()
+            for language in ("en", "zh"):
+                guide = files.joinpath("components/agent/guides", f"{language}.md")
+                assert guide.read_bytes() == (source / "docs" / language / "dev_guide.md").read_bytes()
         print(f"Verified installation: {project['name']} {distribution.version}")
 
     from axonx.config import ConfigResolver  # pylint: disable=import-outside-toplevel

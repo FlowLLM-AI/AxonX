@@ -37,6 +37,25 @@ components:
 
 This configuration shows the field structure; model and permission settings still inherit their defaults. At service startup, Job names are checked against configured Jobs. The list cannot contain empty strings or duplicates, and a string cannot replace the list.
 
+## Built-in development guide
+
+Set the application-level `language` to `en` (default) or `zh`, and enable `load_dev_guide` on each Agent that needs the guide:
+
+```yaml
+extends: default
+language: zh
+components:
+  agent:
+    default:
+      load_dev_guide: true
+```
+
+`load_dev_guide` defaults to `false`; disabled Agents do not read or inject the guide. Enabled Agents read the complete matching [development guide](../dev_guide.md) once at startup. Restart the service after changing the language, switch, or guide. Without an application context, the guide language defaults to `en`. Unsupported language values are rejected.
+
+The Claude backend appends the guide to the configured system prompt, preserving preset options and existing `append` text. A string prompt receives the guide after its existing content; an omitted prompt uses the Claude Code preset. For a `type: file` prompt, the backend reads the file as UTF-8 and appends the guide to its content; relative paths resolve from the Agent's `cwd`. New and resumed turns receive the same startup-loaded guide without accumulating duplicate text.
+
+`language` selects the built-in guide only; reply language still follows the prompt and user message, and Studio keeps its own language setting. Guide resources ship inside the Python package; a missing or unreadable enabled resource fails startup. In the source checkout, these resources link to the canonical `docs/en/dev_guide.md` and `docs/zh/dev_guide.md` files, so only those documents need editing. The guide's plugin paths refer to a source checkout, not the Agent workspace.
+
 ## Model environment
 
 The default configuration maps variables in the service environment to the SDK subprocess:
@@ -62,6 +81,7 @@ The exact URL and model name depend on the available backend. AxonX currently ha
 | Field                   | Default behavior                                                                       | Description                                                            |
 | ----------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | `backend`               | `claude` in the default configuration                                                  | Current built-in implementation                                        |
+| `load_dev_guide`        | `false`                                                                                | Append the built-in guide selected by application `language`           |
 | `job_tools`             | Empty list in the component constructor; eight query Jobs in the default configuration | In-process AxonX MCP tool list                                         |
 | `state_dir`             | `agent/claude`                                                                         | SDK configuration directory, with another level for the component name |
 | `session_store.backend` | `local`                                                                                | Currently supports only local                                          |

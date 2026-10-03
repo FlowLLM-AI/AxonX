@@ -1,12 +1,14 @@
 # AxonX Development and Operations Guide
 
+Paths such as `plugins/a158/...` in this guide are relative to an AxonX source checkout, not the Agent workspace. Source development requires that checkout; package installation alone does not provide the example plugin sources. Configure credentials through environment variables or a `.env` file discovered from the process working directory or its parents.
+
 ## Background
 
 AxonX is a harness framework for financial quantitative research, organizing data acquisition and ETL, factor analysis, model training, prediction, and backtesting into Tasks with consistent input/output contracts.
 Plugins register research implementations; Tasks link upstream and downstream work through Task IDs. The CLI and HTTP service support submitting execution on local or remote machines and querying machine resources, runtime status, and logs.
 The framework records task configuration, dependencies, result metadata, and artifacts in the workspace, and provides Agents with task, dependency graph, and file query tools to verify research results, investigate failures, and reuse upstream data.
 
-- Authentication: when service authentication is enabled, configure local `AXONX_SERVICE_TOKEN` or remote `AXONX_TARGET_TOKEN` in environment variables or `../../.env` beforehand.
+- Authentication: when service authentication is enabled, configure local `AXONX_SERVICE_TOKEN` or remote `AXONX_TARGET_TOKEN` in environment variables or `.env` beforehand.
 - Local operations: use the “Command” column without `--target`. Submit and query Tasks and machine resources directly through the local AxonX HTTP service.
 - Discover remote machines: use `axonx list_machines` to query addresses (`address`, such as
   `http://192.168.1.10:1024`) and health status (`healthy`) for all machines configured in the local service's `targets`, then use `axonx machine_status --target <host:port>` to inspect candidates'
@@ -17,7 +19,7 @@ The framework records task configuration, dependencies, result metadata, and art
 
 ## Plugin Development
 
-A plugin can register multiple Tasks; the a158 example registers five Task types in `../../plugins/a158/axonx_alpha158/plugin.yaml`. The a158
+A plugin can register multiple Tasks; the a158 example registers five Task types in `plugins/a158/axonx_alpha158/plugin.yaml`. The a158
 paths, class names, registered names, and dependency chain here are illustrative; replace them with actual definitions when developing other research plugins. Plugin installation and Task submission are separate operations.
 
 ### Task Types
@@ -39,7 +41,7 @@ Tasks link upstream and downstream through Task IDs. The a158 example's main dep
 For ETL, the minimal structure includes input parameters, output parameters, a Task implementation, and registration. The following is a structural example; replace `...` in `transform` with actual ETL
 logic that reads input and writes results to `self.state["output"]`.
 
-`../../plugins/a158/axonx_alpha158/etl.py`:
+`plugins/a158/axonx_alpha158/etl.py`:
 
 ```python
 from pathlib import Path
@@ -81,7 +83,7 @@ A Task class must define a nonempty class docstring, used as the Task definition
 `BaseETLOutputParams` already defines required fields `output_file`, `rows`, and `date_range`, so `self.state["output"]` must contain at least these three fields. Add fields to
 `Alpha158OutputParams` when additional results are needed.
 
-`../../plugins/a158/axonx_alpha158/plugin.yaml` registers the Task name used by the CLI:
+`plugins/a158/axonx_alpha158/plugin.yaml` registers the Task name used by the CLI:
 
 ```yaml
 tasks:
@@ -90,7 +92,7 @@ tasks:
 
 `a158_etl` is the `--task` value for submission; the Python module precedes the colon and the Task class name follows it.
 
-For a new plugin, the package directory must contain `__init__.py`, and `../../plugins/a158/pyproject.toml` must declare the plugin entry point and registration file distributed with the package. The existing a158 plugin already configures these:
+For a new plugin, the package directory must contain `__init__.py`, and `plugins/a158/pyproject.toml` must declare the plugin entry point and registration file distributed with the package. The existing a158 plugin already configures these:
 
 ```toml
 [project.entry-points."axonx.plugins"]

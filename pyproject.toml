@@ -98,4 +98,4 @@ markers = [
 ]
 
 [tool.setuptools.package-data]
-axonx = ["config/*.yaml"]
+axonx = ["config/*.yaml", "components/agent/guides/*.md"]

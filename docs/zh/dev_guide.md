@@ -1,12 +1,14 @@
 # AxonX 开发与运行指南
 
+本文的 `plugins/a158/...` 等路径相对于 AxonX 源码仓库根目录，并非 Agent 工作区。源码开发需要相应仓库；仅安装 Python 包不会提供示例插件源码。凭据通过环境变量或从进程工作目录及其父目录发现的 `.env` 文件配置。
+
 ## 背景
 
 AxonX 是面向金融量化研究的 Harness 框架，将数据获取与 ETL、因子分析、模型训练、预测和回测组织为遵循统一输入输出契约的 Task。
 研究实现由插件注册，Task 通过 Task ID 关联上下游，CLI 和 HTTP 服务支持在本地或远程机器提交执行，并查询机器资源、运行状态与日志。
 框架在工作区记录任务配置、依赖、结果元数据和产物，向 Agent 提供任务、依赖图和文件查询工具，便于验证研究结果、排查失败并复用上游数据。
 
-- 鉴权：服务启用鉴权时，提前在环境变量或 `../../.env` 中配置本地 `AXONX_SERVICE_TOKEN` 或远程 `AXONX_TARGET_TOKEN`。
+- 鉴权：服务启用鉴权时，提前在环境变量或 `.env` 中配置本地 `AXONX_SERVICE_TOKEN` 或远程 `AXONX_TARGET_TOKEN`。
 - 本地操作：使用表格中的“命令”，不传 `--target`。通过本机 AxonX HTTP 服务直接提交、查询 Task 和查询机器资源。
 - 发现远程机器：使用 `axonx list_machines` 查询本地服务 `targets` 中所有已配置机器的地址（`address`，如
   `http://192.168.1.10:1024`）及对应的健康状态（`healthy`），再用 `axonx machine_status --target <host:port>` 查看候选机器的
@@ -17,7 +19,7 @@ AxonX 是面向金融量化研究的 Harness 框架，将数据获取与 ETL、�
 
 ## 插件开发
 
-插件可注册多个 Task；a158 示例在 `../../plugins/a158/axonx_alpha158/plugin.yaml` 中注册了五类 Task。本文的 a158
+插件可注册多个 Task；a158 示例在 `plugins/a158/axonx_alpha158/plugin.yaml` 中注册了五类 Task。本文的 a158
 路径、类名、注册名和依赖链仅用于示例，开发其他研究插件时应替换为实际定义。插件安装与 Task 提交是独立操作。
 
 ### Task 类型
@@ -39,7 +41,7 @@ Task 通过 Task ID 关联上下游。a158 示例的主要依赖链为 ETL → T
 以 ETL 为例，最小结构包含输入参数、输出参数、Task 实现和注册。下面是结构示例，`transform` 中的 `...` 需替换为实际 ETL
 逻辑，读取输入并将结果写入 `self.state["output"]`。
 
-`../../plugins/a158/axonx_alpha158/etl.py`：
+`plugins/a158/axonx_alpha158/etl.py`：
 
 ```python
 from pathlib import Path
@@ -81,7 +83,7 @@ Task 类必须定义非空的类 docstring，用于 Task 定义的 `description`
 `BaseETLOutputParams` 已定义必填字段 `output_file`、`rows`、`date_range`，因此 `self.state["output"]` 至少包含这三个字段；需要额外结果时，再在
 `Alpha158OutputParams` 中添加字段。
 
-`../../plugins/a158/axonx_alpha158/plugin.yaml` 注册 CLI 使用的 Task 名称：
+`plugins/a158/axonx_alpha158/plugin.yaml` 注册 CLI 使用的 Task 名称：
 
 ```yaml
 tasks:
@@ -90,7 +92,7 @@ tasks:
 
 `a158_etl` 是提交时的 `--task` 值；冒号前是 Python 模块，冒号后是 Task 类名。
 
-新建插件时，包目录需包含 `__init__.py`，并在 `../../plugins/a158/pyproject.toml` 中声明插件入口和随包分发的注册文件；已有 a158 插件已配置这些内容：
+新建插件时，包目录需包含 `__init__.py`，并在 `plugins/a158/pyproject.toml` 中声明插件入口和随包分发的注册文件；已有 a158 插件已配置这些内容：
 
 ```toml
 [project.entry-points."axonx.plugins"]

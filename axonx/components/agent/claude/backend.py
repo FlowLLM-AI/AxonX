@@ -23,7 +23,7 @@ from .session_store import ClaudeSessionStoreAdapter
 from .tools import JobToolServer
 
 if TYPE_CHECKING:
-    from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, ResultMessage
+    from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, ResultMessage, SystemPromptPreset
 
 
 @lru_cache(maxsize=1)
@@ -117,6 +117,7 @@ class ClaudeAgentComponent(BaseAgentComponent):
     async def _start(self) -> None:
         from claude_agent_sdk import __version__
 
+        await super()._start()
         self.cwd.mkdir(parents=True, exist_ok=True)
         if config_dir := self.config_dir:
             config_dir.mkdir(parents=True, exist_ok=True)
@@ -132,12 +133,27 @@ class ClaudeAgentComponent(BaseAgentComponent):
             await asyncio.gather(*(client.disconnect() for client in clients), return_exceptions=True)
         self._active.clear()
 
+    def _system_prompt_with_guide(self) -> str | SystemPromptPreset:
+        prompt = self.options.get("system_prompt")
+        if prompt is None:
+            prompt = {"type": "preset", "preset": "claude_code"}
+        if isinstance(prompt, dict) and prompt.get("type") == "file":
+            path = Path(prompt["path"]).expanduser()
+            if not path.is_absolute():
+                path = self.cwd / path
+            prompt = path.read_text(encoding="utf-8")
+        if isinstance(prompt, str):
+            return "\n\n".join(part for part in (prompt, self.dev_guide) if part)
+        return {**prompt, "append": "\n\n".join(part for part in (prompt.get("append", ""), self.dev_guide) if part)}
+
     def _build_options(self, *, session_id: str, resume: bool, depth: int) -> ClaudeAgentOptions:
         from claude_agent_sdk import ClaudeAgentOptions
 
         if isinstance(depth, bool) or not isinstance(depth, int) or depth < 0:
             raise ValueError(f"{AGENT_DEPTH_ARGUMENT} must be a non-negative integer")
         options = dict(self.options)
+        if self.dev_guide:
+            options["system_prompt"] = self._system_prompt_with_guide()
         options["cwd"] = str(self.cwd)
         options.setdefault("setting_sources", ["project"])
         options["include_partial_messages"] = True

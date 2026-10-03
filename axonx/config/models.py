@@ -89,6 +89,7 @@ class ApplicationConfig(BaseModel):
     workspace_dir: str = ".axonx"
     log_dir: str = AXONX_DEFAULT_LOG_DIR
     timezone: str = AXONX_DEFAULT_TIMEZONE
+    language: Literal["en", "zh"] = "en"
     enable_logo: bool = True
     log_to_console: bool = True
     log_to_file: bool = True

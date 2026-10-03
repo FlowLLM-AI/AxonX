@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
+from importlib.resources import files
 from typing import Any
 
 from ...enums import ComponentEnum
@@ -16,6 +17,20 @@ class BaseAgentComponent(BaseComponent, ABC):
     """Own Agent sessions and expose them through AxonX Job events."""
 
     component_type = ComponentEnum.AGENT
+
+    def __init__(self, load_dev_guide: bool = False, **kwargs) -> None:
+        super().__init__(**kwargs)
+        if not isinstance(load_dev_guide, bool):
+            raise TypeError("load_dev_guide must be a boolean")
+        self.load_dev_guide = load_dev_guide
+        self.dev_guide = ""
+
+    async def _start(self) -> None:
+        await super()._start()
+        self.dev_guide = ""
+        if self.load_dev_guide:
+            language = self.app_config.language if self.app_context is not None else "en"
+            self.dev_guide = files(__package__).joinpath("guides", f"{language}.md").read_text(encoding="utf-8")
 
     @abstractmethod
     def reply_stream(
