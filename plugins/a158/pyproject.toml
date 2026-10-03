@@ -7,7 +7,7 @@ name = "axonx-alpha158"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "axonx>=0.1.0",
+    "axonx>=0.0.3",
     "lightgbm>=4.7.0,<5",
     "numpy>=2.5.3,<3",
     "polars>=1.44.2,<2",

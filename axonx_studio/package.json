@@ -1,6 +1,6 @@
 {
   "name": "@flowllm-ai/axonx-studio",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "type": "module",
   "engines": {
     "node": "^22.13.0 || ^24.0.0 || >=26.0.0"
