@@ -1,21 +1,21 @@
 <p align="center">
-  <img src="axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
+  <img src="https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
 </p>
 
 <p align="center"><strong>面向金融量化研究的 Agent Harness。</strong></p>
 
 <p align="center">
-  <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.12%2B-blue?logo=python&amp;logoColor=white&amp;style=flat-square" alt="Python 3.12+" /></a>
+  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/Python-3.12%2B-blue?logo=python&amp;logoColor=white&amp;style=flat-square" alt="Python 3.12+" /></a>
   <a href="https://pypi.org/project/axonx/"><img src="https://img.shields.io/pypi/v/axonx?logo=pypi&amp;logoColor=white&amp;style=flat-square" alt="PyPI 版本" /></a>
   <a href="https://pypi.org/project/axonx/"><img src="https://img.shields.io/pypi/dm/axonx?label=downloads%2Fmonth&amp;style=flat-square&amp;logo=pypi&amp;logoColor=white" alt="PyPI 每月下载量" /></a>
   <a href="https://github.com/FlowLLM-AI/AxonX/graphs/commit-activity"><img src="https://img.shields.io/github/commit-activity/m/FlowLLM-AI/AxonX?label=commits%2Fmonth&amp;style=flat-square&amp;logo=github&amp;logoColor=white" alt="GitHub 每月提交活动" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square&amp;logo=apache&amp;logoColor=white" alt="Apache License 2.0" /></a>
+  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square&amp;logo=apache&amp;logoColor=white" alt="Apache License 2.0" /></a>
   <a href="https://flowllm-ai.github.io/AxonX/zh/concepts/architecture"><img src="https://img.shields.io/badge/access-CLI%20%2F%20MCP-6366f1?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA0aDE4djE2SDN6IE03IDhsNCA0LTQgNCBNMTMgMTZoNCIvPjwvc3ZnPg%3D%3D&amp;logoColor=white" alt="CLI 和 MCP 接入" /></a>
   <a href="https://flowllm-ai.github.io/AxonX/zh/plugins/management"><img src="https://img.shields.io/badge/plugins-extensible-0d9488?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOCAzaDRhMyAzIDAgMSAxIDYgMGgzdjZhMyAzIDAgMSAwIDAgNnY2aC02YTMgMyAwIDEgMC02IDBIM3YtNmEzIDMgMCAxIDEgMC02VjN6Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="插件扩展" /></a>
   <a href="https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines"><img src="https://img.shields.io/badge/execution-multi--machine-0284c7?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyAzaDE4djdIM3ogTTMgMTRoMTh2N0gzeiBNNyA2djEgTTcgMTd2MSBNMTIgNmg1IE0xMiAxN2g1Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="多机器执行" /></a>
   <a href="https://flowllm-ai.github.io/AxonX/zh/docs"><img src="https://img.shields.io/badge/docs-AxonX-blue?style=flat-square&amp;logo=readthedocs&amp;logoColor=white" alt="AxonX 中文文档" /></a>
-  <a href="README.md"><img src="https://img.shields.io/badge/English-Read-yellow?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="Read in English" /></a>
-  <a href="README_ZH.md"><img src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-%E9%98%85%E8%AF%BB-orange?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="阅读简体中文" /></a>
+  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/README.md"><img src="https://img.shields.io/badge/English-Read-yellow?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="Read in English" /></a>
+  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/README_ZH.md"><img src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-%E9%98%85%E8%AF%BB-orange?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="阅读简体中文" /></a>
   <a href="https://deepwiki.com/FlowLLM-AI/AxonX"><img src="https://img.shields.io/badge/DeepWiki-Ask_Devin-navy?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA0aDZsMyAyIDMtMmg2djE2aC02bC0zIDItMy0ySDN6IE0xMiA2djE2Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="通过 DeepWiki 了解 AxonX" /></a>
 </p>
 
@@ -37,7 +37,7 @@ AxonX 将研究代码、任务执行、日志和结果连接到同一个工作�
 
 AxonX Studio 提供任务提交、运行详情、机器资源、工作区浏览和研究结果视图。
 
-![AxonX Studio 首页](docs/figures/studio/home.png)
+![AxonX Studio 首页](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
 
 安装和连接方式见 [AxonX Studio 入门](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio)。
 
@@ -87,7 +87,7 @@ AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
 # AXONX_TUSHARE_BASE_URL=http://api.waditu.com/dataapi
 ```
 
-任务管理和 AxonX Studio 只需服务 token。使用研究助手时填写 Agent 配置，下载行情时填写 Tushare token；仅使用自有兼容接口时覆盖 Tushare 地址。远程服务和钉钉配置见 [example.env](example.env)。不要将 `.env` 提交到版本库。
+任务管理和 AxonX Studio 只需服务 token。使用研究助手时填写 Agent 配置，下载行情时填写 Tushare token；仅使用自有兼容接口时覆盖 Tushare 地址。远程服务和钉钉配置见 [example.env](https://github.com/FlowLLM-AI/AxonX/blob/main/example.env)。不要将 `.env` 提交到版本库。
 
 ### 打开 AxonX Studio
 
@@ -110,7 +110,7 @@ axonx start --service.host 127.0.0.1
 
 ### 仓库 Skill
 
-仓库提供 [AxonX skill](skills/axonx/SKILL.md)，指导 Agent 开发研究插件、执行 Task、检查日志与产物，并引用持续维护的[开发与运维指南](docs/zh/dev_guide.md)。
+仓库提供 [AxonX skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md)，指导 Agent 开发研究插件、执行 Task、检查日志与产物，并引用持续维护的[开发与运维指南](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/dev_guide.md)。
 
 在能够访问本仓库的 Agent 会话中，可以这样使用：“读取 `skills/axonx/SKILL.md`，按其中的流程检查 Task `<task_id>`。”自动发现取决于 Agent 的 skill 配置；新增此目录不会自动将其加载到 AxonX Studio 的内置助手中。使用时需保留源码仓库，因为 skill 引用了仓库内的文档。
 
@@ -124,7 +124,7 @@ Job 校验调用参数并协调框架能力。提交研究任务时，TaskManage
 
 ## 量化研究与插件
 
-![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg)
+![AxonX 研究与执行总览](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/getting-started/overview.svg)
 
 典型研究链路为 **原始数据 → ETL → 训练 → 预测 → 回测**，因子分析从 ETL 分支执行。任务通过 `source_tasks` 记录上游 ID，可以在不同实验间复用数据集和预测结果。每个阶段由用户或调用程序组织提交。
 
@@ -146,7 +146,7 @@ pip install axonx-alpha158
 
 AxonX Studio 读取生成的产物，展示训练指标、预测结果和回测汇总。例如，回测视图提供整体信号指标与分期汇总：
 
-![AxonX Studio 回测整体指标](docs/figures/studio/backtest-overall.png)
+![AxonX Studio 回测整体指标](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/backtest-overall.png)
 
 截图展示已有实验的结果页面。各阶段输出的阅读方式见[研究结果解读](https://flowllm-ai.github.io/AxonX/zh/research/results)。
 
@@ -170,4 +170,4 @@ AxonX Studio 读取生成的产物，展示训练指标、预测结果和回测�
 
 ## 许可证
 
-AxonX 基于 [Apache License 2.0](LICENSE) 开源。
+AxonX 基于 [Apache License 2.0](https://github.com/FlowLLM-AI/AxonX/blob/main/LICENSE) 开源。

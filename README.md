@@ -1,21 +1,21 @@
 <p align="center">
-  <img src="axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
+  <img src="https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
 </p>
 
 <p align="center"><strong>An agent-native harness for quantitative research.</strong></p>
 
 <p align="center">
-  <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.12%2B-blue?logo=python&amp;logoColor=white&amp;style=flat-square" alt="Python 3.12+" /></a>
+  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/Python-3.12%2B-blue?logo=python&amp;logoColor=white&amp;style=flat-square" alt="Python 3.12+" /></a>
   <a href="https://pypi.org/project/axonx/"><img src="https://img.shields.io/pypi/v/axonx?logo=pypi&amp;logoColor=white&amp;style=flat-square" alt="PyPI version" /></a>
   <a href="https://pypi.org/project/axonx/"><img src="https://img.shields.io/pypi/dm/axonx?label=downloads%2Fmonth&amp;style=flat-square&amp;logo=pypi&amp;logoColor=white" alt="PyPI monthly downloads" /></a>
   <a href="https://github.com/FlowLLM-AI/AxonX/graphs/commit-activity"><img src="https://img.shields.io/github/commit-activity/m/FlowLLM-AI/AxonX?label=commits%2Fmonth&amp;style=flat-square&amp;logo=github&amp;logoColor=white" alt="GitHub monthly commit activity" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square&amp;logo=apache&amp;logoColor=white" alt="Apache License 2.0" /></a>
+  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square&amp;logo=apache&amp;logoColor=white" alt="Apache License 2.0" /></a>
   <a href="https://flowllm-ai.github.io/AxonX/en/concepts/architecture"><img src="https://img.shields.io/badge/access-CLI%20%2F%20MCP-6366f1?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA0aDE4djE2SDN6IE03IDhsNCA0LTQgNCBNMTMgMTZoNCIvPjwvc3ZnPg%3D%3D&amp;logoColor=white" alt="CLI and MCP access" /></a>
   <a href="https://flowllm-ai.github.io/AxonX/en/plugins/management"><img src="https://img.shields.io/badge/plugins-extensible-0d9488?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOCAzaDRhMyAzIDAgMSAxIDYgMGgzdjZhMyAzIDAgMSAwIDAgNnY2aC02YTMgMyAwIDEgMC02IDBIM3YtNmEzIDMgMCAxIDEgMC02VjN6Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="Extensible plugins" /></a>
   <a href="https://flowllm-ai.github.io/AxonX/en/guides/remote-machines"><img src="https://img.shields.io/badge/execution-multi--machine-0284c7?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyAzaDE4djdIM3ogTTMgMTRoMTh2N0gzeiBNNyA2djEgTTcgMTd2MSBNMTIgNmg1IE0xMiAxN2g1Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="Multi-machine execution" /></a>
   <a href="https://flowllm-ai.github.io/AxonX/en/docs"><img src="https://img.shields.io/badge/docs-AxonX-blue?style=flat-square&amp;logo=readthedocs&amp;logoColor=white" alt="AxonX documentation" /></a>
-  <a href="README.md"><img src="https://img.shields.io/badge/English-Read-yellow?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="Read in English" /></a>
-  <a href="README_ZH.md"><img src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-%E9%98%85%E8%AF%BB-orange?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="阅读简体中文" /></a>
+  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/README.md"><img src="https://img.shields.io/badge/English-Read-yellow?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="Read in English" /></a>
+  <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/README_ZH.md"><img src="https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-%E9%98%85%E8%AF%BB-orange?style=flat-square&amp;logo=googletranslate&amp;logoColor=white" alt="阅读简体中文" /></a>
   <a href="https://deepwiki.com/FlowLLM-AI/AxonX"><img src="https://img.shields.io/badge/DeepWiki-Ask_Devin-navy?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA0aDZsMyAyIDMtMmg2djE2aC02bC0zIDItMy0ySDN6IE0xMiA2djE2Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="Ask DeepWiki about AxonX" /></a>
 </p>
 
@@ -37,7 +37,7 @@ Researchers can inspect how a result was produced, reuse upstream data, compare 
 
 AxonX Studio provides task submission, run details, machine resources, workspace browsing, and research result views.
 
-![AxonX Studio home](docs/figures/studio/home.png)
+![AxonX Studio home](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
 
 See [Getting started with AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) for setup and connection instructions.
 
@@ -87,7 +87,7 @@ AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
 # AXONX_TUSHARE_BASE_URL=http://api.waditu.com/dataapi
 ```
 
-The service token is sufficient for task management and AxonX Studio. Fill in the Agent settings when using the research assistant, or the Tushare token when downloading market data; override the Tushare URL only for a compatible custom endpoint. See [example.env](example.env) for remote-service and DingTalk settings. Keep `.env` out of version control.
+The service token is sufficient for task management and AxonX Studio. Fill in the Agent settings when using the research assistant, or the Tushare token when downloading market data; override the Tushare URL only for a compatible custom endpoint. See [example.env](https://github.com/FlowLLM-AI/AxonX/blob/main/example.env) for remote-service and DingTalk settings. Keep `.env` out of version control.
 
 ### Open AxonX Studio
 
@@ -110,7 +110,7 @@ External Agents can also connect to the service's Streamable HTTP MCP endpoint a
 
 ### Repository skill
 
-The repository includes an [AxonX skill](skills/axonx/SKILL.md) for Agents working with research plugins, Task execution, logs, and artifacts. It references the maintained [development and operations guide](docs/en/dev_guide.md).
+The repository includes an [AxonX skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md) for Agents working with research plugins, Task execution, logs, and artifacts. It references the maintained [development and operations guide](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/dev_guide.md).
 
 In an Agent session with access to this checkout, ask: “Read `skills/axonx/SKILL.md` and use it to inspect Task `<task_id>`.” Automatic discovery depends on the Agent's skill configuration; adding this directory does not automatically load it into AxonX Studio's built-in assistant. Keep the source checkout available because the skill references repository documents.
 
@@ -124,7 +124,7 @@ Research plugins supply the algorithms. Upstream Task IDs record relationships, 
 
 ## Quantitative research and plugins
 
-![AxonX research and execution overview](docs/figures/getting-started/overview.svg)
+![AxonX research and execution overview](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/getting-started/overview.svg)
 
 A typical research chain is **raw data → ETL → training → prediction → backtesting**, with factor analysis branching from ETL. Tasks record upstream IDs through `source_tasks`, so datasets and predictions can be reused across experiments. Users or calling programs submit each stage.
 
@@ -146,7 +146,7 @@ Start with the [research workflow](https://flowllm-ai.github.io/AxonX/en/researc
 
 AxonX Studio reads the resulting artifacts to display training metrics, predictions, and backtest summaries. For example, the backtest view shows overall signal metrics alongside period summaries:
 
-![AxonX Studio backtest overall metrics](docs/figures/studio/backtest-overall.png)
+![AxonX Studio backtest overall metrics](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/backtest-overall.png)
 
 This screenshot illustrates an existing experiment's result view. See [Research results](https://flowllm-ai.github.io/AxonX/en/research/results) for how to read each stage's outputs.
 
@@ -170,4 +170,4 @@ Bug reports, feature requests, documentation improvements, research plugins, and
 
 ## License
 
-AxonX is released under the [Apache License 2.0](LICENSE).
+AxonX is released under the [Apache License 2.0](https://github.com/FlowLLM-AI/AxonX/blob/main/LICENSE).
