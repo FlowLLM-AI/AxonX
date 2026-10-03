@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
 </p>
 
-<p align="center"><strong>An agent-native harness for quantitative research.</strong></p>
+<p align="center"><strong>An Agent Harness for financial quantitative research.</strong></p>
 
 <p align="center">
   <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/Python-3.12%2B-blue?logo=python&amp;logoColor=white&amp;style=flat-square" alt="Python 3.12+" /></a>
@@ -19,29 +19,26 @@
 
 ## What is AxonX?
 
-AxonX connects research code, task execution, logs, and results in one workspace. It represents data processing, factor analysis, training, prediction, and backtesting as Tasks with explicit input and output contracts. CLI, AxonX Studio, and Agent access the same capabilities through Job interfaces.
+**AxonX is an agent-native harness for financial quantitative research: a research execution framework designed for Agents to call.**
 
-Researchers can inspect how a result was produced, reuse upstream data, compare experiments, and let an Agent investigate tasks and artifacts. Plugin authors supply the research algorithms; AxonX provides the execution and inspection infrastructure. AxonX is currently in alpha.
+It packages data processing, factor analysis, training, prediction, and backtesting as **Tasks (research tasks)** with explicit inputs and outputs. Plugins provide the algorithms; the framework handles execution, records, and artifact management.
+
+Researchers use forms and charts in **AxonX Studio**, while Agents and scripts access capabilities through CLI / MCP. Each interface submits, tracks, and queries tasks through **Jobs**, using research records in the same workspace to inspect logs, artifacts, and upstream and downstream relationships.
 
 ## Why AxonX?
 
-- **Reuse research code as Tasks.** Typed inputs and outputs make data, model, and artifact requirements explicit. → [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts)
-- **Execution you can inspect.** Submit Tasks to independent worker processes and follow status, progress, logs, and results. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
-- **Trace results back to their inputs.** Workspace records keep parameters, artifacts, and upstream Task IDs together so you can reuse datasets and inspect experiment differences. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)
-- **One workflow across CLI, AxonX Studio, and Agent.** Use scripts, browser forms and charts, or an assistant that reads task evidence through configured tools. → [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/en/agent/usage)
-- **Extend and run remotely.** Package research capabilities as plugins and explicitly choose a remote execution target. → [Plugins](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
+- **Package research code as reusable Tasks.** Typed input and output definitions make data, model, and artifact requirements explicit, helping callers discover capabilities and check parameters before invocation. → [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts)
+- **Inspect and manage execution.** Submit Tasks through the service to independent worker processes, track status, progress, logs, and results, and wait for or cancel execution. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
+- **Trace results back to their inputs.** The workspace saves parameters, artifacts, and upstream Task IDs. Task dependency graphs show upstream and downstream relationships, helping you reuse datasets, trace research workflows, and inspect experiment differences. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)
+- **Share one workflow across CLI, AxonX Studio, and Agents.** Scripts and Agents use CLI / MCP; researchers use browser forms and charts. Each interface shares the same Job and Task contracts, task records, and research artifacts. → [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/en/agent/usage)
+- **Extend research capabilities and run remotely.** Package research methods as plugins, execute tasks in an explicitly selected target environment, and inspect resources, logs, and results. → [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
+- **Inspect Agent research processes and results.** After Codex extended Alpha158, Top10 net annualized return in the independent confirmation period rose from −5.74% to 28.21%, and RankIC from 0.0915 to 0.0967. This single experiment has not established a stable improvement. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features)
 
-## AxonX Studio
-
-AxonX Studio provides task submission, run details, machine resources, workspace browsing, and research result views.
-
-![AxonX Studio home](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
-
-See [Getting started with AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) for setup and connection instructions.
+![AxonX research and execution overview](docs/figures/getting-started/overview.svg)
 
 ## Quick start
 
-Requires **Python 3.12+**, with local Task execution on **macOS and Linux**. Use an activated virtual environment.
+Requires **Python 3.12+**. Local Task execution supports **macOS and Linux**.
 
 ### Install from PyPI
 
@@ -49,123 +46,312 @@ Requires **Python 3.12+**, with local Task execution on **macOS and Linux**. Use
 pip install "axonx[studio]"
 ```
 
-This includes the CLI, API, MCP, and prebuilt AxonX Studio. For the core alone, install `axonx`.
+Includes the CLI, HTTP API, MCP, and prebuilt AxonX Studio. For core capabilities alone, install `axonx`. Research plugins are installed separately.
 
 ### Install from source
 
-Requires Node.js 22.13+ (22.x), 24.x, or 26+ to build AxonX Studio:
+Building Studio requires Node.js 22.13+ (22.x), 24.x, or 26+:
 
 ```bash
-git clone https://github.com/FlowLLM-AI/AxonX.git
-cd AxonX
+git clone https://github.com/FlowLLM-AI/AxonX.git && cd AxonX
 pip install -e .
-cd axonx_studio
-npm ci && npm run build
-cd ..
+(cd axonx_studio && npm ci && npm run build)
 pip install ./axonx_studio
 ```
 
-This installs the core from source and builds and installs AxonX Studio locally. See [Contributing](https://flowllm-ai.github.io/AxonX/en/development/contributing) for development setup and [AxonX Studio development](https://flowllm-ai.github.io/AxonX/en/development/studio) to modify the frontend.
+For development dependencies and frontend hot reload, see the [contribution guide](CONTRIBUTING.md) and [Studio development documentation](https://flowllm-ai.github.io/AxonX/en/development/studio).
 
-### Configure .env
+### Configure environment variables
 
-Create `.env` in the directory where you start AxonX. The CLI loads it automatically; existing environment variables take precedence.
+Create `.env` in the startup directory. The CLI automatically loads configuration from the current directory or a parent directory; existing environment variables take precedence.
 
 ```dotenv
-# Service authentication: choose your own token
+# Local service authentication: replace with your own token
 AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
 
-# Optional: built-in Agent (Claude-compatible backend)
-# CLAUDE_CODE_API_KEY=your-api-key
-# CLAUDE_CODE_BASE_URL=https://api.anthropic.com
-# CLAUDE_CODE_MODEL_NAME=your-model-name
-
-# Optional: Tushare data download
-# AXONX_TUSHARE_TOKEN=your-tushare-token
-# AXONX_TUSHARE_BASE_URL=http://api.waditu.com/dataapi
+# Optional: target AxonX service (axonx start --config remote)
+# AXONX_TARGET=192.0.2.10:1024
+# AXONX_TARGET_TOKEN=your-target-service-token
 ```
 
-The service token is sufficient for task management and AxonX Studio. Fill in the Agent settings when using the research assistant, or the Tushare token when downloading market data; override the Tushare URL only for a compatible custom endpoint. See [example.env](https://github.com/FlowLLM-AI/AxonX/blob/main/example.env) for remote-service and DingTalk settings. Keep `.env` out of version control.
+For optional settings such as models, market-data downloads, and remote services, see [example.env](example.env).
+
+### Start AxonX
+
+Start with the defaults:
+
+```bash
+axonx start
+```
+
+Specify the listening IP and port:
+
+```bash
+axonx start --service.host 127.0.0.1 --service.port 8181
+```
+
+With a custom port, open `http://127.0.0.1:8181/` in your browser. Append `--target 127.0.0.1:8181` to subsequent CLI service commands and provide the local service token, for example:
+
+```bash
+axonx version --target 127.0.0.1:8181 --token '<local-service-token>'
+```
+
+When `--target` is specified, the CLI reads `AXONX_TARGET_TOKEN` by default; the `--token` above explicitly supplies local credentials. Local commands using the default port read `AXONX_SERVICE_TOKEN`. For remote service configuration, see [remote execution](#connect-directly-to-a-remote-service-with-the-cli).
+
+Keep the service running and execute subsequent CLI commands in another terminal.
 
 ### Open AxonX Studio
 
-```bash
-axonx start --service.host 127.0.0.1
-```
+After starting with the defaults, open `http://127.0.0.1:1024/`, go to **Settings → Service token**, and enter the `AXONX_SERVICE_TOKEN` configured in `.env`. You can then:
 
-Open <http://127.0.0.1:1024/> and enter `AXONX_SERVICE_TOKEN` from `.env` in **Settings → Service token**. See the [full quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart) for asynchronous submission, waiting, and result inspection.
+- Query Task definitions, fill in parameters, submit tasks, and inspect status, progress, logs, and upstream and downstream relationships.
+- Browse workspace files and inspect parameters, metadata, and research artifacts.
+- View factor analysis, training curves, predictions, backtest metrics, and period summaries.
+- Query machine resources and switch between configured local and remote services.
+- After configuring a model, use conversations on the Agent page to investigate tasks and analyze research results.
 
-## Research with an Agent
+<table>
+  <tr>
+    <th width="50%">Home</th>
+    <th width="50%">Task management</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="docs/figures/studio/home.png"><img src="docs/figures/studio/home.png" alt="AxonX Studio home" width="100%" /></a>
+    </td>
+    <td valign="top">
+      <a href="docs/figures/studio/task-list.png"><img src="docs/figures/studio/task-list.png" alt="AxonX Studio task management: task status, progress, and feature navigation" width="100%" /></a>
+    </td>
+  </tr>
+</table>
 
-The built-in assistant uses the Claude Agent SDK and configured Job tools to inspect task status, logs, upstream relationships, and workspace artifacts. Configure the [Agent backend](https://flowllm-ai.github.io/AxonX/en/agent/configuration), then open **Agent** in AxonX Studio. Ordinary research Tasks can run without model credentials.
+[Getting started with Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio)
 
-Give it specific Task IDs and questions, for example:
+## 5min Demo
 
-- “Check Task `<task_id>`'s status, tail logs, and upstream tasks. Explain where it failed and what to inspect next.”
-- “Compare Backtest Tasks `<A>` and `<B>`: check their common date window and cost assumptions before explaining the results.”
+Use the [a158 plugin](plugins/a158/README.md) to try plugin management, service queries, and quantitative research tasks. Market-data downloads require `AXONX_TUSHARE_TOKEN` in `.env`; see [example.env](example.env).
 
-External Agents can also connect to the service's Streamable HTTP MCP endpoint at `http://127.0.0.1:1024/mcp` using the service's Bearer token. Available tools depend on the service configuration. See [Agent usage](https://flowllm-ai.github.io/AxonX/en/agent/usage) and [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration) for tools and permissions.
+### Plugin commands
 
-### Repository skill
-
-The repository includes an [AxonX skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md) for Agents working with research plugins, Task execution, logs, and artifacts. It references the maintained [development and operations guide](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/dev_guide.md).
-
-In an Agent session with access to this checkout, ask: “Read `skills/axonx/SKILL.md` and use it to inspect Task `<task_id>`.” Automatic discovery depends on the Agent's skill configuration; adding this directory does not automatically load it into AxonX Studio's built-in assistant. Keep the source checkout available because the skill references repository documents.
-
-## How it works
-
-**CLI / AxonX Studio / external Agent → Job interfaces → Task execution → workspace records and artifacts.**
-
-Jobs validate calls and coordinate framework capabilities. For research submission, the TaskManager starts a worker process and returns a run identifier; the Task writes status, logs, and outputs. Query Jobs and AxonX Studio then read those records. `axonx exec` runs a Task directly in the current process.
-
-Research plugins supply the algorithms. Upstream Task IDs record relationships, while users or scripts organize stage-by-stage execution. See the [architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) for the component boundaries.
-
-## Quantitative research and plugins
-
-![AxonX research and execution overview](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/getting-started/overview.svg)
-
-A typical research chain is **raw data → ETL → training → prediction → backtesting**, with factor analysis branching from ETL. Tasks record upstream IDs through `source_tasks`, so datasets and predictions can be reused across experiments. Users or calling programs submit each stage.
-
-The core supplies Task contracts and runtime infrastructure. Research plugins implement factors, models, and backtesting logic:
-
-| Plugin source                                                                        | Purpose                                                  |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------------- |
-| [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158)                   | Alpha158 research task implementations                   |
-| [Alpha158 Enhanced](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158-enhanced) | Extended Alpha158 research tasks and experiment guidance |
-
-Install a research plugin in the execution service's Python environment, then restart the service:
+Install in the Python environment used by the service, then restart the service:
 
 ```bash
 pip install axonx-alpha158
-# Or: pip install axonx-alpha158-enhanced
+axonx plugin list
+axonx plugin show axonx-alpha158
 ```
 
-Start with the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) for plugin installation and data prerequisites. Market-data and Agent features need their own provider configuration. See [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) for return definitions, costs, and trading assumptions.
+### Non-Task commands
 
-AxonX Studio reads the resulting artifacts to display training metrics, predictions, and backtest summaries. For example, the backtest view shows overall signal metrics alongside period summaries:
+Query the service version, machine resources, and workspace:
 
-![AxonX Studio backtest overall metrics](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/backtest-overall.png)
+```bash
+axonx version
+axonx machine_status
+axonx list_entries --path ''
+```
 
-This screenshot illustrates an existing experiment's result view. See [Research results](https://flowllm-ai.github.io/AxonX/en/research/results) for how to read each stage's outputs.
+### Task commands
 
-## Documentation
+Submit each downstream stage only after the preceding stage succeeds. Replace placeholder IDs with `answer.task_id` from the submission response. Skip downloads if complete historical market data is already available. Factor analysis is an independent downstream stage of ETL, rather than a prerequisite for training.
 
-| I want to…                                             | Guide                                                                                                                                                                                                          |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Install and run my first Task                          | [Quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart)                                                                                                                                |
-| Submit and inspect tasks in a browser                  | [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio)                                                                                                                                   |
-| Run the research chain and understand results          | [Research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow)                                                                                                                                   |
-| Configure the research assistant or external MCP tools | [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration) · [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration)                                              |
-| Execute on another machine                             | [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)                                                                                                                                |
-| Configure and call AxonX                               | [Configuration](https://flowllm-ai.github.io/AxonX/en/reference/configuration) · [CLI](https://flowllm-ai.github.io/AxonX/en/reference/cli) · [Python](https://flowllm-ai.github.io/AxonX/en/reference/python) |
-| Build research tasks or framework extensions           | [Development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide) · [Framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions)                                          |
+```bash
+axonx get_task_definition --task a158_etl
+axonx submit --task download_tushare_task --start-date 20140101 --end-date 20231231 --datasets 'static,stk_limit,daily,adj_factor,index_weight'
+axonx submit --task a158_etl --start-date 20150101 --end-date 20231231
+axonx submit --task a158_factor --source-tasks '<etl_task_id>'
+axonx submit --task a158_train --source-tasks '<etl_task_id>' --train-start 20150101 --train-end 20230101
+axonx submit --task a158_predict --source-tasks '<train_task_id>' --pred-start 20230101 --pred-end 20231231
+axonx submit --task a158_backtest --source-tasks '<predict_task_id>'
+axonx status --task-id '<backtest_task_id>'
+axonx read_task_log --task-id '<backtest_task_id>'
+axonx get_task_graph --task-id '<backtest_task_id>'
+```
 
-Browse the [complete bilingual documentation](https://flowllm-ai.github.io/AxonX/en/docs).
+View tasks and research results in **AxonX Studio**. For data preparation and the complete process, see the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow); for more commands, see the [development and operations guide](docs/en/dev_guide.md).
+
+## Agent access and development guides
+
+| Method | Usage | Development guide |
+|--------|-------|-------------------|
+| Built-in Agent | Configure a model, then use **Studio → Agent**; see [example.env](example.env) for model settings. | Optionally load the development guide bundled with the installation. Its language follows the application's `language` setting, which defaults to English. |
+| External Agent | Configure the [AxonX Skill](skills/axonx/SKILL.md) for Codex, Claude Code, or another Agent, and access the service through CLI / MCP. | Keep the source checkout referenced by the Skill, or adjust its documentation paths; see the [English development and operations guide](docs/en/dev_guide.md). |
+
+The built-in Agent's `components.agent.default.load_dev_guide` defaults to `false`. To load the Chinese guide, override the configuration in the startup command:
+
+```bash
+axonx start --components.agent.default.load_dev_guide true --language zh
+```
+
+Guide loading and tool configuration are independent. The Jobs available to the Agent are determined by `job_tools`, which provides task and artifact queries by default. See [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration).
+
+## Alpha158 and the plugin system
+
+[Alpha158](plugins/a158/README.md) packages 158 price and volume features, a LightGBM model, and TopN backtesting as research Tasks. The main chain is **ETL → Train → Predict → Backtest**, with factor analysis as an independent downstream stage of ETL.
+
+| Stage | Main artifacts |
+|-------|----------------|
+| Data processing | Features, labels, trading status, and statistics. |
+| Factor analysis | Factor diagnostics; not a prerequisite for training. |
+| Training | LightGBM model, validation curves, and feature importance. |
+| Prediction | Out-of-sample predictions and statistics. |
+| Backtesting | TopN backtests, period summaries, and holdings artifacts. |
+
+For usage examples, see the [5min Demo](#5min-demo) above; for complete parameters and data requirements, see the [plugin documentation](plugins/a158/README.md). To extend your own research methods, inspect, build, and install plugins from source. Relevant commands appear under [CLI commands](#axonx-cli-commands-and-remote-execution) below; for development and deployment, see [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
+
+## Benchmark: Agent-developed market cross-sectional features
+
+Following the Task contracts, plugin registration, and CLI workflow in [docs/en/dev_guide.md](docs/en/dev_guide.md), Codex extended `a158` into a separate [Alpha158 Enhanced](plugins/a158_enhanced/README.md) plugin: developing features and feature-group switches, inspecting and installing the plugin, submitting training, prediction, and backtesting through AxonX, and reading artifacts. The original plugin remains unchanged; the enhanced version uses separate `a158e_*` Task registration names.
+
+Reusable prompt (adapted from this development plan):
+
+```text
+First read docs/en/dev_guide.md, then create a separate a158_enhanced plugin from plugins/a158.
+Preserve the original 158 features, labels, training parameters, and backtest assumptions; add market environment, trading activity, relative performance, and interaction features.
+Validate feature timing and consistency with the original data. Run ablation experiments through AxonX, lock the configuration after screening, then perform independent confirmation.
+Keep tasks, parameters, artifacts, and failure records. Report RankIC, RankICIR, TopN returns after costs, and risk without assuming an improvement.
+```
+
+### Which features were added?
+
+**26 new features**, bringing the total to **184** alongside the original 158:
+
+| Feature group | Count | Contents |
+|---------------|------:|----------|
+| `market` | 11 | Mean / median market return, proportion of advancing stocks, return dispersion, limit-up / limit-down proportions, 5 / 20-day trends, shocks, volume expansion, and trading-value concentration. |
+| `liquidity` | 6 | Historical trading-value rank, individual-stock volume expansion, returns of high / low trading-value groups, the return spread between groups, and its 5-day mean. |
+| `relative` | 5 | Individual-stock returns relative to the market / trading-value group, same-day cross-sectional ranks, and 5 / 20-day relative trends. |
+| `interaction` | 4 | Interactions between market shocks / declines and relative returns, between group rotation and trading-value rank, and between market and individual-stock volume expansion. |
+
+Historical trading-value groups use 20-day average trading value through **T−1**, reflecting trading activity rather than market capitalization. Same-day features are available **after the close on day T**. The stock universe used to compute market statistics is not filtered by future labels or buy eligibility. Development records show 21 relevant tests passed; all 179 original fields across 11,441,741 rows in the enhanced ETL matched the baseline value by value.
+
+### Experiment setup and metric definitions
+
+| Setting | Definition |
+|---------|------------|
+| Training | 2015–2022; LightGBM with label `label_1d_rank`, removing the top and bottom 2.5% of raw returns each day, and using the final 10% of trading days in the training period for internal validation. |
+| Screening | 2023–2024; compare the baseline (158 features), market only (169), market / liquidity / relative (180), and all four groups (184). |
+| Selection rule | Among candidates exceeding the baseline in RankIC and Top10 and Top20 net annualized returns, select the one with the highest RankIC; all four groups were selected. |
+| Independent confirmation | 2025-01-01 to 2026-09-30; compare only the baseline and the locked configuration, without further tuning based on confirmation-period results. |
+| Controls | Identical raw data, labels, sample filters, and model hyperparameters; random seed 42, up to 1000 rounds, and early stopping after 50 rounds. The same internal validation rule determines the best iteration. |
+| Trading and costs | TopN selects stocks by score, retaining the closing-price execution proxy, delayed exits, and open positions carried at cost. Daily cost = 0.002 × actual turnover; annualization uses 252 trading days. |
+
+This section compares signal quality and portfolio performance using the metrics below. For full definitions, see [backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest) and [experiment results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md).
+
+| Metric | Comparison definition |
+|--------|-----------------------|
+| RankIC / annualized RankICIR | Mean daily Spearman correlation between model scores and adjusted returns across stocks with strictly valid one-day labels. Annualized RankICIR = mean daily correlation ÷ sample standard deviation × √252. |
+| TopN net annualized return | Annualized compounded daily returns after costs: `V^(252/D) − 1`, where `V` is net asset value and `D` is the number of trading days included in the calculation. Returns are recognized on the actual exit date. |
+| Net Sharpe | Mean daily return after costs and the daily risk-free return ÷ sample standard deviation × √252; the default annual risk-free rate is 1.2%. |
+| Maximum drawdown | Largest decline from the historical peak of the net compounded return curve, including initial net asset value 1, expressed as a negative number. Closer to zero means a smaller drawdown. |
+
+### RankIC and annualized RankICIR
+
+![Alpha158 and enhanced version: screening- and confirmation-period RankIC and annualized RankICIR](docs/figures/benchmark/a158-signal-quality.svg)
+
+Confirmation-period RankIC rose from **0.0915** to **0.0967**, an increase of **0.0052**; annualized RankICIR fell from **12.6313** to **11.9480**. Mean rank correlation improved, while the stability metric declined.
+
+### Top10 / Top20 / Top30
+
+![Confirmation-period Top10, Top20, and Top30 net annualized returns, maximum drawdown, and net Sharpe](docs/figures/benchmark/a158-topn-results.svg)
+
+Confirmation-period Top10 / Top20 / Top30 net annualized returns rose from **−5.74% / −3.24% / 2.13%** to **28.21% / 24.93% / 19.10%**, increases of **33.95 / 28.16 / 16.97 percentage points**, with smaller maximum drawdowns. Top10 / Top20 net Sharpe improved; Top30 net Sharpe was not saved and is not recomputed in the chart.
+
+The 95% intervals for confirmation-period daily RankIC differences and Top10 / Top20 daily net return differences all span zero. These intervals use same-day paired enhanced and baseline observations with a 20-trading-day circular block bootstrap (2000 resamples, random seed 42); they are not intervals for differences in annualized compounded returns. Enhanced Top1–3 returns also declined. The current results have not established a stable or across-the-board improvement.
+
+The backtest does not simulate after-hours order queues, partial fills, or daily unrealized profit and loss. Interpret the returns and drawdowns in light of these assumptions.
+
+[Development plan](plugins/a158_enhanced/DEVELOPMENT_PLAN.md) · [Execution process](plugins/a158_enhanced/EXPERIMENT_PROCESS.md) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md) · [Metrics and validation data](plugins/a158_enhanced/experiments/README.md) · [Backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest)
+
+## AxonX CLI commands and remote execution
+
+CLI service commands call the corresponding Jobs. `exec` and plugin management commands without a specified target run in the current Python environment.
+
+| Purpose | Example commands |
+|---------|------------------|
+| Help / service version | `axonx help` / `axonx version` |
+| Start the service | `axonx start` |
+| List registered Tasks | `axonx exec` / `axonx list_installed_task_definitions` |
+| Query a Task contract | `axonx get_task_definition --task a158_etl` |
+| Execute in the current process | `axonx exec --task demo --x 2 --y 3` |
+| Submit a research task | `axonx submit --task a158_train --source-tasks '<etl_task_id>'` |
+| Wait for this run | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400` |
+| Follow progress and logs | `axonx stream_task --task-id '<task_id>' --stream true` |
+| Query task list / status | `axonx list_task_statuses` / `axonx status --task-id '<task_id>'` |
+| Read logs | `axonx read_task_log --task-id '<task_id>'` |
+| Query context / dependency graph | `axonx get_task_context --task-id '<task_id>'` / `axonx get_task_graph --task-id '<task_id>'` |
+| Cancel a task | `axonx cancel --task-id '<task_id>'` |
+| Delete finished tasks and their files | `axonx delete_tasks --task-ids '["<task_id>"]'` |
+| Browse the workspace | `axonx list_entries --path ''` |
+| Preview an artifact | `axonx preview_file --path '<workspace-relative-path>'` |
+| Query machines / resources | `axonx list_machines` / `axonx machine_status` |
+| Query plugins / details | `axonx plugin list` / `axonx plugin show axonx-alpha158` |
+| Inspect / build plugin source | `axonx plugin inspect ./plugins/a158` / `axonx plugin build ./plugins/a158` |
+| Install / uninstall a plugin | `axonx plugin install ./plugins/a158` / `axonx plugin uninstall axonx-alpha158` |
+
+### Connect directly to a remote service with the CLI
+
+First install AxonX and research plugins on the target machine, configure its own `AXONX_SERVICE_TOKEN`, and start a reachable service. On the client, configure the target token and explicitly specify the address for commands that support remote access:
+
+```bash
+export AXONX_TARGET_TOKEN='your-target-service-token'
+axonx machine_status --target 192.0.2.10:1024
+axonx plugin list --target 192.0.2.10:1024
+axonx submit --task demo --x 2 --y 3 --target 192.0.2.10:1024
+axonx wait_task --task-id '<task_id>' --run-id '<run_id>' \
+  --client-timeout 120 --target 192.0.2.10:1024
+```
+
+Replace the example address with your actual service. Use the same `--target` for submission, waiting, status, logs, and artifact queries; tasks use the target machine's plugins, data, and workspace. Direct CLI access does not require starting a local service.
+
+Remote plugin installation builds a wheel locally, uploads it, and installs it in the target environment:
+
+```bash
+axonx plugin install ./plugins/a158 --target 192.0.2.10:1024
+```
+
+`plugin build` always runs locally. Remote `plugin inspect` accepts a distribution or plugin name already installed on the target. `start` and `exec` do not execute remotely through `--target`.
+
+### Use remote machines in Studio
+
+Configure the remote service address and token in the local `.env`:
+
+```dotenv
+# Optional: remote AxonX service for Studio
+AXONX_TARGET=192.0.2.10:1024
+AXONX_TARGET_TOKEN=your-target-service-token
+```
+
+Replace the example address with your actual service, then start with the built-in `remote` configuration:
+
+```bash
+axonx start --config remote
+```
+
+`remote` inherits the default configuration and adds the target address and token to the service's `targets`. Studio uses the local token to access the same-origin backend, which forwards requests to the selected remote service. For multiple targets, custom YAML, and connection troubleshooting, see the [remote machines guide](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines).
+
+## AxonX documentation
+
+| Topic | GitHub Pages documentation |
+|-------|----------------------------|
+| Installation and your first Task | [Quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart) |
+| Browser operation | [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) |
+| Component, Job, Task | [Architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) · [Framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions) |
+| Task contracts and lifecycle | [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts) · [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management) · [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage) |
+| Agent development and operations | [Development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide) · [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration) · [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration) |
+| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158) · [Alpha158 Enhanced](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158-enhanced) |
+| Quantitative research | [Research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) · [Interpreting results](https://flowllm-ai.github.io/AxonX/en/research/results) · [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) |
+| Remote execution | [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines) |
+| CLI and configuration | [CLI](https://flowllm-ai.github.io/AxonX/en/reference/cli) · [Configuration](https://flowllm-ai.github.io/AxonX/en/reference/configuration) |
+
+Browse the [complete Chinese documentation](https://flowllm-ai.github.io/AxonX/zh/docs) or [English documentation](https://flowllm-ai.github.io/AxonX/en/docs).
 
 ## Contributing
 
-Bug reports, feature requests, documentation improvements, research plugins, and code contributions are welcome. Search [existing issues](https://github.com/FlowLLM-AI/AxonX/issues) and read the [contribution guide](https://flowllm-ai.github.io/AxonX/en/development/contributing) for development setup and checks.
+Bug reports, feature requests, documentation improvements, research plugins, and code contributions are welcome. Search [existing issues](https://github.com/FlowLLM-AI/AxonX/issues) first; see the [contribution guide](CONTRIBUTING.md) for development setup, directory conventions, and required checks.
+
+Keep research algorithms in `plugins/` and reuse framework extension points. Update both English and Chinese documentation when behavior changes. When contributing experiments, include data and time windows, parameters, cost definitions, and result materials that others can verify.
 
 ## License
 
-AxonX is released under the [Apache License 2.0](https://github.com/FlowLLM-AI/AxonX/blob/main/LICENSE).
+AxonX is released under the [Apache License 2.0](LICENSE).
