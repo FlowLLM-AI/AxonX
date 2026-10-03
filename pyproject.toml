@@ -63,7 +63,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-studio = ["axonx-studio>=0.0.1"]
+studio = ["axonx-studio>=0.0.2"]
 dev = [
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
