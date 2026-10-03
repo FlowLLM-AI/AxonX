@@ -478,7 +478,7 @@
 }
 .screen-carousel {
   position: relative;
-  width: min(76%, 1080px);
+  width: min(64%, 640px);
   margin-inline: auto;
 }
 .screen-viewport {
@@ -588,7 +588,7 @@
   display: block;
   width: 100%;
   height: auto;
-  max-height: 620px;
+  max-height: 360px;
   object-fit: contain;
 }
 .screen-caption {

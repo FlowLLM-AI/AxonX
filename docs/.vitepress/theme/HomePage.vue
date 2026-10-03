@@ -74,6 +74,8 @@ const screens = [
     "concepts/task-lineage",
     "记录每一次运行，追踪每一份上游。",
     "Every run recorded. Every upstream traceable.",
+    796,
+    442,
   ],
   [
     "模型训练",
@@ -82,6 +84,8 @@ const screens = [
     "research/results",
     "从训练配置到验证曲线，检查模型证据。",
     "Inspect the evidence, from configuration to validation curves.",
+    1190,
+    532,
   ],
   [
     "策略回测",
@@ -90,6 +94,8 @@ const screens = [
     "research/backtest",
     "把收益、成本与质量放在一起解读。",
     "Read returns, costs, and quality together.",
+    1190,
+    388,
   ],
   [
     "策略比较",
@@ -98,8 +104,10 @@ const screens = [
     "research/strategy-comparison",
     "在共同区间内，理解策略之间的差异。",
     "Understand strategy differences over a shared period.",
+    1168,
+    630,
   ],
-];
+] as const;
 const capabilities = [
   [
     "PLUGIN",
@@ -302,8 +310,8 @@ const capabilities = [
                     :src="item[2]"
                     :alt="t(item[0], item[1])"
                     loading="lazy"
-                    width="1440"
-                    height="900"
+                    :width="item[6]"
+                    :height="item[7]"
                   />
                 </a>
               </div>

@@ -106,6 +106,12 @@ axonx start --service.host 127.0.0.1
 
 外部 Agent 也可以通过服务的 Bearer token 连接 Streamable HTTP MCP 端点 `http://127.0.0.1:1024/mcp`。可用工具取决于服务配置。工具与权限说明见 [Agent 使用](https://flowllm-ai.github.io/AxonX/zh/agent/usage)和 [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)。
 
+### 仓库 Skill
+
+仓库提供 [AxonX skill](skills/axonx/SKILL.md)，指导 Agent 开发研究插件、执行 Task、检查日志与产物，并引用持续维护的[开发与运维指南](docs/zh/dev_guide.md)。
+
+在能够访问本仓库的 Agent 会话中，可以这样使用：“读取 `skills/axonx/SKILL.md`，按其中的流程检查 Task `<task_id>`。”自动发现取决于 Agent 的 skill 配置；新增此目录不会自动将其加载到 AxonX Studio 的内置助手中。使用时需保留源码仓库，因为 skill 引用了仓库内的文档。
+
 ## 如何工作
 
 **CLI / AxonX Studio / 外部 Agent → Job 接口 → Task 执行 → 工作区记录与产物。**

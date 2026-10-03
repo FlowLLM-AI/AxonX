@@ -106,6 +106,12 @@ Give it specific Task IDs and questions, for example:
 
 External Agents can also connect to the service's Streamable HTTP MCP endpoint at `http://127.0.0.1:1024/mcp` using the service's Bearer token. Available tools depend on the service configuration. See [Agent usage](https://flowllm-ai.github.io/AxonX/en/agent/usage) and [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration) for tools and permissions.
 
+### Repository skill
+
+The repository includes an [AxonX skill](skills/axonx/SKILL.md) for Agents working with research plugins, Task execution, logs, and artifacts. It references the maintained [development and operations guide](docs/en/dev_guide.md).
+
+In an Agent session with access to this checkout, ask: “Read `skills/axonx/SKILL.md` and use it to inspect Task `<task_id>`.” Automatic discovery depends on the Agent's skill configuration; adding this directory does not automatically load it into AxonX Studio's built-in assistant. Keep the source checkout available because the skill references repository documents.
+
 ## How it works
 
 **CLI / AxonX Studio / external Agent → Job interfaces → Task execution → workspace records and artifacts.**
