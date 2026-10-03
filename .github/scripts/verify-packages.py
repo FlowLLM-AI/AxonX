@@ -31,6 +31,22 @@ def read_project(source: Path) -> dict:
     return project
 
 
+def plugin_source_files(source: Path, package: str) -> dict[str, bytes]:
+    """Derive plugin modules and declared package data from the source tree."""
+    package_root = source / package
+    config = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))
+    package_data = config["tool"]["setuptools"].get("package-data", {})
+    files = set(package_root.rglob("*.py"))
+    package_dirs = {package_root, *(path.parent for path in files if path.name == "__init__.py")}
+    for name, patterns in package_data.items():
+        roots = package_dirs if name == "*" else {source / name.replace(".", "/")}
+        for pattern in patterns:
+            matches = {path for root in roots for path in root.glob(pattern) if path.is_file()}
+            assert matches, f"Package data pattern matches no files: {name}: {pattern}"
+            files.update(matches)
+    return {path.relative_to(source).as_posix(): path.read_bytes() for path in sorted(files)}
+
+
 def verify_distributions(dist_dir: Path, expected_version: str | None = None) -> None:
     """Check metadata, package data, entry points, and source version consistency."""
     for directory, source, package, plugin in PACKAGES:
@@ -43,6 +59,8 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
         sdists = list((dist_dir / directory).glob("*.tar.gz"))
         assert len(wheels) == len(sdists) == 1, f"Expected one wheel and sdist for {project['name']}"
         required = {f"{package}/__init__.py"}
+        plugin_files = plugin_source_files(source, package) if plugin else {}
+        required.update(plugin_files)
         if plugin:
             required.update({f"{package}/plugin.yaml", f"{package}/config/alpha158_demo.yaml"})
         else:
@@ -50,6 +68,8 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
         with ZipFile(wheels[0]) as archive:
             names = set(archive.namelist())
             assert required <= names, f"Missing package files: {required - names}"
+            for name, content in plugin_files.items():
+                assert archive.read(name) == content, f"Wheel file differs from source: {name}"
             assert not any(name.startswith(("tests/", "axonx_studio/", "github-pages/")) for name in names)
             assert not any("node_modules/" in name for name in names)
             (metadata_file,) = [name for name in names if name.endswith(".dist-info/METADATA")]
@@ -65,8 +85,16 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
             else:
                 assert entries["console_scripts"]["axonx"] == "axonx.cli:main"
         with tarfile.open(sdists[0]) as archive:
-            names = {name.split("/", 1)[1] for name in archive.getnames() if "/" in name}
-            assert required | {"pyproject.toml"} <= names, "Missing files in sdist"
+            members = {
+                member.name.split("/", 1)[1]: member
+                for member in archive.getmembers()
+                if member.isfile() and "/" in member.name
+            }
+            names = set(members)
+            missing = (required | {"pyproject.toml"}) - names
+            assert not missing, f"Missing files in sdist: {missing}"
+            for name, content in plugin_files.items():
+                assert archive.extractfile(members[name]).read() == content, f"Sdist file differs from source: {name}"
             assert not any(name.startswith(("axonx_studio/", "github-pages/")) for name in names)
             assert not any("node_modules/" in name for name in names)
         print(f"Verified distributions: {project['name']} {project['version']}")

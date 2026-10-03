@@ -1,0 +1,49 @@
+name: Feature request / 功能建议
+description: Describe a research or development need / 描述研究或开发需求
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. English and Chinese suggestions are welcome.
+        请先搜索已有 Issue，欢迎使用中文或英文提出建议。
+  - type: dropdown
+    id: area
+    attributes:
+      label: Related area / 相关范围
+      options:
+        - Core / 框架
+        - Task runtime / 任务运行时
+        - Research plugin / 研究插件
+        - CLI
+        - HTTP API
+        - MCP / Agent
+        - Studio
+        - Installation or packaging / 安装或打包
+        - Documentation / 文档
+        - Other or unsure / 其他或不确定
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and use case / 问题及使用场景
+      description: What are you trying to accomplish, and what is difficult today? / 希望完成什么？目前遇到什么困难？
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Desired behavior / 期望行为
+      description: Describe the outcome, with an example when useful / 描述期望结果，可附示例。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered / 已考虑的替代方案
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility considerations / 兼容性考虑
+      description: Mention possible changes to CLI/API/configuration, task records, lifecycle, or artifact formats / 按需说明对 CLI/API/配置、任务记录、生命周期或产物格式的影响。

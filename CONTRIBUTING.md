@@ -8,6 +8,8 @@ We welcome bug reports, feature requests, documentation improvements, research p
 
 Search [existing issues](https://github.com/FlowLLM-AI/AxonX/issues) and related code. For bugs, include reproduction steps, expected and actual behavior, environment versions, and relevant logs with credentials removed. For features, explain the research or development problem and the desired behavior.
 
+Use the bug report, feature request, or usage question form, or a free-form issue for other topics. For bugs, distinguish reproduced failures, intermittent observations, and static-analysis suspicions; identify the affected area and local or remote target. Share sanitized excerpts rather than the entire `.axonx/` workspace.
+
 For changes to public CLI/API/configuration contracts, persisted task records, or task lifecycle behavior, discuss the design in an issue before a large implementation. Keep each PR focused on one coherent problem.
 
 ## Find the right area
@@ -100,6 +102,8 @@ Do not edit `github-pages/.generated/` or `github-pages/dist/`; they are regener
 
 Use a descriptive title; Conventional Commits such as `fix(tasks): preserve run status` or `docs: clarify quick start` are encouraged. Explain the problem, resulting behavior, compatibility impact, and validation. Include screenshots for visible UI changes and note any external-service tests that were skipped.
 
+The PR template prompts for these details. List validation commands and results, explain any checks not run, and note English/Chinese documentation updates. Remove optional sections that do not apply.
+
 Contributions are covered by the project's [Apache License 2.0](LICENSE).
 
 ## Releases
@@ -110,6 +114,8 @@ AxonX and Studio release independently. Commit version updates and pass the rele
 - **Studio**: synchronize `axonx_studio/pyproject.toml`, `package.json`, and `package-lock.json`, then push to `main`. Run `Release / AxonX Studio` manually with the `main` branch selected. Versions are read from the manifests; no tag or version input is required. The default `both` publishes PyPI before npm; `pypi` and `npm` publish independently. The npm tag is selected automatically: `latest` for stable versions and `next` for prereleases.
 
 AxonX builds from its release tag; Studio builds from the exact `main` commit selected when the workflow starts. Both verify distribution versions. Studio's Python and npm packages contain identical static assets; Python prerelease metadata is normalized according to PEP 440. The AxonX release does not publish research plugins.
+
+Package CI also checks that research-plugin wheels and sdists contain all Python modules and data files declared in `tool.setuptools.package-data`, with contents identical to the source tree. Update package-data declarations when adding runtime resources; declared patterns must match source files.
 
 Configure PyPI Trusted Publishers for `axonx` and `axonx-studio` with their respective workflows and the `pypi` environment. Configure npm Trusted Publishing for `@flowllm-ai/axonx-studio` with `release-axonx-studio.yml` and the `npm` environment. A new npm package needs its initial publication before Trusted Publishing can be configured.
 

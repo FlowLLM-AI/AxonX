@@ -1,0 +1,28 @@
+name: Usage question / 使用问题
+description: Ask about setup or using AxonX / 咨询安装、配置或使用方式
+title: "[Question]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [English documentation](https://flowllm-ai.github.io/AxonX/en/docs) or [中文文档](https://flowllm-ai.github.io/AxonX/zh/docs) and search existing issues first.
+        English and Chinese questions are welcome. Remove credentials and private data from examples.
+        请先查看文档并搜索已有 Issue，欢迎使用中文或英文提问；示例中请移除凭据和私有数据。
+  - type: textarea
+    id: question
+    attributes:
+      label: Question / 问题
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Goal and attempts / 目标及已尝试的方法
+      description: Describe what you want to accomplish, what you tried, and relevant documentation / 说明目标、已尝试的方法和参考文档。
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Relevant versions and examples / 相关版本及示例
+      description: Include relevant AxonX/Studio/plugin versions, OS, commands, or sanitized configuration / 按需提供 AxonX/Studio/插件版本、操作系统、命令或脱敏配置。

@@ -8,6 +8,8 @@
 
 搜索[已有 Issues](https://github.com/FlowLLM-AI/AxonX/issues) 和相关代码。反馈问题时，请提供复现步骤、预期与实际行为、环境版本，以及已移除凭据的相关日志。提出功能建议时，请说明研究或开发中遇到的问题和期望行为。
 
+新建 Issue 时，使用问题反馈、功能建议或使用问题表单，其他主题可使用空白 Issue。问题反馈请区分已复现故障、间歇性观察和静态分析推测，注明问题范围及本地或远程 target。分享脱敏片段即可，请勿上传整个 `.axonx/` 工作区。
+
 涉及公开 CLI/API/配置契约、持久化任务记录或任务生命周期的较大改动，建议先通过 Issue 讨论设计。每个 PR 聚焦一个完整问题。
 
 ## 选择修改位置
@@ -100,6 +102,8 @@ npm ci && npm run build
 
 使用清晰的标题，推荐 Conventional Commits，例如 `fix(tasks): preserve run status` 或 `docs: clarify quick start`。说明问题、改动后的行为、兼容性影响和验证结果。可见 UI 改动附上截图，注明跳过的外部服务测试。
 
+PR 模板会提示这些信息。请列出验证命令和结果，解释未运行检查的原因，并说明中英文文档更新情况。不适用的可选章节可以删除。
+
 贡献遵循项目的 [Apache License 2.0](LICENSE)。
 
 ## 发布
@@ -110,6 +114,8 @@ npm ci && npm run build
 - **Studio**：同步 `axonx_studio/pyproject.toml`、`package.json` 和 `package-lock.json` 的版本，推送到 `main`。手动运行 `Release / AxonX Studio` 并选择 `main` 分支，版本自动读取，不需要标签或版本输入。默认 `both` 先发布 PyPI 再发布 npm；`pypi`、`npm` 可独立发布。npm 标签自动选择：稳定版本使用 `latest`，预发布版本使用 `next`。
 
 AxonX 从发布标签构建；Studio 从手动运行时选定的 `main` 提交构建。两者都校验产物版本。Studio 的 Python/npm 包携带同一份静态资源，预发布版本在 Python 产物中按 PEP 440 规范化。主包发布不会上传研究插件。
+
+打包 CI 还会检查研究插件的 wheel 和 sdist 是否包含全部 Python 模块及 `tool.setuptools.package-data` 声明的数据文件，并逐字节比较它们与源码的内容。添加运行时资源时，请更新 package-data 声明；声明的模式必须能匹配到源码文件。
 
 在 PyPI 为 `axonx` 和 `axonx-studio` 分别配置对应工作流的 Trusted Publisher，环境名为 `pypi`。在 npm 为 `@flowllm-ai/axonx-studio` 配置 `release-axonx-studio.yml` 的 Trusted Publisher，环境名为 `npm`。新的 npm 包需先完成首次发布，再配置 Trusted Publishing。
 
