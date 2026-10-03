@@ -38,7 +38,6 @@ inspect logs, artifacts, and upstream and downstream relationships.
 - **Extend and run remotely.** Add research plugins and execute Tasks in a selected target environment. → [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
 - **Inspect Agent research.** Codex's Alpha158 extension raised confirmation-period Top10 net annualized return from −5.74% to 28.21%; stable gains remain unproven. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features)
 
-
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg)
 
 ## Quick start
@@ -113,7 +112,7 @@ Keep the service running and execute subsequent CLI commands in another terminal
 
 ### Open AxonX Studio
 
-After starting with the defaults, open `http://127.0.0.1:1024/`, go to **Settings → Service token**, and enter the
+After starting with the defaults, open `http://127.0.0.1:1024/`, go to **Settings → Local service token**, and enter the
 `AXONX_SERVICE_TOKEN` configured in `.env`. You can then:
 
 - Query Task definitions, fill in parameters, submit tasks, and inspect status, progress, logs, and upstream and
@@ -191,9 +190,36 @@ the [development and operations guide](docs/en/dev_guide.md).
 ## Agent access and development guides
 
 | Method         | Usage                                                                                                                                  | Development guide                                                                                                                                              |
-|----------------|----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Built-in Agent | Configure a model, then use **Studio → Agent**; see [example.env](example.env) for model settings.                                     | Optionally load the development guide bundled with the installation. Its language follows the application's `language` setting, which defaults to English.     |
 | External Agent | Configure the [AxonX Skill](skills/axonx/SKILL.md) for Codex, Claude Code, or another Agent, and access the service through CLI / MCP. | Keep the source checkout referenced by the Skill, or adjust its documentation paths; see the [English development and operations guide](docs/en/dev_guide.md). |
+
+### Connect an external Agent through MCP
+
+After starting the service with the defaults, use these connection parameters in your Agent host:
+
+| Parameter             | Value                                         |
+| --------------------- | --------------------------------------------- |
+| URL                   | `http://127.0.0.1:1024/mcp`                   |
+| Transport             | Streamable HTTP                               |
+| Authentication header | `Authorization: Bearer <AxonX service token>` |
+
+Use the `AXONX_SERVICE_TOKEN` of the service you connect to; adjust the host and port for a custom or remote service.
+For host configuration and tool discovery, see [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration).
+
+### Configure the built-in Agent
+
+The default backend uses the **Claude Agent SDK**. Set the model credentials, compatible service URL, and model name in
+`.env`:
+
+```dotenv
+CLAUDE_CODE_API_KEY=your-model-api-key
+CLAUDE_CODE_BASE_URL=https://api.anthropic.com
+CLAUDE_CODE_MODEL_NAME=your-model-name
+```
+
+Replace the placeholders with your provider's credentials and available model name, and use its Claude-compatible URL.
+Restart AxonX after changing `.env`; then open **Studio → Agent**. See [example.env](example.env) for other optional settings.
 
 The built-in Agent's `components.agent.default.load_dev_guide` defaults to `false`. To load the Chinese guide, override
 the configuration in the startup command:
@@ -213,7 +239,7 @@ research Tasks. The main chain is **ETL → Train → Predict → Backtest**, wi
 downstream stage of ETL.
 
 | Stage           | Main artifacts                                             |
-|-----------------|------------------------------------------------------------|
+| --------------- | ---------------------------------------------------------- |
 | Data processing | Features, labels, trading status, and statistics.          |
 | Factor analysis | Factor diagnostics; not a prerequisite for training.       |
 | Training        | LightGBM model, validation curves, and feature importance. |
@@ -242,43 +268,27 @@ Validate feature timing and consistency with the original data. Run ablation exp
 Keep tasks, parameters, artifacts, and failure records. Report RankIC, RankICIR, TopN returns after costs, and risk without assuming an improvement.
 ```
 
-### Which features were added?
+### Features and experiment setup
 
-**26 new features**, bringing the total to **184** alongside the original 158:
-
-| Feature group | Count | Contents                                                                                                                                                                                         |
-|---------------|------:|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `market`      |    11 | Mean / median market return, proportion of advancing stocks, return dispersion, limit-up / limit-down proportions, 5 / 20-day trends, shocks, volume expansion, and trading-value concentration. |
-| `liquidity`   |     6 | Historical trading-value rank, individual-stock volume expansion, returns of high / low trading-value groups, the return spread between groups, and its 5-day mean.                              |
-| `relative`    |     5 | Individual-stock returns relative to the market / trading-value group, same-day cross-sectional ranks, and 5 / 20-day relative trends.                                                           |
-| `interaction` |     4 | Interactions between market shocks / declines and relative returns, between group rotation and trading-value rank, and between market and individual-stock volume expansion.                     |
-
+**26 new features** bring the total to **184**: market environment (`market`, 11), trading activity (`liquidity`, 6),
+relative performance (`relative`, 5), and interactions (`interaction`, 4).
 Historical trading-value groups use 20-day average trading value through **T−1**, reflecting trading activity rather
-than market capitalization. Same-day features are available **after the close on day T**. The stock universe used to
-compute market statistics is not filtered by future labels or buy eligibility. Development records show 21 relevant
-tests passed; all 179 original fields across 11,441,741 rows in the enhanced ETL matched the baseline value by value.
+than market capitalization. Same-day features are available **after the close on day T**; market statistics do not
+filter stocks by future labels or buy eligibility. Development records show 21 relevant tests passed, and all 179
+original fields across 11,441,741 rows matched the baseline value by value.
 
-### Experiment setup and metric definitions
+Training used **2015–2022** data with identical labels, sample filters, and LightGBM hyperparameters. Screening in
+**2023–2024** compared the baseline and three enhanced combinations. Among candidates exceeding the baseline in
+RankIC and Top10 / Top20 net annualized returns, the highest-RankIC configuration was selected: all four groups.
+Independent confirmation covered **2025-01-01 to 2026-09-30**, comparing only the baseline and the locked configuration,
+without further tuning based on confirmation results.
 
-| Setting                  | Definition                                                                                                                                                                                                     |
-|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Training                 | 2015–2022; LightGBM with label `label_1d_rank`, removing the top and bottom 2.5% of raw returns each day, and using the final 10% of trading days in the training period for internal validation.              |
-| Screening                | 2023–2024; compare the baseline (158 features), market only (169), market / liquidity / relative (180), and all four groups (184).                                                                             |
-| Selection rule           | Among candidates exceeding the baseline in RankIC and Top10 and Top20 net annualized returns, select the one with the highest RankIC; all four groups were selected.                                           |
-| Independent confirmation | 2025-01-01 to 2026-09-30; compare only the baseline and the locked configuration, without further tuning based on confirmation-period results.                                                                 |
-| Controls                 | Identical raw data, labels, sample filters, and model hyperparameters; random seed 42, up to 1000 rounds, and early stopping after 50 rounds. The same internal validation rule determines the best iteration. |
-| Trading and costs        | TopN selects stocks by score, retaining the closing-price execution proxy, delayed exits, and open positions carried at cost. Daily cost = 0.002 × actual turnover; annualization uses 252 trading days.       |
-
-This section compares signal quality and portfolio performance using the metrics below. For full definitions,
-see [backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest)
-and [experiment results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md).
-
-| Metric                       | Comparison definition                                                                                                                                                                                             |
-|------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| RankIC / annualized RankICIR | Mean daily Spearman correlation between model scores and adjusted returns across stocks with strictly valid one-day labels. Annualized RankICIR = mean daily correlation ÷ sample standard deviation × √252.      |
-| TopN net annualized return   | Annualized compounded daily returns after costs: `V^(252/D) − 1`, where `V` is net asset value and `D` is the number of trading days included in the calculation. Returns are recognized on the actual exit date. |
-| Net Sharpe                   | Mean daily return after costs and the daily risk-free return ÷ sample standard deviation × √252; the default annual risk-free rate is 1.2%.                                                                       |
-| Maximum drawdown             | Largest decline from the historical peak of the net compounded return curve, including initial net asset value 1, expressed as a negative number. Closer to zero means a smaller drawdown.                        |
+Daily cost = **0.002 × actual turnover**; annualization uses **252 trading days**. Net Sharpe is
+`mean(daily net return − daily risk-free return) / sample standard deviation × √252`, with a default annual risk-free
+rate of **1.2%**. Feature details, training settings, and full metric definitions are in the
+[plugin documentation](plugins/a158_enhanced/README.md),
+[experiment results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md), and
+[backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest).
 
 ### RankIC and annualized RankICIR
 
@@ -301,8 +311,9 @@ bootstrap (2000 resamples, random seed 42); they are not intervals for differenc
 Enhanced Top1–3 returns also declined. The current results have not established a stable or across-the-board
 improvement.
 
-The backtest does not simulate after-hours order queues, partial fills, or daily unrealized profit and loss. Interpret
-the returns and drawdowns in light of these assumptions.
+The backtest uses a closing-price execution proxy, delayed exits, and open positions carried at cost; returns are
+recognized on the actual exit date. It does not simulate after-hours order queues, partial fills, or daily unrealized
+profit and loss. Interpret the returns and drawdowns in light of these assumptions.
 
 [Development plan](plugins/a158_enhanced/DEVELOPMENT_PLAN.md) · [Execution process](plugins/a158_enhanced/EXPERIMENT_PROCESS.md) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md) · [Metrics and validation data](plugins/a158_enhanced/experiments/README.md) · [Backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest)
 
@@ -312,7 +323,7 @@ CLI service commands call the corresponding Jobs. `exec` and plugin management c
 in the current Python environment.
 
 | Purpose                               | Example commands                                                                              |
-|---------------------------------------|-----------------------------------------------------------------------------------------------|
+| ------------------------------------- | --------------------------------------------------------------------------------------------- |
 | Help / service version                | `axonx help` / `axonx version`                                                                |
 | Start the service                     | `axonx start`                                                                                 |
 | List registered Tasks                 | `axonx exec` / `axonx list_installed_task_definitions`                                        |
@@ -385,7 +396,7 @@ the [remote machines guide](https://flowllm-ai.github.io/AxonX/en/guides/remote-
 ## AxonX documentation
 
 | Topic                             | GitHub Pages documentation                                                                                                                                                                                                                        |
-|-----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Installation and your first Task  | [Quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart)                                                                                                                                                                   |
 | Browser operation                 | [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio)                                                                                                                                                                      |
 | Component, Job, Task              | [Architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) · [Framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions)                                                                      |
