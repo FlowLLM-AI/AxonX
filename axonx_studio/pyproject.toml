@@ -5,15 +5,41 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "axonx-studio"
 version = "0.0.2"
-description = "AxonX Studio static frontend."
+description = "Static frontend assets for AxonX Studio, a browser interface for quantitative research tasks and artifacts."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
+authors = [
+    { name = "FlowLLM AI", email = "FlowLLM-AI@users.noreply.github.com" },
+]
+keywords = [
+    "axonx",
+    "studio",
+    "web-interface",
+    "quantitative-finance",
+    "quantitative-research",
+    "research-artifacts",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
 
 [project.urls]
 Homepage = "https://github.com/FlowLLM-AI/AxonX/tree/main/axonx_studio"
 Documentation = "https://flowllm-ai.github.io/AxonX/en/getting-started/studio"
+Issues = "https://github.com/FlowLLM-AI/AxonX/issues"
 Source = "https://github.com/FlowLLM-AI/AxonX"
 
 [tool.setuptools]
