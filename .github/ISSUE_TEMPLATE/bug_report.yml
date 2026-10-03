@@ -1,72 +1,70 @@
-name: Bug report / 问题反馈
-description: Report unexpected behavior with reproduction evidence / 提供问题现象和复现证据
+name: Bug report
+description: Report unexpected behavior with reproduction evidence
 title: "[Bug]: "
 body:
   - type: markdown
     attributes:
       value: |
-        Search existing issues first. English and Chinese reports are welcome.
-        请先搜索已有 Issue，欢迎使用中文或英文反馈。
+        Search existing issues before reporting a bug.
         Remove tokens, credentials, private data, and sensitive machine addresses from logs, configuration, and screenshots.
-        请移除日志、配置和截图中的 token、凭据、私有数据及敏感机器地址。
   - type: dropdown
     id: area
     attributes:
-      label: Affected area / 问题范围
+      label: Affected area
       options:
-        - Core / 框架
-        - Task runtime / 任务运行时
-        - Research plugin / 研究插件
+        - Core
+        - Task runtime
+        - Research plugin
         - CLI
         - HTTP API
         - MCP / Agent
         - Studio
-        - Installation or packaging / 安装或打包
-        - Documentation / 文档
-        - Other or unsure / 其他或不确定
+        - Installation or packaging
+        - Documentation
+        - Other or unsure
     validations:
       required: true
   - type: dropdown
     id: reproduction-status
     attributes:
-      label: Reproduction status / 复现状态
+      label: Reproduction status
       options:
-        - Reproduced / 已复现
-        - Observed but not consistently reproduced / 实际观察但未稳定复现
-        - Suspected from static analysis / 静态分析推测
+        - Reproduced
+        - Observed but not consistently reproduced
+        - Suspected from static analysis
     validations:
       required: true
   - type: textarea
     id: description
     attributes:
-      label: Problem / 问题描述
-      description: Describe what happened and its impact / 描述现象及影响。
+      label: Problem
+      description: Describe what happened and its impact
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
-      label: Reproduction steps or analysis evidence / 复现步骤或分析依据
-      description: Include minimal commands, code, or sanitized configuration. For an unconfirmed issue, identify the code path and explain the suspected failure / 提供最小命令、代码或脱敏配置；尚未复现时，说明代码路径和推测依据。
+      label: Reproduction steps or analysis evidence
+      description: Include minimal commands, code, or sanitized configuration. For an unconfirmed issue, identify the code path and explain the suspected failure
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior / 预期行为
+      label: Expected behavior
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
-      label: Actual behavior or suspected failure / 实际行为或推测的故障
+      label: Actual behavior or suspected failure
     validations:
       required: true
   - type: textarea
     id: environment
     attributes:
-      label: Versions and environment / 版本及环境
-      description: Include AxonX version and OS; add Studio/plugin versions, Python/Node versions, browser, and installation method when relevant / 提供 AxonX 版本和操作系统；按问题补充 Studio/插件版本、Python/Node 版本、浏览器及安装方式。
+      label: Versions and environment
+      description: Include AxonX version and OS; add Studio/plugin versions, Python/Node versions, browser, and installation method when relevant
       placeholder: |
         AxonX:
         OS:
@@ -78,21 +76,21 @@ body:
   - type: dropdown
     id: execution-target
     attributes:
-      label: Execution target / 执行目标
-      description: For remote execution, describe the selected target without sharing credentials or private addresses / 远程执行时，可在下方说明所选 target，勿提供凭据或私有地址。
+      label: Execution target
+      description: For remote execution, describe the selected target without sharing credentials or private addresses
       options:
-        - Local / 本地
-        - Remote target / 远程 target
-        - Both / 两者均有
-        - Not applicable or unsure / 不适用或不确定
+        - Local
+        - Remote target
+        - Both
+        - Not applicable or unsure
   - type: textarea
     id: logs
     attributes:
-      label: Relevant logs and task state / 相关日志及任务状态
-      description: Include the task type, status, and error excerpt when relevant. Do not upload the entire .axonx workspace / 按需提供任务类型、状态和错误片段，请勿上传整个 .axonx 工作区。
+      label: Relevant logs and task state
+      description: Include the task type, status, and error excerpt when relevant. Do not upload the entire .axonx workspace
       render: text
   - type: textarea
     id: additional
     attributes:
-      label: Additional context / 补充信息
-      description: Screenshots, sanitized target details, or related issues / 截图、脱敏 target 信息或相关 Issue。
+      label: Additional context
+      description: Screenshots, sanitized target details, or related issues

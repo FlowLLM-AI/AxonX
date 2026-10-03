@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Documentation / 文档
+  - name: Documentation
     url: https://flowllm-ai.github.io/AxonX/
-    about: Browse the English and Chinese guides / 查看中英文指南
-  - name: Contributing / 贡献指南
+    about: Browse the documentation and API reference
+  - name: Contributing
     url: https://github.com/FlowLLM-AI/AxonX/blob/main/CONTRIBUTING.md
-    about: Development setup, validation, and contribution requirements / 开发环境、验证及贡献要求
+    about: Development setup, validation, and contribution requirements
