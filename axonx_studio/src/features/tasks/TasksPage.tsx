@@ -60,12 +60,13 @@ export function TasksPage({
   const [deleting, setDeleting] = useState(false);
 
   const request = useRef<AbortController | null>(null);
+  const lifetime = useRef<AbortController | null>(null);
 
   const load = useCallback(
     async (quiet = false, signal?: AbortSignal, invalidate = false) => {
+      if (signal?.aborted) return;
       if (invalidate) request.current?.abort();
       if (request.current && !request.current.signal.aborted) return;
-      if (signal?.aborted) return;
       const controller = new AbortController();
       request.current = controller;
       const abort = () => controller.abort();
@@ -108,8 +109,20 @@ export function TasksPage({
   );
 
   useEffect(() => {
+    const controller = new AbortController();
+    lifetime.current = controller;
+    setTasks([]);
+    setSelected(new Set());
+    setSelectionMode(false);
+    setContextMenu(null);
+    setCancelTarget(null);
+    setCancelling(false);
+    setDeleteOpen(false);
+    setDeleting(false);
+    setError("");
     void load();
     return () => {
+      controller.abort();
       request.current?.abort();
       request.current = null;
     };
@@ -208,27 +221,32 @@ export function TasksPage({
   };
 
   const confirmCancel = async () => {
-    if (!cancelTarget) return;
+    const signal = lifetime.current?.signal;
+    if (!cancelTarget || !signal || signal.aborted) return;
     setCancelling(true);
     try {
       const cancelled = await cancelTask(cancelTarget.task_id, target);
+      if (signal.aborted) return;
       if (!cancelled) throw new Error(t("cancelFailed"));
       setCancelTarget(null);
-      await load(true, undefined, true);
+      await load(true, signal, true);
     } catch (reason) {
+      if (signal.aborted) return;
       setCancelTarget(null);
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
-      setCancelling(false);
+      if (!signal.aborted) setCancelling(false);
     }
   };
 
   const confirmDelete = async () => {
-    if (!selectedIds.length) return;
+    const signal = lifetime.current?.signal;
+    if (!selectedIds.length || !signal || signal.aborted) return;
     const requested = selectedIds;
     setDeleting(true);
     try {
       const deleted = await deleteTasks(requested, target);
+      if (signal.aborted) return;
       setSelected((previous) => {
         const next = new Set(previous);
         deleted.forEach((taskId) => next.delete(taskId));
@@ -236,7 +254,8 @@ export function TasksPage({
       });
       if (deleted.length === requested.length) setSelectionMode(false);
       setDeleteOpen(false);
-      await load(true, undefined, true);
+      await load(true, signal, true);
+      if (signal.aborted) return;
       if (deleted.length !== requested.length)
         throw new Error(
           t("deletePartial", {
@@ -245,10 +264,11 @@ export function TasksPage({
           }),
         );
     } catch (reason) {
+      if (signal.aborted) return;
       setDeleteOpen(false);
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
-      setDeleting(false);
+      if (!signal.aborted) setDeleting(false);
     }
   };
 
