@@ -1,3 +1,4 @@
+import { playground } from "../../app/environment";
 import {
   useCallback,
   useEffect,
@@ -91,52 +92,54 @@ export function EnvironmentSettingsModal({
           </button>
         </header>
         <div className="settings-dialog-body">
-          <form className="settings-auth" onSubmit={saveToken}>
-            <div className="settings-section-heading">
-              <div>
-                <span className="settings-kicker">
-                  {t("runtimeSettings.authentication")}
-                </span>
-                <h3>{t("runtimeSettings.serviceToken")}</h3>
-                <p>
-                  {authRequired
-                    ? t(
-                        authTokenConfigured
-                          ? "runtimeSettings.tokenInvalid"
-                          : "runtimeSettings.tokenRequired",
-                      )
-                    : t("runtimeSettings.tokenHelp")}
-                </p>
+          {!playground && (
+            <form className="settings-auth" onSubmit={saveToken}>
+              <div className="settings-section-heading">
+                <div>
+                  <span className="settings-kicker">
+                    {t("runtimeSettings.authentication")}
+                  </span>
+                  <h3>{t("runtimeSettings.serviceToken")}</h3>
+                  <p>
+                    {authRequired
+                      ? t(
+                          authTokenConfigured
+                            ? "runtimeSettings.tokenInvalid"
+                            : "runtimeSettings.tokenRequired",
+                        )
+                      : t("runtimeSettings.tokenHelp")}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="settings-token-row">
-              <label>
-                <KeyRound />
-                <input
-                  type="password"
-                  value={token}
-                  onChange={(event) => setToken(event.target.value)}
-                  placeholder={
-                    authTokenConfigured
-                      ? t("runtimeSettings.tokenConfigured")
-                      : t("runtimeSettings.tokenPlaceholder")
-                  }
-                  autoComplete="current-password"
-                  aria-label={t("runtimeSettings.serviceToken")}
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={!token.trim() && !authTokenConfigured}
-              >
-                {token.trim()
-                  ? t("runtimeSettings.applyToken")
-                  : authTokenConfigured
-                    ? t("runtimeSettings.clearToken")
-                    : t("runtimeSettings.applyToken")}
-              </button>
-            </div>
-          </form>
+              <div className="settings-token-row">
+                <label>
+                  <KeyRound />
+                  <input
+                    type="password"
+                    value={token}
+                    onChange={(event) => setToken(event.target.value)}
+                    placeholder={
+                      authTokenConfigured
+                        ? t("runtimeSettings.tokenConfigured")
+                        : t("runtimeSettings.tokenPlaceholder")
+                    }
+                    autoComplete="current-password"
+                    aria-label={t("runtimeSettings.serviceToken")}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={!token.trim() && !authTokenConfigured}
+                >
+                  {token.trim()
+                    ? t("runtimeSettings.applyToken")
+                    : authTokenConfigured
+                      ? t("runtimeSettings.clearToken")
+                      : t("runtimeSettings.applyToken")}
+                </button>
+              </div>
+            </form>
+          )}
           <div className="settings-section-heading">
             <div>
               <span className="settings-kicker">

@@ -13,7 +13,9 @@
     "test": "vitest run",
     "format": "prettier --write . --ignore-path ../.prettierignore",
     "format:check": "prettier --check . --ignore-path ../.prettierignore",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "dev:playground": "vite --mode playground --host 0.0.0.0",
+    "build:playground": "tsc -b && vite build --mode playground"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

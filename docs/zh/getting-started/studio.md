@@ -1,5 +1,7 @@
 # Studio 入门
 
+官网导航中的 **Playground** 可直接体验 Studio，无需启动服务。示例包括完整研究链路与两组回测。打开任务提交，选择 `playground.backtest`，设置 `strategy` 与 `outcome`，提交后在任务中心查看进度、日志及结果，也可以取消执行。成功任务会出现在回测页；策略比较可对比两组示例。Agent 为脚本回复。所有数据与执行均为模拟，刷新或点击「重置示例」恢复初始状态。
+
 AxonX Studio 是任务与研究工作台。它读取服务提供的 Job 和 Task 定义，用 Schema 生成提交表单，并展示运行状态、日志、依赖关系与标准研究产物。
 
 ![Studio navigation](../../figures/getting-started/studio-map.svg)

@@ -199,6 +199,12 @@ const capabilities = [
           }}
         </p>
         <div class="actions">
+          <a
+            class="action secondary"
+            :href="withBase(`/playground/?lang=${zh ? 'zh' : 'en'}`)"
+          >
+            {{ t("体验 Studio", "Try Studio") }} <span>→</span>
+          </a>
           <a class="action primary" :href="link('getting-started/quickstart')"
             >{{ t("快速开始", "Get started") }} <span>→</span></a
           >

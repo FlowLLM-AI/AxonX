@@ -7,6 +7,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, workspaceRoot, "");
   const backend = env.AXONX_DEV_SERVER || "http://127.0.0.1:1024";
   return {
+    base:
+      mode === "playground" ? `${env.DOCS_BASE || "/AxonX/"}playground/` : "/",
+    build: {
+      outDir: mode === "playground" ? "dist-playground" : "dist",
+      target: "es2022",
+    },
     plugins: [react()],
     envDir: workspaceRoot,
     server: {

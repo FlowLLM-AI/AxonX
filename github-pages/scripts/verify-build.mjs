@@ -20,6 +20,7 @@ const exists = async (file) =>
   );
 const pages = [
   "index.html",
+  "playground/index.html",
   "zh/index.html",
   "en/index.html",
   ...Object.keys(map).map((page) => page.replace(/\.md$/, ".html")),
@@ -186,4 +187,10 @@ console.log(
   `Verified ${Object.keys(map).length} guides, bilingual homepages, ${
     checked.size
   } local links/assets, grouped navigation, source links, and Markdown exports.`,
+);
+
+const playground = await readFile(site + "playground/index.html", "utf8");
+assert(
+  playground.includes(`${base}playground/assets/`),
+  "Playground assets must respect the deployment base",
 );

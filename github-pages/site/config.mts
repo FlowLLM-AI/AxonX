@@ -49,6 +49,11 @@ function locale(lang: "zh" | "en") {
           link: link(""),
           activeMatch: zh ? "^/zh/$" : "^(?:/en/|/)$",
         },
+        {
+          text: "Playground",
+          link: `/playground/?lang=${lang}`,
+          target: "_self",
+        },
         ...navigation.map((group) => ({
           text: group.text,
           link: link(group.page),

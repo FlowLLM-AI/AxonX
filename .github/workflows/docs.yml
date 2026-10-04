@@ -3,10 +3,10 @@ name: CI / Documentation
 on:
   push:
     branches: [main]
-    paths: ['docs/**', 'github-pages/**', 'README*.md', 'CONTRIBUTING*.md', 'plugins/a158/**', 'plugins/a158_enhanced/**', 'axonx_studio/public/axonx-*.svg', '.github/workflows/docs.yml']
+    paths: ['docs/**', 'github-pages/**', 'README*.md', 'CONTRIBUTING*.md', 'plugins/a158/**', 'plugins/a158_enhanced/**', 'axonx_studio/**', '.github/workflows/docs.yml']
   pull_request:
     branches: [main]
-    paths: ['docs/**', 'github-pages/**', 'README*.md', 'CONTRIBUTING*.md', 'plugins/a158/**', 'plugins/a158_enhanced/**', 'axonx_studio/public/axonx-*.svg', '.github/workflows/docs.yml']
+    paths: ['docs/**', 'github-pages/**', 'README*.md', 'CONTRIBUTING*.md', 'plugins/a158/**', 'plugins/a158_enhanced/**', 'axonx_studio/**', '.github/workflows/docs.yml']
   workflow_dispatch:
 
 permissions:
@@ -28,9 +28,13 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: github-pages/package-lock.json
+          cache-dependency-path: |
+            github-pages/package-lock.json
+            axonx_studio/package-lock.json
       - run: npm ci
         working-directory: github-pages
+      - run: npm ci
+        working-directory: axonx_studio
       - run: npm run test
         working-directory: github-pages
       - run: npm run build

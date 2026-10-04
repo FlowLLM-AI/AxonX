@@ -17,6 +17,7 @@ The site has six navigation areas: **Get started, Research, Agent, Operations, R
 Use Node.js 22+ and npm from a complete repository checkout:
 
 ```bash
+npm --prefix axonx_studio ci
 cd github-pages
 npm ci
 npm run test
@@ -111,3 +112,5 @@ Use the same settings in CI and configure the domain and DNS in GitHub Pages. Bu
 | Build passes but deployment is skipped | Check event, branch, Pages source, environment, and workflow permissions   |
 
 See the [content ownership guide](../docs/README.md) and [contribution guide](../CONTRIBUTING.md) for maintenance conventions.
+
+The navigation and homepage link to Playground. `npm run build` also builds Studio in browser simulation mode and merges its separate output into `dist/playground/`. During documentation development, run `npm --prefix axonx_studio run dev:playground` in another terminal to preview the demo; use build and preview to inspect the merged website. No backend service is needed.

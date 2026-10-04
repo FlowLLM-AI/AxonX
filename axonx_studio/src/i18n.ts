@@ -7,6 +7,11 @@ const supportedLanguages = ["en", "zh"] as const;
 type AppLanguage = (typeof supportedLanguages)[number];
 
 function initialLanguage(): AppLanguage {
+  const requested =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("lang");
+  if (requested === "en" || requested === "zh") return requested;
   const saved =
     typeof localStorage === "undefined"
       ? null
@@ -33,6 +38,13 @@ void i18n.use(initReactI18next).init({
 
 export async function changeLanguage(language: AppLanguage) {
   await i18n.changeLanguage(language);
+  if (typeof window !== "undefined") {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("lang")) {
+      url.searchParams.set("lang", language);
+      window.history.replaceState(null, "", url);
+    }
+  }
   if (typeof localStorage !== "undefined")
     localStorage.setItem("language", language);
   if (typeof document !== "undefined")

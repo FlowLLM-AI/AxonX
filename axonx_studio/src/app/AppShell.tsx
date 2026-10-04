@@ -1,3 +1,4 @@
+import { assetUrl, playground } from "./environment";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   ChevronRight,
@@ -74,7 +75,7 @@ export function AppShell(props: AppShellProps) {
   });
   const section = navigationItemForRoute(route);
   const machineLabel = selectedMachine.isLocal
-    ? t("shell.local")
+    ? t(playground ? "playground.machine" : "shell.local")
     : formatMachineAddress(selectedMachine.address);
   const resourceOption = resourceOptions.find(
     (item) => item.value === route.resource,
@@ -112,7 +113,7 @@ export function AppShell(props: AppShellProps) {
 
   return (
     <div
-      className={`studio-shell route-${route.section} ${sidebar.collapsed ? "sidebar-collapsed" : ""}`}
+      className={`studio-shell ${playground ? "playground-shell" : ""} route-${route.section} ${sidebar.collapsed ? "sidebar-collapsed" : ""}`}
       style={{ "--primary-width": `${sidebar.width}px` } as CSSProperties}
     >
       <header className="studio-topbar">
@@ -130,7 +131,7 @@ export function AppShell(props: AppShellProps) {
           onClick={() => navigate(defaultRoute("home"))}
           aria-label="AxonX Studio"
         >
-          <img src="/axonx-icon.svg" alt="" />
+          <img src={assetUrl("axonx-icon.svg")} alt="" />
           <span>
             <strong>
               <span className="brand-name">AxonX</span>
@@ -144,7 +145,7 @@ export function AppShell(props: AppShellProps) {
             options={machines.map((machine) => ({
               value: machine.id,
               label: machine.isLocal
-                ? t("shell.local")
+                ? t(playground ? "playground.machine" : "shell.local")
                 : formatMachineAddress(machine.address),
               detail: machine.healthy ? t("shell.online") : t("shell.offline"),
             }))}
@@ -236,6 +237,21 @@ export function AppShell(props: AppShellProps) {
           </button>
         </div>
       </header>
+      {playground && (
+        <div className="playground-banner" role="status">
+          <span>
+            <strong>{t("playground.title")}</strong> · {t("playground.notice")}
+          </span>
+          <div>
+            <a href={`${import.meta.env.BASE_URL}../${language}/`}>
+              {t("playground.docs")}
+            </a>
+            <button onClick={() => window.location.reload()}>
+              {t("playground.reset")}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="studio-body">
         <aside
           className={`primary-rail ${sidebar.mobileOpen ? "mobile-open" : ""}`}
