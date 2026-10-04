@@ -1,6 +1,42 @@
 # AxonX 开发与运行指南
 
-本文的 `plugins/a158/...` 等路径相对于 AxonX 源码仓库根目录，并非 Agent 工作区。源码开发需要相应仓库；仅安装 Python 包不会提供示例插件源码。凭据通过环境变量或从进程工作目录及其父目录发现的 `.env` 文件配置。
+本文可独立阅读，也可作为 Agent Skill 使用。文档与源码链接均使用绝对 URL，复制文件后不依赖原目录位置。项目维护地址为 [FlowLLM-AI/AxonX](https://github.com/FlowLLM-AI/AxonX)。
+
+`plugins/a158/...` 等源码路径相对于 AxonX 源码仓库根目录，不是本文所在目录或 Agent 工作区。源码开发与插件构建命令应从该仓库根目录执行。`preview_file` 等 Job 的工作区路径相对于所选服务的工作区。仅安装 Python 包不会提供示例插件源码。
+
+## 准备环境与服务
+
+本地 Task 执行使用 Python 3.12+，支持 macOS 和 Linux。在选定的工作目录创建并激活虚拟环境，再安装核心包：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install axonx
+axonx help
+```
+
+需要预构建 Studio 界面时，改为安装 `axonx[studio]`。研究插件需单独安装。源码开发时，克隆项目、进入仓库根目录，并在已激活的虚拟环境中安装：
+
+```bash
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+pip install -e .
+```
+
+凭据通过环境变量或从进程工作目录及其父目录发现的 `.env` 文件配置。启动本地服务前，将令牌占位符替换为自己的值：
+
+```bash
+export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
+axonx start --service.host 127.0.0.1
+```
+
+保持该进程运行。在另一终端激活相同环境并配置相同令牌，再执行 `axonx version` 验证连接。默认端口为 `1024`，默认工作区为启动目录下的 `.axonx`。使用已有服务时，先取得其地址与鉴权配置。插件查询、任务提交、状态、日志和产物检查应始终使用同一执行目标。
+
+MCP 客户端使用 Streamable HTTP 连接 `http://127.0.0.1:1024/mcp`，并配置请求头 `Authorization: Bearer <service-token>`；将地址与令牌替换为所用服务的实际值。从已连接服务发现工具，不假定固定工具列表。下文 CLI 示例描述相同操作；调用 MCP 工具时使用发现的输入 Schema。
+
+内置 `demo` Task 可用于验证提交和跟踪，不需要行情或模型凭据；Alpha158 流程需要相应研究插件与准备好的输入数据。行情下载需要 `AXONX_TUSHARE_TOKEN`，使用模型的 Agent 需要单独配置模型。完整配置示例见 [快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)、[研究工作流](https://flowllm-ai.github.io/AxonX/zh/research/workflow) 和 [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)。
+
+将本文作为 Skill 使用时，仅执行用户请求所需的操作。文档示例本身不构成安装、任务执行、删除或远程变更的授权。修改源码仓库时，遵循该仓库的 `AGENTS.md` 和 [贡献指南](https://github.com/FlowLLM-AI/AxonX/blob/main/CONTRIBUTING_ZH.md)。
 
 ## 背景
 
@@ -25,22 +61,22 @@ AxonX 是面向金融量化研究的 Harness 框架，将数据获取与 ETL、�
 ### 必须遵守的开发协议
 
 所有插件 Task 都必须直接或间接继承 `BaseTask`，并遵守
-[`axonx/task/core/task.py`](../../axonx/task/core/task.py) 定义的公共开发协议。完成插件注册不能替代这些要求：
+[`axonx/task/core/task.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/task.py) 定义的公共开发协议。完成插件注册不能替代这些要求：
 
 - 声明固定的 `task_type`、`input_cls`、`output_cls` 和详细的类 docstring。输入与输出模型必须分别继承
-  [`core/params.py`](../../axonx/task/core/params.py) 中的 `BaseInputParams` 和 `BaseOutputParams`。
+  [`core/params.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/params.py) 中的 `BaseInputParams` 和 `BaseOutputParams`。
 - 实现 `build_task_steps()`，按执行顺序返回同步可调用步骤；实现 `build_output_params()`，返回经过校验的
   `output_cls` 实例，不能仅返回普通字典。
 - 保留框架管理的 Task 身份、上下文、生命周期与元数据持久化行为。使用 `self.task_dir`、`source_task_dir()` 和
   `resolve_workspace_path()` 处理任务产物与工作区路径，由框架运行时负责执行和状态记录。
 
-[`axonx/task/contracts/`](../../axonx/task/contracts/) 为 ETL、Analysis、Train、Predict 和 Backtest 提供可选的标准研究
+[`axonx/task/contracts/`](https://github.com/FlowLLM-AI/AxonX/tree/main/axonx/task/contracts) 为 ETL、Analysis、Train、Predict 和 Backtest 提供可选的标准研究
 Task 与参数类。实现这些研究阶段时，优先继承对应的 `Base*Task`、`Base*InputParams` 和 `Base*OutputParams`。
 一旦采用，其必填字段、类型与校验规则就是插件必须遵守的契约：保留这些约束，通过子类声明新增字段。
 自定义 Task 可以直接继承 `BaseTask` 并定义自己的参数模型，但仍须遵守核心协议；注册并不要求所有 Task 都继承五类研究基类之一。
 
-实现前应阅读 [Task 契约](reference/task-contracts.md)、[Task 生命周期](concepts/task-lifecycle.md) 和
-[研究产物协议](reference/research-artifacts.md)。仅满足 Python 标准字段不能保证与下游插件或 Studio 兼容；
+实现前应阅读 [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)、[Task 生命周期](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lifecycle) 和
+[研究产物协议](https://flowllm-ai.github.io/AxonX/zh/reference/research-artifacts)。仅满足 Python 标准字段不能保证与下游插件或 Studio 兼容；
 还需满足实际消费者使用的产物映射与展示字段要求。
 
 ### Task 类型
