@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { formatBytes } from "../../shared/lib/format";
 import { isAbortError } from "../../shared/lib/errors";
 import type { JobEvent } from "../../shared/api/event";
@@ -67,8 +68,10 @@ export function TaskDetailPage({
   const [hasEarlier, setHasEarlier] = useState(false);
   const [trimmed, setTrimmed] = useState(false);
   const [followTail, setFollowTail] = useState(true);
-  const [copied, setCopied] = useState(false);
-  const [configCopied, setConfigCopied] = useState(false);
+  const logClipboard = useCopyFeedback();
+  const configClipboard = useCopyFeedback();
+  const copied = logClipboard.copied === "log";
+  const configCopied = configClipboard.copied === "config";
   const [hasResearch, setHasResearch] = useState(false);
   const [locateRequest, setLocateRequest] = useState(0);
   const [aligned, setAligned] = useState(true);
@@ -257,18 +260,13 @@ export function TaskDetailPage({
       logViewport.current.scrollTop = logViewport.current.scrollHeight;
   }, [followTail, logText]);
 
-  const copyLog = async () => {
-    await navigator.clipboard.writeText(logText);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1_500);
-  };
+  const copyLog = () => logClipboard.copy(logText, "log");
   const copyConfig = async () => {
     if (!task) return;
-    await navigator.clipboard.writeText(
+    await configClipboard.copy(
       JSON.stringify(task.config || {}, null, 2),
+      "config",
     );
-    setConfigCopied(true);
-    window.setTimeout(() => setConfigCopied(false), 1_500);
   };
   const cancel = async () => {
     if (!task || !window.confirm(t("cancelConfirm"))) return;

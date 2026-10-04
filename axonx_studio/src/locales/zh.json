@@ -28,7 +28,7 @@
       "agent": "智能体",
       "taskDefs": "提交任务",
       "apis": "API接口",
-      "raw": "Tushare数据",
+      "raw": "原始数据",
       "etl": "ETL",
       "factors": "因子分析",
       "train": "模型训练",

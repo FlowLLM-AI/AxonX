@@ -28,7 +28,7 @@
       "agent": "Agent",
       "taskDefs": "Submit task",
       "apis": "API interfaces",
-      "raw": "Tushare data",
+      "raw": "Raw data",
       "etl": "ETL",
       "factors": "Factor analysis",
       "train": "Model training",

@@ -31,6 +31,7 @@ import type {
   WorkspacePreview,
 } from "./types";
 import { listWorkspaceEntries, previewWorkspaceFile } from "./api";
+import { sortRawDataEntries } from "./sort";
 
 const FilePreview = lazy(() =>
   import("./FilePreview").then((module) => ({ default: module.FilePreview })),
@@ -250,11 +251,7 @@ export default function TushareBrowserPage({
         </div>
       );
     if (!directory) return null;
-    const entries = [...directory.entries].sort(
-      (a, b) =>
-        Number(b.kind === "directory") - Number(a.kind === "directory") ||
-        a.name.localeCompare(b.name),
-    );
+    const entries = sortRawDataEntries(directory.entries);
     return entries.length ? (
       entries.map((entry) => {
         const Icon = iconFor(entry);

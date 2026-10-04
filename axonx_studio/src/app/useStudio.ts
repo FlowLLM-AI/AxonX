@@ -3,6 +3,7 @@ import { listMachineOptions, machineStatus } from "../features/machines/api";
 import type { MachineNode } from "../features/machines/types";
 import type { ContextOption, ThemePreference } from "./types";
 import { defaultRoute, parseHash, routeHash, type AppRoute } from "./routes";
+import { startPolling } from "../shared/lib/polling";
 import { AxonXError, axonx } from "../shared/api/client";
 
 const LOCAL_MACHINE: MachineNode = {
@@ -127,31 +128,21 @@ function useServiceStatus(target: string | undefined, authRevision: number) {
   const [authRequired, setAuthRequired] = useState(false);
 
   useEffect(() => {
-    const controller = new AbortController();
     setServiceOnline(null);
     setAuthRequired(false);
-    const check = () =>
-      machineStatus(target, controller.signal)
-        .then(() => {
-          setServiceOnline(true);
-          setAuthRequired(false);
-        })
-        .catch((reason: unknown) => {
-          if (!(
-            reason instanceof DOMException && reason.name === "AbortError"
-          )) {
-            setServiceOnline(false);
-            setAuthRequired(
-              reason instanceof AxonXError && reason.status === 401,
-            );
-          }
-        });
-    void check();
-    const timer = window.setInterval(check, 15_000);
-    return () => {
-      controller.abort();
-      window.clearInterval(timer);
+    const check = async (signal: AbortSignal) => {
+      try {
+        await machineStatus(target, signal);
+        if (signal.aborted) return;
+        setServiceOnline(true);
+        setAuthRequired(false);
+      } catch (reason) {
+        if (signal.aborted) return;
+        setServiceOnline(false);
+        setAuthRequired(reason instanceof AxonXError && reason.status === 401);
+      }
     };
+    return startPolling(check, 15, () => {}, true);
   }, [authRevision, target]);
 
   return { serviceOnline, setServiceOnline, authRequired };

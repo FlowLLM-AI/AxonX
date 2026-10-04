@@ -1,26 +1,19 @@
 import { useEffect, useState } from "react";
+import { startPolling } from "../lib/polling";
 
 export function usePolling(
-  callback: () => void,
+  callback: (signal: AbortSignal) => Promise<void>,
   enabled: boolean,
   intervalSeconds: number,
+  immediate = false,
 ) {
   const [seconds, setSeconds] = useState(intervalSeconds);
 
   useEffect(() => {
     setSeconds(intervalSeconds);
     if (!enabled) return;
-    const timer = window.setInterval(() => {
-      setSeconds((current) => {
-        if (current <= 1) {
-          callback();
-          return intervalSeconds;
-        }
-        return current - 1;
-      });
-    }, 1_000);
-    return () => window.clearInterval(timer);
-  }, [callback, enabled, intervalSeconds]);
+    return startPolling(callback, intervalSeconds, setSeconds, immediate);
+  }, [callback, enabled, intervalSeconds, immediate]);
 
   return seconds;
 }
