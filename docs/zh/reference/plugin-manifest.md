@@ -70,6 +70,10 @@ jobs: {}
 
 Task 必须声明固定 TaskType、input_cls、output_cls 与详细的类 docstring。description 从类 docstring 提取，并在查询定义时验证。Task 最小开发流程见 [已有开发指南](../dev_guide.md)。
 
+所有注册的 Task 都必须遵守 [`BaseTask`](../../../axonx/task/core/task.py) 的公共开发协议。
+[`axonx.task.contracts`](../../../axonx/task/contracts/) 中的研究基类是可选标准契约；采用后必须保留其参数字段与校验规则。
+核心协议与标准研究契约的适用范围及实现要求见[必须遵守的开发协议](../dev_guide.md#必须遵守的开发协议)。
+
 ## Job 与组件贡献
 
 下面的 Job 使用内置 version_step，无需新增 Step：

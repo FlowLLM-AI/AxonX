@@ -70,6 +70,12 @@ Extra top-level fields are prohibited, and the root must be a YAML mapping. Name
 
 Tasks must declare a fixed TaskType, input_cls, output_cls, and a detailed class docstring. description is extracted from the class docstring and validated when definitions are queried. See the [Existing development guide](../dev_guide.md) for a minimal Task development workflow.
 
+All registered Tasks must follow the public authoring contract in
+[`BaseTask`](../../../axonx/task/core/task.py). The research base classes in
+[`axonx.task.contracts`](../../../axonx/task/contracts/) are optional standard contracts; adopting them requires
+preserving their parameter fields and validation rules. See [Required authoring contracts](../dev_guide.md#required-authoring-contracts)
+for implementation requirements and the distinction between core and research contracts.
+
 ## Job and component contributions
 
 The following Job uses the built-in version_step and requires no new Step:

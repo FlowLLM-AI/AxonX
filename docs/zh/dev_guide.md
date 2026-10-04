@@ -22,6 +22,27 @@ AxonX 是面向金融量化研究的 Harness 框架，将数据获取与 ETL、�
 插件可注册多个 Task；a158 示例在 `plugins/a158/axonx_alpha158/plugin.yaml` 中注册了五类 Task。本文的 a158
 路径、类名、注册名和依赖链仅用于示例，开发其他研究插件时应替换为实际定义。插件安装与 Task 提交是独立操作。
 
+### 必须遵守的开发协议
+
+所有插件 Task 都必须直接或间接继承 `BaseTask`，并遵守
+[`axonx/task/core/task.py`](../../axonx/task/core/task.py) 定义的公共开发协议。完成插件注册不能替代这些要求：
+
+- 声明固定的 `task_type`、`input_cls`、`output_cls` 和详细的类 docstring。输入与输出模型必须分别继承
+  [`core/params.py`](../../axonx/task/core/params.py) 中的 `BaseInputParams` 和 `BaseOutputParams`。
+- 实现 `build_task_steps()`，按执行顺序返回同步可调用步骤；实现 `build_output_params()`，返回经过校验的
+  `output_cls` 实例，不能仅返回普通字典。
+- 保留框架管理的 Task 身份、上下文、生命周期与元数据持久化行为。使用 `self.task_dir`、`source_task_dir()` 和
+  `resolve_workspace_path()` 处理任务产物与工作区路径，由框架运行时负责执行和状态记录。
+
+[`axonx/task/contracts/`](../../axonx/task/contracts/) 为 ETL、Analysis、Train、Predict 和 Backtest 提供可选的标准研究
+Task 与参数类。实现这些研究阶段时，优先继承对应的 `Base*Task`、`Base*InputParams` 和 `Base*OutputParams`。
+一旦采用，其必填字段、类型与校验规则就是插件必须遵守的契约：保留这些约束，通过子类声明新增字段。
+自定义 Task 可以直接继承 `BaseTask` 并定义自己的参数模型，但仍须遵守核心协议；注册并不要求所有 Task 都继承五类研究基类之一。
+
+实现前应阅读 [Task 契约](reference/task-contracts.md)、[Task 生命周期](concepts/task-lifecycle.md) 和
+[研究产物协议](reference/research-artifacts.md)。仅满足 Python 标准字段不能保证与下游插件或 Studio 兼容；
+还需满足实际消费者使用的产物映射与展示字段要求。
+
 ### Task 类型
 
 | 类型     | 概念与用途                                         |

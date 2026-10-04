@@ -22,6 +22,31 @@ The framework records task configuration, dependencies, result metadata, and art
 A plugin can register multiple Tasks; the a158 example registers five Task types in `plugins/a158/axonx_alpha158/plugin.yaml`. The a158
 paths, class names, registered names, and dependency chain here are illustrative; replace them with actual definitions when developing other research plugins. Plugin installation and Task submission are separate operations.
 
+### Required authoring contracts
+
+Every plugin Task must directly or indirectly inherit `BaseTask` and follow the public authoring contract in
+[`axonx/task/core/task.py`](../../axonx/task/core/task.py). Registration alone does not replace this contract:
+
+- Declare a fixed `task_type`, `input_cls`, `output_cls`, and a detailed class docstring. Input and output models must
+  inherit `BaseInputParams` and `BaseOutputParams` from [`core/params.py`](../../axonx/task/core/params.py).
+- Implement `build_task_steps()` to yield synchronous callables in execution order, and `build_output_params()` to
+  return a validated instance of the declared `output_cls`; returning a plain dictionary does not satisfy the contract.
+- Preserve framework-managed Task identity, context, lifecycle, and metadata persistence. Use `self.task_dir`,
+  `source_task_dir()`, and `resolve_workspace_path()` for task artifacts and workspace paths; leave execution and
+  status recording to the framework runtime.
+
+[`axonx/task/contracts/`](../../axonx/task/contracts/) provides optional standard research Task and parameter classes
+for ETL, Analysis, Train, Predict, and Backtest. For these research stages, prefer the corresponding `Base*Task`,
+`Base*InputParams`, and `Base*OutputParams` classes. Once adopted, their required fields, types, and validators are part
+of the plugin's contract: preserve them and declare additional fields in subclasses. A custom Task may inherit
+`BaseTask` directly with its own parameter models, but must still follow the core contract; registration does not
+require every Task to inherit one of the five research base classes.
+
+Before implementation, read [Task contracts](reference/task-contracts.md), [Task lifecycle](concepts/task-lifecycle.md),
+and [Research artifact contracts](reference/research-artifacts.md). Standard Python fields alone do not guarantee
+compatibility with downstream plugins or Studio; also satisfy the artifact mappings and presentation fields used by
+the intended consumers.
+
 ### Task Types
 
 | Type     | Concept and purpose                                                               |
