@@ -1,4 +1,5 @@
 language: en
+workspace_dir: ${AXONX_WORKSPACE_DIR:-.axonx}
 
 # =========== Known target services ===========
 targets: []

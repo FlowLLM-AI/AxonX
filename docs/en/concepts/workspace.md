@@ -1,6 +1,6 @@
 # Workspace and Persistent Records
 
-The workspace stores task status, successful results, and research artifacts, providing the shared data source for Studio and task queries. Its default root is `.axonx` under the startup directory; `workspace_dir` can specify an absolute path. The log directory is configured separately and defaults to `logs`.
+The workspace stores task status, successful results, and research artifacts, providing the shared data source for Studio and task queries. Its default root is `.axonx` under the startup directory. The built-in default configuration accepts `AXONX_WORKSPACE_DIR` from the shell or `.env`; an explicit `workspace_dir` configuration or `--workspace-dir` CLI option can also select the root. The log directory is configured separately and defaults to `logs`.
 
 ![Workspace file responsibilities](../../figures/concepts/workspace.svg)
 

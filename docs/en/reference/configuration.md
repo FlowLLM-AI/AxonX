@@ -77,11 +77,14 @@ jobs:
 `${VAR}` requires the variable to exist; `${VAR:-default}` uses the default text when the variable is absent. An existing but empty variable does not use default. Each file is recursively expanded before inheritance merging. Only strings whose content changes during environment substitution are then converted from true/false, null, numbers, or JSON to natural values; unchanged strings retain their original type.
 
 ```yaml
+workspace_dir: ${AXONX_WORKSPACE_DIR:-.axonx}
 service:
   token: ${AXONX_SERVICE_TOKEN:-null}
   web_enabled: ${AXONX_SERVICE_WEB_ENABLED:-true}
   shutdown_timeout: ${AXONX_SERVICE_SHUTDOWN_TIMEOUT:-1}
 ```
+
+The built-in `default` configuration (and configurations that inherit it, including `remote`) reads `AXONX_WORKSPACE_DIR` for `workspace_dir`, falling back to `.axonx` when the variable is absent. Set it in the shell or `.env`, for example `AXONX_WORKSPACE_DIR=/srv/axonx/workspace`. A child configuration’s explicit `workspace_dir` overrides this value; `--workspace-dir` or a Python resolver override takes precedence over both. Constructing `ApplicationConfig` directly keeps the model default `.axonx` and does not read this variable.
 
 CLI start first loads .env and merges it into environment. Ordinary clients and exec read the environment with override=false. Python's ConfigResolver does not itself load .env; callers must establish the environment themselves.
 

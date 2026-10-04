@@ -1,6 +1,6 @@
 # 工作区与持久记录
 
-工作区保存任务状态、成功结果与研究产物，是 Studio 和任务查询共同读取的数据来源。默认根目录为启动目录下的 `.axonx`，可通过 `workspace_dir` 指定绝对路径。日志目录独立配置，默认是 `logs`。
+工作区保存任务状态、成功结果与研究产物，是 Studio 和任务查询共同读取的数据来源。默认根目录为启动目录下的 `.axonx`，内置默认配置支持通过 shell 或 `.env` 中的 `AXONX_WORKSPACE_DIR` 指定根目录，也可通过配置项 `workspace_dir` 或 CLI 参数 `--workspace-dir` 显式设置。日志目录独立配置，默认是 `logs`。
 
 ![工作区文件分工](../../figures/concepts/workspace.svg)
 

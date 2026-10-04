@@ -77,11 +77,14 @@ jobs:
 `${VAR}` 要求变量存在；`${VAR:-default}` 在变量不存在时用默认文本。变量存在但为空时不会使用 default。每个文件在继承合并前递归展开；只有环境替换改变了内容的字符串才会进一步将 true/false、null、数字和 JSON 转换为自然值，未发生替换的字符串保持原类型。
 
 ```yaml
+workspace_dir: ${AXONX_WORKSPACE_DIR:-.axonx}
 service:
   token: ${AXONX_SERVICE_TOKEN:-null}
   web_enabled: ${AXONX_SERVICE_WEB_ENABLED:-true}
   shutdown_timeout: ${AXONX_SERVICE_SHUTDOWN_TIMEOUT:-1}
 ```
+
+内置 `default` 配置及继承它的配置（包括 `remote`）从 `AXONX_WORKSPACE_DIR` 读取 `workspace_dir`；变量未设置时仍使用 `.axonx`。可在 shell 或 `.env` 中设置，例如 `AXONX_WORKSPACE_DIR=/srv/axonx/workspace`。子配置显式指定的 `workspace_dir` 会覆盖该值；`--workspace-dir` 或 Python resolver 的显式覆盖优先于两者。直接构造 `ApplicationConfig` 时仍使用模型默认值 `.axonx`，不会读取此变量。
 
 CLI start 先加载 .env，并合并到 environment；普通客户端与 exec 以 override=false 读取环境。Python 的 ConfigResolver 本身不负责加载 .env，调用者需要自己建立环境。
 
