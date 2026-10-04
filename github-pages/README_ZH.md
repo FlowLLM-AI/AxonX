@@ -36,7 +36,7 @@ npm run preview
 | 命令                   | 用途                                            |
 | ---------------------- | ----------------------------------------------- |
 | `npm run content`      | 校验内容目录并重新生成构建输入                  |
-| `npm run test`         | 检查目录失败场景、部署设置与链接转换            |
+| `npm run test`         | 检查目录、设置、链接、语言优先级与翻译键一致性  |
 | `npm run dev`          | 生成内容并启动开发服务器                        |
 | `npm run build`        | 生成、构建并验证 HTML、导航、资源、锚点和导出   |
 | `npm run preview`      | 浏览已有生产产物                                |
@@ -64,6 +64,8 @@ npm run preview
 | `.generated/site/`                               | 可重新生成的 VitePress 输入，包括 `.source-map.json`         |
 | `dist/`                                          | 可部署的 HTML、资源、Markdown、`llms.txt` 和 `llms-full.txt` |
 
+主题文案与 VitePress 界面标签统一维护在 `site/theme/locales/en.json` 和 `zh.json`，测试检查两份资源的键一致。`i18n.ts` 提供响应式语言资源与站内链接；`language.mjs` 负责语言选择与路由转换；`home.ts` 保存与语言无关的首页元数据。参考 Studio 将语言资源与功能代码分离的结构，响应式能力直接使用 Vue/VitePress，无需额外翻译依赖。Markdown 原文与导航标签继续维护在 `docs/`。
+
 框架文件从 `docs/.vitepress/` 移至 `site/` 和 `lib/`，导航仍与内容放在一起。已有文档 URL 保留。早期的 `getting-started/introduction` 和 `guides/plugin-management` 路由仍不生成，也不提供重定向。
 
 ### 新增页面
@@ -77,7 +79,7 @@ npm run preview
 
 ### 链接与导出
 
-链接相对原始文件解析。已发布原文转换为站内路由，共用图片转换为 `public/media/<仓库路径>`，未发布仓库文件链接到 GitHub。转换 Markdown 行内链接与 HTML 链接，保留围栏代码示例。标题提取排除围栏代码注释；以标志开头的项目 README 在生成时补充一级标题，不修改原文。根页面默认英文；首次访问 `/en/` 或 `/zh/` 时遵循 URL 的语言。顶栏直接切换英文／中文和浅色／深色，并在本地保存选择。默认浅色；旧的跟随浏览器／系统偏好不再跟随浏览器或系统设置。
+链接相对原始文件解析。已发布原文转换为站内路由，共用图片转换为 `public/media/<仓库路径>`，未发布仓库文件链接到 GitHub。转换 Markdown 行内链接与 HTML 链接，保留围栏代码示例。标题提取排除围栏代码注释；以标志开头的项目 README 在生成时补充一级标题，不修改原文。语言选择依次遵循 `?lang=en|zh`、显式 `/en/` 或 `/zh/` 路由、与 Studio 共用的 `language` 偏好、浏览器语言（中文或默认英文）。根页面先渲染英文，再由浏览器跳转到所选语言的首页。保存的偏好不会覆盖显式语言路由。自动语言跳转替换当前浏览历史记录；站内导航及浏览器前进／后退后也会应用语言选择。顶栏切换英文／中文和浅色／深色；切换语言保留当前文档、查询参数和锚点，并更新已有的 `lang` 参数。旧的 `axonx-language` 偏好不再读取。默认浅色；旧的跟随浏览器／系统偏好不再跟随浏览器或系统设置。
 
 原文映射保证编辑链接指向真实维护位置。Markdown 导出使用绝对 URL 与 UTF-8 BOM。`llms.txt`、`llms-full.txt` 按站点相同的双语导航顺序排列。未导入站点的历史实验材料继续链接到仓库原文。
 
@@ -126,7 +128,7 @@ DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages ru
 | 站内链接或锚点失败 | 从原文解析地址，核对目标页面标题             |
 | 部署后资源失败     | 对齐 `DOCS_BASE` 与部署路径并重新构建        |
 | 导出使用错误域名   | 设置 `DOCS_SITE_URL` 并重新构建              |
-| 页面切换语言       | 检查保存的语言偏好                           |
+| 页面切换语言       | 依次检查 `?lang`、语言路由与 Studio 共用偏好 |
 | 构建成功但未部署   | 检查事件、分支、Pages 来源、环境和工作流权限 |
 
 维护约定见[内容职责说明](../docs/README.md)和[贡献指南](../CONTRIBUTING_ZH.md)。

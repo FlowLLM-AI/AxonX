@@ -1,0 +1,170 @@
+{
+  "home": {
+    "stages": {
+      "data": "Market data",
+      "features": "ETL features",
+      "training": "Model training",
+      "prediction": "Prediction",
+      "backtest": "Backtesting"
+    },
+    "paths": {
+      "quickstart": {
+        "title": "Run your first task",
+        "description": "Submit, follow, and inspect a built-in demo task."
+      },
+      "research-overview": {
+        "title": "Build a research workflow",
+        "description": "Connect data, features, training, predictions, and backtests."
+      },
+      "agent-overview": {
+        "title": "Connect your agent",
+        "description": "Choose an external Skill / CLI / MCP integration or built-in Studio sessions."
+      }
+    },
+    "journeys": {
+      "agent-external": {
+        "title": "Research with an agent",
+        "description": "Discover contracts, execute, wait, and inspect artifacts."
+      },
+      "research-experiments": {
+        "title": "Design inspectable experiments",
+        "description": "Fix controls, screen candidates, then confirm independently."
+      },
+      "guides-remote-machines": {
+        "title": "Manage execution environments",
+        "description": "Connect remote machines and maintain tasks, files, and services."
+      },
+      "dev_guide": {
+        "title": "Extend research capabilities",
+        "description": "Build plugins using Task contracts and framework extension points."
+      }
+    },
+    "screens": {
+      "lineage": {
+        "title": "Task lineage",
+        "description": "Inspect execution records and trace upstream artifacts."
+      },
+      "training": {
+        "title": "Model training",
+        "description": "Inspect the evidence, from configuration to validation curves."
+      },
+      "backtest": {
+        "title": "Backtesting",
+        "description": "Read returns, costs, and quality together."
+      },
+      "comparison": {
+        "title": "Strategy comparison",
+        "description": "Understand strategy differences over a shared period."
+      }
+    },
+    "capabilities": {
+      "plugins-management": {
+        "title": "Research, independently extensible",
+        "description": "Package algorithms and tasks as plugins with explicit input and output contracts."
+      },
+      "concepts-task-lifecycle": {
+        "title": "A record of every run",
+        "description": "Keep status, logs, parameters, and artifacts in one task workspace."
+      },
+      "guides-remote-machines": {
+        "title": "Multiple machines, one entry point",
+        "description": "Access remote tasks, machine resources, and research results through a shared interface."
+      },
+      "api-overview": {
+        "title": "Studio, CLI, and agents connected",
+        "description": "Share Job interfaces and workspace records to iterate on research evidence."
+      }
+    },
+    "star": "Give AxonX a Star on GitHub!",
+    "headline": "Financial quant research.",
+    "headlineAccent": "Connected. Traceable.",
+    "lead": "An agent-native harness for financial quantitative research. Organize algorithms as plugins, preserve evidence as Tasks, and connect Studio, CLI / MCP, and agents.",
+    "tryStudio": "Try Studio",
+    "getStarted": "Get started",
+    "exploreWorkflow": "Explore the workflow",
+    "workflowTitle": "From data to evidence",
+    "factorAnalysis": "Factor analysis",
+    "etlBranch": "Independent ETL branch",
+    "evidence": "Parameters · Logs · Lineage · Artifacts",
+    "updatesTitle": "Latest Updates",
+    "pathsLabel": "Choose your starting point",
+    "showcaseTitle": "See your research unfold.",
+    "exploreStudio": "Explore Studio",
+    "showcaseLead": "From task execution to result interpretation, inspect your research in one workspace.",
+    "showcaseLabel": "Studio showcase",
+    "previousSlide": "Previous slide",
+    "actualInterface": "ACTUAL INTERFACE",
+    "readGuide": "Read the guide",
+    "nextSlide": "Next slide",
+    "capabilitiesTitle": "Flexible research. Grounded execution.",
+    "journeysTitle": "Continue by goal.",
+    "documentationMap": "Documentation map",
+    "caseTitle": "From plugin development to confirmation.",
+    "experimentDesign": "Experiment design",
+    "caseDescription": "Using Skill + CLI, Codex extended Alpha158 as a separate plugin with 26 new features, then completed ablations and independent confirmation. Confirmation-period Top10 net annualized return rose from −5.74% to 28.21%, and Top20 from −3.24% to 24.93%.",
+    "benchmark": "Read the benchmark",
+    "reproduction": "Features, parameters, and reproduction",
+    "closingTitle": "Start with one Task.",
+    "closingDescription": "The built-in demo needs no external data or model credentials.",
+    "runDemo": "Run the demo",
+    "browseDocs": "Browse all docs",
+    "updates": {
+      "release": {
+        "title": "AxonX 0.1.0 released",
+        "description": "Plugin-based quantitative research Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access.",
+        "label": "Documentation"
+      },
+      "agent": {
+        "title": "Connect your Agent with SKILL.md + CLI",
+        "description": "Load the Skill into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research, and inspect results.",
+        "label": "SKILL.md"
+      },
+      "studio": {
+        "title": "AxonX Studio available",
+        "description": "Browse tasks and artifacts, inspect training curves and backtests, and compare strategies. The demo uses simulated data and execution.",
+        "label": "Try Playground"
+      },
+      "enhanced": {
+        "title": "Alpha158 Enhanced developed with Skill + CLI",
+        "description": "26 new features. In the 2025-01-01–2026-09-30 confirmation period, Top10 net annualized return rose from −5.74% to 28.21%, and Top20 from −3.24% to 24.93%.",
+        "label": "Explore the results"
+      }
+    }
+  },
+  "preferences": {
+    "light": "Switch to light theme",
+    "dark": "Switch to dark theme",
+    "language": "Switch to Chinese"
+  },
+  "docs": {
+    "resources": "Documentation resources",
+    "viewMarkdown": "View Markdown"
+  },
+  "site": {
+    "label": "English",
+    "lang": "en",
+    "description": "An agent-native harness for quantitative research.",
+    "home": "Home",
+    "outline": "On this page",
+    "prev": "Previous",
+    "next": "Next",
+    "edit": "Edit this page on GitHub",
+    "returnToTop": "Back to top",
+    "menu": "Menu"
+  },
+  "search": {
+    "button": {
+      "buttonText": "Search docs",
+      "buttonAriaLabel": "Search docs"
+    },
+    "modal": {
+      "noResultsText": "No results found",
+      "resetButtonTitle": "Reset search",
+      "footer": {
+        "selectText": "to select",
+        "navigateText": "to navigate",
+        "closeText": "to close"
+      }
+    }
+  }
+}

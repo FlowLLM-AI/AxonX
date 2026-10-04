@@ -1,0 +1,170 @@
+{
+  "home": {
+    "stages": {
+      "data": "市场数据",
+      "features": "ETL 特征",
+      "training": "模型训练",
+      "prediction": "离线预测",
+      "backtest": "策略回测"
+    },
+    "paths": {
+      "quickstart": {
+        "title": "运行第一个任务",
+        "description": "用内置 demo，完成提交、等待与结果检查。"
+      },
+      "research-overview": {
+        "title": "开展量化研究",
+        "description": "连接数据、特征、训练、预测和回测产物。"
+      },
+      "agent-overview": {
+        "title": "接入研究 Agent",
+        "description": "选择外部 Skill / CLI / MCP，或 Studio 内置会话。"
+      }
+    },
+    "journeys": {
+      "agent-external": {
+        "title": "让 Agent 操作研究",
+        "description": "从发现契约到执行、等待和检查产物。"
+      },
+      "research-experiments": {
+        "title": "设计可检查的实验",
+        "description": "固定控制变量，筛选方案，再做独立确认。"
+      },
+      "guides-remote-machines": {
+        "title": "管理执行环境",
+        "description": "连接远程机器，维护任务、文件和服务。"
+      },
+      "dev_guide": {
+        "title": "扩展研究能力",
+        "description": "编写插件，复用 Task 契约与框架扩展点。"
+      }
+    },
+    "screens": {
+      "lineage": {
+        "title": "任务血缘",
+        "description": "检查运行记录，追踪上游产物。"
+      },
+      "training": {
+        "title": "模型训练",
+        "description": "从训练配置到验证曲线，检查模型证据。"
+      },
+      "backtest": {
+        "title": "策略回测",
+        "description": "把收益、成本与质量放在一起解读。"
+      },
+      "comparison": {
+        "title": "策略比较",
+        "description": "在共同区间内，理解策略之间的差异。"
+      }
+    },
+    "capabilities": {
+      "plugins-management": {
+        "title": "研究能力，独立扩展",
+        "description": "将算法和任务打包为插件，保留清晰的输入输出契约。"
+      },
+      "concepts-task-lifecycle": {
+        "title": "运行过程，完整记录",
+        "description": "状态、日志、参数和产物，汇聚到同一个任务工作区。"
+      },
+      "guides-remote-machines": {
+        "title": "多台机器，统一入口",
+        "description": "通过统一接口查看远程任务、机器资源与研究结果。"
+      },
+      "api-overview": {
+        "title": "Studio、CLI 与 Agent 协同",
+        "description": "共享 Job 接口与工作区记录，围绕研究证据持续迭代。"
+      }
+    },
+    "star": "给 AxonX 点个 GitHub Star！",
+    "headline": "金融量化研究",
+    "headlineAccent": "可追踪的闭环。",
+    "lead": "面向金融量化研究的 Agent Harness。用插件组织算法，用 Task 保存运行证据，让 Studio、CLI / MCP 与 Agent 协同工作。",
+    "tryStudio": "体验 Studio",
+    "getStarted": "快速开始",
+    "exploreWorkflow": "查看研究流程",
+    "workflowTitle": "从数据到研究证据",
+    "factorAnalysis": "因子分析",
+    "etlBranch": "ETL 的独立分支",
+    "evidence": "参数 · 日志 · 血缘 · 产物",
+    "updatesTitle": "最新更新",
+    "pathsLabel": "选择开始路径",
+    "showcaseTitle": "研究过程，看得见。",
+    "exploreStudio": "了解 Studio",
+    "showcaseLead": "从任务运行到结果解读，在同一工作台查看研究证据。",
+    "showcaseLabel": "Studio 展示",
+    "previousSlide": "上一张",
+    "actualInterface": "真实界面",
+    "readGuide": "阅读指南",
+    "nextSlide": "下一张",
+    "capabilitiesTitle": "研究自由扩展，执行有据可循。",
+    "journeysTitle": "按目标深入。",
+    "documentationMap": "文档导航",
+    "caseTitle": "从插件开发到独立确认。",
+    "experimentDesign": "实验方法",
+    "caseDescription": "Codex 通过 Skill + CLI 将 Alpha158 扩展为独立插件，新增 26 个特征，并完成消融与独立确认。确认期 Top10 扣费年化收益从 −5.74% 提高至 28.21%，Top20 从 −3.24% 提高至 24.93%。",
+    "benchmark": "查看 Benchmark",
+    "reproduction": "特征、参数与复现",
+    "closingTitle": "从一个 Task 开始。",
+    "closingDescription": "内置 demo 无需外部数据或模型凭据。",
+    "runDemo": "运行 Demo",
+    "browseDocs": "浏览全部文档",
+    "updates": {
+      "release": {
+        "title": "AxonX 0.1.0 发布",
+        "description": "插件化量化研究 Task、执行跟踪、任务血缘，以及 CLI / MCP / Studio 统一接入。",
+        "label": "官网文档"
+      },
+      "agent": {
+        "title": "SKILL.md + CLI 接入 Agent",
+        "description": "为 Codex、Claude Code 等加载 Skill，发现 Task 契约、开发插件、提交研究并检查结果。",
+        "label": "SKILL.md"
+      },
+      "studio": {
+        "title": "AxonX Studio 能力发布",
+        "description": "浏览任务与产物、查看训练曲线与回测、比较策略。在线试玩使用模拟数据与执行。",
+        "label": "Playground 在线试玩"
+      },
+      "enhanced": {
+        "title": "Skill + CLI 开发 Alpha158 增强版",
+        "description": "新增 26 个特征。2025-01-01 至 2026-09-30 确认期 Top10 扣费年化收益从 −5.74% 提高至 28.21%，Top20 从 −3.24% 提高至 24.93%。",
+        "label": "查看成果"
+      }
+    }
+  },
+  "preferences": {
+    "light": "切换到浅色主题",
+    "dark": "切换到深色主题",
+    "language": "切换到英文"
+  },
+  "docs": {
+    "resources": "文档资源",
+    "viewMarkdown": "查看 Markdown"
+  },
+  "site": {
+    "label": "简体中文",
+    "lang": "zh-CN",
+    "description": "面向金融量化研究的 Agent Harness。",
+    "home": "首页",
+    "outline": "本页目录",
+    "prev": "上一篇",
+    "next": "下一篇",
+    "edit": "在 GitHub 编辑此页",
+    "returnToTop": "回到顶部",
+    "menu": "目录"
+  },
+  "search": {
+    "button": {
+      "buttonText": "搜索文档",
+      "buttonAriaLabel": "搜索文档"
+    },
+    "modal": {
+      "noResultsText": "没有找到结果",
+      "resetButtonTitle": "清除搜索",
+      "footer": {
+        "selectText": "选择",
+        "navigateText": "切换",
+        "closeText": "关闭"
+      }
+    }
+  }
+}

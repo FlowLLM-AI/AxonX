@@ -7,6 +7,10 @@ import { repository } from "../lib/site-model.mjs";
 import { documentTitle } from "../lib/headings.mjs";
 import { siteSettings } from "../lib/settings.mjs";
 import { writeExports } from "../lib/exports.mjs";
+import en from "./theme/locales/en.json";
+import zh from "./theme/locales/zh.json";
+
+const resources = { en, zh };
 
 const source = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -20,7 +24,7 @@ const title = (file: string) =>
   documentTitle(fs.readFileSync(path.join(source, file), "utf8")) || file;
 
 function locale(lang: "zh" | "en") {
-  const zh = lang === "zh";
+  const t = resources[lang].site;
   const link = (page: string) => `/${lang}/${page}`;
   const pages = (files: readonly string[]) =>
     files.map((file) => ({
@@ -28,26 +32,24 @@ function locale(lang: "zh" | "en") {
       link: link(file),
     }));
   const navigation = groups.map((group) => ({
-    text: group.labels[zh ? 0 : 1],
+    text: group.labels[lang === "zh" ? 0 : 1],
     page: group.page,
     routes: groupRoutes(group).map(link),
     items: group.sections.map(([cn, en, files]) => ({
-      text: zh ? cn : en,
+      text: lang === "zh" ? cn : en,
       items: pages(files),
     })),
   }));
   return {
-    label: zh ? "简体中文" : "English",
-    lang: zh ? "zh-CN" : "en",
-    description: zh
-      ? "面向金融量化研究的 Agent Harness。"
-      : "An agent-native harness for quantitative research.",
+    label: t.label,
+    lang: t.lang,
+    description: t.description,
     themeConfig: {
       nav: [
         {
-          text: zh ? "首页" : "Home",
+          text: t.home,
           link: link(""),
-          activeMatch: zh ? "^/zh/$" : "^(?:/en/|/)$",
+          activeMatch: lang === "zh" ? "^/zh/$" : "^(?:/en/|/)$",
         },
         {
           text: "Playground",
@@ -66,19 +68,19 @@ function locale(lang: "zh" | "en") {
         ),
       ),
       outline: {
-        label: zh ? "本页目录" : "On this page",
+        label: t.outline,
         level: [2, 3] as [number, number],
       },
       docFooter: {
-        prev: zh ? "上一篇" : "Previous",
-        next: zh ? "下一篇" : "Next",
+        prev: t.prev,
+        next: t.next,
       },
       editLink: {
         pattern: `${repository}/edit/main/:path`,
-        text: zh ? "在 GitHub 编辑此页" : "Edit this page on GitHub",
+        text: t.edit,
       },
-      returnToTopLabel: zh ? "回到顶部" : "Back to top",
-      sidebarMenuLabel: zh ? "目录" : "Menu",
+      returnToTopLabel: t.returnToTop,
+      sidebarMenuLabel: t.menu,
     },
   };
 }
@@ -86,7 +88,7 @@ function locale(lang: "zh" | "en") {
 export default defineConfig({
   title: "AxonX",
   lang: "en",
-  description: "An agent-native harness for quantitative research.",
+  description: en.site.description,
   base,
   outDir: path.resolve(source, "../../dist"),
   cleanUrls: true,
@@ -116,22 +118,12 @@ export default defineConfig({
     search: {
       provider: "local",
       options: {
-        locales: {
-          zh: {
-            translations: {
-              button: { buttonText: "搜索文档", buttonAriaLabel: "搜索文档" },
-              modal: {
-                noResultsText: "没有找到结果",
-                resetButtonTitle: "清除搜索",
-                footer: {
-                  selectText: "选择",
-                  navigateText: "切换",
-                  closeText: "关闭",
-                },
-              },
-            },
-          },
-        },
+        locales: Object.fromEntries(
+          Object.entries(resources).map(([lang, resource]) => [
+            lang,
+            { translations: resource.search },
+          ]),
+        ),
       },
     },
     footer: {
