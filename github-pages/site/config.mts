@@ -2,21 +2,22 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitepress";
-import { groups, groupRoutes } from "./navigation.mjs";
-import { mapLinks } from "./links.mjs";
+import { groups, groupRoutes } from "../../docs/.vitepress/navigation.mjs";
+import { repository } from "../lib/site-model.mjs";
+import { documentTitle } from "../lib/headings.mjs";
+import { siteSettings } from "../lib/settings.mjs";
+import { writeExports } from "../lib/exports.mjs";
 
-const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const repository = "https://github.com/FlowLLM-AI/AxonX";
-const base = process.env.DOCS_BASE || "/AxonX/";
-const siteUrl = (
-  process.env.DOCS_SITE_URL || "https://flowllm-ai.github.io"
-).replace(/\/$/, "");
+const source = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../.generated/site",
+);
+const { base, siteUrl } = siteSettings();
 const sourceMap: Record<string, string> = JSON.parse(
   fs.readFileSync(path.join(source, ".source-map.json"), "utf8"),
 );
 const title = (file: string) =>
-  fs.readFileSync(path.join(source, file), "utf8").match(/^#\s+(.+)$/m)?.[1] ||
-  file;
+  documentTitle(fs.readFileSync(path.join(source, file), "utf8")) || file;
 
 function locale(lang: "zh" | "en") {
   const zh = lang === "zh";
@@ -127,43 +128,13 @@ export default defineConfig({
     page.filePath = sourceMap[page.relativePath] || page.relativePath;
   },
   buildEnd(config) {
-    // Static hosts may serve text without a charset; the BOM makes UTF-8 unambiguous.
-    const writeText = (file: string, content: string) =>
-      fs.writeFileSync(
-        path.join(config.outDir, file),
-        "\uFEFF" + content,
-        "utf8",
-      );
-    const index = [
-      "# AxonX",
-      "",
-      "> An agent-native harness for quantitative research.",
-      "",
-    ];
-    const full = ["# AxonX Documentation", ""];
-    for (const [page, original] of Object.entries(sourceMap)) {
-      const content = mapLinks(
-        fs.readFileSync(path.join(source, page), "utf8"),
-        (href) => {
-          if (/^(?:[a-z]+:|#)/i.test(href)) return href;
-          if (href.startsWith(base)) return `${siteUrl}${href}`;
-          const relative = href.startsWith("/")
-            ? href.slice(1)
-            : path.posix.normalize(
-                path.posix.join(path.posix.dirname(page), href),
-              );
-          return `${siteUrl}${base}${relative}`;
-        },
-      );
-      index.push(
-        `- [${title(page)}](${siteUrl}${base}${page.replace(/\.md$/, "")})`,
-      );
-      full.push(`<!-- ${original} -->`, content, "\n---\n");
-      const target = path.join(config.outDir, page);
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      writeText(page, content);
-    }
-    writeText("llms.txt", index.join("\n"));
-    writeText("llms-full.txt", full.join("\n"));
+    writeExports({
+      source,
+      output: config.outDir,
+      sourceMap,
+      groups,
+      base,
+      siteUrl,
+    });
   },
 });

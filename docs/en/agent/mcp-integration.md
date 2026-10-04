@@ -7,7 +7,9 @@ description: Query tasks and the workspace through the AxonX service MCP, and di
 
 The AxonX HTTP service provides Streamable HTTP MCP at `/mcp`, mapping public Jobs to tools. External Agents can discover and call tools in the actual service catalog to build research evidence from task status, logs, lineage, and files.
 
-![Three integration surfaces](../../figures/agent/mcp-surfaces.svg)
+MCP is one integration option for [external agents](external.md). A host can also use the [AxonX Skill](../../../skills/axonx/SKILL.md) for research instructions; CLI access does not require MCP configuration. Built-in sessions use a separate component bridge; see the [integration overview](overview.md).
+
+![Independent Agent integration paths](../../figures/agent/mcp-surfaces.svg)
 
 ## Connection details
 

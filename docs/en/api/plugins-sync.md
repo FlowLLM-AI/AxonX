@@ -2,7 +2,7 @@
 
 These endpoints change the service's Python environment or workspace Task directories. Upload files to staging first, then pass the returned path to the corresponding consumer.
 
-![Plugin and sync API call flow](../../figures/api/upload.svg)
+![Plugin and sync API call flow](../../figures/api/plugin-sync.svg)
 
 ## Calling conventions
 

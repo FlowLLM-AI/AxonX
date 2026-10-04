@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { groups, groupRoutes } from "../../docs/.vitepress/navigation.mjs";
-import { mapLinks } from "../../docs/.vitepress/links.mjs";
+import { mapLinks } from "../lib/links.mjs";
+import { siteSettings } from "../lib/settings.mjs";
 import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -11,7 +12,7 @@ const map = JSON.parse(
     "utf8",
   ),
 );
-const base = process.env.DOCS_BASE || "/AxonX/";
+const { base, siteUrl } = siteSettings();
 const exists = async (file) =>
   assert(
     (await stat(site + file)).size > 0,
@@ -36,6 +37,21 @@ const groupFor = (page) => {
 };
 const groupPages = Object.keys(map).map((page) => page.replace(/\.md$/, ""));
 const checked = new Set();
+const anchors = new Map();
+async function checkAnchor(target, hash, page) {
+  if (!hash || !target.endsWith(".html")) return;
+  if (!anchors.has(target)) {
+    const html = await readFile(site + target, "utf8");
+    anchors.set(
+      target,
+      new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => id)),
+    );
+  }
+  assert(
+    anchors.get(target).has(decodeURIComponent(hash.slice(1))),
+    `Missing anchor in ${page}: ${target}${hash}`,
+  );
+}
 
 for (const file of [...pages, "axonx-icon.svg", "llms.txt", "llms-full.txt"])
   await exists(file);
@@ -79,6 +95,7 @@ for (const page of pages) {
     let target = decodeURIComponent(url.pathname.slice(base.length));
     if (target.endsWith("/") || !target) target += "index.html";
     else if (!/\.[^/]+$/.test(target)) target += ".html";
+    await checkAnchor(target, url.hash, page);
     if (!checked.has(target)) {
       await exists(target);
       checked.add(target);
@@ -126,9 +143,7 @@ for (const page of Object.keys(map)) {
     urls.push(href);
     return href;
   });
-  const origin = (
-    process.env.DOCS_SITE_URL || "https://flowllm-ai.github.io"
-  ).replace(/\/$/, "");
+  const origin = siteUrl;
   for (const href of urls) {
     if (href.startsWith("#")) continue;
     assert(

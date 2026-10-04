@@ -33,7 +33,7 @@
 - **追溯研究结果。** 保存的参数、产物和依赖图帮助你复用数据和比较实验。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)
 - **各入口共用工作流程。** CLI / MCP、Studio 与 Agent 共享 Job 和 Task 契约、记录及产物。→ [AxonX Studio](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/zh/agent/usage)
 - **扩展并远程运行。** 添加研究插件，在选定的目标环境中执行 Task。→ [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
-- **检查 Agent 研究。** Codex 对 Alpha158 的扩展使确认期 Top10 扣费年化收益从 −5.74% 升至 28.21%；稳定提升尚未证实。→ [Benchmark](#benchmarkagent-开发市场横截面增强特征)
+- **检查 Agent 研究。** Codex 对 Alpha158 的扩展使确认期 Top10 扣费年化收益从 −5.74% 升至 28.21%；稳定提升尚未证实。→ [Benchmark](#benchmark-agent-开发市场横截面增强特征)
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg)
 
@@ -131,7 +131,7 @@ axonx version --target 127.0.0.1:8181 --token '<本机服务 token>'
 
 [Studio 入门](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio)
 
-## 5min Demo
+## 快速演示
 
 以 [a158 插件](plugins/a158/README_ZH.md) 为例，体验插件管理、服务查询和量化研究任务。行情下载需在 `.env` 中配置
 `AXONX_TUSHARE_TOKEN`，见 [example.env](example.env)。
@@ -231,9 +231,9 @@ Train → Predict → Backtest**，因子分析是 ETL 的独立下游。
 | 预测     | 样本外预测与统计。                    |
 | 回测     | TopN 回测、分期汇总与持仓产物。       |
 
-操作示例见上面的 [5min Demo](#5min-demo)，完整参数与数据要求见[插件文档](plugins/a158/README_ZH.md)。扩展自己的研究方法时，可从源码检查、构建和安装插件；相关命令见下方 [CLI 命令](#axonx-cli-命令与远程执行)，开发与部署流程见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
+操作示例见上面的 [快速演示](#快速演示)，完整参数与数据要求见[插件文档](plugins/a158/README_ZH.md)。扩展自己的研究方法时，可从源码检查、构建和安装插件；相关命令见下方 [CLI 命令](#axonx-cli-命令与远程执行)，开发与部署流程见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
-## Benchmark：Agent 开发市场横截面增强特征
+## Benchmark Agent 开发市场横截面增强特征
 
 Codex 依据 [docs/en/dev_guide.md](docs/en/dev_guide.md) 中的 Task 契约、插件注册与 CLI 流程，将 `a158`
 扩展为独立的 [Alpha158 Enhanced](plugins/a158_enhanced/README_ZH.md)：开发特征和分组开关，检查与安装插件，通过 AxonX
@@ -359,17 +359,17 @@ YAML 和连接排查见[远程机器指南](https://flowllm-ai.github.io/AxonX/z
 
 ## AxonX 文档
 
-| 主题                 | GitHub Pages 文档                                                                                                                                                                                                                |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 安装与首个 Task      | [快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)                                                                                                                                                     |
-| 浏览器操作           | [AxonX Studio](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio)                                                                                                                                                     |
-| Component、Job、Task | [架构](https://flowllm-ai.github.io/AxonX/zh/concepts/architecture) · [框架扩展](https://flowllm-ai.github.io/AxonX/zh/development/framework-extensions)                                                                         |
-| Task 协议与生命周期  | [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts) · [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management) · [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage) |
-| Agent 开发与运维     | [开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide) · [Agent 配置](https://flowllm-ai.github.io/AxonX/zh/agent/configuration) · [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)                  |
-| 插件开发与部署       | [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158) · [Alpha158 Enhanced](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158-enhanced) |
-| 量化研究             | [研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow) · [结果解读](https://flowllm-ai.github.io/AxonX/zh/research/results) · [回测解读](https://flowllm-ai.github.io/AxonX/zh/research/backtest)                   |
-| 远程运行             | [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)                                                                                                                                                         |
-| CLI 与配置           | [CLI](https://flowllm-ai.github.io/AxonX/zh/reference/cli) · [配置](https://flowllm-ai.github.io/AxonX/zh/reference/configuration)                                                                                               |
+| 主题                 | GitHub Pages 文档                                                                                                                                                                                                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 安装与首个 Task      | [快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)                                                                                                                                                                                                            |
+| 浏览器操作           | [AxonX Studio](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio)                                                                                                                                                                                                            |
+| Component、Job、Task | [架构](https://flowllm-ai.github.io/AxonX/zh/concepts/architecture) · [框架扩展](https://flowllm-ai.github.io/AxonX/zh/development/framework-extensions)                                                                                                                                |
+| Task 协议与生命周期  | [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts) · [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management) · [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)                                                        |
+| Agent 开发与运维     | [外部 Agent](https://flowllm-ai.github.io/AxonX/zh/agent/external) · [开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide) · [Agent 配置](https://flowllm-ai.github.io/AxonX/zh/agent/configuration) · [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)    |
+| 插件开发与部署       | [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158) · [Alpha158 Enhanced](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158-enhanced)                                                        |
+| 量化研究             | [研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow) · [实验设计](https://flowllm-ai.github.io/AxonX/zh/research/experiments) · [结果解读](https://flowllm-ai.github.io/AxonX/zh/research/results) · [回测解读](https://flowllm-ai.github.io/AxonX/zh/research/backtest) |
+| 远程运行             | [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)                                                                                                                                                                                                                |
+| CLI 与配置           | [CLI](https://flowllm-ai.github.io/AxonX/zh/reference/cli) · [配置](https://flowllm-ai.github.io/AxonX/zh/reference/configuration)                                                                                                                                                      |
 
 浏览[完整中文文档](https://flowllm-ai.github.io/AxonX/zh/docs)或[英文文档](https://flowllm-ai.github.io/AxonX/en/docs)。
 

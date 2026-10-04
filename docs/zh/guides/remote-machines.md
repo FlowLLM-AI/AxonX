@@ -34,7 +34,27 @@ axonx submit --task demo --x 1 --y 2 --target 'http://research.example:1024'
 
 Studio 请求自己的同源后端，浏览器保存本机服务 token。后端根据请求中的 target 选择预先配置的远程凭据。
 
-本机配置 `remote.yaml` 示例：
+### 单个目标：内置 remote 配置
+
+在本机启动目录的 `.env` 中设置：
+
+```dotenv
+AXONX_SERVICE_TOKEN=your-local-service-token
+AXONX_TARGET=192.0.2.10:1024
+AXONX_TARGET_TOKEN=your-target-service-token
+```
+
+替换地址和凭据，然后启动本机服务：
+
+```bash
+axonx start --config remote
+```
+
+内置 `remote` 继承 `default`，将上述目标地址和 token 加入 `targets`。在 Studio 设置本机 token，再选择远程机器。`AXONX_TARGET` 不会让省略 `--target` 的普通 CLI 命令自动改连远程；CLI 直连仍按上一节显式指定地址。
+
+### 多个目标：自定义配置
+
+使用自定义 YAML 维护多个目标或其他服务设置。下面使用 `research-cluster.yaml`：
 
 ```yaml
 extends: default
@@ -49,7 +69,7 @@ targets:
 ```bash
 export AXONX_SERVICE_TOKEN='<本机服务 token>'
 export AXONX_REMOTE_RESEARCH_TOKEN='<目标服务 token>'
-axonx start --config remote.yaml
+axonx start --config research-cluster.yaml
 ```
 
 重启后在 Studio 机器入口选择目标。远程 token 留在服务端配置，浏览器不需要直接保存它。

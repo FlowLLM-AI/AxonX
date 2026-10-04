@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="646" viewBox="0 0 1256 646" role="img" aria-labelledby="title desc">
+  <title id="title">Machine API: resolve the execution service</title>
+  <desc id="desc">target belongs to the HTTP envelope or CLI connection options, outside Job arguments.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
+    </marker>
+  </defs>
+  <rect x="8" y="8" width="1240.0" height="630.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
+      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Machine API: resolve the execution service</text>
+      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">target belongs to the HTTP envelope or CLI connection options, outside Job arguments.</text>
+      <rect x="40" y="132" width="350" height="144" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="164" font-size="23" font-weight="700" text-anchor="start">Direct CLI / client</text>
+      <text x="64.0" y="196" font-size="18" font-weight="400" text-anchor="start">Explicit service address</text>
+      <text x="64.0" y="223" font-size="18" font-weight="400" text-anchor="start">Target service credentials</text>
+      <rect x="40" y="320" width="350" height="144" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="352" font-size="23" font-weight="700" text-anchor="start">Studio browser</text>
+      <text x="64.0" y="384" font-size="18" font-weight="400" text-anchor="start">Same-origin local backend</text>
+      <text x="64.0" y="411" font-size="18" font-weight="400" text-anchor="start">Configured target name</text>
+      <rect x="510" y="226" width="250" height="144" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="534.0" y="258" font-size="23" font-weight="700" text-anchor="start">Selected service</text>
+      <text x="534.0" y="290" font-size="18" font-weight="400" text-anchor="start">Authenticate + dispatch</text>
+      <text x="534.0" y="317" font-size="18" font-weight="400" text-anchor="start">Own environment</text>
+      <path d="M 390 204 H 455 V 272 H 510" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 390 392 H 455 V 324 H 510" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="850" y="142" width="310" height="296" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="874.0" y="174" font-size="23" font-weight="700" text-anchor="start">Machine Jobs</text>
+      <text x="874.0" y="206" font-size="18" font-weight="400" text-anchor="start">version: package version</text>
+      <text x="874.0" y="233" font-size="18" font-weight="400" text-anchor="start">list_machines: target health</text>
+      <text x="874.0" y="260" font-size="18" font-weight="400" text-anchor="start">machine_status: resources</text>
+      <text x="874.0" y="287" font-size="18" font-weight="400" text-anchor="start">shell: service-machine command</text>
+      <path d="M 760 298 H 850" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="600.0" y="542" font-size="17" font-weight="400" text-anchor="middle">Selecting a target does not move data, plugins, or workers.</text>
+      <text x="600.0" y="568" font-size="17" font-weight="400" text-anchor="middle">Machine readings do not provide automatic placement or GPU scheduling.</text>
+    </g>
+    <path d="M 44 514 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+  </g>
+</svg>

@@ -1,13 +1,30 @@
 ---
-title: Claude Agent Configuration
+title: Built-in Agent Configuration
 description: Distinguish framework fields, Claude SDK options, session storage, and tool permissions.
 ---
 
-# Claude Agent Configuration
+# Built-in Agent Configuration
 
 The current built-in Agent backend is `claude`, implemented with the Claude Agent SDK. AxonX manages session identity, the Job tool bridge, and state directories; the SDK manages model calls and its own execution options.
 
 ![Configuration layers](../../figures/agent/configuration-layers.svg)
+
+## Enable the default built-in agent
+
+Complete the [quickstart](../getting-started/quickstart.md), then set the service token and model environment in `.env` in the startup directory:
+
+```dotenv
+AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
+CLAUDE_CODE_API_KEY=your-model-api-key
+CLAUDE_CODE_BASE_URL=https://api.anthropic.com
+CLAUDE_CODE_MODEL_NAME=your-model-name
+```
+
+Use your provider's credentials, Claude-compatible URL, and available model name. The CLI discovers `.env` in the current directory or its parents; existing environment variables take precedence. See [example.env](../../../example.env) for complete settings.
+
+Run `axonx start`, set the local service token in Studio, and open **Agent**. Restart an existing service after changing `.env`. The default configuration already enables the agent component, so a custom YAML file is optional. The following sections customize tools, guide loading, storage, and SDK options.
+
+External agents use their host's model environment; see [external agents](external.md).
 
 ## Basic configuration
 

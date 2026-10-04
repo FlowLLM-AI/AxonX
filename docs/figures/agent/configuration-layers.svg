@@ -1,28 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
-<title id="title">Agent Configuration and Permission Layers</title><desc id="desc">Framework fields, SDK options and project settings have different responsibilities.</desc>
-<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
-<rect width="1000" height="440" rx="20" fill="#f5f9ff" />
-<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#163450">
-<text text-anchor="middle" x="500" y="60" font-size="30" font-weight="700">Agent Configuration and Permission Layers</text>
-<text text-anchor="middle" x="500" y="102" font-size="19">Framework fields, SDK options and project settings have different responsibilities.</text>
-<rect x="50.0" y="160" width="198.75" height="168" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
-<text x="149.375" y="202" text-anchor="middle" font-size="22" font-weight="700">AxonX Fields</text>
-<text x="149.375" y="244" text-anchor="middle" font-size="18">backend / job_tools</text>
-<text x="149.375" y="274" text-anchor="middle" font-size="18">State / session store</text>
-<path stroke-linecap="round" stroke-linejoin="round" d="M 252.75 242 H 277.75" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
-<rect x="283.75" y="160" width="198.75" height="168" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
-<text x="383.125" y="202" text-anchor="middle" font-size="22" font-weight="700">SDK Options</text>
-<text x="383.125" y="244" text-anchor="middle" font-size="18">Model / env / cwd</text>
-<text x="383.125" y="274" text-anchor="middle" font-size="18">Permission mode</text>
-<path stroke-linecap="round" stroke-linejoin="round" d="M 486.5 242 H 511.5" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
-<rect x="517.5" y="160" width="198.75" height="168" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
-<text x="616.875" y="202" text-anchor="middle" font-size="22" font-weight="700">Project Settings</text>
-<text x="616.875" y="244" text-anchor="middle" font-size="18">setting_sources</text>
-<text x="616.875" y="274" text-anchor="middle" font-size="18">Skills / plugins</text>
-<path stroke-linecap="round" stroke-linejoin="round" d="M 720.25 242 H 745.25" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
-<rect x="751.25" y="160" width="198.75" height="168" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
-<text x="850.625" y="202" text-anchor="middle" font-size="22" font-weight="700">Session Runtime</text>
-<text x="850.625" y="244" text-anchor="middle" font-size="18">Managed UUID</text>
-<text x="850.625" y="274" text-anchor="middle" font-size="18">Depth / event stream</text>
-<text x="50" y="386" font-size="19"><tspan x="50" dy="0">Default: bypassPermissions. Query-only Job tools do not make the entire Agent read-only.</tspan></text>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="646" viewBox="0 0 1256 646" role="img" aria-labelledby="title desc">
+  <title id="title">Built-in Agent configuration: distinct responsibilities</title>
+  <desc id="desc">Framework fields, SDK options, and project settings jointly shape the runtime.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
+    </marker>
+  </defs>
+  <rect x="8" y="8" width="1240.0" height="630.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
+      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Built-in Agent configuration: distinct responsibilities</text>
+      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Framework fields, SDK options, and project settings jointly shape the runtime.</text>
+      <rect x="40" y="136" width="350" height="170" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="168" font-size="23" font-weight="700" text-anchor="start">AxonX configuration</text>
+      <text x="64.0" y="200" font-size="18" font-weight="400" text-anchor="start">backend / job_tools</text>
+      <text x="64.0" y="227" font-size="18" font-weight="400" text-anchor="start">load_dev_guide / language</text>
+      <text x="64.0" y="254" font-size="18" font-weight="400" text-anchor="start">State and session store</text>
+      <rect x="425" y="136" width="350" height="170" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="449.0" y="168" font-size="23" font-weight="700" text-anchor="start">SDK options</text>
+      <text x="449.0" y="200" font-size="18" font-weight="400" text-anchor="start">Model / env / cwd</text>
+      <text x="449.0" y="227" font-size="18" font-weight="400" text-anchor="start">Tool and permission settings</text>
+      <text x="449.0" y="254" font-size="18" font-weight="400" text-anchor="start">Default: bypassPermissions</text>
+      <rect x="810" y="136" width="350" height="170" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="834.0" y="168" font-size="23" font-weight="700" text-anchor="start">Project settings</text>
+      <text x="834.0" y="200" font-size="18" font-weight="400" text-anchor="start">setting_sources: [project]</text>
+      <text x="834.0" y="227" font-size="18" font-weight="400" text-anchor="start">Project instructions</text>
+      <text x="834.0" y="254" font-size="18" font-weight="400" text-anchor="start">Optional skills / plugins</text>
+      <path d="M 215 306 V 362" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 600 306 V 362" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 985 306 V 362" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="40" y="364" width="1120" height="112" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.6" stroke-linecap="round" />
+      <text x="64.0" y="396" font-size="23" font-weight="700" text-anchor="start">Framework-managed session runtime</text>
+      <text x="64.0" y="428" font-size="18" font-weight="400" text-anchor="start">Session UUID · Turn lock · Resume · Call depth · Event stream</text>
+      <text x="600.0" y="542" font-size="17" font-weight="400" text-anchor="middle">Guide loading and Job tool exposure are independent settings.</text>
+      <text x="600.0" y="568" font-size="17" font-weight="400" text-anchor="middle">Query-only Job tools do not make the entire SDK session read-only.</text>
+    </g>
+    <path d="M 44 514 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+  </g>
+</svg>

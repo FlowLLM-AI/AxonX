@@ -14,14 +14,14 @@
 
 ## 选择修改位置
 
-| 位置                                    | 职责                                                      |
-| --------------------------------------- | --------------------------------------------------------- |
-| `axonx/`                                | Application 组装、Component、Job、CLI、服务与 Task 运行时 |
-| `plugins/`                              | 研究 Task、算法、插件 manifest 与插件测试                 |
-| `axonx_studio/`                         | 浏览器 UI、API 客户端、任务表单与研究图表                 |
-| `tests/`                                | 框架单元测试与集成测试                                    |
-| `docs/en/`、`docs/zh/`、`docs/figures/` | 双语指南与共享截图、示意图                                |
-| `docs/.vitepress/`、`github-pages/`     | 文档主题与站点构建工具                                    |
+| 位置                                              | 职责                                                      |
+| ------------------------------------------------- | --------------------------------------------------------- |
+| `axonx/`                                          | Application 组装、Component、Job、CLI、服务与 Task 运行时 |
+| `plugins/`                                        | 研究 Task、算法、插件 manifest 与插件测试                 |
+| `axonx_studio/`                                   | 浏览器 UI、API 客户端、任务表单与研究图表                 |
+| `tests/`                                          | 框架单元测试与集成测试                                    |
+| `docs/en/`、`docs/zh/`、`docs/figures/`           | 双语指南与共享截图、示意图                                |
+| `docs/.vitepress/navigation.mjs`、`github-pages/` | 文档导航、主题与站点构建工具                              |
 
 实现契约见 [Task 开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide)、[框架扩展](https://flowllm-ai.github.io/AxonX/zh/development/framework-extensions)和[插件协议](https://flowllm-ai.github.io/AxonX/zh/reference/plugin-manifest)。
 

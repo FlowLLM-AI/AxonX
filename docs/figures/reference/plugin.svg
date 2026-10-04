@@ -1,27 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="310" viewBox="0 0 1000 310" role="img" aria-label="From a Python package to runtime contributions">
+<svg xmlns="http://www.w3.org/2000/svg" width="1056" height="373" viewBox="0 0 1056 373" role="img" aria-labelledby="title desc" aria-label="From a Python package to runtime contributions">
+  <title id="title">From a Python package to runtime contributions</title>
+  <desc id="desc">Discover distribution entry points and plugin.yaml, then assemble runtime contributions.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
       <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
     </marker>
   </defs>
-  <rect width="1000" height="310" rx="20" fill="#f4f8fc" />
-  <g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#173653">
-    <text x="500.0" y="52" font-size="28" font-weight="700" text-anchor="middle">From a Python package to runtime contributions</text>
-    <rect x="50.0" y="100" width="198.75" height="110" rx="14" fill="#e4edfc" stroke="#88b2cc" />
-    <text x="149.375" y="137" text-anchor="middle" font-size="20">Distribution</text>
-    <text x="149.375" y="169" text-anchor="middle" font-size="20">Wheel metadata</text>
-    <path d="M252.75 155H278.75" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" fill="none" stroke-linejoin="round" />
-    <rect x="283.75" y="100" width="198.75" height="110" rx="14" fill="#e2f3f0" stroke="#88b2cc" />
-    <text x="383.125" y="137" text-anchor="middle" font-size="20">Entry point</text>
-    <text x="383.125" y="169" text-anchor="middle" font-size="20">Plugin package</text>
-    <path d="M486.5 155H512.5" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" fill="none" stroke-linejoin="round" />
-    <rect x="517.5" y="100" width="198.75" height="110" rx="14" fill="#e4edfc" stroke="#88b2cc" />
-    <text x="616.875" y="137" text-anchor="middle" font-size="20">plugin.yaml</text>
-    <text x="616.875" y="169" text-anchor="middle" font-size="20">Declarations</text>
-    <path d="M720.25 155H746.25" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" fill="none" stroke-linejoin="round" />
-    <rect x="751.25" y="100" width="198.75" height="110" rx="14" fill="#e2f3f0" stroke="#88b2cc" />
-    <text x="850.625" y="137" text-anchor="middle" font-size="20">Task / Job</text>
-    <text x="850.625" y="169" text-anchor="middle" font-size="20">Runtime assembly</text>
-    <text x="50" y="253" font-size="19">After environment changes, restart when required and check the live catalog.</text>
+  <rect x="8" y="8" width="1040.0" height="357.0" rx="30" fill="#f4f8fc" stroke="#173653" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#173653">
+      <text x="44" y="52" font-size="32" font-weight="700" text-anchor="start">From a Python package to runtime contributions</text>
+      <rect x="50.0" y="100" width="198.75" height="110" rx="20" fill="#e4edfc" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="149.375" y="137" text-anchor="middle" font-size="20">Distribution</text>
+      <text x="149.375" y="169" text-anchor="middle" font-size="20">Wheel metadata</text>
+      <path d="M252.75 155H278.75" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" fill="none" stroke-linejoin="round" />
+      <rect x="283.75" y="100" width="198.75" height="110" rx="20" fill="#e2f3f0" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="383.125" y="137" text-anchor="middle" font-size="20">Entry point</text>
+      <text x="383.125" y="169" text-anchor="middle" font-size="20">Plugin package</text>
+      <path d="M486.5 155H512.5" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" fill="none" stroke-linejoin="round" />
+      <rect x="517.5" y="100" width="198.75" height="110" rx="20" fill="#e4edfc" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="616.875" y="137" text-anchor="middle" font-size="20">plugin.yaml</text>
+      <text x="616.875" y="169" text-anchor="middle" font-size="20">Declarations</text>
+      <path d="M720.25 155H746.25" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" fill="none" stroke-linejoin="round" />
+      <rect x="751.25" y="100" width="198.75" height="110" rx="20" fill="#e2f3f0" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="850.625" y="137" text-anchor="middle" font-size="20">Task / Job</text>
+      <text x="850.625" y="169" text-anchor="middle" font-size="20">Runtime assembly</text>
+      <text x="500.0" y="260.0" font-size="19" text-anchor="middle">After environment changes, restart when required and check the live catalog.</text>
+    </g>
+    <path d="M 44 232 H 956" fill="none" stroke="#173653" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
   </g>
 </svg>

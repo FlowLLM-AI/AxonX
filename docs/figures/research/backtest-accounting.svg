@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1056" height="512" viewBox="0 0 1056 512" role="img" aria-labelledby="title desc">
   <title id="title">a158: Signals and Exit Accounting</title>
   <desc id="desc">Daily-bar execution proxy; unfilled targets stay in cash and delayed exits lock capital.</desc>
   <defs>
@@ -6,40 +6,43 @@
       <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
     </marker>
   </defs>
-  <rect width="1000" height="440" rx="20" fill="#f5f9ff" />
-  <g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#163450">
-    <text x="500" y="60" font-size="30" font-weight="700" text-anchor="middle">a158: Signals and Exit Accounting</text>
-    <text x="500" y="102" font-size="19" text-anchor="middle">Daily-bar execution proxy; unfilled targets stay in cash and delayed exits lock capital.</text>
-    <rect x="50.0" y="160" width="198.75" height="192" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
-    <text x="149.375" y="202" text-anchor="middle" font-size="22" font-weight="700">Signal Day</text>
-    <text x="149.375" y="240" text-anchor="middle" font-size="18">Score rank / Top N</text>
-    <text x="149.375" y="300" text-anchor="middle" font-size="18">Top 30 target list</text>
-    <path d="M 252.75 256 H 277.75" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-    <rect x="283.75" y="160" width="198.75" height="192" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
-    <text x="383.125" y="202" text-anchor="middle" font-size="22" font-weight="700">Entry Proxy</text>
-    <text x="383.125" y="240" text-anchor="middle" font-size="18">Close / buyability</text>
-    <text x="383.125" y="300" text-anchor="middle" font-size="18">
-      <tspan x="383.125" dy="0">Cash and open</tspan>
-      <tspan x="383.125" dy="28">positions</tspan>
-    </text>
-    <path d="M 486.5 256 H 511.5" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-    <rect x="517.5" y="160" width="198.75" height="192" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
-    <text x="616.875" y="202" text-anchor="middle" font-size="22" font-weight="700">Hold / Exit</text>
-    <text x="616.875" y="240" text-anchor="middle" font-size="18">T+1 / sellable exit</text>
-    <text x="616.875" y="300" text-anchor="middle" font-size="18">
-      <tspan x="616.875" dy="0">Open positions at</tspan>
-      <tspan x="616.875" dy="28">cost</tspan>
-    </text>
-    <path d="M 720.25 256 H 745.25" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-    <rect x="751.25" y="160" width="198.75" height="192" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
-    <text x="850.625" y="202" text-anchor="middle" font-size="22" font-weight="700">Daily Returns</text>
-    <text x="850.625" y="240" text-anchor="middle" font-size="18">
-      <tspan x="850.625" dy="0">Realized profit /</tspan>
-      <tspan x="850.625" dy="28">equity</tspan>
-    </text>
-    <text x="850.625" y="300" text-anchor="middle" font-size="18">Less turnover costs</text>
-    <text x="50" y="386" font-size="19">
-      <tspan x="50" dy="0">Top 30 lists signal targets. Portfolio returns are booked on actual exit dates.</tspan>
-    </text>
+  <rect x="8" y="8" width="1040.0" height="496.0" rx="30" fill="#f5f9ff" stroke="#163450" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#163450">
+      <text x="44" y="60" font-size="32" font-weight="700" text-anchor="start">a158: Signals and Exit Accounting</text>
+      <text x="44" y="102" font-size="18" text-anchor="start" fill="#163450">Daily-bar execution proxy; unfilled targets stay in cash and delayed exits lock capital.</text>
+      <rect x="50.0" y="160" width="198.75" height="192" rx="20" fill="#e4f0ff" stroke="#74a5d5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="149.375" y="202" text-anchor="middle" font-size="23" font-weight="700">Signal Day</text>
+      <text x="149.375" y="240" text-anchor="middle" font-size="18">Score rank / Top N</text>
+      <text x="149.375" y="300" text-anchor="middle" font-size="18">Top 30 target list</text>
+      <path d="M 252.75 256 H 277.75" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="283.75" y="160" width="198.75" height="192" rx="20" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="383.125" y="202" text-anchor="middle" font-size="23" font-weight="700">Entry Proxy</text>
+      <text x="383.125" y="240" text-anchor="middle" font-size="18">Close / buyability</text>
+      <text x="383.125" y="300" text-anchor="middle" font-size="18">
+        <tspan x="383.125" dy="0">Cash and open</tspan>
+        <tspan x="383.125" dy="28">positions</tspan>
+      </text>
+      <path d="M 486.5 256 H 511.5" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="517.5" y="160" width="198.75" height="192" rx="20" fill="#e4f0ff" stroke="#74a5d5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="616.875" y="202" text-anchor="middle" font-size="23" font-weight="700">Hold / Exit</text>
+      <text x="616.875" y="240" text-anchor="middle" font-size="18">T+1 / sellable exit</text>
+      <text x="616.875" y="300" text-anchor="middle" font-size="18">
+        <tspan x="616.875" dy="0">Open positions at</tspan>
+        <tspan x="616.875" dy="28">cost</tspan>
+      </text>
+      <path d="M 720.25 256 H 745.25" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="751.25" y="160" width="198.75" height="192" rx="20" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="850.625" y="202" text-anchor="middle" font-size="23" font-weight="700">Daily Returns</text>
+      <text x="850.625" y="240" text-anchor="middle" font-size="18">
+        <tspan x="850.625" dy="0">Realized profit /</tspan>
+        <tspan x="850.625" dy="28">equity</tspan>
+      </text>
+      <text x="850.625" y="300" text-anchor="middle" font-size="18">Less turnover costs</text>
+      <text x="50" y="402.0" font-size="19">
+        <tspan x="50" dy="0">Top 30 lists signal targets. Portfolio returns are booked on actual exit dates.</tspan>
+      </text>
+    </g>
+    <path d="M 44 374 H 956" fill="none" stroke="#163450" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
   </g>
 </svg>

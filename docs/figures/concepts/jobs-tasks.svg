@@ -1,29 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="600" viewBox="0 0 1040 600" role="img" aria-labelledby="title desc">
-<title id="title">Job response vs Task completion</title><desc id="desc">The submit Job returns before the background Task has finished.</desc>
-<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
-<rect width="1040" height="600" rx="20" fill="#f8fafc" />
-<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#143252">
-<text text-anchor="middle" x="520" y="55" font-size="30" font-weight="700">Job response vs Task completion</text>
-<path stroke-linecap="round" stroke-linejoin="round" d="M 315 193 L 375 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
-<path stroke-linecap="round" stroke-linejoin="round" d="M 660 193 L 720 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
-<path stroke-linecap="round" stroke-linejoin="round" d="M 175.0 274 L 175.0 315 L 175.0 315 L 175.0 332" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
-<path stroke-linecap="round" stroke-linejoin="round" d="M 315 393 L 375 393" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
-<path stroke-linecap="round" stroke-linejoin="round" d="M 660 393 L 720 393" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
-<rect x="40" y="140" width="270" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
-<text x="175.0" y="177" text-anchor="middle" font-size="23" font-weight="600">Invoke submit</text>
-<text x="175.0" y="214" text-anchor="middle" font-size="18">Task name and typed input</text>
-<rect x="385" y="140" width="270" height="132" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
-<text x="520.0" y="177" text-anchor="middle" font-size="23" font-weight="600">Receive TaskHandle</text>
-<text x="520.0" y="214" text-anchor="middle" font-size="18">task_id + run_id</text>
-<rect x="730" y="140" width="270" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
-<text x="865.0" y="177" text-anchor="middle" font-size="23" font-weight="600">Save run identity</text>
-<text x="865.0" y="214" text-anchor="middle" font-size="18">Query or wait later</text>
-<rect x="40" y="340" width="270" height="160" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
-<text x="175.0" y="377" text-anchor="middle" font-size="23" font-weight="600">Background worker</text>
-<text x="175.0" y="414" text-anchor="middle" font-size="18">Execute synchronous steps</text>
-<rect x="385" y="340" width="270" height="160" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
-<text x="520.0" y="377" text-anchor="middle" font-size="23" font-weight="600">Write metadata</text>
-<rect x="730" y="340" width="270" height="160" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
-<text x="865.0" y="446" text-anchor="middle" font-size="18">succeeded / failed</text>
-<text x="44" y="548" font-size="19" fill="#52677e">Submission success confirms acceptance. wait_task confirms the final Task outcome.</text>
-<text text-anchor="middle" x="520" y="92.0" font-size="19" fill="#52677e">The submit Job returns before the background Task has finished.</text><text x="520.0" y="414" text-anchor="middle" font-size="18">Successful output and</text><text x="520.0" y="444" text-anchor="middle" font-size="18">artifacts</text><text x="865.0" y="374" text-anchor="middle" font-size="21" font-weight="600">Publish terminal</text><text x="865.0" y="411" text-anchor="middle" font-size="21" font-weight="600">status</text></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="706" viewBox="0 0 1256 706" role="img" aria-labelledby="title desc">
+  <title id="title">Job acceptance and background Task completion</title>
+  <desc id="desc">A successful submit response is an execution handle, not the final research outcome.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
+    </marker>
+  </defs>
+  <rect x="8" y="8" width="1240.0" height="690.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
+      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Job acceptance and background Task completion</text>
+      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">A successful submit response is an execution handle, not the final research outcome.</text>
+      <rect x="40" y="146" width="250" height="140" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="178" font-size="23" font-weight="700" text-anchor="start">submit Job</text>
+      <text x="64.0" y="210" font-size="18" font-weight="400" text-anchor="start">Task definition + input</text>
+      <text x="64.0" y="237" font-size="18" font-weight="400" text-anchor="start">Validate and accept</text>
+      <rect x="420" y="126" width="300" height="140" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="444.0" y="158" font-size="23" font-weight="700" text-anchor="start">Return TaskHandle</text>
+      <text x="444.0" y="190" font-size="18" font-weight="400" text-anchor="start">task_id + run_id</text>
+      <text x="444.0" y="217" font-size="18" font-weight="400" text-anchor="start">Client preserves identity</text>
+      <rect x="850" y="126" width="310" height="140" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="874.0" y="158" font-size="23" font-weight="700" text-anchor="start">wait_task / status</text>
+      <text x="874.0" y="190" font-size="18" font-weight="400" text-anchor="start">Observe this execution</text>
+      <text x="874.0" y="217" font-size="18" font-weight="400" text-anchor="start">Check terminal state</text>
+      <path d="M 290 196 H 420" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 720 196 H 850" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="420" y="368" width="300" height="140" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="444.0" y="400" font-size="23" font-weight="700" text-anchor="start">Background worker</text>
+      <text x="444.0" y="432" font-size="18" font-weight="400" text-anchor="start">Synchronous Task steps</text>
+      <text x="444.0" y="459" font-size="18" font-weight="400" text-anchor="start">Progress / logs / artifacts</text>
+      <rect x="850" y="368" width="310" height="140" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="874.0" y="400" font-size="23" font-weight="700" text-anchor="start">Publish final state</text>
+      <text x="874.0" y="432" font-size="18" font-weight="400" text-anchor="start">succeeded / failed / cancelled</text>
+      <text x="874.0" y="459" font-size="18" font-weight="400" text-anchor="start">Metadata only on success</text>
+      <path d="M 290 246 H 350 V 438 H 420" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 720 438 H 850" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 1005 368 V 266" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="600.0" y="602" font-size="17" font-weight="400" text-anchor="middle">The Job response and worker execution proceed independently after acceptance.</text>
+      <text x="600.0" y="628" font-size="17" font-weight="400" text-anchor="middle">Verify success and declared artifacts before using the result in downstream research.</text>
+    </g>
+    <path d="M 44 574 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+  </g>
+</svg>

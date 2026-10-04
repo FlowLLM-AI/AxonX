@@ -2,7 +2,7 @@
 
 Query versions, the health of configured targets, and machine resources, or execute commands on the selected service machine. target belongs to the HTTP request envelope or CLI connection options, rather than these Jobs' business fields.
 
-![Machine API call flow](../../figures/api/protocol.svg)
+![Machine API call flow](../../figures/api/machine-target.svg)
 
 ## Calling conventions
 

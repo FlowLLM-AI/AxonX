@@ -4,7 +4,7 @@ AxonX Studio is a workbench for tasks and research. It reads Job and Task defini
 
 ![Studio navigation](../../figures/getting-started/studio-map.svg)
 
-The screenshots on this page use the English interface; the source text is in Chinese. Screenshots show actual pages, and the visible task and plugin counts depend on the current machine. Task identifiers, private paths, remote addresses, and browser tabs from real experiments are excluded from documentation images; `docs-demo` and `docs-child` in task-operation screenshots are built-in demos created specifically for the documentation.
+The screenshots on this page use the English interface; the documentation is available in English and Chinese. Screenshots show actual pages, and the visible task and plugin counts depend on the current machine. Task identifiers, private paths, remote addresses, and browser tabs from real experiments are excluded from documentation images; `docs-demo` and `docs-child` in task-operation screenshots are built-in demos created specifically for the documentation.
 
 ## Open Studio
 

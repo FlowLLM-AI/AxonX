@@ -1,35 +1,54 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="600" viewBox="0 0 1040 600" role="img" aria-labelledby="title desc">
-<title id="title">Research lineage and explicit execution</title><desc id="desc">Edges represent source_tasks references; each stage must be submitted explicitly. A separate legend explains provisional and missing record flags.</desc>
-<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
-<rect width="1040" height="600" rx="20" fill="#f8fafc" />
-<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#143252">
-<text text-anchor="middle" x="520" y="55" font-size="30" font-weight="700">Research lineage and explicit execution</text>
-<path stroke-linecap="round" stroke-linejoin="round" d="M 255 193 L 285 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
-<path stroke-linecap="round" stroke-linejoin="round" d="M 510 193 L 540 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
-<path stroke-linecap="round" stroke-linejoin="round" d="M 765 193 L 795 193" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
-<path stroke-linecap="round" stroke-linejoin="round" d="M 145.0 274 L 145.0 315 L 145.0 315 L 145.0 332" stroke="#247baf" stroke-width="1.45" fill="none" marker-end="url(#arrow)" />
-<rect x="40" y="140" width="210" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
-<text x="145.0" y="177" text-anchor="middle" font-size="23" font-weight="600">ETL</text>
-<text x="145.0" y="214" text-anchor="middle" font-size="18">Prepare data</text>
-<rect x="295" y="140" width="210" height="132" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
-<text x="400.0" y="177" text-anchor="middle" font-size="23" font-weight="600">Train</text>
-<text x="400.0" y="214" text-anchor="middle" font-size="18">Fit a model</text>
-<rect x="550" y="140" width="210" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
-<text x="655.0" y="177" text-anchor="middle" font-size="23" font-weight="600">Predict</text>
-<text x="655.0" y="214" text-anchor="middle" font-size="18">Generate scores</text>
-<rect x="805" y="140" width="195" height="132" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
-<text x="902.5" y="177" text-anchor="middle" font-size="23" font-weight="600">Backtest</text>
-<text x="902.5" y="214" text-anchor="middle" font-size="18">Evaluate strategy</text>
-<rect x="40" y="340" width="210" height="160" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
-<text x="145.0" y="377" text-anchor="middle" font-size="23" font-weight="600">Analysis</text>
-<g role="group" aria-label="Record flags legend">
-<rect x="295" y="340" width="705" height="160" rx="12" fill="#f8fafc" stroke="#739bcc" stroke-width="1.5" stroke-dasharray="6 5" />
-<text x="319" y="374" font-size="20" font-weight="700">Record flags (not workflow stages)</text>
-<path d="M 319 391 H 976" fill="none" stroke="#739bcc" stroke-width="1" />
-<text x="319" y="425" font-size="18" font-weight="700">provisional</text>
-<text x="490" y="425" font-size="17" fill="#52677e">Status exists; no final metadata.</text>
-<text x="319" y="466" font-size="18" font-weight="700">missing</text>
-<text x="490" y="466" font-size="17" fill="#52677e">Referenced Task has no valid record here.</text>
-</g>
-<text x="44" y="548" font-size="19" fill="#52677e">The graph queries recorded relationships. It does not execute a DAG or create upstream data.</text>
-<text text-anchor="middle" x="520" y="92.0" font-size="19" fill="#52677e">Edges represent source_tasks references; each stage must be submitted explicitly.</text><text x="145.0" y="414" text-anchor="middle" font-size="18">Inspect factor</text><text x="145.0" y="444" text-anchor="middle" font-size="18">quality</text></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="646" viewBox="0 0 1256 646" role="img" aria-labelledby="title desc">
+  <title id="title">Task lineage: recorded source_tasks references</title>
+  <desc id="desc">ETL → Train → Predict → Backtest, with independent factor analysis from ETL.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
+    </marker>
+  </defs>
+  <rect x="8" y="8" width="1240.0" height="630.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
+      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Task lineage: recorded source_tasks references</text>
+      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">ETL → Train → Predict → Backtest, with independent factor analysis from ETL.</text>
+      <rect x="40" y="150" width="192" height="160" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="136" y="182" font-size="23" font-weight="700" text-anchor="middle">Market data</text>
+      <text x="136" y="214" font-size="18" font-weight="400" text-anchor="middle">
+        <tspan x="136" dy="0">Quotes /</tspan>
+        <tspan x="136" dy="25">adjustments</tspan>
+      </text>
+      <text x="136" y="270" font-size="17" font-weight="400" text-anchor="middle">Prepared separately</text>
+      <rect x="272" y="150" width="192" height="160" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="368" y="182" font-size="23" font-weight="700" text-anchor="middle">ETL</text>
+      <text x="368" y="214" font-size="18" font-weight="400" text-anchor="middle">Features / labels</text>
+      <text x="368" y="241" font-size="18" font-weight="400" text-anchor="middle">Trading flags</text>
+      <rect x="504" y="150" width="192" height="160" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="600" y="182" font-size="23" font-weight="700" text-anchor="middle">Train</text>
+      <text x="600" y="214" font-size="17" font-weight="400" text-anchor="middle">Temporal validation</text>
+      <text x="600" y="241" font-size="18" font-weight="400" text-anchor="middle">Saved model</text>
+      <rect x="736" y="150" width="192" height="160" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="832" y="182" font-size="23" font-weight="700" text-anchor="middle">Predict</text>
+      <text x="832" y="214" font-size="18" font-weight="400" text-anchor="middle">Out-of-sample</text>
+      <text x="832" y="241" font-size="18" font-weight="400" text-anchor="middle">Scores</text>
+      <rect x="968" y="150" width="192" height="160" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="1064" y="182" font-size="23" font-weight="700" text-anchor="middle">Backtest</text>
+      <text x="1064" y="214" font-size="18" font-weight="400" text-anchor="middle">Costs / fills</text>
+      <text x="1064" y="241" font-size="18" font-weight="400" text-anchor="middle">Returns / holdings</text>
+      <path d="M 232 230 H 272" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 464 230 H 504" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 696 230 H 736" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 928 230 H 968" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 368 310 V 370" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="276" y="370" width="260" height="110" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="300.0" y="402.0" font-size="23" font-weight="700" text-anchor="start">Factor analysis</text>
+      <text x="300.0" y="434.0" font-size="18" font-weight="400" text-anchor="start">ETL diagnostics</text>
+      <rect x="608" y="370" width="552" height="110" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="632.0" y="402.0" font-size="23" font-weight="700" text-anchor="start">Record flags, separate from research stages</text>
+      <text x="632.0" y="434.0" font-size="18" font-weight="400" text-anchor="start">provisional: status without final metadata</text>
+      <text x="632.0" y="461.0" font-size="18" font-weight="400" text-anchor="start">missing: referenced record unavailable</text>
+      <text x="600.0" y="542" font-size="17" font-weight="400" text-anchor="middle">Submit each stage explicitly and wait for success; factor analysis is optional for training.</text>
+      <text x="600.0" y="568" font-size="17" font-weight="400" text-anchor="middle">Solid: prepared data input. Dashed: source_tasks references. No automatic DAG execution.</text>
+    </g>
+    <path d="M 44 514 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+  </g>
+</svg>

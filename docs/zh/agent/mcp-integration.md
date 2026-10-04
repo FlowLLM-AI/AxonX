@@ -7,7 +7,9 @@ description: 通过 AxonX 服务 MCP 查询任务与工作区，并区分内置�
 
 AxonX HTTP 服务在 `/mcp` 提供 Streamable HTTP MCP，将公开 Job 映射为工具。外部 Agent 可以发现并调用实际服务目录中的工具，以任务状态、日志、血缘和文件构建研究证据。
 
-![三个接入面](../../figures/agent/mcp-surfaces.svg)
+MCP 是[外部 Agent](external.md)的一种接入方式。宿主可同时使用 [AxonX Skill](../../../skills/axonx/SKILL.md)提供研究操作说明；通过 CLI 操作服务时不必配置 MCP。内置会话使用另一条组件桥接路径，见[接入总览](overview.md)。
+
+![相互独立的 Agent 接入路径](../../figures/agent/mcp-surfaces.svg)
 
 ## 连接信息
 

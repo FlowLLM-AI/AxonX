@@ -628,6 +628,12 @@
   font-size: 14px;
   max-width: 460px;
 }
+.case-study {
+  padding-block: 0 72px;
+}
+.case-study .actions {
+  align-items: center;
+}
 .closing {
   display: flex;
   justify-content: space-between;
@@ -885,4 +891,17 @@
 .preference-trigger:hover,
 .preference-trigger[aria-expanded="true"] {
   color: var(--vp-c-brand-1);
+}
+
+/* Six navigation areas need more room than VitePress's default breakpoint. */
+@media (max-width: 1100px) {
+  .Layout .VPNavBarMenu {
+    display: none;
+  }
+  .Layout .VPNavBarHamburger {
+    display: flex;
+  }
+  .Layout .VPNavScreen {
+    display: block;
+  }
 }

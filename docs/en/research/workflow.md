@@ -5,7 +5,7 @@ description: Connect data, factor analysis, training, prediction, and backtestin
 
 # Quantitative Research Workflow
 
-AxonX provides research task execution, records, artifacts, and Studio visualization. This page uses `plugins/a158/` in the repository as a concrete algorithm implementation, building a complete path from Tushare data to backtest results. `a158_enhanced` is a separate plugin; its parameters and strategies cannot be applied directly to this example.
+AxonX provides research task execution, records, artifacts, and Studio visualization. This page uses `plugins/a158/` in the repository as a concrete algorithm implementation, building a complete path from Tushare data to backtest results. The enhanced `a158_enhanced` plugin uses separate `a158e_*` registration names and adds training feature-group parameters. Both share research stages and basic artifact structures, but cross-plugin upstream reuse still requires checking Task definitions, feature order, and protocols. See the [enhanced plugin](../../../plugins/a158_enhanced/README.md) for usage.
 
 ![From data to research evidence](../../figures/research/workflow.svg)
 
@@ -91,6 +91,10 @@ See [interpreting results](results.md) for actual UI examples by stage. ETL, fac
 Open ETL, factor, training, prediction, and backtest pages in order and select the corresponding tasks. Research lists read `metadata.json` from successful tasks. Use the task page for status and logs of running tasks.
 
 The recommended reading order is ETL dates, rows, and feature columns; training validation details; prediction coverage; then backtest protocols, costs, and returns. See [strategy comparison](strategy-comparison.md) for comparisons between strategies.
+
+## From executing a chain to designing an experiment
+
+A completed execution provides parameters and artifacts. Evaluating improvements also requires controls, ablations, screening, and independent confirmation. Plan comparisons with [experiment design and confirmation](experiments.md), then inspect common windows with [strategy comparison](strategy-comparison.md). See [Alpha158 Enhanced](../../../plugins/a158_enhanced/README.md) for the agent-developed feature case and reproduction guide.
 
 ## Using the repository script
 

@@ -1,11 +1,13 @@
 ---
-title: Agent Usage
+title: Built-in Agent Usage
 description: Use sessions in Studio to query tasks, logs, lineage, and research artifacts.
 ---
 
-# Agent Usage
+# Built-in Agent Usage
 
 AxonX Agent connects workspace query tools to the Claude backend, using sessions to troubleshoot tasks and analyze research results. Default Job tools mainly read tasks, logs, relationships, and files; model conclusions must still be grounded in actual tool results.
+
+This page covers built-in Studio sessions. For external hosts such as Codex or Claude Code, see [external agents](external.md); see the [integration overview](overview.md) for prerequisites of each path.
 
 ![Agent evidence loop](../../figures/agent/evidence-loop.svg)
 

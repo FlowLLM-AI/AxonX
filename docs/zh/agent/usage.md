@@ -1,11 +1,13 @@
 ---
-title: Agent 使用
+title: 内置 Agent 使用
 description: 在 Studio 中通过会话查询任务、日志、血缘和研究产物。
 ---
 
-# Agent 使用
+# 内置 Agent 使用
 
 AxonX Agent 将工作区查询工具接入 Claude 后端，用会话完成任务排障和研究结果分析。默认 Job 工具主要用于读取任务、日志、关系和文件；模型结论仍应以真实工具结果为依据。
+
+本页介绍 Studio 中的内置会话。使用 Codex、Claude Code 等外部宿主时，见[外部 Agent](external.md)；两种路径的前置条件见[接入总览](overview.md)。
 
 ![Agent 证据闭环](../../figures/agent/evidence-loop.svg)
 

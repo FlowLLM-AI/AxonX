@@ -147,6 +147,10 @@ def write_svg(path: Path) -> None:
 {stops}
     </linearGradient>
   </defs>
+  <rect x="40" y="40" width="944" height="944" rx="58" fill="none"
+        stroke="url(#flow-gradient)" stroke-width="4" stroke-linecap="round"/>
+  <rect x="68" y="68" width="888" height="888" rx="40" fill="none"
+        stroke="url(#flow-gradient)" stroke-width="3" stroke-dasharray="14 12" stroke-linecap="round"/>
   <g fill="none" stroke="url(#flow-gradient)"
      stroke-width="{STROKE_WIDTH}" stroke-linecap="round"
      stroke-linejoin="round">

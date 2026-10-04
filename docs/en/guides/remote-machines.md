@@ -34,7 +34,27 @@ Continue selecting the same target when waiting, checking status, and reading lo
 
 Studio requests its own same-origin backend, and the browser stores the local service token. The backend selects preconfigured remote credentials based on the request's target.
 
-Example local configuration `remote.yaml`:
+### One target: built-in remote configuration
+
+Set these values in `.env` in the local startup directory:
+
+```dotenv
+AXONX_SERVICE_TOKEN=your-local-service-token
+AXONX_TARGET=192.0.2.10:1024
+AXONX_TARGET_TOKEN=your-target-service-token
+```
+
+Replace the address and credentials, then start the local service:
+
+```bash
+axonx start --config remote
+```
+
+The built-in `remote` configuration extends `default` and adds the target address and token to `targets`. Set the local token in Studio, then select the remote machine. `AXONX_TARGET` does not redirect ordinary CLI commands that omit `--target`; direct CLI access still requires the explicit address as shown above.
+
+### Multiple targets: custom configuration
+
+Use custom YAML for multiple targets or other service settings. This example uses `research-cluster.yaml`:
 
 ```yaml
 extends: default
@@ -49,7 +69,7 @@ targets:
 ```bash
 export AXONX_SERVICE_TOKEN='<local service token>'
 export AXONX_REMOTE_RESEARCH_TOKEN='<target service token>'
-axonx start --config remote.yaml
+axonx start --config research-cluster.yaml
 ```
 
 After restarting, select the target in Studio's machine entry. The remote token remains in server configuration; the browser does not need to store it directly.

@@ -139,7 +139,7 @@ After starting with the defaults, open `http://127.0.0.1:1024/`, go to **Setting
 
 [Getting started with Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio)
 
-## 5min Demo
+## Quick demo
 
 Use the [a158 plugin](plugins/a158/README.md) to try plugin management, service queries, and quantitative research
 tasks. Market-data downloads require `AXONX_TUSHARE_TOKEN` in `.env`; see [example.env](example.env).
@@ -246,7 +246,7 @@ downstream stage of ETL.
 | Prediction      | Out-of-sample predictions and statistics.                  |
 | Backtesting     | TopN backtests, period summaries, and holdings artifacts.  |
 
-For usage examples, see the [5min Demo](#5min-demo) above; for complete parameters and data requirements, see
+For usage examples, see the [Quick demo](#quick-demo) above; for complete parameters and data requirements, see
 the [plugin documentation](plugins/a158/README.md). To extend your own research methods, inspect, build, and install
 plugins from source. Relevant commands appear under [CLI commands](#axonx-cli-commands-and-remote-execution) below; for
 development and deployment, see [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
@@ -395,17 +395,17 @@ the [remote machines guide](https://flowllm-ai.github.io/AxonX/en/guides/remote-
 
 ## AxonX documentation
 
-| Topic                             | GitHub Pages documentation                                                                                                                                                                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Installation and your first Task  | [Quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart)                                                                                                                                                                   |
-| Browser operation                 | [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio)                                                                                                                                                                      |
-| Component, Job, Task              | [Architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) · [Framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions)                                                                      |
-| Task contracts and lifecycle      | [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts) · [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management) · [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)  |
-| Agent development and operations  | [Development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide) · [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration) · [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration)          |
-| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158) · [Alpha158 Enhanced](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158-enhanced)         |
-| Quantitative research             | [Research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) · [Interpreting results](https://flowllm-ai.github.io/AxonX/en/research/results) · [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) |
-| Remote execution                  | [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)                                                                                                                                                                   |
-| CLI and configuration             | [CLI](https://flowllm-ai.github.io/AxonX/en/reference/cli) · [Configuration](https://flowllm-ai.github.io/AxonX/en/reference/configuration)                                                                                                       |
+| Topic                             | GitHub Pages documentation                                                                                                                                                                                                                                                                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Installation and your first Task  | [Quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart)                                                                                                                                                                                                                                                     |
+| Browser operation                 | [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio)                                                                                                                                                                                                                                                        |
+| Component, Job, Task              | [Architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) · [Framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions)                                                                                                                                                        |
+| Task contracts and lifecycle      | [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts) · [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management) · [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)                                                                                    |
+| Agent development and operations  | [External agents](https://flowllm-ai.github.io/AxonX/en/agent/external) · [Development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide) · [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration) · [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration)                  |
+| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158) · [Alpha158 Enhanced](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158-enhanced)                                                                                           |
+| Quantitative research             | [Research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) · [Experiment design](https://flowllm-ai.github.io/AxonX/en/research/experiments) · [Interpreting results](https://flowllm-ai.github.io/AxonX/en/research/results) · [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) |
+| Remote execution                  | [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)                                                                                                                                                                                                                                                     |
+| CLI and configuration             | [CLI](https://flowllm-ai.github.io/AxonX/en/reference/cli) · [Configuration](https://flowllm-ai.github.io/AxonX/en/reference/configuration)                                                                                                                                                                                         |
 
 Browse the [complete Chinese documentation](https://flowllm-ai.github.io/AxonX/zh/docs)
 or [English documentation](https://flowllm-ai.github.io/AxonX/en/docs).

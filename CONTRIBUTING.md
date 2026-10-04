@@ -14,14 +14,14 @@ For changes to public CLI/API/configuration contracts, persisted task records, o
 
 ## Find the right area
 
-| Location                                | Responsibility                                                            |
-| --------------------------------------- | ------------------------------------------------------------------------- |
-| `axonx/`                                | Application composition, Components, Jobs, CLI, service, and Task runtime |
-| `plugins/`                              | Research Tasks, algorithms, plugin manifests, and plugin tests            |
-| `axonx_studio/`                         | Browser UI, API client, task forms, and research charts                   |
-| `tests/`                                | Framework unit and integration tests                                      |
-| `docs/en/`, `docs/zh/`, `docs/figures/` | Bilingual guides and shared screenshots/diagrams                          |
-| `docs/.vitepress/`, `github-pages/`     | Documentation theme and site build tooling                                |
+| Location                                          | Responsibility                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------- |
+| `axonx/`                                          | Application composition, Components, Jobs, CLI, service, and Task runtime |
+| `plugins/`                                        | Research Tasks, algorithms, plugin manifests, and plugin tests            |
+| `axonx_studio/`                                   | Browser UI, API client, task forms, and research charts                   |
+| `tests/`                                          | Framework unit and integration tests                                      |
+| `docs/en/`, `docs/zh/`, `docs/figures/`           | Bilingual guides and shared screenshots/diagrams                          |
+| `docs/.vitepress/navigation.mjs`, `github-pages/` | Documentation navigation, theme, and site build tooling                   |
 
 See the [Task development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide), [framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions), and [plugin manifest](https://flowllm-ai.github.io/AxonX/en/reference/plugin-manifest) for implementation contracts.
 

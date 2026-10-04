@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="686" viewBox="0 0 1256 686" role="img" aria-labelledby="title desc">
+  <title id="title">Research experiments: screen, lock, confirm</title>
+  <desc id="desc">Separate development choices from the independent evidence used to assess them.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
+    </marker>
+  </defs>
+  <rect x="8" y="8" width="1240.0" height="670.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
+      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Research experiments: screen, lock, confirm</text>
+      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Separate development choices from the independent evidence used to assess them.</text>
+      <rect x="40" y="142" width="250" height="170" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="174" font-size="23" font-weight="700" text-anchor="start">Fix controls</text>
+      <text x="64.0" y="206" font-size="18" font-weight="400" text-anchor="start">Data / labels / timing</text>
+      <text x="64.0" y="233" font-size="18" font-weight="400" text-anchor="start">Training / costs / fills</text>
+      <text x="64.0" y="260" font-size="18" font-weight="400" text-anchor="start">Baseline configuration</text>
+      <rect x="330" y="142" width="250" height="170" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="354.0" y="174" font-size="23" font-weight="700" text-anchor="start">Screen</text>
+      <text x="354.0" y="206" font-size="18" font-weight="400" text-anchor="start">Ablations / candidates</text>
+      <text x="354.0" y="233" font-size="18" font-weight="400" text-anchor="start">Selection window</text>
+      <text x="354.0" y="260" font-size="18" font-weight="400" text-anchor="start">Declared selection rule</text>
+      <rect x="620" y="142" width="250" height="170" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="644.0" y="174" font-size="23" font-weight="700" text-anchor="start">Lock</text>
+      <text x="644.0" y="206" font-size="18" font-weight="400" text-anchor="start">Chosen feature groups</text>
+      <text x="644.0" y="233" font-size="17.4" font-weight="400" text-anchor="start">Parameters + plugin version</text>
+      <text x="644.0" y="260" font-size="17" font-weight="400" text-anchor="start">Freeze before confirmation</text>
+      <rect x="910" y="142" width="250" height="170" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="934.0" y="174" font-size="23" font-weight="700" text-anchor="start">Confirm</text>
+      <text x="934.0" y="206" font-size="18" font-weight="400" text-anchor="start">Independent date window</text>
+      <text x="934.0" y="233" font-size="18" font-weight="400" text-anchor="start">Baseline vs locked variant</text>
+      <text x="934.0" y="260" font-size="18" font-weight="400" text-anchor="start">No confirmation tuning</text>
+      <path d="M 290 227 H 330" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 580 227 H 620" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 870 227 H 910" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 1035 312 V 372" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="40" y="374" width="1120" height="126" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.6" stroke-linecap="round" />
+      <text x="64.0" y="406" font-size="23" font-weight="700" text-anchor="start">Report paired evidence and uncertainty</text>
+      <text x="64.0" y="438" font-size="18" font-weight="400" text-anchor="start">Aligned daily artifacts · RankIC / RankICIR · Net returns / drawdown / Sharpe</text>
+      <text x="64.0" y="465" font-size="18" font-weight="400" text-anchor="start">Record failures, declining metrics, sample sizes, formulas, and interval methods</text>
+      <text x="600.0" y="582" font-size="17" font-weight="400" text-anchor="middle">Keep separate Task names and actual Task / Run IDs for every experiment.</text>
+      <text x="600.0" y="608" font-size="17" font-weight="400" text-anchor="middle">Positive point estimates alone do not establish stable gains.</text>
+    </g>
+    <path d="M 44 554 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+  </g>
+</svg>

@@ -128,6 +128,19 @@ Studio 还展示 20 行窗口的移动平均，开始位置使用已有样本。
 
 指数权重覆盖不足时基准可为空，风险调整指标也可能缺失。`universe` 基准是插件候选范围内满足收益条件的平均收益，不应直接称为交易所全市场指数。
 
+## Benchmark 的净 Sharpe 与统计区间
+
+上表的毛 Sharpe 来自 a158 回测汇总。项目 Benchmark 和增强插件实验另外计算**净 Sharpe**，使用扣费日收益：
+
+```text
+日无风险收益 = (1 + 年无风险收益)^(1 / 年交易日数) − 1
+净 Sharpe = mean(日净收益 − 日无风险收益) / std(日净收益, ddof=1) × √年交易日数
+```
+
+历史实验使用年无风险利率 1.2%、252 个交易日。该净 Sharpe 是实验分析指标，不能从原产物的 `gross_sharpe` 直接读取；Top30 净 Sharpe 未保存，Benchmark 不补算。
+
+RankIC、年化 RankICIR、净年化收益和净 Sharpe 各自衡量不同方面。增强案例的日配对 bootstrap 区间针对日指标差值，不是年化复利收益差。实验窗口、选择规则与不确定性解释见[实验设计与确认](experiments.md)，历史结果及计算材料见[增强插件](../../../plugins/a158_enhanced/README_ZH.md)。
+
 ## 分年、季度与月度观察
 
 ![Backtest yearly summary](../../figures/studio/backtest-yearly.png)

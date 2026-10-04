@@ -1,19 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="600" viewBox="0 0 1040 600" role="img" aria-labelledby="title desc">
-<title id="title">Workspace record responsibilities</title><desc id="desc">Preserve task records, artifacts and environment information for reproducibility.</desc>
-<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
-<rect width="1040" height="600" rx="20" fill="#f8fafc" />
-<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#143252">
-<text text-anchor="middle" x="520" y="55" font-size="30" font-weight="700">Workspace record responsibilities</text>
-<rect x="40" y="140" width="270" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
-<text x="175.0" y="177" text-anchor="middle" font-size="23" font-weight="600">status.json</text>
-<text x="175.0" y="214" text-anchor="middle" font-size="18">Current state and run_id</text>
-<rect x="385" y="140" width="270" height="132" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
-<text x="520.0" y="177" text-anchor="middle" font-size="23" font-weight="600">metadata.json</text>
-<rect x="730" y="140" width="270" height="132" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
-<text x="865.0" y="177" text-anchor="middle" font-size="23" font-weight="600">events.jsonl</text>
-<rect x="40" y="340" width="270" height="160" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
-<text x="175.0" y="377" text-anchor="middle" font-size="23" font-weight="600">Task artifacts</text>
-<rect x="385" y="340" width="270" height="160" rx="12" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.5" />
-<rect x="730" y="340" width="270" height="160" rx="12" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.5" />
-<text x="44" y="548" font-size="19" fill="#52677e">Task directory: &lt;workspace&gt;/&lt;task_type&gt;/&lt;task_id&gt;/; default workspace: .axonx</text>
-<text text-anchor="middle" x="520" y="92.0" font-size="19" fill="#52677e">Preserve task records, artifacts and environment information for reproducibility.</text><text x="520.0" y="214" text-anchor="middle" font-size="18">Successful input and</text><text x="520.0" y="244" text-anchor="middle" font-size="18">output</text><text x="865.0" y="214" text-anchor="middle" font-size="18">Replayable progress</text><text x="865.0" y="244" text-anchor="middle" font-size="18">events</text><text x="175.0" y="414" text-anchor="middle" font-size="18">Relative to the Task</text><text x="175.0" y="444" text-anchor="middle" font-size="18">directory</text><text x="520.0" y="374" text-anchor="middle" font-size="23" font-weight="600">Separate log</text><text x="520.0" y="411" text-anchor="middle" font-size="23" font-weight="600">directory</text><text x="520.0" y="446" text-anchor="middle" font-size="18">Read via recorded</text><text x="520.0" y="476" text-anchor="middle" font-size="18">log_path</text><text x="865.0" y="374" text-anchor="middle" font-size="21" font-weight="600">Plugin / model</text><text x="865.0" y="411" text-anchor="middle" font-size="21" font-weight="600">environment</text><text x="865.0" y="446" text-anchor="middle" font-size="18">Not bundled in Task</text><text x="865.0" y="476" text-anchor="middle" font-size="18">records</text></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="666" viewBox="0 0 1256 666" role="img" aria-labelledby="title desc">
+  <title id="title">Workspace: records, artifacts, and external dependencies</title>
+  <desc id="desc">The default workspace is .axonx; Task records do not bundle the whole research environment.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
+    </marker>
+  </defs>
+  <rect x="8" y="8" width="1240.0" height="650.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
+      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Workspace: records, artifacts, and external dependencies</text>
+      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">The default workspace is .axonx; Task records do not bundle the whole research environment.</text>
+      <rect x="40" y="126" width="1120" height="68" rx="13.6" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.6" stroke-linecap="round" />
+      <text x="600.0" y="158" font-size="23" font-weight="700" text-anchor="middle">&lt;workspace&gt;/&lt;task_type&gt;/&lt;task_id&gt;/ </text>
+      <rect x="40" y="220" width="250" height="142" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="252" font-size="23" font-weight="700" text-anchor="start">status.json</text>
+      <text x="64.0" y="284" font-size="18" font-weight="400" text-anchor="start">Current state + run_id</text>
+      <text x="64.0" y="311" font-size="18" font-weight="400" text-anchor="start">Progress / errors</text>
+      <rect x="330" y="220" width="250" height="142" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="354.0" y="252" font-size="23" font-weight="700" text-anchor="start">metadata.json</text>
+      <text x="354.0" y="284" font-size="15.6" font-weight="400" text-anchor="start">Successful typed input/output</text>
+      <text x="354.0" y="311" font-size="18" font-weight="400" text-anchor="start">Declared artifact paths</text>
+      <rect x="620" y="220" width="250" height="142" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="644.0" y="252" font-size="23" font-weight="700" text-anchor="start">events.jsonl</text>
+      <text x="644.0" y="284" font-size="17.5" font-weight="400" text-anchor="start">Replayable progress events</text>
+      <text x="644.0" y="311" font-size="18" font-weight="400" text-anchor="start">Execution history</text>
+      <rect x="910" y="220" width="250" height="142" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="934.0" y="252" font-size="23" font-weight="700" text-anchor="start">Task artifacts</text>
+      <text x="934.0" y="284" font-size="18" font-weight="400" text-anchor="start">Data / model / reports</text>
+      <text x="934.0" y="311" font-size="18" font-weight="400" text-anchor="start">Task-relative paths</text>
+      <rect x="40" y="408" width="540" height="100" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="440" font-size="23" font-weight="700" text-anchor="start">Separate log directory</text>
+      <text x="64.0" y="472" font-size="18" font-weight="400" text-anchor="start">Read through recorded log_path</text>
+      <rect x="620" y="408" width="540" height="100" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="644.0" y="440" font-size="23" font-weight="700" text-anchor="start">Environment and raw data</text>
+      <text x="644.0" y="472" font-size="18" font-weight="400" text-anchor="start">Plugins / model credentials / market-data paths</text>
+      <text x="600.0" y="562" font-size="17" font-weight="400" text-anchor="middle">Task snapshot sync transfers terminal Task directories, not these external dependencies.</text>
+    </g>
+    <path d="M 44 534 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+  </g>
+</svg>

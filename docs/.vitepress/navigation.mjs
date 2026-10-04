@@ -1,15 +1,19 @@
-// Every document belongs to exactly one top-level tab.
+// Each page has one navigation owner; cross-links connect reader journeys.
 export const groups = [
   {
     id: "docs",
-    labels: ["文档", "Docs"],
+    labels: ["开始使用", "Get started"],
     page: "docs",
     sections: [
-      ["文档导航", "Documentation", ["docs"]],
       [
-        "开始使用",
-        "Getting started",
-        ["getting-started/overview", "getting-started/quickstart"],
+        "入门路径",
+        "Start here",
+        [
+          "docs",
+          "getting-started/overview",
+          "getting-started/quickstart",
+          "getting-started/studio",
+        ],
       ],
       [
         "核心概念",
@@ -22,108 +26,105 @@ export const groups = [
           "concepts/workspace",
         ],
       ],
-      [
-        "日常操作",
-        "Task operations",
-        [
-          "guides/task-management",
-          "guides/workspace-files",
-          "guides/remote-machines",
-          "guides/task-sync",
-          "guides/scheduling",
-        ],
-      ],
-      [
-        "部署与运维",
-        "Deployment & operations",
-        [
-          "guides/authentication",
-          "guides/deployment",
-          "guides/http-proxy",
-          "guides/operations",
-        ],
-      ],
-      [
-        "CLI 与配置",
-        "CLI & configuration",
-        [
-          "reference/cli",
-          "reference/client-configuration",
-          "reference/configuration",
-        ],
-      ],
       ["常见问题", "FAQ", ["faq"]],
-    ],
-  },
-  {
-    id: "plugins",
-    labels: ["插件", "Plugins"],
-    page: "plugins/management",
-    sections: [
-      [
-        "插件",
-        "Plugins",
-        ["plugins/management", "plugins/alpha158", "plugins/alpha158-enhanced"],
-      ],
     ],
   },
   {
     id: "research",
     labels: ["量化研究", "Research"],
-    page: "research/workflow",
+    page: "research/overview",
     sections: [
       [
-        "量化研究",
-        "Quant research",
+        "研究流程",
+        "Research workflow",
         [
+          "research/overview",
           "research/workflow",
           "research/tushare",
           "research/results",
-          "research/backtest",
-          "research/strategy-comparison",
-          "research/notifications",
         ],
       ],
-    ],
-  },
-  {
-    id: "studio",
-    labels: ["Studio", "Studio"],
-    page: "getting-started/studio",
-    sections: [
-      ["Studio", "Studio", ["getting-started/studio", "development/studio"]],
+      [
+        "实验与评估",
+        "Experiments & evaluation",
+        [
+          "research/experiments",
+          "research/backtest",
+          "research/strategy-comparison",
+        ],
+      ],
+      [
+        "研究插件",
+        "Research plugins",
+        ["plugins/management", "plugins/alpha158", "plugins/alpha158-enhanced"],
+      ],
     ],
   },
   {
     id: "agent",
     labels: ["Agent", "Agent"],
-    page: "agent/configuration",
+    page: "agent/overview",
     sections: [
+      ["选择接入方式", "Choose an integration", ["agent/overview"]],
       [
-        "Agent",
-        "Agent",
-        ["agent/configuration", "agent/usage", "agent/mcp-integration"],
+        "外部 Agent",
+        "External agents",
+        ["agent/external", "agent/mcp-integration"],
       ],
-      ["Agent API", "Agent API", ["api/agent"]],
+      ["内置 Agent", "Built-in agent", ["agent/configuration", "agent/usage"]],
     ],
   },
   {
-    id: "developers",
-    labels: ["开发者", "Developers"],
-    page: "development/framework-extensions",
+    id: "operations",
+    labels: ["运行与部署", "Operations"],
+    page: "guides/overview",
     sections: [
+      ["运行总览", "Operations overview", ["guides/overview"]],
       [
-        "开发指南",
-        "Development guides",
+        "任务与文件",
+        "Tasks & files",
         [
-          "development/contributing",
-          "dev_guide",
-          "development/framework-extensions",
+          "guides/task-management",
+          "guides/workspace-files",
+          "guides/task-sync",
         ],
       ],
       [
-        "API 与事件",
-        "API & events",
+        "服务与机器",
+        "Services & machines",
+        [
+          "guides/authentication",
+          "guides/deployment",
+          "guides/remote-machines",
+          "guides/http-proxy",
+        ],
+      ],
+      [
+        "自动化与维护",
+        "Automation & maintenance",
+        ["guides/scheduling", "research/notifications", "guides/operations"],
+      ],
+    ],
+  },
+  {
+    id: "reference",
+    labels: ["接口参考", "Reference"],
+    page: "reference/overview",
+    sections: [
+      ["参考总览", "Reference overview", ["reference/overview"]],
+      [
+        "CLI、Python 与配置",
+        "CLI, Python & configuration",
+        [
+          "reference/cli",
+          "reference/python",
+          "reference/client-configuration",
+          "reference/configuration",
+        ],
+      ],
+      [
+        "HTTP API 与事件",
+        "HTTP APIs & events",
         [
           "api/overview",
           "api/tasks",
@@ -131,13 +132,31 @@ export const groups = [
           "api/workspace",
           "api/machines",
           "api/plugins-sync",
+          "api/agent",
+        ],
+      ],
+    ],
+  },
+  {
+    id: "developers",
+    labels: ["开发扩展", "Developers"],
+    page: "development/overview",
+    sections: [
+      [
+        "开发指南",
+        "Development guides",
+        [
+          "development/overview",
+          "development/contributing",
+          "dev_guide",
+          "development/framework-extensions",
+          "development/studio",
         ],
       ],
       [
-        "Python 与扩展协议",
-        "Python & extension contracts",
+        "扩展契约",
+        "Extension contracts",
         [
-          "reference/python",
           "reference/task-contracts",
           "reference/plugin-manifest",
           "reference/research-artifacts",

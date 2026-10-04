@@ -7,6 +7,8 @@ description: Compare two backtests using common dates, the same portfolio size, 
 
 The Studio strategy comparison page reads daily artifacts from two Backtest Tasks and recalculates returns and risk on common valid dates. Comparison does not submit new research tasks or modify existing artifacts.
 
+This page explains comparison UI calculations and operations. Define controls, selection rules, and independent confirmation windows beforehand using [experiment design and confirmation](experiments.md).
+
 ![Common-window comparison](../../figures/research/comparison-window.svg)
 
 ## Preparing two experiments

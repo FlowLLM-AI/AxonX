@@ -1,15 +1,16 @@
 import { statSync } from "node:fs";
-import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { mapLinks } from "../../docs/.vitepress/links.mjs";
+import { importedTitles } from "../lib/headings.mjs";
+import { mapLinks } from "../lib/links.mjs";
+import { contentCatalog, repository, published } from "../lib/site-model.mjs";
+import { siteSettings } from "../lib/settings.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const docs = path.join(root, "docs");
 const output = path.join(root, "github-pages/.generated/site");
-const repository = "https://github.com/FlowLLM-AI/AxonX";
-const base = process.env.DOCS_BASE || "/AxonX/";
-const published = "https://flowllm-ai.github.io/AxonX/";
+const { base } = siteSettings();
 const repositoryRoots = [
   `${repository}/blob/main/`,
   `${repository}/tree/main/`,
@@ -17,36 +18,7 @@ const repositoryRoots = [
 ];
 const posix = (file) => file.split(path.sep).join("/");
 
-async function pages(directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
-  return (
-    await Promise.all(
-      entries.map((entry) => {
-        const file = path.join(directory, entry.name);
-        return entry.isDirectory()
-          ? pages(file)
-          : file.endsWith(".md")
-            ? [file]
-            : [];
-      }),
-    )
-  ).flat();
-}
-
-const sourceMap = {};
-for (const lang of ["zh", "en"]) {
-  for (const file of await pages(path.join(docs, lang))) {
-    const relative = posix(path.relative(docs, file));
-    sourceMap[relative === `${lang}/index.md` ? `${lang}/docs.md` : relative] =
-      posix(path.relative(root, file));
-  }
-  const suffix = lang === "zh" ? "_ZH" : "";
-  sourceMap[`${lang}/getting-started/overview.md`] = `README${suffix}.md`;
-  sourceMap[`${lang}/development/contributing.md`] = `CONTRIBUTING${suffix}.md`;
-  sourceMap[`${lang}/plugins/alpha158.md`] = `plugins/a158/README${suffix}.md`;
-  sourceMap[`${lang}/plugins/alpha158-enhanced.md`] =
-    `plugins/a158_enhanced/README${suffix}.md`;
-}
+const sourceMap = await contentCatalog(root);
 const routes = new Map(
   Object.entries(sourceMap).map(([route, original]) => [
     original,
@@ -58,8 +30,18 @@ const assets = new Map();
 await rm(output, { recursive: true, force: true });
 await cp(docs, output, {
   recursive: true,
-  filter: (file) => path.basename(file) !== ".DS_Store",
+  filter: (file) => ![".DS_Store", ".vitepress"].includes(path.basename(file)),
 });
+await cp(
+  path.join(root, "github-pages/site/theme"),
+  path.join(output, ".vitepress/theme"),
+  { recursive: true },
+);
+// Load the canonical configuration and modules directly; only theme assets are copied.
+await writeFile(
+  path.join(output, ".vitepress/config.mts"),
+  'export { default } from "../../../site/config.mts";\n',
+);
 await mkdir(path.join(output, "public"), { recursive: true });
 for (const name of ["axonx-icon.svg", "axonx-logo.svg"]) {
   await cp(
@@ -95,8 +77,12 @@ for (const [route, original] of Object.entries(sourceMap)) {
       : "blob";
     return `${repository}/${kind}/main/${source}${suffix}`;
   };
+  const importedTitle = importedTitles[route.slice(3, -3)]?.[route.slice(0, 2)];
+  const originalContent = await readFile(path.join(root, original), "utf8");
   const content = mapLinks(
-    await readFile(path.join(root, original), "utf8"),
+    importedTitle
+      ? `# ${importedTitle}\n\n${originalContent}`
+      : originalContent,
     (href, image, html) => {
       const url = resolve(href, image);
       return html && !image && url.startsWith("/")

@@ -2,7 +2,7 @@
 
 Session management and individual conversation turns are invoked through Jobs. Both creation and continuation use agent_chat; live presentation uses HTTP SSE.
 
-![Agent API call flow](../../figures/api/events.svg)
+![Agent API call flow](../../figures/api/agent-session.svg)
 
 ## Calling conventions
 

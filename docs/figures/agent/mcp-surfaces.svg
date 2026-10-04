@@ -1,23 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
-<title id="title">Three Agent Integration Surfaces</title><desc id="desc">Discover and invoke each surface through its own interface.</desc>
-<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" /></marker></defs>
-<rect width="1000" height="440" rx="20" fill="#f5f9ff" />
-<g font-family="Comic Sans MS, Bradley Hand, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" fill="#163450">
-<text text-anchor="middle" x="500" y="60" font-size="30" font-weight="700">Three Agent Integration Surfaces</text>
-<text text-anchor="middle" x="500" y="102" font-size="19">Discover and invoke each surface through its own interface.</text>
-<rect x="50.0" y="160" width="276.6666666666667" height="168" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
-<text x="188.33333333333334" y="202" text-anchor="middle" font-size="22" font-weight="700">External MCP</text>
-<text x="188.33333333333334" y="244" text-anchor="middle" font-size="18">/mcp + Bearer</text>
-<text x="188.33333333333334" y="274" text-anchor="middle" font-size="18">Public Job catalog</text>
-<path stroke-linecap="round" stroke-linejoin="round" d="M 330.6666666666667 242 H 355.6666666666667" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
-<rect x="361.6666666666667" y="160" width="276.6666666666667" height="168" rx="14" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="2" />
-<text x="500.0" y="202" text-anchor="middle" font-size="22" font-weight="700">Built-in Agent</text>
-<text x="500.0" y="244" text-anchor="middle" font-size="18">In-process Job bridge</text>
-<text x="500.0" y="274" text-anchor="middle" font-size="18">job_tools allowlist</text>
-<path stroke-linecap="round" stroke-linejoin="round" d="M 642.3333333333334 242 H 667.3333333333334" fill="none" stroke="#247baf" stroke-width="1.45" marker-end="url(#arrow)" />
-<rect x="673.3333333333334" y="160" width="276.6666666666667" height="168" rx="14" fill="#e4f0ff" stroke="#74a5d5" stroke-width="2" />
-<text x="811.6666666666667" y="202" text-anchor="middle" font-size="22" font-weight="700">Studio WebMCP</text>
-<text x="811.6666666666667" y="244" text-anchor="middle" font-size="18">Optional browser API</text>
-<text x="811.6666666666667" y="274" text-anchor="middle" font-size="18">List / submit tools</text>
-<text x="50" y="386" font-size="19"><tspan x="50" dy="0">Ordinary MCP returns JobResponse. HTTP SSE carries live logs and Agent message updates.</tspan></text>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="706" viewBox="0 0 1256 706" role="img" aria-labelledby="title desc">
+  <title id="title">Agent access: independent integration paths</title>
+  <desc id="desc">Choose a host and connection; the paths below are alternatives, not sequential stages.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
+    </marker>
+  </defs>
+  <rect x="8" y="8" width="1240.0" height="690.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
+      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Agent access: independent integration paths</text>
+      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Choose a host and connection; the paths below are alternatives, not sequential stages.</text>
+      <rect x="40" y="126" width="350" height="200" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="158" font-size="23" font-weight="700" text-anchor="start">External Agent</text>
+      <text x="64.0" y="190" font-size="18" font-weight="400" text-anchor="start">Model and sessions: host</text>
+      <text x="64.0" y="217" font-size="18" font-weight="400" text-anchor="start">AxonX Skill / development guide</text>
+      <text x="64.0" y="244" font-size="18" font-weight="400" text-anchor="start">CLI or /mcp + Bearer</text>
+      <text x="64.0" y="271" font-size="18" font-weight="400" text-anchor="start">Live public Job catalog</text>
+      <rect x="425" y="126" width="350" height="200" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="449.0" y="158" font-size="23" font-weight="700" text-anchor="start">Built-in Agent</text>
+      <text x="449.0" y="190" font-size="18" font-weight="400" text-anchor="start">Model and sessions: AxonX</text>
+      <text x="449.0" y="217" font-size="18" font-weight="400" text-anchor="start">Studio → Agent / agent_chat</text>
+      <text x="449.0" y="244" font-size="18" font-weight="400" text-anchor="start">In-process Dispatcher bridge</text>
+      <text x="449.0" y="271" font-size="18" font-weight="400" text-anchor="start">Configured job_tools</text>
+      <rect x="810" y="126" width="350" height="200" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="834.0" y="158" font-size="23" font-weight="700" text-anchor="start">Browser WebMCP</text>
+      <text x="834.0" y="190" font-size="18" font-weight="400" text-anchor="start">Optional browser API</text>
+      <text x="834.0" y="217" font-size="18" font-weight="400" text-anchor="start">List / submit tools</text>
+      <text x="834.0" y="244" font-size="18" font-weight="400" text-anchor="start">Local service hosting the page</text>
+      <text x="834.0" y="271" font-size="18" font-weight="400" text-anchor="start">Does not follow remote target</text>
+      <path d="M 215 326 V 387" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 600 326 V 387" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 985 326 V 387" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="40" y="388" width="1120" height="126" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.6" stroke-linecap="round" />
+      <text x="64.0" y="420" font-size="23" font-weight="700" text-anchor="start">AxonX Job contracts and research records</text>
+      <text x="64.0" y="452" font-size="18" font-weight="400" text-anchor="start">Discover Task definitions · Submit where enabled · Query status, lineage, and artifacts</text>
+      <text x="64.0" y="479" font-size="18" font-weight="400" text-anchor="start">Each path exposes its own configured capabilities</text>
+      <text x="600.0" y="602" font-size="17" font-weight="400" text-anchor="middle">Ordinary service MCP returns JobResponse; live task and Agent events use HTTP SSE.</text>
+      <text x="600.0" y="628" font-size="17" font-weight="400" text-anchor="middle">The built-in Job list and SDK tool permissions are configured independently.</text>
+    </g>
+    <path d="M 44 574 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+  </g>
+</svg>

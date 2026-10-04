@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="604" viewBox="0 0 1256 604" role="img" aria-labelledby="title desc">
+  <title id="title">Agent API: sessions and conversation turns</title>
+  <desc id="desc">agent_chat creates or resumes a session; HTTP events present the running turn.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
+    </marker>
+  </defs>
+  <rect x="8" y="8" width="1240.0" height="588.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
+  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
+    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
+      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Agent API: sessions and conversation turns</text>
+      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">agent_chat creates or resumes a session; HTTP events present the running turn.</text>
+      <rect x="40" y="142" width="330" height="144" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="174" font-size="23" font-weight="700" text-anchor="start">agent_chat</text>
+      <text x="64.0" y="206" font-size="18" font-weight="400" text-anchor="start">message</text>
+      <text x="64.0" y="233" font-size="18" font-weight="400" text-anchor="start">Optional session_id</text>
+      <rect x="435" y="142" width="330" height="144" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="459.0" y="174" font-size="23" font-weight="700" text-anchor="start">Session turn</text>
+      <text x="459.0" y="206" font-size="18" font-weight="400" text-anchor="start">Create UUID or resume</text>
+      <text x="459.0" y="233" font-size="18" font-weight="400" text-anchor="start">Serialize turns per session</text>
+      <rect x="830" y="142" width="330" height="144" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="854.0" y="174" font-size="23" font-weight="700" text-anchor="start">Job result / HTTP SSE</text>
+      <text x="854.0" y="206" font-size="18" font-weight="400" text-anchor="start">Final answer + metadata</text>
+      <text x="854.0" y="233" font-size="18" font-weight="400" text-anchor="start">agent_message → result</text>
+      <path d="M 370 214 H 435" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 765 214 H 830" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
+      <rect x="40" y="346" width="540" height="104" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="64.0" y="378" font-size="23" font-weight="700" text-anchor="start">Session management</text>
+      <text x="64.0" y="410" font-size="18" font-weight="400" text-anchor="start">List · Read · Rename · Tag · Fork · Delete</text>
+      <rect x="620" y="346" width="540" height="104" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
+      <text x="644.0" y="378" font-size="23" font-weight="700" text-anchor="start">cancel_agent_turn</text>
+      <text x="644.0" y="410" font-size="18" font-weight="400" text-anchor="start">Interrupt this turn; research Tasks continue</text>
+      <text x="600.0" y="500.0" font-size="17" font-weight="400" text-anchor="middle">Keep metadata.session_id to continue; a research Task has its own task_id and run_id.</text>
+    </g>
+    <path d="M 44 472 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
+  </g>
+</svg>

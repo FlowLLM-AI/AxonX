@@ -1,13 +1,30 @@
 ---
-title: Claude Agent 配置
+title: 内置 Agent 配置
 description: 区分框架字段、Claude SDK 选项、会话存储与工具权限。
 ---
 
-# Claude Agent 配置
+# 内置 Agent 配置
 
 当前内置 Agent 后端是 `claude`，由 Claude Agent SDK 实现。AxonX 管理会话身份、Job 工具桥接和状态目录；SDK 管理模型调用及自身执行选项。
 
 ![配置层次](../../figures/agent/configuration-layers.svg)
+
+## 启用默认内置 Agent
+
+先完成[快速开始](../getting-started/quickstart.md)，在启动目录的 `.env` 中配置服务 token 和模型环境：
+
+```dotenv
+AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
+CLAUDE_CODE_API_KEY=your-model-api-key
+CLAUDE_CODE_BASE_URL=https://api.anthropic.com
+CLAUDE_CODE_MODEL_NAME=your-model-name
+```
+
+替换为可用提供方的凭据、Claude 兼容地址和模型名。CLI 会发现当前目录或父目录中的 `.env`，已有环境变量优先。配置完整示例见 [example.env](../../../example.env)。
+
+运行 `axonx start`，在 Studio 设置本机服务 token，再进入 **Agent**。服务已经运行时，修改 `.env` 后需重启。默认配置已启用 Agent 组件，无需先创建 YAML。后续章节用于调整工具、指南、存储和 SDK 选项。
+
+外部 Agent 由宿主管理模型环境，见[外部 Agent](external.md)。
 
 ## 基础配置
 

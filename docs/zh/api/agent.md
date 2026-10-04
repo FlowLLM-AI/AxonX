@@ -2,7 +2,7 @@
 
 会话管理与一轮对话均通过 Job 调用。创建与续接使用相同 agent_chat；实时呈现通过 HTTP SSE 完成。
 
-![Agent API调用示意](../../figures/api/events.svg)
+![Agent API调用示意](../../figures/api/agent-session.svg)
 
 ## 调用约定
 

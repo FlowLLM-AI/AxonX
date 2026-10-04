@@ -7,7 +7,7 @@ const { lang, page, isDark } = useData();
 const router = useRouter();
 const zh = computed(() => lang.value.startsWith("zh"));
 const t = (cn: string, en: string) => (zh.value ? cn : en);
-const language = useStorage("axonx-language", "en");
+const language = useStorage("axonx-language", "");
 // Share VitePress's preference: its appearance controller tracks system changes.
 const appearance = useStorage("vitepress-theme-appearance", "auto");
 const root = ref<HTMLElement>();
@@ -19,7 +19,7 @@ const menus = computed(() => [
     id: "language",
     title: t("语言", "Language"),
     icon: "vpi-languages",
-    selected: language.value,
+    selected: language.value || (zh.value ? "zh" : "en"),
     options: [
       ["browser", t("跟随浏览器", "Follow browser")],
       ["zh", "简体中文"],
@@ -44,6 +44,7 @@ function select(menu: string, value: string) {
 }
 
 function applyLanguage() {
+  if (!["en", "zh", "browser"].includes(language.value)) return;
   const browser =
     navigator.languages.find((value) => /^(zh|en)(-|$)/i.test(value)) || "en";
   const target =
@@ -81,13 +82,7 @@ function followBrowser() {
 
 <template>
   <div ref="root" class="site-preferences">
-    <div
-      v-for="menu in menus"
-      :key="menu.id"
-      class="preference-menu"
-      @pointerenter="$event.pointerType === 'mouse' && (open = menu.id)"
-      @pointerleave="$event.pointerType === 'mouse' && close()"
-    >
+    <div v-for="menu in menus" :key="menu.id" class="preference-menu">
       <button
         type="button"
         class="preference-trigger"

@@ -2,7 +2,7 @@
 
 查询版本、已配置目标健康与机器资源，或在所选服务机器执行命令。target 属于 HTTP 请求封装或 CLI 连接选项，不属于这些 Job 的业务字段。
 
-![机器 API调用示意](../../figures/api/protocol.svg)
+![机器 API调用示意](../../figures/api/machine-target.svg)
 
 ## 调用约定
 

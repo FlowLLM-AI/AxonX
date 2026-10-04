@@ -55,15 +55,49 @@ const paths = [
     "Build a research workflow",
     "连接数据、特征、训练、预测和回测产物。",
     "Connect data, features, training, predictions, and backtests.",
-    "research/workflow",
+    "research/overview",
   ],
   [
     "03 / AGENT",
     "接入研究 Agent",
     "Connect your agent",
-    "通过 Job 与 MCP，让 Agent 读取任务和研究证据。",
-    "Give your agent access to tasks and research evidence through Jobs and MCP.",
-    "agent/mcp-integration",
+    "选择外部 Skill / CLI / MCP，或 Studio 内置会话。",
+    "Choose an external Skill / CLI / MCP integration or built-in Studio sessions.",
+    "agent/overview",
+  ],
+];
+const journeys = [
+  [
+    "AGENT",
+    "让 Agent 操作研究",
+    "Research with an agent",
+    "从发现契约到执行、等待和检查产物。",
+    "Discover contracts, execute, wait, and inspect artifacts.",
+    "agent/external",
+  ],
+  [
+    "EXPERIMENT",
+    "设计可检查的实验",
+    "Design inspectable experiments",
+    "固定控制变量，筛选方案，再做独立确认。",
+    "Fix controls, screen candidates, then confirm independently.",
+    "research/experiments",
+  ],
+  [
+    "OPERATIONS",
+    "管理执行环境",
+    "Manage execution environments",
+    "连接远程机器，维护任务、文件和服务。",
+    "Connect remote machines and maintain tasks, files, and services.",
+    "guides/remote-machines",
+  ],
+  [
+    "DEVELOP",
+    "扩展研究能力",
+    "Extend research capabilities",
+    "编写插件，复用 Task 契约与框架扩展点。",
+    "Build plugins using Task contracts and framework extension points.",
+    "dev_guide",
   ],
 ];
 const screens = [
@@ -72,8 +106,8 @@ const screens = [
     "Task lineage",
     lineage,
     "concepts/task-lineage",
-    "记录每一次运行，追踪每一份上游。",
-    "Every run recorded. Every upstream traceable.",
+    "检查运行记录，追踪上游产物。",
+    "Inspect execution records and trace upstream artifacts.",
     796,
     442,
   ],
@@ -152,15 +186,15 @@ const capabilities = [
           <span class="status-dot" /> AGENT-NATIVE QUANT HARNESS
         </p>
         <h1>
-          {{ t("让量化研究形成", "Quant research.") }}<br /><span>{{
+          {{ t("金融量化研究", "Financial quant research.") }}<br /><span>{{
             t("可追踪的闭环。", "Connected. Traceable.")
           }}</span>
         </h1>
         <p class="hero-lead">
           {{
             t(
-              "从数据处理到模型训练与回测，用插件组织研究能力，用 Task 保存运行证据，让 Studio、CLI 与 Agent 协同工作。",
-              "From market data to models and backtests. Organize research as plugins, preserve evidence as Tasks, and bring Studio, CLI, and agents into one workflow.",
+              "面向金融量化研究的 Agent Harness。用插件组织算法，用 Task 保存运行证据，让 Studio、CLI / MCP 与 Agent 协同工作。",
+              "An agent-native harness for financial quantitative research. Organize algorithms as plugins, preserve evidence as Tasks, and connect Studio, CLI / MCP, and agents.",
             )
           }}
         </p>
@@ -366,6 +400,70 @@ const capabilities = [
           ><p class="eyebrow">{{ item[0] }} <span>↗</span></p>
           <h3>{{ t(item[1], item[2]) }}</h3>
           <p>{{ t(item[3], item[4]) }}</p></a
+        >
+      </div>
+    </section>
+
+    <section class="capability-section shell">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">03 / CONTINUE YOUR RESEARCH</p>
+          <h2>{{ t("按目标深入。", "Continue by goal.") }}</h2>
+        </div>
+        <a class="text-link" :href="link('docs')"
+          >{{ t("文档导航", "Documentation map") }} ↗</a
+        >
+      </div>
+      <div class="capabilities">
+        <a v-for="item in journeys" :key="item[0]" :href="link(item[5])">
+          <p class="eyebrow">{{ item[0] }} <span>↗</span></p>
+          <h3>{{ t(item[1], item[2]) }}</h3>
+          <p>{{ t(item[3], item[4]) }}</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="case-study shell">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">04 / AGENT RESEARCH CASE</p>
+          <h2>
+            {{
+              t(
+                "从插件开发到独立确认。",
+                "From plugin development to confirmation.",
+              )
+            }}
+          </h2>
+        </div>
+        <a class="text-link" :href="link('research/experiments')"
+          >{{ t("实验方法", "Experiment design") }} ↗</a
+        >
+      </div>
+      <p class="section-lead">
+        {{
+          t(
+            "Codex 将 Alpha158 扩展为独立插件，通过 AxonX 执行特征消融、锁定方案与独立确认。实验同时记录改善、下降与不确定性，尚未证明稳定增量。",
+            "Codex extended Alpha158 as a separate plugin, then used AxonX for feature ablations, configuration locking, and independent confirmation. The experiment records gains, declines, and uncertainty; stable incremental gains remain unproven.",
+          )
+        }}
+      </p>
+      <div class="actions">
+        <a
+          class="action secondary"
+          :href="
+            link('getting-started/overview') +
+            (zh
+              ? '#benchmark-agent-开发市场横截面增强特征'
+              : '#benchmark-agent-developed-market-cross-sectional-features')
+          "
+          >{{ t("查看 Benchmark", "Read the benchmark") }} ↗</a
+        >
+        <a class="text-link" :href="link('plugins/alpha158-enhanced')"
+          >{{
+            t("特征、参数与复现", "Features, parameters, and reproduction")
+          }}
+          ↗</a
         >
       </div>
     </section>

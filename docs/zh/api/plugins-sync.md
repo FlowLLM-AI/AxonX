@@ -2,7 +2,7 @@
 
 这组接口改变服务 Python 环境或工作区 Task 目录。文件先上传暂存，再传返回路径给对应消费者。
 
-![插件与同步 API调用示意](../../figures/api/upload.svg)
+![插件与同步 API调用示意](../../figures/api/plugin-sync.svg)
 
 ## 调用约定
 
