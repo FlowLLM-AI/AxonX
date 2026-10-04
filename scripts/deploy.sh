@@ -2,6 +2,8 @@
 
 set -Eeuo pipefail
 
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
 log() {
   printf '\n==> %s\n' "$1"
 }
@@ -27,6 +29,10 @@ npm run build
 log "安装后端依赖"
 cd ..
 python -m pip install -e . ./axonx_studio
+
+log "从源码安装两个插件"
+axonx plugin install -e ./plugins/a158
+axonx plugin install -e ./plugins/a158_enhanced
 
 log "停止占用 1024 端口的旧进程"
 python - <<'PY'

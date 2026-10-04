@@ -52,6 +52,10 @@ After configuring a token, health also requires a Bearer header. Health means th
 
 Install with `pip install "axonx[studio]"`, then restart the service. See [Studio setup](../getting-started/studio.md) or [building from source](../development/studio.md). `web_enabled: false` disables page hosting while keeping the API available.
 
+## Deploy from the repository
+
+With Python 3.12+ and Node/npm available and the intended Python environment activated, run `bash /path/to/AxonX/scripts/deploy.sh` from any directory. The script switches to the repository root, updates `main` from `origin`, runs `npm ci` and builds Studio, installs AxonX and the Studio package from source, and installs both `a158` and `a158_enhanced` plugins in editable mode. After installation succeeds, it stops processes listening on port `1024` (forcibly if necessary) and runs `axonx start` in the foreground.
+
 ## Example background process supervision
 
 Linux can use systemd. This is a minimal unit example; replace paths, account, and virtual environment:

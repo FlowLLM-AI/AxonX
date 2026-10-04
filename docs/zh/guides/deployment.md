@@ -52,6 +52,10 @@ axonx list_installed_task_definitions
 
 执行 `pip install "axonx[studio]"`，然后重启服务。详见 [Studio 入门](../getting-started/studio.md)与[源码构建](../development/studio.md)。`web_enabled: false` 关闭页面托管，API 继续可用。
 
+## 从仓库部署
+
+准备 Python 3.12+ 和 Node/npm，并激活目标 Python 环境后，可以在任意目录执行 `bash /path/to/AxonX/scripts/deploy.sh`。脚本会切换到仓库根目录，从 `origin` 更新 `main`，执行 `npm ci` 并构建 Studio，从源码安装 AxonX 和 Studio 包，再以可编辑模式安装 `a158`、`a158_enhanced` 两个插件。安装成功后，脚本停止监听 `1024` 端口的进程（必要时强制终止），最后在前台执行 `axonx start`。
+
 ## 后台进程托管示例
 
 Linux 可使用 systemd，下面是最小 unit 示例。路径、账户和虚拟环境都需要替换：
