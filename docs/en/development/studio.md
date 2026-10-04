@@ -16,6 +16,8 @@ The complete development toolchain requires Node.js 22.13+ (22.x), 24.x, or 26+ 
 
 `npm run build` performs TypeScript checks first, then outputs `dist`. Install the Python package with `pip install ./axonx_studio` from the repository root to let AxonX serve those assets. The development server provides hot updates.
 
+The top bar toggles between English and Chinese, and between light and dark themes. The defaults are English and light; browser language and system theme are ignored. Selections are saved locally, and an explicit `?lang=en` or `?lang=zh` takes priority over the saved language. Older `system` theme preferences fall back to light.
+
 ## Directory responsibilities
 
 | Location            | Responsibility                                                                           |

@@ -1,44 +1,3 @@
-.language-button span {
-  font-size: 12px;
-  font-weight: 700;
-}
-.system-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-.theme-picker {
-  position: relative;
-}
-.theme-menu {
-  position: absolute;
-  top: 38px;
-  right: 0;
-  width: 120px;
-  display: none;
-  padding: 5px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-}
-.theme-picker:hover .theme-menu,
-.theme-picker:focus-within .theme-menu {
-  display: grid;
-}
-.theme-menu button {
-  padding: 8px;
-  border: 0;
-  border-radius: 7px;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-}
-.theme-menu button:hover,
-.theme-menu button.active {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-
 .workspace-page {
   width: min(1540px, 100%);
   margin: 0 auto;
@@ -922,7 +881,7 @@
   animation: statusPulse 1s infinite;
 }
 
-/* Keep the log console distinct while honoring the selected/system theme. */
+/* Keep the log console distinct while honoring the selected theme. */
 .log-panel,
 .log-content,
 .log-placeholder {
@@ -2086,9 +2045,6 @@
   }
 }
 @media (max-width: 560px) {
-  .language-button {
-    display: none;
-  }
   .workspace-page {
     padding: 25px 14px 44px;
   }

@@ -61,21 +61,12 @@ function useLocation() {
 function useTheme() {
   const [theme, setTheme] = useState<ThemePreference>(() => {
     const saved = localStorage.getItem("axonx-theme");
-    return saved === "light" || saved === "dark" ? saved : "system";
+    return saved === "dark" ? "dark" : "light";
   });
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => {
-      document.documentElement.dataset.theme =
-        theme === "dark" || (theme === "system" && media.matches)
-          ? "dark"
-          : "light";
-    };
+    document.documentElement.dataset.theme = theme;
     localStorage.setItem("axonx-theme", theme);
-    apply();
-    media.addEventListener("change", apply);
-    return () => media.removeEventListener("change", apply);
   }, [theme]);
 
   return { theme, setTheme };

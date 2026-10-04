@@ -36,7 +36,9 @@
       "backtest": "离线回测",
       "compare": "策略对比"
     },
-    "switchLanguageLabel": "EN"
+    "switchLanguageLabel": "切换到英文",
+    "switchToDark": "切换到深色主题",
+    "switchToLight": "切换到浅色主题"
   },
   "pages": {
     "submit": "提交任务"
@@ -117,7 +119,6 @@
   "viewTasks": "查看任务状态",
   "catalogFailed": "无法读取已安装的 Task",
   "noInstalled": "没有发现已安装的 Task",
-  "system": "跟随系统",
   "light": "浅色",
   "dark": "深色",
   "cpuCapacity": "CPU 核心",

@@ -312,11 +312,6 @@
   .studio-brand {
     display: none;
   }
-  .studio-actions .language-button span,
-  .studio-actions .theme-trigger span:not(.system-icon),
-  .studio-actions .theme-trigger > svg:last-child {
-    display: none;
-  }
   .studio-actions .topbar-control {
     width: 38px;
     min-width: 38px;

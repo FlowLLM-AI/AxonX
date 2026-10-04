@@ -10,12 +10,8 @@
     <title>AxonX Studio</title>
     <script>
       (() => {
-        const saved = localStorage.getItem("axonx-theme") || "system";
-        const dark =
-          saved === "dark" ||
-          (saved === "system" &&
-            matchMedia("(prefers-color-scheme: dark)").matches);
-        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        document.documentElement.dataset.theme =
+          localStorage.getItem("axonx-theme") === "dark" ? "dark" : "light";
       })();
     </script>
   </head>

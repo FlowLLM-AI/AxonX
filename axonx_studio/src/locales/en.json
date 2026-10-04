@@ -36,7 +36,9 @@
       "backtest": "Offline backtest",
       "compare": "Strategy comparison"
     },
-    "switchLanguageLabel": "中文"
+    "switchLanguageLabel": "Switch to Chinese",
+    "switchToDark": "Switch to dark theme",
+    "switchToLight": "Switch to light theme"
   },
   "pages": {
     "submit": "Submit Task"
@@ -117,7 +119,6 @@
   "viewTasks": "View task status",
   "catalogFailed": "Unable to load installed Tasks",
   "noInstalled": "No installed Tasks found",
-  "system": "System",
   "light": "Light",
   "dark": "Dark",
   "cpuCapacity": "CPU cores",

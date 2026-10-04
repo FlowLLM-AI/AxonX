@@ -3,7 +3,6 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   ChevronRight,
   ChevronDown,
-  Languages,
   Menu,
   Moon,
   PanelLeftClose,
@@ -64,6 +63,9 @@ export function AppShell(props: AppShellProps) {
   } = props;
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage === "zh" ? "zh" : "en";
+  const themeLabel = t(
+    theme === "light" ? "shell.switchToDark" : "shell.switchToLight",
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     if (authRequired) setSettingsOpen(true);
@@ -186,42 +188,21 @@ export function AppShell(props: AppShellProps) {
         </nav>
         <div className="studio-actions">
           <button
-            className="topbar-control language-button"
+            className="topbar-control preference-toggle"
             aria-label={t("shell.switchLanguageLabel")}
+            title={t("shell.switchLanguageLabel")}
             onClick={() => void changeLanguage(language === "zh" ? "en" : "zh")}
           >
-            <Languages />
-            <span>{t("shell.switchLanguageLabel")}</span>
+            {language === "zh" ? "中" : "EN"}
           </button>
-          <div className="theme-picker">
-            <button
-              className="topbar-control theme-trigger"
-              aria-label={t(theme)}
-            >
-              {theme === "light" ? (
-                <Sun />
-              ) : theme === "dark" ? (
-                <Moon />
-              ) : (
-                <span className="system-icon">◐</span>
-              )}
-              <span>{t(theme)}</span>
-              <ChevronDown />
-            </button>
-            <div className="theme-menu">
-              {(["system", "light", "dark"] as ThemePreference[]).map(
-                (value) => (
-                  <button
-                    key={value}
-                    className={theme === value ? "active" : ""}
-                    onClick={() => setTheme(value)}
-                  >
-                    {t(value)}
-                  </button>
-                ),
-              )}
-            </div>
-          </div>
+          <button
+            className="topbar-control preference-toggle"
+            aria-label={themeLabel}
+            title={themeLabel}
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          >
+            {theme === "light" ? <Sun /> : <Moon />}
+          </button>
           <a
             className="topbar-control github-link"
             href="https://github.com/FlowLLM-AI/AxonX"

@@ -17,10 +17,7 @@ function initialLanguage(): AppLanguage {
       ? null
       : localStorage.getItem("language");
   if (saved === "en" || saved === "zh") return saved;
-  return typeof navigator !== "undefined" &&
-    navigator.language.toLowerCase().startsWith("zh")
-    ? "zh"
-    : "en";
+  return "en";
 }
 
 void i18n.use(initReactI18next).init({
