@@ -258,7 +258,7 @@ const capabilities = [
 
     <section class="updates-section shell" aria-labelledby="latest-updates">
       <div class="section-heading">
-        <h2 id="latest-updates">📰 {{ t("最新更新", "Latest Updates") }}</h2>
+        <h2 id="latest-updates">{{ t("最新更新", "Latest Updates") }}</h2>
       </div>
       <ul class="updates-list">
         <li>
@@ -333,7 +333,6 @@ const capabilities = [
       </ul>
       <p class="section-lead">
         <a href="https://github.com/FlowLLM-AI/AxonX">
-          ⭐
           {{
             t(
               "喜欢 AxonX？在 GitHub 点亮 Star，支持项目！",
@@ -367,7 +366,7 @@ const capabilities = [
           <div>
             <p class="eyebrow">01 / AXONX STUDIO</p>
             <h2>
-              {{ t("🖥️ 研究过程，看得见。", "🖥️ See your research unfold.") }}
+              {{ t("研究过程，看得见。", "See your research unfold.") }}
             </h2>
           </div>
           <a class="text-link" :href="link('getting-started/studio')"
@@ -486,8 +485,8 @@ const capabilities = [
           <h2>
             {{
               t(
-                "🧩 研究自由扩展，执行有据可循。",
-                "🧩 Flexible research. Grounded execution.",
+                "研究自由扩展，执行有据可循。",
+                "Flexible research. Grounded execution.",
               )
             }}
           </h2>
@@ -506,7 +505,7 @@ const capabilities = [
       <div class="section-heading">
         <div>
           <p class="eyebrow">03 / CONTINUE YOUR RESEARCH</p>
-          <h2>{{ t("📚 按目标深入。", "📚 Continue by goal.") }}</h2>
+          <h2>{{ t("按目标深入。", "Continue by goal.") }}</h2>
         </div>
         <a class="text-link" :href="link('docs')"
           >{{ t("文档导航", "Documentation map") }} ↗</a
@@ -528,8 +527,8 @@ const capabilities = [
           <h2>
             {{
               t(
-                "📊 从插件开发到独立确认。",
-                "📊 From plugin development to confirmation.",
+                "从插件开发到独立确认。",
+                "From plugin development to confirmation.",
               )
             }}
           </h2>
@@ -569,7 +568,7 @@ const capabilities = [
     <section class="closing shell">
       <div>
         <p class="eyebrow">BUILD YOUR RESEARCH LOOP</p>
-        <h2>{{ t("🚀 从一个 Task 开始。", "🚀 Start with one Task.") }}</h2>
+        <h2>{{ t("从一个 Task 开始。", "Start with one Task.") }}</h2>
         <p>
           {{
             t(

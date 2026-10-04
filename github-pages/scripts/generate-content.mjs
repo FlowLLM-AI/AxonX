@@ -78,7 +78,10 @@ for (const [route, original] of Object.entries(sourceMap)) {
     return `${repository}/${kind}/main/${source}${suffix}`;
   };
   const importedTitle = importedTitles[route.slice(3, -3)]?.[route.slice(0, 2)];
-  const originalContent = await readFile(path.join(root, original), "utf8");
+  // Keep canonical sources unchanged while publishing emoji-free site content.
+  const originalContent = (
+    await readFile(path.join(root, original), "utf8")
+  ).replace(/\p{RGI_Emoji}/gv, "");
   const content = mapLinks(
     importedTitle
       ? `# ${importedTitle}\n\n${originalContent}`
