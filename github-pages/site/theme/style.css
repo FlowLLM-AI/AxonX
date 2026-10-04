@@ -799,7 +799,7 @@
   }
 }
 
-/* Use the same preference menus at every screen size. */
+/* Keep preference toggles available at every screen size. */
 .Layout .VPNavBarTranslations,
 .Layout .VPNavBarAppearance,
 .Layout .VPNavBarExtra,
@@ -819,44 +819,26 @@
 .Layout .VPNavBarHamburger {
   order: 3;
 }
-.preference-options {
-  position: absolute;
-  top: calc(100% - 4px);
-  right: 0;
-  min-width: 188px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 12px;
-  padding: 12px;
-  margin: 0;
-  background: var(--vp-c-bg-elv);
-  box-shadow: var(--vp-shadow-3);
+.preference-toggle {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  color: var(--vp-c-text-1);
+  font-size: 12px;
+  font-weight: 650;
 }
-.preference-options label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
+.preference-toggle [class^="vpi-"] {
+  font-size: 18px;
 }
-.preference-options label:hover,
-.preference-options label:focus-within {
+.preference-toggle:hover {
+  color: var(--vp-c-brand-1);
   background: var(--vp-c-bg-soft);
 }
-.preference-options input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-.preference-check {
-  visibility: hidden;
-  color: var(--vp-c-brand-1);
-}
-.preference-options input:checked ~ .preference-check {
-  visibility: visible;
+.preference-toggle:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
 }
 @media (min-width: 768px) {
   .Layout .VPNavBarSocialLinks {
@@ -867,30 +849,6 @@
   .site-preferences {
     margin-left: 0;
   }
-  .site-preferences .preference-trigger {
-    padding-inline: 8px;
-  }
-}
-
-.preference-menu {
-  position: relative;
-}
-.preference-trigger {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: var(--vp-nav-height);
-  padding: 0 12px;
-  color: var(--vp-c-text-1);
-  font-size: 16px;
-}
-.preference-trigger .vpi-chevron-down {
-  font-size: 12px;
-  color: var(--vp-c-text-2);
-}
-.preference-trigger:hover,
-.preference-trigger[aria-expanded="true"] {
-  color: var(--vp-c-brand-1);
 }
 
 /* Six navigation areas need more room than VitePress's default breakpoint. */

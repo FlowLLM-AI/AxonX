@@ -77,7 +77,7 @@ The catalog rejects mismatched translations, orphan pages, duplicate owners, imp
 
 ### Links and exports
 
-Links resolve from each canonical file. Published sources become site routes; shared images become `public/media/<repository-path>` assets; unpublished repository files link to GitHub. Inline Markdown and HTML links are transformed, while fenced examples remain unchanged. Titles exclude fenced code comments; the logo-led project README receives a generated H1 without source edits. A first visit respects the URL language; selecting a language preference persists it for later visits.
+Links resolve from each canonical file. Published sources become site routes; shared images become `public/media/<repository-path>` assets; unpublished repository files link to GitHub. Inline Markdown and HTML links are transformed, while fenced examples remain unchanged. Titles exclude fenced code comments; the logo-led project README receives a generated H1 without source edits. The root page defaults to English; a first visit to `/en/` or `/zh/` respects that URL. The top bar directly toggles English/Chinese and light/dark, with selections saved locally. The default theme is light; legacy browser/system preferences no longer follow browser or OS settings.
 
 The source map preserves canonical edit links. Markdown exports use absolute URLs and UTF-8 BOMs. `llms.txt` and `llms-full.txt` follow the same bilingual navigation order as the site. Historical experiment materials not imported into the site remain linked to their repository sources.
 

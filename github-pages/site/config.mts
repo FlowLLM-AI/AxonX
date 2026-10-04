@@ -85,6 +85,7 @@ function locale(lang: "zh" | "en") {
 
 export default defineConfig({
   title: "AxonX",
+  lang: "en",
   description: "An agent-native harness for quantitative research.",
   base,
   outDir: path.resolve(source, "../../dist"),
@@ -92,6 +93,15 @@ export default defineConfig({
   lastUpdated: false,
   ignoreDeadLinks: [/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/],
   head: [
+    [
+      "script",
+      { id: "axonx-theme-default" },
+      `(() => {
+        const theme = localStorage.getItem("vitepress-theme-appearance");
+        if (theme !== "light" && theme !== "dark")
+          localStorage.setItem("vitepress-theme-appearance", "light");
+      })();`,
+    ],
     [
       "link",
       { rel: "icon", type: "image/svg+xml", href: `${base}axonx-icon.svg` },
