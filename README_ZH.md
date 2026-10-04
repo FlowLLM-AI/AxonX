@@ -35,7 +35,7 @@
 - **扩展并远程运行。** 添加研究插件，在选定的目标环境中执行 Task。→ [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
 - **检查 Agent 研究。** Codex 对 Alpha158 的扩展使确认期 Top10 扣费年化收益从 −5.74% 升至 28.21%；稳定提升尚未证实。→ [Benchmark](#benchmark-agent-开发市场横截面增强特征)
 
-![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg)
+![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261004)
 
 ## 快速开始
 
