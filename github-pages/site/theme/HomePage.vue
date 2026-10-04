@@ -202,6 +202,7 @@ const capabilities = [
           <a
             class="action secondary"
             :href="withBase(`/playground/?lang=${zh ? 'zh' : 'en'}`)"
+            target="_self"
           >
             {{ t("体验 Studio", "Try Studio") }} <span>→</span>
           </a>

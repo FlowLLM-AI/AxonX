@@ -83,6 +83,13 @@ for (const legacy of [
 }
 for (const page of pages) {
   const html = await readFile(site + page, "utf8");
+  for (const [anchor] of html.matchAll(/<a\b[^>]*>/g)) {
+    if (anchor.includes(`href="${base}playground/`))
+      assert(
+        anchor.includes('target="_self"'),
+        `Playground links must bypass the documentation router: ${page}`,
+      );
+  }
   for (const [, href] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
     const url = new URL(
       href.replaceAll("&amp;", "&"),
