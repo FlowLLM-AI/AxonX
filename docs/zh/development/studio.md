@@ -16,8 +16,6 @@ npm run dev
 
 `npm run build` 先执行 TypeScript 检查，再输出 `dist`。从仓库根目录执行 `pip install ./axonx_studio`，AxonX 即可通过 Python 包加载这些资源。开发服务器用于热更新。
 
-顶栏提供英文／中文、浅色／深色两组单击切换。默认使用英文和浅色，不跟随浏览器语言或系统主题。选择会保存在本地；显式的 `?lang=en` 或 `?lang=zh` 优先于已保存的语言。旧的 `system` 主题设置会回退为浅色。
-
 ## 目录职责
 
 | 位置                | 职责                                              |

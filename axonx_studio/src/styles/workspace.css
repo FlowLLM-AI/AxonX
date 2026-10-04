@@ -767,6 +767,11 @@
     min-width: 42px;
     padding: 0;
   }
+  .language-button span,
+  .theme-trigger span:not(.system-icon),
+  .theme-trigger > svg:last-child {
+    display: none;
+  }
   .overview-page {
     padding-top: 18px;
   }

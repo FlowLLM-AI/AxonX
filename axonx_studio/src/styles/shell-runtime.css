@@ -49,17 +49,20 @@
   height: 17px;
   flex: none;
 }
-.topbar-control.preference-toggle {
-  width: 40px;
-  padding: 0;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
+.language-button {
+  min-width: 74px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.theme-trigger {
+  min-width: 104px;
   font-size: 12px;
   font-weight: 650;
 }
-.topbar-control.preference-toggle:hover {
-  background: var(--toolbar-hover);
+.theme-trigger > svg:last-child {
+  width: 13px;
+  color: currentColor;
+  opacity: 0.58;
 }
 .github-link {
   width: 42px;
@@ -294,6 +297,9 @@
 }
 .studio-topbar .topbar-control {
   height: 40px;
+}
+.studio-topbar .theme-menu {
+  top: 44px;
 }
 .studio-body {
   min-height: 0;
