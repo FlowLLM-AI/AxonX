@@ -51,7 +51,7 @@ axonx start --service.host 127.0.0.1
 
 截图中的两个演示均已成功；操作详情、日志和关系图见[任务管理](../guides/task-management.md)与[任务血缘](../concepts/task-lineage.md)。
 
-**Task management** 提供任务类型、状态与名称筛选，支持自动刷新、查看详情、取消和多选删除。活跃任务的详情通过事件流展示进度和日志；结束后的日志可以按需读取。
+**Task management** 提供任务类型、状态与名称筛选，支持每 5 秒自动刷新、查看详情、取消和多选删除。活跃任务的详情通过事件流展示进度和日志；结束后的日志可以按需读取。
 
 依赖图显示任务与上游关系。运行中的关系可能来自状态配置，成功任务的关系来自元数据；缺少上游记录时会显示缺失节点。图中的关系不是自动执行计划。
 
@@ -61,13 +61,15 @@ axonx start --service.host 127.0.0.1
 
 | 页面                | 主要内容                       | 详细说明                                       |
 | ------------------- | ------------------------------ | ---------------------------------------------- |
-| Tushare data        | 原始数据目录与 Parquet 预览    | [数据下载](../research/tushare.md)             |
+| 原始数据            | 原始数据目录与 Parquet 预览    | [数据下载](../research/tushare.md)             |
 | ETL                 | 数据行数、日期范围、特征和标签 | [结果解读](../research/results.md)             |
 | Factor analysis     | 因子评分与指标分组             | [结果解读](../research/results.md)             |
 | Model training      | 模型配置、指标、训练曲线       | [产物协议](../reference/research-artifacts.md) |
 | Offline prediction  | 预测数据、统计和产物           | [结果解读](../research/results.md)             |
 | Offline backtest    | 日频曲线、质量和分期汇总       | [回测解读](../research/backtest.md)            |
 | Strategy comparison | 两个回测的共同区间比较         | [策略比较](../research/strategy-comparison.md) |
+
+**原始数据** 浏览 `workspace_dir/tushare`。年份（`YYYY`）与日期（`YYYYMMDD`）目录按时间倒序显示；其他目录和文件保留名称升序，目录优先。服务连接指示器每 15 秒检查状态，研究页面与文件页面按需刷新。
 
 研究页面读取 `metadata.json` 及 `output_params.artifacts`。任务列表里有一条运行记录，并不保证它已产生可展示的研究元数据。失败任务、字段不完整或损坏的 metadata 应先在详情和日志中排查。
 

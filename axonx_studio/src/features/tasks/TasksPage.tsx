@@ -124,7 +124,7 @@ export function TasksPage({
   const poll = useCallback(() => {
     void load(true);
   }, [load]);
-  const seconds = usePolling(poll, autoRefresh, 2);
+  const seconds = usePolling(poll, autoRefresh, 5);
 
   const types = useMemo(
     () => [...new Set(tasks.map((task) => task.task_type))].sort(),
