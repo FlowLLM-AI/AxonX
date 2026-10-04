@@ -56,6 +56,10 @@ Install with `pip install "axonx[studio]"`, then restart the service. See [Studi
 
 With Python 3.12+ and Node/npm available and the intended Python environment activated, run `bash /path/to/AxonX/scripts/deploy.sh` from any directory. The script switches to the repository root, updates `main` from `origin`, runs `npm ci` and builds Studio, installs AxonX and the Studio package from source, and installs both `a158` and `a158_enhanced` plugins in editable mode. After installation succeeds, it stops processes listening on port `1024` (forcibly if necessary) and runs `axonx start` in the foreground.
 
+The script is executable: from the repository root, you can run `./scripts/deploy.sh`. All arguments are passed unchanged to `axonx start`, for example `./scripts/deploy.sh --config remote` starts with `axonx start --config remote`. Port cleanup still targets `1024`; it does not read the selected configuration.
+
+On macOS, the script uses `lsof` to query listeners because system-wide `psutil` connection queries require root privileges. Run the script as your normal user. Queries are limited by the current user's permissions; an empty result does not guarantee that a privileged process is not using the port. Query failures abort deployment with actionable messages. If the script lacks permission to stop a listener, it warns, skips that process, and continues to `axonx start`; startup may still fail if the port remains occupied. If cleanup fails or startup reports that port `1024` is occupied, run `sudo lsof -nP -iTCP:1024 -sTCP:LISTEN`, confirm that the listed process is the old service, then run `sudo kill -TERM <PID>` using its actual PID. Once the port is free, run `axonx start` in the activated environment; installation and building have already finished. `sudo` prompts for your login password without displaying typed characters. Do not run the entire deployment script with `sudo`.
+
 ## Example background process supervision
 
 Linux can use systemd. This is a minimal unit example; replace paths, account, and virtual environment:

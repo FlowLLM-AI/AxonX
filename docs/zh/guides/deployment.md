@@ -56,6 +56,10 @@ axonx list_installed_task_definitions
 
 准备 Python 3.12+ 和 Node/npm，并激活目标 Python 环境后，可以在任意目录执行 `bash /path/to/AxonX/scripts/deploy.sh`。脚本会切换到仓库根目录，从 `origin` 更新 `main`，执行 `npm ci` 并构建 Studio，从源码安装 AxonX 和 Studio 包，再以可编辑模式安装 `a158`、`a158_enhanced` 两个插件。安装成功后，脚本停止监听 `1024` 端口的进程（必要时强制终止），最后在前台执行 `axonx start`。
 
+脚本已有执行权限，在仓库根目录可直接运行 `./scripts/deploy.sh`。所有参数都会原样传给 `axonx start`，例如 `./scripts/deploy.sh --config remote` 最后执行 `axonx start --config remote`。端口清理仍针对 `1024`，不会读取指定配置。
+
+macOS 下，脚本使用 `lsof` 查询监听进程，因为 `psutil` 的全系统连接查询需要 root 权限。请以普通用户运行脚本。查询结果受当前用户权限限制；空结果不保证没有高权限进程占用端口。查询失败时，脚本会中止部署并给出具体处理提示。停止进程时权限不足，脚本会发出警告、跳过该进程，继续执行 `axonx start`；如果端口仍被占用，启动可能失败。如果清理失败，或启动时提示 `1024` 端口被占用，请执行 `sudo lsof -nP -iTCP:1024 -sTCP:LISTEN`，确认列出的进程是旧服务，再用实际 PID 执行 `sudo kill -TERM <PID>`。端口释放后，在已激活的环境中运行 `axonx start` 即可，此时安装与构建已经完成。`sudo` 会要求输入登录密码，输入时不显示字符。不要使用 `sudo` 运行整个部署脚本。
+
 ## 后台进程托管示例
 
 Linux 可使用 systemd，下面是最小 unit 示例。路径、账户和虚拟环境都需要替换：
