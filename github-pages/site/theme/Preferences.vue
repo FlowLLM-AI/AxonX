@@ -1,37 +1,63 @@
 <script setup lang="ts">
 import { useStorage } from "@vueuse/core";
-import { computed, onMounted, watch } from "vue";
+import { computed, onMounted, onUnmounted } from "vue";
 import { useData, useRouter, withBase } from "vitepress";
+import { useSiteI18n } from "./i18n";
+import { initialLanguage, languageRoute } from "./language.mjs";
 
-const { lang, page, isDark } = useData();
+const { page, isDark } = useData();
+const { language, t } = useSiteI18n();
 const router = useRouter();
-const zh = computed(() => lang.value.startsWith("zh"));
-const t = (cn: string, en: string) => (zh.value ? cn : en);
-const language = useStorage("axonx-language", "");
+const saved = useStorage("language", "");
 const appearance = useStorage("vitepress-theme-appearance", "light");
-const languageLabel = computed(() => t("切换到英文", "Switch to Chinese"));
 const appearanceLabel = computed(() =>
-  isDark.value
-    ? t("切换到浅色主题", "Switch to light theme")
-    : t("切换到深色主题", "Switch to dark theme"),
+  isDark.value ? t.value.preferences.light : t.value.preferences.dark,
 );
 
-function applyLanguage() {
-  if (language.value !== "en" && language.value !== "zh") return;
-  if (lang.value.startsWith(language.value)) return;
-  const path = page.value.relativePath
-    .replace(/^(zh|en)\//, "")
-    .replace(/(^|\/)index\.md$/, "$1")
-    .replace(/\.md$/, "");
-  router.go(
-    withBase(`/${language.value}/${path}`) + location.search + location.hash,
+function navigate(next: "en" | "zh", replace = false) {
+  const href = withBase(
+    languageRoute(
+      page.value.isNotFound ? "index.md" : page.value.relativePath,
+      next,
+      location.search,
+      location.hash,
+    ),
   );
+  if (replace) history.replaceState(history.state, "", href);
+  return router.go(href);
+}
+
+function toggleLanguage() {
+  const next = language.value === "zh" ? "en" : "zh";
+  saved.value = next;
+  void navigate(next);
+}
+
+function applyLanguage() {
+  if (page.value.isNotFound) return;
+  const next = initialLanguage({
+    relativePath: page.value.relativePath,
+    search: location.search,
+    saved: saved.value,
+    browser: navigator.language,
+  });
+  if (next !== language.value || page.value.relativePath === "index.md")
+    return navigate(next, true);
+}
+
+const previousRouteChange = router.onAfterRouteChange;
+async function onRouteChange(href: string) {
+  await previousRouteChange?.(href);
+  await applyLanguage();
 }
 
 onMounted(() => {
-  if (language.value !== "en" && language.value !== "zh") language.value = "";
-  applyLanguage();
-  watch(language, applyLanguage);
+  router.onAfterRouteChange = onRouteChange;
+  void applyLanguage();
+});
+onUnmounted(() => {
+  if (router.onAfterRouteChange === onRouteChange)
+    router.onAfterRouteChange = previousRouteChange;
 });
 </script>
 
@@ -40,11 +66,11 @@ onMounted(() => {
     <button
       type="button"
       class="preference-toggle"
-      :aria-label="languageLabel"
-      :title="languageLabel"
-      @click="language = zh ? 'en' : 'zh'"
+      :aria-label="t.preferences.language"
+      :title="t.preferences.language"
+      @click="toggleLanguage"
     >
-      {{ zh ? "中" : "EN" }}
+      {{ language === "zh" ? "中" : "EN" }}
     </button>
     <button
       type="button"

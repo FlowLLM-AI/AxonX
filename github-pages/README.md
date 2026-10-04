@@ -33,15 +33,15 @@ npm run preview
 
 Build generates content, creates `dist/`, and verifies output. Preview serves the existing build; neither command deploys. Local search, language/appearance preferences, outlines, canonical edit links, and per-page Markdown exports remain available.
 
-| Command                | Purpose                                                                    |
-| ---------------------- | -------------------------------------------------------------------------- |
-| `npm run content`      | Validate the content catalog and recreate generated input                  |
-| `npm run test`         | Check catalog failures, deployment settings, and link transformation       |
-| `npm run dev`          | Generate input and run the development server                              |
-| `npm run build`        | Generate, build, and verify HTML, navigation, assets, anchors, and exports |
-| `npm run preview`      | Serve the existing production output                                       |
-| `npm run format:check` | Check framework, docs, and root/plugin READMEs with Prettier               |
-| `npm run format`       | Format those sources; review changes before committing                     |
+| Command                | Purpose                                                                     |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `npm run content`      | Validate the content catalog and recreate generated input                   |
+| `npm run test`         | Check catalog, settings, links, language precedence, and translation parity |
+| `npm run dev`          | Generate input and run the development server                               |
+| `npm run build`        | Generate, build, and verify HTML, navigation, assets, anchors, and exports  |
+| `npm run preview`      | Serve the existing production output                                        |
+| `npm run format:check` | Check framework, docs, and root/plugin READMEs with Prettier                |
+| `npm run format`       | Format those sources; review changes before committing                      |
 
 Generated files, dependencies, lockfiles, and output are excluded from formatting through the repository's [ignore rules](../.prettierignore). Never edit `.generated/` or `dist/` by hand.
 
@@ -64,6 +64,8 @@ Generated files, dependencies, lockfiles, and output are excluded from formattin
 | `.generated/site/`                               | Disposable VitePress input, including `.source-map.json`                   |
 | `dist/`                                          | Deployable HTML, assets, Markdown, `llms.txt`, and `llms-full.txt`         |
 
+Theme translations and VitePress interface labels live in `site/theme/locales/en.json` and `zh.json`, with matching keys checked by tests. `i18n.ts` exposes reactive resources and localized links; `language.mjs` owns language selection and route conversion. `home.ts` holds language-independent homepage metadata. Follow Studio’s separation of language resources from feature code; Vue/VitePress supplies reactivity without another translation dependency. Keep canonical Markdown and navigation labels in `docs/`.
+
 Framework files were moved from `docs/.vitepress/` into `site/` and `lib/`; navigation remains next to content. Existing document URLs are retained. The older `getting-started/introduction` and `guides/plugin-management` routes remain absent without redirects.
 
 ### Add a page
@@ -77,7 +79,7 @@ The catalog rejects mismatched translations, orphan pages, duplicate owners, imp
 
 ### Links and exports
 
-Links resolve from each canonical file. Published sources become site routes; shared images become `public/media/<repository-path>` assets; unpublished repository files link to GitHub. Inline Markdown and HTML links are transformed, while fenced examples remain unchanged. Titles exclude fenced code comments; the logo-led project README receives a generated H1 without source edits. The root page defaults to English; a first visit to `/en/` or `/zh/` respects that URL. The top bar directly toggles English/Chinese and light/dark, with selections saved locally. The default theme is light; legacy browser/system preferences no longer follow browser or OS settings.
+Links resolve from each canonical file. Published sources become site routes; shared images become `public/media/<repository-path>` assets; unpublished repository files link to GitHub. Inline Markdown and HTML links are transformed, while fenced examples remain unchanged. Titles exclude fenced code comments; the logo-led project README receives a generated H1 without source edits. Language selection follows `?lang=en|zh`, then an explicit `/en/` or `/zh/` route, then the shared Studio `language` preference, then the browser language (Chinese or English fallback). The root page renders English before client-side language selection redirects to the localized homepage. Saved preferences never override an explicit language route. Automatic language redirects replace the current history entry; the selection is also applied after in-site navigation and browser back/forward. The top bar toggles English/Chinese and light/dark; language switches preserve the document, query parameters, and anchor, and update an existing `lang` parameter. The old `axonx-language` preference is no longer read. The default theme is light; legacy browser/system preferences no longer follow browser or OS settings.
 
 The source map preserves canonical edit links. Markdown exports use absolute URLs and UTF-8 BOMs. `llms.txt` and `llms-full.txt` follow the same bilingual navigation order as the site. Historical experiment materials not imported into the site remain linked to their repository sources.
 
@@ -126,7 +128,7 @@ DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages ru
 | A local link or anchor fails           | Resolve it from the canonical source and check the target page heading     |
 | Assets fail after deployment           | Match the mount path to `DOCS_BASE` and rebuild                            |
 | Export URLs use the wrong origin       | Set `DOCS_SITE_URL` and rebuild                                            |
-| The site changes language              | Check the saved language preference                                        |
+| The site changes language              | Check `?lang`, the language route, then the shared Studio preference       |
 | Build passes but deployment is skipped | Check event, branch, Pages source, environment, and workflow permissions   |
 
 See the [content ownership guide](../docs/README.md) and [contribution guide](../CONTRIBUTING.md) for maintenance conventions.
