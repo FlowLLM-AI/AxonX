@@ -175,15 +175,14 @@ Version 0.1.2 enables all four groups by default, matching the locked 184-featur
 | Confirmation metric         | Baseline | All groups |
 | --------------------------- | -------: | ---------: |
 | RankIC                      |   0.0915 |     0.0967 |
-| Annualized RankICIR         |  12.6313 |    11.9480 |
 | Top10 net annualized return |   −5.74% |     28.21% |
 | Top20 net annualized return |   −3.24% |     24.93% |
 
-RankIC and Top10/20 net annualized returns improved in this data snapshot. RankICIR and Top1–3 returns declined. The 95% block-bootstrap intervals for all three paired daily increments cross zero in confirmation, so these positive point estimates do not establish a stable improvement. Feature gain measures model use, rather than independent causal contribution.
+RankIC and Top10/20 net annualized returns improved in this data snapshot. Top1–3 returns declined. The 95% block-bootstrap intervals for all three paired daily increments cross zero in confirmation. Feature gain measures model use, rather than independent causal contribution.
 
 ### Signal quality
 
-![Baseline and enhanced RankIC and annualized RankICIR over selection and confirmation periods](../../docs/figures/benchmark/a158-signal-quality.svg)
+![Baseline and enhanced RankIC over selection and confirmation periods](../../docs/figures/benchmark/a158-signal-quality.svg)
 
 ### TopN portfolio results
 

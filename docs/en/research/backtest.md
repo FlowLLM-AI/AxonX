@@ -124,7 +124,7 @@ Basic signal metrics in **Overall** are independent of portfolio size; Top N ret
 | Average turnover      | Mean daily turnover                                                                                 |
 | Gross Sharpe          | Mean/sample standard deviation of gross returns minus daily risk-free return, annualized            |
 | Benchmark IR          | Mean/sample standard deviation of gross returns minus benchmark returns, annualized                 |
-| ICIR / RankICIR       | Mean/sample standard deviation of the corresponding daily correlations, annualized                  |
+| ICIR                  | Mean/sample standard deviation of daily Pearson correlations, annualized                            |
 
 Benchmarks may be empty when index weight coverage is insufficient; risk-adjusted metrics may also be missing. The `universe` benchmark is the mean return of candidates satisfying return conditions within the plugin's universe. Do not call it an exchange-wide market index.
 
@@ -139,7 +139,7 @@ Net Sharpe = mean(daily net return − daily risk-free return) / std(daily net r
 
 The historical experiment uses a 1.2% annual risk-free rate and 252 trading days. This net Sharpe is an experiment analysis metric; it cannot be read directly from the original artifact's `gross_sharpe`. Top30 net Sharpe was not saved and the benchmark does not reconstruct it.
 
-RankIC, annualized RankICIR, net annualized returns, and net Sharpe measure different aspects. The enhancement case's paired bootstrap intervals concern daily metric differences, not differences in annualized compounded returns. See [experiment design and confirmation](experiments.md) for windows, selection rules, and uncertainty, and the [enhanced plugin](../../../plugins/a158_enhanced/README.md) for historical results and calculation materials.
+RankIC, net annualized returns, and net Sharpe measure different aspects. The enhancement case's paired bootstrap intervals concern daily metric differences, not differences in annualized compounded returns. See [experiment design and confirmation](experiments.md) for windows, selection rules, and uncertainty, and the [enhanced plugin](../../../plugins/a158_enhanced/README.md) for historical results and calculation materials.
 
 ## Yearly, quarterly, and monthly observations
 

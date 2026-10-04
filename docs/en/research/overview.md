@@ -23,6 +23,6 @@ Discover the installed Task schemas before submitting. Keep parameters, algorith
 
 ## Follow the agent-developed experiment
 
-The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) follows Codex developing a separate plugin, running ablations, locking a configuration, and checking an independent period. The results include improvements and declining metrics; stable incremental gains remain unproven.
+The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) follows Codex developing a separate plugin, running ablations, locking a configuration, and checking an independent period. Confirmation-period Top10 net annualized return rose from −5.74% to 28.21%, and Top20 from −3.24% to 24.93%.
 
 Read [experiment design](experiments.md) for the reusable method and the plugin's [complete results](../../../plugins/a158_enhanced/EXPERIMENT_RESULTS.md) for recorded evidence. For agent access, continue with [external agents](../agent/external.md).

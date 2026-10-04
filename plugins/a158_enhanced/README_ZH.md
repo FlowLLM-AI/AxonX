@@ -175,15 +175,14 @@ axonx get_task_definition --task a158e_train
 | 确认期指标       |    基线 | 四组完整方案 |
 | ---------------- | ------: | -----------: |
 | RankIC           |  0.0915 |       0.0967 |
-| 年化 RankICIR    | 12.6313 |      11.9480 |
 | Top10 净年化收益 |  −5.74% |       28.21% |
 | Top20 净年化收益 |  −3.24% |       24.93% |
 
-该数据快照中 RankIC、Top10/20 净年化收益提升，但 RankICIR 和 Top1–3 收益下降。确认期三项日配对增量的 95% 区块 bootstrap 区间均跨零，正向点估计不足以证明稳定增量。模型 gain 衡量模型使用程度，不等于单个特征的独立贡献。
+该数据快照中 RankIC、Top10/20 净年化收益提升，但 Top1–3 收益下降。确认期三项日配对增量的 95% 区块 bootstrap 区间均跨零。模型 gain 衡量模型使用程度，不等于单个特征的独立贡献。
 
 ### 信号质量
 
-![基线与增强版在筛选期、确认期的 RankIC 和年化 RankICIR 对比](../../docs/figures/benchmark/a158-signal-quality.svg)
+![基线与增强版在筛选期、确认期的 RankIC 对比](../../docs/figures/benchmark/a158-signal-quality.svg)
 
 ### TopN 组合结果
 

@@ -72,7 +72,7 @@
 
 ## 5. 最终确认与结果整理
 
-确认期baseline和all的预测及回测均成功。all的RankIC和Top10/20净年化收益点估计高于基线，最大回撤减小；但RankICIR和Top1–3收益下降。日配对增量的95%区块bootstrap区间包含零，因此不能将本次结果解释为已证明稳定或全面的提升。
+确认期baseline和all的预测及回测均成功。all的RankIC和Top10/20净年化收益点估计高于基线，最大回撤减小；但Top1–3收益下降。日配对增量的95%区块bootstrap区间包含零。
 结果整理包括：完整消融表、分年结果、确认期全部TopN、信号日市场涨跌环境下RankIC/NDCG、20交易日区块bootstrap、环境特征模型gain排名和原始回测口径限制。gain排名只表示模型使用程度，不证明每个特征独立有效。
 
 - [完整结果报告](EXPERIMENT_RESULTS.md)

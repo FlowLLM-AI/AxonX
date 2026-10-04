@@ -256,6 +256,95 @@ const capabilities = [
       </div>
     </section>
 
+    <section class="updates-section shell" aria-labelledby="latest-updates">
+      <div class="section-heading">
+        <h2 id="latest-updates">📰 {{ t("最新更新", "Latest Updates") }}</h2>
+      </div>
+      <ul class="updates-list">
+        <li>
+          <strong>{{ t("AxonX 0.1.0 发布", "AxonX 0.1.0 released") }}</strong>
+          <p>
+            {{
+              t(
+                "插件化量化研究 Task、执行跟踪、任务血缘，以及 CLI / MCP / Studio 统一接入。",
+                "Plugin-based quantitative research Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access.",
+              )
+            }}
+            <a :href="link('docs')">{{ t("官网文档", "Documentation") }} ↗</a>
+          </p>
+        </li>
+        <li>
+          <strong>{{
+            t(
+              "SKILL.md + CLI 接入 Agent",
+              "Connect your Agent with SKILL.md + CLI",
+            )
+          }}</strong>
+          <p>
+            {{
+              t(
+                "为 Codex、Claude Code 等加载 Skill，发现 Task 契约、开发插件、提交研究并检查结果。",
+                "Load the Skill into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research, and inspect results.",
+              )
+            }}
+            <a
+              href="https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md"
+              >SKILL.md ↗</a
+            >
+          </p>
+        </li>
+        <li>
+          <strong>{{
+            t("AxonX Studio 能力发布", "AxonX Studio available")
+          }}</strong>
+          <p>
+            {{
+              t(
+                "浏览任务与产物、查看训练曲线与回测、比较策略。在线试玩使用模拟数据与执行。",
+                "Browse tasks and artifacts, inspect training curves and backtests, and compare strategies. The demo uses simulated data and execution.",
+              )
+            }}
+            <a
+              :href="withBase(`/playground/?lang=${zh ? 'zh' : 'en'}`)"
+              target="_self"
+              >{{ t("Playground 在线试玩", "Try Playground") }} ↗</a
+            >
+          </p>
+        </li>
+        <li>
+          <strong>{{
+            t(
+              "Skill + CLI 开发 Alpha158 增强版",
+              "Alpha158 Enhanced developed with Skill + CLI",
+            )
+          }}</strong>
+          <p>
+            {{
+              t(
+                "新增 26 个特征。2025-01-01 至 2026-09-30 确认期 Top10 扣费年化收益从 −5.74% 提高至 28.21%，Top20 从 −3.24% 提高至 24.93%。",
+                "26 new features. In the 2025-01-01–2026-09-30 confirmation period, Top10 net annualized return rose from −5.74% to 28.21%, and Top20 from −3.24% to 24.93%.",
+              )
+            }}
+            <a :href="link('plugins/alpha158-enhanced')"
+              >{{ t("查看成果", "Explore the results") }} ↗</a
+            >
+          </p>
+        </li>
+      </ul>
+      <p class="section-lead">
+        <a href="https://github.com/FlowLLM-AI/AxonX">
+          ⭐
+          {{
+            t(
+              "喜欢 AxonX？在 GitHub 点亮 Star，支持项目！",
+              "Enjoy AxonX? Give us a Star on GitHub to support the project!",
+            )
+          }}
+          ↗
+        </a>
+      </p>
+    </section>
+
     <section
       class="paths shell"
       :aria-label="t('选择开始路径', 'Choose your starting point')"
@@ -277,7 +366,9 @@ const capabilities = [
         <div class="section-heading">
           <div>
             <p class="eyebrow">01 / AXONX STUDIO</p>
-            <h2>{{ t("研究过程，看得见。", "See your research unfold.") }}</h2>
+            <h2>
+              {{ t("🖥️ 研究过程，看得见。", "🖥️ See your research unfold.") }}
+            </h2>
           </div>
           <a class="text-link" :href="link('getting-started/studio')"
             >{{ t("了解 Studio", "Explore Studio") }} ↗</a
@@ -395,8 +486,8 @@ const capabilities = [
           <h2>
             {{
               t(
-                "研究自由扩展，执行有据可循。",
-                "Flexible research. Grounded execution.",
+                "🧩 研究自由扩展，执行有据可循。",
+                "🧩 Flexible research. Grounded execution.",
               )
             }}
           </h2>
@@ -415,7 +506,7 @@ const capabilities = [
       <div class="section-heading">
         <div>
           <p class="eyebrow">03 / CONTINUE YOUR RESEARCH</p>
-          <h2>{{ t("按目标深入。", "Continue by goal.") }}</h2>
+          <h2>{{ t("📚 按目标深入。", "📚 Continue by goal.") }}</h2>
         </div>
         <a class="text-link" :href="link('docs')"
           >{{ t("文档导航", "Documentation map") }} ↗</a
@@ -437,8 +528,8 @@ const capabilities = [
           <h2>
             {{
               t(
-                "从插件开发到独立确认。",
-                "From plugin development to confirmation.",
+                "📊 从插件开发到独立确认。",
+                "📊 From plugin development to confirmation.",
               )
             }}
           </h2>
@@ -450,8 +541,8 @@ const capabilities = [
       <p class="section-lead">
         {{
           t(
-            "Codex 将 Alpha158 扩展为独立插件，通过 AxonX 执行特征消融、锁定方案与独立确认。实验同时记录改善、下降与不确定性，尚未证明稳定增量。",
-            "Codex extended Alpha158 as a separate plugin, then used AxonX for feature ablations, configuration locking, and independent confirmation. The experiment records gains, declines, and uncertainty; stable incremental gains remain unproven.",
+            "Codex 通过 Skill + CLI 将 Alpha158 扩展为独立插件，新增 26 个特征，并完成消融与独立确认。确认期 Top10 扣费年化收益从 −5.74% 提高至 28.21%，Top20 从 −3.24% 提高至 24.93%。",
+            "Using Skill + CLI, Codex extended Alpha158 as a separate plugin with 26 new features, then completed ablations and independent confirmation. Confirmation-period Top10 net annualized return rose from −5.74% to 28.21%, and Top20 from −3.24% to 24.93%.",
           )
         }}
       </p>
@@ -478,7 +569,7 @@ const capabilities = [
     <section class="closing shell">
       <div>
         <p class="eyebrow">BUILD YOUR RESEARCH LOOP</p>
-        <h2>{{ t("从一个 Task 开始。", "Start with one Task.") }}</h2>
+        <h2>{{ t("🚀 从一个 Task 开始。", "🚀 Start with one Task.") }}</h2>
         <p>
           {{
             t(

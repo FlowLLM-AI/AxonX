@@ -17,7 +17,9 @@
   <a href="https://deepwiki.com/FlowLLM-AI/AxonX"><img src="https://img.shields.io/badge/DeepWiki-Ask_Devin-navy?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA0aDZsMyAyIDMtMmg2djE2aC02bC0zIDItMy0ySDN6IE0xMiA2djE2Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="Ask DeepWiki about AxonX" /></a>
 </p>
 
-## What is AxonX?
+<a id="what-is-axonx"></a>
+
+## 🧠 What is AxonX?
 
 **AxonX is an agent-native harness for financial quantitative research.**
 
@@ -29,18 +31,30 @@ Researchers use forms and charts in **AxonX Studio**, while Agents and scripts a
 Each interface submits, tracks, and queries tasks through **Jobs**, using research records in the same workspace to
 inspect logs, artifacts, and upstream and downstream relationships.
 
-## Why AxonX?
+<a id="why-axonx"></a>
+
+## ✨ Why AxonX?
 
 - **Reusable research Tasks.** Typed inputs and outputs define data, model, and artifact requirements. → [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts)
 - **Manage execution.** Run Tasks in worker processes; track status, progress, logs, and results; wait or cancel. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
 - **Trace research results.** Saved parameters, artifacts, and dependency graphs help you reuse data and compare experiments. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)
 - **One workflow across interfaces.** CLI / MCP, Studio, and Agents share Job and Task contracts, records, and artifacts. → [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/en/agent/usage)
 - **Extend and run remotely.** Add research plugins and execute Tasks in a selected target environment. → [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
-- **Inspect Agent research.** Codex's Alpha158 extension raised confirmation-period Top10 net annualized return from −5.74% to 28.21%; stable gains remain unproven. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features)
+
+## 📰 Latest Updates
+
+- **AxonX 0.1.0 released:** an agent-native quantitative research harness with plugin-based Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access. → [Documentation](https://flowllm-ai.github.io/AxonX/en/)
+- **Connect your Agent with SKILL.md + CLI:** load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
+- **AxonX Studio available:** browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
+- **Alpha158 Enhanced developed with Skill + CLI:** Codex added 26 features to Alpha158. In the 2025-01-01–2026-09-30 confirmation period, Top10 net annualized return rose from **−5.74% to 28.21%**, and Top20 from **−3.24% to 24.93%**. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
+
+⭐ If AxonX helps your research, please [give us a Star on GitHub](https://github.com/FlowLLM-AI/AxonX). Your support helps more researchers discover AxonX!
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
-## Quick start
+<a id="quick-start"></a>
+
+## 🚀 Quick start
 
 Requires **Python 3.12+**. Local Task execution supports **macOS and Linux**.
 
@@ -139,7 +153,9 @@ After starting with the defaults, open `http://127.0.0.1:1024/`, go to **Setting
 
 [Getting started with Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio)
 
-## Quick demo
+<a id="quick-demo"></a>
+
+## 🧪 Quick demo
 
 Use the [a158 plugin](plugins/a158/README.md) to try plugin management, service queries, and quantitative research
 tasks. Market-data downloads require `AXONX_TUSHARE_TOKEN` in `.env`; see [example.env](example.env).
@@ -187,7 +203,9 @@ View tasks and research results in **AxonX Studio**. For data preparation and th
 the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow); for more commands, see
 the [development and operations guide](docs/en/dev_guide.md).
 
-## Agent access and development guides
+<a id="agent-access-and-development-guides"></a>
+
+## 🤝 Agent access and development guides
 
 | Method         | Usage                                                                                                                                  | Development guide                                                                                                                                              |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -232,7 +250,9 @@ Guide loading and tool configuration are independent. The Jobs available to the 
 which provides task and artifact queries by default.
 See [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration).
 
-## Alpha158 and the plugin system
+<a id="alpha158-and-the-plugin-system"></a>
+
+## 🧩 Alpha158 and the plugin system
 
 [Alpha158](plugins/a158/README.md) packages 158 price and volume features, a LightGBM model, and TopN backtesting as
 research Tasks. The main chain is **ETL → Train → Predict → Backtest**, with factor analysis as an independent
@@ -251,7 +271,9 @@ the [plugin documentation](plugins/a158/README.md). To extend your own research 
 plugins from source. Relevant commands appear under [CLI commands](#axonx-cli-commands-and-remote-execution) below; for
 development and deployment, see [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
 
-## Benchmark: Agent-developed market cross-sectional features
+<a id="benchmark-agent-developed-market-cross-sectional-features"></a>
+
+## 📊 Benchmark: Agent-developed market cross-sectional features
 
 Following the Task contracts, plugin registration, and CLI workflow in [docs/en/dev_guide.md](docs/en/dev_guide.md),
 Codex extended `a158` into a separate [Alpha158 Enhanced](plugins/a158_enhanced/README.md) plugin: developing features
@@ -265,7 +287,7 @@ Reusable prompt (adapted from this development plan):
 First read docs/en/dev_guide.md, then create a separate a158_enhanced plugin from plugins/a158.
 Preserve the original 158 features, labels, training parameters, and backtest assumptions; add market environment, trading activity, relative performance, and interaction features.
 Validate feature timing and consistency with the original data. Run ablation experiments through AxonX, lock the configuration after screening, then perform independent confirmation.
-Keep tasks, parameters, artifacts, and failure records. Report RankIC, RankICIR, TopN returns after costs, and risk without assuming an improvement.
+Keep tasks, parameters, artifacts, and failure records. Report RankIC, TopN returns after costs, and risk without assuming an improvement.
 ```
 
 ### Features and experiment setup
@@ -290,12 +312,11 @@ rate of **1.2%**. Feature details, training settings, and full metric definition
 [experiment results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md), and
 [backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest).
 
-### RankIC and annualized RankICIR
+### RankIC
 
-![Alpha158 and enhanced version: screening- and confirmation-period RankIC and annualized RankICIR](docs/figures/benchmark/a158-signal-quality.svg)
+![Alpha158 and enhanced version: screening- and confirmation-period RankIC](docs/figures/benchmark/a158-signal-quality.svg)
 
-Confirmation-period RankIC rose from **0.0915** to **0.0967**, an increase of **0.0052**; annualized RankICIR fell from
-**12.6313** to **11.9480**. Mean rank correlation improved, while the stability metric declined.
+Confirmation-period RankIC rose from **0.0915** to **0.0967**, an increase of **0.0052**.
 
 ### Top10 / Top20 / Top30
 
@@ -308,8 +329,7 @@ Top20 net Sharpe improved; Top30 net Sharpe was not saved and is not recomputed 
 The 95% intervals for confirmation-period daily RankIC differences and Top10 / Top20 daily net return differences all
 span zero. These intervals use same-day paired enhanced and baseline observations with a 20-trading-day circular block
 bootstrap (2000 resamples, random seed 42); they are not intervals for differences in annualized compounded returns.
-Enhanced Top1–3 returns also declined. The current results have not established a stable or across-the-board
-improvement.
+Enhanced Top1–3 returns also declined.
 
 The backtest uses a closing-price execution proxy, delayed exits, and open positions carried at cost; returns are
 recognized on the actual exit date. It does not simulate after-hours order queues, partial fills, or daily unrealized
@@ -317,7 +337,9 @@ profit and loss. Interpret the returns and drawdowns in light of these assumptio
 
 [Development plan](plugins/a158_enhanced/DEVELOPMENT_PLAN.md) · [Execution process](plugins/a158_enhanced/EXPERIMENT_PROCESS.md) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md) · [Metrics and validation data](plugins/a158_enhanced/experiments/README.md) · [Backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest)
 
-## AxonX CLI commands and remote execution
+<a id="axonx-cli-commands-and-remote-execution"></a>
+
+## 🛠️ AxonX CLI commands and remote execution
 
 CLI service commands call the corresponding Jobs. `exec` and plugin management commands without a specified target run
 in the current Python environment.
@@ -393,7 +415,9 @@ uses the local token to access the same-origin backend, which forwards requests 
 multiple targets, custom YAML, and connection troubleshooting, see
 the [remote machines guide](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines).
 
-## AxonX documentation
+<a id="axonx-documentation"></a>
+
+## 📚 AxonX documentation
 
 | Topic                             | GitHub Pages documentation                                                                                                                                                                                                                                                                                                          |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -410,7 +434,9 @@ the [remote machines guide](https://flowllm-ai.github.io/AxonX/en/guides/remote-
 Browse the [complete Chinese documentation](https://flowllm-ai.github.io/AxonX/zh/docs)
 or [English documentation](https://flowllm-ai.github.io/AxonX/en/docs).
 
-## Contributing
+<a id="contributing"></a>
+
+## 💬 Contributing
 
 Bug reports, feature requests, documentation improvements, research plugins, and code contributions are welcome.
 Search [existing issues](https://github.com/FlowLLM-AI/AxonX/issues) first; see
@@ -420,6 +446,8 @@ Keep research algorithms in `plugins/` and reuse framework extension points. Upd
 documentation when behavior changes. When contributing experiments, include data and time windows, parameters, cost
 definitions, and result materials that others can verify.
 
-## License
+<a id="license"></a>
+
+## ⚖️ License
 
 AxonX is released under the [Apache License 2.0](LICENSE).

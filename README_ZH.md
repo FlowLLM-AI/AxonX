@@ -17,7 +17,9 @@
   <a href="https://deepwiki.com/FlowLLM-AI/AxonX"><img src="https://img.shields.io/badge/DeepWiki-Ask_Devin-navy?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA0aDZsMyAyIDMtMmg2djE2aC02bC0zIDItMy0ySDN6IE0xMiA2djE2Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="通过 DeepWiki 了解 AxonX" /></a>
 </p>
 
-## AxonX 是什么？
+<a id="axonx-是什么"></a>
+
+## 🧠 AxonX 是什么？
 
 **AxonX 是面向金融量化研究的 Agent 原生框架。**
 
@@ -26,18 +28,30 @@
 研究者使用 **AxonX Studio** 中的表单和图表，Agent 与脚本通过 CLI / MCP 调用能力。
 各入口通过 **Job** 提交、跟踪和查询任务，利用同一工作区中的研究记录检查日志、产物和上下游关系。
 
-## 为什么使用 AxonX？
+<a id="为什么使用-axonx"></a>
+
+## ✨ 为什么使用 AxonX？
 
 - **可复用的研究 Task。** 带类型的输入输出明确数据、模型与产物要求。→ [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)
 - **管理执行过程。** 在工作进程中运行 Task，跟踪状态、进度、日志与结果，支持等待和取消。→ [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)
 - **追溯研究结果。** 保存的参数、产物和依赖图帮助你复用数据和比较实验。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)
 - **各入口共用工作流程。** CLI / MCP、Studio 与 Agent 共享 Job 和 Task 契约、记录及产物。→ [AxonX Studio](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/zh/agent/usage)
 - **扩展并远程运行。** 添加研究插件，在选定的目标环境中执行 Task。→ [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
-- **检查 Agent 研究。** Codex 对 Alpha158 的扩展使确认期 Top10 扣费年化收益从 −5.74% 升至 28.21%；稳定提升尚未证实。→ [Benchmark](#benchmark-agent-开发市场横截面增强特征)
+
+## 📰 最新更新
+
+- **AxonX 0.1.0 发布：** 面向量化研究的 Agent Harness，提供插件化 Task、执行跟踪、任务血缘，以及 CLI / MCP / Studio 统一接入。→ [官网文档](https://flowllm-ai.github.io/AxonX/zh/)
+- **通过 SKILL.md + CLI 接入 Agent：** 为 Codex、Claude Code 等加载 [AxonX Skill](skills/axonx/SKILL.md)，让 Agent 发现 Task 契约、开发插件、提交研究任务并检查结果。→ [Agent 接入指南](https://flowllm-ai.github.io/AxonX/zh/agent/external)
+- **AxonX Studio 能力发布：** 在同一工作台浏览任务与产物、查看训练曲线与回测、比较策略。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>（数据与执行均为模拟）
+- **使用 Skill + CLI 开发 Alpha158 增强版：** Codex 为 Alpha158 新增 26 个特征。在 2025-01-01 至 2026-09-30 确认期，Top10 扣费年化收益从 **−5.74% 提高至 28.21%**，Top20 从 **−3.24% 提高至 24.93%**。→ [Benchmark](#benchmark-agent-开发市场横截面增强特征) · [完整结果](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
+
+⭐ 如果 AxonX 对你的研究有帮助，欢迎在 [GitHub 点亮 Star](https://github.com/FlowLLM-AI/AxonX)，支持项目，也让更多研究者发现 AxonX！
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
-## 快速开始
+<a id="快速开始"></a>
+
+## 🚀 快速开始
 
 要求 **Python 3.12+**，本地 Task 执行支持 **macOS 和 Linux**。
 
@@ -131,7 +145,9 @@ axonx version --target 127.0.0.1:8181 --token '<本机服务 token>'
 
 [Studio 入门](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio)
 
-## 快速演示
+<a id="快速演示"></a>
+
+## 🧪 快速演示
 
 以 [a158 插件](plugins/a158/README_ZH.md) 为例，体验插件管理、服务查询和量化研究任务。行情下载需在 `.env` 中配置
 `AXONX_TUSHARE_TOKEN`，见 [example.env](example.env)。
@@ -176,7 +192,9 @@ axonx get_task_graph --task-id '<backtest_task_id>'
 
 在 **AxonX Studio** 查看任务和研究结果。数据准备与完整流程见[研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow)，更多命令见[开发与运维指南](docs/zh/dev_guide.md)。
 
-## Agent 接入与开发指南
+<a id="agent-接入与开发指南"></a>
+
+## 🤝 Agent 接入与开发指南
 
 | 方式       | 使用方法                                                                                     | 开发指南                                                                                        |
 | ---------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -218,7 +236,9 @@ axonx start --components.agent.default.load_dev_guide true --language zh
 指南加载与工具配置相互独立；Agent 可调用的 Job 由 `job_tools`
 配置决定，默认提供任务与产物查询能力。配置方法见 [Agent 配置](https://flowllm-ai.github.io/AxonX/zh/agent/configuration)。
 
-## Alpha158 与插件系统
+<a id="alpha158-与插件系统"></a>
+
+## 🧩 Alpha158 与插件系统
 
 [Alpha158](plugins/a158/README_ZH.md) 将 158 个价量特征、LightGBM 模型和 TopN 回测封装为研究 Task。主链路为 **ETL →
 Train → Predict → Backtest**，因子分析是 ETL 的独立下游。
@@ -233,7 +253,9 @@ Train → Predict → Backtest**，因子分析是 ETL 的独立下游。
 
 操作示例见上面的 [快速演示](#快速演示)，完整参数与数据要求见[插件文档](plugins/a158/README_ZH.md)。扩展自己的研究方法时，可从源码检查、构建和安装插件；相关命令见下方 [CLI 命令](#axonx-cli-命令与远程执行)，开发与部署流程见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
-## Benchmark Agent 开发市场横截面增强特征
+<a id="benchmark-agent-开发市场横截面增强特征"></a>
+
+## 📊 Benchmark Agent 开发市场横截面增强特征
 
 Codex 依据 [docs/en/dev_guide.md](docs/en/dev_guide.md) 中的 Task 契约、插件注册与 CLI 流程，将 `a158`
 扩展为独立的 [Alpha158 Enhanced](plugins/a158_enhanced/README_ZH.md)：开发特征和分组开关，检查与安装插件，通过 AxonX
@@ -245,7 +267,7 @@ Codex 依据 [docs/en/dev_guide.md](docs/en/dev_guide.md) 中的 Task 契约、�
 先阅读 docs/en/dev_guide.md，从 plugins/a158 创建独立的 a158_enhanced 插件。
 保留原始 158 个特征、标签、训练参数和回测假设，增加市场环境、成交活跃度、相对表现与交互特征。
 验证特征时点和原始数据一致性；通过 AxonX 执行消融实验，在筛选期锁定方案后再进行独立确认。
-保留任务、参数、产物与失败记录，报告 RankIC、RankICIR、TopN 扣费收益和风险，不预设结果提升。
+保留任务、参数、产物与失败记录，报告 RankIC、TopN 扣费收益和风险，不预设结果提升。
 ```
 
 ### 特征与实验设置
@@ -266,11 +288,11 @@ Codex 依据 [docs/en/dev_guide.md](docs/en/dev_guide.md) 中的 Task 契约、�
 特征明细、训练设置和完整指标定义见[插件文档](plugins/a158_enhanced/README_ZH.md)、
 [实验结果](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)与[回测口径](https://flowllm-ai.github.io/AxonX/zh/research/backtest)。
 
-### RankIC 与年化 RankICIR
+### RankIC
 
-![Alpha158 与增强版的筛选期、确认期 RankIC 和年化 RankICIR](docs/figures/benchmark/a158-signal-quality.svg)
+![Alpha158 与增强版的筛选期、确认期 RankIC](docs/figures/benchmark/a158-signal-quality.svg)
 
-确认期 RankIC 由 **0.0915** 提高至 **0.0967**，增加 **0.0052**；年化 RankICIR 由 **12.6313** 降至 **11.9480**。排序相关性均值提高，稳定性指标下降。
+确认期 RankIC 由 **0.0915** 提高至 **0.0967**，增加 **0.0052**。
 
 ### Top10 / Top20 / Top30
 
@@ -280,14 +302,16 @@ Codex 依据 [docs/en/dev_guide.md](docs/en/dev_guide.md) 中的 Task 契约、�
 **33.95 / 28.16 / 16.97 个百分点**，最大回撤减小。Top10 / Top20 净 Sharpe 提高；Top30 净 Sharpe 未保存，图中不补算。
 
 确认期每日 RankIC 差值，以及 Top10 / Top20 日净收益差值的 95% 区间均跨零。区间通过同日增强版与基线配对、20 交易日循环区块
-bootstrap（2000 次、随机种子 42）计算，不代表年化复利收益差的区间。增强版 Top1–3 收益也有所下降，当前结果尚未证明稳定或全面提升。
+bootstrap（2000 次、随机种子 42）计算，不代表年化复利收益差的区间。增强版 Top1–3 收益也有所下降。
 
 回测使用收盘成交代理、延迟退出和未结清持仓按成本记账，收益在实际退出日确认。
 未模拟盘后排队、部分成交或逐日未实现盈亏，上述收益与回撤应结合这些假设解读。
 
 [开发计划](plugins/a158_enhanced/DEVELOPMENT_PLAN.md) · [执行过程](plugins/a158_enhanced/EXPERIMENT_PROCESS.md) · [完整结果](plugins/a158_enhanced/EXPERIMENT_RESULTS.md) · [指标与校验数据](plugins/a158_enhanced/experiments/README.md) · [回测口径](https://flowllm-ai.github.io/AxonX/zh/research/backtest)
 
-## AxonX CLI 命令与远程执行
+<a id="axonx-cli-命令与远程执行"></a>
+
+## 🛠️ AxonX CLI 命令与远程执行
 
 CLI 的服务命令调用相应 Job；`exec` 和未指定目标的插件管理命令在当前 Python 环境执行。
 
@@ -357,7 +381,9 @@ axonx start --config remote
 `remote` 继承默认配置，将目标地址与 token 加入服务的 `targets`。Studio 使用本机 token 访问同源后端，由后端转发到选中的远程服务。配置多个目标、自定义
 YAML 和连接排查见[远程机器指南](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)。
 
-## AxonX 文档
+<a id="axonx-文档"></a>
+
+## 📚 AxonX 文档
 
 | 主题                 | GitHub Pages 文档                                                                                                                                                                                                                                                                       |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -373,12 +399,16 @@ YAML 和连接排查见[远程机器指南](https://flowllm-ai.github.io/AxonX/z
 
 浏览[完整中文文档](https://flowllm-ai.github.io/AxonX/zh/docs)或[英文文档](https://flowllm-ai.github.io/AxonX/en/docs)。
 
-## 参与贡献
+<a id="参与贡献"></a>
+
+## 💬 参与贡献
 
 欢迎提交问题反馈、功能建议、文档改进、研究插件和代码贡献。请先搜索[已有 Issues](https://github.com/FlowLLM-AI/AxonX/issues)，开发环境、目录约定和检查要求见[贡献指南](CONTRIBUTING_ZH.md)。
 
 研究算法放在 `plugins/`，复用框架扩展点；行为变化同步更新中英文文档。贡献实验时，请附数据与时间窗口、参数、成本口径和可复核的结果材料。
 
-## 许可证
+<a id="许可证"></a>
+
+## ⚖️ 许可证
 
 AxonX 基于 [Apache License 2.0](LICENSE) 开源。

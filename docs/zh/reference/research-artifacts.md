@@ -161,7 +161,7 @@ Studio 从 `artifacts.daily.path` 和 `artifacts.summary.path` 加载两个表�
 
 每行用 `period_type` 标明 `overall`、`year`、`quarter` 或 `month`，并提供 `period`、`period_start`、`period_end`、`trading_days`。
 
-信号字段是 `ic_mean`、`icir`、`rank_ic_mean`、`rank_icir`。每个 Top N 对应：
+信号字段包括 `ic_mean`、`icir` 和 `rank_ic_mean`。每个 Top N 对应：
 
 ```text
 topN_net_cumulative_return

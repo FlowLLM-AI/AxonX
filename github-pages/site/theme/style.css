@@ -905,3 +905,31 @@
     display: block;
   }
 }
+
+.updates-section {
+  padding-block: 12px 32px;
+}
+.updates-list {
+  margin-top: 24px;
+  padding: 0;
+  list-style: none;
+}
+.updates-list li {
+  padding-block: 18px;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+.updates-list strong {
+  font-size: 16px;
+}
+.updates-list p {
+  margin-top: 8px;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.updates-list a,
+.updates-section .section-lead a {
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

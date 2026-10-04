@@ -161,7 +161,7 @@ The current page hardcodes `top30_holdings`; changing holding_detail_top_n does 
 
 Each row uses `period_type` to identify `overall`, `year`, `quarter`, or `month`, and supplies `period`, `period_start`, `period_end`, and `trading_days`.
 
-Signal fields are `ic_mean`, `icir`, `rank_ic_mean`, and `rank_icir`. Each Top N has:
+Signal fields include `ic_mean`, `icir`, and `rank_ic_mean`. Each Top N has:
 
 ```text
 topN_net_cumulative_return

@@ -54,7 +54,7 @@ Use generated names or distinct explicit names; reusing a name replaces a termin
 
 Check protocols, data, dates, Top N, costs, and annualization before comparing returns and risk. Studio [strategy comparison](strategy-comparison.md) aligns common valid dates and recomputes metrics; date alignment does not establish matching research settings automatically.
 
-Report signal quality and portfolio returns separately. RankIC measures ranking correlation; RankICIR expresses the mean daily correlation relative to its variability. Net returns, drawdown, and Sharpe also depend on costs, fills, and exit assumptions. Improvement at one Top N does not imply improvement at every portfolio size.
+Report signal quality and portfolio returns separately. RankIC measures ranking correlation. Net returns, drawdown, and Sharpe also depend on costs, fills, and exit assumptions. Improvement at one Top N does not imply improvement at every portfolio size.
 
 [Backtest interpretation](backtest.md) distinguishes plugin summaries, frontend window calculations, gross returns, and net returns. Extra experiment calculations such as net Sharpe must declare formulas and data sources; the original artifact's gross Sharpe cannot substitute for net Sharpe.
 
@@ -62,7 +62,7 @@ Report signal quality and portfolio returns separately. RankIC measures ranking 
 
 Baseline and enhanced observations on the same dates can form paired differences. Report effective samples, missing dates, and treatment of temporal dependence alongside point estimates. Record the statistic, block length, resampling count, and random seed for block bootstrap calculations.
 
-The historical Alpha158 Enhanced report applied a 20-trading-day circular block bootstrap to daily RankIC and Top10 / Top20 daily net-return differences, using 2000 resamples and seed 42. All three 95% intervals span zero, so positive point estimates do not establish stable incremental gains. These are also not intervals for differences in annualized compounded returns.
+The historical Alpha158 Enhanced report applied a 20-trading-day circular block bootstrap to daily RankIC and Top10 / Top20 daily net-return differences, using 2000 resamples and seed 42. All three 95% intervals span zero. These are also not intervals for differences in annualized compounded returns.
 
 This is experiment analysis; Studio's strategy comparison page does not automatically generate that bootstrap test. Retain original daily artifacts, alignment methods, and calculation records in the experiment environment.
 

@@ -37,10 +37,10 @@
       <path d="M 1035 312 V 372" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <rect x="40" y="374" width="1120" height="126" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.6" stroke-linecap="round" />
       <text x="64.0" y="406" font-size="23" font-weight="700" text-anchor="start">Report paired evidence and uncertainty</text>
-      <text x="64.0" y="438" font-size="18" font-weight="400" text-anchor="start">Aligned daily artifacts · RankIC / RankICIR · Net returns / drawdown / Sharpe</text>
+      <text x="64.0" y="438" font-size="18" font-weight="400" text-anchor="start">Aligned daily artifacts · RankIC · Net returns / drawdown / Sharpe</text>
       <text x="64.0" y="465" font-size="18" font-weight="400" text-anchor="start">Record failures, declining metrics, sample sizes, formulas, and interval methods</text>
       <text x="600.0" y="582" font-size="17" font-weight="400" text-anchor="middle">Keep separate Task names and actual Task / Run IDs for every experiment.</text>
-      <text x="600.0" y="608" font-size="17" font-weight="400" text-anchor="middle">Positive point estimates alone do not establish stable gains.</text>
+      <text x="600.0" y="608" font-size="17" font-weight="400" text-anchor="middle">Compare baseline and enhanced results in the confirmation window.</text>
     </g>
     <path d="M 44 554 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
   </g>
