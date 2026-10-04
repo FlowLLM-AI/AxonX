@@ -313,7 +313,7 @@
     display: none;
   }
   .studio-actions .language-button span,
-  .studio-actions .theme-trigger span,
+  .studio-actions .theme-trigger span:not(.system-icon),
   .studio-actions .theme-trigger > svg:last-child {
     display: none;
   }

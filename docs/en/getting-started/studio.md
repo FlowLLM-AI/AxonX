@@ -1,5 +1,7 @@
 # Getting started with Studio
 
+Open **Playground** from the website navigation to try Studio without a service. It includes a complete research chain and two backtests. In task submission, select `playground.backtest`, choose `strategy` and `outcome`, then follow progress, logs and results in the task center or cancel execution. Successful tasks appear in Backtest; Strategy comparison compares the sample runs. Agent replies are scripted. All data and execution are simulated; refresh or use **Reset demo** to restore initial state.
+
 AxonX Studio is a workbench for tasks and research. It reads Job and Task definitions provided by the service, generates submission forms from Schemas, and displays run status, logs, dependencies, and standard research artifacts.
 
 ![Studio navigation](../../figures/getting-started/studio-map.svg)

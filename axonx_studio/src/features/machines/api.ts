@@ -1,3 +1,4 @@
+import { playground } from "../../app/environment";
 import { axonx } from "../../shared/api/client";
 import type { MachineInfo, MachineNode } from "./types";
 
@@ -17,7 +18,9 @@ export async function listMachineOptions(
     {},
     { signal },
   );
-  const localAddress = window.location.host || "localhost";
+  const localAddress = playground
+    ? "Browser simulation"
+    : window.location.host || "localhost";
   return [
     { id: "local", address: localAddress, isLocal: true, healthy: true },
     ...targets.map((target) => ({

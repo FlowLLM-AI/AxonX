@@ -643,5 +643,12 @@
     "resizePanel": "Resize panel",
     "true": "True",
     "false": "False"
+  },
+  "playground": {
+    "title": "Playground",
+    "notice": "Fictional data · Browser simulation · Scripted Agent · Refresh to reset",
+    "docs": "Documentation",
+    "reset": "Reset demo",
+    "machine": "Demo browser"
   }
 }

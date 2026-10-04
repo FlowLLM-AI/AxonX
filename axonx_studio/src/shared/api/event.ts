@@ -77,7 +77,7 @@ export async function streamJob<T>(
   arguments_: Record<string, unknown>,
   options: StreamOptions<T> = {},
 ): Promise<T> {
-  const response = await fetch(client.eventsUrl(name), {
+  const response = await client.request(client.eventsUrl(name), {
     method: "POST",
     headers: client.requestHeaders({
       Accept: "text/event-stream",
@@ -108,12 +108,12 @@ export async function streamJob<T>(
         options.onEvent?.(event);
         if (event.kind === "result") {
           if (!event.success) throw new AxonXError(String(event.answer));
-          await reader.cancel();
           return event.answer;
         }
       }
     }
   } finally {
+    await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
   throw new AxonXError("Event stream ended without a terminal result");

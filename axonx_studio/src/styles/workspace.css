@@ -768,7 +768,7 @@
     padding: 0;
   }
   .language-button span,
-  .theme-trigger span,
+  .theme-trigger span:not(.system-icon),
   .theme-trigger > svg:last-child {
     display: none;
   }

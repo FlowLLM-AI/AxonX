@@ -1,3 +1,4 @@
+import { assetUrl } from "../../app/environment";
 export function AxonXMark({
   className = "",
   labelled = false,
@@ -8,7 +9,7 @@ export function AxonXMark({
   return (
     <img
       className={`axonx-mark ${className}`.trim()}
-      src="/axonx-icon.svg"
+      src={assetUrl("axonx-icon.svg")}
       alt={labelled ? "AxonX" : ""}
     />
   );

@@ -1,3 +1,4 @@
+import { playground } from "../../app/environment";
 import type { JobCatalog, JobResponse } from "./types";
 
 const tokenStorageKey = "axonx-service-token";
@@ -63,10 +64,23 @@ export async function readJobResponse<T>(response: Response): Promise<T> {
   return result.answer;
 }
 
+export type Transport = (url: string, init?: RequestInit) => Promise<Response>;
+
 export class AxonXClient {
-  private token = storedToken();
+  constructor(
+    private readonly transport: Transport = (url, init) => fetch(url, init),
+    private readonly authentication = true,
+  ) {
+    this.token = authentication ? storedToken() : "";
+  }
+
+  request(url: string, init?: RequestInit): Promise<Response> {
+    return this.transport(url, init);
+  }
+  private token: string;
 
   setToken(token: string): void {
+    if (!this.authentication) return;
     this.token = token.trim();
     try {
       if (this.token) localStorage.setItem(tokenStorageKey, this.token);
@@ -77,12 +91,13 @@ export class AxonXClient {
   }
 
   hasToken(): boolean {
-    return Boolean(this.token);
+    return Boolean(this.authentication && this.token);
   }
 
   requestHeaders(extra?: HeadersInit): Headers {
     const headers = new Headers(extra);
-    if (this.token) headers.set("Authorization", `Bearer ${this.token}`);
+    const token = this.authentication ? this.token : "";
+    if (token) headers.set("Authorization", `Bearer ${token}`);
     return headers;
   }
 
@@ -95,7 +110,7 @@ export class AxonXClient {
     arguments_: Record<string, unknown> = {},
     options: RequestOptions = {},
   ): Promise<T> {
-    const response = await fetch(`/jobs/${encodeURIComponent(name)}`, {
+    const response = await this.request(`/jobs/${encodeURIComponent(name)}`, {
       method: "POST",
       headers: this.requestHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(this.invocation(arguments_, options.target)),
@@ -108,7 +123,7 @@ export class AxonXClient {
     const query = options.target
       ? `?${new URLSearchParams({ target: options.target })}`
       : "";
-    const response = await fetch(`/jobs${query}`, {
+    const response = await this.request(`/jobs${query}`, {
       headers: this.requestHeaders(),
       signal: options.signal,
     });
@@ -120,4 +135,8 @@ export class AxonXClient {
   }
 }
 
-export const axonx = new AxonXClient();
+export let axonx = new AxonXClient(undefined, !playground);
+
+export function configureClient(client: AxonXClient) {
+  axonx = client;
+}

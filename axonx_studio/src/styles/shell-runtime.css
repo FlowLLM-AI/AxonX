@@ -85,6 +85,7 @@
 .studio-shell {
   height: 100vh;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 68px minmax(0, 1fr);
   overflow: hidden;
   background: var(--bg);
@@ -1041,4 +1042,32 @@
 .studio-workspace .catalog-panel,
 .studio-workspace .workspace-explorer {
   resize: none;
+}
+
+.playground-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.playground-banner > div {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.playground-banner a {
+  color: inherit;
+}
+.playground-banner button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.studio-shell.playground-shell {
+  grid-template-rows: 68px auto minmax(0, 1fr);
 }

@@ -20,6 +20,7 @@ const exists = async (file) =>
   );
 const pages = [
   "index.html",
+  "playground/index.html",
   "zh/index.html",
   "en/index.html",
   ...Object.keys(map).map((page) => page.replace(/\.md$/, ".html")),
@@ -82,6 +83,13 @@ for (const legacy of [
 }
 for (const page of pages) {
   const html = await readFile(site + page, "utf8");
+  for (const [anchor] of html.matchAll(/<a\b[^>]*>/g)) {
+    if (anchor.includes(`href="${base}playground/`))
+      assert(
+        anchor.includes('target="_self"'),
+        `Playground links must bypass the documentation router: ${page}`,
+      );
+  }
   for (const [, href] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
     const url = new URL(
       href.replaceAll("&amp;", "&"),
@@ -186,4 +194,10 @@ console.log(
   `Verified ${Object.keys(map).length} guides, bilingual homepages, ${
     checked.size
   } local links/assets, grouped navigation, source links, and Markdown exports.`,
+);
+
+const playground = await readFile(site + "playground/index.html", "utf8");
+assert(
+  playground.includes(`${base}playground/assets/`),
+  "Playground assets must respect the deployment base",
 );

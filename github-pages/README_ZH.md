@@ -17,6 +17,7 @@
 使用 Node.js 22+、npm 和完整仓库检出：
 
 ```bash
+npm --prefix axonx_studio ci
 cd github-pages
 npm ci
 npm run test
@@ -111,3 +112,5 @@ CI 使用相同变量，并在 GitHub Pages 设置域名和 DNS。构建检查�
 | 构建成功但未部署   | 检查事件、分支、Pages 来源、环境和工作流权限 |
 
 维护约定见[内容职责说明](../docs/README.md)和[贡献指南](../CONTRIBUTING_ZH.md)。
+
+官网导航与首页提供 Playground 入口。`npm run build` 同时构建 Studio 的浏览器模拟模式，并将独立产物合并到 `dist/playground/`。开发文档站时，可另开终端运行 `npm --prefix axonx_studio run dev:playground` 预览演示；完整合并站点通过 build 与 preview 检查。无需后台服务。

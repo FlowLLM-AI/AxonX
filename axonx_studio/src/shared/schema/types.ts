@@ -5,6 +5,7 @@ export interface JsonSchema {
   default?: unknown;
   enum?: unknown[];
   anyOf?: JsonSchema[];
+  items?: JsonSchema;
   properties?: Record<string, JsonSchema>;
   required?: string[];
   format?: string;

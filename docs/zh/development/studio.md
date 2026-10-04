@@ -89,3 +89,24 @@ npm run build
 - `axonx_studio/src/shared/api/client.ts`、`event.ts`
 - `axonx_studio/src/shared/schema/values.ts`
 - `axonx_studio/vite.config.ts`、`package.json`
+
+## 静态 Playground
+
+官网在 `/AxonX/playground/` 提供独立 Studio，复用正式应用的页面、Job 响应和 SSE 解析器。无需 Python 服务、数据库或 LLM；证券及研究结果均为合成数据，Agent 回复为脚本演示。
+
+```bash
+npm ci
+npm run dev:playground
+# 打开 http://localhost:4173/AxonX/playground/
+npm run build:playground
+```
+
+`DOCS_BASE` 决定部署前缀，默认为 `/AxonX/`。独立的 `dist-playground/` 输出不会覆盖 Python 打包所用的普通 `dist/`。文档构建会生成 Playground 并合并到 Pages 发布产物。构建官网前，需要分别在 `axonx_studio/` 与 `github-pages/` 安装依赖。
+
+所有请求（包括事件流）统一经过 `AxonXClient.request`。默认 transport 调用同源 HTTP；Playground 模式由 `main.tsx` 在挂载前注入 `createPlayground()`，该客户端禁用认证。业务 API 无需按模式分支。未知 Job、文件与远程 target 返回明确错误，不回退到网络请求。
+
+`playground/fixtures.ts` 创建虚拟工作区，包含 ETL → 因子分析 → 训练 → 预测 → 回测完整链路与两组回测。JSON 表格预览实现现有 Parquet 预览协议，无需附带 Parquet 解码器。收益与汇总指标由同一组序列生成。
+
+`playground/runtime.ts` 维护任务与文件状态，`agent.ts` 维护脚本会话及工具消息，`stream.ts` 负责事件订阅清理，`catalog.ts` 声明支持的 Job。提交任务按经过时间推进，即使没有订阅者也会继续；状态查询和事件流同步这些状态。取消任务停止执行；AbortSignal 只关闭过期订阅并释放计时器。成功任务生成 metadata 与产物，失败或取消任务不会生成。`strategy` 选择合成结果，`outcome` 选择成功或失败，提交配置不会执行真实研究算法。
+
+刷新或点击「重置示例」恢复初始状态，不持久化执行状态。测试覆盖数据契约、分页、生命周期、删除、事件流清理、脚本会话和网络隔离。应检查正式与 Playground 两种构建；站点验证会检查合并后的入口与资源路径。

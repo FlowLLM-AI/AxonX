@@ -8,7 +8,7 @@
   "scripts": {
     "content": "node scripts/generate-content.mjs",
     "dev": "npm run content && vitepress dev .generated/site",
-    "build": "npm run content && vitepress build .generated/site && node scripts/verify-build.mjs",
+    "build": "npm run content && npm --prefix ../axonx_studio run build:playground && vitepress build .generated/site && node scripts/merge-playground.mjs && node scripts/verify-build.mjs",
     "preview": "vitepress preview .generated/site",
     "format": "prettier --write . ../docs ../README.md ../README_ZH.md ../CONTRIBUTING.md ../CONTRIBUTING_ZH.md ../plugins/a158/README*.md ../plugins/a158_enhanced/README*.md --ignore-path ../.prettierignore",
     "format:check": "prettier --check . ../docs ../README.md ../README_ZH.md ../CONTRIBUTING.md ../CONTRIBUTING_ZH.md ../plugins/a158/README*.md ../plugins/a158_enhanced/README*.md --ignore-path ../.prettierignore",

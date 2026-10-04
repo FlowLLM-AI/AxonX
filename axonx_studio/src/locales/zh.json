@@ -643,5 +643,12 @@
     "resizePanel": "调整面板大小",
     "true": "是",
     "false": "否"
+  },
+  "playground": {
+    "title": "Playground",
+    "notice": "虚构数据 · 浏览器模拟执行 · 脚本 Agent · 刷新恢复初始状态",
+    "docs": "返回文档",
+    "reset": "重置示例",
+    "machine": "演示浏览器"
   }
 }

@@ -89,3 +89,24 @@ When updating user documentation, also add feature entry points, prerequisites, 
 - `axonx_studio/src/shared/api/client.ts`, `event.ts`
 - `axonx_studio/src/shared/schema/values.ts`
 - `axonx_studio/vite.config.ts`, `package.json`
+
+## Static Playground
+
+The website includes a standalone Studio at `/AxonX/playground/`. It uses the same pages, Job envelopes and SSE parser as the service-backed application. No Python service, database or LLM is involved. Securities and research results are synthetic. Agent replies are scripted.
+
+```bash
+npm ci
+npm run dev:playground
+# Open http://localhost:4173/AxonX/playground/
+npm run build:playground
+```
+
+`DOCS_BASE` determines the mount prefix (default `/AxonX/`). The separate `dist-playground/` output leaves the ordinary `dist/` used by Python packaging untouched. The documentation build constructs and merges this output into its Pages artifact. Install dependencies in both `axonx_studio/` and `github-pages/` before building the website.
+
+All requests, including streams, go through `AxonXClient.request`. The default transport calls same-origin HTTP; `main.tsx` injects `createPlayground()` before mounting in Playground mode. Authentication is disabled for this simulated client. Feature API wrappers do not branch on mode. Unknown Jobs, files and remote targets return explicit errors without network fallback.
+
+`playground/fixtures.ts` creates a virtual workspace with a complete ETL → analysis → training → prediction → backtest chain and two backtests. JSON table previews implement the existing Parquet preview protocol without shipping a Parquet decoder. Returns and summary metrics are generated from the same series.
+
+`playground/runtime.ts` owns task and file state; `agent.ts` owns scripted sessions and tool messages; `stream.ts` owns event subscription cleanup; `catalog.ts` declares supported Jobs. Submitted tasks advance from elapsed time even without subscribers; status requests and streams reconcile that state. Task cancellation stops execution, while AbortSignal only closes an obsolete subscription and releases its timer. Successful runs add metadata and artifacts; failed or cancelled runs do not. The `strategy` parameter selects synthetic results; `outcome` selects success or failure. No submitted configuration executes a real research algorithm.
+
+Refresh or use **Reset demo** to recreate initial state. There is no persisted execution state. Tests exercise data contracts, pagination, lifecycle, deletion, stream cleanup, scripted conversations and network isolation. Verify both normal and Playground builds; the website verifier checks the merged Playground entry and asset paths.

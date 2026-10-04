@@ -1,3 +1,4 @@
+import { assetUrl } from "../app/environment";
 import {
   Activity,
   ArrowDown,
@@ -88,7 +89,7 @@ export default function HomePage({
             <span className="hero-brand-kicker">
               AXONX / AGENT-NATIVE QUANT HARNESS
             </span>
-            <img src="/axonx-logo.svg" alt="AxonX" />
+            <img src={assetUrl("axonx-logo.svg")} alt="AxonX" />
             <h1>{t("home.brandTitle")}</h1>
             <p>{t("home.brandLead")}</p>
             <div className="hero-brand-actions">
