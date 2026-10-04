@@ -36,18 +36,18 @@
 
 ## ✨ 为什么使用 AxonX？
 
-- **可复用的研究 Task。** 带类型的输入输出明确数据、模型与产物要求。→ [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)
-- **管理执行过程。** 在工作进程中运行 Task，跟踪状态、进度、日志与结果，支持等待和取消。→ [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)
-- **追溯研究结果。** 保存的参数、产物和依赖图帮助你复用数据和比较实验。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)
-- **各入口共用工作流程。** CLI / MCP、Studio 与 Agent 共享 Job 和 Task 契约、记录及产物。→ [AxonX Studio](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/zh/agent/usage)
-- **扩展并远程运行。** 添加研究插件，在选定的目标环境中执行 Task。→ [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
+- 可复用的研究 Task。 带类型的输入输出明确数据、模型与产物要求。→ [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)
+- 管理执行过程。 在工作进程中运行 Task，跟踪状态、进度、日志与结果，支持等待和取消。→ [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)
+- 追溯研究结果。 保存的参数、产物和依赖图帮助你复用数据和比较实验。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)
+- 各入口共用工作流程。 CLI / MCP、Studio 与 Agent 共享 Job 和 Task 契约、记录及产物。→ [AxonX Studio](https://flowllm-ai.github.io/AxonX/zh/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/zh/agent/usage)
+- 扩展并远程运行。 添加研究插件，在选定的目标环境中执行 Task。→ [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
 
 ## 📰 最新更新
 
-- **AxonX 0.1.0 发布：** 面向量化研究的 Agent Harness，提供插件化 Task、执行跟踪、任务血缘，以及 CLI / MCP / Studio 统一接入。→ [官网文档](https://flowllm-ai.github.io/AxonX/zh/)
-- **通过 SKILL.md + CLI 接入 Agent：** 为 Codex、Claude Code 等加载 [AxonX Skill](skills/axonx/SKILL.md)，让 Agent 发现 Task 契约、开发插件、提交研究任务并检查结果。→ [Agent 接入指南](https://flowllm-ai.github.io/AxonX/zh/agent/external)
-- **AxonX Studio 能力发布：** 在同一工作台浏览任务与产物、查看训练曲线与回测、比较策略。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>（数据与执行均为模拟）
-- **使用 Skill + CLI 开发 Alpha158 增强版：** Codex 为 Alpha158 新增 26 个特征。在 2025-01-01 至 2026-09-30 确认期，Top10 扣费年化收益从 **−5.74% 提高至 28.21%**，Top20 从 **−3.24% 提高至 24.93%**。→ [Benchmark](#benchmark-agent-开发市场横截面增强特征) · [完整结果](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
+- AxonX **0.1.0** 发布： 面向量化研究的 Agent Harness，提供插件化 Task、执行跟踪、任务血缘，以及 CLI / MCP / Studio 统一接入。→ [官网文档](https://flowllm-ai.github.io/AxonX/zh/)
+- 通过 SKILL.md + CLI 接入 Agent： 为 Codex、Claude Code 等加载 [AxonX Skill](skills/axonx/SKILL.md)，让 Agent 发现 Task 契约、开发插件、提交研究任务并检查结果。→ [Agent 接入指南](https://flowllm-ai.github.io/AxonX/zh/agent/external)
+- AxonX Studio 能力发布： 在同一工作台浏览任务与产物、查看训练曲线与回测、比较策略。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>（数据与执行均为模拟）
+- 使用 Skill + CLI 开发 Alpha158 增强版： Codex 为 Alpha158 新增 **26** 个特征。在 2025-01-01 至 2026-09-30 确认期，Top10 扣费年化收益从 **−5.74%** 提高至 **28.21%**，Top20 从 **−3.24%** 提高至 **24.93%**。→ [Benchmark](#benchmark-agent-开发市场横截面增强特征) · [完整结果](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261004-flat)
 

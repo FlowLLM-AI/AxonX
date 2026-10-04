@@ -39,18 +39,18 @@ inspect logs, artifacts, and upstream and downstream relationships.
 
 ## ✨ Why AxonX?
 
-- **Reusable research Tasks.** Typed inputs and outputs define data, model, and artifact requirements. → [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts)
-- **Manage execution.** Run Tasks in worker processes; track status, progress, logs, and results; wait or cancel. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
-- **Trace research results.** Saved parameters, artifacts, and dependency graphs help you reuse data and compare experiments. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)
-- **One workflow across interfaces.** CLI / MCP, Studio, and Agents share Job and Task contracts, records, and artifacts. → [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/en/agent/usage)
-- **Extend and run remotely.** Add research plugins and execute Tasks in a selected target environment. → [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
+- Reusable research Tasks. Typed inputs and outputs define data, model, and artifact requirements. → [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts)
+- Manage execution. Run Tasks in worker processes; track status, progress, logs, and results; wait or cancel. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
+- Trace research results. Saved parameters, artifacts, and dependency graphs help you reuse data and compare experiments. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)
+- One workflow across interfaces. CLI / MCP, Studio, and Agents share Job and Task contracts, records, and artifacts. → [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/en/agent/usage)
+- Extend and run remotely. Add research plugins and execute Tasks in a selected target environment. → [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
 
 ## 📰 Latest Updates
 
-- **AxonX 0.1.0 released:** an agent-native quantitative research harness with plugin-based Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access. → [Documentation](https://flowllm-ai.github.io/AxonX/en/)
-- **Connect your Agent with SKILL.md + CLI:** load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
-- **AxonX Studio available:** browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
-- **Alpha158 Enhanced developed with Skill + CLI:** Codex added 26 features to Alpha158. In the 2025-01-01–2026-09-30 confirmation period, Top10 net annualized return rose from **−5.74% to 28.21%**, and Top20 from **−3.24% to 24.93%**. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
+- AxonX **0.1.0** released: an agent-native quantitative research harness with plugin-based Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access. → [Documentation](https://flowllm-ai.github.io/AxonX/en/)
+- Connect your Agent with SKILL.md + CLI: load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
+- AxonX Studio available: browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
+- Alpha158 Enhanced developed with Skill + CLI: Codex added **26** features to Alpha158. In the 2025-01-01–2026-09-30 confirmation period, Top10 net annualized return rose from **−5.74%** to **28.21%**, and Top20 from **−3.24%** to **24.93%**. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
