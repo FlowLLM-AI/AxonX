@@ -187,13 +187,17 @@ export function AppShell(props: AppShellProps) {
         <div className="studio-actions">
           <button
             className="topbar-control language-button"
+            aria-label={t("shell.switchLanguageLabel")}
             onClick={() => void changeLanguage(language === "zh" ? "en" : "zh")}
           >
             <Languages />
             <span>{t("shell.switchLanguageLabel")}</span>
           </button>
           <div className="theme-picker">
-            <button className="topbar-control theme-trigger">
+            <button
+              className="topbar-control theme-trigger"
+              aria-label={t(theme)}
+            >
               {theme === "light" ? (
                 <Sun />
               ) : theme === "dark" ? (
