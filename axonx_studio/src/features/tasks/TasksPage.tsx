@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Ban,
@@ -59,12 +59,22 @@ export function TasksPage({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const request = useRef<AbortController | null>(null);
+
   const load = useCallback(
-    async (quiet = false) => {
+    async (quiet = false, signal?: AbortSignal, invalidate = false) => {
+      if (invalidate) request.current?.abort();
+      if (request.current && !request.current.signal.aborted) return;
+      if (signal?.aborted) return;
+      const controller = new AbortController();
+      request.current = controller;
+      const abort = () => controller.abort();
+      signal?.addEventListener("abort", abort, { once: true });
       if (quiet) setRefreshing(true);
       else setLoading(true);
       try {
-        const result = await listTaskStatuses(target);
+        const result = await listTaskStatuses(target, controller.signal);
+        if (controller.signal.aborted) return;
         const ordered = [...result].sort(
           (left, right) => taskTimestamp(right) - taskTimestamp(left),
         );
@@ -82,11 +92,16 @@ export function TasksPage({
         setError("");
         onConnection(true);
       } catch (reason) {
+        if (controller.signal.aborted) return;
         setError(reason instanceof Error ? reason.message : String(reason));
         onConnection(false);
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        signal?.removeEventListener("abort", abort);
+        if (request.current === controller) {
+          request.current = null;
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [onConnection, target],
@@ -94,6 +109,10 @@ export function TasksPage({
 
   useEffect(() => {
     void load();
+    return () => {
+      request.current?.abort();
+      request.current = null;
+    };
   }, [load]);
   useEffect(() => {
     onTasksChange?.(
@@ -121,9 +140,7 @@ export function TasksPage({
       window.removeEventListener("scroll", close, true);
     };
   }, [contextMenu]);
-  const poll = useCallback(() => {
-    void load(true);
-  }, [load]);
+  const poll = useCallback((signal: AbortSignal) => load(true, signal), [load]);
   const seconds = usePolling(poll, autoRefresh, 5);
 
   const types = useMemo(
@@ -197,7 +214,7 @@ export function TasksPage({
       const cancelled = await cancelTask(cancelTarget.task_id, target);
       if (!cancelled) throw new Error(t("cancelFailed"));
       setCancelTarget(null);
-      await load(true);
+      await load(true, undefined, true);
     } catch (reason) {
       setCancelTarget(null);
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -219,7 +236,7 @@ export function TasksPage({
       });
       if (deleted.length === requested.length) setSelectionMode(false);
       setDeleteOpen(false);
-      await load(true);
+      await load(true, undefined, true);
       if (deleted.length !== requested.length)
         throw new Error(
           t("deletePartial", {

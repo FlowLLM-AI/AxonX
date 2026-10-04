@@ -69,7 +69,7 @@ The dependency graph shows tasks and upstream relationships. Relationships for r
 | Offline backtest    | Daily curves, quality, and period summaries            | [Interpreting backtests](../research/backtest.md)         |
 | Strategy comparison | Comparison of two backtests over their shared interval | [Strategy comparison](../research/strategy-comparison.md) |
 
-**Raw data** browses `workspace_dir/tushare`. Year (`YYYY`) and date (`YYYYMMDD`) directories appear newest first; other folders and files remain alphabetical, with folders first. The service connection indicator checks status every 15 seconds. Research and file pages refresh on demand.
+**Raw data** browses `workspace_dir/tushare`. Year (`YYYY`) and date (`YYYYMMDD`) directories appear newest first; other folders and files remain alphabetical, with folders first. The service connection indicator checks status every 15 seconds. Task-list and service-status polling pause while the browser tab is hidden and check immediately when it becomes visible again; pending requests are not duplicated. Research and file pages refresh on demand. Copy-success feedback lasts 1.6 seconds and restarts after each copy.
 
 Research pages read `metadata.json` and `output_params.artifacts`. A run record in the task list does not guarantee that displayable research metadata has been produced. For failed tasks, incomplete fields, or corrupt metadata, investigate details and logs first.
 

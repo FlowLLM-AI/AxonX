@@ -69,7 +69,7 @@ axonx start --service.host 127.0.0.1
 | Offline backtest    | 日频曲线、质量和分期汇总       | [回测解读](../research/backtest.md)            |
 | Strategy comparison | 两个回测的共同区间比较         | [策略比较](../research/strategy-comparison.md) |
 
-**原始数据** 浏览 `workspace_dir/tushare`。年份（`YYYY`）与日期（`YYYYMMDD`）目录按时间倒序显示；其他目录和文件保留名称升序，目录优先。服务连接指示器每 15 秒检查状态，研究页面与文件页面按需刷新。
+**原始数据** 浏览 `workspace_dir/tushare`。年份（`YYYY`）与日期（`YYYYMMDD`）目录按时间倒序显示；其他目录和文件保留名称升序，目录优先。服务连接指示器每 15 秒检查状态。任务列表与服务状态的自动检查在浏览器标签页隐藏时暂停，回到前台后立即检查；请求尚未完成时不会重复发送。研究页面与文件页面按需刷新。复制成功提示统一显示 1.6 秒，每次复制后重新计时。
 
 研究页面读取 `metadata.json` 及 `output_params.artifacts`。任务列表里有一条运行记录，并不保证它已产生可展示的研究元数据。失败任务、字段不完整或损坏的 metadata 应先在详情和日志中排查。
 

@@ -33,6 +33,7 @@ import {
   listTaskRuns,
   previewWorkspaceFile,
 } from "../workspace/api";
+import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { formatBytes } from "../../shared/lib/format";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import type { ContextOption } from "../../app/types";
@@ -638,7 +639,8 @@ function ArtifactDetail({
   onNavigate: (page: ResearchPageId | "runtime", resource?: string) => void;
 }) {
   const { t } = useTranslation();
-  const [copiedLineage, setCopiedLineage] = useState("");
+  const lineageClipboard = useCopyFeedback();
+  const copiedLineage = lineageClipboard.copied;
   const pageByType: Partial<Record<string, ResearchPageId>> = {
     etl: "etl",
     analysis: "factors",
@@ -651,14 +653,7 @@ function ArtifactDetail({
     type: taskId.split("#")[0],
     page: pageByType[taskId.split("#")[0]] || ("runtime" as const),
   }));
-  const copyLineageId = async (taskId: string) => {
-    await navigator.clipboard.writeText(taskId);
-    setCopiedLineage(taskId);
-    window.setTimeout(
-      () => setCopiedLineage((current) => (current === taskId ? "" : current)),
-      1600,
-    );
-  };
+  const copyLineageId = (taskId: string) => lineageClipboard.copy(taskId);
   return (
     <>
       {
