@@ -99,6 +99,18 @@ DOCS_BASE=/ DOCS_SITE_URL=https://docs.example.com npm run preview
 
 Use the same settings in CI and configure the domain and DNS in GitHub Pages. Build checks validate local output, not external links or the live deployment.
 
+### Vercel
+
+The repository-root [`vercel.json`](../vercel.json) deploys the documentation and Playground as a static site. It selects the **Other** framework preset to prevent the repository's Python dependencies from triggering FastAPI entrypoint detection, installs both frontend packages, and publishes `github-pages/dist`.
+
+Keep Vercel's **Root Directory** at the repository root and select **Node.js 22.x** in Project Settings. Keep **Automatically expose System Environment Variables** enabled. The build uses `DOCS_BASE=/` and defaults `DOCS_SITE_URL` to `https://$VERCEL_PROJECT_PRODUCTION_URL`; set `DOCS_SITE_URL` explicitly to override the production origin. Preview builds also use the production origin for export URLs. These settings leave the GitHub Pages workflow unchanged and do not deploy the AxonX research backend.
+
+To verify the Vercel build locally from the repository root after installing both packages:
+
+```bash
+DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages run build
+```
+
 ## Troubleshooting
 
 | Symptom                                | Action                                                                     |

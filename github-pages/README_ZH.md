@@ -99,6 +99,18 @@ DOCS_BASE=/ DOCS_SITE_URL=https://docs.example.com npm run preview
 
 CI 使用相同变量，并在 GitHub Pages 设置域名和 DNS。构建检查验证本地产物，不验证外部链接或线上部署。
 
+### Vercel
+
+仓库根目录的 [`vercel.json`](../vercel.json) 将文档和 Playground 部署为静态站点。配置选择 **Other** 框架预设，避免仓库的 Python 依赖触发 FastAPI 入口检测，安装两个前端包，并发布 `github-pages/dist`。
+
+Vercel 的 **Root Directory** 保持为仓库根目录，在 Project Settings 中选择 **Node.js 22.x**，并保持 **Automatically expose System Environment Variables** 开启。构建使用 `DOCS_BASE=/`，`DOCS_SITE_URL` 默认取 `https://$VERCEL_PROJECT_PRODUCTION_URL`；可显式设置 `DOCS_SITE_URL` 覆盖正式站点 origin。预览构建的 导出 URL 也使用正式站点 origin。这些配置不改变 GitHub Pages 工作流，也不部署 AxonX 研究后端。
+
+安装两个包后，可从仓库根目录验证 Vercel 构建：
+
+```bash
+DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages run build
+```
+
 ## 排障
 
 | 现象               | 处理                                         |
