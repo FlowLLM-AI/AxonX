@@ -194,6 +194,7 @@
 }
 .star-prompt {
   padding-top: 24px;
+  text-align: center;
 }
 .hero {
   display: grid;
