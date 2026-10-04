@@ -17,6 +17,8 @@
   <a href="https://deepwiki.com/FlowLLM-AI/AxonX"><img src="https://img.shields.io/badge/DeepWiki-Ask_Devin-navy?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA0aDZsMyAyIDMtMmg2djE2aC02bC0zIDItMy0ySDN6IE0xMiA2djE2Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="Ask DeepWiki about AxonX" /></a>
 </p>
 
+⭐ If AxonX helps your research, please [give us a Star on GitHub](https://github.com/FlowLLM-AI/AxonX). Your support helps more researchers discover AxonX!
+
 <a id="what-is-axonx"></a>
 
 ## 🧠 What is AxonX?
@@ -47,8 +49,6 @@ inspect logs, artifacts, and upstream and downstream relationships.
 - **Connect your Agent with SKILL.md + CLI:** load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
 - **AxonX Studio available:** browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
 - **Alpha158 Enhanced developed with Skill + CLI:** Codex added 26 features to Alpha158. In the 2025-01-01–2026-09-30 confirmation period, Top10 net annualized return rose from **−5.74% to 28.21%**, and Top20 from **−3.24% to 24.93%**. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
-
-⭐ If AxonX helps your research, please [give us a Star on GitHub](https://github.com/FlowLLM-AI/AxonX). Your support helps more researchers discover AxonX!
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
 

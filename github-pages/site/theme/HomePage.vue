@@ -180,6 +180,17 @@ const capabilities = [
 
 <template>
   <main class="axon-home">
+    <p class="star-prompt section-lead shell">
+      <a href="https://github.com/FlowLLM-AI/AxonX">
+        {{
+          t(
+            "喜欢 AxonX？在 GitHub 点亮 Star，支持项目！",
+            "Enjoy AxonX? Give us a Star on GitHub to support the project!",
+          )
+        }}
+        ↗
+      </a>
+    </p>
     <section class="hero shell">
       <div class="hero-copy">
         <p class="eyebrow">
@@ -331,17 +342,6 @@ const capabilities = [
           </p>
         </li>
       </ul>
-      <p class="section-lead">
-        <a href="https://github.com/FlowLLM-AI/AxonX">
-          {{
-            t(
-              "喜欢 AxonX？在 GitHub 点亮 Star，支持项目！",
-              "Enjoy AxonX? Give us a Star on GitHub to support the project!",
-            )
-          }}
-          ↗
-        </a>
-      </p>
     </section>
 
     <section

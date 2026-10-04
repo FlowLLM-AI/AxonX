@@ -17,6 +17,8 @@
   <a href="https://deepwiki.com/FlowLLM-AI/AxonX"><img src="https://img.shields.io/badge/DeepWiki-Ask_Devin-navy?style=flat-square&amp;logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA0aDZsMyAyIDMtMmg2djE2aC02bC0zIDItMy0ySDN6IE0xMiA2djE2Ii8%2BPC9zdmc%2B&amp;logoColor=white" alt="通过 DeepWiki 了解 AxonX" /></a>
 </p>
 
+⭐ 如果 AxonX 对你的研究有帮助，欢迎在 [GitHub 点亮 Star](https://github.com/FlowLLM-AI/AxonX)，支持项目，也让更多研究者发现 AxonX！
+
 <a id="axonx-是什么"></a>
 
 ## 🧠 AxonX 是什么？
@@ -44,8 +46,6 @@
 - **通过 SKILL.md + CLI 接入 Agent：** 为 Codex、Claude Code 等加载 [AxonX Skill](skills/axonx/SKILL.md)，让 Agent 发现 Task 契约、开发插件、提交研究任务并检查结果。→ [Agent 接入指南](https://flowllm-ai.github.io/AxonX/zh/agent/external)
 - **AxonX Studio 能力发布：** 在同一工作台浏览任务与产物、查看训练曲线与回测、比较策略。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>（数据与执行均为模拟）
 - **使用 Skill + CLI 开发 Alpha158 增强版：** Codex 为 Alpha158 新增 26 个特征。在 2025-01-01 至 2026-09-30 确认期，Top10 扣费年化收益从 **−5.74% 提高至 28.21%**，Top20 从 **−3.24% 提高至 24.93%**。→ [Benchmark](#benchmark-agent-开发市场横截面增强特征) · [完整结果](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
-
-⭐ 如果 AxonX 对你的研究有帮助，欢迎在 [GitHub 点亮 Star](https://github.com/FlowLLM-AI/AxonX)，支持项目，也让更多研究者发现 AxonX！
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261004-flat)
 

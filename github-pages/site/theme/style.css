@@ -192,6 +192,9 @@
   background: var(--vp-c-brand-1);
   margin-right: 9px;
 }
+.star-prompt {
+  padding-top: 24px;
+}
 .hero {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
@@ -886,7 +889,7 @@
   line-height: 1.8;
 }
 .updates-list a,
-.updates-section .section-lead a {
+.star-prompt a {
   color: var(--vp-c-brand-1);
   text-decoration: underline;
   text-underline-offset: 3px;
