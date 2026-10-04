@@ -181,6 +181,16 @@ Version 0.1.2 enables all four groups by default, matching the locked 184-featur
 
 RankIC and Top10/20 net annualized returns improved in this data snapshot. RankICIR and Top1–3 returns declined. The 95% block-bootstrap intervals for all three paired daily increments cross zero in confirmation, so these positive point estimates do not establish a stable improvement. Feature gain measures model use, rather than independent causal contribution.
 
+### Signal quality
+
+![Baseline and enhanced RankIC and annualized RankICIR over selection and confirmation periods](../../docs/figures/benchmark/a158-signal-quality.svg)
+
+### TopN portfolio results
+
+![Confirmation-period Top10, Top20, and Top30 net annualized returns, maximum drawdown, and net Sharpe](../../docs/figures/benchmark/a158-topn-results.svg)
+
+Net Sharpe is calculated from daily net returns after costs; Top30 net Sharpe was not saved. These charts summarize the historical experiment above, not expected performance on new data.
+
 ## Experiment documents and evidence
 
 The detailed historical documents are in Chinese; this English README provides the usage, protocol, findings, and reproduction entry points.

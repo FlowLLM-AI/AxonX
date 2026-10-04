@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="820" viewBox="0 0 1280 820" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="580" viewBox="0 0 1280 580" role="img" aria-labelledby="title desc">
   <title id="title">AxonX · Agent-native Quantitative Research Harness</title>
   <desc id="desc">Agents use CLI or MCP and Studio uses HTTP and SSE to call shared Jobs. In the selected local or remote target, plugins define typed research Tasks, workers execute them, and the workspace preserves research records, artifacts, and lineage. Solid arrows show execution and recording; the dashed arrow queries workspace evidence.</desc>
   <defs>
@@ -6,63 +6,58 @@
       <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
     </marker>
   </defs>
-  <rect x="8" y="8" width="1264" height="804" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
+  <rect x="8" y="5.9" width="1264" height="568.3" rx="30" fill="#f5f8fc" stroke="#ccd9e5" stroke-width="1.5" />
   <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b" data-diagram-content="true">
-    <text x="52" y="67" font-size="42" font-weight="700" text-anchor="start" fill="#18324b">AxonX</text>
-    <text x="52" y="102" font-size="23" font-weight="400" text-anchor="start" fill="#52738f">Agent-native quantitative research harness</text>
-    <text x="1228" y="82" font-size="18" font-weight="400" text-anchor="end" fill="#52738f">Algorithms → Execution → Evidence</text>
-    <rect x="52" y="138" width="560" height="100" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
-    <rect x="76" y="162" width="52" height="52" rx="14" fill="#f0f6ff" stroke="#c9daef" stroke-width="1.8" />
-    <path d="M 90 178 l 9 10 -9 10 M 105 198 h 10" fill="none" stroke="#18324b" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="148" y="177" font-size="27" font-weight="700" text-anchor="start" fill="#18324b">Agents</text>
-    <text x="148" y="211" font-size="20" font-weight="400" text-anchor="start" fill="#52738f">CLI / MCP</text>
-    <rect x="668" y="138" width="560" height="100" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
-    <rect x="692" y="162" width="52" height="52" rx="14" fill="#f0f6ff" stroke="#c9daef" stroke-width="1.8" />
-    <path d="M 704 176 h 28 v 23 h -28 z M 704 182 h 28 M 710 188 v 6 M 717 188 v 6 M 724 188 v 6" fill="none" stroke="#18324b" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="764" y="177" font-size="27" font-weight="700" text-anchor="start" fill="#18324b">AxonX Studio</text>
-    <text x="764" y="211" font-size="20" font-weight="400" text-anchor="start" fill="#52738f">HTTP / SSE</text>
-    <path d="M 332 238 V 278" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <path d="M 948 238 V 278" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <rect x="52" y="278" width="1176" height="112" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="640" y="318" font-size="27" font-weight="700" text-anchor="middle" fill="#18324b">Shared Job interfaces</text>
-    <text x="170" y="359" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Discover</text>
-    <path d="M 287 342 v 23" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="405" y="359" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Task contracts</text>
-    <path d="M 522 342 v 23" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="640" y="359" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Submit / Control</text>
-    <path d="M 757 342 v 23" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="875" y="359" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Inspect results</text>
-    <path d="M 992 342 v 23" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="1110" y="359" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Manage plugins</text>
-    <rect x="32" y="466" width="1216" height="294" rx="24" fill="#ffffff" stroke="#b8cadb" stroke-width="1.8" />
-    <text x="56" y="502" font-size="22" font-weight="700" text-anchor="start" fill="#18324b">Selected execution target</text>
-    <text x="1224" y="502" font-size="18" font-weight="400" text-anchor="end" fill="#52738f">Local / Remote</text>
-    <path d="M 640 390 V 534" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <text x="622" y="434" font-size="17" font-weight="400" text-anchor="end" fill="#52738f">Submit</text>
-    <path d="M 1100 390 V 432 H 1052 V 534" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 6" marker-end="url(#arrow)" />
-    <text x="1082" y="426" font-size="17" font-weight="400" text-anchor="end" fill="#52738f">Query</text>
-    <rect x="56" y="534" width="344" height="190" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="80" y="575" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Research plugins</text>
-    <path d="M 80 591 H 376" fill="none" stroke="#d1c6ed" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="80" y="625" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Data processing · Factor analysis</text>
-    <text x="80" y="656" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Training · Prediction · Backtesting</text>
-    <text x="80" y="687" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Typed Task input / output</text>
-    <rect x="468" y="534" width="344" height="190" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="492" y="575" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Task execution</text>
-    <path d="M 492 591 H 788" fill="none" stroke="#a9d7ca" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="492" y="625" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Independent worker processes</text>
-    <text x="492" y="656" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Status · Progress</text>
-    <text x="492" y="687" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Wait · Cancel</text>
-    <rect x="880" y="534" width="344" height="190" rx="20" fill="#edf3fc" stroke="#bbcee5" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="904" y="575" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Shared workspace</text>
-    <path d="M 904 591 H 1200" fill="none" stroke="#bbcee5" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="904" y="625" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Task records &amp; parameters</text>
-    <text x="904" y="656" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Logs &amp; artifacts</text>
-    <text x="904" y="687" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Task graph · Upstream IDs</text>
-    <path d="M 400 641 H 468" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <text x="434" y="628" font-size="15" font-weight="400" text-anchor="middle" fill="#52738f">Define</text>
-    <path d="M 812 641 H 880" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <text x="846" y="628" font-size="15" font-weight="400" text-anchor="middle" fill="#52738f">Record</text>
-    <text x="640" y="790" font-size="18" font-weight="400" text-anchor="middle" fill="#52738f">Plugins provide algorithms. AxonX manages execution, records, and research evidence.</text>
+    <text x="52" y="47" font-size="34" font-weight="700" text-anchor="start" fill="#18324b">AxonX</text>
+    <text x="52" y="84" font-size="20" font-weight="400" text-anchor="start" fill="#52738f">Agent-native quantitative research harness</text>
+    <text x="1228" y="60.0" font-size="18" font-weight="400" text-anchor="end" fill="#52738f">Algorithms → Execution → Evidence</text>
+    <rect x="52" y="101.0" width="560" height="73.2" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="80" y="146" font-size="27" font-weight="700" text-anchor="start" fill="#18324b">Agents</text>
+    <text x="584" y="146" font-size="20" font-weight="400" text-anchor="end" fill="#52738f">CLI / MCP</text>
+    <rect x="668" y="101.0" width="560" height="73.2" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="696" y="146" font-size="27" font-weight="700" text-anchor="start" fill="#18324b">AxonX Studio</text>
+    <text x="1200" y="146" font-size="20" font-weight="400" text-anchor="end" fill="#52738f">HTTP / SSE</text>
+    <path d="M 332 174.1 V 203.4" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 948 174.1 V 203.4" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <rect x="52" y="203.4" width="1176" height="82.0" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="640" y="232.7" font-size="27" font-weight="700" text-anchor="middle" fill="#18324b">Shared Job interfaces</text>
+    <text x="170" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Discover</text>
+    <path d="M 287 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="405" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Task contracts</text>
+    <path d="M 522 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="640" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Submit / Control</text>
+    <path d="M 757 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="875" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Inspect results</text>
+    <path d="M 992 250.2 v 16.8" fill="none" stroke="#c0d3ec" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="1110" y="262.7" font-size="19" font-weight="400" text-anchor="middle" fill="#18324b">Manage plugins</text>
+    <rect x="32" y="323" width="1216" height="236" rx="24" fill="#ffffff" stroke="#b8cadb" stroke-width="1.8" />
+    <text x="56" y="351" font-size="22" font-weight="700" text-anchor="start" fill="#18324b">Selected execution target</text>
+    <text x="1224" y="351" font-size="18" font-weight="400" text-anchor="end" fill="#52738f">Local / Remote</text>
+    <path d="M 640 285.4 V 372" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="622" y="317.6" font-size="17" font-weight="400" text-anchor="end" fill="#52738f">Submit</text>
+    <path d="M 1052 285.4 V 372" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 6" marker-end="url(#arrow)" />
+    <text x="1070" y="311.7" font-size="17" font-weight="400" text-anchor="start" fill="#52738f">Query</text>
+    <rect x="56" y="372" width="344" height="176" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="80" y="406" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Research plugins</text>
+    <path d="M 80 421 H 376" fill="none" stroke="#d1c6ed" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="80" y="453" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Data processing · Factors</text>
+    <text x="80" y="485" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Training · Prediction · Backtest</text>
+    <text x="80" y="517" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Typed Task inputs / outputs</text>
+    <rect x="468" y="372" width="344" height="176" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="492" y="406" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Task execution</text>
+    <path d="M 492 421 H 788" fill="none" stroke="#a9d7ca" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="492" y="453" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Independent workers</text>
+    <text x="492" y="485" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Status · Progress</text>
+    <text x="492" y="517" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Wait · Cancel</text>
+    <rect x="880" y="372" width="344" height="176" rx="20" fill="#edf3fc" stroke="#bbcee5" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="904" y="406" font-size="25" font-weight="700" text-anchor="start" fill="#18324b">Shared workspace</text>
+    <path d="M 904 421 H 1200" fill="none" stroke="#bbcee5" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="904" y="453" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Records · Parameters</text>
+    <text x="904" y="485" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Logs &amp; artifacts</text>
+    <text x="904" y="517" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Task graph · Upstream IDs</text>
+    <path d="M 400 469 H 468" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="434" y="459.5" font-size="15" font-weight="400" text-anchor="middle" fill="#52738f">Define</text>
+    <path d="M 812 469 H 880" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <text x="846" y="459.5" font-size="15" font-weight="400" text-anchor="middle" fill="#52738f">Record</text>
   </g>
 </svg>

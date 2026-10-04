@@ -181,6 +181,16 @@ axonx get_task_definition --task a158e_train
 
 该数据快照中 RankIC、Top10/20 净年化收益提升，但 RankICIR 和 Top1–3 收益下降。确认期三项日配对增量的 95% 区块 bootstrap 区间均跨零，正向点估计不足以证明稳定增量。模型 gain 衡量模型使用程度，不等于单个特征的独立贡献。
 
+### 信号质量
+
+![基线与增强版在筛选期、确认期的 RankIC 和年化 RankICIR 对比](../../docs/figures/benchmark/a158-signal-quality.svg)
+
+### TopN 组合结果
+
+![确认期 Top10、Top20、Top30 净年化收益、最大回撤与净 Sharpe 对比](../../docs/figures/benchmark/a158-topn-results.svg)
+
+净 Sharpe 根据扣费后的日净收益计算；Top30 净 Sharpe 未保存。这两张图汇总上述历史实验，不代表新数据上的预期表现。
+
 ## 实验文档与材料
 
 详细历史文档保留中文原文；英文 README 提供完整的使用、协议、结论与复现入口。

@@ -38,7 +38,7 @@ inspect logs, artifacts, and upstream and downstream relationships.
 - **Extend and run remotely.** Add research plugins and execute Tasks in a selected target environment. → [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
 - **Inspect Agent research.** Codex's Alpha158 extension raised confirmation-period Top10 net annualized return from −5.74% to 28.21%; stable gains remain unproven. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features)
 
-![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004)
+![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
 ## Quick start
 
