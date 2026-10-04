@@ -99,6 +99,12 @@ DOCS_BASE=/ DOCS_SITE_URL=https://docs.example.com npm run preview
 
 Use the same settings in CI and configure the domain and DNS in GitHub Pages. Build checks validate local output, not external links or the live deployment.
 
+### Clone badge
+
+The documentation workflow refreshes `/badges/clones.json` daily at 02:17 UTC and on documentation deployments. The root READMEs use this public Shields endpoint to display GitHub's rolling 14-day clone total (not unique cloners). Only the aggregate count is published; the token and daily traffic records are not included.
+
+Configure the repository Actions secret `AXONX_TRAFFIC_TOKEN` with a dedicated fine-grained PAT restricted to this repository and **Administration: read** permission. Then run **CI / Documentation** manually on `main` to initialize the badge. Without the secret, the badge displays `not configured`; API errors fail the build and preserve the previous deployment. Renew the secret before the token expires. Local verification can run `node --test .github/scripts/write-traffic-badge.test.mjs`.
+
 ### Vercel
 
 The repository-root [`vercel.json`](../vercel.json) deploys the documentation and Playground as a static site. It selects the **Other** framework preset to prevent the repository's Python dependencies from triggering FastAPI entrypoint detection, installs both frontend packages, and publishes `github-pages/dist`.

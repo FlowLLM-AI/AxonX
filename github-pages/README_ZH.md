@@ -99,6 +99,12 @@ DOCS_BASE=/ DOCS_SITE_URL=https://docs.example.com npm run preview
 
 CI 使用相同变量，并在 GitHub Pages 设置域名和 DNS。构建检查验证本地产物，不验证外部链接或线上部署。
 
+### Clone 徽章
+
+文档工作流每天在 UTC 02:17（北京时间 10:17）以及文档部署时更新 `/badges/clones.json`。根目录 README 通过此公开 Shields 端点展示 GitHub 滚动最近 14 天的 Clone 总次数（不是独立克隆者人数）。只公开汇总次数，不发布 Token 或每日流量记录。
+
+在仓库 Actions Secret 中配置 `AXONX_TRAFFIC_TOKEN`：使用仅限本仓库、具有 **Administration: read** 权限的专用 fine-grained PAT。随后在 `main` 上手动运行 **CI / Documentation** 初始化徽章。未配置 Secret 时显示 `not configured`；API 请求失败会终止构建并保留上次部署。请在 Token 到期前更新 Secret。本地验证可运行 `node --test .github/scripts/write-traffic-badge.test.mjs`。
+
 ### Vercel
 
 仓库根目录的 [`vercel.json`](../vercel.json) 将文档和 Playground 部署为静态站点。配置选择 **Other** 框架预设，避免仓库的 Python 依赖触发 FastAPI 入口检测，安装两个前端包，并发布 `github-pages/dist`。
