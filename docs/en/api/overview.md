@@ -10,16 +10,16 @@ Studio's **API interfaces** displays Jobs exposed by the current machine and gen
 
 ## Routes
 
-| Method                | Path                   | Purpose                                    | Successful response                   |
-| --------------------- | ---------------------- | ------------------------------------------ | ------------------------------------- |
-| GET                   | `/health`              | Whether the current Application is running | JobResponse, answer.running           |
-| GET                   | `/jobs`                | Actual public Job catalog                  | JobResponse, answer.items/total       |
-| POST                  | `/jobs/{name}`         | Ordinary call                              | JobResponse                           |
-| POST                  | `/jobs/{name}/events`  | Live events                                | text/event-stream, ending with result |
-| POST                  | `/files`               | Upload raw bytes to staging                | JobResponse, with FileCopy in answer  |
-| DELETE                | `/files?path=...`      | Clean up staged files                      | JobResponse, answer.path              |
-| MCP                   | `/mcp`                 | Streamable HTTP tool interface             | MCP containing JobResponse            |
-| Multiple HTTP methods | `/proxy/{name}/{path}` | Configured upstream proxy                  | Upstream response                     |
+| Method                | Path                   | Purpose                                     | Successful response                   |
+| --------------------- | ---------------------- | ------------------------------------------- | ------------------------------------- |
+| GET                   | `/health`              | Whether the current Application is running  | JobResponse, answer.running           |
+| GET                   | `/jobs`                | Actual public Job catalog                   | JobResponse, answer.items/total       |
+| POST                  | `/jobs/{name}`         | Ordinary call                               | JobResponse                           |
+| POST                  | `/jobs/{name}/events`  | Live events                                 | text/event-stream, ending with result |
+| POST                  | `/files`               | Upload binary or multipart files to staging | JobResponse, with FileCopy in answer  |
+| DELETE                | `/files?path=...`      | Clean up staged files                       | JobResponse, answer.path              |
+| MCP                   | `/mcp`                 | Streamable HTTP tool interface              | MCP containing JobResponse            |
+| Multiple HTTP methods | `/proxy/{name}/{path}` | Configured upstream proxy                   | Upstream response                     |
 
 All business requests execute on the current service by default. `GET /jobs?target=http%3A%2F%2Fnode-b%3A1024` queries a configured target's catalog; target in Job requests follows the same configuration-matching rules. proxy is a separate upstream-forwarding capability; see [HTTP proxy](../guides/http-proxy.md).
 

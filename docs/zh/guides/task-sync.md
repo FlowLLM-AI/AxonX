@@ -94,6 +94,8 @@ max_archive_bytes 必须大于 max_file_bytes，并应不超过目标上传能�
 
 结果区分 uploaded、deleted、rejected、oversized、deferred 与 archives。deferred 表示本轮归档预算用完，后续继续；oversized 表示任务无法在当前预算内复制，需缩小产物或调整预算；rejected 标明不满足完整快照约束的文件，应检查源端目录。
 
+手动同步时，先通过二进制或 multipart `POST /files` 向接收服务上传符合同步格式的 Task 快照归档，再用返回的 `answer.path` 调用同一服务的 `sync_tasks`。单独上传不会应用快照。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
+
 ## 删除、失败与回滚
 
 源端维护已确认任务集合。已确认任务在源端消失且符合过滤时，删除会发送到目标。未成功确认的源端任务不应被当成已同步任务传播删除。

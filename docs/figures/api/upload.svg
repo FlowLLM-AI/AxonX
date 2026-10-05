@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1056" height="373" viewBox="0 0 1056 373" role="img" aria-labelledby="title desc" aria-label="Stage, consume, and clean up a file">
   <title id="title">Stage, consume, and clean up a file</title>
-  <desc id="desc">Stage raw bytes with a checksum, pass the returned file path to a consumer, then clean up.</desc>
+  <desc id="desc">Stage binary or multipart file bytes with a checksum, pass the returned file path to a consumer, then clean up.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
       <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
@@ -12,7 +12,7 @@
       <text text-anchor="start" x="44" y="52" font-size="32" font-weight="700">Stage, consume, and clean up a file</text>
       <rect x="50.0" y="100" width="198.75" height="110" rx="20" fill="#e4edfc" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="149.375" y="137" text-anchor="middle" font-size="20">POST /files</text>
-      <text x="149.375" y="169" text-anchor="middle" font-size="20">Raw bytes</text>
+      <text x="149.375" y="169" text-anchor="middle" font-size="18">Binary / multipart</text>
       <path stroke-linecap="round" stroke-linejoin="round" d="M252.75 155H278.75" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" fill="none" />
       <rect x="283.75" y="100" width="198.75" height="110" rx="20" fill="#e2f3f0" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="383.125" y="137" text-anchor="middle" font-size="20">tmp / SHA-256</text>

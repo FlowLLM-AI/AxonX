@@ -194,7 +194,9 @@ answer 是 DeletedEntry 数组，每项 deleted 为相对路径，kind 为 file/
 
 ## 文件上传与清理
 
-上传以原始二进制请求体发送，不是 multipart/form-data。`x-file-name` 为必填文件名 header；`x-file-directory` 可选，指定以 tmp 开头的工作区相对子目录，不能指定工作区任意位置。
+`POST /files` 支持原始二进制请求体和 `multipart/form-data`。两种格式返回相同的 FileCopy，只暂存文件本身的字节；上传 Python 脚本不会执行脚本。
+
+原始二进制上传中，`x-file-name` 为必填文件名 header；`x-file-directory` 可选，指定以 tmp 开头的工作区相对子目录，不能指定工作区任意位置。现有客户端可继续使用此格式：
 
 ```bash
 curl -s -X POST http://127.0.0.1:1024/files \
@@ -204,6 +206,17 @@ curl -s -X POST http://127.0.0.1:1024/files \
   -H 'x-file-directory: tmp/plugins' \
   --data-binary @dist/axonx_example-0.1.0-py3-none-any.whl
 ```
+
+multipart 上传须通过 `file` 字段传入一个文件，可选的文本字段 `directory` 指定暂存子目录。文件名来自文件部分；提供 `x-file-name` 或非空的 `x-file-directory` 时，请求头优先于文件名和表单目录。不接受其他字段或多个文件。使用 `curl -F` 时不要手动设置 Content-Type，curl 会自动生成含 boundary 的 multipart 请求头。
+
+```bash
+curl -s -X POST http://127.0.0.1:1024/files \
+  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
+  -F 'file=@dist/axonx_example-0.1.0-py3-none-any.whl' \
+  -F 'directory=tmp/plugins'
+```
+
+运行依赖 `python-multipart` 已在 `pyproject.toml` 中声明，无需额外的服务配置开关即可使用两种格式。
 
 FileCopy 的响应形状如下，哈希和字节大小必须以真实返回为准：
 
@@ -219,7 +232,7 @@ FileCopy 的响应形状如下，哈希和字节大小必须以真实返回为�
 }
 ```
 
-文件暂存目录按内容 SHA-256 命名，相同内容与文件名上传是幂等的。默认单文件上限为 256 MiB；服务同时检查 Content-Length 和实际流入字节数。非法 Content-Length 为 400，超限为 413；缺失/非法文件名、目录逃逸等为 422，符号链接或不同内容占据目的位置为 409。
+文件暂存目录按内容 SHA-256 命名，相同内容与文件名上传是幂等的。默认单文件上限为 256 MiB；服务同时检查 Content-Length 和实际流入字节数。multipart 请求允许额外 64 KiB 的请求封装开销，文件本身仍受单文件上限约束。multipart 临时文件在存储结束或失败时关闭，包括请求取消。非法 Content-Length、损坏的 multipart 请求体或过多的表单部分为 400，超限为 413；缺失/非法文件名、缺少 `file` 文件、未知字段、目录逃逸等为 422，符号链接或不同内容占据目的位置为 409。
 
 消费者 install_plugin、sync_tasks 使用返回的 path。安装还要传 sha256。上传完成不代表插件已安装，也不代表任务快照已应用。消费者会清理暂存制品；未消费时可主动清理：
 

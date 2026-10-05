@@ -71,6 +71,10 @@ asyncio.run(main())
 
 预览 Parquet 返回的是受限分页数据，不一定是完整文件。汇总整个产物时先确认行数、分页和限制，不要把首批预览当全量数据。
 
+## 文件上传
+
+文件字节通过 HTTP `POST /files` 传输，独立于 MCP 工具调用。使用二进制或 multipart 上传，或 `HttpClient.copy_file`，请求同一 MCP 连接所使用的服务。将返回的暂存路径（插件安装还须 sha256）传给消费文件的 Job 工具。上传不会自动调用该工具。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
+
 ## MCP 与实时事件
 
 服务 MCP 的普通工具调用返回 `JobResponse`，包括 `success`、`answer` 和 `metadata`。业务 `success=false` 与 MCP 连接失败要分别处理。

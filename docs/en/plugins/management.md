@@ -77,7 +77,7 @@ axonx plugin list --target 'http://research.example:1024'
 axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
 ```
 
-The CLI builds local source into a wheel, uploads it to remote `/files`, checks the returned sha256, then calls remote install_plugin and cleans up staging files at the end. The installation Job runs in the target service's Python environment.
+The CLI builds local source into a wheel, uploads it to remote `/files`, checks the returned sha256, then calls remote install_plugin and cleans up staging files at the end. The installation Job runs in the target service's Python environment. For manual HTTP or MCP installation workflows, first upload the wheel using binary or multipart `POST /files`, then pass the returned path and sha256 to `install_plugin` on the same service; see [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
 
 `plugin build` only runs locally and does not support `--target`. Remote inspect queries installed plugins on the target; it does not send a local source directory to the target for inspection.
 

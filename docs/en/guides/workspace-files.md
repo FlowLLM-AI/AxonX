@@ -80,7 +80,7 @@ The workspace root cannot be deleted, and directory deletion is recursive. Path 
 
 ## Upload and subsequent consumption
 
-Plugin installation and synchronization use `/files` to stage artifacts, returning path, size, and sha256 in FileCopy. Receivers consume the returned workspace-relative path rather than the client's source path.
+Plugin installation and synchronization use `/files` with raw binary or multipart uploads to stage artifacts, returning path, size, and sha256 in FileCopy. Receivers consume the returned workspace-relative path rather than the client's source path.
 
 Uploads are not general directory mirroring. Clean up staging files after successful consumption; see [File transfer API](../api/workspace.md) for the specific process.
 

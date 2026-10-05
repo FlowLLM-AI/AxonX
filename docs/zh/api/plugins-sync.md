@@ -99,6 +99,8 @@ answer 为单个 PluginInfo，与 list_plugins 每项同形。
 
 ## install_plugin
 
+先在安装服务上通过二进制或 multipart `POST /files` 暂存 wheel，将返回的 `answer.path` 与 `answer.sha256` 用于以下参数。见[文件上传与清理](workspace.md#文件上传与清理)。
+
 安装已上传且校验通过的 wheel。
 
 | 参数     | 类型   | 必填 | 默认值      | 约束与含义                                   |

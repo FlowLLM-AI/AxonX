@@ -77,7 +77,7 @@ axonx plugin list --target 'http://research.example:1024'
 axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
 ```
 
-CLI 在本机把源码构建为 wheel，上传到远程 `/files`，核对返回 sha256，再调用远程 install_plugin，并在结束后清理暂存文件。安装 Job 在目标服务的 Python 环境运行。
+CLI 在本机把源码构建为 wheel，上传到远程 `/files`，核对返回 sha256，再调用远程 install_plugin，并在结束后清理暂存文件。安装 Job 在目标服务的 Python 环境运行。手动通过 HTTP 或 MCP 安装时，先用二进制或 multipart `POST /files` 上传 wheel，再将返回的 path 与 sha256 传给同一服务的 `install_plugin`；见[文件上传与清理](../api/workspace.md#文件上传与清理)。
 
 `plugin build` 只在本机执行，不支持 `--target`。远程 inspect 用于查询目标已安装插件，而不是把本机源码目录传到目标后检查。
 

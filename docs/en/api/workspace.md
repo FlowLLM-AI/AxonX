@@ -194,7 +194,9 @@ Implementation references: `axonx/config/default.yaml`, `axonx/steps/workspace/`
 
 ## File upload and cleanup
 
-Upload using a raw binary request body, rather than multipart/form-data. `x-file-name` is a required filename header. Optional `x-file-directory` specifies a workspace-relative subdirectory beginning with tmp; it cannot target an arbitrary workspace location.
+`POST /files` accepts a raw binary request body or `multipart/form-data`. Both formats return the same FileCopy and stage only the file bytes; uploading a Python script does not execute it.
+
+For raw binary uploads, `x-file-name` is required. Optional `x-file-directory` specifies a workspace-relative subdirectory beginning with tmp; it cannot target an arbitrary workspace location. Existing clients can continue using this format:
 
 ```bash
 curl -s -X POST http://127.0.0.1:1024/files \
@@ -204,6 +206,17 @@ curl -s -X POST http://127.0.0.1:1024/files \
   -H 'x-file-directory: tmp/plugins' \
   --data-binary @dist/axonx_example-0.1.0-py3-none-any.whl
 ```
+
+For multipart uploads, send exactly one file in the `file` field and optionally a text `directory` field. The file part supplies the filename. If supplied, `x-file-name` and a nonempty `x-file-directory` override the filename and directory. Other fields and multiple files are rejected. Omit the Content-Type header when using `curl -F`; curl supplies the multipart boundary automatically.
+
+```bash
+curl -s -X POST http://127.0.0.1:1024/files \
+  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
+  -F 'file=@dist/axonx_example-0.1.0-py3-none-any.whl' \
+  -F 'directory=tmp/plugins'
+```
+
+The runtime dependency `python-multipart` is declared in `pyproject.toml`; no service configuration switch is needed to enable either format.
 
 FileCopy has the response structure below; use the actual returned hash and byte size:
 
@@ -219,7 +232,7 @@ FileCopy has the response structure below; use the actual returned hash and byte
 }
 ```
 
-Staging directories are named after the content's SHA-256; uploading identical content with the same filename is idempotent. The default per-file limit is 256 MiB. The service checks both Content-Length and actual streamed bytes. An invalid Content-Length returns 400; exceeding the limit returns 413. Missing/invalid filenames, directory escapes, and similar errors return 422; symbolic links or a destination occupied by different content return 409.
+Staging directories are named after the content's SHA-256; uploading identical content with the same filename is idempotent. The default per-file limit is 256 MiB. The service checks both Content-Length and actual streamed bytes. Multipart requests allow an additional 64 KiB of request framing; the file itself must still fit the per-file limit. Multipart temporary files are closed after storage or on failure, including request cancellation. An invalid Content-Length or malformed multipart body (including too many parts) returns 400; exceeding the limit returns 413. Missing/invalid filenames, missing `file` uploads, unsupported fields, directory escapes, and similar errors return 422; symbolic links or a destination occupied by different content return 409.
 
 Consumers install_plugin and sync_tasks use the returned path. Installation also requires sha256. Completing an upload does not mean the plugin has been installed or the task snapshot applied. Consumers clean up staged artifacts; unconsumed uploads can be cleaned up explicitly:
 
