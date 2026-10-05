@@ -80,7 +80,7 @@ axonx delete_entries --paths '["temporary/report.txt"]'
 
 ## 上传与后续消费
 
-插件安装和同步使用 `/files` 暂存制品，返回 FileCopy 中的 path、size、sha256。接收方消费的是返回的工作区相对路径，而非客户端源路径。
+插件安装和同步使用 `/files` 以原始二进制或 multipart 格式暂存制品，返回 FileCopy 中的 path、size、sha256。接收方消费的是返回的工作区相对路径，而非客户端源路径。
 
 上传不是通用目录镜像。消费成功后应清理暂存文件，具体过程见[文件传输 API](../api/workspace.md)。
 

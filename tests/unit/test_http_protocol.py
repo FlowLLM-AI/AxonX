@@ -43,11 +43,25 @@ async def test_http_protocol_uses_one_token_for_jobs_events_and_files(tmp_path):
         async with httpx.AsyncClient(base_url="http://test", transport=transport) as raw:
             assert (await raw.get("/health")).status_code == 401
             assert (await raw.post("/mcp")).status_code == 401
+            assert (await raw.post("/files", files={"file": ("script.py", b"print(1)")})).status_code == 401
             assert (await raw.get("/docs")).status_code == 200
             assert (await raw.get("/redoc")).status_code == 200
             openapi = await raw.get("/openapi.json")
             assert openapi.status_code == 200
             assert openapi.json()["openapi"]
+
+            multipart = await raw.post(
+                "/files",
+                files={"file": ("script.py", b"print(1)")},
+                headers={"authorization": "Bearer secret"},
+            )
+            assert multipart.status_code == 200
+            assert multipart.json()["success"] is True
+            await raw.delete(
+                "/files",
+                params={"path": multipart.json()["answer"]["path"]},
+                headers={"authorization": "Bearer secret"},
+            )
 
         async with HttpClient(token="secret", transport=transport) as client:
             assert await client.health() is True

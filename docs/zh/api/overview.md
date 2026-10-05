@@ -10,16 +10,16 @@ Studio 的 **API interfaces** 展示当前机器公开的 Job，并由参数 Sch
 
 ## 路由
 
-| 方法           | 路径                   | 用途                      | 成功响应                        |
-| -------------- | ---------------------- | ------------------------- | ------------------------------- |
-| GET            | `/health`              | 当前 Application 是否启动 | JobResponse，answer.running     |
-| GET            | `/jobs`                | 实际公开 Job 目录         | JobResponse，answer.items/total |
-| POST           | `/jobs/{name}`         | 普通调用                  | JobResponse                     |
-| POST           | `/jobs/{name}/events`  | 实时事件                  | text/event-stream，最后 result  |
-| POST           | `/files`               | 上传原始字节暂存          | JobResponse，answer 为 FileCopy |
-| DELETE         | `/files?path=...`      | 清理暂存文件              | JobResponse，answer.path        |
-| MCP            | `/mcp`                 | Streamable HTTP 工具接口  | MCP 包含 JobResponse            |
-| 多种 HTTP 方法 | `/proxy/{name}/{path}` | 已配置上游代理            | 上游响应                        |
+| 方法           | 路径                   | 用途                            | 成功响应                        |
+| -------------- | ---------------------- | ------------------------------- | ------------------------------- |
+| GET            | `/health`              | 当前 Application 是否启动       | JobResponse，answer.running     |
+| GET            | `/jobs`                | 实际公开 Job 目录               | JobResponse，answer.items/total |
+| POST           | `/jobs/{name}`         | 普通调用                        | JobResponse                     |
+| POST           | `/jobs/{name}/events`  | 实时事件                        | text/event-stream，最后 result  |
+| POST           | `/files`               | 上传二进制或 multipart 文件暂存 | JobResponse，answer 为 FileCopy |
+| DELETE         | `/files?path=...`      | 清理暂存文件                    | JobResponse，answer.path        |
+| MCP            | `/mcp`                 | Streamable HTTP 工具接口        | MCP 包含 JobResponse            |
+| 多种 HTTP 方法 | `/proxy/{name}/{path}` | 已配置上游代理                  | 上游响应                        |
 
 所有业务请求默认向当前服务执行。`GET /jobs?target=http%3A%2F%2Fnode-b%3A1024` 查询配置目标的目录；Job 请求中的 target 使用相同配置匹配规则。proxy 是单独的上游转发能力，见 [HTTP 代理](../guides/http-proxy.md)。
 
