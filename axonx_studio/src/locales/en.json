@@ -34,7 +34,8 @@
       "train": "Model training",
       "predict": "Offline prediction",
       "backtest": "Offline backtest",
-      "compare": "Strategy comparison"
+      "compare": "Strategy comparison",
+      "online": "Online pipeline"
     },
     "switchLanguageLabel": "中文"
   },
@@ -123,6 +124,61 @@
   "cpuCapacity": "CPU cores",
   "memoryCapacity": "Total memory",
   "online": "Online",
+  "onlinePipeline": {
+    "title": "Online pipeline",
+    "lead": "Collection windows, fixed-model inference and prediction reconciliation.",
+    "refresh": "Refresh",
+    "demo": "Synthetic preview · all data and results are fictional.",
+    "search": "Search runs",
+    "empty": "No online runs yet. Submit a collection, inference or prediction comparison task.",
+    "pending": "No window report has been published yet.",
+    "openTask": "Task details",
+    "runState": "Task state",
+    "outcomes": "Reported outcomes",
+    "complete": "Complete / consistent",
+    "model": "Fixed model",
+    "comparisons": "Prediction comparisons",
+    "windows": "Execution windows",
+    "coverage": "Coverage",
+    "rows": "Rows",
+    "elapsed": "Elapsed",
+    "kinds": {
+      "all": "All runs",
+      "api": "Collection",
+      "inference": "Inference",
+      "analysis": "Reconciliation"
+    },
+    "status": {
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "done": "Complete",
+      "skipped": "Skipped",
+      "incomplete": "Incomplete",
+      "consistent": "Consistent",
+      "different": "Differences",
+      "protocol_mismatch": "Protocol mismatch",
+      "missing": "Missing inputs",
+      "error": "Error"
+    },
+    "metrics": {
+      "top5_overlap": "Top 5 overlap",
+      "top10_overlap": "Top 10 overlap",
+      "max_score_delta": "Max score difference",
+      "candidate_count": "Candidates",
+      "candidate_difference": "Candidate difference",
+      "predictions_file": "Predictions"
+    },
+    "reasons": {
+      "window_missed": "Window already elapsed",
+      "deadline_exceeded": "Window deadline reached",
+      "inputs_timeout": "Inputs were not ready before the deadline",
+      "source_revision": "Source data was revised",
+      "model_mismatch": "Model fingerprints differ"
+    }
+  },
   "offline": "Offline",
   "cpuUsage": "CPU usage",
   "memoryUsage": "Memory usage",

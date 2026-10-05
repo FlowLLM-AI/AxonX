@@ -7,6 +7,7 @@ import { researchSections } from "./navigation";
 import { defaultRoute } from "./routes";
 import type { AppRoute, SectionId } from "./routes";
 
+const OnlinePage = lazy(() => import("../features/online/OnlinePage"));
 const HomePage = lazy(() => import("../features/HomePage"));
 const RuntimeWorkspace = lazy(
   () => import("../features/runtime/RuntimeWorkspace"),
@@ -119,6 +120,21 @@ export function PageOutlet({
           })
         }
         onOptionsChange={setResourceOptions}
+      />
+    );
+  } else if (route.section === "online") {
+    page = (
+      <OnlinePage
+        key={target || "local"}
+        target={target}
+        initialTaskId={route.resource}
+        onSelected={(resource) =>
+          navigate({ section: "online", view: "runs", resource })
+        }
+        onConnection={setServiceOnline}
+        onOpenTask={(resource) =>
+          navigate({ section: "runtime", view: "task", resource })
+        }
       />
     );
   } else if (route.section === "compare") {

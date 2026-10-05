@@ -47,6 +47,11 @@ function resourceValue(resource: object, key: string): unknown {
 }
 
 describe("locale resources", () => {
+  it("preserves the online status label alongside the pipeline namespace", () => {
+    expect(en.online).toBe("Online");
+    expect(zh.online).toBe("在线");
+  });
+
   it("keeps the duration column label as a string", () => {
     expect(en.duration).toBeTypeOf("string");
     expect(zh.duration).toBeTypeOf("string");

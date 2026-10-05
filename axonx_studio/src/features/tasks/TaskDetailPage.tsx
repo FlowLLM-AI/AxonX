@@ -1,3 +1,4 @@
+import { isOnlineTask } from "../online/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -334,10 +335,15 @@ export function TaskDetailPage({
           </span>
         </div>
         <div className="task-detail-heading-actions">
-          {hasResearch && (
+          {(hasResearch || isOnlineTask(task)) && (
             <button
               className="secondary-button"
-              onClick={() => onOpenResearch(task.task_type, task.task_id)}
+              onClick={() =>
+                onOpenResearch(
+                  isOnlineTask(task) ? "online" : task.task_type,
+                  task.task_id,
+                )
+              }
             >
               <ArrowUpRight />
               {labels.openResearch}

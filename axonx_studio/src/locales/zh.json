@@ -34,7 +34,8 @@
       "train": "模型训练",
       "predict": "离线预测",
       "backtest": "离线回测",
-      "compare": "策略对比"
+      "compare": "策略对比",
+      "online": "在线链路"
     },
     "switchLanguageLabel": "EN"
   },
@@ -123,6 +124,61 @@
   "cpuCapacity": "CPU 核心",
   "memoryCapacity": "总内存",
   "online": "在线",
+  "onlinePipeline": {
+    "title": "在线链路",
+    "lead": "采集窗口、固定模型推理与线上线下预测比对。",
+    "refresh": "刷新",
+    "demo": "合成数据预览 · 所有数据和结果均为虚构。",
+    "search": "搜索运行记录",
+    "empty": "暂无在线记录。提交采集、推理或预测比对任务后在这里查看。",
+    "pending": "尚未发布窗口报告。",
+    "openTask": "任务详情",
+    "runState": "任务状态",
+    "outcomes": "已记录结果",
+    "complete": "完成 / 一致",
+    "model": "固定模型",
+    "comparisons": "预测比对",
+    "windows": "执行窗口",
+    "coverage": "覆盖率",
+    "rows": "数据行数",
+    "elapsed": "耗时",
+    "kinds": {
+      "all": "全部记录",
+      "api": "实时采集",
+      "inference": "在线推理",
+      "analysis": "预测比对"
+    },
+    "status": {
+      "queued": "排队中",
+      "running": "运行中",
+      "succeeded": "已完成",
+      "failed": "失败",
+      "cancelled": "已取消",
+      "done": "完整",
+      "skipped": "已跳过",
+      "incomplete": "不完整",
+      "consistent": "一致",
+      "different": "存在差异",
+      "protocol_mismatch": "协议不符",
+      "missing": "输入缺失",
+      "error": "异常"
+    },
+    "metrics": {
+      "top5_overlap": "Top 5 重合",
+      "top10_overlap": "Top 10 重合",
+      "max_score_delta": "最大分数差",
+      "candidate_count": "候选数量",
+      "candidate_difference": "候选差异",
+      "predictions_file": "预测产物"
+    },
+    "reasons": {
+      "window_missed": "执行窗口已错过",
+      "deadline_exceeded": "已到窗口截止时间",
+      "inputs_timeout": "截止前输入未就绪",
+      "source_revision": "源数据存在修订",
+      "model_mismatch": "模型指纹不一致"
+    }
+  },
   "offline": "离线",
   "cpuUsage": "CPU 使用率",
   "memoryUsage": "内存使用率",

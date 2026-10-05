@@ -112,6 +112,12 @@ export const navigationGroups: NavigationGroup[] = [
         labelKey: "shell.navigation.backtest",
       },
       {
+        id: "online",
+        route: { section: "online", view: "runs" },
+        icon: Activity,
+        labelKey: "shell.navigation.online",
+      },
+      {
         id: "compare",
         route: { section: "compare", view: "strategies" },
         icon: GitCompareArrows,

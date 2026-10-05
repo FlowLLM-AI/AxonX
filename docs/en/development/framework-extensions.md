@@ -160,3 +160,19 @@ Extension verification should cover actual risks: Provider conflicts, missing de
 After adding a backend, first verify it with a minimal Application(providers=...), then integrate the real service, plugin environment, and Studio form. A UI that can generate a form does not establish correctness of Task research logic.
 
 Implementation references: `axonx/components/base.py`, `axonx/components/registry.py`, `axonx/core/graph.py`, `axonx/core/composition.py`, `axonx/steps/base.py`, `axonx/components/job/pipeline.py`, and `axonx/components/job/context.py`.
+
+## Realtime collection, inference and reconciliation
+
+`axonx.task.contracts` exports three optional authoring contracts:
+
+- `BaseRealtimeApiTask` (`api`): implement `collect(window, budget)`. Return `None` to poll again, or a `WindowResult` with `done`, `skipped` or `incomplete`. Exceptions record a failed window and stop execution.
+- `BaseInferenceTask` (`inference`): resolve a single model in `initialize_run`, set a nonempty `model_identity`, implement `inputs_ready` and `infer`. Input timeout records `incomplete`; data quality or history freshness exceptions record `failed` and stop execution. The model identity is copied at initialization for audit; plugins must keep the actual predictor fixed as well.
+- `BasePredictionCompareTask` (`analysis`): implement `compare(key)` returning `PredictionComparison`. Outcomes are `consistent`, `different`, `protocol_mismatch`, `missing` and `error`. Exceptions are isolated per key; the task completes with a report even when individual comparisons fail. This contract does not inherit factor analysis rows/scores.
+
+Window inputs contain ordered, uniquely keyed `ExecutionWindow` objects with timezone-aware `start_at` and `end_at`, plus a positive `poll_interval_seconds`. Window waiting and elapsed durations share `WindowClock`; tests may inject a fake clock. `DeadlineBudget.remaining_seconds` is monotonic and must bound every plugin request timeout, retry and backoff. Synchronous hooks cannot be forcibly interrupted by this helper. An already elapsed window is skipped; a result finishing past the deadline cannot claim `done`.
+
+`initialize_run` acquires owned resources, and `close_run` releases them after success, initialization failure or execution failure. Cleanup errors do not replace the primary exception. Process cancellation remains owned by the existing worker/task manager; plugins must not introduce another process scheduler.
+
+Atomic `manifest.json` records model identity and completed window outcomes during execution, including before a task failure. Atomic `comparison.json` records each comparison incrementally. Successful output indexes these reports in `artifacts` using paths relative to the task directory. TaskRunner retains sole ownership of task state, IDs and metadata. Business datasets stay in explicit plugin directories; publish their data and metadata before a ready marker. Final publication, quality checks, model normalization, market calendars and notification semantics belong to plugins. AxonX introduces no Tushare or model dependency.
+
+These contracts are additive. Existing ETL, Train, Predict, Backtest and factor Analysis contracts and records remain unchanged. Axon2 algorithm migration and old checkpoint compatibility must be validated independently; the framework contracts do not establish model equivalence.

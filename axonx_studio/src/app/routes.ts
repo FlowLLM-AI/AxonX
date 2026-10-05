@@ -11,6 +11,7 @@ export const sectionIds = [
   "predict",
   "backtest",
   "compare",
+  "online",
 ] as const;
 
 export type SectionId = (typeof sectionIds)[number];
@@ -40,6 +41,7 @@ const defaultViews: Record<SectionId, string> = {
   predict: "runs",
   backtest: "runs",
   compare: "strategies",
+  online: "runs",
 };
 
 export function parseHash(hash: string): AppLocation {

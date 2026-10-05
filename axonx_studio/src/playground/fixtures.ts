@@ -341,6 +341,7 @@ export function seed() {
     addArtifacts(files, task, variant, source);
     if (variant === "steady") source = [id];
   }
+  seedOnline(tasks, files);
   files.set(
     "tushare/daily/sample.parquet",
     table(
@@ -370,4 +371,136 @@ export function seed() {
   failed.result = {};
   tasks.set(failed.task_id, failed);
   return { tasks, files };
+}
+
+function seedOnline(
+  tasks: Map<string, TaskStatus>,
+  files: Map<string, WorkspacePreview>,
+) {
+  const windows = [
+    {
+      key: "1445",
+      status: "done",
+      rows: 4850,
+      coverage: 0.998,
+      elapsed_seconds: 12.4,
+      metrics: { candidate_count: 4820 },
+    },
+    {
+      key: "1450",
+      status: "incomplete",
+      rows: 4600,
+      coverage: 0.947,
+      elapsed_seconds: 60,
+      reason: "deadline_exceeded",
+    },
+    {
+      key: "1500",
+      status: "skipped",
+      reason: "window_missed",
+      rows: 0,
+      elapsed_seconds: 0,
+    },
+  ];
+  const samples = [
+    { kind: "api", name: "Synthetic realtime collection", result: { windows } },
+    {
+      kind: "inference",
+      name: "Synthetic single-model inference",
+      result: {
+        model_identity: {
+          path: "synthetic/model.pt",
+          fingerprint: "demo-sha256-001",
+          protocol: "synthetic-16bar-v1",
+        },
+        windows: [
+          windows[0],
+          {
+            key: "1450",
+            status: "incomplete",
+            rows: 0,
+            reason: "inputs_timeout",
+            elapsed_seconds: 60,
+          },
+        ],
+      },
+    },
+    {
+      kind: "analysis",
+      name: "Synthetic prediction reconciliation",
+      result: {
+        comparisons: [
+          {
+            key: "1445 / same snapshot",
+            status: "consistent",
+            metrics: {
+              top5_overlap: "5 / 5",
+              top10_overlap: "10 / 10",
+              max_score_delta: 0,
+              candidate_difference: 0,
+            },
+          },
+          {
+            key: "1445 / revised source",
+            status: "different",
+            reason: "source_revision",
+            metrics: {
+              top5_overlap: "4 / 5",
+              top10_overlap: "8 / 10",
+              max_score_delta: 0.0012,
+              candidate_difference: 3,
+            },
+          },
+          {
+            key: "1450",
+            status: "protocol_mismatch",
+            reason: "model_mismatch",
+          },
+          { key: "1500", status: "missing", reason: "inputs_timeout" },
+        ],
+      },
+    },
+  ];
+  for (const sample of samples) {
+    const id = `${sample.kind}#playground_online#demo`;
+    const task = taskStatus(sample.kind, id, sample.name);
+    task.config.task_name = sample.name;
+    if (sample.kind === "analysis")
+      task.config.comparison_keys = sample.result.comparisons?.map(
+        (item) => item.key,
+      );
+    task.config.source_tasks =
+      sample.kind === "analysis"
+        ? "inference#playground_online#demo"
+        : sample.kind === "inference"
+          ? "api#playground_online#demo"
+          : "";
+    const reportName =
+      sample.kind === "analysis" ? "comparison.json" : "manifest.json";
+    task.result = {
+      ...sample.result,
+      [sample.kind === "analysis" ? "report_file" : "manifest_file"]:
+        `runs/${id}/${reportName}`,
+      artifacts: {
+        report: {
+          path: reportName,
+          size: JSON.stringify(sample.result).length,
+          sha256: "",
+        },
+      },
+    };
+    tasks.set(id, task);
+    files.set(`runs/${id}/${reportName}`, json(sample.result));
+    files.set(
+      `runs/${id}/metadata.json`,
+      json({
+        task_id: id,
+        task_type: sample.kind,
+        reg_name: "playground_online",
+        created_at: epoch,
+        input_params: task.config,
+        output_params: task.result,
+      }),
+    );
+  }
 }

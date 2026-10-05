@@ -160,3 +160,19 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 新增 backend 后先用最小 Application(providers=...) 验证，再接真实服务、插件环境和 Studio 表单；不要把 UI 能生成表单等同于 Task 研究逻辑已经正确。
 
 实现依据：`axonx/components/base.py`、`axonx/components/registry.py`、`axonx/core/graph.py`、`axonx/core/composition.py`、`axonx/steps/base.py`、`axonx/components/job/pipeline.py` 与 `axonx/components/job/context.py`。
+
+## 实时采集、在线推理与预测比对
+
+`axonx.task.contracts` 导出三个可选的任务编写合同：
+
+- `BaseRealtimeApiTask`（`api`）：实现 `collect(window, budget)`。返回 `None` 继续轮询，或返回状态为 `done`、`skipped`、`incomplete` 的 `WindowResult`。异常记录失败窗口并停止任务。
+- `BaseInferenceTask`（`inference`）：在 `initialize_run` 中解析单个模型并设置非空 `model_identity`，实现 `inputs_ready` 和 `infer`。输入等待超时记录 `incomplete`；数据质量、历史新鲜度异常记录 `failed` 并停止任务。初始化时复制模型身份用于审计；插件也必须固定实际 Predictor。
+- `BasePredictionCompareTask`（`analysis`）：实现 `compare(key)`，返回 `PredictionComparison`。状态包括 `consistent`、`different`、`protocol_mismatch`、`missing`、`error`。逐项隔离异常，即使单项失败也完成汇总报告。此合同不继承因子分析的 rows/scores。
+
+窗口输入包含按开始时间排序、key 唯一的 `ExecutionWindow`，其 `start_at`、`end_at` 必须带时区，另有正数 `poll_interval_seconds`。等待与耗时使用共享 `WindowClock`，测试可注入假时钟。`DeadlineBudget.remaining_seconds` 使用单调时钟，插件必须据此限制每次请求超时、重试及退避。此工具无法强制中断同步钩子。已错过的窗口标记 skipped；超过截止时间返回的结果不能标记 done。
+
+`initialize_run` 获取任务拥有的资源；成功、初始化失败或执行失败后都会调用 `close_run`。清理异常不替代主异常。进程取消仍由现有 worker/task manager 管理，插件不新增进程调度器。
+
+原子发布的 `manifest.json` 在执行期间记录模型身份与已结束窗口，任务失败时也保留；`comparison.json` 逐项记录比对结果。成功输出通过 `artifacts` 索引报告，路径相对任务目录。TaskRunner 继续独占任务状态、身份及 metadata。业务数据保存在插件显式目录，先发布数据与元数据，再发布 ready 标记。最终数据发布、质量检查、归一化、交易日历与通知语义由插件负责；AxonX 不新增 Tushare 或模型依赖。
+
+这些合同为增量扩展，原有 ETL、Train、Predict、Backtest、因子 Analysis 合同与记录保持不变。Axon2 算法迁移和旧 checkpoint 兼容仍需独立验证；框架合同不代表模型已通过等价性验证。
