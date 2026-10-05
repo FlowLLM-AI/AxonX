@@ -99,6 +99,8 @@ Unknown or ambiguous plugin names return failure. Distinguish distribution names
 
 ## install_plugin
 
+First stage the wheel through binary or multipart `POST /files` on the installation service; use the returned `answer.path` and `answer.sha256` below. See [File upload and cleanup](workspace.md#file-upload-and-cleanup).
+
 Install an uploaded and verified wheel.
 
 | Parameter | Type   | Required | Default       | Constraints and meaning                               |

@@ -94,6 +94,8 @@ max_archive_bytes must exceed max_file_bytes and should not exceed the target's 
 
 Results distinguish uploaded, deleted, rejected, oversized, deferred, and archives. deferred means the current archive budget is exhausted and processing continues later; oversized means a task cannot be copied within the current budget and requires smaller artifacts or an adjusted budget; rejected identifies files that do not satisfy complete-snapshot constraints and calls for inspecting the source directory.
 
+For manual synchronization, upload a valid Task snapshot archive using binary or multipart `POST /files` to the receiving service, then call `sync_tasks` on that same service with the returned `answer.path`. Upload alone does not apply the snapshot. See [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
+
 ## Deletion, failure, and rollback
 
 The source maintains an acknowledged task set. When an acknowledged task disappears from the source and matches the filters, deletion is sent to the target. Source tasks that were never successfully acknowledged should not propagate deletion as synchronized tasks.

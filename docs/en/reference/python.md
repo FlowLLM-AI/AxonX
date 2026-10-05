@@ -107,6 +107,8 @@ This snippet belongs inside an asynchronous function; token/task_id come from co
 
 ## File upload
 
+`HttpClient.copy_file` streams a raw binary request to `/files` and supplies the filename and optional staging directory through headers. Direct HTTP callers can also use multipart; both formats return the same FileCopy. See [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
+
 ```python
 from pathlib import Path
 

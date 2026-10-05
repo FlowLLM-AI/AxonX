@@ -321,3 +321,22 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 
 - Artifact paths: after a successful run, metadata is written to `workspace/<task_type>/<task_id>/metadata.json`; `preview_file` uses workspace-relative paths.
 - Actual values: obtain upload archive paths, target service addresses, and Task IDs from real configuration or service responses before executing the corresponding commands.
+
+## File Upload and Cleanup
+
+To send a local file to the execution service, use HTTP `POST /files` directly or Python `HttpClient.copy_file`. File transfer is separate from Job and MCP tool calls. Send the request to the same service used for subsequent operations; direct HTTP uploads do not use the CLI's `--target` argument. When authentication is enabled, use that service's Bearer token.
+
+`POST /files` accepts raw binary bytes with an `x-file-name` header, or multipart with exactly one `file` and an optional text `directory` under `tmp`. For example, upload a built plugin wheel:
+
+```bash
+curl --fail-with-body -sS http://127.0.0.1:1024/files \
+  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
+  -F 'file=@dist/axonx_example-0.1.0-py3-none-any.whl' \
+  -F 'directory=tmp/plugins'
+```
+
+Replace the address, token, and local wheel path with actual values. Let curl set Content-Type and the multipart boundary. Verify `success` and retain the returned `answer.path`, `answer.sha256`, and `answer.size`; the path is relative to the receiving service's workspace, not the sender's filesystem.
+
+Uploading only stages bytes; it does not install a plugin, run a script, or apply a Task snapshot. For plugin installation, pass the returned path and sha256 to `install_plugin`; `axonx plugin install ... --target ...` handles upload and installation automatically. For `sync_tasks`, first upload a valid Task snapshot archive and pass its returned path to the same target service; see [Task synchronization](https://flowllm-ai.github.io/AxonX/en/guides/task-sync).
+
+Consumers clean up staged artifacts. For an unconsumed upload, call `DELETE /files?path=...` with the returned path URL-encoded, or `HttpClient.discard_file`. The default per-file limit is 256 MiB. See [File upload and cleanup](https://flowllm-ai.github.io/AxonX/en/api/workspace#file-upload-and-cleanup) for header overrides, request limits, and error responses.

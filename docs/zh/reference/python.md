@@ -107,6 +107,8 @@ async with HttpClient(target="127.0.0.1:1024", token=token, timeout=600.0) as cl
 
 ## 文件上传
 
+`HttpClient.copy_file` 以原始二进制流上传到 `/files`，通过请求头提供文件名与可选暂存目录。直接 HTTP 调用也可使用 multipart，两种格式返回相同的 FileCopy。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
+
 ```python
 from pathlib import Path
 

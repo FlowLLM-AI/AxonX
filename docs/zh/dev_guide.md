@@ -312,3 +312,22 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
 - 产物路径：成功运行后，元数据写入 `工作区/<task_type>/<task_id>/metadata.json`；`preview_file` 使用工作区相对路径。
 - 实际取值：上传归档路径、目标服务地址和 Task ID 均从真实配置或服务响应取得，再执行对应命令。
+
+## 文件上传与清理
+
+将本机文件传给执行服务时，直接使用 HTTP `POST /files` 或 Python `HttpClient.copy_file`。文件传输独立于 Job 与 MCP 工具调用。上传请求须发往后续操作使用的同一服务；直接 HTTP 上传不使用 CLI 的 `--target` 参数。服务启用鉴权时，使用该服务的 Bearer token。
+
+`POST /files` 支持原始二进制字节（须提供 `x-file-name` 请求头），或 multipart（恰好一个 `file` 文件，可选文本 `directory` 指向 `tmp` 下的目录）。例如上传已构建的插件 wheel：
+
+```bash
+curl --fail-with-body -sS http://127.0.0.1:1024/files \
+  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
+  -F 'file=@dist/axonx_example-0.1.0-py3-none-any.whl' \
+  -F 'directory=tmp/plugins'
+```
+
+将地址、token 与本机 wheel 路径替换为实际值，让 curl 自动设置 Content-Type 与 multipart boundary。检查 `success`，保留返回的 `answer.path`、`answer.sha256` 和 `answer.size`；路径相对于接收服务的工作区，不是发送端的文件路径。
+
+上传只暂存字节，不会安装插件、执行脚本或应用 Task 快照。安装插件时，将返回的 path 与 sha256 传给 `install_plugin`；`axonx plugin install ... --target ...` 会自动完成上传与安装。调用 `sync_tasks` 前，先上传符合同步格式的 Task 快照归档，将返回的 path 传给同一目标服务；见[任务同步](https://flowllm-ai.github.io/AxonX/zh/guides/task-sync)。
+
+消费者会清理暂存制品。未消费的上传可通过 `DELETE /files?path=...` 清理，path 使用返回值并进行 URL 编码，也可调用 `HttpClient.discard_file`。默认单文件上限为 256 MiB。请求头覆盖规则、请求大小限制和错误响应见[文件上传与清理](https://flowllm-ai.github.io/AxonX/zh/api/workspace#文件上传与清理)。
