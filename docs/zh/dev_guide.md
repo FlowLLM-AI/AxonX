@@ -315,4 +315,6 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 - 产物路径：成功运行后，元数据写入 `工作区/<task_type>/<task_id>/metadata.json`；`preview_file` 使用工作区相对路径。
 - 实际取值：上传归档路径、目标服务地址和 Task ID 均从真实配置或服务响应取得，再执行对应命令。
 
-`/files` 是 HTTP 接口，须使用后续操作的同一服务 URL 与 token。上传支持 multipart（表中示例）或原始二进制（须提供 `x-file-name`），默认单文件上限 256 MiB。检查 `success` 后，将 `answer.path` 用于 `sync_tasks`，或将 path 与 sha256 用于 `install_plugin`；上传仅暂存文件。完整参数与示例见[文件上传与清理](https://flowllm-ai.github.io/AxonX/zh/api/workspace#文件上传与清理)。
+`/files` 是 HTTP 接口，须使用后续操作的同一服务 URL 与 token。multipart 接受恰好一个 `file` 文件与可选文本 `directory`（位于 `tmp` 下），由 curl 自动设置 Content-Type。原始二进制须提供 `x-file-name`，可选 `x-file-directory`；请求头优先于 multipart 元数据。默认单文件上限 256 MiB，multipart 请求额外允许 64 KiB 封装开销。
+
+检查 `success`，保留 `answer.path`、`answer.sha256` 和 `answer.size`；path 相对于接收服务的工作区。Task 快照归档的 path 用于 `sync_tasks`，插件 wheel 的 path 与 sha256 用于 `install_plugin`；上传只暂存字节。消费者会清理暂存文件，未消费的上传使用表中的 DELETE 请求清理；重复清理无害。
