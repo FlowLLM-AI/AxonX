@@ -3,20 +3,26 @@ import { defaultRoute, parseHash, routeHash } from "./routes";
 
 describe("application routes", () => {
   it("parses a machine resource route", () => {
-    expect(parseHash("#10.0.0.1:1024/raw/files/tushare%2Fdaily")).toEqual({
+    expect(
+      parseHash("#10.0.0.1:1024/workspace/files/datasets%2Fdaily"),
+    ).toEqual({
       machineId: "10.0.0.1:1024",
-      route: { section: "raw", view: "files", resource: "tushare/daily" },
+      route: {
+        section: "workspace",
+        view: "files",
+        resource: "datasets/daily",
+      },
     });
   });
 
   it("uses a compact machine address with a readable port", () => {
     const route = {
-      section: "raw" as const,
+      section: "workspace" as const,
       view: "files",
-      resource: "tushare",
+      resource: "datasets",
     };
     expect(routeHash("11.160.132.45:1024", route)).toBe(
-      "#11.160.132.45:1024/raw/files/tushare",
+      "#11.160.132.45:1024/workspace/files/datasets",
     );
     expect(parseHash(routeHash("11.160.132.45:1024", route))).toEqual({
       machineId: "11.160.132.45:1024",
@@ -39,12 +45,16 @@ describe("application routes", () => {
 
   it("fills in the view before an encoded resource", () => {
     const hash = routeHash("[::1]:1024", {
-      section: "raw",
-      resource: "tushare/daily#1",
+      section: "workspace",
+      resource: "datasets/daily#1",
     });
     expect(parseHash(hash)).toEqual({
       machineId: "[::1]:1024",
-      route: { section: "raw", view: "files", resource: "tushare/daily#1" },
+      route: {
+        section: "workspace",
+        view: "files",
+        resource: "datasets/daily#1",
+      },
     });
     expect(routeHash("local", { section: "home" })).toBe(
       "#local/home/overview",
@@ -75,11 +85,26 @@ describe("application routes", () => {
     });
   });
 
-  it("provides section defaults", () => {
-    expect(defaultRoute("raw")).toEqual({
-      section: "raw",
+  it("opens the workspace root and removes the old raw route", () => {
+    expect(parseHash("#local/workspace").route).toEqual({
+      section: "workspace",
       view: "files",
-      resource: "tushare",
+      resource: undefined,
+    });
+    expect(
+      parseHash(routeHash("local", { section: "workspace", resource: "" }))
+        .route,
+    ).toEqual(defaultRoute("workspace"));
+    expect(parseHash("#local/raw/files/tushare").route).toEqual(
+      defaultRoute("home"),
+    );
+  });
+
+  it("provides section defaults", () => {
+    expect(defaultRoute("workspace")).toEqual({
+      section: "workspace",
+      view: "files",
+      resource: undefined,
     });
     expect(defaultRoute("train")).toEqual({
       section: "train",

@@ -28,7 +28,7 @@
       "agent": "智能体",
       "taskDefs": "提交任务",
       "apis": "API接口",
-      "raw": "原始数据",
+      "workspace": "工作区",
       "etl": "ETL",
       "factors": "因子分析",
       "train": "模型训练",
@@ -251,9 +251,9 @@
     "capabilitiesTitle": "Harness 框架能力",
     "capabilitiesLead": "插件驱动、Agent 协作的研发闭环",
     "steps": {
-      "raw": {
-        "title": "Tushare 数据",
-        "detail": "行情与基础数据"
+      "workspace": {
+        "title": "工作区",
+        "detail": "浏览数据与研究产物"
       },
       "etl": {
         "title": "ETL 特征构建",
@@ -307,9 +307,12 @@
     "folder": "目录",
     "empty": "目录为空",
     "select": "选择文件查看内容",
-    "loadFailed": "无法读取 Tushare 目录",
+    "loadFailed": "无法读取工作区目录",
     "previewFailed": "无法预览文件",
-    "size": "文件大小"
+    "size": "文件大小",
+    "file": "文件",
+    "loadMore": "加载更多条目",
+    "pathUnavailable": "工作区路径不可访问：{{path}}"
   },
   "workspacePreview": {
     "unsupported": "暂不支持预览此文件",

@@ -92,14 +92,14 @@ export function AppShell(props: AppShellProps) {
       : serviceOnline
         ? "online"
         : "offline";
-  const rawFileSelected =
-    route.section === "raw" &&
+  const workspaceFileSelected =
+    route.section === "workspace" &&
     resourceOption &&
     resourceOption.detail !== t("workspace.folder");
   const taskDetail = route.section === "runtime" && route.view === "task";
   const finalLabel =
     route.resource &&
-    (rawFileSelected
+    (workspaceFileSelected
       ? t("shell.filePreview")
       : taskDetail
         ? t("taskDetails")

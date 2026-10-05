@@ -1,6 +1,6 @@
 # 工作区浏览与预览
 
-文件能力以配置的工作区为根，只接收工作区相对路径。先列目录定位记录，再预览格式，最后按需要清理。Studio 原始数据入口当前以 `tushare` 目录为中心，通用目录访问可通过 Job API 完成。
+文件能力以配置的工作区为根，只接收工作区相对路径。先列目录定位记录，再预览格式，最后按需要清理。Studio 的工作区入口浏览配置的整个 `workspace_dir`，包括数据、Task 产物、Agent 文件、日志、插件与临时文件。目录按需加载，不限定数据源，也不采用数据源专属排序。
 
 ## 浏览目录
 
@@ -11,7 +11,7 @@ axonx list_entries --path 'base/base#demo#add-01'
 axonx list_task_runs --task-type train
 ```
 
-空 path 表示工作区根。目录列表优先展示目录，并按名称排序；单次最多 5000 项，响应的 truncated 表示还有项未展示。它不是递归文件树。
+空 path 表示工作区根。目录列表优先展示目录，并按名称排序；单次最多 5000 项。truncated 为 true 时，将已读取条目数作为 offset 请求下一页；Studio 提供“加载更多条目”按钮。它不是递归文件树。
 
 `list_task_runs` 筛选具有 metadata.json 的任务目录。若任务 failed 或仍在 running，通常不会在这里出现；请使用任务状态查询确认执行。
 
@@ -45,11 +45,9 @@ etl/<ETL Task ID>/data/features.parquet
 
 文本默认按 UTF-8（支持 BOM）解析。二进制文件改后缀为 txt 不会使其变成有效文本。
 
-Studio 的 Tushare data 页面提供原始数据目录树和 Parquet 预览。下图选中 `tushare/trade_cal.parquet`，展示总行数、字段类型、文件大小与前 200 行窗口。
+Studio 的工作区页面可预览任意工作区目录内的支持格式文件。CSV 与 Parquet 使用每页 200 行的窗口；JSON、YAML、Markdown 与文本使用相同的有界预览接口。点击工作区根节点标题可返回根目录。符号链接会显示但无法打开；不支持的格式显示文件大小和无法预览的提示。
 
-![Studio 英文 Tushare 页面中的交易日历 Parquet 预览](../../figures/studio/tushare-preview.png)
-
-此截图对应 Tushare 专题入口，不表示界面能够浏览任意服务目录或下载任意文件。通用工作区列表与支持格式的预览仍按本页 Job 接口和路径约束使用。
+![工作区浏览器预览研究产物（Playground 虚构数据）](../../figures/studio/workspace-preview.jpg)
 
 ## 行分页
 
@@ -62,7 +60,7 @@ axonx preview_file --path 'tushare/2026/20260105/daily.parquet' \
 
 路径仅为常见原始数据示例，应先用 `list_entries` 选择实际文件。offset 是跳过的数据行数，limit 为 1–5000，默认 200。
 
-这些参数适用于 CSV/Parquet，不是 JSON 文本的字节偏移，也不是目录分页参数。任务日志使用另一个接口，其 offset 是字节单位。
+这些参数适用于 CSV/Parquet，不是 JSON 文本的字节偏移。目录分页也使用 offset，但计数单位是目录条目而不是数据行。任务日志使用另一个接口，其 offset 是字节单位。
 
 研究大文件时，预览用于快速检查 Schema、日期和少量样本；完整统计应由本机脚本或研究 Task 读取完整文件。仅凭首屏不能判断全数据不存在缺失值。
 

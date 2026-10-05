@@ -28,7 +28,7 @@
       "agent": "Agent",
       "taskDefs": "Submit task",
       "apis": "API interfaces",
-      "raw": "Raw data",
+      "workspace": "Workspace",
       "etl": "ETL",
       "factors": "Factor analysis",
       "train": "Model training",
@@ -251,9 +251,9 @@
     "capabilitiesTitle": "Harness capabilities",
     "capabilitiesLead": "A plugin-driven, Agent-assisted research loop",
     "steps": {
-      "raw": {
-        "title": "Market data",
-        "detail": "Prices and fundamentals"
+      "workspace": {
+        "title": "Workspace",
+        "detail": "Browse data and artifacts"
       },
       "etl": {
         "title": "ETL features",
@@ -307,9 +307,12 @@
     "folder": "Folder",
     "empty": "This folder is empty",
     "select": "Select a file to preview it",
-    "loadFailed": "Unable to read the Tushare directory",
+    "loadFailed": "Unable to read the workspace directory",
     "previewFailed": "Unable to preview file",
-    "size": "Size"
+    "size": "Size",
+    "file": "File",
+    "loadMore": "Load more entries",
+    "pathUnavailable": "Workspace path is unavailable: {{path}}"
   },
   "workspacePreview": {
     "unsupported": "Preview is not supported for this file",

@@ -11,8 +11,8 @@ const HomePage = lazy(() => import("../features/HomePage"));
 const RuntimeWorkspace = lazy(
   () => import("../features/runtime/RuntimeWorkspace"),
 );
-const TushareBrowserPage = lazy(
-  () => import("../features/workspace/TushareBrowserPage"),
+const WorkspaceBrowserPage = lazy(
+  () => import("../features/workspace/WorkspaceBrowserPage"),
 );
 const ResearchPage = lazy(() => import("../features/research/ResearchPage"));
 const StrategyComparePage = lazy(
@@ -104,15 +104,16 @@ export function PageOutlet({
         onConnection={setServiceOnline}
       />
     );
-  } else if (route.section === "raw") {
+  } else if (route.section === "workspace") {
     page = (
-      <TushareBrowserPage
+      <WorkspaceBrowserPage
+        key={target || "local"}
         target={target}
         initialPath={route.resource}
         onConnection={setServiceOnline}
         onPathChange={(path) =>
           navigate({
-            section: "raw",
+            section: "workspace",
             view: "files",
             resource: path || undefined,
           })

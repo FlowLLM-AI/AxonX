@@ -59,17 +59,17 @@ axonx start --service.host 127.0.0.1
 
 ## 查看研究结果
 
-| 页面                | 主要内容                       | 详细说明                                       |
-| ------------------- | ------------------------------ | ---------------------------------------------- |
-| 原始数据            | 原始数据目录与 Parquet 预览    | [数据下载](../research/tushare.md)             |
-| ETL                 | 数据行数、日期范围、特征和标签 | [结果解读](../research/results.md)             |
-| Factor analysis     | 因子评分与指标分组             | [结果解读](../research/results.md)             |
-| Model training      | 模型配置、指标、训练曲线       | [产物协议](../reference/research-artifacts.md) |
-| Offline prediction  | 预测数据、统计和产物           | [结果解读](../research/results.md)             |
-| Offline backtest    | 日频曲线、质量和分期汇总       | [回测解读](../research/backtest.md)            |
-| Strategy comparison | 两个回测的共同区间比较         | [策略比较](../research/strategy-comparison.md) |
+| 页面                | 主要内容                           | 详细说明                                       |
+| ------------------- | ---------------------------------- | ---------------------------------------------- |
+| 工作区              | 全部工作区目录与支持格式的文件预览 | [工作区文件](../guides/workspace-files.md)     |
+| ETL                 | 数据行数、日期范围、特征和标签     | [结果解读](../research/results.md)             |
+| Factor analysis     | 因子评分与指标分组                 | [结果解读](../research/results.md)             |
+| Model training      | 模型配置、指标、训练曲线           | [产物协议](../reference/research-artifacts.md) |
+| Offline prediction  | 预测数据、统计和产物               | [结果解读](../research/results.md)             |
+| Offline backtest    | 日频曲线、质量和分期汇总           | [回测解读](../research/backtest.md)            |
+| Strategy comparison | 两个回测的共同区间比较             | [策略比较](../research/strategy-comparison.md) |
 
-**原始数据** 浏览 `workspace_dir/tushare`。年份（`YYYY`）与日期（`YYYYMMDD`）目录按时间倒序显示；其他目录和文件保留名称升序，目录优先。服务连接指示器每 15 秒检查状态。任务列表与服务状态的自动检查在浏览器标签页隐藏时暂停，回到前台后立即检查；请求尚未完成时不会重复发送。切换机器时清空任务选择和确认弹窗；旧的取消或删除响应不会刷新之前的机器或影响当前任务列表。研究页面与文件页面按需刷新。复制成功提示统一显示 1.6 秒，每次复制后重新计时。
+**工作区** 浏览配置的整个 `workspace_dir`，按需加载目录，目录优先、名称升序。大型目录提供“加载更多条目”，点击根节点标题可返回工作区根目录。入口位于“运行”分组，Tushare 是普通目录。路由为 `#local/workspace/files`；旧 `raw` 路由已删除，不提供重定向。服务连接指示器每 15 秒检查状态。任务列表与服务状态的自动检查在浏览器标签页隐藏时暂停，回到前台后立即检查；请求尚未完成时不会重复发送。切换机器时清空任务选择和确认弹窗；旧的取消或删除响应不会刷新之前的机器或影响当前任务列表。研究页面与文件页面按需刷新。复制成功提示统一显示 1.6 秒，每次复制后重新计时。
 
 研究页面读取 `metadata.json` 及 `output_params.artifacts`。任务列表里有一条运行记录，并不保证它已产生可展示的研究元数据。失败任务、字段不完整或损坏的 metadata 应先在详情和日志中排查。
 

@@ -100,7 +100,7 @@ export function createPlayground(): Transport {
       channel: "stdout",
     };
   };
-  function directory(path: string): WorkspaceDirectory {
+  function directory(path: string, offset = 0): WorkspaceDirectory {
     const prefix = path ? `${path}/` : "";
     const entries = new Map<string, WorkspaceDirectory["entries"][number]>();
     for (const [file, preview] of files) {
@@ -118,7 +118,17 @@ export function createPlayground(): Transport {
         modified_at: Date.parse(epoch) / 1000,
       });
     }
-    return { path, entries: [...entries.values()], truncated: false };
+    const sorted = [...entries.values()].sort(
+      (a, b) =>
+        Number(b.kind === "directory") - Number(a.kind === "directory") ||
+        a.name.toLowerCase().localeCompare(b.name.toLowerCase()) ||
+        a.name.localeCompare(b.name),
+    );
+    return {
+      path,
+      entries: sorted.slice(offset, offset + 5000),
+      truncated: sorted.length > offset + 5000,
+    };
   }
   return async (url, init = {}) => {
     if (init.signal?.aborted) throw abortError();
@@ -274,7 +284,9 @@ export function createPlayground(): Transport {
           return response(ids);
         }
         case "list_entries":
-          return response(directory(String(args.path || "")));
+          return response(
+            directory(String(args.path || ""), Number(args.offset || 0)),
+          );
         case "list_task_runs": {
           const dir = directory("runs");
           dir.entries = dir.entries.filter(

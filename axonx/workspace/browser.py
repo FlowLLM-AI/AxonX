@@ -19,20 +19,23 @@ def list_workspace_entries(
     path: str = "",
     *,
     include: EntryFilter | None = None,
+    offset: int = 0,
 ) -> WorkspaceListing:
-    """Return a bounded, directory-first listing without materialising the tree."""
+    """Return one directory-first page without materialising the tree."""
+    if offset < 0:
+        raise ValueError("Directory offset must be non-negative")
     paths = WorkspacePaths(workspace_path)
     directory = paths.resolve_directory(path)
     entries = _iter_entries(paths, directory, include)
     selected = heapq.nsmallest(
-        MAX_DIRECTORY_ENTRIES + 1,
+        offset + MAX_DIRECTORY_ENTRIES + 1,
         entries,
         key=_entry_sort_key,
     )
     return WorkspaceListing(
         path=paths.relative(directory),
-        entries=selected[:MAX_DIRECTORY_ENTRIES],
-        truncated=len(selected) > MAX_DIRECTORY_ENTRIES,
+        entries=selected[offset : offset + MAX_DIRECTORY_ENTRIES],
+        truncated=len(selected) > offset + MAX_DIRECTORY_ENTRIES,
     )
 
 

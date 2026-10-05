@@ -4,7 +4,7 @@ import {
   Bot,
   BrainCircuit,
   Cpu,
-  Database,
+  Folder,
   FileCode2,
   FlaskConical,
   Network,
@@ -51,6 +51,12 @@ export const navigationGroups: NavigationGroup[] = [
         icon: Bot,
         labelKey: "shell.navigation.agent",
       },
+      {
+        id: "workspace",
+        route: { section: "workspace", view: "files" },
+        icon: Folder,
+        labelKey: "shell.navigation.workspace",
+      },
     ],
   },
   {
@@ -75,12 +81,6 @@ export const navigationGroups: NavigationGroup[] = [
     id: "research",
     labelKey: "shell.groups.research",
     items: [
-      {
-        id: "raw",
-        route: { section: "raw", view: "files", resource: "tushare" },
-        icon: Database,
-        labelKey: "shell.navigation.raw",
-      },
       {
         id: "etl",
         route: { section: "etl", view: "runs" },

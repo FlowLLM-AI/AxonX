@@ -925,14 +925,14 @@
   flex: 1;
   overflow: auto;
 }
-.studio-workspace .tushare-tree-panel {
+.studio-workspace .workspace-tree-panel {
   width: 300px;
   min-width: 180px;
   max-width: 520px;
   background: var(--surface-2);
   overflow: auto;
 }
-.tushare-tree-panel > header {
+.workspace-tree-panel > header {
   height: 76px;
   display: flex;
   align-items: center;
@@ -940,29 +940,29 @@
   padding: 0 14px;
   border-bottom: 1px solid var(--line);
 }
-.tushare-tree-panel > header > div {
+.workspace-tree-panel > header > div {
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.tushare-tree-panel > header > div > svg {
+.workspace-tree-panel > header > div > svg {
   width: 22px;
   color: var(--accent);
 }
-.tushare-tree-panel > header strong,
-.tushare-tree-panel > header small {
+.workspace-tree-panel > header strong,
+.workspace-tree-panel > header small {
   display: block;
 }
-.tushare-tree-panel > header strong {
+.workspace-tree-panel > header strong {
   font-size: 16px;
 }
-.tushare-tree-panel > header small {
+.workspace-tree-panel > header small {
   margin-top: 4px;
   color: var(--faint);
   font-size: 11px;
 }
-.tushare-tree-panel > header > button {
+.workspace-tree-panel > header > button {
   width: 34px;
   height: 34px;
   display: grid;
@@ -973,17 +973,17 @@
   background: transparent;
   cursor: pointer;
 }
-.tushare-tree-panel > header > button:hover {
+.workspace-tree-panel > header > button:hover {
   color: var(--accent);
   background: var(--accent-soft);
 }
-.tushare-tree-panel > header > button svg {
+.workspace-tree-panel > header > button svg {
   width: 17px;
 }
-.tushare-tree-panel > nav {
+.workspace-tree-panel > nav {
   padding: 8px;
 }
-.tushare-tree-node > button {
+.workspace-tree-node > button {
   width: 100%;
   height: 40px;
   display: grid;
@@ -998,43 +998,43 @@
   text-align: left;
   cursor: pointer;
 }
-.tushare-tree-node > button:hover,
-.tushare-tree-node > button.active {
+.workspace-tree-node > button:hover,
+.workspace-tree-node > button.active {
   color: var(--accent);
   background: var(--accent-soft);
 }
-.tushare-tree-node > button:disabled {
+.workspace-tree-node > button:disabled {
   opacity: 0.45;
   cursor: default;
 }
-.tushare-tree-node > button svg {
+.workspace-tree-node > button svg {
   width: 17px;
 }
-.tushare-tree-node .tree-disclosure {
+.workspace-tree-node .tree-disclosure {
   display: grid;
   place-items: center;
 }
-.tushare-tree-node .tree-disclosure svg {
+.workspace-tree-node .tree-disclosure svg {
   width: 13px;
 }
-.tushare-tree-node > button > span:nth-child(3) {
+.workspace-tree-node > button > span:nth-child(3) {
   overflow: hidden;
   font-size: 13px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tushare-tree-node > button small {
+.workspace-tree-node > button small {
   color: var(--faint);
   font-size: 10px;
 }
-.tushare-tree-loading,
-.tushare-tree-empty {
+.workspace-tree-loading,
+.workspace-tree-empty {
   padding: 10px 8px 10px calc(48px + var(--tree-level, 0) * 16px);
   color: var(--faint);
   font-size: 12px;
 }
-.tushare-tree-loading svg {
+.workspace-tree-loading svg {
   width: 16px;
   color: var(--accent);
 }
@@ -1070,4 +1070,22 @@
 
 .studio-shell.playground-shell {
   grid-template-rows: 68px auto minmax(0, 1fr);
+}
+
+.workspace-root {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.workspace-tree-more {
+  margin: 8px 0 8px calc(7px + var(--tree-level, 0) * 16px);
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--accent);
+  background: var(--surface);
+  cursor: pointer;
 }

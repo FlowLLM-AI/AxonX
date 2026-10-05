@@ -1,6 +1,6 @@
 # Workspace browsing and preview
 
-File capabilities are rooted in the configured workspace and only accept workspace-relative paths. List directories to locate records, preview their formats, then clean up as needed. Studio's raw data entry currently focuses on the `tushare` directory; use the Job API for general directory access.
+File capabilities are rooted in the configured workspace and only accept workspace-relative paths. List directories to locate records, preview their formats, then clean up as needed. Studio's Workspace entry browses the entire configured `workspace_dir`, including data, Task artifacts, Agent files, logs, plugins, and temporary files. Directories load on demand; no data-source-specific root or sorting is applied.
 
 ## Browse directories
 
@@ -11,7 +11,7 @@ axonx list_entries --path 'base/base#demo#add-01'
 axonx list_task_runs --task-type train
 ```
 
-An empty path means the workspace root. Directory listings show directories first and sort by name; each response includes at most 5000 entries, with truncated indicating undisplayed entries. This is not a recursive file tree.
+An empty path means the workspace root. Directory listings show directories first and sort by name; each response includes at most 5000 entries. When truncated is true, request the next page with offset set to the number of entries already read. Studio provides a Load more entries button. This is not a recursive file tree.
 
 `list_task_runs` selects task directories with metadata.json. failed or running tasks usually do not appear here; use task status queries to confirm execution.
 
@@ -45,11 +45,9 @@ etl/<ETL Task ID>/data/features.parquet
 
 Text is parsed as UTF-8 by default, with BOM support. Renaming a binary file to txt does not make it valid text.
 
-Studio's Tushare data page provides a raw data directory tree and Parquet previews. The screenshot selects `tushare/trade_cal.parquet` and shows the total row count, field types, file size, and first 200-row window.
+Studio's Workspace page previews supported files from any workspace directory. CSV and Parquet previews use 200-row windows; JSON, YAML, Markdown, and text use the same bounded preview interfaces. The workspace root title returns to the root. Symbolic links are displayed but cannot be opened. Unsupported formats display their size and a preview-unavailable message.
 
-![Trade calendar Parquet preview on the English Studio Tushare page](../../figures/studio/tushare-preview.png)
-
-This screenshot corresponds to the dedicated Tushare entry and does not mean the interface can browse arbitrary service directories or download arbitrary files. General workspace listings and supported-format previews follow this page's Job interfaces and path constraints.
+![Workspace browser previewing a research artifact with fictional Playground data](../../figures/studio/workspace-preview.jpg)
 
 ## Row pagination
 
@@ -62,7 +60,7 @@ axonx preview_file --path 'tushare/2026/20260105/daily.parquet' \
 
 The path is only a typical raw-data example; first select an actual file with `list_entries`. offset is the number of data rows to skip, and limit ranges from 1–5000, defaulting to 200.
 
-These parameters apply to CSV/Parquet; they are neither JSON text byte offsets nor directory pagination parameters. Task logs use another interface whose offset is measured in bytes.
+These parameters apply to CSV/Parquet; they are not JSON text byte offsets. Directory pagination also uses offset, but counts entries rather than data rows. Task logs use another interface whose offset is measured in bytes.
 
 For large research files, previews provide quick checks of Schema, dates, and a small sample; complete statistics should read the full file in a local script or research Task. The first screen alone cannot establish that the entire dataset has no missing values.
 
