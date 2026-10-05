@@ -53,7 +53,13 @@ const schemas: Record<
     output: "array",
   },
   list_task_runs: { input: { task_type: text("backtest") }, output: "object" },
-  list_entries: { input: { path: text("tushare") }, output: "object" },
+  list_entries: {
+    input: {
+      path: text(""),
+      offset: { type: "integer", minimum: 0, default: 0 },
+    },
+    output: "object",
+  },
   preview_file: {
     input: {
       path: text("runs/backtest#demo/metadata.json"),

@@ -74,9 +74,7 @@ Groups can be selected independently, but a158 ETL requires at least market data
 
 ## Output directory
 
-![Tushare calendar Parquet preview](../../figures/studio/tushare-preview.png)
-
-Select a static file or date partition in Studio's **Tushare data** page. The right side displays its Parquet Schema and paginated data. The screenshot shows an existing trading-calendar file from a remote workspace; previewing does not mean the full table has been loaded.
+Open the `tushare/` folder in Studio's **Workspace** page and select a static file or date partition. The right side displays its Parquet Schema and paginated data; previewing does not mean the full table has been loaded.
 
 Example using the default `.axonx/` workspace:
 

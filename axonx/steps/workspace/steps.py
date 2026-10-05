@@ -15,6 +15,7 @@ class ListEntriesStep(BaseStep):
             list_workspace_entries,
             self.workspace_path,
             self.context.get("path", ""),
+            offset=self.context.get("offset", 0),
         )
 
 

@@ -5,10 +5,11 @@ export const listWorkspaceEntries = (
   path = "",
   target?: string,
   signal?: AbortSignal,
+  offset = 0,
 ) =>
   axonx.invoke<WorkspaceDirectory>(
     "list_entries",
-    { path },
+    { path, offset },
     { target, signal },
   );
 

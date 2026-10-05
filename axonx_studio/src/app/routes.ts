@@ -4,7 +4,7 @@ export const sectionIds = [
   "agent",
   "apis",
   "task-defs",
-  "raw",
+  "workspace",
   "etl",
   "factors",
   "train",
@@ -33,7 +33,7 @@ const defaultViews: Record<SectionId, string> = {
   agent: "new",
   apis: "catalog",
   "task-defs": "catalog",
-  raw: "files",
+  workspace: "files",
   etl: "runs",
   factors: "runs",
   train: "runs",
@@ -76,6 +76,6 @@ export function defaultRoute(section: SectionId): AppRoute {
   return {
     section,
     view: defaultViews[section],
-    resource: section === "raw" ? "tushare" : undefined,
+    resource: undefined,
   };
 }

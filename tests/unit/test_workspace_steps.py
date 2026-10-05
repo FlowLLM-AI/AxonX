@@ -179,3 +179,37 @@ def test_workspace_operations_do_not_traverse_symlinks(tmp_path):
 
     with pytest.raises(ValueError, match="symlink"):
         preview_workspace_file(tmp_path, "link/note.txt")
+
+
+def test_workspace_directory_pages_cover_all_entries(tmp_path, monkeypatch):
+    monkeypatch.setattr("axonx.workspace.browser.MAX_DIRECTORY_ENTRIES", 2)
+    for name in ("2026", "2025", "Agent"):
+        (tmp_path / name).mkdir()
+    for name in ("a.json", "z.txt"):
+        (tmp_path / name).write_text("{}", encoding="utf-8")
+    pages = [list_workspace_entries(tmp_path, offset=offset) for offset in (0, 2, 4, 6)]
+    assert [[entry.name for entry in page.entries] for page in pages] == [
+        ["2025", "2026"],
+        ["Agent", "a.json"],
+        ["z.txt"],
+        [],
+    ]
+    assert [page.truncated for page in pages] == [True, True, False, False]
+    with pytest.raises(ValueError, match="non-negative"):
+        list_workspace_entries(tmp_path, offset=-1)
+
+
+@pytest.mark.asyncio
+async def test_workspace_job_passes_directory_offset(tmp_path, monkeypatch):
+    monkeypatch.setattr("axonx.workspace.browser.MAX_DIRECTORY_ENTRIES", 2)
+    for name in ("a", "b", "c"):
+        (tmp_path / name).mkdir()
+    app = Application(
+        workspace_dir=str(tmp_path),
+        jobs={"list_entries": {"steps": [{"backend": "workspace_list"}]}},
+    )
+    async with app:
+        response = await app.run_job("list_entries", {"offset": 2})
+    assert response.success is True
+    assert [entry.name for entry in response.answer.entries] == ["c"]
+    assert response.answer.truncated is False

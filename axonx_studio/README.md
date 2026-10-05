@@ -10,16 +10,16 @@ Studio is a React and TypeScript frontend. The AxonX backend executes Tasks, man
 
 ## Features
 
-| Area                     | Capabilities                                                                                                                                |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Task submission          | Browse installed Task definitions and generate configuration forms from JSON Schema, including upstream Task IDs.                           |
-| Task management          | Filter runs, inspect parameters and outputs, follow progress and logs, view upstream relationships, cancel tasks, and delete selected runs. |
-| Machines                 | Switch between local and configured remote targets; inspect CPU, memory, GPU, and runtime information.                                      |
-| Data workspace           | Browse Tushare data and preview workspace files, including paginated Parquet data.                                                          |
-| Research results         | Inspect ETL datasets, factor metrics, training configuration and curves, and prediction artifacts.                                          |
-| Backtests and comparison | View return curves, quality metrics, holdings, and yearly/quarterly/monthly summaries; compare two backtests over their common date window. |
-| Agent                    | Stream responses and tool calls, resume conversations, rename/tag/fork/delete sessions, and stop the current turn.                          |
-| API interfaces           | Browse the selected machine's Job catalog and call APIs through schema-based forms.                                                         |
+| Area                     | Capabilities                                                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Task submission          | Browse installed Task definitions and generate configuration forms from JSON Schema, including upstream Task IDs.                                             |
+| Task management          | Filter runs, inspect parameters and outputs, follow progress and logs, view upstream relationships, cancel tasks, and delete selected runs.                   |
+| Machines                 | Switch between local and configured remote targets; inspect CPU, memory, GPU, and runtime information.                                                        |
+| Workspace                | Browse the entire configured workspace with on-demand directory loading, directory pagination, and supported file previews, including paginated Parquet data. |
+| Research results         | Inspect ETL datasets, factor metrics, training configuration and curves, and prediction artifacts.                                                            |
+| Backtests and comparison | View return curves, quality metrics, holdings, and yearly/quarterly/monthly summaries; compare two backtests over their common date window.                   |
+| Agent                    | Stream responses and tool calls, resume conversations, rename/tag/fork/delete sessions, and stop the current turn.                                            |
+| API interfaces           | Browse the selected machine's Job catalog and call APIs through schema-based forms.                                                                           |
 
 The interface supports English and Simplified Chinese, light/dark themes, and saved browser preferences. Hash routes preserve the selected machine and resource, for example `#local/task-defs/catalog/demo`.
 

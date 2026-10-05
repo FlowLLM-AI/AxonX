@@ -15,7 +15,7 @@ import type { SectionId } from "../app/routes";
 import { useTranslation } from "react-i18next";
 
 const quantSteps: SectionId[] = [
-  "raw",
+  "workspace",
   "etl",
   "factors",
   "train",

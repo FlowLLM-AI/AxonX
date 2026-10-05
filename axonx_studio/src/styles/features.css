@@ -376,7 +376,7 @@
   --nav-icon: var(--blue);
 }
 .primary-rail > nav .nav-apis,
-.primary-rail > nav .nav-raw {
+.primary-rail > nav .nav-workspace {
   --nav-icon: var(--cyan);
 }
 .primary-rail > nav .nav-task-defs,
@@ -404,7 +404,7 @@
 .context-rail,
 .studio-workspace .run-index,
 .studio-workspace .catalog-panel,
-.studio-workspace .tushare-tree-panel {
+.studio-workspace .workspace-tree-panel {
   border-right-color: var(--line);
   background: var(--surface-2);
 }
@@ -1214,7 +1214,7 @@
 }
 .primary-group-items .nav-resources,
 .primary-group-items .nav-apis,
-.primary-group-items .nav-raw {
+.primary-group-items .nav-workspace {
   --nav-icon: var(--cyan);
 }
 .primary-group-items .nav-task-defs,
@@ -1816,7 +1816,7 @@
   margin: 4px 0 4px 25px;
   color: var(--accent);
 }
-.hero-quant-raw {
+.hero-quant-workspace {
   --step-tone: var(--cyan);
 }
 .hero-quant-etl {

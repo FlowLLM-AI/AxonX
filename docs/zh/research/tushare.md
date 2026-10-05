@@ -74,9 +74,7 @@ axonx submit --task download_tushare_task \
 
 ## 输出目录
 
-![Tushare calendar Parquet preview](../../figures/studio/tushare-preview.png)
-
-在 Studio 的 **Tushare data** 页面选择静态文件或日期分区，右侧展示 Parquet Schema 与分页数据。图中为远程工作区已有的交易日历文件；预览不代表已加载全量表。
+在 Studio 的**工作区**页面展开 `tushare/`，选择静态文件或日期分区，右侧展示 Parquet Schema 与分页数据；预览不代表已加载全量表。
 
 以下以默认工作区 `.axonx/` 为例：
 

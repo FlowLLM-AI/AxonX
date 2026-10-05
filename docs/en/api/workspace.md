@@ -23,9 +23,10 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 List one directory level within the workspace.
 
-| Parameter | Type   | Required | Default | Constraints and meaning                |
-| --------- | ------ | -------- | ------- | -------------------------------------- |
-| `path`    | string | No       | `""`    | Path relative to the service workspace |
+| Parameter | Type    | Required | Default | Constraints and meaning                       |
+| --------- | ------- | -------- | ------- | --------------------------------------------- |
+| `path`    | string  | No       | `""`    | Path relative to the service workspace        |
+| `offset`  | integer | No       | `0`     | Non-negative number of sorted entries to skip |
 
 Only the business fields listed in the table are accepted.
 
@@ -55,7 +56,7 @@ answer is WorkspaceListing: path, entries, and truncated. Each entry contains na
 
 **Behavior and failure cases**
 
-path defaults to an empty string, representing the root directory; directories sort first. At most 5000 entries are returned. truncated=true indicates truncation; no offset pagination is provided.
+path defaults to an empty string, representing the root directory; directories sort first. At most 5000 entries are returned. truncated=true indicates another page is available. Set offset to the number of entries already read to continue. Pagination reflects the current directory contents; refresh from offset=0 after files change.
 
 ## list_task_runs
 
