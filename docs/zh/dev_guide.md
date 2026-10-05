@@ -299,35 +299,20 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
 ### 工作区与同步
 
-| 命令名称         | 具体描述                                                                               | 命令                                                                         | 远程参数                     |
-| ---------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------- |
-| `list_entries`   | 查询所连接服务的工作区根目录，查看已有 Task 类型目录和其他条目。                       | `axonx list_entries --path ''`                                               | `--target 192.168.1.10:1024` |
-| `list_entries`   | 查询指定 ETL Task 目录中的文件和子目录，定位实际产物路径。                             | `axonx list_entries --path 'etl/<etl_task_id>'`                              | `--target 192.168.1.10:1024` |
-| `list_task_runs` | 按 Task 类型列出包含 `metadata.json` 的运行目录；示例查询 ETL 类型。                   | `axonx list_task_runs --task-type etl`                                       | `--target 192.168.1.10:1024` |
-| `preview_file`   | 读取指定 Task 的 `metadata.json`，检查配置、依赖和产物路径。                           | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'`                | `--target 192.168.1.10:1024` |
-| `preview_file`   | 按行预览 CSV 或 Parquet 数据；示例跳过 200 行，最多返回 100 行，路径须从实际产物取得。 | `axonx preview_file --path '<artifact_path>' --offset 200 --limit 100`       | `--target 192.168.1.10:1024` |
-| `delete_entries` | 删除指定工作区文件或目录；单个路径也须用 JSON 数组传入。                               | `axonx delete_entries --paths '["etl/<etl_task_id>/old.csv"]'`               | `--target 192.168.1.10:1024` |
-| `delete_entries` | 一次删除多个工作区文件或目录，路径均相对于工作区。                                     | `axonx delete_entries --paths '["<workspace_path_1>","<workspace_path_2>"]'` | `--target 192.168.1.10:1024` |
-| `sync_tasks`     | 使用目标服务返回的暂存归档路径，替换归档携带的 Task 目录；该命令本身不上传文件。       | `axonx sync_tasks --path '<staged_archive_path>'`                            | `--target 192.168.1.10:1024` |
+| 命令名称                | 具体描述                                                                               | 命令                                                                                                                                | 远程参数                     |
+| ----------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `list_entries`          | 查询所连接服务的工作区根目录，查看已有 Task 类型目录和其他条目。                       | `axonx list_entries --path ''`                                                                                                      | `--target 192.168.1.10:1024` |
+| `list_entries`          | 查询指定 ETL Task 目录中的文件和子目录，定位实际产物路径。                             | `axonx list_entries --path 'etl/<etl_task_id>'`                                                                                     | `--target 192.168.1.10:1024` |
+| `list_task_runs`        | 按 Task 类型列出包含 `metadata.json` 的运行目录；示例查询 ETL 类型。                   | `axonx list_task_runs --task-type etl`                                                                                              | `--target 192.168.1.10:1024` |
+| `preview_file`          | 读取指定 Task 的 `metadata.json`，检查配置、依赖和产物路径。                           | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'`                                                                       | `--target 192.168.1.10:1024` |
+| `preview_file`          | 按行预览 CSV 或 Parquet 数据；示例跳过 200 行，最多返回 100 行，路径须从实际产物取得。 | `axonx preview_file --path '<artifact_path>' --offset 200 --limit 100`                                                              | `--target 192.168.1.10:1024` |
+| `delete_entries`        | 删除指定工作区文件或目录；单个路径也须用 JSON 数组传入。                               | `axonx delete_entries --paths '["etl/<etl_task_id>/old.csv"]'`                                                                      | `--target 192.168.1.10:1024` |
+| `delete_entries`        | 一次删除多个工作区文件或目录，路径均相对于工作区。                                     | `axonx delete_entries --paths '["<workspace_path_1>","<workspace_path_2>"]'`                                                        | `--target 192.168.1.10:1024` |
+| `sync_tasks`            | 使用目标服务返回的暂存归档路径，替换归档携带的 Task 目录；该命令本身不上传文件。       | `axonx sync_tasks --path '<staged_archive_path>'`                                                                                   | `--target 192.168.1.10:1024` |
+| `POST /files`（HTTP）   | 上传一个文件到暂存区，返回 path、sha256、size。                                        | `curl -sS '<service-url>/files' -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" -F 'file=@<local_file>'`                            | 替换服务 URL 与 token        |
+| `DELETE /files`（HTTP） | 清理返回路径对应的暂存文件。                                                           | `curl -sS -X DELETE '<service-url>/files' -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" -G --data-urlencode 'path=<staged_path>'` | 替换服务 URL 与 token        |
 
 - 产物路径：成功运行后，元数据写入 `工作区/<task_type>/<task_id>/metadata.json`；`preview_file` 使用工作区相对路径。
 - 实际取值：上传归档路径、目标服务地址和 Task ID 均从真实配置或服务响应取得，再执行对应命令。
 
-## 文件上传与清理
-
-将本机文件传给执行服务时，直接使用 HTTP `POST /files` 或 Python `HttpClient.copy_file`。文件传输独立于 Job 与 MCP 工具调用。上传请求须发往后续操作使用的同一服务；直接 HTTP 上传不使用 CLI 的 `--target` 参数。服务启用鉴权时，使用该服务的 Bearer token。
-
-`POST /files` 支持原始二进制字节（须提供 `x-file-name` 请求头），或 multipart（恰好一个 `file` 文件，可选文本 `directory` 指向 `tmp` 下的目录）。例如上传已构建的插件 wheel：
-
-```bash
-curl --fail-with-body -sS http://127.0.0.1:1024/files \
-  -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
-  -F 'file=@dist/axonx_example-0.1.0-py3-none-any.whl' \
-  -F 'directory=tmp/plugins'
-```
-
-将地址、token 与本机 wheel 路径替换为实际值，让 curl 自动设置 Content-Type 与 multipart boundary。检查 `success`，保留返回的 `answer.path`、`answer.sha256` 和 `answer.size`；路径相对于接收服务的工作区，不是发送端的文件路径。
-
-上传只暂存字节，不会安装插件、执行脚本或应用 Task 快照。安装插件时，将返回的 path 与 sha256 传给 `install_plugin`；`axonx plugin install ... --target ...` 会自动完成上传与安装。调用 `sync_tasks` 前，先上传符合同步格式的 Task 快照归档，将返回的 path 传给同一目标服务；见[任务同步](https://flowllm-ai.github.io/AxonX/zh/guides/task-sync)。
-
-消费者会清理暂存制品。未消费的上传可通过 `DELETE /files?path=...` 清理，path 使用返回值并进行 URL 编码，也可调用 `HttpClient.discard_file`。默认单文件上限为 256 MiB。请求头覆盖规则、请求大小限制和错误响应见[文件上传与清理](https://flowllm-ai.github.io/AxonX/zh/api/workspace#文件上传与清理)。
+`/files` 是 HTTP 接口，须使用后续操作的同一服务 URL 与 token。上传支持 multipart（表中示例）或原始二进制（须提供 `x-file-name`），默认单文件上限 256 MiB。检查 `success` 后，将 `answer.path` 用于 `sync_tasks`，或将 path 与 sha256 用于 `install_plugin`；上传仅暂存文件。完整参数与示例见[文件上传与清理](https://flowllm-ai.github.io/AxonX/zh/api/workspace#文件上传与清理)。
