@@ -71,10 +71,11 @@ axonx submit --task demo --task-name trial-01 --x 2 --y 3
 
 ```bash
 axonx status --task-id 'base#demo#trial-01'
-axonx cancel --task-id 'base#demo#trial-01' --run-id '<run_id>'
+axonx cancel --task-id 'base#demo#trial-01'
+axonx cancel --run-id '<run_id>'
 ```
 
-取消操作必须指定提交结果或状态中的精确 `run_id`，不会取消同名的新 Run。正常返回确认该 Run 已停止；无法确认终止时会报错。任务很快完成时，取消可能返回 false；这是竞态下的正常情况。关闭服务也会停止其管理的 worker，并将受影响运行记为 cancelled。
+取消操作接受任意一个 ID：`task_id` 取消在 manager 锁内选定的当前执行；`run_id` 精确取消提交结果或状态中的那次执行，不会取消同名的新 Run。同时指定两个 ID 时会校验当前 Task/Run 是否匹配，不匹配则返回 false；未知 ID 也返回 false。若选定 manager 不管理该活跃 Run，则因无法确认终止而报错。任务很快完成时，取消可能返回 false；这是竞态下的正常情况。关闭服务也会停止其管理的 worker，并将受影响运行记为 cancelled。
 
 文件记录可以恢复查询信息，不能自动恢复一个已中断 Python 进程的内存状态。
 

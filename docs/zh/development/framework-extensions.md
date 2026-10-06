@@ -206,6 +206,8 @@ jobs:
 
 `ManagedTaskJob` 为自定义异步编排提供 `run_stage(task, arguments)`，在取消和服务关闭期间保有已提交 worker 的所有权，停止并等待 worker 终止后再返回。子类实现 `execute(arguments)`，首次使用时解析配置指定的框架 Task manager。
 
+Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID：`task_id` 在 manager 锁内选定当前执行，`run_id` 精确指定某个 Run。同时提供两个 ID 时会校验当前身份，不匹配则返回 false。批次清理与阻塞组恢复仅传 `run_id`，不得回退为取消任务的当前执行。原先要求两个 ID 的自定义 manager 需更新为支持任意一个。
+
 同步 `BaseTask.close()` 在步骤执行后释放资源，包括步骤和初始化失败。清理失败不会覆盖原步骤异常。`on_failure(error)` 可在步骤、输出构造或清理失败时保存业务摘要，失败状态仍由 runner 管理。强制终止进程时不能保证回调执行。
 
 内置 Tushare client 负责关闭自己创建的 session。`retry_rate_limit_forever=True` 按 `rate_limit_retry_seconds` 持续重试频率超限，其他限制仍采用有限重试。`query` 和 `query_has_more` 接收可选 `DeadlineBudget`，限制等待及连接／读取超时，不会把它传给 API。Requests 的超时不保证请求的总耗时，缓慢持续返回的响应可能超过截止时间。收包、JSON 解析、DataFrame 构建和分页合并后检查预算，拒绝超时结果；这些检查不会中断正在执行的网络或计算工作。无截止时间时，频率重试持续到成功或 worker 终止。内置钉钉的 `send_dingtalk_message` 与通知 Task 共用经过校验的环境配置。

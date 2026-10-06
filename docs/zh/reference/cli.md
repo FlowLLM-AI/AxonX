@@ -101,8 +101,11 @@ axonx agent_chat --message '查看当前工作区的任务状态' \
 blocks 适合终端阅读；json 每行一个事件模型 JSON，可供程序处理。最终 result 的 success 决定退出码。中断消费者不等于取消后台研究 Task；明确取消：
 
 ```bash
-axonx cancel --task-id 'base#demo#cli-demo' --run-id '<run_id>'
+axonx cancel --task-id 'base#demo#cli-demo'
+axonx cancel --run-id '<run_id>'
 ```
+
+使用 `--task-id` 取消当前执行，或用 `--run-id` 精确取消某次执行。至少提供一个 ID；同时提供两个 ID 时，不匹配则返回 false。
 
 ## 插件子命令
 

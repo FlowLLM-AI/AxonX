@@ -36,12 +36,8 @@ export const listInstalledTaskDefinitions = (
     {},
     { target, signal },
   );
-export const cancelTask = (taskId: string, runId: string, target?: string) =>
-  axonx.invoke<boolean>(
-    "cancel",
-    { task_id: taskId, run_id: runId },
-    { target },
-  );
+export const cancelTask = (runId: string, target?: string) =>
+  axonx.invoke<boolean>("cancel", { run_id: runId }, { target });
 export const deleteTasks = (taskIds: string[], target?: string) =>
   axonx.invoke<string[]>("delete_tasks", { task_ids: taskIds }, { target });
 export const submitTask = (

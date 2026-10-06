@@ -338,20 +338,21 @@ jobs:
       - backend: get_task_graph_step
 
   cancel:
-    description: Cancel a specific Task Run.
+    description: Cancel an exact Run or a Task's current execution.
     parameters:
       type: object
       properties:
         task_id:
           type: string
-          description: ID of the queued or running task to cancel.
+          minLength: 1
+          description: Task whose current execution should be cancelled.
         run_id:
           type: string
           minLength: 1
           description: Exact Run ID returned by submission or status.
-      required:
-        - task_id
-        - run_id
+      anyOf:
+        - required: [task_id]
+        - required: [run_id]
     steps:
       - backend: cancel
 

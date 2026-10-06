@@ -90,8 +90,10 @@ axonx submit --task demo --task-name failure-01 --x 1 --y 2 --fail true
 axonx status --task-id 'base#demo#failure-01'
 
 # Cancel an actual research task that is still running
-axonx cancel --task-id '<active Task ID>' --run-id '<run_id>'
+axonx cancel --task-id '<active Task ID>'
 ```
+
+To cancel the exact execution retained in a submission handle, use `axonx cancel --run-id '<run_id>'`. Task-based cancellation selects the current execution; Run-based cancellation never targets a later rerun. Studio and batch cleanup use Run IDs.
 
 demo finishes quickly and usually cannot reliably demonstrate cancellation. If cancellation returns false, check whether the task has already ended, whether the current manager manages it, and whether the correct execution machine is selected.
 

@@ -100,7 +100,7 @@ axonx cancel_agent_turn --session-id '<running UUID>'
 This does not automatically cancel independent research Tasks submitted through other tools or operations. Use the `cancel` Job to cancel a research task:
 
 ```bash
-axonx cancel --task-id '<research Task ID to cancel>' --run-id '<run_id>'
+axonx cancel --task-id '<research Task ID to cancel>'
 ```
 
 Session history remains usable after a turn is cancelled. Cancelling a task changes that Task's execution status. These operations are not interchangeable.

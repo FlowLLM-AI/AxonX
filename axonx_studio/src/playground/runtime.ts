@@ -266,9 +266,14 @@ export function createPlayground(): Transport {
           return response({ task_id: id, run_id: id, task: definition.name });
         }
         case "cancel": {
-          const task = requiredTask(id);
-          if (args.run_id !== task.run_id) return response(false);
-          if (!running.delete(id)) return response(false);
+          if (!args.task_id && !args.run_id)
+            throw new Error("Cancellation requires task_id or run_id");
+          const task = args.task_id
+            ? tasks.get(String(args.task_id))
+            : [...tasks.values()].find((task) => task.run_id === args.run_id);
+          if (!task || (args.run_id && args.run_id !== task.run_id))
+            return response(false);
+          if (!running.delete(task.task_id)) return response(false);
           task.state = "cancelled";
           task.finished_at = new Date().toISOString();
           return response(true);

@@ -32,7 +32,7 @@ function task(
 ): TaskStatus {
   return {
     task_id: taskId,
-    run_id: taskId,
+    run_id: `run-${taskId}`,
     task_type: "train",
     task_name: taskId,
     config: {},
@@ -117,7 +117,7 @@ describe("task request ownership", () => {
     await openMenu();
     await click('[role="menuitem"].danger');
     await click('[role="dialog"] .danger-button');
-    expect(cancelTask).toHaveBeenCalledWith("train#a", "train#a", "machine-a");
+    expect(cancelTask).toHaveBeenCalledWith("run-train#a", "machine-a");
     expect(signal.aborted).toBe(true);
     await act(async () => pending.resolve([task("train#stale")]));
     expect(container.textContent).toContain("train#fresh");

@@ -101,8 +101,11 @@ axonx agent_chat --message 'Check the task statuses in the current workspace' \
 blocks is suitable for terminal reading; json emits one event-model JSON value per line for programmatic processing. The final result's success determines the exit code. Interrupting the consumer does not cancel a background research Task; cancel explicitly:
 
 ```bash
-axonx cancel --task-id 'base#demo#cli-demo' --run-id '<run_id>'
+axonx cancel --task-id 'base#demo#cli-demo'
+axonx cancel --run-id '<run_id>'
 ```
+
+Use `--task-id` for the current execution, or `--run-id` for one exact execution. At least one ID is required; when both are supplied, a mismatched pair returns false.
 
 ## Plugin subcommands
 

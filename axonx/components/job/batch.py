@@ -88,7 +88,7 @@ class TaskBatchJob(ManagedTaskJob):
                 if blocked.exists():
                     unresolved = json.loads(blocked.read_text())
                     try:
-                        await self.manager.cancel(unresolved["task_id"], unresolved["run_id"])
+                        await self.manager.cancel(run_id=unresolved["run_id"])
                     except Exception as exc:
                         raise RuntimeError(f"Batch group {self.lock_group} is blocked: {unresolved}") from exc
                     blocked.unlink()

@@ -90,8 +90,10 @@ axonx submit --task demo --task-name failure-01 --x 1 --y 2 --fail true
 axonx status --task-id 'base#demo#failure-01'
 
 # 对仍在运行的真实研究任务取消
-axonx cancel --task-id '<活跃 Task ID>' --run-id '<run_id>'
+axonx cancel --task-id '<活跃 Task ID>'
 ```
+
+若要取消提交 handle 中的精确执行，使用 `axonx cancel --run-id '<run_id>'`。按 Task 取消会选定当前执行，按 Run 取消不会影响后来的重跑。Studio 和批次清理使用 Run ID。
 
 demo 很快完成，通常不能用它稳定演示取消。取消返回 false 时，应核对任务是否已经结束、是否由当前管理器管理，以及执行机器是否选择正确。
 

@@ -273,7 +273,7 @@ export function TaskDetailPage({
     if (!task || !window.confirm(t("cancelConfirm"))) return;
     setCancelling(true);
     try {
-      const cancelled = await cancelTask(task.task_id, task.run_id, target);
+      const cancelled = await cancelTask(task.run_id, target);
       if (!cancelled) throw new Error(t("cancelFailed"));
       await loadStatus();
     } catch (reason) {

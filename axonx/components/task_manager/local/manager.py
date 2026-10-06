@@ -217,18 +217,32 @@ class LocalTaskManager(BaseTaskManager):
         ):
             yield event
 
-    async def cancel(self, task_id: str, run_id: str) -> bool:
+    async def cancel(self, task_id: str | None = None, run_id: str | None = None) -> bool:
+        if task_id is None and run_id is None:
+            raise ValueError("Cancellation requires task_id or run_id")
+        for name, value in (("task_id", task_id), ("run_id", run_id)):
+            if value is not None and (not isinstance(value, str) or not value.strip()):
+                raise ValueError(f"{name} must be a non-empty string")
         async with self._lock:
-            try:
-                status = (await self.repository.entry(task_id)).status
-            except KeyError:
-                status = None
-            current = status is not None and status.run_id == run_id
-            if current and not status.state.is_terminal and not self._supervisor.is_managed_run(run_id):
-                raise RuntimeError(f"Cannot confirm termination of unmanaged Run: {task_id} {run_id}")
+            if task_id is not None:
+                try:
+                    status = (await self.repository.entry(task_id)).status
+                except KeyError:
+                    status = None
+                if status is None or (run_id is not None and status.run_id != run_id):
+                    return False
+                run_id = status.run_id
+            else:
+                status = next(
+                    (item for item in (await self.repository.statuses()).values() if item.run_id == run_id),
+                    None,
+                )
+            assert run_id is not None
+            if status is not None and not status.state.is_terminal and not self._supervisor.is_managed_run(run_id):
+                raise RuntimeError(f"Cannot confirm termination of unmanaged Run: {status.task_id} {run_id}")
             # Supervisor identity is immutable even if the named Task has been replaced.
             cancelled = await self._supervisor.cancel_run(run_id)
-            if cancelled and current and not status.state.is_terminal:
+            if cancelled and status is not None and not status.state.is_terminal:
                 await self._finish(status, TaskState.CANCELLED, 130, "Task cancelled")
             return cancelled
 

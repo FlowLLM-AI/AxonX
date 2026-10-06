@@ -106,7 +106,7 @@ class ManagedTaskJob(BaseJob):
                 nonlocal handle
                 handle = handle or await submission
                 # A normal return guarantees this exact Run has stopped; no second polling race.
-                await self.manager.cancel(handle.task_id, handle.run_id)
+                await self.manager.cancel(run_id=handle.run_id)
 
             # A failed submission never transferred a worker handle to this Job.
             if submission.done() and not submission.cancelled() and submission.exception() is not None:

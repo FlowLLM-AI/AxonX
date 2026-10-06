@@ -52,9 +52,11 @@ class Manager:
             self.active -= 1
         return status
 
-    async def cancel(self, task_id, run_id):
-        assert self.statuses[task_id].run_id == run_id
-        if self.statuses[task_id].state.is_terminal:
+    async def cancel(self, task_id=None, run_id=None):
+        assert task_id is None  # Batch cleanup always targets an exact Run.
+        status = next(status for status in self.statuses.values() if status.run_id == run_id)
+        task_id = status.task_id
+        if status.state.is_terminal:
             return False
         self.cancelled.append(task_id)
         self.statuses[task_id].state = TaskState.CANCELLED
@@ -197,7 +199,7 @@ def test_cleanup_failure_blocks_group_until_exact_run_can_be_stopped(tmp_path):
                     raise RuntimeError("polling failed")
                 return await super().wait(task_id, run_id, poll_interval)
 
-            async def cancel(self, task_id, run_id):
+            async def cancel(self, task_id=None, run_id=None):
                 if self.broken:
                     raise RuntimeError("termination failed")
                 return await super().cancel(task_id, run_id)
@@ -250,7 +252,7 @@ def test_stream_close_stops_owned_worker_and_releases_group(tmp_path):
 def test_stream_close_reports_cleanup_failure_and_quarantines_group(tmp_path):
     async def check():
         class BrokenManager(Manager):
-            async def cancel(self, task_id, run_id):
+            async def cancel(self, task_id=None, run_id=None):
                 raise RuntimeError("cannot stop worker")
 
         manager = BrokenManager(block=True)

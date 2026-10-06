@@ -47,11 +47,13 @@ class BaseTaskManager(BaseComponent, ABC):
             await asyncio.sleep(poll_interval)
 
     @abstractmethod
-    async def cancel(self, task_id: str, run_id: str) -> bool:
-        """Stop exactly this Run; normal return confirms termination.
+    async def cancel(self, task_id: str | None = None, run_id: str | None = None) -> bool:
+        """Stop an exact Run, or the current Run of a Task, under the manager lock.
 
-        Return whether cancellation was performed; false means already stopped.
-        Raise if termination cannot be confirmed. Never cancel a replacement Run.
+        At least one ID is required; supplying both checks the current Task/Run pair.
+        Return whether cancellation was performed; unknown, stopped or mismatched IDs return false.
+        Raise if termination cannot be confirmed for an active Run.
+        Use run_id alone for cleanup so a replacement Run is never cancelled.
         """
 
     @abstractmethod

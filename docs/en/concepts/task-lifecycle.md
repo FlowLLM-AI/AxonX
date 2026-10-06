@@ -71,10 +71,11 @@ Use different names such as `trial-01` and `trial-02`, or generated default name
 
 ```bash
 axonx status --task-id 'base#demo#trial-01'
-axonx cancel --task-id 'base#demo#trial-01' --run-id '<run_id>'
+axonx cancel --task-id 'base#demo#trial-01'
+axonx cancel --run-id '<run_id>'
 ```
 
-Cancellation requires the exact `run_id` returned by submission or status and never targets a replacement Run. A normal return confirms the owned Run has stopped; inability to confirm termination raises an error. If a task finishes quickly, cancellation may return false; this is normal under a race condition. Service shutdown also stops its managed workers and records affected runs as cancelled.
+Cancellation accepts either ID: `task_id` cancels the current execution selected under the manager lock; `run_id` cancels exactly the execution returned by submission or status, without targeting a replacement Run. Supplying both checks the current Task/Run pair; a mismatch returns false. Unknown IDs also return false. An active Run that the selected manager does not own raises an error because termination cannot be confirmed. If a task finishes quickly, cancellation may return false; this is normal under a race condition. Service shutdown also stops its managed workers and records affected runs as cancelled.
 
 File records can restore query information, but cannot automatically restore the in-memory state of an interrupted Python process.
 

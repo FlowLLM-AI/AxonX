@@ -192,7 +192,7 @@ describe("static Playground", () => {
     expect(
       (await api.invoke<TaskStatus>("status", { ...cancelled })).state,
     ).toBe("queued");
-    await api.invoke("cancel", { ...cancelled });
+    expect(await api.invoke("cancel", { run_id: cancelled.run_id })).toBe(true);
     const failed = await submit(api, { outcome: "failure" });
     await vi.advanceTimersByTimeAsync(7000);
     expect(
@@ -206,6 +206,21 @@ describe("static Playground", () => {
         path: `runs/${failed.task_id}/metadata.json`,
       }),
     ).rejects.toThrow("not found");
+  });
+
+  it("cancels a current task by Task ID and rejects an empty cancellation", async () => {
+    const api = client();
+    const handle = await submit(api);
+    await expect(api.invoke("cancel", {})).rejects.toThrow(
+      "Cancellation requires task_id or run_id",
+    );
+    expect(await api.invoke("cancel", { run_id: "unknown-run" })).toBe(false);
+    expect(await api.invoke("cancel", { task_id: handle.task_id })).toBe(true);
+    expect(await api.invoke("cancel", { task_id: handle.task_id })).toBe(false);
+    expect(
+      (await api.invoke<TaskStatus>("status", { task_id: handle.task_id }))
+        .state,
+    ).toBe("cancelled");
   });
 
   it("streams progress through the real SSE parser and cleans up timers", async () => {

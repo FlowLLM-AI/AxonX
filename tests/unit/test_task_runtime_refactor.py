@@ -3,10 +3,13 @@
 import asyncio
 import json
 import re
+import sys
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta
+from importlib.resources import files
 
 import pytest
+import yaml
 
 from axonx.components.job import LogEvent
 from axonx.components.task_manager.local.manager import LocalTaskManager
@@ -261,7 +264,8 @@ async def test_statuses_are_sorted_by_creation_time_not_task_id():
     ]
 
 
-async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid():
+@pytest.mark.parametrize("identifiers", ["task", "run", "both"])
+async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid(identifiers):
     status = TaskStatus(
         task_id="analysis#sample#running",
         run_id="current-run",
@@ -274,13 +278,18 @@ async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid():
 
     class Repository:
         async def entry(self, _task_id):
+            assert manager._lock.locked()
             return type("Entry", (), {"status": status})()
+
+        async def statuses(self):
+            return {status.task_id: status}
 
     class Supervisor:
         def is_managed_run(self, run_id):
             return run_id == status.run_id
 
         async def cancel_run(self, run_id):
+            assert manager._lock.locked()
             cancelled.append(run_id)
             return True
 
@@ -293,7 +302,12 @@ async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid():
     manager._supervisor = Supervisor()
     manager._finish = finish
 
-    assert await manager.cancel(status.task_id, status.run_id) is True
+    arguments = {}
+    if identifiers != "run":
+        arguments["task_id"] = status.task_id
+    if identifiers != "task":
+        arguments["run_id"] = status.run_id
+    assert await manager.cancel(**arguments) is True
     assert cancelled == [status.run_id]
     assert finished[0][0] is status
 
@@ -503,11 +517,12 @@ async def test_cancel_old_run_never_cancels_or_updates_replacement():
     manager.repository = Repository()
     manager._supervisor = Supervisor()
     assert await manager.cancel(status.task_id, "old-run") is False
-    assert cancelled == ["old-run"]
+    assert not cancelled
     assert status.run_id == "new-run" and status.state == TaskState.RUNNING
 
 
-async def test_cancel_cannot_confirm_unmanaged_active_run():
+@pytest.mark.parametrize("identifiers", ["task", "run", "both"])
+async def test_cancel_cannot_confirm_unmanaged_active_run(identifiers):
     status = TaskStatus(
         task_id="analysis#sample#named",
         run_id="run",
@@ -519,6 +534,9 @@ async def test_cancel_cannot_confirm_unmanaged_active_run():
         async def entry(self, task_id):
             return type("Entry", (), {"status": status})()
 
+        async def statuses(self):
+            return {status.task_id: status}
+
     class Supervisor:
         def is_managed_run(self, run_id):
             return False
@@ -527,5 +545,131 @@ async def test_cancel_cannot_confirm_unmanaged_active_run():
     manager._lock = asyncio.Lock()
     manager.repository = Repository()
     manager._supervisor = Supervisor()
+    arguments = {}
+    if identifiers != "run":
+        arguments["task_id"] = status.task_id
+    if identifiers != "task":
+        arguments["run_id"] = status.run_id
     with pytest.raises(RuntimeError, match="unmanaged Run"):
-        await manager.cancel(status.task_id, status.run_id)
+        await manager.cancel(**arguments)
+
+
+async def test_run_only_cancellation_stops_old_worker_without_updating_replacement():
+    replacement = TaskStatus(
+        task_id="analysis#sample#named",
+        run_id="new-run",
+        task_type=TaskType.ANALYSIS,
+        state=TaskState.RUNNING,
+    )
+    cancelled = []
+
+    class Repository:
+        async def statuses(self):
+            return {replacement.task_id: replacement}
+
+    class Supervisor:
+        async def cancel_run(self, run_id):
+            cancelled.append(run_id)
+            return True
+
+    manager = object.__new__(LocalTaskManager)
+    manager._lock = asyncio.Lock()
+    manager.repository = Repository()
+    manager._supervisor = Supervisor()
+    assert await manager.cancel(run_id="old-run") is True
+    assert cancelled == ["old-run"]
+    assert replacement.state == TaskState.RUNNING
+
+
+@pytest.mark.parametrize("arguments", [{}, {"task_id": ""}, {"run_id": " "}, {"run_id": 123}])
+async def test_cancel_rejects_missing_or_empty_identifiers(arguments):
+    manager = object.__new__(LocalTaskManager)
+    with pytest.raises(ValueError):
+        await manager.cancel(**arguments)
+
+
+@pytest.mark.parametrize("arguments", [{"task_id": "missing"}, {"run_id": "missing"}])
+async def test_cancel_unknown_identifier_returns_false(arguments):
+    class Repository:
+        async def entry(self, task_id):
+            raise KeyError(task_id)
+
+        async def statuses(self):
+            return {}
+
+    class Supervisor:
+        async def cancel_run(self, run_id):
+            assert run_id == "missing"
+            return False
+
+    manager = object.__new__(LocalTaskManager)
+    manager._lock = asyncio.Lock()
+    manager.repository = Repository()
+    manager._supervisor = Supervisor()
+    assert await manager.cancel(**arguments) is False
+
+
+@pytest.fixture
+def cancel_job(tmp_path):
+    config = yaml.safe_load(files("axonx.config").joinpath("default.yaml").read_text())
+    app = Application(
+        workspace_dir=str(tmp_path),
+        log_dir=str(tmp_path / "logs"),
+        log_to_file=False,
+        log_to_console=False,
+        jobs={"cancel": config["jobs"]["cancel"]},
+    )
+    return app.context.jobs["cancel"]
+
+
+@pytest.mark.parametrize("arguments", [{"task_id": "task"}, {"run_id": "run"}, {"task_id": "task", "run_id": "run"}])
+def test_default_cancel_job_accepts_either_identifier(cancel_job, arguments):
+    cancel_job.validate_arguments(arguments)
+
+
+@pytest.mark.parametrize("arguments", [{}, {"task_id": ""}, {"run_id": ""}])
+def test_default_cancel_job_rejects_missing_or_empty_identifiers(cancel_job, arguments):
+    with pytest.raises(ValueError):
+        cancel_job.validate_arguments(arguments)
+
+
+@pytest.mark.parametrize("identifiers", ["task", "run", "both"])
+async def test_cancel_job_terminates_its_worker_with_either_identifier(tmp_path, monkeypatch, identifiers):
+    create_process = asyncio.create_subprocess_exec
+
+    async def sleeping_worker(*_args, **kwargs):
+        return await create_process(sys.executable, "-c", "import time; time.sleep(60)", **kwargs)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", sleeping_worker)
+    config = yaml.safe_load(files("axonx.config").joinpath("default.yaml").read_text())
+    app = Application(
+        workspace_dir=str(tmp_path),
+        log_dir=str(tmp_path / "logs"),
+        enable_logo=False,
+        log_to_console=False,
+        log_to_file=False,
+        components={
+            "task_repository": {"default": {"backend": "local", "force_polling": True}},
+            "task_manager": {"default": {"backend": "local", "terminate_grace_seconds": 0.1}},
+        },
+        jobs={"cancel": config["jobs"]["cancel"]},
+    )
+    async with app:
+        manager = app.context.components["task_manager"]["default"]
+        handle = await manager.submit(["--task", "demo", "--x", "1", "--y", "2"])
+        process = manager._supervisor.processes[manager._supervisor.run_pids[handle.run_id]]
+        assert process.returncode is None
+        stale = await app.run_job("cancel", {"task_id": handle.task_id, "run_id": "stale-run"})
+        assert stale.success and stale.answer is False
+        assert process.returncode is None
+        arguments = {}
+        if identifiers != "run":
+            arguments["task_id"] = handle.task_id
+        if identifiers != "task":
+            arguments["run_id"] = handle.run_id
+        response = await app.run_job("cancel", arguments)
+        assert response.success and response.answer is True
+        assert process.returncode is not None
+        status = await manager.get_status(handle.task_id)
+        assert status.run_id == handle.run_id
+        assert status.state == TaskState.CANCELLED

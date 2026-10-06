@@ -99,7 +99,7 @@ axonx cancel_agent_turn --session-id '<正在运行的 UUID>'
 这不会自动取消已由其他工具或操作提交的独立研究 Task。取消研究任务要使用 `cancel` Job：
 
 ```bash
-axonx cancel --task-id '<要取消的研究 Task ID>' --run-id '<run_id>'
+axonx cancel --task-id '<要取消的研究 Task ID>'
 ```
 
 取消轮次后会话历史可继续使用；取消任务则改变对应 Task 的执行状态。两者不能互相替代。
