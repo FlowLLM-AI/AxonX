@@ -88,6 +88,8 @@ The built-in `default` configuration (and configurations that inherit it, includ
 
 CLI start first loads .env and merges it into environment. Ordinary clients and exec read the environment with override=false. Python's ConfigResolver does not itself load .env; callers must establish the environment themselves.
 
+Local Task workers inherit `PATH`, `HOME`, and `LD_LIBRARY_PATH` from the AxonX process when present. `LD_LIBRARY_PATH` is now inherited automatically so Linux workers can find native shared libraries configured in the startup environment. Application `environment` values override inherited values; framework-injected Task variables take precedence over both. Other parent-process variables require explicit configuration in `environment`.
+
 Relative plugins.sources paths resolve to absolute paths against the configuration file that declares them. Ordinary paths such as workspace_dir/log_dir do not receive this special conversion; at runtime, they are usually relative to the process working directory and support user-directory expansion. The configuration file's directory is not the base for all paths.
 
 ## ComponentConfig and named components

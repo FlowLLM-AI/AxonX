@@ -15,12 +15,12 @@ from ....constants import CLI_EXEC_COMMAND
 STDERR_TAIL_BYTES = 8 * 1024
 REAP_TIMEOUT_SECONDS = 1.0
 EXIT_RETRY_SECONDS = 1.0
-#: Variables a worker cannot work without, borrowed from this process when the
-#: application does not set them itself. A task that shells out needs ``PATH``, and
-#: a library that caches under the user's home needs ``HOME``. Everything else comes
+#: Runtime variables borrowed from this process when the application does not set
+#: them itself. Tasks need ``PATH`` for commands, ``HOME`` for user caches, and
+#: ``LD_LIBRARY_PATH`` for native shared libraries on Linux. Everything else comes
 #: from the application's own environment, which is what keeps an operator's shell
 #: from reaching into a task by accident.
-INHERITED_ENV = ("PATH", "HOME")
+INHERITED_ENV = ("PATH", "HOME", "LD_LIBRARY_PATH")
 
 
 @dataclass(frozen=True)
@@ -69,8 +69,8 @@ class TaskProcessSupervisor:
     ) -> None:
         """Launch one isolated worker and start monitoring it.
 
-        ``environment`` is layered over the few variables a child process cannot work
-        without, rather than over this process's whole environment: a task receives
+        ``environment`` is layered over the runtime variable allowlist,
+        rather than over this process's whole environment: a task receives
         the application's configuration, and nothing of the operator's shell by
         accident.
         """

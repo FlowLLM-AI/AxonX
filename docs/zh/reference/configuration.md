@@ -88,6 +88,8 @@ service:
 
 CLI start 先加载 .env，并合并到 environment；普通客户端与 exec 以 override=false 读取环境。Python 的 ConfigResolver 本身不负责加载 .env，调用者需要自己建立环境。
 
+本地 Task worker 会继承 AxonX 进程中已设置的 `PATH`、`HOME` 和 `LD_LIBRARY_PATH`。现在会自动继承 `LD_LIBRARY_PATH`，让 Linux worker 能找到启动环境中配置的原生共享库。应用 `environment` 的值覆盖继承值，框架注入的 Task 变量优先于两者。其他父进程变量需要在 `environment` 中显式配置。
+
 plugins.sources 的相对路径按声明它的配置文件目录解析成绝对路径。workspace_dir/log_dir 等普通路径没有该特殊转换，运行时通常相对进程工作目录，并支持用户目录展开。不要将 config 文件所在目录误当成全部路径的基准。
 
 ## ComponentConfig 与命名组件
