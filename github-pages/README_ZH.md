@@ -131,6 +131,38 @@ DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages ru
 | 页面切换语言       | 依次检查 `?lang`、语言路由与 Studio 共用偏好 |
 | 构建成功但未部署   | 检查事件、分支、Pages 来源、环境和工作流权限 |
 
-维护约定见[内容职责说明](../docs/README.md)和[贡献指南](../CONTRIBUTING_ZH.md)。
+仓库贡献要求见[贡献指南](../CONTRIBUTING_ZH.md)。
 
 官网导航与首页提供 Playground 入口。`npm run build` 同时构建 Studio 的浏览器模拟模式，并将独立产物合并到 `dist/playground/`。开发文档站时，可另开终端运行 `npm --prefix axonx_studio run dev:playground` 预览演示；完整合并站点通过 build 与 preview 检查。无需后台服务。
+
+## 内容与图示维护约定
+
+中英文文档按相同文件路径和章节组织，截图与示意图共用 `docs/figures/` 中的资源。
+
+根目录与插件 README 在构建时导入，双语正文仍在仓库根目录与各插件目录维护。导航由 `docs/.vitepress/navigation.mjs` 定义。
+
+阅读路径分为开始使用、量化研究、Agent、运行与部署、接口参考和开发扩展。`docs/en/index.md` 与 `docs/zh/index.md` 提供选路入口；入门教程完成最小流程，操作指南解决具体任务，参考页定义契约，概念页解释执行与记录。
+
+站点框架位于 `github-pages/site/`，构建模块位于 `github-pages/lib/`，入口脚本位于 `github-pages/scripts/`。`docs/` 维护正文与共用图片，`docs/.vitepress/navigation.mjs` 维护页面归属。
+
+图片按解释的主题存放在 `docs/figures/` 中。每页使用直接回答本页问题的图示；协议总览不能代替会话、机器路由或安装流程。
+
+| 目录                    | 职责                                             |
+| ----------------------- | ------------------------------------------------ |
+| `getting-started/`      | 产品总览、首次执行、Studio 导航                  |
+| `concepts/`             | 框架架构、Job/Task 边界、生命周期、工作区、血缘  |
+| `agent/`                | 独立接入路径、外部开发、内置证据阅读与配置       |
+| `research/`             | 研究依赖、证据阅读、记账、对齐比较、实验确认     |
+| `api/`                  | 协议契约与任务、会话、机器、文件、插件及同步调用 |
+| `guides/`, `reference/` | 运维流程与配置、扩展契约                         |
+| `plugins/`              | 算法特定的特征组成                               |
+| `benchmark/`            | 标明来源、窗口与指标定义的历史量化结果           |
+| `studio/`               | 作为界面证据的真实截图                           |
+
+概念图与指标图使用 SVG，截图使用 PNG。双语页面共用图示，周边说明与替代文本分别翻译。保持根目录 README 的图片路径稳定。总览介绍产品，架构解释实现，血缘描述已记录的引用，工作流描述显式研究阶段，实验图解释筛选与独立确认。
+
+使用统一手写字体栈（`Comic Sans MS`、`Chalkboard SE`、`Comic Neue`、cursive）、清晰标签以及 SVG `title` / `desc` 无障碍元数据。外框使用实线圆角，卡片或辅助线使用虚线，保留各图原有配色。标题与副标题建立明确层级，宽卡片正文左对齐，脚注与主图分开，连线避开标签。产品总览以研究插件、Task 执行与共享工作区三个模块组织，提交与查询路径连续连接到对应模块。减少嵌套标签框，简短列表在同一卡片内排版。箭头必须明确表达执行、数据依赖或记录查询。备选接入方式和独立配置来源不能画成串行阶段。因子分析从 ETL 分支；提交受理与 Task 成功分别表达。数据、插件与工作进程属于各自的执行目标环境。
+
+更新图示时检查 SVG 渲染与文字边界、双语引用和完整站点构建。保留截图来源与基准数值；重画概念图不应虚构界面状态或重算历史指标。当前产品品牌资源由 `axonx_studio/public/` 维护；`docs/` 根层的 FlowLLM 标志是 `scripts/generate_flowllm_logo.py` 生成的历史组织素材。
+
+每个导航区以按目标组织的总览为入口，调整阅读顺序时保留已有深层链接。站点为以标志开头的项目 README 补充生成的一级标题，不修改原文。

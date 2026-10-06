@@ -69,8 +69,6 @@ for (const [route, original] of Object.entries(sourceMap)) {
       assets.set(target, source);
       return `/${target}${suffix}`;
     }
-    if (source === "docs/README.md")
-      return `/${route.slice(0, 2)}/docs${suffix}`;
     if (routes.has(source)) return `${routes.get(source)}${suffix}`;
     const kind = statSync(path.join(root, source)).isDirectory()
       ? "tree"

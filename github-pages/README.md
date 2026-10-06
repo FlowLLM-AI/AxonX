@@ -131,6 +131,38 @@ DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages ru
 | The site changes language              | Check `?lang`, the language route, then the shared Studio preference       |
 | Build passes but deployment is skipped | Check event, branch, Pages source, environment, and workflow permissions   |
 
-See the [content ownership guide](../docs/README.md) and [contribution guide](../CONTRIBUTING.md) for maintenance conventions.
+See the [contribution guide](../CONTRIBUTING.md) for repository contribution requirements.
 
 The navigation and homepage link to Playground. `npm run build` also builds Studio in browser simulation mode and merges its separate output into `dist/playground/`. During documentation development, run `npm --prefix axonx_studio run dev:playground` in another terminal to preview the demo; use build and preview to inspect the merged website. No backend service is needed.
+
+## Content and figure conventions
+
+The English and Chinese documentation use matching file paths and sections. Screenshots and diagrams are shared under `docs/figures/`.
+
+Root and plugin READMEs are imported at build time; their bilingual sources remain at the repository root and in each plugin directory. Navigation is defined in `docs/.vitepress/navigation.mjs`.
+
+Reader journeys are organized as Get started, Research, Agent, Operations, Reference, and Developers. The document maps in `docs/en/index.md` and `docs/zh/index.md` explain where to begin. Tutorials complete a minimal workflow, how-to guides address a concrete task, references define contracts, and concept pages explain execution and records.
+
+The site framework lives in `github-pages/site/`, with shared build modules in `github-pages/lib/` and entry scripts in `github-pages/scripts/`. Keep prose and shared figures in `docs/`, and maintain page ownership in `docs/.vitepress/navigation.mjs`.
+
+Keep assets in `docs/figures/` by the subject they explain. A page should use a diagram that answers its own question; a transport overview cannot substitute for a session, machine, or installation flow.
+
+| Directory               | Responsibility                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `getting-started/`      | Product overview, first execution, Studio navigation                                              |
+| `concepts/`             | Framework architecture, Job/Task boundaries, lifecycle, workspace, lineage                        |
+| `agent/`                | Independent access paths, external development, built-in evidence and configuration               |
+| `research/`             | Research dependencies, evidence reading, accounting, aligned comparisons, experiment confirmation |
+| `api/`                  | Protocol contracts and specific Task, session, machine, file, plugin/sync flows                   |
+| `guides/`, `reference/` | Operational procedures and configuration/extension contracts                                      |
+| `plugins/`              | Algorithm-specific feature composition                                                            |
+| `benchmark/`            | Historical quantitative results with sources, windows, and metric definitions                     |
+| `studio/`               | Actual UI screenshots used as visual evidence                                                     |
+
+Use SVG for conceptual diagrams and quantitative charts, and PNG for screenshots. Share diagrams between languages and translate their surrounding explanations and alt text. Keep root README image paths stable. The overview introduces the product; architecture explains implementation; lineage describes recorded references; workflow describes explicit research stages; experiments explains selection and independent confirmation.
+
+Use the shared hand-drawn font stack (`Comic Sans MS`, `Chalkboard SE`, `Comic Neue`, cursive), readable labels, and SVG `title` / `desc` accessibility metadata. Use solid rounded outer frames and dashed cards or guides; retain each diagram's existing palette. Use a clear title/subtitle hierarchy, left-align copy in wide cards, separate footnotes from the diagram, and keep connectors clear of labels. The product overview uses three pillars—research plugins, Task execution, and shared workspace—with continuous submission and query paths. Avoid excessive nested badges; short lists can share one card. Arrows must have a defined meaning: execution, data dependency, or reading records. Alternatives and independent configuration sources must not be drawn as sequential stages. Factor analysis branches from ETL; submission acceptance is separate from Task success. Show deployment-local data, plugins, and workers inside the execution target's boundary.
+
+When updating figures, verify SVG rendering and text bounds, matching bilingual references, and the complete site build. Preserve screenshot provenance and benchmark values; conceptual redrawing is not a reason to fabricate UI states or recalculate historical metrics. `axonx_studio/public/` owns current product branding; the root FlowLLM logo files in `docs/` are legacy organization artwork produced by `scripts/generate_flowllm_logo.py`.
+
+Each navigation area opens with a goal-based overview. Preserve existing deep links when improving reading order. The site imports the logo-led project README with a generated H1, without editing its source.

@@ -23,4 +23,4 @@ Use [experiment design](../research/experiments.md) for algorithm comparisons an
 
 ## Maintain the documentation
 
-Update English and Chinese pages together. Keep algorithm details with plugins, general workflows in guides, and field definitions in references. The [documentation source guide](../../README.md) and [site maintenance guide](../../../github-pages/README.md) explain navigation ownership, generation, and build checks.
+Update English and Chinese pages together. Keep algorithm details with plugins, general workflows in guides, and field definitions in references. The [site maintenance guide](../../../github-pages/README.md) explains navigation ownership, generation, and build checks.
