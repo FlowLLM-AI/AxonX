@@ -171,6 +171,8 @@ Implementation references: `axonx/components/base.py`, `axonx/components/registr
 
 Window inputs contain ordered, uniquely keyed `ExecutionWindow` objects with timezone-aware `start_at` and `end_at`, plus a positive `poll_interval_seconds`. Window waiting and elapsed durations share `WindowClock`; tests may inject a fake clock. `DeadlineBudget.remaining_seconds` is monotonic and must bound every plugin request timeout, retry and backoff. Synchronous hooks cannot be forcibly interrupted by this helper. An already elapsed window is skipped; a result finishing past the deadline cannot claim `done`.
 
+Plugins can implement `window_skip_reason(window)` to skip a business-inapplicable window before waiting (for example, a closed market), while keeping its original schedule in the audit record.
+
 `initialize_run` acquires owned resources, and `close_run` releases them after success, initialization failure or execution failure. Cleanup errors do not replace the primary exception. Process cancellation remains owned by the existing worker/task manager; plugins must not introduce another process scheduler.
 
 Atomic `manifest.json` records model identity and completed window outcomes during execution, including before a task failure. Atomic `comparison.json` records each comparison incrementally. Successful output indexes these reports in `artifacts` using paths relative to the task directory. TaskRunner retains sole ownership of task state, IDs and metadata. Business datasets stay in explicit plugin directories; publish their data and metadata before a ready marker. Final publication, quality checks, model normalization, market calendars and notification semantics belong to plugins. AxonX introduces no Tushare or model dependency.

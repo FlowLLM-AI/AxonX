@@ -171,6 +171,8 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 窗口输入包含按开始时间排序、key 唯一的 `ExecutionWindow`，其 `start_at`、`end_at` 必须带时区，另有正数 `poll_interval_seconds`。等待与耗时使用共享 `WindowClock`，测试可注入假时钟。`DeadlineBudget.remaining_seconds` 使用单调时钟，插件必须据此限制每次请求超时、重试及退避。此工具无法强制中断同步钩子。已错过的窗口标记 skipped；超过截止时间返回的结果不能标记 done。
 
+插件可实现 `window_skip_reason(window)`，在等待前跳过不适用的业务窗口（例如休市），并在审计记录中保留原始时间安排。
+
 `initialize_run` 获取任务拥有的资源；成功、初始化失败或执行失败后都会调用 `close_run`。清理异常不替代主异常。进程取消仍由现有 worker/task manager 管理，插件不新增进程调度器。
 
 原子发布的 `manifest.json` 在执行期间记录模型身份与已结束窗口，任务失败时也保留；`comparison.json` 逐项记录比对结果。成功输出通过 `artifacts` 索引报告，路径相对任务目录。TaskRunner 继续独占任务状态、身份及 metadata。业务数据保存在插件显式目录，先发布数据与元数据，再发布 ready 标记。最终数据发布、质量检查、归一化、交易日历与通知语义由插件负责；AxonX 不新增 Tushare 或模型依赖。

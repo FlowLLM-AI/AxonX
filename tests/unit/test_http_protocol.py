@@ -112,7 +112,13 @@ async def test_event_endpoint_stops_at_first_result_and_closes_source(tmp_path):
 @pytest.mark.asyncio
 async def test_mcp_client_calls_the_ordinary_response_surface(tmp_path):
     """Expose the same catalog and Job response through MCP."""
-    app = _application(tmp_path / "workspace")
+    app = _application(
+        tmp_path / "workspace",
+        jobs={
+            "version": {"requires_auth": False, "steps": [{"backend": "version_step"}]},
+            "hidden": {"enable_serve": False, "steps": [{"backend": "version_step"}]},
+        },
+    )
     server_app = HttpService(token="secret", web_enabled=False).build_service(app)
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -124,7 +130,9 @@ async def test_mcp_client_calls_the_ordinary_response_surface(tmp_path):
         await asyncio.sleep(0.01)
     try:
         async with McpClient(target=f"127.0.0.1:{port}", token="secret") as client:
-            assert [job.name for job in await client.list_jobs()] == ["version"]
+            assert [job.name for job in await client.list_jobs()] == [
+                name for name, job in app.context.jobs.items() if job.is_servable
+            ]
             response = await client.run_job("version")
             assert response.success is True
     finally:
@@ -143,6 +151,11 @@ async def test_jobs_require_auth_by_default_and_can_be_made_public(tmp_path):
                 "steps": [{"backend": "version_step"}],
             },
             "protected": {"steps": [{"backend": "version_step"}]},
+            "hidden": {
+                "enable_serve": False,
+                "requires_auth": False,
+                "steps": [{"backend": "version_step"}],
+            },
         },
     )
     server = HttpService(web_enabled=False).build_service(app)
@@ -150,7 +163,9 @@ async def test_jobs_require_auth_by_default_and_can_be_made_public(tmp_path):
     async with server.router.lifespan_context(server):
         async with httpx.AsyncClient(base_url="http://test", transport=transport) as client:
             catalog = (await client.get("/jobs")).json()["answer"]["items"]
-            assert [job["name"] for job in catalog] == ["public"]
+            assert [job["name"] for job in catalog] == [
+                name for name, job in app.context.jobs.items() if job.is_servable and not job.requires_auth
+            ]
             assert (await client.post("/jobs/protected", json={})).status_code == 404
 
     protected_server = HttpService(token="secret", web_enabled=False).build_service(app)
@@ -162,7 +177,9 @@ async def test_jobs_require_auth_by_default_and_can_be_made_public(tmp_path):
             headers={"authorization": "Bearer secret"},
         ) as client:
             catalog = (await client.get("/jobs")).json()["answer"]["items"]
-            assert [job["name"] for job in catalog] == ["public", "protected"]
+            assert [job["name"] for job in catalog] == [
+                name for name, job in app.context.jobs.items() if job.is_servable
+            ]
 
 
 @pytest.mark.asyncio
@@ -170,7 +187,10 @@ async def test_local_backend_forwards_jobs_catalog_and_events_with_target_token(
     """Forward configured targets using their credentials and preserve failures."""
     remote = _application(
         tmp_path / "remote",
-        jobs={"remote_only": {"steps": [{"backend": "version_step"}]}},
+        jobs={
+            "remote_only": {"steps": [{"backend": "version_step"}]},
+            "hidden": {"enable_serve": False, "steps": [{"backend": "version_step"}]},
+        },
     )
     remote_server = HttpService(token="target-secret", web_enabled=False).build_service(remote)
     remote_transport = httpx.ASGITransport(app=remote_server)
@@ -198,7 +218,9 @@ async def test_local_backend_forwards_jobs_catalog_and_events_with_target_token(
             assert result.json()["success"] is True
             catalog = await client.get("/jobs", params={"target": "remote.test:1024"})
             assert catalog.status_code == 200
-            assert [item["name"] for item in catalog.json()["answer"]["items"]] == ["remote_only"]
+            assert [item["name"] for item in catalog.json()["answer"]["items"]] == [
+                name for name, job in remote.context.jobs.items() if job.is_servable
+            ]
             events = await client.post("/jobs/remote_only/events", json=invocation)
             assert events.status_code == 200
             assert '"kind": "result"' in events.text

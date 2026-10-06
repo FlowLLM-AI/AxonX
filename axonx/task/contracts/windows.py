@@ -97,6 +97,10 @@ class _WindowTask(BaseTask):
     def close_run(self) -> None:
         """Drain and close owned resources, including when initialization fails."""
 
+    def window_skip_reason(self, _window: ExecutionWindow) -> str | None:
+        """Return a business skip reason before waiting, or None to execute the window."""
+        return None
+
     @abstractmethod
     def execute_window(self, window: ExecutionWindow, budget: DeadlineBudget) -> WindowResult:
         """Execute within the supplied budget; exceptions stop this task."""
@@ -114,22 +118,27 @@ class _WindowTask(BaseTask):
             for window in self.input_params.windows:
                 started = self.clock.monotonic()
                 try:
-                    budget = DeadlineBudget(self.clock, window.end_at)
-                    while self.clock.now() < window.start_at and budget.remaining_seconds > 0:
-                        budget.sleep(
-                            min(
-                                self.input_params.poll_interval_seconds,
-                                (window.start_at - self.clock.now()).total_seconds(),
-                            )
-                        )
-                    if budget.remaining_seconds <= 0:
-                        result = WindowResult(key=window.key, status="skipped", reason="window_missed")
+                    if reason := self.window_skip_reason(window):
+                        result = WindowResult(key=window.key, status="skipped", reason=reason)
                     else:
-                        result = self.execute_window(window, budget)
-                        if result.key != window.key:
-                            raise ValueError("Window result key does not match the executing window")
-                        if result.status == "done" and budget.remaining_seconds <= 0:
-                            result = result.model_copy(update={"status": "incomplete", "reason": "deadline_exceeded"})
+                        budget = DeadlineBudget(self.clock, window.end_at)
+                        while self.clock.now() < window.start_at and budget.remaining_seconds > 0:
+                            budget.sleep(
+                                min(
+                                    self.input_params.poll_interval_seconds,
+                                    (window.start_at - self.clock.now()).total_seconds(),
+                                )
+                            )
+                        if budget.remaining_seconds <= 0:
+                            result = WindowResult(key=window.key, status="skipped", reason="window_missed")
+                        else:
+                            result = self.execute_window(window, budget)
+                            if result.key != window.key:
+                                raise ValueError("Window result key does not match the executing window")
+                            if result.status == "done" and budget.remaining_seconds <= 0:
+                                result = result.model_copy(
+                                    update={"status": "incomplete", "reason": "deadline_exceeded"}
+                                )
                 except Exception as exc:
                     self.window_results.append(
                         WindowResult(

@@ -195,3 +195,22 @@ def test_cancellation_is_not_swallowed(tmp_path):
     with pytest.raises(KeyboardInterrupt):
         TaskRunner().run(task)
     assert task.closed
+
+
+@pytest.mark.parametrize("skip_seconds", [0, 2])
+def test_business_skip_happens_before_future_window_wait(tmp_path, skip_seconds):
+    class Closed(Collector):
+        def window_skip_reason(self, item):
+            self.clock.sleep(skip_seconds)
+            return "market_closed"
+
+    clock = FakeClock()
+    task = run_task(Closed, tmp_path, windows=[window(clock, start=3600, end=3605)])
+    assert task.clock.seconds == skip_seconds
+    assert task.calls == 0
+    assert task.closed
+    assert task.output_params.windows[0].reason == "market_closed"
+    assert task.output_params.windows[0].elapsed_seconds == skip_seconds
+    report = json.loads((task.task_dir / "manifest.json").read_text())
+    assert report["windows"][0]["status"] == "skipped"
+    assert report["windows"][0]["elapsed_seconds"] == skip_seconds
