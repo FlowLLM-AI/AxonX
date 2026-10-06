@@ -141,13 +141,19 @@ def ensure_kind_directories(root: Path) -> tuple[Path, ...]:
     return directories
 
 
-def is_task_directory(directory: Path) -> bool:
+def is_task_directory(directory: Path, *, strict_io: bool = False) -> bool:
     """Whether a path is a task directory this process may read or write.
 
     A directory reached through a symlink is refused twice over: a write through one
     would land outside the workspace, and it would recreate a directory that a
-    concurrent delete had just removed.
+    concurrent delete had just removed. Strict checks propagate I/O errors other
+    than missing directories so callers can retry instead of treating them as gone.
     """
+    if strict_io:
+        try:
+            return all(stat.S_ISDIR(parent.lstat().st_mode) for parent in (directory.parent, directory))
+        except FileNotFoundError:
+            return False
     return not directory.is_symlink() and not directory.parent.is_symlink() and directory.is_dir()
 
 
@@ -190,9 +196,7 @@ def read_status(directory: Path, task_id: str, *, strict_io: bool = False) -> Ta
     path = directory / STATUS_FILE
     try:
         if strict_io:
-            if not all(
-                stat.S_ISDIR(parent.lstat().st_mode) for parent in (directory.parent, directory)
-            ) or stat.S_ISLNK(path.lstat().st_mode):
+            if not is_task_directory(directory, strict_io=True) or stat.S_ISLNK(path.lstat().st_mode):
                 return None
         elif path.is_symlink():
             return None

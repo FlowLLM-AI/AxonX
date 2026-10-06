@@ -274,7 +274,7 @@ class LocalTaskManager(BaseTaskManager):
     async def _write_status(self, status: TaskStatus) -> None:
         """Persist one status this manager decided and index it, ahead of the watcher."""
         directory = task_path(self.workspace_path, status.task_id)
-        if not is_task_directory(directory):
+        if not is_task_directory(directory, strict_io=True):
             # A delete won the race, and writing would recreate the directory it removed.
             return
         await self.repository.put_status(status)

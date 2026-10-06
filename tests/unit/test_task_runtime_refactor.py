@@ -456,13 +456,16 @@ async def test_worker_exit_retries_transient_status_write_failure(tmp_path, exit
     assert read_entry(tmp_path, status.task_id).status.exit_code == 7
 
 
-@pytest.mark.parametrize("failure_point", ["status_read", "directory_stat", "status_stat"])
-async def test_worker_exit_retries_transient_status_read_failure(tmp_path, exit_manager, monkeypatch, failure_point):
+@pytest.mark.parametrize(
+    "failure_point", ["status_read", "directory_stat", "status_stat", "manager_write_stat", "repository_write_stat"]
+)
+async def test_worker_exit_retries_transient_status_io_failure(tmp_path, exit_manager, monkeypatch, failure_point):
     status = TaskStatus(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
     await exit_manager.repository.put_status(status)
-    target = directory if failure_point == "directory_stat" else directory / "status.json"
+    target = directory / "status.json" if failure_point in {"status_read", "status_stat"} else directory
+    fail_at = {"manager_write_stat": 2, "repository_write_stat": 3}.get(failure_point, 1)
     operation = "read_text" if failure_point == "status_read" else "lstat"
     original = getattr(Path, operation)
     attempts = 0
@@ -471,8 +474,8 @@ async def test_worker_exit_retries_transient_status_read_failure(tmp_path, exit_
         nonlocal attempts
         if path == target:
             attempts += 1
-            if attempts == 1:
-                raise OSError("temporary NAS read failure")
+            if attempts == fail_at:
+                raise OSError("temporary NAS I/O failure")
         return original(path, *args, **kwargs)
 
     async def wait():
@@ -484,7 +487,8 @@ async def test_worker_exit_retries_transient_status_read_failure(tmp_path, exit_
     process = SimpleNamespace(pid=123, stderr=None, returncode=7, wait=wait)
     await supervisor._monitor(process, status.task_id, "demo", status.run_id)
 
-    assert attempts >= 2
+    assert attempts > fail_at
+    supervisor.logger.exception.assert_called_once()
     assert (await exit_manager.get_status(status.task_id)).state == TaskState.FAILED
     assert read_entry(tmp_path, status.task_id).status.exit_code == 7
 

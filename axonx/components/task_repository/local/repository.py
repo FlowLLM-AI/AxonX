@@ -12,6 +12,7 @@ from ....task.storage.workspace import (
     TaskEntry,
     TaskRecord,
     TaskStatus,
+    is_task_directory,
     read_entry,
     scan_entries,
     task_path,
@@ -101,7 +102,7 @@ class LocalTaskRepository(BaseTaskRepository):
     async def put_status(self, status: TaskStatus) -> None:
         async with self._lock:
             directory = task_path(self.root, status.task_id)
-            if not directory.is_dir() or directory.is_symlink() or directory.parent.is_symlink():
+            if not is_task_directory(directory, strict_io=True):
                 return
             await asyncio.to_thread(write_status, directory, status)
             entry = self._entries.get(status.task_id)
