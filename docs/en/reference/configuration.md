@@ -109,7 +109,6 @@ components:
       backend: local
       task_repository: default
       terminate_grace_seconds: 5
-      reaper_interval_seconds: 5
 ```
 
 task_repository is the category, default is the instance name, and local is the implementation backend. TaskManager declares a dependency on the repository. Composition checks instance existence and type; dependencies start first and close last. See [Framework extensions](../development/framework-extensions.md).

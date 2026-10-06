@@ -14,29 +14,13 @@ from ....constants import CLI_EXEC_COMMAND
 
 STDERR_TAIL_BYTES = 8 * 1024
 REAP_TIMEOUT_SECONDS = 1.0
+EXIT_RETRY_SECONDS = 1.0
 #: Variables a worker cannot work without, borrowed from this process when the
 #: application does not set them itself. A task that shells out needs ``PATH``, and
 #: a library that caches under the user's home needs ``HOME``. Everything else comes
 #: from the application's own environment, which is what keeps an operator's shell
 #: from reaching into a task by accident.
 INHERITED_ENV = ("PATH", "HOME")
-
-
-def pid_alive(pid: int | None) -> bool:
-    """Whether a process ID still names a live process.
-
-    ``kill(pid, 0)`` asks the kernel without signalling anything. A process this one
-    may not signal is still a process, so a permission error means alive.
-    """
-    if pid is None or pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
 
 
 @dataclass(frozen=True)
@@ -127,9 +111,6 @@ class TaskProcessSupervisor:
     async def shutdown(self) -> set[str]:
         """Terminate and reap all workers, escalating to SIGKILL after grace."""
         processes = tuple(process for process in self.processes.values() if process.returncode is None)
-        if not processes:
-            return set()
-
         pids = {process.pid for process in processes}
         run_pids = {run_id: pid for run_id, pid in self.run_pids.items() if pid in pids}
         self._shutdown_pids.update(process.pid for process in processes)
@@ -168,9 +149,8 @@ class TaskProcessSupervisor:
         finally:
             stopped_during_shutdown = process.pid in self._shutdown_pids
             self._shutdown_pids.discard(process.pid)
-            # A worker that may still be alive after a monitor failure stays tracked
-            # so cancellation and shutdown can still signal it; the reaper marks its
-            # task failed once it disappears.
+            # Keep workers tracked after a monitor failure so cancellation and
+            # shutdown can still stop them. Uncertain liveness is not a failure.
             if process.returncode is not None or stopped_during_shutdown:
                 self.processes.pop(process.pid, None)
                 self.run_pids.pop(run_id, None)
@@ -184,10 +164,17 @@ class TaskProcessSupervisor:
             self.logger.error(f"Task process {process.pid} ({task_name}) exited with code {return_code}: {detail}")
         else:
             self.logger.info(f"Task process {process.pid} ({task_name}) completed successfully")
-        try:
-            await self.on_exit(WorkerExit(return_code, detail, task_id, run_id))
-        except Exception:
-            self.logger.exception(f"Failed to settle task process {process.pid} ({task_name})")
+        worker_exit = WorkerExit(return_code, detail, task_id, run_id)
+        while True:
+            try:
+                await self.on_exit(worker_exit)
+                return
+            except OSError:
+                self.logger.exception(f"Failed to settle task process {process.pid} ({task_name}); retrying")
+                await asyncio.sleep(EXIT_RETRY_SECONDS)
+            except Exception:
+                self.logger.exception(f"Failed to settle task process {process.pid} ({task_name})")
+                return
 
     @staticmethod
     def _signal(pid: int, sig: signal.Signals) -> bool:
