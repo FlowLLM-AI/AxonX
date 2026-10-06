@@ -7,6 +7,7 @@ import sys
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta
 from importlib.resources import files
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -25,7 +26,7 @@ from axonx.task.query.stream import stream_task
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.events import LOG_WINDOW_BYTES, read_event_lines
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import TaskStatus, read_entry, task_path, write_status
+from axonx.task.storage.workspace import TaskStatus, read_entry, read_status, task_path, write_status
 
 
 def test_success_status_is_published_after_metadata(tmp_path):
@@ -401,6 +402,31 @@ async def test_worker_exit_does_not_recreate_deleted_task(tmp_path, exit_manager
         await exit_manager.get_status(status.task_id)
 
 
+async def test_worker_exit_skips_missing_status_file(tmp_path, exit_manager):
+    directory = task_path(tmp_path, "base#demo#missing")
+    directory.mkdir(parents=True)
+
+    await exit_manager._handle_worker_exit(WorkerExit(7, "gone", directory.name, "run"))
+
+    assert not (directory / "status.json").exists()
+    with pytest.raises(KeyError):
+        await exit_manager.get_status(directory.name)
+
+
+@pytest.mark.parametrize("link", ["kind", "task", "status"])
+def test_strict_status_read_refuses_symlinks(tmp_path, link):
+    status = TaskStatus(task_id="base#demo#linked", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
+    directory = task_path(tmp_path, status.task_id)
+    directory.mkdir(parents=True)
+    write_status(directory, status)
+    path = {"kind": directory.parent, "task": directory, "status": directory / "status.json"}[link]
+    target = tmp_path / "saved"
+    path.rename(target)
+    path.symlink_to(target, target_is_directory=link != "status")
+
+    assert read_status(directory, status.task_id, strict_io=True) is None
+
+
 async def test_worker_exit_retries_transient_status_write_failure(tmp_path, exit_manager, monkeypatch):
     status = TaskStatus(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
     directory = task_path(tmp_path, status.task_id)
@@ -426,6 +452,39 @@ async def test_worker_exit_retries_transient_status_write_failure(tmp_path, exit
     await supervisor._monitor(process, status.task_id, "demo", status.run_id)
 
     assert attempts == 2
+    assert (await exit_manager.get_status(status.task_id)).state == TaskState.FAILED
+    assert read_entry(tmp_path, status.task_id).status.exit_code == 7
+
+
+@pytest.mark.parametrize("failure_point", ["status_read", "directory_stat", "status_stat"])
+async def test_worker_exit_retries_transient_status_read_failure(tmp_path, exit_manager, monkeypatch, failure_point):
+    status = TaskStatus(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
+    directory = task_path(tmp_path, status.task_id)
+    directory.mkdir(parents=True)
+    await exit_manager.repository.put_status(status)
+    target = directory if failure_point == "directory_stat" else directory / "status.json"
+    operation = "read_text" if failure_point == "status_read" else "lstat"
+    original = getattr(Path, operation)
+    attempts = 0
+
+    def flaky_read(path, *args, **kwargs):
+        nonlocal attempts
+        if path == target:
+            attempts += 1
+            if attempts == 1:
+                raise OSError("temporary NAS read failure")
+        return original(path, *args, **kwargs)
+
+    async def wait():
+        return 7
+
+    monkeypatch.setattr(Path, operation, flaky_read)
+    monkeypatch.setattr("axonx.components.task_manager.local.supervisor.EXIT_RETRY_SECONDS", 0)
+    supervisor = TaskProcessSupervisor(0, Mock(), exit_manager._handle_worker_exit)
+    process = SimpleNamespace(pid=123, stderr=None, returncode=7, wait=wait)
+    await supervisor._monitor(process, status.task_id, "demo", status.run_id)
+
+    assert attempts >= 2
     assert (await exit_manager.get_status(status.task_id)).state == TaskState.FAILED
     assert read_entry(tmp_path, status.task_id).status.exit_code == 7
 

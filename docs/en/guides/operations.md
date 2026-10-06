@@ -44,7 +44,7 @@ Log windows use byte offsets. Read the tail first to find the exception, then ex
 
 ## Worker failures and status reconciliation
 
-A normal worker writes its own status. When the owning TaskManager's supervisor observes its worker exit without a terminal status on disk for the same run_id, it writes failed with the exit code and error. Exit callbacks preserve existing terminal states and replacement runs of named Tasks, refresh the Repository index without rewriting those files, and retry status writes after transient I/O failures while the service is running.
+A normal worker writes its own status. When the owning TaskManager's supervisor observes its worker exit without a terminal status on disk for the same run_id, it writes failed with the exit code and error. Exit callbacks preserve existing terminal states and replacement runs of named Tasks, refresh the Repository index without rewriting those files, and retry status reads and writes after transient I/O failures while the service is running.
 
 Multiple machines may share one workspace. Services do not infer failure from local PIDs or leftover queued/running records at startup or during operation; unmanaged runs are only observed. The former reaper_interval_seconds setting has been removed, and there is no periodic process scan.
 

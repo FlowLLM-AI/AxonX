@@ -17,6 +17,7 @@ workspace is what it is, not what it should be.
 from __future__ import annotations
 
 import json
+import stat
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -180,14 +181,29 @@ def scan_entries(root: Path) -> dict[str, TaskEntry]:
     return entries
 
 
-def read_status(directory: Path, task_id: str) -> TaskStatus | None:
-    """Read a task's persisted status, or None when it has none to read."""
+def read_status(directory: Path, task_id: str, *, strict_io: bool = False) -> TaskStatus | None:
+    """Read persisted status, optionally propagating I/O errors other than missing files.
+
+    Strict reads also check directories without suppressing stat errors, while
+    refusing symlinks just as workspace indexing does.
+    """
     path = directory / STATUS_FILE
-    if path.is_symlink():
-        return None
     try:
+        if strict_io:
+            if not all(
+                stat.S_ISDIR(parent.lstat().st_mode) for parent in (directory.parent, directory)
+            ) or stat.S_ISLNK(path.lstat().st_mode):
+                return None
+        elif path.is_symlink():
+            return None
         status = TaskStatus.model_validate_json(path.read_text(encoding=AXONX_DEFAULT_ENCODING))
-    except (OSError, UnicodeError, ValueError):
+    except FileNotFoundError:
+        return None
+    except OSError:
+        if strict_io:
+            raise
+        return None
+    except (UnicodeError, ValueError):
         return None
     return status if status.task_id == task_id and status.task_type == task_type_from_id(task_id) else None
 

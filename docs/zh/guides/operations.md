@@ -44,7 +44,7 @@ axonx read_task_log --task-id '<Task ID>' --offset -1 --limit 65536
 
 ## worker 异常与状态对账
 
-正常 worker 自己写状态。所属 TaskManager 的 supervisor 确认自己启动的 worker 已退出、且磁盘上同一 run_id 没有终态时，补写 failed 并记录退出码及错误。退出回调保留已有终态和同名 Task 的新运行，只读刷新 Repository 索引；服务运行期间遇到临时 I/O 写入失败时会重试。
+正常 worker 自己写状态。所属 TaskManager 的 supervisor 确认自己启动的 worker 已退出、且磁盘上同一 run_id 没有终态时，补写 failed 并记录退出码及错误。退出回调保留已有终态和同名 Task 的新运行，只读刷新 Repository 索引；服务运行期间遇到临时 I/O 读取或写入失败时会重试。
 
 多台机器可以共享同一工作区。服务启动和运行期间不会根据本机 PID 或遗留 queued/running 记录推断失败；未管理的运行只读取状态。原有 reaper_interval_seconds 配置已移除，不再执行周期性进程扫描。
 

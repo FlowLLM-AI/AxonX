@@ -35,6 +35,7 @@ from ....task.storage.workspace import (
     TaskStatus,
     is_task_directory,
     read_entry,
+    read_status,
     task_path,
 )
 from ...registry import provider
@@ -297,8 +298,12 @@ class LocalTaskManager(BaseTaskManager):
             error += f": {worker_exit.stderr_tail[-ERROR_TAIL_CHARS:]}"
         code = min(255, abs(worker_exit.return_code)) or 1
         async with self._lock:
-            entry = await asyncio.to_thread(read_entry, self.workspace_path, worker_exit.task_id)
-            status = entry.status if entry else None
+            status = await asyncio.to_thread(
+                read_status,
+                task_path(self.workspace_path, worker_exit.task_id),
+                worker_exit.task_id,
+                strict_io=True,
+            )
             if status is not None and status.run_id == worker_exit.run_id and not status.state.is_terminal:
                 await self._finish(status, TaskState.FAILED, code, error)
             else:
