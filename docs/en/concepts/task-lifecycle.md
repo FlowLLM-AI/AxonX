@@ -71,10 +71,10 @@ Use different names such as `trial-01` and `trial-02`, or generated default name
 
 ```bash
 axonx status --task-id 'base#demo#trial-01'
-axonx cancel --task-id 'base#demo#trial-01'
+axonx cancel --task-id 'base#demo#trial-01' --run-id '<run_id>'
 ```
 
-Cancellation affects active workers known to the current manager. If a task finishes quickly, cancellation may return false; this is normal under a race condition. Service shutdown also stops its managed workers and records affected runs as cancelled.
+Cancellation requires the exact `run_id` returned by submission or status and never targets a replacement Run. A normal return confirms the owned Run has stopped; inability to confirm termination raises an error. If a task finishes quickly, cancellation may return false; this is normal under a race condition. Service shutdown also stops its managed workers and records affected runs as cancelled.
 
 File records can restore query information, but cannot automatically restore the in-memory state of an interrupted Python process.
 

@@ -277,6 +277,9 @@ async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid():
             return type("Entry", (), {"status": status})()
 
     class Supervisor:
+        def is_managed_run(self, run_id):
+            return run_id == status.run_id
+
         async def cancel_run(self, run_id):
             cancelled.append(run_id)
             return True
@@ -290,7 +293,7 @@ async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid():
     manager._supervisor = Supervisor()
     manager._finish = finish
 
-    assert await manager.cancel(status.task_id) is True
+    assert await manager.cancel(status.task_id, status.run_id) is True
     assert cancelled == [status.run_id]
     assert finished[0][0] is status
 
@@ -472,3 +475,57 @@ async def test_named_submission_cannot_replace_active_task(tmp_path):
 
     with pytest.raises(FileExistsError, match="Active Task"):
         await LocalTaskManager._reserve(Manager(), task, replace=True)
+
+
+async def test_cancel_old_run_never_cancels_or_updates_replacement():
+    status = TaskStatus(
+        task_id="analysis#sample#named",
+        run_id="new-run",
+        task_type=TaskType.ANALYSIS,
+        state=TaskState.RUNNING,
+    )
+    cancelled = []
+
+    class Repository:
+        async def entry(self, task_id):
+            return type("Entry", (), {"status": status})()
+
+    class Supervisor:
+        def is_managed_run(self, run_id):
+            return run_id == "new-run"
+
+        async def cancel_run(self, run_id):
+            cancelled.append(run_id)
+            return False
+
+    manager = object.__new__(LocalTaskManager)
+    manager._lock = asyncio.Lock()
+    manager.repository = Repository()
+    manager._supervisor = Supervisor()
+    assert await manager.cancel(status.task_id, "old-run") is False
+    assert cancelled == ["old-run"]
+    assert status.run_id == "new-run" and status.state == TaskState.RUNNING
+
+
+async def test_cancel_cannot_confirm_unmanaged_active_run():
+    status = TaskStatus(
+        task_id="analysis#sample#named",
+        run_id="run",
+        task_type=TaskType.ANALYSIS,
+        state=TaskState.RUNNING,
+    )
+
+    class Repository:
+        async def entry(self, task_id):
+            return type("Entry", (), {"status": status})()
+
+    class Supervisor:
+        def is_managed_run(self, run_id):
+            return False
+
+    manager = object.__new__(LocalTaskManager)
+    manager._lock = asyncio.Lock()
+    manager.repository = Repository()
+    manager._supervisor = Supervisor()
+    with pytest.raises(RuntimeError, match="unmanaged Run"):
+        await manager.cancel(status.task_id, status.run_id)

@@ -53,6 +53,24 @@ def _conversation_ids(value: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(item.strip() for item in identifiers))
 
 
+def send_dingtalk_message(
+    title: str,
+    text: str,
+    message_type: Literal["markdown", "text"] = "markdown",
+    *,
+    timeout: float = 10.0,
+) -> tuple[str, ...]:
+    """Send using the same validated environment configuration as the built-in Task."""
+    conversations = _conversation_ids(_required_env("DINGTALK_CONVERSATIONS"))
+    client = DingTalkClient(
+        _required_env("DINGTALK_CLIENT_ID"),
+        _required_env("DINGTALK_CLIENT_SECRET"),
+        conversations,
+        timeout=timeout,
+    )
+    return client.send(title, text, message_type)
+
+
 @provider("send_dingtalk_task")
 class SendDingTalkTask(BaseTask):
     """Send one text or Markdown message to every configured DingTalk group."""
@@ -67,19 +85,13 @@ class SendDingTalkTask(BaseTask):
         yield self.send_message
 
     def send_message(self) -> None:
-        conversations = _conversation_ids(_required_env("DINGTALK_CONVERSATIONS"))
-        client = DingTalkClient(
-            _required_env("DINGTALK_CLIENT_ID"),
-            _required_env("DINGTALK_CLIENT_SECRET"),
-            conversations,
-            timeout=self.input_params.timeout,
-        )
-        keys = client.send(
+        keys = send_dingtalk_message(
             self.input_params.title,
             self.input_params.text,
             self.input_params.message_type,
+            timeout=self.input_params.timeout,
         )
-        self.state["recipients"] = len(conversations)
+        self.state["recipients"] = len(keys)
         self.state["process_query_keys"] = list(keys)
 
     def build_output_params(self) -> DingTalkOutputParams:

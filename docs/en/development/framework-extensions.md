@@ -178,3 +178,34 @@ Plugins can implement `window_skip_reason(window)` to skip a business-inapplicab
 Atomic `manifest.json` records model identity and completed window outcomes during execution, including before a task failure. Atomic `comparison.json` records each comparison incrementally. Successful output indexes these reports in `artifacts` using paths relative to the task directory. TaskRunner retains sole ownership of task state, IDs and metadata. Business datasets stay in explicit plugin directories; publish their data and metadata before a ready marker. Final publication, quality checks, model normalization, market calendars and notification semantics belong to plugins. AxonX introduces no Tushare or model dependency.
 
 These contracts are additive. Existing ETL, Train, Predict, Backtest and factor Analysis contracts and records remain unchanged. Axon2 algorithm migration and old checkpoint compatibility must be validated independently; the framework contracts do not establish model equivalence.
+
+## Task batches and cleanup
+
+Use the built-in `task_batch` Job to submit synchronous Tasks sequentially and wait for each exact Run ID. `stages` contains unique `task` names, fixed `arguments`, optional `forward_arguments` copied from validated Job inputs, and `sources` referencing earlier stage names. Source IDs are recorded even when an upstream Task fails; a submission failure has no source ID. Domain data dependencies remain the Task's responsibility.
+
+```yaml
+jobs:
+  refresh:
+    backend: task_batch
+    lock_group: market_data
+    continue_on_error: true
+    parameters:
+      type: object
+      properties:
+        days_back: { type: integer, minimum: 1 }
+      additionalProperties: false
+    stages:
+      - task: reference_data
+      - task: daily_data
+        arguments: { days_back: 7 }
+        forward_arguments: [days_back]
+        sources: [reference_data]
+```
+
+Related Jobs can share `lock_group`; invocations poll a nonblocking file lock at `<workspace_dir>/.locks/<group>.lock` without blocking the event loop. The lock spans submission, waiting and worker cleanup. A cleanup failure aborts the batch and persists the Run identity and both errors in `<group>.blocked.json` beside the lock. Later invocations must confirm that exact Run has stopped before removing the marker and submitting new work. An unmanaged active Run keeps the group blocked. Stage results retain Task and Run IDs after a successful submission, including wait failures. Job shutdown reports cleanup failures rather than swallowing them. This coordinates processes sharing that file, not distributed hosts or strict FIFO ordering. Use scheduler `concurrency_policy: allow` when overlapping triggers should wait instead of being skipped. Waiting batches are not persisted across shutdown. `continue_on_error` defaults to false; true attempts later stages and returns all outcomes plus the first nonzero exit code.
+
+`ManagedTaskJob` supports custom asynchronous composition with `run_stage(task, arguments)`. It owns submissions through cancellation and service shutdown, stopping a worker and waiting for termination before returning control. Subclasses implement `execute(arguments)`; the configured framework Task manager is resolved on first use.
+
+Synchronous `BaseTask.close()` releases owned resources after step execution, including step and initialization failures. Cleanup failures preserve a primary step exception. `on_failure(error)` can persist business summaries when steps, output construction or cleanup fail; the runner still owns failed status. These callbacks cannot guarantee cleanup after forced process termination.
+
+The built-in Tushare client owns and closes sessions it creates. `retry_rate_limit_forever=True` retries rate-limit errors at `rate_limit_retry_seconds`; other limits remain bounded. `query` and `query_has_more` accept an optional `DeadlineBudget` that caps waits and connection/read timeouts and is never forwarded to the API. Requests timeouts do not enforce a total wall-clock deadline: a slowly streaming response can overrun it. Budget checks after receiving, JSON decoding, DataFrame construction and page merging reject expired results; they do not interrupt in-flight network or CPU work. Without a deadline, unlimited rate retries continue until success or worker termination. Built-in DingTalk's `send_dingtalk_message` uses the same validated environment configuration as its notification Task.

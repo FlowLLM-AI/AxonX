@@ -133,8 +133,17 @@ class TaskRunner:
             status.state = TaskState.RUNNING
             status.started_at = datetime.now(UTC)
             self._publish()
-            for step in task.build_task_steps():
-                self._run_step(step)
+            try:
+                for step in task.build_task_steps():
+                    self._run_step(step)
+            except BaseException:
+                try:
+                    task.close()
+                except Exception:
+                    task.logger.exception("Task resource cleanup failed")
+                raise
+            else:
+                task.close()
             task.prepare_output()
             output = task.output
             exit_code = task.exit_code(output)
@@ -152,6 +161,10 @@ class TaskRunner:
             )
             return status
         except BaseException as exc:
+            try:
+                task.on_failure(exc)
+            except Exception:
+                task.logger.exception("Task failure callback failed")
             status.state = TaskState.FAILED
             status.exit_code = 1
             status.error = f"{type(exc).__name__}: {exc}"

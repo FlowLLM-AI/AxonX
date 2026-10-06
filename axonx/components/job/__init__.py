@@ -15,6 +15,8 @@ from .events import (
 )
 from .context import RuntimeContext
 from .pipeline import PipelineJob
+from .managed import ManagedTaskJob, TaskStageError
+from .batch import TaskBatchJob
 
 __all__ = [
     "ArtifactEvent",
@@ -28,6 +30,9 @@ __all__ = [
     "JobResponse",
     "LogEvent",
     "PipelineJob",
+    "ManagedTaskJob",
+    "TaskStageError",
+    "TaskBatchJob",
     "ProgressEvent",
     "ResultEvent",
     "RuntimeContext",

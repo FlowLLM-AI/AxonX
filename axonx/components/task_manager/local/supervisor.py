@@ -112,13 +112,15 @@ class TaskProcessSupervisor:
 
     async def _cancel(self, pid: int) -> bool:
         process = self.processes.get(pid)
-        if process is None or process.returncode is not None or not self._signal(pid, signal.SIGTERM):
+        if process is None or process.returncode is not None:
             return False
+        if not self._signal(pid, signal.SIGTERM):
+            raise RuntimeError(f"Could not terminate managed worker {pid}")
         try:
             await asyncio.wait_for(asyncio.shield(process.wait()), timeout=self.grace_seconds)
-        except TimeoutError:
-            if process.returncode is None:
-                self._signal(pid, signal.SIGKILL)
+        except TimeoutError as exc:
+            if process.returncode is None and not self._signal(pid, signal.SIGKILL):
+                raise RuntimeError(f"Could not kill managed worker {pid}") from exc
             await process.wait()
         return True
 

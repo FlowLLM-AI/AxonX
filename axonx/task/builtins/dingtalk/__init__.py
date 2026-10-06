@@ -1,7 +1,12 @@
 """Built-in DingTalk notification Task."""
 
 from .client import DingTalkClient, DingTalkMessageType
-from .task import DingTalkInputParams, DingTalkOutputParams, SendDingTalkTask
+from .task import (
+    DingTalkInputParams,
+    DingTalkOutputParams,
+    SendDingTalkTask,
+    send_dingtalk_message,
+)
 
 __all__ = [
     "DingTalkClient",
@@ -9,4 +14,5 @@ __all__ = [
     "DingTalkMessageType",
     "DingTalkOutputParams",
     "SendDingTalkTask",
+    "send_dingtalk_message",
 ]

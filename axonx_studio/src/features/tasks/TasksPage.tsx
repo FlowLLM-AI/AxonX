@@ -225,7 +225,11 @@ export function TasksPage({
     if (!cancelTarget || !signal || signal.aborted) return;
     setCancelling(true);
     try {
-      const cancelled = await cancelTask(cancelTarget.task_id, target);
+      const cancelled = await cancelTask(
+        cancelTarget.task_id,
+        cancelTarget.run_id,
+        target,
+      );
       if (signal.aborted) return;
       if (!cancelled) throw new Error(t("cancelFailed"));
       setCancelTarget(null);

@@ -47,8 +47,12 @@ class BaseTaskManager(BaseComponent, ABC):
             await asyncio.sleep(poll_interval)
 
     @abstractmethod
-    async def cancel(self, task_id: str) -> bool:
-        """Stop a managed worker and persist cancellation; return whether it stopped."""
+    async def cancel(self, task_id: str, run_id: str) -> bool:
+        """Stop exactly this Run; normal return confirms termination.
+
+        Return whether cancellation was performed; false means already stopped.
+        Raise if termination cannot be confirmed. Never cancel a replacement Run.
+        """
 
     @abstractmethod
     async def delete(self, task_ids: Sequence[str]) -> list[str]:

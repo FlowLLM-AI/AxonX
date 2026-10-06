@@ -186,6 +186,12 @@ describe("static Playground", () => {
   it("cancels tasks permanently and models failures without success artifacts", async () => {
     const api = client();
     const cancelled = await submit(api);
+    expect(
+      await api.invoke("cancel", { ...cancelled, run_id: "stale-run" }),
+    ).toBe(false);
+    expect(
+      (await api.invoke<TaskStatus>("status", { ...cancelled })).state,
+    ).toBe("queued");
     await api.invoke("cancel", { ...cancelled });
     const failed = await submit(api, { outcome: "failure" });
     await vi.advanceTimersByTimeAsync(7000);

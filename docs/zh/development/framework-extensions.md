@@ -178,3 +178,34 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 原子发布的 `manifest.json` 在执行期间记录模型身份与已结束窗口，任务失败时也保留；`comparison.json` 逐项记录比对结果。成功输出通过 `artifacts` 索引报告，路径相对任务目录。TaskRunner 继续独占任务状态、身份及 metadata。业务数据保存在插件显式目录，先发布数据与元数据，再发布 ready 标记。最终数据发布、质量检查、归一化、交易日历与通知语义由插件负责；AxonX 不新增 Tushare 或模型依赖。
 
 这些合同为增量扩展，原有 ETL、Train、Predict、Backtest、因子 Analysis 合同与记录保持不变。Axon2 算法迁移和旧 checkpoint 兼容仍需独立验证；框架合同不代表模型已通过等价性验证。
+
+## Task 批次与清理
+
+内置 `task_batch` Job 按顺序提交同步 Task，并等待每个具体 Run ID。`stages` 配置唯一的 `task` 名称、固定 `arguments`、从经过校验的 Job 输入复制的 `forward_arguments`，以及引用前序阶段名称的 `sources`。即使上游 Task 失败也记录来源 ID；提交失败则没有来源 ID。数据依赖的业务校验仍由 Task 负责。
+
+```yaml
+jobs:
+  refresh:
+    backend: task_batch
+    lock_group: market_data
+    continue_on_error: true
+    parameters:
+      type: object
+      properties:
+        days_back: { type: integer, minimum: 1 }
+      additionalProperties: false
+    stages:
+      - task: reference_data
+      - task: daily_data
+        arguments: { days_back: 7 }
+        forward_arguments: [days_back]
+        sources: [reference_data]
+```
+
+相关 Job 可共用 `lock_group`，调用以非阻塞文件锁轮询 `<workspace_dir>/.locks/<group>.lock`，不会阻塞事件循环。锁覆盖提交、等待和 worker 清理。清理失败会中止批次，在锁旁的 `<group>.blocked.json` 保存 Run 身份及原始、清理两类错误。后续调用必须确认该精确 Run 已停止，才能删除标记并提交新任务；无法确认的非托管活跃 Run 会让该组保持阻塞。等待失败的阶段结果仍保留已提交的 Task/Run ID。Job 关闭会报告清理失败，不会静默吞掉。它协调共享锁文件的进程，不提供分布式协调或严格先进先出。希望重叠触发等待时设置 scheduler `concurrency_policy: allow`。等待批次不跨停机持久化。`continue_on_error` 默认为 false；true 会尝试剩余阶段，返回全部结果及首个非零退出码。
+
+`ManagedTaskJob` 为自定义异步编排提供 `run_stage(task, arguments)`，在取消和服务关闭期间保有已提交 worker 的所有权，停止并等待 worker 终止后再返回。子类实现 `execute(arguments)`，首次使用时解析配置指定的框架 Task manager。
+
+同步 `BaseTask.close()` 在步骤执行后释放资源，包括步骤和初始化失败。清理失败不会覆盖原步骤异常。`on_failure(error)` 可在步骤、输出构造或清理失败时保存业务摘要，失败状态仍由 runner 管理。强制终止进程时不能保证回调执行。
+
+内置 Tushare client 负责关闭自己创建的 session。`retry_rate_limit_forever=True` 按 `rate_limit_retry_seconds` 持续重试频率超限，其他限制仍采用有限重试。`query` 和 `query_has_more` 接收可选 `DeadlineBudget`，限制等待及连接／读取超时，不会把它传给 API。Requests 的超时不保证请求的总耗时，缓慢持续返回的响应可能超过截止时间。收包、JSON 解析、DataFrame 构建和分页合并后检查预算，拒绝超时结果；这些检查不会中断正在执行的网络或计算工作。无截止时间时，频率重试持续到成功或 worker 终止。内置钉钉的 `send_dingtalk_message` 与通知 Task 共用经过校验的环境配置。

@@ -217,15 +217,20 @@ class LocalTaskManager(BaseTaskManager):
         ):
             yield event
 
-    async def cancel(self, task_id: str) -> bool:
+    async def cancel(self, task_id: str, run_id: str) -> bool:
         async with self._lock:
-            status = (await self.repository.entry(task_id)).status
-            if status is None or status.state.is_terminal:
-                return False
-            if not await self._supervisor.cancel_run(status.run_id):
-                return False
-            await self._finish(status, TaskState.CANCELLED, 130, "Task cancelled")
-            return True
+            try:
+                status = (await self.repository.entry(task_id)).status
+            except KeyError:
+                status = None
+            current = status is not None and status.run_id == run_id
+            if current and not status.state.is_terminal and not self._supervisor.is_managed_run(run_id):
+                raise RuntimeError(f"Cannot confirm termination of unmanaged Run: {task_id} {run_id}")
+            # Supervisor identity is immutable even if the named Task has been replaced.
+            cancelled = await self._supervisor.cancel_run(run_id)
+            if cancelled and current and not status.state.is_terminal:
+                await self._finish(status, TaskState.CANCELLED, 130, "Task cancelled")
+            return cancelled
 
     async def delete(self, task_ids: Sequence[str]) -> list[str]:
         if isinstance(task_ids, (str, bytes)) or not all(isinstance(task_id, str) for task_id in task_ids):

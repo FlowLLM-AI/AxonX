@@ -121,6 +121,10 @@ class DownloadTushareTask(BaseTask):
     input_cls = TushareDownloadInputParams
     output_cls = TushareDownloadOutputParams
 
+    def close(self) -> None:
+        if client := self.state.get("client"):
+            client.close()
+
     def build_output_params(self) -> TushareDownloadOutputParams:
         return TushareDownloadOutputParams(
             start_date=self.state["start_date"],

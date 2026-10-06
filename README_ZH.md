@@ -330,7 +330,7 @@ CLI 的服务命令调用相应 Job；`exec` 和未指定目标的插件管理�
 | 查询任务列表 / 状态  | `axonx list_task_statuses` / `axonx status --task-id '<task_id>'`                             |
 | 读取日志             | `axonx read_task_log --task-id '<task_id>'`                                                   |
 | 查询上下文 / 依赖图  | `axonx get_task_context --task-id '<task_id>'` / `axonx get_task_graph --task-id '<task_id>'` |
-| 取消任务             | `axonx cancel --task-id '<task_id>'`                                                          |
+| 取消任务             | `axonx cancel --task-id '<task_id>' --run-id '<run_id>'`                                      |
 | 删除已结束任务及文件 | `axonx delete_tasks --task-ids '["<task_id>"]'`                                               |
 | 浏览工作区           | `axonx list_entries --path ''`                                                                |
 | 预览产物             | `axonx preview_file --path '<工作区相对路径>'`                                                |

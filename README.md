@@ -359,7 +359,7 @@ in the current Python environment.
 | Query task list / status              | `axonx list_task_statuses` / `axonx status --task-id '<task_id>'`                             |
 | Read logs                             | `axonx read_task_log --task-id '<task_id>'`                                                   |
 | Query context / dependency graph      | `axonx get_task_context --task-id '<task_id>'` / `axonx get_task_graph --task-id '<task_id>'` |
-| Cancel a task                         | `axonx cancel --task-id '<task_id>'`                                                          |
+| Cancel a task                         | `axonx cancel --task-id '<task_id>' --run-id '<run_id>'`                                      |
 | Delete finished tasks and their files | `axonx delete_tasks --task-ids '["<task_id>"]'`                                               |
 | Browse the workspace                  | `axonx list_entries --path ''`                                                                |
 | Preview an artifact                   | `axonx preview_file --path '<workspace-relative-path>'`                                       |

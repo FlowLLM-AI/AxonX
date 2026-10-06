@@ -293,7 +293,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 | `read_task_log`       | 从指定字节偏移读取日志；示例从头读取，后续可用响应的 `next_offset` 继续读取。            | `axonx read_task_log --task-id '<task_id>' --offset 0 --limit 65536`               | `--target 192.168.1.10:1024` |
 | `get_task_context`    | 汇总状态、元数据与日志路径、依赖图及上下游关系，供排查或后续研究使用。                   | `axonx get_task_context --task-id '<task_id>'`                                     | `--target 192.168.1.10:1024` |
 | `get_task_graph`      | 查询包含指定 Task 的依赖图，检查节点、连线和上下游关联。                                 | `axonx get_task_graph --task-id '<task_id>'`                                       | `--target 192.168.1.10:1024` |
-| `cancel`              | 取消正在排队或运行的 Task。                                                              | `axonx cancel --task-id '<task_id>'`                                               | `--target 192.168.1.10:1024` |
+| `cancel`              | 取消正在排队或运行的 Task。                                                              | `axonx cancel --task-id '<task_id>' --run-id '<run_id>'`                           | `--target 192.168.1.10:1024` |
 | `delete_tasks`        | 删除已结束或仅有元数据的 Task 及其文件；单个 ID 也须用 JSON 数组传入。                   | `axonx delete_tasks --task-ids '["<task_id>"]'`                                    | `--target 192.168.1.10:1024` |
 | `delete_tasks`        | 一次删除多个已结束或仅有元数据的 Task 及其文件。                                         | `axonx delete_tasks --task-ids '["<task_id_1>","<task_id_2>"]'`                    | `--target 192.168.1.10:1024` |
 

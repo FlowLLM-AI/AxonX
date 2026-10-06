@@ -16,7 +16,10 @@ const schemas: Record<
   list_installed_task_definitions: { output: "array" },
   list_task_statuses: { output: "array" },
   status: { input: task, output: "object" },
-  cancel: { input: task, output: "boolean" },
+  cancel: {
+    input: { ...task, run_id: text("backtest#demo") },
+    output: "boolean",
+  },
   read_task_log: {
     input: {
       ...task,

@@ -36,7 +36,7 @@ class WaitTaskStep(TaskManagerStep):
 @provider("cancel")
 class CancelTaskStep(TaskManagerStep):
     async def execute(self):
-        self.response.answer = await self.task_manager.cancel(self.context["task_id"])
+        self.response.answer = await self.task_manager.cancel(self.context["task_id"], self.context["run_id"])
 
 
 @provider("delete")

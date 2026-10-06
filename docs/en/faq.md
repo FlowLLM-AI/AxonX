@@ -56,7 +56,7 @@ Check the Agent component, SDK, model environment, and available tools. Agent se
 
 ## What Is the Difference Between Cancellation and Deletion?
 
-Cancellation stops a task that is executing; deletion removes task records and artifacts. Confirm task_id and check the current run_id before acting. The cancellation interface itself accepts only task_id, so inspect status first, then follow the guide. Do not delete directories as a substitute for runtime cancellation. See [Submission and Observation](guides/task-management.md).
+Cancellation stops a task that is executing; deletion removes task records and artifacts. Confirm task_id and check the current run_id before acting. The cancellation interface requires both task_id and run_id, so a stale request cannot cancel a newer execution. Do not delete directories as a substitute for runtime cancellation. See [Submission and Observation](guides/task-management.md).
 
 ## Next Steps
 

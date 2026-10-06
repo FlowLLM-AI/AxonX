@@ -126,6 +126,12 @@ class BaseTask(ABC):
         path = Path(path).expanduser()
         return (path if path.is_absolute() else self.workspace_path / path).resolve()
 
+    def on_failure(self, error: BaseException) -> None:
+        """Record business-specific failure details; the runner owns task status."""
+
+    def close(self) -> None:
+        """Release owned resources after steps complete or fail."""
+
     @abstractmethod
     def build_task_steps(self) -> Iterable[TaskStep]:
         """Yield synchronous callables in execution order."""
