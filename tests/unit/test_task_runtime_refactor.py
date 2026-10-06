@@ -7,13 +7,16 @@ import sys
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta
 from importlib.resources import files
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 import yaml
 
 from axonx.components.job import LogEvent
 from axonx.components.task_manager.local.manager import LocalTaskManager
-from axonx.components.task_manager.local.supervisor import WorkerExit
+from axonx.components.task_manager.local.supervisor import TaskProcessSupervisor, WorkerExit
+from axonx.components.task_repository import LocalTaskRepository
 from axonx.core import Application
 from axonx.enums import TaskState, TaskType
 from axonx.task.builtins import DemoTask
@@ -22,7 +25,7 @@ from axonx.task.query.stream import stream_task
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.events import LOG_WINDOW_BYTES, read_event_lines
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import TaskStatus, write_status
+from axonx.task.storage.workspace import TaskStatus, read_entry, task_path, write_status
 
 
 def test_success_status_is_published_after_metadata(tmp_path):
@@ -312,65 +315,211 @@ async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid(ident
     assert finished[0][0] is status
 
 
-async def test_worker_exit_targets_its_task_and_run_directly():
+@pytest.fixture
+def exit_manager(tmp_path):
+    context = SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
+    manager = object.__new__(LocalTaskManager)
+    manager.app_context = context
+    manager._lock = asyncio.Lock()
+    manager.repository = LocalTaskRepository(app_context=context)
+    return manager
+
+
+@pytest.mark.parametrize("exit_code,expected_code", [(0, 1), (7, 7), (-9, 9)])
+async def test_worker_exit_without_final_status_fails_exact_run(tmp_path, exit_manager, exit_code, expected_code):
     status = TaskStatus(
         task_id="analysis#sample#running",
         run_id="current-run",
         task_type=TaskType.ANALYSIS,
         state=TaskState.RUNNING,
     )
-    settled = []
+    directory = task_path(tmp_path, status.task_id)
+    directory.mkdir(parents=True)
+    write_status(directory, status)
+    finished = []
 
-    class Repository:
-        async def entry(self, task_id):
-            assert task_id == status.task_id
-            return type("Entry", (), {"status": status})()
+    async def finish(*args):
+        assert exit_manager._lock.locked()
+        finished.append(args)
 
-    async def settle(*args, **kwargs):
-        settled.append((args, kwargs))
+    exit_manager._finish = finish
 
-    manager = object.__new__(LocalTaskManager)
-    manager.repository = Repository()
-    manager._settle_dead_task = settle
+    await exit_manager._handle_worker_exit(WorkerExit(exit_code, "boom", status.task_id, status.run_id))
 
-    await manager._handle_worker_exit(WorkerExit(7, "boom", status.task_id, status.run_id))
-
-    assert settled == [
+    assert finished == [
         (
-            (status.task_id, 7, "Worker exited without final status (code 7): boom"),
-            {"gone": True},
+            status,
+            TaskState.FAILED,
+            expected_code,
+            f"Worker exited without final status (code {exit_code}): boom",
         )
     ]
 
 
-async def test_reaper_recovers_after_one_failed_round(monkeypatch):
-    repairs = 0
-    logged = 0
+@pytest.mark.parametrize("state", [TaskState.SUCCEEDED, TaskState.FAILED, TaskState.CANCELLED])
+async def test_worker_exit_preserves_final_status_on_disk(tmp_path, exit_manager, state):
+    status = TaskStatus(task_id="base#demo#finished", run_id="run", task_type=TaskType.BASE, state=state)
+    directory = task_path(tmp_path, status.task_id)
+    directory.mkdir(parents=True)
+    await exit_manager.repository.put_status(status.model_copy(update={"state": TaskState.RUNNING}))
+    write_status(directory, status)
+    before = (directory / "status.json").read_bytes()
+    await exit_manager._handle_worker_exit(WorkerExit(7, "late exit", status.task_id, status.run_id))
+    assert (directory / "status.json").read_bytes() == before
+    assert await exit_manager.get_status(status.task_id) == status
 
-    class Logger:
-        def exception(self, _message):
-            nonlocal logged
-            logged += 1
 
-    class Manager:
-        _reaper_interval = 1
-        logger = Logger()
+async def test_old_worker_exit_preserves_replacement_run(tmp_path, exit_manager):
+    status = TaskStatus(
+        task_id="base#demo#named",
+        run_id="new-run",
+        task_type=TaskType.BASE,
+        state=TaskState.RUNNING,
+    )
+    directory = task_path(tmp_path, status.task_id)
+    directory.mkdir(parents=True)
+    await exit_manager.repository.put_status(status.model_copy(update={"run_id": "old-run"}))
+    write_status(directory, status)
+    before = (directory / "status.json").read_bytes()
+    await exit_manager._handle_worker_exit(WorkerExit(7, "old worker", status.task_id, "old-run"))
+    assert (directory / "status.json").read_bytes() == before
+    assert await exit_manager.get_status(status.task_id) == status
 
-        async def _repair_dead_tasks(self):
-            nonlocal repairs
-            repairs += 1
-            if repairs == 1:
-                raise OSError("transient")
-            raise asyncio.CancelledError
 
-    async def no_sleep(_delay):
-        return None
+async def test_worker_exit_does_not_recreate_deleted_task(tmp_path, exit_manager):
+    status = TaskStatus(task_id="base#demo#deleted", run_id="run", task_type=TaskType.BASE, state=TaskState.FAILED)
+    directory = task_path(tmp_path, status.task_id)
+    directory.mkdir(parents=True)
+    await exit_manager.repository.put_status(status)
+    (directory / "status.json").unlink()
+    directory.rmdir()
 
-    monkeypatch.setattr(asyncio, "sleep", no_sleep)
-    with pytest.raises(asyncio.CancelledError):
-        await LocalTaskManager._reap_periodically(Manager())
-    assert repairs == 2
-    assert logged == 1
+    await exit_manager._handle_worker_exit(WorkerExit(7, "gone", status.task_id, status.run_id))
+
+    assert not directory.exists()
+    with pytest.raises(KeyError):
+        await exit_manager.get_status(status.task_id)
+
+
+async def test_worker_exit_retries_transient_status_write_failure(tmp_path, exit_manager, monkeypatch):
+    status = TaskStatus(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
+    directory = task_path(tmp_path, status.task_id)
+    directory.mkdir(parents=True)
+    await exit_manager.repository.put_status(status)
+    put_status = exit_manager.repository.put_status
+    attempts = 0
+
+    async def flaky_write(value):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OSError("transient write failure")
+        await put_status(value)
+
+    async def wait():
+        return 7
+
+    monkeypatch.setattr(exit_manager.repository, "put_status", flaky_write)
+    monkeypatch.setattr("axonx.components.task_manager.local.supervisor.EXIT_RETRY_SECONDS", 0)
+    supervisor = TaskProcessSupervisor(0, Mock(), exit_manager._handle_worker_exit)
+    process = SimpleNamespace(pid=123, stderr=None, returncode=7, wait=wait)
+    await supervisor._monitor(process, status.task_id, "demo", status.run_id)
+
+    assert attempts == 2
+    assert (await exit_manager.get_status(status.task_id)).state == TaskState.FAILED
+    assert read_entry(tmp_path, status.task_id).status.exit_code == 7
+
+
+async def test_shutdown_cancels_exit_retries_after_worker_is_reaped():
+    settling = asyncio.Event()
+
+    async def on_exit(_worker_exit):
+        settling.set()
+        raise OSError("disk unavailable")
+
+    async def wait():
+        return 7
+
+    supervisor = TaskProcessSupervisor(0, Mock(), on_exit)
+    process = SimpleNamespace(pid=123, stderr=None, returncode=7, wait=wait)
+    supervisor.processes[process.pid] = process
+    supervisor.run_pids["run"] = process.pid
+    monitor = asyncio.create_task(supervisor._monitor(process, "base#demo#crashed", "demo", "run"))
+    supervisor.monitors.add(monitor)
+    monitor.add_done_callback(supervisor.monitors.discard)
+    await asyncio.wait_for(settling.wait(), timeout=1)
+    assert not supervisor.processes
+    assert not supervisor.run_pids
+
+    assert await supervisor.shutdown() == set()
+    assert monitor.cancelled()
+    assert not supervisor.monitors
+
+
+async def test_shared_workspace_services_leave_unowned_active_runs_unchanged(tmp_path):
+    statuses = [
+        TaskStatus(
+            task_id=f"base#demo#{state.value}",
+            run_id=state.value,
+            task_type=TaskType.BASE,
+            state=state,
+            pid=2**30,
+        )
+        for state in (TaskState.QUEUED, TaskState.RUNNING)
+    ]
+    for status in statuses:
+        directory = task_path(tmp_path, status.task_id)
+        directory.mkdir(parents=True)
+        write_status(directory, status)
+
+    def app():
+        return Application(
+            workspace_dir=str(tmp_path),
+            log_dir=str(tmp_path / "logs"),
+            enable_logo=False,
+            log_to_console=False,
+            log_to_file=False,
+            components={
+                "task_repository": {"default": {"backend": "local"}},
+                "task_manager": {"default": {"backend": "local"}},
+            },
+        )
+
+    async with app() as first, app() as second:
+        for service in (first, second):
+            manager = service.context.components["task_manager"]["default"]
+            for status in statuses:
+                assert await manager.get_status(status.task_id) == status
+    # Startup and shutdown must not infer failure from a foreign or missing PID.
+    for status in statuses:
+        assert read_entry(tmp_path, status.task_id).status == status
+
+
+async def test_owned_worker_crash_is_detected_without_pid_scanning(tmp_path, monkeypatch):
+    create_process = asyncio.create_subprocess_exec
+
+    async def crashing_worker(*_args, **kwargs):
+        return await create_process(sys.executable, "-c", "raise SystemExit(7)", **kwargs)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", crashing_worker)
+    app = Application(
+        workspace_dir=str(tmp_path),
+        log_dir=str(tmp_path / "logs"),
+        enable_logo=False,
+        log_to_console=False,
+        log_to_file=False,
+        components={
+            "task_repository": {"default": {"backend": "local"}},
+            "task_manager": {"default": {"backend": "local"}},
+        },
+    )
+    async with app:
+        manager = app.context.components["task_manager"]["default"]
+        handle = await manager.submit(["--task", "demo", "--x", "1", "--y", "2"])
+        status = await asyncio.wait_for(manager.wait(handle.task_id, handle.run_id, poll_interval=0.01), timeout=5)
+    assert status.state == TaskState.FAILED
+    assert status.exit_code == 7
+    assert "Worker exited without final status (code 7)" in status.error
 
 
 async def test_submission_returns_queryable_task_handle(tmp_path):
@@ -394,7 +543,6 @@ async def test_submission_returns_queryable_task_handle(tmp_path):
                 "default": {
                     "backend": "local",
                     "task_repository": "default",
-                    "reaper_interval_seconds": 0.1,
                 }
             },
         },
@@ -622,7 +770,10 @@ def cancel_job(tmp_path):
     return app.context.jobs["cancel"]
 
 
-@pytest.mark.parametrize("arguments", [{"task_id": "task"}, {"run_id": "run"}, {"task_id": "task", "run_id": "run"}])
+@pytest.mark.parametrize(
+    "arguments",
+    [{"task_id": "task"}, {"run_id": "run"}, {"task_id": "task", "run_id": "run"}],
+)
 def test_default_cancel_job_accepts_either_identifier(cancel_job, arguments):
     cancel_job.validate_arguments(arguments)
 

@@ -44,11 +44,13 @@ Log windows use byte offsets. Read the tail first to find the exception, then ex
 
 ## Worker failures and status reconciliation
 
-A normal worker writes its own status. When a process exits abnormally, TaskManager's supervisor/reaper reconciles active runs using managed processes and Repository records and writes an error terminal state; reaper_interval_seconds controls the interval.
+A normal worker writes its own status. When the owning TaskManager's supervisor observes its worker exit without a terminal status on disk for the same run_id, it writes failed with the exit code and error. Exit callbacks preserve existing terminal states and replacement runs of named Tasks, refresh the Repository index without rewriting those files, and retry status writes after transient I/O failures while the service is running.
+
+Multiple machines may share one workspace. Services do not infer failure from local PIDs or leftover queued/running records at startup or during operation; unmanaged runs are only observed. The former reaper_interval_seconds setting has been removed, and there is no periodic process scan.
 
 If running persists for a long time, first check whether the process is still running, whether the current service manages this run, whether logs continue growing, and whether the disk is writable. Do not determine process liveness across machines solely from a pid in a file.
 
-After a forced kill or power loss, records may lack complete ending information. Preserve files and inspect service logs first, then rerun under a new identity after confirming data consistency; manually changing state to succeeded is not recommended.
+While the owning service is running, its supervisor detects a forcibly killed worker. After a service crash or machine power loss, records may retain queued/running; restarting does not automatically mark them failed. Preserve files and confirm the run's state on the execution machine first, then rerun under a new identity after confirming data consistency; manually changing state to succeeded is not recommended.
 
 ## Files exist but the page has not updated
 

@@ -6,7 +6,6 @@ import asyncio
 import os
 from collections import Counter
 from collections.abc import AsyncIterator, Sequence
-from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -41,7 +40,7 @@ from ....task.storage.workspace import (
 from ...registry import provider
 from ...task_repository import BaseTaskRepository
 from ..base import BaseTaskManager
-from .supervisor import TaskProcessSupervisor, WorkerExit, pid_alive
+from .supervisor import TaskProcessSupervisor, WorkerExit
 
 # The stderr tail one failure message carries: enough for a traceback's last
 # frames, bounded so a chatty worker cannot bloat the status file a UI reads.
@@ -58,31 +57,19 @@ class LocalTaskManager(BaseTaskManager):
         self,
         task_repository: str = "default",
         terminate_grace_seconds: float = 5,
-        reaper_interval_seconds: float = 5,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if reaper_interval_seconds <= 0:
-            raise ValueError("reaper_interval_seconds must be positive")
         self.depend("repository", task_repository, BaseTaskRepository)
         self._logs = TaskLogReader(Path(self.app_config.log_dir).expanduser().resolve())
         self._lock = asyncio.Lock()
-        self._reaper: asyncio.Task | None = None
-        self._reaper_interval = reaper_interval_seconds
         self._supervisor = TaskProcessSupervisor(terminate_grace_seconds, self.logger, self._handle_worker_exit)
 
     async def _start(self) -> None:
         if os.name != "posix":
             raise NotImplementedError("LocalTaskManager supports macOS and Linux")
-        await self._repair_dead_tasks(repair_queued=True)
-        self._reaper = asyncio.create_task(self._reap_periodically(), name="axonx-task-reaper")
 
     async def _close(self) -> None:
-        if self._reaper is not None:
-            self._reaper.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._reaper
-            self._reaper = None
         terminated = await self._supervisor.shutdown()
         for entry in (await self.repository.entries()).values():
             status = entry.status
@@ -181,7 +168,7 @@ class LocalTaskManager(BaseTaskManager):
         statuses = [status.model_copy(deep=True) for status in (await self.repository.statuses()).values()]
         statuses.sort(
             key=lambda status: (
-                status.created_at.timestamp() if status.created_at is not None else float("-inf"),
+                (status.created_at.timestamp() if status.created_at is not None else float("-inf")),
                 status.task_id,
             ),
             reverse=True,
@@ -299,62 +286,21 @@ class LocalTaskManager(BaseTaskManager):
         status.error = error
         await self._write_status(status)
 
-    async def _reap_periodically(self) -> None:
-        while True:
-            await asyncio.sleep(self._reaper_interval)
-            try:
-                await self._repair_dead_tasks()
-            except Exception:
-                self.logger.exception("Failed to repair dead Tasks; retrying on the next interval")
-
-    async def _repair_dead_tasks(self, *, repair_queued: bool = False) -> None:
-        """Fail every task whose worker died without reporting an outcome itself."""
-        for task_id, entry in (await self.repository.entries()).items():
-            status = entry.status
-            orphaned = status is not None and (
-                status.state == TaskState.RUNNING
-                and not pid_alive(status.pid)
-                or repair_queued
-                and status.state == TaskState.QUEUED
-            )
-            if orphaned:
-                await self._settle_dead_task(task_id, 1, "Task process ended without a final status")
-
     async def _handle_worker_exit(self, worker_exit: WorkerExit) -> None:
-        """Report the outcome of a worker this process launched and watched exit."""
+        """Fail an owned Run only after observing its worker exit without a final status.
+
+        Other machines may share this workspace. Read the current on-disk Run
+        before writing so a stale index or an old worker cannot replace its result.
+        """
         error = f"Worker exited without final status (code {worker_exit.return_code})"
         if worker_exit.stderr_tail:
             error += f": {worker_exit.stderr_tail[-ERROR_TAIL_CHARS:]}"
         code = min(255, abs(worker_exit.return_code)) or 1
-        try:
-            status = (await self.repository.entry(worker_exit.task_id)).status
-        except KeyError:
-            return
-        if status is not None and status.run_id == worker_exit.run_id and not status.state.is_terminal:
-            await self._settle_dead_task(worker_exit.task_id, code, error, gone=True)
-
-    async def _settle_dead_task(self, task_id: str, code: int, error: str, *, gone: bool = False) -> None:
-        """Write the outcome of a task whose worker is gone.
-
-        The task directory decides, not the index: a worker writes its own final
-        status and only then exits, and the watcher may not have reported that write
-        yet — a cached entry that still says ``running`` is not evidence that the
-        worker died mid-flight. So the directory is read again, and what it says
-        replaces the cached entry rather than being overwritten by it.
-
-        ``gone`` names how the caller knows the worker left: true when it watched the
-        process exit, and false when it only inferred that from a status whose process
-        ID no longer answers. Only the inferred case confirms it against the file, for
-        the sake of a task replicated from another node: that status carries a foreign
-        process ID, and a process this machine happens to find alive under it is not
-        the worker that wrote it.
-        """
         async with self._lock:
-            entry = await asyncio.to_thread(read_entry, self.workspace_path, task_id)
-            if entry is None or entry.status is None:
-                await self.repository.forget(task_id)
-                return
-            if entry.status.state.is_terminal or (not gone and pid_alive(entry.status.pid)):
-                await self.repository.put_status(entry.status)
-                return
-            await self._finish(entry.status, TaskState.FAILED, code, error)
+            entry = await asyncio.to_thread(read_entry, self.workspace_path, worker_exit.task_id)
+            status = entry.status if entry else None
+            if status is not None and status.run_id == worker_exit.run_id and not status.state.is_terminal:
+                await self._finish(status, TaskState.FAILED, code, error)
+            else:
+                # Refresh the index without rewriting a worker's result or a replacement Run.
+                await self.repository.reconcile()

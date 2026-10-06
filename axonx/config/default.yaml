@@ -23,7 +23,6 @@ components:
       backend: local
       task_repository: default
       terminate_grace_seconds: 5
-      reaper_interval_seconds: 5
 
   # =========== Agent components ===========
   agent:

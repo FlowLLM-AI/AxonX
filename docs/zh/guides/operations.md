@@ -44,11 +44,13 @@ axonx read_task_log --task-id '<Task ID>' --offset -1 --limit 65536
 
 ## worker 异常与状态对账
 
-正常 worker 自己写状态。进程异常退出时，TaskManager 的 supervisor/reaper 依据已管理进程和 Repository 记录核对活跃运行，补写错误终态；周期由 reaper_interval_seconds 控制。
+正常 worker 自己写状态。所属 TaskManager 的 supervisor 确认自己启动的 worker 已退出、且磁盘上同一 run_id 没有终态时，补写 failed 并记录退出码及错误。退出回调保留已有终态和同名 Task 的新运行，只读刷新 Repository 索引；服务运行期间遇到临时 I/O 写入失败时会重试。
+
+多台机器可以共享同一工作区。服务启动和运行期间不会根据本机 PID 或遗留 queued/running 记录推断失败；未管理的运行只读取状态。原有 reaper_interval_seconds 配置已移除，不再执行周期性进程扫描。
 
 如果长时间显示 running，先确认进程是否仍在运行、当前服务是否管理这轮运行、日志是否持续增长，以及磁盘是否可写。不要只根据文件中的 pid 跨机器判断进程生死。
 
-强制 kill 或断电后记录可能没有完整结束信息。先保留文件并检查服务日志，确认数据一致后再以新身份重跑；不建议手工把 state 改成 succeeded。
+所属服务仍运行时，强制 kill worker 会由 supervisor 检测退出。服务崩溃或机器断电后记录可能保留 queued/running，重启不会自动将其改为 failed。先保留文件并到执行机器确认运行状态，确认数据一致后再以新身份重跑；不建议手工把 state 改成 succeeded。
 
 ## 文件存在但页面未更新
 

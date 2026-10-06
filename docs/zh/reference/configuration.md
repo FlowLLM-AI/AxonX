@@ -109,7 +109,6 @@ components:
       backend: local
       task_repository: default
       terminate_grace_seconds: 5
-      reaper_interval_seconds: 5
 ```
 
 task_repository 是类别，default 是实例名，local 是实现后端。TaskManager 声明对 repository 的依赖，装配时检查实例存在和类型，依赖先启动、后关闭。框架扩展见 [扩展开发](../development/framework-extensions.md)。
