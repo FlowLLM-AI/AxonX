@@ -45,7 +45,7 @@ Plugins should read these values without changing execution identity. `task.task
 
 ## TaskDefinition and TaskHandle
 
-TaskDefinition describes an executable definition with name, source (native/plugin), plugin (nullable), task_type, description, input_schema, and output_schema. description comes from the Task class's detailed docstring; definitions without valid descriptions are rejected.
+TaskDefinition describes an executable definition with name, source (native/plugin), plugin (nullable), task_type, description, input_schema, and output_schema. description comes from the Task class docstring; missing or whitespace-only docstrings produce an empty string without blocking the Task or catalog.
 
 TaskHandle is the immutable dataclass returned by submit:
 

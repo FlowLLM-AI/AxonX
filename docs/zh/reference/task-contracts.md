@@ -45,7 +45,7 @@ TaskContext 是 frozen dataclass，附着在 Task 上，提供运行时拥有的
 
 ## TaskDefinition 与 TaskHandle
 
-TaskDefinition 描述可执行定义，字段为 name、source（native/plugin）、plugin（可空）、task_type、description、input_schema、output_schema。description 来自 Task 类的详细 docstring；没有有效说明的定义会被拒绝。
+TaskDefinition 描述可执行定义，字段为 name、source（native/plugin）、plugin（可空）、task_type、description、input_schema、output_schema。description 来自 Task 类的 docstring；缺少或仅含空白时返回空字符串，不阻塞当前 Task 或任务列表。
 
 TaskHandle 是 submit 返回的 immutable dataclass：
 

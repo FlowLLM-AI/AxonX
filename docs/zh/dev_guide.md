@@ -63,7 +63,7 @@ AxonX 是面向金融量化研究的 Harness 框架，将数据获取与 ETL、�
 所有插件 Task 都必须直接或间接继承 `BaseTask`，并遵守
 [`axonx/task/core/task.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/task.py) 定义的公共开发协议。完成插件注册不能替代这些要求：
 
-- 声明固定的 `task_type`、`input_cls`、`output_cls` 和详细的类 docstring。输入与输出模型必须分别继承
+- 声明固定的 `task_type`、`input_cls` 和 `output_cls`，建议添加详细的类 docstring。输入与输出模型必须分别继承
   [`core/params.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/params.py) 中的 `BaseInputParams` 和 `BaseOutputParams`。
 - 实现 `build_task_steps()`，按执行顺序返回同步可调用步骤；实现 `build_output_params()`，返回经过校验的
   `output_cls` 实例，不能仅返回普通字典。
@@ -134,8 +134,7 @@ class Alpha158Task(BaseETLTask):
         return self.output_cls(**self.state["output"])
 ```
 
-Task 类必须定义非空的类 docstring，用于 Task 定义的 `description`；缺少时，Task 解析和定义查询会抛出
-`TypeError: Task ... must define a detailed class docstring`。应说明任务用途、输入及产物，不能只给方法添加 docstring。
+Task 类的 docstring 用于 Task 定义的 `description`。缺少或仅含空白时返回空字符串，不阻塞 Task 解析、定义查询或任务列表展示。建议说明任务用途、输入及产物；docstring 必须放在类属性之前，才能被 Python 识别。
 
 `BaseETLOutputParams` 已定义必填字段 `output_file`、`rows`、`date_range`，因此 `self.state["output"]` 至少包含这三个字段；需要额外结果时，再在
 `Alpha158OutputParams` 中添加字段。

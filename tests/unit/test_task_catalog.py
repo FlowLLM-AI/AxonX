@@ -66,6 +66,35 @@ def test_single_query_does_not_load_unrelated_task(plugins):
         list_installed_task_definitions()
 
 
+@pytest.mark.parametrize(
+    ("doc", "expected"),
+    [
+        (None, ""),
+        ("", ""),
+        (" \n\t ", ""),
+        ("\n    Run a task.\n\n    Produce an artifact.\n    ", "Run a task.\n\nProduce an artifact."),
+    ],
+)
+def test_description_preserves_task_and_catalog(plugins, monkeypatch, doc, expected):
+    class CatalogTask(DemoTask):
+        pass
+
+    CatalogTask.__doc__ = doc
+    monkeypatch.setattr("axonx.task.builtins.demo.CatalogTask", CatalogTask, raising=False)
+    plugins[0].tasks["catalog_task"] = "axonx.task.builtins.demo:CatalogTask"
+
+    definitions = {item.name: item for item in list_installed_task_definitions()}
+    definition = definitions["catalog_task"]
+    assert definition.description == expected
+    assert definition.input_schema == DemoTask.input_cls.model_json_schema()
+    assert definition.output_schema == DemoTask.output_cls.model_json_schema()
+    assert get_task_definition("catalog_task") == definition
+    assert resolve_task("catalog_task") is CatalogTask
+    assert installed_tasks()["catalog_task"] is CatalogTask
+    assert definitions["demo"] == get_task_definition("demo")
+    assert definitions["example_task"] == get_task_definition("example_task")
+
+
 @pytest.mark.parametrize("query", [get_task_definition, resolve_task])
 def test_unknown_registration_has_clear_error(plugins, query):
     with pytest.raises(ValueError, match="Unknown Task: missing.*example_task"):

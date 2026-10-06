@@ -63,7 +63,7 @@ paths, class names, registered names, and dependency chain here are illustrative
 Every plugin Task must directly or indirectly inherit `BaseTask` and follow the public authoring contract in
 [`axonx/task/core/task.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/task.py). Registration alone does not replace this contract:
 
-- Declare a fixed `task_type`, `input_cls`, `output_cls`, and a detailed class docstring. Input and output models must
+- Declare a fixed `task_type`, `input_cls`, and `output_cls`; a detailed class docstring is recommended. Input and output models must
   inherit `BaseInputParams` and `BaseOutputParams` from [`core/params.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/params.py).
 - Implement `build_task_steps()` to yield synchronous callables in execution order, and `build_output_params()` to
   return a validated instance of the declared `output_cls`; returning a plain dictionary does not satisfy the contract.
@@ -138,8 +138,7 @@ class Alpha158Task(BaseETLTask):
         return self.output_cls(**self.state["output"])
 ```
 
-A Task class must define a nonempty class docstring, used as the Task definition's `description`. Without it, Task resolution and definition queries raise
-`TypeError: Task ... must define a detailed class docstring`. Describe the task's purpose, input, and artifacts; method docstrings alone are insufficient.
+A Task class docstring supplies the Task definition's `description`. Missing or whitespace-only docstrings produce an empty string and do not block Task resolution, definition queries, or catalog display. A detailed description of the task's purpose, input, and artifacts is recommended; put the docstring before class attributes so Python recognizes it.
 
 `BaseETLOutputParams` already defines required fields `output_file`, `rows`, and `date_range`, so `self.state["output"]` must contain at least these three fields. Add fields to
 `Alpha158OutputParams` when additional results are needed.

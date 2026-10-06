@@ -68,7 +68,7 @@ jobs: {}
 
 Extra top-level fields are prohibited, and the root must be a YAML mapping. Names and string targets are stripped of surrounding whitespace and must be nonempty. A `module:Class` target imports the module, then resolves attributes one level at a time. Invalid target format, missing attributes, or a symbol that does not extend the required base class causes failure.
 
-Tasks must declare a fixed TaskType, input_cls, output_cls, and a detailed class docstring. description is extracted from the class docstring and validated when definitions are queried. See the [Existing development guide](../dev_guide.md) for a minimal Task development workflow.
+Tasks must declare a fixed TaskType, input_cls, and output_cls. A detailed class docstring is recommended; description is extracted from it when definitions are queried, or returned as an empty string if it is missing or whitespace-only. See the [Existing development guide](../dev_guide.md) for a minimal Task development workflow.
 
 All registered Tasks must follow the public authoring contract in
 [`BaseTask`](../../../axonx/task/core/task.py). The research base classes in

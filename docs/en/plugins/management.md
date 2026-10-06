@@ -112,7 +112,7 @@ Uninstallation affects future code loading but does not automatically delete his
 | Problem                                       | Check                                                                    |
 | --------------------------------------------- | ------------------------------------------------------------------------ |
 | Registered name conflict                      | Whether plugin contributions share names with built-ins or other plugins |
-| Invalid manifest                              | Types, module:Class, Task docstrings, and class base classes             |
+| Invalid manifest                              | Types, module:Class, and class base classes                              |
 | Installation succeeded but UI has not updated | restart_required, target machine, and runtime environment                |
 | Wheel checksum failed                         | Use the upload receipt sha256 and transfer the correct file again        |
 | Missing model dependencies                    | requirements and device libraries in the target environment              |

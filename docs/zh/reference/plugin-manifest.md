@@ -68,7 +68,7 @@ jobs: {}
 
 顶层禁止额外字段；根必须是 YAML mapping。名称与字符串目标去掉首尾空白并要求非空。`module:Class` 目标先导入模块，再逐级取属性；字符串不满足格式、属性不存在或不是目标基类均失败。
 
-Task 必须声明固定 TaskType、input_cls、output_cls 与详细的类 docstring。description 从类 docstring 提取，并在查询定义时验证。Task 最小开发流程见 [已有开发指南](../dev_guide.md)。
+Task 必须声明固定 TaskType、input_cls 和 output_cls，建议添加详细的类 docstring。查询定义时从类 docstring 提取 description；缺少或仅含空白时返回空字符串。Task 最小开发流程见 [已有开发指南](../dev_guide.md)。
 
 所有注册的 Task 都必须遵守 [`BaseTask`](../../../axonx/task/core/task.py) 的公共开发协议。
 [`axonx.task.contracts`](../../../axonx/task/contracts/) 中的研究基类是可选标准契约；采用后必须保留其参数字段与校验规则。

@@ -25,13 +25,6 @@ class TaskDefinition(BaseModel):
     output_schema: dict[str, Any]
 
 
-def _task_description(name: str, task_class: type[BaseTask]) -> str:
-    description = task_class.__doc__
-    if not description or not description.strip():
-        raise TypeError(f"Task {name!r} must define a detailed class docstring")
-    return cleandoc(description)
-
-
 def _task_catalog(
     name: str | None = None,
 ) -> dict[str, tuple[type[BaseTask], str | None]]:
@@ -51,7 +44,6 @@ def _task_catalog(
     tasks = {}
     for task_name, target in sorted(targets.items()):
         task_class = load_symbol(target, BaseTask, kind="Task", modules=modules) if isinstance(target, str) else target
-        _task_description(task_name, task_class)
         tasks[task_name] = task_class, plugins.task_owners.get(task_name)
     return tasks
 
@@ -75,7 +67,7 @@ def _task_definition(name: str, task_class: type[BaseTask], plugin: str | None) 
         source="plugin" if plugin is not None else "native",
         plugin=plugin,
         task_type=task_type,
-        description=_task_description(name, task_class),
+        description=cleandoc(task_class.__doc__ or "").strip(),
         input_schema=task_class.input_cls.model_json_schema(),
         output_schema=task_class.output_cls.model_json_schema(),
     )

@@ -56,7 +56,7 @@ answer 是 TaskDefinition 数组。每项含 name、source（native/plugin）、
 
 **行为与失败情况**
 
-输出按注册名排序。某个插件类型错误或缺少详细类 docstring，可能使完整目录查询失败。
+输出按注册名排序。某个插件类型错误可能使完整目录查询失败。缺少或仅含空白的类 docstring 返回空 description，当前 Task 和其他任务列表项仍可正常展示。
 
 ## get_task_definition
 

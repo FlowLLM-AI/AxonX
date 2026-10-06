@@ -56,7 +56,7 @@ answer is an array of TaskDefinition. Each item contains name, source (native/pl
 
 **Behavior and failure cases**
 
-Output is sorted by registration name. An invalid plugin type or missing detailed class docstring may cause the full catalog query to fail.
+Output is sorted by registration name. An invalid plugin type may cause the full catalog query to fail. Missing or whitespace-only class docstrings return an empty description; the Task and the other catalog entries remain available.
 
 ## get_task_definition
 

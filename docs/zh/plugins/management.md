@@ -109,13 +109,13 @@ axonx plugin uninstall '<distribution 或插件名>' \
 
 卸载影响后续加载代码，不自动删除历史研究产物。已有 metadata 仍可读，但重跑可能需要恢复原插件版本。
 
-| 问题                 | 检查                                        |
-| -------------------- | ------------------------------------------- |
-| 注册名冲突           | 插件贡献是否与内置或其他插件同名            |
-| manifest 无效        | 类型、module:Class、Task docstring 与类基类 |
-| 安装成功但 UI 没更新 | restart_required、目标机器、运行环境        |
-| wheel 校验失败       | 使用上传回执 sha256，重新传输正确文件       |
-| 缺模型依赖           | 检查 requirements 与目标环境的设备库        |
+| 问题                 | 检查                                  |
+| -------------------- | ------------------------------------- |
+| 注册名冲突           | 插件贡献是否与内置或其他插件同名      |
+| manifest 无效        | 类型、module:Class 与类基类           |
+| 安装成功但 UI 没更新 | restart_required、目标机器、运行环境  |
+| wheel 校验失败       | 使用上传回执 sha256，重新传输正确文件 |
+| 缺模型依赖           | 检查 requirements 与目标环境的设备库  |
 
 [插件 manifest](../reference/plugin-manifest.md) · [远程机器](../guides/remote-machines.md) · [已有开发指南](../dev_guide.md)
 
