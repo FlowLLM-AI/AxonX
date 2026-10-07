@@ -130,6 +130,8 @@ task_repository 是类别，default 是实例名，local 是实现后端。TaskM
 
 PipelineJob 还支持 event_buffer_size（默认 64，正整数），作为 backend 特有额外字段。parameters 的 JSON Schema default 是描述信息，不能假定框架统一注入；需要真实默认值时由 defaults 或 Step 处理。system 注入值与公开参数隔离。
 
+PipelineJob 按 `defaults` → caller arguments → system 递归合并，并在每次调用时深拷贝结果。嵌套对象保留未指定的字段，空对象覆盖也遵循此规则；列表和标量整体替换。公共参数在合并前校验。详见 [框架扩展](../development/framework-extensions.md#参数、默认值与-system)。
+
 ## ScheduleConfig
 
 | 字段               | 类型                 | 默认值 | 含义                    |

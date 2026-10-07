@@ -118,7 +118,7 @@ Failed startup rolls back resources that started successfully. Closing attempts 
 
 ## Parameters, defaults, and system
 
-PipelineJob uses RuntimeContext: deep-copy defaults → override with caller arguments → override with system. Public parameters are first validated by JSON Schema; a Schema default does not automatically supply required parameters. defaults apply to the execution context and do not replace required validation of public inputs.
+PipelineJob uses RuntimeContext: recursively merge defaults → caller arguments → system, then deep-copy the execution context. Nested overrides retain unspecified default fields; lists and scalar values are replaced. An empty object retains existing nested fields. Public parameters are first validated by JSON Schema; a Schema default does not automatically supply required parameters. defaults apply to the execution context and do not replace required validation of public inputs.
 
 ```yaml
 jobs:
@@ -177,36 +177,32 @@ Plugins can implement `window_skip_reason(window)` to skip a business-inapplicab
 
 Atomic `manifest.json` records model identity and completed window outcomes during execution, including before a task failure. Atomic `comparison.json` records each comparison incrementally. Successful output indexes these reports in `artifacts` using paths relative to the task directory. TaskRunner retains sole ownership of task state, IDs and metadata. Business datasets stay in explicit plugin directories; publish their data and metadata before a ready marker. Final publication, quality checks, model normalization, market calendars and notification semantics belong to plugins. AxonX introduces no Tushare or model dependency.
 
-These contracts are additive. Existing ETL, Train, Predict, Backtest and factor Analysis contracts and records remain unchanged. Axon2 algorithm migration and old checkpoint compatibility must be validated independently; the framework contracts do not establish model equivalence.
+Research plugins are responsible for algorithm validation and model equivalence.
 
-## Task batches and cleanup
+## Composite Tasks and cleanup
 
-Use the built-in `task_batch` Job to submit synchronous Tasks sequentially and wait for each exact Run ID. `stages` contains unique `task` names, fixed `arguments`, optional `forward_arguments` copied from validated Job inputs, and `sources` referencing earlier stage names. Source IDs are recorded even when an upstream Task fails; a submission failure has no source ID. Domain data dependencies remain the Task's responsibility.
+Use `BaseCompositeTask` for synchronous business sequencing, conditions and loops. Submit only the parent through the built-in `submit` Job. Children run in the parent's worker with independent records; pass `source_tasks` explicitly for data dependencies. See [Composite Tasks](../guides/composite-tasks.md).
+
+The plugin manifest registers Tasks. Deployment configuration can define thin `pipeline` Jobs and schedules:
 
 ```yaml
+extends: default
 jobs:
   refresh:
-    backend: task_batch
-    lock_group: market_data
-    continue_on_error: true
-    parameters:
-      type: object
-      properties:
-        days_back: { type: integer, minimum: 1 }
-      additionalProperties: false
-    stages:
-      - task: reference_data
-      - task: daily_data
-        arguments: { days_back: 7 }
-        forward_arguments: [days_back]
-        sources: [reference_data]
+    backend: pipeline
+    defaults:
+      task: refresh_data
+    steps:
+      - backend: submit_task
+schedules:
+  refresh:
+    job: refresh
+    cron: "0 16 * * *"
 ```
 
-Related Jobs can share `lock_group`; invocations poll a nonblocking file lock at `<workspace_dir>/.locks/<group>.lock` without blocking the event loop. The lock spans submission, waiting and worker cleanup. A cleanup failure aborts the batch and persists the Run identity and both errors in `<group>.blocked.json` beside the lock. Later invocations must confirm that exact Run has stopped before removing the marker and submitting new work. An unmanaged active Run keeps the group blocked. Stage results retain Task and Run IDs after a successful submission, including wait failures. Job shutdown reports cleanup failures rather than swallowing them. This coordinates processes sharing that file, not distributed hosts or strict FIFO ordering. Use scheduler `concurrency_policy: allow` when overlapping triggers should wait instead of being skipped. Waiting batches are not persisted across shutdown. `continue_on_error` defaults to false; true attempts later stages and returns all outcomes plus the first nonzero exit code.
+Business Tasks own shared-data locks and business overlap policies. Composition does not supply distributed locking. Scheduler concurrency covers the Job invocation; a submission Job returns before the background Task completes. TaskManager supervises the accepted worker and owns shutdown and cancellation. Cancel the parent Run to stop its in-process children. Closing a submission Job does not cancel an already accepted Task.
 
-`ManagedTaskJob` supports custom asynchronous composition with `run_stage(task, arguments)`. It owns submissions through cancellation and service shutdown, stopping a worker and waiting for termination before returning control. Subclasses implement `execute(arguments)`; the configured framework Task manager is resolved on first use.
-
-Task managers implement `cancel(task_id=None, run_id=None)`. At least one ID is required: `task_id` selects the current execution under the manager lock, while `run_id` selects an exact Run. Supplying both checks the current pair and returns false for a mismatch. Batch cleanup and blocked-group recovery pass only `run_id`; they must never fall back to cancelling the current Task. Update custom managers that previously required both IDs to accept either one.
+Task managers implement `cancel(task_id=None, run_id=None)`. At least one ID is required: `task_id` selects the current execution under the manager lock, while `run_id` selects an exact Run. Supplying both checks the current pair and returns false for a mismatch. To cancel an owned execution, pass its exact `run_id`.
 
 Synchronous `BaseTask.close()` releases owned resources after step execution, including step and initialization failures. Cleanup failures preserve a primary step exception. `on_failure(error)` can persist business summaries when steps, output construction or cleanup fail; the runner still owns failed status. These callbacks cannot guarantee cleanup after forced process termination.
 

@@ -235,3 +235,28 @@ async def test_schedule_arguments_are_validated_during_startup(tmp_path):
 
     with pytest.raises(ValueError, match="'value' is a required property"):
         await app.start()
+
+
+def test_nested_job_defaults_allow_partial_task_parameter_overrides():
+    from axonx.components.job.context import RuntimeContext
+
+    defaults = {
+        "task": "research",
+        "train": {"train_end": 20230101, "random_seed": 42, "epochs": 50, "metrics": ["loss"]},
+    }
+    arguments = {"train": {"epochs": 1, "metrics": ["accuracy"]}}
+    system = {"runtime": {"tags": ["scheduled"]}}
+    context = RuntimeContext(defaults, arguments, system)
+    assert context["train"] == {
+        "train_end": 20230101,
+        "random_seed": 42,
+        "epochs": 1,
+        "metrics": ["accuracy"],
+    }
+    context["train"]["random_seed"] = 99
+    context["train"]["metrics"].append("loss")
+    context["runtime"]["tags"].append("changed")
+    assert defaults["train"]["random_seed"] == 42
+    assert defaults["train"]["metrics"] == ["loss"]
+    assert arguments == {"train": {"epochs": 1, "metrics": ["accuracy"]}}
+    assert system == {"runtime": {"tags": ["scheduled"]}}

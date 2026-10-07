@@ -130,6 +130,8 @@ task_repository is the category, default is the instance name, and local is the 
 
 PipelineJob also supports event_buffer_size (default 64, a positive integer) as a backend-specific extra field. JSON Schema default in parameters is descriptive; do not assume the framework injects it uniformly. Actual defaults must be handled by defaults or a Step. System-injected values are isolated from public parameters.
 
+PipelineJob recursively merges `defaults` → caller arguments → system and deep-copies the result per invocation. Nested objects retain unspecified fields, including when an override is empty; lists and scalar values are replaced. Public arguments are validated before merging. See [framework extensions](../development/framework-extensions.md#parameters-defaults-and-system).
+
 ## ScheduleConfig
 
 | Field              | Type                 | Default  | Meaning                                   |

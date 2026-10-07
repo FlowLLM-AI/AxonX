@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Any
 
 from .contracts import JobResponse
+from ...config import deep_merge_config
 
 
 class RuntimeContext(dict[str, Any]):
@@ -16,7 +17,6 @@ class RuntimeContext(dict[str, Any]):
         arguments: Mapping[str, Any],
         system: Mapping[str, Any],
     ) -> None:
-        super().__init__(deepcopy(dict(defaults)))
-        self.update(arguments)
-        self.update(system)
+        values = deep_merge_config(defaults, arguments)
+        super().__init__(deepcopy(deep_merge_config(values, system)))
         self.response = JobResponse()

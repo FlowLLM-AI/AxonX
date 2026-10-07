@@ -118,7 +118,7 @@ class ReportCache(BaseComponent):
 
 ## 参数、默认值与 system
 
-PipelineJob 使用 RuntimeContext：深拷贝 defaults → 覆盖 caller arguments → 覆盖 system。公共参数先由 JSON Schema 校验；Schema 内的 default 不自动补齐必填参数。defaults 用于执行 context，不替代公共输入的 required 校验。
+PipelineJob 使用 RuntimeContext：按 defaults → caller arguments → system 递归合并，再深拷贝执行 context。嵌套覆盖保留未指定的默认字段，列表和标量整体替换，空对象保留已有嵌套字段。公共参数先由 JSON Schema 校验；Schema 内的 default 不自动补齐必填参数。defaults 用于执行 context，不替代公共输入的 required 校验。
 
 ```yaml
 jobs:
@@ -177,36 +177,32 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 原子发布的 `manifest.json` 在执行期间记录模型身份与已结束窗口，任务失败时也保留；`comparison.json` 逐项记录比对结果。成功输出通过 `artifacts` 索引报告，路径相对任务目录。TaskRunner 继续独占任务状态、身份及 metadata。业务数据保存在插件显式目录，先发布数据与元数据，再发布 ready 标记。最终数据发布、质量检查、归一化、交易日历与通知语义由插件负责；AxonX 不新增 Tushare 或模型依赖。
 
-这些合同为增量扩展，原有 ETL、Train、Predict、Backtest、因子 Analysis 合同与记录保持不变。Axon2 算法迁移和旧 checkpoint 兼容仍需独立验证；框架合同不代表模型已通过等价性验证。
+算法验证与模型等价性由研究插件负责。
 
-## Task 批次与清理
+## 复合 Task 与清理
 
-内置 `task_batch` Job 按顺序提交同步 Task，并等待每个具体 Run ID。`stages` 配置唯一的 `task` 名称、固定 `arguments`、从经过校验的 Job 输入复制的 `forward_arguments`，以及引用前序阶段名称的 `sources`。即使上游 Task 失败也记录来源 ID；提交失败则没有来源 ID。数据依赖的业务校验仍由 Task 负责。
+同步业务顺序、条件和循环使用 `BaseCompositeTask`，通过内置 `submit` Job 只提交父任务。子任务在父任务 worker 内执行并保留独立记录，数据依赖显式传入 `source_tasks`。详见 [复合 Task](../guides/composite-tasks.md)。
+
+插件清单注册 Task；部署配置可以定义轻量 `pipeline` Job 和定时任务：
 
 ```yaml
+extends: default
 jobs:
   refresh:
-    backend: task_batch
-    lock_group: market_data
-    continue_on_error: true
-    parameters:
-      type: object
-      properties:
-        days_back: { type: integer, minimum: 1 }
-      additionalProperties: false
-    stages:
-      - task: reference_data
-      - task: daily_data
-        arguments: { days_back: 7 }
-        forward_arguments: [days_back]
-        sources: [reference_data]
+    backend: pipeline
+    defaults:
+      task: refresh_data
+    steps:
+      - backend: submit_task
+schedules:
+  refresh:
+    job: refresh
+    cron: "0 16 * * *"
 ```
 
-相关 Job 可共用 `lock_group`，调用以非阻塞文件锁轮询 `<workspace_dir>/.locks/<group>.lock`，不会阻塞事件循环。锁覆盖提交、等待和 worker 清理。清理失败会中止批次，在锁旁的 `<group>.blocked.json` 保存 Run 身份及原始、清理两类错误。后续调用必须确认该精确 Run 已停止，才能删除标记并提交新任务；无法确认的非托管活跃 Run 会让该组保持阻塞。等待失败的阶段结果仍保留已提交的 Task/Run ID。Job 关闭会报告清理失败，不会静默吞掉。它协调共享锁文件的进程，不提供分布式协调或严格先进先出。希望重叠触发等待时设置 scheduler `concurrency_policy: allow`。等待批次不跨停机持久化。`continue_on_error` 默认为 false；true 会尝试剩余阶段，返回全部结果及首个非零退出码。
+共享数据锁及业务重叠策略由业务 Task 负责；复合 Task 不提供分布式锁。调度并发策略只覆盖 Job 调用，提交 Job 在后台 Task 完成前已经返回。TaskManager 监督已受理 worker，并负责停机和取消。取消父 Run 会停止同进程子任务；关闭提交 Job 不会取消已受理的 Task。
 
-`ManagedTaskJob` 为自定义异步编排提供 `run_stage(task, arguments)`，在取消和服务关闭期间保有已提交 worker 的所有权，停止并等待 worker 终止后再返回。子类实现 `execute(arguments)`，首次使用时解析配置指定的框架 Task manager。
-
-Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID：`task_id` 在 manager 锁内选定当前执行，`run_id` 精确指定某个 Run。同时提供两个 ID 时会校验当前身份，不匹配则返回 false。批次清理与阻塞组恢复仅传 `run_id`，不得回退为取消任务的当前执行。原先要求两个 ID 的自定义 manager 需更新为支持任意一个。
+Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID：`task_id` 在 manager 锁内选定当前执行，`run_id` 精确指定某个 Run。同时提供两个 ID 时会校验当前身份，不匹配则返回 false。需要精确清理某次执行时传 `run_id`。
 
 同步 `BaseTask.close()` 在步骤执行后释放资源，包括步骤和初始化失败。清理失败不会覆盖原步骤异常。`on_failure(error)` 可在步骤、输出构造或清理失败时保存业务摘要，失败状态仍由 runner 管理。强制终止进程时不能保证回调执行。
 
