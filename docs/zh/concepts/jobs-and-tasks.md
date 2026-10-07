@@ -78,6 +78,8 @@ axonx submit --task demo --x 1 --y 2
 
 若能力是训练模型、转换数据、执行回测，且需要产物与实验身份，通常写 Task。实现 `build_task_steps()` 和 `build_output_params()`，并继承适合的研究契约。
 
+若能力是将已有 Task 组合成本机固定流程，可继承 `BaseCompositeTask`，在同步步骤中调用 `run_task()`。子 Task 各自保留记录和产物，顺序、循环和失败策略用普通 Python 表达。参见[复合 Task](../guides/composite-tasks.md)。
+
 若能力是查询状态、连接远程服务、调用已有组件，或将若干能力组合为公开接口，通常写 Job 与异步 Step。Job 也可以显式调用 `submit`、等待结果，再执行后续步骤；这需要自定义编排逻辑。
 
 不应仅为“后台执行”写 Job 来替代 Task，也不应给每个状态查询制造一个新的研究 Task。

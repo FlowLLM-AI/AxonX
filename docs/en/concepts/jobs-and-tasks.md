@@ -78,6 +78,8 @@ Both use Task input/output contracts and workspace records. `exec` does not add 
 
 For model training, data transformation, or backtesting that needs artifacts and experiment identity, usually implement a Task. Implement `build_task_steps()` and `build_output_params()` and inherit an appropriate research contract.
 
+For a fixed local sequence of existing Tasks, inherit `BaseCompositeTask` and call `run_task()` from synchronous steps. Each child keeps its own records and artifacts; sequencing, loops, and failure policy remain ordinary Python. See [Composite Tasks](../guides/composite-tasks.md).
+
 For querying status, connecting to remote services, calling existing components, or combining capabilities into a public interface, usually implement a Job with asynchronous Steps. A Job can also explicitly call `submit`, wait for results, then execute subsequent steps; this requires custom orchestration logic.
 
 Do not replace a Task with a Job solely to achieve background execution, or create a new research Task for every status query.

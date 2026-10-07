@@ -85,6 +85,7 @@ export const groups = [
         "Tasks & files",
         [
           "guides/task-management",
+          "guides/composite-tasks",
           "guides/workspace-files",
           "guides/task-sync",
         ],

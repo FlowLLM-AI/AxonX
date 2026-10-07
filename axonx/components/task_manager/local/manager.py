@@ -31,6 +31,7 @@ from ....task.query import (
 from ....task.runtime.arguments import build_task_argv, parse_task_argv
 from ....task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
 from ....task.storage.logs import TaskLogReader
+from ....task.storage.composition import settle_composition
 from ....task.storage.workspace import (
     TaskStatus,
     is_task_directory,
@@ -280,6 +281,10 @@ class LocalTaskManager(BaseTaskManager):
         await self.repository.put_status(status)
 
     async def _finish(self, status: TaskStatus, state: TaskState, code: int, error: str) -> None:
+        if state in {TaskState.FAILED, TaskState.CANCELLED}:
+            children = await asyncio.to_thread(settle_composition, self.workspace_path, status, state, code, error)
+            for child in children:
+                await self._write_status(child)
         status = status.model_copy(deep=True)
         status.state = state
         status.finished_at = datetime.now(UTC)
