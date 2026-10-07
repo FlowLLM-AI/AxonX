@@ -159,42 +159,41 @@ After starting with the defaults, open `http://127.0.0.1:1024/`, go to **Setting
 
 ## 🧪 Quick CLI demo
 
-### Submit a Task
+### Download Tushare data
 
-With the service running from [Quick start](#quick-start), open another terminal and submit the built-in `demo` Task.
-It adds two integers and requires no research plugin or market data:
+Set `AXONX_TUSHARE_TOKEN` in the service's `.env` ([example.env](example.env)), then start or restart the service.
+Download a week's daily prices and adjustment factors with the built-in Tushare Task, then check its status and logs:
 
 ```bash
-axonx submit --task demo --x 1 --y 2 --task-name cli-demo
+axonx submit \
+  --task download_tushare_task \
+  --task-name tushare-demo \
+  --start-date 20230901 \
+  --end-date 20230907 \
+  --datasets 'daily,adj_factor'
+
+axonx status --task-id 'api#download_tushare_task#tushare-demo'
+axonx read_task_log --task-id 'api#download_tushare_task#tushare-demo'
 ```
 
-The CLI uses `axonx ACTION --field value`. Here, `submit` sends an asynchronous submission request to the service,
-which runs the Task in a worker process.
-
-| Argument               | Meaning                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------- |
-| `--task demo`          | Select the registered Task named `demo`.                                                          |
-| `--x 1 --y 2`          | Pass the Task's two required integer inputs; the expected result is `3`.                          |
-| `--task-name cli-demo` | Give this Task a readable name. Omit it to generate a name; an active Task cannot be overwritten. |
-
-Mock response (illustrative; use the IDs returned by your own submission):
+`--task` selects the Task and `--task-name` names it. Dates use `YYYYMMDD`; `--datasets` selects comma-separated data
+groups. The `submit` command returns JSON (mock response):
 
 ```json
 {
   "answer": {
-    "task_id": "base#demo#cli-demo",
+    "task_id": "api#download_tushare_task#tushare-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
-    "task": "demo"
+    "task": "download_tushare_task"
   },
   "success": true,
   "metadata": {}
 }
 ```
 
-`success: true` means the submission succeeded; it does not mean the Task has finished successfully.
-`answer.task_id` identifies the Task for status, log, and dependency queries. `answer.run_id` identifies this specific
-execution; save both IDs to wait for its result. `answer.task` is the registered Task name, and `metadata` contains
-Job response metadata, empty in this example.
+`success: true` confirms submission; the Task downloads asynchronously and saves Parquet files under the workspace's
+`tushare/` directory when it succeeds.
+Use the returned `task_id` for queries and save `run_id` to wait for this execution with `wait_task`.
 
 ### Other CLI commands
 
@@ -229,8 +228,7 @@ axonx submit --task a158_backtest --source-tasks '<predict_task_id>'
 axonx submit --task a158_factor --source-tasks '<etl_task_id>'
 ```
 
-Market-data downloads require `AXONX_TUSHARE_TOKEN` in `.env` ([example.env](example.env)). View results in **AxonX Studio**;
-see the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) and
+View results in **AxonX Studio**; see the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) and
 [CLI reference](docs/en/reference/cli.md) for details.
 
 <a id="agent-access-and-development-guides"></a>

@@ -151,38 +151,40 @@ axonx version --target 127.0.0.1:8181 --token '<本机服务 token>'
 
 ## 🧪 CLI 快速演示
 
-### 提交一个 Task
+### 下载 Tushare 数据
 
-按[快速开始](#快速开始)启动服务后，在另一个终端提交内置的 `demo` Task。它将两个整数相加，无需安装研究插件或准备行情数据：
+在服务的 `.env` 中配置 `AXONX_TUSHARE_TOKEN`（[example.env](example.env)），然后启动或重启服务。
+使用内置 Tushare 任务下载一周的日线行情和复权因子，再查看它的状态和日志：
 
 ```bash
-axonx submit --task demo --x 1 --y 2 --task-name cli-demo
+axonx submit \
+  --task download_tushare_task \
+  --task-name tushare-demo \
+  --start-date 20230901 \
+  --end-date 20230907 \
+  --datasets 'daily,adj_factor'
+
+axonx status --task-id 'api#download_tushare_task#tushare-demo'
+axonx read_task_log --task-id 'api#download_tushare_task#tushare-demo'
 ```
 
-CLI 使用 `axonx ACTION --field value` 格式。这里的 `submit` 向服务发送异步提交请求，由服务在工作进程中运行 Task。
-
-| 参数                   | 含义                                                                     |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `--task demo`          | 选择注册名为 `demo` 的 Task。                                            |
-| `--x 1 --y 2`          | 传入该 Task 必填的两个整数，预期计算结果为 `3`。                         |
-| `--task-name cli-demo` | 为 Task 指定易读的名称；省略时自动生成名称，正在运行的 Task 不能被覆盖。 |
-
-模拟返回（仅作示例，实际使用时以本次提交返回的 ID 为准）：
+`--task` 选择任务，`--task-name` 指定名称；日期使用 `YYYYMMDD` 格式，`--datasets` 选择下载的数据组，以逗号分隔。
+`submit` 命令返回 JSON（模拟示例）：
 
 ```json
 {
   "answer": {
-    "task_id": "base#demo#cli-demo",
+    "task_id": "api#download_tushare_task#tushare-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
-    "task": "demo"
+    "task": "download_tushare_task"
   },
   "success": true,
   "metadata": {}
 }
 ```
 
-`success: true` 表示提交成功，不代表 Task 已执行成功。`answer.task_id` 标识 Task，用于查询状态、日志和依赖关系；
-`answer.run_id` 标识本次执行，等待结果时需保留这两个 ID。`answer.task` 是 Task 注册名，`metadata` 是 Job 响应元数据，本例为空。
+`success: true` 表示提交成功；任务异步下载，成功后将 Parquet 文件保存到工作区的 `tushare/` 目录。
+查询时使用返回的 `task_id`，保留 `run_id` 可通过 `wait_task` 等待本次执行结束。
 
 ### 其他 CLI 命令
 
@@ -216,7 +218,7 @@ axonx submit --task a158_backtest --source-tasks '<predict_task_id>'
 axonx submit --task a158_factor --source-tasks '<etl_task_id>'
 ```
 
-行情下载需在 `.env` 中配置 `AXONX_TUSHARE_TOKEN`（[example.env](example.env)）。在 **AxonX Studio** 查看结果；
+在 **AxonX Studio** 查看结果；
 详情见[研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow)与 [CLI 参考](docs/zh/reference/cli.md)。
 
 <a id="agent-接入与开发指南"></a>
