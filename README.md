@@ -157,53 +157,81 @@ After starting with the defaults, open `http://127.0.0.1:1024/`, go to **Setting
 
 <a id="quick-demo"></a>
 
-## 🧪 Quick demo
+## 🧪 Quick CLI demo
 
-Use the [a158 plugin](plugins/a158/README.md) to try plugin management, service queries, and quantitative research
-tasks. Market-data downloads require `AXONX_TUSHARE_TOKEN` in `.env`; see [example.env](example.env).
+### Submit a Task
 
-### Plugin commands
-
-Install in the Python environment used by the service, then restart the service:
+With the service running from [Quick start](#quick-start), open another terminal and submit the built-in `demo` Task.
+It adds two integers and requires no research plugin or market data:
 
 ```bash
-pip install axonx-alpha158
-axonx plugin list
-axonx plugin show axonx-alpha158
+axonx submit --task demo --x 1 --y 2 --task-name cli-demo
 ```
 
-### Non-Task commands
+The CLI uses `axonx ACTION --field value`. Here, `submit` sends an asynchronous submission request to the service,
+which runs the Task in a worker process.
 
-Query the service version, machine resources, and workspace:
+| Argument               | Meaning                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `--task demo`          | Select the registered Task named `demo`.                                                          |
+| `--x 1 --y 2`          | Pass the Task's two required integer inputs; the expected result is `3`.                          |
+| `--task-name cli-demo` | Give this Task a readable name. Omit it to generate a name; an active Task cannot be overwritten. |
+
+Mock response (illustrative; use the IDs returned by your own submission):
+
+```json
+{
+  "answer": {
+    "task_id": "base#demo#cli-demo",
+    "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
+    "task": "demo"
+  },
+  "success": true,
+  "metadata": {}
+}
+```
+
+`success: true` means the submission succeeded; it does not mean the Task has finished successfully.
+`answer.task_id` identifies the Task for status, log, and dependency queries. `answer.run_id` identifies this specific
+execution; save both IDs to wait for its result. `answer.task` is the registered Task name, and `metadata` contains
+Job response metadata, empty in this example.
+
+### Other CLI commands
+
+Replace placeholder IDs with the returned `answer.task_id` / `answer.run_id`; submit downstream Tasks only after their
+inputs succeed.
 
 ```bash
+# Task status, logs, and dependencies
+axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 600
+axonx status --task-id '<task_id>'
+axonx read_task_log --task-id '<task_id>'
+axonx get_task_graph --task-id '<task_id>'
+
+# Service and workspace
 axonx version
 axonx machine_status
 axonx list_entries --path ''
-```
 
-### Task commands
+# Plugins: install in the service's Python environment, then restart the service
+pip install axonx-alpha158
+axonx plugin list
+axonx plugin show axonx-alpha158
 
-Submit each downstream stage only after the preceding stage succeeds. Replace placeholder IDs with `answer.task_id` from
-the submission response. Skip downloads if complete historical market data is already available. Factor analysis is an
-independent downstream stage of ETL, rather than a prerequisite for training.
-
-```bash
+# Research workflow (skip downloads if historical data is already available)
 axonx get_task_definition --task a158_etl
 axonx submit --task download_tushare_task --start-date 20140101 --end-date 20231231 --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 axonx submit --task a158_etl --start-date 20150101 --end-date 20231231
-axonx submit --task a158_factor --source-tasks '<etl_task_id>'
 axonx submit --task a158_train --source-tasks '<etl_task_id>' --train-start 20150101 --train-end 20230101
 axonx submit --task a158_predict --source-tasks '<train_task_id>' --pred-start 20230101 --pred-end 20231231
 axonx submit --task a158_backtest --source-tasks '<predict_task_id>'
-axonx status --task-id '<backtest_task_id>'
-axonx read_task_log --task-id '<backtest_task_id>'
-axonx get_task_graph --task-id '<backtest_task_id>'
+# Optional factor analysis: an independent downstream stage of ETL
+axonx submit --task a158_factor --source-tasks '<etl_task_id>'
 ```
 
-View tasks and research results in **AxonX Studio**. For data preparation and the complete process, see
-the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow); for more commands, see
-the [development and operations guide](docs/en/dev_guide.md).
+Market-data downloads require `AXONX_TUSHARE_TOKEN` in `.env` ([example.env](example.env)). View results in **AxonX Studio**;
+see the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) and
+[CLI reference](docs/en/reference/cli.md) for details.
 
 <a id="agent-access-and-development-guides"></a>
 
@@ -268,7 +296,7 @@ downstream stage of ETL.
 | Prediction      | Out-of-sample predictions and statistics.                  |
 | Backtesting     | TopN backtests, period summaries, and holdings artifacts.  |
 
-For usage examples, see the [Quick demo](#quick-demo) above; for complete parameters and data requirements, see
+For usage examples, see the [Quick CLI demo](#quick-demo) above; for complete parameters and data requirements, see
 the [plugin documentation](plugins/a158/README.md). To extend your own research methods, inspect, build, and install
 plugins from source. Relevant commands appear under [CLI commands](#axonx-cli-commands-and-remote-execution) below; for
 development and deployment, see [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).

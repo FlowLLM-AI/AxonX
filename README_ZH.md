@@ -149,50 +149,75 @@ axonx version --target 127.0.0.1:8181 --token '<本机服务 token>'
 
 <a id="快速演示"></a>
 
-## 🧪 快速演示
+## 🧪 CLI 快速演示
 
-以 [a158 插件](plugins/a158/README_ZH.md) 为例，体验插件管理、服务查询和量化研究任务。行情下载需在 `.env` 中配置
-`AXONX_TUSHARE_TOKEN`，见 [example.env](example.env)。
+### 提交一个 Task
 
-### 插件命令
-
-在服务使用的 Python 环境中安装，安装后重启服务：
+按[快速开始](#快速开始)启动服务后，在另一个终端提交内置的 `demo` Task。它将两个整数相加，无需安装研究插件或准备行情数据：
 
 ```bash
-pip install axonx-alpha158
-axonx plugin list
-axonx plugin show axonx-alpha158
+axonx submit --task demo --x 1 --y 2 --task-name cli-demo
 ```
 
-### 非 Task 命令
+CLI 使用 `axonx ACTION --field value` 格式。这里的 `submit` 向服务发送异步提交请求，由服务在工作进程中运行 Task。
 
-查询服务版本、机器资源和工作区：
+| 参数                   | 含义                                                                     |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `--task demo`          | 选择注册名为 `demo` 的 Task。                                            |
+| `--x 1 --y 2`          | 传入该 Task 必填的两个整数，预期计算结果为 `3`。                         |
+| `--task-name cli-demo` | 为 Task 指定易读的名称；省略时自动生成名称，正在运行的 Task 不能被覆盖。 |
+
+模拟返回（仅作示例，实际使用时以本次提交返回的 ID 为准）：
+
+```json
+{
+  "answer": {
+    "task_id": "base#demo#cli-demo",
+    "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
+    "task": "demo"
+  },
+  "success": true,
+  "metadata": {}
+}
+```
+
+`success: true` 表示提交成功，不代表 Task 已执行成功。`answer.task_id` 标识 Task，用于查询状态、日志和依赖关系；
+`answer.run_id` 标识本次执行，等待结果时需保留这两个 ID。`answer.task` 是 Task 注册名，`metadata` 是 Job 响应元数据，本例为空。
+
+### 其他 CLI 命令
+
+将占位 ID 替换为返回的 `answer.task_id` / `answer.run_id`；上游成功后再提交下游 Task。
 
 ```bash
+# 任务状态、日志与依赖
+axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 600
+axonx status --task-id '<task_id>'
+axonx read_task_log --task-id '<task_id>'
+axonx get_task_graph --task-id '<task_id>'
+
+# 服务与工作区
 axonx version
 axonx machine_status
 axonx list_entries --path ''
-```
 
-### Task 命令
+# 插件：在服务的 Python 环境中安装，然后重启服务
+pip install axonx-alpha158
+axonx plugin list
+axonx plugin show axonx-alpha158
 
-每一步成功后再提交下游；将占位 ID 替换为提交响应中的 `answer.task_id`。已有完整历史行情时跳过下载，因子分析是 ETL
-的独立下游，不是训练的前置步骤。
-
-```bash
+# 研究流程（已有完整历史行情时跳过下载）
 axonx get_task_definition --task a158_etl
 axonx submit --task download_tushare_task --start-date 20140101 --end-date 20231231 --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 axonx submit --task a158_etl --start-date 20150101 --end-date 20231231
-axonx submit --task a158_factor --source-tasks '<etl_task_id>'
 axonx submit --task a158_train --source-tasks '<etl_task_id>' --train-start 20150101 --train-end 20230101
 axonx submit --task a158_predict --source-tasks '<train_task_id>' --pred-start 20230101 --pred-end 20231231
 axonx submit --task a158_backtest --source-tasks '<predict_task_id>'
-axonx status --task-id '<backtest_task_id>'
-axonx read_task_log --task-id '<backtest_task_id>'
-axonx get_task_graph --task-id '<backtest_task_id>'
+# 可选因子分析：ETL 的独立下游
+axonx submit --task a158_factor --source-tasks '<etl_task_id>'
 ```
 
-在 **AxonX Studio** 查看任务和研究结果。数据准备与完整流程见[研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow)，更多命令见[开发与运维指南](docs/zh/dev_guide.md)。
+行情下载需在 `.env` 中配置 `AXONX_TUSHARE_TOKEN`（[example.env](example.env)）。在 **AxonX Studio** 查看结果；
+详情见[研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow)与 [CLI 参考](docs/zh/reference/cli.md)。
 
 <a id="agent-接入与开发指南"></a>
 
@@ -253,7 +278,7 @@ Train → Predict → Backtest**，因子分析是 ETL 的独立下游。
 | 预测     | 样本外预测与统计。                    |
 | 回测     | TopN 回测、分期汇总与持仓产物。       |
 
-操作示例见上面的 [快速演示](#快速演示)，完整参数与数据要求见[插件文档](plugins/a158/README_ZH.md)。扩展自己的研究方法时，可从源码检查、构建和安装插件；相关命令见下方 [CLI 命令](#axonx-cli-命令与远程执行)，开发与部署流程见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
+操作示例见上面的 [CLI 快速演示](#快速演示)，完整参数与数据要求见[插件文档](plugins/a158/README_ZH.md)。扩展自己的研究方法时，可从源码检查、构建和安装插件；相关命令见下方 [CLI 命令](#axonx-cli-命令与远程执行)，开发与部署流程见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
 <a id="benchmark-agent-开发市场横截面增强特征"></a>
 
