@@ -599,9 +599,37 @@ jobs:
         agent: default
 
 schedules: {}
+# Replace schedules: {} with uncommented examples to enable.
+# Weekdays include market holidays; forbid covers Job calls, not background Tasks.
 # schedules:
 #   workspace_sync:
 #     backend: cron
 #     job: sync_flush
 #     cron: "* * * * *"
 #     concurrency_policy: forbid
+#
+#   # Download at 16:00 on weekdays; requires AXONX_TUSHARE_TOKEN.
+#   download_tushare_at_1600:
+#     backend: cron
+#     job: submit
+#     cron: "0 16 * * 1-5"
+#     timezone: Asia/Shanghai
+#     concurrency_policy: forbid
+#     arguments:
+#       task: download_tushare_task
+#       days_back: 7
+#       datasets: "static,stk_limit,daily,adj_factor,index_weight"
+#
+#   # Remind at 17:00 on weekdays; does not check download status.
+#   # Requires DINGTALK_CLIENT_ID, DINGTALK_CLIENT_SECRET and DINGTALK_CONVERSATIONS.
+#   send_dingtalk_at_1700:
+#     backend: cron
+#     job: submit
+#     cron: "0 17 * * 1-5"
+#     timezone: Asia/Shanghai
+#     concurrency_policy: forbid
+#     arguments:
+#       task: send_dingtalk_task
+#       title: "AxonX Daily Reminder"
+#       text: "Check today's Tushare download status and results."
+#       message_type: markdown
