@@ -606,15 +606,12 @@ schedules: {}
 #     backend: cron
 #     job: sync_flush
 #     cron: "* * * * *"
-#     concurrency_policy: forbid
 #
 #   # Download at 16:00 on weekdays; requires AXONX_TUSHARE_TOKEN.
 #   download_tushare_at_1600:
 #     backend: cron
 #     job: submit
 #     cron: "0 16 * * 1-5"
-#     timezone: Asia/Shanghai
-#     concurrency_policy: forbid
 #     arguments:
 #       task: download_tushare_task
 #       days_back: 7
@@ -626,8 +623,6 @@ schedules: {}
 #     backend: cron
 #     job: submit
 #     cron: "0 17 * * 1-5"
-#     timezone: Asia/Shanghai
-#     concurrency_policy: forbid
 #     arguments:
 #       task: send_dingtalk_task
 #       title: "AxonX Daily Reminder"
