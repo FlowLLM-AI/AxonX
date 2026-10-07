@@ -28,6 +28,14 @@ class AddOutput(BaseOutputParams):
 
 `build_output_params()` must return an output_cls instance; returning a plain dict or the wrong type fails. Output is readable only after execution completes and prepare_output runs.
 
+## Composite Task contracts
+
+`axonx.task` exports `BaseCompositeTask`, `BaseCompositeOutputParams`, `ChildTaskResult`, and `ChildTaskError`. The composite's default Task type is `base`; children keep the type and input/output contracts declared by their own definitions.
+
+`BaseCompositeOutputParams` extends `BaseOutputParams` with required `composition_file: str` and `children: list[ChildTaskRecord]` (default empty). `composition_output()` supplies these fields and an `artifacts.composition` record whose relative path is `composition.json`. Custom output models extend this envelope with business fields.
+
+The parent-owned `composition.json` has `version: 1`, `task_id`, `run_id`, and `children`. Each child entry records `node_name`, a positive `attempt`, the registered `task`, nullable `task_id`, `run_id`, `state`, `exit_code` (0–255), and `error`. Entries include failed construction attempts with no Task ID. Containment is independent of `source_tasks` lineage. See [Composite Tasks](../guides/composite-tasks.md) for invocation, failure, and cancellation semantics.
+
 ## TaskContext
 
 TaskContext is a frozen dataclass attached to a Task, providing runtime-owned values:

@@ -7,6 +7,7 @@ Manage the service, execution target, and persistent research records as separat
 | Goal                                               | Guide                                         |
 | -------------------------------------------------- | --------------------------------------------- |
 | Submit, wait, follow logs, cancel, or delete Tasks | [Task management](task-management.md)         |
+| Combine installed Tasks into a synchronous flow    | [Composite Tasks](composite-tasks.md)         |
 | Browse and inspect workspace artifacts             | [Workspace files](workspace-files.md)         |
 | Copy completed Task snapshots                      | [Task synchronization](task-sync.md)          |
 | Configure service access and tokens                | [Authentication](authentication.md)           |

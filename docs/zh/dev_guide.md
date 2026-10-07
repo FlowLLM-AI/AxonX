@@ -75,6 +75,8 @@ Task 与参数类。实现这些研究阶段时，优先继承对应的 `Base*Ta
 一旦采用，其必填字段、类型与校验规则就是插件必须遵守的契约：保留这些约束，通过子类声明新增字段。
 自定义 Task 可以直接继承 `BaseTask` 并定义自己的参数模型，但仍须遵守核心协议；注册并不要求所有 Task 都继承五类研究基类之一。
 
+将已安装 Task 组合成同步流程时，可从 `axonx.task` 导入并继承 `BaseCompositeTask`，在步骤中调用 `run_task()`。它默认提供 `BaseCompositeOutputParams`；自定义复合输出继承该模型，并使用 `composition_output()`。子 Task 保留独立记录与产物，取消操作指向父 Task。完整插件示例和失败策略见[复合 Task](https://flowllm-ai.github.io/AxonX/zh/guides/composite-tasks)。
+
 实现前应阅读 [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)、[Task 生命周期](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lifecycle) 和
 [研究产物协议](https://flowllm-ai.github.io/AxonX/zh/reference/research-artifacts)。仅满足 Python 标准字段不能保证与下游插件或 Studio 兼容；
 还需满足实际消费者使用的产物映射与展示字段要求。

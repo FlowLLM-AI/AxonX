@@ -1,10 +1,11 @@
 """The on-disk layout of a Task workspace, and the records it holds.
 
 A workspace root holds one directory per task category, one directory per task run
-below it, and up to three files inside that one directory: ``status.json``, the
+below it, and three runtime records inside that one directory: ``status.json``, the
 status a worker rewrites as it runs; ``metadata.json``, the record it writes once
 the run succeeds; and ``events.jsonl``, the append-only status transitions a
-follower replays. Everything that has to know that layout — the task runner, the
+follower replays. Composite Tasks also retain ``composition.json`` for their
+child invocations. Everything that has to know that layout — the task runner, the
 task manager and the sync component — reads it from here, so a change to it is one
 edit rather than four.
 

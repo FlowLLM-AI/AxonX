@@ -79,6 +79,8 @@ Cancellation accepts either ID: `task_id` cancels the current execution selected
 
 File records can restore query information, but cannot automatically restore the in-memory state of an interrupted Python process.
 
+[Composite Tasks](../guides/composite-tasks.md) run children synchronously in the parent's worker, with independent Task IDs and run IDs. Cancel the parent to stop that worker; the manager settles its active children as cancelled, while an unexpected worker exit settles them as failed. Successful children retain their own metadata even when the parent fails. Continuing after a child failure still makes the parent fail, and a later successful attempt does not erase an earlier failed attempt.
+
 ## Related Documentation
 
 [Task Management](../guides/task-management.md) · [Workspace](workspace.md) · [Logs and Recovery](../guides/operations.md) · [Task Contracts](../reference/task-contracts.md)

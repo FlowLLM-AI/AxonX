@@ -82,6 +82,8 @@ axonx submit --task demo_chain --x 2 --y 3 --doubles 2
 
 The returned `ChildTaskResult` provides `task_id`, `run_id`, `success`, `record`, `output_params`, and `output`. `output_params` retains the child's declared Pydantic model; `output` is its JSON-mode dictionary. A construction/validation failure has no Task ID, and an exception before output preparation has no output. Check `success` before consuming results after a continued failure.
 
+`children` and each result's `record` are defensive snapshots. Changing them does not alter the parent's recorded state. `task`, `node_name`, `on_error`, and `task_name` are reserved by `run_task()`; choose different names for child business input fields.
+
 ## Failures and stage barriers
 
 The default `on_error="stop"` raises `ChildTaskError` when a child raises an exception or returns a nonzero exit code. The exception retains its `result`; later work does not run.
@@ -102,6 +104,8 @@ for dataset in datasets:
 
 Here `download_dataset` represents a plugin Task with a matching input schema. Continued failures are recorded and the parent still finishes as failed. Validation and lookup failures also follow this policy. `KeyboardInterrupt` and `SystemExit` always propagate. Repeated calls do not implement automatic retries or erase earlier failures. Preserve the inherited `exit_code()` when extending a composite so this aggregation remains in effect.
 
+Invalid runtime options, such as an unsupported `on_error` or conflicting node definition, raise `ValueError` before a child attempt is recorded. If preparation fails after the child directory is claimed and before Runner handoff, the runtime closes the child's resources and records failed status, even if its initial queued write failed. Continuation requires being able to persist the failure records; persistent storage errors can stop the parent.
+
 Stage barriers are ordinary loop boundaries. To preserve a nightly feature/prediction pipeline, run the complete feature loop first, retain its results by time slot, then run the prediction loop with those results. Date, model version, and other business inputs should be resolved once and passed explicitly to the children.
 
 ## Records, ownership, and cancellation
@@ -113,6 +117,19 @@ The parent writes `composition.json` before executing each child and updates it 
 Containment does not create data-lineage edges. Pass `source_tasks` explicitly for actual upstream data dependencies. The runtime owns child instance names; passing `task_name` to `run_task()` is rejected. Child names fit the existing 32-character contract and include a digest of the parent run, node, and attempt. The runtime claims their directories exclusively, preventing accidental replacement of existing child results.
 
 Cancel the **parent** through TaskManager. The shared worker stops, then the manager settles active children, including nested composites, as cancelled. Unexpected worker exits settle them as failed. Already terminal children and replacement/foreign executions remain unchanged. A child is queryable through existing interfaces but cannot be cancelled independently through TaskManager because it has no separately managed worker. For `exec`, cancellation/termination is owned by the calling process; a separate service cannot settle that process's children.
+
+Settlement reads only valid regular composition files matching the parent Task ID and run ID. Missing, malformed, stale, symlink, or other non-regular records are ignored without blocking the parent's terminal status. Their child links cannot be recovered automatically. Transient I/O errors propagate to the worker-exit monitor for retry.
+
+Inspect a submitted run on the same execution target:
+
+```bash
+axonx status --task-id '<parent Task ID>'
+axonx preview_file --path '<parent Task type>/<parent Task ID>/composition.json'
+axonx status --task-id '<child Task ID from composition.json>'
+axonx cancel --run-id '<parent run_id>'
+```
+
+Replace the placeholders with the retained parent handle and recorded child IDs. The example parent uses Task type `base`. Once output is built, child summaries are also available in the parent's `status.result.children`, including a failed parent that continued past child failures. A fail-fast exception stops before output construction; inspect `composition.json` instead. Parent steps do not contain the children's step progress; query each child's status or stream for that detail.
 
 Fixed-name parent reruns retain existing Task replacement semantics: the previous parent directory is replaced, while uniquely named child directories remain. Use distinct parent names when preserving the full composition history matters. Deletion of a parent does not cascade to its children, and deleting a child does not update the parent's record.
 

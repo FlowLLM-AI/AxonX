@@ -16,7 +16,7 @@ from ..enums import TaskState
 from .core import BaseOutputParams, BaseTask, validate_registration_name
 from .storage.artifacts import artifact_record
 from .storage.composition import COMPOSITION_FILE, ChildTaskRecord, TaskComposition, write_composition
-from .storage.workspace import TaskStatus, read_status, write_status
+from .storage.workspace import TaskStatus, is_task_directory, read_status, write_status
 
 
 @dataclass(frozen=True)
@@ -138,30 +138,42 @@ class BaseCompositeTask(BaseTask, ABC):
             timezone=self._child_timezone,
             run_id=record.run_id,
         )
-        if child.task_dir.parent.is_symlink():
-            raise ValueError("Child Task type directory cannot be a symlink")
-        # Claim exclusively before handing a queued status to the Runner. Even
-        # an unexpected name collision must not replace a completed Task.
-        child.task_dir.mkdir(parents=True, exist_ok=False)
-        record.task_id = child.task_id
-        self._write_composition()
-        queued = TaskStatus(
-            task_id=child.task_id,
-            run_id=record.run_id,
-            task_type=child.task_type,
-            task_name=record.task,
-            config=child.input_params.model_dump(mode="json"),
-            pid=child.pid,
-            created_at=child.created_at,
-            log_path=child.log_path,
-        )
-        write_status(child.task_dir, queued)
-        record.state = TaskState.RUNNING
-        self._write_composition()
+        queued = None
+        runner_started = False
         try:
+            if child.task_dir.parent.is_symlink():
+                raise ValueError("Child Task type directory cannot be a symlink")
+            # Claim exclusively before handing a queued status to the Runner.
+            # A collision must not replace another run or its results.
+            child.task_dir.mkdir(parents=True, exist_ok=False)
+            record.task_id = child.task_id
+            queued = TaskStatus(
+                task_id=child.task_id,
+                run_id=record.run_id,
+                task_type=child.task_type,
+                task_name=record.task,
+                config=child.input_params.model_dump(mode="json"),
+                pid=child.pid,
+                created_at=child.created_at,
+                log_path=child.log_path,
+            )
+            self._write_composition()
+            write_status(child.task_dir, queued)
+            record.state = TaskState.RUNNING
+            self._write_composition()
+            runner_started = True
             status = TaskRunner().run(child)
         except BaseException as exc:
-            status = read_status(child.task_dir, child.task_id, strict_io=True)
+            if not runner_started:
+                try:
+                    child.close()
+                except Exception:
+                    child.logger.exception("Child Task resource cleanup failed")
+            status = None
+            if record.task_id is not None and is_task_directory(child.task_dir, strict_io=True):
+                # The first queued write may itself have failed. Keep a status
+                # for our claimed directory without recreating deleted runs.
+                status = read_status(child.task_dir, child.task_id, strict_io=True) or queued
             if status is not None and status.run_id == record.run_id:
                 if not status.state.is_terminal:
                     status.state = TaskState.FAILED
@@ -192,4 +204,6 @@ class BaseCompositeTask(BaseTask, ABC):
 
     # Unlike a leaf's static exit code, composition aggregates owned run records.
     def exit_code(self, _output: dict) -> int:  # pylint: disable=arguments-differ
-        return next((child.exit_code or 1 for child in self.children if child.state != TaskState.SUCCEEDED), 0)
+        return next(
+            (child.exit_code or 1 for child in self._composition.children if child.state != TaskState.SUCCEEDED), 0
+        )

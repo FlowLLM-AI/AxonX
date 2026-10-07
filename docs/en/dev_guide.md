@@ -78,6 +78,8 @@ of the plugin's contract: preserve them and declare additional fields in subclas
 `BaseTask` directly with its own parameter models, but must still follow the core contract; registration does not
 require every Task to inherit one of the five research base classes.
 
+For a synchronous sequence of installed Tasks, inherit `BaseCompositeTask` from `axonx.task` and call `run_task()` in your steps. It provides the default `BaseCompositeOutputParams`; custom composite outputs extend that model and use `composition_output()`. Children retain independent records and artifacts, while cancellation targets the parent. See [Composite Tasks](https://flowllm-ai.github.io/AxonX/en/guides/composite-tasks) for a complete plugin example and failure policies.
+
 Before implementation, read [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts), [Task lifecycle](https://flowllm-ai.github.io/AxonX/en/concepts/task-lifecycle),
 and [Research artifact contracts](https://flowllm-ai.github.io/AxonX/en/reference/research-artifacts). Standard Python fields alone do not guarantee
 compatibility with downstream plugins or Studio; also satisfy the artifact mappings and presentation fields used by

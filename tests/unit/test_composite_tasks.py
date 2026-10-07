@@ -4,15 +4,17 @@ import asyncio
 import json
 import os
 import re
+import shutil
 import sys
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
 from axonx.components.task_manager.local.manager import LocalTaskManager
-from axonx.components.task_manager.local.supervisor import WorkerExit
+from axonx.components.task_manager.local.supervisor import TaskProcessSupervisor, WorkerExit
 from axonx.components.task_repository import LocalTaskRepository
 from axonx.core import Application
 from axonx.enums import TaskState, TaskType
@@ -100,6 +102,39 @@ def test_sequence_loops_output_binding_and_explicit_lineage(tmp_path):
     metadata = json.loads(task.metadata_path.read_text())
     assert artifact_path(task.task_dir, metadata, "composition") == task.task_dir / COMPOSITION_FILE
     assert composition(task).children == list(task.children)
+
+
+@pytest.mark.parametrize("change", ["replacement", "deletion"])
+def test_child_startup_recovery_preserves_replacement_or_deleted_directory(tmp_path, monkeypatch, change):
+    task = parent(tmp_path, lambda owner: owner.run_task("demo", x=1, y=2, on_error="continue"))
+    write_record = task._write_composition
+    changed = False
+
+    def change_before_handoff():
+        nonlocal changed
+        if task.children and task.children[0].state == TaskState.RUNNING and not changed:
+            changed = True
+            child = task.children[0]
+            directory = task_path(tmp_path, child.task_id)
+            if change == "replacement":
+                status = read_status(directory, child.task_id)
+                write_status(directory, status.model_copy(update={"run_id": "replacement"}))
+            else:
+                shutil.rmtree(directory)
+            raise OSError("handoff failed")
+        write_record()
+
+    monkeypatch.setattr(task, "_write_composition", change_before_handoff)
+    assert TaskRunner().run(task).state == TaskState.FAILED
+    assert changed
+    child = task.children[0]
+    directory = task_path(tmp_path, child.task_id)
+    if change == "replacement":
+        status = read_status(directory, child.task_id)
+        assert status.run_id == "replacement"
+        assert status.state == TaskState.QUEUED
+    else:
+        assert not directory.exists()
 
 
 def test_fail_fast_retains_failed_child_and_skips_later_work(tmp_path):
@@ -205,6 +240,75 @@ def test_collision_does_not_replace_existing_child(tmp_path):
     assert TaskRunner().run(task).state == TaskState.FAILED
     assert existing.metadata_path.read_bytes() == before
     assert "FileExistsError" in task.children[0].error
+
+
+@pytest.mark.parametrize("failure_point", ["claimed", "queued_write", "handoff"])
+@pytest.mark.parametrize("on_error", ["stop", "continue"])
+def test_child_startup_failure_settles_owned_status_and_closes_resources(
+    tmp_path, monkeypatch, failure_point, on_error
+):
+    events = []
+
+    class ResourceTask(BaseTask):
+        def build_task_steps(self):
+            yield self.work
+
+        def work(self):
+            events.append("work")
+
+        def close(self):
+            events.append("close")
+
+        def build_output_params(self):
+            return BaseOutputParams()
+
+    monkeypatch.setattr(
+        "axonx.task.catalog.resolver.resolve_task", lambda name: ResourceTask if name == "resource" else DemoTask
+    )
+
+    def compose(owner):
+        owner.run_task("resource", on_error=on_error)
+        owner.run_task("demo", x=1, y=2)
+
+    task = parent(tmp_path, compose)
+    write_record = task._write_composition
+    failed = False
+
+    def flaky_composition():
+        nonlocal failed
+        if task.children and task.children[0].task_id is not None and not failed:
+            state = task.children[0].state
+            if (failure_point, state) in {("claimed", TaskState.QUEUED), ("handoff", TaskState.RUNNING)}:
+                failed = True
+                raise OSError("startup write failed")
+        write_record()
+
+    def flaky_status(directory, status):
+        nonlocal failed
+        if failure_point == "queued_write" and not failed:
+            failed = True
+            raise OSError("startup write failed")
+        write_status(directory, status)
+
+    monkeypatch.setattr(task, "_write_composition", flaky_composition)
+    monkeypatch.setattr("axonx.task.composite.write_status", flaky_status)
+    if on_error == "stop":
+        with pytest.raises(ChildTaskError, match="startup write failed"):
+            TaskRunner().run(task)
+    else:
+        assert TaskRunner().run(task).state == TaskState.FAILED
+        assert task.children[1].state == TaskState.SUCCEEDED
+
+    assert failed
+    assert events == ["close"]
+    child = task.children[0]
+    status = read_status(task_path(tmp_path, child.task_id), child.task_id)
+    assert status.state == child.state == TaskState.FAILED
+    assert status.run_id == child.run_id
+    assert status.exit_code == child.exit_code == 1
+    assert status.error == child.error == "OSError: startup write failed"
+    assert status.finished_at is not None
+    assert composition(task).children == list(task.children)
 
 
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt, SystemExit])
@@ -410,8 +514,8 @@ async def test_worker_exit_fails_children_without_touching_replacement_parent(tm
     assert (await manager.get_status(child.task_id)).state == TaskState.FAILED
 
 
-@pytest.mark.parametrize("bad_record", ["corrupt", "stale", "symlink"])
-async def test_settlement_ignores_invalid_or_stale_composition(tmp_path, manager, bad_record):
+@pytest.mark.parametrize("bad_record", ["corrupt", "stale", "symlink", "directory", "fifo"])
+async def test_settlement_ignores_invalid_or_stale_composition(tmp_path, manager, monkeypatch, bad_record):
     root = save_status(tmp_path, "root")
     child = save_status(tmp_path, "child")
     link_children(tmp_path, root, child)
@@ -422,12 +526,60 @@ async def test_settlement_ignores_invalid_or_stale_composition(tmp_path, manager
         data = json.loads(path.read_text())
         data["run_id"] = "stale"
         path.write_text(json.dumps(data))
-    else:
+    elif bad_record == "symlink":
         target = tmp_path / "external.json"
         path.rename(target)
         path.symlink_to(target)
+    else:
+        path.unlink()
+        if bad_record == "directory":
+            path.mkdir()
+        else:
+            os.mkfifo(path)
+            read_text = Mock(wraps=Path.read_text)
+
+            def refuse_fifo_read(current, *args, **kwargs):
+                assert current != path, "Reading a composition FIFO would block settlement"
+                return read_text(current, *args, **kwargs)
+
+            monkeypatch.setattr(Path, "read_text", refuse_fifo_read)
     await manager._finish(root, TaskState.CANCELLED, 130, "stop")
+    assert (await manager.get_status(root.task_id)).state == TaskState.CANCELLED
     assert read_status(task_path(tmp_path, child.task_id), child.task_id).state == TaskState.RUNNING
+
+
+@pytest.mark.parametrize("operation", ["lstat", "read_text"])
+async def test_worker_exit_retries_transient_composition_io_failure(tmp_path, manager, monkeypatch, operation):
+    root = save_status(tmp_path, "root")
+    child = save_status(tmp_path, "child")
+    link_children(tmp_path, root, child)
+    target = task_path(tmp_path, root.task_id) / COMPOSITION_FILE
+    original = getattr(Path, operation)
+    attempts = 0
+
+    def flaky_read(path, *args, **kwargs):
+        nonlocal attempts
+        if path == target:
+            attempts += 1
+            if attempts == 1:
+                raise OSError("temporary composition I/O failure")
+        return original(path, *args, **kwargs)
+
+    async def wait():
+        return 9
+
+    monkeypatch.setattr(Path, operation, flaky_read)
+    monkeypatch.setattr("axonx.components.task_manager.local.supervisor.EXIT_RETRY_SECONDS", 0)
+    supervisor = TaskProcessSupervisor(0, Mock(), manager._handle_worker_exit)
+    process = SimpleNamespace(pid=root.pid, stderr=None, returncode=9, wait=wait)
+    await supervisor._monitor(process, root.task_id, "root", root.run_id)
+
+    assert attempts >= 2
+    supervisor.logger.exception.assert_called_once()
+    for status in (root, child):
+        current = await manager.get_status(status.task_id)
+        assert current.state == TaskState.FAILED
+        assert current.exit_code == 9
 
 
 WORKER_SCRIPT = """

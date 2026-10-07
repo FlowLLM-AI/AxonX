@@ -34,15 +34,18 @@ logs/                            # Separate log directory, not necessarily insid
 
 The directory rule is `<task_type>/<task_id>`, rather than `<task_type>/<registered_name>/<run_id>`. Task type directories come from the enumeration; a directory's existence does not mean its algorithm plugin is installed.
 
-## Three Types of Records
+## Runtime Records
 
-| File          | When it appears                  | Responsibility                                                                           |
-| ------------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
-| status.json   | Acceptance and execution         | run_id, state, steps, errors, exit code, log path, result                                |
-| metadata.json | On success                       | Definition identity, creation time, typed input/output, artifact references, and lineage |
-| events.jsonl  | When the worker records progress | Replayable progress events recorded line by line                                         |
+| File             | When it appears                   | Responsibility                                                                                          |
+| ---------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| status.json      | Acceptance and execution          | run_id, state, steps, errors, exit code, log path, result                                               |
+| metadata.json    | On success                        | Definition identity, creation time, typed input/output, artifact references, and lineage                |
+| events.jsonl     | When the worker records progress  | Replayable progress events recorded line by line                                                        |
+| composition.json | When a composite records children | Parent run identity and child invocation snapshots; see [Composite Tasks](../guides/composite-tasks.md) |
 
 Status is a mutable snapshot; metadata packages a successful result. They are not duplicates: metadata contains no `run_id`, and status `result` corresponds to metadata `output_params`.
+
+`composition.json` belongs to the parent directory. Child Task directories remain under their own type directories, rather than nested inside the parent. Synchronizing or deleting only the parent does not automatically synchronize or delete its children; include their Task IDs separately when preserving or cleaning up a complete flow.
 
 Atomic writes reduce the chance of reading partial JSON. Readers still tolerate invalid records or records inconsistent with directory identity by treating them as missing; manual file edits should not be a routine task management method.
 

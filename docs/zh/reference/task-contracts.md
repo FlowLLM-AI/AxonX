@@ -28,6 +28,14 @@ class AddOutput(BaseOutputParams):
 
 `build_output_params()` 必须返回 output_cls 实例，返回普通 dict 或错误类型会失败。输出只有在执行完成并 prepare_output 后可读。
 
+## 复合 Task 契约
+
+`axonx.task` 导出 `BaseCompositeTask`、`BaseCompositeOutputParams`、`ChildTaskResult` 和 `ChildTaskError`。复合 Task 默认类型为 `base`，子 Task 保留各自定义声明的类型和输入输出契约。
+
+`BaseCompositeOutputParams` 在 `BaseOutputParams` 上增加必需的 `composition_file: str` 和 `children: list[ChildTaskRecord]`（默认空列表）。`composition_output()` 提供这些字段，以及相对路径为 `composition.json` 的 `artifacts.composition` 记录。自定义输出模型在此封装上增加业务字段。
+
+父 Task 拥有的 `composition.json` 包含 `version: 1`、`task_id`、`run_id` 和 `children`。每个子条目记录 `node_name`、正整数 `attempt`、注册名 `task`、可空 `task_id`、`run_id`、`state`、`exit_code`（0–255）和 `error`。构造失败的尝试也会记录，此时没有 Task ID。包含关系独立于 `source_tasks` 血缘。调用方式、失败和取消语义见[复合 Task](../guides/composite-tasks.md)。
+
 ## TaskContext
 
 TaskContext 是 frozen dataclass，附着在 Task 上，提供运行时拥有的值：

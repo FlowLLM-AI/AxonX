@@ -34,15 +34,18 @@ logs/                            # 独立日志目录，不一定在工作区内
 
 目录规则是 `<task_type>/<task_id>`，不是 `<task_type>/<注册名>/<run_id>`。Task 类型目录来自枚举，某个目录存在并不代表对应算法插件已经安装。
 
-## 三类记录
+## 运行记录
 
-| 文件          | 何时出现          | 负责什么                                               |
-| ------------- | ----------------- | ------------------------------------------------------ |
-| status.json   | 受理与运行过程    | run_id、state、步骤、错误、退出码、日志路径、result    |
-| metadata.json | 成功时            | 定义身份、创建时间、typed input/output、产物引用与血缘 |
-| events.jsonl  | worker 记录进度时 | 按行记录可回放的进度事件                               |
+| 文件             | 何时出现               | 负责什么                                                              |
+| ---------------- | ---------------------- | --------------------------------------------------------------------- |
+| status.json      | 受理与运行过程         | run_id、state、步骤、错误、退出码、日志路径、result                   |
+| metadata.json    | 成功时                 | 定义身份、创建时间、typed input/output、产物引用与血缘                |
+| events.jsonl     | worker 记录进度时      | 按行记录可回放的进度事件                                              |
+| composition.json | 复合 Task 记录子执行时 | 父运行身份和子执行快照，参见[复合 Task](../guides/composite-tasks.md) |
 
 status 是可变快照，metadata 是成功结果封装。它们不是同一内容的两个副本：metadata 不含 `run_id`，status 的 `result` 对应 metadata 的 `output_params`。
+
+`composition.json` 位于父目录中。子 Task 目录仍位于各自类型目录下，不嵌套在父目录内。仅同步或删除父 Task 不会自动同步或删除子 Task；保留或清理完整流程时，应另行包含各子 Task ID。
 
 记录通过原子写入降低读到半个 JSON 的机会。读取端仍会容忍不合法或与目录身份不一致的记录，把它当成缺失；手工修改文件不应作为常规任务管理方式。
 

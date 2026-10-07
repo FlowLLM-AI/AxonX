@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import stat
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -10,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ...enums import TaskState
 from ...utils.fs import atomic_write_json
-from .workspace import TaskStatus, read_status, task_path
+from .workspace import TaskStatus, is_task_directory, read_status, task_path
 
 COMPOSITION_FILE = "composition.json"
 
@@ -44,13 +45,13 @@ def write_composition(directory: Path, composition: TaskComposition) -> None:
 
 
 def read_composition(directory: Path, task_id: str, run_id: str) -> TaskComposition | None:
-    """Read only a regular, valid record belonging to the requested parent run."""
+    """Read a regular record for this parent run; propagate I/O failures for retry."""
     path = directory / COMPOSITION_FILE
-    if directory.is_symlink() or directory.parent.is_symlink() or path.is_symlink():
-        return None
     try:
+        if not is_task_directory(directory, strict_io=True) or not stat.S_ISREG(path.lstat().st_mode):
+            return None
         composition = TaskComposition.model_validate_json(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
+    except (FileNotFoundError, IsADirectoryError, NotADirectoryError):
         return None
     except (UnicodeError, ValueError):
         return None

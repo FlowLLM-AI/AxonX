@@ -29,9 +29,9 @@ from ....task.query import (
     task_graph,
 )
 from ....task.runtime.arguments import build_task_argv, parse_task_argv
+from ....task.storage.composition import settle_composition
 from ....task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
 from ....task.storage.logs import TaskLogReader
-from ....task.storage.composition import settle_composition
 from ....task.storage.workspace import (
     TaskStatus,
     is_task_directory,

@@ -99,6 +99,8 @@ demo finishes quickly and usually cannot reliably demonstrate cancellation. If c
 
 After correcting parameters, use a new name to retain the failure record; reusing a fixed name replaces the old task directory. There is no general automatic checkpoint resume. If a plugin implements recovery, follow its documentation.
 
+For a [Composite Task](composite-tasks.md), retain and cancel the parent's handle. Child Tasks have separate IDs and status records but share the parent's worker, so they cannot be cancelled independently. Inspect the parent's `composition.json` for child IDs, then use the same status, log, and stream commands for each child. Deleting a terminal parent does not delete its children.
+
 ## Delete terminal tasks
 
 ```bash
