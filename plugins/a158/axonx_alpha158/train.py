@@ -11,8 +11,13 @@ import polars as pl
 from pydantic import Field, field_validator, model_validator
 
 from axonx.enums import TaskType
-from axonx.task.contracts import BaseTrainInputParams, BaseTrainOutputParams, BaseTrainTask
+from axonx.task.contracts import (
+    BaseTrainInputParams,
+    BaseTrainOutputParams,
+    BaseTrainTask,
+)
 from axonx.task.core import TaskStep
+from axonx.task.builtins.stock.data import VERSION, transform_labels
 from axonx.task.storage import artifact_path, artifact_record, read_metadata
 from axonx.utils.fs import atomic_write
 
@@ -35,33 +40,63 @@ class LgbmTrainOutputParams(BaseTrainOutputParams):
 class LgbmTrainInputParams(BaseTrainInputParams):
     """Configure one time-separated Alpha158 LightGBM training run."""
 
-    train_start: str = Field(default="20150101", description="First training date in YYYYMMDD format, inclusive.")
+    train_start: str = Field(
+        default="20150101",
+        description="First training date in YYYYMMDD format, inclusive.",
+    )
     train_end: str = Field(default="20230101", description="Training cutoff in YYYYMMDD format, exclusive.")
-    label_column: str = Field(default="label_1d_rank", description="Target label from the Alpha158 dataset to predict.")
+    label_column: str = Field(
+        default="label_return_rank",
+        description="Raw return or training-only rank/CSZ target to predict.",
+    )
+    label_winsorize_tail: float = Field(
+        default=0.025,
+        ge=0,
+        lt=0.5,
+        description="Fraction clipped from each eligible daily return tail before training-only CSZ normalization.",
+    )
     trim_tail: float = Field(
-        default=0.025, ge=0.0, lt=0.5, description="Fraction of daily raw-return extremes removed from each tail."
+        default=0.025,
+        ge=0.0,
+        lt=0.5,
+        description="Fraction of daily raw-return extremes removed from each tail.",
     )
     validation_ratio: float = Field(
-        default=0.10, gt=0.0, lt=0.5, description="Fraction of training dates reserved at the end for validation."
+        default=0.10,
+        gt=0.0,
+        lt=0.5,
+        description="Fraction of training dates reserved at the end for validation.",
     )
     num_boost_round: int = Field(
-        default=1000, gt=0, description="Maximum boosting rounds when selecting the best iteration."
+        default=1000,
+        gt=0,
+        description="Maximum boosting rounds when selecting the best iteration.",
     )
     early_stopping_rounds: int = Field(
-        default=50, gt=0, description="Rounds without validation improvement before stopping."
+        default=50,
+        gt=0,
+        description="Rounds without validation improvement before stopping.",
     )
     learning_rate: float = Field(default=0.03, gt=0.0, description="Step size applied to each boosting round.")
     num_leaves: int = Field(default=31, ge=2, description="Maximum number of leaves in each tree.")
     max_depth: int = Field(default=-1, ge=-1, description="Maximum tree depth; -1 allows unlimited depth.")
     min_data_in_leaf: int = Field(default=20, gt=0, description="Minimum number of training rows in a leaf.")
     feature_fraction: float = Field(
-        default=0.9, gt=0.0, le=1.0, description="Fraction of features sampled for each tree."
+        default=0.9,
+        gt=0.0,
+        le=1.0,
+        description="Fraction of features sampled for each tree.",
     )
     bagging_fraction: float = Field(
-        default=0.9, gt=0.0, le=1.0, description="Fraction of training rows sampled during bagging."
+        default=0.9,
+        gt=0.0,
+        le=1.0,
+        description="Fraction of training rows sampled during bagging.",
     )
     bagging_freq: int = Field(
-        default=1, ge=0, description="Boosting rounds between bagging samples; 0 disables bagging."
+        default=1,
+        ge=0,
+        description="Boosting rounds between bagging samples; 0 disables bagging.",
     )
     lambda_l1: float = Field(default=0.0, ge=0.0, description="L1 penalty applied to leaf weights.")
     lambda_l2: float = Field(default=0.0, ge=0.0, description="L2 penalty applied to leaf weights.")
@@ -118,6 +153,8 @@ class LgbmTrainTask(BaseTrainTask):
         source_dir = self.source_task_dir(etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
         source_metadata = read_metadata(source_metadata_path)
+        if source_metadata["output_params"].get("protocol", {}).get("version") != VERSION:
+            raise ValueError("Unsupported ETL stock protocol version")
         dataset_path = artifact_path(source_dir, source_metadata, "dataset")
         output_dir = self.task_dir
         self.state.update(
@@ -125,6 +162,7 @@ class LgbmTrainTask(BaseTrainTask):
             source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
             dataset_path=dataset_path,
+            labels_path=artifact_path(source_dir, source_metadata, "labels"),
             model_path=output_dir / "model.txt",
             importance_path=output_dir / "feature_importance.csv",
             history_path=output_dir / "evaluation_history.csv",
@@ -141,57 +179,49 @@ class LgbmTrainTask(BaseTrainTask):
         features = tuple(self.state["source_metadata"].get("output_params", {}).get("feature_columns", ()))
         if not features:
             raise ValueError("ETL metadata 缺少 feature_columns")
-        valid_label = f"{self.raw_label}_is_valid"
-        schema = pl.read_parquet_schema(path)
-        self.report_progress(10)
+        features = self.select_features(features)
         required = (
             "trade_date",
-            "exit_date",
-            "exit_delayed",
+            "trade_time",
             "ts_code",
-            "is_buyable",
-            self.raw_label,
-            self.input_params.label_column,
-            valid_label,
+            "is_buyable_at_signal",
             *features,
         )
-        if missing := [column for column in required if column not in schema]:
-            raise ValueError(f"训练数据缺少字段: {', '.join(missing[:20])}")
+        schema = pl.read_parquet_schema(path)
+        if missing := set(required) - set(schema):
+            raise ValueError(f"Missing training columns: {sorted(missing)}")
         frame = (
             pl.scan_parquet(path)
-            .filter(
-                (pl.col("trade_date") >= pl.lit(self.input_params.train_start))
-                & (pl.col("trade_date") < pl.lit(self.input_params.train_end)),
+            .select(required)
+            .join(
+                pl.scan_parquet(self.state["labels_path"]),
+                on=["trade_date", "trade_time", "ts_code"],
+                how="left",
+                validate="1:1",
             )
-            .select(*required)
+            .filter(
+                (pl.col("trade_date") >= self.input_params.train_start)
+                & (pl.col("trade_date") < self.input_params.train_end)
+                & (pl.col("label_target_date") < self.input_params.train_end)
+                & pl.col("label_valid")
+                & pl.col("is_buyable_at_signal")
+                & pl.col("label_return").is_finite()
+            )
             .collect()
             .sort("trade_date", "ts_code")
         )
-        self.report_progress(75)
         if frame.is_empty():
-            raise ValueError("训练日期范围内没有数据")
-        loaded_rows = frame.height
-        frame = frame.filter(
-            pl.col("is_buyable")
-            & (pl.col("exit_date") <= pl.lit(self.input_params.train_end))
-            & pl.col(valid_label)
-            & ~pl.col("exit_delayed")
-            & pl.col(self.raw_label).is_finite()
-            & pl.col(self.input_params.label_column).is_finite(),
-        )
-        if frame.is_empty():
-            raise ValueError("训练日期范围内没有有效标签")
+            raise ValueError("No cutoff-safe training labels")
         self.state.update(
             frame=frame,
             features=features,
-            valid_label=valid_label,
-            loaded_rows=loaded_rows,
+            valid_label="label_valid",
+            loaded_rows=frame.height,
         )
-        self.report_progress(95)
-        self.logger.info(
-            f"Training data loaded rows={frame.height} dates={frame['trade_date'].n_unique()} "
-            f"start={frame['trade_date'].min()} end={frame['trade_date'].max()}",
-        )
+
+    def select_features(self, features: tuple[str, ...]) -> tuple[str, ...]:
+        """Allow derived research plugins to select their feature groups."""
+        return features
 
     def trim_daily_label_tails(self) -> None:
         frame: pl.DataFrame = self.state["frame"]
@@ -216,10 +246,20 @@ class LgbmTrainTask(BaseTrainTask):
         validation_days = max(1, math.ceil(len(dates) * self.input_params.validation_ratio))
         validation_days = min(validation_days, len(dates) - 1)
         validation_start = dates[-validation_days]
-        fit = frame.filter(pl.col("exit_date") <= validation_start)
+        fit = frame.filter(pl.col("label_target_date") < validation_start)
         validation = frame.filter(pl.col("trade_date") >= validation_start)
         if fit.is_empty() or validation.is_empty():
             raise ValueError("无法构造时间顺序训练/验证集")
+
+        def convert(data: pl.DataFrame) -> pl.DataFrame:
+            return transform_labels(
+                data,
+                reference=pl.lit(True),
+                winsorize_tail=self.input_params.label_winsorize_tail,
+            )
+
+        frame, fit, validation = convert(frame), convert(fit), convert(validation)
+        self.state["frame"] = frame
         self.state.update(
             tuning_train=fit,
             validation=validation,
@@ -426,12 +466,19 @@ class LgbmTrainTask(BaseTrainTask):
                 "train_end_exclusive": self.input_params.train_end,
                 "validation_start_inclusive": self.state["validation_start"],
                 "label_column": self.input_params.label_column,
+                "version": VERSION,
+                "label_transform": {
+                    "reference": "cutoff-safe eligible training rows",
+                    "winsorize_tail": self.input_params.label_winsorize_tail,
+                    "rank": "average (rank-1)/(n-1); singleton=.5",
+                    "csz_ddof": 0,
+                },
                 "raw_label_for_trimming": self.raw_label,
                 "daily_trim_tail": self.input_params.trim_tail,
                 "prediction_rows_are_not_trimmed": True,
                 "sample_filter": (
-                    "signal-date is_buyable, valid finite strict one-day label, "
-                    "not exit_delayed, and exit_date <= train_end"
+                    "signal-date buyability, valid fixed-one-day label available before exclusive cutoff, "
+                    "label_target_date < train_end; transforms after temporal filtering"
                 ),
             },
             feature_columns=list(self.state["features"]),

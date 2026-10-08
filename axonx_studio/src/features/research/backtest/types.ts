@@ -7,16 +7,16 @@ export interface Holding {
   ts_code: string;
   name: string;
   prediction: number;
-  daily_return: number;
+  daily_return: number | null;
   weight: number;
 }
 
 export interface DailyRow extends NumericRow {
   trade_date: string;
   candidate_count: number;
-  ic: number;
-  rank_ic: number;
-  top30_holdings: Holding[];
+  ic: number | null;
+  rank_ic: number | null;
+  top30_holdings: Holding[] | null;
 }
 
 export interface SummaryRow extends NumericRow {

@@ -2,15 +2,15 @@
 
 [English](README.md) · [简体中文](README_ZH.md) · [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)
 
-独立的 AxonX 量化研究插件，提供数据处理、因子分析、LightGBM 训练、样本外预测和 TopN 回测。
+AxonX 量化研究插件，提供数据处理、因子分析、LightGBM 训练、样本外预测和 TopN 回测。
 
-增强版保留原始 158 个特征，增加 26 个市场环境、成交金额分组、相对表现和交互特征，总计 184 个。它包含自己的实现，不依赖原插件的 Python 包。成交金额表示交易活跃度，不代表市值。
+增强版保留原始 158 个特征，增加 26 个市场环境、成交金额分组、相对表现和交互特征，总计 184 个。它从 `axonx-alpha158>=0.2.0,<0.3` 导入共享预测、训练、因子分析和特征实现，该依赖随安装自动安装。成交金额表示交易活跃度，不代表市值。
 
 ![研究任务与产物链路](../../docs/figures/research/workflow.svg)
 
 ## 安装与检查
 
-要求 Python 3.12+；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
+要求 Python 3.12+ 和 AxonX `>=0.1.1,<0.2`；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
 
 ```bash
 pip install axonx-alpha158-enhanced
@@ -21,7 +21,7 @@ axonx plugin show axonx-alpha158-enhanced
 源码开发时，在仓库根目录执行：
 
 ```bash
-pip install -e ./plugins/a158_enhanced
+pip install -e ./plugins/a158 -e ./plugins/a158_enhanced
 axonx plugin inspect ./plugins/a158_enhanced
 ```
 
@@ -109,13 +109,14 @@ axonx get_task_definition --task a158e_train
 | ETL `start_date` / `end_date`                     | `20140101` / null       | 输出起始日 / 最后日期，包含边界    |
 | ETL `min_history_coverage`                        | `0.8`                   | 滚动特征最低历史覆盖率             |
 | Train `train_start` / `train_end`                 | `20150101` / `20230101` | 训练起始日包含，截止日不包含       |
-| Train `label_column`                              | `label_1d_rank`         | 按日横截面排名的收益标签           |
+| Train `label_column`                              | `label_return_rank`     | 按日横截面排名的收益标签           |
+| Train `label_winsorize_tail`                      | `0.025`                 | 训练 CSZ 标准化前各侧截尾比例      |
 | Train `trim_tail`                                 | `0.025`                 | 按日剔除原始收益两端各 2.5%        |
 | Train `validation_ratio`                          | `0.10`                  | 训练期末尾日期留作内部验证         |
 | Train `num_boost_round` / `early_stopping_rounds` | `1000` / `50`           | 最大迭代 / 早停轮数                |
 | Train `random_seed`                               | `42`                    | 模型抽样随机种子                   |
 | Predict `pred_start` / `pred_end`                 | `20230101` / null       | 预测区间；起始日不能早于训练截止日 |
-| Backtest `transaction_cost_rate`                  | `0.002`                 | 乘以每日实际换手率的交易成本       |
+| Backtest `transaction_cost_rate`                  | `0.002`                 | 每次实际买入和卖出金额的费用率     |
 | Backtest `annualization_days`                     | `252`                   | 年化交易日数                       |
 
 完整参数以执行环境中 `get_task_definition` 返回的 Schema 为准。
@@ -124,11 +125,13 @@ axonx get_task_definition --task a158e_train
 
 原始特征使用 `f_alpha158_*` 名称，包含 13 个当日价形特征以及 5、10、20、30、60 日窗口的 29 组滚动特征。行情使用复权价格，并保留交易日历和上市状态信息。
 
-正常标签为信号日 T 收盘至 T+1 收盘的复权收益；无法按计划卖出时延迟至首个可卖日期。训练、因子和信号排名评估仅使用有效且未延迟的一日样本。预测保留完整横截面，不事先按未来标签筛掉股票。
+ETL 协议版本 2 发布独立的 `dataset`、`labels`、`market`、`calendar` 产物。原始标签固定为信号日到次一市场日的复权收益，停牌和缺数据使用无效标签，不寻找未来复牌收益。训练在排除截止时间之后的标签并处理尾部后，计算 `label_return_rank` 或 `label_return_csz`；拟合、验证和最终训练分别转换。预测不依赖未来标签，统计描述分数和信号时选股资格。Studio 展示配置的 TopN，将行情不完整结果标为暂定评价。
 
-回测按当天信号排名并用当天收盘价模拟买入，使用日线可交易代理；未模拟盘后排队与部分成交。持仓锁定资金直到实际退出，未结清持仓按成本记账，净收益在退出日确认。Top30 持仓明细是信号目标，不等于实际持仓账本。
+回测继承 AxonX `BaseStockBacktestTask`，独立读取价格和交易状态，按每日市值估值。无法卖出时继续持仓并占用资金，所选股票无法买入时不以低分股票补位。`transaction_cost_rate` 按每次实际买入和卖出金额分别收费，`top_ns` 是整数列表。`market_status_file` 可提供经确认的停牌状态（信号主键及 `market_status=suspended`）；缺行情不自动视为停牌，相关回测标为 `incomplete_market_data`。Top30 是信号目标，实际持仓、订单及已完成交易分别见 `positions`、`orders`、`trades`。
 
 收益、成本、IC 与持仓的详细定义见 [回测解读](https://flowllm-ai.github.io/AxonX/zh/research/backtest)。
+
+预测文件对接回测的必需列、可选列及 metadata 约束见[预测输入契约](../../docs/zh/reference/research-artifacts.md#预测到股票回测的输入契约)。
 
 ## 在 Studio 查看结果
 
@@ -168,15 +171,15 @@ axonx get_task_definition --task a158e_train
 
 金额分组使用截至 T−1 的历史数据，当日环境信息在信号日收盘后可用。收益使用相邻交易日复权收盘，行情缺失时不将跨停牌期收益混为一天收益；统计池独立于未来标签和可买性。完整名称与时点协议见 [cross_section.py](axonx_alpha158_enhanced/internal/cross_section.py)，ETL metadata 记录 `context.feature_groups` 和时点协议。
 
-## 当前版本与实验结论
+## 历史实验结论
 
-0.1.2 默认启用四组完整方案，与筛选期锁定并经过确认期评估的 184 特征方案一致。训练使用 2015–2022 年，筛选使用 2023–2024 年，最终确认使用 2025-01-01 至 2026-09-30。
+记录的 184 特征实验启用了四组完整方案，并在筛选期锁定后执行确认期评估。训练使用 2015–2022 年，筛选使用 2023–2024 年，最终确认使用 2025-01-01 至 2026-09-30。
 
-| 确认期指标       |    基线 | 四组完整方案 |
-| ---------------- | ------: | -----------: |
-| RankIC           |  0.0915 |       0.0967 |
-| Top10 净年化收益 |  −5.74% |       28.21% |
-| Top20 净年化收益 |  −3.24% |       24.93% |
+| 确认期指标       |   基线 | 四组完整方案 |
+| ---------------- | -----: | -----------: |
+| RankIC           | 0.0915 |       0.0967 |
+| Top10 净年化收益 | −5.74% |       28.21% |
+| Top20 净年化收益 | −3.24% |       24.93% |
 
 该数据快照中 RankIC、Top10/20 净年化收益提升，但 Top1–3 收益下降。确认期三项日配对增量的 95% 区块 bootstrap 区间均跨零。模型 gain 衡量模型使用程度，不等于单个特征的独立贡献。
 
@@ -224,7 +227,7 @@ axonx submit --task a158e_backtest --source-tasks '<predict_task_id>' \
 
 按计划的筛选规则锁定方案后，仅对基线和锁定方案运行确认期预测：`--pred-start 20250101 --pred-end 20260930`，等待后分别回测。保存配置、模型、预测、回测汇总和日级产物；不同数据快照的实验应另行报告。绑定历史服务的本地恢复/报告脚本不随仓库提交。
 
-实验报告的净 Sharpe 使用扣费日收益减日无风险收益计算，区别于原回测产物中的 gross Sharpe。收盘成交代理、延迟退出、未结清持仓按成本记账仍属于实验口径。
+实验报告的净 Sharpe 使用扣费日收益减日无风险收益计算，区别于原回测产物中的 gross Sharpe。历史实验使用收盘成交代理和未结清持仓按成本记账。
 
 ## 本地验证
 
@@ -233,7 +236,8 @@ axonx submit --task a158e_backtest --source-tasks '<predict_task_id>' \
 ```bash
 PYTHONPATH=plugins/a158_enhanced .venv/bin/python -m pytest \
   plugins/a158_enhanced/tests/test_cross_section.py \
-  tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py -q
+  tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py \
+  tests/unit/test_stock_backtest.py tests/unit/test_stock_pipeline.py -q
 ```
 
 测试覆盖未来数据因果性、原始特征契约、历史分组、停牌、平值、历史不足，以及统计池独立于标签和可买性。

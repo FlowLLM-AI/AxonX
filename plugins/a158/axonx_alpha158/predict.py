@@ -15,6 +15,7 @@ from axonx.task.contracts import (
     BasePredictOutputParams,
     BasePredictTask,
 )
+from axonx.task.builtins.stock.data import KEYS, VERSION, validate_keys
 from axonx.task.core import TaskStep, parse_source_tasks, task_type_from_id
 from axonx.task.storage import artifact_path, artifact_record, read_metadata
 from axonx.utils.fs import atomic_write, file_sha256
@@ -75,6 +76,8 @@ class LgbmPredictTask(BasePredictTask):
         train_dir = self.source_task_dir(train_task_id)
         train_metadata_path = train_dir / "metadata.json"
         train_metadata = read_metadata(train_metadata_path)
+        if train_metadata["output_params"].get("protocol", {}).get("version") != VERSION:
+            raise ValueError("Unsupported training stock protocol version")
         model_path = artifact_path(train_dir, train_metadata, "model")
         train_end = train_metadata.get("output_params", {}).get("protocol", {}).get("train_end_exclusive")
         if not isinstance(train_end, str):
@@ -131,16 +134,13 @@ class LgbmPredictTask(BasePredictTask):
         index_columns = tuple(column for column in schema if column.startswith("index_weight_"))
         required = (
             "trade_date",
+            "trade_time",
             "ts_code",
             "name",
-            "is_buyable",
-            "entry_is_buyable",
-            "exit_is_sellable",
-            "entry_date",
-            "exit_date",
-            "exit_delayed",
-            "label_1d",
-            "label_1d_is_valid",
+            "is_buyable_at_signal",
+            "is_model_candidate",
+            "signal_price",
+            "signal_adjustment_factor",
             *features,
         )
         if missing := [column for column in required if column not in schema]:
@@ -166,8 +166,7 @@ class LgbmPredictTask(BasePredictTask):
             raise ValueError(
                 f"预测日期范围内没有数据: {self.input_params.pred_start}..{pred_end}",
             )
-        if frame.select("trade_date", "ts_code").n_unique() != frame.height:
-            raise ValueError("预测数据包含重复的 trade_date, ts_code")
+        validate_keys(frame)
         self.state.update(
             frame=frame,
             features=features,
@@ -202,20 +201,26 @@ class LgbmPredictTask(BasePredictTask):
         self.report_progress(80)
         if len(prediction) != frame.height or not np.isfinite(prediction).all():
             raise FloatingPointError("模型预测数量不匹配或包含非有限值")
-        self.state["predictions"] = frame.select(
-            "trade_date",
-            "ts_code",
-            pl.Series("pred", prediction),
-            pl.col("label_1d").alias("actual_return"),
-            pl.col("label_1d_is_valid").alias("label_valid"),
-            "name",
-            "is_buyable",
-            "entry_is_buyable",
-            "exit_is_sellable",
-            "entry_date",
-            "exit_date",
-            "exit_delayed",
-            *self.state["index_columns"],
+        self.state["predictions"] = (
+            frame.select(
+                "trade_date",
+                "trade_time",
+                "ts_code",
+                "name",
+                pl.Series("pred", prediction),
+                "is_buyable_at_signal",
+                "is_model_candidate",
+                "signal_price",
+                "signal_adjustment_factor",
+                *self.state["index_columns"],
+            )
+            .sort(["trade_date", "trade_time", "pred", "ts_code"], descending=[False, False, True, False])
+            .with_columns(
+                pl.int_range(1, pl.len() + 1).over(list(KEYS[:2])).alias("rank"),
+                pl.when(pl.col("is_buyable_at_signal"))
+                .then(pl.col("is_buyable_at_signal").cast(pl.Int64).cum_sum().over(list(KEYS[:2])))
+                .alias("buyable_rank"),
+            )
         )
         self.report_progress(95)
         self.logger.info(
@@ -235,61 +240,43 @@ class LgbmPredictTask(BasePredictTask):
         )
 
     def build_output_params(self) -> LgbmPredictOutputParams:
-        output_dir: Path = self.task_dir
-        predictions: pl.DataFrame = self.state["predictions"]
-        prediction_record = artifact_record(self.state["predictions_path"], output_dir)
-        model_target = self.state["train_metadata"]["output_params"]["protocol"]["label_column"]
-        scores = predictions["pred"].to_numpy()
-        buyable = predictions["is_buyable"]
-        valid = predictions["label_valid"]
-        index_columns = list(self.state["index_columns"])
-        index_statistics = {}
-        for column in index_columns:
-            weights = predictions[column]
-            index_statistics[column] = {
-                "constituents": predictions.filter(pl.col(column) > 0)["ts_code"].n_unique(),
-                "days_with_weights": predictions.filter(pl.col(column).is_not_null())["trade_date"].n_unique(),
-                "null_rows": weights.null_count(),
-            }
+        frame = self.state["predictions"]
         return self.output_cls(
-            protocol={
-                "train_end_exclusive": self.state["train_end"],
-                "pred_start_inclusive": self.input_params.pred_start,
-                "pred_end_inclusive": self.state["actual_pred_end"],
-                "cross_section_filter": "none",
-                "execution_filter": "当天信号筛选，按当天收盘及 entry_is_buyable 代理模拟买入，不保证盘后成交",
-                "actual_return_column": "label_1d",
-                "actual_return_window": "entry_date 复权收盘至首个可卖 exit_date 复权收盘；exit_delayed 表示持仓超过一个交易日",
-                "actual_return_unit": "decimal",
-                "prediction_score": "model output trained on cross-sectional return rank; not a return or probability",
-                "row_key": ["trade_date", "ts_code"],
-                "index_weight_unit": "decimal",
-            },
-            rows=predictions.height,
-            date_range={
-                "start": predictions["trade_date"].min(),
-                "end": predictions["trade_date"].max(),
-            },
-            output_columns=predictions.columns,
-            statistics={
-                "days": predictions["trade_date"].n_unique(),
-                "symbols": predictions["ts_code"].n_unique(),
-                "pred": {
-                    "mean": float(np.mean(scores)),
-                    "min": float(np.min(scores)),
-                    "median": float(np.median(scores)),
-                    "max": float(np.max(scores)),
-                },
-                "buyable_rows": int(buyable.sum()),
-                "valid_return_rows": int(valid.sum()),
-                "candidate_rows": predictions.filter("is_buyable").height,
-                "entry_fillable_rows": predictions.filter(pl.col("is_buyable") & pl.col("entry_is_buyable")).height,
-                "indices": index_statistics,
-            },
-            model_target=model_target,
-            index_weight_columns=index_columns,
-            artifacts={
-                "predictions": prediction_record,
-            },
             predictions_file=str(self.state["predictions_path"]),
+            rows=frame.height,
+            date_range={
+                "start": frame["trade_date"].min(),
+                "end": frame["trade_date"].max(),
+            },
+            output_columns=frame.columns,
+            statistics={
+                "days": frame["trade_date"].n_unique(),
+                "symbols": frame["ts_code"].n_unique(),
+                "pred": {
+                    "mean": frame["pred"].mean(),
+                    "min": frame["pred"].min(),
+                    "median": frame["pred"].median(),
+                    "max": frame["pred"].max(),
+                },
+                "buyable_rows": frame.filter("is_buyable_at_signal").height,
+                "candidate_rows": frame.filter(pl.col("is_model_candidate") & pl.col("is_buyable_at_signal")).height,
+                "indices": {
+                    column: {
+                        "constituents": frame.filter(pl.col(column) > 0)["ts_code"].n_unique(),
+                        "days_with_weights": frame.filter(pl.col(column).is_not_null())["trade_date"].n_unique(),
+                        "null_rows": frame[column].null_count(),
+                    }
+                    for column in self.state["index_columns"]
+                },
+            },
+            model_target=self.state["train_metadata"]["output_params"]["protocol"]["label_column"],
+            index_weight_columns=list(self.state["index_columns"]),
+            protocol={
+                "version": VERSION,
+                "return_unit": "decimal",
+                "market_source_task": self.state["etl_task_id"],
+                "model_sha256": file_sha256(self.state["model_path"]),
+                "ranking": "pred descending, ts_code ascending",
+            },
+            artifacts={"predictions": artifact_record(self.state["predictions_path"], self.task_dir)},
         )

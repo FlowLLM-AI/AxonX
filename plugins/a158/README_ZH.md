@@ -10,7 +10,7 @@
 
 ## 安装与检查
 
-要求 Python 3.12+；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
+要求 Python 3.12+ 和 AxonX `>=0.1.1,<0.2`；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
 
 ```bash
 pip install axonx-alpha158
@@ -108,13 +108,14 @@ axonx get_task_definition --task a158_train
 | ETL `start_date` / `end_date`                     | `20140101` / null       | 输出起始日 / 最后日期，包含边界    |
 | ETL `min_history_coverage`                        | `0.8`                   | 滚动特征最低历史覆盖率             |
 | Train `train_start` / `train_end`                 | `20150101` / `20230101` | 训练起始日包含，截止日不包含       |
-| Train `label_column`                              | `label_1d_rank`         | 按日横截面排名的收益标签           |
+| Train `label_column`                              | `label_return_rank`     | 按日横截面排名的收益标签           |
+| Train `label_winsorize_tail`                      | `0.025`                 | 训练 CSZ 标准化前各侧截尾比例      |
 | Train `trim_tail`                                 | `0.025`                 | 按日剔除原始收益两端各 2.5%        |
 | Train `validation_ratio`                          | `0.10`                  | 训练期末尾日期留作内部验证         |
 | Train `num_boost_round` / `early_stopping_rounds` | `1000` / `50`           | 最大迭代 / 早停轮数                |
 | Train `random_seed`                               | `42`                    | 模型抽样随机种子                   |
 | Predict `pred_start` / `pred_end`                 | `20230101` / null       | 预测区间；起始日不能早于训练截止日 |
-| Backtest `transaction_cost_rate`                  | `0.002`                 | 乘以每日实际换手率的交易成本       |
+| Backtest `transaction_cost_rate`                  | `0.002`                 | 每次实际买入和卖出金额的费用率     |
 | Backtest `annualization_days`                     | `252`                   | 年化交易日数                       |
 
 完整参数以执行环境中 `get_task_definition` 返回的 Schema 为准。
@@ -123,11 +124,13 @@ axonx get_task_definition --task a158_train
 
 原始特征使用 `f_alpha158_*` 名称，包含 13 个当日价形特征以及 5、10、20、30、60 日窗口的 29 组滚动特征。行情使用复权价格，并保留交易日历和上市状态信息。
 
-正常标签为信号日 T 收盘至 T+1 收盘的复权收益；无法按计划卖出时延迟至首个可卖日期。训练、因子和信号排名评估仅使用有效且未延迟的一日样本。预测保留完整横截面，不事先按未来标签筛掉股票。
+ETL 协议版本 2 发布独立的 `dataset`、`labels`、`market`、`calendar` 产物。原始标签固定为信号日到次一市场日的复权收益，停牌和缺数据使用无效标签，不寻找未来复牌收益。训练在排除截止时间之后的标签并处理尾部后，计算 `label_return_rank` 或 `label_return_csz`；拟合、验证和最终训练分别转换。预测不依赖未来标签，统计描述分数和信号时选股资格。Studio 展示配置的 TopN，将行情不完整结果标为暂定评价。
 
-回测按当天信号排名并用当天收盘价模拟买入，使用日线可交易代理；未模拟盘后排队与部分成交。持仓锁定资金直到实际退出，未结清持仓按成本记账，净收益在退出日确认。Top30 持仓明细是信号目标，不等于实际持仓账本。
+回测继承 AxonX `BaseStockBacktestTask`，独立读取价格和交易状态，按每日市值估值。无法卖出时继续持仓并占用资金，所选股票无法买入时不以低分股票补位。`transaction_cost_rate` 按每次实际买入和卖出金额分别收费，`top_ns` 是整数列表。`market_status_file` 可提供经确认的停牌状态（信号主键及 `market_status=suspended`）；缺行情不自动视为停牌，相关回测标为 `incomplete_market_data`。Top30 是信号目标，实际持仓、订单及已完成交易分别见 `positions`、`orders`、`trades`。
 
 收益、成本、IC 与持仓的详细定义见 [回测解读](https://flowllm-ai.github.io/AxonX/zh/research/backtest)。
+
+预测文件对接回测的必需列、可选列及 metadata 约束见[预测输入契约](../../docs/zh/reference/research-artifacts.md#预测到股票回测的输入契约)。
 
 ## 在 Studio 查看结果
 
@@ -160,7 +163,8 @@ axonx get_task_definition --task a158_train
 
 ```bash
 .venv/bin/python -m pytest \
-  tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py -q
+  tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py \
+  tests/unit/test_stock_backtest.py tests/unit/test_stock_pipeline.py -q
 ```
 
 覆盖标签时点、延迟退出、费用与持仓资金记账规则。

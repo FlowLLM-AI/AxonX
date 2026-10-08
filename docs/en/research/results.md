@@ -30,7 +30,7 @@ Main checks include date range, row count, feature columns, label columns, stock
 | `date_range`                     | Does it cover the research goal and retain enough history?             |
 | `rows` and stock count           | Is sample size abnormal, or limited to the latest few days?            |
 | `feature_columns`                | Are model feature names as expected?                                   |
-| `label_columns`                  | Which return labels and transformed labels are available?              |
+| `label_columns`                  | Which raw return labels are available in the labels artifact?          |
 | Statistics CSV                   | Which columns have missing values, extremes, or insufficient coverage? |
 | Trading status and index weights | Is there enough data for buyability, delayed exits, and benchmarks?    |
 
@@ -46,7 +46,7 @@ Select metrics and labels through Metric and Label. Both bar direction and value
 
 a158 produces `factor_analysis.csv` and `factor_quantiles.csv`. The former gives diagnostics for each feature; the latter helps examine returns grouped by factor values.
 
-By default, only buyable samples are analyzed, using strictly valid single-day labels and excluding delayed exits. Changing `tradable_only`, `minimum_daily_samples`, or `quantiles` also changes the sample definition.
+By default, analysis joins the independent labels artifact and uses signal-day buyable samples with valid fixed-next-market-day returns. Changing `tradable_only`, `minimum_daily_samples`, or `quantiles` also changes the sample definition.
 
 The correlation sign indicates direction; stability describes performance across dates. Do not judge a factor effective from one high score alone. Consider daily valid samples, group patterns, missing data, and the research time range.
 
@@ -88,14 +88,13 @@ gain is cumulative gain from splits, while split is the number of splits using a
 
 The prediction overview shows score distribution, sample coverage, and output fields. Scores in the screenshot belong to that model and are not return probabilities.
 
-a158 saves the complete prediction cross-section, including samples that are not buyable, lack valid return labels, or have no index weights. Studio displays prediction rows, dates, stock count, score range, buyable rows, and index coverage statistics.
+a158 saves the complete prediction cross-section, including samples that are not buyable or have no index weights; predictions do not require future labels. Studio displays prediction rows, dates, stock count, score range, buyable rows, and index coverage statistics.
 
 | Statistic                  | Interpretation                                                      |
 | -------------------------- | ------------------------------------------------------------------- |
 | `rows`, `days`, `symbols`  | Overall prediction file size                                        |
 | `pred.mean/min/median/max` | Model output distribution; units depend on the training target      |
 | `buyable_rows`             | Rows satisfying the buyable flag on the signal date                 |
-| `valid_return_rows`        | Rows with valid return labels                                       |
 | `candidate_rows`           | Buyable candidate count in plugin statistics                        |
 | `indices.*`                | Constituent coverage, weight coverage dates, and missing row counts |
 

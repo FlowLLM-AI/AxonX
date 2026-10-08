@@ -1,167 +1,87 @@
 ---
 title: 回测结果解读
-description: 理解 a158 的目标组合、实际退出记账、成本与 Studio 展示口径。
+description: 统一股票协议、截止安全标签、逐日估值和持仓产物。
 ---
 
 # 回测结果解读
 
-回测页面读取成功 Backtest Task 的 `daily` 与 `summary` 产物，展示收益、信号质量、目标清单和分期统计。本文解释当前 a158 插件，其他插件需要先核对自己的 `protocol`。
+Alpha158 和增强 Alpha158 共用 `BaseStockBacktestTask` 和持仓账本。股票协议版本 2 将信号时特征、固定期限标签和行情分开存储。
 
-![回测记账流程](../../figures/research/backtest-accounting.svg)
+共享实现位于 `axonx.task.builtins.stock`，新插件应从该包导入。
 
-## 运行回测
+## 数据契约
+
+ETL 发布四份独立产物：
+
+| 产物       | 含义                                                     |
+| ---------- | -------------------------------------------------------- |
+| `dataset`  | 信号时特征、选股资格、参考价格和复权因子                 |
+| `labels`   | 固定次一市场日同一时点的原始小数收益、目标日期及可用状态 |
+| `market`   | 独立行情、复权因子、买卖代理和市场状态                   |
+| `calendar` | 市场交易日，包括没有有效预测的日期                       |
+
+主键为 `trade_date`（YYYYMMDD 字符串）、`trade_time`（HHMM 字符串）、`ts_code`。标签不能删除特征行或预测候选。停牌只使对应固定期限标签无效，不以复牌后的收益替代。训练在排除截止时间之后的标签、选定有效样本并处理尾部后计算 rank/CSZ，拟合和验证分别使用自身参考样本。
+
+`market_status` 为 `quoted`、`suspended` 或 `missing_data`。ETL 可读取独立的 `market_status_file`，其字段为主键及确认的停牌／缺失状态。缺行情不能自动推断为停牌。信号当天确认停牌或缺失时，即使有残留报价也会关闭信号可买标记，模型候选行仍保留。
+
+## 输入
+
+预测 Parquet 的必需列、可选列和 metadata 要求见[预测到股票回测的输入契约](../reference/research-artifacts.md#预测到股票回测的输入契约)。
 
 ```bash
 axonx submit --task a158_backtest --source-tasks '<Predict Task ID>' \
-  --transaction-cost-rate 0.002 \
-  --annual-risk-free-rate 0.012 --annualization-days 252
+  --top-ns '[1,5,10,30]' --holding-days 1 \
+  --transaction-cost-rate 0.002
 ```
 
-提交后使用 TaskHandle 的 `task_id`、`run_id` 等待成功，再进入 Studio 回测页面。输入上游必须满足 a158 预测字段和布尔类型检查，并声明 `actual_return_unit=decimal`。
+来源任务自动解析行情、日历和标签产物。指定文件时使用 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`。`as_of_date` 为包含当天的评价截止日期，默认取行情最后日期。`top_ns` 是整数列表，各组合独立记账。日历日期必须是有效 YYYYMMDD，不能有空值或重复；计算标签期限和持有期前会拒绝非法日历。
 
-| 参数                            | 默认值  | 含义                               |
-| ------------------------------- | ------- | ---------------------------------- |
-| `transaction_cost_rate`         | `0.002` | 按换手应用的交易成本率，十进制     |
-| `annual_risk_free_rate`         | `0.012` | 风险调整指标的年无风险收益率       |
-| `annualization_days`            | `252`   | 插件汇总使用的年交易日数           |
-| `minimum_index_weight_coverage` | `0.90`  | 指数基准所需最小权重覆盖           |
-| `index_codes`                   | `[]`    | 限制候选指数范围，例如 `["hs300"]` |
+| 参数                            | 默认值  | 含义                           |
+| ------------------------------- | ------- | ------------------------------ |
+| `holding_days`                  | `1`     | 按市场日计算的计划持有期       |
+| `transaction_cost_rate`         | `0.002` | 每次实际买入和卖出金额的费用率 |
+| `annual_risk_free_rate`         | `0.012` | 年无风险收益率                 |
+| `annualization_days`            | `252`   | 年交易日数                     |
+| `minimum_index_weight_coverage` | `0.98`  | 指数权重收益代理的覆盖率要求   |
+| `index_codes`                   | `[]`    | 可选的信号候选指数限制         |
 
-当前组合规模固定为 Top 1、2、3、5、10、15、20、30，不通过本插件输入参数任意配置。基准定义由 metadata 的 `dimensions.benchmarks` 提供。
+## 成交与估值
 
-## 信号、买入与退出
+信号按分数降序、代码升序排名，选股不使用未来标签。引擎先更新已有持仓估值，尝试卖出到期持仓，再用可用现金买入当日目标。目标无法成交时不补入低分股票；已有同股票持仓、持仓容量和可用资金都会约束买入。
 
-插件先在信号日筛选可买、评分有限的候选，按评分降序排列；同分时按代码稳定排序。配置多个指数代码时采用符合任一指定指数成分条件的候选。
+无法卖出时保留持仓和资金占用。确认停牌沿用上一可靠复权估值，后续有行情时更新估值并再次尝试退出。已持有或选中的股票缺少可靠数据时，返回 `evaluation_status=incomplete_market_data`，仍可检查暂定结果。评价截止时不强制清仓。
 
-每天模拟收盘卖出到期旧仓，再尝试买入当天目标。新买仓位最早下一交易日退出，资金留在旧仓直到实际退出。不满足 `entry_is_buyable` 的目标留下现金；组合已满、同一代码已持仓或资金不足也会影响买入。
-
-收益在实际退出日期记账，未退出持仓按本金成本留在账上。它不是每日按市价估值的净值，也没有模拟盘后排队、部分成交和实际资金释放细节。延期退出、未结算仓位可能影响整个窗口的收益解释。
-
-## 日频收益字段
-
-以 `top30_` 为例：
-
-| 字段                      | 含义                                    |
-| ------------------------- | --------------------------------------- |
-| `gross_return`            | 当日已实现退出利润 / 期初账面权益       |
-| `turnover`                | 当日实际买入和卖出本金较大值 / 期初权益 |
-| `transaction_cost`        | 成本率乘换手率                          |
-| `net_return`              | 毛收益减交易成本                        |
-| `count`、`open_positions` | 当前未退出的持仓数量                    |
-| `delayed_open_positions`  | 延期退出而仍持有的仓位数                |
-| `unsettled_positions`     | 尚无退出日期的仓位数                    |
-| `exits`、`delayed_exits`  | 当日退出与延期退出数量                  |
-| `unfilled_entries`        | entry 可买检查失败的目标数              |
-
-`daily.trade_date` 是回测日历日期；组合收益对应这一天实际退出的收益，IC 则对应这一天的信号诊断，两者不应混成同一笔交易。
-
-## 先读协议，再看收益图
-
-以下截图来自远程工作区已有回测结果，以英文界面展示图表与表格；该实验的收益数值不代替本页对 `a158` 实现的说明。收益图保留绘图区，具体序列名称应在自己的页面图例中核对。
-
-![Backtest cumulative net return](../../figures/studio/backtest-net-return.png)
-
-**Net return** 展示扣费后净收益复利轨迹，适合观察资金曲线与回撤。
-
-![Backtest accumulated gross return](../../figures/studio/backtest-gross-return.png)
-
-**Gross return** 以日毛收益累加展示，不能直接拿末值与插件汇总的毛收益复利数值相等比较。
-
-Studio 的收益图从当前选择范围内的日频数据重新计算：
+同一时点价格是成交代理，不保证在完整 bar 或收盘行情形成后计算出的信号能够按该价格成交，也不模拟排队和部分成交。应先阅读产物中的执行协议，再解释策略可交易性。
 
 ```text
-净累计收益 = ∏(1 + 每日净收益) − 1
-毛收益图   = Σ(每日毛收益)
+Equity = cash + marked position value
+Daily net return = equity / previous equity - 1
+Daily cost = executed buy and sell costs / previous equity
+Daily gross return = daily net return + daily cost
+Turnover = executed buy and sell notional / previous equity
 ```
 
-两天收益 `+10%`、`-10%` 的净复利结果是 `-1%`，简单累加是 `0%`。这是展示口径差异，不是相同数值的两种配色。
+持仓使用复权价格单位处理公司行为引起的价格变化，退出时不重复确认已经体现在估值中的收益。初始买入和后续实际成交均收费。
 
-插件 `summary.parquet` 的 `gross_cumulative_return` 使用毛收益复利。因此 Studio 毛收益累加曲线的末值不保证等于汇总表中的毛累计收益。净收益图与汇总的复利口径一致，但窗口不同仍会产生差异。
+## 输出
 
-图表日期滑块与起止日期会改变展示窗口和窗口内均值，汇总表来自插件预先生成的 overall、year、quarter、month 行，不会因滑块自动重新跑插件。
+| 产物        | 含义                                             |
+| ----------- | ------------------------------------------------ |
+| `daily`     | 按交易日历排列的收益、权益、现金、持仓及信号诊断 |
+| `summary`   | 总体、年度、季度和月度统计                       |
+| `targets`   | 信号目标候选                                     |
+| `orders`    | 实际成交与未成交原因                             |
+| `positions` | 每日实际持仓、复权单位、权重和市值               |
+| `trades`    | 已完成持有期的实际买卖价格、收益和费用           |
 
-## 信号质量
+`daily` 使用 `topN_*` 列，`dimensions` 声明组合规模和基准。`top30_holdings` 是信号目标列表，不是实际持仓；真实敞口见 `positions`。尚未退出的持仓仍保留在该产物中，即使没有已完成交易。
 
-![Backtest IC and RankIC moving averages](../../figures/studio/backtest-quality.png)
+## 信号诊断与基准
 
-**Model quality** 显示 IC 与 RankIC 的 MA20，并给出所选日期范围内的日均值。悬停可读某个日期的曲线值，范围均值与移动均值曲线是不同统计。
+IC、RankIC、NDCG 与目标选股共用信号当天可买候选池，包括 `index_codes` 限制。IC 和 RankIC 对比预测分数与有效的固定次一市场日原始收益。NDCG 对比高分信号和相同可用收益样本的排序质量；缺标签不会补入低分候选。这些指标属于信号日期，持仓收益和估值属于组合日历日期。
 
-![Backtest NDCG moving averages](../../figures/studio/backtest-ndcg.png)
+`benchmark_universe_return` 是可用信号横截面的平均收益。`index_weight_*` 只有覆盖率达标时才生成加权收益代理，它们不是官方全收益指数。基准收益按标签目标日期排列，与组合估值周期对齐。
 
-NDCG 面板展示 Top 5、10、15、20、30 的排名诊断与窗口均值，帮助观察高评分目标的排序质量；它不代替执行成本和组合收益。
+Studio 读取 `daily`、`summary`、`dimensions`。净收益图复合每日净收益，累计毛收益图相加每日毛收益，因此后者不必等于汇总表中的复合毛收益。期间统计由任务生成，移动图表日期范围不会自动重新回测。
 
-- `ic`：严格单日有效标签上评分与收益的 Pearson 相关。
-- `rank_ic`：同一严格标签范围内的 Spearman 相关。
-- `topN_ndcg`：候选截面中，严格单日收益相关性上的排名诊断。
-
-Studio 还展示 20 行窗口的移动平均，开始位置使用已有样本。缺失或非有限值被排除，窗口不足 20 个有效观测时不是完整 20 日统计。IC 高不必然意味着扣费后收益高，执行约束和成本会改变结果。
-
-## Top 30 表的准确含义
-
-![Top 30 target prediction, return and weight](../../figures/studio/backtest-holdings.png)
-
-此图仅保留 Prediction、Return、Weight 三列。收益尚不可用时显示空值；权重和评分应结合目标清单协议解释。
-
-当前前端硬编码读取 `top30_holdings`，表格可以排序并随图表光标日期更新、锁定或跳到最新一天。
-
-这个字段是信号日 Top 30 **目标候选清单**，包含当天未能买入的股票，既不是实际仓位账本，也不是用户选中 Top N 的完整成交记录。表内 `daily_return` 来自该目标最终持有收益，可能跨越延期退出；`weight` 是目标明细的权重代理，不是实际资金账本权重。
-
-即使 `dimensions.holding_detail_top_n` 描述其他规模，当前页面仍读取 `top30_holdings`。扩展插件不能只换字段名就期望前端自动展示任意 Top N。
-
-## 汇总指标
-
-![Backtest overall summary](../../figures/studio/backtest-overall.png)
-
-**Overall** 的基本信号指标独立于组合规模；Top N 收益指标在对应详情区展示。
-
-| 指标       | a158 汇总口径                                   |
-| ---------- | ----------------------------------------------- |
-| 净累计收益 | 日净收益复利                                    |
-| 净年化收益 | 累计净值按观察天数与年交易日数年化              |
-| 年化波动   | 日净收益样本标准差乘年化平方根                  |
-| 最大回撤   | 含初始净值 1 的净复利曲线峰值回撤，负数         |
-| 胜率       | 净收益大于零的日比例，零收益不算胜              |
-| 平均换手   | 日换手平均值                                    |
-| 毛 Sharpe  | 毛收益减日化无风险收益后的均值/样本标准差并年化 |
-| 对基准 IR  | 毛收益减基准收益的均值/样本标准差并年化         |
-| ICIR       | 日 Pearson 相关系数的均值/样本标准差并年化      |
-
-指数权重覆盖不足时基准可为空，风险调整指标也可能缺失。`universe` 基准是插件候选范围内满足收益条件的平均收益，不应直接称为交易所全市场指数。
-
-## Benchmark 的净 Sharpe 与统计区间
-
-上表的毛 Sharpe 来自 a158 回测汇总。项目 Benchmark 和增强插件实验另外计算**净 Sharpe**，使用扣费日收益：
-
-```text
-日无风险收益 = (1 + 年无风险收益)^(1 / 年交易日数) − 1
-净 Sharpe = mean(日净收益 − 日无风险收益) / std(日净收益, ddof=1) × √年交易日数
-```
-
-历史实验使用年无风险利率 1.2%、252 个交易日。该净 Sharpe 是实验分析指标，不能从原产物的 `gross_sharpe` 直接读取；Top30 净 Sharpe 未保存，Benchmark 不补算。
-
-RankIC、净年化收益和净 Sharpe 各自衡量不同方面。增强案例的日配对 bootstrap 区间针对日指标差值，不是年化复利收益差。实验窗口、选择规则与不确定性解释见[实验设计与确认](experiments.md)，历史结果及计算材料见[增强插件](../../../plugins/a158_enhanced/README_ZH.md)。
-
-## 分年、季度与月度观察
-
-![Backtest yearly summary](../../figures/studio/backtest-yearly.png)
-
-**Yearly** 同时展示按年信号指标与所选 Top N 的收益指标。先确认每年的观察天数，再比较年化、波动和回撤。
-
-![Backtest quarterly summary](../../figures/studio/backtest-quarterly.png)
-
-**Quarterly** 将时间范围拆到季度，帮助定位变化集中在哪个阶段；行数据来自插件生成的季度汇总。
-
-![Backtest monthly summary](../../figures/studio/backtest-monthly.png)
-
-**Monthly** 适合逐月检查信号稳定性。表格支持滚动和排序，月样本较少时比率变化也会更大。
-
-## 发现异常时
-
-先核对预测的 decimal 收益单位，再检查日期范围、候选规模、成本、延期退出和未结算仓位。修改参数应新建实验 Task；在页面换 Top N 或窗口只改变观察，不重新执行回测。
-
-## 相关文档与实现
-
-- [策略比较](strategy-comparison.md)、[研究产物协议](../reference/research-artifacts.md)
-- [`插件回测协议`](../../../plugins/a158/axonx_alpha158/backtest.py)
-- [`回测记账与汇总`](../../../plugins/a158/axonx_alpha158/internal/backtest.py)
-- [`Studio 回测展示`](../../../axonx_studio/src/features/research/backtest/BacktestView.tsx)
+Studio 根据 `dimensions.top_ns` 生成收益和 NDCG 曲线，将行情不完整的评价标为暂定结果，并展示全部组合产物。预测统计只描述信号时分数和选股资格；协议版本 2 的预测不嵌入未来收益或有效收益覆盖率。统计为空或标签缺失时显示不可用。

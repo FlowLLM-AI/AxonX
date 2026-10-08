@@ -2,38 +2,34 @@
 
 from __future__ import annotations
 
-import os
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from pathlib import Path
 
 import polars as pl
 from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from axonx.task.contracts import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
+from axonx.task.contracts import BaseETLInputParams, BaseETLTask
 from axonx.task.core import TaskStep
+from axonx.task.builtins.stock.data import StockETLOutput, fixed_labels, stock_protocol, apply_market_status
+from axonx.utils.fs import atomic_write
 from axonx.task.storage import artifact_record
 
 from .internal.etl_pipeline import (
-    CSZ_LABELS,
     FEATURES,
     HISTORY_DAYS,
     KBAR,
     LABEL_OUTPUTS,
-    LABELS,
     MARKET_STATE_COLUMNS,
     PRICE,
-    RANK_LABELS,
     RAW_FEATURES,
     ROLLING,
     ST_LIMIT_CHANGE_DATE,
-    VALID_LABELS,
     WINDOWS,
     align_calendar,
     apply_price_limits,
     assemble_trading_panel,
     attach_market_flags,
-    calculate_labels,
     infer_lifecycle_bounds,
     join_historical_names_and_limits,
     join_index_weights,
@@ -50,12 +46,11 @@ from .internal.features import (
 )
 
 
-class Alpha158OutputParams(BaseETLOutputParams):
+class Alpha158OutputParams(StockETLOutput):
     statistics_file: str
     feature_count: int
     symbols: int
     feature_schema: dict
-    labels: dict
     index_weight_columns: list[str]
     market_state_columns: list[str]
     market_state: dict
@@ -66,6 +61,7 @@ class Alpha158InputParams(BaseETLInputParams):
     """Configure source data and the dates included in the Alpha158 dataset."""
 
     input_dir: SkipJsonSchema[Path] = Path("tushare")
+    market_status_file: Path | None = None
     start_date: str | None = Field(
         default="20140101",
         description="First output trading date in YYYYMMDD format; set null for all available dates.",
@@ -73,12 +69,6 @@ class Alpha158InputParams(BaseETLInputParams):
     end_date: str | None = Field(
         default=None,
         description="Last output trading date in YYYYMMDD format; defaults to the latest available date.",
-    )
-    csz_winsorize_tail: float = Field(
-        default=0.025,
-        ge=0.0,
-        lt=0.5,
-        description="Fraction clipped from each daily return tail before label z-scoring.",
     )
     min_history_coverage: float = Field(
         default=0.8,
@@ -97,13 +87,15 @@ class Alpha158InputParams(BaseETLInputParams):
 class Alpha158Task(BaseETLTask):
     """Build an Alpha158 dataset from downloaded Tushare market data.
 
-    Produces adjusted features, close-to-close returns through the first sellable exit, market
+    Produces adjusted features, independent fixed-one-day raw labels, market
     status, and HS300 weights for training and analysis.
     """
 
     input_cls = Alpha158InputParams
     output_cls = Alpha158OutputParams
     input_params: Alpha158InputParams
+
+    extra_features: tuple[str, ...] = ()
 
     _price_features = staticmethod(price_features)
     _rolling_inputs = staticmethod(rolling_inputs)
@@ -117,11 +109,16 @@ class Alpha158Task(BaseETLTask):
         yield self.calculate_base_features
         yield self.calculate_rolling_features
         yield self.attach_market_status
+        yield from self.additional_feature_steps()
         yield self.calculate_labels
         yield self.attach_index_weights
         yield self.finalize_dataset
         yield self.calculate_statistics
         yield self.write_outputs
+
+    def additional_feature_steps(self) -> Iterable[TaskStep]:
+        """Insert plugin-specific feature calculations before publishing stock labels."""
+        return ()
 
     def resolve_paths(self) -> None:
         """Resolve source partitions and output paths for this task."""
@@ -241,6 +238,7 @@ class Alpha158Task(BaseETLTask):
             )
         self.report_progress(20)
         frame = assemble_trading_panel(frame, bounds, calendar)
+        self.state["calendar"] = calendar.select("trade_date")
         self.state["names"] = names
         self.state["frame"] = frame
         self.report_progress(95)
@@ -290,7 +288,7 @@ class Alpha158Task(BaseETLTask):
         )
 
     def calculate_rolling_features(self) -> None:
-        """Calculate independent rolling windows concurrently in Polars."""
+        """Calculate rolling features for each configured window."""
         frame: pl.DataFrame = self.state["frame"]
         milestones = (10, 23, 41, 64, 95)
         rolling_frames = []
@@ -306,15 +304,55 @@ class Alpha158Task(BaseETLTask):
         self.state["frame"] = frame.hstack(rolling_columns)
 
     def calculate_labels(self) -> None:
-        """Calculate forward returns and their cross-sectional transformations."""
-        self.logger.info(
-            f"Calculating close-to-close label winsorize_tail={self.input_params.csz_winsorize_tail}",
+        """Publish raw one-market-day labels independently of model features."""
+        frame = self.state["frame"]
+        quoted = (pl.col("_has_market_data") & pl.col("_close").is_finite() & (pl.col("_close") > 0)).fill_null(False)
+        market = frame.select(
+            "trade_date",
+            "ts_code",
+            pl.lit("1500").alias("trade_time"),
+            pl.col("close").alias("price"),
+            pl.col("adj_factor").alias("adjustment_factor"),
+            (
+                quoted
+                & pl.col("_has_valid_limits")
+                & ~pl.col("is_st")
+                & ~pl.col("is_delisting")
+                & (pl.col("close") < pl.col("up_limit") - 1e-6)
+            )
+            .fill_null(False)
+            .alias("can_buy"),
+            (quoted & pl.col("_has_valid_limits") & (pl.col("close") > pl.col("down_limit") + 1e-6))
+            .fill_null(False)
+            .alias("can_sell"),
+            pl.when(quoted).then(pl.lit("quoted")).otherwise(pl.lit("missing_data")).alias("market_status"),
         )
-        self.state["frame"] = self._labels(
-            self.state["frame"],
-            progress=self.report_progress,
+        if self.input_params.market_status_file:
+            status = pl.read_parquet(self.resolve_workspace_path(self.input_params.market_status_file))
+            status = status.filter(
+                pl.col("trade_date")
+                .cast(pl.String)
+                .is_between(pl.lit(market["trade_date"].min()), pl.lit(market["trade_date"].max()))
+            )
+            market = apply_market_status(market, status)
+        self.state["market"] = market
+        frame = (
+            frame.with_columns(pl.lit("1500").alias("trade_time"))
+            .join(
+                market.select("trade_date", "trade_time", "ts_code", "can_buy"),
+                on=["trade_date", "trade_time", "ts_code"],
+                how="left",
+                validate="1:1",
+            )
+            .with_columns((pl.col("is_buyable") & pl.col("can_buy").fill_null(False)).alias("is_buyable"))
         )
-        self.logger.info("Labels calculated")
+        self.state["frame"] = frame.with_columns(
+            pl.col("close").alias("signal_price"),
+            pl.col("adj_factor").alias("signal_adjustment_factor"),
+            pl.col("is_buyable").alias("is_buyable_at_signal"),
+            pl.lit(True).alias("is_model_candidate"),
+        )
+        self.state["labels"] = fixed_labels(self.state["frame"], market, self.state["calendar"])
 
     def attach_index_weights(self) -> None:
         """Attach the latest available HS300 constituent-weight snapshot."""
@@ -340,7 +378,12 @@ class Alpha158Task(BaseETLTask):
                 "ts_code",
                 *MARKET_STATE_COLUMNS,
                 *(pl.col(raw).alias(name) for raw, name in zip(RAW_FEATURES, FEATURES, strict=True)),
-                *LABEL_OUTPUTS,
+                *self.extra_features,
+                "trade_time",
+                "signal_price",
+                "signal_adjustment_factor",
+                "is_buyable_at_signal",
+                "is_model_candidate",
                 "index_weight_hs300",
             )
             .sort("trade_date", "ts_code")
@@ -366,19 +409,6 @@ class Alpha158Task(BaseETLTask):
             f"Data-quality statistics calculated " f"columns={self.state['statistics'].height}",
         )
 
-    def _labels(
-        self,
-        frame: pl.DataFrame,
-        *,
-        progress: Callable[[float], None] | None = None,
-    ) -> pl.DataFrame:
-        """Keep the existing Task helper while delegating label calculations."""
-        return calculate_labels(
-            frame,
-            self.input_params.csz_winsorize_tail,
-            progress=progress,
-        )
-
     def _weights(self, frame: pl.DataFrame) -> pl.DataFrame:
         """Attach index snapshots while keeping Task logging at the boundary."""
         paths = self.state["weight_files"]
@@ -392,32 +422,34 @@ class Alpha158Task(BaseETLTask):
     def write_outputs(self) -> None:
         """Write the dataset and statistics files before publishing metadata."""
         output: pl.DataFrame = self.state["output"]
+        for name in ("labels", "market", "calendar"):
+            data = self.state[name]
+            if name == "labels":
+                data = data.join(
+                    output.select("trade_date", "trade_time", "ts_code"),
+                    on=["trade_date", "trade_time", "ts_code"],
+                    how="inner",
+                )
+            self.state[name + "_path"] = self.task_dir / (name + ".parquet")
+            atomic_write(
+                self.state[name + "_path"],
+                lambda temporary, frame=data: frame.write_parquet(temporary, compression="zstd"),
+            )
         statistics: pl.DataFrame = self.state["statistics"]
         path: Path = self.state["output_path"]
         statistics_path: Path = self.state["statistics_path"]
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-        statistics_temporary = statistics_path.with_name(
-            f".{statistics_path.name}.{os.getpid()}.tmp",
-        )
-        try:
-            output.write_parquet(temporary, compression="zstd")
-            self.report_progress(70)
-            statistics.write_csv(statistics_temporary)
-            self.report_progress(90)
-            temporary.replace(path)
-            statistics_temporary.replace(statistics_path)
-        finally:
-            temporary.unlink(missing_ok=True)
-            statistics_temporary.unlink(missing_ok=True)
+        atomic_write(path, lambda temporary: output.write_parquet(temporary, compression="zstd"))
+        self.report_progress(70)
+        atomic_write(statistics_path, statistics.write_csv)
+        self.report_progress(90)
         self.state.update(
             output_file=str(path),
             statistics_file=str(statistics_path),
             rows=output.height,
-            feature_count=len(FEATURES),
+            feature_count=len(FEATURES) + len(self.extra_features),
         )
         self.logger.info(
-            f"Alpha158 outputs written rows={output.height} features={len(FEATURES)} "
+            f"Alpha158 outputs written rows={output.height} features={len(FEATURES) + len(self.extra_features)} "
             f"dataset_path={path} dataset_bytes={path.stat().st_size} "
             f"statistics_path={statistics_path} "
             f"statistics_bytes={statistics_path.stat().st_size}",
@@ -436,7 +468,7 @@ class Alpha158Task(BaseETLTask):
             },
             rows=output.height,
             symbols=output["ts_code"].n_unique(),
-            feature_columns=list(FEATURES),
+            feature_columns=list((*FEATURES, *self.extra_features)),
             label_columns=list(LABEL_OUTPUTS),
             feature_schema={
                 "title": {
@@ -457,24 +489,14 @@ class Alpha158Task(BaseETLTask):
                     ],
                 ],
             },
-            labels={
-                "raw": list(LABELS),
-                "csz": list(CSZ_LABELS),
-                "rank": list(RANK_LABELS),
-                "valid": list(VALID_LABELS),
-                "return_unit": "decimal",
-                "definition": "当天复权收盘至下一交易日复权收盘收益；不可卖时延至首个可卖收盘，延迟样本不进入一天期训练；trade_date 是信号日及买入日",
-                "strict_one_day_flag": "label_1d_is_valid and not exit_delayed",
-            },
+            protocol=stock_protocol(trade_time="1500"),
+            **{name + "_file": str(self.state[name + "_path"]) for name in ("labels", "market", "calendar")},
             index_weight_columns=["index_weight_hs300"],
             market_state_columns=list(MARKET_STATE_COLUMNS),
             market_state={
                 "buyable_definition": (
                     "listed, quoted, valid limits, non-ST, non-delisting, non-limit, sufficient history"
                 ),
-                "entry_is_buyable_definition": "当天有有效行情及涨跌停价，收盘低于涨停；排除 ST 和退市，仅为日线可买代理，不保证盘后成交",
-                "exit_is_sellable_definition": "下一交易日有有效行情及涨跌停价，收盘高于跌停；仅为日线可卖代理，不保证盘后成交",
-                "exit_delayed_definition": "首个可卖收盘晚于计划的下一交易日，或计划日已知但尚无可卖日",
                 "minimum_history_days": HISTORY_DAYS,
                 "minimum_history_coverage": self.input_params.min_history_coverage,
                 "missing_stock_basic_symbols": self.state["missing_stock_basic_symbols"],
@@ -487,9 +509,18 @@ class Alpha158Task(BaseETLTask):
             schema={name: str(dtype) for name, dtype in output.schema.items()},
             artifacts={
                 "dataset": dataset_record,
+                **{
+                    name: artifact_record(self.state[name + "_path"], task_dir)
+                    for name in ("labels", "market", "calendar")
+                },
                 "statistics": statistics_record,
             },
             output_file=self.state["output_file"],
             statistics_file=self.state["statistics_file"],
             feature_count=self.state["feature_count"],
+            **self.additional_output_params(),
         )
+
+    def additional_output_params(self) -> dict:
+        """Publish plugin-specific artifacts alongside the shared stock contract."""
+        return {}

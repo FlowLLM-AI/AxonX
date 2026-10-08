@@ -216,14 +216,18 @@ export function addArtifacts(
     }
   }
   const predictions = daily.flatMap((row) =>
-    row.top30_holdings.map((holding) => ({
+    (row.top30_holdings || []).map((holding) => ({
       trade_date: row.trade_date,
       ts_code: holding.ts_code,
       pred: holding.prediction,
-      actual_return: holding.daily_return,
+      trade_time: "1500",
       name: holding.name,
-      is_buyable: true,
-      label_valid: true,
+      is_model_candidate: true,
+      is_buyable_at_signal: true,
+      signal_price: 10,
+      signal_adjustment_factor: 1,
+      rank: holding.rank,
+      buyable_rank: holding.rank,
     })),
   );
   const output =
@@ -281,8 +285,8 @@ export function addArtifacts(
         days: 60,
         date_range: { start: dates[0], end: dates.at(-1) },
         feature_columns: ["momentum", "value", "quality"],
-        label_columns: ["return_1d"],
-        target_columns: ["return_1d"],
+        label_columns: ["label_return", "label_valid"],
+        target_columns: ["label_return_rank"],
         output_columns: Object.keys(predictions[0]),
         model_name: "Synthetic model",
         parameters: { strategy },
@@ -301,12 +305,13 @@ export function addArtifacts(
           },
           y_right: {},
         },
+        evaluation_status: "done",
+        protocol: { version: 2 },
         statistics: {
           days: 60,
           symbols: 30,
           pred: { min: 0.001, max: 0.03, mean: 0.0155, median: 0.0155 },
           buyable_rows: 1800,
-          valid_return_rows: 1800,
           candidate_rows: 1800,
           indices: {},
         },
@@ -346,7 +351,7 @@ export function seed() {
     "tushare/daily/sample.parquet",
     table(
       dailyRows("steady").flatMap((row) =>
-        row.top30_holdings.map((holding) => ({
+        (row.top30_holdings || []).map((holding) => ({
           trade_date: row.trade_date,
           ts_code: holding.ts_code,
           close: 10 + holding.rank / 10,
