@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import polars as pl
 
-from .etl_pipeline import EPSILON, FEATURES, LABEL_OUTPUTS
+from .etl_pipeline import EPSILON, FEATURES
 
 
 def price_features(frame: pl.DataFrame) -> pl.DataFrame:
@@ -176,10 +176,10 @@ def dataset_statistics(
     output: pl.DataFrame,
     *,
     progress: Callable[[float], None] | None = None,
+    columns: tuple[str, ...] = FEATURES,
 ) -> pl.DataFrame:
     """Summarize every public value column through parallel Polars plans."""
     total = output.height
-    columns = (*FEATURES, *LABEL_OUTPUTS)
     plans: list[pl.LazyFrame] = []
     for column in columns:
         value = pl.col(column).cast(pl.Float64, strict=False)

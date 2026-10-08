@@ -12,12 +12,10 @@ from axonx_alpha158_enhanced.internal.cross_section import (
     calculate_context,
     selected_features,
 )
-from axonx_alpha158_enhanced.internal.etl_pipeline import FEATURES
-from axonx_alpha158.internal.etl_pipeline import FEATURES as BASE_FEATURES
+from axonx_alpha158.internal.etl_pipeline import FEATURES
 
 
 def test_original_feature_contract_is_preserved():
-    assert FEATURES == BASE_FEATURES
     assert len(FEATURES) == 158
 
 
@@ -86,8 +84,8 @@ def test_limit_stocks_remain_in_pool_and_future_labels_are_ignored():
     changed, changed_daily = calculate_context(
         source.with_columns(
             pl.lit(False).alias("is_buyable"),
-            pl.lit(None).alias("label_1d"),
-            pl.lit(True).alias("exit_delayed"),
+            pl.lit(None).alias("label_return"),
+            pl.lit(False).alias("label_valid"),
         )
     )
     assert_frame_equal(baseline, changed)

@@ -36,11 +36,6 @@ const IC_SERIES: ChartSeries[] = [
   { key: "ic", label: "IC" },
   { key: "rank_ic", label: "RankIC" },
 ];
-const NDCG_SERIES: ChartSeries[] = [5, 10, 15, 20, 30].map((topN) => ({
-  key: `ndcg_${topN}`,
-  label: `NDCG@${topN}`,
-  sourceKey: `top${topN}_ndcg`,
-}));
 const lastOnOrBefore = (rows: DailyRow[], date: string) => {
   let index = 0;
   rows.forEach((row, current) => {
@@ -136,10 +131,10 @@ function cumulativeRows(
   return result;
 }
 
-function signalRows(rows: DailyRow[]) {
+function signalRows(rows: DailyRow[], topNs: number[]) {
   const ic = movingAverage(rows, "ic");
   const rankIc = movingAverage(rows, "rank_ic");
-  const ndcg = [5, 10, 15, 20, 30].map(
+  const ndcg = topNs.map(
     (topN) => [topN, movingAverage(rows, `top${topN}_ndcg`)] as const,
   );
   return rows.map((row, index) => ({
@@ -170,6 +165,7 @@ export function BacktestView({
     setError("");
     loadBacktest(meta, target, controller.signal)
       .then((data) => {
+        if (controller.signal.aborted) return;
         setDaily(data.daily);
         setSummary(data.summary);
       })
@@ -195,7 +191,14 @@ export function BacktestView({
         <span>{error || t("backtest.daily_parquet_is_empty")}</span>
       </div>
     );
-  return <BacktestReport meta={meta} daily={daily} summary={summary} />;
+  return (
+    <BacktestReport
+      key={`${target || ""}:${meta._path}`}
+      meta={meta}
+      daily={daily}
+      summary={summary}
+    />
+  );
 }
 
 function BacktestReport({
@@ -229,6 +232,12 @@ function BacktestReport({
   ];
   return (
     <div className="backtest-report">
+      {meta.evaluation_status === "incomplete_market_data" && (
+        <div className="data-gap" role="alert">
+          <AlertTriangle />
+          <span>{t("backtest.incomplete_market_data")}</span>
+        </div>
+      )}
       <nav className="backtest-tabs">
         {tabs.map(([key, label]) => (
           <button
@@ -301,7 +310,12 @@ function Overview({
     () => daily.slice(range[0], range[1] + 1),
     [daily, range],
   );
-  const allSignals = useMemo(() => signalRows(daily), [daily]);
+  const allSignals = useMemo(() => signalRows(daily, topNs), [daily, topNs]);
+  const ndcgSeries: ChartSeries[] = topNs.map((topN) => ({
+    key: `ndcg_${topN}`,
+    label: `NDCG@${topN}`,
+    sourceKey: `top${topN}_ndcg`,
+  }));
   const signals = useMemo(
     () => allSignals.slice(range[0], range[1] + 1),
     [allSignals, range],
@@ -443,10 +457,10 @@ function Overview({
           title="NDCG · MA20"
           hint={t("backtest.return_percentile_relevance")}
         >
-          <SeriesMeans rows={selected} series={NDCG_SERIES} />
+          <SeriesMeans rows={selected} series={ndcgSeries} />
           <BacktestChart
             rows={signals}
-            series={NDCG_SERIES}
+            series={ndcgSeries}
             onHover={hover}
             onSelect={lock}
           />
@@ -508,6 +522,8 @@ function HoldingsPanel({
     ? [...holdings].sort((a, b) => {
         const left = a[sort.key as keyof Holding];
         const right = b[sort.key as keyof Holding];
+        if (left == null) return right == null ? 0 : 1;
+        if (right == null) return -1;
         const comparison =
           typeof left === "number" && typeof right === "number"
             ? left - right
@@ -630,9 +646,7 @@ function HoldingsPanel({
                     domain={domains.prediction}
                   />
                 </td>
-                <td
-                  className={item.daily_return >= 0 ? "positive" : "negative"}
-                >
+                <td className={valueTone(item.daily_return)}>
                   <SummaryDataCell
                     value={item.daily_return}
                     format={percent}

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axonx-alpha158"
-version = "0.1.0"
+version = "0.2.0"
 description = "AxonX research plugin for Alpha158 features, factor analysis, LightGBM training, prediction, and TopN backtesting."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -38,7 +38,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "axonx>=0.0.3",
+    "axonx>=0.1.1,<0.2",
     "lightgbm>=4.7.0,<5",
     "numpy>=2.5.3,<3",
     "polars>=1.44.2,<2",

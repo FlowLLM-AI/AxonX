@@ -51,14 +51,17 @@ All types extend `BaseOutputParams`; output subclasses must declare extra fields
 
 ## ETL artifacts
 
-The base class stores output-file descriptions and column names. a158 adds feature_count, symbols, schema, labels, market_state, and related information, producing:
+The base class stores output-file descriptions and column names. a158 adds feature_count, symbols, schema, protocol, market_state, and related information, producing:
 
 | Artifact name | File               | Purpose                                                   |
 | ------------- | ------------------ | --------------------------------------------------------- |
 | `dataset`     | `alpha158.parquet` | Source data for training, factor analysis, and prediction |
-| `statistics`  | `alpha158.csv`     | Quality statistics for each column                        |
+| `statistics`  | `alpha158.csv`     | Quality statistics for each feature column                |
+| `labels`      | `labels.parquet`   | Fixed-next-market-day raw returns and availability        |
+| `market`      | `market.parquet`   | Quotes, adjustment factors, execution flags and states    |
+| `calendar`    | `calendar.parquet` | Market dates independent of prediction eligibility        |
 
-a158 downstream consumers resolve data through `artifacts.dataset.path`; filling only `output_file` while omitting the mapping is insufficient. Historical fields may store full path strings, while standard artifacts should use paths relative to the Task directory.
+a158 downstream consumers resolve data through `artifacts.dataset.path`; filling only `output_file` while omitting the mapping is insufficient. Output file fields store full path strings, while standard artifacts should use paths relative to the Task directory.
 
 ## Factor-analysis scores
 
@@ -113,13 +116,44 @@ The base-class `statistics` field is an extensible mapping. Studio currently rea
 ```text
 statistics.days / symbols
 statistics.pred.mean / min / median / max
-statistics.buyable_rows / valid_return_rows / candidate_rows
+statistics.buyable_rows / candidate_rows
 statistics.indices.<column>.constituents / days_with_weights / null_rows
 ```
 
 Missing fields appear as empty values on the page; this does not mean every prediction plugin must provide a158's stock statistics. a158 uses the artifact name `predictions` and file `predictions.parquet`.
 
-Columns required for backtesting belong to the plugin contract and are not automatically guaranteed by the Predict base class. a158 requires trade_date, ts_code, name, pred, actual_return, label_valid, is_buyable, entry_is_buyable, exit_is_sellable, entry_date, exit_date, and exit_delayed, and checks that the relevant status columns are Boolean.
+Stock backtesting uses the shared `axonx.task.builtins.stock` contract. Prediction rows contain `trade_date`, `trade_time`, `ts_code`, `pred`, `is_model_candidate`, `is_buyable_at_signal`, `signal_price`, and `signal_adjustment_factor`; eligibility flags are non-null Boolean values. a158 also publishes `name`, `rank`, `buyable_rank`, and index weights. Predictions contain no future labels. ETL publishes independent `dataset`, `labels`, `market`, and `calendar` artifacts; `labels` stores `label_target_date`, `label_return`, `label_valid`, and `label_status` alongside the signal keys. Rank/CSZ targets are computed only during training after cutoff and sample filtering.
+
+## Prediction inputs for stock backtesting
+
+`BaseStockBacktestTask` reads these 8 required columns from prediction Parquet files. Both Alpha158 plugins publish this contract in `predictions.parquet`.
+
+| Required column            | Type and constraints                                            | Meaning                                                              |
+| -------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `trade_date`               | Non-null string, valid YYYYMMDD, present in the market calendar | Signal date                                                          |
+| `trade_time`               | Non-null string, valid HHMM; one signal time per backtest       | Signal time, for example `1500`                                      |
+| `ts_code`                  | Non-null string                                                 | Stock identifier                                                     |
+| `pred`                     | Non-null finite numeric value                                   | Ranking score; higher ranks first; not a return or probability       |
+| `is_model_candidate`       | Non-null Boolean                                                | Model candidate eligibility                                          |
+| `is_buyable_at_signal`     | Non-null Boolean                                                | Signal-time buyability filter                                        |
+| `signal_price`             | Non-null finite numeric value                                   | Signal reference quote, stored separately from its adjustment factor |
+| `signal_adjustment_factor` | Non-null finite numeric value                                   | Adjustment factor for the signal reference quote                     |
+
+The prediction table must be nonempty, and the composite key `(trade_date, trade_time, ts_code)` must be unique and non-null. Stock identifiers and signal times must use the same conventions as the market table. Reference prices and adjustment factors should be positive according to their price meaning. Both eligibility flags must be `true` to enter the selection candidate pool, followed by the `index_codes` restriction.
+
+These columns are optional for the base backtest:
+
+| Optional column        | Use                                                                                                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `name`                 | Display name in details; defaults to `ts_code` when omitted                                                                                                                                            |
+| `rank`, `buyable_rank` | Prediction-side helper ranks; backtesting computes target ranks from `pred` descending and `ts_code` ascending                                                                                         |
+| `index_weight_<code>`  | Decimal index weights; `index_codes=["hs300"]` requires `index_weight_hs300`, with positive weights indicating membership in that candidate index; weight columns also supply benchmark return proxies |
+
+Predictions need no feature columns, `actual_return`, future labels or future execution dates. `signal_price` and `signal_adjustment_factor` are signal reference information; execution and daily valuation use `price`, `adjustment_factor` and trading states from the independent `market` table.
+
+Backtesting also requires independent `market` and `calendar` artifacts. Optional `labels` supplies IC, RankIC, NDCG, target label returns and benchmark returns; the portfolio ledger can run without labels. For explicit files, pass `input_file`, `market_file`, `calendar_file` and optional `labels_file`, where `input_file` is prediction Parquet.
+
+When resolving a Predict Task ID, prediction metadata must publish an artifact record (relative `path`, `size`, `sha256`) under `output_params.artifacts.predictions` and declare `output_params.protocol.version=2`. `protocol.market_source_task` identifies the ETL Task supplying market, calendar and labels; an ETL source can also be supplied explicitly in `source_tasks`, or the corresponding file paths can be provided. Task resolution verifies source artifact digests. `statistics` is presentation information, not a selection input.
 
 ## Backtest dimensions and protocol
 
@@ -130,13 +164,13 @@ Columns required for backtesting belong to the plugin contract and are not autom
     "holding_detail_top_n": 30,
     "benchmarks": [{ "key": "universe", "label": "Universe" }]
   },
-  "protocol": { "actual_return_unit": "decimal" },
+  "protocol": { "version": 2, "return_unit": "decimal" },
   "date_range": { "start": "20230103", "end": "20231229" },
   "days": 250
 }
 ```
 
-This illustrates a valid base-class structure. a158 provides more detailed protocol text for candidate_filter, execution, portfolio, turnover, net_return, and related topics. The page is not a backtest engine that automatically validates protocol text; plugin authors must clearly state actual execution behavior and units.
+This illustrates a valid base-class structure. The shared stock Task publishes execution, valuation, allocation, fee, cutoff, and input-digest definitions in `protocol`, and `evaluation_status` identifies incomplete market data. The page is not a backtest engine that automatically validates protocol text; plugin authors must clearly state actual execution behavior and units.
 
 Studio loads two tables from `artifacts.daily.path` and `artifacts.summary.path`, requesting 5000 rows per page and continuing according to `has_more` until the complete tables are read. Satisfying the Backtest output model alone does not guarantee usable charts.
 
@@ -149,11 +183,11 @@ Studio loads two tables from `artifacts.daily.path` and `artifacts.summary.path`
 | `ic`, `rank_ic`                          | Signal curves and moving averages                                          |
 | `topN_net_return`, `topN_gross_return`   | Net compounded and gross additive curves                                   |
 | `topN_turnover`, `topN_transaction_cost` | Turnover and cost inspection                                               |
-| `topN_ndcg`                              | Ranking diagnostics at the fixed display size                              |
+| `topN_ndcg`                              | Ranking diagnostics for each configured Top N                              |
 | `benchmark_<key>_return`                 | Benchmark return curves declared in dimensions                             |
 | `top30_holdings`                         | Currently fixed Top 30 details                                             |
 
-Details are arrays of structures; the frontend reads `rank`, `ts_code`, `name`, `prediction`, `daily_return`, and `weight`. a158 also stores entry_date, exit_date, and exit_delayed for protocol analysis.
+Details are arrays of structures; the frontend reads `rank`, `ts_code`, `name`, `prediction`, `daily_return`, and `weight`. `daily_return` is the fixed-next-market-day label and is null when unavailable at the cutoff. Actual entry/exit dates and delayed exits belong to the `positions` and `trades` artifacts; fills and unfilled reasons belong to `orders`.
 
 The current page hardcodes `top30_holdings`; changing holding_detail_top_n does not automatically select another column. In a158, this field represents signal targets and includes candidates that did not trade; it must not be described as an actual holdings ledger.
 

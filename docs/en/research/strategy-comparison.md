@@ -31,7 +31,7 @@ Wait for each task to succeed, then select A and B on the strategy comparison pa
 The screenshot shows two existing experiments from a remote workspace. **Prediction sources differ** warns that upstream predictions differ; explain differences together with lineage. The displayed values are not expected returns for this page's parameter examples.
 
 1. Select the current machine and two successful backtest records.
-2. Check input parameter differences and page warnings.
+2. Check input parameter differences and page warnings. The page flags incomplete market data and differing accounting protocol versions.
 3. Select a Top N supported by both.
 4. Set a common date range and check the number of observations.
 5. Read net returns and drawdowns first, then signal quality, period returns, and intersections of target lists.

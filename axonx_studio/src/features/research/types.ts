@@ -36,14 +36,18 @@ export interface ResearchArtifact {
   label_columns?: string[];
   target_columns?: string[];
   output_columns?: string[];
+  evaluation_status?: string;
+  protocol?: {
+    version?: number;
+    [key: string]: unknown;
+  };
   prediction_statistics?: {
-    days: number;
-    symbols: number;
-    pred: { mean: number; min: number; median: number; max: number };
-    buyable_rows: number;
-    valid_return_rows: number;
-    candidate_rows: number;
-    indices: Record<
+    days?: number;
+    symbols?: number;
+    pred?: { mean?: number; min?: number; median?: number; max?: number };
+    buyable_rows?: number;
+    candidate_rows?: number;
+    indices?: Record<
       string,
       { constituents: number; days_with_weights: number; null_rows: number }
     >;

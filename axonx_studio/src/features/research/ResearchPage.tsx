@@ -38,7 +38,8 @@ import { formatBytes } from "../../shared/lib/format";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import type { ContextOption } from "../../app/types";
 import { useTranslation } from "react-i18next";
-import { resolvedLocale } from "../../i18n";
+import { fmt } from "./format";
+import { PredictionOverview } from "./PredictionOverview";
 import type {
   ResearchArtifact,
   ResearchKind,
@@ -59,20 +60,6 @@ const TrainingCurveChart = lazy(() =>
 
 type Meta = ResearchArtifact;
 type Kind = ResearchKind;
-
-const fmt = (value: unknown, digits = 2) => {
-  if (value === null || value === undefined || value === "") return "—";
-  const number = Number(value);
-  if (!Number.isFinite(number)) return String(value);
-  if (Math.abs(number) >= 1_000_000)
-    return new Intl.NumberFormat(resolvedLocale(), {
-      notation: "compact",
-      maximumFractionDigits: 2,
-    }).format(number);
-  return number.toLocaleString(resolvedLocale(), {
-    maximumFractionDigits: digits,
-  });
-};
 
 function normalizeTrainingCurve(value: unknown): TrainingCurveData | undefined {
   if (!value || typeof value !== "object") return undefined;
@@ -147,6 +134,8 @@ function useTasks(
                 target_columns: output.target_columns,
                 output_columns: output.output_columns,
                 prediction_statistics: output.statistics,
+                evaluation_status: output.evaluation_status,
+                protocol: output.protocol,
                 index_weight_columns: output.index_weight_columns,
                 scores: output.scores,
                 model_name: output.model_name,
@@ -882,120 +871,6 @@ function AnalysisScores({
   );
 }
 
-function PredictionOverview({ meta }: { meta: Meta }) {
-  const { t } = useTranslation();
-  const stats = meta.prediction_statistics;
-  const columns = meta.output_columns?.length
-    ? meta.output_columns
-    : [
-        "trade_date",
-        "ts_code",
-        "pred",
-        "actual_return",
-        "label_valid",
-        "name",
-        "is_buyable",
-        ...(meta.index_weight_columns || []),
-      ];
-  const rate = (count?: number) =>
-    count === undefined || !meta.rows
-      ? "—"
-      : `${fmt((count / meta.rows) * 100, 1)}%`;
-  const indices = Object.entries(stats?.indices || {});
-  return (
-    <>
-      <section className="viz-card wide prediction-overview-card">
-        <header>
-          <div>
-            <small>OVERVIEW</small>
-            <h3>{t("research.prediction_overview")}</h3>
-          </div>
-        </header>
-        <div className="prediction-stat-grid">
-          <div className="prediction-score-block">
-            <small>{t("research.prediction_score_mean")}</small>
-            <strong>{fmt(stats?.pred.mean, 4)}</strong>
-            <div className="prediction-score-range">
-              <span>
-                {t("research.min")} <b>{fmt(stats?.pred.min, 4)}</b>
-              </span>
-              <span>
-                {t("research.median")} <b>{fmt(stats?.pred.median, 4)}</b>
-              </span>
-              <span>
-                {t("research.max")} <b>{fmt(stats?.pred.max, 4)}</b>
-              </span>
-            </div>
-          </div>
-          <div className="prediction-coverage-block">
-            <small>{t("research.sample_coverage")}</small>
-            <div>
-              <span>{t("research.symbols_days")}</span>
-              <strong>
-                {fmt(stats?.symbols, 0)} / {fmt(stats?.days, 0)}
-              </strong>
-            </div>
-            <div>
-              <span>{t("research.buyable")}</span>
-              <strong>{rate(stats?.buyable_rows)}</strong>
-            </div>
-            <div>
-              <span>{t("research.valid_return")}</span>
-              <strong>{rate(stats?.valid_return_rows)}</strong>
-            </div>
-            <div>
-              <span>{t("research.backtest_candidates")}</span>
-              <strong>{rate(stats?.candidate_rows)}</strong>
-            </div>
-          </div>
-        </div>
-        <div className="prediction-index-strip">
-          <small>{t("research.index_weights")}</small>
-          {indices.length ? (
-            indices.map(([column, value]) => (
-              <span key={column}>
-                <code>{column.replace("index_weight_", "").toUpperCase()}</code>
-                {fmt(value.constituents, 0)} {t("research.symbols")} ·{" "}
-                {fmt(value.days_with_weights, 0)} {t("research.days")}
-              </span>
-            ))
-          ) : (
-            <span>
-              {(meta.index_weight_columns || [])
-                .map((column) =>
-                  column.replace("index_weight_", "").toUpperCase(),
-                )
-                .join(" · ") || "—"}
-            </span>
-          )}
-        </div>
-      </section>
-      <section className="viz-card wide prediction-columns-card">
-        <header>
-          <div>
-            <small>SCHEMA</small>
-            <h3>{t("research.result_columns")}</h3>
-          </div>
-          <span>{columns.length}</span>
-        </header>
-        <div className="prediction-column-grid">
-          {columns.map((column) => (
-            <div key={column}>
-              <code>{column}</code>
-              <span>
-                {column.startsWith("index_weight_")
-                  ? t("research.index_weight_decimal")
-                  : t(`research.columns.${column}`, { defaultValue: "—" })}
-              </span>
-            </div>
-          ))}
-        </div>
-        <p>{t("research.pred_is_a_ranking_score")}</p>
-      </section>
-    </>
-  );
-}
-
 function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
   const { t } = useTranslation();
   const count =
@@ -1012,7 +887,7 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
         : kind === "predict"
           ? t("research.prediction_rows")
           : t("research.rows");
-  const paths =
+  const primaryPaths =
     kind === "etl"
       ? [["output_file", meta.output_file]]
       : kind === "analysis"
@@ -1033,6 +908,16 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
                     `${meta._path}/${meta.artifacts.summary.path}`,
                 ],
               ];
+  const paths = [
+    ...primaryPaths,
+    ...Object.entries(meta.artifacts || {}).map(([name, artifact]) => [
+      `${name}_file`,
+      `${meta._path}/${artifact.path}`,
+    ]),
+  ].filter(
+    ([, path], index, entries) =>
+      path && entries.findIndex((entry) => entry[1] === path) === index,
+  );
   const columns =
     kind === "etl"
       ? [

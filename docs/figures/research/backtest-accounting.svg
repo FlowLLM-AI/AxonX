@@ -40,7 +40,7 @@
       </text>
       <text x="850.625" y="300" text-anchor="middle" font-size="18">Less turnover costs</text>
       <text x="50" y="402.0" font-size="19">
-        <tspan x="50" dy="0">Top 30 lists signal targets. Portfolio returns are booked on actual exit dates.</tspan>
+        <tspan x="50" dy="0">Top 30 lists signal targets. Portfolio returns use daily mark-to-market valuation.</tspan>
       </text>
     </g>
     <path d="M 44 374 H 956" fill="none" stroke="#163450" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />

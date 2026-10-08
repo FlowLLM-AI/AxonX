@@ -61,7 +61,7 @@ axonx submit --task a158_factor --source-tasks '<ETL Task ID>'
 # The training end date is excluded from the training interval
 axonx submit --task a158_train --source-tasks '<ETL Task ID>' \
   --train-start 20150101 --train-end 20230101 \
-  --label-column label_1d_rank
+  --label-column label_return_rank
 
 # After training succeeds, prediction must start no earlier than train_end
 axonx submit --task a158_predict --source-tasks '<Train Task ID>' \
@@ -80,9 +80,9 @@ Training reserves the final dates in trading-day order for validation, with a de
 
 By default, ETL outputs available data from `20140101`, while rolling features read earlier history. Downloading the latest 7 calendar days cannot support multi-year training or complete rolling windows.
 
-a158 outputs trading status and return labels. Returns run from the adjusted close on the purchase date to the adjusted close on the first sellable exit date. Training and factor diagnostics filter strictly valid single-day labels, with separate constraints on delayed-exit samples and missing labels. Prediction retains the full cross-section, including rows that are not buyable or lack return labels; the backtest then filters according to its own protocol.
+a158 publishes independent feature, raw-label, market, and calendar artifacts. Labels use the next market date at the same time; suspension or missing data invalidates that fixed-day return without extending its horizon. Training excludes label target dates at or beyond the exclusive cutoff and computes rank/CSZ targets after sample filtering. Prediction retains the full cross-section without joining labels. Backtesting selects signal-day candidates and values actual positions each market day; blocked exits retain capital.
 
-The default training target `label_1d_rank` is a cross-sectional rank label. Prediction `pred` is a model score and cannot be interpreted directly as a return or probability of a price rise.
+The default training target `label_return_rank` is a cross-sectional rank label. Prediction `pred` is a model score and cannot be interpreted directly as a return or probability of a price rise.
 
 ## Viewing results in Studio
 

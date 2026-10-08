@@ -61,7 +61,7 @@ axonx submit --task a158_factor --source-tasks '<ETL Task ID>'
 # 训练结束日期不包含在训练区间内
 axonx submit --task a158_train --source-tasks '<ETL Task ID>' \
   --train-start 20150101 --train-end 20230101 \
-  --label-column label_1d_rank
+  --label-column label_return_rank
 
 # 训练成功后，预测开始日期必须不早于 train_end
 axonx submit --task a158_predict --source-tasks '<Train Task ID>' \
@@ -80,9 +80,9 @@ axonx submit --task a158_backtest --source-tasks '<Predict Task ID>' \
 
 ETL 默认输出从 `20140101` 开始的可用数据，滚动特征会读取更早的历史。下载最近 7 个自然日不能满足多年训练，更不足以生成完整滚动窗口。
 
-a158 输出交易状态与收益标签，收益口径是买入日复权收盘到首个可卖退出日的复权收盘收益。训练和因子诊断筛选严格单日有效标签，延期退出样本与缺失标签的处理各有约束。预测保留全截面，包括不可买或缺少收益标签的行；回测再按自己的协议筛选。
+a158 独立发布特征、原始标签、行情和日历产物。标签固定为次一市场日同一时刻的收益，停牌或缺行情使标签无效，不延长期限。训练排除目标日期达到或超过截止日的标签，在样本筛选后计算 Rank/CSZ 目标。预测保留全截面，不关联未来标签。回测按信号日资格选择候选，逐市场日估值真实持仓；无法卖出时继续占用资金。
 
-默认训练目标 `label_1d_rank` 是截面排名标签，预测 `pred` 是模型评分，不能直接解释为收益率或上涨概率。
+默认训练目标 `label_return_rank` 是截面排名标签，预测 `pred` 是模型评分，不能直接解释为收益率或上涨概率。
 
 ## 在 Studio 查看结果
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 
 import polars as pl
@@ -47,13 +46,11 @@ RAW_FEATURES = (
     *(f"{name}{window}" for name in ROLLING for window in WINDOWS),
 )
 FEATURES = tuple(f"f_alpha158_{name}" for name in RAW_FEATURES)
-LABELS = ("label_1d",)
-CSZ_LABELS = tuple(f"{label}_csz" for label in LABELS)
-RANK_LABELS = tuple(f"{label}_rank" for label in LABELS)
-VALID_LABELS = tuple(f"{label}_is_valid" for label in LABELS)
-LABEL_OUTPUTS = tuple(
-    column for columns in zip(LABELS, CSZ_LABELS, RANK_LABELS, VALID_LABELS, strict=True) for column in columns
-)
+LABELS = ("label_return",)
+CSZ_LABELS = ("label_return_csz",)
+RANK_LABELS = ("label_return_rank",)
+VALID_LABELS = ("label_valid",)
+LABEL_OUTPUTS = ("label_return", "label_valid")
 EPSILON = 1e-12
 HISTORY_DAYS = max(WINDOWS)
 ST_LIMIT_CHANGE_DATE = "20260706"
@@ -67,11 +64,6 @@ MARKET_STATE_COLUMNS = (
     "is_limit_down",
     "is_insufficient_history",
     "is_buyable",
-    "entry_is_buyable",
-    "exit_is_sellable",
-    "entry_date",
-    "exit_date",
-    "exit_delayed",
 )
 
 
@@ -331,88 +323,6 @@ def attach_market_flags(
             )
         ).alias("is_buyable"),
     )
-
-
-def calculate_labels(
-    frame: pl.DataFrame,
-    winsorize_tail: float,
-    *,
-    progress: Callable[[float], None] | None = None,
-) -> pl.DataFrame:
-    """计算当天复权收盘至下一交易日复权收盘的收益及横截面标签。
-
-    时点约定：trade_date 同时是信号日和买入日；正常退出日是交易日历中的
-    下一天，而非下一条有行情的记录。上游补齐停牌日，因此不会跳过停牌。
-    正常 label_1d = _close[T+1] / _close[T] - 1，复权价格用于处理除权除息。
-
-    执行依据：沪深 2026-07-06 实施的新规将盘后固定价格交易扩展至全部 A 股，
-    15:05—15:30 以当天收盘价、按时间优先撮合。理论流程是 15:00 收盘后取得
-    竞价行情，计算特征和预测，再提交盘后委托；所有输入必须在下单前已知。
-    主板在该日期之前的历史标签可用于研究，但不能据此假设当时支持盘后执行。
-    规则：https://www.sse.com.cn/lawandrules/sselawsrules2025/stocks/exchange/c/c_20260424_10816482.shtml
-
-    数据口径：这里只用 Tushare daily 的 vol/amount，不读取或累加独立的盘后
-    ah_vol/ah_amount。官方文档列出了独立字段，但未明确 vol/amount 是否排除
-    盘后成交，仍需核实；daily 在 15—16 点入库，也不保证盘后交易结束前齐备。
-    实盘应使用及时可得、口径与训练一致的竞价行情，不能使用下单后才形成的数据。
-    文档：https://tushare.pro/wctapi/documents/27.md
-
-    成交限制：固定价格不保证成交，仍取决于对手盘、申报时间和委托数量；
-    可能部分成交或完全不成交，没有可直接套用的统一成交成功率。日线缺少盘后
-    委托队列，因此以下买卖标志只是保守代理：涨停不买、跌停不卖；价格未触及
-    涨跌停也不代表一定成交。回测没有模拟排队或部分成交，不能视为实盘保证。
-    停牌或跌停时沿用延迟退出约定，以之后第一个可卖收盘计算持仓收益；此时
-    label_1d 不再是严格一天收益。训练、排名和因子评估只使用有效且未延迟样本。
-    样本尾部尚无可卖日时收益为空，回测保留未结清持仓；无法买入则保留现金。
-    """
-    quoted = (
-        pl.col("_has_market_data") & pl.col("_has_valid_limits") & pl.col("_close").is_finite() & (pl.col("_close") > 0)
-    ).fill_null(False)
-    sellable = (quoted & (pl.col("close") > pl.col("down_limit") + 1e-6)).fill_null(False)
-    buyable = (
-        quoted & ~pl.col("is_st") & ~pl.col("is_delisting") & (pl.col("close") < pl.col("up_limit") - 1e-6)
-    ).fill_null(False)
-    # 价格与日期成对回填：计划退出日不可卖时，找到其后首个可卖收盘。
-    frame = frame.with_columns(
-        pl.when(sellable).then(pl.col("_close")).alias("_sellable_close"),
-        pl.when(sellable).then(pl.col("trade_date")).alias("_sellable_date"),
-    ).with_columns(
-        pl.when(quoted)
-        .then(pl.col("_sellable_close").backward_fill().shift(-1).over("ts_code") / pl.col("_close") - 1)
-        .alias("label_1d"),
-        pl.col("trade_date").alias("entry_date"),
-        pl.col("_sellable_date").backward_fill().shift(-1).over("ts_code").alias("exit_date"),
-        pl.col("trade_date").shift(-1).over("ts_code").alias("_planned_exit_date"),
-        buyable.alias("entry_is_buyable"),
-        sellable.shift(-1).over("ts_code").fill_null(False).alias("exit_is_sellable"),
-    )
-    frame = frame.with_columns(
-        pl.col("label_1d").is_finite().fill_null(False).alias("label_1d_is_valid"),
-        (pl.col("exit_date") != pl.col("_planned_exit_date"))
-        .fill_null(pl.col("_planned_exit_date").is_not_null())
-        .alias("exit_delayed"),
-    )
-    if progress is not None:
-        progress(30)
-    finite = pl.when(pl.col("label_1d_is_valid") & ~pl.col("exit_delayed")).then(pl.col("label_1d"))
-    lower = finite.quantile(winsorize_tail, interpolation="linear").over("trade_date")
-    upper = finite.quantile(1 - winsorize_tail, interpolation="linear").over("trade_date")
-    frame = frame.with_columns(finite.clip(lower, upper).alias("_label_1d_winsorized"))
-    if progress is not None:
-        progress(60)
-    winsorized = pl.col("_label_1d_winsorized")
-    mean = winsorized.mean().over("trade_date")
-    std = winsorized.std(ddof=0).over("trade_date")
-    count = finite.count().over("trade_date")
-    frame = frame.with_columns(
-        pl.when(std > EPSILON).then((winsorized - mean) / std).alias("label_1d_csz"),
-        pl.when(pl.col("label_1d_is_valid") & ~pl.col("exit_delayed") & (count > 0))
-        .then(finite.rank(method="average").over("trade_date") / count)
-        .alias("label_1d_rank"),
-    ).drop("_label_1d_winsorized", "_sellable_close", "_sellable_date", "_planned_exit_date")
-    if progress is not None:
-        progress(95)
-    return frame
 
 
 def load_index_weights(paths: list[Path]) -> tuple[pl.DataFrame, pl.DataFrame]:

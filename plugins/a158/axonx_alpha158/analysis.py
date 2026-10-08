@@ -81,6 +81,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
             source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
             dataset_path=dataset_path,
+            labels_path=artifact_path(source_dir, source_metadata, "labels"),
             result_path=output_dir / "factor_analysis.csv",
             quantiles_path=output_dir / "factor_quantiles.csv",
         )
@@ -99,7 +100,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
             raise ValueError("ETL metadata 缺少 feature_columns")
         schema = pl.read_parquet_schema(dataset_path)
         self.report_progress(15)
-        required = ("trade_date", "ts_code", "label_1d_is_valid", "exit_delayed", *features, *LABELS)
+        required = ("trade_date", "trade_time", "ts_code", *features)
         if self.input_params.tradable_only:
             required = (*required, "is_buyable")
         if missing := [column for column in required if column not in schema]:
@@ -132,14 +133,16 @@ class FactorAnalysisTask(BaseAnalysisTask):
         calculator = FactorMetricsCalculator(self.input_params.minimum_daily_samples, self.input_params.quantiles)
         for offset in range(0, total, self.input_params.feature_batch_size):
             batch = features[offset : offset + self.input_params.feature_batch_size]
-            columns = ("trade_date", "label_1d_is_valid", "exit_delayed", *batch, *LABELS)
+            columns = ("trade_date", "trade_time", "ts_code", *batch)
             if self.input_params.tradable_only:
                 columns = (*columns, "is_buyable")
             source = pl.scan_parquet(self.state["dataset_path"]).select(columns)
-            source = source.filter(pl.col("label_1d_is_valid") & ~pl.col("exit_delayed")).drop(
-                "label_1d_is_valid",
-                "exit_delayed",
-            )
+            source = source.join(
+                pl.scan_parquet(self.state["labels_path"]),
+                on=["trade_date", "trade_time", "ts_code"],
+                how="left",
+                validate="1:1",
+            ).filter("label_valid")
             if self.input_params.tradable_only:
                 source = source.filter("is_buyable").drop("is_buyable")
             frame = source.collect()
@@ -205,9 +208,9 @@ class FactorAnalysisTask(BaseAnalysisTask):
                 "quantile_spread": "highest quantile mean raw return minus lowest quantile mean raw return",
                 "quantile_monotonicity": "Spearman correlation between quantile order and mean raw return",
                 "sample_filter": (
-                    "valid strict one-day label, not exit_delayed, and is_buyable"
+                    "valid fixed-one-market-day raw label, and is_buyable"
                     if self.input_params.tradable_only
-                    else "valid strict one-day label, not exit_delayed"
+                    else "valid fixed-one-market-day raw label"
                 ),
             },
             artifacts={

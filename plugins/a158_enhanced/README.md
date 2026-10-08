@@ -2,15 +2,15 @@
 
 [English](README.md) · [简体中文](README_ZH.md) · [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management)
 
-An independent AxonX research plugin for data processing, factor analysis, LightGBM training, out-of-sample prediction, and TopN backtesting.
+An AxonX research plugin for data processing, factor analysis, LightGBM training, out-of-sample prediction, and TopN backtesting.
 
-The enhanced plugin preserves the original 158 features and adds 26 market, traded-amount group, relative-performance, and interaction features, for 184 in total. It includes its own implementation and does not depend on the original plugin package. Traded amount measures activity, not market capitalization.
+The enhanced plugin preserves the original 158 features and adds 26 market, traded-amount group, relative-performance, and interaction features, for 184 in total. It imports shared prediction, training, factor-analysis and feature implementations from `axonx-alpha158>=0.2.0,<0.3`, installed automatically as a dependency. Traded amount measures activity, not market capitalization.
 
 ![Research tasks and artifacts](../../docs/figures/research/workflow.svg)
 
 ## Install and inspect
 
-Requires Python 3.12+; local Task execution supports macOS and Linux. Install into the execution service’s Python environment, then restart the service to reload contributions. LightGBM, NumPy, and Polars are installed as dependencies.
+Requires Python 3.12+ and AxonX `>=0.1.1,<0.2`; local Task execution supports macOS and Linux. Install into the execution service’s Python environment, then restart the service to reload contributions. LightGBM, NumPy, and Polars are installed as dependencies.
 
 ```bash
 pip install axonx-alpha158-enhanced
@@ -21,7 +21,7 @@ axonx plugin show axonx-alpha158-enhanced
 For source development, run from the repository root:
 
 ```bash
-pip install -e ./plugins/a158_enhanced
+pip install -e ./plugins/a158 -e ./plugins/a158_enhanced
 axonx plugin inspect ./plugins/a158_enhanced
 ```
 
@@ -109,13 +109,14 @@ For remote execution, add the same `--target` to all submission, wait, and defin
 | ETL `start_date` / `end_date`                     | `20140101` / null       | First / last output dates, inclusive                            |
 | ETL `min_history_coverage`                        | `0.8`                   | Minimum history coverage for rolling features                   |
 | Train `train_start` / `train_end`                 | `20150101` / `20230101` | Inclusive start, exclusive cutoff                               |
-| Train `label_column`                              | `label_1d_rank`         | Daily cross-sectional return rank target                        |
+| Train `label_column`                              | `label_return_rank`     | Daily cross-sectional return rank target                        |
+| Train `label_winsorize_tail`                      | `0.025`                 | Each tail clipped before training-only CSZ normalization        |
 | Train `trim_tail`                                 | `0.025`                 | Remove 2.5% of raw returns from each daily tail                 |
 | Train `validation_ratio`                          | `0.10`                  | Last training dates reserved for internal validation            |
 | Train `num_boost_round` / `early_stopping_rounds` | `1000` / `50`           | Maximum rounds / early stopping patience                        |
 | Train `random_seed`                               | `42`                    | Model sampling seed                                             |
 | Predict `pred_start` / `pred_end`                 | `20230101` / null       | Prediction interval; start must not precede the training cutoff |
-| Backtest `transaction_cost_rate`                  | `0.002`                 | Transaction cost multiplied by actual daily turnover            |
+| Backtest `transaction_cost_rate`                  | `0.002`                 | Fee rate on each executed buy and sell notional                 |
 | Backtest `annualization_days`                     | `252`                   | Trading days used for annualization                             |
 
 Consult `get_task_definition` in the execution environment for the complete parameter Schema.
@@ -124,11 +125,13 @@ Consult `get_task_definition` in the execution environment for the complete para
 
 Original features use the `f_alpha158_*` namespace: 13 current-day price features and 29 rolling feature families over 5, 10, 20, 30, and 60 trading-day windows. Prices are adjusted, and trading-calendar and listing-status information are preserved.
 
-The normal label is adjusted close-to-close return from signal day T to T+1. If the planned exit is unavailable, exit is delayed until the first sellable date. Training, factor evaluation, and signal ranking metrics use valid, undelayed one-day samples. Prediction retains the full cross section without filtering stocks by future labels.
+ETL schema version 2 publishes independent `dataset`, `labels`, `market`, and `calendar` artifacts. Raw labels use the next market date; suspended or missing quotes invalidate the label without searching for a future resumption. Training filters exclusive cutoffs and handles tails before computing `label_return_rank` or `label_return_csz`; fitting, validation and final training transform their own eligible reference rows. Prediction does not require future labels; its statistics describe scores and signal-time eligibility. Studio renders the configured TopN sizes and marks incomplete market-data results as provisional.
 
-Backtesting ranks same-day signals and simulates buying at the same-day close using daily tradability proxies. It does not model after-close queuing or partial fills. Positions retain capital until actual exit; open positions remain at cost, and net returns are booked on realized exits. Top30 holding details describe signal targets, rather than the live position book.
+Backtesting inherits AxonX `BaseStockBacktestTask`, reads independent prices and trading states, and marks positions to market daily. Blocked exits retain capital; unfilled targets are not replaced by lower-ranked stocks. `transaction_cost_rate` is charged on each actual buy and sell notional; `top_ns` is an integer list. An optional `market_status_file` supplies confirmed suspensions (signal keys plus `market_status=suspended`); absent quotes are not inferred as suspension and affected runs report `incomplete_market_data`. Top30 contains signal targets; `positions`, `orders`, and `trades` record actual portfolio state.
 
 For return, cost, IC, and holding definitions, see [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest).
+
+Required prediction columns, optional columns and metadata constraints are listed in the [prediction input contract](../../docs/en/reference/research-artifacts.md#prediction-inputs-for-stock-backtesting).
 
 ## Inspect results in Studio
 
@@ -168,9 +171,9 @@ Enhanced ETL creates all 184 features. Training selects groups with `--context-g
 
 Group assignments use historical amount through T−1; same-day context is available after the signal-day close. Returns use adjacent trading-day adjusted closes; missing quotes do not turn returns across a suspension into one-day returns. The statistical pool is independent of future labels and buyability. Exact feature names and timing rules are in [cross_section.py](axonx_alpha158_enhanced/internal/cross_section.py), and ETL metadata records `context.feature_groups` and the timing protocol.
 
-## Version and experiment findings
+## Historical experiment findings
 
-Version 0.1.2 enables all four groups by default, matching the locked 184-feature experiment. Training used 2015 through 2022; selection used 2023–2024; final confirmation used 2025-01-01 through 2026-09-30.
+The recorded 184-feature experiment enabled all four groups. Training used 2015 through 2022; selection used 2023–2024; final confirmation used 2025-01-01 through 2026-09-30.
 
 | Confirmation metric         | Baseline | All groups |
 | --------------------------- | -------: | ---------: |
@@ -224,7 +227,7 @@ axonx submit --task a158e_backtest --source-tasks '<predict_task_id>' \
 
 Apply the plan’s selection rules and lock the chosen groups before confirmation. Predict only the baseline and locked model with `--pred-start 20250101 --pred-end 20260930`, wait, and backtest each prediction. Save configurations, model artifacts, predictions, backtest summaries, and daily outputs. Report experiments on different data snapshots separately. Local recovery/report scripts tied to the historical service are not committed.
 
-Net Sharpe in the experiment report is calculated from daily net returns after costs and daily risk-free return; it differs from gross Sharpe in the original backtest output. The close-price execution proxy, delayed exits, and cost-based accounting for open holdings remain part of the protocol.
+Net Sharpe in the experiment report is calculated from daily net returns after costs and daily risk-free return; it differs from gross Sharpe in the original backtest output. Those historical experiments used a close-price execution proxy and cost-based open-position accounting.
 
 ## Local validation
 
@@ -233,7 +236,8 @@ From the repository root, after installing development dependencies:
 ```bash
 PYTHONPATH=plugins/a158_enhanced .venv/bin/python -m pytest \
   plugins/a158_enhanced/tests/test_cross_section.py \
-  tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py -q
+  tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py \
+  tests/unit/test_stock_backtest.py tests/unit/test_stock_pipeline.py -q
 ```
 
 Tests cover future-data causality, original feature contracts, historical grouping, suspension, flat returns, insufficient history, and independence of the statistical pool from labels and buyability.

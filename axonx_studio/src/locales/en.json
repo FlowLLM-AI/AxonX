@@ -417,10 +417,14 @@
       "trade_date": "Trading date",
       "ts_code": "Stock code",
       "pred": "Model ranking score",
-      "actual_return": "Next day adjusted return · decimal",
-      "label_valid": "Whether realized return is valid",
       "name": "Stock name",
-      "is_buyable": "Whether buyable on this date"
+      "trade_time": "Signal time",
+      "is_model_candidate": "Model candidate eligibility",
+      "is_buyable_at_signal": "Buyable at signal time",
+      "signal_price": "Signal reference price",
+      "signal_adjustment_factor": "Signal adjustment factor",
+      "rank": "Score rank",
+      "buyable_rank": "Buyable candidate rank"
     },
     "noKindTasks": "No {{kind}} tasks",
     "refresh": "Refresh",
@@ -464,7 +468,6 @@
     "sample_coverage": "Sample coverage",
     "symbols_days": "Symbols / days",
     "buyable": "Buyable",
-    "valid_return": "Valid return",
     "backtest_candidates": "Backtest candidates",
     "index_weights": "Index weights",
     "symbols": "symbols",
@@ -563,7 +566,8 @@
     "only": "only",
     "code": "Code",
     "name": "Name",
-    "daily_return": "Daily return"
+    "daily_return": "Daily return",
+    "accounting_protocols_differ": "Accounting protocols differ between these backtests."
   },
   "backtest": {
     "dateRange": {
@@ -640,7 +644,8 @@
     "scroll_sideways": "Scroll sideways",
     "reset_table_sorting": "Reset table sorting",
     "overall_metrics_by_top_n": "Overall metrics by Top N",
-    "top_n_period_metric_details": "Top N period metric details"
+    "top_n_period_metric_details": "Top N period metric details",
+    "incomplete_market_data": "Market data is incomplete. Returns and valuations are provisional."
   },
   "agent": {
     "sessions": "Sessions",

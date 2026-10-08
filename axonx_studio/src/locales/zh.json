@@ -417,10 +417,14 @@
       "trade_date": "交易日期",
       "ts_code": "股票代码",
       "pred": "模型排名分数",
-      "actual_return": "下一交易日复权收益率 · 小数",
-      "label_valid": "实际收益率是否有效",
       "name": "股票名称",
-      "is_buyable": "当日是否满足可买条件"
+      "trade_time": "信号时点",
+      "is_model_candidate": "模型候选资格",
+      "is_buyable_at_signal": "信号时是否可买",
+      "signal_price": "信号参考价格",
+      "signal_adjustment_factor": "信号复权因子",
+      "rank": "预测分数排名",
+      "buyable_rank": "可买候选排名"
     },
     "noKindTasks": "暂无 {{kind}} 任务",
     "refresh": "刷新",
@@ -464,7 +468,6 @@
     "sample_coverage": "样本覆盖",
     "symbols_days": "股票 / 交易日",
     "buyable": "可买",
-    "valid_return": "收益有效",
     "backtest_candidates": "可回测",
     "index_weights": "指数权重",
     "symbols": "只股票",
@@ -563,7 +566,8 @@
     "only": "独有",
     "code": "代码",
     "name": "名称",
-    "daily_return": "当日收益"
+    "daily_return": "当日收益",
+    "accounting_protocols_differ": "这两份回测使用不同的记账协议。"
   },
   "backtest": {
     "dateRange": {
@@ -640,7 +644,8 @@
     "scroll_sideways": "左右滑动查看",
     "reset_table_sorting": "重置表格排序",
     "overall_metrics_by_top_n": "各 Top N 总体指标",
-    "top_n_period_metric_details": "Top N 分期指标明细"
+    "top_n_period_metric_details": "Top N 分期指标明细",
+    "incomplete_market_data": "行情数据不完整，收益和估值为暂定结果。"
   },
   "agent": {
     "sessions": "会话",

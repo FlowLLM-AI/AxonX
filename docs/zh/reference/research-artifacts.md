@@ -51,14 +51,17 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 ## ETL 产物
 
-基类保存输出文件描述和列名。a158 扩展 feature_count、symbols、schema、labels、market_state 等信息，生成：
+基类保存输出文件描述和列名。a158 扩展 feature_count、symbols、schema、protocol、market_state 等信息，生成：
 
-| artifact 名  | 文件               | 用途                         |
-| ------------ | ------------------ | ---------------------------- |
-| `dataset`    | `alpha158.parquet` | 训练、因子分析和预测的源数据 |
-| `statistics` | `alpha158.csv`     | 各列质量统计                 |
+| artifact 名  | 文件               | 用途                               |
+| ------------ | ------------------ | ---------------------------------- |
+| `dataset`    | `alpha158.parquet` | 训练、因子分析和预测的源数据       |
+| `statistics` | `alpha158.csv`     | 各列质量统计                       |
+| `labels`     | `labels.parquet`   | 固定次一市场日原始收益及可用状态   |
+| `market`     | `market.parquet`   | 报价、复权因子、成交资格及行情状态 |
+| `calendar`   | `calendar.parquet` | 独立于预测资格的市场日期           |
 
-a158 下游通过 `artifacts.dataset.path` 解析数据，不能仅填写 `output_file` 而省略映射。历史字段可能保存完整字符串路径，而标准 artifact 应是 Task 目录内相对路径。
+a158 下游通过 `artifacts.dataset.path` 解析数据，不能仅填写 `output_file` 而省略映射。输出文件字段保存完整字符串路径，而标准 artifact 应是 Task 目录内相对路径。
 
 ## 因子分析 scores
 
@@ -113,13 +116,44 @@ a158 把 L2 放左轴、L1 放右轴；曲线是调参模型的训练/验证历�
 ```text
 statistics.days / symbols
 statistics.pred.mean / min / median / max
-statistics.buyable_rows / valid_return_rows / candidate_rows
+statistics.buyable_rows / candidate_rows
 statistics.indices.<column>.constituents / days_with_weights / null_rows
 ```
 
 缺少这些字段时页面显示空值，不意味着所有预测插件都必须提供 a158 股票统计。a158 artifact 名为 `predictions`，文件为 `predictions.parquet`。
 
-回测需要的列是插件契约，不是 Predict 基类自动保证。a158 要求 trade_date、ts_code、name、pred、actual_return、label_valid、is_buyable、entry_is_buyable、exit_is_sellable、entry_date、exit_date、exit_delayed，并检查相关状态列是 Boolean。
+股票回测使用 `axonx.task.builtins.stock` 的统一契约。预测行包含 `trade_date`、`trade_time`、`ts_code`、`pred`、`is_model_candidate`、`is_buyable_at_signal`、`signal_price` 和 `signal_adjustment_factor`；资格标志是非空 Boolean。a158 另外输出 `name`、`rank`、`buyable_rank` 和指数权重。预测不包含未来标签。ETL 独立发布 `dataset`、`labels`、`market`、`calendar`；`labels` 按信号主键存储 `label_target_date`、`label_return`、`label_valid`、`label_status`。Rank/CSZ 目标仅在训练完成截止时间及样本筛选后计算。
+
+## 预测到股票回测的输入契约
+
+`BaseStockBacktestTask` 从预测 Parquet 读取以下 8 个必需列；两个 Alpha158 插件的 `predictions.parquet` 都满足该契约。
+
+| 必需列                     | 类型与约束                                      | 含义                                       |
+| -------------------------- | ----------------------------------------------- | ------------------------------------------ |
+| `trade_date`               | 非空字符串，有效 YYYYMMDD，且属于市场日历       | 信号日期                                   |
+| `trade_time`               | 非空字符串，有效 HHMM；一次回测只能包含一个时点 | 信号时点，例如 `1500`                      |
+| `ts_code`                  | 非空字符串                                      | 股票标识                                   |
+| `pred`                     | 非空、有限数值                                  | 排序分数，越大排名越靠前；不是收益率或概率 |
+| `is_model_candidate`       | 非空 Boolean                                    | 是否具有模型候选资格                       |
+| `is_buyable_at_signal`     | 非空 Boolean                                    | 信号时是否满足可买筛选条件                 |
+| `signal_price`             | 非空、有限数值                                  | 信号时参考报价，与复权因子分开存储         |
+| `signal_adjustment_factor` | 非空、有限数值                                  | 信号时参考报价的复权因子                   |
+
+预测表不能为空，组合主键 `(trade_date, trade_time, ts_code)` 必须唯一且无空值。股票标识和时点需与行情表使用相同口径。参考报价和复权因子按其价格含义应为正值。两个资格标志都为 `true` 的行才进入选股候选池，再按 `index_codes` 筛选。
+
+以下列不是基础回测的必需列：
+
+| 可选列                 | 用途                                                                                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                 | 明细显示名称；省略时使用 `ts_code`                                                                                                     |
+| `rank`、`buyable_rank` | 预测侧辅助排名；回测自行按 `pred` 降序、`ts_code` 升序计算目标排名                                                                     |
+| `index_weight_<code>`  | 小数单位指数权重；配置 `index_codes=["hs300"]` 时必须提供 `index_weight_hs300`，权重大于零表示属于该候选指数；权重列也用于基准收益代理 |
+
+预测无需提供特征列、`actual_return`、未来标签或未来买卖日期。`signal_price` 和 `signal_adjustment_factor` 是信号参考信息；实际成交与逐日估值使用独立 `market` 表中的 `price`、`adjustment_factor` 和交易状态。
+
+回测输入还需独立的 `market` 和 `calendar` 产物；可选 `labels` 用于 IC、RankIC、NDCG、目标标签收益和基准收益，无标签时仍可运行组合账本。指定文件时分别传 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`，上述 `input_file` 为预测 Parquet。
+
+通过 Predict Task ID 解析时，预测 metadata 的 `output_params.artifacts.predictions` 必须提供产物记录（相对 `path`、`size`、`sha256`），并声明 `output_params.protocol.version=2`。`protocol.market_source_task` 指向提供行情、日历和标签的 ETL Task；也可在 `source_tasks` 显式指定 ETL 来源或传入对应文件路径。任务解析会校验来源产物摘要。`statistics` 是展示信息，不是回测选股输入。
 
 ## 回测 dimensions 与 protocol
 
@@ -130,13 +164,13 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
     "holding_detail_top_n": 30,
     "benchmarks": [{ "key": "universe", "label": "Universe" }]
   },
-  "protocol": { "actual_return_unit": "decimal" },
+  "protocol": { "version": 2, "return_unit": "decimal" },
   "date_range": { "start": "20230103", "end": "20231229" },
   "days": 250
 }
 ```
 
-这是基类合法结构示例。a158 提供更详细的 candidate_filter、execution、portfolio、turnover、net_return 等协议文字。页面不是自动验证协议文字的回测引擎；插件作者需明确真实执行与单位。
+这是基类合法结构示例。统一股票 Task 在 `protocol` 中发布执行、估值、配置、费用、截止时间和输入摘要的定义，`evaluation_status` 标识行情不完整的结果。页面不是自动验证协议文字的回测引擎；插件作者需明确真实执行与单位。
 
 Studio 从 `artifacts.daily.path` 和 `artifacts.summary.path` 加载两个表，加载时每页请求 5000 行，根据 `has_more` 继续，直到读取完整表。仅满足 Backtest 输出模型不足以保证图表可用。
 
@@ -149,11 +183,11 @@ Studio 从 `artifacts.daily.path` 和 `artifacts.summary.path` 加载两个表�
 | `ic`、`rank_ic`                          | 信号曲线及移动均值                               |
 | `topN_net_return`、`topN_gross_return`   | 净复利、毛累加曲线                               |
 | `topN_turnover`、`topN_transaction_cost` | 换手和成本观察                                   |
-| `topN_ndcg`                              | 固定展示规模的排名诊断                           |
+| `topN_ndcg`                              | 各配置 Top N 规模的排名诊断                      |
 | `benchmark_<key>_return`                 | dimensions 声明的基准收益曲线                    |
 | `top30_holdings`                         | 当前固定 Top 30 明细                             |
 
-明细是结构数组，前端读取 `rank`、`ts_code`、`name`、`prediction`、`daily_return`、`weight`。a158 还保存 entry_date、exit_date、exit_delayed 供协议分析。
+明细是结构数组，前端读取 `rank`、`ts_code`、`name`、`prediction`、`daily_return`、`weight`。`daily_return` 是固定次一市场日标签，在截止时间不可用时为空。真实买卖日期和延期退出保存在 `positions`、`trades`；成交与未成交原因保存在 `orders`。
 
 当前页面硬编码 `top30_holdings`，不会因 holding_detail_top_n 的值改变而自动寻找新列。a158 这个字段是信号目标、包含未成交候选；不能描述为实际持仓账本。
 

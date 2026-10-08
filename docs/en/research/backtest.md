@@ -1,167 +1,87 @@
 ---
 title: Interpreting Backtest Results
-description: Understand a158 target portfolios, actual-exit accounting, costs, and Studio display definitions.
+description: Shared stock protocols, cutoff-safe labels, daily valuation and portfolio artifacts.
 ---
 
 # Interpreting Backtest Results
 
-The backtest page reads `daily` and `summary` artifacts from successful Backtest Tasks to display returns, signal quality, target lists, and period statistics. This page describes the current a158 plugin. Check the `protocol` of other plugins first.
+Alpha158 and enhanced Alpha158 use the same `BaseStockBacktestTask` and position ledger. Stock schema version 2 separates signal-time features, fixed-day labels and market data.
 
-![Backtest accounting flow](../../figures/research/backtest-accounting.svg)
+The shared implementation lives in `axonx.task.builtins.stock`; new plugins should import from this package.
 
-## Running a backtest
+## Data contracts
+
+ETL publishes four independent artifacts:
+
+| Artifact   | Meaning                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------- |
+| `dataset`  | Signal-time features, eligibility, reference price and adjustment factor                        |
+| `labels`   | Raw decimal return to the next market date at the same time, target date and availability state |
+| `market`   | Independent quotes, adjustment factors, buy/sell proxies and market status                      |
+| `calendar` | Market trading dates, including dates without eligible predictions                              |
+
+Keys are `trade_date` (YYYYMMDD string), `trade_time` (HHMM string), and `ts_code`. Labels never remove feature rows or prediction candidates. A suspension invalidates the corresponding fixed-day label; it does not substitute a later resumption return. Training computes rank/CSZ only after filtering the exclusive cutoff, selecting eligible rows and handling tails. Temporal fitting and validation use their own reference samples.
+
+`market_status` is `quoted`, `suspended`, or `missing_data`. ETL can consume a separate `market_status_file` with the keys and explicit suspension/missing states. Absent quotes are not evidence of suspension. Confirmed signal-day suspension or missing status disables signal buyability even if a stale quote remains; model candidate rows are retained.
+
+## Inputs
+
+For required prediction columns, optional columns and metadata requirements, see [Prediction inputs for stock backtesting](../reference/research-artifacts.md#prediction-inputs-for-stock-backtesting).
 
 ```bash
 axonx submit --task a158_backtest --source-tasks '<Predict Task ID>' \
-  --transaction-cost-rate 0.002 \
-  --annual-risk-free-rate 0.012 --annualization-days 252
+  --top-ns '[1,5,10,30]' --holding-days 1 \
+  --transaction-cost-rate 0.002
 ```
 
-After submission, use the TaskHandle's `task_id` and `run_id` to wait for success, then open the Studio backtest page. Upstream inputs must pass a158 prediction-field and Boolean-type checks and declare `actual_return_unit=decimal`.
+Source tasks resolve market, calendar and label artifacts. Explicit files use `input_file`, `market_file`, `calendar_file` and optional `labels_file`. `as_of_date` is the inclusive evaluation cutoff, defaulting to the latest market date. `top_ns` is an integer list; each size has an independent portfolio. Calendar dates must be valid YYYYMMDD values without nulls or duplicates; malformed calendars are rejected before computing label or holding horizons.
 
-| Parameter                       | Default | Meaning                                                     |
-| ------------------------------- | ------- | ----------------------------------------------------------- |
-| `transaction_cost_rate`         | `0.002` | Transaction cost rate applied to turnover, in decimal units |
-| `annual_risk_free_rate`         | `0.012` | Annual risk-free rate for risk-adjusted metrics             |
-| `annualization_days`            | `252`   | Trading days per year used in plugin summaries              |
-| `minimum_index_weight_coverage` | `0.90`  | Minimum weight coverage required for index benchmarks       |
-| `index_codes`                   | `[]`    | Restricts candidate indices, for example `["hs300"]`        |
+| Parameter                       | Default | Meaning                                          |
+| ------------------------------- | ------- | ------------------------------------------------ |
+| `holding_days`                  | `1`     | Planned holding period in market days            |
+| `transaction_cost_rate`         | `0.002` | Cost on each executed buy and sell notional      |
+| `annual_risk_free_rate`         | `0.012` | Annual risk-free rate                            |
+| `annualization_days`            | `252`   | Trading dates per year                           |
+| `minimum_index_weight_coverage` | `0.98`  | Required coverage for weighted benchmark proxies |
+| `index_codes`                   | `[]`    | Optional signal candidate index restriction      |
 
-Portfolio sizes are currently fixed at Top 1, 2, 3, 5, 10, 15, 20, and 30; this plugin's inputs do not allow arbitrary sizes. Benchmark definitions come from metadata `dimensions.benchmarks`.
+## Execution and valuation
 
-## Signals, entries, and exits
+Signals rank by score descending, then symbol ascending. Selection does not consult future labels. The engine marks existing positions, attempts due sells, and then funds same-day targets from available cash. An unfilled target is not replaced by a lower-ranked stock. Already-held stocks, position capacity and available cash constrain new purchases.
 
-On each signal date, the plugin selects buyable candidates with finite scores and sorts by descending score, breaking ties with stable symbol ordering. When multiple index codes are configured, it uses candidates belonging to any specified index.
+A blocked exit retains both its position and its capital. Confirmed suspension carries the last reliable adjusted-price mark; a later quoted date updates valuation and permits another exit attempt. Missing data affecting held or selected stocks sets `evaluation_status=incomplete_market_data`; the provisional result remains inspectable. No position is forcibly liquidated at the cutoff.
 
-Each day simulates selling due old positions at the close, then attempts to buy that day's targets. New positions can exit no earlier than the next trading day, and capital remains in old positions until actual exit. Targets failing `entry_is_buyable` leave cash uninvested. A full portfolio, an already-held symbol, or insufficient capital also affects purchases.
-
-Returns are booked on actual exit dates. Open positions remain on the books at principal cost. This is not equity marked to market daily and does not simulate after-hours queues, partial fills, or actual capital-release details. Delayed exits and unsettled positions can affect return interpretation for the full window.
-
-## Daily return fields
-
-Using `top30_` as an example:
-
-| Field                     | Meaning                                                               |
-| ------------------------- | --------------------------------------------------------------------- |
-| `gross_return`            | Realized exit profit for the day / opening book equity                |
-| `turnover`                | Greater of actual buy and sell principal for the day / opening equity |
-| `transaction_cost`        | Cost rate multiplied by turnover                                      |
-| `net_return`              | Gross return minus transaction costs                                  |
-| `count`, `open_positions` | Number of positions not yet exited                                    |
-| `delayed_open_positions`  | Positions still held because exit is delayed                          |
-| `unsettled_positions`     | Positions without an exit date yet                                    |
-| `exits`, `delayed_exits`  | Number of exits and delayed exits that day                            |
-| `unfilled_entries`        | Targets failing the entry buyability check                            |
-
-`daily.trade_date` is the backtest calendar date. Portfolio returns correspond to exits actually realized that day; IC corresponds to signal diagnostics for that date. Do not merge them into one transaction.
-
-## Read the protocol before the return chart
-
-These screenshots show existing backtest results in a remote workspace, using the English UI for charts and tables. The experiment's return values do not replace this page's explanation of the `a158` implementation. Return screenshots retain the plotting area; check specific series names in your own page legend.
-
-![Backtest cumulative net return](../../figures/studio/backtest-net-return.png)
-
-**Net return** shows the compounded trajectory after costs, useful for inspecting equity curves and drawdowns.
-
-![Backtest accumulated gross return](../../figures/studio/backtest-gross-return.png)
-
-**Gross return** sums daily gross returns. Its final value cannot be compared as equal to the plugin summary's compounded gross return.
-
-Studio recalculates return charts from daily data in the selected range:
+The same-time quote is an execution proxy. It does not guarantee that a signal computed after a bar or closing auction can fill at that price, nor model queues or partial fills. Inspect the stored execution protocol before interpreting results as a tradable strategy.
 
 ```text
-Cumulative net return = ∏(1 + daily net return) − 1
-Gross return chart    = Σ(daily gross return)
+Equity = cash + marked position value
+Daily net return = equity / previous equity - 1
+Daily cost = executed buy and sell costs / previous equity
+Daily gross return = daily net return + daily cost
+Turnover = executed buy and sell notional / previous equity
 ```
 
-Two daily returns of `+10%` and `-10%` compound to `-1%`, while their sum is `0%`. This is a difference in calculation definitions, not two color schemes for the same value.
+Adjusted-price units preserve value across corporate-action price changes. Marked gains are not booked again on exit. Costs apply to the initial purchase as well as later trades.
 
-The plugin's `summary.parquet` uses compounded gross returns for `gross_cumulative_return`. The last value of Studio's accumulated gross-return curve therefore need not equal gross cumulative return in the summary table. Net charts and summaries both compound returns, but different windows can still produce differences.
+## Outputs
 
-Chart date sliders and start/end dates change the display window and means within that window. Summary tables use overall, year, quarter, and month rows generated in advance by the plugin; moving a slider does not automatically rerun it.
+| Artifact    | Meaning                                                                       |
+| ----------- | ----------------------------------------------------------------------------- |
+| `daily`     | Calendar-aligned returns, equity, cash, open positions and signal diagnostics |
+| `summary`   | Overall, yearly, quarterly and monthly statistics                             |
+| `targets`   | Signal-selected candidates                                                    |
+| `orders`    | Actual fills and unfilled reasons                                             |
+| `positions` | Actual daily holdings, adjusted units, weights and market values              |
+| `trades`    | Completed holding periods, actual entry/exit prices, returns and fees         |
 
-## Signal quality
+`daily` retains `topN_*` columns and `dimensions` describes available portfolio sizes and benchmarks. `top30_holdings` is a signal target list; it is not the actual position book. Use `positions` for actual exposure. Unfinished positions remain in that artifact even when no completed trade exists.
 
-![Backtest IC and RankIC moving averages](../../figures/studio/backtest-quality.png)
+## Signal diagnostics and benchmarks
 
-**Model quality** shows MA20 for IC and RankIC, along with daily means over the selected date range. Hover to read curve values for a date. Range means and moving-average curves are different statistics.
+IC, RankIC and NDCG use the same signal-day buyable candidate pool as target selection, including the `index_codes` restriction. IC and RankIC compare scores with valid fixed-one-market-day raw returns. NDCG measures top-ranked signal quality against the same available return sample; missing labels do not refill the selected ranking. These diagnostics belong to the signal date. Returns and valuation belong to the portfolio calendar date.
 
-![Backtest NDCG moving averages](../../figures/studio/backtest-ndcg.png)
+`benchmark_universe_return` is an available-signal cross-section mean. `index_weight_*` produces weighted return proxies only when coverage meets the configured threshold. They are not official total-return index series. Benchmark returns use the label target date, so their period aligns with portfolio valuation.
 
-The NDCG panel shows ranking diagnostics and window means for Top 5, 10, 15, 20, and 30, helping inspect high-score target ranking quality. It does not replace execution costs or portfolio returns.
+Studio reads `daily`, `summary` and `dimensions`. Net-return charts compound daily net returns, while the accumulated-gross chart sums daily gross returns; the latter need not equal compounded gross return in the summary. Period tables are task-generated and do not automatically rerun when the chart range changes.
 
-- `ic`: Pearson correlation between scores and returns on strictly valid single-day labels.
-- `rank_ic`: Spearman correlation over the same strict label sample.
-- `topN_ndcg`: a ranking diagnostic based on strictly valid single-day return relevance in the candidate cross-section.
-
-Studio also displays a 20-row moving average, using available samples at the beginning. Missing and non-finite values are excluded; windows with fewer than 20 valid observations are not full 20-day statistics. High IC does not necessarily imply high returns after costs; execution constraints and costs change results.
-
-## What the Top 30 table means
-
-![Top 30 target prediction, return and weight](../../figures/studio/backtest-holdings.png)
-
-This screenshot retains only Prediction, Return, and Weight columns. Returns appear empty when unavailable. Interpret weights and scores together with the target-list protocol.
-
-The current frontend is hardcoded to read `top30_holdings`. The table supports sorting, updates with the chart cursor date, and can be locked or moved to the latest day.
-
-This field is the signal-date Top 30 **target candidate list**, including stocks that could not be purchased that day. It is neither an actual position ledger nor a complete execution record for the user's selected Top N. Its `daily_return` comes from the target's eventual holding return, potentially spanning delayed exits. `weight` is a weight proxy in target details, not a weight in the actual capital ledger.
-
-Even if `dimensions.holding_detail_top_n` describes another size, the current page still reads `top30_holdings`. Extension plugins cannot simply rename the field and expect the frontend to display arbitrary Top N automatically.
-
-## Summary metrics
-
-![Backtest overall summary](../../figures/studio/backtest-overall.png)
-
-Basic signal metrics in **Overall** are independent of portfolio size; Top N return metrics appear in their corresponding detail sections.
-
-| Metric                | a158 summary definition                                                                             |
-| --------------------- | --------------------------------------------------------------------------------------------------- |
-| Cumulative net return | Compounded daily net returns                                                                        |
-| Annualized net return | Cumulative equity annualized using observed days and annual trading days                            |
-| Annualized volatility | Sample standard deviation of daily net returns multiplied by the square root of annual trading days |
-| Maximum drawdown      | Peak drawdown of the compounded net equity curve including initial equity of 1, negative            |
-| Win rate              | Proportion of days with positive net return; zero-return days are not wins                          |
-| Average turnover      | Mean daily turnover                                                                                 |
-| Gross Sharpe          | Mean/sample standard deviation of gross returns minus daily risk-free return, annualized            |
-| Benchmark IR          | Mean/sample standard deviation of gross returns minus benchmark returns, annualized                 |
-| ICIR                  | Mean/sample standard deviation of daily Pearson correlations, annualized                            |
-
-Benchmarks may be empty when index weight coverage is insufficient; risk-adjusted metrics may also be missing. The `universe` benchmark is the mean return of candidates satisfying return conditions within the plugin's universe. Do not call it an exchange-wide market index.
-
-## Benchmark net Sharpe and statistical intervals
-
-The gross Sharpe above comes from a158 backtest summaries. The project benchmark and enhanced-plugin experiment separately calculate **net Sharpe** from daily returns after costs:
-
-```text
-Daily risk-free return = (1 + annual risk-free return)^(1 / annualization days) − 1
-Net Sharpe = mean(daily net return − daily risk-free return) / std(daily net return, ddof=1) × √annualization days
-```
-
-The historical experiment uses a 1.2% annual risk-free rate and 252 trading days. This net Sharpe is an experiment analysis metric; it cannot be read directly from the original artifact's `gross_sharpe`. Top30 net Sharpe was not saved and the benchmark does not reconstruct it.
-
-RankIC, net annualized returns, and net Sharpe measure different aspects. The enhancement case's paired bootstrap intervals concern daily metric differences, not differences in annualized compounded returns. See [experiment design and confirmation](experiments.md) for windows, selection rules, and uncertainty, and the [enhanced plugin](../../../plugins/a158_enhanced/README.md) for historical results and calculation materials.
-
-## Yearly, quarterly, and monthly observations
-
-![Backtest yearly summary](../../figures/studio/backtest-yearly.png)
-
-**Yearly** shows both yearly signal metrics and return metrics for the selected Top N. Check each year's observed days before comparing annualized returns, volatility, and drawdowns.
-
-![Backtest quarterly summary](../../figures/studio/backtest-quarterly.png)
-
-**Quarterly** splits the range into quarters to locate where changes concentrate. Rows come from plugin-generated quarterly summaries.
-
-![Backtest monthly summary](../../figures/studio/backtest-monthly.png)
-
-**Monthly** helps check signal stability month by month. The table supports scrolling and sorting. Ratios may fluctuate more with smaller monthly samples.
-
-## When results look abnormal
-
-First verify prediction returns are in decimal units, then check date ranges, candidate size, costs, delayed exits, and unsettled positions. Create a new experiment Task when changing parameters. Changing Top N or the window on the page only changes observation and does not rerun the backtest.
-
-## Related documentation and implementation
-
-- [Strategy comparison](strategy-comparison.md), [Research artifact protocol](../reference/research-artifacts.md)
-- [Plugin backtest protocol](../../../plugins/a158/axonx_alpha158/backtest.py)
-- [Backtest accounting and summaries](../../../plugins/a158/axonx_alpha158/internal/backtest.py)
-- [Studio backtest display](../../../axonx_studio/src/features/research/backtest/BacktestView.tsx)
+Studio derives return and NDCG series from `dimensions.top_ns`, displays incomplete market-data evaluations as provisional, and exposes all portfolio artifacts. Prediction statistics describe signal-time scores and eligibility; schema version 2 does not embed future returns or valid-return coverage in predictions. Empty statistics and missing labels display as unavailable.

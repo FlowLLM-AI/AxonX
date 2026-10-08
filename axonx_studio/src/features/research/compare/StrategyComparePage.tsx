@@ -47,8 +47,10 @@ const numeric = (value: unknown) => {
   const number = finite(value);
   return Number.isFinite(number) ? number : NaN;
 };
-const percent = (value: number) =>
-  Number.isFinite(value) ? `${(value * 100).toFixed(2)}%` : "—";
+const percent = (value: number | null) =>
+  value !== null && Number.isFinite(value)
+    ? `${(value * 100).toFixed(2)}%`
+    : "—";
 const decimal = (value: number, digits = 3) =>
   Number.isFinite(value) ? value.toFixed(digits) : "—";
 const dateInput = (value: string) =>
@@ -96,6 +98,8 @@ async function loadTasks(
             },
             artifacts,
             dimensions: output.dimensions as BacktestArtifact["dimensions"],
+            evaluation_status: output.evaluation_status as string | undefined,
+            protocol: output.protocol as BacktestArtifact["protocol"],
             date_range: output.date_range as BacktestArtifact["date_range"],
             days: numeric(output.days),
             source: parseSourceTasks(input.source_tasks),
@@ -356,6 +360,14 @@ export default function StrategyComparePage({
   ];
   const warnings: string[] = [];
   if (taskA && taskB) {
+    if (
+      [taskA, taskB].some(
+        (task) => task.evaluation_status === "incomplete_market_data",
+      )
+    )
+      warnings.push(t("backtest.incomplete_market_data"));
+    if (taskA.protocol?.version !== taskB.protocol?.version)
+      warnings.push(t("compare.accounting_protocols_differ"));
     if (
       Number.isFinite(taskA.settings.transactionCost) &&
       Number.isFinite(taskB.settings.transactionCost) &&
