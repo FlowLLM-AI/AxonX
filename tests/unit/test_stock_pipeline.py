@@ -70,6 +70,15 @@ def test_complete_new_artifact_pipeline(tmp_path, enhanced):
         from axonx_alpha158.analysis import FactorAnalysisTask
     raw = tmp_path / "raw"
     dates = raw_data(raw)
+    # Irrelevant old history may be incomplete; retain exactly the required rolling history.
+    old = raw / "2014" / "20140102"
+    old.mkdir(parents=True)
+    pl.read_parquet(raw / dates[0][:4] / dates[0] / "daily.parquet").with_columns(
+        pl.lit("20140102").alias("trade_date")
+    ).write_parquet(old / "daily.parquet")
+    pl.DataFrame({"ts_code": ["000001.SZ"], "trade_date": ["20140102"], "adj_factor": [0.0]}).write_parquet(
+        old / "adj_factor.parquet"
+    )
     workspace = tmp_path / "workspace"
 
     def run(cls, name, **params):
@@ -85,6 +94,7 @@ def test_complete_new_artifact_pipeline(tmp_path, enhanced):
         {"trade_date": [dates[64]], "trade_time": ["1500"], "ts_code": ["000001.SZ"], "market_status": ["suspended"]}
     ).write_parquet(states)
     etl, output = run(Alpha158Task, "etl", input_dir=raw, start_date=dates[60], market_status_file=states)
+    assert etl.state["daily_files"][0].parent.name == dates[0]
     metadata = read_metadata(etl.metadata_path)
     assert {"dataset", "labels", "market", "calendar"} <= set(output["artifacts"])
     dataset = pl.read_parquet(output["output_file"])

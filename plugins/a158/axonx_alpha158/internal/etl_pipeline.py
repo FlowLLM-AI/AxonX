@@ -67,6 +67,19 @@ MARKET_STATE_COLUMNS = (
 )
 
 
+def _scan_partitions(paths: list[Path], expressions: list[pl.Expr]) -> pl.LazyFrame:
+    """Normalize each partition before concatenating, including all-null empty tables."""
+    frames = []
+    for path in paths:
+        frame = pl.scan_parquet(path)
+        if frame.collect_schema():
+            frames.append(frame.select(expressions))
+    if frames:
+        return pl.concat(frames)
+    columns = {name: pl.Null for expression in expressions for name in expression.meta.root_names()}
+    return pl.LazyFrame(schema=columns).select(expressions)
+
+
 def load_market_data(daily_files: list[Path], factor_files: list[Path]) -> pl.DataFrame:
     """Join daily quotes and adjustment factors in symbol and date order."""
     daily_columns = (
@@ -80,24 +93,22 @@ def load_market_data(daily_files: list[Path], factor_files: list[Path]) -> pl.Da
         "vol",
         "amount",
     )
-    daily = (
-        pl.scan_parquet(daily_files)
-        .select(
+    daily = _scan_partitions(
+        daily_files,
+        [
             pl.col("ts_code").cast(pl.String),
             pl.col("trade_date").cast(pl.String),
             *(pl.col(column).cast(pl.Float64) for column in daily_columns[2:]),
-        )
-        .filter(~pl.col("ts_code").str.ends_with(".BJ"))
-    )
-    factors = (
-        pl.scan_parquet(factor_files)
-        .select(
+        ],
+    ).filter(~pl.col("ts_code").str.ends_with(".BJ"))
+    factors = _scan_partitions(
+        factor_files,
+        [
             pl.col("ts_code").cast(pl.String),
             pl.col("trade_date").cast(pl.String),
             pl.col("adj_factor").cast(pl.Float64),
-        )
-        .filter(~pl.col("ts_code").str.ends_with(".BJ"))
-    )
+        ],
+    ).filter(~pl.col("ts_code").str.ends_with(".BJ"))
     return daily.join(factors, on=["ts_code", "trade_date"], how="left").collect().sort("ts_code", "trade_date")
 
 
@@ -203,13 +214,14 @@ def assemble_trading_panel(
 def load_price_limits(paths: list[Path]) -> pl.DataFrame:
     """Read official price limits, or return the same empty schema when absent."""
     return (
-        pl.scan_parquet(paths)
-        .select(
-            pl.col("ts_code").cast(pl.String),
-            pl.col("trade_date").cast(pl.String),
-            pl.col("up_limit", "down_limit").cast(pl.Float64),
-        )
-        .collect()
+        _scan_partitions(
+            paths,
+            [
+                pl.col("ts_code").cast(pl.String),
+                pl.col("trade_date").cast(pl.String),
+                *(pl.col(name).cast(pl.Float64) for name in ("up_limit", "down_limit")),
+            ],
+        ).collect()
         if paths
         else pl.DataFrame(
             schema={
@@ -328,13 +340,17 @@ def attach_market_flags(
 def load_index_weights(paths: list[Path]) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Load HS300 snapshots and reject duplicate symbol/date weights."""
     weights = (
-        pl.scan_parquet(paths)
-        .filter(pl.col("index_code") == "000300.SH")
-        .select(
-            pl.col("trade_date").cast(pl.String).alias("_weight_date"),
-            pl.col("con_code").cast(pl.String).alias("ts_code"),
-            (pl.col("weight").cast(pl.Float64) / 100).alias("index_weight_hs300"),
+        _scan_partitions(
+            paths,
+            [
+                pl.col("index_code").cast(pl.String),
+                pl.col("trade_date").cast(pl.String).alias("_weight_date"),
+                pl.col("con_code").cast(pl.String).alias("ts_code"),
+                (pl.col("weight").cast(pl.Float64) / 100).alias("index_weight_hs300"),
+            ],
         )
+        .filter(pl.col("index_code") == "000300.SH")
+        .drop("index_code")
         .collect()
     )
     if weights.select("_weight_date", "ts_code").n_unique() != weights.height:

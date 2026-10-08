@@ -61,6 +61,8 @@ axonx --client-timeout 86400 wait_task \
 
 Prepare sufficient preceding history for rolling windows. The example trains from 2015, so downloads start in 2014. The default download only looks back seven calendar days and does not provide a full history. For credentials, partition layout, and updates, see [Tushare downloads](https://flowllm-ai.github.io/AxonX/en/research/tushare).
 
+ETL reads the preceding market dates required by its longest rolling window. Earlier partitions outside that calculation window do not block the task; all participating quotes and adjustment factors remain strictly validated.
+
 ## Tasks and execution
 
 | Task             | Upstream              | Outputs                                                             |

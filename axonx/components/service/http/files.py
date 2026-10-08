@@ -139,13 +139,16 @@ class _UploadParser(MultiPartParser):
         self.complete = True
 
     async def parse(self):
-        form = await super().parse()
-        if not self.complete:
-            # Starlette closes spools on parser failures; this check happens after parsing.
+        try:
+            form = await super().parse()
+            if not self.complete:
+                raise MultiPartException("Incomplete multipart body")
+            return form
+        except BaseException:
+            # Parsing can fail before FormData exists, including on disconnect or cancellation.
             for temporary in self._files_to_close_on_error:
                 temporary.close()
-            raise MultiPartException("Incomplete multipart body")
-        return form
+            raise
 
 
 async def _copy_multipart(staged_files, request: Request, filename: str, directory: str | None):

@@ -140,6 +140,19 @@ class Alpha158Task(BaseETLTask):
             and self.input_params.start_date > self.input_params.end_date
         ):
             raise ValueError("start_date 不能晚于 end_date")
+        if self.input_params.start_date:
+            prior_dates = (
+                pl.read_parquet(static_files["trade_cal"], columns=["cal_date", "is_open"])
+                .select(pl.col("cal_date").cast(pl.String), "is_open")
+                .filter((pl.col("is_open") == 1) & (pl.col("cal_date") < self.input_params.start_date))
+                .select("cal_date")
+                .unique()
+                .sort("cal_date")
+                .tail(HISTORY_DAYS)
+            )
+            history_start = prior_dates["cal_date"].min() or self.input_params.start_date
+            daily_files = [path for path in daily_files if path.parent.name >= history_start]
+            factor_files = [path for path in factor_files if path.parent.name >= history_start]
         output_path = self.task_dir / "alpha158.parquet"
         statistics_path = output_path.with_suffix(".csv")
         self.state.update(
