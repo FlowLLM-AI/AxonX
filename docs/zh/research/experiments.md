@@ -70,7 +70,7 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 
 [项目 Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)介绍 Agent 如何开发独立插件并通过 AxonX 执行研究。[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)维护特征定义、任务参数、结论和复现命令。
 
-本次实验材料包括[实验计划](../../../plugins/qlib_factor/DEVELOPMENT_PLAN.md)、[执行过程](../../../plugins/qlib_factor/EXPERIMENT_PROCESS.md)、[完整结果](../../../plugins/qlib_factor/EXPERIMENT_RESULTS.md)和[校验材料索引](../../../plugins/qlib_factor/experiments/README.md)。汇总与校验材料随仓库提供；完整提交响应、原始日志及日级 Parquet 保留在远程任务工作区。复现指南支持新执行，不承诺重新取得未发布的历史数据快照或产物。
+本次实验材料包括[实验计划](../../../plugins/qlib_factor/DEVELOPMENT_PLAN.md)、[执行过程](../../../plugins/qlib_factor/EXPERIMENT_PROCESS.md)、[完整结果](../../../plugins/qlib_factor/EXPERIMENT_RESULTS.md)和[校验材料索引](../../../plugins/qlib_factor/experiments/README_ZH.md)。汇总与校验材料随仓库提供；完整提交响应、原始日志及日级 Parquet 保留在远程任务工作区。复现指南支持新执行，不承诺重新取得未发布的历史数据快照或产物。
 
 ## 报告结论
 

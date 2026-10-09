@@ -16,3 +16,5 @@
 !/experiments/training_parameters.json
 !/experiments/context_feature_coverage.csv
 !/experiments/factor_comparison.csv
+!/experiments/README_ZH.md
+!/experiments/yearly_comparison.csv

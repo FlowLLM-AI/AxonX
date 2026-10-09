@@ -1,3 +1,6 @@
 # Keep portable comparison metrics; exclude local execution archives.
 /experiments/*
 !/experiments/policy_comparison.csv
+!/experiments/README.md
+!/experiments/README_ZH.md
+!/experiments/yearly_comparison.csv

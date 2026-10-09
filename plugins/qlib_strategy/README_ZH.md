@@ -31,4 +31,4 @@ axonx submit --task qlib_strategy_backtest --source-tasks '<predict_task_id>' \
 
 在基础预测和按内部验证选定的增强预测上，分别比较最短持有 0/5/10/15/20/30 日，共 12 组回测；主方案预先固定为 10 日、每日每侧 20% 数量上限。候选结果用于观察持有期影响，不根据 2023 年后收益重新挑选主方案。
 
-[完整结果](EXPERIMENT_RESULTS_ZH.md) · [指标索引](experiments/README.md) · [三层对照](../qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md)。缺行情不自动视为停牌；涉及缺报价的结果为 `incomplete_market_data`。
+[完整结果](EXPERIMENT_RESULTS_ZH.md) · [指标索引](experiments/README_ZH.md) · [三层对照](../qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md)。缺行情不自动视为停牌；涉及缺报价的结果为 `incomplete_market_data`。

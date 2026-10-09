@@ -45,4 +45,4 @@ axonx submit --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
 
 [实验方案](DEVELOPMENT_PLAN.md)定义 15 个非空组组合及无增强对照。训练 `[20150101,20230101)`，从 `20230101` 起预测，买入 0.05% / 卖出 0.15%。按训练期内部验证 RankIC 锁定增强组，再报告共同样本外窗口的全部候选表现。
 
-[完整结果](EXPERIMENT_RESULTS_ZH.md) · [执行与核对](EXPERIMENT_PROCESS.md) · [指标索引](experiments/README.md) · [三层对照](../qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md)。
+[完整结果](EXPERIMENT_RESULTS_ZH.md) · [执行与核对](EXPERIMENT_PROCESS.md) · [指标索引](experiments/README_ZH.md) · [三层对照](../qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md)。
