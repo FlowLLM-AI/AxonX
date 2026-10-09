@@ -37,7 +37,7 @@ axonx submit --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-Save each returned Task ID and Run ID and wait for `succeeded` before submitting downstream work. `qlib_factor_analysis` is an optional diagnostic branch. Restart the service after updating loaded plugin modules and verify Task definitions; the core must support side-specific fees. See [Qlib Alpha158](../qlib_a158/README.md) for source data, labels and execution assumptions.
+Save each returned Task ID and Run ID and wait for `succeeded` before submitting downstream work. `qlib_factor_analysis` is an optional diagnostic branch. With the core from this checkout, Task-only wheel updates through the remote installation Job apply without restarting; restart when `restart_required` is true and verify Task definitions. Direct pip/source changes and older cores without plugin import refresh require restart; the core must support side-specific fees. See [Qlib Alpha158](../qlib_a158/README.md) for source data, labels and execution assumptions.
 
 ## Experiments and reproduction
 

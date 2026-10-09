@@ -77,7 +77,7 @@ axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-更新已经被服务加载的插件代码或输入参数时，重启目标服务，再查询 Task 定义核对字段。当前安装响应的 `restart_required` 主要针对 Component / Job，Task 更新也可能需要重启。分别设置买卖费率还要求执行环境的 AxonX 核心支持 `buy_cost_rate` / `sell_cost_rate`，可使用同一源码仓库中的核心版本。完整的构建、卸载和部署说明见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
+使用此源码仓库的 AxonX 核心时，通过远程安装 Job 更新仅贡献 Task 的 wheel，会刷新后续 Task 查询和提交，无需重启。仅在 `restart_required=true` 时重启，再查询 Task 定义核对字段。直接 `pip install`、editable 源码变更，以及不支持插件导入刷新的旧核心仍要求重启服务。分别设置买卖费率还要求执行环境的 AxonX 核心支持 `buy_cost_rate` / `sell_cost_rate`，可使用同一源码仓库中的核心版本。完整的构建、卸载和部署说明见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
 ## 数据准备
 

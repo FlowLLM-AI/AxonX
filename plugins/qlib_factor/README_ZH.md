@@ -37,7 +37,7 @@ axonx submit --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-每次保存返回的 Task ID 和 Run ID，等待 `succeeded` 后再提交下游。`qlib_factor_analysis` 是可选的因子分析分支。更新已经加载的插件后重启服务并核对 Task 定义；执行环境须具备分侧费用支持。基础数据准备、标签与成交口径见 [Qlib Alpha158](../qlib_a158/README_ZH.md)。
+每次保存返回的 Task ID 和 Run ID，等待 `succeeded` 后再提交下游。`qlib_factor_analysis` 是可选的因子分析分支。使用此源码仓库的核心时，通过远程安装 Job 更新仅贡献 Task 的 wheel 无需重启；按 `restart_required=true` 重启并核对 Task 定义。直接 pip/源码变更，以及不支持插件导入刷新的旧核心仍要求重启；执行环境须具备分侧费用支持。基础数据准备、标签与成交口径见 [Qlib Alpha158](../qlib_a158/README_ZH.md)。
 
 ## 实验与复现
 

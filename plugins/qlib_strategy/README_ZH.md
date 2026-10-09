@@ -25,7 +25,7 @@ axonx submit --task qlib_strategy_backtest --source-tasks '<predict_task_id>' \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-可复用成功的基础或增强预测。提交后保存 Task / Run ID，等待成功再读取结果。上游 `qlib_strategy_etl`、`qlib_strategy_analysis`、`qlib_strategy_train`、`qlib_strategy_predict` 注册因子层实现；策略比较直接复用已有预测。更新已加载的插件后重启服务；核心须支持 `portfolio_policy` 和分侧费用。
+可复用成功的基础或增强预测。提交后保存 Task / Run ID，等待成功再读取结果。上游 `qlib_strategy_etl`、`qlib_strategy_analysis`、`qlib_strategy_train`、`qlib_strategy_predict` 注册因子层实现；策略比较直接复用已有预测。使用此源码仓库的核心时，通过远程安装 Job 更新仅贡献 Task 的 wheel 无需重启；按 `restart_required=true` 重启并核对 Task 定义。直接 pip/源码变更，以及不支持插件导入刷新的旧核心仍要求重启；核心须支持 `portfolio_policy` 和分侧费用。
 
 ## 实验结果
 

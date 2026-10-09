@@ -77,7 +77,7 @@ axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-When updating loaded plugin code or input parameters, restart the target service and query Task definitions to verify the fields. The current `restart_required` flag primarily covers Components / Jobs; Task updates may also need a restart. Separate side fees require AxonX core with `buy_cost_rate` / `sell_cost_rate` support, such as the core from the same source checkout. See [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
+With the AxonX core from this checkout, Task-only wheel updates through the remote installation Job refresh subsequent Task queries and submissions without restarting. Restart when `restart_required` is true, then query Task definitions to verify the fields. Direct `pip install`, editable source changes, and older cores without plugin import refresh require a service restart. Separate side fees require AxonX core with `buy_cost_rate` / `sell_cost_rate` support, such as the core from the same source checkout. See [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
 
 ## Prepare data
 
