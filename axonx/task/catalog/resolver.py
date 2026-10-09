@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 from ...components.registry import ProviderRegistry
 from ...enums import ComponentEnum, TaskType
 from ...plugin_kit import index_contributions, list_installed_plugins
+from ...plugin_kit.environment import serialized
 from ...plugin_kit.loading import load_symbol
 from ..core.task import BaseTask
 
@@ -25,6 +26,7 @@ class TaskDefinition(BaseModel):
     output_schema: dict[str, Any]
 
 
+@serialized
 def _task_catalog(
     name: str | None = None,
 ) -> dict[str, tuple[type[BaseTask], str | None]]:

@@ -20,6 +20,7 @@ from ....constants import (
     AXONX_TASK_WORKSPACE_DIR,
 )
 from ....enums import TaskState
+from ....plugin_kit.environment import environment_operation, serialized
 from ....task.catalog import resolve_task
 from ....task.contracts import TaskHandle
 from ....task.core import BaseTask
@@ -78,6 +79,7 @@ class LocalTaskManager(BaseTaskManager):
             if status is not None and status.run_id in terminated and not status.state.is_terminal:
                 await self._finish(status, TaskState.CANCELLED, 130, "Task manager stopped")
 
+    @environment_operation
     async def submit(self, argv: Sequence[str]) -> TaskHandle:
         if not self.is_started:
             raise RuntimeError("Task manager is not running")
@@ -88,15 +90,8 @@ class LocalTaskManager(BaseTaskManager):
             raise TypeError("Task arguments must be a sequence of strings")
         registration_name, config = parse_task_argv(argv)
         run_id = uuid4().hex
-        task_type = resolve_task(registration_name)
         for _ in range(100):
-            task = task_type(
-                config,
-                workspace_path=self.workspace_path,
-                reg_name=registration_name,
-                timezone=self.app_config.timezone,
-                run_id=run_id,
-            )
+            task = await asyncio.to_thread(self._prepare_task, registration_name, config, run_id)
             async with self._lock:
                 if not await self._reserve(task, not task.is_generated_name):
                     continue
@@ -138,6 +133,17 @@ class LocalTaskManager(BaseTaskManager):
             await self._finish(status, TaskState.FAILED, 1, f"Worker could not start: {exc}")
             raise
         return TaskHandle(task.task_id, run_id, registration_name)
+
+    @serialized
+    def _prepare_task(self, registration_name: str, config: dict, run_id: str) -> BaseTask:
+        """Resolve and validate with the same installed plugin generation."""
+        return resolve_task(registration_name)(
+            config,
+            workspace_path=self.workspace_path,
+            reg_name=registration_name,
+            timezone=self.app_config.timezone,
+            run_id=run_id,
+        )
 
     async def _reserve(self, task: BaseTask, replace: bool) -> bool:
         """Claim a Task directory, replacing only a completed named Task."""

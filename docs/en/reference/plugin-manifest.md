@@ -148,7 +148,7 @@ axonx plugin install ./plugins/example
 axonx plugin list
 ```
 
-These commands inspect, build, or install and must be used with an actual plugin directory. When an installation result requires a restart, query get_task_definition and /jobs after restarting to verify contributions. An installed wheel does not mean the running application has updated live.
+These commands inspect, build, or install and must be used with an actual plugin directory. When an installation result requires a restart, query get_task_definition and /jobs after restarting to verify contributions. Task-only wheel installation through the service refreshes subsequent Task queries and submissions without restarting; already assembled Components/Jobs still require restart. See [Plugin management](../plugins/management.md#checksums-and-restart).
 
 ## Named configuration contributions
 

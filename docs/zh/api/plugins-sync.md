@@ -147,7 +147,7 @@ answer 为 PluginInstallResult，在 PluginInfo 基础上增加 restart_required
 
 **行为与失败情况**
 
-示例哈希和路径仅说明格式，必须替换 POST /files 返回值。校验的是暂存 wheel，不能传本机 source 目录；成功或失败均尝试清理暂存文件。环境安装变化后重启重新装配贡献。
+示例哈希和路径仅说明格式，必须替换 POST /files 返回值。校验的是暂存 wheel，不能传本机 source 目录；成功或失败均尝试清理暂存文件。仅贡献 Task 的 wheel 更新会刷新插件导入，后续 Task 定义查询与提交无需重启。Component/Job 或已有依赖版本被替换时，仍按 `restart_required=true` 重启。不迁移运行中的 Task，也不隔离其版本。
 
 ## uninstall_plugin
 
@@ -186,7 +186,7 @@ answer 为 PluginUninstallResult：distribution、restart_required。
 
 **行为与失败情况**
 
-卸载不代表已运行 Application 立即删除内存中的贡献；按重启提示处理。
+卸载会从后续查询与提交中移除 Task 注册信息，并清理缓存中的插件导入。已装配的 Component/Job 仍保留在运行中的 Application 内；按 `restart_required=true` 重启。
 
 ## sync_tasks
 

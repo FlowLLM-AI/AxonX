@@ -87,11 +87,17 @@ The CLI builds local source into a wheel, uploads it to remote `/files`, checks 
 | ---------------- | ----------------------------------------------------------------------- |
 | content_sha256   | Content/source fingerprint for build caching and content identification |
 | sha256           | Specific wheel file checksum for transfer and installation verification |
-| restart_required | The current application must restart to reassemble plugin contributions |
+| restart_required | Whether live Components/Jobs or replaced dependencies require a restart |
 
 The two sha256 fields are not guaranteed to match: wheel compression and packaging change the specific file bytes. Pass the wheel sha256 from the upload receipt to the installation interface, not the source fingerprint.
 
-Successful installation only means the environment change completed. Restart the execution service as indicated by restart_required, then query:
+Task-only wheel installation and updates through `install_plugin` refresh plugin package imports in the running service. Subsequent definition queries and submissions use updated Task classes, parameter models, and helpers without restarting. Uninstalling a Task-only plugin removes its registrations from subsequent queries and submissions. Identical wheels skip installation and preserve cached classes.
+
+Installation and uninstallation are coordinated with Task queries and submission; waiting does not block the service event loop. Imports across plugin packages are refreshed together, while AxonX and third-party dependency modules retain their identities. Running Tasks are not migrated or pinned to a version when files are overwritten.
+
+`restart_required` remains true for current or removed Component/Job contributions and when installation replaces an existing dependency version. Pending restart hints remain true until the service process restarts, including on identical reinstallations and after Component/Job contributions have been removed. Direct `pip install` or source edits outside the installation Job do not trigger this refresh; restart after those changes. Editable installations can also require interpreter startup to load import hooks.
+
+After installation, restart only if `restart_required` is true, then verify:
 
 ```bash
 axonx list_installed_task_definitions --target 'http://research.example:1024'

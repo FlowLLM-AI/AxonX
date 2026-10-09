@@ -4,6 +4,7 @@ import asyncio
 
 from ...components.registry import provider
 from ...plugin_kit import uninstall_plugin
+from ...plugin_kit.environment import environment_operation
 from ..base import BaseStep
 
 
@@ -11,5 +12,6 @@ from ..base import BaseStep
 class UninstallPluginStep(BaseStep):
     """Uninstall one plugin distribution from this service machine."""
 
+    @environment_operation
     async def execute(self):
         self.response.answer = await asyncio.to_thread(uninstall_plugin, self.context["plugin"])

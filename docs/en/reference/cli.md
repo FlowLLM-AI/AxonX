@@ -129,7 +129,7 @@ axonx plugin list --target node-b:1024
 axonx plugin install ./plugins/example --target node-b:1024
 ```
 
-build is local only and cannot use a remote target. Editable installation supports only local source directories and cannot use target or output; an existing wheel cannot use output. The remote installation client timeout is at least 300 seconds. Check restart_required after plugin changes, then restart the service to discover new contributions.
+build is local only and cannot use a remote target. Editable installation supports only local source directories and cannot use target or output; an existing wheel cannot use output. The remote installation client timeout is at least 300 seconds. Task-only wheel updates through the remote installation Job apply to subsequent Task queries and submissions without restarting. Check restart_required: Components/Jobs and replaced dependencies can still require a service restart.
 
 ## Output and exit codes
 

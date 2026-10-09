@@ -146,7 +146,7 @@ axonx plugin install ./plugins/example
 axonx plugin list
 ```
 
-这些命令执行检查、构建或安装，需在实际插件目录使用。安装结果要求重启时，重启后查询 get_task_definition 与 /jobs 验证贡献；不能将“wheel 已安装”当成运行应用已经热更新。
+这些命令执行检查、构建或安装，需在实际插件目录使用。安装结果要求重启时，重启后查询 get_task_definition 与 /jobs 验证贡献；通过服务安装仅贡献 Task 的 wheel 后，后续 Task 查询与提交无需重启；已装配的 Component/Job 仍需重启。详见[插件管理](../plugins/management.md#校验和与重启)。
 
 ## 命名配置贡献
 

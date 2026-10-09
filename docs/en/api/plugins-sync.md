@@ -147,7 +147,7 @@ answer is PluginInstallResult, which adds restart_required to PluginInfo.
 
 **Behavior and failure cases**
 
-The example hash and path only illustrate their formats; replace them with values returned by POST /files. Verification applies to the staged wheel; a local source directory cannot be passed. Cleanup of the staged file is attempted on both success and failure. Restart after installation changes to reassemble contributions.
+The example hash and path only illustrate their formats; replace them with values returned by POST /files. Verification applies to the staged wheel; a local source directory cannot be passed. Cleanup of the staged file is attempted on both success and failure. Task-only wheel updates refresh plugin imports for subsequent Task definitions and submissions without restarting. Components/Jobs and replaced dependency versions still require a restart when `restart_required` is true. Running Tasks are not migrated or version-isolated.
 
 ## uninstall_plugin
 
@@ -186,7 +186,7 @@ answer is PluginUninstallResult: distribution and restart_required.
 
 **Behavior and failure cases**
 
-Uninstalling does not immediately remove in-memory contributions from a running Application; follow the restart instructions.
+Uninstalling removes Task registrations from subsequent queries and submissions and clears cached plugin imports. Already assembled Components/Jobs remain in the running Application; restart when `restart_required` is true.
 
 ## sync_tasks
 

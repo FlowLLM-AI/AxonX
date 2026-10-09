@@ -129,7 +129,7 @@ axonx plugin list --target node-b:1024
 axonx plugin install ./plugins/example --target node-b:1024
 ```
 
-build 只在本地，不能配远程 target。editable 只支持本地源码目录，不能配 target 或 output；已有 wheel 不能配 output。远程安装客户端超时至少 300 秒。插件变更后查看 restart_required，重启服务再发现新贡献。
+build 只在本地，不能配远程 target。editable 只支持本地源码目录，不能配 target 或 output；已有 wheel 不能配 output。远程安装客户端超时至少 300 秒。通过远程安装 Job 更新仅贡献 Task 的 wheel 后，后续 Task 查询与提交无需重启。查看 restart_required：Component/Job 和被替换的依赖仍可能要求重启服务。
 
 ## 输出与退出码
 

@@ -5,12 +5,19 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
-from importlib import invalidate_caches
 from pathlib import Path
 
 from packaging.utils import canonicalize_name
 
 from .discovery import get_installed_plugin, list_installed_plugins
+from .environment import (
+    mark_restart_required,
+    distribution_versions,
+    plugin_packages,
+    record_dependency_changes,
+    refresh_plugin_imports,
+    serialized,
+)
 from .models import (
     PluginArtifact,
     PluginInfo,
@@ -31,9 +38,17 @@ def prepare_artifact(source: Path | str, output: Path, *, use_cache: bool = True
     return inspect_wheel(build_wheel(path, output / digest, use_cache=use_cache))
 
 
+@serialized
 def install_plugin(artifact: PluginArtifact, *, editable_source: Path | None = None) -> PluginInfo:
     """Install a wheel or editable source and validate the installed plugin."""
-    install_artifact(artifact, editable_source=editable_source)
+    packages = plugin_packages()
+    versions = distribution_versions()
+    try:
+        install_artifact(artifact, editable_source=editable_source)
+    finally:
+        # pip may have replaced files even if installation failed partway.
+        refresh_plugin_imports(packages | plugin_packages())
+        record_dependency_changes(versions, artifact.distribution)
     if editable_source is None:
         installed = get_installed_plugin(artifact.distribution)
     else:
@@ -70,6 +85,7 @@ def install_plugin(artifact: PluginArtifact, *, editable_source: Path | None = N
     return installed
 
 
+@serialized
 def install_staged_plugin(
     path: Path,
     expected_sha256: str,
@@ -103,6 +119,7 @@ def install_staged_plugin(
         ),
         None,
     )
+    mark_restart_required(bool(previous is not None and (previous.components or previous.jobs)))
     if previous is not None and previous.sha256 == stored.sha256 and previous.content_sha256 == stored.content_sha256:
         installed = previous
     else:
@@ -112,12 +129,11 @@ def install_staged_plugin(
             if created:
                 destination.unlink(missing_ok=True)
             raise
-    restart_required = bool(
-        installed.components or installed.jobs or (previous is not None and (previous.components or previous.jobs))
-    )
+    restart_required = mark_restart_required(bool(installed.components or installed.jobs))
     return PluginInstallResult(**installed.model_dump(), restart_required=restart_required)
 
 
+@serialized
 def ensure_plugin_sources(sources: list[str], artifact_directory: Path) -> list[PluginInfo]:
     """Build configured sources and install only artifacts not already active."""
     for source in sources:
@@ -139,19 +155,24 @@ def ensure_plugin_sources(sources: list[str], artifact_directory: Path) -> list[
     return list_installed_plugins()
 
 
+@serialized
 def uninstall_plugin(name: str) -> PluginUninstallResult:
     """Uninstall one plugin distribution from the active interpreter."""
+    packages = plugin_packages()
     plugin = get_installed_plugin(name)
-    result = subprocess.run(
-        [sys.executable, "-m", "pip", "uninstall", "--yes", plugin.distribution],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    mark_restart_required(bool(plugin.components or plugin.jobs))
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "uninstall", "--yes", plugin.distribution],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    finally:
+        refresh_plugin_imports(packages | plugin_packages())
     if result.returncode:
         raise RuntimeError(f"Plugin uninstall failed: {(result.stderr or result.stdout).strip()}")
-    invalidate_caches()
     return PluginUninstallResult(
         distribution=plugin.distribution,
-        restart_required=bool(plugin.components or plugin.jobs),
+        restart_required=mark_restart_required(False),
     )

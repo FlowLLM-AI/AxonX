@@ -1,5 +1,7 @@
 """Installed Task catalog Steps."""
 
+import asyncio
+
 from ...components.registry import provider
 from ...task.catalog import get_task_definition, list_installed_task_definitions
 from ..base import BaseStep
@@ -10,7 +12,7 @@ class ListInstalledTaskDefinitionsStep(BaseStep):
     """Return definitions for every installed Task."""
 
     async def execute(self):
-        self.response.answer = list_installed_task_definitions()
+        self.response.answer = await asyncio.to_thread(list_installed_task_definitions)
 
 
 @provider("get_task_definition")
@@ -18,4 +20,4 @@ class GetTaskDefinitionStep(BaseStep):
     """Return the definition for one registered Task."""
 
     async def execute(self):
-        self.response.answer = get_task_definition(self.context["task"])
+        self.response.answer = await asyncio.to_thread(get_task_definition, self.context["task"])

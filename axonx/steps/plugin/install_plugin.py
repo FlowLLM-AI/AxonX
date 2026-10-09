@@ -4,6 +4,7 @@ import asyncio
 
 from ...components.registry import provider
 from ...plugin_kit import install_staged_plugin
+from ...plugin_kit.environment import environment_operation
 from ...workspace.staging import StagedFiles
 from ..base import BaseStep
 
@@ -12,6 +13,7 @@ from ..base import BaseStep
 class InstallPluginStep(BaseStep):
     """Validate and install one staged wheel on this service machine."""
 
+    @environment_operation
     async def execute(self):
         path = self.context["path"]
         sha256 = self.context["sha256"]
