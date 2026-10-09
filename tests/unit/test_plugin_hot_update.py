@@ -31,7 +31,7 @@ PACKAGE = "axonx_hot_update_test"
 CONSUMER = "axonx_hot_update_consumer"
 
 
-def wheel(tmp_path, package, files, tasks, components=None, jobs=None):
+def wheel(tmp_path, package, files, tasks, components=None, jobs=None, extra_files=None):
     directory = tmp_path / package
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{package}-1.0-py3-none-any.whl"
@@ -47,7 +47,10 @@ def wheel(tmp_path, package, files, tasks, components=None, jobs=None):
             f"{package}-1.0.dist-info/WHEEL",
             "Wheel-Version: 1.0\nGenerator: test\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
         )
-        archive.writestr(f"{package}-1.0.dist-info/RECORD", "")
+        for name, content in (extra_files or {}).items():
+            archive.writestr(name, content)
+        record = f"{package}-1.0.dist-info/RECORD"
+        archive.writestr(record, "".join(f"{name},,\n" for name in [*archive.namelist(), record]))
     return path
 
 
@@ -101,7 +104,7 @@ def plugin_environment(tmp_path, monkeypatch):
     install_files(inspect_wheel(consumer))
     monkeypatch.setattr(installer, "install_artifact", install_files)
     yield SimpleNamespace(site=site, old=old, new=new, install_files=install_files, build=build)
-    environment.refresh_plugin_imports({PACKAGE, CONSUMER})
+    environment.refresh_plugin_imports(environment.plugin_modules() | {PACKAGE, CONSUMER})
 
 
 def install(path, tmp_path):
@@ -358,3 +361,222 @@ async def test_remote_install_waiters_do_not_block_service(plugin_environment, t
         assert all(response.success for response in responses)
         assert "minimum_fee" in responses[1].answer["input_schema"]["properties"]
         assert len(launched) == 1
+
+
+def runtime_application(workspace, jobs):
+    defaults = yaml.safe_load(Path("axonx/config/default.yaml").read_text(encoding="utf-8"))
+    return Application(
+        workspace_dir=str(workspace),
+        enable_logo=False,
+        log_to_console=False,
+        log_to_file=False,
+        components={
+            "task_repository": {"default": {"backend": "local"}},
+            "task_manager": {"default": {"backend": "local"}},
+        },
+        jobs={name: defaults["jobs"][name] for name in jobs},
+    )
+
+
+@pytest.mark.parametrize("helper", ["axonx_shared_params", "axonx_shared.params"])
+def test_wheel_owned_helpers_outside_entry_package_are_refreshed(plugin_environment, tmp_path, helper):
+    task_code = (
+        "from axonx.task.builtins.demo import DemoTask\n"
+        f"from {helper} import Input\n"
+        "class Task(DemoTask):\n    input_cls = Input\n"
+    )
+    paths = []
+    for updated in (False, True):
+        files = {
+            f"{helper.replace('.', '/')}.py": (
+                "from axonx.task.builtins.demo import DemoTaskInputParams\n"
+                "class Input(DemoTaskInputParams):\n    fee: float = 0.01\n"
+                + ("    minimum_fee: float = 5\n" if updated else "")
+            )
+        }
+        if "." in helper:
+            files[f"{helper.split('.')[0]}/__init__.py"] = ""
+        paths.append(
+            wheel(
+                tmp_path / str(updated),
+                PACKAGE,
+                {"task.py": task_code},
+                {"hot_task": f"{PACKAGE}.task:Task"},
+                extra_files=files,
+            )
+        )
+    plugin_environment.install_files(inspect_wheel(paths[0]))
+    old = resolve_task("hot_task")
+    axonx_module, yaml_module = sys.modules["axonx"], sys.modules["yaml"]
+
+    assert install(paths[1], tmp_path).restart_required is False
+    new = resolve_task("hot_task")
+    assert new.input_cls is not old.input_cls
+    assert "minimum_fee" in get_task_definition("hot_task").input_schema["properties"]
+    assert sys.modules["axonx"] is axonx_module
+    assert sys.modules["yaml"] is yaml_module
+    assert install(paths[1], tmp_path).restart_required is False
+    assert resolve_task("hot_task") is new
+
+
+@pytest.mark.parametrize("separate_loop", [False, True])
+async def test_remote_install_waits_for_other_application_worker_launch(
+    plugin_environment, tmp_path, monkeypatch, separate_loop
+):
+    submitting_app = runtime_application(tmp_path / "submitting", ())
+    installing_app = runtime_application(tmp_path / "installing", ("install_plugin",))
+    manager = submitting_app.context.components["task_manager"]["default"]
+    launching, release = asyncio.Event(), asyncio.Event()
+    installing = Event()
+
+    async def spawn(*_args):
+        launching.set()
+        await release.wait()
+
+    def install_files(artifact, **kwargs):
+        installing.set()
+        plugin_environment.install_files(artifact, **kwargs)
+
+    monkeypatch.setattr(manager._supervisor, "spawn", spawn)
+    monkeypatch.setattr(installer, "install_artifact", install_files)
+    staged = StagedFiles(installing_app.workspace_path)
+    copied = staged.store(plugin_environment.new.read_bytes(), plugin_environment.new.name)
+
+    async def run_install():
+        async with installing_app:
+            return await installing_app.run_job("install_plugin", {"path": copied.path, "sha256": copied.sha256})
+
+    async with submitting_app:
+        submission = asyncio.create_task(manager.submit(["--task", "hot_task", "--x", "2", "--y", "3"]))
+        mutation = response = None
+        try:
+            await asyncio.wait_for(launching.wait(), 5)
+            mutation = asyncio.create_task(
+                asyncio.to_thread(lambda: asyncio.run(run_install())) if separate_loop else run_install()
+            )
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(asyncio.shield(mutation), 0.05)
+            assert not installing.is_set()
+        finally:
+            release.set()
+            await submission
+            if mutation is not None:
+                response = await asyncio.wait_for(mutation, 10)
+        assert response is not None
+        assert response.success, response.answer
+        assert "minimum_fee" in get_task_definition("hot_task").input_schema["properties"]
+
+
+@pytest.mark.parametrize("failure", [False, True])
+async def test_cancelled_install_drains_thread_before_cleanup_and_next_submission(
+    plugin_environment, tmp_path, monkeypatch, failure
+):
+    app = runtime_application(tmp_path / "workspace", ("install_plugin",))
+    manager = app.context.components["task_manager"]["default"]
+    started, release, finished = Event(), Event(), Event()
+    launched = []
+
+    def delayed_install(artifact, **kwargs):
+        started.set()
+        assert release.wait(10)
+        try:
+            plugin_environment.install_files(artifact, **kwargs)
+            if failure:
+                raise RuntimeError("pip failed after replacing files")
+        finally:
+            finished.set()
+
+    async def spawn(*args):
+        assert finished.is_set()
+        launched.append(args)
+
+    monkeypatch.setattr(installer, "install_artifact", delayed_install)
+    monkeypatch.setattr(manager._supervisor, "spawn", spawn)
+    staged = StagedFiles(app.workspace_path)
+    copied = staged.store(plugin_environment.new.read_bytes(), plugin_environment.new.name)
+    path = staged.file(copied.path)
+    async with app:
+        mutation = asyncio.create_task(app.run_job("install_plugin", {"path": copied.path, "sha256": copied.sha256}))
+        submission = abandoned = None
+        try:
+            assert await asyncio.wait_for(asyncio.to_thread(started.wait, 5), 6)
+            mutation.cancel()
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(asyncio.shield(mutation), 0.05)
+            assert path.exists()
+            # Repeated cancellation must still retain the thread and queue ownership.
+            mutation.cancel()
+            abandoned = asyncio.create_task(manager.submit(["--task", "hot_task", "--x", "2", "--y", "3"]))
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(asyncio.shield(abandoned), 0.05)
+            abandoned.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await abandoned
+            submission = asyncio.create_task(
+                manager.submit(["--task", "hot_task", "--x", "2", "--y", "3", "--minimum-fee", "8"])
+            )
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(asyncio.shield(submission), 0.05)
+            assert not launched
+        finally:
+            release.set()
+            await asyncio.gather(
+                *(task for task in (mutation, abandoned, submission) if task is not None), return_exceptions=True
+            )
+        assert mutation.cancelled()
+        assert not path.exists()
+        handle = submission.result()
+        assert (await manager.get_status(handle.task_id)).config["minimum_fee"] == 8
+        assert len(launched) == 1
+
+
+async def test_application_close_drains_uninstall_before_other_application_install(
+    plugin_environment, tmp_path, monkeypatch
+):
+    app = runtime_application(tmp_path / "uninstalling", ("uninstall_plugin",))
+    other = runtime_application(tmp_path / "installing", ("install_plugin",))
+    started, release, finished = Event(), Event(), Event()
+    installing = Event()
+
+    def uninstall(*_args, **_kwargs):
+        started.set()
+        assert release.wait(10)
+        shutil.rmtree(plugin_environment.site / PACKAGE)
+        shutil.rmtree(plugin_environment.site / f"{PACKAGE}-1.0.dist-info")
+        finished.set()
+        return SimpleNamespace(returncode=0, stderr="", stdout="")
+
+    def install_files(artifact, **kwargs):
+        assert finished.is_set()
+        installing.set()
+        plugin_environment.install_files(artifact, **kwargs)
+
+    monkeypatch.setattr(installer.subprocess, "run", uninstall)
+    monkeypatch.setattr(installer, "install_artifact", install_files)
+    staged = StagedFiles(other.workspace_path)
+    copied = staged.store(plugin_environment.new.read_bytes(), plugin_environment.new.name)
+    await app.start()
+    async with other:
+        uninstalling = asyncio.create_task(app.run_job("uninstall_plugin", {"plugin": PACKAGE}))
+        closing = mutation = None
+        try:
+            assert await asyncio.wait_for(asyncio.to_thread(started.wait, 5), 6)
+            closing = asyncio.create_task(app.close())
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(asyncio.shield(closing), 0.05)
+            mutation = asyncio.create_task(
+                other.run_job("install_plugin", {"path": copied.path, "sha256": copied.sha256})
+            )
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(asyncio.shield(mutation), 0.05)
+            assert not installing.is_set()
+        finally:
+            release.set()
+            await asyncio.gather(
+                *(task for task in (uninstalling, closing, mutation) if task is not None), return_exceptions=True
+            )
+            await app.close()
+        assert uninstalling.cancelled()
+        assert not app.is_started
+        assert mutation.result().success
+        assert "minimum_fee" in get_task_definition("hot_task").input_schema["properties"]

@@ -4,22 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from collections import deque
+from concurrent.futures import Future
 from functools import wraps
 from importlib import invalidate_caches, metadata
-from threading import RLock
-from typing import TYPE_CHECKING, Awaitable, Callable, Concatenate
-from weakref import WeakKeyDictionary
+from pathlib import Path
+from threading import Lock, RLock
+from typing import Awaitable, Callable
 
 from packaging.utils import canonicalize_name
 
 from ..constants import PLUGIN_ENTRY_POINT_GROUP
 
-if TYPE_CHECKING:
-    from ..components.base import ComponentBase
-    from ..core.context import ApplicationContext
-
 _ENVIRONMENT_LOCK = RLock()
-_APPLICATION_LOCKS: WeakKeyDictionary[ApplicationContext, asyncio.Lock] = WeakKeyDictionary()
+_OPERATION_QUEUE_LOCK = Lock()
+_OPERATION_QUEUE: deque[Future[None]] = deque()
 _RESTART_REQUIRED = False
 
 
@@ -34,31 +33,59 @@ def serialized[T, **P](function: Callable[P, T]) -> Callable[P, T]:
     return wrapped
 
 
-def environment_operation[T, **P](
-    function: Callable[Concatenate["ComponentBase", P], Awaitable[T]],
-) -> Callable[Concatenate["ComponentBase", P], Awaitable[T]]:
-    """Coordinate remote mutations with submission through worker launch."""
+def environment_operation[T, **P](function: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+    """Serialize remote mutations and worker launch across applications and loops."""
 
     @wraps(function)
-    async def wrapped(component: "ComponentBase", *args: P.args, **kwargs: P.kwargs) -> T:
-        context = component.app_context
-        if context is None:
-            return await function(component, *args, **kwargs)
-        lock = _APPLICATION_LOCKS.setdefault(context, asyncio.Lock())
-        async with lock:
-            return await function(component, *args, **kwargs)
+    async def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
+        ticket: Future[None] = Future()
+        with _OPERATION_QUEUE_LOCK:
+            _OPERATION_QUEUE.append(ticket)
+            if len(_OPERATION_QUEUE) == 1:
+                ticket.set_result(None)
+        try:
+            await asyncio.shield(asyncio.wrap_future(ticket))
+            return await function(*args, **kwargs)
+        finally:
+            with _OPERATION_QUEUE_LOCK:
+                was_owner = _OPERATION_QUEUE[0] is ticket
+                _OPERATION_QUEUE.remove(ticket)
+                if was_owner and _OPERATION_QUEUE:
+                    _OPERATION_QUEUE[0].set_result(None)
 
     return wrapped
 
 
-def plugin_packages() -> set[str]:
-    """Read declared plugin package ownership without importing code."""
-    return {
-        entry.value
-        for distribution in metadata.distributions()
-        for entry in distribution.entry_points
-        if entry.group == PLUGIN_ENTRY_POINT_GROUP and ":" not in entry.value
-    }
+async def run_in_thread[T, **P](function: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
+    """Drain an already-started operation before propagating cancellation."""
+    task = asyncio.create_task(asyncio.to_thread(function, *args, **kwargs))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        completion = asyncio.gather(task, return_exceptions=True)
+        while not completion.done():
+            try:
+                await asyncio.shield(completion)
+            except asyncio.CancelledError:
+                pass
+        raise
+
+
+def plugin_modules() -> set[str]:
+    """Collect declared packages and loaded modules owned by plugin wheels."""
+    packages: set[str] = set()
+    owned_files: set[Path] = set()
+    for distribution in metadata.distributions():
+        entries = [entry for entry in distribution.entry_points if entry.group == PLUGIN_ENTRY_POINT_GROUP]
+        if not entries:
+            continue
+        packages.update(entry.value for entry in entries if ":" not in entry.value)
+        owned_files.update(Path(distribution.locate_file(file)).resolve() for file in distribution.files or ())
+    for name, module in tuple(sys.modules.items()):
+        filename = getattr(module, "__file__", None)
+        if isinstance(filename, str) and Path(filename).resolve() in owned_files:
+            packages.add(name)
+    return packages
 
 
 @serialized

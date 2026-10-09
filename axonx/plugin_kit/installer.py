@@ -13,7 +13,7 @@ from .discovery import get_installed_plugin, list_installed_plugins
 from .environment import (
     mark_restart_required,
     distribution_versions,
-    plugin_packages,
+    plugin_modules,
     record_dependency_changes,
     refresh_plugin_imports,
     serialized,
@@ -41,13 +41,13 @@ def prepare_artifact(source: Path | str, output: Path, *, use_cache: bool = True
 @serialized
 def install_plugin(artifact: PluginArtifact, *, editable_source: Path | None = None) -> PluginInfo:
     """Install a wheel or editable source and validate the installed plugin."""
-    packages = plugin_packages()
+    packages = plugin_modules()
     versions = distribution_versions()
     try:
         install_artifact(artifact, editable_source=editable_source)
     finally:
         # pip may have replaced files even if installation failed partway.
-        refresh_plugin_imports(packages | plugin_packages())
+        refresh_plugin_imports(packages | plugin_modules())
         record_dependency_changes(versions, artifact.distribution)
     if editable_source is None:
         installed = get_installed_plugin(artifact.distribution)
@@ -158,7 +158,7 @@ def ensure_plugin_sources(sources: list[str], artifact_directory: Path) -> list[
 @serialized
 def uninstall_plugin(name: str) -> PluginUninstallResult:
     """Uninstall one plugin distribution from the active interpreter."""
-    packages = plugin_packages()
+    packages = plugin_modules()
     plugin = get_installed_plugin(name)
     mark_restart_required(bool(plugin.components or plugin.jobs))
     try:
@@ -169,7 +169,7 @@ def uninstall_plugin(name: str) -> PluginUninstallResult:
             text=True,
         )
     finally:
-        refresh_plugin_imports(packages | plugin_packages())
+        refresh_plugin_imports(packages | plugin_modules())
     if result.returncode:
         raise RuntimeError(f"Plugin uninstall failed: {(result.stderr or result.stdout).strip()}")
     return PluginUninstallResult(

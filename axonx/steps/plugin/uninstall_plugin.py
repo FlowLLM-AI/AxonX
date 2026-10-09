@@ -1,10 +1,8 @@
 """Uninstall-plugin Job adapter."""
 
-import asyncio
-
 from ...components.registry import provider
 from ...plugin_kit import uninstall_plugin
-from ...plugin_kit.environment import environment_operation
+from ...plugin_kit.environment import environment_operation, run_in_thread
 from ..base import BaseStep
 
 
@@ -14,4 +12,4 @@ class UninstallPluginStep(BaseStep):
 
     @environment_operation
     async def execute(self):
-        self.response.answer = await asyncio.to_thread(uninstall_plugin, self.context["plugin"])
+        self.response.answer = await run_in_thread(uninstall_plugin, self.context["plugin"])

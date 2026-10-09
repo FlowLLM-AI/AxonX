@@ -20,7 +20,7 @@ from ....constants import (
     AXONX_TASK_WORKSPACE_DIR,
 )
 from ....enums import TaskState
-from ....plugin_kit.environment import environment_operation, serialized
+from ....plugin_kit.environment import environment_operation, run_in_thread, serialized
 from ....task.catalog import resolve_task
 from ....task.contracts import TaskHandle
 from ....task.core import BaseTask
@@ -91,7 +91,7 @@ class LocalTaskManager(BaseTaskManager):
         registration_name, config = parse_task_argv(argv)
         run_id = uuid4().hex
         for _ in range(100):
-            task = await asyncio.to_thread(self._prepare_task, registration_name, config, run_id)
+            task = await run_in_thread(self._prepare_task, registration_name, config, run_id)
             async with self._lock:
                 if not await self._reserve(task, not task.is_generated_name):
                     continue

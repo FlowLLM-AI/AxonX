@@ -1,10 +1,8 @@
 """Install a plugin wheel already copied into the local workspace."""
 
-import asyncio
-
 from ...components.registry import provider
 from ...plugin_kit import install_staged_plugin
-from ...plugin_kit.environment import environment_operation
+from ...plugin_kit.environment import environment_operation, run_in_thread
 from ...workspace.staging import StagedFiles
 from ..base import BaseStep
 
@@ -21,11 +19,11 @@ class InstallPluginStep(BaseStep):
         staged = staged_files.file(path)
         try:
             artifact_directory = self.workspace_path / "plugins" / "artifacts"
-            self.response.answer = await asyncio.to_thread(
+            self.response.answer = await run_in_thread(
                 install_staged_plugin,
                 staged,
                 sha256,
                 artifact_directory,
             )
         finally:
-            await asyncio.to_thread(staged_files.discard, path)
+            await run_in_thread(staged_files.discard, path)

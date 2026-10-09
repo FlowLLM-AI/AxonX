@@ -1,6 +1,6 @@
 # Plugin installation and deployment
 
-Plugins are Python packages providing AxonX Tasks, Components, and Jobs. Local management commands operate on the current Python environment; only an explicit `--target` operates on a remote service. Building and installation read plugin code and dependencies, and the service usually needs restarting afterward to reassemble contributions.
+Plugins are Python packages providing AxonX Tasks, Components, and Jobs. Local management commands operate on the current Python environment; only an explicit `--target` operates on a remote service. Building and installation read plugin code and dependencies. Task-only wheel updates through the service apply without restarting; check `restart_required` for Components/Jobs and dependency changes.
 
 ![Plugin deployment workflow](../../figures/guides/plugin-deployment.svg)
 
@@ -91,9 +91,9 @@ The CLI builds local source into a wheel, uploads it to remote `/files`, checks 
 
 The two sha256 fields are not guaranteed to match: wheel compression and packaging change the specific file bytes. Pass the wheel sha256 from the upload receipt to the installation interface, not the source fingerprint.
 
-Task-only wheel installation and updates through `install_plugin` refresh plugin package imports in the running service. Subsequent definition queries and submissions use updated Task classes, parameter models, and helpers without restarting. Uninstalling a Task-only plugin removes its registrations from subsequent queries and submissions. Identical wheels skip installation and preserve cached classes.
+Task-only wheel installation and updates through `install_plugin` refresh plugin package imports in the running service. Subsequent definition queries and submissions use updated Task classes, parameter models, and helpers without restarting, including additional packages or standalone modules shipped in the same wheel. Uninstalling a Task-only plugin removes its registrations from subsequent queries and submissions. Identical wheels skip installation and preserve cached classes.
 
-Installation and uninstallation are coordinated with Task queries and submission; waiting does not block the service event loop. Imports across plugin packages are refreshed together, while AxonX and third-party dependency modules retain their identities. Running Tasks are not migrated or pinned to a version when files are overwritten.
+Installation and uninstallation are coordinated with Task queries and submission through worker launch across all Applications in the same process, including separate event loops; waiting does not block the service event loop. Cancelling an installation/uninstallation request or closing its Application waits for already-started environment changes to finish before releasing coordination and cleaning up staged files. Cancellation does not roll back pip changes; verify the installed plugin afterward. Imports across plugin packages are refreshed together, while AxonX and third-party dependency modules retain their identities. Running Tasks are not migrated or pinned to a version when files are overwritten.
 
 `restart_required` remains true for current or removed Component/Job contributions and when installation replaces an existing dependency version. Pending restart hints remain true until the service process restarts, including on identical reinstallations and after Component/Job contributions have been removed. Direct `pip install` or source edits outside the installation Job do not trigger this refresh; restart after those changes. Editable installations can also require interpreter startup to load import hooks.
 
