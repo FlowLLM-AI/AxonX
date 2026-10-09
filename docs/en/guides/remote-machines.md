@@ -100,7 +100,7 @@ axonx plugin list --target 'http://research.example:1024'
 axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
 ```
 
-After installation, restart the target service as indicated by restart_required, then query Task definitions. Remote workers run code in that environment, and source_tasks only locates directories in the target workspace.
+Task-only wheel updates apply to subsequent Task queries and submissions without restarting. Restart the target service only when restart_required is true, then verify Task definitions. Remote workers run code in that environment, and source_tasks only locates directories in the target workspace.
 
 To reuse local upstream artifacts, first transfer the required task snapshots or copy data according to your deployment method. Raw data, Agent sessions, and model environments do not migrate with remote calls.
 

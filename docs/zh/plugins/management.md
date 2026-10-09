@@ -1,6 +1,6 @@
 # 插件安装与部署
 
-插件是提供 AxonX Task、Component 和 Job 的 Python 包。本地管理命令操作当前 Python 环境，只有显式 `--target` 才操作远程服务。构建与安装会读取插件代码和依赖，安装后通常需要重启服务重新装配贡献。
+插件是提供 AxonX Task、Component 和 Job 的 Python 包。本地管理命令操作当前 Python 环境，只有显式 `--target` 才操作远程服务。构建与安装会读取插件代码和依赖。通过服务更新仅贡献 Task 的 wheel 无需重启；Component/Job 和依赖变更需检查 `restart_required`。
 
 ![插件部署流程](../../figures/guides/plugin-deployment.svg)
 
@@ -83,15 +83,21 @@ CLI 在本机把源码构建为 wheel，上传到远程 `/files`，核对返回 
 
 ## 校验和与重启
 
-| 字段             | 解释                                        |
-| ---------------- | ------------------------------------------- |
-| content_sha256   | 内容/源码指纹，用于构建缓存和内容识别       |
-| sha256           | 具体 wheel 文件的校验和，用于传输与安装核验 |
-| restart_required | 当前应用需重启以重新装配插件贡献            |
+| 字段             | 解释                                              |
+| ---------------- | ------------------------------------------------- |
+| content_sha256   | 内容/源码指纹，用于构建缓存和内容识别             |
+| sha256           | 具体 wheel 文件的校验和，用于传输与安装核验       |
+| restart_required | 运行中的 Component/Job 或被替换的依赖是否要求重启 |
 
 两个 sha256 字段并不保证相同：wheel 的压缩与包内容封装会改变具体文件字节。安装接口应传上传回执的 wheel sha256，不传源码指纹。
 
-安装成功只代表环境变更完成。按 restart_required 重启执行服务，之后查询：
+通过 `install_plugin` 安装或更新仅贡献 Task 的 wheel，会刷新运行中服务的插件包导入。后续定义查询和提交使用更新后的 Task 类、参数模型与辅助模块，包括同一 wheel 内额外的包或独立模块，无需重启。卸载仅贡献 Task 的插件后，后续查询和提交不再包含其注册信息。相同 wheel 跳过安装，并保留缓存中的类。
+
+安装、卸载会与 Task 查询和提交协调，保护范围持续到 worker 启动；同一进程的所有 Application（包括使用不同事件循环的实例）共享此协调，等待时不阻塞服务事件循环。取消安装/卸载请求或关闭其 Application 时，会等待已开始的环境变更结束，再释放协调并清理暂存文件。取消不会回滚 pip 的变更，之后应核对实际安装的插件。插件包之间的导入引用一起刷新，AxonX 与第三方依赖模块保持原有身份。覆盖文件时，不迁移运行中的 Task，也不固定其代码版本。
+
+当前或被移除的 Component/Job 贡献仍要求 `restart_required=true`；安装替换已有依赖版本时也要求重启。待处理的重启提示持续到服务进程重启，重复安装相同 wheel 或移除 Component/Job 贡献都不会清除该提示。直接 `pip install` 或在安装 Job 之外修改源码不会触发此刷新，变更后应重启服务。editable 安装也可能需要解释器启动才能加载导入钩子。
+
+安装后仅在 `restart_required=true` 时重启，再验证：
 
 ```bash
 axonx list_installed_task_definitions --target 'http://research.example:1024'

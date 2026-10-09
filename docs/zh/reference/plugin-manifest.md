@@ -66,7 +66,7 @@ jobs: {}
 | components | dict[类别,dict[backend,符号目标]] | {}     | 符号必须为 BaseComponent 子类且类别匹配 |
 | jobs       | dict[非空名,JobConfig]            | {}     | JobConfig 使用服务配置同一模型          |
 
-顶层禁止额外字段；根必须是 YAML mapping。名称与字符串目标去掉首尾空白并要求非空。`module:Class` 目标先导入模块，再逐级取属性；字符串不满足格式、属性不存在或不是目标基类均失败。
+顶层禁止额外字段；根必须是 YAML mapping。名称与字符串目标去掉首尾空白并要求非空。`module:Class` 目标先导入模块，再逐级取属性；字符串不满足格式、属性不存在或不是目标基类均失败。 Task 可以从同一 wheel 内额外的包或独立模块导入辅助代码；通过服务安装时，这些模块会与入口包一起刷新。
 
 Task 必须声明固定 TaskType、input_cls 和 output_cls，建议添加详细的类 docstring。查询定义时从类 docstring 提取 description；缺少或仅含空白时返回空字符串。Task 最小开发流程见 [已有开发指南](../dev_guide.md)。
 
@@ -146,7 +146,7 @@ axonx plugin install ./plugins/example
 axonx plugin list
 ```
 
-这些命令执行检查、构建或安装，需在实际插件目录使用。安装结果要求重启时，重启后查询 get_task_definition 与 /jobs 验证贡献；不能将“wheel 已安装”当成运行应用已经热更新。
+这些命令执行检查、构建或安装，需在实际插件目录使用。安装结果要求重启时，重启后查询 get_task_definition 与 /jobs 验证贡献；通过服务安装仅贡献 Task 的 wheel 后，后续 Task 查询与提交无需重启；已装配的 Component/Job 仍需重启。详见[插件管理](../plugins/management.md#校验和与重启)。
 
 ## 命名配置贡献
 

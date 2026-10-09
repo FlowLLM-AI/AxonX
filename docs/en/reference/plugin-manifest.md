@@ -66,7 +66,7 @@ jobs: {}
 | components | dict[category,dict[backend,symbol_target]] | {}      | Symbols must be BaseComponent subclasses matching the category |
 | jobs       | dict[nonempty_name,JobConfig]              | {}      | JobConfig uses the same model as service configuration         |
 
-Extra top-level fields are prohibited, and the root must be a YAML mapping. Names and string targets are stripped of surrounding whitespace and must be nonempty. A `module:Class` target imports the module, then resolves attributes one level at a time. Invalid target format, missing attributes, or a symbol that does not extend the required base class causes failure.
+Extra top-level fields are prohibited, and the root must be a YAML mapping. Names and string targets are stripped of surrounding whitespace and must be nonempty. A `module:Class` target imports the module, then resolves attributes one level at a time. Invalid target format, missing attributes, or a symbol that does not extend the required base class causes failure. Tasks may import helpers from additional packages or standalone modules shipped in the same wheel; service installation refreshes those modules as well as the entry-point package.
 
 Tasks must declare a fixed TaskType, input_cls, and output_cls. A detailed class docstring is recommended; description is extracted from it when definitions are queried, or returned as an empty string if it is missing or whitespace-only. See the [Existing development guide](../dev_guide.md) for a minimal Task development workflow.
 
@@ -148,7 +148,7 @@ axonx plugin install ./plugins/example
 axonx plugin list
 ```
 
-These commands inspect, build, or install and must be used with an actual plugin directory. When an installation result requires a restart, query get_task_definition and /jobs after restarting to verify contributions. An installed wheel does not mean the running application has updated live.
+These commands inspect, build, or install and must be used with an actual plugin directory. When an installation result requires a restart, query get_task_definition and /jobs after restarting to verify contributions. Task-only wheel installation through the service refreshes subsequent Task queries and submissions without restarting; already assembled Components/Jobs still require restart. See [Plugin management](../plugins/management.md#checksums-and-restart).
 
 ## Named configuration contributions
 

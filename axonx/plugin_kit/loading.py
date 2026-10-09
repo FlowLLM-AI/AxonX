@@ -1,10 +1,14 @@
 """Import and validate qualified Python symbols contributed by plugins."""
 
+import sys
 from importlib import import_module, invalidate_caches
 from types import ModuleType
 from typing import Any, cast
 
+from .environment import serialized
 
+
+@serialized
 def load_symbol[T](
     target: str,
     expected_base: type[T],
@@ -23,7 +27,7 @@ def load_symbol[T](
     cache = modules if modules is not None else {}
     invalidate_caches()
     module = cache.get(module_name)
-    if module is None:
+    if module is None or sys.modules.get(module_name) is not module:
         module = import_module(module_name)
         cache[module_name] = module
     value: Any = module

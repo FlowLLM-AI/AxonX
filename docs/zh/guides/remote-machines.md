@@ -100,7 +100,7 @@ axonx plugin list --target 'http://research.example:1024'
 axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
 ```
 
-安装后按返回的 restart_required 重启目标服务，再查询 Task 定义。远程 worker 运行该环境中的代码，source_tasks 也只定位目标工作区内目录。
+仅贡献 Task 的 wheel 更新后，后续 Task 查询与提交无需重启。仅在返回 restart_required=true 时重启目标服务，再核对 Task 定义。远程 worker 运行该环境中的代码，source_tasks 也只定位目标工作区内目录。
 
 需要复用本机上游产物时，应先传输需要的任务快照或按部署方式复制数据。原始数据、Agent 会话和模型环境不随远程调用迁移。
 
