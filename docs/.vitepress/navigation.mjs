@@ -58,9 +58,9 @@ export const groups = [
         "Research plugins",
         [
           "plugins/management",
-          "plugins/alpha158",
-          "plugins/alpha158-factor",
-          "plugins/alpha158-strategy",
+          "plugins/qlib-a158",
+          "plugins/qlib-factor",
+          "plugins/qlib-strategy",
         ],
       ],
     ],

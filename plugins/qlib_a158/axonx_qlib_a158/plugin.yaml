@@ -1,0 +1,6 @@
+tasks:
+  qlib_a158_etl: axonx_qlib_a158.etl:Alpha158Task
+  qlib_a158_factor: axonx_qlib_a158.analysis:FactorAnalysisTask
+  qlib_a158_train: axonx_qlib_a158.train:LgbmTrainTask
+  qlib_a158_predict: axonx_qlib_a158.predict:LgbmPredictTask
+  qlib_a158_backtest: axonx_qlib_a158.backtest:Alpha158BacktestTask

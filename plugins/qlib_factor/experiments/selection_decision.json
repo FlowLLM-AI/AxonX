@@ -1,0 +1,20 @@
+{
+  "rule": "Maximum training-period validation RankIC; ties prefer fewer features then group name. No post-2022 returns used.",
+  "context_groups": "liquidity",
+  "validation_rank_ic": 0.11317249922863842,
+  "train": {
+    "task_id": "train#qlib_factor_train#2026100913CHT3",
+    "run_id": "a9ae1f4a95034aed891b05a13147752a",
+    "task": "qlib_factor_train"
+  },
+  "predict": {
+    "task_id": "predict#qlib_factor_predict#2026100913xIIV",
+    "run_id": "2dea2780aa2f4277a8c70a4353d0f168",
+    "task": "qlib_factor_predict"
+  },
+  "backtest": {
+    "task_id": "backtest#qlib_factor_backtest#2026100913b7vt",
+    "run_id": "d2cd9458ea6c491f86636fa325aa338b",
+    "task": "qlib_factor_backtest"
+  }
+}

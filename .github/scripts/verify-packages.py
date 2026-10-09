@@ -16,9 +16,9 @@ from packaging.version import Version
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGES = (
     ("axonx", ROOT, "axonx", None),
-    ("a158", ROOT / "plugins/a158", "axonx_alpha158", "alpha158"),
-    ("a158_factor", ROOT / "plugins/a158_factor", "axonx_alpha158_factor", "alpha158_factor"),
-    ("a158_strategy", ROOT / "plugins/a158_strategy", "axonx_alpha158_strategy", "alpha158_strategy"),
+    ("qlib_a158", ROOT / "plugins/qlib_a158", "axonx_qlib_a158", "qlib_a158"),
+    ("qlib_factor", ROOT / "plugins/qlib_factor", "axonx_qlib_factor", "qlib_factor"),
+    ("qlib_strategy", ROOT / "plugins/qlib_strategy", "axonx_qlib_strategy", "qlib_strategy"),
 )
 
 
@@ -83,7 +83,7 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
             if plugin:
                 assert entries["axonx.plugins"][plugin] == package
                 if "axonx.configs" in project.get("entry-points", {}):
-                    assert entries["axonx.configs"][plugin] == f"{package}.config:alpha158_demo"
+                    assert entries["axonx.configs"][plugin] == project["entry-points"]["axonx.configs"][plugin]
             else:
                 assert entries["console_scripts"]["axonx"] == "axonx.cli:main"
         with tarfile.open(sdists[0]) as archive:
@@ -114,7 +114,8 @@ def verify_installation() -> None:
         if plugin:
             assert files.joinpath("plugin.yaml").is_file()
             if "axonx.configs" in project.get("entry-points", {}):
-                assert files.joinpath("config/alpha158_demo.yaml").is_file()
+                config_name = project["entry-points"]["axonx.configs"][plugin].split(":")[1]
+                assert files.joinpath(f"config/{config_name}.yaml").is_file()
             (entry,) = [entry for entry in distribution.entry_points if entry.group == "axonx.plugins"]
             assert entry.name == plugin
             assert entry.load().__name__ == package

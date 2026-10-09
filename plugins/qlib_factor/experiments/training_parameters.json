@@ -1,0 +1,32 @@
+{
+  "parameters": {
+    "objective": "regression",
+    "metric": [
+      "l2",
+      "l1"
+    ],
+    "learning_rate": 0.03,
+    "num_leaves": 31,
+    "max_depth": -1,
+    "min_data_in_leaf": 20,
+    "feature_fraction": 0.9,
+    "bagging_fraction": 0.9,
+    "bagging_freq": 1,
+    "lambda_l1": 0.0,
+    "lambda_l2": 0.0,
+    "seed": 42,
+    "feature_fraction_seed": 42,
+    "bagging_seed": 42,
+    "data_random_seed": 42,
+    "num_threads": 8,
+    "deterministic": true,
+    "force_col_wise": true,
+    "verbosity": -1
+  },
+  "label_column": "label_return_rank",
+  "train_start": "20150101",
+  "train_end_exclusive": "20230101",
+  "validation_start": "20220316",
+  "best_iteration": 288,
+  "context_groups": "liquidity"
+}

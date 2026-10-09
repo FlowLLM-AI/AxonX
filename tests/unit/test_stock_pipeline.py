@@ -53,23 +53,25 @@ def raw_data(root):
     return dates
 
 
-@pytest.mark.parametrize("layer", ["baseline", "factor", "strategy"])
-def test_complete_new_artifact_pipeline(tmp_path, layer):
+@pytest.mark.parametrize(
+    "layer,parameter_preset", [("baseline", "axonx"), ("factor", "axonx"), ("strategy", "axonx"), ("baseline", "qlib")]
+)
+def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
     pytest.importorskip("lightgbm")
     if layer != "baseline":
-        from axonx_alpha158_factor.etl import Alpha158Task
-        from axonx_alpha158_factor.train import LgbmTrainTask
-        from axonx_alpha158_factor.predict import LgbmPredictTask
-        from axonx_alpha158_factor.backtest import Alpha158BacktestTask
-        from axonx_alpha158_factor.analysis import FactorAnalysisTask
+        from axonx_qlib_factor.etl import Alpha158Task
+        from axonx_qlib_factor.train import LgbmTrainTask
+        from axonx_qlib_factor.predict import LgbmPredictTask
+        from axonx_qlib_factor.backtest import Alpha158BacktestTask
+        from axonx_qlib_factor.analysis import FactorAnalysisTask
     else:
-        from axonx_alpha158.etl import Alpha158Task
-        from axonx_alpha158.train import LgbmTrainTask
-        from axonx_alpha158.predict import LgbmPredictTask
-        from axonx_alpha158.backtest import Alpha158BacktestTask
-        from axonx_alpha158.analysis import FactorAnalysisTask
+        from axonx_qlib_a158.etl import Alpha158Task
+        from axonx_qlib_a158.train import LgbmTrainTask
+        from axonx_qlib_a158.predict import LgbmPredictTask
+        from axonx_qlib_a158.backtest import Alpha158BacktestTask
+        from axonx_qlib_a158.analysis import FactorAnalysisTask
     if layer == "strategy":
-        from axonx_alpha158_strategy.backtest import StrategyBacktestTask
+        from axonx_qlib_strategy.backtest import StrategyBacktestTask
 
         backtest_cls = StrategyBacktestTask
     else:
@@ -119,6 +121,7 @@ def test_complete_new_artifact_pipeline(tmp_path, layer):
         LgbmTrainTask,
         "train",
         source_tasks=etl.task_id,
+        parameter_preset=parameter_preset,
         train_start=dates[60],
         train_end=dates[75],
         trim_tail=0.0,
@@ -146,8 +149,15 @@ def test_complete_new_artifact_pipeline(tmp_path, layer):
         source_tasks=predict.task_id,
         top_ns=[1, 3],
         transaction_cost_rate=0.0,
+        **({"buy_cost_rate": 0.0005, "sell_cost_rate": 0.0015} if parameter_preset == "qlib" else {}),
         **({"minimum_holding_days": 0} if layer == "strategy" else {}),
     )
+    if parameter_preset == "qlib":
+        orders = pl.read_parquet(result["orders_file"]).filter(pl.col("status") == "filled")
+        for row in orders.iter_rows(named=True):
+            rate = 0.0005 if row["side"] == "buy" else 0.0015
+            assert row["fee"] == pytest.approx(row["notional"] * rate)
+        assert result["protocol"]["settings"]["buy_cost_rate"] == 0.0005
     assert result["dimensions"]["top_ns"] == [1, 3]
     assert result["days"] == 10 and result["evaluation_status"] == "done"
     assert pl.read_parquet(result["positions_file"]).height > 0

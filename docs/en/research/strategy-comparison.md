@@ -16,9 +16,9 @@ This page explains comparison UI calculations and operations. Define controls, s
 Use different task names to retain different training, prediction, and backtest results. When comparing changes in one factor, keep other settings as consistent as possible—for example, use the same ETL and prediction window while changing only training parameters or costs.
 
 ```bash
-axonx submit --task a158_backtest --task-name cost-low \
+axonx submit --task qlib_a158_backtest --task-name cost-low \
   --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.001
-axonx submit --task a158_backtest --task-name cost-high \
+axonx submit --task qlib_a158_backtest --task-name cost-high \
   --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.003
 ```
 

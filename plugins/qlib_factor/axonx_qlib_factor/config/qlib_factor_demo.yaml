@@ -1,0 +1,3 @@
+# AxonX service configuration for the Qlib Factor research plugin.
+# Select context_groups, labels, model presets and fees when submitting Tasks.
+extends: default

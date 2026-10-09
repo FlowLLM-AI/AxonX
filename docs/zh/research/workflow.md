@@ -5,7 +5,7 @@ description: 用 Alpha158 插件串联数据、因子分析、训练、预测与
 
 # 量化研究流程
 
-AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使用仓库中的 `plugins/a158/` 作为具体算法实现，建立从 Tushare 数据到回测结果的闭环。增强版 `a158_factor` 使用独立的 `a158f_*` 注册名，并增加训练特征组参数。两者共享研究阶段与基础产物形式，但跨插件复用上游前仍需检查 Task 定义、特征顺序和协议；具体用法见[增强插件](../../../plugins/a158_factor/README_ZH.md)。
+AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使用仓库中的 `plugins/qlib_a158/` 作为具体算法实现，建立从 Tushare 数据到回测结果的闭环。增强版 `qlib_factor` 使用独立的 `qlib_factor_*` 注册名，并增加训练特征组参数。两者共享研究阶段与基础产物形式，但跨插件复用上游前仍需检查 Task 定义、特征顺序和协议；具体用法见[增强插件](../../../plugins/qlib_factor/README_ZH.md)。
 
 ![数据到研究证据](../../figures/research/workflow.svg)
 
@@ -17,21 +17,21 @@ AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使
 - 研究任务与上游产物位于同一工作区，或者已按[任务同步](../guides/task-sync.md)准备好完整上游目录。
 
 ```bash
-pip install axonx-alpha158
+pip install axonx-qlib-a158
 ```
 
-服务已运行时，安装插件后重启服务，再运行 `axonx list_installed_task_definitions` 查询任务目录。预期找到 `a158_etl`、`a158_factor`、`a158_train`、`a158_predict` 和 `a158_backtest`。
+服务已运行时，安装插件后重启服务，再运行 `axonx list_installed_task_definitions` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_factor`、`qlib_a158_train`、`qlib_a158_predict` 和 `qlib_a158_backtest`。
 
 ## 研究链中每一步产生什么
 
 | 阶段     | 注册名                  | 输入来源          | 主要结果                        |
 | -------- | ----------------------- | ----------------- | ------------------------------- |
 | 下载     | `download_tushare_task` | Tushare 接口      | 工作区 `tushare/` 原始分区      |
-| ETL      | `a158_etl`              | 原始分区与主数据  | `alpha158.parquet`、统计 CSV    |
-| 因子分析 | `a158_factor`           | 一个 ETL Task     | 因子诊断与分层收益 CSV          |
-| 训练     | `a158_train`            | 一个 ETL Task     | LightGBM 模型、重要性、验证历史 |
-| 预测     | `a158_predict`          | 一个 Train Task   | 全截面预测 Parquet              |
-| 回测     | `a158_backtest`         | 一个 Predict Task | 日频与汇总 Parquet              |
+| ETL      | `qlib_a158_etl`         | 原始分区与主数据  | `alpha158.parquet`、统计 CSV    |
+| 因子分析 | `qlib_a158_factor`      | 一个 ETL Task     | 因子诊断与分层收益 CSV          |
+| 训练     | `qlib_a158_train`       | 一个 ETL Task     | LightGBM 模型、重要性、验证历史 |
+| 预测     | `qlib_a158_predict`     | 一个 Train Task   | 全截面预测 Parquet              |
+| 回测     | `qlib_a158_backtest`    | 一个 Predict Task | 日频与汇总 Parquet              |
 
 因子分析是 ETL 的独立下游，训练不依赖因子分析成功。预测从训练 metadata 继续解析 ETL 上游，因此训练目录和 ETL 数据都需要保留。
 
@@ -40,7 +40,7 @@ pip install axonx-alpha158
 下面命令中的 Task ID 必须替换为上一阶段实际返回的值；不能使用注册名代替 Task ID。
 
 ```bash
-axonx submit --task a158_etl --start-date 20150101
+axonx submit --task qlib_a158_etl --start-date 20150101
 ```
 
 返回的 `answer` 是 TaskHandle，保存其中 `task_id` 和 `run_id`。提交接受只表示 worker 已创建，随后等待该次执行：
@@ -56,19 +56,19 @@ axonx --client-timeout 86400 wait_task \
 
 ```bash
 # ETL 成功后，可独立做因子分析
-axonx submit --task a158_factor --source-tasks '<ETL Task ID>'
+axonx submit --task qlib_a158_factor --source-tasks '<ETL Task ID>'
 
 # 训练结束日期不包含在训练区间内
-axonx submit --task a158_train --source-tasks '<ETL Task ID>' \
+axonx submit --task qlib_a158_train --source-tasks '<ETL Task ID>' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank
 
 # 训练成功后，预测开始日期必须不早于 train_end
-axonx submit --task a158_predict --source-tasks '<Train Task ID>' \
+axonx submit --task qlib_a158_predict --source-tasks '<Train Task ID>' \
   --pred-start 20230101 --pred-end 20231231
 
 # 预测成功后，生成回测产物
-axonx submit --task a158_backtest --source-tasks '<Predict Task ID>' \
+axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
   --transaction-cost-rate 0.002
 ```
 
@@ -94,14 +94,14 @@ a158 独立发布特征、原始标签、行情和日历产物。标签固定为
 
 ## 从运行研究链到设计实验
 
-一次完整执行提供参数与产物；评估改进还需要控制变量、消融、筛选与独立确认。按[实验设计与确认](experiments.md)制定比较方案，再用[策略比较](strategy-comparison.md)检查共同窗口。Agent 开发增强特征的具体过程与复现入口见 [Alpha158 Factor](../../../plugins/a158_factor/README_ZH.md)。
+一次完整执行提供参数与产物；评估改进还需要控制变量、消融、筛选与独立确认。按[实验设计与确认](experiments.md)制定比较方案，再用[策略比较](strategy-comparison.md)检查共同窗口。Agent 开发增强特征的具体过程与复现入口见 [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)。
 
 ## 使用仓库脚本
 
-[`run_pipeline.sh`](../../../plugins/a158/axonx_alpha158/scripts/run_pipeline.sh) 已实现提交、读取 handle、逐阶段等待和失败退出，可作为串联命令的参考：
+[`run_pipeline.sh`](../../../plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh) 已实现提交、读取 handle、逐阶段等待和失败退出，可作为串联命令的参考：
 
 ```bash
-bash plugins/a158/axonx_alpha158/scripts/run_pipeline.sh
+bash plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh
 ```
 
 脚本会安装插件、刷新最近 7 天原始数据，并使用已有历史分区跑多年研究。它不是自动补齐全量历史数据的下载脚本；执行前准备数据，并核对固定日期是否适合自己的研究区间。
@@ -123,5 +123,5 @@ bash plugins/a158/axonx_alpha158/scripts/run_pipeline.sh
 
 - [Tushare 数据](tushare.md)、[结果解读](results.md)、[回测解读](backtest.md)
 - [研究产物协议](../reference/research-artifacts.md)
-- [`a158 插件清单`](../../../plugins/a158/axonx_alpha158/plugin.yaml)
-- [`训练实现`](../../../plugins/a158/axonx_alpha158/train.py)、[`预测实现`](../../../plugins/a158/axonx_alpha158/predict.py)
+- [`a158 插件清单`](../../../plugins/qlib_a158/axonx_qlib_a158/plugin.yaml)
+- [`训练实现`](../../../plugins/qlib_a158/axonx_qlib_a158/train.py)、[`预测实现`](../../../plugins/qlib_a158/axonx_qlib_a158/predict.py)

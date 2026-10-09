@@ -227,4 +227,4 @@ N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图
 - [`产物 helper`](../../../axonx/task/storage/artifacts.py)
 - [`Studio 读取映射`](../../../axonx_studio/src/features/research/ResearchPage.tsx)
 - [`回测展示类型`](../../../axonx_studio/src/features/research/backtest/types.ts)
-- [`a158 输出实现`](../../../plugins/a158/axonx_alpha158/)
+- [`a158 输出实现`](../../../plugins/qlib_a158/axonx_qlib_a158/)

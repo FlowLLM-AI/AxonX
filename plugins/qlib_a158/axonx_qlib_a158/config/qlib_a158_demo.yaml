@@ -1,0 +1,4 @@
+# AxonX service configuration for the Qlib Alpha158 plugin.
+# Configure ETL dates, model presets, labels and fees when submitting each Task.
+# See README.md / README_ZH.md for the complete research workflow.
+extends: default

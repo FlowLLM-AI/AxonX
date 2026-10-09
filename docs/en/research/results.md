@@ -9,7 +9,7 @@ Studio organizes successful task results by ETL, factors, training, prediction, 
 
 ![Result reading order](../../figures/research/results-reading.svg)
 
-Screenshots on this page show existing research results from a remote workspace, with operations and fields in the English UI. Some results come from the `a158_factor` plugin; sample sizes and feature counts reflect those actual experiments. Algorithm descriptions below still refer to the current `a158` implementation.
+Screenshots on this page show existing research results from a remote workspace, with operations and fields in the English UI. Some results come from the `qlib_factor` plugin; sample sizes and feature counts reflect those actual experiments. Algorithm descriptions below still refer to the current `a158` implementation.
 
 ## From run pages to result pages
 
@@ -114,5 +114,5 @@ For abnormal results, retain Task ID, run_id, inputs, upstream IDs, metadata, an
 
 - [Interpreting backtest results](backtest.md), [Strategy comparison](strategy-comparison.md)
 - [Studio research page](../../../axonx_studio/src/features/research/ResearchPage.tsx)
-- [a158 factor diagnostics](../../../plugins/a158/axonx_alpha158/analysis.py)
-- [a158 training](../../../plugins/a158/axonx_alpha158/train.py)
+- [a158 factor diagnostics](../../../plugins/qlib_a158/axonx_qlib_a158/analysis.py)
+- [a158 training](../../../plugins/qlib_a158/axonx_qlib_a158/train.py)

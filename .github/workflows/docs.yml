@@ -3,10 +3,10 @@ name: CI / Documentation
 on:
   push:
     branches: [main]
-    paths: ['docs/**', 'github-pages/**', 'README*.md', 'CONTRIBUTING*.md', 'plugins/a158/**', 'plugins/a158_factor/**', 'plugins/a158_strategy/**', 'axonx_studio/**', '.github/workflows/docs.yml', '.github/scripts/write-traffic-badge*']
+    paths: ['docs/**', 'github-pages/**', 'README*.md', 'CONTRIBUTING*.md', 'plugins/qlib_a158/**', 'plugins/qlib_factor/**', 'plugins/qlib_strategy/**', 'axonx_studio/**', '.github/workflows/docs.yml', '.github/scripts/write-traffic-badge*']
   pull_request:
     branches: [main]
-    paths: ['docs/**', 'github-pages/**', 'README*.md', 'CONTRIBUTING*.md', 'plugins/a158/**', 'plugins/a158_factor/**', 'plugins/a158_strategy/**', 'axonx_studio/**', '.github/workflows/docs.yml', '.github/scripts/write-traffic-badge*']
+    paths: ['docs/**', 'github-pages/**', 'README*.md', 'CONTRIBUTING*.md', 'plugins/qlib_a158/**', 'plugins/qlib_factor/**', 'plugins/qlib_strategy/**', 'axonx_studio/**', '.github/workflows/docs.yml', '.github/scripts/write-traffic-badge*']
   workflow_dispatch:
   schedule:
     - cron: "17 2 * * *"

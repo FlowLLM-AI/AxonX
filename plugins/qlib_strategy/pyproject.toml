@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axonx-qlib-strategy"
+version = "0.2.0"
+description = "Alpha158 factor research with rank retention and bounded daily portfolio replacements."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "FlowLLM AI", email = "FlowLLM-AI@users.noreply.github.com" },
+]
+keywords = [
+    "axonx",
+    "plugins",
+    "quantitative-finance",
+    "quantitative-research",
+    "alpha158",
+    "context-features",
+    "factor-analysis",
+    "lightgbm",
+    "backtesting",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "axonx>=0.1.1,<0.2",
+    "axonx-qlib-factor>=0.2.0,<0.3",
+    "lightgbm>=4.7.0,<5",
+    "numpy>=2.5.3,<3",
+    "polars>=1.44.2,<2",
+    "pydantic>=2.13.5,<3",
+]
+
+[project.urls]
+Homepage = "https://github.com/FlowLLM-AI/AxonX/tree/main/plugins/qlib_strategy"
+Documentation = "https://flowllm-ai.github.io/AxonX/en/plugins/qlib-strategy"
+Issues = "https://github.com/FlowLLM-AI/AxonX/issues"
+Source = "https://github.com/FlowLLM-AI/AxonX"
+
+[project.entry-points."axonx.plugins"]
+qlib_strategy = "axonx_qlib_strategy"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["axonx_qlib_strategy", "axonx_qlib_strategy.*"]
+
+[tool.setuptools.package-data]
+axonx_qlib_strategy = ["plugin.yaml"]

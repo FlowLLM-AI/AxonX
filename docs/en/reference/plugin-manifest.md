@@ -164,7 +164,7 @@ axonx_example = ["plugin.yaml", "config/*.yaml"]
 
 If attr is an existing object, the resolver loads it and, if callable, calls it to obtain a YAML/JSON path. Otherwise, it treats the target package as a directory and locates the corresponding configuration file by attr/name. The result must identify an actual configuration file. Ambiguous identical configuration names are rejected rather than silently selecting one.
 
-The repository's a158 uses the separate distribution axonx-alpha158, plugin entry point alpha158, and package axonx_alpha158, providing a real package-layout reference.
+The repository's a158 uses the separate distribution axonx-qlib-a158, plugin entry point qlib_a158, and package axonx_qlib_a158, providing a real package-layout reference.
 
 ## Related documentation
 

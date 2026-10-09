@@ -28,6 +28,8 @@ class BacktestConfig:
     annualization_days: int = 252
     minimum_index_weight_coverage: float = 0.98
     index_codes: tuple[str, ...] = ()
+    buy_cost_rate: float | None = None
+    sell_cost_rate: float | None = None
 
 
 @dataclass
@@ -35,6 +37,17 @@ class BacktestResult:
     frames: dict[str, pl.DataFrame]
     benchmark_keys: tuple[str, ...]
     status: str
+
+
+def _execution_cost_rates(config: BacktestConfig) -> tuple[float, float]:
+    """Resolve optional side rates without treating an explicit zero as unset."""
+    if not 0 <= config.transaction_cost_rate < 1:
+        raise ValueError("transaction_cost_rate must be in [0,1)")
+    buy_cost_rate = config.transaction_cost_rate if config.buy_cost_rate is None else config.buy_cost_rate
+    sell_cost_rate = config.transaction_cost_rate if config.sell_cost_rate is None else config.sell_cost_rate
+    if not 0 <= buy_cost_rate < 1 or not 0 <= sell_cost_rate < 1:
+        raise ValueError("buy_cost_rate and sell_cost_rate must be in [0,1)")
+    return buy_cost_rate, sell_cost_rate
 
 
 def run_backtest(
@@ -49,8 +62,7 @@ def run_backtest(
 ) -> BacktestResult:
     if not config.top_ns or any(n < 1 for n in config.top_ns) or config.holding_days < 1:
         raise ValueError("Positive top_ns and holding_days are required")
-    if not 0 <= config.transaction_cost_rate < 1:
-        raise ValueError("transaction_cost_rate must be in [0,1)")
+    buy_cost_rate, sell_cost_rate = _execution_cost_rates(config)
     signals, market = normalize_keys(signals), normalize_keys(market)
     for frame, required in ((signals, SIGNAL_COLUMNS), (market, MARKET_COLUMNS)):
         if missing := set(required) - set(frame.columns):
@@ -171,7 +183,7 @@ def run_backtest(
                     )
                     continue
                 notional = position["units"] * position["mark"]
-                fee = notional * config.transaction_cost_rate
+                fee = notional * sell_cost_rate
                 cash += notional - fee
                 sold += notional
                 sell_count += 1
@@ -220,7 +232,7 @@ def run_backtest(
                     if status != "quoted"
                     else ("not_buyable" if not quote["can_buy"] else "capacity" if len(book) >= n else "")
                 )
-                principal = min(allocation, cash / (1 + config.transaction_cost_rate)) if not reason else 0.0
+                principal = min(allocation, cash / (1 + buy_cost_rate)) if not reason else 0.0
                 if principal <= 1e-12:
                     unfilled += 1
                     orders.append(
@@ -239,7 +251,7 @@ def run_backtest(
                 index = date_indices[date] + config.holding_days
                 due = all_dates[index] if policy is None and index < len(all_dates) else None
                 price = quote["price"] * quote["adjustment_factor"]
-                fee = principal * config.transaction_cost_rate
+                fee = principal * buy_cost_rate
                 book[code] = {
                     "units": principal / price,
                     "mark": price,

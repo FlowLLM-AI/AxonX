@@ -9,7 +9,7 @@ Studio 按 ETL、因子、训练、预测和回测组织成功任务的结果。
 
 ![结果阅读顺序](../../figures/research/results-reading.svg)
 
-本页截图来自远程工作区已有的研究结果，以英文界面展示操作和字段。部分结果来自 `a158_factor` 插件，样本规模与特征数量对应其实际实验；下文的算法说明仍以 `a158` 当前实现为准。
+本页截图来自远程工作区已有的研究结果，以英文界面展示操作和字段。部分结果来自 `qlib_factor` 插件，样本规模与特征数量对应其实际实验；下文的算法说明仍以 `a158` 当前实现为准。
 
 ## 从运行页面进入结果页面
 
@@ -114,5 +114,5 @@ a158 保存完整预测截面，包含不可买或没有指数权重的样本；
 
 - [回测结果解读](backtest.md)、[策略比较](strategy-comparison.md)
 - [`Studio 研究页面`](../../../axonx_studio/src/features/research/ResearchPage.tsx)
-- [`a158 因子诊断`](../../../plugins/a158/axonx_alpha158/analysis.py)
-- [`a158 训练`](../../../plugins/a158/axonx_alpha158/train.py)
+- [`a158 因子诊断`](../../../plugins/qlib_a158/axonx_qlib_a158/analysis.py)
+- [`a158 训练`](../../../plugins/qlib_a158/axonx_qlib_a158/train.py)

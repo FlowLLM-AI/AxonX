@@ -310,7 +310,7 @@ function moveTab(event: KeyboardEvent, target: number) {
           "
           >{{ t.home.benchmark }} ↗</a
         >
-        <a class="text-link" :href="link('plugins/alpha158-factor')"
+        <a class="text-link" :href="link('plugins/qlib-factor')"
           >{{ t.home.reproduction }} ↗</a
         >
       </div>

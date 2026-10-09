@@ -19,7 +19,7 @@
 
 发现已注册 Task 的 Schema，在临时工作区执行最小流程，检查输出元数据与声明的产物。特征时点、字段或上游要求变化时，复用旧记录前需要检查兼容性。
 
-算法比较见[实验设计](../research/experiments.md)，Agent 驱动开发见[外部 Agent](../agent/external.md)。[Alpha158 Factor 插件](../../../plugins/a158_factor/README_ZH.md)展示独立实现、特征分组开关与独立确认。
+算法比较见[实验设计](../research/experiments.md)，Agent 驱动开发见[外部 Agent](../agent/external.md)。[Qlib Factor 插件](../../../plugins/qlib_factor/README_ZH.md)展示独立实现、特征分组开关与独立确认。
 
 ## 维护文档
 

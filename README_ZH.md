@@ -47,7 +47,7 @@
 - AxonX **0.1.0** 发布： 面向量化研究的 Agent Harness，提供插件化 Task、执行跟踪、任务血缘，以及 CLI / MCP / Studio 统一接入。→ [官网文档](https://flowllm-ai.github.io/AxonX/zh/)
 - 通过 SKILL.md + CLI 接入 Agent： 为 Codex、Claude Code 等加载 [AxonX Skill](skills/axonx/SKILL.md)，让 Agent 发现 Task 契约、开发插件、提交研究任务并检查结果。→ [Agent 接入指南](https://flowllm-ai.github.io/AxonX/zh/agent/external)
 - AxonX Studio 能力发布： 在同一工作台浏览任务与产物、查看训练曲线与回测、比较策略。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>（数据与执行均为模拟）
-- Alpha158 三层实验：因子筛选与降低换手后，Top20／Top30 扣费年化从基线 **−36.46%／−38.62%** 提升至 **27.59%／22.14%**。结果为行情缺失下的探索性暂定结果。→ [完整记录](plugins/a158/THREE_LAYER_EXPERIMENTS_ZH.md)
+- Qlib 三层实验：统一数据和买入 0.05% / 卖出 0.15% 费用，策略层 Top20／Top30 净年化为 **19.35%／15.72%**。增强组按训练内验证选择，策略主方案预先固定；结果包含缺行情记录。→ [完整记录](plugins/qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md)
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
@@ -203,19 +203,19 @@ axonx machine_status
 axonx list_entries --path ''
 
 # 插件：在服务的 Python 环境中安装，然后重启服务
-pip install axonx-alpha158
+pip install axonx-qlib-a158
 axonx plugin list
-axonx plugin show axonx-alpha158
+axonx plugin show axonx-qlib-a158
 
 # 研究流程（已有完整历史行情时跳过下载）
-axonx get_task_definition --task a158_etl
+axonx get_task_definition --task qlib_a158_etl
 axonx submit --task download_tushare_task --start-date 20140101 --end-date 20231231 --datasets 'static,stk_limit,daily,adj_factor,index_weight'
-axonx submit --task a158_etl --start-date 20150101 --end-date 20231231
-axonx submit --task a158_train --source-tasks '<etl_task_id>' --train-start 20150101 --train-end 20230101
-axonx submit --task a158_predict --source-tasks '<train_task_id>' --pred-start 20230101 --pred-end 20231231
-axonx submit --task a158_backtest --source-tasks '<predict_task_id>'
+axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20231231
+axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>' --train-start 20150101 --train-end 20230101
+axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>' --pred-start 20230101 --pred-end 20231231
+axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>'
 # 可选因子分析：ETL 的独立下游
-axonx submit --task a158_factor --source-tasks '<etl_task_id>'
+axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'
 ```
 
 在 **AxonX Studio** 查看结果；
@@ -269,7 +269,7 @@ axonx start --components.agent.default.load_dev_guide true --language zh
 
 ## 🧩 Alpha158 与插件系统
 
-[Alpha158](plugins/a158/README_ZH.md) 将 158 个价量特征、LightGBM 模型和 TopN 回测封装为研究 Task。主链路为 **ETL →
+[Alpha158](plugins/qlib_a158/README_ZH.md) 将 158 个价量特征、LightGBM 模型和 TopN 回测封装为研究 Task。主链路为 **ETL →
 Train → Predict → Backtest**，因子分析是 ETL 的独立下游。
 
 | 阶段     | 主要产物                              |
@@ -280,25 +280,27 @@ Train → Predict → Backtest**，因子分析是 ETL 的独立下游。
 | 预测     | 样本外预测与统计。                    |
 | 回测     | TopN 回测、分期汇总与持仓产物。       |
 
-操作示例见上面的 [CLI 快速演示](#快速演示)，完整参数与数据要求见[插件文档](plugins/a158/README_ZH.md)。扩展自己的研究方法时，可从源码检查、构建和安装插件；相关命令见下方 [CLI 命令](#axonx-cli-命令与远程执行)，开发与部署流程见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
+操作示例见上面的 [CLI 快速演示](#快速演示)，完整参数与数据要求见[插件文档](plugins/qlib_a158/README_ZH.md)。扩展自己的研究方法时，可从源码检查、构建和安装插件；相关命令见下方 [CLI 命令](#axonx-cli-命令与远程执行)，开发与部署流程见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
 <a id="benchmark-agent-开发市场横截面增强特征"></a>
 
 ## 📊 Benchmark Agent 开发市场横截面增强特征
 
-Alpha158 使用三层插件：`a158` 基线、继承基线的 `a158_factor` 因子层、继承因子层的 `a158_strategy` 持仓策略层。通过 [AxonX Skill](skills/axonx/SKILL.md) 与 [开发指南](docs/zh/dev_guide.md)在研究服务上提交并记录实验。
+研究使用 `qlib_a158 → qlib_factor → qlib_strategy` 三层插件，分别提供基础特征、横截面增强和持仓策略。通过 [AxonX Skill](skills/axonx/SKILL.md) 与 [开发指南](docs/zh/dev_guide.md)提交并记录实验。
 
-固定 2015–2022 年训练，20230103–20261008 整体预测与回测；每次实际买卖各收 0.2%。因子层比较全部 15 种非空因子组和无因子对照，按 Top20、Top30 净年化均值选出 `market,liquidity,interaction`（179 个模型特征）。策略层复用其预测，比较六种最短持有期，选出“每日最多替换 20% 股票、至少持有 10 日”。
+统一 rank × AxonX 参数，训练 `[20150101,20230101)`，预测回测 `20230103–20261008`。买入 0.05% / 卖出 0.15%。16 个因子候选按训练期内部验证 RankIC 选择 `liquidity`（164 特征）；策略主方案预先固定为最短持有 10 日、每日每侧最多替换 20% 股票数量，另报告两种预测上的 12 组持有期对照。
 
-| 层级          | Top20 净年化 | Top30 净年化 |
-| ------------- | ------------ | ------------ |
-| a158          | -36.46%      | -38.62%      |
-| a158_factor   | -32.17%      | -35.59%      |
-| a158_strategy | 27.59%       | 22.14%       |
+| Layer         | Top20 net annualized | Top30 net annualized |
+| ------------- | -------------------: | -------------------: |
+| qlib_a158     |                7.67% |                0.97% |
+| qlib_factor   |               -1.83% |               -1.58% |
+| qlib_strategy |               19.35% |               15.72% |
 
-这是全区间筛选后的探索性结果；行情缺失导致 `incomplete_market_data`，均为暂定，不能作为独立验证或实盘收益。
+共同数据逐值一致；无增强对照的完整预测重现基础层。部分缺行情结果标记 `incomplete_market_data`，2026 年统计至 10 月 8 日。
 
-[三层完整记录](plugins/a158/THREE_LAYER_EXPERIMENTS_ZH.md)保存 Top5/10/20/30 指标、单项最佳方案、任务编号、配置和精简比较指标。[基线](plugins/a158/README_ZH.md) · [因子](plugins/a158_factor/README_ZH.md) · [策略](plugins/a158_strategy/README_ZH.md)。
+![Qlib three-layer net annualized returns](docs/figures/benchmark/qlib-topn-results.svg)
+
+[完整三层记录](plugins/qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md) · [基础方案](plugins/qlib_a158/README_ZH.md) · [全部因子候选](plugins/qlib_factor/EXPERIMENT_RESULTS_ZH.md) · [全部策略候选](plugins/qlib_strategy/EXPERIMENT_RESULTS_ZH.md)。
 
 ## 🛠️ AxonX CLI 命令与远程执行
 
@@ -309,9 +311,9 @@ CLI 的服务命令调用相应 Job；`exec` 和未指定目标的插件管理�
 | 帮助 / 服务版本      | `axonx help` / `axonx version`                                                                |
 | 启动服务             | `axonx start`                                                                                 |
 | 查看注册 Task        | `axonx exec` / `axonx list_installed_task_definitions`                                        |
-| 查询 Task 协议       | `axonx get_task_definition --task a158_etl`                                                   |
+| 查询 Task 协议       | `axonx get_task_definition --task qlib_a158_etl`                                              |
 | 当前进程执行         | `axonx exec --task demo --x 2 --y 3`                                                          |
-| 提交研究任务         | `axonx submit --task a158_train --source-tasks '<etl_task_id>'`                               |
+| 提交研究任务         | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`                          |
 | 等待本次运行         | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400`            |
 | 跟踪进度和日志       | `axonx stream_task --task-id '<task_id>' --stream true`                                       |
 | 查询任务列表 / 状态  | `axonx list_task_statuses` / `axonx status --task-id '<task_id>'`                             |
@@ -322,9 +324,9 @@ CLI 的服务命令调用相应 Job；`exec` 和未指定目标的插件管理�
 | 浏览工作区           | `axonx list_entries --path ''`                                                                |
 | 预览产物             | `axonx preview_file --path '<工作区相对路径>'`                                                |
 | 查询机器 / 资源      | `axonx list_machines` / `axonx machine_status`                                                |
-| 查询插件 / 详情      | `axonx plugin list` / `axonx plugin show axonx-alpha158`                                      |
-| 检查 / 构建插件源码  | `axonx plugin inspect ./plugins/a158` / `axonx plugin build ./plugins/a158`                   |
-| 安装 / 卸载插件      | `axonx plugin install ./plugins/a158` / `axonx plugin uninstall axonx-alpha158`               |
+| 查询插件 / 详情      | `axonx plugin list` / `axonx plugin show axonx-qlib-a158`                                     |
+| 检查 / 构建插件源码  | `axonx plugin inspect ./plugins/qlib_a158` / `axonx plugin build ./plugins/qlib_a158`         |
+| 安装 / 卸载插件      | `axonx plugin install ./plugins/qlib_a158` / `axonx plugin uninstall axonx-qlib-a158`         |
 
 ### CLI 直连远程服务
 
@@ -345,7 +347,7 @@ axonx wait_task --task-id '<task_id>' --run-id '<run_id>' \
 远程插件安装会在本机构建 wheel，上传并安装到目标环境：
 
 ```bash
-axonx plugin install ./plugins/a158 --target 192.0.2.10:1024
+axonx plugin install ./plugins/qlib_a158 --target 192.0.2.10:1024
 ```
 
 `plugin build` 始终在本机执行；远程 `plugin inspect` 接受目标已安装的发行包名或插件名。`start` 和 `exec` 不通过 `--target`
@@ -381,7 +383,7 @@ YAML 和连接排查见[远程机器指南](https://flowllm-ai.github.io/AxonX/z
 | Component、Job、Task | [架构](https://flowllm-ai.github.io/AxonX/zh/concepts/architecture) · [框架扩展](https://flowllm-ai.github.io/AxonX/zh/development/framework-extensions)                                                                                                                                |
 | Task 协议与生命周期  | [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts) · [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management) · [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)                                                        |
 | Agent 开发与运维     | [外部 Agent](https://flowllm-ai.github.io/AxonX/zh/agent/external) · [开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide) · [Agent 配置](https://flowllm-ai.github.io/AxonX/zh/agent/configuration) · [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)    |
-| 插件开发与部署       | [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158) · [Alpha158 Factor](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158-factor)                                                            |
+| 插件开发与部署       | [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/zh/plugins/qlib-a158) · [Qlib Factor](https://flowllm-ai.github.io/AxonX/zh/plugins/qlib-factor)                                                                   |
 | 量化研究             | [研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow) · [实验设计](https://flowllm-ai.github.io/AxonX/zh/research/experiments) · [结果解读](https://flowllm-ai.github.io/AxonX/zh/research/results) · [回测解读](https://flowllm-ai.github.io/AxonX/zh/research/backtest) |
 | 远程运行             | [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)                                                                                                                                                                                                                |
 | CLI 与配置           | [CLI](https://flowllm-ai.github.io/AxonX/zh/reference/cli) · [配置](https://flowllm-ai.github.io/AxonX/zh/reference/configuration)                                                                                                                                                      |

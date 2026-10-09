@@ -271,3 +271,31 @@ def test_invalid_signal_time_is_rejected(bad_time):
         fixed_labels(signals, market, calendar)
     with pytest.raises(ValueError):
         run_backtest(signals, market, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108")
+
+
+@pytest.mark.parametrize("buy,sell", [(0.0005, 0.0015), (0.0, 0.0015), (None, 0.0015)])
+def test_asymmetric_fees_preserve_cash_and_charge_only_executed_sides(buy, sell):
+    signals, market, calendar = inputs()
+    config = BacktestConfig(top_ns=(1,), transaction_cost_rate=0.01, buy_cost_rate=buy, sell_cost_rate=sell)
+    result = run_backtest(signals, market, calendar, None, config, as_of_date="20260108")
+    rate = 0.01 if buy is None else buy
+    orders = result.frames["orders"]
+    for row in orders.filter(pl.col("status") == "filled").iter_rows(named=True):
+        expected = rate if row["side"] == "buy" else sell
+        assert row["fee"] == pytest.approx(row["notional"] * expected)
+    assert orders.filter(pl.col("status") != "filled")["fee"].sum() == 0
+    assert result.frames["daily"]["top1_net_value"][-1] == pytest.approx(1.1 / (1 + rate) * (1 - sell))
+
+
+@pytest.mark.parametrize("buy,sell", [(-0.01, None), (None, 1.0)])
+def test_invalid_side_cost_is_rejected(buy, sell):
+    signals, market, calendar = inputs()
+    with pytest.raises(ValueError, match="buy_cost_rate and sell_cost_rate"):
+        run_backtest(
+            signals,
+            market,
+            calendar,
+            None,
+            BacktestConfig(top_ns=(1,), buy_cost_rate=buy, sell_cost_rate=sell),
+            as_of_date="20260108",
+        )

@@ -48,7 +48,7 @@ def test_cli_and_structured_arguments_use_the_same_string():
 
 
 def test_prediction_resolves_dataset_from_string_metadata(tmp_path):
-    from axonx_alpha158.predict import LgbmPredictTask
+    from axonx_qlib_a158.predict import LgbmPredictTask
     from axonx.task.storage.workspace import task_path
 
     etl_dir = task_path(tmp_path, ETL)

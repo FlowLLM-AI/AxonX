@@ -31,9 +31,9 @@ cd ..
 python -m pip install -e . ./axonx_studio
 
 log "从源码安装三个研究插件"
-axonx plugin install -e ./plugins/a158
-axonx plugin install -e ./plugins/a158_factor
-axonx plugin install -e ./plugins/a158_strategy
+axonx plugin install -e ./plugins/qlib_a158
+axonx plugin install -e ./plugins/qlib_factor
+axonx plugin install -e ./plugins/qlib_strategy
 
 log "停止占用 1024 端口的旧进程"
 python - <<'PY'

@@ -16,7 +16,7 @@ def test_wait_task_accepts_client_timeout():
         [
             "wait_task",
             "--task-id",
-            "etl#a158_etl#demo",
+            "etl#qlib_a158_etl#demo",
             "--run-id",
             "run-001",
             "--client-timeout",
@@ -24,7 +24,7 @@ def test_wait_task_accepts_client_timeout():
         ],
     )
     assert client.timeout == 86400
-    assert command.arguments["task_id"] == "etl#a158_etl#demo"
+    assert command.arguments["task_id"] == "etl#qlib_a158_etl#demo"
     assert "timeout" not in command.arguments
 
 
@@ -34,7 +34,7 @@ def test_remote_job_accepts_trailing_connection_options():
         [
             "status",
             "--task-id",
-            "etl#a158_etl#demo",
+            "etl#qlib_a158_etl#demo",
             "--target",
             "192.0.2.10:1024",
             "--token",
@@ -48,9 +48,9 @@ def test_remote_job_accepts_trailing_connection_options():
 def test_plugin_accepts_trailing_connection_options():
     """Separate plugin arguments from connection options."""
     command, client = parse_command(
-        ["plugin", "install", "plugins/a158", "--target", "192.0.2.10:1024"],
+        ["plugin", "install", "plugins/qlib_a158", "--target", "192.0.2.10:1024"],
     )
-    assert command.arguments["_axonx_argv"] == ["install", "plugins/a158"]
+    assert command.arguments["_axonx_argv"] == ["install", "plugins/qlib_a158"]
     assert client.target == "http://192.0.2.10:1024"
 
 

@@ -36,6 +36,18 @@ class StockBacktestInput(BaseBacktestInputParams):
         lt=1,
         description="Cost on each executed buy and sell notional.",
     )
+    buy_cost_rate: float | None = Field(
+        default=None,
+        ge=0,
+        lt=1,
+        description="Buy notional fee rate; None uses transaction_cost_rate.",
+    )
+    sell_cost_rate: float | None = Field(
+        default=None,
+        ge=0,
+        lt=1,
+        description="Sell notional fee rate; None uses transaction_cost_rate.",
+    )
     annual_risk_free_rate: float = Field(default=0.012, gt=-1, lt=1)
     annualization_days: int = Field(default=252, gt=0)
     minimum_index_weight_coverage: float = Field(default=0.98, gt=0, le=1)
@@ -131,6 +143,8 @@ class BaseStockBacktestTask(BaseBacktestTask):
                 top_ns=tuple(p.top_ns),
                 holding_days=p.holding_days,
                 transaction_cost_rate=p.transaction_cost_rate,
+                buy_cost_rate=p.buy_cost_rate,
+                sell_cost_rate=p.sell_cost_rate,
                 annual_risk_free_rate=p.annual_risk_free_rate,
                 annualization_days=p.annualization_days,
                 minimum_index_weight_coverage=p.minimum_index_weight_coverage,
@@ -168,7 +182,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
                 "valuation": "daily adjusted-price mark to market; confirmed suspension carries last mark",
                 "execution": "same-time quote proxy, sells before buys; no queue/partial-fill guarantee",
                 "selection": "signal candidates first; no future-label filter or replacement for unfilled targets",
-                "fees": "transaction_cost_rate on each executed side",
+                "fees": "buy_cost_rate/sell_cost_rate on executed notional; unset sides use transaction_cost_rate",
                 "cutoff": self.state["cutoff"],
                 "settings": self.input_params.model_dump(mode="json", exclude={"task_name", "source_tasks"}),
                 "input_sha256": self.state["input_digests"],

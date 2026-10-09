@@ -210,4 +210,4 @@ Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID�
 
 ## 股票持仓策略
 
-`BaseStockBacktestTask.portfolio_policy()` 向共用股票成交账本提供可选的 `PortfolioPolicy`。插件实现 `replacement_limit(n)` 和 `should_exit(rank=..., age=..., n=...)`；决策只接收当日合格候选排名与已持有的市场日数。引擎在首次建仓后限制每侧实际成交数量，优先退出最差排名，并统一处理报价校验、现金、费用与产物。策略持仓没有固定计划退出日期。[Alpha158 Strategy](../../../plugins/a158_strategy/README_ZH.md) 使用此扩展。
+`BaseStockBacktestTask.portfolio_policy()` 向共用股票成交账本提供可选的 `PortfolioPolicy`。插件实现 `replacement_limit(n)` 和 `should_exit(rank=..., age=..., n=...)`；决策只接收当日合格候选排名与已持有的市场日数。引擎在首次建仓后限制每侧实际成交数量，优先退出最差排名，并统一处理报价校验、现金、费用与产物。策略持仓没有固定计划退出日期。[Qlib Strategy](../../../plugins/qlib_strategy/README_ZH.md) 使用此扩展。

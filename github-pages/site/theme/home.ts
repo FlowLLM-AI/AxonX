@@ -104,5 +104,5 @@ export const updates: Update[] = [
     href: "https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md",
   },
   { id: "studio", target: "_self" },
-  { id: "factor", page: "plugins/alpha158-factor" },
+  { id: "factor", page: "plugins/qlib-factor" },
 ];

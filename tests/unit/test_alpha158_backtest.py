@@ -1,12 +1,12 @@
 """Three Alpha158 layers share the framework position engine."""
 
-from axonx_alpha158.backtest import Alpha158BacktestTask
-from axonx_alpha158_factor.backtest import (
+from axonx_qlib_a158.backtest import Alpha158BacktestTask
+from axonx_qlib_factor.backtest import (
     Alpha158BacktestTask as FactorBacktestTask,
 )
 
 
-from axonx_alpha158_strategy.backtest import StrategyBacktestTask
+from axonx_qlib_strategy.backtest import StrategyBacktestTask
 
 from axonx.task.builtins.stock import BaseStockBacktestTask
 

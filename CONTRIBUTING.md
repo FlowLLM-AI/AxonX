@@ -39,10 +39,10 @@ pre-commit install
 For research plugin development, install the relevant plugin in editable mode:
 
 ```bash
-axonx plugin install -e ./plugins/a158
+axonx plugin install -e ./plugins/qlib_a158
 # Factor and strategy layers:
-axonx plugin install -e ./plugins/a158_factor
-axonx plugin install -e ./plugins/a158_strategy
+axonx plugin install -e ./plugins/qlib_factor
+axonx plugin install -e ./plugins/qlib_strategy
 ```
 
 The default pytest configuration includes factor and strategy plugin tests and all three plugin source paths. Install the research dependencies above when running those tests. See the [plugin guide](https://flowllm-ai.github.io/AxonX/en/plugins/management) for discovery and restart behavior.

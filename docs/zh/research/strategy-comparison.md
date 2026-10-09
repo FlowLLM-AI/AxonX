@@ -16,9 +16,9 @@ Studio 策略比较页面读取两个 Backtest Task 的日频产物，在共同�
 用不同任务名称保留不同训练、预测和回测结果。比较同一因素的变化时，其他设置尽量一致，例如使用同一 ETL、同一预测窗口，仅调整训练参数或成本。
 
 ```bash
-axonx submit --task a158_backtest --task-name cost-low \
+axonx submit --task qlib_a158_backtest --task-name cost-low \
   --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.001
-axonx submit --task a158_backtest --task-name cost-high \
+axonx submit --task qlib_a158_backtest --task-name cost-high \
   --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.003
 ```
 

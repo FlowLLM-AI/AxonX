@@ -227,4 +227,4 @@ Do not manually substitute placeholder digests for real files or alter metadata 
 - [`Artifact helpers`](../../../axonx/task/storage/artifacts.py)
 - [`Studio reading mappings`](../../../axonx_studio/src/features/research/ResearchPage.tsx)
 - [`Backtest presentation types`](../../../axonx_studio/src/features/research/backtest/types.ts)
-- [`a158 output implementations`](../../../plugins/a158/axonx_alpha158/)
+- [`a158 output implementations`](../../../plugins/qlib_a158/axonx_qlib_a158/)

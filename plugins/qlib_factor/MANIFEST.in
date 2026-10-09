@@ -1,0 +1,5 @@
+include README_ZH.md
+include EXPERIMENT_RESULTS*.md
+include DEVELOPMENT_PLAN*.md
+include EXPERIMENT_PROCESS*.md
+recursive-include experiments *.csv *.json *.md

@@ -99,9 +99,9 @@
     "capabilitiesTitle": "Flexible research. Grounded execution.",
     "journeysTitle": "Continue by goal.",
     "documentationMap": "Documentation map",
-    "caseTitle": "Alpha158 research: baseline, factors and portfolio policy",
+    "caseTitle": "Qlib three-layer research: base, factors and portfolio policy",
     "experimentDesign": "Experiment design",
-    "caseDescription": "Train on 2015–2022 and backtest the complete interval from 2023. Factor selection and lower turnover produce Top20/Top30 net annualized returns of 27.59%/22.14%. The interval was used for selection; missing-data results remain exploratory and provisional.",
+    "caseDescription": "Train on 2015–2022 and evaluate from 2023 with 0.05% buy / 0.15% sell fees. Training validation selects factors; the policy is fixed at 10 days and a 20% daily count cap. Policy-layer Top20/Top30 net annualized returns are 19.35%/15.72%, with missing quotes recorded.",
     "benchmark": "Read the benchmark",
     "reproduction": "Features, parameters, and reproduction",
     "closingTitle": "Start with one Task.",
@@ -125,8 +125,8 @@
         "label": "Try Playground"
       },
       "factor": {
-        "title": "Alpha158 factor and policy experiments",
-        "description": "Train on 2015–2022 and backtest the complete interval from 2023. Factor selection and lower turnover produce Top20/Top30 net annualized returns of 27.59%/22.14%. The interval was used for selection; missing-data results remain exploratory and provisional.",
+        "title": "Qlib factor and policy experiments",
+        "description": "Train on 2015–2022 and evaluate from 2023 with 0.05% buy / 0.15% sell fees. Training validation selects factors; the policy is fixed at 10 days and a 20% daily count cap. Policy-layer Top20/Top30 net annualized returns are 19.35%/15.72%, with missing quotes recorded.",
         "label": "Explore the results"
       }
     }

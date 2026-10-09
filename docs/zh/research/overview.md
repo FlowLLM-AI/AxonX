@@ -17,12 +17,12 @@
 
 ## 选择研究插件
 
-[插件管理](../plugins/management.md)介绍执行环境中的安装与发现。[Alpha158](../../../plugins/a158/README_ZH.md)提供基线价量特征、LightGBM 训练与 TopN 回测；[Alpha158 Factor](../../../plugins/a158_factor/README_ZH.md)增加独立注册的 Task 和可配置特征分组。
+[插件管理](../plugins/management.md)介绍执行环境中的安装与发现。[Alpha158](../../../plugins/qlib_a158/README_ZH.md)提供基线价量特征、LightGBM 训练与 TopN 回测；[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)增加独立注册的 Task 和可配置特征分组。
 
 提交前发现实际安装的 Task Schema。参数、算法与产物定义由插件维护；为 Studio 实现输出时，查阅[研究产物契约](../reference/research-artifacts.md)。
 
 ## 阅读 Agent 开发实验案例
 
-[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)在完整的 2022 年后区间比较基础特征、选定环境因子与组合策略。策略层 Top20／Top30 净年化为 27.59%／22.14%。该区间用于选择方案，且市场数据存在缺失，结果仍属探索性、暂定结果。
+[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)比较统一数据、rank 标签、AxonX 参数与买入 0.05% / 卖出 0.15% 费用下的三层方案。按训练期验证选择增强组，预先固定策略主方案；策略层 Top20／Top30 净年化为 19.35%／15.72%，结果包含缺行情记录。
 
-可复用的方法见[实验设计](experiments.md)，已记录的证据见[三层实验记录](../../../plugins/a158/THREE_LAYER_EXPERIMENTS_ZH.md)。Agent 接入方式见[外部 Agent](../agent/external.md)。
+可复用的方法见[实验设计](experiments.md)，已记录的证据见[三层实验记录](../../../plugins/qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md)。Agent 接入方式见[外部 Agent](../agent/external.md)。
