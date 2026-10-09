@@ -10,4 +10,8 @@ __all__ = ["FactorAnalysisInputParams", "FactorAnalysisOutputParams", "FactorAna
 
 
 class FactorAnalysisTask(BaseTask):
-    pass
+    """Analyze upstream Alpha158 and context factors using the shared diagnostics.
+
+    Reads the ETL feature and label artifacts and writes factor analysis results
+    through the baseline analysis lifecycle, without altering training samples.
+    """

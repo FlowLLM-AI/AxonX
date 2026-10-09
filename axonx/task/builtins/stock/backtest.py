@@ -19,7 +19,7 @@ from ...contracts import (
 from ...core import TaskStep, parse_source_tasks, task_type_from_id
 from ...storage import artifact_path, artifact_record, read_metadata
 from .data import VERSION
-from .engine import BacktestConfig, run_backtest
+from .engine import BacktestConfig, PortfolioPolicy, run_backtest
 
 
 class StockBacktestInput(BaseBacktestInputParams):
@@ -112,6 +112,10 @@ class BaseStockBacktestTask(BaseBacktestTask):
         self.state["input_digests"] = {key: file_sha256(value) for key, value in paths.items()}
         self.state["signals"] = pl.read_parquet(paths["input"])
 
+    def portfolio_policy(self) -> PortfolioPolicy | None:
+        """Override in a plugin to supply decisions to the shared execution ledger."""
+        return None
+
     def calculate(self) -> None:
         p = self.input_params
         paths = self.state["input_paths"]
@@ -133,6 +137,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
                 index_codes=tuple(p.index_codes),
             ),
             as_of_date=self.state["cutoff"],
+            policy=self.portfolio_policy(),
         )
 
     def write_outputs(self) -> None:

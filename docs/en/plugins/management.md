@@ -32,7 +32,7 @@ Install in the execution service's Python environment, then restart the service:
 
 ```bash
 pip install axonx-alpha158
-# Or: pip install axonx-alpha158-enhanced
+# Or: pip install axonx-alpha158-factor
 axonx plugin list
 ```
 
@@ -129,4 +129,4 @@ Source: [Plugin CLI](../../../axonx/plugin_kit/cli.py), [Wheel building](../../.
 
 ## Research plugins
 
-[Alpha158](../../../plugins/a158/README.md) · [Alpha158 Enhanced](../../../plugins/a158_enhanced/README.md)
+[Alpha158](../../../plugins/a158/README.md) · [Alpha158 Factor](../../../plugins/a158_factor/README.md) · [Alpha158 Strategy](../../../plugins/a158_strategy/README.md)

@@ -4,7 +4,7 @@
 
 独立的 AxonX 量化研究插件，提供数据处理、因子分析、LightGBM 训练、样本外预测和 TopN 回测。
 
-使用 158 个价量特征作为研究基线。需要环境增强特征与消融实验时，参见 [Alpha158 Enhanced](../a158_enhanced/README_ZH.md)。
+使用 158 个价量特征作为研究基线。需要环境增强特征与消融实验时，参见 [Alpha158 Factor](../a158_factor/README_ZH.md)。
 
 ![研究任务与产物链路](../../docs/figures/research/workflow.svg)
 
@@ -144,6 +144,10 @@ ETL 协议版本 2 发布独立的 `dataset`、`labels`、`market`、`calendar` 
 
 ![回测整体指标](../../docs/figures/studio/backtest-overall.png)
 
+## 实验基线与结果
+
+训练 2015–2022，整体评估 20230103–20261008。[实验报告](EXPERIMENT_RESULTS_ZH.md)仅比较 Top5/10/20/30，包含 1／5／10 日持有、零费用对照，以及冻结的逐日／分期数据和完整运行来源。净收益表现与数据质量限制见报告。
+
 ## 排查问题与源码
 
 | 问题            | 检查项                                                      |
@@ -170,3 +174,5 @@ ETL 协议版本 2 发布独立的 `dataset`、`labels`、`market`、`calendar` 
 ```
 
 覆盖标签时点、延迟退出、费用与持仓资金记账规则。
+
+[三层实验记录](THREE_LAYER_EXPERIMENTS_ZH.md)：`a158` 基线 → `a158_factor` 因子 → `a158_strategy` 持仓策略。

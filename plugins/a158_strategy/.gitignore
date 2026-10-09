@@ -1,0 +1,3 @@
+# Keep portable comparison metrics; exclude local execution archives.
+/experiments/*
+!/experiments/policy_comparison.csv

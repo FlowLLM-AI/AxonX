@@ -99,9 +99,9 @@
     "capabilitiesTitle": "研究自由扩展，执行有据可循。",
     "journeysTitle": "按目标深入。",
     "documentationMap": "文档导航",
-    "caseTitle": "从插件开发到独立确认。",
+    "caseTitle": "Alpha158 三层研究：基线、因子、持仓策略",
     "experimentDesign": "实验方法",
-    "caseDescription": "Codex 通过 Skill + CLI 将 Alpha158 扩展为独立插件，新增 26 个特征，并完成消融与独立确认。确认期 Top10 扣费年化收益从 −5.74% 提高至 28.21%，Top20 从 −3.24% 提高至 24.93%。",
+    "caseDescription": "固定 2015–2022 训练、2023 起整体回测。因子筛选与降低换手后，Top20／Top30 扣费年化为 27.59%／22.14%。全区间参与筛选，行情缺失，结果为探索性暂定结果。",
     "benchmark": "查看 Benchmark",
     "reproduction": "特征、参数与复现",
     "closingTitle": "从一个 Task 开始。",
@@ -124,9 +124,9 @@
         "description": "浏览任务与产物、查看训练曲线与回测、比较策略。在线试玩使用模拟数据与执行。",
         "label": "Playground 在线试玩"
       },
-      "enhanced": {
-        "title": "Skill + CLI 开发 Alpha158 增强版",
-        "description": "新增 26 个特征。2025-01-01 至 2026-09-30 确认期 Top10 扣费年化收益从 −5.74% 提高至 28.21%，Top20 从 −3.24% 提高至 24.93%。",
+      "factor": {
+        "title": "Alpha158 因子与策略实验",
+        "description": "固定 2015–2022 训练、2023 起整体回测。因子筛选与降低换手后，Top20／Top30 扣费年化为 27.59%／22.14%。全区间参与筛选，行情缺失，结果为探索性暂定结果。",
         "label": "查看成果"
       }
     }

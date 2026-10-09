@@ -52,11 +52,11 @@ jobs:
         if: runner.os == 'macOS'
         run: brew list libomp || brew install libomp
       - name: Install dependencies
-        run: python -m pip install -e '.[dev]' -e plugins/a158 -e plugins/a158_enhanced coverage
+        run: python -m pip install -e '.[dev]' -e plugins/a158 -e plugins/a158_factor -e plugins/a158_strategy coverage
       - name: Run isolated unit and plugin tests
         run: >-
-          coverage run --source=axonx,axonx_alpha158,axonx_alpha158_enhanced
-          -m pytest tests/unit plugins/a158_enhanced/tests
+          coverage run --source=axonx,axonx_alpha158,axonx_alpha158_factor,axonx_alpha158_strategy
+          -m pytest tests/unit plugins/a158_factor/tests plugins/a158_strategy/tests
           -m 'not integration' --tb=short --junitxml=test-results/junit.xml
       - name: Report coverage
         run: |

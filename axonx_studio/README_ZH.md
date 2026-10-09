@@ -57,7 +57,7 @@ pip install axonx-studio
 
 ### 可选的研究与 Agent 配置
 
-- **研究插件：** 在执行服务的 Python 环境安装 `axonx-alpha158` 或 `axonx-alpha158-enhanced`，然后重启服务。研究视图需要已完成的运行及标准 `metadata.json` 和产物输出。
+- **研究插件：** 在执行服务的 Python 环境安装 `axonx-alpha158` 或 `axonx-alpha158-factor`，然后重启服务。研究视图需要已完成的运行及标准 `metadata.json` 和产物输出。
 - **Tushare 下载：** 在后端配置 `AXONX_TUSHARE_TOKEN`。仅在使用兼容的自定义接口时覆盖 `AXONX_TUSHARE_BASE_URL`。
 - **Agent：** 按服务商要求在后端配置 `CLAUDE_CODE_API_KEY`、`CLAUDE_CODE_BASE_URL` 和 `CLAUDE_CODE_MODEL_NAME`。普通 Task 无需模型凭据即可运行。停止 Agent 当前轮次不会取消它已提交的 Task。
 - **远程机器：** 配置后端服务的 `targets`，然后在 Studio 中选择目标。浏览器向本机服务认证，后端解析远程地址与凭据，通过 `target` 转发请求。

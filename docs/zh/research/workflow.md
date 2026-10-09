@@ -5,7 +5,7 @@ description: 用 Alpha158 插件串联数据、因子分析、训练、预测与
 
 # 量化研究流程
 
-AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使用仓库中的 `plugins/a158/` 作为具体算法实现，建立从 Tushare 数据到回测结果的闭环。增强版 `a158_enhanced` 使用独立的 `a158e_*` 注册名，并增加训练特征组参数。两者共享研究阶段与基础产物形式，但跨插件复用上游前仍需检查 Task 定义、特征顺序和协议；具体用法见[增强插件](../../../plugins/a158_enhanced/README_ZH.md)。
+AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使用仓库中的 `plugins/a158/` 作为具体算法实现，建立从 Tushare 数据到回测结果的闭环。增强版 `a158_factor` 使用独立的 `a158f_*` 注册名，并增加训练特征组参数。两者共享研究阶段与基础产物形式，但跨插件复用上游前仍需检查 Task 定义、特征顺序和协议；具体用法见[增强插件](../../../plugins/a158_factor/README_ZH.md)。
 
 ![数据到研究证据](../../figures/research/workflow.svg)
 
@@ -94,7 +94,7 @@ a158 独立发布特征、原始标签、行情和日历产物。标签固定为
 
 ## 从运行研究链到设计实验
 
-一次完整执行提供参数与产物；评估改进还需要控制变量、消融、筛选与独立确认。按[实验设计与确认](experiments.md)制定比较方案，再用[策略比较](strategy-comparison.md)检查共同窗口。Agent 开发增强特征的具体过程与复现入口见 [Alpha158 Enhanced](../../../plugins/a158_enhanced/README_ZH.md)。
+一次完整执行提供参数与产物；评估改进还需要控制变量、消融、筛选与独立确认。按[实验设计与确认](experiments.md)制定比较方案，再用[策略比较](strategy-comparison.md)检查共同窗口。Agent 开发增强特征的具体过程与复现入口见 [Alpha158 Factor](../../../plugins/a158_factor/README_ZH.md)。
 
 ## 使用仓库脚本
 

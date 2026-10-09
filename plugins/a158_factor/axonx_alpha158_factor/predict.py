@@ -10,4 +10,8 @@ __all__ = ["LgbmPredictInputParams", "LgbmPredictOutputParams", "LgbmPredictTask
 
 
 class LgbmPredictTask(BaseTask):
-    pass
+    """Predict the full stock cross section using a factor-layer training Task.
+
+    Reuses the associated ETL dataset and recorded model feature order. Writes
+    cutoff-safe prediction artifacts and summary statistics through Alpha158.
+    """

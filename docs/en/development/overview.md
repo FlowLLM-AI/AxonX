@@ -19,7 +19,7 @@ The development and operations guide is also bundled for optional built-in Agent
 
 Discover the registered Task's schema, exercise a minimal execution in a temporary workspace, and inspect its output metadata and declared artifacts. Changes to feature timing, fields, or upstream requirements need compatibility checks before reusing earlier records.
 
-Use [experiment design](../research/experiments.md) for algorithm comparisons and [external agents](../agent/external.md) for agent-driven development. The [Alpha158 Enhanced plugin](../../../plugins/a158_enhanced/README.md) demonstrates a separate implementation with feature-group switches and independent confirmation.
+Use [experiment design](../research/experiments.md) for algorithm comparisons and [external agents](../agent/external.md) for agent-driven development. The [Alpha158 Factor plugin](../../../plugins/a158_factor/README.md) demonstrates a separate implementation with feature-group switches and independent confirmation.
 
 ## Maintain the documentation
 

@@ -17,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PACKAGES = (
     ("axonx", ROOT, "axonx", None),
     ("a158", ROOT / "plugins/a158", "axonx_alpha158", "alpha158"),
-    ("a158_enhanced", ROOT / "plugins/a158_enhanced", "axonx_alpha158_enhanced", "alpha158_enhanced"),
+    ("a158_factor", ROOT / "plugins/a158_factor", "axonx_alpha158_factor", "alpha158_factor"),
+    ("a158_strategy", ROOT / "plugins/a158_strategy", "axonx_alpha158_strategy", "alpha158_strategy"),
 )
 
 
@@ -62,7 +63,7 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
         source_files = plugin_source_files(source, package)
         required.update(source_files)
         if plugin:
-            required.update({f"{package}/plugin.yaml", f"{package}/config/alpha158_demo.yaml"})
+            required.add(f"{package}/plugin.yaml")
         else:
             required.update({"axonx/_version.py", "axonx/config/default.yaml", "axonx/config/remote.yaml"})
         with ZipFile(wheels[0]) as archive:
@@ -81,7 +82,8 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
             entries.read_string(archive.read(entries_file).decode("utf-8"))
             if plugin:
                 assert entries["axonx.plugins"][plugin] == package
-                assert entries["axonx.configs"][plugin] == f"{package}.config:alpha158_demo"
+                if "axonx.configs" in project.get("entry-points", {}):
+                    assert entries["axonx.configs"][plugin] == f"{package}.config:alpha158_demo"
             else:
                 assert entries["console_scripts"]["axonx"] == "axonx.cli:main"
         with tarfile.open(sdists[0]) as archive:
@@ -111,7 +113,8 @@ def verify_installation() -> None:
         files = resources.files(package)
         if plugin:
             assert files.joinpath("plugin.yaml").is_file()
-            assert files.joinpath("config/alpha158_demo.yaml").is_file()
+            if "axonx.configs" in project.get("entry-points", {}):
+                assert files.joinpath("config/alpha158_demo.yaml").is_file()
             (entry,) = [entry for entry in distribution.entry_points if entry.group == "axonx.plugins"]
             assert entry.name == plugin
             assert entry.load().__name__ == package
@@ -127,11 +130,12 @@ def verify_installation() -> None:
     from axonx.config import ConfigResolver  # pylint: disable=import-outside-toplevel
     from axonx.plugin_kit.discovery import get_installed_plugin  # pylint: disable=import-outside-toplevel
 
-    for _, _, _, plugin in PACKAGES[1:]:
+    for _, source, _, plugin in PACKAGES[1:]:
         info = get_installed_plugin(plugin)
         assert info.error is None, info.error
         assert info.tasks, f"Plugin {plugin} has no tasks"
-        assert ConfigResolver().load(plugin), f"Plugin {plugin} config did not load"
+        if "axonx.configs" in read_project(source).get("entry-points", {}):
+            assert ConfigResolver().load(plugin), f"Plugin {plugin} config did not load"
 
 
 if __name__ == "__main__":

@@ -1,0 +1,6 @@
+tasks:
+  a158s_etl: axonx_alpha158_factor.etl:Alpha158Task
+  a158s_factor: axonx_alpha158_factor.analysis:FactorAnalysisTask
+  a158s_train: axonx_alpha158_factor.train:LgbmTrainTask
+  a158s_predict: axonx_alpha158_factor.predict:LgbmPredictTask
+  a158s_backtest: axonx_alpha158_strategy.backtest:StrategyBacktestTask

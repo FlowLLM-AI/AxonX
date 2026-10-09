@@ -6,7 +6,7 @@ import polars as pl
 import pytest
 from polars.testing import assert_frame_equal
 
-from axonx_alpha158_enhanced.internal.cross_section import (
+from axonx_alpha158_factor.internal.cross_section import (
     CONTEXT_FEATURES,
     FEATURE_GROUPS,
     calculate_context,

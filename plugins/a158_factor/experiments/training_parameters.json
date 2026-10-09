@@ -1,10 +1,6 @@
 {
   "matched": true,
-  "allowed_differences": [
-    "task_name",
-    "source_tasks",
-    "context_groups"
-  ],
+  "allowed_differences": ["task_name", "source_tasks", "context_groups"],
   "baseline_config": {
     "train_start": "20150101",
     "train_end": "20230101",

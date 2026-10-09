@@ -91,7 +91,7 @@ export const capabilities = [
 ] as const;
 
 type Update = {
-  id: "release" | "agent" | "studio" | "enhanced";
+  id: "release" | "agent" | "studio" | "factor";
   page?: string;
   href?: string;
   target?: string;
@@ -104,5 +104,5 @@ export const updates: Update[] = [
     href: "https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md",
   },
   { id: "studio", target: "_self" },
-  { id: "enhanced", page: "plugins/alpha158-enhanced" },
+  { id: "factor", page: "plugins/alpha158-factor" },
 ];

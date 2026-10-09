@@ -57,7 +57,7 @@ Leave **Task Name** empty to generate a name for each experiment. Reusing a fixe
 
 ### Optional research and Agent setup
 
-- **Research plugins:** install `axonx-alpha158` or `axonx-alpha158-enhanced` in the execution service's Python environment, then restart the service. Research views need completed runs with standard `metadata.json` and artifact outputs.
+- **Research plugins:** install `axonx-alpha158` or `axonx-alpha158-factor` in the execution service's Python environment, then restart the service. Research views need completed runs with standard `metadata.json` and artifact outputs.
 - **Tushare downloads:** configure `AXONX_TUSHARE_TOKEN` on the backend. Override `AXONX_TUSHARE_BASE_URL` only when using a compatible custom endpoint.
 - **Agent:** configure the backend's `CLAUDE_CODE_API_KEY`, `CLAUDE_CODE_BASE_URL`, and `CLAUDE_CODE_MODEL_NAME` as needed for your provider. Ordinary Tasks can run without model credentials. Stopping an Agent turn does not cancel a Task it submitted.
 - **Remote machines:** configure backend service `targets`, then select the target in Studio. The browser authenticates to the local service; the backend resolves remote addresses and credentials and forwards requests using `target`.

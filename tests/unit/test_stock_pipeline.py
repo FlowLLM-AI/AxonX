@@ -1,4 +1,4 @@
-"""Actual ETL/train/predict/backtest tasks for both plugins, with synthetic data."""
+"""Actual ETL/train/predict/backtest lifecycle for all three research layers."""
 
 from datetime import date, timedelta
 from pathlib import Path
@@ -53,21 +53,27 @@ def raw_data(root):
     return dates
 
 
-@pytest.mark.parametrize("enhanced", [False, True])
-def test_complete_new_artifact_pipeline(tmp_path, enhanced):
+@pytest.mark.parametrize("layer", ["baseline", "factor", "strategy"])
+def test_complete_new_artifact_pipeline(tmp_path, layer):
     pytest.importorskip("lightgbm")
-    if enhanced:
-        from axonx_alpha158_enhanced.etl import Alpha158Task
-        from axonx_alpha158_enhanced.training import LgbmTrainTask
-        from axonx_alpha158_enhanced.predict import LgbmPredictTask
-        from axonx_alpha158_enhanced.backtest import Alpha158BacktestTask
-        from axonx_alpha158_enhanced.analysis import FactorAnalysisTask
+    if layer != "baseline":
+        from axonx_alpha158_factor.etl import Alpha158Task
+        from axonx_alpha158_factor.train import LgbmTrainTask
+        from axonx_alpha158_factor.predict import LgbmPredictTask
+        from axonx_alpha158_factor.backtest import Alpha158BacktestTask
+        from axonx_alpha158_factor.analysis import FactorAnalysisTask
     else:
         from axonx_alpha158.etl import Alpha158Task
         from axonx_alpha158.train import LgbmTrainTask
         from axonx_alpha158.predict import LgbmPredictTask
         from axonx_alpha158.backtest import Alpha158BacktestTask
         from axonx_alpha158.analysis import FactorAnalysisTask
+    if layer == "strategy":
+        from axonx_alpha158_strategy.backtest import StrategyBacktestTask
+
+        backtest_cls = StrategyBacktestTask
+    else:
+        backtest_cls = Alpha158BacktestTask
     raw = tmp_path / "raw"
     dates = raw_data(raw)
     # Irrelevant old history may be incomplete; retain exactly the required rolling history.
@@ -135,7 +141,12 @@ def test_complete_new_artifact_pipeline(tmp_path, enhanced):
     )
     assert "valid_return_rows" not in stats
     _, result = run(
-        Alpha158BacktestTask, "backtest", source_tasks=predict.task_id, top_ns=[1, 3], transaction_cost_rate=0.0
+        backtest_cls,
+        "backtest",
+        source_tasks=predict.task_id,
+        top_ns=[1, 3],
+        transaction_cost_rate=0.0,
+        **({"minimum_holding_days": 0} if layer == "strategy" else {}),
     )
     assert result["dimensions"]["top_ns"] == [1, 3]
     assert result["days"] == 10 and result["evaluation_status"] == "done"

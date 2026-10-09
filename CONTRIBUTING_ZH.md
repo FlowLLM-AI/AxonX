@@ -40,7 +40,9 @@ pre-commit install
 
 ```bash
 axonx plugin install -e ./plugins/a158
-# Or: axonx plugin install -e ./plugins/a158_enhanced
+# 因子和策略层：
+axonx plugin install -e ./plugins/a158_factor
+axonx plugin install -e ./plugins/a158_strategy
 ```
 
 默认 pytest 配置包含 enhanced 插件测试及两个插件的源码路径。运行这些测试时，通过上述安装准备研究依赖。插件发现和重启行为见[插件指南](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。

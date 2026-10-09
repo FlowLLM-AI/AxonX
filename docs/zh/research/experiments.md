@@ -33,7 +33,7 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 
 用于选择方案的窗口不能同时作为独立确认。若看到确认结果后继续修改，需将该窗口视为开发信息，为新方案重新建立确认设计。
 
-Alpha158 Enhanced 的具体案例使用 2015–2022 年训练、2023–2024 年筛选、2025-01-01 至 2026-09-30 确认。它是历史实验设置，新的实验应根据数据和问题定义自己的窗口。
+Alpha158 Factor 的具体案例使用 2015–2022 年训练、2023–2024 年筛选、2025-01-01 至 2026-09-30 确认。它是历史实验设置，新的实验应根据数据和问题定义自己的窗口。
 
 ## 用 Task 保存消融链
 
@@ -48,7 +48,7 @@ Alpha158 Enhanced 的具体案例使用 2015–2022 年训练、2023–2024 年�
   └─ 锁定 Train → 确认 Predict → 确认 Backtest
 ```
 
-使用默认生成名称或不同的显式名称；同名重跑会替换终态目录。失败和作废运行也应保留原因，不只汇报成功结果。命令与等待方法见[研究流程](workflow.md)，增强插件的分组消融命令见[复现实验](../../../plugins/a158_enhanced/README_ZH.md#复现实验)。
+使用默认生成名称或不同的显式名称；同名重跑会替换终态目录。失败和作废运行也应保留原因，不只汇报成功结果。命令与等待方法见[研究流程](workflow.md)，增强插件的分组消融命令见[复现实验](../../../plugins/a158_factor/README_ZH.md#安装与执行)。
 
 ## 比较共同窗口与相同口径
 
@@ -62,15 +62,15 @@ Alpha158 Enhanced 的具体案例使用 2015–2022 年训练、2023–2024 年�
 
 同一日期上的基线与增强方案可构成配对差值。报告点估计时，同时说明有效样本、缺失日期和时间相关性处理。区块 bootstrap 的统计对象、区块长度、次数与随机种子都应记录。
 
-Alpha158 Enhanced 的历史报告对每日 RankIC 和 Top10 / Top20 日净收益差值使用 20 交易日循环区块 bootstrap，重采样 2000 次、随机种子 42。三项 95% 区间均跨零。这些区间也不是年化复利收益差的区间。
+Alpha158 Factor 的历史报告对每日 RankIC 和 Top10 / Top20 日净收益差值使用 20 交易日循环区块 bootstrap，重采样 2000 次、随机种子 42。三项 95% 区间均跨零。这些区间也不是年化复利收益差的区间。
 
 这种计算属于实验分析，Studio 策略比较页面不会自动生成上述 bootstrap 检验。原始日级产物、对齐方法与计算记录需要在实验环境保留。
 
 ## 阅读 Agent 开发的增强案例
 
-[项目 Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)介绍 Agent 如何开发独立插件并通过 AxonX 执行研究。[Alpha158 Enhanced](../../../plugins/a158_enhanced/README_ZH.md)维护特征定义、任务参数、结论和复现命令。
+[项目 Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)介绍 Agent 如何开发独立插件并通过 AxonX 执行研究。[Alpha158 Factor](../../../plugins/a158_factor/README_ZH.md)维护特征定义、任务参数、结论和复现命令。
 
-详细历史材料包括[实验计划](../../../plugins/a158_enhanced/DEVELOPMENT_PLAN.md)、[执行过程](../../../plugins/a158_enhanced/EXPERIMENT_PROCESS.md)、[完整结果](../../../plugins/a158_enhanced/EXPERIMENT_RESULTS.md)和[校验材料索引](../../../plugins/a158_enhanced/experiments/README.md)。汇总与校验材料随仓库提供；完整提交响应、原始日志及日级 Parquet 保留在实验本地归档。复现指南支持新执行，不承诺重新取得未发布的历史数据快照或产物。
+详细历史材料包括[实验计划](../../../plugins/a158_factor/DEVELOPMENT_PLAN.md)、[执行过程](../../../plugins/a158_factor/EXPERIMENT_PROCESS.md)、[完整结果](../../../plugins/a158_factor/EXPERIMENT_RESULTS.md)和[校验材料索引](../../../plugins/a158_factor/experiments/README.md)。汇总与校验材料随仓库提供；完整提交响应、原始日志及日级 Parquet 保留在实验本地归档。复现指南支持新执行，不承诺重新取得未发布的历史数据快照或产物。
 
 ## 报告结论
 

@@ -9,7 +9,7 @@ Studio organizes successful task results by ETL, factors, training, prediction, 
 
 ![Result reading order](../../figures/research/results-reading.svg)
 
-Screenshots on this page show existing research results from a remote workspace, with operations and fields in the English UI. Some results come from the `a158_enhanced` plugin; sample sizes and feature counts reflect those actual experiments. Algorithm descriptions below still refer to the current `a158` implementation.
+Screenshots on this page show existing research results from a remote workspace, with operations and fields in the English UI. Some results come from the `a158_factor` plugin; sample sizes and feature counts reflect those actual experiments. Algorithm descriptions below still refer to the current `a158` implementation.
 
 ## From run pages to result pages
 

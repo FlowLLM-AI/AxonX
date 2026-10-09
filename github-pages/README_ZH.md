@@ -75,7 +75,7 @@ npm run preview
 3. 从相关目标或指南链接到新页面；阅读路径变化时更新两份文档导航。
 4. 运行测试、构建与格式检查，预览双语及受影响的窄屏、主题。
 
-内容目录会在替换生成输出之前拒绝双语路径不一致、未归属页面、重复归属、导入路由冲突、缺失原文与缺失标题。根目录和插件 README 通过 `lib/site-model.mjs` 映射为 `getting-started/overview`、`development/contributing`、`plugins/alpha158` 和 `plugins/alpha158-enhanced`；`docs/{lang}/index.md` 对应 `{lang}/docs`。
+内容目录会在替换生成输出之前拒绝双语路径不一致、未归属页面、重复归属、导入路由冲突、缺失原文与缺失标题。根目录和插件 README 通过 `lib/site-model.mjs` 映射为 `getting-started/overview`、`development/contributing`、`plugins/alpha158` 和 `plugins/alpha158-factor`；`docs/{lang}/index.md` 对应 `{lang}/docs`。
 
 ### 链接与导出
 

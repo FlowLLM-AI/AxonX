@@ -32,7 +32,7 @@ axonx plugin inspect '<distribution 或插件名>'
 
 ```bash
 pip install axonx-alpha158
-# Or: pip install axonx-alpha158-enhanced
+# Or: pip install axonx-alpha158-factor
 axonx plugin list
 ```
 
@@ -129,4 +129,4 @@ axonx plugin uninstall '<distribution 或插件名>' \
 
 ## 研究插件
 
-[Alpha158](../../../plugins/a158/README_ZH.md) · [Alpha158 Enhanced](../../../plugins/a158_enhanced/README_ZH.md)
+[Alpha158](../../../plugins/a158/README_ZH.md) · [Alpha158 Factor](../../../plugins/a158_factor/README_ZH.md) · [Alpha158 Strategy](../../../plugins/a158_strategy/README_ZH.md)

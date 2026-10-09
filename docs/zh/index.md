@@ -25,7 +25,7 @@ AxonX 是面向金融量化研究的 Agent Harness。插件提供算法，Task �
 
 先从[研究总览](research/overview.md)选择目标。[研究流程](research/workflow.md)和 [Tushare 数据](research/tushare.md)负责数据准备与阶段执行；[结果解读](research/results.md)负责检查各阶段产物；[实验设计与确认](research/experiments.md)、[回测口径](research/backtest.md)和[策略比较](research/strategy-comparison.md)负责评估证据。
 
-[插件管理](plugins/management.md)说明安装、发现和部署。[Alpha158](../../plugins/a158/README_ZH.md)是基础研究链，[Alpha158 Enhanced](../../plugins/a158_enhanced/README_ZH.md)提供增强特征、消融和独立确认的具体案例。算法参数与实验数值以插件文档为准。
+[插件管理](plugins/management.md)说明安装、发现和部署。[Alpha158](../../plugins/a158/README_ZH.md)是基础研究链，[Alpha158 Factor](../../plugins/a158_factor/README_ZH.md)提供增强特征与消融案例；[Alpha158 Strategy](../../plugins/a158_strategy/README_ZH.md)增加排名保留和有限换仓。算法参数与实验数值以插件文档为准。
 
 ### Agent：选择外部宿主或内置会话
 

@@ -54,7 +54,7 @@ Install with `pip install "axonx[studio]"`, then restart the service. See [Studi
 
 ## Deploy from the repository
 
-With Python 3.12+ and Node/npm available and the intended Python environment activated, run `bash /path/to/AxonX/scripts/deploy.sh` from any directory. The script switches to the repository root, updates `main` from `origin`, runs `npm ci` and builds Studio, installs AxonX and the Studio package from source, and installs both `a158` and `a158_enhanced` plugins in editable mode. After installation succeeds, it stops processes listening on port `1024` (forcibly if necessary) and runs `axonx start` in the foreground.
+With Python 3.12+ and Node/npm available and the intended Python environment activated, run `bash /path/to/AxonX/scripts/deploy.sh` from any directory. The script switches to the repository root, updates `main` from `origin`, runs `npm ci` and builds Studio, installs AxonX and the Studio package from source, and installs the `a158`, `a158_factor` and `a158_strategy` plugins in editable mode. After installation succeeds, it stops processes listening on port `1024` (forcibly if necessary) and runs `axonx start` in the foreground.
 
 The script is executable: from the repository root, you can run `./scripts/deploy.sh`. All arguments are passed unchanged to `axonx start`, for example `./scripts/deploy.sh --config remote` starts with `axonx start --config remote`. Port cleanup still targets `1024`; it does not read the selected configuration.
 

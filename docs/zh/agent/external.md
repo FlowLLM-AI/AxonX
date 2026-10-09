@@ -75,7 +75,7 @@ axonx get_task_context --task-id '<task_id>' --target 192.0.2.10:1024
 
 修改特征通常需要 ETL → Train → Predict → Backtest；修改模型可复用兼容 ETL；修改组合管理可复用兼容 Predict。因子分析按诊断需要从 ETL 独立执行。契约、字段或特征时点变更后，先确认旧上游是否仍可复用。
 
-Agent 开发实验应先按[实验设计与确认](../research/experiments.md)定义控制变量和确认窗口。具体增强案例、提示词和材料入口见[项目 Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)与 [Alpha158 Enhanced](../../../plugins/a158_enhanced/README_ZH.md)。
+Agent 开发实验应先按[实验设计与确认](../research/experiments.md)定义控制变量和确认窗口。具体增强案例、提示词和材料入口见[项目 Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)与 [Alpha158 Factor](../../../plugins/a158_factor/README_ZH.md)。
 
 ## 完成时报告什么
 

@@ -12,7 +12,8 @@ export const importedPages = {
   "getting-started/overview": "README{suffix}.md",
   "development/contributing": "CONTRIBUTING{suffix}.md",
   "plugins/alpha158": "plugins/a158/README{suffix}.md",
-  "plugins/alpha158-enhanced": "plugins/a158_enhanced/README{suffix}.md",
+  "plugins/alpha158-strategy": "plugins/a158_strategy/README{suffix}.md",
+  "plugins/alpha158-factor": "plugins/a158_factor/README{suffix}.md",
 };
 
 async function markdownFiles(directory, prefix = "") {

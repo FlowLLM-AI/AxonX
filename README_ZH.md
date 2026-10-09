@@ -47,7 +47,7 @@
 - AxonX **0.1.0** 发布： 面向量化研究的 Agent Harness，提供插件化 Task、执行跟踪、任务血缘，以及 CLI / MCP / Studio 统一接入。→ [官网文档](https://flowllm-ai.github.io/AxonX/zh/)
 - 通过 SKILL.md + CLI 接入 Agent： 为 Codex、Claude Code 等加载 [AxonX Skill](skills/axonx/SKILL.md)，让 Agent 发现 Task 契约、开发插件、提交研究任务并检查结果。→ [Agent 接入指南](https://flowllm-ai.github.io/AxonX/zh/agent/external)
 - AxonX Studio 能力发布： 在同一工作台浏览任务与产物、查看训练曲线与回测、比较策略。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>（数据与执行均为模拟）
-- 使用 Skill + CLI 开发 Alpha158 增强版： Codex 为 Alpha158 新增 **26** 个特征。在 2025-01-01 至 2026-09-30 确认期，Top10 扣费年化收益从 **−5.74%** 提高至 **28.21%**，Top20 从 **−3.24%** 提高至 **24.93%**。→ [Benchmark](#benchmark-agent-开发市场横截面增强特征) · [完整结果](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
+- Alpha158 三层实验：因子筛选与降低换手后，Top20／Top30 扣费年化从基线 **−36.46%／−38.62%** 提升至 **27.59%／22.14%**。结果为行情缺失下的探索性暂定结果。→ [完整记录](plugins/a158/THREE_LAYER_EXPERIMENTS_ZH.md)
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
@@ -286,59 +286,19 @@ Train → Predict → Backtest**，因子分析是 ETL 的独立下游。
 
 ## 📊 Benchmark Agent 开发市场横截面增强特征
 
-Codex 依据 [docs/en/dev_guide.md](docs/en/dev_guide.md) 中的 Task 契约、插件注册与 CLI 流程，将 `a158`
-扩展为独立的 [Alpha158 Enhanced](plugins/a158_enhanced/README_ZH.md)：开发特征和分组开关，检查与安装插件，通过 AxonX
-提交训练、预测、回测并读取产物。原插件保留不变，增强版使用独立的 `a158e_*` Task 注册名。
+Alpha158 使用三层插件：`a158` 基线、继承基线的 `a158_factor` 因子层、继承因子层的 `a158_strategy` 持仓策略层。通过 [AxonX Skill](skills/axonx/SKILL.md) 与 [开发指南](docs/zh/dev_guide.md)在研究服务上提交并记录实验。
 
-可复用提示词（根据本次开发计划整理）：
+固定 2015–2022 年训练，20230103–20261008 整体预测与回测；每次实际买卖各收 0.2%。因子层比较全部 15 种非空因子组和无因子对照，按 Top20、Top30 净年化均值选出 `market,liquidity,interaction`（179 个模型特征）。策略层复用其预测，比较六种最短持有期，选出“每日最多替换 20% 股票、至少持有 10 日”。
 
-```text
-先阅读 docs/en/dev_guide.md，从 plugins/a158 创建独立的 a158_enhanced 插件。
-保留原始 158 个特征、标签、训练参数和回测假设，增加市场环境、成交活跃度、相对表现与交互特征。
-验证特征时点和原始数据一致性；通过 AxonX 执行消融实验，在筛选期锁定方案后再进行独立确认。
-保留任务、参数、产物与失败记录，报告 RankIC、TopN 扣费收益和风险，不预设结果提升。
-```
+| 层级          | Top20 净年化 | Top30 净年化 |
+| ------------- | ------------ | ------------ |
+| a158          | -36.46%      | -38.62%      |
+| a158_factor   | -32.17%      | -35.59%      |
+| a158_strategy | 27.59%       | 22.14%       |
 
-### 特征与实验设置
+这是全区间筛选后的探索性结果；行情缺失导致 `incomplete_market_data`，均为暂定，不能作为独立验证或实盘收益。
 
-新增 **26 个特征**，合计 **184 个**：市场环境（`market`，11 个）、成交活跃度（`liquidity`，6 个）、
-相对表现（`relative`，5 个）和交互（`interaction`，4 个）。
-历史金额分组使用截至 **T−1** 的 20 日平均成交金额，反映交易活跃度，不代表市值。
-当日特征在 **T 日收盘后**可用；市场统计不依据未来标签或可买入状态筛选股票。
-开发记录中，21 项相关测试通过；11,441,741 行、179 个原始字段与基线逐值一致。
-
-训练使用 **2015–2022 年**数据，标签、样本过滤与 LightGBM 超参数保持一致。
-**2023–2024 年**筛选期比较基线与三种增强组合；在 RankIC、Top10 / Top20 净年化收益均超过基线的候选方案中，
-选择 RankIC 最高者，最终锁定全部四组。
-独立确认期为 **2025-01-01 至 2026-09-30**，仅比较基线与锁定方案，不根据确认期结果继续调参。
-
-日费用 = **0.002 × 实际换手率**，年化使用 **252 个交易日**。
-净 Sharpe = `mean(扣费日收益 − 日化无风险收益) / 样本标准差 × √252`，默认年无风险利率为 **1.2%**。
-特征明细、训练设置和完整指标定义见[插件文档](plugins/a158_enhanced/README_ZH.md)、
-[实验结果](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)与[回测口径](https://flowllm-ai.github.io/AxonX/zh/research/backtest)。
-
-### RankIC
-
-![Alpha158 与增强版的筛选期、确认期 RankIC](docs/figures/benchmark/a158-signal-quality.svg)
-
-确认期 RankIC 由 **0.0915** 提高至 **0.0967**，增加 **0.0052**。
-
-### Top10 / Top20 / Top30
-
-![确认期 Top10、Top20、Top30 净年化收益、最大回撤与净 Sharpe 对比](docs/figures/benchmark/a158-topn-results.svg)
-
-确认期 Top10 / Top20 / Top30 净年化收益分别从 **−5.74% / −3.24% / 2.13%** 提高到 **28.21% / 24.93% / 19.10%**，增量为
-**33.95 / 28.16 / 16.97 个百分点**，最大回撤减小。Top10 / Top20 净 Sharpe 提高；Top30 净 Sharpe 未保存，图中不补算。
-
-确认期每日 RankIC 差值，以及 Top10 / Top20 日净收益差值的 95% 区间均跨零。区间通过同日增强版与基线配对、20 交易日循环区块
-bootstrap（2000 次、随机种子 42）计算，不代表年化复利收益差的区间。增强版 Top1–3 收益也有所下降。
-
-回测使用收盘成交代理、延迟退出和未结清持仓按成本记账，收益在实际退出日确认。
-未模拟盘后排队、部分成交或逐日未实现盈亏，上述收益与回撤应结合这些假设解读。
-
-[开发计划](plugins/a158_enhanced/DEVELOPMENT_PLAN.md) · [执行过程](plugins/a158_enhanced/EXPERIMENT_PROCESS.md) · [完整结果](plugins/a158_enhanced/EXPERIMENT_RESULTS.md) · [指标与校验数据](plugins/a158_enhanced/experiments/README.md) · [回测口径](https://flowllm-ai.github.io/AxonX/zh/research/backtest)
-
-<a id="axonx-cli-命令与远程执行"></a>
+[三层完整记录](plugins/a158/THREE_LAYER_EXPERIMENTS_ZH.md)保存 Top5/10/20/30 指标、单项最佳方案、任务编号、配置和精简比较指标。[基线](plugins/a158/README_ZH.md) · [因子](plugins/a158_factor/README_ZH.md) · [策略](plugins/a158_strategy/README_ZH.md)。
 
 ## 🛠️ AxonX CLI 命令与远程执行
 
@@ -421,7 +381,7 @@ YAML 和连接排查见[远程机器指南](https://flowllm-ai.github.io/AxonX/z
 | Component、Job、Task | [架构](https://flowllm-ai.github.io/AxonX/zh/concepts/architecture) · [框架扩展](https://flowllm-ai.github.io/AxonX/zh/development/framework-extensions)                                                                                                                                |
 | Task 协议与生命周期  | [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts) · [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management) · [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage)                                                        |
 | Agent 开发与运维     | [外部 Agent](https://flowllm-ai.github.io/AxonX/zh/agent/external) · [开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide) · [Agent 配置](https://flowllm-ai.github.io/AxonX/zh/agent/configuration) · [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)    |
-| 插件开发与部署       | [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158) · [Alpha158 Enhanced](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158-enhanced)                                                        |
+| 插件开发与部署       | [插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158) · [Alpha158 Factor](https://flowllm-ai.github.io/AxonX/zh/plugins/alpha158-factor)                                                            |
 | 量化研究             | [研究流程](https://flowllm-ai.github.io/AxonX/zh/research/workflow) · [实验设计](https://flowllm-ai.github.io/AxonX/zh/research/experiments) · [结果解读](https://flowllm-ai.github.io/AxonX/zh/research/results) · [回测解读](https://flowllm-ai.github.io/AxonX/zh/research/backtest) |
 | 远程运行             | [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)                                                                                                                                                                                                                |
 | CLI 与配置           | [CLI](https://flowllm-ai.github.io/AxonX/zh/reference/cli) · [配置](https://flowllm-ai.github.io/AxonX/zh/reference/configuration)                                                                                                                                                      |

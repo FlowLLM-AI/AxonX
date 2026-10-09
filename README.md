@@ -50,7 +50,7 @@ inspect logs, artifacts, and upstream and downstream relationships.
 - AxonX **0.1.0** released: an agent-native quantitative research harness with plugin-based Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access. → [Documentation](https://flowllm-ai.github.io/AxonX/en/)
 - Connect your Agent with SKILL.md + CLI: load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
 - AxonX Studio available: browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
-- Alpha158 Enhanced developed with Skill + CLI: Codex added **26** features to Alpha158. In the 2025-01-01–2026-09-30 confirmation period, Top10 net annualized return rose from **−5.74%** to **28.21%**, and Top20 from **−3.24%** to **24.93%**. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
+- Alpha158 three-layer experiment: factor selection and lower turnover raise Top20/Top30 net annualized return from **−36.46%/−38.62%** to **27.59%/22.14%**. These are exploratory, provisional results with missing market data. → [Complete record](plugins/a158/THREE_LAYER_EXPERIMENTS.md)
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
@@ -303,69 +303,19 @@ development and deployment, see [plugin management](https://flowllm-ai.github.io
 
 ## 📊 Benchmark: Agent-developed market cross-sectional features
 
-Following the Task contracts, plugin registration, and CLI workflow in [docs/en/dev_guide.md](docs/en/dev_guide.md),
-Codex extended `a158` into a separate [Alpha158 Enhanced](plugins/a158_enhanced/README.md) plugin: developing features
-and feature-group switches, inspecting and installing the plugin, submitting training, prediction, and backtesting
-through AxonX, and reading artifacts. The original plugin remains unchanged; the enhanced version uses separate
-`a158e_*` Task registration names.
+Alpha158 uses three plugin layers: `a158` baseline, `a158_factor` inheriting the baseline, and `a158_strategy` inheriting factor research. Submit and record experiments on the research service through the [AxonX Skill](skills/axonx/SKILL.md) and [development guide](docs/en/dev_guide.md).
 
-Reusable prompt (adapted from this development plan):
+Train on 2015–2022 and predict/backtest the complete 20230103–20261008 interval, charging 0.2% on every executed side. Compare all 15 nonempty factor-group combinations plus a no-context control. Mean Top20/Top30 net annualized return selects `market,liquidity,interaction` with 179 model features. Reuse its predictions for six holding minima; select daily replacements capped at 20% of stock count and a 10-day minimum holding period.
 
-```text
-First read docs/en/dev_guide.md, then create a separate a158_enhanced plugin from plugins/a158.
-Preserve the original 158 features, labels, training parameters, and backtest assumptions; add market environment, trading activity, relative performance, and interaction features.
-Validate feature timing and consistency with the original data. Run ablation experiments through AxonX, lock the configuration after screening, then perform independent confirmation.
-Keep tasks, parameters, artifacts, and failure records. Report RankIC, TopN returns after costs, and risk without assuming an improvement.
-```
+| Layer         | Top20 net annualized | Top30 net annualized |
+| ------------- | -------------------- | -------------------- |
+| a158          | -36.46%              | -38.62%              |
+| a158_factor   | -32.17%              | -35.59%              |
+| a158_strategy | 27.59%               | 22.14%               |
 
-### Features and experiment setup
+These are exploratory results selected over the full interval. Missing market data produces provisional `incomplete_market_data` results, which are neither independent validation nor live-trading performance.
 
-**26 new features** bring the total to **184**: market environment (`market`, 11), trading activity (`liquidity`, 6),
-relative performance (`relative`, 5), and interactions (`interaction`, 4).
-Historical trading-value groups use 20-day average trading value through **T−1**, reflecting trading activity rather
-than market capitalization. Same-day features are available **after the close on day T**; market statistics do not
-filter stocks by future labels or buy eligibility. Development records show 21 relevant tests passed, and all 179
-original fields across 11,441,741 rows matched the baseline value by value.
-
-Training used **2015–2022** data with identical labels, sample filters, and LightGBM hyperparameters. Screening in
-**2023–2024** compared the baseline and three enhanced combinations. Among candidates exceeding the baseline in
-RankIC and Top10 / Top20 net annualized returns, the highest-RankIC configuration was selected: all four groups.
-Independent confirmation covered **2025-01-01 to 2026-09-30**, comparing only the baseline and the locked configuration,
-without further tuning based on confirmation results.
-
-Daily cost = **0.002 × actual turnover**; annualization uses **252 trading days**. Net Sharpe is
-`mean(daily net return − daily risk-free return) / sample standard deviation × √252`, with a default annual risk-free
-rate of **1.2%**. Feature details, training settings, and full metric definitions are in the
-[plugin documentation](plugins/a158_enhanced/README.md),
-[experiment results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md), and
-[backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest).
-
-### RankIC
-
-![Alpha158 and enhanced version: screening- and confirmation-period RankIC](docs/figures/benchmark/a158-signal-quality.svg)
-
-Confirmation-period RankIC rose from **0.0915** to **0.0967**, an increase of **0.0052**.
-
-### Top10 / Top20 / Top30
-
-![Confirmation-period Top10, Top20, and Top30 net annualized returns, maximum drawdown, and net Sharpe](docs/figures/benchmark/a158-topn-results.svg)
-
-Confirmation-period Top10 / Top20 / Top30 net annualized returns rose from **−5.74% / −3.24% / 2.13%** to **28.21% /
-24.93% / 19.10%**, increases of **33.95 / 28.16 / 16.97 percentage points**, with smaller maximum drawdowns. Top10 /
-Top20 net Sharpe improved; Top30 net Sharpe was not saved and is not recomputed in the chart.
-
-The 95% intervals for confirmation-period daily RankIC differences and Top10 / Top20 daily net return differences all
-span zero. These intervals use same-day paired enhanced and baseline observations with a 20-trading-day circular block
-bootstrap (2000 resamples, random seed 42); they are not intervals for differences in annualized compounded returns.
-Enhanced Top1–3 returns also declined.
-
-The backtest uses a closing-price execution proxy, delayed exits, and open positions carried at cost; returns are
-recognized on the actual exit date. It does not simulate after-hours order queues, partial fills, or daily unrealized
-profit and loss. Interpret the returns and drawdowns in light of these assumptions.
-
-[Development plan](plugins/a158_enhanced/DEVELOPMENT_PLAN.md) · [Execution process](plugins/a158_enhanced/EXPERIMENT_PROCESS.md) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md) · [Metrics and validation data](plugins/a158_enhanced/experiments/README.md) · [Backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest)
-
-<a id="axonx-cli-commands-and-remote-execution"></a>
+The [complete three-layer record](plugins/a158/THREE_LAYER_EXPERIMENTS.md) preserves Top5/10/20/30 metrics, individual winners, Task IDs, settings and compact comparison metrics. [Baseline](plugins/a158/README.md) · [Factors](plugins/a158_factor/README.md) · [Policies](plugins/a158_strategy/README.md).
 
 ## 🛠️ AxonX CLI commands and remote execution
 
@@ -454,7 +404,7 @@ the [remote machines guide](https://flowllm-ai.github.io/AxonX/en/guides/remote-
 | Component, Job, Task              | [Architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) · [Framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions)                                                                                                                                                        |
 | Task contracts and lifecycle      | [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts) · [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management) · [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)                                                                                    |
 | Agent development and operations  | [External agents](https://flowllm-ai.github.io/AxonX/en/agent/external) · [Development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide) · [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration) · [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration)                  |
-| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158) · [Alpha158 Enhanced](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158-enhanced)                                                                                           |
+| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158) · [Alpha158 Factor](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158-factor)                                                                                               |
 | Quantitative research             | [Research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) · [Experiment design](https://flowllm-ai.github.io/AxonX/en/research/experiments) · [Interpreting results](https://flowllm-ai.github.io/AxonX/en/research/results) · [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) |
 | Remote execution                  | [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)                                                                                                                                                                                                                                                     |
 | CLI and configuration             | [CLI](https://flowllm-ai.github.io/AxonX/en/reference/cli) · [Configuration](https://flowllm-ai.github.io/AxonX/en/reference/configuration)                                                                                                                                                                                         |

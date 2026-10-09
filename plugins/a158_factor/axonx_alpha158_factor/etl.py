@@ -26,7 +26,12 @@ class Alpha158OutputParams(BaseOutputParams):
 
 
 class Alpha158Task(BaseTask):
-    """Share stock artifacts and feature processing; add daily context diagnostics."""
+    """Build Alpha158 features and causal daily context from workspace market data.
+
+    Extends the baseline ETL with 26 context factors while preserving its stock,
+    label and calendar artifacts. Writes the complete feature schema, feature
+    statistics and daily context diagnostics for downstream model experiments.
+    """
 
     output_cls = Alpha158OutputParams
     extra_features = CONTEXT_FEATURES

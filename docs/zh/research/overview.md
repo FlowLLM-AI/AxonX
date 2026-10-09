@@ -17,12 +17,12 @@
 
 ## 选择研究插件
 
-[插件管理](../plugins/management.md)介绍执行环境中的安装与发现。[Alpha158](../../../plugins/a158/README_ZH.md)提供基线价量特征、LightGBM 训练与 TopN 回测；[Alpha158 Enhanced](../../../plugins/a158_enhanced/README_ZH.md)增加独立注册的 Task 和可配置特征分组。
+[插件管理](../plugins/management.md)介绍执行环境中的安装与发现。[Alpha158](../../../plugins/a158/README_ZH.md)提供基线价量特征、LightGBM 训练与 TopN 回测；[Alpha158 Factor](../../../plugins/a158_factor/README_ZH.md)增加独立注册的 Task 和可配置特征分组。
 
 提交前发现实际安装的 Task Schema。参数、算法与产物定义由插件维护；为 Studio 实现输出时，查阅[研究产物契约](../reference/research-artifacts.md)。
 
 ## 阅读 Agent 开发实验案例
 
-[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)记录 Codex 开发独立插件、执行消融、锁定方案和检查独立区间的过程。确认期 Top10 扣费年化收益从 −5.74% 提高至 28.21%，Top20 从 −3.24% 提高至 24.93%。
+[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)在完整的 2022 年后区间比较基础特征、选定环境因子与组合策略。策略层 Top20／Top30 净年化为 27.59%／22.14%。该区间用于选择方案，且市场数据存在缺失，结果仍属探索性、暂定结果。
 
-可复用的方法见[实验设计](experiments.md)，已记录的证据见插件的[完整结果](../../../plugins/a158_enhanced/EXPERIMENT_RESULTS.md)。Agent 接入方式见[外部 Agent](../agent/external.md)。
+可复用的方法见[实验设计](experiments.md)，已记录的证据见[三层实验记录](../../../plugins/a158/THREE_LAYER_EXPERIMENTS_ZH.md)。Agent 接入方式见[外部 Agent](../agent/external.md)。

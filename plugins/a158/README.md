@@ -4,7 +4,7 @@
 
 An independent AxonX research plugin for data processing, factor analysis, LightGBM training, out-of-sample prediction, and TopN backtesting.
 
-Uses 158 price and volume features as a research baseline. For context features and ablation experiments, see [Alpha158 Enhanced](../a158_enhanced/README.md).
+Uses 158 price and volume features as a research baseline. For context features and ablation experiments, see [Alpha158 Factor](../a158_factor/README.md).
 
 ![Research tasks and artifacts](../../docs/figures/research/workflow.svg)
 
@@ -144,6 +144,10 @@ Inspect parameters, logs, metadata, and upstream relationships in Task details. 
 
 ![Overall backtest metrics](../../docs/figures/studio/backtest-overall.png)
 
+## Experiment baseline and results
+
+Train 2015–2022; evaluate 20230103–20261008. The [experiment report](EXPERIMENT_RESULTS.md) compares Top5/10/20/30 under 1-, 5- and 10-day holding periods, plus a fee-free control, with frozen daily/period metrics and full provenance. See the report for net performance and data-quality limitations.
+
 ## Troubleshooting and source
 
 | Problem                      | Check                                                                          |
@@ -170,3 +174,5 @@ From the repository root, after installing development dependencies:
 ```
 
 These checks cover label timing, delayed exits, costs, and position accounting.
+
+[Three-layer experiment](THREE_LAYER_EXPERIMENTS.md): `a158` baseline → `a158_factor` factors → `a158_strategy` portfolio policy.

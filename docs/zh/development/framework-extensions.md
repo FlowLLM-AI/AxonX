@@ -207,3 +207,7 @@ Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID�
 同步 `BaseTask.close()` 在步骤执行后释放资源，包括步骤和初始化失败。清理失败不会覆盖原步骤异常。`on_failure(error)` 可在步骤、输出构造或清理失败时保存业务摘要，失败状态仍由 runner 管理。强制终止进程时不能保证回调执行。
 
 内置 Tushare client 负责关闭自己创建的 session。`retry_rate_limit_forever=True` 按 `rate_limit_retry_seconds` 持续重试频率超限，其他限制仍采用有限重试。`query` 和 `query_has_more` 接收可选 `DeadlineBudget`，限制等待及连接／读取超时，不会把它传给 API。Requests 的超时不保证请求的总耗时，缓慢持续返回的响应可能超过截止时间。收包、JSON 解析、DataFrame 构建和分页合并后检查预算，拒绝超时结果；这些检查不会中断正在执行的网络或计算工作。无截止时间时，频率重试持续到成功或 worker 终止。内置钉钉的 `send_dingtalk_message` 与通知 Task 共用经过校验的环境配置。
+
+## 股票持仓策略
+
+`BaseStockBacktestTask.portfolio_policy()` 向共用股票成交账本提供可选的 `PortfolioPolicy`。插件实现 `replacement_limit(n)` 和 `should_exit(rank=..., age=..., n=...)`；决策只接收当日合格候选排名与已持有的市场日数。引擎在首次建仓后限制每侧实际成交数量，优先退出最差排名，并统一处理报价校验、现金、费用与产物。策略持仓没有固定计划退出日期。[Alpha158 Strategy](../../../plugins/a158_strategy/README_ZH.md) 使用此扩展。
