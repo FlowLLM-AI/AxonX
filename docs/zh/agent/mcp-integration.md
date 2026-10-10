@@ -25,7 +25,7 @@ Header:    Authorization: Bearer <AxonX 服务 token>
 
 ## 先发现，再调用
 
-工具目录来自当前运行的服务配置，可能包含查询、提交、取消、文件删除、shell 或插件安装等操作。外部 MCP 公开范围与内置 Agent 的 `job_tools` 名单不是同一层配置。
+工具目录来自当前运行的服务配置，可能包含查询、提交、取消、文件删除、Python 执行或插件安装等操作。外部 MCP 公开范围与内置 Agent 的 `job_tools` 名单不是同一层配置。
 
 先调用 MCP `tools/list`，读取工具 Schema，再发起 `tools/call`。不要根据文档中的名称假定部署环境已经公开它。只把当前用户任务需要的能力提供给调用方。
 

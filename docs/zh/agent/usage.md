@@ -117,7 +117,7 @@ axonx cancel --task-id '<要取消的研究 Task ID>'
 
 ## 默认工具与权限边界
 
-默认 `job_tools` 不包含 `submit`、`shell`、安装、删除或任务取消。需要暴露额外 Job 时由服务管理员显式配置。
+默认 `job_tools` 不包含 `submit`、`python`、安装、删除或任务取消。需要暴露额外 Job 时由服务管理员显式配置。
 
 但 Claude SDK 自身工具、项目设置、插件和 `permission_mode` 也影响执行能力。默认配置使用 `bypassPermissions`，所以不能将 Job 查询名单理解成整个 Agent 只读。具体权限设计见[配置说明](configuration.md)。
 

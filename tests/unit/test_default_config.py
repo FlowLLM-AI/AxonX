@@ -6,6 +6,16 @@ from axonx.config import ApplicationConfig, ConfigResolver
 
 
 @pytest.mark.parametrize("source", ["default", "remote"])
+def test_default_execution_catalog_uses_python(source, monkeypatch):
+    monkeypatch.setenv("AXONX_TARGET", "192.0.2.10:1024")
+    monkeypatch.setenv("AXONX_TARGET_TOKEN", "target-secret")
+    config = ApplicationConfig.model_validate(ConfigResolver().load(source))
+
+    assert "python" in config.jobs
+    assert "shell" not in config.jobs
+
+
+@pytest.mark.parametrize("source", ["default", "remote"])
 def test_workspace_defaults_to_axonx(source, monkeypatch):
     monkeypatch.delenv("AXONX_WORKSPACE_DIR", raising=False)
     monkeypatch.setenv("AXONX_TARGET", "192.0.2.10:1024")

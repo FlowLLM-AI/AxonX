@@ -173,25 +173,25 @@ jobs:
         # psutil blocks for this long to sample CPU load in a worker thread:
         # cpu_sample_interval: 0.1
 
-  shell:
-    description: Execute a shell command on the selected AxonX machine.
+  python:
+    description: Execute multiline Python code on the selected AxonX machine using the service's interpreter and installed packages in a fresh process.
     parameters:
       type: object
       properties:
-        command:
+        code:
           type: string
           minLength: 1
-          description: Shell command to execute.
+          description: Python source code, including literal newlines. Print results to stdout.
         timeout:
           type: number
           exclusiveMinimum: 0
           maximum: 300
           default: 30
           description: Maximum execution time in seconds.
-      required: [command]
+      required: [code]
       additionalProperties: false
     steps:
-      - backend: machine_shell
+      - backend: machine_python
 
   # =========== Task jobs ===========
   list_installed_task_definitions:

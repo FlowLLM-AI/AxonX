@@ -6,7 +6,7 @@ Use reference pages to look up command syntax, configuration fields, responses, 
 
 | Interface or setting                           | Reference                                                 |
 | ---------------------------------------------- | --------------------------------------------------------- |
-| Shell commands and local execution             | [CLI](cli.md)                                             |
+| CLI commands and local execution               | [CLI](cli.md)                                             |
 | Programmatic service calls                     | [Python](python.md)                                       |
 | Client addresses, tokens, and timeouts         | [Client configuration](client-configuration.md)           |
 | Application, component, and Job assembly       | [Server configuration](configuration.md)                  |

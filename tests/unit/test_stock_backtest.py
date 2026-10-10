@@ -3,8 +3,12 @@
 import polars as pl
 import pytest
 
+from axonx.enums import TaskState
+from axonx.task.builtins.stock.backtest import BaseStockBacktestTask
 from axonx.task.builtins.stock.data import fixed_labels, transform_labels
 from axonx.task.builtins.stock.engine import BacktestConfig, run_backtest
+from axonx.task.runtime.runner import TaskRunner
+from axonx.task.storage import read_metadata
 
 
 def inputs():
@@ -106,6 +110,39 @@ def test_locked_capital_mark_to_market_and_delayed_exit():
     assert daily["trade_date"].to_list() == calendar["trade_date"].to_list()
 
 
+@pytest.mark.parametrize("absent", [False, True])
+@pytest.mark.parametrize("side", ["buy", "sell"])
+def test_missing_market_can_be_assumed_suspended_without_changing_accounting(absent, side):
+    signals, market, calendar = inputs()
+    day = "20260105" if side == "buy" else "20260106"
+    target = (pl.col("ts_code") == "A") & (pl.col("trade_date") == day)
+    suspended = market.with_columns(
+        pl.when(target).then(pl.lit("suspended")).otherwise(pl.col("market_status")).alias("market_status")
+    )
+    missing = (
+        market.filter(~target)
+        if absent
+        else market.with_columns(
+            pl.when(target).then(pl.lit("missing_data")).otherwise(pl.col("market_status")).alias("market_status")
+        )
+    )
+    expected = run_backtest(signals, suspended, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108")
+    actual = run_backtest(
+        signals,
+        missing,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1,), missing_market_as_suspension=True),
+        as_of_date="20260108",
+    )
+    assert actual.status == "done"
+    for name in ("daily", "orders", "positions", "trades"):
+        assert actual.frames[name].equals(expected.frames[name])
+    blocked = actual.frames["orders"].filter((pl.col("trade_date") == day) & (pl.col("ts_code") == "A"))
+    assert blocked["reason"].to_list() == ["suspended"]
+    assert blocked["fee"].to_list() == [0.0]
+
+
 def test_missing_data_is_incomplete_not_confirmed_suspension():
     signals, market, calendar = inputs()
     market = market.with_columns(
@@ -125,6 +162,40 @@ def test_missing_data_is_incomplete_not_confirmed_suspension():
     assert result.status == "incomplete_market_data"
     assert result.frames["positions"].height == 2
     assert result.frames["trades"].is_empty()
+
+
+@pytest.mark.parametrize("assume_suspended", [False, True])
+def test_task_persists_missing_market_assumption_and_applies_it(tmp_path, assume_suspended):
+    signals, market, calendar = inputs()
+    market = market.with_columns(
+        pl.when(pl.col("market_status") == "suspended")
+        .then(pl.lit("missing_data"))
+        .otherwise(pl.col("market_status"))
+        .alias("market_status")
+    )
+    labels = fixed_labels(signals, market, calendar)
+    paths = {}
+    for name, frame in (("input", signals), ("market", market), ("calendar", calendar), ("labels", labels)):
+        paths[name + "_file"] = tmp_path / (name + ".parquet")
+        frame.write_parquet(paths[name + "_file"])
+    task = BaseStockBacktestTask(
+        {**paths, "top_ns": [1], "as_of_date": "20260108", "missing_market_as_suspension": assume_suspended},
+        workspace_path=tmp_path / "workspace",
+        reg_name="backtest",
+    )
+    status = TaskRunner().run(task)
+    assert status.state == TaskState.SUCCEEDED, status.error
+    metadata = read_metadata(task.metadata_path)
+    assert metadata["input_params"]["missing_market_as_suspension"] is assume_suspended
+    result = metadata["output_params"]
+    assert result["protocol"]["settings"]["missing_market_as_suspension"] is assume_suspended
+    assert result["evaluation_status"] == ("done" if assume_suspended else "incomplete_market_data")
+    assert ("assumed suspended" in result["protocol"]["valuation"]) is assume_suspended
+    orders = pl.read_parquet(result["orders_file"])
+    blocked = orders.filter((pl.col("ts_code") == "A") & (pl.col("status") == "unfilled"))
+    assert blocked["reason"].to_list() == ["suspended" if assume_suspended else "missing_data"]
+    assert pl.read_parquet(paths["market_file"]).equals(market)
+    assert pl.read_parquet(paths["labels_file"]).equals(labels)
 
 
 def test_every_executed_side_pays_cost_and_future_quotes_cannot_change_prefix():

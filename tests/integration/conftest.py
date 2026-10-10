@@ -36,7 +36,7 @@ def _free_port() -> int:
 
 @pytest.fixture(scope="session")
 def live_agent_service(tmp_path_factory, require_claude_gateway):
-    """Start the real AxonX HTTP service with Shell and version Agent tools."""
+    """Start the real AxonX HTTP service with Python and version Agent tools."""
     root = tmp_path_factory.mktemp("agent-service")
     port = _free_port()
     token = "agent-integration-stream"
@@ -49,7 +49,7 @@ def live_agent_service(tmp_path_factory, require_claude_gateway):
         "components": {
             "agent": {
                 "default": {
-                    "job_tools": ["shell", "version"],
+                    "job_tools": ["python", "version"],
                     "max_turns": 12,
                 },
             },

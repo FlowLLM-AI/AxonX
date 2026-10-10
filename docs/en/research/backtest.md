@@ -56,6 +56,8 @@ Signals rank by score descending, then symbol ascending. Selection does not cons
 
 A blocked exit retains both its position and its capital. Confirmed suspension carries the last reliable adjusted-price mark; a later quoted date updates valuation and permits another exit attempt. Missing data affecting held or selected stocks sets `evaluation_status=incomplete_market_data`; the provisional result remains inspectable. No position is forcibly liquidated at the cutoff.
 
+`missing_market_as_suspension=true` temporarily treats absent quotes and explicit `missing_data` as suspensions during backtesting. It retains the last mark, blocks trading and does not mark the evaluation incomplete for those gaps. This assumption is recorded in task inputs; it does not rewrite market artifacts or labels. The shared default is `false`. TODO: integrate independently sourced suspension intervals to distinguish suspensions from data gaps.
+
 The same-time quote is an execution proxy. It does not guarantee that a signal computed after a bar or closing auction can fill at that price, nor model queues or partial fills. Inspect the stored execution protocol before interpreting results as a tradable strategy.
 
 ```text

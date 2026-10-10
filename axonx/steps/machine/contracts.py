@@ -76,7 +76,7 @@ class MachineHealth(MachineModel):
     healthy: bool
 
 
-class ShellOutput(MachineModel):
+class PythonOutput(MachineModel):
     stdout: str = ""
     stderr: str = ""
     exit_code: int | None = 0

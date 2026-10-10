@@ -86,7 +86,7 @@ Pages can load without a token, but task definitions, resources, and research qu
 
 ## Actual scope of capability permissions
 
-Clients authorized to call public Jobs can use the capabilities in that catalog. The default catalog includes operations such as shell execution, plugin installation, task deletion, and file deletion; understand the token's access scope in your deployment context.
+Clients authorized to call public Jobs can use the capabilities in that catalog. The default catalog includes operations such as Python execution, plugin installation, task deletion, and file deletion; understand the token's access scope in your deployment context.
 
 `enable_serve: false` prevents a Job from being exposed through protocols, allowing internal scheduling. Hiding a page entry does not disable the backend Job; rely on the actual `/jobs` and service configuration.
 

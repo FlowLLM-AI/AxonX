@@ -12,12 +12,12 @@
 
 ## 接口清单
 
-| Job              | 用途                              |
-| ---------------- | --------------------------------- |
-| `version`        | 读取安装包的版本。                |
-| `list_machines`  | 检查全部配置的 targets 健康。     |
-| `machine_status` | 采样服务机器资源。                |
-| `shell`          | 在所选服务机器上执行 shell 命令。 |
+| Job              | 用途                                             |
+| ---------------- | ------------------------------------------------ |
+| `version`        | 读取安装包的版本。                               |
+| `list_machines`  | 检查全部配置的 targets 健康。                    |
+| `machine_status` | 采样服务机器资源。                               |
+| `python`         | 使用所选服务的 Python 环境执行多行 Python 代码。 |
 
 ## version
 
@@ -132,31 +132,31 @@ answer 为 MachineInfo：axonx、cpu、memory、gpus。
 
 cpu 的 total_cores/physical_cores 可为 null；内存单位字节。GPU vendor 仅 nvidia/amd，探测命令不可用或无设备时列表可为空；不承诺检测 Apple GPU。
 
-## shell
+## python
 
-在所选服务机器上执行 shell 命令。
+在所选服务机器上，用服务自身的解释器（`sys.executable`）及已安装依赖启动独立子进程执行 Python 源码。源码通过 stdin 传入，不受命令行长度限制。每次调用的 Python 变量独立，继承服务的工作目录和环境，以服务用户的权限运行。
 
-| 参数      | 类型   | 必填 | 默认值      | 约束与含义                                    |
-| --------- | ------ | ---- | ----------- | --------------------------------------------- |
-| `command` | string | 是   | `—（省略）` | 在目标服务机器执行的 shell 命令；minLength=1  |
-| `timeout` | number | 否   | `30`        | 命令超时秒数；exclusiveMinimum=0, maximum=300 |
+| 参数      | 类型   | 必填 | 默认值      | 约束与含义                                                          |
+| --------- | ------ | ---- | ----------- | ------------------------------------------------------------------- |
+| `code`    | string | 是   | `—（省略）` | 支持换行的 Python 源码；minLength=1。用 print 将结果输出至 stdout。 |
+| `timeout` | number | 否   | `30`        | 执行超时秒数；exclusiveMinimum=0、maximum=300。                     |
 
-只接受表中业务字段。
-
-**请求**
+调用 `POST /jobs/python`：
 
 ```json
 {
   "arguments": {
-    "command": "pwd",
+    "code": "from pathlib import Path\nprint(Path.cwd())",
     "timeout": 30
   }
 }
 ```
 
+MCP 客户端按发现的 Schema 将 `code` 作为普通多行字符串传入。JSON 仍需正常的字符串转义。CLI 示例：`axonx python --code 'print(1 + 1)' --timeout 30`。远程执行使用请求顶层 `target` 或 CLI `--target`。
+
 **响应**
 
-answer 为 ShellOutput：stdout、stderr、exit_code、stdout_truncated、stderr_truncated。success 取决于是否超时及退出码为零。
+`answer` 为 PythonOutput，包含 stdout、stderr、exit_code、stdout_truncated、stderr_truncated。执行在超时前完成且退出码为零时，`success=true`。
 
 ```json
 {
@@ -174,11 +174,13 @@ answer 为 ShellOutput：stdout、stderr、exit_code、stdout_truncated、stderr
 
 **行为与失败情况**
 
-每个输出流最多保留 1 MiB。超时杀进程组，exit_code=null，stderr 包含超时说明，success=false。子进程使用服务运行用户的权限，机器状态查询没有自动选机功能。
+每个输出流最多保留 1 MiB，超出的输出会丢弃，并设置对应的截断标记。Python 异常和语法错误返回 `success=false`、非零 `exit_code`，错误信息写入 `stderr`。超时返回 `success=false`、`exit_code=null`，保留已捕获的输出，并在 `stderr` 中追加超时说明。超时或取消会终止进程组、关闭输入输出管道，并回收主进程，无需等待脱离进程组的子进程关闭继承的管道。
+
+内置 Agent 默认的 `job_tools` 名单不暴露 `python`。启用该 Agent 的 Python 执行时，将其加入 `components.agent.default.job_tools`；外部 MCP 暴露范围由服务的 Job 目录决定。
 
 ## 失败响应示例
 
-shell 的非零退出与超时都是正常协议返回的业务失败。请求 command="exit 3" 时：
+Python 的非零退出与超时都是正常协议返回的业务失败。请求 `code="import sys; sys.exit(3)"` 时：
 
 ```json
 {

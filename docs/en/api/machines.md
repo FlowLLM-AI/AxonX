@@ -12,12 +12,12 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 ## Endpoint list
 
-| Job              | Purpose                                                  |
-| ---------------- | -------------------------------------------------------- |
-| `version`        | Read the installed package version.                      |
-| `list_machines`  | Check the health of all configured targets.              |
-| `machine_status` | Sample service-machine resources.                        |
-| `shell`          | Execute a shell command on the selected service machine. |
+| Job              | Purpose                                                                        |
+| ---------------- | ------------------------------------------------------------------------------ |
+| `version`        | Read the installed package version.                                            |
+| `list_machines`  | Check the health of all configured targets.                                    |
+| `machine_status` | Sample service-machine resources.                                              |
+| `python`         | Execute multiline Python code using the selected service’s Python environment. |
 
 ## version
 
@@ -132,31 +132,31 @@ answer is MachineInfo: axonx, cpu, memory, and gpus.
 
 The cpu fields total_cores/physical_cores may be null; memory is measured in bytes. GPU vendor is limited to nvidia/amd. The list may be empty when detection commands are unavailable or no devices exist; Apple GPU detection is not guaranteed.
 
-## shell
+## python
 
-Execute a shell command on the selected service machine.
+Execute Python source on the selected service machine in a fresh subprocess using the service's interpreter (`sys.executable`) and installed packages. Source is sent through stdin without command-line length limits. Each call has independent Python variables, inherits the service's working directory and environment, and runs with the service user's permissions.
 
-| Parameter | Type   | Required | Default       | Constraints and meaning                                             |
-| --------- | ------ | -------- | ------------- | ------------------------------------------------------------------- |
-| `command` | string | Yes      | `— (omitted)` | Shell command to execute on the target service machine; minLength=1 |
-| `timeout` | number | No       | `30`          | Command timeout in seconds; exclusiveMinimum=0, maximum=300         |
+| Parameter | Type   | Required | Default       | Constraints and meaning                                                  |
+| --------- | ------ | -------- | ------------- | ------------------------------------------------------------------------ |
+| `code`    | string | Yes      | `— (omitted)` | Python source, including newlines; minLength=1. Print results to stdout. |
+| `timeout` | number | No       | `30`          | Execution timeout in seconds; exclusiveMinimum=0, maximum=300.           |
 
-Only the business fields listed in the table are accepted.
-
-**Request**
+Call `POST /jobs/python` with:
 
 ```json
 {
   "arguments": {
-    "command": "pwd",
+    "code": "from pathlib import Path\nprint(Path.cwd())",
     "timeout": 30
   }
 }
 ```
 
+MCP clients pass `code` as an ordinary multiline string using the discovered schema. JSON requires its usual string escaping. CLI example: `axonx python --code 'print(1 + 1)' --timeout 30`. Use the `target` envelope field or CLI `--target` for remote execution.
+
 **Response**
 
-answer is ShellOutput: stdout, stderr, exit_code, stdout_truncated, and stderr_truncated. success depends on whether the command timed out and whether its exit code is zero.
+`answer` is PythonOutput: stdout, stderr, exit_code, stdout_truncated, and stderr_truncated. `success` is true when execution completes within the timeout with exit code zero.
 
 ```json
 {
@@ -174,11 +174,13 @@ answer is ShellOutput: stdout, stderr, exit_code, stdout_truncated, and stderr_t
 
 **Behavior and failure cases**
 
-Each output stream retains at most 1 MiB. A timeout kills the process group, sets exit_code=null, includes a timeout explanation in stderr, and sets success=false. Subprocesses run with the service user's permissions; machine-status queries do not automatically select a machine.
+Each output stream retains at most 1 MiB; excess output is discarded and the corresponding truncation flag is set. Python exceptions and syntax errors return `success=false`, a nonzero `exit_code`, and an error in `stderr`. Timeout returns `success=false`, `exit_code=null`, and a timeout explanation in `stderr`, preserving captured output. Timeout or cancellation kills the process group, closes the input/output pipes, and reaps the main process without waiting for detached descendants to close inherited pipes.
+
+The default built-in Agent's `job_tools` list does not expose `python`. Add it to `components.agent.default.job_tools` when enabling Python execution for that Agent; external MCP exposure follows the service's Job catalog.
 
 ## Failure response examples
 
-A nonzero shell exit or timeout is a business failure returned through the normal protocol. For command="exit 3":
+A nonzero Python exit or timeout is a business failure returned through the normal protocol. For `code="import sys; sys.exit(3)"`:
 
 ```json
 {

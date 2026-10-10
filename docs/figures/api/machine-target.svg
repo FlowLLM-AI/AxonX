@@ -30,7 +30,7 @@
       <text x="874.0" y="206" font-size="18" font-weight="400" text-anchor="start">version: package version</text>
       <text x="874.0" y="233" font-size="18" font-weight="400" text-anchor="start">list_machines: target health</text>
       <text x="874.0" y="260" font-size="18" font-weight="400" text-anchor="start">machine_status: resources</text>
-      <text x="874.0" y="287" font-size="18" font-weight="400" text-anchor="start">shell: service-machine command</text>
+      <text x="874.0" y="287" font-size="18" font-weight="400" text-anchor="start">python: service-side code</text>
       <path d="M 760 298 H 850" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <text x="600.0" y="542" font-size="17" font-weight="400" text-anchor="middle">Selecting a target does not move data, plugins, or workers.</text>
       <text x="600.0" y="568" font-size="17" font-weight="400" text-anchor="middle">Machine readings do not provide automatic placement or GPU scheduling.</text>

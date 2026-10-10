@@ -12,10 +12,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 PROMPT = """Use the provided AxonX MCP tools and perform exactly these steps:
 1. Call the version tool.
-2. Call the shell tool with the command: printf AXONX_REACT_OK
+2. Call the python tool with the code: print('AXONX_REACT_OK')
 3. Call the version tool a second time.
 Do not skip or combine calls. After all three tool results arrive, answer with
-AXONX_REACT_DONE and briefly report both versions and the shell output.
+AXONX_REACT_DONE and briefly report both versions and the Python output.
 """
 
 

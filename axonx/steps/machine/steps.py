@@ -6,7 +6,7 @@ from ...components.registry import provider
 from ..base import BaseStep
 from .health import check_machines
 from .metrics import collect_machine_info
-from .shell import run_shell
+from .python import run_python
 
 CPU_SAMPLE_INTERVAL_SECONDS = 0.1
 
@@ -31,9 +31,9 @@ class ListMachinesStep(BaseStep):
         self.response.answer = await check_machines(self.app_config.targets, self.logger)
 
 
-@provider("machine_shell")
-class ShellStep(BaseStep):
+@provider("machine_python")
+class PythonStep(BaseStep):
     async def execute(self):
-        success, output = await run_shell(self.context["command"], self.context.get("timeout", 30))
+        success, output = await run_python(self.context["code"], self.context.get("timeout", 30))
         self.response.success = success
         self.response.answer = output

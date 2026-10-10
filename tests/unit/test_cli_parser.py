@@ -54,9 +54,11 @@ def test_plugin_accepts_trailing_connection_options():
     assert client.target == "http://192.0.2.10:1024"
 
 
-def test_shell_timeout_remains_job_parameter():
-    """Keep shell execution timeout as a business argument."""
-    command, client = parse_command(["shell", "--command", "pwd", "--timeout", "30"])
+def test_python_timeout_remains_job_parameter():
+    """Preserve multiline Python source and its execution timeout."""
+    code = "from pathlib import Path\nprint(Path.cwd())"
+    command, client = parse_command(["python", "--code", code, "--timeout", "30"])
+    assert command.arguments["code"] == code
     assert command.arguments["timeout"] == 30
     assert client.timeout == 60
 
@@ -64,7 +66,7 @@ def test_shell_timeout_remains_job_parameter():
 def test_client_timeout_is_separate_from_job_timeout():
     """Allow independent transport and execution timeouts."""
     command, client = parse_command(
-        ["shell", "--command", "pwd", "--timeout", "30", "--client-timeout", "180"],
+        ["python", "--code", "print(1)", "--timeout", "30", "--client-timeout", "180"],
     )
     assert command.arguments["timeout"] == 30
     assert client.timeout == 180

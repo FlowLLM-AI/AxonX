@@ -29,6 +29,7 @@ class BacktestConfig:
     index_codes: tuple[str, ...] = ()
     buy_cost_rate: float = 0.0005
     sell_cost_rate: float = 0.0015
+    missing_market_as_suspension: bool = False
 
 
 @dataclass
@@ -151,7 +152,7 @@ def run_backtest(
             for code in held:
                 position = book[code]
                 quote = quotes.get(code)
-                status = quote["market_status"] if quote else "missing_data"
+                status = _quote_status(quote, config)
                 if status == "quoted":
                     position["mark"] = quote["price"] * quote["adjustment_factor"]
                 elif status == "missing_data":
@@ -222,7 +223,7 @@ def run_backtest(
                 if code in book or buy_count >= limit:
                     continue
                 quote = quotes.get(code)
-                status = quote["market_status"] if quote else "missing_data"
+                status = _quote_status(quote, config)
                 if status == "missing_data":
                     incomplete = True
                 reason = (
@@ -409,6 +410,15 @@ def _replacement_limit(policy: PortfolioPolicy | None, n: int) -> int:
     if not 1 <= limit <= n:
         raise ValueError("Portfolio policy replacement limit must be between 1 and N")
     return limit
+
+
+def _quote_status(quote: dict[str, Any] | None, config: BacktestConfig) -> str:
+    status = quote["market_status"] if quote else "missing_data"
+    if status == "missing_data" and config.missing_market_as_suspension:
+        # TODO: Use independently sourced suspension intervals to distinguish
+        # actual suspensions from missing quotes; this is a temporary assumption.
+        return "suspended"
+    return status
 
 
 def _frame(rows: list[dict[str, Any]], schema: dict[str, Any]) -> pl.DataFrame:

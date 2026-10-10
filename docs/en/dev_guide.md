@@ -237,9 +237,9 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 ## CLI API
 
 - Example values: replace IPs, Task IDs, and upload path placeholders with actual values from configuration or service responses.
-- Parameter format: place regular Job parameters after the Job name; pass JSON arrays as a single shell argument.
-- Execution timeout: `shell`'s `--timeout` is the Job execution timeout; `--client-timeout` is the client request timeout. Use the latter for long Task waits.
-- Execution conditions: **execute destructive Jobs and `shell` only when the current task requires them and the target has been confirmed**.
+- Parameter format: place regular Job parameters after the Job name; pass JSON arrays as a single CLI argument.
+- Execution timeout: `python`'s `--timeout` is the Job execution timeout; `--client-timeout` is the client request timeout. Use the latter for long Task waits.
+- Execution conditions: **execute destructive Jobs and `python` only when the current task requires them and the target has been confirmed**.
 
 ### Startup and Local Execution
 
@@ -275,11 +275,11 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 
 ### Machines
 
-| Command name     | Description                                                                                                                                   | Command                                    | Remote arguments             |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------- |
-| `list_machines`  | Query addresses and health status for machines in the connected service's `targets` to select an execution target.                            | `axonx list_machines`                      | `--target 192.168.1.10:1024` |
-| `machine_status` | Query CPU, memory, and GPU information for the machine hosting the connected service.                                                         | `axonx machine_status`                     | `--target 192.168.1.10:1024` |
-| `shell`          | Execute a shell command on the machine hosting the connected service; the example queries the current directory with a 30-second Job timeout. | `axonx shell --command 'pwd' --timeout 30` | `--target 192.168.1.10:1024` |
+| Command name     | Description                                                                                                        | Command                                           | Remote arguments             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- | ---------------------------- |
+| `list_machines`  | Query addresses and health status for machines in the connected service's `targets` to select an execution target. | `axonx list_machines`                             | `--target 192.168.1.10:1024` |
+| `machine_status` | Query CPU, memory, and GPU information for the machine hosting the connected service.                              | `axonx machine_status`                            | `--target 192.168.1.10:1024` |
+| `python`         | Execute multiline Python code in the service's Python environment.                                                 | `axonx python --code 'print(1 + 1)' --timeout 30` | `--target 192.168.1.10:1024` |
 
 ### Task Submission and Execution
 

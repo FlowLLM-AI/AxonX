@@ -118,7 +118,7 @@ Session history remains usable after a turn is cancelled. Cancelling a task chan
 
 ## Default tools and permission boundaries
 
-Default `job_tools` do not include `submit`, `shell`, installation, deletion, or task cancellation. Service administrators must explicitly configure additional Jobs to expose them.
+Default `job_tools` do not include `submit`, `python`, installation, deletion, or task cancellation. Service administrators must explicitly configure additional Jobs to expose them.
 
 However, the Claude SDK's own tools, project settings, plugins, and `permission_mode` also affect execution capabilities. The default configuration uses `bypassPermissions`, so the Job query list does not make the entire Agent read-only. See [configuration details](configuration.md) for permission design.
 

@@ -25,7 +25,7 @@ When the service enables a token, MCP also requires Bearer authentication. Witho
 
 ## Discover before calling
 
-The tool catalog comes from the running service configuration and may include queries, submission, cancellation, file deletion, shell operations, or plugin installation. External MCP exposure and the built-in Agent's `job_tools` list are separate configuration layers.
+The tool catalog comes from the running service configuration and may include queries, submission, cancellation, file deletion, Python execution, or plugin installation. External MCP exposure and the built-in Agent's `job_tools` list are separate configuration layers.
 
 Call MCP `tools/list` first, read the tool Schema, then use `tools/call`. Do not assume that a deployment exposes a tool because its name appears in the documentation. Provide callers only with capabilities needed for the current user task.
 

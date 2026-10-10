@@ -35,6 +35,11 @@ class StockPortfolioInput(BaseBacktestInputParams):
     annualization_days: int = Field(default=252, gt=0)
     minimum_index_weight_coverage: float = Field(default=0.98, gt=0, le=1)
     index_codes: list[str] = Field(default_factory=list)
+    missing_market_as_suspension: bool = Field(
+        default=False,
+        description="Treat absent quotes and missing_data as suspensions: carry the last mark, block trading, "
+        "and do not mark evaluation incomplete for these gaps.",
+    )
 
     @field_validator("top_ns")
     @classmethod
@@ -138,6 +143,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
                 annualization_days=p.annualization_days,
                 minimum_index_weight_coverage=p.minimum_index_weight_coverage,
                 index_codes=tuple(p.index_codes),
+                missing_market_as_suspension=p.missing_market_as_suspension,
             ),
             as_of_date=self.state["cutoff"],
             policy=self.portfolio_policy(),
@@ -168,7 +174,8 @@ class BaseStockBacktestTask(BaseBacktestTask):
             protocol={
                 "version": VERSION,
                 "return_unit": "decimal",
-                "valuation": "daily adjusted-price mark to market; confirmed suspension carries last mark",
+                "valuation": "daily adjusted-price mark to market; confirmed suspension carries last mark"
+                + ("; missing quotes are assumed suspended" if self.input_params.missing_market_as_suspension else ""),
                 "execution": "same-time quote proxy, sells before buys; no queue/partial-fill guarantee",
                 "selection": "signal candidates first; no future-label filter or replacement for unfilled targets",
                 "fees": "buy_cost_rate/sell_cost_rate on executed notional",

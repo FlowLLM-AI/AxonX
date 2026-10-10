@@ -56,6 +56,8 @@ axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
 
 无法卖出时保留持仓和资金占用。确认停牌沿用上一可靠复权估值，后续有行情时更新估值并再次尝试退出。已持有或选中的股票缺少可靠数据时，返回 `evaluation_status=incomplete_market_data`，仍可检查暂定结果。评价截止时不强制清仓。
 
+`missing_market_as_suspension=true` 临时将缺少行情行和显式 `missing_data` 按停牌处理：沿用上一估值、禁止成交，不因这些缺口将回测标记为不完整。该假设记录在任务输入中，不改写市场产物或标签；共享默认值为 `false`。TODO：接入独立停复牌数据，区分真实停牌与行情缺失。
+
 同一时点价格是成交代理，不保证在完整 bar 或收盘行情形成后计算出的信号能够按该价格成交，也不模拟排队和部分成交。应先阅读产物中的执行协议，再解释策略可交易性。
 
 ```text
