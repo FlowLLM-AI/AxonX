@@ -117,7 +117,7 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
         == "suspended"
     )
     assert labels.filter(pl.col("trade_date") == dates[-1])["label_return"].null_count() == 6
-    train, _ = run(
+    train, trained = run(
         LgbmTrainTask,
         "train",
         source_tasks=etl.task_id,
@@ -133,7 +133,11 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
     assert train.state["frame"]["label_target_date"].max() < dates[75]
     assert train.state["tuning_train"]["label_target_date"].max() < train.state["validation_start"]
     predict, predicted = run(LgbmPredictTask, "predict", source_tasks=train.task_id, pred_start=dates[75])
+    assert trained["model_files"] == {"model": str(train.state["model_path"])}
+    assert predicted["score_columns"] == {"model": "pred"}
+    assert trained["model_files"].keys() == predicted["score_columns"].keys()
     predictions = pl.read_parquet(predicted["predictions_file"])
+    assert set(predicted["score_columns"].values()) <= set(predictions.columns)
     assert "actual_return" not in predictions.columns
     stats = predicted["statistics"]
     assert stats["days"] == 10 and stats["symbols"] == 6

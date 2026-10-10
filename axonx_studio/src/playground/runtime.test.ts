@@ -55,7 +55,8 @@ describe("static Playground", () => {
               artifacts: Record<string, { path: string }>;
               output_file?: string;
               result_file?: string;
-              model_file?: string;
+              model_files?: Record<string, string>;
+              score_columns?: Record<string, string>;
               predictions_file?: string;
             };
             input_params: { source_tasks: string };
@@ -89,12 +90,23 @@ describe("static Playground", () => {
           for (const key of [
             "output_file",
             "result_file",
-            "model_file",
             "predictions_file",
           ] as const) {
             const path = metadata.output_params[key];
             if (path) await api.invoke("preview_file", { path });
           }
+          if (task_type === "train")
+            expect(
+              Object.keys(metadata.output_params.model_files || {}),
+            ).toEqual(["model"]);
+          if (task_type === "predict")
+            expect(metadata.output_params.score_columns).toEqual({
+              model: "pred",
+            });
+          for (const path of Object.values(
+            metadata.output_params.model_files || {},
+          ))
+            await api.invoke("preview_file", { path });
           for (const artifact of Object.values(
             metadata.output_params.artifacts,
           )) {

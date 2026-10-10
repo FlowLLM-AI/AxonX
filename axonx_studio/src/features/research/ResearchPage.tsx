@@ -127,7 +127,8 @@ function useTasks(
                 date_range: output.date_range,
                 output_file: output.output_file,
                 result_file: output.result_file,
-                model_file: output.model_file,
+                model_files: output.model_files,
+                score_columns: output.score_columns,
                 predictions_file: output.predictions_file,
                 feature_columns: output.feature_columns,
                 label_columns: output.label_columns,
@@ -887,13 +888,16 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
         : kind === "predict"
           ? t("research.prediction_rows")
           : t("research.rows");
+  const members = Object.entries(
+    (kind === "train" ? meta.model_files : meta.score_columns) || {},
+  );
   const primaryPaths =
     kind === "etl"
       ? [["output_file", meta.output_file]]
       : kind === "analysis"
         ? [["result_file", meta.result_file]]
         : kind === "train"
-          ? [["model_file", meta.model_file]]
+          ? members
           : kind === "predict"
             ? [["predictions_file", meta.predictions_file]]
             : [
@@ -961,6 +965,14 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
                 },
               ]
             : []),
+          ...(kind === "train" || kind === "predict"
+            ? [
+                {
+                  label: t("research.model_members"),
+                  value: fmt(members.length, 0),
+                },
+              ]
+            : []),
           ...(kind === "etl" || kind === "predict" || kind === "backtest"
             ? [
                 {
@@ -1006,6 +1018,22 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
         <PredictionOverview meta={meta} />
       ) : (
         columnCards
+      )}
+      {kind === "predict" && members.length > 0 && (
+        <section className="viz-card wide">
+          <header>
+            <h3>{t("research.score_columns")}</h3>
+            <span>{members.length}</span>
+          </header>
+          <div className="base-value-list">
+            {members.map(([member, column]) => (
+              <div key={member}>
+                <code>{member}</code>
+                <strong>{column}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
       {kind === "analysis" && <AnalysisScores scores={meta.scores || {}} />}
       {kind === "train" && (

@@ -243,7 +243,7 @@ export function addArtifacts(
   const outputKey = {
     etl: "output_file",
     analysis: "result_file",
-    train: "model_file",
+    train: undefined,
     predict: "predictions_file",
   }[task.task_type];
   if (task.task_type === "backtest") {
@@ -280,6 +280,12 @@ export function addArtifacts(
       },
       output_params: {
         ...(outputKey ? { [outputKey]: `${path}/${output}` } : {}),
+        ...(task.task_type === "train"
+          ? { model_files: { model: `${path}/${output}` } }
+          : {}),
+        ...(task.task_type === "predict"
+          ? { score_columns: { model: "pred" } }
+          : {}),
         rows: predictions.length,
         train_rows: 1200,
         days: 60,

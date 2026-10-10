@@ -65,7 +65,8 @@ export interface ResearchArtifact {
   date_range?: { start?: string; end?: string };
   output_file?: string;
   result_file?: string;
-  model_file?: string;
+  model_files?: Record<string, string>;
+  score_columns?: Record<string, string>;
   predictions_file?: string;
   source?: string[];
   config: {

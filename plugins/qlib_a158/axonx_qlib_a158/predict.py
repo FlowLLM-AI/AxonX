@@ -243,6 +243,7 @@ class LgbmPredictTask(BasePredictTask):
         frame = self.state["predictions"]
         return self.output_cls(
             predictions_file=str(self.state["predictions_path"]),
+            score_columns={"model": "pred"},
             rows=frame.height,
             date_range={
                 "start": frame["trade_date"].min(),

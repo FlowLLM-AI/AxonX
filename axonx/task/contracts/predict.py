@@ -17,6 +17,7 @@ class BasePredictOutputParams(BaseOutputParams):
     """Describe the prediction artifact consumed by downstream tasks."""
 
     predictions_file: str
+    score_columns: dict[str, str] = Field(min_length=1, description="Model member IDs mapped to raw score columns.")
     rows: int
     date_range: dict[str, str]
     output_columns: list[str] = Field(default_factory=list)

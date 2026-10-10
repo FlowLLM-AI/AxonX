@@ -39,13 +39,13 @@ Resolving paths through downstream helpers does not itself automatically verify 
 
 Required below means the model has no default; not every field is displayed separately in Studio.
 
-| Type     | Required base-class fields                     | Optional or default base-class fields                                     |
-| -------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
-| ETL      | `output_file`, `rows`, `date_range`            | `feature_columns=[]`, `label_columns=[]`                                  |
-| Analysis | `result_file`, `rows`                          | `scores={}`                                                               |
-| Train    | `model_file`, `train_rows`                     | `model_name`, feature/target columns, metrics, parameters, training_curve |
-| Predict  | `predictions_file`, `rows`, `date_range`       | `output_columns=[]`, `protocol={}`, `statistics={}`                       |
-| Backtest | `dimensions`, `protocol`, `date_range`, `days` | Shared `artifacts={}`                                                     |
+| Type     | Required base-class fields                                | Optional or default base-class fields                                     |
+| -------- | --------------------------------------------------------- | ------------------------------------------------------------------------- |
+| ETL      | `output_file`, `rows`, `date_range`                       | `feature_columns=[]`, `label_columns=[]`                                  |
+| Analysis | `result_file`, `rows`                                     | `scores={}`                                                               |
+| Train    | `model_files`, `train_rows`                               | `model_name`, feature/target columns, metrics, parameters, training_curve |
+| Predict  | `predictions_file`, `score_columns`, `rows`, `date_range` | `output_columns=[]`, `protocol={}`, `statistics={}`                       |
+| Backtest | `dimensions`, `protocol`, `date_range`, `days`            | Shared `artifacts={}`                                                     |
 
 All types extend `BaseOutputParams`; output subclasses must declare extra fields or `extra=forbid` validation fails. `date_range` is a string mapping; pages read `start` and `end`, so producers should use these keys.
 
@@ -79,6 +79,10 @@ qlib_a158 downstream consumers resolve data through `artifacts.dataset.path`; fi
 This illustrates a valid shape rather than a fixed qlib_a158 metric set. Studio dynamically iterates groups and metrics. Plugins should ensure metric names and definitions are understandable and explain samples, units, and calculation scope in detailed files or extended definition fields.
 
 qlib_a158 actually generates `factor_analysis.csv` and `factor_quantiles.csv`, mapped as `result` and `quantiles`, respectively, and stores extension fields such as definitions and labels.
+
+Training outputs use a nonempty `model_files` mapping from member ID to model path. Prediction outputs use a nonempty `score_columns` mapping from member ID to raw score column in `predictions_file`. Single-member producers use the same collection contract. Multi-model stock plugins select or aggregate raw scores before invoking the shared backtest ledger; `pred` is the final selection score.
+
+This collection contract replaces the legacy `model_file` field and requires `score_columns` for predictions; legacy plugin outputs and historical metadata are not supported. Member count distinguishes single-member from multi-member output, not the number of prediction targets. A single model may have multiple targets, and multiple models may share one target.
 
 ## Training curve model
 

@@ -495,7 +495,9 @@
     "left_axis_l2_mean_squared": "Left axis L2: mean squared error; right axis L1: mean absolute error. Solid lines show training, dashed lines validation. Do not compare heights across axes.",
     "output_files": "Output files",
     "input_directory": "Input directory",
-    "artifacts_2": "Artifacts"
+    "artifacts_2": "Artifacts",
+    "model_members": "Model members",
+    "score_columns": "Score columns"
   },
   "compare": {
     "tabs": {

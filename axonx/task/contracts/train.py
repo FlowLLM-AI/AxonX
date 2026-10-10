@@ -61,7 +61,7 @@ class TrainingCurve(BaseModel):
 
 
 class BaseTrainOutputParams(BaseOutputParams):
-    model_file: str
+    model_files: dict[str, str] = Field(min_length=1, description="Named members of the trained model collection.")
     train_rows: int
     model_name: str | None = None
     feature_columns: list[str] = Field(default_factory=list)

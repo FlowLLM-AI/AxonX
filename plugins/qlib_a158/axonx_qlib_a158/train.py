@@ -544,7 +544,7 @@ class LgbmTrainTask(BaseTrainTask):
             },
             validation_metrics=self.state["validation_metrics"],
             artifacts=artifacts,
-            model_file=str(self.state["model_path"]),
+            model_files={"model": str(self.state["model_path"])},
             feature_importance_file=str(self.state["importance_path"]),
             evaluation_history_file=str(self.state["history_path"]),
             train_rows=frame.height,

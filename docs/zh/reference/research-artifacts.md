@@ -39,15 +39,19 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 下表的必填指模型没有默认值；不是所有字段都在 Studio 单独展示。
 
-| 类型     | 基类必填                                       | 基类可选或默认字段                                             |
-| -------- | ---------------------------------------------- | -------------------------------------------------------------- |
-| ETL      | `output_file`、`rows`、`date_range`            | `feature_columns=[]`、`label_columns=[]`                       |
-| Analysis | `result_file`、`rows`                          | `scores={}`                                                    |
-| Train    | `model_file`、`train_rows`                     | `model_name`、特征/目标列、metrics、parameters、training_curve |
-| Predict  | `predictions_file`、`rows`、`date_range`       | `output_columns=[]`、`protocol={}`、`statistics={}`            |
-| Backtest | `dimensions`、`protocol`、`date_range`、`days` | 共享的 `artifacts={}`                                          |
+| 类型     | 基类必填                                                  | 基类可选或默认字段                                             |
+| -------- | --------------------------------------------------------- | -------------------------------------------------------------- |
+| ETL      | `output_file`、`rows`、`date_range`                       | `feature_columns=[]`、`label_columns=[]`                       |
+| Analysis | `result_file`、`rows`                                     | `scores={}`                                                    |
+| Train    | `model_files`、`train_rows`                               | `model_name`、特征/目标列、metrics、parameters、training_curve |
+| Predict  | `predictions_file`、`score_columns`、`rows`、`date_range` | `output_columns=[]`、`protocol={}`、`statistics={}`            |
+| Backtest | `dimensions`、`protocol`、`date_range`、`days`            | 共享的 `artifacts={}`                                          |
 
 所有类型继承 `BaseOutputParams`；额外字段需通过输出子类声明，否则 `extra=forbid` 校验失败。`date_range` 是字符串映射，页面按 `start` 与 `end` 取值，生产者应采用这些 key。
+
+训练输出通过非空 `model_files` 映射声明成员标识和模型路径；预测输出通过非空 `score_columns` 映射声明成员标识及 `predictions_file` 中的原始分数列。单成员生产者也使用相同集合契约。多模型股票插件在调用共享回测账本前选择或聚合原始分数，`pred` 表示最终选股分数。
+
+此集合契约替代旧 `model_file` 字段，并要求预测输出声明 `score_columns`；不兼容旧版插件输出和历史 metadata。成员数量用于区分单成员和多成员输出，不表示预测目标数量：单个模型可以包含多个目标，多个模型也可以预测同一个目标。
 
 ## ETL 产物
 

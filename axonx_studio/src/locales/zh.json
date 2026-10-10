@@ -495,7 +495,9 @@
     "left_axis_l2_mean_squared": "左轴 L2：均方误差；右轴 L1：平均绝对误差。实线为训练，虚线为验证；两轴数值不可直接比较。",
     "output_files": "输出文件",
     "input_directory": "输入目录",
-    "artifacts_2": "产物清单"
+    "artifacts_2": "产物清单",
+    "model_members": "模型成员",
+    "score_columns": "模型分数列"
   },
   "compare": {
     "tabs": {
