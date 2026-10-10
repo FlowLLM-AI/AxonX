@@ -333,11 +333,28 @@ Example prompt:
 
 ### Results for the three versions
 
-| Version           | Plugin                                           | Top20 net annualized return | Net Sharpe | Max drawdown |
-| ----------------- | ------------------------------------------------ | --------------------------: | ---------: | -----------: |
-| Alpha158 baseline | [qlib_a158](plugins/qlib_a158/README.md)         |                       7.69% |     0.3624 |      -38.64% |
-| Added factors     | [qlib_factor](plugins/qlib_factor/README.md)     |                       9.04% |     0.4054 |      -40.67% |
-| Added strategy    | [qlib_strategy](plugins/qlib_strategy/README.md) |                      32.36% |     1.1571 |      -24.91% |
+The table compares overall signal quality and Top20 portfolio performance across the three versions. Portfolio metrics cover 909 market dates; active metrics use 908 benchmark-valid dates. The policy reuses factor-model predictions, so signal metrics are identical while portfolio returns reflect different holding and replacement rules.
+
+| Metric                                   | [Alpha158 baseline](plugins/qlib_a158/README.md) | [Added factors](plugins/qlib_factor/README.md) | [Added strategy](plugins/qlib_strategy/README.md) |
+| ---------------------------------------- | -----------------------------------------------: | ---------------------------------------------: | ------------------------------------------------: |
+| Overall IC                               |                                           0.0530 |                                         0.0545 |                                            0.0545 |
+| Overall RankIC                           |                                           0.0923 |                                         0.0966 |                                            0.0966 |
+| Overall RankICIR (annualized)            |                                          12.8817 |                                        14.2859 |                                           14.2859 |
+| Net annualized                           |                                            7.69% |                                          9.04% |                                            32.36% |
+| Net cumulative return                    |                                           30.63% |                                         36.64% |                                           174.92% |
+| Net Sharpe                               |                                           0.3624 |                                         0.4054 |                                            1.1571 |
+| Net annualized volatility                |                                           28.20% |                                         28.53% |                                            26.19% |
+| Max drawdown                             |                                          -38.64% |                                        -40.67% |                                           -24.91% |
+| Daily return win rate                    |                                           53.47% |                                         53.47% |                                            55.89% |
+| Mean daily two-sided turnover            |                                          198.83% |                                        199.35% |                                            40.02% |
+| Mean daily cost / prior equity           |                                          0.1988% |                                        0.1993% |                                           0.0400% |
+| Closed trades                            |                                           18,032 |                                         18,079 |                                             3,624 |
+| Net active annualized vs universe mean   |                                           -3.47% |                                         -1.86% |                                            18.65% |
+| Net IR vs universe mean                  |                                          -0.1404 |                                        -0.0649 |                                            1.4547 |
+| Net active max drawdown vs universe mean |                                          -28.47% |                                        -21.71% |                                           -18.63% |
+| Net active annualized vs HS300 proxy     |                                            2.77% |                                          4.09% |                                            26.04% |
+| Net IR vs HS300 proxy                    |                                           0.2353 |                                         0.2947 |                                            1.2699 |
+| Net active max drawdown vs HS300 proxy   |                                          -31.94% |                                        -29.34% |                                           -23.96% |
 
 The factor version raises returns but increases drawdown; the policy improves returns and risk metrics in this experiment. The 3-day candidate was selected exploratorily on a reused development window, without independent confirmation. Base/augmented feature_fraction is 0.9/1.0, so return differences do not isolate the added factors. Results also include missing quotes, same-close proxy fills, and a partial 2026.
 
