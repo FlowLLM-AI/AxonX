@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="680" viewBox="0 0 1280 680" role="img" aria-labelledby="title desc">
   <title id="title">AxonX · Agent-native Quantitative Research Harness</title>
-  <desc id="desc">A research prompt, AxonX Skill, and source tools guide external or built-in Agents to develop plugin code. Agents use CLI, MCP, or built-in Job tools; Studio uses HTTP and SSE to call shared Jobs. In the selected local or remote target, plugins define typed research Tasks, workers execute them, and the workspace preserves research records, artifacts, and lineage. Solid arrows show execution and recording; dashed arrows show plugin development and evidence queries.</desc>
+  <desc id="desc">A research prompt, AxonX Skill, and source tools guide external or built-in Agents to develop plugin code. Agents use CLI, MCP, or built-in Job tools; Studio provides built-in Agent sessions, Task control, logs, lineage, factor and model analysis, predictions, backtests, and strategy comparisons, using HTTP and SSE to call shared Jobs. In the selected local or remote target, plugins define typed research Tasks, workers execute them, and the workspace preserves research records, artifacts, and lineage. Solid arrows show execution and recording; dashed arrows show plugin development and evidence queries.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
@@ -19,9 +19,13 @@
     <rect x="52" y="101.0" width="560" height="73.2" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
     <text x="80" y="132" font-size="23" font-weight="700" text-anchor="start" fill="#18324b">External / Built-in Agents</text>
     <text x="80" y="158" font-size="17" font-weight="400" text-anchor="start" fill="#52738f">CLI / MCP / built-in Job tools</text>
-    <rect x="668" y="101.0" width="560" height="73.2" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
-    <text x="696" y="146" font-size="27" font-weight="700" text-anchor="start" fill="#18324b">AxonX Studio</text>
-    <text x="1200" y="146" font-size="20" font-weight="400" text-anchor="end" fill="#52738f">HTTP / SSE</text>
+    <rect x="668" y="1" width="560" height="173.2" rx="20" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.8" stroke-dasharray="8 6" />
+    <text x="696" y="36" font-size="27" font-weight="700" text-anchor="start" fill="#18324b">AxonX Studio</text>
+    <text x="1200" y="36" font-size="20" font-weight="400" text-anchor="end" fill="#52738f">HTTP / SSE</text>
+    <text x="696" y="70" font-size="18" fill="#52738f">Built-in Agent sessions</text>
+    <text x="696" y="100" font-size="18" fill="#18324b">Task control · Logs · Lineage</text>
+    <text x="696" y="130" font-size="18" fill="#18324b">Factors · Training curves · Predictions</text>
+    <text x="696" y="158" font-size="18" fill="#18324b">Backtests · Strategy comparisons</text>
     <path d="M 332 174.1 V 203.4" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
     <path d="M 948 174.1 V 203.4" fill="none" stroke="#52738f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
     <rect x="52" y="203.4" width="1176" height="82.0" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.8" stroke-dasharray="8 6" />

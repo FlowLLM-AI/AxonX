@@ -31,16 +31,11 @@
 或在已有插件上优化。Agent 编写量化代码，通过 AxonX 执行实验、读取结果，继续迭代因子、模型与组合策略。
 **用户提出研究问题，Agent 实现量化逻辑，Harness 管理执行与证据。**
 
-当前参考流程从 **Qlib 的 Alpha158 / LightGBM** 出发，通过
-**`qlib_a158` → `qlib_factor` → `qlib_strategy`** 逐层扩展。
-AxonX 将 Qlib 流程迁移、适配为带类型的 Task，为 Agent 探索改进方案提供开发与执行环境。
-其他量化研究方法也可以通过同一套插件契约接入。
-
 CLI、HTTP、MCP 和 **AxonX Studio** 通过共享的 Job 提交、查询 Task。
 选定的执行服务运行插件代码，将参数、状态、依赖和产物保存在自己的工作区，让研究者与 Agent 检查同一份证据。
 
-[Agent 开发](#agent-接入与开发指南) · [插件体系](#alpha158-与插件系统) ·
-[实验结果](#benchmark-agent-开发市场横截面增强特征) · [快速开始](#快速开始) ·
+[快速开始](#快速开始) · [插件体系](#alpha158-与插件系统) ·
+[实验结果](#benchmark-agent-开发市场横截面增强特征) · [文档入口](#axonx-文档) ·
 <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>
 
 <a id="为什么使用-axonx"></a>
@@ -55,45 +50,76 @@ CLI、HTTP、MCP 和 **AxonX Studio** 通过共享的 Job 提交、查询 Task�
 
 ## 📰 最新更新
 
-- **Alpha158 改进实验：** 适配后的基线／风险因子模型／3 日排名保留策略，Top20 净年化分别为 **7.67%／9.03%／32.37%**。买入费用 0.05%、卖出费用 0.15%；实验报告行情不完整，尚无独立确认窗口。→ [完整结果与任务来源](docs/zh/research/experiments.md#comparison)
-- **研究插件体系：** Alpha158、可选择的因子组与排名保留策略共享研究契约和回测记账。当前源码版本：AxonX **0.1.1**，研究插件 **0.2.0**。→ [插件系统](#alpha158-与插件系统)
-- **Agent 与 Studio 流程：** 通过 Skill + Prompt 开发，在 Studio 查看 Task、因子、训练曲线、预测及策略对比。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>（数据与执行均为模拟）
+- **Alpha158 改进实验：** 比较适配后的基线、新增风险因子与排名保留策略。→ [结果与证据边界](#benchmark-agent-开发市场横截面增强特征)
+- **Studio Playground：** 使用模拟数据与执行流程体验任务管理和研究图表。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">在线试玩</a>
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261010-agent-code)
 
+<a id="快速开始"></a>
+
+## 🚀 快速开始：使用 Agent 开发量化插件
+
+要求 **Python 3.12+**；本地 Task 执行支持 **macOS 和 Linux**。
+
+### 1. 安装与启动
+
+```bash
+pip install "axonx[studio]"
+# 可选：在执行服务环境安装 Alpha158 插件
+pip install axonx-qlib-a158
+```
+
+在启动目录创建 `.env`，填写本机服务 token：
+
+```dotenv
+AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
+```
+
+```bash
+axonx start
+```
+
+CLI 从当前目录或父目录加载 `.env`，已有环境变量优先。保持服务运行，在另一终端执行后续命令。
+模型、行情与远程配置见 [example.env](example.env)；源码开发与 Studio 构建见[贡献指南](CONTRIBUTING_ZH.md)。
+直接 pip 安装或 editable 源码改动后需重启服务。
+
+<a id="快速演示"></a>
+
+### 2. 验证服务并打开 Studio
+
+内置 demo 无需行情或模型凭据：
+
+```bash
+axonx submit --task demo --x 2 --y 3
+axonx wait_task --task-id '<returned_task_id>' --run-id '<returned_run_id>' --client-timeout 120
+axonx get_task_context --task-id '<returned_task_id>'
+```
+
+使用 `submit` 返回的 `answer.task_id` 与 `answer.run_id`，等待 `succeeded` 后再读取输出或提交下游 Task。
+`source_tasks` 记录血缘，不会自动执行整张 DAG。
+
+访问 `http://127.0.0.1:1024/`，在 **设置 → 本机服务 token** 中填写 `AXONX_SERVICE_TOKEN`。
+任务、研究图表与 Agent 工作区的操作见 [Studio 指南](docs/zh/getting-started/studio.md)。
+
+<table>
+  <tr><th width="50%">首页</th><th width="50%">任务管理</th></tr>
+  <tr>
+    <td><a href="docs/figures/studio/home.png"><img src="docs/figures/studio/home.png" alt="AxonX Studio 首页" width="100%" /></a></td>
+    <td><a href="docs/figures/studio/task-list.png"><img src="docs/figures/studio/task-list.png" alt="AxonX Studio 任务管理" width="100%" /></a></td>
+  </tr>
+</table>
+
 <a id="agent-接入与开发指南"></a>
 
-## 🤝 使用 Agent 开发量化插件
+### 3. 准备源码并接入 Agent
 
-开发流程由 **用户的探索 Prompt**、**AxonX Skill** 与 **具备代码和服务访问能力的 Agent** 共同完成：
+提供 AxonX 源码仓库，让 Agent 阅读 [AxonX Skill](skills/axonx/SKILL.md)，或按客户端支持的方式安装 Skill。
+仅安装 Python 包不会提供示例插件源码。根据使用习惯，选择下面的外部 Agent 或 Studio 内置 Agent。
 
-1. **定义探索目标。** 明确基线、假设、数据、评估窗口、指标和执行目标。
-2. **实现量化逻辑。** Agent 阅读 Skill 与相关源码，编写或优化插件代码，注册 Task 并验证实现。
-3. **通过 Harness 执行。** 将插件安装到选定服务环境，检查 Task 定义，提交实验，等待每个上游阶段成功。
-4. **检查证据并迭代。** 读取日志、元数据和产物，在明确的控制条件下比较候选方案，修改代码或参数，保留实验依据。
+#### 外部 Agent：CLI 或 MCP
 
-探索 Prompt 示例：
-
-> 阅读 AxonX Skill 与 qlib_a158 实现，开发独立研究插件，探索残差波动和下行风险能否改进 Alpha158 排序。
-> 只使用信号时点可得的信息；因子消融时固定数据快照、标签、训练参数、评估窗口和交易成本。
-> 实现并测试量化代码，注册、安装插件，通过 AxonX 执行 ETL、训练、预测与回测。
-> 保留 Task/Run ID，报告 RankIC、净收益、回撤、换手与局限。在开发窗口选择候选方案，并预留独立确认窗口。
-
-也可以让 Agent 优化已有插件的特征计算、训练流程或持仓规则。
-请在 Prompt 中明确目标是执行效率、信号质量还是交易表现，以及如何评估。
-
-| Agent      | 开发准备                                                                                            | 研究接入                                                              |
-| ---------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 外部 Agent | 在 Codex、Claude Code 等客户端加载 [AxonX Skill](skills/axonx/SKILL.md)，提供源码仓库与代码工具。   | 使用 `axonx` CLI 或通过 MCP 连接服务；模型凭据由客户端提供。          |
-| 内置 Agent | 配置模型后进入 **Studio → Agent**；提供 Skill 或启用内置开发指南，为源码仓库配置 `cwd` 和开发工具。 | 使用配置的 Job 工具，或通过可用命令工具调用 CLI；模型凭据由服务提供。 |
-
-Skill 可以直接阅读，也可以按 Agent 客户端支持的方式安装。
-其中的源码路径指向 AxonX 仓库；仅安装 Python 包不会提供示例插件源码。
-契约和命令详见[开发与运维指南](docs/zh/dev_guide.md)。
-
-### 通过 MCP 接入外部 Agent
-
-启动 AxonX 后，在 Agent 客户端配置：
+使用 Codex、Claude Code 等客户端，为源码仓库提供文件和命令工具；模型凭据由客户端提供。
+可直接使用 `axonx` CLI，也可以按以下配置通过 MCP 连接服务：
 
 | 参数       | 值                                         |
 | ---------- | ------------------------------------------ |
@@ -104,7 +130,7 @@ Skill 可以直接阅读，也可以按 Agent 客户端支持的方式安装。
 使用所连接服务的 token；自定义端口或连接远程服务时调整地址。
 详见 [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)。
 
-### 配置内置 Agent
+#### 内置 Agent：Studio
 
 默认后端使用 Claude Agent SDK。在 `.env` 中填写服务商提供的凭据、Claude 兼容地址与模型名称，然后重启服务：
 
@@ -120,15 +146,34 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 axonx start --components.agent.default.load_dev_guide true --language zh
 ```
 
+进入 **Studio → Agent**，为源码仓库配置 `cwd` 和 SDK 文件／命令工具。
 指南加载默认为 `false`，与工具配置独立。默认 Job 桥接提供任务和产物查询。
-开发时需配置源码访问及 SDK 文件／命令工具；安装、提交可通过 CLI，或将所需 Job 加入 `job_tools`。
+安装、提交可通过 CLI，或将所需 Job 加入 `job_tools`。
 详见 [Agent 配置](https://flowllm-ai.github.io/AxonX/zh/agent/configuration)。
+
+### 4. 向 Agent 提出研究目标
+
+明确基线、假设、数据、评估窗口、指标和执行目标。例如：
+
+> 阅读 AxonX Skill 与 qlib_a158 实现，开发独立研究插件，探索残差波动和下行风险能否改进 Alpha158 排序。
+> 只使用信号时点可得的信息；因子消融时固定数据快照、标签、训练参数、评估窗口和交易成本。
+> 实现并测试量化代码，注册、安装插件，通过 AxonX 执行 ETL、训练、预测与回测。
+> 保留 Task/Run ID，报告 RankIC、净收益、回撤、换手与局限。在开发窗口选择候选方案，并预留独立确认窗口。
+
+也可以让 Agent 优化已有插件的特征计算、训练流程或持仓规则。
+请在 Prompt 中明确目标是执行效率、信号质量还是交易表现，以及如何评估。
+
+每次实验保留代码／版本、数据、窗口、参数、成本和 Task/Run ID，让 Agent 根据同一份证据比较候选方案并迭代。
+插件开发、服务安装和 Task 契约详见[开发指南](docs/zh/dev_guide.md)。
+
+开始 Alpha158 研究前，配置 `AXONX_TUSHARE_TOKEN` 并准备足够的历史数据，再按[研究流程](docs/zh/research/workflow.md)
+执行各阶段；完整复现命令见[实验指南](docs/zh/research/experiments.md#comparison)。
 
 <a id="alpha158-与插件系统"></a>
 
 ## 🧩 从 Qlib Alpha158 到可扩展的研究插件
 
-研究主链为 **ETL → Train → Predict → Backtest**，因子分析从 ETL 独立分支。三个插件逐层复用实现与产物：
+研究主链为 **ETL → Train → Predict → Backtest**，因子分析从 ETL 独立分支。三个插件逐层复用实现与产物，其他研究方法也可通过同一套插件契约接入：
 
 | 插件                                                | 研究能力                                       | 扩展方式                                                         |
 | --------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
@@ -165,65 +210,6 @@ axonx start --components.agent.default.load_dev_guide true --language zh
 这些结果描述的是适配后的 AxonX 实验，不能据此认定优于原始 Qlib 基准。
 
 [完整设定、指标、复现命令与任务来源](docs/zh/research/experiments.md#comparison)。
-
-<a id="快速开始"></a>
-
-## 🚀 快速开始
-
-要求 **Python 3.12+**；本地 Task 执行支持 **macOS 和 Linux**。
-
-### 安装与启动
-
-```bash
-pip install "axonx[studio]"
-# 可选：在执行服务环境安装 Alpha158 插件
-pip install axonx-qlib-a158
-```
-
-在启动目录创建 `.env`，填写本机服务 token：
-
-```dotenv
-AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
-```
-
-```bash
-axonx start
-```
-
-CLI 从当前目录或父目录加载 `.env`，已有环境变量优先。保持服务运行，在另一终端执行后续命令。
-模型、行情与远程配置见 [example.env](example.env)；源码开发与 Studio 构建见[贡献指南](CONTRIBUTING_ZH.md)。
-直接 pip 安装或 editable 源码改动后需重启服务。
-
-### 打开 Studio
-
-访问 `http://127.0.0.1:1024/`，在 **设置 → 本机服务 token** 中填写 `AXONX_SERVICE_TOKEN`。
-任务、研究图表与 Agent 工作区的操作见 [Studio 指南](docs/zh/getting-started/studio.md)。
-
-<table>
-  <tr><th width="50%">首页</th><th width="50%">任务管理</th></tr>
-  <tr>
-    <td><a href="docs/figures/studio/home.png"><img src="docs/figures/studio/home.png" alt="AxonX Studio 首页" width="100%" /></a></td>
-    <td><a href="docs/figures/studio/task-list.png"><img src="docs/figures/studio/task-list.png" alt="AxonX Studio 任务管理" width="100%" /></a></td>
-  </tr>
-</table>
-
-<a id="快速演示"></a>
-
-### 验证第一个 Task
-
-内置 demo 无需行情或模型凭据：
-
-```bash
-axonx submit --task demo --x 2 --y 3
-axonx wait_task --task-id '<returned_task_id>' --run-id '<returned_run_id>' --client-timeout 120
-axonx get_task_context --task-id '<returned_task_id>'
-```
-
-使用 `submit` 返回的 `answer.task_id` 与 `answer.run_id`，等待 `succeeded` 后再读取输出或提交下游 Task。
-`source_tasks` 记录血缘，不会自动执行整张 DAG。
-
-开始 Alpha158 研究时，先配置 `AXONX_TUSHARE_TOKEN` 并准备足够的历史数据，再按[研究流程](docs/zh/research/workflow.md)
-运行各阶段；三版本实验的完整命令见[复现指南](docs/zh/research/experiments.md#comparison)。
 
 <a id="axonx-cli-命令与远程执行"></a>
 

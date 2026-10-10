@@ -46,13 +46,19 @@ export function renderReadmeHome(content, markdown, { base, overview }) {
     if (href.startsWith(base) || !href.startsWith("/")) return href;
     return `${base}${href.slice(1)}`;
   });
-  const sections = readmeSections(resolved, markdown).map((section) => ({
-    id: section.id,
-    title: section.title,
-    html: markdown.render(section.markdown, {}),
-  }));
-  const summary = sections[0].html.match(/<p>([\s\S]*?)<\/p>/)?.[1];
-  if (!summary)
-    throw new Error("README homepage requires an introductory paragraph");
-  return { summary, sections };
+  const section = readmeSections(resolved, markdown).find((section) =>
+    ["Latest Updates", "最新更新"].includes(section.title),
+  );
+  if (!section) throw new Error("README homepage requires Latest Updates");
+  const body = section.markdown.split("\n").slice(1).join("\n").trim();
+  if (!body) throw new Error("README Latest Updates must not be empty");
+  const list = markdown
+    .parse(body, {})
+    .find((token) => token.type === "bullet_list_open");
+  if (!list) throw new Error("README Latest Updates requires an update list");
+  const updates = body
+    .split("\n")
+    .slice(...list.map)
+    .join("\n");
+  return { title: section.title, html: markdown.render(updates, {}) };
 }

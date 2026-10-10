@@ -852,7 +852,7 @@
   overflow: auto;
 }
 .studio-workspace > .overview-page .overview-hero {
-  min-height: calc(100vh - 136px);
+  min-height: 0;
 }
 .studio-workspace .research-layout {
   height: 100%;

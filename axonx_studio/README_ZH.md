@@ -2,11 +2,7 @@
 
 [English](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx_studio/README.md) · 简体中文
 
-AxonX Studio 是 [AxonX](https://github.com/FlowLLM-AI/AxonX/blob/main/README_ZH.md) 的浏览器工作台，将任务提交、运行监控、工作区产物、量化研究图表和 Agent 助手接入同一个 AxonX 服务。
-
-Studio 使用 React 和 TypeScript 构建。AxonX 后端负责执行 Task、管理文件与会话并提供 Job API，研究插件负责实现算法。可用任务、API 和研究结果取决于当前选择的执行机器及其安装的插件。
-
-AxonX 是面向 Agent 的量化研究 Harness，提供代码开发、实验执行与结果分析所需的工具和运行环境。将研究 Prompt 与 [AxonX Skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md) 交给外部或内置 Agent，可开发或优化研究插件。Studio 提供内置 Agent 入口，并展示 CLI、MCP 共用的执行记录与产物；插件开发需要配置源码访问与开发工具。
+AxonX Studio 是 [AxonX](https://github.com/FlowLLM-AI/AxonX/blob/main/README_ZH.md) 的浏览器工作台：通过 Agent 开发研究插件，在选定服务提交 Task，查看日志、产物与图表。后端负责执行任务，插件提供研究算法。
 
 ![AxonX Studio 主页](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
 
@@ -68,15 +64,11 @@ pip install axonx-studio
 
 详见[研究环境准备](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/research/workflow.md)、[Agent 配置](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/agent/configuration.md)与[远程机器](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/guides/remote-machines.md)。
 
-### 从研究 Prompt 到实验依据
+### 使用 Agent 研究
 
-1. 明确基线、假设、数据、评估窗口、指标、成本与执行目标。
-2. 提供 AxonX Skill 或启用内置开发指南。将内置 Agent 的 `cwd` 指向可访问的源码仓库，并提供 SDK 文件／命令工具。模型凭据本身不完成插件开发配置。
-3. 实现并检查插件，再安装到选定的执行服务。源码修改、服务环境安装与 Task 提交是三个独立步骤。开发指南默认不加载，配置见 [Agent 配置](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/agent/configuration.md)。
-4. 核对服务提供的 Task Schema 和上游产物要求，依次提交各阶段，等待上游成功后再提交依赖任务。
-5. 在 Studio 查看 metadata、日志与图表。保留代码／版本、数据、窗口、参数、成本及 Task/Run ID；区分实现检查与研究改进证据。
+将研究问题和 [AxonX Skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md) 交给外部或内置 Agent。内置开发需要配置源码访问与文件／命令工具，详见 [Agent 配置](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/agent/configuration.md)。先开发插件，再安装到选定服务，最后提交 Task，并等待上游成功。
 
-参考插件链为 `qlib_a158` → `qlib_factor` → `qlib_strategy`，分别提供 Alpha158/LightGBM、可选因子组和复用预测的组合策略。Task 主链是 **ETL → 训练 → 预测 → 回测**，因子分析从 ETL 独立分支；其他插件可以提供其他研究方法。策略比较在两个回测的共同日期区间进行，解读差异前应核对评估协议与成本。详见[实验结果与局限](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/research/experiments.md#comparison)。
+参考流程为 **ETL → 训练 → 预测 → 回测**，因子分析从 ETL 独立分支。`qlib_a158`、`qlib_factor` 与 `qlib_strategy` 分别提供基线、可选因子和组合策略。比较运行时，保留代码、数据、窗口、参数、成本及 Task/Run ID。详见[研究流程](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/research/workflow.md)。
 
 ## npm 分发与静态托管
 

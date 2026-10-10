@@ -1,19 +1,116 @@
 {
   "home": {
+    "stages": {
+      "data": "市场数据",
+      "features": "ETL 特征",
+      "training": "模型训练",
+      "prediction": "离线预测",
+      "backtest": "策略回测"
+    },
+    "paths": {
+      "quickstart": {
+        "title": "运行第一个任务",
+        "description": "用内置 demo，完成提交、等待与结果检查。"
+      },
+      "research-overview": {
+        "title": "开展量化研究",
+        "description": "连接数据、特征、训练、预测和回测产物。"
+      },
+      "agent-overview": {
+        "title": "使用 Agent 开发",
+        "description": "结合探索 Prompt 与 AxonX Skill，使用外部 Agent 或 Studio 内置会话。"
+      }
+    },
+    "journeys": {
+      "agent-external": {
+        "title": "借助 Agent 改进研究",
+        "description": "开发或优化研究插件，执行 Task，检查结果并持续迭代。"
+      },
+      "research-experiments": {
+        "title": "设计可检查的实验",
+        "description": "固定控制变量，筛选方案，再做独立确认。"
+      },
+      "guides-remote-machines": {
+        "title": "管理执行环境",
+        "description": "连接远程机器，维护任务、文件和服务。"
+      },
+      "dev_guide": {
+        "title": "扩展研究能力",
+        "description": "编写插件，复用 Task 契约与框架扩展点。"
+      }
+    },
+    "screens": {
+      "lineage": {
+        "title": "任务血缘",
+        "description": "检查运行记录，追踪上游产物。"
+      },
+      "training": {
+        "title": "模型训练",
+        "description": "从训练配置到验证曲线，检查模型证据。"
+      },
+      "backtest": {
+        "title": "策略回测",
+        "description": "把收益、成本与质量放在一起解读。"
+      },
+      "comparison": {
+        "title": "策略比较",
+        "description": "在共同区间内，理解策略之间的差异。"
+      }
+    },
+    "capabilities": {
+      "plugins-management": {
+        "title": "研究能力，独立扩展",
+        "description": "将算法和任务打包为插件，保留清晰的输入输出契约。"
+      },
+      "concepts-task-lifecycle": {
+        "title": "运行过程，完整记录",
+        "description": "状态、日志、参数和产物，汇聚到同一个任务工作区。"
+      },
+      "guides-remote-machines": {
+        "title": "多台机器，统一入口",
+        "description": "通过统一接口查看远程任务、机器资源与研究结果。"
+      },
+      "api-overview": {
+        "title": "Studio、CLI 与 Agent 协同",
+        "description": "共享 Job 接口与工作区记录，围绕研究证据持续迭代。"
+      }
+    },
     "star": "给 AxonX 点个 GitHub Star！",
     "headline": "量化研究",
-    "headlineAccent": "从 Prompt 到证据。",
-    "develop": "使用 Agent 开发",
+    "headlineAccent": "借助 Agent 持续改进。",
+    "lead": "面向 Agent 的量化研究 Harness，为量化代码开发、实验执行和结果分析提供工具与运行环境。结合探索 Prompt 与 AxonX Skill，通过外部或内置 Agent 开发、改进研究插件。",
     "tryStudio": "体验 Studio",
     "getStarted": "快速开始",
-    "workflowTitle": "从探索 Prompt 到研究证据",
-    "evidence": "代码 · 任务 · 结果 · 迭代",
-    "contents": "首页内容导航",
-    "stages": {
-      "prompt": "研究 Prompt + AxonX Skill",
-      "code": "开发或优化研究插件",
-      "experiment": "通过 Task 执行实验",
-      "iterate": "检查证据并持续迭代"
+    "exploreWorkflow": "查看研究流程",
+    "workflowTitle": "从数据到研究证据",
+    "factorAnalysis": "因子分析",
+    "etlBranch": "ETL 的独立分支",
+    "evidence": "参数 · 日志 · 血缘 · 产物",
+    "updatesTitle": "最新更新",
+    "pathsLabel": "选择开始路径",
+    "showcaseTitle": "研究过程，看得见。",
+    "exploreStudio": "了解 Studio",
+    "showcaseLead": "从任务运行到结果解读，在同一工作台查看研究证据。",
+    "showcaseLabel": "Studio 展示",
+    "previousSlide": "上一张",
+    "actualInterface": "真实界面",
+    "readGuide": "阅读指南",
+    "nextSlide": "下一张",
+    "capabilitiesTitle": "研究自由扩展，执行有据可循。",
+    "journeysTitle": "按目标深入。",
+    "documentationMap": "文档导航",
+    "caseTitle": "改进 Alpha158：因子与持仓策略",
+    "experimentDesign": "实验方法",
+    "caseDescription": "Agent 在 Alpha158 基线上以插件开发市场横截面特征与排名保留策略。基线、risk 因子与 3 日策略的 Top20 净年化为 7.67%、9.03% 和 32.37%，买入费用 0.05%、卖出费用 0.15%。行情数据不完整，尚无独立确认窗口。",
+    "benchmark": "查看 Benchmark",
+    "reproduction": "特征、参数与复现",
+    "closingTitle": "从一个 Task 开始。",
+    "closingDescription": "内置 demo 无需外部数据或模型凭据。",
+    "runDemo": "运行 Demo",
+    "browseDocs": "浏览全部文档",
+    "benchmarkFigures": {
+      "signal": "Alpha158 与风险因子的 IC / RankIC 对比",
+      "portfolio": "基础、风险因子与 3 日策略的 Top20 / Top30 净年化收益"
     }
   },
   "preferences": {

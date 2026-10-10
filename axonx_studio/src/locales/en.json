@@ -297,15 +297,15 @@
   "home": {
     "quantAria": "Reference quantitative research workflow",
     "quantTitle": "Reference research workflow",
-    "quantLead": "Qlib Alpha158: ETL → Train → Predict → Backtest",
+    "quantLead": "Qlib Alpha158 reference · independent factor analysis",
     "brandAria": "AxonX Agent-Native Quant Harness",
-    "brandTitle": "Turn research prompts into experiments",
-    "brandLead": "Combine your research prompt with the AxonX Skill and an Agent to develop or improve plugins. AxonX runs Tasks on the selected service and preserves the evidence for analysis and iteration.",
+    "brandTitle": "From questions to evidence",
+    "brandLead": "Develop plugins with your prompt, the AxonX Skill, and an Agent. Run experiments and inspect their evidence in one workspace.",
     "submitTask": "Submit Task",
     "manageTasks": "Manage Tasks",
     "capabilitiesAria": "Harness framework capabilities",
     "capabilitiesTitle": "Harness capabilities",
-    "capabilitiesLead": "Prompt + Skill + Agent → code, execution, evidence",
+    "capabilitiesLead": "Tools for development, execution, and analysis",
     "steps": {
       "workspace": {
         "title": "Workspace",
@@ -359,7 +359,8 @@
       }
     },
     "openAgent": "Open Agent",
-    "factorBranch": "Independent branch from ETL"
+    "factorBranch": "Independent branch from ETL",
+    "journey": "PROMPT → CODE → EXPERIMENTS"
   },
   "workspace": {
     "folder": "Folder",

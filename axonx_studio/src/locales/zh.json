@@ -297,15 +297,15 @@
   "home": {
     "quantAria": "量化研究参考流程",
     "quantTitle": "参考研究流程",
-    "quantLead": "Qlib Alpha158：ETL → 训练 → 预测 → 回测",
+    "quantLead": "Qlib Alpha158 参考流程 · 因子分析独立分支",
     "brandAria": "AxonX Agent 原生量化 Harness 框架",
-    "brandTitle": "将研究问题变成可追溯的实验",
-    "brandLead": "结合研究 Prompt、AxonX Skill 与 Agent，开发或优化量化插件。AxonX 在选定服务执行 Task，保留研究证据，支持结果分析与迭代。",
+    "brandTitle": "从研究问题，到实验依据",
+    "brandLead": "结合研究 Prompt、AxonX Skill 与 Agent 开发插件，在同一工作台运行实验、查看结果。",
     "submitTask": "提交任务",
     "manageTasks": "任务管理",
     "capabilitiesAria": "Harness 框架能力",
     "capabilitiesTitle": "Harness 框架能力",
-    "capabilitiesLead": "Prompt + Skill + Agent → 代码、执行与证据",
+    "capabilitiesLead": "代码开发、实验执行与结果分析",
     "steps": {
       "workspace": {
         "title": "工作区",
@@ -359,7 +359,8 @@
       }
     },
     "openAgent": "打开 Agent",
-    "factorBranch": "从 ETL 独立分出的分析支线"
+    "factorBranch": "从 ETL 独立分出的分析支线",
+    "journey": "研究问题 → 量化代码 → 可追溯实验"
   },
   "workspace": {
     "folder": "目录",

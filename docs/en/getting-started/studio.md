@@ -10,11 +10,9 @@ The screenshots on this page use the English interface; the documentation is ava
 
 ## Research and development entry points
 
-Home offers **Open Agent**, **Submit Task**, and **Manage Tasks**. Combine a research prompt with the [AxonX Skill](../../../skills/axonx/SKILL.md) and an external or built-in Agent to develop or improve a plugin. For built-in development, configure model credentials, source checkout access, and SDK file/command tools; provide the Skill or enable the development guide. See [Agent usage](../agent/usage.md#develop-or-optimize-a-plugin).
+Home offers **Open Agent**, **Submit Task**, and **Manage Tasks**. Give an Agent a research prompt and the [AxonX Skill](../../../skills/axonx/SKILL.md); configure source access and development tools for plugin authoring. Develop the plugin, install it in the selected service, then submit Tasks after upstream success. See [Agent usage](../agent/usage.md#develop-or-optimize-a-plugin).
 
-Keep source changes, installation in the selected execution service, and Task submission separate. Verify the service's schemas and artifact requirements, then wait for each upstream Task to succeed. Studio does not automatically install source edits or run the dependency graph.
-
-The home workflow uses Qlib Alpha158 as a reference: **ETL → Train → Predict → Backtest**, with factor analysis branching independently from ETL. The plugins `qlib_a158`, `qlib_factor`, and `qlib_strategy` progressively provide baseline research, optional factors, and portfolio policies. Other research methods can use the same contracts. Preserve code/version, data, evaluation windows, parameters, costs, and Task/Run IDs when comparing candidates.
+The reference chain is **ETL → Train → Predict → Backtest**, with independent factor analysis from ETL. `qlib_a158`, `qlib_factor`, and `qlib_strategy` provide the baseline, optional factors, and portfolio policies.
 
 ![Studio home with research and Agent entry points](../../figures/studio/home.png)
 

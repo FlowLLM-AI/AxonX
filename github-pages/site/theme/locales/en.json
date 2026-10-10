@@ -1,19 +1,116 @@
 {
   "home": {
+    "stages": {
+      "data": "Market data",
+      "features": "ETL features",
+      "training": "Model training",
+      "prediction": "Prediction",
+      "backtest": "Backtesting"
+    },
+    "paths": {
+      "quickstart": {
+        "title": "Run your first task",
+        "description": "Submit, follow, and inspect a built-in demo task."
+      },
+      "research-overview": {
+        "title": "Build a research workflow",
+        "description": "Connect data, features, training, predictions, and backtests."
+      },
+      "agent-overview": {
+        "title": "Develop with an Agent",
+        "description": "Use a research prompt and AxonX Skill with an external Agent or a built-in Studio session."
+      }
+    },
+    "journeys": {
+      "agent-external": {
+        "title": "Research with an agent",
+        "description": "Develop or improve research plugins, run Tasks, inspect results, and iterate."
+      },
+      "research-experiments": {
+        "title": "Design inspectable experiments",
+        "description": "Fix controls, screen candidates, then confirm independently."
+      },
+      "guides-remote-machines": {
+        "title": "Manage execution environments",
+        "description": "Connect remote machines and maintain tasks, files, and services."
+      },
+      "dev_guide": {
+        "title": "Extend research capabilities",
+        "description": "Build plugins using Task contracts and framework extension points."
+      }
+    },
+    "screens": {
+      "lineage": {
+        "title": "Task lineage",
+        "description": "Inspect execution records and trace upstream artifacts."
+      },
+      "training": {
+        "title": "Model training",
+        "description": "Inspect the evidence, from configuration to validation curves."
+      },
+      "backtest": {
+        "title": "Backtesting",
+        "description": "Read returns, costs, and quality together."
+      },
+      "comparison": {
+        "title": "Strategy comparison",
+        "description": "Understand strategy differences over a shared period."
+      }
+    },
+    "capabilities": {
+      "plugins-management": {
+        "title": "Research, independently extensible",
+        "description": "Package algorithms and tasks as plugins with explicit input and output contracts."
+      },
+      "concepts-task-lifecycle": {
+        "title": "A record of every run",
+        "description": "Keep status, logs, parameters, and artifacts in one task workspace."
+      },
+      "guides-remote-machines": {
+        "title": "Multiple machines, one entry point",
+        "description": "Access remote tasks, machine resources, and research results through a shared interface."
+      },
+      "api-overview": {
+        "title": "Studio, CLI, and agents connected",
+        "description": "Share Job interfaces and workspace records to iterate on research evidence."
+      }
+    },
     "star": "Give AxonX a Star on GitHub!",
     "headline": "Quantitative research.",
     "headlineAccent": "Built with Agents.",
-    "develop": "Develop with an Agent",
+    "lead": "An agent-native harness for quantitative code development, experiment execution, and result analysis. Use your research prompt and AxonX Skill to develop or improve plugins with an external or built-in Agent.",
     "tryStudio": "Try Studio",
     "getStarted": "Get started",
-    "workflowTitle": "From prompt to research evidence",
-    "evidence": "Code · Tasks · Results · Iteration",
-    "contents": "Homepage contents",
-    "stages": {
-      "prompt": "Research prompt + AxonX Skill",
-      "code": "Develop or optimize a plugin",
-      "experiment": "Execute experiments as Tasks",
-      "iterate": "Inspect evidence and iterate"
+    "exploreWorkflow": "Explore the workflow",
+    "workflowTitle": "From data to evidence",
+    "factorAnalysis": "Factor analysis",
+    "etlBranch": "Independent ETL branch",
+    "evidence": "Parameters · Logs · Lineage · Artifacts",
+    "updatesTitle": "Latest Updates",
+    "pathsLabel": "Choose your starting point",
+    "showcaseTitle": "See your research unfold.",
+    "exploreStudio": "Explore Studio",
+    "showcaseLead": "From task execution to result interpretation, inspect your research in one workspace.",
+    "showcaseLabel": "Studio showcase",
+    "previousSlide": "Previous slide",
+    "actualInterface": "ACTUAL INTERFACE",
+    "readGuide": "Read the guide",
+    "nextSlide": "Next slide",
+    "capabilitiesTitle": "Flexible research. Grounded execution.",
+    "journeysTitle": "Continue by goal.",
+    "documentationMap": "Documentation map",
+    "caseTitle": "Improving Alpha158 with factors and portfolio policies",
+    "experimentDesign": "Experiment design",
+    "caseDescription": "An Agent develops market cross-sectional features and rank-retention policies as plugins on the Alpha158 baseline. Top20 net annualized returns are 7.67%, 9.03% and 32.37% for baseline, risk factors and the 3-day policy, with 0.05% buy / 0.15% sell fees. Market data is incomplete; there is no independent confirmation window.",
+    "benchmark": "Read the benchmark",
+    "reproduction": "Features, parameters, and reproduction",
+    "closingTitle": "Start with one Task.",
+    "closingDescription": "The built-in demo needs no external data or model credentials.",
+    "runDemo": "Run the demo",
+    "browseDocs": "Browse all docs",
+    "benchmarkFigures": {
+      "signal": "Alpha158 and risk-factor IC / RankIC comparison",
+      "portfolio": "Top20 / Top30 net annualized returns for baseline, risk factors and 3-day strategy"
     }
   },
   "preferences": {

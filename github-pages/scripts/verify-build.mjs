@@ -184,16 +184,21 @@ for (const [language, html] of [
   ["zh", cn],
   ["en", en],
 ]) {
-  for (const section of homepage[language].sections) {
+  assert(
+    html.includes(homepage[language].html),
+    `Homepage updates differ from README: ${language}`,
+  );
+  for (const section of [
+    "studio-section",
+    "capability-section",
+    "case-study",
+    "closing",
+  ]) {
     assert(
-      html.includes(section.html),
-      `Homepage differs from README section: ${language}/${section.title}`,
+      html.includes(section),
+      `Homepage missing original section: ${language}/${section}`,
     );
   }
-  assert(
-    html.includes(homepage[language].summary),
-    `Homepage intro differs from README: ${language}`,
-  );
 }
 assert(
   !cn.includes('class="VPSidebar"'),

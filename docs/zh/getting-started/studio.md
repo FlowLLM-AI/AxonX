@@ -10,11 +10,9 @@ AxonX Studio 是面向 Agent 的量化研究 Harness 的浏览器工作台，首
 
 ## 研究与开发入口
 
-首页提供 **打开 Agent**、**提交任务**与**任务管理**。结合研究 Prompt、[AxonX Skill](../../../skills/axonx/SKILL.md) 和外部或内置 Agent，开发或优化插件。内置 Agent 开发需要配置模型凭据、源码仓库访问和 SDK 文件／命令工具，并提供 Skill 或启用开发指南。详见[Agent 使用](../agent/usage.md#开发或优化插件)。
+首页提供 **打开 Agent**、**提交任务**与**任务管理**。向 Agent 提供研究 Prompt 和 [AxonX Skill](../../../skills/axonx/SKILL.md)，开发插件前配置源码访问与开发工具。先开发插件，再安装到选定服务，等待上游成功后提交依赖 Task。详见[Agent 使用](../agent/usage.md#开发或优化插件)。
 
-源码修改、选定执行服务中的安装和 Task 提交应分开完成。先核对服务的 Schema 与产物要求，再等待每个上游 Task 成功后提交依赖任务。Studio 不会自动安装源码修改，也不会自动执行依赖图。
-
-首页以 Qlib Alpha158 为参考：主链为 **ETL → 训练 → 预测 → 回测**，因子分析从 ETL 独立分支。`qlib_a158`、`qlib_factor` 与 `qlib_strategy` 依次提供基线研究、可选因子和组合策略，其他研究方法也可使用相同契约。比较候选时，保留代码／版本、数据、评估窗口、参数、成本及 Task/Run ID。
+参考主链为 **ETL → 训练 → 预测 → 回测**，因子分析从 ETL 独立分支。`qlib_a158`、`qlib_factor` 与 `qlib_strategy` 分别提供基线、可选因子和组合策略。
 
 ![包含研究与 Agent 入口的 Studio 首页](../../figures/studio/home.png)
 
