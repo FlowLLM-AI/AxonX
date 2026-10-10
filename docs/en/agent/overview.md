@@ -1,13 +1,17 @@
 ---
-title: Agent Integration Overview
+title: Agent Development Overview
 description: Choose external CLI / MCP access or built-in agent sessions in Studio.
 ---
 
-# Agent Integration Overview
+# Agent Development Overview
 
 AxonX gives Agents tools and a runtime to develop quantitative plugins, execute experiments, and analyze results. Combine a research prompt with the AxonX Skill or development guide, then use an external host or configured built-in sessions in Studio. Both paths can support plugin development when source and code tools are available; model configuration and sessions are managed by different parties.
 
 ![Independent Agent integration paths](../../figures/agent/mcp-surfaces.svg)
+
+## Start with a research objective
+
+Prepare source and code tools, then use [Skill and research prompt](research-prompt.md) to define the baseline, hypothesis, windows, metrics, and execution service. After development, follow [Research](../research/overview.md) to execute and evaluate.
 
 ## Choose a path
 

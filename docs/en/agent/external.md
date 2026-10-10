@@ -66,17 +66,11 @@ Omit `task_name` by default so the framework generates an instance name. Reusing
 
 ## Give the agent a concrete research goal
 
-```text
-Read the AxonX Skill and the baseline plugin source. Develop a separate plugin or optimize the named existing plugin.
-Define the hypothesis and fixed controls, implement the quantitative code, and test feature timing and artifact compatibility.
-Install into the selected service, discover live Task schemas, and execute the required research stages.
-Keep actual Task/Run IDs; inspect artifacts and report comparable metrics, failures, and limitations.
-Use development windows for candidate selection and reserve an independent confirmation window.
-```
+Use [Skill and research prompt](research-prompt.md) to define the baseline, hypothesis, data, windows, metrics, and deliverables. That page includes a ready-to-use exploration example.
 
 Feature changes usually require ETL → Train → Predict → Backtest. Model changes can reuse a compatible ETL; portfolio-management changes can reuse a compatible Predict. Run factor analysis independently from ETL when diagnostics are needed. After changes to contracts, fields, or feature timing, verify whether old upstream artifacts remain reusable.
 
-Define controls and confirmation windows with [experiment design and confirmation](../research/experiments.md) before agent development experiments. See the [project benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) and [Qlib Factor](../../../plugins/qlib_factor/README.md) for the concrete case and evidence; see the [README development workflow](../../../README.md#agent-access-and-development-guides) for an example exploration prompt.
+Define controls and confirmation windows with [experiment design and confirmation](../research/experiments.md) before agent development experiments. See the [Alpha158 improvement case](../research/alpha158-case.md) and [Qlib Factor](../../../plugins/qlib_factor/README.md) for the concrete case and evidence; see the [Skill and research prompt](research-prompt.md) for an example exploration prompt.
 
 ## What to report on completion
 

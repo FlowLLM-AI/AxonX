@@ -6,7 +6,7 @@ export const groups = [
     page: "docs",
     sections: [
       [
-        "入门路径",
+        "首次上手",
         "Start here",
         [
           "docs",
@@ -19,58 +19,26 @@ export const groups = [
         "核心概念",
         "Core concepts",
         [
-          "concepts/architecture",
           "concepts/jobs-and-tasks",
           "concepts/task-lifecycle",
-          "concepts/task-lineage",
           "concepts/workspace",
+          "concepts/task-lineage",
+          "concepts/architecture",
         ],
       ],
-      ["常见问题", "FAQ", ["faq"]],
-    ],
-  },
-  {
-    id: "research",
-    labels: ["量化研究", "Research"],
-    page: "research/overview",
-    sections: [
-      [
-        "研究流程",
-        "Research workflow",
-        [
-          "research/overview",
-          "research/workflow",
-          "research/tushare",
-          "research/results",
-        ],
-      ],
-      [
-        "实验与评估",
-        "Experiments & evaluation",
-        [
-          "research/experiments",
-          "research/backtest",
-          "research/strategy-comparison",
-        ],
-      ],
-      [
-        "研究插件",
-        "Research plugins",
-        [
-          "plugins/management",
-          "plugins/qlib-a158",
-          "plugins/qlib-factor",
-          "plugins/qlib-strategy",
-        ],
-      ],
+      ["帮助", "Help", ["faq"]],
     ],
   },
   {
     id: "agent",
-    labels: ["Agent", "Agent"],
+    labels: ["Agent 开发", "Agent development"],
     page: "agent/overview",
     sections: [
-      ["选择接入方式", "Choose an integration", ["agent/overview"]],
+      [
+        "开始开发",
+        "Start developing",
+        ["agent/overview", "agent/research-prompt"],
+      ],
       [
         "外部 Agent",
         "External agents",
@@ -80,24 +48,56 @@ export const groups = [
     ],
   },
   {
+    id: "research",
+    labels: ["量化研究", "Research"],
+    page: "research/overview",
+    sections: [
+      [
+        "运行基线",
+        "Run a baseline",
+        ["research/overview", "research/tushare", "research/workflow"],
+      ],
+      [
+        "开发研究插件",
+        "Develop research plugins",
+        ["dev_guide", "plugins/management"],
+      ],
+      [
+        "插件实例",
+        "Plugin examples",
+        ["plugins/qlib-a158", "plugins/qlib-factor", "plugins/qlib-strategy"],
+      ],
+      [
+        "评估与证据",
+        "Evaluation & evidence",
+        [
+          "research/results",
+          "research/backtest",
+          "research/strategy-comparison",
+          "research/experiments",
+        ],
+      ],
+      ["研究案例", "Case study", ["research/alpha158-case"]],
+    ],
+  },
+  {
     id: "operations",
     labels: ["运行与部署", "Operations"],
     page: "guides/overview",
     sections: [
-      ["运行总览", "Operations overview", ["guides/overview"]],
       [
-        "任务与文件",
-        "Tasks & files",
+        "日常执行",
+        "Daily execution",
         [
+          "guides/overview",
           "guides/task-management",
           "guides/composite-tasks",
           "guides/workspace-files",
-          "guides/task-sync",
         ],
       ],
       [
-        "服务与机器",
-        "Services & machines",
+        "执行环境",
+        "Execution environments",
         [
           "guides/authentication",
           "guides/deployment",
@@ -108,25 +108,24 @@ export const groups = [
       [
         "自动化与维护",
         "Automation & maintenance",
-        ["guides/scheduling", "research/notifications", "guides/operations"],
+        [
+          "guides/scheduling",
+          "research/notifications",
+          "guides/task-sync",
+          "guides/operations",
+        ],
       ],
     ],
   },
   {
     id: "reference",
-    labels: ["接口参考", "Reference"],
+    labels: ["参考手册", "Reference"],
     page: "reference/overview",
     sections: [
-      ["参考总览", "Reference overview", ["reference/overview"]],
       [
-        "CLI、Python 与配置",
-        "CLI, Python & configuration",
-        [
-          "reference/cli",
-          "reference/python",
-          "reference/client-configuration",
-          "reference/configuration",
-        ],
+        "调用接口",
+        "Interfaces",
+        ["reference/overview", "reference/cli", "reference/python"],
       ],
       [
         "HTTP API 与事件",
@@ -141,23 +140,10 @@ export const groups = [
           "api/agent",
         ],
       ],
-    ],
-  },
-  {
-    id: "developers",
-    labels: ["开发扩展", "Developers"],
-    page: "development/overview",
-    sections: [
       [
-        "开发指南",
-        "Development guides",
-        [
-          "development/overview",
-          "development/contributing",
-          "dev_guide",
-          "development/framework-extensions",
-          "development/studio",
-        ],
+        "配置",
+        "Configuration",
+        ["reference/client-configuration", "reference/configuration"],
       ],
       [
         "扩展契约",
@@ -166,6 +152,23 @@ export const groups = [
           "reference/task-contracts",
           "reference/plugin-manifest",
           "reference/research-artifacts",
+        ],
+      ],
+    ],
+  },
+  {
+    id: "developers",
+    labels: ["开发与贡献", "Contributing"],
+    page: "development/overview",
+    sections: [
+      [
+        "框架与 Studio",
+        "Framework & Studio",
+        [
+          "development/overview",
+          "development/contributing",
+          "development/framework-extensions",
+          "development/studio",
         ],
       ],
     ],

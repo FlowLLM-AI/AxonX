@@ -1,11 +1,11 @@
 {
   "home": {
     "stages": {
-      "data": "Market data",
-      "features": "ETL features",
-      "training": "Model training",
-      "prediction": "Prediction",
-      "backtest": "Backtesting"
+      "question": "Research question & prompt",
+      "development": "Agent develops the plugin",
+      "execution": "Harness executes experiments",
+      "evidence": "Inspect artifacts & evidence",
+      "iteration": "Compare results & iterate"
     },
     "paths": {
       "quickstart": {
@@ -14,11 +14,11 @@
       },
       "research-overview": {
         "title": "Build a research workflow",
-        "description": "Connect data, features, training, predictions, and backtests."
+        "description": "Run a baseline, develop plugins, and evaluate features, models, and portfolio policies."
       },
       "agent-overview": {
         "title": "Develop with an Agent",
-        "description": "Use a research prompt and AxonX Skill with an external Agent or a built-in Studio session."
+        "description": "Prepare source and tools; use the Skill and a research prompt to develop plugins."
       }
     },
     "journeys": {
@@ -81,8 +81,7 @@
     "lead": "An agent-native harness for quantitative code development, experiment execution, and result analysis. Use your research prompt and AxonX Skill to develop or improve plugins with an external or built-in Agent.",
     "tryStudio": "Try Studio",
     "getStarted": "Get started",
-    "exploreWorkflow": "Explore the workflow",
-    "workflowTitle": "From data to evidence",
+    "workflowTitle": "From research questions to code and evidence",
     "factorAnalysis": "Factor analysis",
     "etlBranch": "Independent ETL branch",
     "evidence": "Parameters · Logs · Lineage · Artifacts",
@@ -101,9 +100,9 @@
     "documentationMap": "Documentation map",
     "caseTitle": "Improving Alpha158 with factors and portfolio policies",
     "experimentDesign": "Experiment design",
-    "caseDescription": "An Agent develops market cross-sectional features and rank-retention policies as plugins on the Alpha158 baseline. Top20 net annualized returns are 7.67%, 9.03% and 32.37% for baseline, risk factors and the 3-day policy, with 0.05% buy / 0.15% sell fees. Market data is incomplete; there is no independent confirmation window.",
-    "benchmark": "Read the benchmark",
-    "reproduction": "Features, parameters, and reproduction",
+    "caseDescription": "Top20 net annualized returns are 7.67%, 9.03%, and 32.37% for Alpha158, two added risk factors, and 3-day rank retention, with buy/sell fees of 0.05%/0.15%. Base and factor models use different feature_fraction settings; market data is incomplete and there is no independent confirmation window.",
+    "benchmark": "Full experiment & evidence",
+    "reproduction": "Qlib Factor algorithms & parameters",
     "closingTitle": "Start with one Task.",
     "closingDescription": "The built-in demo needs no external data or model credentials.",
     "runDemo": "Run the demo",
@@ -111,7 +110,16 @@
     "benchmarkFigures": {
       "signal": "Alpha158 and risk-factor IC / RankIC comparison",
       "portfolio": "Top20 / Top30 net annualized returns for baseline, risk factors and 3-day strategy"
-    }
+    },
+    "baseline": {
+      "data": "Market data",
+      "features": "ETL features",
+      "training": "Model training",
+      "prediction": "Prediction",
+      "backtest": "Backtesting"
+    },
+    "baselineLabel": "Reference example: Qlib Alpha158",
+    "startDeveloping": "Develop with an Agent"
   },
   "preferences": {
     "light": "Switch to light theme",
@@ -132,7 +140,8 @@
     "next": "Next",
     "edit": "Edit this page on GitHub",
     "returnToTop": "Back to top",
-    "menu": "Menu"
+    "menu": "Menu",
+    "tryOnline": "Try online"
   },
   "search": {
     "button": {

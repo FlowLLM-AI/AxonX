@@ -52,7 +52,7 @@ The default `cwd` is the service workspace, which does not automatically include
 Use the available CLI or explicitly configured Job tools for installation and submission; see [Agent configuration](configuration.md).
 
 Give the Agent a research objective, baseline or plugin to optimize, data, evaluation windows, metrics, costs, and execution target. Keep source changes, installation in the selected service, and Task submission separate. Verify the service's schemas and upstream artifacts; wait for upstream success before submitting dependent Tasks.
-Follow the [shared development loop](overview.md#the-shared-research-loop); the [README](../../../README.md#agent-access-and-development-guides)
+Follow the [shared development loop](overview.md#the-shared-research-loop); the [Skill and research prompt](research-prompt.md)
 provides an exploration prompt. Retain code changes and Task evidence separately from session history.
 
 ## Reading streamed messages

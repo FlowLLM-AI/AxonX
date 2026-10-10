@@ -51,7 +51,7 @@ AxonX Agent 将工作区查询工具接入 Claude 后端，用会话完成任务
 安装与提交通过可用 CLI 或显式配置的 Job 工具完成，见 [Agent 配置](configuration.md)。
 
 向 Agent 提供研究目标、基线或待优化插件、数据、评估窗口、指标、成本和执行目标。分开完成源码修改、选定服务中的安装与 Task 提交，核对服务 Schema 和上游产物，并等待上游成功后再提交依赖 Task。
-按[共享开发流程](overview.md#共同的研究循环)推进，探索 Prompt 示例见 [README](../../../README_ZH.md#agent-接入与开发指南)。
+按[共享开发流程](overview.md#共同的研究循环)推进，探索 Prompt 示例见 [Skill 与研究 Prompt](research-prompt.md)。
 代码改动与 Task 证据应独立于会话历史保留。
 
 ## 阅读流式消息

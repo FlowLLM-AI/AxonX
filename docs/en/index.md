@@ -1,54 +1,34 @@
 # AxonX Documentation Map
 
-AxonX is an agent-native harness for quantitative research, providing tools and a runtime for quantitative code development, experiment execution, and result analysis. External or built-in Agents combine a research prompt with the AxonX Skill to develop or improve plugins. Tasks define research inputs and outputs; shared Jobs and workspace records connect execution to inspectable evidence.
+AxonX is an agent-native harness for quantitative research, providing unified tools and a runtime for quantitative code development, experiment execution, and result analysis. You define the research question; the Agent implements it; the Harness manages execution and evidence.
 
 ## Choose your starting point
 
-| Goal                            | Start here                                                                                      | What you will be able to do                                         |
-| ------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Use AxonX for the first time    | [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)               | Submit a demo, wait for completion, inspect parameters and results  |
-| Conduct quantitative research   | [Research overview](research/overview.md) → [Research workflow](research/workflow.md)           | Prepare data and connect ETL, training, prediction, and backtesting |
-| Develop research with an Agent  | [Agent integration overview](agent/overview.md) → [External agents](agent/external.md)          | Develop plugins and evaluate changes through Skill + prompt         |
-| Chat in Studio                  | [Built-in agent configuration](agent/configuration.md) → [Built-in agent usage](agent/usage.md) | Query tasks, troubleshoot, and explain existing research evidence   |
-| Deploy services or manage tasks | [Operations overview](guides/overview.md) → [Remote machines](guides/remote-machines.md)        | Track execution, manage files, and connect to target services       |
-| Develop plugins or client code  | [Development overview](development/overview.md) → [Task contracts](reference/task-contracts.md) | Implement research Tasks, register plugins, and call services       |
+| Goal                         | Start here                                                                                     | Outcome                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Use AxonX for the first time | [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)              | Submit a demo, wait for success, and inspect records            |
+| Develop with an Agent        | [Agent development](agent/overview.md) → [Skill and research prompt](agent/research-prompt.md) | Prepare source, tools, and an objective for plugin development  |
+| Run a research baseline      | [Research](research/overview.md) → [Alpha158 workflow](research/workflow.md)                   | Connect data, training, prediction, and backtesting             |
+| Implement a research plugin  | [Development and operations guide](dev_guide.md) → [Plugin management](plugins/management.md)  | Implement Tasks, install and discover the plugin                |
+| Evaluate a change            | [Experiment design](research/experiments.md) → [Alpha158 case](research/alpha158-case.md)      | Compare candidates, retain evidence, and identify limits        |
+| Manage execution services    | [Operations](guides/overview.md)                                                               | Track Tasks, manage files and remote environments               |
+| Look up fields and protocols | [Reference](reference/overview.md)                                                             | Find interfaces, configuration, and extension contracts         |
+| Change AxonX itself          | [Contributing](development/overview.md)                                                        | Extend the framework or Studio and complete contribution checks |
 
-Read the [project overview](../../README.md) for positioning and the experiment case study. The built-in demo needs no market data or model credentials. Research plugins need data; the built-in agent needs model configuration; external agents use their host's model configuration.
+Read the [project overview](../../README.md) for positioning, plugins, and a case summary. The built-in demo needs no market data or model credentials. Research plugins need data; the built-in Agent needs service-side model configuration; external Agents use their host's model configuration.
 
-## How the documentation is organized
+## Recommended reading order
 
-### Get started: complete a minimal execution loop
+Complete the demo first, then read about [Jobs and Tasks](concepts/jobs-and-tasks.md), [lifecycle](concepts/task-lifecycle.md), [workspace](concepts/workspace.md), and [lineage](concepts/task-lineage.md). See [architecture](concepts/architecture.md) for implementation principles.
 
-Run a real task with the [quickstart](getting-started/quickstart.md), then inspect the same workspace in [Studio](getting-started/studio.md). Read about [architecture](concepts/architecture.md), [Jobs and Tasks](concepts/jobs-and-tasks.md), [task lifecycle](concepts/task-lifecycle.md), [lineage](concepts/task-lineage.md), and the [workspace](concepts/workspace.md) to understand submission, execution, and persistent records.
+The main research path is: **connect an Agent → define an objective → develop a plugin → install in the execution service → run Tasks → inspect artifacts → compare and iterate**. Agent development covers hosts, tools, and prompts; Research covers algorithm examples, plugin authoring, and evaluation; Contributing covers framework and Studio changes.
 
-### Research: move from data to inspectable conclusions
-
-Start with the [research overview](research/overview.md). The [research workflow](research/workflow.md) and [Tushare guide](research/tushare.md) cover data preparation and stage execution. [Reading results](research/results.md) covers artifact inspection. [Experiment design and confirmation](research/experiments.md), [backtest methodology](research/backtest.md), and [strategy comparison](research/strategy-comparison.md) explain how to evaluate evidence.
-
-[Plugin management](plugins/management.md) covers installation, discovery, and deployment. [Alpha158](../../plugins/qlib_a158/README.md) provides the baseline research chain; [Qlib Factor](../../plugins/qlib_factor/README.md) provides a concrete case of added features and ablations; [Qlib Strategy](../../plugins/qlib_strategy/README.md) adds rank retention and bounded replacements. Plugin documentation owns algorithms and parameters; the [experiment comparison](research/experiments.md#comparison) owns settings, metrics, and provenance.
-
-### Agent: choose an external host or built-in sessions
-
-The [integration overview](agent/overview.md) explains prerequisites for each path. [External agents](agent/external.md) covers plugin development and execution with Skill + prompt; [MCP integration](agent/mcp-integration.md) explains service tool discovery and responses. [Built-in configuration](agent/configuration.md) and [usage](agent/usage.md) cover Claude Agent SDK sessions in Studio.
-
-### Operations: maintain services and execution environments
-
-The [operations overview](guides/overview.md) connects service setup and record maintenance. Daily operations include [task management](guides/task-management.md), [file browsing](guides/workspace-files.md), and [task snapshot synchronization](guides/task-sync.md). For deployment, read [authentication](guides/authentication.md), [service hosting](guides/deployment.md), and [remote machines](guides/remote-machines.md). Configure an [HTTP proxy](guides/http-proxy.md), [scheduled Jobs](guides/scheduling.md), or [DingTalk notifications](research/notifications.md) as needed. See [operations](guides/operations.md) for troubleshooting, backup, and recovery.
-
-### Reference: look up parameters and responses
-
-Choose an interface in the [reference overview](reference/overview.md). Use the [CLI reference](reference/cli.md) for command syntax, [Python reference](reference/python.md) for programmatic calls, and [client configuration](reference/client-configuration.md) and [server configuration](reference/configuration.md) for connection and startup fields.
-
-Start with the [API overview](api/overview.md), then consult [tasks](api/tasks.md), [events](api/events.md), [files](api/workspace.md), [machines](api/machines.md), [plugins and synchronization](api/plugins-sync.md), or [agent sessions](api/agent.md).
-
-### Developers: implement capabilities and preserve contracts
-
-Choose an extension layer in the [development overview](development/overview.md). The [contribution guide](../../CONTRIBUTING.md) covers development setup and checks; the [development and operations guide](dev_guide.md) covers Task implementation and CLI practice. [Framework extensions](development/framework-extensions.md) and [Studio development](development/studio.md) explain their respective extension points. Consult [Task contracts](reference/task-contracts.md), the [plugin protocol](reference/plugin-manifest.md), and [research artifact contracts](reference/research-artifacts.md) during implementation.
+Each page has one navigation owner and cross-links to related steps. How-to guides explain procedures, Reference defines fields and contracts, plugin READMEs maintain algorithms, and case studies retain settings, metrics, reproduction commands, and Task provenance.
 
 ## Reading conventions
 
-How-to guides address concrete goals; reference pages define fields, responses, and boundaries. Project and plugin READMEs maintain the project overview and algorithm details respectively. English and Chinese pages use matching paths and share English screenshots and diagrams.
+English and Chinese pages use matching paths and share screenshots and diagrams. Replace example addresses, credentials, and Task IDs with actual values. Use the Job and Task schemas discovered on the connected service.
 
-Replace example credentials, addresses, and Task IDs with actual values. Use the Job and Task schemas discovered on the connected service. Accepted submission still requires waiting for a terminal Task state. Reusing a name replaces a finished task directory; preserve distinct identities for experiment comparisons.
+Accepted submission still requires waiting for a terminal Task state. Lineage records do not automatically schedule a DAG. Reusing a name replaces a finished task directory; preserve distinct identities for experiment comparisons.
 
-Start with the [FAQ](faq.md) when something fails, then use the [operations guide](guides/operations.md) to locate the failure in the service, Job, or Task layer.
+Start with the [FAQ](faq.md) when something fails, then use [troubleshooting and recovery](guides/operations.md) to locate the failure in the service, Job, or Task layer.

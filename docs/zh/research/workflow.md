@@ -1,11 +1,11 @@
 ---
-title: 量化研究流程
+title: Alpha158 研究流程
 description: 用 Alpha158 插件串联数据、因子分析、训练、预测与回测。
 ---
 
-# 量化研究流程
+# Alpha158 研究流程
 
-AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使用仓库中的 `plugins/qlib_a158/` 作为具体算法实现，建立从 Tushare 数据到回测结果的闭环。增强版 `qlib_factor` 使用独立的 `qlib_factor_*` 注册名，并增加训练特征组参数。两者共享研究阶段与基础产物形式，但跨插件复用上游前仍需检查 Task 定义、特征顺序和协议；具体用法见[增强插件](../../../plugins/qlib_factor/README_ZH.md)。
+AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使用仓库中的 `plugins/qlib_a158/` 作为具体算法实现，建立从 Tushare 数据到回测结果的闭环。增强版 `qlib_factor` 使用独立的 `qlib_factor_*` 注册名，并增加训练特征组参数。两者共享研究阶段与基础产物形式，但跨插件复用上游前仍需检查 Task 定义、特征顺序和协议；具体用法见[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)。
 
 ![数据到研究证据](../../figures/research/workflow.svg)
 

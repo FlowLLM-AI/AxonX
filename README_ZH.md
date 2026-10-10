@@ -167,7 +167,7 @@ axonx start --components.agent.default.load_dev_guide true --language zh
 插件开发、服务安装和 Task 契约详见[开发指南](docs/zh/dev_guide.md)。
 
 开始 Alpha158 研究前，配置 `AXONX_TUSHARE_TOKEN` 并准备足够的历史数据，再按[研究流程](docs/zh/research/workflow.md)
-执行各阶段；完整复现命令见[实验指南](docs/zh/research/experiments.md#comparison)。
+执行各阶段；完整复现命令见[Alpha158 改进实验](docs/zh/research/alpha158-case.md)。
 
 <a id="alpha158-与插件系统"></a>
 
@@ -209,7 +209,7 @@ axonx start --components.agent.default.load_dev_guide true --language zh
 三组回测均报告 `incomplete_market_data`；成交使用同收盘报价代理，2026 年也并非完整年度。
 这些结果描述的是适配后的 AxonX 实验，不能据此认定优于原始 Qlib 基准。
 
-[完整设定、指标、复现命令与任务来源](docs/zh/research/experiments.md#comparison)。
+[完整设定、指标、复现命令与任务来源](docs/zh/research/alpha158-case.md)。
 
 <a id="axonx-cli-命令与远程执行"></a>
 

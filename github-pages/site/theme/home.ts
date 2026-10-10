@@ -6,11 +6,29 @@ import backtest from "../../figures/studio/backtest-overall.png";
 import comparison from "../../figures/studio/strategy-overview.png";
 
 export const stages = [
-  { id: "data", number: "01", page: "research/tushare", color: "cyan" },
-  { id: "features", number: "02", page: "research/workflow", color: "violet" },
-  { id: "training", number: "03", page: "research/results", color: "blue" },
-  { id: "prediction", number: "04", page: "research/results", color: "amber" },
-  { id: "backtest", number: "05", page: "research/backtest", color: "green" },
+  {
+    id: "question",
+    number: "01",
+    page: "agent/research-prompt",
+    color: "cyan",
+  },
+  { id: "development", number: "02", page: "dev_guide", color: "violet" },
+  { id: "execution", number: "03", page: "research/workflow", color: "blue" },
+  { id: "evidence", number: "04", page: "research/results", color: "amber" },
+  {
+    id: "iteration",
+    number: "05",
+    page: "research/experiments",
+    color: "green",
+  },
+] as const;
+
+export const baseline = [
+  { id: "data", page: "research/tushare" },
+  { id: "features", page: "research/workflow" },
+  { id: "training", page: "research/results" },
+  { id: "prediction", page: "research/results" },
+  { id: "backtest", page: "research/backtest" },
 ] as const;
 
 export const paths = [
@@ -20,11 +38,15 @@ export const paths = [
     page: "getting-started/quickstart",
   },
   {
+    id: "agent-overview",
+    label: "02 / AGENT DEVELOPMENT",
+    page: "agent/overview",
+  },
+  {
     id: "research-overview",
-    label: "02 / RESEARCH",
+    label: "03 / RESEARCH",
     page: "research/overview",
   },
-  { id: "agent-overview", label: "03 / AGENT", page: "agent/overview" },
 ] as const;
 
 export const journeys = [

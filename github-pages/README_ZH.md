@@ -8,7 +8,7 @@
 
 ## 阅读路径
 
-站点分为六个导航区：**开始使用、量化研究、Agent、运行与部署、接口参考、开发扩展**。Studio 入门归入开始使用，研究插件归入量化研究，API 与配置归入接口参考。每个分区以总览串联目标与专题指南；Agent 读者先选择外部接入或内置会话。首页仅最新更新从中英文根目录 README 自动生成。研究流程、Studio 展示、能力卡片和研究案例保留原有结构，文案在主题翻译中维护，并与 README 的定位保持一致。
+站点按阅读路径分为六个导航区：**开始使用、Agent 开发、量化研究、运行与部署、参考手册、开发与贡献**。在线体验作为独立按钮提供 Playground。Agent 开发负责接入、Skill 和研究 Prompt；量化研究负责基线、插件开发、评估与案例；参考手册统一接口、配置和扩展契约；开发与贡献负责框架及 Studio。各区以总览连接具体目标，每页只有一个导航归属。
 
 [文档导航](../docs/zh/index.md)按目标提供阅读路径。项目与插件 README 维护概览与算法细节，指南链接到这些来源，避免重复维护实验数据表。每篇文档只有一个导航归属，可以跨区链接。
 
@@ -66,7 +66,7 @@ npm run preview
 
 主题文案与 VitePress 界面标签统一维护在 `site/theme/locales/en.json` 和 `zh.json`，测试检查两份资源的键一致。`i18n.ts` 提供响应式语言资源与站内链接；`language.mjs` 负责语言选择与路由转换；`home.ts` 保存首页链接与图片信息，`lib/readme-home.mjs` 仅将 README 最新更新章节渲染为生成的首页数据。参考 Studio 将语言资源与功能代码分离的结构，响应式能力直接使用 Vue/VitePress，无需额外翻译依赖。Markdown 原文与导航标签继续维护在 `docs/`。
 
-框架文件从 `docs/.vitepress/` 移至 `site/` 和 `lib/`，导航仍与内容放在一起。已有文档 URL 保留。早期的 `getting-started/introduction` 和 `guides/plugin-management` 路由仍不生成，也不提供重定向。
+框架文件从 `docs/.vitepress/` 移至 `site/` 和 `lib/`，导航仍与内容放在一起。导航归属与源码路径独立。Alpha158 案例发布在 `research/alpha158-case`，实验方法位于 `research/experiments`。源码链接使用当前路由，不维护兼容重定向。
 
 ### 新增页面
 
@@ -75,7 +75,7 @@ npm run preview
 3. 从相关目标或指南链接到新页面；阅读路径变化时更新两份文档导航。
 4. 运行测试、构建与格式检查，预览双语及受影响的窄屏、主题。
 
-内容目录会在替换生成输出之前拒绝双语路径不一致、未归属页面、重复归属、导入路由冲突、缺失原文与缺失标题。根目录和插件 README 通过 `lib/site-model.mjs` 映射为 `getting-started/overview`、`development/contributing`、`plugins/alpha158` 和 `plugins/qlib-factor`；`docs/{lang}/index.md` 对应 `{lang}/docs`。
+内容目录会在替换生成输出之前拒绝双语路径不一致、未归属页面、重复归属、导入路由冲突、缺失原文与缺失标题。根目录和插件 README 通过 `lib/site-model.mjs` 映射为 `getting-started/overview`、`development/contributing`、`plugins/qlib-a158`、`plugins/qlib-factor` 和 `plugins/qlib-strategy`；`docs/{lang}/index.md` 对应 `{lang}/docs`。
 
 ### 链接与导出
 
@@ -141,7 +141,7 @@ DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages ru
 
 根目录与插件 README 在构建时导入，双语正文仍在仓库根目录与各插件目录维护。导航由 `docs/.vitepress/navigation.mjs` 定义。
 
-阅读路径分为开始使用、量化研究、Agent、运行与部署、接口参考和开发扩展。`docs/en/index.md` 与 `docs/zh/index.md` 提供选路入口；入门教程完成最小流程，操作指南解决具体任务，参考页定义契约，概念页解释执行与记录。
+`docs/en/index.md` 与 `docs/zh/index.md` 维护按目标选路的文档入口。方法页解释通用实验设计，研究案例保留具体设定、指标、复现命令与 Task 来源。首页展示问题 → Agent 开发 → Harness 执行 → 证据检查 → 比较与迭代，Alpha158 作为执行阶段的参考实例。
 
 站点框架位于 `github-pages/site/`，构建模块位于 `github-pages/lib/`，入口脚本位于 `github-pages/scripts/`。`docs/` 维护正文与共用图片，`docs/.vitepress/navigation.mjs` 维护页面归属。
 
@@ -165,4 +165,4 @@ DOCS_BASE=/ DOCS_SITE_URL=https://axon-x.vercel.app npm --prefix github-pages ru
 
 更新图示时检查 SVG 渲染与文字边界、双语引用和完整站点构建。保留截图来源与基准数值；重画概念图不应虚构界面状态或重算历史指标。当前产品品牌资源由 `axonx_studio/public/` 维护；`docs/` 根层的 FlowLLM 标志是 `scripts/generate_flowllm_logo.py` 生成的历史组织素材。
 
-每个导航区以按目标组织的总览为入口，调整阅读顺序时保留已有深层链接。站点为以标志开头的项目 README 补充生成的一级标题，不修改原文。
+每个导航区以按目标组织的总览为入口，修改路由或锚点时同步更新源码链接。站点为以标志开头的项目 README 补充生成的一级标题，不修改原文。

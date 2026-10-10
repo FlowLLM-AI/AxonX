@@ -8,7 +8,7 @@ The default deployment is <https://flowllm-ai.github.io/AxonX/>, with `/en/` and
 
 ## Reader journeys
 
-The site has six navigation areas: **Get started, Research, Agent, Operations, Reference, and Developers**. Studio tutorials belong to Get started; research plugins belong to Research; APIs and configuration belong to Reference. Each area opens with a goal-based overview. Agent readers first choose external integration or built-in sessions. Only Latest Updates is generated from the English and Chinese root READMEs. The homepage keeps its workflow, Studio showcase, capability cards, and research case; their copy lives in theme translations and follows the README’s positioning.
+The site has six reader journeys: **Get started, Agent development, Research, Operations, Reference, and Contributing**. A separate Try online button opens Playground. Agent development owns integration, the Skill, and research prompts; Research owns baselines, plugin authoring, evaluation, and cases; Reference owns interfaces, configuration, and extension contracts; Contributing owns the framework and Studio. Each area starts with a goal-based overview and each page has one navigation owner.
 
 [The documentation map](../docs/en/index.md) provides goal-based reading paths. Project and plugin READMEs own overview and algorithm details; guides link to those sources instead of duplicating experiment tables. Each document has one navigation owner and may cross-link to related areas.
 
@@ -66,7 +66,7 @@ Generated files, dependencies, lockfiles, and output are excluded from formattin
 
 Theme translations and VitePress interface labels live in `site/theme/locales/en.json` and `zh.json`, with matching keys checked by tests. `i18n.ts` exposes reactive resources and localized links; `language.mjs` owns language selection and route conversion. `home.ts` holds homepage links and image metadata; `lib/readme-home.mjs` renders only the README Latest Updates section into generated homepage data. Follow Studio’s separation of language resources from feature code; Vue/VitePress supplies reactivity without another translation dependency. Keep canonical Markdown and navigation labels in `docs/`.
 
-Framework files were moved from `docs/.vitepress/` into `site/` and `lib/`; navigation remains next to content. Existing document URLs are retained. The older `getting-started/introduction` and `guides/plugin-management` routes remain absent without redirects.
+Framework files were moved from `docs/.vitepress/` into `site/` and `lib/`; navigation remains next to content. Navigation ownership can change independently of source paths. The Alpha158 case is published at `research/alpha158-case`; experiment methods remain at `research/experiments`. Source links use the current routes; no compatibility redirects are maintained.
 
 ### Add a page
 
@@ -75,7 +75,7 @@ Framework files were moved from `docs/.vitepress/` into `site/` and `lib/`; navi
 3. Link from the relevant goal or guide, and update both document maps when a reading path changes.
 4. Run tests, build, and format checks; preview both languages and affected narrow layouts and themes.
 
-The catalog rejects mismatched translations, orphan pages, duplicate owners, imported-route collisions, missing sources, and missing headings before replacing generated output. Root and plugin READMEs are imported using the mappings in `lib/site-model.mjs`: `getting-started/overview`, `development/contributing`, `plugins/alpha158`, and `plugins/qlib-factor`. `docs/{lang}/index.md` becomes `{lang}/docs`.
+The catalog rejects mismatched translations, orphan pages, duplicate owners, imported-route collisions, missing sources, and missing headings before replacing generated output. Root and plugin READMEs are imported using the mappings in `lib/site-model.mjs`: `getting-started/overview`, `development/contributing`, `plugins/qlib-a158`, `plugins/qlib-factor`, and `plugins/qlib-strategy`. `docs/{lang}/index.md` becomes `{lang}/docs`.
 
 ### Links and exports
 
@@ -141,7 +141,7 @@ The English and Chinese documentation use matching file paths and sections. Scre
 
 Root and plugin READMEs are imported at build time; their bilingual sources remain at the repository root and in each plugin directory. Navigation is defined in `docs/.vitepress/navigation.mjs`.
 
-Reader journeys are organized as Get started, Research, Agent, Operations, Reference, and Developers. The document maps in `docs/en/index.md` and `docs/zh/index.md` explain where to begin. Tutorials complete a minimal workflow, how-to guides address a concrete task, references define contracts, and concept pages explain execution and records.
+`docs/en/index.md` and `docs/zh/index.md` provide goal-based entry points. Method guides explain experiment design; case studies retain specific settings, metrics, reproduction commands, and Task provenance. The homepage shows questions → Agent development → Harness execution → evidence inspection → comparison and iteration, with Alpha158 as a reference execution example.
 
 The site framework lives in `github-pages/site/`, with shared build modules in `github-pages/lib/` and entry scripts in `github-pages/scripts/`. Keep prose and shared figures in `docs/`, and maintain page ownership in `docs/.vitepress/navigation.mjs`.
 
@@ -165,4 +165,4 @@ Use the shared hand-drawn font stack (`Comic Sans MS`, `Chalkboard SE`, `Comic N
 
 When updating figures, verify SVG rendering and text bounds, matching bilingual references, and the complete site build. Preserve screenshot provenance and benchmark values; conceptual redrawing is not a reason to fabricate UI states or recalculate historical metrics. `axonx_studio/public/` owns current product branding; the root FlowLLM logo files in `docs/` are legacy organization artwork produced by `scripts/generate_flowllm_logo.py`.
 
-Each navigation area opens with a goal-based overview. Preserve existing deep links when improving reading order. The site imports the logo-led project README with a generated H1, without editing its source.
+Each navigation area opens with a goal-based overview. Update source links when changing routes or anchors. The site imports the logo-led project README with a generated H1, without editing its source.

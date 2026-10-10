@@ -1,28 +1,26 @@
-# Quantitative research
+# Quantitative Research
 
-Use AxonX to develop quantitative plugins with an Agent and evaluate changes through Tasks with explicit inputs, inspectable artifacts, and upstream relationships. Start with a working service and the [demo tutorial](../getting-started/quickstart.md). Research algorithms and data requirements belong to installed plugins.
+Implement quantitative logic in plugins, execute Tasks and retain evidence, then evaluate changes with consistent definitions. AxonX provides contracts and a runtime; plugins define algorithms and data requirements. Alpha158 is the reference workflow, and other methods can use the same plugin contracts.
 
-## Choose the next step
+## Choose a research step
 
-| Goal                        | Guide                                         | Result                                                                |
-| --------------------------- | --------------------------------------------- | --------------------------------------------------------------------- |
-| Execute the Alpha158 chain  | [Research workflow](workflow.md)              | Successful ETL → Train → Predict → Backtest records                   |
-| Prepare historical data     | [Tushare data](tushare.md)                    | Raw partitions and master data covering the experiment                |
-| Inspect stage outputs       | [Reading results](results.md)                 | Feature, model, prediction, and backtest evidence                     |
-| Evaluate a change           | [Experiment design](experiments.md)           | Controls, ablations, a locked candidate, and independent confirmation |
-| Interpret portfolio metrics | [Backtest methodology](backtest.md)           | Returns, costs, drawdown, and execution assumptions                   |
-| Compare two strategies      | [Strategy comparison](strategy-comparison.md) | Metrics over common valid dates                                       |
+| Goal                                 | Start here                                                                                          | Outcome                                                         |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Have an Agent implement an objective | [Skill and research prompt](../agent/research-prompt.md)                                            | Define hypotheses, baseline, controls, and tools                |
+| Run the Alpha158 baseline            | [Tushare data](tushare.md) → [Alpha158 workflow](workflow.md)                                       | Successful ETL → Train → Predict → Backtest records             |
+| Develop or improve a plugin          | [Development and operations guide](../dev_guide.md) → [Plugin management](../plugins/management.md) | Implement, register, install, and discover Tasks                |
+| Inspect execution artifacts          | [Reading results](results.md) → [Backtest methodology](backtest.md)                                 | Inspect features, models, predictions, and the portfolio ledger |
+| Evaluate a research change           | [Strategy comparison](strategy-comparison.md) → [Experiment design](experiments.md)                 | Align definitions, control variables, and confirm independently |
+| Reproduce a documented case          | [Alpha158 improvement case](alpha158-case.md)                                                       | Settings, metrics, commands, and Task/Run provenance            |
 
-Factor analysis branches from ETL independently; it is not required before training. Submission returns a handle; wait for that execution to succeed before passing its Task ID downstream. Lineage records dependencies without automatically scheduling the chain.
+## Extend a baseline progressively
 
-## Choose a research plugin
+[Alpha158](../../../plugins/qlib_a158/README.md) provides 158 price/volume features, LightGBM, factor analysis, and TopN backtesting. [Qlib Factor](../../../plugins/qlib_factor/README.md) extends ETL and training with 13 optional features; training still defaults to the 158 baseline features. [Qlib Strategy](../../../plugins/qlib_strategy/README.md) reuses predictions and adds minimum holding periods, rank retention, and replacement count limits.
 
-[Plugin management](../plugins/management.md) explains installation and discovery in the execution environment. [Alpha158](../../../plugins/qlib_a158/README.md) provides the baseline price/volume features, LightGBM training, and TopN backtest. [Qlib Factor](../../../plugins/qlib_factor/README.md) adds independently registered Tasks and configurable feature groups. [Qlib Strategy](../../../plugins/qlib_strategy/README.md) reuses predictions and adds rank-retention portfolio management.
+Plugin READMEs maintain parameters, algorithms, and artifact definitions. Discover the selected service's actual Task schemas and check upstream compatibility before submission. See [research artifact contracts](../reference/research-artifacts.md) for fields.
 
-Discover the installed Task schemas before submitting. Keep parameters, algorithms, and artifact definitions with the plugin; use [research artifact contracts](../reference/research-artifacts.md) when implementing outputs for Studio.
+## Execution and conclusions
 
-## Follow the agent-developed experiment
+Keep source changes, service installation, and Task submission separate. Retain source revisions, data snapshots, windows, parameters, costs, and actual Task/Run IDs. Wait for upstream success before downstream submission; lineage records do not automatically schedule a DAG. Factor analysis branches independently from ETL and is not a training prerequisite.
 
-The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) presents three versions corresponding to three plugins: Alpha158, two added risk factors, and a 3-day rank-retention policy. Shared settings, full metrics, and selection evidence live in the [experiment comparison](experiments.md#comparison); plugin READMEs maintain algorithms and configuration differences. The policy was selected exploratorily and has not been independently confirmed.
-
-Read [experiment design](experiments.md) for the reusable method and [external agents](../agent/external.md) for agent access.
+Task success establishes completed execution. Algorithm improvement requires comparable settings, candidate selection records, and independent confirmation. The [Alpha158 case](alpha158-case.md) reports three fixed configurations with limits for incomplete data, parameter differences, and missing independent confirmation.

@@ -1,4 +1,4 @@
-# Interface reference
+# Reference
 
 Use reference pages to look up command syntax, configuration fields, responses, and events. For a first execution, follow the [quickstart](../getting-started/quickstart.md); for a complete research chain, follow the [research workflow](../research/workflow.md).
 
@@ -24,4 +24,12 @@ External agents discover service tools through [MCP integration](../agent/mcp-in
 
 HTTP transport status, JobResponse `success`, and Task terminal state answer different questions. A successful `submit` returns a TaskHandle; use its `task_id` and `run_id` to wait for that execution and inspect its final state. Discover schemas on the connected service because installed plugins and configured Jobs determine available capabilities.
 
-For implementation contracts, see [Task contracts](task-contracts.md), [plugin manifests](plugin-manifest.md), and [research artifacts](research-artifacts.md) under [Developers](../development/overview.md). For execution semantics, see [Jobs and Tasks](../concepts/jobs-and-tasks.md).
+## Extension contracts
+
+| Implementation                                | Reference                                            |
+| --------------------------------------------- | ---------------------------------------------------- |
+| Task inputs, outputs, identity, and lifecycle | [Task contracts](task-contracts.md)                  |
+| Plugin packaging, registration, and discovery | [Plugin manifest](plugin-manifest.md)                |
+| Research artifacts and Studio views           | [Research artifact contracts](research-artifacts.md) |
+
+For plugin authoring steps, see the [development and operations guide](../dev_guide.md). For execution semantics, see [Jobs and Tasks](../concepts/jobs-and-tasks.md).

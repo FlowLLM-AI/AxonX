@@ -4,6 +4,7 @@ import { withBase } from "vitepress";
 import { useSiteI18n } from "./i18n";
 import {
   stages,
+  baseline,
   paths,
   journeys,
   screens,
@@ -66,8 +67,8 @@ function moveTab(event: KeyboardEvent, target: number) {
           <a class="action primary" :href="link('getting-started/quickstart')"
             >{{ t.home.getStarted }} <span>→</span></a
           >
-          <a class="action secondary" :href="link('research/workflow')"
-            >{{ t.home.exploreWorkflow }} <span>↗</span></a
+          <a class="action secondary" :href="link('agent/research-prompt')"
+            >{{ t.home.startDeveloping }} <span>↗</span></a
           >
         </div>
         <div class="hero-meta">
@@ -85,17 +86,26 @@ function moveTab(event: KeyboardEvent, target: number) {
           <span class="workflow-mark">↗</span>
         </div>
         <div class="pipeline">
-          <template v-for="(stage, index) in stages" :key="stage.id">
+          <template v-for="stage in stages" :key="stage.id">
             <a class="stage" :class="stage.color" :href="link(stage.page)"
               ><span class="stage-number">{{ stage.number }}</span
               ><strong>{{ t.home.stages[stage.id] }}</strong
               ><span class="stage-arrow">↗</span></a
             >
-            <div v-if="index === 1" class="branch">
-              <span>↳</span
-              ><a :href="link('research/results')"
-                >{{ t.home.factorAnalysis }} ↗</a
-              ><small>{{ t.home.etlBranch }}</small>
+            <div v-if="stage.id === 'execution'" class="baseline-example">
+              <small>{{ t.home.baselineLabel }}</small>
+              <div class="baseline-stages">
+                <a
+                  v-for="item in baseline"
+                  :key="item.id"
+                  :href="link(item.page)"
+                >
+                  {{ t.home.baseline[item.id] }}
+                </a>
+              </div>
+              <a class="baseline-branch" :href="link('research/results')">
+                {{ t.home.factorAnalysis }} · {{ t.home.etlBranch }} ↗
+              </a>
             </div>
           </template>
         </div>
@@ -314,14 +324,7 @@ function moveTab(event: KeyboardEvent, target: number) {
           </a>
         </div>
         <div class="actions">
-          <a
-            class="action secondary"
-            :href="
-              link('getting-started/overview') +
-              (language === 'zh'
-                ? '#benchmark-agent-开发市场横截面增强特征'
-                : '#benchmark-agent-developed-market-cross-sectional-features')
-            "
+          <a class="action secondary" :href="link('research/alpha158-case')"
             >{{ t.home.benchmark }} ↗</a
           >
           <a class="text-link" :href="link('plugins/qlib-factor')"

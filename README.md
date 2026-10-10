@@ -174,7 +174,7 @@ candidates and iterate on the same evidence. See the [development guide](docs/en
 service installation, and Task contracts.
 
 For Alpha158, configure `AXONX_TUSHARE_TOKEN` and prepare enough historical data before running the
-[research workflow](docs/en/research/workflow.md). The [experiment guide](docs/en/research/experiments.md#comparison)
+[research workflow](docs/en/research/workflow.md). The [Alpha158 case study](docs/en/research/alpha158-case.md)
 provides complete reproduction commands.
 
 <a id="alpha158-and-the-plugin-system"></a>
@@ -220,7 +220,7 @@ Base/factor `feature_fraction` is 0.9/1.0, so differences do not isolate the add
 `incomplete_market_data`; fills use same-close quote proxies and 2026 is a partial year. These results describe the
 adapted AxonX experiments and do not establish outperformance over the original Qlib benchmark.
 
-[Full settings, metrics, reproduction commands, and Task provenance](docs/en/research/experiments.md#comparison).
+[Full settings, metrics, reproduction commands, and Task provenance](docs/en/research/alpha158-case.md).
 
 <a id="axonx-cli-commands-and-remote-execution"></a>
 

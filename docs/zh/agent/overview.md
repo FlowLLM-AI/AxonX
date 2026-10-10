@@ -1,13 +1,17 @@
 ---
-title: Agent 接入总览
+title: Agent 开发总览
 description: 选择外部 Agent 的 CLI / MCP 接入，或 Studio 中的内置 Agent 会话。
 ---
 
-# Agent 接入总览
+# Agent 开发总览
 
 AxonX 为 Agent 开发量化插件、执行实验和分析结果提供工具与运行环境。将研究 Prompt 与 AxonX Skill 或开发指南结合，选择外部宿主或配置好的 Studio 内置会话。具备源码与代码工具时，两条路径都可用于插件开发；模型配置和会话管理由不同一方负责。
 
 ![相互独立的 Agent 接入路径](../../figures/agent/mcp-surfaces.svg)
+
+## 从研究目标开始
+
+先准备源码和代码工具，再用 [Skill 与研究 Prompt](research-prompt.md)明确基线、假设、窗口、指标与执行服务。完成开发后，按[量化研究](../research/overview.md)运行和评估。
 
 ## 选择路径
 

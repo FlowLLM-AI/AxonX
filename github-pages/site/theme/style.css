@@ -54,7 +54,7 @@
 .Layout .VPNav .VPNavBar .divider {
   display: none;
 }
-@media (min-width: 768px) and (max-width: 1100px) {
+@media (min-width: 768px) and (max-width: 1399px) {
   .Layout .VPNavBarSearch {
     padding-left: 16px;
   }
@@ -365,20 +365,35 @@
   margin-left: auto;
   color: var(--tone);
 }
-.branch {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: -2px 0 2px 18px;
-  font-size: 12px;
+.baseline-example {
+  padding: 4px 16px 8px;
   color: var(--vp-c-text-2);
 }
-.branch a {
+.baseline-example > small {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+.baseline-stages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.baseline-stages a + a::before {
+  content: "→";
+  margin-right: 6px;
+  color: var(--vp-c-text-2);
+}
+.baseline-stages a:hover,
+.baseline-branch:hover {
   color: var(--vp-c-brand-1);
 }
-.branch small {
-  margin-left: auto;
-  font-size: 10px;
+.baseline-branch {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 11px;
 }
 .workflow-footer {
   display: flex;
@@ -878,8 +893,8 @@
   }
 }
 
-/* Six navigation areas need more room than VitePress's default breakpoint. */
-@media (max-width: 1100px) {
+/* Keep the navigation usable before the bilingual labels crowd the header. */
+@media (max-width: 1279px) {
   .Layout .VPNavBarMenu {
     display: none;
   }
@@ -962,5 +977,30 @@
   .chapter-label {
     font-size: 11px;
     letter-spacing: 0.06em;
+  }
+}
+
+.experience-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline: 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--vp-c-brand-1);
+  border-radius: 6px;
+  color: var(--vp-c-brand-1);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.experience-link:hover {
+  background: var(--vp-c-brand-soft);
+}
+@media (max-width: 767px) {
+  .VPNavBar .experience-link {
+    display: none;
+  }
+  .VPNavScreen .experience-link {
+    margin: 20px 0;
   }
 }

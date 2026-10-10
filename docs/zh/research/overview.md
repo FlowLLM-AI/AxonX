@@ -1,28 +1,26 @@
 # 量化研究
 
-通过 AxonX 让 Agent 开发量化插件，再用 Task 评估改动，明确输入、保留可检查的产物并记录上下游关系。先完成服务连接与 [demo 教程](../getting-started/quickstart.md)。研究算法与数据要求由安装的插件定义。
+在插件中实现量化逻辑，通过 Task 执行并保留证据，再用一致的口径评估改动。AxonX 提供统一契约与运行环境，研究算法和数据要求由插件定义。Alpha158 是参考工作流，其他方法也可以通过插件接入。
 
-## 选择下一步
+## 选择研究步骤
 
-| 目标               | 指南                               | 完成结果                                     |
-| ------------------ | ---------------------------------- | -------------------------------------------- |
-| 执行 Alpha158 链路 | [研究流程](workflow.md)            | 成功的 ETL → Train → Predict → Backtest 记录 |
-| 准备历史行情       | [Tushare 数据](tushare.md)         | 覆盖实验区间的原始分区与基础数据             |
-| 检查阶段产物       | [结果解读](results.md)             | 特征、模型、预测与回测证据                   |
-| 评估一次改动       | [实验设计](experiments.md)         | 控制变量、消融、锁定方案与独立确认           |
-| 解读组合指标       | [回测口径](backtest.md)            | 收益、费用、回撤与执行假设                   |
-| 比较两项策略       | [策略比较](strategy-comparison.md) | 共同有效日期上的指标                         |
+| 目标                  | 从这里开始                                                               | 完成结果                                     |
+| --------------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
+| 让 Agent 实现研究目标 | [Skill 与研究 Prompt](../agent/research-prompt.md)                       | 明确假设、基线、控制条件与工具               |
+| 运行 Alpha158 基线    | [Tushare 数据](tushare.md) → [Alpha158 研究流程](workflow.md)            | 成功的 ETL → Train → Predict → Backtest 记录 |
+| 开发或优化插件        | [开发与运行指南](../dev_guide.md) → [插件管理](../plugins/management.md) | 实现、注册、安装并发现 Task                  |
+| 检查执行产物          | [结果解读](results.md) → [回测口径](backtest.md)                         | 检查特征、模型、预测与组合账本               |
+| 评估研究改动          | [策略比较](strategy-comparison.md) → [实验设计](experiments.md)          | 对齐口径、控制变量与独立确认                 |
+| 复现已有案例          | [Alpha158 改进实验](alpha158-case.md)                                    | 设定、指标、命令与 Task/Run 来源             |
 
-因子分析是 ETL 的独立分支，不是训练的前置条件。提交返回运行句柄；等待本次执行成功后，再将 Task ID 传给下游。血缘记录依赖关系，不会自动调度整条链路。
+## 从基线逐层扩展
 
-## 选择研究插件
+[Alpha158](../../../plugins/qlib_a158/README_ZH.md)提供 158 个价量特征、LightGBM、因子分析与 TopN 回测。[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)扩展 ETL 与训练，提供 13 个可选特征；训练默认仍使用 158 个基线特征。[Qlib Strategy](../../../plugins/qlib_strategy/README_ZH.md)复用预测，增加最短持有期、排名保留与换仓数量限制。
 
-[插件管理](../plugins/management.md)介绍执行环境中的安装与发现。[Alpha158](../../../plugins/qlib_a158/README_ZH.md)提供基线价量特征、LightGBM 训练与 TopN 回测；[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)增加独立注册的 Task 和可配置特征分组；[Qlib Strategy](../../../plugins/qlib_strategy/README_ZH.md)复用预测并增加排名保留策略。
+参数、算法与产物定义由插件 README 维护。提交前查询所选服务的实际 Task Schema，核对上游兼容性；产物字段见[研究产物契约](../reference/research-artifacts.md)。
 
-提交前发现实际安装的 Task Schema。参数、算法与产物定义由插件维护；为 Studio 实现输出时，查阅[研究产物契约](../reference/research-artifacts.md)。
+## 执行与结论
 
-## 阅读 Agent 开发实验案例
+源码修改、服务安装与 Task 提交分别完成。每次保留代码版本、数据快照、窗口、参数、成本和真实 Task/Run ID。等待上游成功后再提交下游；血缘记录不会自动调度整张 DAG。因子分析从 ETL 独立分支，不是训练的前置条件。
 
-[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)展示三个插件对应的三个版本：Alpha158 基线、增加两个风险因子、增加 3 日排名保留策略。共同设定、完整指标与选择依据见[实验对比](experiments.md#comparison)，各插件 README 维护算法与差异配置。策略为探索筛选结果，尚未独立确认。
-
-可复用的方法见[实验设计](experiments.md)，Agent 接入方式见[外部 Agent](../agent/external.md)。
+Task 成功说明执行完成。算法改进需要可比设定、候选选择记录与独立确认。[Alpha158 案例](alpha158-case.md)展示三组固定配置的结果，同时保留数据不完整、参数差异和未独立确认的限制。

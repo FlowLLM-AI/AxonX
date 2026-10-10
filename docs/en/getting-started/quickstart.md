@@ -153,8 +153,9 @@ A fixed `task_name` is not an immutable version number: executing the same regis
 
 ## Next steps
 
-- Use [Studio](studio.md) to submit and inspect tasks in the same workspace in a browser.
-- Follow the [Quantitative research workflow](../research/workflow.md) to install research plugins and prepare data.
-- Consult the complete [CLI parameters](../reference/cli.md), [Server configuration](../reference/configuration.md), and [Task API](../api/tasks.md).
+- [Develop with an Agent](../agent/overview.md): prepare source and code tools, load the [Skill](../agent/research-prompt.md), choose an external or built-in Agent, and define a research objective.
+- [Run a research baseline](../research/workflow.md): install Alpha158, prepare data, and execute ETL, training, prediction, and backtesting in order.
+- [Use Studio](studio.md): submit Tasks and inspect artifacts and research charts in the browser.
+- [Look up Reference](../reference/overview.md): find commands, connection and server settings, APIs, and contracts.
 
-For startup failures, authentication failures, or missing artifacts, see [FAQ](../faq.md) and [Log troubleshooting](../guides/operations.md).
+For startup, authentication, or missing-artifact issues, see the [FAQ](../faq.md) and [troubleshooting and recovery](../guides/operations.md).

@@ -66,17 +66,11 @@ axonx get_task_context --task-id '<task_id>' --target 192.0.2.10:1024
 
 ## 给 Agent 一个具体研究目标
 
-```text
-阅读 AxonX Skill 与基线插件源码，开发独立插件或优化指定的已有插件。
-明确研究假设和固定条件，实现量化代码，测试特征时点与产物兼容性。
-安装到选定服务，查询实际 Task Schema，执行所需研究阶段。
-保留实际 Task/Run ID，检查产物，报告可比指标、失败与局限。
-在开发窗口选择候选方案，预留独立确认窗口。
-```
+使用 [Skill 与研究 Prompt](research-prompt.md)明确基线、假设、数据、窗口、指标与交付要求。该页提供可直接使用的探索示例。
 
 修改特征通常需要 ETL → Train → Predict → Backtest；修改模型可复用兼容 ETL；修改组合管理可复用兼容 Predict。因子分析按诊断需要从 ETL 独立执行。契约、字段或特征时点变更后，先确认旧上游是否仍可复用。
 
-Agent 开发实验应先按[实验设计与确认](../research/experiments.md)定义控制变量和确认窗口。具体案例与证据见[项目 Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)与 [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)；探索 Prompt 示例见 [README 开发流程](../../../README_ZH.md#agent-接入与开发指南)。
+Agent 开发实验应先按[实验设计与确认](../research/experiments.md)定义控制变量和确认窗口。具体案例与证据见[Alpha158 改进实验](../research/alpha158-case.md)与 [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)；探索 Prompt 示例见 [Skill 与研究 Prompt](research-prompt.md)。
 
 ## 完成时报告什么
 

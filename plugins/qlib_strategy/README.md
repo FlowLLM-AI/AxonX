@@ -29,4 +29,4 @@ Reuse successful base or factor predictions. Record returned Task / Run IDs and 
 
 ## Experiments
 
-Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/experiments.md#comparison). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.
+Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/alpha158-case.md). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.

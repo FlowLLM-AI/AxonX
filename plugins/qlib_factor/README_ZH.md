@@ -48,4 +48,4 @@ axonx submit --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
 
 ## 实验记录
 
-实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/experiments.md#comparison)。三组配置已在 45 机器使用买入 0.05%、卖出 0.15% 的费用重新运行。
+实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/alpha158-case.md)。三组配置已在 45 机器使用买入 0.05%、卖出 0.15% 的费用重新运行。

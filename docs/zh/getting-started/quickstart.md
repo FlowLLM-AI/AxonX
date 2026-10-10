@@ -153,8 +153,9 @@ axonx exec --task demo --task-name direct-demo --x 2 --y 3
 
 ## 下一步
 
-- 使用 [Studio](studio.md) 在浏览器提交和查看同一工作区的任务。
-- 按[量化研究流程](../research/workflow.md)安装研究插件并准备数据。
-- 查询完整[CLI 参数](../reference/cli.md)、[服务端配置](../reference/configuration.md)与 [Task API](../api/tasks.md)。
+- [使用 Agent 开发](../agent/overview.md)：准备源码与代码工具，加载 [Skill](../agent/research-prompt.md)，选择外部或内置 Agent，再提出研究目标。
+- [运行研究基线](../research/workflow.md)：安装 Alpha158 插件，准备数据，依次执行 ETL、训练、预测与回测。
+- [使用 Studio](studio.md)：在浏览器提交任务，检查产物与研究图表。
+- [查询参考手册](../reference/overview.md)：查命令、连接与服务配置、API 和契约。
 
-启动失败、鉴权失败或产物缺失时，见[常见问题](../faq.md)和[日志排障](../guides/operations.md)。
+启动失败、鉴权失败或产物缺失时，见[常见问题](../faq.md)和[排障与恢复](../guides/operations.md)。
