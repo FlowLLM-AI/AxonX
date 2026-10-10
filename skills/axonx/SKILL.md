@@ -171,13 +171,21 @@ axonx_qlib_a158 = ["plugin.yaml"]
 
 #### 2. Install the Plugin
 
-Build a wheel from source and install it into the current Python environment:
+Research plugins are not published to PyPI; install from the AxonX checkout root. For local Agent development, use editable installation and ensure the service uses the current Python environment:
 
 ```bash
-axonx plugin install plugins/qlib_a158
+axonx plugin install -e plugins/qlib_a158
 ```
 
-For Task execution on a remote machine, append `--target 192.168.1.10:1024`; the CLI uploads the wheel and installs it on the target service.
+Python source changes do not require reinstallation, but restart persistent services; reinstall after dependency or entry-point metadata changes. `-e` cannot be combined with `--target` or `--output`. Install extensions in Alpha158 → factor → strategy order in the same execution environment; the installer does not automatically install upstream plugin sources from the checkout.
+
+For fixed-version experiments, use `axonx plugin install plugins/qlib_a158` to build and install a wheel. For remote execution, use ordinary installation:
+
+```bash
+axonx plugin install plugins/qlib_a158 --target 192.168.1.10:1024
+```
+
+The CLI builds the wheel locally, uploads it, and installs it on the target service. Record the code revision and experiment configuration; redeploy after source changes, check `restart_required`, and query the target Task definition.
 
 #### 3. Confirm Plugin and Task Registration
 
@@ -274,6 +282,7 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 | `plugin inspect`   | Inspect plugin metadata from an existing local wheel without rebuilding or installing; replace the path with the actual file. | `axonx plugin inspect '<plugin_wheel_path>'`                        | —                            |
 | `plugin build`     | Build from source or reuse a cached wheel and output its path, checksum, and plugin metadata without installation.            | `axonx plugin build plugins/qlib_a158`                              | —                            |
 | `plugin build`     | Generate a wheel in the specified directory for later distribution or installation.                                           | `axonx plugin build plugins/qlib_a158 --output .axonx/plugins/dist` | —                            |
+| `plugin install`   | Install local source in editable mode in the current Python environment for Agent / plugin development.                       | `axonx plugin install -e plugins/qlib_a158`                         | —                            |
 | `plugin install`   | Build a wheel locally from source and install it directly; with a remote target, upload and install it on the target service. | `axonx plugin install plugins/qlib_a158`                            | `--target 192.168.1.10:1024` |
 | `plugin install`   | Install an existing local wheel; with a remote target, upload and install it on the target service.                           | `axonx plugin install '<plugin_wheel_path>'`                        | `--target 192.168.1.10:1024` |
 | `plugin uninstall` | Uninstall the specified plugin from the current environment or target service.                                                | `axonx plugin uninstall axonx-qlib-a158`                            | `--target 192.168.1.10:1024` |

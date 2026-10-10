@@ -26,17 +26,17 @@ axonx plugin inspect '<distribution 或插件名>'
 
 本地 CLI 直接检查当前环境，不经 HTTP。服务使用另一虚拟环境时，CLI 本地结果不一定代表常驻服务环境。
 
-## 从 PyPI 安装
+## 准备插件源码
 
-在执行服务的 Python 环境安装，再重启服务：
+研究插件尚未发布到 PyPI。先安装 AxonX 主包，克隆仓库，再从仓库根目录执行本页命令：
 
 ```bash
-pip install axonx-qlib-a158
-# Or: pip install axonx-qlib-factor
-axonx plugin list
+pip install axonx
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
 ```
 
-以下源码与 wheel 命令用于插件开发和部署。
+Alpha158 是基础插件；factor 依赖 Alpha158，strategy 依赖 factor。使用下游插件前，必须在同一执行环境按 Alpha158 → factor → strategy 顺序安装满足版本要求的上游插件。安装器通过 pip 解析依赖，不会自动定位仓库中的其他插件目录；上游未安装或版本不满足要求时，会尝试从包索引查找。
 
 ## 从源码构建和检查
 
@@ -62,12 +62,20 @@ axonx plugin inspect './dist/plugins/<实际 wheel 文件名>.whl'
 ## 本地安装
 
 ```bash
-axonx plugin install ./plugins/qlib_a158
-# 插件开发时可选 editable，只改变当前环境
+# 本机 Agent / 插件开发：按依赖顺序安装到当前环境
 axonx plugin install -e ./plugins/qlib_a158
+# 按需安装因子和策略扩展
+axonx plugin install -e ./plugins/qlib_factor
+axonx plugin install -e ./plugins/qlib_strategy
 ```
 
-editable 只能用于本地源码目录，不支持 `--target` 或 `--output`。开发时源码变化可以被环境读取，但常驻 Application 中已装配的 Job/Component 仍应通过重启重新加载。
+editable 只能用于本地源码目录，不支持 `--target` 或 `--output`。执行服务必须使用当前 Python 环境。修改 Python 源码后无需重新安装，但需重启常驻服务以重新加载 Task、Job 和 Component；依赖、入口点等安装元数据变化后需重新安装。editable 安装仍会先构建并检查 wheel。
+
+固定版本实验或部署使用普通安装，从源码构建并安装 wheel；源码变化后需重新安装，并重启已运行的本机服务：
+
+```bash
+axonx plugin install ./plugins/qlib_a158
+```
 
 服务配置的 `plugins.sources` 可在启动时安装来源，路径解析见[配置参考](../reference/configuration.md)。已安装且有效的插件通过入口点发现，不使用一个照搬其他项目的显式启用列表。
 
@@ -77,6 +85,9 @@ editable 只能用于本地源码目录，不支持 `--target` 或 `--output`。
 export AXONX_TARGET_TOKEN='<远程服务 token>'
 axonx plugin list --target 'http://research.example:1024'
 axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
+# 按需安装，保持相同 target 和依赖顺序
+axonx plugin install ./plugins/qlib_factor --target 'http://research.example:1024'
+axonx plugin install ./plugins/qlib_strategy --target 'http://research.example:1024'
 ```
 
 CLI 在本机把源码构建为 wheel，上传到远程 `/files`，核对返回 sha256，再调用远程 install_plugin，并在结束后清理暂存文件。安装 Job 在目标服务的 Python 环境运行。手动通过 HTTP 或 MCP 安装时，先用二进制或 multipart `POST /files` 上传 wheel，再将返回的 path 与 sha256 传给同一服务的 `install_plugin`；见[文件上传与清理](../api/workspace.md#文件上传与清理)。

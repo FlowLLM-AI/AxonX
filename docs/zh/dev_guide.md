@@ -162,13 +162,21 @@ axonx_qlib_a158 = ["plugin.yaml"]
 
 #### 2. 安装插件
 
-从源码构建 wheel 并安装到当前 Python 环境：
+研究插件尚未发布到 PyPI，从 AxonX 仓库根目录安装。本机 Agent 开发使用 editable，并确保服务使用当前 Python 环境：
 
 ```bash
-axonx plugin install plugins/qlib_a158
+axonx plugin install -e plugins/qlib_a158
 ```
 
-在远程机器执行 Task 时，追加 `--target 192.168.1.10:1024`，CLI 会上传 wheel 并在目标服务安装。
+修改 Python 源码后无需重新安装，但需重启常驻服务；依赖或入口点等安装元数据变化后需重新安装。`-e` 不能与 `--target` 或 `--output` 同用。扩展插件在同一执行环境按 Alpha158 → factor → strategy 顺序安装；安装器不会自动安装仓库中的上游插件源码。
+
+固定版本实验使用 `axonx plugin install plugins/qlib_a158`，从源码构建并安装 wheel。远程执行时使用普通安装：
+
+```bash
+axonx plugin install plugins/qlib_a158 --target 192.168.1.10:1024
+```
+
+CLI 会在本机构建 wheel，上传并安装到目标服务。记录代码版本和实验配置；源码修改后重新部署，检查 `restart_required` 并查询目标 Task 定义。
 
 #### 3. 确认插件与 Task 注册
 
@@ -265,6 +273,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 | `plugin inspect`   | 检查本机已有 wheel 的插件元数据，不重新构建或安装；将路径替换为实际文件。    | `axonx plugin inspect '<plugin_wheel_path>'`                        | —                            |
 | `plugin build`     | 从源码构建或复用缓存 wheel，输出产物路径、校验值和插件元数据，不安装。       | `axonx plugin build plugins/qlib_a158`                              | —                            |
 | `plugin build`     | 在指定目录生成 wheel，便于后续分发或安装。                                   | `axonx plugin build plugins/qlib_a158 --output .axonx/plugins/dist` | —                            |
+| `plugin install`   | 本机 Agent / 插件开发，以 editable 模式安装到当前 Python 环境。              | `axonx plugin install -e plugins/qlib_a158`                         | —                            |
 | `plugin install`   | 本机从源码构建 wheel 后直接安装；指定远程目标时上传 wheel 并在目标服务安装。 | `axonx plugin install plugins/qlib_a158`                            | `--target 192.168.1.10:1024` |
 | `plugin install`   | 使用本机已有 wheel 安装；指定远程目标时上传该 wheel 并在目标服务安装。       | `axonx plugin install '<plugin_wheel_path>'`                        | `--target 192.168.1.10:1024` |
 | `plugin uninstall` | 从当前环境或目标服务卸载指定插件。                                           | `axonx plugin uninstall axonx-qlib-a158`                            | `--target 192.168.1.10:1024` |

@@ -68,9 +68,13 @@ CLI、HTTP、MCP 和 **AxonX Studio** 通过共享的 Job 提交、查询 Task�
 
 ```bash
 pip install "axonx[studio]"
-# 可选：在执行服务环境安装 Alpha158 插件
-pip install axonx-qlib-a158
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+# 在执行服务的 Python 环境中安装，供本机 Agent 开发
+axonx plugin install -e ./plugins/qlib_a158
 ```
+
+研究插件尚未发布到 PyPI，源码位于仓库的 `plugins/` 下。本机开发使用 `-e`，修改 Python 源码后无需重新安装，但需重启常驻服务；依赖或入口点等安装元数据变化后需重新安装。扩展插件按 Alpha158 → factor → strategy 顺序安装，见[插件管理](docs/zh/plugins/management.md)。仅验证内置 demo 时可跳过源码克隆和插件安装。
 
 在启动目录创建 `.env`，填写本机服务 token：
 
@@ -225,6 +229,7 @@ axonx start --components.agent.default.load_dev_guide true --language zh
 配置目标服务的 `AXONX_TARGET_TOKEN`，在安装、提交、等待与查询中使用相同的 `--target`：
 
 ```bash
+axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
 axonx plugin install ./plugins/qlib_factor --target 'http://<host>:1024'
 axonx get_task_definition --task qlib_factor_train --target 'http://<host>:1024'
 ```

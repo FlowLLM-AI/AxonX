@@ -27,6 +27,15 @@ Beta uses the preceding 60 market dates through T−1, with at least 30 paired s
 
 ## Install and run
 
+Research plugins are not published to PyPI. Install the AxonX core and clone the repository; run the following commands from its root. For local Agent development, install in dependency order in the execution service's Python environment:
+
+```bash
+axonx plugin install -e plugins/qlib_a158
+axonx plugin install -e plugins/qlib_factor
+```
+
+Restart persistent services after Python source changes; reinstall after dependency or entry-point metadata changes. Omit `-e` for fixed-version experiments. Deploy remotely with ordinary installation, installing upstream plugins in order on the same target service; configure `AXONX_TARGET_TOKEN` first and replace the example address below:
+
 ```bash
 axonx plugin install plugins/qlib_a158 --target http://research.example:1024
 axonx plugin install plugins/qlib_factor --target http://research.example:1024

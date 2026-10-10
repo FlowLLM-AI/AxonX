@@ -101,6 +101,8 @@ axonx plugin install -e ./plugins/qlib_factor
 axonx plugin install -e ./plugins/qlib_strategy
 ```
 
+The repository's research plugins are not published to PyPI. Install the required plugins and their upstream dependencies in Alpha158 → factor → strategy order in the same Python environment. `-e` supports only local source directories, without `--target` or `--output`; deploy remotely with ordinary `axonx plugin install` in the same order on one target service. Restart persistent services after Python source changes; reinstall after dependency or entry-point metadata changes.
+
 The default pytest configuration includes factor and strategy plugin tests and all three plugin source paths. Install the research dependencies above when running those tests. See the [plugin guide](https://flowllm-ai.github.io/AxonX/en/plugins/management) for discovery and restart behavior.
 
 ### Making a change

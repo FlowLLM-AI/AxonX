@@ -16,11 +16,15 @@ AxonX provides research task execution, records, artifacts, and Studio visualiza
 - Have Tushare history covering the training and prediction periods, plus necessary master data, in the workspace.
 - Keep research tasks and upstream artifacts in the same workspace, or prepare complete upstream directories using [task synchronization](../guides/task-sync.md).
 
+Run from the AxonX source checkout root (plugins are not published to PyPI):
+
 ```bash
-pip install axonx-qlib-a158
+axonx plugin install ./plugins/qlib_a158
 ```
 
-Direct pip installation requires a service restart. Remote `axonx plugin install` refreshes Task definitions; restart only when `restart_required=true`. Query the task catalog with `axonx list_installed_task_definitions`. Expect `qlib_a158_etl`, `qlib_a158_factor`, `qlib_a158_train`, `qlib_a158_predict`, and `qlib_a158_backtest`.
+For local Agent development, use `axonx plugin install -e ./plugins/qlib_a158`. For remote execution, use ordinary installation with `--target <host:port>`; see [plugin management](../plugins/management.md) for source setup, dependency order, and installation modes.
+
+Local installation or editable source changes require a persistent service restart. Remote `axonx plugin install` refreshes Task definitions; restart only when `restart_required=true`. Query the task catalog with `axonx list_installed_task_definitions`. Expect `qlib_a158_etl`, `qlib_a158_factor`, `qlib_a158_train`, `qlib_a158_predict`, and `qlib_a158_backtest`.
 
 ## What each research stage produces
 

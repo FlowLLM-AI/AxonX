@@ -70,9 +70,13 @@ Requires **Python 3.12+**; local Task execution supports **macOS and Linux**.
 
 ```bash
 pip install "axonx[studio]"
-# Optional: install the Alpha158 plugin in the service environment
-pip install axonx-qlib-a158
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+# Install in the execution service's Python environment for local Agent development
+axonx plugin install -e ./plugins/qlib_a158
 ```
+
+Research plugins are not published to PyPI; their sources are under `plugins/` in this checkout. Use `-e` for local development: Python source changes do not require reinstallation, but restart persistent services; reinstall after dependency or entry-point metadata changes. Install extensions in Alpha158 → factor → strategy order; see [plugin management](docs/en/plugins/management.md). For the built-in demo alone, skip the checkout and plugin installation.
 
 Create `.env` in the startup directory with your local service token:
 
@@ -237,6 +241,7 @@ See the [CLI reference](docs/en/reference/cli.md) for definitions, progress, and
 Set the target service's `AXONX_TARGET_TOKEN` and use the same `--target` for installation, submission, waiting, and queries:
 
 ```bash
+axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
 axonx plugin install ./plugins/qlib_factor --target 'http://<host>:1024'
 axonx get_task_definition --task qlib_factor_train --target 'http://<host>:1024'
 ```

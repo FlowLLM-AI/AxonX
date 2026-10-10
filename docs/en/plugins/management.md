@@ -26,17 +26,17 @@ Displayed fields include distribution, version, entry name, requirements, and co
 
 The local CLI checks the current environment directly, without HTTP. If the service uses another virtual environment, local CLI results may not represent the persistent service's environment.
 
-## Install from PyPI
+## Prepare plugin sources
 
-Install in the execution service's Python environment, then restart the service:
+Research plugins are not published to PyPI. Install the AxonX core, clone the repository, and run this page's commands from its root:
 
 ```bash
-pip install axonx-qlib-a158
-# Or: pip install axonx-qlib-factor
-axonx plugin list
+pip install axonx
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
 ```
 
-The following source and wheel commands are for plugin development and deployment.
+Alpha158 is the base plugin; factor depends on Alpha158, and strategy depends on factor. Before using a downstream plugin, install compatible upstream versions in the same execution environment in Alpha158 → factor → strategy order. The installer resolves dependencies through pip; it does not locate other plugin directories in the checkout automatically. Missing or incompatible upstream versions are looked up in the package index.
 
 ## Build and inspect from source
 
@@ -62,12 +62,20 @@ axonx plugin inspect './dist/plugins/<actual wheel filename>.whl'
 ## Local installation
 
 ```bash
-axonx plugin install ./plugins/qlib_a158
-# Editable installation is optional for plugin development and only changes the current environment
+# Local Agent / plugin development: install in dependency order in the current environment
 axonx plugin install -e ./plugins/qlib_a158
+# Install factor and strategy extensions as needed
+axonx plugin install -e ./plugins/qlib_factor
+axonx plugin install -e ./plugins/qlib_strategy
 ```
 
-editable only supports local source directories, not `--target` or `--output`. The environment can read source changes during development, but already assembled Jobs/Components in a persistent Application should still be reloaded through a restart.
+Editable installation supports only local source directories, without `--target` or `--output`. The execution service must use this Python environment. Python source changes do not require reinstallation, but restart persistent services to reload Tasks, Jobs, and Components; reinstall after dependency or entry-point metadata changes. Editable installation still builds and checks a wheel first.
+
+For fixed-version experiments or deployment, use ordinary installation to build and install a wheel. Reinstall after source changes and restart any running local service:
+
+```bash
+axonx plugin install ./plugins/qlib_a158
+```
 
 The service's `plugins.sources` configuration can install sources at startup; see [Configuration reference](../reference/configuration.md) for path resolution. Installed valid plugins are discovered through entry points, rather than an explicit enablement list copied from another project.
 
@@ -77,6 +85,9 @@ The service's `plugins.sources` configuration can install sources at startup; se
 export AXONX_TARGET_TOKEN='<remote service token>'
 axonx plugin list --target 'http://research.example:1024'
 axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
+# As needed, keep the same target and dependency order
+axonx plugin install ./plugins/qlib_factor --target 'http://research.example:1024'
+axonx plugin install ./plugins/qlib_strategy --target 'http://research.example:1024'
 ```
 
 The CLI builds local source into a wheel, uploads it to remote `/files`, checks the returned sha256, then calls remote install_plugin and cleans up staging files at the end. The installation Job runs in the target service's Python environment. For manual HTTP or MCP installation workflows, first upload the wheel using binary or multipart `POST /files`, then pass the returned path and sha256 to `install_plugin` on the same service; see [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).

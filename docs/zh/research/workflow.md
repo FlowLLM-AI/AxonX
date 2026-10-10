@@ -16,11 +16,15 @@ AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使
 - 工作区已有覆盖训练和预测区间的 Tushare 历史数据，以及必要的主数据。
 - 研究任务与上游产物位于同一工作区，或者已按[任务同步](../guides/task-sync.md)准备好完整上游目录。
 
+从 AxonX 源码仓库根目录执行（插件尚未发布到 PyPI）：
+
 ```bash
-pip install axonx-qlib-a158
+axonx plugin install ./plugins/qlib_a158
 ```
 
-直接 pip 安装后需重启服务；远程 `axonx plugin install` 会刷新 Task 定义，仅在 `restart_required=true` 时重启。运行 `axonx list_installed_task_definitions` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_factor`、`qlib_a158_train`、`qlib_a158_predict` 和 `qlib_a158_backtest`。
+本机 Agent 修改插件时使用 `axonx plugin install -e ./plugins/qlib_a158`。远程执行时使用普通安装并追加 `--target <host:port>`；源码准备、依赖顺序和安装方式见[插件管理](../plugins/management.md)。
+
+本机安装或 editable 源码变更后需重启常驻服务；远程 `axonx plugin install` 会刷新 Task 定义，仅在 `restart_required=true` 时重启。运行 `axonx list_installed_task_definitions` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_factor`、`qlib_a158_train`、`qlib_a158_predict` 和 `qlib_a158_backtest`。
 
 ## 研究链中每一步产生什么
 

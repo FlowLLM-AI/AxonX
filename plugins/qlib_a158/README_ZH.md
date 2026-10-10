@@ -41,8 +41,13 @@ Qlib 的 `colsample_bytree` / `subsample` 分别对应 `feature_fraction` / `bag
 
 要求 Python 3.12+ 和 AxonX `>=0.1.1,<0.2`；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
 
+插件尚未发布到 PyPI。先安装 AxonX 主包并克隆仓库，再从仓库根目录安装固定版本的 wheel：
+
 ```bash
-pip install axonx-qlib-a158
+pip install axonx
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+axonx plugin install ./plugins/qlib_a158
 axonx plugin list
 axonx plugin show axonx-qlib-a158
 ```
@@ -50,9 +55,11 @@ axonx plugin show axonx-qlib-a158
 源码开发时，在仓库根目录执行：
 
 ```bash
-pip install -e ./plugins/qlib_a158
+axonx plugin install -e ./plugins/qlib_a158
 axonx plugin inspect ./plugins/qlib_a158
 ```
+
+editable 仅适用于当前 Python 环境的本机源码开发，不能与 `--target` 或 `--output` 同用。修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。
 
 本机 CLI 的环境不一定是远程服务的环境。远程部署先配置目标服务 token，再明确指定目标：
 
@@ -62,7 +69,7 @@ axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-通过远程安装 Job 更新仅贡献 Task 的 wheel，会刷新后续 Task 查询和提交，无需重启。仅在 `restart_required=true` 时重启，再查询 Task 定义核对字段。直接 `pip install` 和 editable 源码变更仍要求重启服务。核心与插件使用同一源码仓库版本。完整的构建、卸载和部署说明见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
+通过远程安装 Job 更新仅贡献 Task 的 wheel，会刷新后续 Task 查询和提交，无需重启。仅在 `restart_required=true` 时重启，再查询 Task 定义核对字段。直接 `pip install` 和 editable 源码变更仍要求重启服务。核心与插件版本应满足插件包声明的兼容要求。完整的构建、卸载和部署说明见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
 ## 数据准备
 

@@ -41,8 +41,13 @@ Qlib aliases `colsample_bytree` / `subsample` map to `feature_fraction` / `baggi
 
 Requires Python 3.12+ and AxonX `>=0.1.1,<0.2`; local Task execution supports macOS and Linux. Install into the execution service’s Python environment, then restart the service to reload contributions. LightGBM, NumPy, and Polars are installed as dependencies.
 
+This plugin is not published to PyPI. Install the AxonX core and clone the repository, then install a wheel from its root for fixed-version execution:
+
 ```bash
-pip install axonx-qlib-a158
+pip install axonx
+git clone https://github.com/FlowLLM-AI/AxonX.git
+cd AxonX
+axonx plugin install ./plugins/qlib_a158
 axonx plugin list
 axonx plugin show axonx-qlib-a158
 ```
@@ -50,9 +55,11 @@ axonx plugin show axonx-qlib-a158
 For source development, run from the repository root:
 
 ```bash
-pip install -e ./plugins/qlib_a158
+axonx plugin install -e ./plugins/qlib_a158
 axonx plugin inspect ./plugins/qlib_a158
 ```
+
+Editable installation is for local source development in the current Python environment and cannot use `--target` or `--output`. Restart persistent services after Python source changes; reinstall after dependency or entry-point metadata changes.
 
 The local CLI environment may differ from the remote service environment. For remote deployment, configure the target service token and specify the target explicitly:
 
@@ -62,7 +69,7 @@ axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-Task-only wheel updates through the remote installation Job refresh subsequent Task queries and submissions without restarting. Restart when `restart_required` is true, then query Task definitions to verify the fields. Direct `pip install` and editable source changes require a service restart. Install the AxonX core from this checkout together with the plugins. See [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
+Task-only wheel updates through the remote installation Job refresh subsequent Task queries and submissions without restarting. Restart when `restart_required` is true, then query Task definitions to verify the fields. Direct `pip install` and editable source changes require a service restart. Use compatible AxonX core and plugin versions, following the plugin package requirements. See [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
 
 ## Prepare data
 

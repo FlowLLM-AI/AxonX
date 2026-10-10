@@ -27,6 +27,15 @@ Beta 使用 T−1 及之前 60 个市场日，至少需要 30 个股票与市场
 
 ## 安装与执行
 
+研究插件尚未发布到 PyPI。先安装 AxonX 主包并克隆仓库，以下命令从仓库根目录执行。本机 Agent 开发按依赖顺序安装到执行服务的 Python 环境：
+
+```bash
+axonx plugin install -e plugins/qlib_a158
+axonx plugin install -e plugins/qlib_factor
+```
+
+修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。固定版本实验去掉 `-e`。远程部署使用普通安装，在同一目标服务按顺序安装上游插件；先配置 `AXONX_TARGET_TOKEN`，并替换以下示例地址：
+
 ```bash
 axonx plugin install plugins/qlib_a158 --target http://research.example:1024
 axonx plugin install plugins/qlib_factor --target http://research.example:1024

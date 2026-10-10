@@ -101,6 +101,8 @@ axonx plugin install -e ./plugins/qlib_factor
 axonx plugin install -e ./plugins/qlib_strategy
 ```
 
+仓库中的研究插件尚未发布到 PyPI，必须在同一 Python 环境按 Alpha158 → factor → strategy 顺序安装需要的插件及上游依赖。`-e` 仅支持本机源码目录，不能与 `--target` 或 `--output` 同用；远程部署使用普通 `axonx plugin install` 并在同一目标服务遵循上述顺序。修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。
+
 默认 pytest 配置包含因子和策略插件测试及三个插件的源码路径。运行这些测试时，通过上述安装准备研究依赖。插件发现和重启行为见[插件指南](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
 ### 实现改动
