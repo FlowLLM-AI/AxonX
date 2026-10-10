@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from fnmatch import fnmatchcase
 from functools import partial
 from pathlib import Path
@@ -58,14 +58,19 @@ def directory_sha256(path: Path, ignored_parts: Iterable[str] = ()) -> str:
                 return True
         return False
 
+    def files(folder: Path) -> Iterator[Path]:
+        for item in sorted(folder.iterdir()):
+            if ignored(item):
+                continue
+            if item.is_symlink():
+                raise ValueError(f"Directory hash does not allow symlinks: {item.relative_to(root)}")
+            if item.is_dir():
+                yield from files(item)
+            elif item.is_file():
+                yield item
+
     digest = hashlib.sha256()
-    for item in sorted(root.rglob("*")):
-        if ignored(item):
-            continue
-        if item.is_symlink():
-            raise ValueError(f"Directory hash does not allow symlinks: {item.relative_to(root)}")
-        if not item.is_file():
-            continue
+    for item in files(root):
         relative = item.relative_to(root).as_posix().encode("utf-8")
         size = item.stat().st_size
         digest.update(b"F")

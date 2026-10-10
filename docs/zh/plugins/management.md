@@ -51,6 +51,8 @@ axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 
 没有 `--output` 时，CLI 默认缓存位于当前目录的 `.axonx/plugins/artifacts/<content_sha256>`。这个缓存路径由插件 CLI 自己选择，不自动跟随另一个服务的 workspace_dir。
 
+源码哈希直接跳过 `node_modules`、`.axonx`、Python 环境和工具缓存，以及根目录构建产物，不遍历其内容。上述被忽略的文件和目录不会改变构建缓存键。名为 `build` 或 `dist` 的嵌套源码包仍参与哈希；未忽略源码中的软链接仍会报错。这些规则独立于 `.gitignore`。
+
 对已有 wheel 可直接 inspect/install，但不能同时指定 `--output`：
 
 ```bash

@@ -51,6 +51,8 @@ Source builds require pyproject, manifest, and valid contributions. The tool bui
 
 Without `--output`, the CLI's default cache is `.axonx/plugins/artifacts/<content_sha256>` under the current directory. The plugin CLI chooses this cache path itself; it does not automatically follow another service's workspace_dir.
 
+Source hashing skips `node_modules`, `.axonx`, Python environments/tool caches, and root build outputs without traversing them. These ignored files and directories do not invalidate the build cache. Nested source packages named `build` or `dist` remain included; symlinks in included source paths are rejected. These rules are independent of `.gitignore`.
+
 Existing wheels can be inspected/installed directly, but cannot be combined with `--output`:
 
 ```bash

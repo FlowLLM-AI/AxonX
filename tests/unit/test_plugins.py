@@ -19,6 +19,7 @@ from axonx.plugin_kit.identity import (
     content_sha256_from_wheel,
 )
 from axonx.plugin_kit.installer import install_staged_plugin
+from axonx.plugin_kit.wheel import source_sha256
 from axonx.workspace.models import FileCopy
 from axonx.workspace.staging import StagedFiles
 
@@ -84,6 +85,75 @@ def test_content_sha_changes_when_plugin_content_changes(tmp_path):
     source.write_text("VALUE = 2\n", encoding="utf-8")
 
     assert content_sha256_from_directories(**arguments) != before
+
+
+@pytest.mark.parametrize(
+    "generated",
+    [
+        "node_modules",
+        "web/node_modules",
+        ".axonx",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".mypy_cache",
+        ".tox",
+        ".nox",
+        ".git",
+        ".venv",
+        "__pycache__",
+        "demo.egg-info",
+        "package/demo.egg-info",
+    ],
+)
+def test_source_hash_ignores_generated_directories_without_traversing(tmp_path, monkeypatch, generated):
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'demo'\n")
+    source = tmp_path / "source.py"
+    source.write_text("VALUE = 1\n")
+    before = source_sha256(tmp_path)
+    output = tmp_path / generated
+    output.mkdir(parents=True)
+    (output / "link").symlink_to(source)
+    iterdir = Path.iterdir
+
+    def guarded_iterdir(path):
+        assert path != output, "Generated directories must not be traversed"
+        return iterdir(path)
+
+    monkeypatch.setattr(Path, "iterdir", guarded_iterdir)
+    assert source_sha256(tmp_path) == before
+    source.write_text("VALUE = 2\n")
+    assert source_sha256(tmp_path) != before
+
+
+@pytest.mark.parametrize("directory", ["build", "dist"])
+def test_source_hash_keeps_nested_build_sources_and_rejects_source_symlinks(tmp_path, directory):
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'demo'\n")
+    nested = tmp_path / "package" / directory
+    nested.mkdir(parents=True)
+    source = nested / "source.py"
+    source.write_text("VALUE = 1\n")
+    before = source_sha256(tmp_path)
+    output = tmp_path / directory
+    output.mkdir()
+    (output / "link").symlink_to(source)
+    assert source_sha256(tmp_path) == before
+    source.write_text("VALUE = 2\n")
+    assert source_sha256(tmp_path) != before
+    (nested / "link").symlink_to(source)
+    with pytest.raises(ValueError, match="does not allow symlinks"):
+        source_sha256(tmp_path)
+
+
+@pytest.mark.parametrize("relative", [".DS_Store", "package/.DS_Store"])
+def test_source_hash_ignores_generated_files(tmp_path, relative):
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'demo'\n")
+    before = source_sha256(tmp_path)
+    generated = tmp_path / relative
+    generated.parent.mkdir(parents=True, exist_ok=True)
+    generated.write_bytes(b"metadata")
+    assert source_sha256(tmp_path) == before
+    generated.write_bytes(b"updated metadata")
+    assert source_sha256(tmp_path) == before
 
 
 def test_editable_plugin_package_uses_import_location(monkeypatch, tmp_path):
@@ -348,11 +418,18 @@ def test_editable_install_checks_plugin_in_new_interpreter(monkeypatch, tmp_path
     def run(command, **_kwargs):
         assert command[-1] == artifact.distribution
         assert "get_installed_plugin" in command[-2]
-        return SimpleNamespace(returncode=int(failure == "discovery"), stdout=plugin.model_dump_json(), stderr="failed")
+        return SimpleNamespace(
+            returncode=int(failure == "discovery"),
+            stdout=plugin.model_dump_json(),
+            stderr="failed",
+        )
 
     monkeypatch.setattr("axonx.plugin_kit.installer.subprocess.run", run)
     if failure:
-        with pytest.raises(RuntimeError, match="discovery failed" if failure == "discovery" else "invalid"):
+        with pytest.raises(
+            RuntimeError,
+            match="discovery failed" if failure == "discovery" else "invalid",
+        ):
             install_plugin(artifact, editable_source=tmp_path)
     else:
         assert install_plugin(artifact, editable_source=tmp_path) == plugin

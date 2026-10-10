@@ -19,10 +19,24 @@ from .identity import content_sha256_from_wheel
 from .manifest import parse_plugin_manifest
 from .models import PluginArtifact
 
-# ".git"/".venv"/"__pycache__" are skipped wherever they appear; "/build" and
-# "/dist" only at the project root, where setuptools writes them, so a plugin
-# that keeps source under a directory of the same name still hashes.
-_IGNORED_PARTS = {".git", ".venv", "__pycache__", "/build", "/dist", "*.egg-info"}
+# Dependency/runtime/tool directories are skipped wherever they appear. Build
+# outputs are skipped only at the root, preserving nested source packages.
+_IGNORED_PARTS = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    ".axonx",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".tox",
+    ".nox",
+    ".DS_Store",
+    "/build",
+    "/dist",
+    "*.egg-info",
+}
 
 
 def source_sha256(path: Path) -> str:

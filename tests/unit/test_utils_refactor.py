@@ -56,6 +56,20 @@ def test_directory_hash_refuses_symlinks(tmp_path):
         directory_sha256(root)
 
 
+def test_directory_hash_preserves_historical_nested_file_order(tmp_path):
+    for name, value in {
+        "alpha/x.py": "x\n",
+        "alpha.py": "alpha\n",
+        "alpha/sub/z.py": "z\n",
+        "beta/y.py": "y\n",
+        "z.txt": "last\n",
+    }.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(value, encoding="utf-8")
+    assert directory_sha256(tmp_path) == "42cd22664cb897edb85a76c02b603be2dba2d2ee5b02ae9fe2afecf5b1d92f3e"
+
+
 def test_symbol_loading_never_reexecutes_an_imported_module(tmp_path, monkeypatch):
     module_name = "axonx_test_plugin_loading"
     module_path = tmp_path / f"{module_name}.py"
