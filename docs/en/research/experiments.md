@@ -68,9 +68,9 @@ This is experiment analysis; Studio's strategy comparison page does not automati
 
 ## Inspect the agent-developed enhancement case
 
-The [project benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) explains how an agent developed a separate plugin and executed research through AxonX. [Qlib Factor](../../../plugins/qlib_factor/README.md) maintains feature definitions, Task parameters, conclusions, and reproduction commands.
+The [project benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) explains how an agent developed a separate plugin and executed research through AxonX. [Qlib Factor](../../../plugins/qlib_factor/README.md) describes feature definitions, Task parameters and execution commands.
 
-Shared settings, full metrics, and selection evidence for the three versions appear in the [experiment comparison](#comparison). Plugin READMEs maintain their algorithms, configuration differences, and results. Original logs, metadata, and daily artifacts remain in the execution workspace.
+Shared settings, full metrics, and selection evidence for the three versions appear in the [experiment comparison](#comparison). Plugin READMEs describe algorithms and configuration. Original logs, metadata, and daily artifacts remain in the execution workspace.
 
 ## Report the conclusion
 
@@ -80,7 +80,11 @@ Report the baseline and locked configuration, selection process, independent win
 
 ## Three plugins, three experiment versions
 
-The documentation presents three successive versions: the Alpha158 baseline, two added risk factors, and a 3-day rank-retention policy reusing augmented predictions. They correspond to `qlib_a158`, `qlib_factor`, and `qlib_strategy`. This page maintains shared settings and metric definitions; plugin READMEs maintain algorithms, configuration differences, and their own results. Values come from successful machine-45 Tasks and metadata, summary.parquet, daily.parquet, and trades.parquet, with dates and input hashes checked. No training or backtests were rerun; original artifacts remain in the execution workspace.
+The documentation presents three successive versions: the Alpha158 baseline, two added risk factors, and a 3-day rank-retention policy reusing augmented predictions. They correspond to `qlib_a158`, `qlib_factor`, and `qlib_strategy`. This page maintains shared settings and metric definitions; plugin READMEs describe algorithms and configuration. Values come from successful machine-45 Tasks and metadata, summary.parquet, daily.parquet, and trades.parquet, with dates and input hashes checked. No training or backtests were rerun; original artifacts remain in the execution workspace.
+
+These tables record historical private-workspace runs, not a rerun of the current checkout. Current stock features require a valid quote on the signal date; reproduction commands below use the current explicit buy/sell fee fields. Exact metric reproduction requires the original data snapshot and a new full run.
+
+The recorded experiments used symmetric 0.1% buy/sell fees; the table and reproduction commands retain those settings. Current defaults match Qlib: 0.05% buy and 0.15% sell. Historical metrics do not represent results under these defaults.
 
 ### Shared Setting
 
@@ -95,7 +99,7 @@ The documentation presents three successive versions: the Alpha158 baseline, two
 | Determinism           | random_seed=42; LightGBM seed, feature_fraction_seed, bagging_seed and data_random_seed all 42; num_threads=8, deterministic=true, force_col_wise=true.                                                                                                                                                                                                         |
 | Out of sample         | pred_start=20230101, pred_end=20261008; actual overall evaluation 20230103–20261008, 909 market dates. 2026 is incomplete.                                                                                                                                                                                                                                      |
 | Portfolio / execution | Top20 primary, Top30 secondary; same-close quote proxy, sells before buys, price-limit and eligibility constraints. New entries receive at most 1/N equity; no replacement for unfilled entries, blocked exits retain capital, retained weights are not rebalanced. No forced final liquidation.                                                                |
-| Fees / annualization  | transaction_cost_rate=0.001 on each executed side; buy_cost_rate=sell_cost_rate=null uses the shared rate, without a minimum fee. annualization_days=252, annual_risk_free_rate=0.012.                                                                                                                                                                          |
+| Fees / annualization  | buy_cost_rate=sell_cost_rate=0.001 on executed notional, without a minimum fee. annualization_days=252, annual_risk_free_rate=0.012.                                                                                                                                                                                                                            |
 | Shared inputs         | All three versions use the base ETL market.parquet, calendar.parquet and labels.parquet; as_of_date=20261008, index_codes=[], minimum_index_weight_coverage=0.98.                                                                                                                                                                                               |
 
 ### Final scheme differences
@@ -106,9 +110,9 @@ The documentation presents three successive versions: the Alpha158 baseline, two
 | Factor: stock_risk | `qlib_factor`   | risk           |      160 |              1.0 |         426 |           0.11321 | fixed holding_days=1   |
 | Strategy: 3d       | `qlib_strategy` | risk           |      160 |              1.0 |         426 |           0.11321 | minimum_holding_days=3 |
 
-The strategy version explicitly uses `minimum_holding_days=3`, `replacement_fraction=0.2`, and `rank_buffer=1`: after the minimum age, exit the worst-ranked holdings outside TopN first. Top20 allows 4 fills per side daily and Top30 allows 6; initial entry is exempt. `holding_days=1` does not impose fixed expiry, and planned_exit_date=null. This is a stock-count cap. Plugin defaults remain 10 days and context_groups=none; both augmented versions require explicit parameters.
+The strategy version explicitly uses `minimum_holding_days=3`, `replacement_fraction=0.2`, and `rank_buffer=1`: after the minimum age, exit the worst-ranked holdings outside TopN first. Top20 allows 4 fills per side daily and Top30 allows 6; initial entry is exempt. The strategy has no fixed-expiry parameter; planned_exit_date=null. This is a stock-count cap. Plugin defaults remain 10 days and context_groups=none; both augmented versions require explicit parameters.
 
-The factor version adds only residual volatility and downside risk to the 158 base columns (`context_groups=risk`). Timing, missing-value requirements, and formulas are maintained in [Qlib Factor](../../../plugins/qlib_factor/README.md#experiments). The strategy version reuses those predictions without retraining, so overall signal metrics are identical.
+The factor version adds only residual volatility and downside risk to the 158 base columns (`context_groups=risk`). Timing, missing-value requirements, and formulas are maintained in [Qlib Factor](../../../plugins/qlib_factor/README.md). The strategy version reuses those predictions without retraining, so overall signal metrics are identical.
 
 ### Metric definitions
 
@@ -201,7 +205,7 @@ axonx submit --task qlib_factor_predict --source-tasks '<factor_train_task_id>' 
 
 # Fixed holding: run once for base and once for factor predictions
 axonx submit --task qlib_factor_backtest --source-tasks '<factor_predict_task_id>' \
-  --top-ns '[20,30]' --holding-days 1 --transaction-cost-rate 0.001 \
+  --top-ns '[20,30]' --holding-days 1 --buy-cost-rate 0.001 --sell-cost-rate 0.001 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
   --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
   --labels-file '<base_etl_labels_path>'
@@ -209,7 +213,7 @@ axonx submit --task qlib_factor_backtest --source-tasks '<factor_predict_task_id
 # Strategy version: reuse factor predictions with the selected 3-day policy
 axonx submit --task qlib_strategy_backtest --source-tasks '<factor_predict_task_id>' \
   --top-ns '[20,30]' --minimum-holding-days 3 \
-  --replacement-fraction 0.2 --rank-buffer 1 --transaction-cost-rate 0.001 \
+  --replacement-fraction 0.2 --rank-buffer 1 --buy-cost-rate 0.001 --sell-cost-rate 0.001 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
   --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
   --labels-file '<base_etl_labels_path>'
@@ -241,4 +245,4 @@ Execution workspace: `/nas/jinli.yl/data/axon` on machine 45. Only final chains 
 
 Base ETL: `etl#qlib_a158_etl#2026100912u43E`; final factor ETL: `etl#qlib_factor_etl#2026100917HM2p`. Policies sharing a model have identical prediction hashes; all three share market/calendar/label hashes. Core/plugin versions are 0.1.1 / 0.2.0; Python 3.12.14, Polars 1.44.2, LightGBM 4.7.0.
 
-[Alpha158](../../../plugins/qlib_a158/README.md#experiments) · [Qlib Factor](../../../plugins/qlib_factor/README.md#experiments) · [Qlib Strategy](../../../plugins/qlib_strategy/README.md#experiments)
+[Alpha158](../../../plugins/qlib_a158/README.md) · [Qlib Factor](../../../plugins/qlib_factor/README.md) · [Qlib Strategy](../../../plugins/qlib_strategy/README.md)

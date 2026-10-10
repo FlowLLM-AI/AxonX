@@ -80,7 +80,11 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 
 ## 三个插件、三个实验版本
 
-文档只展示三个递进版本：Alpha158 基线、增加两个风险因子、复用增强预测的 3 日排名保留策略，分别对应 `qlib_a158`、`qlib_factor`、`qlib_strategy`。共同设定与指标口径在本页维护，各插件 README 维护自己的算法、差异配置与结果。数值整理自 45 机器成功任务的 metadata、summary.parquet、daily.parquet 和 trades.parquet，已核对日期与输入哈希；本次没有重新训练或回测，原始产物留在执行工作区。
+文档只展示三个递进版本：Alpha158 基线、增加两个风险因子、复用增强预测的 3 日排名保留策略，分别对应 `qlib_a158`、`qlib_factor`、`qlib_strategy`。共同设定与指标口径在本页维护，各插件 README 只介绍算法与配置。数值整理自 45 机器成功任务的 metadata、summary.parquet、daily.parquet 和 trades.parquet，已核对日期与输入哈希；本次没有重新训练或回测，原始产物留在执行工作区。
+
+下表记录私有工作区的历史运行，并非当前代码重新执行的结果。当前股票特征要求信号日行情有效；下方复现命令使用当前明确的买卖费率字段。复现相同指标需要原始数据快照并重新运行完整流程。
+
+历史实验实际使用买卖各 0.1% 的对称费率，下表与复现命令保留这一设定。当前默认已对齐 Qlib：买入 0.05%、卖出 0.15%；历史指标不代表该默认费率下的结果。
 
 ### 共同设定
 
@@ -95,7 +99,7 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 | 确定性          | random_seed=42；LightGBM seed、feature_fraction_seed、bagging_seed、data_random_seed 均为 42；num_threads=8，deterministic=true，force_col_wise=true。                                                                                        |
 | 样本外          | pred_start=20230101，pred_end=20261008；实际整体评估 20230103–20261008，909 个市场日，2026 为不完整年度。                                                                                                                                     |
 | 组合 / 成交     | 重点 Top20，Top30 辅助；收盘报价为成交代理，先卖后买，遵循涨跌停与可交易限制；新仓最多分配 1/N 权益，不能买入不补位，不能卖出继续持仓并占用资金，保留仓位不再平衡；不强制期末清仓。                                                           |
-| 费用 / 年化     | transaction_cost_rate=0.001，每次实际成交买卖各 0.1%；buy_cost_rate=sell_cost_rate=null，沿用共用费率，不设最低费用。annualization_days=252，annual_risk_free_rate=0.012。                                                                    |
+| 费用 / 年化     | buy_cost_rate=sell_cost_rate=0.001，每次实际成交买卖各 0.1%，不设最低费用。annualization_days=252，annual_risk_free_rate=0.012。                                                                                                              |
 | 输入对齐        | 三个版本回测共用基础 ETL 的 market.parquet、calendar.parquet、labels.parquet；as_of_date=20261008，index_codes=[]，minimum_index_weight_coverage=0.98。                                                                                       |
 
 ### 最终方案的差异
@@ -106,9 +110,9 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 | 风险因子增强 | `qlib_factor`   | risk   |    160 |          1.0 |      426 |                    0.11321 | 固定持有 1 日（`holding_days=1`）         |
 | 3 日策略     | `qlib_strategy` | risk   |    160 |          1.0 |      426 |                    0.11321 | 最短持有 3 日（`minimum_holding_days=3`） |
 
-策略版显式使用 `minimum_holding_days=3`、`replacement_fraction=0.2`、`rank_buffer=1`：持满最短天数后，优先退出 TopN 以外排名最差的持仓；Top20 每日每侧最多成交 4 只，Top30 为 6 只，首次建仓豁免。`holding_days=1` 不触发固定到期退出，planned_exit_date=null；限制的是股票数量。插件默认最短持有期仍为 10 日，因子默认组仍为 none，复现这两个增强版本需要显式传参。
+策略版显式使用 `minimum_holding_days=3`、`replacement_fraction=0.2`、`rank_buffer=1`：持满最短天数后，优先退出 TopN 以外排名最差的持仓；Top20 每日每侧最多成交 4 只，Top30 为 6 只，首次建仓豁免。策略不提供固定到期参数，planned_exit_date=null；限制的是股票数量。插件默认最短持有期仍为 10 日，因子默认组仍为 none，复现这两个增强版本需要显式传参。
 
-因子版在 158 列基础上仅增加残差波动与下行风险两列（`context_groups=risk`）；计算时点、缺失值要求和公式见 [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md#experiments)。策略版直接复用该模型预测，不重新训练，所以整体信号指标相同。
+因子版在 158 列基础上仅增加残差波动与下行风险两列（`context_groups=risk`）；计算时点、缺失值要求和公式见 [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)。策略版直接复用该模型预测，不重新训练，所以整体信号指标相同。
 
 ### 指标口径
 
@@ -201,7 +205,7 @@ axonx submit --task qlib_factor_predict --source-tasks '<factor_train_task_id>' 
 
 # 固定持有：分别对基础和因子预测执行一次
 axonx submit --task qlib_factor_backtest --source-tasks '<factor_predict_task_id>' \
-  --top-ns '[20,30]' --holding-days 1 --transaction-cost-rate 0.001 \
+  --top-ns '[20,30]' --holding-days 1 --buy-cost-rate 0.001 --sell-cost-rate 0.001 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
   --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
   --labels-file '<base_etl_labels_path>'
@@ -209,7 +213,7 @@ axonx submit --task qlib_factor_backtest --source-tasks '<factor_predict_task_id
 # 策略版本：复用因子预测，采用选中的 3 日策略
 axonx submit --task qlib_strategy_backtest --source-tasks '<factor_predict_task_id>' \
   --top-ns '[20,30]' --minimum-holding-days 3 \
-  --replacement-fraction 0.2 --rank-buffer 1 --transaction-cost-rate 0.001 \
+  --replacement-fraction 0.2 --rank-buffer 1 --buy-cost-rate 0.001 --sell-cost-rate 0.001 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
   --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
   --labels-file '<base_etl_labels_path>'
@@ -241,4 +245,4 @@ axonx submit --task qlib_strategy_backtest --source-tasks '<factor_predict_task_
 
 基础 ETL：`etl#qlib_a158_etl#2026100912u43E`；最终增强 ETL：`etl#qlib_factor_etl#2026100917HM2p`。同模型各策略的预测哈希相同，三个版本行情、日历和标签哈希一致。框架/插件为 0.1.1 / 0.2.0，Python 3.12.14、Polars 1.44.2、LightGBM 4.7.0。
 
-[Alpha158](../../../plugins/qlib_a158/README_ZH.md#experiments) · [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md#experiments) · [Qlib Strategy](../../../plugins/qlib_strategy/README_ZH.md#experiments)
+[Alpha158](../../../plugins/qlib_a158/README_ZH.md) · [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md) · [Qlib Strategy](../../../plugins/qlib_strategy/README_ZH.md)

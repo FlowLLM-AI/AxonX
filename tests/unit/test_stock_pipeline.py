@@ -61,9 +61,9 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
     if layer != "baseline":
         from axonx_qlib_factor.etl import Alpha158Task
         from axonx_qlib_factor.train import LgbmTrainTask
-        from axonx_qlib_factor.predict import LgbmPredictTask
-        from axonx_qlib_factor.backtest import Alpha158BacktestTask
-        from axonx_qlib_factor.analysis import FactorAnalysisTask
+        from axonx_qlib_a158.predict import LgbmPredictTask
+        from axonx_qlib_a158.backtest import Alpha158BacktestTask
+        from axonx_qlib_a158.analysis import FactorAnalysisTask
     else:
         from axonx_qlib_a158.etl import Alpha158Task
         from axonx_qlib_a158.train import LgbmTrainTask
@@ -148,8 +148,8 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
         "backtest",
         source_tasks=predict.task_id,
         top_ns=[1, 3],
-        transaction_cost_rate=0.0,
-        **({"buy_cost_rate": 0.0005, "sell_cost_rate": 0.0015} if parameter_preset == "qlib" else {}),
+        buy_cost_rate=0.0005 if parameter_preset == "qlib" else 0.0,
+        sell_cost_rate=0.0015 if parameter_preset == "qlib" else 0.0,
         **({"minimum_holding_days": 0} if layer == "strategy" else {}),
     )
     if parameter_preset == "qlib":

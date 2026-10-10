@@ -59,7 +59,6 @@ def run_comparison(options: argparse.Namespace) -> dict:
             source_tasks=predict_id,
             top_ns=options.top_ns,
             as_of_date=prediction["date_range"]["end"],
-            transaction_cost_rate=options.transaction_cost_rate,
             buy_cost_rate=options.buy_cost_rate,
             sell_cost_rate=options.sell_cost_rate,
         )
@@ -112,8 +111,8 @@ def main() -> None:
     parser.add_argument("--workspace-path", type=Path, default=Path(".axonx"))
     parser.add_argument("--etl-task", required=True)
     parser.add_argument("--labels", choices=["rank", "csz"], nargs="+", default=["rank"])
-    parser.add_argument("--buy-cost-rate", type=float, default=None)
-    parser.add_argument("--sell-cost-rate", type=float, default=None)
+    parser.add_argument("--buy-cost-rate", type=float, default=0.0005)
+    parser.add_argument("--sell-cost-rate", type=float, default=0.0015)
     parser.add_argument("--train-start", default="20150101")
     parser.add_argument("--train-end", default="20230101")
     parser.add_argument("--pred-start", default="20230101")
@@ -121,7 +120,6 @@ def main() -> None:
     parser.add_argument("--num-threads", type=int, default=8)
     parser.add_argument("--num-boost-round", type=int, default=1000)
     parser.add_argument("--top-ns", type=int, nargs="+", default=[5, 10, 20, 30])
-    parser.add_argument("--transaction-cost-rate", type=float, default=0.002)
     print(json.dumps(run_comparison(parser.parse_args()), indent=2, allow_nan=False))
 
 

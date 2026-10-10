@@ -31,23 +31,22 @@ ETL 发布四份独立产物：
 ```bash
 axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
   --top-ns '[1,5,10,30]' --holding-days 1 \
-  --transaction-cost-rate 0.002
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 来源任务自动解析行情、日历和标签产物。指定文件时使用 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`。`as_of_date` 为包含当天的评价截止日期，默认取行情最后日期。`top_ns` 是整数列表，各组合独立记账。日历日期必须是有效 YYYYMMDD，不能有空值或重复；计算标签期限和持有期前会拒绝非法日历。
 
-| 参数                            | 默认值  | 含义                           |
-| ------------------------------- | ------- | ------------------------------ |
-| `holding_days`                  | `1`     | 按市场日计算的计划持有期       |
-| `transaction_cost_rate`         | `0.002` | 每次实际买入和卖出金额的费用率 |
-| `buy_cost_rate`                 | `None`  | 买入费用率；未设则沿用共用费率 |
-| `sell_cost_rate`                | `None`  | 卖出费用率；未设则沿用共用费率 |
-| `annual_risk_free_rate`         | `0.012` | 年无风险收益率                 |
-| `annualization_days`            | `252`   | 年交易日数                     |
-| `minimum_index_weight_coverage` | `0.98`  | 指数权重收益代理的覆盖率要求   |
-| `index_codes`                   | `[]`    | 可选的信号候选指数限制         |
+| 参数                            | 默认值   | 含义                         |
+| ------------------------------- | -------- | ---------------------------- |
+| `holding_days`                  | `1`      | 按市场日计算的计划持有期     |
+| `buy_cost_rate`                 | `0.0005` | 买入成交金额费用率           |
+| `sell_cost_rate`                | `0.0015` | 卖出成交金额费用率           |
+| `annual_risk_free_rate`         | `0.012`  | 年无风险收益率               |
+| `annualization_days`            | `252`    | 年交易日数                   |
+| `minimum_index_weight_coverage` | `0.98`   | 指数权重收益代理的覆盖率要求 |
+| `index_codes`                   | `[]`     | 可选的信号候选指数限制       |
 
-分别设置买卖费用时，使用 `--buy-cost-rate 0.0005 --sell-cost-rate 0.0015`，即买入 0.05%、卖出 0.15%。未设置的单侧继续使用 `transaction_cost_rate`；显式设为 `0` 表示该侧免费。费用按实际成交金额收取，归一化资金回测不设最低金额费用。
+默认与 Qlib 参考配置一致： `--buy-cost-rate 0.0005 --sell-cost-rate 0.0015`，即买入 0.05%、卖出 0.15%。显式设为 `0` 表示该侧免费。费用按实际成交金额收取，归一化资金回测不设最低金额费用。
 
 ## 成交与估值
 

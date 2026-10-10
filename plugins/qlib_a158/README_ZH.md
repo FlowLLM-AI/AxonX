@@ -10,16 +10,16 @@ AxonX 基于 Qlib Alpha158 / LightGBM 研究方案开发的量化插件，提供
 
 本插件采用 Alpha158 特征、日截面标签和 LightGBM 模型，使用 AxonX 组织数据处理、训练、预测与回测。Qlib `54355232463878d2eebb91fe0ee5fa7fa1f5976c` 的示例作为研究参考，具体方案与差异如下：
 
-| 环节   | 本插件                                                                                | 原始 Qlib 示例                                               |
-| ------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| 股票池 | 沪深全市场，排除北交所；训练筛选信号日可买样本                                        | 历史 CSI300 成分                                             |
-| 特征   | 相同 158 个特征与窗口；极值索引跳过缺报价；近零波动相关性无效，回归保留交易日偏移     | Alpha158 表达式算子                                          |
-| 数据   | Tushare 复权价格与成交量                                                              | Qlib 数据快照与采集器归一化                                  |
-| 标签   | T→T+1 收盘收益，默认日截面 rank；两侧各剔除 2.5%                                      | T+1→T+2 收盘收益，DropnaLabel + CSZScoreNorm（样本标准差）   |
-| 训练   | 末尾 10% 日期验证选轮数，再重拟合全部训练期；剔除跨截止日标签                         | 独立 train/valid/test，保留早停模型                          |
-| 交易   | 当日收盘报价代理、官方涨跌停价格及分板块回退、默认每侧费用 0.2%，支持分别设置买卖费率 | 次日收盘、统一 9.5% 阈值、买入 0.05% / 卖出 0.15%，最低 5 元 |
-| 策略   | 固定持有期 TopN；排名保留策略留在策略插件                                             | Top50、最多替换 5 只、95% 现金分配                           |
-| 评价   | 复利净权益与 252 日年化；HS300 成分加权收益是代理基准                                 | CSI300 指数行情；风险分析默认算术累计                        |
+| 环节   | 本插件                                                                            | 原始 Qlib 示例                                               |
+| ------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 股票池 | 沪深全市场，排除北交所；训练筛选信号日可买样本                                    | 历史 CSI300 成分                                             |
+| 特征   | 相同 158 个特征与窗口；极值索引跳过缺报价；近零波动相关性无效，回归保留交易日偏移 | Alpha158 表达式算子                                          |
+| 数据   | Tushare 复权价格与成交量                                                          | Qlib 数据快照与采集器归一化                                  |
+| 标签   | T→T+1 收盘收益，默认日截面 rank；两侧各剔除 2.5%                                  | T+1→T+2 收盘收益，DropnaLabel + CSZScoreNorm（样本标准差）   |
+| 训练   | 末尾 10% 日期验证选轮数，再重拟合全部训练期；剔除跨截止日标签                     | 独立 train/valid/test，保留早停模型                          |
+| 交易   | 当日收盘报价代理、官方涨跌停价格及分板块回退、默认买入 0.05% / 卖出 0.15%         | 次日收盘、统一 9.5% 阈值、买入 0.05% / 卖出 0.15%，最低 5 元 |
+| 策略   | 固定持有期 TopN；排名保留策略留在策略插件                                         | Top50、最多替换 5 只、95% 现金分配                           |
+| 评价   | 复利净权益与 252 日年化；HS300 成分加权收益是代理基准                             | CSI300 指数行情；风险分析默认算术累计                        |
 
 每阶段 metadata 记录 `qlib_reference` / `qlib_deviations`，用于追踪参考版本和方案差异。
 
@@ -160,9 +160,8 @@ axonx get_task_definition --task qlib_a158_train
 | Train `num_boost_round` / `early_stopping_rounds` | `1000` / `50`           | 最大迭代 / 早停轮数                |
 | Train `random_seed`                               | `42`                    | 模型抽样随机种子                   |
 | Predict `pred_start` / `pred_end`                 | `20230101` / null       | 预测区间；起始日不能早于训练截止日 |
-| Backtest `transaction_cost_rate`                  | `0.002`                 | 未设置分侧费率时使用的共用费率     |
-| Backtest `buy_cost_rate`                          | `None`                  | 买入费率，未设沿用共用费率         |
-| Backtest `sell_cost_rate`                         | `None`                  | 卖出费率，未设沿用共用费率         |
+| Backtest `buy_cost_rate`                          | `0.0005`                | 买入成交金额费用率                 |
+| Backtest `sell_cost_rate`                         | `0.0015`                | 卖出成交金额费用率                 |
 | Backtest `annualization_days`                     | `252`                   | 年化交易日数                       |
 
 完整参数以执行环境中 `get_task_definition` 返回的 Schema 为准。
@@ -173,7 +172,7 @@ axonx get_task_definition --task qlib_a158_train
 
 ETL 协议版本 2 发布独立的 `dataset`、`labels`、`market`、`calendar` 产物。原始标签固定为信号日到次一市场日的复权收益，停牌和缺数据使用无效标签，不寻找未来复牌收益。训练在排除截止时间之后的标签并处理尾部后，计算 `label_return_rank` 或 `label_return_csz`；拟合、验证和最终训练分别转换。rank 使用平均排名并归一化到 `[0,1]`；csz 使用截尾后的日截面总体标准差（`ddof=0`）。早停按验证 L2 选轮数。预测不依赖未来标签，统计描述分数和信号时选股资格。Studio 展示配置的 TopN，将行情不完整结果标为暂定评价。
 
-回测继承 AxonX `BaseStockBacktestTask`，独立读取价格和交易状态，按每日市值估值。无法卖出时继续持仓并占用资金，所选股票无法买入时不以低分股票补位。`transaction_cost_rate` 为共用费率；`buy_cost_rate` / `sell_cost_rate` 可分别覆盖买入与卖出费率，未设的单侧沿用共用费率。使用 `--buy-cost-rate 0.0005 --sell-cost-rate 0.0015` 可按 qlib 的买入 0.05% / 卖出 0.15% 收费，归一化资金账本不设最低 5 元费用。费用按实际成交金额收取，`top_ns` 是整数列表。`market_status_file` 可提供经确认的停牌状态（信号主键及 `market_status=suspended`）；缺行情不自动视为停牌，相关回测标为 `incomplete_market_data`。Top30 是信号目标，实际持仓、订单及已完成交易分别见 `positions`、`orders`、`trades`。
+回测继承 AxonX `BaseStockBacktestTask`，独立读取价格和交易状态，按每日市值估值。无法卖出时继续持仓并占用资金，所选股票无法买入时不以低分股票补位。`buy_cost_rate=0.0005` 和 `sell_cost_rate=0.0015` 默认使用 Qlib 参考费率，即买入 0.05% / 卖出 0.15%，归一化资金账本不设最低 5 元费用。费用按实际成交金额收取，`top_ns` 是整数列表。`market_status_file` 可提供经确认的停牌状态（信号主键及 `market_status=suspended`）；缺行情不自动视为停牌，相关回测标为 `incomplete_market_data`。Top30 是信号目标，实际持仓、订单及已完成交易分别见 `positions`、`orders`、`trades`。
 
 收益、成本、IC 与持仓的详细定义见 [回测解读](https://flowllm-ai.github.io/AxonX/zh/research/backtest)。
 
@@ -184,106 +183,13 @@ ETL 协议版本 2 发布独立的 `dataset`、`labels`、`market`、`calendar` 
 在仓库根目录安装开发依赖后执行：
 
 ```bash
-.venv/bin/python -m pytest \
+python -m pytest \
   tests/unit/test_qlib_a158.py tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py \
   tests/unit/test_stock_backtest.py tests/unit/test_stock_pipeline.py -q
 ```
 
 覆盖特征边界、标签时点、四组参数对照、分侧费用、延迟退出与持仓资金记账规则。
 
-<a id="experiments"></a>
+## 实验记录
 
-## 最终实验设定与结果
-
-本节记录本插件的最终实验；跨插件对比见[三个版本实验对比](../../docs/zh/research/experiments.md#comparison)。指标整理自 45 机器成功任务的 metadata、summary.parquet、daily.parquet 和 trades.parquet，原始产物保留在执行工作区。
-
-### 本版本配置
-
-158 个 Alpha158 特征；feature_fraction=0.9；固定 holding_days=1。
-
-数据、训练窗口、样本过滤、成交与费用共同设定见[三个版本实验对比](../../docs/zh/research/experiments.md#comparison)。
-
-本次模型使用 158 个特征，早停选择 422 轮后全训练期重拟合，内部验证 RankIC 为 0.10789。
-
-本次使用固定持有期 `holding_days=1`。
-
-### 指标口径
-
-信息系数／秩信息系数、净收益、夏普比率、换手与基准超额的统一定义见[实验对比](../../docs/zh/research/experiments.md#comparison)。组合指标使用 909 日；基准超额使用共同有效的 908 日。
-
-### 整体信号与 Top20 完整结果
-
-| 指标                              | Alpha158 |
-| --------------------------------- | -------: |
-| 整体信息系数（IC）                |   0.0530 |
-| 整体秩信息系数（RankIC）          |   0.0923 |
-| 整体秩信息比率（RankICIR，年化）  |  12.8817 |
-| 净年化收益                        |    7.69% |
-| 净累计收益                        |   30.63% |
-| 净夏普比率                        |   0.3624 |
-| 净年化波动率                      |   28.20% |
-| 最大回撤                          |  -38.64% |
-| 日收益胜率                        |   53.47% |
-| 日均双边换手                      |  198.83% |
-| 日均费用 / 前日权益               |  0.1988% |
-| 已完成交易                        |   18,032 |
-| 相对市场均值的净超额年化收益      |   -3.47% |
-| 相对市场均值的净信息比率          |  -0.1404 |
-| 相对市场均值的净超额最大回撤      |  -28.47% |
-| 相对沪深 300 代理的净超额年化收益 |    2.77% |
-| 相对沪深 300 代理的净信息比率     |   0.2353 |
-| 相对沪深 300 代理的净超额最大回撤 |  -31.94% |
-
-### Top30 结果
-
-| 方案     | 净年化收益 | 净夏普比率 | 最大回撤 | 日均双边换手 | 相对市场均值的净信息比率 | 相对沪深 300 代理的净信息比率 |
-| -------- | ---------: | ---------: | -------: | -----------: | -----------------------: | ----------------------------: |
-| Alpha158 |      0.99% |     0.1315 |  -40.59% |      199.03% |                  -0.5933 |                       -0.0776 |
-
-### Top20 分年结果
-
-| 年份 | 交易日数 | Alpha158 |
-| ---- | -------: | -------: |
-| 2023 |      242 |   -9.16% |
-| 2024 |      242 |    5.09% |
-| 2025 |      243 |   48.64% |
-| 2026 |      182 |   -9.30% |
-
-各年值为对应区间净年化；2026 年截至 10 月 8 日。结果为 `incomplete_market_data`，缺报价可能延迟退出并沿用旧估值，同收盘成交为代理假设。
-
-### 复现实验
-
-每阶段保存返回的 Task/Run ID 并等待成功后再提交下游；远程执行时统一使用同一 `--target`。以下参数与 实验设定一致，其余默认值提交前用 `get_task_definition` 核对。
-
-```bash
-axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20261008
-axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>' \
-  --train-start 20150101 --train-end 20230101 --label-column label_return_rank \
-  --parameter-preset axonx --feature-fraction 0.9 \
-  --random-seed 42 --num-threads 8
-axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>' \
-  --pred-start 20230101 --pred-end 20261008
-axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
-  --top-ns '[20,30]' --holding-days 1 --transaction-cost-rate 0.001 \
-  --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
-  --market-file '<market_path>' --calendar-file '<calendar_path>' --labels-file '<labels_path>'
-```
-
-### 任务来源与输入校验
-
-执行工作区：45 机器 `/nas/jinli.yl/data/axon`。
-
-| 阶段／方案    | 任务标识                                     | 运行标识                           |
-| ------------- | -------------------------------------------- | ---------------------------------- |
-| 基线训练      | `train#qlib_a158_train#2026100912mMlp`       | `710de1c0530b430e94e0b92e7634cd2a` |
-| 基线预测      | `predict#qlib_a158_predict#2026100912Qanw`   | `c8b97e5ec7bb483da455d988ec6216d3` |
-| Alpha158 回测 | `backtest#qlib_a158_backtest#2026100916Y0Xb` | `d10c8a78be104ee7a8a492b9cc438bde` |
-
-| 输入     | SHA-256                                                            |
-| -------- | ------------------------------------------------------------------ |
-| market   | `5240ca57a6ba0f045679c0661d2785bbb9c793e7bd5f4c1091d7998061e98b32` |
-| calendar | `cb40f3148a2ff06ff4ad1ace95ed1a8e4da5c45f844007562dbc8020aa2b15a5` |
-| labels   | `39e1cabc39f5b6050a13c3a015a7d3b0c7912a80fbf285c2a093427ddff4ba3f` |
-| input    | `3337bb98e59986b3d3e10730ecff49fae0d3d31b7d6b8e163fe19a63510a8aad` |
-
-框架/插件版本为 0.1.1 / 0.2.0；Python 3.12.14、Polars 1.44.2、LightGBM 4.7.0。新数据不保证重现未发布的历史快照；原始运行产物不随仓库提交。
+历史实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/experiments.md#comparison)。这些历史记录不代表当前代码已重新运行验证。

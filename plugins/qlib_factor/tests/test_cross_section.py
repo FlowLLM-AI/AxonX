@@ -234,3 +234,23 @@ def test_nonfinite_endpoints_are_excluded_and_undefined_beta_stays_null():
     assert features["f_context_residual_vol20"].is_null().all()
     assert features["f_context_neutral_momentum10"].is_null().all()
     assert features.tail(1)["f_context_downside_risk20"].item() == 0
+
+
+@pytest.mark.parametrize("invalid", ["missing", "zero_volume", "nonfinite"])
+def test_stock_features_are_null_on_invalid_current_quotes(invalid):
+    source = dynamic_panel()
+    last = source["trade_date"].max()
+    features, _ = calculate_context(source)
+    valid = features.filter((pl.col("ts_code") == "S00") & (pl.col("trade_date") == last))
+    assert valid["f_context_residual_vol20"].item() is not None
+    bad = (pl.col("ts_code") == "S00") & (pl.col("trade_date") == last)
+    column, value = {
+        "missing": ("_has_market_data", False),
+        "zero_volume": ("vol", 0.0),
+        "nonfinite": ("_close", float("inf")),
+    }[invalid]
+    changed, _ = calculate_context(
+        source.with_columns(pl.when(bad).then(pl.lit(value)).otherwise(pl.col(column)).alias(column))
+    )
+    row = changed.filter(bad).row(0, named=True)
+    assert all(row[name] is None for group in ("neutral", "risk") for name in FEATURE_GROUPS[group])

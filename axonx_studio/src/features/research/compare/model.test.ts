@@ -22,21 +22,21 @@ const day = (date: string, net: number, gross = net): DailyRow => ({
 });
 
 describe("strategy comparison", () => {
-  it("resolves executed-side fees and preserves explicit zero", () => {
-    expect(executionCostRates({ transaction_cost_rate: 0.001 })).toEqual({
+  it("reads explicit side fees and preserves zero", () => {
+    expect(
+      executionCostRates({ buy_cost_rate: 0.001, sell_cost_rate: 0.001 }),
+    ).toEqual({
       buyCost: 0.001,
       sellCost: 0.001,
     });
     expect(
       executionCostRates({
-        transaction_cost_rate: 0.001,
         buy_cost_rate: 0,
         sell_cost_rate: 0.002,
       }),
     ).toEqual({ buyCost: 0, sellCost: 0.002 });
-    expect(
-      executionCostRates({ transaction_cost_rate: 0.001, buy_cost_rate: null }),
-    ).toEqual({ buyCost: 0.001, sellCost: 0.001 });
+    expect(executionCostRates({}).buyCost).toBeNaN();
+    expect(executionCostRates({}).sellCost).toBeNaN();
   });
 
   it("averages recorded execution costs on the shared window", () => {

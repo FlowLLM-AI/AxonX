@@ -52,7 +52,7 @@ def test_policy_respects_rank_age_and_filled_order_caps(minimum, buffer, cap, fi
         market,
         calendar,
         None,
-        BacktestConfig(top_ns=(5,)),
+        BacktestConfig(top_ns=(5,), holding_days=None),
         as_of_date="20230116",
         policy=RankRetentionPolicy(cap, minimum, buffer),
     )
@@ -87,13 +87,14 @@ def test_policy_respects_rank_age_and_filled_order_caps(minimum, buffer, cap, fi
 
 def test_future_scores_do_not_change_prefix_decisions():
     signals, market, calendar = fixture()
-    config, policy = BacktestConfig(top_ns=(5,)), RankRetentionPolicy(0.2, 0, 1.0)
+    config, policy = BacktestConfig(top_ns=(5,), holding_days=None), RankRetentionPolicy(0.2, 0, 1.0)
     full = run_backtest(signals, market, calendar, None, config, as_of_date="20230116", policy=policy)
     prefix = run_backtest(signals, market, calendar, None, config, as_of_date="20230104", policy=policy)
     assert full.frames["orders"].filter(pl.col("trade_date") <= "20230104").equals(prefix.frames["orders"])
 
 
 def test_fixed_expiry_cannot_be_silently_configured():
+    assert "holding_days" not in StrategyBacktestInput.model_fields
     with pytest.raises(ValueError):
         StrategyBacktestInput(holding_days=5)
 
@@ -115,3 +116,17 @@ def test_rank_buffer_retains_eligible_holdings():
 def test_invalid_replacement_fraction_is_rejected(fraction):
     with pytest.raises(ValueError):
         StrategyBacktestInput(replacement_fraction=fraction)
+
+
+def test_policy_rejects_conflicting_fixed_expiry():
+    signals, market, calendar = fixture()
+    with pytest.raises(ValueError, match="holding_days=None"):
+        run_backtest(
+            signals,
+            market,
+            calendar,
+            None,
+            BacktestConfig(top_ns=(5,)),
+            as_of_date="20230116",
+            policy=RankRetentionPolicy(0.2, 3, 1.0),
+        )

@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import math
 
 from pydantic import Field
-from axonx_qlib_factor.backtest import Alpha158BacktestInputParams as BaseInput, Alpha158BacktestTask as BaseTask
-from axonx.task.builtins.stock.backtest import StockBacktestOutput
+from axonx_qlib_a158.backtest import Alpha158BacktestTask as BaseTask
+from axonx.task.builtins.stock.backtest import StockPortfolioInput, StockBacktestOutput
 
 
 @dataclass(frozen=True)
@@ -21,9 +21,8 @@ class RankRetentionPolicy:
         return age >= self.minimum_holding_days and (rank is None or rank > math.ceil(n * self.rank_buffer))
 
 
-class StrategyBacktestInput(BaseInput):
+class StrategyBacktestInput(StockPortfolioInput):
     top_ns: list[int] = Field(default_factory=lambda: [20, 30])
-    holding_days: int = Field(default=1, ge=1, le=1, description="Fixed expiry is disabled; use minimum_holding_days.")
     replacement_fraction: float = Field(
         default=0.2, gt=0, le=1, description="Daily count cap per side; initial entry exempt."
     )
@@ -43,6 +42,9 @@ class StrategyBacktestTask(BaseTask):
 
     input_cls = StrategyBacktestInput
     input_params: StrategyBacktestInput
+
+    def fixed_holding_days(self) -> None:
+        return None
 
     def portfolio_policy(self) -> RankRetentionPolicy:
         p = self.input_params

@@ -17,7 +17,7 @@ The plugin combines Alpha158 features, daily cross-sectional labels and LightGBM
 | Data       | Tushare adjusted prices and volume                                                                                                          | Qlib snapshot and collector normalization                                       |
 | Labels     | T→T+1 close return, daily rank by default, 2.5% trimming per tail                                                                           | T+1→T+2 close return, DropnaLabel + sample-std CSZScoreNorm                     |
 | Training   | Last 10% of dates select rounds, then refit all training dates; purge cutoff-crossing labels                                                | Independent train/valid/test, retain early-stopped model                        |
-| Trading    | Same-close quote proxy, official limits with board-specific fallback, 0.2% per executed side by default, with separate buy/sell rates       | Next-close execution, uniform 9.5% threshold, 0.05% buy / 0.15% sell, minimum 5 |
+| Trading    | Same-close quote proxy, official limits with board-specific fallback, 0.05% buy / 0.15% sell by default                                     | Next-close execution, uniform 9.5% threshold, 0.05% buy / 0.15% sell, minimum 5 |
 | Strategy   | Fixed holding expiry TopN; retention remains in the strategy plugin                                                                         | Top50, at most 5 replacements, 95% cash allocation                              |
 | Evaluation | Compound net equity, 252-day annualization; constituent-weighted HS300 proxy                                                                | Actual CSI300 index quotes; default arithmetic risk accumulation                |
 
@@ -160,9 +160,8 @@ For remote execution, add the same `--target` to all submission, wait, and defin
 | Train `num_boost_round` / `early_stopping_rounds` | `1000` / `50`           | Maximum rounds / early stopping patience                        |
 | Train `random_seed`                               | `42`                    | Model sampling seed                                             |
 | Predict `pred_start` / `pred_end`                 | `20230101` / null       | Prediction interval; start must not precede the training cutoff |
-| Backtest `transaction_cost_rate`                  | `0.002`                 | Shared fee rate when the corresponding side override is unset   |
-| Backtest `buy_cost_rate`                          | `None`                  | Buy rate; unset uses shared rate                                |
-| Backtest `sell_cost_rate`                         | `None`                  | Sell rate; unset uses shared rate                               |
+| Backtest `buy_cost_rate`                          | `0.0005`                | Fee on executed buy notional                                    |
+| Backtest `sell_cost_rate`                         | `0.0015`                | Fee on executed sell notional                                   |
 | Backtest `annualization_days`                     | `252`                   | Trading days used for annualization                             |
 
 Consult `get_task_definition` in the execution environment for the complete parameter Schema.
@@ -173,7 +172,7 @@ Original features use the `f_alpha158_*` namespace: 13 current-day price feature
 
 ETL schema version 2 publishes independent `dataset`, `labels`, `market`, and `calendar` artifacts. Raw labels use the next market date; suspended or missing quotes invalidate the label without searching for a future resumption. Training filters exclusive cutoffs and handles tails before computing `label_return_rank` or `label_return_csz`; fitting, validation and final training transform their own eligible reference rows. Rank uses average ranks scaled to `[0,1]`; CSZ uses clipped daily returns and population standard deviation (`ddof=0`). Early stopping selects rounds using validation L2. Prediction does not require future labels; its statistics describe scores and signal-time eligibility. Studio renders the configured TopN sizes and marks incomplete market-data results as provisional.
 
-Backtesting inherits AxonX `BaseStockBacktestTask`, reads independent prices and trading states, and marks positions to market daily. Blocked exits retain capital; unfilled targets are not replaced by lower-ranked stocks. `transaction_cost_rate` is the shared rate; `buy_cost_rate` / `sell_cost_rate` override each side independently, with unset sides using the shared rate. Pass `--buy-cost-rate 0.0005 --sell-cost-rate 0.0015` for qlib rates (0.05% buy / 0.15% sell); the normalized-cash ledger omits the RMB 5 minimum. Fees apply to executed notional; `top_ns` is an integer list. An optional `market_status_file` supplies confirmed suspensions (signal keys plus `market_status=suspended`); absent quotes are not inferred as suspension and affected runs report `incomplete_market_data`. Top30 contains signal targets; `positions`, `orders`, and `trades` record actual portfolio state.
+Backtesting inherits AxonX `BaseStockBacktestTask`, reads independent prices and trading states, and marks positions to market daily. Blocked exits retain capital; unfilled targets are not replaced by lower-ranked stocks. `buy_cost_rate=0.0005` and `sell_cost_rate=0.0015` default to the Qlib reference rates (0.05% buy / 0.15% sell); the normalized-cash ledger omits the RMB 5 minimum. Fees apply to executed notional; `top_ns` is an integer list. An optional `market_status_file` supplies confirmed suspensions (signal keys plus `market_status=suspended`); absent quotes are not inferred as suspension and affected runs report `incomplete_market_data`. Top30 contains signal targets; `positions`, `orders`, and `trades` record actual portfolio state.
 
 For return, cost, IC, and holding definitions, see [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest).
 
@@ -184,106 +183,13 @@ Required prediction columns, optional columns and metadata constraints are liste
 From the repository root, after installing development dependencies:
 
 ```bash
-.venv/bin/python -m pytest \
+python -m pytest \
   tests/unit/test_qlib_a158.py tests/unit/test_alpha158_labels.py tests/unit/test_alpha158_backtest.py \
   tests/unit/test_stock_backtest.py tests/unit/test_stock_pipeline.py -q
 ```
 
 These checks cover feature boundaries, label timing, four-way parameter comparisons, side fees, delayed exits and cash/position accounting.
 
-<a id="experiments"></a>
+## Recorded experiments
 
-## Final experiment settings and results
-
-This section records this plugin’s final experiment. See the [three-version comparison](../../docs/en/research/experiments.md#comparison) for cross-plugin results. Metrics come from successful machine-45 Tasks and their metadata, summary.parquet, daily.parquet and trades.parquet; original artifacts remain in the execution workspace.
-
-### Version configuration
-
-158 Alpha158 features; feature_fraction=0.9; fixed holding_days=1.
-
-Data, training windows, filtering, execution, and fee settings are maintained in the [three-version comparison](../../docs/en/research/experiments.md#comparison).
-
-The model uses 158 features and refits the full training period after early stopping selects 422 rounds. Validation RankIC is 0.10789.
-
-This experiment uses fixed expiry with `holding_days=1`.
-
-### Metric definitions
-
-Shared definitions for IC/RankIC, net returns, Sharpe, turnover, and active metrics are maintained in the [experiment comparison](../../docs/en/research/experiments.md#comparison). Portfolio metrics use 909 dates; active metrics use 908 benchmark-valid dates.
-
-### Overall signals and full Top20 results
-
-| Metric                                   | Alpha158 |
-| ---------------------------------------- | -------: |
-| Overall IC                               |   0.0530 |
-| Overall RankIC                           |   0.0923 |
-| Overall RankICIR (annualized)            |  12.8817 |
-| Net annualized                           |    7.69% |
-| Net cumulative return                    |   30.63% |
-| Net Sharpe                               |   0.3624 |
-| Net annualized volatility                |   28.20% |
-| Max drawdown                             |  -38.64% |
-| Daily return win rate                    |   53.47% |
-| Mean daily two-sided turnover            |  198.83% |
-| Mean daily cost / prior equity           |  0.1988% |
-| Closed trades                            |   18,032 |
-| Net active annualized vs universe mean   |   -3.47% |
-| Net IR vs universe mean                  |  -0.1404 |
-| Net active max drawdown vs universe mean |  -28.47% |
-| Net active annualized vs HS300 proxy     |    2.77% |
-| Net IR vs HS300 proxy                    |   0.2353 |
-| Net active max drawdown vs HS300 proxy   |  -31.94% |
-
-### Top30 results
-
-| Scheme   | Net annualized | Net Sharpe | Max drawdown | Turnover | Net IR: universe | Net IR: HS300 |
-| -------- | -------------: | ---------: | -----------: | -------: | ---------------: | ------------: |
-| Alpha158 |          0.99% |     0.1315 |      -40.59% |  199.03% |          -0.5933 |       -0.0776 |
-
-### Top20 yearly results
-
-| Year | Days | Alpha158 |
-| ---- | ---: | -------: |
-| 2023 |  242 |   -9.16% |
-| 2024 |  242 |    5.09% |
-| 2025 |  243 |   48.64% |
-| 2026 |  182 |   -9.30% |
-
-Yearly values are interval net annualized returns; 2026 ends October 8. Results report `incomplete_market_data`: missing quotes may delay exits and carry stale marks. Same-close fills are a proxy.
-
-### Reproduce the experiment
-
-Save Task/Run IDs and wait for success before each downstream submission; use the same `--target` for remote commands. Parameters below match the Setting table; verify remaining defaults with `get_task_definition` before submission.
-
-```bash
-axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20261008
-axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>' \
-  --train-start 20150101 --train-end 20230101 --label-column label_return_rank \
-  --parameter-preset axonx --feature-fraction 0.9 \
-  --random-seed 42 --num-threads 8
-axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>' \
-  --pred-start 20230101 --pred-end 20261008
-axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
-  --top-ns '[20,30]' --holding-days 1 --transaction-cost-rate 0.001 \
-  --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
-  --market-file '<market_path>' --calendar-file '<calendar_path>' --labels-file '<labels_path>'
-```
-
-### Task provenance and input checks
-
-Execution workspace: `/nas/jinli.yl/data/axon` on machine 45.
-
-| Stage / scheme     | Task ID                                      | Run ID                             |
-| ------------------ | -------------------------------------------- | ---------------------------------- |
-| baseline: train    | `train#qlib_a158_train#2026100912mMlp`       | `710de1c0530b430e94e0b92e7634cd2a` |
-| baseline: predict  | `predict#qlib_a158_predict#2026100912Qanw`   | `c8b97e5ec7bb483da455d988ec6216d3` |
-| Alpha158: backtest | `backtest#qlib_a158_backtest#2026100916Y0Xb` | `d10c8a78be104ee7a8a492b9cc438bde` |
-
-| Input    | SHA-256                                                            |
-| -------- | ------------------------------------------------------------------ |
-| market   | `5240ca57a6ba0f045679c0661d2785bbb9c793e7bd5f4c1091d7998061e98b32` |
-| calendar | `cb40f3148a2ff06ff4ad1ace95ed1a8e4da5c45f844007562dbc8020aa2b15a5` |
-| labels   | `39e1cabc39f5b6050a13c3a015a7d3b0c7912a80fbf285c2a093427ddff4ba3f` |
-| input    | `3337bb98e59986b3d3e10730ecff49fae0d3d31b7d6b8e163fe19a63510a8aad` |
-
-Core/plugin versions: 0.1.1 / 0.2.0; Python 3.12.14, Polars 1.44.2, LightGBM 4.7.0. New data do not guarantee reproduction of the unpublished historical snapshot; raw artifacts are not committed.
+Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/experiments.md#comparison). Historical records have not been rerun against the current code.

@@ -75,5 +75,8 @@ def calculate_stock_context(panel: pl.DataFrame, daily: pl.DataFrame) -> pl.Data
     return panel.select(
         "trade_date",
         "ts_code",
-        *[pl.when(pl.col(name).is_finite()).then(pl.col(name)).alias(name) for name in STOCK_FEATURES],
+        *[
+            pl.when(pl.col("_quoted") & pl.col(name).is_finite()).then(pl.col(name)).alias(name)
+            for name in STOCK_FEATURES
+        ],
     )

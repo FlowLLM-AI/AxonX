@@ -17,9 +17,9 @@ Use different task names to retain different training, prediction, and backtest 
 
 ```bash
 axonx submit --task qlib_a158_backtest --task-name cost-low \
-  --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.001
+  --source-tasks '<Predict Task ID>' --buy-cost-rate 0.001 --sell-cost-rate 0.001
 axonx submit --task qlib_a158_backtest --task-name cost-high \
-  --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.003
+  --source-tasks '<Predict Task ID>' --buy-cost-rate 0.003 --sell-cost-rate 0.003
 ```
 
 Wait for each task to succeed, then select A and B on the strategy comparison page. The Task ID identifies the experiment; display names only help recognition. After a rerun with a fixed name replaces the directory, the original result can no longer be treated as retained experiment history.

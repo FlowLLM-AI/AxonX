@@ -22,14 +22,13 @@ class PortfolioPolicy(Protocol):
 @dataclass(frozen=True)
 class BacktestConfig:
     top_ns: tuple[int, ...] = (1, 2, 3, 5, 10, 20, 30)
-    holding_days: int = 1
-    transaction_cost_rate: float = 0.002  # charged on each executed side
+    holding_days: int | None = 1
     annual_risk_free_rate: float = 0.012
     annualization_days: int = 252
     minimum_index_weight_coverage: float = 0.98
     index_codes: tuple[str, ...] = ()
-    buy_cost_rate: float | None = None
-    sell_cost_rate: float | None = None
+    buy_cost_rate: float = 0.0005
+    sell_cost_rate: float = 0.0015
 
 
 @dataclass
@@ -39,15 +38,15 @@ class BacktestResult:
     status: str
 
 
-def _execution_cost_rates(config: BacktestConfig) -> tuple[float, float]:
-    """Resolve optional side rates without treating an explicit zero as unset."""
-    if not 0 <= config.transaction_cost_rate < 1:
-        raise ValueError("transaction_cost_rate must be in [0,1)")
-    buy_cost_rate = config.transaction_cost_rate if config.buy_cost_rate is None else config.buy_cost_rate
-    sell_cost_rate = config.transaction_cost_rate if config.sell_cost_rate is None else config.sell_cost_rate
-    if not 0 <= buy_cost_rate < 1 or not 0 <= sell_cost_rate < 1:
+def _validate_config(config: BacktestConfig, policy: PortfolioPolicy | None) -> None:
+    if not config.top_ns or any(n < 1 for n in config.top_ns):
+        raise ValueError("Positive top_ns are required")
+    if policy is None and (config.holding_days is None or config.holding_days < 1):
+        raise ValueError("Fixed-expiry backtests require positive holding_days")
+    if policy is not None and config.holding_days is not None:
+        raise ValueError("Portfolio policies require holding_days=None")
+    if not 0 <= config.buy_cost_rate < 1 or not 0 <= config.sell_cost_rate < 1:
         raise ValueError("buy_cost_rate and sell_cost_rate must be in [0,1)")
-    return buy_cost_rate, sell_cost_rate
 
 
 def run_backtest(
@@ -60,9 +59,8 @@ def run_backtest(
     as_of_date: str,
     policy: PortfolioPolicy | None = None,
 ) -> BacktestResult:
-    if not config.top_ns or any(n < 1 for n in config.top_ns) or config.holding_days < 1:
-        raise ValueError("Positive top_ns and holding_days are required")
-    buy_cost_rate, sell_cost_rate = _execution_cost_rates(config)
+    _validate_config(config, policy)
+    buy_cost_rate, sell_cost_rate = config.buy_cost_rate, config.sell_cost_rate
     signals, market = normalize_keys(signals), normalize_keys(market)
     for frame, required in ((signals, SIGNAL_COLUMNS), (market, MARKET_COLUMNS)):
         if missing := set(required) - set(frame.columns):
@@ -248,8 +246,8 @@ def run_backtest(
                         }
                     )
                     continue
-                index = date_indices[date] + config.holding_days
-                due = all_dates[index] if policy is None and index < len(all_dates) else None
+                index = date_indices[date] + config.holding_days if config.holding_days is not None else len(all_dates)
+                due = all_dates[index] if index < len(all_dates) else None
                 price = quote["price"] * quote["adjustment_factor"]
                 fee = principal * buy_cost_rate
                 book[code] = {

@@ -20,8 +20,8 @@ export const finite = (value: unknown) =>
 
 export function executionCostRates(input: Record<string, unknown>) {
   return {
-    buyCost: finite(input.buy_cost_rate ?? input.transaction_cost_rate),
-    sellCost: finite(input.sell_cost_rate ?? input.transaction_cost_rate),
+    buyCost: finite(input.buy_cost_rate),
+    sellCost: finite(input.sell_cost_rate),
   };
 }
 

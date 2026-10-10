@@ -24,7 +24,7 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import BaseModel, Field
 
 from ...constants import AXONX_DEFAULT_ENCODING
 from ...enums import TaskState, TaskType
@@ -56,10 +56,7 @@ class TaskStatus(BaseModel):
     """Persisted mutable state of one Task run."""
 
     task_id: str
-    run_id: str = Field(
-        min_length=1,
-        validation_alias=AliasChoices("run_id", "execution_id"),
-    )
+    run_id: str = Field(min_length=1)
     task_type: TaskType
     task_name: str = ""
     config: dict[str, Any] = Field(default_factory=dict)

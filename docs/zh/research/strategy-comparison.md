@@ -17,9 +17,9 @@ Studio 策略比较页面读取两个 Backtest Task 的日频产物，在共同�
 
 ```bash
 axonx submit --task qlib_a158_backtest --task-name cost-low \
-  --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.001
+  --source-tasks '<Predict Task ID>' --buy-cost-rate 0.001 --sell-cost-rate 0.001
 axonx submit --task qlib_a158_backtest --task-name cost-high \
-  --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.003
+  --source-tasks '<Predict Task ID>' --buy-cost-rate 0.003 --sell-cost-rate 0.003
 ```
 
 各自等待成功后，在策略比较页面选择 A 和 B。Task ID 是实验身份，显示名称只能帮助识别；固定名称重跑替换目录后，无法把原结果当成仍保留的历史实验。

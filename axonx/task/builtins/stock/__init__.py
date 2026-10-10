@@ -1,7 +1,7 @@
 """Reusable stock data, label and portfolio task contracts."""
 
 from .data import StockETLOutput, VERSION, fixed_labels, stock_protocol, transform_labels
-from .backtest import BaseStockBacktestTask, StockBacktestInput, StockBacktestOutput
+from .backtest import BaseStockBacktestTask, StockPortfolioInput, StockBacktestInput, StockBacktestOutput
 
 __all__ = [
     "StockETLOutput",
@@ -10,6 +10,7 @@ __all__ = [
     "stock_protocol",
     "transform_labels",
     "BaseStockBacktestTask",
+    "StockPortfolioInput",
     "StockBacktestInput",
     "StockBacktestOutput",
 ]

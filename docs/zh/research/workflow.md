@@ -69,7 +69,7 @@ axonx submit --task qlib_a158_predict --source-tasks '<Train Task ID>' \
 
 # 预测成功后，生成回测产物
 axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
-  --transaction-cost-rate 0.002
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 每条提交命令之间都要执行上一节的等待。`source_tasks` 使用英文逗号分隔 Task ID；qlib_a158 各阶段要求相应类型的单个上游，不能任意添加同类型任务。

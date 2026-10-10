@@ -106,7 +106,6 @@ def test_parameter_comparison_runs_both_presets_with_one_etl(tmp_path, labels):
             num_threads=1,
             num_boost_round=5,
             top_ns=[1, 3],
-            transaction_cost_rate=0.002,
             labels=labels,
             buy_cost_rate=0.0005,
             sell_cost_rate=0.0015,

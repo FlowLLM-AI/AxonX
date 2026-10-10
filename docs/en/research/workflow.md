@@ -69,7 +69,7 @@ axonx submit --task qlib_a158_predict --source-tasks '<Train Task ID>' \
 
 # After prediction succeeds, generate backtest artifacts
 axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
-  --transaction-cost-rate 0.002
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 Perform the wait from the previous section between each submission. `source_tasks` uses ASCII commas to separate Task IDs. Each qlib_a158 stage requires a single upstream task of the corresponding type; do not arbitrarily add tasks of that type.
