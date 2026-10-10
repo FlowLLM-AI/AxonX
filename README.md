@@ -52,7 +52,7 @@ Agents can inspect the same evidence.
 
 ## 📰 Latest Updates
 
-- **Alpha158 enhancement experiments:** compare the adapted baseline, added risk factors, and a rank-retention strategy. → [Results and evidence limits](#benchmark-agent-developed-market-cross-sectional-features)
+- **Alpha158 enhancement experiments:** added risk factors and a rank-retention strategy improve Top20 net annualized returns over the adapted baseline by **1.36 and 24.70 percentage points**, respectively. → [Results and evidence limits](#benchmark-agent-developed-market-cross-sectional-features)
 - **Studio Playground:** explore Tasks and research charts with simulated data and execution. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a>
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261010-agent-code)

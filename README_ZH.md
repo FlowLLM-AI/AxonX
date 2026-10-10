@@ -50,7 +50,7 @@ CLI、HTTP、MCP 和 **AxonX Studio** 通过共享的 Job 提交、查询 Task�
 
 ## 📰 最新更新
 
-- **Alpha158 改进实验：** 比较适配后的基线、新增风险因子与排名保留策略。→ [结果与证据边界](#benchmark-agent-开发市场横截面增强特征)
+- **Alpha158 改进实验：** 新增风险因子与排名保留策略的 Top20 净年化收益，相比适配后的基线分别提升 **1.36 和 24.70 个百分点**。→ [结果与证据边界](#benchmark-agent-开发市场横截面增强特征)
 - **Studio Playground：** 使用模拟数据与执行流程体验任务管理和研究图表。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">在线试玩</a>
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261010-agent-code)

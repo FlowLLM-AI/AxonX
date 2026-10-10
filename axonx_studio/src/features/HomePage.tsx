@@ -60,11 +60,44 @@ export default function HomePage({
   return (
     <section className="workspace-page overview-page">
       <div className="overview-hero">
+        <section className="hero-quant" aria-label={t("home.quantAria")}>
+          <div className="hero-quant-heading">
+            <span>01 / QUANT RESEARCH</span>
+            <h2>{t("home.quantTitle")}</h2>
+            <p>{t("home.quantLead")}</p>
+          </div>
+          <ol className="hero-quant-steps">
+            {quantSteps.map((step, index) => (
+              <li key={step}>
+                {renderStep(step)}
+                {step === "etl" && (
+                  <div className="hero-quant-branch">
+                    <small>{t("home.factorBranch")}</small>
+                    {renderStep("factors")}
+                  </div>
+                )}
+                {index < quantSteps.length - 1 && (
+                  <ArrowDown
+                    className="hero-quant-connector"
+                    aria-hidden="true"
+                  />
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+
         <section className="hero-brand" aria-label={t("home.brandAria")}>
+          <div className="hero-brand-halo" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
           <div className="hero-brand-content">
             <span className="hero-brand-kicker">
               AXONX / AGENT-NATIVE QUANT HARNESS
             </span>
+            <img src={assetUrl("axonx-logo.svg")} alt="AxonX" />
             <h1>{t("home.brandTitle")}</h1>
             <p>{t("home.brandLead")}</p>
             <div className="hero-brand-actions">
@@ -94,41 +127,6 @@ export default function HomePage({
             </div>
             <div className="hero-brand-footer">{t("home.journey")}</div>
           </div>
-          <div className="hero-brand-visual">
-            <div className="hero-brand-halo" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
-            <img src={assetUrl("axonx-logo.svg")} alt="AxonX" />
-          </div>
-        </section>
-
-        <section className="hero-quant" aria-label={t("home.quantAria")}>
-          <div className="hero-quant-heading">
-            <span>01 / QUANT RESEARCH</span>
-            <h2>{t("home.quantTitle")}</h2>
-            <p>{t("home.quantLead")}</p>
-          </div>
-          <ol className="hero-quant-steps">
-            {quantSteps.map((step, index) => (
-              <li key={step}>
-                {renderStep(step)}
-                {step === "etl" && (
-                  <div className="hero-quant-branch">
-                    <small>{t("home.factorBranch")}</small>
-                    {renderStep("factors")}
-                  </div>
-                )}
-                {index < quantSteps.length - 1 && (
-                  <ArrowDown
-                    className="hero-quant-connector"
-                    aria-hidden="true"
-                  />
-                )}
-              </li>
-            ))}
-          </ol>
         </section>
 
         <section
@@ -152,6 +150,7 @@ export default function HomePage({
                     <strong>{t(`home.features.${feature.id}.title`)}</strong>
                     <small>{t(`home.features.${feature.id}.detail`)}</small>
                   </div>
+                  <code>{feature.code}</code>
                 </div>
               );
             })}

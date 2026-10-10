@@ -126,11 +126,11 @@ function moveTab(event: KeyboardEvent, target: number) {
       >
     </section>
 
-    <section class="studio-section">
+    <section id="studio" class="studio-section home-chapter">
       <div class="shell">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">01 / AXONX STUDIO</p>
+            <p class="eyebrow chapter-label">01 / AXONX STUDIO</p>
             <h2>
               {{ t.home.showcaseTitle }}
             </h2>
@@ -237,94 +237,103 @@ function moveTab(event: KeyboardEvent, target: number) {
       </div>
     </section>
 
-    <section class="capability-section shell">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">02 / HARNESS CORE</p>
-          <h2>
-            {{ t.home.capabilitiesTitle }}
-          </h2>
+    <section id="harness" class="capability-section home-chapter">
+      <div class="shell">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow chapter-label">02 / HARNESS CORE</p>
+            <h2>
+              {{ t.home.capabilitiesTitle }}
+            </h2>
+          </div>
         </div>
-      </div>
-      <div class="capabilities">
-        <a v-for="item in capabilities" :key="item.id" :href="link(item.page)"
-          ><p class="eyebrow">{{ item.label }} <span>↗</span></p>
-          <h3>{{ t.home.capabilities[item.id].title }}</h3>
-          <p>{{ t.home.capabilities[item.id].description }}</p></a
-        >
+        <div class="capabilities">
+          <a v-for="item in capabilities" :key="item.id" :href="link(item.page)"
+            ><p class="eyebrow">{{ item.label }} <span>↗</span></p>
+            <h3>{{ t.home.capabilities[item.id].title }}</h3>
+            <p>{{ t.home.capabilities[item.id].description }}</p></a
+          >
+        </div>
       </div>
     </section>
 
-    <section class="capability-section shell">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">03 / CONTINUE YOUR RESEARCH</p>
-          <h2>{{ t.home.journeysTitle }}</h2>
+    <section
+      id="research-guides"
+      class="capability-section home-chapter chapter-alt"
+    >
+      <div class="shell">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow chapter-label">03 / CONTINUE YOUR RESEARCH</p>
+            <h2>{{ t.home.journeysTitle }}</h2>
+          </div>
+          <a class="text-link" :href="link('docs')"
+            >{{ t.home.documentationMap }} ↗</a
+          >
         </div>
-        <a class="text-link" :href="link('docs')"
-          >{{ t.home.documentationMap }} ↗</a
-        >
-      </div>
-      <div class="capabilities">
-        <a v-for="item in journeys" :key="item.id" :href="link(item.page)">
-          <p class="eyebrow">{{ item.label }} <span>↗</span></p>
-          <h3>{{ t.home.journeys[item.id].title }}</h3>
-          <p>{{ t.home.journeys[item.id].description }}</p>
-        </a>
+        <div class="capabilities">
+          <a v-for="item in journeys" :key="item.id" :href="link(item.page)">
+            <p class="eyebrow">{{ item.label }} <span>↗</span></p>
+            <h3>{{ t.home.journeys[item.id].title }}</h3>
+            <p>{{ t.home.journeys[item.id].description }}</p>
+          </a>
+        </div>
       </div>
     </section>
 
-    <section class="case-study shell">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">04 / AGENT RESEARCH CASE</p>
-          <h2>
-            {{ t.home.caseTitle }}
-          </h2>
+    <section id="research-case" class="case-study home-chapter">
+      <div class="shell">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow chapter-label">04 / AGENT RESEARCH CASE</p>
+            <h2>
+              {{ t.home.caseTitle }}
+            </h2>
+          </div>
+          <a class="text-link" :href="link('research/experiments')"
+            >{{ t.home.experimentDesign }} ↗</a
+          >
         </div>
-        <a class="text-link" :href="link('research/experiments')"
-          >{{ t.home.experimentDesign }} ↗</a
-        >
-      </div>
-      <p class="section-lead">
-        {{ t.home.caseDescription }}
-      </p>
-      <div class="benchmark-figures">
-        <a
-          v-for="figure in benchmarkFigures"
-          :key="figure.id"
-          class="benchmark-chart"
-          :href="figure.image"
-        >
-          <img
-            :src="figure.image"
-            :alt="t.home.benchmarkFigures[figure.id]"
-            width="1000"
-            height="470"
-            loading="lazy"
-          />
-        </a>
-      </div>
-      <div class="actions">
-        <a
-          class="action secondary"
-          :href="
-            link('getting-started/overview') +
-            (language === 'zh'
-              ? '#benchmark-agent-开发市场横截面增强特征'
-              : '#benchmark-agent-developed-market-cross-sectional-features')
-          "
-          >{{ t.home.benchmark }} ↗</a
-        >
-        <a class="text-link" :href="link('plugins/qlib-factor')"
-          >{{ t.home.reproduction }} ↗</a
-        >
+        <p class="section-lead">
+          {{ t.home.caseDescription }}
+        </p>
+        <div class="benchmark-figures">
+          <a
+            v-for="figure in benchmarkFigures"
+            :key="figure.id"
+            class="benchmark-chart"
+            :href="figure.image"
+          >
+            <img
+              :src="figure.image"
+              :alt="t.home.benchmarkFigures[figure.id]"
+              width="1000"
+              height="470"
+              loading="lazy"
+            />
+          </a>
+        </div>
+        <div class="actions">
+          <a
+            class="action secondary"
+            :href="
+              link('getting-started/overview') +
+              (language === 'zh'
+                ? '#benchmark-agent-开发市场横截面增强特征'
+                : '#benchmark-agent-developed-market-cross-sectional-features')
+            "
+            >{{ t.home.benchmark }} ↗</a
+          >
+          <a class="text-link" :href="link('plugins/qlib-factor')"
+            >{{ t.home.reproduction }} ↗</a
+          >
+        </div>
       </div>
     </section>
 
     <section class="closing shell">
       <div>
-        <p class="eyebrow">BUILD YOUR RESEARCH LOOP</p>
+        <p class="eyebrow chapter-label">05 / BUILD YOUR RESEARCH LOOP</p>
         <h2>{{ t.home.closingTitle }}</h2>
         <p>
           {{ t.home.closingDescription }}

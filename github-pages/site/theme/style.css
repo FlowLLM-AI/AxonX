@@ -932,3 +932,35 @@
 .updates-list li strong {
   color: var(--vp-c-text-1);
 }
+
+/* Full-width chapter boundaries keep the long homepage easy to scan. */
+.home-chapter {
+  padding-block: 72px;
+  border-top: 1px solid var(--vp-c-divider);
+}
+.home-chapter.chapter-alt {
+  background: var(--vp-c-bg-alt);
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+.chapter-label {
+  display: inline-flex;
+  padding: 8px 12px;
+  border: 1px solid var(--vp-c-brand-1);
+  border-radius: 6px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.case-study.home-chapter {
+  margin-bottom: 48px;
+}
+@media (max-width: 767px) {
+  .home-chapter {
+    padding-block: 48px;
+  }
+  .chapter-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+}
