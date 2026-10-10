@@ -1679,7 +1679,7 @@
 /* Home: research sequence, brand, and harness manifest. */
 .overview-page .overview-hero {
   display: grid;
-  grid-template-columns: minmax(250px, 0.94fr) minmax(340px, 1.22fr) minmax(
+  grid-template-columns: minmax(250px, 0.94fr) minmax(440px, 1.22fr) minmax(
       290px,
       1.04fr
     );
@@ -1851,7 +1851,7 @@
   display: grid;
   min-height: 680px;
   place-items: center;
-  padding: 40px clamp(26px, 3vw, 52px);
+  padding: 40px 20px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--blue) 16%, var(--line));
   background: radial-gradient(
@@ -1912,7 +1912,7 @@
 .hero-brand-actions {
   display: flex;
   justify-content: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 11px;
   margin-top: 31px;
 }
@@ -1920,9 +1920,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 7px;
   min-height: 45px;
-  padding: 0 16px;
+  padding: 0 12px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .hero-brand-actions svg {
@@ -1935,6 +1936,37 @@
 }
 .hero-brand-actions .primary-button:hover {
   filter: brightness(1.08);
+}
+.hero-task-actions {
+  display: inline-flex;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 5px 15px rgba(35, 50, 86, 0.04);
+}
+.hero-task-actions button {
+  flex: none;
+  min-width: 0;
+  padding-inline: clamp(9px, 1vw, 14px);
+  border: 0;
+  border-radius: 11px 0 0 11px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.16s;
+}
+.hero-task-actions button + button {
+  border-left: 1px solid var(--line);
+  border-radius: 0 11px 11px 0;
+}
+.hero-task-actions button:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+.hero-task-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 .hero-brand-footer {
   display: flex;
@@ -2090,6 +2122,9 @@
   }
 }
 @media (max-width: 480px) {
+  .hero-brand-actions {
+    flex-wrap: wrap;
+  }
   .hero-quant,
   .hero-harness {
     padding: 18px;

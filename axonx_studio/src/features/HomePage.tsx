@@ -109,21 +109,16 @@ export default function HomePage({
                 {t("home.openAgent")}
                 <ArrowRight aria-hidden="true" />
               </button>
-              <button
-                className="secondary-button"
-                onClick={() => onNavigate("submit")}
-              >
-                <Send aria-hidden="true" />
-                {t("home.submitTask")}
-                <ArrowRight aria-hidden="true" />
-              </button>
-              <button
-                className="secondary-button"
-                onClick={() => onNavigate("tasks")}
-              >
-                <Activity aria-hidden="true" />
-                {t("home.manageTasks")}
-              </button>
+              <div className="hero-task-actions">
+                <button onClick={() => onNavigate("submit")}>
+                  <Send aria-hidden="true" />
+                  {t("home.submitTask")}
+                </button>
+                <button onClick={() => onNavigate("tasks")}>
+                  <Activity aria-hidden="true" />
+                  {t("home.manageTasks")}
+                </button>
+              </div>
             </div>
             <div className="hero-brand-footer">{t("home.journey")}</div>
           </div>
