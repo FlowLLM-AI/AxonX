@@ -75,7 +75,7 @@ Inspect model, prediction, and backtest artifacts. Report common-window metrics,
 
 Feature changes usually require ETL → Train → Predict → Backtest. Model changes can reuse a compatible ETL; portfolio-management changes can reuse a compatible Predict. Run factor analysis independently from ETL when diagnostics are needed. After changes to contracts, fields, or feature timing, verify whether old upstream artifacts remain reusable.
 
-Define controls and confirmation windows with [experiment design and confirmation](../research/experiments.md) before agent development experiments. See the [project benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) and [Alpha158 Enhanced](../../../plugins/a158_enhanced/README.md) for the concrete case, prompt, and evidence links.
+Define controls and confirmation windows with [experiment design and confirmation](../research/experiments.md) before agent development experiments. See the [project benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) and [Qlib Factor](../../../plugins/qlib_factor/README.md) for the concrete case, prompt, and evidence links.
 
 ## What to report on completion
 

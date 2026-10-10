@@ -1,3 +1,5 @@
+import signalQuality from "../../figures/benchmark/qlib-signal-quality.svg";
+import portfolioResults from "../../figures/benchmark/qlib-topn-results.svg";
 import lineage from "../../figures/studio/task-lineage.png";
 import training from "../../figures/studio/training-curves.png";
 import backtest from "../../figures/studio/backtest-overall.png";
@@ -91,7 +93,7 @@ export const capabilities = [
 ] as const;
 
 type Update = {
-  id: "release" | "agent" | "studio" | "enhanced";
+  id: "release" | "agent" | "studio" | "factor";
   page?: string;
   href?: string;
   target?: string;
@@ -104,5 +106,10 @@ export const updates: Update[] = [
     href: "https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md",
   },
   { id: "studio", target: "_self" },
-  { id: "enhanced", page: "plugins/alpha158-enhanced" },
+  { id: "factor", page: "plugins/qlib-factor" },
 ];
+
+export const benchmarkFigures = [
+  { id: "signal", image: signalQuality },
+  { id: "portfolio", image: portfolioResults },
+] as const;

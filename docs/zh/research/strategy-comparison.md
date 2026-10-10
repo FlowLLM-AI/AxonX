@@ -16,10 +16,13 @@ Studio 策略比较页面读取两个 Backtest Task 的日频产物，在共同�
 用不同任务名称保留不同训练、预测和回测结果。比较同一因素的变化时，其他设置尽量一致，例如使用同一 ETL、同一预测窗口，仅调整训练参数或成本。
 
 ```bash
-axonx submit --task a158_backtest --task-name cost-low \
-  --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.001
-axonx submit --task a158_backtest --task-name cost-high \
-  --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.003
+axonx submit --task qlib_a158_backtest --task-name fixed-holding \
+  --source-tasks '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1 \
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx submit --task qlib_strategy_backtest --task-name rank-retention \
+  --source-tasks '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 \
+  --replacement-fraction 0.2 --rank-buffer 1 \
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 各自等待成功后，在策略比较页面选择 A 和 B。Task ID 是实验身份，显示名称只能帮助识别；固定名称重跑替换目录后，无法把原结果当成仍保留的历史实验。
@@ -91,7 +94,7 @@ B 日期：    02、03、04、05
 A = {a, b, c}，B = {b, c, d}：交集 2 / 并集 4 = 50%
 ```
 
-它不是交集除以 30，也不是资金加权重合。当前页面读取 `top30_holdings`，切换收益 Top N 不会变成相应规模的真实仓位比较。对 a158，它比较的是 Top 30 信号目标，包含未成交候选。
+它不是交集除以 30，也不是资金加权重合。当前页面读取 `top30_holdings`，切换收益 Top N 不会变成相应规模的真实仓位比较。对 qlib_a158，它比较的是 Top 30 信号目标，包含未成交候选。
 
 ## 分期收益与交易观察
 
@@ -124,3 +127,5 @@ A = {a, b, c}，B = {b, c, d}：交集 2 / 并集 4 = 50%
 - [回测结果解读](backtest.md)、[任务血缘](../concepts/task-lineage.md)
 - [`比较数据模型`](../../../axonx_studio/src/features/research/compare/model.ts)
 - [`比较页面与参数警告`](../../../axonx_studio/src/features/research/compare/StrategyComparePage.tsx)
+
+Studio 比较实际生效的买卖费率，并在共同交易窗口展示产物记录的平均成交费用，支持分侧费率与显式零费率。

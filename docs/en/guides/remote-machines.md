@@ -97,7 +97,7 @@ Locally installed plugins do not automatically appear remotely. To install on th
 
 ```bash
 axonx plugin list --target 'http://research.example:1024'
-axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
+axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
 ```
 
 Task-only wheel updates apply to subsequent Task queries and submissions without restarting. Restart the target service only when restart_required is true, then verify Task definitions. Remote workers run code in that environment, and source_tasks only locates directories in the target workspace.

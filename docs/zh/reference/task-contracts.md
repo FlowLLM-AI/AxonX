@@ -190,9 +190,9 @@ metadata 没有顶层 run_id、state、result 或 error。TaskStatus.result 与 
 
 不要把工作区根路径写进 artifact path。消费者组合 `<type>/<task_id>/<artifact.path>`，并核对生产插件约定的逻辑名称，例如 dataset、model 或 daily。
 
-## 兼容读取与事件
+## 工作区读取与事件
 
-TaskStatus 读取兼容历史字段 execution_id 作为 run_id 的 validation alias。新写入仍使用 run_id；不要同时写两个身份字段或将 execution_id 当成新接口字段。
+TaskStatus 使用 run_id 标识一次运行，该字段为必填。
 
 工作区读取会拒绝非法 JSON、错误 task_id/type 和不安全目录，表现为记录缺失。容错读取旨在隔离坏记录，不保证自动修复旧数据。
 

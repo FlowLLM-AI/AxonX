@@ -70,7 +70,7 @@ axonx submit --task download_tushare_task \
   --datasets 'daily,adj_factor'
 ```
 
-Groups can be selected independently, but a158 ETL requires at least market data, adjustments, a trading calendar, stock master data, and historical names. Official price limits and index weights affect tradability and benchmark interpretation.
+Groups can be selected independently, but qlib_a158 ETL requires at least market data, adjustments, a trading calendar, stock master data, and historical names. Official price limits and index weights affect tradability and benchmark interpretation.
 
 ## Output directory
 

@@ -41,8 +41,9 @@ jobs:
           EXPECTED_VERSION: ${{ inputs.expected_version }}
         run: |
           python -m build --outdir dist/axonx
-          python -m build plugins/a158 --outdir dist/a158
-          python -m build plugins/a158_enhanced --outdir dist/a158_enhanced
+          python -m build plugins/qlib_a158 --outdir dist/qlib_a158
+          python -m build plugins/qlib_factor --outdir dist/qlib_factor
+          python -m build plugins/qlib_strategy --outdir dist/qlib_strategy
           python -m twine check dist/*/*
           python .github/scripts/verify-packages.py --expected-version "${EXPECTED_VERSION}"
       - name: Verify isolated installation and entry points

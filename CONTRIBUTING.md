@@ -25,7 +25,11 @@ For changes to public CLI/API/configuration contracts, persisted task records, o
 
 See the [Task development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide), [framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions), and [plugin manifest](https://flowllm-ai.github.io/AxonX/en/reference/plugin-manifest) for implementation contracts.
 
-## Development setup
+## 1. Contribute to the AxonX framework
+
+Use this path for the runtime, CLI, HTTP/MCP services, and shared extension points in `axonx/`, plus Studio and framework tests. Follow the Plugin contribution path below for research Tasks and algorithms.
+
+### Development setup
 
 Fork the repository and clone your fork. From its root, use Python 3.12+ on macOS or Linux:
 
@@ -35,15 +39,6 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 pre-commit install
 ```
-
-For research plugin development, install the relevant plugin in editable mode:
-
-```bash
-axonx plugin install -e ./plugins/a158
-# Or: axonx plugin install -e ./plugins/a158_enhanced
-```
-
-The default pytest configuration includes enhanced-plugin tests and both plugin source paths. Install the research dependencies above when running those tests. See the [plugin guide](https://flowllm-ai.github.io/AxonX/en/plugins/management) for discovery and restart behavior.
 
 For Studio, use Node.js 22.13+ (22.x), 24.x, or 26+, and run:
 
@@ -55,23 +50,22 @@ npm run dev
 
 Start the Python service separately as described in the [quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart). See [Studio development](https://flowllm-ai.github.io/AxonX/en/development/studio) for proxy configuration. The documentation site requires Node.js 22+.
 
-## Making a change
+### Making a change
 
 Reuse existing contracts and extension points. Keep research algorithms in Tasks/plugins, and preserve ownership and cleanup of asynchronous resources in the framework. Document intentional changes to CLI flags, API responses, configuration, task identity, and artifact formats.
 
 Use temporary workspaces for tests. Do not commit `.env`, tokens, private data, runtime `.axonx/` contents, logs, or generated outputs. Ensure screenshots contain no credentials or private session content.
 
-## Validation
+### Validation
 
-Choose checks for the affected area and state the commands and results in your PR. For Python or plugin changes, run relevant tests first, then the non-integration suite as appropriate:
+Choose checks for the affected area and state the commands and results in your PR. For framework Python changes, run relevant tests first, then the framework suite as appropriate:
 
 ```bash
 pytest tests/unit/<affected_test_file>.py
-pytest
-pre-commit run --all-files
+pytest tests
 ```
 
-Bare `pytest` excludes tests marked `integration`. Run `pytest -m integration` only with the required credentials and services available, after reviewing the tests' external effects. Explain any checks you could not run.
+Both `pytest tests` and bare `pytest` exclude tests marked `integration`; the latter also collects factor and strategy plugin tests and requires their research dependencies. Run `pytest -m integration` only with the required credentials and services available, after reviewing the tests' external effects. Explain any checks you could not run.
 
 For Studio changes, run from `axonx_studio/`:
 
@@ -91,6 +85,46 @@ npm ci && npm run build
 ```
 
 The build verifies rendered pages and Markdown exports. Root and plugin READMEs and contribution guides are rendered from their canonical sources by the same build; update both languages together and verify example commands.
+
+## 2. Contribute a Plugin
+
+Use this path for research Tasks, factors, models, strategies, backtesting algorithms, and plugin configuration under `plugins/`. Reuse framework Tasks and extension points for new research capabilities; change `axonx/` when shared runtime capabilities are needed.
+
+### Development setup
+
+Create the Python environment and install the main package and development dependencies using the framework setup above, then install only the plugins needed for your change:
+
+For research plugin development, install the relevant plugin in editable mode:
+
+```bash
+axonx plugin install -e ./plugins/qlib_a158
+# Factor and strategy layers:
+axonx plugin install -e ./plugins/qlib_factor
+axonx plugin install -e ./plugins/qlib_strategy
+```
+
+The default pytest configuration includes factor and strategy plugin tests and all three plugin source paths. Install the research dependencies above when running those tests. See the [plugin guide](https://flowllm-ai.github.io/AxonX/en/plugins/management) for discovery and restart behavior.
+
+### Making a change
+
+Follow existing plugin layouts, the [Task development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide), and the [plugin manifest contract](https://flowllm-ai.github.io/AxonX/en/reference/plugin-manifest). A new plugin should include package metadata, a plugin entry point and manifest, Task implementations, example configuration, tests, and English/Chinese READMEs.
+
+Preserve task identity, lifecycle, configuration, and artifact compatibility; explain intentional changes in documentation and the PR. Update `tool.setuptools.package-data` for new runtime resources so wheels and sdists include them. Use temporary test workspaces and keep research data, credentials, and generated experiment outputs out of the repository.
+
+### Validation
+
+From the repository root, run the affected plugin tests first, for example:
+
+```bash
+pytest plugins/qlib_factor/tests
+pytest plugins/qlib_strategy/tests
+```
+
+Choose commands for the plugins you changed; add relevant framework tests for framework interactions. Run `pytest` as appropriate after installing the research dependencies. Follow the integration-test requirements above for external services, and report dependencies, results, and skipped checks in the PR. Main-package releases do not publish research plugins; handle plugin packaging and publication separately.
+
+## Shared requirements for both contribution paths
+
+Before submitting, run `pre-commit run --files <changed-files>`, replacing the placeholder with the paths changed in your contribution. Documentation, PR, and release requirements follow.
 
 ## Documentation contributions
 

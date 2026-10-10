@@ -222,13 +222,6 @@ class DownloadTushareTask(BaseTask):
         )
         self.logger.info(f"Output files sorted files={len(self.state['files'])}")
 
-    def download_market_day(self, day: date) -> None:
-        """Backward-compatible helper that downloads both legacy market datasets."""
-        trade_date = f"{day:%Y%m%d}"
-        daily = self._query("daily", trade_date=trade_date)
-        self._save("daily", daily, day)
-        self._save("adj_factor", self._query("adj_factor", trade_date=trade_date), day)
-
     def download_hs300_weight(self, start: date, end: date) -> None:
         """Download one date range of HS300 constituent weights."""
         frame = self._query(

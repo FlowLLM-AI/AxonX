@@ -190,9 +190,9 @@ The base class only specifies artifacts as a nested mapping. path, size, and sha
 
 Do not include the workspace root in artifact path. Consumers combine `<type>/<task_id>/<artifact.path>` and check the producing plugin's expected logical names, such as dataset, model, or daily.
 
-## Compatible reads and events
+## Workspace reads and events
 
-TaskStatus reading supports the historical execution_id field as a validation alias for run_id. New writes still use run_id; do not write both identity fields or treat execution_id as a new API field.
+TaskStatus requires run_id as the run identity.
 
 Workspace reading rejects invalid JSON, incorrect task_id/type, and unsafe directories, making records appear missing. Tolerant reading isolates bad records; it does not guarantee automatic repair of old data.
 

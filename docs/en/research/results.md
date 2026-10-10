@@ -9,7 +9,7 @@ Studio organizes successful task results by ETL, factors, training, prediction, 
 
 ![Result reading order](../../figures/research/results-reading.svg)
 
-Screenshots on this page show existing research results from a remote workspace, with operations and fields in the English UI. Some results come from the `a158_enhanced` plugin; sample sizes and feature counts reflect those actual experiments. Algorithm descriptions below still refer to the current `a158` implementation.
+Screenshots on this page show existing research results from a remote workspace, with operations and fields in the English UI. Some results come from the `qlib_factor` plugin; sample sizes and feature counts reflect those actual experiments. Algorithm descriptions below still refer to the current `qlib_a158` implementation.
 
 ## From run pages to result pages
 
@@ -34,7 +34,7 @@ Main checks include date range, row count, feature columns, label columns, stock
 | Statistics CSV                   | Which columns have missing values, extremes, or insufficient coverage? |
 | Trading status and index weights | Is there enough data for buyability, delayed exits, and benchmarks?    |
 
-a158 aligns market data to the trading calendar and combines listing lifecycle, historical names, and price limits to construct trading status. Feature statistics do not replace checks of those statuses. Without weight files, ETL generates empty weights and logs a warning; downstream index benchmarks may be missing.
+qlib_a158 aligns market data to the trading calendar and combines listing lifecycle, historical names, and price limits to construct trading status. Feature statistics do not replace checks of those statuses. Without weight files, ETL generates empty weights and logs a warning; downstream index benchmarks may be missing.
 
 ETL `statistics` files are a plugin extension. The generic base class does not require every ETL to generate the same statistics. Interpret other plugins according to their own metadata.
 
@@ -44,7 +44,7 @@ ETL `statistics` files are a plugin extension. The generic base class does not r
 
 Select metrics and labels through Metric and Label. Both bar direction and value express factor scores.
 
-a158 produces `factor_analysis.csv` and `factor_quantiles.csv`. The former gives diagnostics for each feature; the latter helps examine returns grouped by factor values.
+qlib_a158 produces `factor_analysis.csv` and `factor_quantiles.csv`. The former gives diagnostics for each feature; the latter helps examine returns grouped by factor values.
 
 By default, analysis joins the independent labels artifact and uses signal-day buyable samples with valid fixed-next-market-day returns. Changing `tradable_only`, `minimum_daily_samples`, or `quantiles` also changes the sample definition.
 
@@ -58,13 +58,13 @@ Studio's `scores` panel uses a plugin-provided “metric group → value” mapp
 
 Training details show samples, features, target column, and effective parameters together to help verify experiment configuration.
 
-Training results include model name, training row count, target column, parameters, metrics, and training curves. a158 saves:
+Training results include model name, training row count, target column, parameters, metrics, and training curves. qlib_a158 saves:
 
 - `model.txt`: the final model fitted with the best iteration count.
 - `feature_importance.csv`: gain and split importance.
 - `evaluation_history.csv`: per-iteration training/validation history from tuning.
 
-a158's training window includes the start and excludes the end, reserving the final dates for validation. Tuning selects the best iteration count, then refits using all valid samples within the training window. Curves and validation metrics come from the model used to select the iteration count, not an independent out-of-sample evaluation of the final model.
+qlib_a158's training window includes the start and excludes the end, reserving the final dates for validation. Tuning selects the best iteration count, then refits using all valid samples within the training window. Curves and validation metrics come from the model used to select the iteration count, not an independent out-of-sample evaluation of the final model.
 
 ### Reading training curves
 
@@ -74,7 +74,7 @@ Solid lines show training and dashed lines validation. L2 and L1 use left and ri
 
 Each position in `training_curve.x` represents an iteration or an ordered time point. All series share the same x; left and right axes allow two groups with different units. Visually close lines do not establish comparable values; first check axes and metric units.
 
-Current a158 places L2 series on the left axis and L1 on the right. If training error keeps declining while validation error stops improving, inspect early-stopping and best iteration counts. The last curve iteration need not equal the saved model's iteration count.
+Current qlib_a158 places L2 series on the left axis and L1 on the right. If training error keeps declining while validation error stops improving, inspect early-stopping and best iteration counts. The last curve iteration need not equal the saved model's iteration count.
 
 An empty curve means there are no available training points. Charts filter series with mismatched lengths and ignore non-finite values when calculating axis ranges. The reader does not replace complete validation by the Python model. See the [research artifact protocol](../reference/research-artifacts.md) for formats.
 
@@ -88,7 +88,7 @@ gain is cumulative gain from splits, while split is the number of splits using a
 
 The prediction overview shows score distribution, sample coverage, and output fields. Scores in the screenshot belong to that model and are not return probabilities.
 
-a158 saves the complete prediction cross-section, including samples that are not buyable or have no index weights; predictions do not require future labels. Studio displays prediction rows, dates, stock count, score range, buyable rows, and index coverage statistics.
+qlib_a158 saves the complete prediction cross-section, including samples that are not buyable or have no index weights; predictions do not require future labels. Studio displays prediction rows, dates, stock count, score range, buyable rows, and index coverage statistics.
 
 | Statistic                  | Interpretation                                                      |
 | -------------------------- | ------------------------------------------------------------------- |
@@ -106,7 +106,7 @@ The default training target is cross-sectional return rank. `pred` is a score, n
 
 Click artifacts on a result page to preview or locate files. Paths in standard `artifacts` are relative to the current Task directory. `size` is in bytes, and `sha256` is the digest of file contents at generation time.
 
-Do not directly modify model or data files of successful tasks; doing so separates metadata verification information from actual contents. a158 prediction verifies the training model digest and checks model feature names and ordering.
+Do not directly modify model or data files of successful tasks; doing so separates metadata verification information from actual contents. qlib_a158 prediction verifies the training model digest and checks model feature names and ordering.
 
 For abnormal results, retain Task ID, run_id, inputs, upstream IDs, metadata, and logs. Use [task lineage](../concepts/task-lineage.md) to verify dependencies, then inspect file contents.
 
@@ -114,5 +114,5 @@ For abnormal results, retain Task ID, run_id, inputs, upstream IDs, metadata, an
 
 - [Interpreting backtest results](backtest.md), [Strategy comparison](strategy-comparison.md)
 - [Studio research page](../../../axonx_studio/src/features/research/ResearchPage.tsx)
-- [a158 factor diagnostics](../../../plugins/a158/axonx_alpha158/analysis.py)
-- [a158 training](../../../plugins/a158/axonx_alpha158/train.py)
+- [qlib_a158 factor diagnostics](../../../plugins/qlib_a158/axonx_qlib_a158/analysis.py)
+- [qlib_a158 training](../../../plugins/qlib_a158/axonx_qlib_a158/train.py)

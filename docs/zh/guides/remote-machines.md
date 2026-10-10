@@ -97,7 +97,7 @@ Studio 的 Machine resources 页面把同一类返回值展示为 CPU、内存�
 
 ```bash
 axonx plugin list --target 'http://research.example:1024'
-axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
+axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
 ```
 
 仅贡献 Task 的 wheel 更新后，后续 Task 查询与提交无需重启。仅在返回 restart_required=true 时重启目标服务，再核对 Task 定义。远程 worker 运行该环境中的代码，source_tasks 也只定位目标工作区内目录。

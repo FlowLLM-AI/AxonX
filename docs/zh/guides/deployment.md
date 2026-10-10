@@ -54,7 +54,7 @@ axonx list_installed_task_definitions
 
 ## 从仓库部署
 
-准备 Python 3.12+ 和 Node/npm，并激活目标 Python 环境后，可以在任意目录执行 `bash /path/to/AxonX/scripts/deploy.sh`。脚本会切换到仓库根目录，从 `origin` 更新 `main`，执行 `npm ci` 并构建 Studio，从源码安装 AxonX 和 Studio 包，再以可编辑模式安装 `a158`、`a158_enhanced` 两个插件。安装成功后，脚本停止监听 `1024` 端口的进程（必要时强制终止），最后在前台执行 `axonx start`。
+准备 Python 3.12+ 和 Node/npm，并激活目标 Python 环境后，可以在任意目录执行 `bash /path/to/AxonX/scripts/deploy.sh`。脚本会切换到仓库根目录，从 `origin` 更新 `main`，执行 `npm ci` 并构建 Studio，从源码安装 AxonX 和 Studio 包，再以可编辑模式安装 `qlib_a158`、`qlib_factor`、`qlib_strategy` 三个插件。安装成功后，脚本停止监听 `1024` 端口的进程（必要时强制终止），最后在前台执行 `axonx start`。
 
 脚本已有执行权限，在仓库根目录可直接运行 `./scripts/deploy.sh`。所有参数都会原样传给 `axonx start`，例如 `./scripts/deploy.sh --config remote` 最后执行 `axonx start --config remote`。端口清理仍针对 `1024`，不会读取指定配置。
 

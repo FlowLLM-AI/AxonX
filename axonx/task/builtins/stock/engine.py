@@ -2,22 +2,33 @@
 
 from dataclasses import dataclass
 import math
-from typing import Any
+from typing import Any, Protocol
 
 import polars as pl
 
 from .data import KEYS, MARKET_COLUMNS, SIGNAL_COLUMNS, normalize_calendar, normalize_keys, validate_keys
 
 
+class PortfolioPolicy(Protocol):
+    """Plugin decision hook; the engine retains ownership of execution and cash."""
+
+    def replacement_limit(self, n: int) -> int:
+        """Maximum successful buys and sells per day, after initial construction."""
+
+    def should_exit(self, *, rank: int | None, age: int, n: int) -> bool:
+        """Decide using current candidate rank and elapsed market days only."""
+
+
 @dataclass(frozen=True)
 class BacktestConfig:
     top_ns: tuple[int, ...] = (1, 2, 3, 5, 10, 20, 30)
-    holding_days: int = 1
-    transaction_cost_rate: float = 0.002  # charged on each executed side
+    holding_days: int | None = 1
     annual_risk_free_rate: float = 0.012
     annualization_days: int = 252
     minimum_index_weight_coverage: float = 0.98
     index_codes: tuple[str, ...] = ()
+    buy_cost_rate: float = 0.0005
+    sell_cost_rate: float = 0.0015
 
 
 @dataclass
@@ -25,6 +36,17 @@ class BacktestResult:
     frames: dict[str, pl.DataFrame]
     benchmark_keys: tuple[str, ...]
     status: str
+
+
+def _validate_config(config: BacktestConfig, policy: PortfolioPolicy | None) -> None:
+    if not config.top_ns or any(n < 1 for n in config.top_ns):
+        raise ValueError("Positive top_ns are required")
+    if policy is None and (config.holding_days is None or config.holding_days < 1):
+        raise ValueError("Fixed-expiry backtests require positive holding_days")
+    if policy is not None and config.holding_days is not None:
+        raise ValueError("Portfolio policies require holding_days=None")
+    if not 0 <= config.buy_cost_rate < 1 or not 0 <= config.sell_cost_rate < 1:
+        raise ValueError("buy_cost_rate and sell_cost_rate must be in [0,1)")
 
 
 def run_backtest(
@@ -35,11 +57,10 @@ def run_backtest(
     config: BacktestConfig,
     *,
     as_of_date: str,
+    policy: PortfolioPolicy | None = None,
 ) -> BacktestResult:
-    if not config.top_ns or any(n < 1 for n in config.top_ns) or config.holding_days < 1:
-        raise ValueError("Positive top_ns and holding_days are required")
-    if not 0 <= config.transaction_cost_rate < 1:
-        raise ValueError("transaction_cost_rate must be in [0,1)")
+    _validate_config(config, policy)
+    buy_cost_rate, sell_cost_rate = config.buy_cost_rate, config.sell_cost_rate
     signals, market = normalize_keys(signals), normalize_keys(market)
     for frame, required in ((signals, SIGNAL_COLUMNS), (market, MARKET_COLUMNS)):
         if missing := set(required) - set(frame.columns):
@@ -90,6 +111,14 @@ def run_backtest(
         .partition_by("trade_date", as_dict=True)
         .items()
     }
+    ranks_by_date = (
+        {
+            key[0]: dict(frame.select("ts_code", "target_rank").rows())
+            for key, frame in targets.partition_by("trade_date", as_dict=True).items()
+        }
+        if policy is not None
+        else {}
+    )
     selected = targets.filter(pl.col("target_rank") <= max(config.top_ns))
     groups = {key[0]: frame.to_dicts() for key, frame in selected.partition_by("trade_date", as_dict=True).items()}
     by_date = {d: groups.get(d, []) for d in dates}
@@ -110,8 +139,17 @@ def run_backtest(
             portfolio = portfolios[n]
             cash, previous_equity, book = portfolio["cash"], portfolio["equity"], portfolio["book"]
             fees = bought = sold = 0.0
+            sell_count = buy_count = 0
+            limit = _replacement_limit(policy, n) if date != dates[0] else n
+            ranks = ranks_by_date.get(date, {})
             delayed_exits = unfilled = 0
-            for code, position in list(book.items()):
+            held = (
+                sorted(book, key=lambda code, current=ranks: (-current.get(code, math.inf), code))
+                if policy is not None
+                else list(book)
+            )
+            for code in held:
+                position = book[code]
                 quote = quotes.get(code)
                 status = quote["market_status"] if quote else "missing_data"
                 if status == "quoted":
@@ -119,7 +157,14 @@ def run_backtest(
                 elif status == "missing_data":
                     incomplete = True
                 due = position["planned_exit_date"]
-                if due is None or date < due:
+                eligible = (
+                    policy.should_exit(
+                        rank=ranks.get(code), age=date_indices[date] - date_indices[position["entry_date"]], n=n
+                    )
+                    if policy is not None
+                    else due is not None and date >= due
+                )
+                if not eligible or sell_count >= limit:
                     continue
                 if status != "quoted" or not quote["can_sell"]:
                     orders.append(
@@ -136,11 +181,12 @@ def run_backtest(
                     )
                     continue
                 notional = position["units"] * position["mark"]
-                fee = notional * config.transaction_cost_rate
+                fee = notional * sell_cost_rate
                 cash += notional - fee
                 sold += notional
+                sell_count += 1
                 fees += fee
-                delayed_exits += date > due
+                delayed_exits += due is not None and date > due
                 orders.append(
                     {
                         "top_n": n,
@@ -165,7 +211,7 @@ def run_backtest(
                         "principal": position["principal"],
                         "realized_return": notional / position["principal"] - 1,
                         "fee": fee + position["entry_fee"],
-                        "exit_delayed": date > due,
+                        "exit_delayed": due is not None and date > due,
                     }
                 )
                 del book[code]
@@ -173,7 +219,7 @@ def run_backtest(
             allocation = equity / n
             for signal in by_date[date][:n]:
                 code = signal["ts_code"]
-                if code in book:
+                if code in book or buy_count >= limit:
                     continue
                 quote = quotes.get(code)
                 status = quote["market_status"] if quote else "missing_data"
@@ -184,7 +230,7 @@ def run_backtest(
                     if status != "quoted"
                     else ("not_buyable" if not quote["can_buy"] else "capacity" if len(book) >= n else "")
                 )
-                principal = min(allocation, cash / (1 + config.transaction_cost_rate)) if not reason else 0.0
+                principal = min(allocation, cash / (1 + buy_cost_rate)) if not reason else 0.0
                 if principal <= 1e-12:
                     unfilled += 1
                     orders.append(
@@ -200,10 +246,10 @@ def run_backtest(
                         }
                     )
                     continue
-                index = date_indices[date] + config.holding_days
+                index = date_indices[date] + config.holding_days if config.holding_days is not None else len(all_dates)
                 due = all_dates[index] if index < len(all_dates) else None
                 price = quote["price"] * quote["adjustment_factor"]
-                fee = principal * config.transaction_cost_rate
+                fee = principal * buy_cost_rate
                 book[code] = {
                     "units": principal / price,
                     "mark": price,
@@ -216,6 +262,7 @@ def run_backtest(
                 cash -= principal + fee
                 fees += fee
                 bought += principal
+                buy_count += 1
                 orders.append(
                     {
                         "top_n": n,
@@ -355,6 +402,13 @@ def run_backtest(
         ),
     }
     return BacktestResult(frames, benchmarks, "incomplete_market_data" if incomplete else "done")
+
+
+def _replacement_limit(policy: PortfolioPolicy | None, n: int) -> int:
+    limit = policy.replacement_limit(n) if policy is not None else n
+    if not 1 <= limit <= n:
+        raise ValueError("Portfolio policy replacement limit must be between 1 and N")
+    return limit
 
 
 def _frame(rows: list[dict[str, Any]], schema: dict[str, Any]) -> pl.DataFrame:

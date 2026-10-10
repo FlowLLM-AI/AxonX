@@ -99,9 +99,9 @@
     "capabilitiesTitle": "Flexible research. Grounded execution.",
     "journeysTitle": "Continue by goal.",
     "documentationMap": "Documentation map",
-    "caseTitle": "From plugin development to confirmation.",
+    "caseTitle": "Qlib three-layer research: base, factors and portfolio policy",
     "experimentDesign": "Experiment design",
-    "caseDescription": "Using Skill + CLI, Codex extended Alpha158 as a separate plugin with 26 new features, then completed ablations and independent confirmation. Confirmation-period Top10 net annualized return rose from −5.74% to 28.21%, and Top20 from −3.24% to 24.93%.",
+    "caseDescription": "Train on 2015–2022 and evaluate 2023–2026 with 0.05% buy / 0.15% sell fees. Baseline, risk-factor and 3-day strategy Top20 net annualized returns are 7.67%, 9.03% and 32.37%. Results include missing quotes and proxy fills; the strategy is exploratory.",
     "benchmark": "Read the benchmark",
     "reproduction": "Features, parameters, and reproduction",
     "closingTitle": "Start with one Task.",
@@ -124,11 +124,15 @@
         "description": "Browse tasks and artifacts, inspect training curves and backtests, and compare strategies. The demo uses simulated data and execution.",
         "label": "Try Playground"
       },
-      "enhanced": {
-        "title": "Alpha158 Enhanced developed with Skill + CLI",
-        "description": "26 new features. In the 2025-01-01–2026-09-30 confirmation period, Top10 net annualized return rose from −5.74% to 28.21%, and Top20 from −3.24% to 24.93%.",
+      "factor": {
+        "title": "Qlib factor and policy experiments",
+        "description": "Train on 2015–2022 and evaluate 2023–2026 with 0.05% buy / 0.15% sell fees. Baseline, risk-factor and 3-day strategy Top20 net annualized returns are 7.67%, 9.03% and 32.37%. Results include missing quotes and proxy fills; the strategy is exploratory.",
         "label": "Explore the results"
       }
+    },
+    "benchmarkFigures": {
+      "signal": "Alpha158 and risk-factor IC / RankIC comparison",
+      "portfolio": "Top20 / Top30 net annualized returns for baseline, risk factors and 3-day strategy"
     }
   },
   "preferences": {

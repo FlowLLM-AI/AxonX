@@ -16,10 +16,13 @@ This page explains comparison UI calculations and operations. Define controls, s
 Use different task names to retain different training, prediction, and backtest results. When comparing changes in one factor, keep other settings as consistent as possible—for example, use the same ETL and prediction window while changing only training parameters or costs.
 
 ```bash
-axonx submit --task a158_backtest --task-name cost-low \
-  --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.001
-axonx submit --task a158_backtest --task-name cost-high \
-  --source-tasks '<Predict Task ID>' --transaction-cost-rate 0.003
+axonx submit --task qlib_a158_backtest --task-name fixed-holding \
+  --source-tasks '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1 \
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx submit --task qlib_strategy_backtest --task-name rank-retention \
+  --source-tasks '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 \
+  --replacement-fraction 0.2 --rank-buffer 1 \
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 Wait for each task to succeed, then select A and B on the strategy comparison page. The Task ID identifies the experiment; display names only help recognition. After a rerun with a fixed name replaces the directory, the original result can no longer be treated as retained experiment history.
@@ -91,7 +94,7 @@ Overlap = number of target symbols in the intersection / number in the union
 A = {a, b, c}, B = {b, c, d}: intersection 2 / union 4 = 50%
 ```
 
-It is neither the intersection divided by 30 nor capital-weighted overlap. The current page reads `top30_holdings`; changing return Top N does not switch to actual positions of that size. For a158, this compares Top 30 signal targets, including unfilled candidates.
+It is neither the intersection divided by 30 nor capital-weighted overlap. The current page reads `top30_holdings`; changing return Top N does not switch to actual positions of that size. For qlib_a158, this compares Top 30 signal targets, including unfilled candidates.
 
 ## Period returns and trading observations
 
@@ -124,3 +127,5 @@ Return differences may come from scores, candidate universes, weight coverage, c
 - [Interpreting backtest results](backtest.md), [Task lineage](../concepts/task-lineage.md)
 - [Comparison data model](../../../axonx_studio/src/features/research/compare/model.ts)
 - [Comparison page and parameter warnings](../../../axonx_studio/src/features/research/compare/StrategyComparePage.tsx)
+
+Studio compares effective buy/sell fee rates and displays mean recorded transaction costs on the shared trading window, including asymmetric fees and explicit zero rates.

@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axonx-qlib-a158"
+version = "0.2.0"
+description = "Qlib Alpha158 research workflow for AxonX: features, factor analysis, LightGBM training, prediction, and TopN backtesting."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "FlowLLM AI", email = "FlowLLM-AI@users.noreply.github.com" },
+]
+keywords = [
+    "axonx",
+    "plugins",
+    "quantitative-finance",
+    "quantitative-research",
+    "alpha158",
+    "factor-analysis",
+    "lightgbm",
+    "backtesting",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "axonx>=0.1.1,<0.2",
+    "lightgbm>=4.7.0,<5",
+    "numpy>=2.5.3,<3",
+    "polars>=1.44.2,<2",
+    "pydantic>=2.13.5,<3",
+]
+
+[project.urls]
+Homepage = "https://github.com/FlowLLM-AI/AxonX/tree/main/plugins/qlib_a158"
+Documentation = "https://flowllm-ai.github.io/AxonX/en/plugins/qlib-a158"
+Issues = "https://github.com/FlowLLM-AI/AxonX/issues"
+Source = "https://github.com/FlowLLM-AI/AxonX"
+
+[project.entry-points."axonx.plugins"]
+qlib_a158 = "axonx_qlib_a158"
+
+[project.entry-points."axonx.configs"]
+qlib_a158 = "axonx_qlib_a158.config:qlib_a158_demo"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["axonx_qlib_a158", "axonx_qlib_a158.*"]
+
+[tool.setuptools.package-data]
+axonx_qlib_a158 = ["plugin.yaml", "config/*.yaml", "scripts/*.sh"]

@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="720pt" height="338.4pt" viewBox="0 0 720 338.4" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.6, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 338.4
+L 720 338.4
+L 720 0
+L 0 0
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="patch_2">
+   <path d="M 50.4 297.1152
+L 345.6 297.1152
+Q 358.56 297.1152 358.56 291.024
+L 358.56 84.6
+Q 358.56 78.5088 345.6 78.5088
+L 50.4 78.5088
+Q 37.44 78.5088 37.44 84.6
+L 37.44 291.024
+Q 37.44 297.1152 50.4 297.1152
+z
+" style="fill: #f8fafc; stroke: #e2e8f0; stroke-width: 0.7; stroke-linejoin: miter"/>
+  </g>
+  <g id="patch_3">
+   <path d="M 388.8 297.1152
+L 684 297.1152
+Q 696.96 297.1152 696.96 291.024
+L 696.96 84.6
+Q 696.96 78.5088 684 78.5088
+L 388.8 78.5088
+Q 375.84 78.5088 375.84 84.6
+L 375.84 291.024
+Q 375.84 297.1152 388.8 297.1152
+z
+" style="fill: #f8fafc; stroke: #e2e8f0; stroke-width: 0.7; stroke-linejoin: miter"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_4">
+    <path d="M 61.2 267.336
+L 334.8 267.336
+L 334.8 131.976
+L 61.2 131.976
+L 61.2 267.336
+z
+" style="fill: none"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 61.2 267.336
+L 61.2 131.976
+" clip-path="url(#p3c57212b27)" style="fill: none; stroke: #e2e8f0; stroke-width: 0.65; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_2"/>
+     <g id="text_1">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #64748b" x="61.2" y="282.174594" transform="rotate(-0 61.2 282.174594)">0.00</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 180.156522 267.336
+L 180.156522 131.976
+" clip-path="url(#p3c57212b27)" style="fill: none; stroke: #e2e8f0; stroke-width: 0.65; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_4"/>
+     <g id="text_2">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #64748b" x="180.156522" y="282.174594" transform="rotate(-0 180.156522 282.174594)">0.05</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 299.113043 267.336
+L 299.113043 131.976
+" clip-path="url(#p3c57212b27)" style="fill: none; stroke: #e2e8f0; stroke-width: 0.65; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_6"/>
+     <g id="text_3">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #64748b" x="299.113043" y="282.174594" transform="rotate(-0 299.113043 282.174594)">0.10</text>
+     </g>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2"/>
+   <g id="patch_5">
+    <path d="M 61.2 183.4128
+L 187.316269 183.4128
+L 187.316269 168.5232
+L 61.2 168.5232
+z
+" clip-path="url(#p3c57212b27)" style="fill: #94a3b8"/>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="61.2" y="158.113944" transform="rotate(-0 61.2 158.113944)">Alpha158</text>
+   </g>
+   <g id="text_5">
+    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="196.832791" y="179.555188" transform="rotate(-0 196.832791 179.555188)">0.0530</text>
+   </g>
+   <g id="patch_6">
+    <path d="M 61.2 251.0928
+L 190.847159 251.0928
+L 190.847159 236.2032
+L 61.2 236.2032
+z
+" clip-path="url(#p3c57212b27)" style="fill: #0d9488"/>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="61.2" y="225.793944" transform="rotate(-0 61.2 225.793944)">Risk factors</text>
+   </g>
+   <g id="text_7">
+    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="200.363681" y="247.235188" transform="rotate(-0 200.363681 247.235188)">0.0545</text>
+   </g>
+  </g>
+  <g id="axes_2">
+   <g id="patch_7">
+    <path d="M 399.6 267.336
+L 673.2 267.336
+L 673.2 131.976
+L 399.6 131.976
+L 399.6 267.336
+z
+" style="fill: none"/>
+   </g>
+   <g id="matplotlib.axis_3">
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 399.6 267.336
+L 399.6 131.976
+" clip-path="url(#pb104911519)" style="fill: none; stroke: #e2e8f0; stroke-width: 0.65; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_8"/>
+     <g id="text_8">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #64748b" x="399.6" y="282.174594" transform="rotate(-0 399.6 282.174594)">0.00</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_9">
+      <path d="M 518.556522 267.336
+L 518.556522 131.976
+" clip-path="url(#pb104911519)" style="fill: none; stroke: #e2e8f0; stroke-width: 0.65; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_10"/>
+     <g id="text_9">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #64748b" x="518.556522" y="282.174594" transform="rotate(-0 518.556522 282.174594)">0.05</text>
+     </g>
+    </g>
+    <g id="xtick_6">
+     <g id="line2d_11">
+      <path d="M 637.513043 267.336
+L 637.513043 131.976
+" clip-path="url(#pb104911519)" style="fill: none; stroke: #e2e8f0; stroke-width: 0.65; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_12"/>
+     <g id="text_10">
+      <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #64748b" x="637.513043" y="282.174594" transform="rotate(-0 637.513043 282.174594)">0.10</text>
+     </g>
+    </g>
+   </g>
+   <g id="matplotlib.axis_4"/>
+   <g id="patch_8">
+    <path d="M 399.6 183.4128
+L 619.115922 183.4128
+L 619.115922 168.5232
+L 399.6 168.5232
+z
+" clip-path="url(#pb104911519)" style="fill: #94a3b8"/>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="399.6" y="158.113944" transform="rotate(-0 399.6 158.113944)">Alpha158</text>
+   </g>
+   <g id="text_12">
+    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="628.632444" y="179.555188" transform="rotate(-0 628.632444 179.555188)">0.0923</text>
+   </g>
+   <g id="patch_9">
+    <path d="M 399.6 251.0928
+L 629.45706 251.0928
+L 629.45706 236.2032
+L 399.6 236.2032
+z
+" clip-path="url(#pb104911519)" style="fill: #0d9488"/>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="399.6" y="225.793944" transform="rotate(-0 399.6 225.793944)">Risk factors</text>
+   </g>
+   <g id="text_14">
+    <text style="font-weight: 700; font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="638.973581" y="247.235188" transform="rotate(-0 638.973581 247.235188)">0.0966</text>
+   </g>
+  </g>
+  <g id="text_15">
+   <text style="font-weight: 700; font-size: 23px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="39.6" y="36.712719" transform="rotate(-0 39.6 36.712719)">Signal quality</text>
+  </g>
+  <g id="text_16">
+   <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #64748b" x="39.6" y="54.144" transform="rotate(-0 39.6 54.144)">Daily cross-sectional correlation · Alpha158 vs. two risk features</text>
+  </g>
+  <g id="text_17">
+   <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #64748b" x="39.6" y="322.1568" transform="rotate(-0 39.6 322.1568)">Training 2015–2022  /  Evaluation 2023–2026  ·  Same prediction window</text>
+  </g>
+  <g id="text_18">
+   <text style="font-weight: 700; font-size: 16px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="61.2" y="104.904" transform="rotate(-0 61.2 104.904)">IC</text>
+  </g>
+  <g id="text_19">
+   <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #64748b" x="61.2" y="125.208" transform="rotate(-0 61.2 125.208)">Pearson correlation</text>
+  </g>
+  <g id="text_20">
+   <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #0d9488" x="334.8" y="104.904" transform="rotate(-0 334.8 104.904)">+0.0015</text>
+  </g>
+  <g id="text_21">
+   <text style="font-weight: 700; font-size: 16px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0f172a" x="399.6" y="104.904" transform="rotate(-0 399.6 104.904)">RankIC</text>
+  </g>
+  <g id="text_22">
+   <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #64748b" x="399.6" y="125.208" transform="rotate(-0 399.6 125.208)">Spearman rank correlation</text>
+  </g>
+  <g id="text_23">
+   <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #0d9488" x="673.2" y="104.904" transform="rotate(-0 673.2 104.904)">+0.0043</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p3c57212b27">
+   <rect x="61.2" y="131.976" width="273.6" height="135.36"/>
+  </clipPath>
+  <clipPath id="pb104911519">
+   <rect x="399.6" y="131.976" width="273.6" height="135.36"/>
+  </clipPath>
+ </defs>
+</svg>

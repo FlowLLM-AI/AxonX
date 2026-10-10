@@ -29,21 +29,24 @@ Keys are `trade_date` (YYYYMMDD string), `trade_time` (HHMM string), and `ts_cod
 For required prediction columns, optional columns and metadata requirements, see [Prediction inputs for stock backtesting](../reference/research-artifacts.md#prediction-inputs-for-stock-backtesting).
 
 ```bash
-axonx submit --task a158_backtest --source-tasks '<Predict Task ID>' \
+axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
   --top-ns '[1,5,10,30]' --holding-days 1 \
-  --transaction-cost-rate 0.002
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 Source tasks resolve market, calendar and label artifacts. Explicit files use `input_file`, `market_file`, `calendar_file` and optional `labels_file`. `as_of_date` is the inclusive evaluation cutoff, defaulting to the latest market date. `top_ns` is an integer list; each size has an independent portfolio. Calendar dates must be valid YYYYMMDD values without nulls or duplicates; malformed calendars are rejected before computing label or holding horizons.
 
-| Parameter                       | Default | Meaning                                          |
-| ------------------------------- | ------- | ------------------------------------------------ |
-| `holding_days`                  | `1`     | Planned holding period in market days            |
-| `transaction_cost_rate`         | `0.002` | Cost on each executed buy and sell notional      |
-| `annual_risk_free_rate`         | `0.012` | Annual risk-free rate                            |
-| `annualization_days`            | `252`   | Trading dates per year                           |
-| `minimum_index_weight_coverage` | `0.98`  | Required coverage for weighted benchmark proxies |
-| `index_codes`                   | `[]`    | Optional signal candidate index restriction      |
+| Parameter                       | Default  | Meaning                                          |
+| ------------------------------- | -------- | ------------------------------------------------ |
+| `holding_days`                  | `1`      | Planned holding period in market days            |
+| `buy_cost_rate`                 | `0.0005` | Fee on executed buy notional                     |
+| `sell_cost_rate`                | `0.0015` | Fee on executed sell notional                    |
+| `annual_risk_free_rate`         | `0.012`  | Annual risk-free rate                            |
+| `annualization_days`            | `252`    | Trading dates per year                           |
+| `minimum_index_weight_coverage` | `0.98`   | Required coverage for weighted benchmark proxies |
+| `index_codes`                   | `[]`     | Optional signal candidate index restriction      |
+
+The defaults match the Qlib reference: `--buy-cost-rate 0.0005 --sell-cost-rate 0.0015` (0.05% on buys and 0.15% on sells). An explicit `0` makes that side free. Fees apply to executed notional; normalized-cash backtests do not impose a minimum monetary fee.
 
 ## Execution and valuation
 

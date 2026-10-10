@@ -2,7 +2,7 @@
 
 import polars as pl
 
-from axonx_alpha158.internal.etl_pipeline import load_index_weights, load_market_data, load_price_limits
+from axonx_qlib_a158.internal.etl_pipeline import load_index_weights, load_market_data, load_price_limits
 
 
 def partitions(tmp_path, name, rows):

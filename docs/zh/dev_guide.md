@@ -2,7 +2,7 @@
 
 本文可独立阅读，也可作为 Agent Skill 使用。文档与源码链接均使用绝对 URL，复制文件后不依赖原目录位置。项目维护地址为 [FlowLLM-AI/AxonX](https://github.com/FlowLLM-AI/AxonX)。
 
-`plugins/a158/...` 等源码路径相对于 AxonX 源码仓库根目录，不是本文所在目录或 Agent 工作区。源码开发与插件构建命令应从该仓库根目录执行。`preview_file` 等 Job 的工作区路径相对于所选服务的工作区。仅安装 Python 包不会提供示例插件源码。
+`plugins/qlib_a158/...` 等源码路径相对于 AxonX 源码仓库根目录，不是本文所在目录或 Agent 工作区。源码开发与插件构建命令应从该仓库根目录执行。`preview_file` 等 Job 的工作区路径相对于所选服务的工作区。仅安装 Python 包不会提供示例插件源码。
 
 ## 准备环境与服务
 
@@ -55,7 +55,7 @@ AxonX 是面向金融量化研究的 Harness 框架，将数据获取与 ETL、�
 
 ## 插件开发
 
-插件可注册多个 Task；a158 示例在 `plugins/a158/axonx_alpha158/plugin.yaml` 中注册了五类 Task。本文的 a158
+插件可注册多个 Task；qlib_a158 示例在 `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` 中注册了五类 Task。本文的 qlib_a158
 路径、类名、注册名和依赖链仅用于示例，开发其他研究插件时应替换为实际定义。插件安装与 Task 提交是独立操作。
 
 ### 必须遵守的开发协议
@@ -91,7 +91,7 @@ Task 与参数类。实现这些研究阶段时，优先继承对应的 `Base*Ta
 | Predict  | 使用 Train 产出的模型及其关联的 ETL 数据生成预测。 |
 | Backtest | 使用 Predict 结果进行回测，评估策略表现。          |
 
-Task 通过 Task ID 关联上下游。a158 示例的主要依赖链为 ETL → Train → Predict → Backtest，Analysis 使用 ETL 数据开展因子分析。
+Task 通过 Task ID 关联上下游。qlib_a158 示例的主要依赖链为 ETL → Train → Predict → Backtest，Analysis 使用 ETL 数据开展因子分析。
 
 ### 开发步骤
 
@@ -100,7 +100,7 @@ Task 通过 Task ID 关联上下游。a158 示例的主要依赖链为 ETL → T
 以 ETL 为例，最小结构包含输入参数、输出参数、Task 实现和注册。下面是结构示例，`transform` 中的 `...` 需替换为实际 ETL
 逻辑，读取输入并将结果写入 `self.state["output"]`。
 
-`plugins/a158/axonx_alpha158/etl.py`：
+`plugins/qlib_a158/axonx_qlib_a158/etl.py`：
 
 ```python
 from pathlib import Path
@@ -141,23 +141,23 @@ Task 类的 docstring 用于 Task 定义的 `description`。缺少或仅含空�
 `BaseETLOutputParams` 已定义必填字段 `output_file`、`rows`、`date_range`，因此 `self.state["output"]` 至少包含这三个字段；需要额外结果时，再在
 `Alpha158OutputParams` 中添加字段。
 
-`plugins/a158/axonx_alpha158/plugin.yaml` 注册 CLI 使用的 Task 名称：
+`plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` 注册 CLI 使用的 Task 名称：
 
 ```yaml
 tasks:
-  a158_etl: axonx_alpha158.etl:Alpha158Task
+  qlib_a158_etl: axonx_qlib_a158.etl:Alpha158Task
 ```
 
-`a158_etl` 是提交时的 `--task` 值；冒号前是 Python 模块，冒号后是 Task 类名。
+`qlib_a158_etl` 是提交时的 `--task` 值；冒号前是 Python 模块，冒号后是 Task 类名。
 
-新建插件时，包目录需包含 `__init__.py`，并在 `plugins/a158/pyproject.toml` 中声明插件入口和随包分发的注册文件；已有 a158 插件已配置这些内容：
+新建插件时，包目录需包含 `__init__.py`，并在 `plugins/qlib_a158/pyproject.toml` 中声明插件入口和随包分发的注册文件；已有 qlib_a158 插件已配置这些内容：
 
 ```toml
 [project.entry-points."axonx.plugins"]
-alpha158 = "axonx_alpha158"
+qlib_a158 = "axonx_qlib_a158"
 
 [tool.setuptools.package-data]
-axonx_alpha158 = ["plugin.yaml"]
+axonx_qlib_a158 = ["plugin.yaml"]
 ```
 
 #### 2. 安装插件
@@ -165,7 +165,7 @@ axonx_alpha158 = ["plugin.yaml"]
 从源码构建 wheel 并安装到当前 Python 环境：
 
 ```bash
-axonx plugin install plugins/a158
+axonx plugin install plugins/qlib_a158
 ```
 
 在远程机器执行 Task 时，追加 `--target 192.168.1.10:1024`，CLI 会上传 wheel 并在目标服务安装。
@@ -173,7 +173,7 @@ axonx plugin install plugins/a158
 #### 3. 确认插件与 Task 注册
 
 - 确认安装：使用 `axonx plugin list` 确认目标插件已安装且 `error` 为空；返回的 `tasks` 映射键可作为 `--task` 注册名。
-- 查看定义：使用 `axonx get_task_definition --task a158_etl` 查看所选 Task 的描述、类型及输入输出 schema。
+- 查看定义：使用 `axonx get_task_definition --task qlib_a158_etl` 查看所选 Task 的描述、类型及输入输出 schema。
 - 统一目标：远程查询和提交均追加同一个 `--target 192.168.1.10:1024`；本机服务使用不同 Python 环境时，也应显式指定服务地址。
 
 #### 4. 查看执行资源
@@ -191,20 +191,20 @@ axonx plugin install plugins/a158
 
 Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
-| 命令名称 | 具体描述                                                       | 命令                                                                   | 远程参数                     |
-| -------- | -------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------- |
-| `submit` | 提交 ETL，清洗并生成数据集；示例指定数据开始日期。             | `axonx submit --task a158_etl --start-date 20150101`                   | `--target 192.168.1.10:1024` |
-| `submit` | 提交 Analysis，分析指定 ETL 产物中的因子。                     | `axonx submit --task a158_factor --source-tasks '<etl_task_id>'`       | `--target 192.168.1.10:1024` |
-| `submit` | 提交 Train，使用指定 ETL 数据集训练模型。                      | `axonx submit --task a158_train --source-tasks '<etl_task_id>'`        | `--target 192.168.1.10:1024` |
-| `submit` | 提交 Predict，使用指定 Train 模型及其关联的 ETL 数据生成预测。 | `axonx submit --task a158_predict --source-tasks '<train_task_id>'`    | `--target 192.168.1.10:1024` |
-| `submit` | 提交 Backtest，评估指定 Predict 的预测结果。                   | `axonx submit --task a158_backtest --source-tasks '<predict_task_id>'` | `--target 192.168.1.10:1024` |
+| 命令名称 | 具体描述                                                       | 命令                                                                        | 远程参数                     |
+| -------- | -------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
+| `submit` | 提交 ETL，清洗并生成数据集；示例指定数据开始日期。             | `axonx submit --task qlib_a158_etl --start-date 20150101`                   | `--target 192.168.1.10:1024` |
+| `submit` | 提交 Analysis，分析指定 ETL 产物中的因子。                     | `axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'`       | `--target 192.168.1.10:1024` |
+| `submit` | 提交 Train，使用指定 ETL 数据集训练模型。                      | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`        | `--target 192.168.1.10:1024` |
+| `submit` | 提交 Predict，使用指定 Train 模型及其关联的 ETL 数据生成预测。 | `axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>'`    | `--target 192.168.1.10:1024` |
+| `submit` | 提交 Backtest，评估指定 Predict 的预测结果。                   | `axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>'` | `--target 192.168.1.10:1024` |
 
-- Task 注册名：`--task a158_etl` 对应 `plugin.yaml` 中 `tasks` 的键，指向 `axonx_alpha158.etl:Alpha158Task`；Task 注册名取自
-  `axonx plugin list` 返回的 `tasks` 键， 用 `axonx get_task_definition --task a158_etl` 查看该 Task 的完整定义。
+- Task 注册名：`--task qlib_a158_etl` 对应 `plugin.yaml` 中 `tasks` 的键，指向 `axonx_qlib_a158.etl:Alpha158Task`；Task 注册名取自
+  `axonx plugin list` 返回的 `tasks` 键， 用 `axonx get_task_definition --task qlib_a158_etl` 查看该 Task 的完整定义。
 - 输入参数：由 Task 的 `input_cls` 定义类型和默认值，CLI 将连字符转为下划线，例如 `--start-date` 对应
   `Alpha158InputParams.start_date`，通过 `self.input_params.start_date` 读取；`--input-dir` 对应 `input_dir`，未声明的字段会被拒绝。
 - Task命名：默认省略 `--task-name`，名称自动生成为 `YYYYMMDDHH` 加 4 位随机字母或数字，Task ID 如
-  `etl#a158_etl#<生成名称>`。 仅在用户指定名称时传入； **复用显式名称会在前次完成后替换产物**。
+  `etl#qlib_a158_etl#<生成名称>`。 仅在用户指定名称时传入； **复用显式名称会在前次完成后替换产物**。
 - 返回值：完整检查响应的 `success` 和 `answer`。提交成功仅表示已接受执行，`answer` 包含 `task_id`、`run_id`、`task`， 不包含
   `state`；记录实际返回的两个 ID，用于等待本次运行。下游 `source-tasks` 使用成功上游的 `task_id`，不猜测 ID。
 - 上下游关联：将成功上游返回的 Task ID 填入 `--source-tasks`；多个 ID 用英文逗号连接，如 `'<id1>,<id2>'`，留空表示无上游。
@@ -239,14 +239,14 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
 ### 启动与本地执行
 
-| 命令名称  | 具体描述                                                                                | 命令                                               | 远程参数                     |
-| --------- | --------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------- |
-| `help`    | 查看 CLI 用法、本地命令和服务 Job 的调用方式。                                          | `axonx help`                                       | —                            |
-| `start`   | 未指定配置时加载注册的 `default` 配置，启动本机 HTTP 服务。                             | `axonx start`                                      | —                            |
-| `start`   | 显式加载指定 YAML 文件启动服务；示例路径相对于 AxonX 仓库根目录，可替换为实际配置文件。 | `axonx start --config axonx/config/default.yaml`   | —                            |
-| `exec`    | 列出当前 Python 环境可执行的 Task 注册名及入口类，不执行 Task。                         | `axonx exec`                                       | —                            |
-| `exec`    | 在当前进程执行指定 ETL Task 并输出结果，无需通过 HTTP 服务提交。                        | `axonx exec --task a158_etl --start-date 20150101` | —                            |
-| `version` | 查询所连接 AxonX 服务的版本信息。                                                       | `axonx version`                                    | `--target 192.168.1.10:1024` |
+| 命令名称  | 具体描述                                                                                | 命令                                                    | 远程参数                     |
+| --------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------- |
+| `help`    | 查看 CLI 用法、本地命令和服务 Job 的调用方式。                                          | `axonx help`                                            | —                            |
+| `start`   | 未指定配置时加载注册的 `default` 配置，启动本机 HTTP 服务。                             | `axonx start`                                           | —                            |
+| `start`   | 显式加载指定 YAML 文件启动服务；示例路径相对于 AxonX 仓库根目录，可替换为实际配置文件。 | `axonx start --config axonx/config/default.yaml`        | —                            |
+| `exec`    | 列出当前 Python 环境可执行的 Task 注册名及入口类，不执行 Task。                         | `axonx exec`                                            | —                            |
+| `exec`    | 在当前进程执行指定 ETL Task 并输出结果，无需通过 HTTP 服务提交。                        | `axonx exec --task qlib_a158_etl --start-date 20150101` | —                            |
+| `version` | 查询所连接 AxonX 服务的版本信息。                                                       | `axonx version`                                         | `--target 192.168.1.10:1024` |
 
 ### 插件管理
 
@@ -254,20 +254,20 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 - 远程管理：传入 `--target`，查询或修改目标服务的插件。
 - 检查与构建：源码检查和 wheel 构建在本机完成。
 - `plugin inspect` 本地可传源码目录、wheel 路径或已安装插件名；远程只接受目标服务已安装的发行包名或插件名， 例如
-  `axonx-alpha158`。不能给本地路径示例直接追加 `--target`，远程检查不会上传源码或 wheel。
+  `axonx-qlib-a158`。不能给本地路径示例直接追加 `--target`，远程检查不会上传源码或 wheel。
 
-| 命令名称           | 具体描述                                                                     | 命令                                                           | 远程参数                     |
-| ------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------- |
-| `plugin list`      | 列出当前环境或目标服务已安装的插件；`tasks` 键为 Task 注册名。               | `axonx plugin list`                                            | `--target 192.168.1.10:1024` |
-| `plugin show`      | 查看指定插件的版本、注册贡献和依赖等信息。                                   | `axonx plugin show axonx-alpha158`                             | `--target 192.168.1.10:1024` |
-| `plugin inspect`   | 检查当前环境或目标服务已安装的插件；参数为发行包名或插件名。                 | `axonx plugin inspect axonx-alpha158`                          | `--target 192.168.1.10:1024` |
-| `plugin inspect`   | 从本机源码构建或复用缓存 wheel，检查插件元数据，不安装。                     | `axonx plugin inspect plugins/a158`                            | —                            |
-| `plugin inspect`   | 检查本机已有 wheel 的插件元数据，不重新构建或安装；将路径替换为实际文件。    | `axonx plugin inspect '<plugin_wheel_path>'`                   | —                            |
-| `plugin build`     | 从源码构建或复用缓存 wheel，输出产物路径、校验值和插件元数据，不安装。       | `axonx plugin build plugins/a158`                              | —                            |
-| `plugin build`     | 在指定目录生成 wheel，便于后续分发或安装。                                   | `axonx plugin build plugins/a158 --output .axonx/plugins/dist` | —                            |
-| `plugin install`   | 本机从源码构建 wheel 后直接安装；指定远程目标时上传 wheel 并在目标服务安装。 | `axonx plugin install plugins/a158`                            | `--target 192.168.1.10:1024` |
-| `plugin install`   | 使用本机已有 wheel 安装；指定远程目标时上传该 wheel 并在目标服务安装。       | `axonx plugin install '<plugin_wheel_path>'`                   | `--target 192.168.1.10:1024` |
-| `plugin uninstall` | 从当前环境或目标服务卸载指定插件。                                           | `axonx plugin uninstall axonx-alpha158`                        | `--target 192.168.1.10:1024` |
+| 命令名称           | 具体描述                                                                     | 命令                                                                | 远程参数                     |
+| ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------- |
+| `plugin list`      | 列出当前环境或目标服务已安装的插件；`tasks` 键为 Task 注册名。               | `axonx plugin list`                                                 | `--target 192.168.1.10:1024` |
+| `plugin show`      | 查看指定插件的版本、注册贡献和依赖等信息。                                   | `axonx plugin show axonx-qlib-a158`                                 | `--target 192.168.1.10:1024` |
+| `plugin inspect`   | 检查当前环境或目标服务已安装的插件；参数为发行包名或插件名。                 | `axonx plugin inspect axonx-qlib-a158`                              | `--target 192.168.1.10:1024` |
+| `plugin inspect`   | 从本机源码构建或复用缓存 wheel，检查插件元数据，不安装。                     | `axonx plugin inspect plugins/qlib_a158`                            | —                            |
+| `plugin inspect`   | 检查本机已有 wheel 的插件元数据，不重新构建或安装；将路径替换为实际文件。    | `axonx plugin inspect '<plugin_wheel_path>'`                        | —                            |
+| `plugin build`     | 从源码构建或复用缓存 wheel，输出产物路径、校验值和插件元数据，不安装。       | `axonx plugin build plugins/qlib_a158`                              | —                            |
+| `plugin build`     | 在指定目录生成 wheel，便于后续分发或安装。                                   | `axonx plugin build plugins/qlib_a158 --output .axonx/plugins/dist` | —                            |
+| `plugin install`   | 本机从源码构建 wheel 后直接安装；指定远程目标时上传 wheel 并在目标服务安装。 | `axonx plugin install plugins/qlib_a158`                            | `--target 192.168.1.10:1024` |
+| `plugin install`   | 使用本机已有 wheel 安装；指定远程目标时上传该 wheel 并在目标服务安装。       | `axonx plugin install '<plugin_wheel_path>'`                        | `--target 192.168.1.10:1024` |
+| `plugin uninstall` | 从当前环境或目标服务卸载指定插件。                                           | `axonx plugin uninstall axonx-qlib-a158`                            | `--target 192.168.1.10:1024` |
 
 ### 机器
 
@@ -281,10 +281,10 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
 | 命令名称              | 具体描述                                                                                 | 命令                                                                               | 远程参数                     |
 | --------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------- |
-| `get_task_definition` | 查询一个 Task 的完整定义；`--task` 填注册名，不是 Task ID 或实例名称。                   | `axonx get_task_definition --task a158_etl`                                        | `--target 192.168.1.10:1024` |
-| `submit`              | 提交 ETL Task，由框架生成名称；记录 `answer.task_id`、`answer.run_id` 和 `answer.task`。 | `axonx submit --task a158_etl --start-date 20150101`                               | `--target 192.168.1.10:1024` |
-| `submit`              | 使用显式名称生成固定 Task ID；重复使用该名称会在前次完成后替换其产物。                   | `axonx submit --task a158_etl --task-name default --start-date 20150101`           | `--target 192.168.1.10:1024` |
-| `submit`              | 使用成功 ETL 的实际 Task ID 作为数据来源，提交训练 Task。                                | `axonx submit --task a158_train --source-tasks '<etl_task_id>'`                    | `--target 192.168.1.10:1024` |
+| `get_task_definition` | 查询一个 Task 的完整定义；`--task` 填注册名，不是 Task ID 或实例名称。                   | `axonx get_task_definition --task qlib_a158_etl`                                   | `--target 192.168.1.10:1024` |
+| `submit`              | 提交 ETL Task，由框架生成名称；记录 `answer.task_id`、`answer.run_id` 和 `answer.task`。 | `axonx submit --task qlib_a158_etl --start-date 20150101`                          | `--target 192.168.1.10:1024` |
+| `submit`              | 使用显式名称生成固定 Task ID；重复使用该名称会在前次完成后替换其产物。                   | `axonx submit --task qlib_a158_etl --task-name default --start-date 20150101`      | `--target 192.168.1.10:1024` |
+| `submit`              | 使用成功 ETL 的实际 Task ID 作为数据来源，提交训练 Task。                                | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`               | `--target 192.168.1.10:1024` |
 | `wait_task`           | 等待指定 Run ID 结束，返回完整状态；仅 `succeeded` 时响应成功。                          | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
 | `stream_task`         | 持续输出指定 Task 的进度与日志，直到结束并返回最终状态。                                 | `axonx stream_task --task-id '<task_id>' --stream true`                            | `--target 192.168.1.10:1024` |
 | `list_task_ids`       | 列出具有状态文件的 Task ID，供后续查询使用。                                             | `axonx list_task_ids`                                                              | `--target 192.168.1.10:1024` |

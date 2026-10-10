@@ -96,18 +96,9 @@ def test_include_time_is_not_a_task_option(tmp_path):
         )
 
 
-def test_task_status_reads_legacy_execution_id_as_run_id():
-    status = TaskStatus.model_validate(
-        {
-            "task_id": "analysis#sample#legacy",
-            "execution_id": "legacy-run",
-            "task_type": "analysis",
-        }
-    )
-
-    assert status.run_id == "legacy-run"
-    assert status.model_dump()["run_id"] == "legacy-run"
-    assert "execution_id" not in status.model_dump()
+def test_task_status_requires_run_id():
+    with pytest.raises(ValueError):
+        TaskStatus.model_validate({"task_id": "analysis#sample#run", "execution_id": "old", "task_type": "analysis"})
 
 
 def test_log_windows_do_not_split_utf8_codepoints(tmp_path):

@@ -92,7 +92,7 @@ def test_locked_capital_mark_to_market_and_delayed_exit():
         market,
         calendar,
         fixed_labels(signals, market, calendar),
-        BacktestConfig(top_ns=(1,), transaction_cost_rate=0),
+        BacktestConfig(top_ns=(1,), buy_cost_rate=0, sell_cost_rate=0),
         as_of_date="20260108",
     )
     daily = result.frames["daily"]
@@ -119,7 +119,7 @@ def test_missing_data_is_incomplete_not_confirmed_suspension():
         market,
         calendar,
         None,
-        BacktestConfig(top_ns=(1,), transaction_cost_rate=0),
+        BacktestConfig(top_ns=(1,), buy_cost_rate=0, sell_cost_rate=0),
         as_of_date="20260106",
     )
     assert result.status == "incomplete_market_data"
@@ -129,7 +129,7 @@ def test_missing_data_is_incomplete_not_confirmed_suspension():
 
 def test_every_executed_side_pays_cost_and_future_quotes_cannot_change_prefix():
     signals, market, calendar = inputs()
-    config = BacktestConfig(top_ns=(1,), transaction_cost_rate=0.01)
+    config = BacktestConfig(top_ns=(1,), buy_cost_rate=0.01, sell_cost_rate=0.01)
     full = run_backtest(signals, market, calendar, None, config, as_of_date="20260108")
     short = run_backtest(signals, market, calendar, None, config, as_of_date="20260106")
     assert (
@@ -169,7 +169,12 @@ def test_adjusted_units_preserve_value_across_split():
         .alias("adjustment_factor"),
     )
     result = run_backtest(
-        signals, market, calendar, None, BacktestConfig(top_ns=(1,), transaction_cost_rate=0), as_of_date="20260108"
+        signals,
+        market,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1,), buy_cost_rate=0, sell_cost_rate=0),
+        as_of_date="20260108",
     )
     assert result.frames["daily"]["top1_net_value"].to_list() == pytest.approx([1.0, 1.0, 1.1, 1.1])
     assert result.frames["trades"]["realized_return"].to_list() == pytest.approx([0.1])
@@ -239,7 +244,12 @@ def test_unfilled_top_target_is_not_replaced():
         ]
     )
     result = run_backtest(
-        signals, market, calendar, None, BacktestConfig(top_ns=(1,), transaction_cost_rate=0), as_of_date="20260108"
+        signals,
+        market,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1,), buy_cost_rate=0, sell_cost_rate=0),
+        as_of_date="20260108",
     )
     assert result.frames["positions"].is_empty()
     assert result.frames["trades"].is_empty()
@@ -250,7 +260,7 @@ def test_unfilled_top_target_is_not_replaced():
 def test_empty_labels_keep_portfolio_and_nullable_diagnostics():
     signals, market, calendar = inputs()
     labels = fixed_labels(signals, market, calendar).clear()
-    config = BacktestConfig(top_ns=(1, 3), transaction_cost_rate=0)
+    config = BacktestConfig(top_ns=(1, 3), buy_cost_rate=0, sell_cost_rate=0)
     result = run_backtest(signals, market, calendar, labels, config, as_of_date="20260108")
     without = run_backtest(signals, market, calendar, None, config, as_of_date="20260108")
     assert (
@@ -271,3 +281,44 @@ def test_invalid_signal_time_is_rejected(bad_time):
         fixed_labels(signals, market, calendar)
     with pytest.raises(ValueError):
         run_backtest(signals, market, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108")
+
+
+@pytest.mark.parametrize("buy,sell", [(0.0005, 0.0015), (0.0, 0.0015)])
+def test_asymmetric_fees_preserve_cash_and_charge_only_executed_sides(buy, sell):
+    signals, market, calendar = inputs()
+    config = BacktestConfig(top_ns=(1,), buy_cost_rate=buy, sell_cost_rate=sell)
+    result = run_backtest(signals, market, calendar, None, config, as_of_date="20260108")
+    rate = buy
+    orders = result.frames["orders"]
+    for row in orders.filter(pl.col("status") == "filled").iter_rows(named=True):
+        expected = rate if row["side"] == "buy" else sell
+        assert row["fee"] == pytest.approx(row["notional"] * expected)
+    assert orders.filter(pl.col("status") != "filled")["fee"].sum() == 0
+    assert result.frames["daily"]["top1_net_value"][-1] == pytest.approx(1.1 / (1 + rate) * (1 - sell))
+
+
+@pytest.mark.parametrize("buy,sell", [(-0.01, 0.002), (0.002, 1.0)])
+def test_invalid_side_cost_is_rejected(buy, sell):
+    signals, market, calendar = inputs()
+    with pytest.raises(ValueError, match="buy_cost_rate and sell_cost_rate"):
+        run_backtest(
+            signals,
+            market,
+            calendar,
+            None,
+            BacktestConfig(top_ns=(1,), buy_cost_rate=buy, sell_cost_rate=sell),
+            as_of_date="20260108",
+        )
+
+
+def test_backtest_schema_has_only_explicit_side_fees():
+    from axonx.task.builtins.stock import StockBacktestInput
+
+    assert "transaction_cost_rate" not in StockBacktestInput.model_fields
+    defaults = StockBacktestInput()
+    assert defaults.buy_cost_rate == 0.0005
+    assert defaults.sell_cost_rate == 0.0015
+    with pytest.raises(ValueError):
+        StockBacktestInput(transaction_cost_rate=0.001)
+    with pytest.raises(ValueError):
+        StockBacktestInput(buy_cost_rate=None)

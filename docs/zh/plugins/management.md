@@ -31,8 +31,8 @@ axonx plugin inspect '<distribution 或插件名>'
 在执行服务的 Python 环境安装，再重启服务：
 
 ```bash
-pip install axonx-alpha158
-# Or: pip install axonx-alpha158-enhanced
+pip install axonx-qlib-a158
+# Or: pip install axonx-qlib-factor
 axonx plugin list
 ```
 
@@ -40,11 +40,11 @@ axonx plugin list
 
 ## 从源码构建和检查
 
-仓库中的 a158 目录可作为源码路径示例：
+仓库中的 qlib_a158 目录可作为源码路径示例：
 
 ```bash
-axonx plugin inspect ./plugins/a158
-axonx plugin build ./plugins/a158 --output ./dist/plugins
+axonx plugin inspect ./plugins/qlib_a158
+axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 ```
 
 源码构建需要 pyproject、manifest 和有效贡献，工具会构建 wheel 并检查内容。构建不是运行研究任务，也不需要提交 Task。
@@ -60,9 +60,9 @@ axonx plugin inspect './dist/plugins/<实际 wheel 文件名>.whl'
 ## 本地安装
 
 ```bash
-axonx plugin install ./plugins/a158
+axonx plugin install ./plugins/qlib_a158
 # 插件开发时可选 editable，只改变当前环境
-axonx plugin install -e ./plugins/a158
+axonx plugin install -e ./plugins/qlib_a158
 ```
 
 editable 只能用于本地源码目录，不支持 `--target` 或 `--output`。开发时源码变化可以被环境读取，但常驻 Application 中已装配的 Job/Component 仍应通过重启重新加载。
@@ -74,7 +74,7 @@ editable 只能用于本地源码目录，不支持 `--target` 或 `--output`。
 ```bash
 export AXONX_TARGET_TOKEN='<远程服务 token>'
 axonx plugin list --target 'http://research.example:1024'
-axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
+axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
 ```
 
 CLI 在本机把源码构建为 wheel，上传到远程 `/files`，核对返回 sha256，再调用远程 install_plugin，并在结束后清理暂存文件。安装 Job 在目标服务的 Python 环境运行。手动通过 HTTP 或 MCP 安装时，先用二进制或 multipart `POST /files` 上传 wheel，再将返回的 path 与 sha256 传给同一服务的 `install_plugin`；见[文件上传与清理](../api/workspace.md#文件上传与清理)。
@@ -129,4 +129,4 @@ axonx plugin uninstall '<distribution 或插件名>' \
 
 ## 研究插件
 
-[Alpha158](../../../plugins/a158/README_ZH.md) · [Alpha158 Enhanced](../../../plugins/a158_enhanced/README_ZH.md)
+[Alpha158](../../../plugins/qlib_a158/README_ZH.md) · [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md) · [Qlib Strategy](../../../plugins/qlib_strategy/README_ZH.md)

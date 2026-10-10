@@ -75,7 +75,7 @@ Framework files were moved from `docs/.vitepress/` into `site/` and `lib/`; navi
 3. Link from the relevant goal or guide, and update both document maps when a reading path changes.
 4. Run tests, build, and format checks; preview both languages and affected narrow layouts and themes.
 
-The catalog rejects mismatched translations, orphan pages, duplicate owners, imported-route collisions, missing sources, and missing headings before replacing generated output. Root and plugin READMEs are imported using the mappings in `lib/site-model.mjs`: `getting-started/overview`, `development/contributing`, `plugins/alpha158`, and `plugins/alpha158-enhanced`. `docs/{lang}/index.md` becomes `{lang}/docs`.
+The catalog rejects mismatched translations, orphan pages, duplicate owners, imported-route collisions, missing sources, and missing headings before replacing generated output. Root and plugin READMEs are imported using the mappings in `lib/site-model.mjs`: `getting-started/overview`, `development/contributing`, `plugins/alpha158`, and `plugins/qlib-factor`. `docs/{lang}/index.md` becomes `{lang}/docs`.
 
 ### Links and exports
 

@@ -31,8 +31,8 @@ The local CLI checks the current environment directly, without HTTP. If the serv
 Install in the execution service's Python environment, then restart the service:
 
 ```bash
-pip install axonx-alpha158
-# Or: pip install axonx-alpha158-enhanced
+pip install axonx-qlib-a158
+# Or: pip install axonx-qlib-factor
 axonx plugin list
 ```
 
@@ -40,11 +40,11 @@ The following source and wheel commands are for plugin development and deploymen
 
 ## Build and inspect from source
 
-The repository's a158 directory is an example source path:
+The repository's qlib_a158 directory is an example source path:
 
 ```bash
-axonx plugin inspect ./plugins/a158
-axonx plugin build ./plugins/a158 --output ./dist/plugins
+axonx plugin inspect ./plugins/qlib_a158
+axonx plugin build ./plugins/qlib_a158 --output ./dist/plugins
 ```
 
 Source builds require pyproject, manifest, and valid contributions. The tool builds a wheel and checks its contents. Building does not run a research task or require Task submission.
@@ -60,9 +60,9 @@ axonx plugin inspect './dist/plugins/<actual wheel filename>.whl'
 ## Local installation
 
 ```bash
-axonx plugin install ./plugins/a158
+axonx plugin install ./plugins/qlib_a158
 # Editable installation is optional for plugin development and only changes the current environment
-axonx plugin install -e ./plugins/a158
+axonx plugin install -e ./plugins/qlib_a158
 ```
 
 editable only supports local source directories, not `--target` or `--output`. The environment can read source changes during development, but already assembled Jobs/Components in a persistent Application should still be reloaded through a restart.
@@ -74,7 +74,7 @@ The service's `plugins.sources` configuration can install sources at startup; se
 ```bash
 export AXONX_TARGET_TOKEN='<remote service token>'
 axonx plugin list --target 'http://research.example:1024'
-axonx plugin install ./plugins/a158 --target 'http://research.example:1024'
+axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
 ```
 
 The CLI builds local source into a wheel, uploads it to remote `/files`, checks the returned sha256, then calls remote install_plugin and cleans up staging files at the end. The installation Job runs in the target service's Python environment. For manual HTTP or MCP installation workflows, first upload the wheel using binary or multipart `POST /files`, then pass the returned path and sha256 to `install_plugin` on the same service; see [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
@@ -129,4 +129,4 @@ Source: [Plugin CLI](../../../axonx/plugin_kit/cli.py), [Wheel building](../../.
 
 ## Research plugins
 
-[Alpha158](../../../plugins/a158/README.md) · [Alpha158 Enhanced](../../../plugins/a158_enhanced/README.md)
+[Alpha158](../../../plugins/qlib_a158/README.md) · [Qlib Factor](../../../plugins/qlib_factor/README.md) · [Qlib Strategy](../../../plugins/qlib_strategy/README.md)

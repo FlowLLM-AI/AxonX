@@ -11,8 +11,9 @@ export const published = "https://flowllm-ai.github.io/AxonX/";
 export const importedPages = {
   "getting-started/overview": "README{suffix}.md",
   "development/contributing": "CONTRIBUTING{suffix}.md",
-  "plugins/alpha158": "plugins/a158/README{suffix}.md",
-  "plugins/alpha158-enhanced": "plugins/a158_enhanced/README{suffix}.md",
+  "plugins/qlib-a158": "plugins/qlib_a158/README{suffix}.md",
+  "plugins/qlib-strategy": "plugins/qlib_strategy/README{suffix}.md",
+  "plugins/qlib-factor": "plugins/qlib_factor/README{suffix}.md",
 };
 
 async function markdownFiles(directory, prefix = "") {

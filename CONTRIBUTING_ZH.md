@@ -25,7 +25,11 @@
 
 实现契约见 [Task 开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide)、[框架扩展](https://flowllm-ai.github.io/AxonX/zh/development/framework-extensions)和[插件协议](https://flowllm-ai.github.io/AxonX/zh/reference/plugin-manifest)。
 
-## 开发环境
+## 一、贡献 AxonX 框架
+
+适用于 `axonx/` 中的运行时、CLI、HTTP/MCP 服务、通用扩展点，以及配套的 Studio 和框架测试。研究 Task 和算法请按下面的 Plugin 贡献流程开发。
+
+### 开发环境
 
 Fork 仓库并克隆自己的 fork。在仓库根目录使用 Python 3.12+，本地开发环境支持 macOS 和 Linux：
 
@@ -35,15 +39,6 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 pre-commit install
 ```
-
-开发研究插件时，以 editable 模式安装对应插件：
-
-```bash
-axonx plugin install -e ./plugins/a158
-# Or: axonx plugin install -e ./plugins/a158_enhanced
-```
-
-默认 pytest 配置包含 enhanced 插件测试及两个插件的源码路径。运行这些测试时，通过上述安装准备研究依赖。插件发现和重启行为见[插件指南](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
 
 Studio 使用 Node.js 22.13+（22.x）、24.x 或 26+，运行：
 
@@ -55,23 +50,22 @@ npm run dev
 
 按[快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)另行启动 Python 服务。代理配置见 [Studio 开发](https://flowllm-ai.github.io/AxonX/zh/development/studio)。文档站要求 Node.js 22+。
 
-## 实现改动
+### 实现改动
 
 复用已有契约和扩展点。研究算法放在 Task/插件中，框架中的异步资源应保持明确的所有权和清理逻辑。主动变更 CLI 参数、API 响应、配置、任务身份或产物格式时，应同步说明。
 
 测试使用临时工作区。不提交 `.env`、token、私有数据、运行时 `.axonx/` 内容、日志和生成产物。截图中不得包含凭据或私有会话内容。
 
-## 验证
+### 验证
 
-按改动范围选择检查，在 PR 中说明命令和结果。Python 或插件改动先运行相关测试，再按需要运行非集成测试集：
+按改动范围选择检查，在 PR 中说明命令和结果。框架 Python 改动先运行相关测试，再按需要运行框架测试集：
 
 ```bash
 pytest tests/unit/<affected_test_file>.py
-pytest
-pre-commit run --all-files
+pytest tests
 ```
 
-直接运行 `pytest` 会排除标记为 `integration` 的测试。运行 `pytest -m integration` 前，应准备必要凭据与服务，并检查测试对外部系统的影响。无法运行的检查请说明原因。
+`pytest tests` 和直接运行 `pytest` 都会排除标记为 `integration` 的测试；后者还会收集因子和策略插件测试，需要先安装对应研究依赖。运行 `pytest -m integration` 前，应准备必要凭据与服务，并检查测试对外部系统的影响。无法运行的检查请说明原因。
 
 Studio 改动在 `axonx_studio/` 中运行：
 
@@ -91,6 +85,46 @@ npm ci && npm run build
 ```
 
 构建会验证渲染页面和 Markdown 导出。根目录及插件 README 和贡献指南由同一构建直接渲染；同步更新中英文，并核查示例命令。
+
+## 二、贡献 Plugin
+
+适用于 `plugins/` 中的研究 Task、因子、模型、策略、回测算法及插件配置。新增研究能力时，优先复用框架的 Task 和扩展点；只有需要通用运行时能力时，再考虑修改 `axonx/`。
+
+### 开发环境
+
+先按框架贡献中的步骤创建 Python 环境、安装主包及开发依赖，再仅安装本次开发所需的插件：
+
+开发研究插件时，以 editable 模式安装对应插件：
+
+```bash
+axonx plugin install -e ./plugins/qlib_a158
+# 因子和策略层：
+axonx plugin install -e ./plugins/qlib_factor
+axonx plugin install -e ./plugins/qlib_strategy
+```
+
+默认 pytest 配置包含因子和策略插件测试及三个插件的源码路径。运行这些测试时，通过上述安装准备研究依赖。插件发现和重启行为见[插件指南](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
+
+### 实现改动
+
+参考现有插件组织代码，并遵循 [Task 开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide)和[插件协议](https://flowllm-ai.github.io/AxonX/zh/reference/plugin-manifest)。新增插件应包含包元数据、插件入口与 manifest、Task 实现、示例配置、测试和中英文 README。
+
+保持任务身份、生命周期、配置和产物格式的兼容性；有意变更时，在文档和 PR 中说明。新增运行时资源时更新 `tool.setuptools.package-data`，确保 wheel 和 sdist 包含这些文件。测试使用临时工作区，研究数据、凭据和实验生成产物不提交到仓库。
+
+### 验证
+
+从仓库根目录先运行受影响插件的测试，例如：
+
+```bash
+pytest plugins/qlib_factor/tests
+pytest plugins/qlib_strategy/tests
+```
+
+按实际修改选择命令；涉及框架交互时补充相关框架测试。安装相关研究依赖后，按需要运行 `pytest`。外部服务测试遵循上面的集成测试要求，并在 PR 中说明使用的依赖、验证结果与未运行的检查。主包发布不会发布研究插件，插件的打包和发布需单独处理。
+
+## 两类贡献的共同要求
+
+提交前运行 `pre-commit run --files <changed-files>`，将占位符替换为本次修改的文件路径。文档、PR 和发布要求见下文。
 
 ## 文档贡献
 

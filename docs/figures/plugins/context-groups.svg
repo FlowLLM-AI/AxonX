@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1056" height="365" viewBox="0 0 1056 365" role="img" aria-labelledby="title desc">
-  <title id="title">Alpha158 context feature groups</title>
-  <desc id="desc">158 original features plus 11 market, 6 liquidity, 5 relative, and 4 interaction features give 184 features. Training selects groups; prediction follows saved model metadata.</desc>
+  <title id="title">Qlib Factor feature groups</title>
+  <desc id="desc">158 original features plus 4 mean, 4 variance, 3 neutral momentum, and 2 risk features give 171 features. Training selects groups; prediction follows saved model metadata.</desc>
   <rect x="8" y="8" width="1040.0" height="349.0" rx="30" fill="#101827" stroke="#f1f5f9" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
   <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
     <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" text-anchor="middle">
-      <text x="44" y="42" font-size="32" font-weight="bold" fill="#f1f5f9" text-anchor="start">Alpha158 Enhanced · 158 + 26 = 184</text>
+      <text x="44" y="42" font-size="32" font-weight="bold" fill="#f1f5f9" text-anchor="start">Qlib Factor · 158 + 13 = 171</text>
       <g fill="#1e293b" stroke="#64748b">
         <rect x="25" y="78" width="174" height="108" rx="20" stroke="#f1f5f9" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
         <rect x="219" y="78" width="174" height="108" rx="20" stroke="#f1f5f9" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
@@ -14,20 +14,20 @@
       </g>
       <g fill="#67e8f9" font-size="27" font-weight="bold">
         <text x="112" y="119" font-size="18">158</text>
-        <text x="306" y="119" font-size="18">+11</text>
-        <text x="500" y="119" font-size="18">+6</text>
-        <text x="694" y="119" font-size="18">+5</text>
-        <text x="888" y="119" font-size="18">+4</text>
+        <text x="306" y="119" font-size="18">+4</text>
+        <text x="500" y="119" font-size="18">+4</text>
+        <text x="694" y="119" font-size="18">+3</text>
+        <text x="888" y="119" font-size="18">+2</text>
       </g>
       <g fill="#f1f5f9" font-size="18">
         <text x="112" y="153" font-size="18">Original</text>
-        <text x="306" y="153" font-size="18">Market</text>
-        <text x="500" y="153" font-size="18">Liquidity</text>
-        <text x="694" y="153" font-size="18">Relative</text>
-        <text x="888" y="153" font-size="18">Interaction</text>
+        <text x="306" y="153" font-size="18">Mean</text>
+        <text x="500" y="153" font-size="18">Variance</text>
+        <text x="694" y="153" font-size="18">Neutral</text>
+        <text x="888" y="153" font-size="18">Risk</text>
       </g>
       <text x="500.0" y="236.0" font-size="18" fill="#cbd5e1" text-anchor="middle">ETL: all features → Training: selected groups → Prediction: saved feature order</text>
-      <text x="500.0" y="275.0" font-size="16" fill="#94a3b8" text-anchor="middle">Amount groups use history through T−1 · Same-day context uses signal-day close</text>
+      <text x="500.0" y="275.0" font-size="16" fill="#94a3b8" text-anchor="middle">Beta uses history through T−1 · Features use information through T close</text>
     </g>
     <path d="M 44 208 H 956" fill="none" stroke="#f1f5f9" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
   </g>

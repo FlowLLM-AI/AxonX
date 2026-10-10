@@ -19,23 +19,18 @@ from ...contracts import (
 from ...core import TaskStep, parse_source_tasks, task_type_from_id
 from ...storage import artifact_path, artifact_record, read_metadata
 from .data import VERSION
-from .engine import BacktestConfig, run_backtest
+from .engine import BacktestConfig, PortfolioPolicy, run_backtest
 
 
-class StockBacktestInput(BaseBacktestInputParams):
+class StockPortfolioInput(BaseBacktestInputParams):
     input_file: Path | None = None
     market_file: Path | None = None
     calendar_file: Path | None = None
     labels_file: Path | None = None
     as_of_date: str | None = None
     top_ns: list[int] = Field(default_factory=lambda: [1, 2, 3, 5, 10, 20, 30])
-    holding_days: int = Field(default=1, ge=1)
-    transaction_cost_rate: float = Field(
-        default=0.002,
-        ge=0,
-        lt=1,
-        description="Cost on each executed buy and sell notional.",
-    )
+    buy_cost_rate: float = Field(default=0.0005, ge=0, lt=1, description="Fee on executed buy notional.")
+    sell_cost_rate: float = Field(default=0.0015, ge=0, lt=1, description="Fee on executed sell notional.")
     annual_risk_free_rate: float = Field(default=0.012, gt=-1, lt=1)
     annualization_days: int = Field(default=252, gt=0)
     minimum_index_weight_coverage: float = Field(default=0.98, gt=0, le=1)
@@ -60,6 +55,10 @@ class StockBacktestInput(BaseBacktestInputParams):
     @classmethod
     def cutoff(cls, value: object) -> str | None:
         return BaseBacktestTask.normalize_yyyymmdd(value, optional=True)
+
+
+class StockBacktestInput(StockPortfolioInput):
+    holding_days: int = Field(default=1, ge=1)
 
 
 class StockBacktestOutput(BaseBacktestOutputParams):
@@ -112,6 +111,13 @@ class BaseStockBacktestTask(BaseBacktestTask):
         self.state["input_digests"] = {key: file_sha256(value) for key, value in paths.items()}
         self.state["signals"] = pl.read_parquet(paths["input"])
 
+    def fixed_holding_days(self) -> int | None:
+        return self.input_params.holding_days
+
+    def portfolio_policy(self) -> PortfolioPolicy | None:
+        """Override in a plugin to supply decisions to the shared execution ledger."""
+        return None
+
     def calculate(self) -> None:
         p = self.input_params
         paths = self.state["input_paths"]
@@ -125,14 +131,16 @@ class BaseStockBacktestTask(BaseBacktestTask):
             labels,
             BacktestConfig(
                 top_ns=tuple(p.top_ns),
-                holding_days=p.holding_days,
-                transaction_cost_rate=p.transaction_cost_rate,
+                holding_days=self.fixed_holding_days(),
+                buy_cost_rate=p.buy_cost_rate,
+                sell_cost_rate=p.sell_cost_rate,
                 annual_risk_free_rate=p.annual_risk_free_rate,
                 annualization_days=p.annualization_days,
                 minimum_index_weight_coverage=p.minimum_index_weight_coverage,
                 index_codes=tuple(p.index_codes),
             ),
             as_of_date=self.state["cutoff"],
+            policy=self.portfolio_policy(),
         )
 
     def write_outputs(self) -> None:
@@ -163,7 +171,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
                 "valuation": "daily adjusted-price mark to market; confirmed suspension carries last mark",
                 "execution": "same-time quote proxy, sells before buys; no queue/partial-fill guarantee",
                 "selection": "signal candidates first; no future-label filter or replacement for unfilled targets",
-                "fees": "transaction_cost_rate on each executed side",
+                "fees": "buy_cost_rate/sell_cost_rate on executed notional",
                 "cutoff": self.state["cutoff"],
                 "settings": self.input_params.model_dump(mode="json", exclude={"task_name", "source_tasks"}),
                 "input_sha256": self.state["input_digests"],

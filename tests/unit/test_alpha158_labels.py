@@ -1,6 +1,6 @@
 """The Alpha158 ETL target is the framework fixed-day raw return."""
 
-from axonx_alpha158.internal.etl_pipeline import (
+from axonx_qlib_a158.internal.etl_pipeline import (
     LABELS,
     LABEL_OUTPUTS,
     MARKET_STATE_COLUMNS,

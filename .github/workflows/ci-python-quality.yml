@@ -53,6 +53,6 @@ jobs:
             plugins/*/pyproject.toml
             .pre-commit-config.yaml
       - name: Install dependencies
-        run: python -m pip install -e '.[dev]' -e plugins/a158 -e plugins/a158_enhanced
+        run: python -m pip install -e '.[dev]' -e plugins/qlib_a158 -e plugins/qlib_factor -e plugins/qlib_strategy
       - name: Check all files
         run: pre-commit run --all-files

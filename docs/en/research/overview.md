@@ -17,12 +17,12 @@ Factor analysis branches from ETL independently; it is not required before train
 
 ## Choose a research plugin
 
-[Plugin management](../plugins/management.md) explains installation and discovery in the execution environment. [Alpha158](../../../plugins/a158/README.md) provides the baseline price/volume features, LightGBM training, and TopN backtest. [Alpha158 Enhanced](../../../plugins/a158_enhanced/README.md) adds independently registered Tasks and configurable feature groups.
+[Plugin management](../plugins/management.md) explains installation and discovery in the execution environment. [Alpha158](../../../plugins/qlib_a158/README.md) provides the baseline price/volume features, LightGBM training, and TopN backtest. [Qlib Factor](../../../plugins/qlib_factor/README.md) adds independently registered Tasks and configurable feature groups. [Qlib Strategy](../../../plugins/qlib_strategy/README.md) reuses predictions and adds rank-retention portfolio management.
 
 Discover the installed Task schemas before submitting. Keep parameters, algorithms, and artifact definitions with the plugin; use [research artifact contracts](../reference/research-artifacts.md) when implementing outputs for Studio.
 
 ## Follow the agent-developed experiment
 
-The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) follows Codex developing a separate plugin, running ablations, locking a configuration, and checking an independent period. Confirmation-period Top10 net annualized return rose from −5.74% to 28.21%, and Top20 from −3.24% to 24.93%.
+The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) presents three versions corresponding to three plugins: Alpha158, two added risk factors, and a 3-day rank-retention policy. Shared settings, full metrics, and selection evidence live in the [experiment comparison](experiments.md#comparison); plugin READMEs maintain algorithms, configuration differences, and results. The policy was selected exploratorily and has not been independently confirmed.
 
-Read [experiment design](experiments.md) for the reusable method and the plugin's [complete results](../../../plugins/a158_enhanced/EXPERIMENT_RESULTS.md) for recorded evidence. For agent access, continue with [external agents](../agent/external.md).
+Read [experiment design](experiments.md) for the reusable method and [external agents](../agent/external.md) for agent access.

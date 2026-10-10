@@ -99,9 +99,9 @@
     "capabilitiesTitle": "研究自由扩展，执行有据可循。",
     "journeysTitle": "按目标深入。",
     "documentationMap": "文档导航",
-    "caseTitle": "从插件开发到独立确认。",
+    "caseTitle": "Qlib 三层研究：基础、因子与持仓策略",
     "experimentDesign": "实验方法",
-    "caseDescription": "Codex 通过 Skill + CLI 将 Alpha158 扩展为独立插件，新增 26 个特征，并完成消融与独立确认。确认期 Top10 扣费年化收益从 −5.74% 提高至 28.21%，Top20 从 −3.24% 提高至 24.93%。",
+    "caseDescription": "训练 2015–2022，评估 2023–2026，买入费用 0.05%、卖出费用 0.15%。基线、risk 因子和 3 日策略的 Top20 净年化为 7.67%、9.03% 和 32.37%。结果包含缺行情与代理成交，策略为探索方案。",
     "benchmark": "查看 Benchmark",
     "reproduction": "特征、参数与复现",
     "closingTitle": "从一个 Task 开始。",
@@ -124,11 +124,15 @@
         "description": "浏览任务与产物、查看训练曲线与回测、比较策略。在线试玩使用模拟数据与执行。",
         "label": "Playground 在线试玩"
       },
-      "enhanced": {
-        "title": "Skill + CLI 开发 Alpha158 增强版",
-        "description": "新增 26 个特征。2025-01-01 至 2026-09-30 确认期 Top10 扣费年化收益从 −5.74% 提高至 28.21%，Top20 从 −3.24% 提高至 24.93%。",
+      "factor": {
+        "title": "Qlib 因子与策略实验",
+        "description": "训练 2015–2022，评估 2023–2026，买入费用 0.05%、卖出费用 0.15%。基线、risk 因子和 3 日策略的 Top20 净年化为 7.67%、9.03% 和 32.37%。结果包含缺行情与代理成交，策略为探索方案。",
         "label": "查看成果"
       }
+    },
+    "benchmarkFigures": {
+      "signal": "Alpha158 与风险因子的 IC / RankIC 对比",
+      "portfolio": "基础、风险因子与 3 日策略的 Top20 / Top30 净年化收益"
     }
   },
   "preferences": {

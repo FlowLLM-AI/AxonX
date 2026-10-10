@@ -19,7 +19,7 @@ MCP, and Studio interfaces. Setup and contribution details: [CONTRIBUTING.md](CO
 - Use Python 3.12+ on macOS/Linux; match existing typing and Black's 120-character lines.
 - Use temporary test workspaces and focused regression tests for fixes.
 - From the repository root, run affected tests, then `pytest` as appropriate.
-  Bare `pytest` excludes integration tests but includes enhanced-plugin tests;
+  Bare `pytest` excludes integration tests but includes factor and strategy plugin tests;
   install relevant plugin dependencies first (see CONTRIBUTING).
 - Run `pytest -m integration` only with required credentials/services and reviewed external effects.
 - Task and extension contracts: [Task guide](docs/en/dev_guide.md),

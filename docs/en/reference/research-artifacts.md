@@ -33,7 +33,7 @@ The example size and digest only illustrate fields; calculate actual values from
 
 `BaseOutputParams.artifacts` defaults to an empty dictionary with type `dict[str, dict[str, Any]]`. The Python base class therefore does not fully validate each artifact's three fields. Producers should explicitly call the helpers to ensure pages and downstream consumers can read them.
 
-Resolving paths through downstream helpers does not itself automatically verify every digest. a158 prediction separately verifies the model digest; this does not establish complete verification of all upstream data.
+Resolving paths through downstream helpers does not itself automatically verify every digest. qlib_a158 prediction separately verifies the model digest; this does not establish complete verification of all upstream data.
 
 ## Five base output types
 
@@ -51,7 +51,7 @@ All types extend `BaseOutputParams`; output subclasses must declare extra fields
 
 ## ETL artifacts
 
-The base class stores output-file descriptions and column names. a158 adds feature_count, symbols, schema, protocol, market_state, and related information, producing:
+The base class stores output-file descriptions and column names. qlib_a158 adds feature_count, symbols, schema, protocol, market_state, and related information, producing:
 
 | Artifact name | File               | Purpose                                                   |
 | ------------- | ------------------ | --------------------------------------------------------- |
@@ -61,7 +61,7 @@ The base class stores output-file descriptions and column names. a158 adds featu
 | `market`      | `market.parquet`   | Quotes, adjustment factors, execution flags and states    |
 | `calendar`    | `calendar.parquet` | Market dates independent of prediction eligibility        |
 
-a158 downstream consumers resolve data through `artifacts.dataset.path`; filling only `output_file` while omitting the mapping is insufficient. Output file fields store full path strings, while standard artifacts should use paths relative to the Task directory.
+qlib_a158 downstream consumers resolve data through `artifacts.dataset.path`; filling only `output_file` while omitting the mapping is insufficient. Output file fields store full path strings, while standard artifacts should use paths relative to the Task directory.
 
 ## Factor-analysis scores
 
@@ -76,9 +76,9 @@ a158 downstream consumers resolve data through `artifacts.dataset.path`; filling
 }
 ```
 
-This illustrates a valid shape rather than a fixed a158 metric set. Studio dynamically iterates groups and metrics. Plugins should ensure metric names and definitions are understandable and explain samples, units, and calculation scope in detailed files or extended definition fields.
+This illustrates a valid shape rather than a fixed qlib_a158 metric set. Studio dynamically iterates groups and metrics. Plugins should ensure metric names and definitions are understandable and explain samples, units, and calculation scope in detailed files or extended definition fields.
 
-a158 actually generates `factor_analysis.csv` and `factor_quantiles.csv`, mapped as `result` and `quantiles`, respectively, and stores extension fields such as definitions and labels.
+qlib_a158 actually generates `factor_analysis.csv` and `factor_quantiles.csv`, mapped as `result` and `quantiles`, respectively, and stores extension fields such as definitions and labels.
 
 ## Training curve model
 
@@ -107,7 +107,7 @@ Requirements:
 
 Series within the left-axis group should use similar units and numeric ranges; the right axis is only for a second scale group. The protocol does not support a third numeric axis. Studio performs only lightweight normalization when reading: charts filter out series with mismatched lengths and ignore nonfinite values when calculating axis ranges. They do not fully revalidate the Python model's rules or repair training history. Producers must validate with the model before publishing.
 
-a158 places L2 on the left axis and L1 on the right; the curve is the tuning model's training/validation history. `model`, `feature_importance`, and `evaluation_history` reference the final model, feature importance, and history CSV, respectively.
+qlib_a158 places L2 on the left axis and L1 on the right; the curve is the tuning model's training/validation history. `model`, `feature_importance`, and `evaluation_history` reference the final model, feature importance, and history CSV, respectively.
 
 ## Prediction statistics
 
@@ -120,9 +120,9 @@ statistics.buyable_rows / candidate_rows
 statistics.indices.<column>.constituents / days_with_weights / null_rows
 ```
 
-Missing fields appear as empty values on the page; this does not mean every prediction plugin must provide a158's stock statistics. a158 uses the artifact name `predictions` and file `predictions.parquet`.
+Missing fields appear as empty values on the page; this does not mean every prediction plugin must provide qlib_a158's stock statistics. qlib_a158 uses the artifact name `predictions` and file `predictions.parquet`.
 
-Stock backtesting uses the shared `axonx.task.builtins.stock` contract. Prediction rows contain `trade_date`, `trade_time`, `ts_code`, `pred`, `is_model_candidate`, `is_buyable_at_signal`, `signal_price`, and `signal_adjustment_factor`; eligibility flags are non-null Boolean values. a158 also publishes `name`, `rank`, `buyable_rank`, and index weights. Predictions contain no future labels. ETL publishes independent `dataset`, `labels`, `market`, and `calendar` artifacts; `labels` stores `label_target_date`, `label_return`, `label_valid`, and `label_status` alongside the signal keys. Rank/CSZ targets are computed only during training after cutoff and sample filtering.
+Stock backtesting uses the shared `axonx.task.builtins.stock` contract. Prediction rows contain `trade_date`, `trade_time`, `ts_code`, `pred`, `is_model_candidate`, `is_buyable_at_signal`, `signal_price`, and `signal_adjustment_factor`; eligibility flags are non-null Boolean values. qlib_a158 also publishes `name`, `rank`, `buyable_rank`, and index weights. Predictions contain no future labels. ETL publishes independent `dataset`, `labels`, `market`, and `calendar` artifacts; `labels` stores `label_target_date`, `label_return`, `label_valid`, and `label_status` alongside the signal keys. Rank/CSZ targets are computed only during training after cutoff and sample filtering.
 
 ## Prediction inputs for stock backtesting
 
@@ -189,7 +189,7 @@ Studio loads two tables from `artifacts.daily.path` and `artifacts.summary.path`
 
 Details are arrays of structures; the frontend reads `rank`, `ts_code`, `name`, `prediction`, `daily_return`, and `weight`. `daily_return` is the fixed-next-market-day label and is null when unavailable at the cutoff. Actual entry/exit dates and delayed exits belong to the `positions` and `trades` artifacts; fills and unfilled reasons belong to `orders`.
 
-The current page hardcodes `top30_holdings`; changing holding_detail_top_n does not automatically select another column. In a158, this field represents signal targets and includes candidates that did not trade; it must not be described as an actual holdings ledger.
+The current page hardcodes `top30_holdings`; changing holding_detail_top_n does not automatically select another column. In qlib_a158, this field represents signal targets and includes candidates that did not trade; it must not be described as an actual holdings ledger.
 
 ## Presentation fields in the summary table
 
@@ -209,7 +209,7 @@ topN_gross_sharpe
 topN_information_ratio_<benchmark key>
 ```
 
-Replace N with the actual numbers in dimensions. The summary table is plugin output; return charts and strategy comparisons are calculated in the browser. a158 compounds gross cumulative summary returns, while its gross return chart is additive. See [Backtest interpretation](../research/backtest.md) for calculation conventions.
+Replace N with the actual numbers in dimensions. The summary table is plugin output; return charts and strategy comparisons are calculated in the browser. qlib_a158 compounds gross cumulative summary returns, while its gross return chart is additive. See [Backtest interpretation](../research/backtest.md) for calculation conventions.
 
 ## Producer acceptance checks
 
@@ -227,4 +227,4 @@ Do not manually substitute placeholder digests for real files or alter metadata 
 - [`Artifact helpers`](../../../axonx/task/storage/artifacts.py)
 - [`Studio reading mappings`](../../../axonx_studio/src/features/research/ResearchPage.tsx)
 - [`Backtest presentation types`](../../../axonx_studio/src/features/research/backtest/types.ts)
-- [`a158 output implementations`](../../../plugins/a158/axonx_alpha158/)
+- [`qlib_a158 output implementations`](../../../plugins/qlib_a158/axonx_qlib_a158/)

@@ -50,7 +50,7 @@ inspect logs, artifacts, and upstream and downstream relationships.
 - AxonX **0.1.0** released: an agent-native quantitative research harness with plugin-based Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access. → [Documentation](https://flowllm-ai.github.io/AxonX/en/)
 - Connect your Agent with SKILL.md + CLI: load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
 - AxonX Studio available: browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
-- Alpha158 Enhanced developed with Skill + CLI: Codex added **26** features to Alpha158. In the 2025-01-01–2026-09-30 confirmation period, Top10 net annualized return rose from **−5.74%** to **28.21%**, and Top20 from **−3.24%** to **24.93%**. → [Benchmark](#benchmark-agent-developed-market-cross-sectional-features) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md)
+- Qlib three-version experiment: base / added factors / 3-day policy Top20 net annualized returns are **7.67% / 9.03% / 32.37%**, with 0.05% buy / 0.15% sell fees and missing quotes; the policy has not been independently confirmed. → [Comparison and full results](docs/en/research/experiments.md#comparison)
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
@@ -213,19 +213,19 @@ axonx machine_status
 axonx list_entries --path ''
 
 # Plugins: install in the service's Python environment, then restart the service
-pip install axonx-alpha158
+pip install axonx-qlib-a158
 axonx plugin list
-axonx plugin show axonx-alpha158
+axonx plugin show axonx-qlib-a158
 
 # Research workflow (skip downloads if historical data is already available)
-axonx get_task_definition --task a158_etl
+axonx get_task_definition --task qlib_a158_etl
 axonx submit --task download_tushare_task --start-date 20140101 --end-date 20231231 --datasets 'static,stk_limit,daily,adj_factor,index_weight'
-axonx submit --task a158_etl --start-date 20150101 --end-date 20231231
-axonx submit --task a158_train --source-tasks '<etl_task_id>' --train-start 20150101 --train-end 20230101
-axonx submit --task a158_predict --source-tasks '<train_task_id>' --pred-start 20230101 --pred-end 20231231
-axonx submit --task a158_backtest --source-tasks '<predict_task_id>'
+axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20231231
+axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>' --train-start 20150101 --train-end 20230101
+axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>' --pred-start 20230101 --pred-end 20231231
+axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>'
 # Optional factor analysis: an independent downstream stage of ETL
-axonx submit --task a158_factor --source-tasks '<etl_task_id>'
+axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'
 ```
 
 View results in **AxonX Studio**; see the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) and
@@ -282,7 +282,7 @@ See [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configurat
 
 ## 🧩 Alpha158 and the plugin system
 
-[Alpha158](plugins/a158/README.md) packages 158 price and volume features, a LightGBM model, and TopN backtesting as
+[Alpha158](plugins/qlib_a158/README.md) packages 158 price and volume features, a LightGBM model, and TopN backtesting as
 research Tasks. The main chain is **ETL → Train → Predict → Backtest**, with factor analysis as an independent
 downstream stage of ETL.
 
@@ -295,77 +295,61 @@ downstream stage of ETL.
 | Backtesting     | TopN backtests, period summaries, and holdings artifacts.  |
 
 For usage examples, see the [Quick CLI demo](#quick-demo) above; for complete parameters and data requirements, see
-the [plugin documentation](plugins/a158/README.md). To extend your own research methods, inspect, build, and install
+the [plugin documentation](plugins/qlib_a158/README.md). To extend your own research methods, inspect, build, and install
 plugins from source. Relevant commands appear under [CLI commands](#axonx-cli-commands-and-remote-execution) below; for
 development and deployment, see [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
 
 <a id="benchmark-agent-developed-market-cross-sectional-features"></a>
 
-## 📊 Benchmark: Agent-developed market cross-sectional features
+## 📊 Benchmark: from Qlib baseline to agent-developed factors and strategy
 
-Following the Task contracts, plugin registration, and CLI workflow in [docs/en/dev_guide.md](docs/en/dev_guide.md),
-Codex extended `a158` into a separate [Alpha158 Enhanced](plugins/a158_enhanced/README.md) plugin: developing features
-and feature-group switches, inspecting and installing the plugin, submitting training, prediction, and backtesting
-through AxonX, and reading artifacts. The original plugin remains unchanged; the enhanced version uses separate
-`a158e_*` Task registration names.
+The experiment starts by porting Qlib's Alpha158 / LightGBM setup, then uses an agent with the [AxonX Skill](skills/axonx/SKILL.md) to develop factors and a portfolio policy through AxonX. These steps produce three plugins: `qlib_a158`, `qlib_factor`, and `qlib_strategy`. AxonX saves task parameters, dependencies, and results.
 
-Reusable prompt (adapted from this development plan):
+### 1. Port Alpha158 to establish a baseline
 
-```text
-First read docs/en/dev_guide.md, then create a separate a158_enhanced plugin from plugins/a158.
-Preserve the original 158 features, labels, training parameters, and backtest assumptions; add market environment, trading activity, relative performance, and interaction features.
-Validate feature timing and consistency with the original data. Run ablation experiments through AxonX, lock the configuration after screening, then perform independent confirmation.
-Keep tasks, parameters, artifacts, and failure records. Report RankIC, TopN returns after costs, and risk without assuming an improvement.
-```
+[qlib_a158](plugins/qlib_a158/README.md) ports Qlib's 158 price/volume features and LightGBM model into **ETL → Train → Predict → Backtest** Tasks. The port adapts settings to this project's data and execution model:
 
-### Features and experiment setup
+- **Data and labels**: Tushare adjusted prices and volumes across Shanghai/Shenzhen, excluding Beijing. Labels use signal-close to next-market-close returns, transformed into daily ranks after removing 2.5% of samples at each tail.
+- **Training**: `[20150101,20230101)`, reserving the last 10% of dates for early stopping before refitting the full training period; exclude labels crossing the cutoff. This experiment uses the AxonX parameter preset, learning rate 0.03, 31 leaves, and feature_fraction=0.9.
+- **Backtesting**: evaluate `20230103–20261008`, with Top20 as the primary portfolio and fixed 1-day holding. Use same-close proxy fills, price-limit and tradability constraints, and 0.05% buy / 0.15% sell fees.
 
-**26 new features** bring the total to **184**: market environment (`market`, 11), trading activity (`liquidity`, 6),
-relative performance (`relative`, 5), and interactions (`interaction`, 4).
-Historical trading-value groups use 20-day average trading value through **T−1**, reflecting trading activity rather
-than market capitalization. Same-day features are available **after the close on day T**; market statistics do not
-filter stocks by future labels or buy eligibility. Development records show 21 relevant tests passed, and all 179
-original fields across 11,441,741 rows matched the baseline value by value.
+These are the ported experiment's settings and differ from the original Qlib example. See the [migration comparison](plugins/qlib_a158/README.md#differences-from-original-qlib) for details.
 
-Training used **2015–2022** data with identical labels, sample filters, and LightGBM hyperparameters. Screening in
-**2023–2024** compared the baseline and three enhanced combinations. Among candidates exceeding the baseline in
-RankIC and Top10 / Top20 net annualized returns, the highest-RankIC configuration was selected: all four groups.
-Independent confirmation covered **2025-01-01 to 2026-09-30**, comparing only the baseline and the locked configuration,
-without further tuning based on confirmation results.
+### 2. Have the agent develop factor enhancements
 
-Daily cost = **0.002 × actual turnover**; annualization uses **252 trading days**. Net Sharpe is
-`mean(daily net return − daily risk-free return) / sample standard deviation × √252`, with a default annual risk-free
-rate of **1.2%**. Feature details, training settings, and full metric definitions are in the
-[plugin documentation](plugins/a158_enhanced/README.md),
-[experiment results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md), and
-[backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest).
+Using the AxonX Skill, the agent develops [qlib_factor](plugins/qlib_factor/README.md), submits training, prediction, and backtest Tasks through AxonX, and inspects artifacts to compare candidate factors. Training-period validation RankIC selects two stock-level risk factors: **20-day residual volatility and 20-day downside risk**, increasing model inputs from 158 to 160 columns.
 
-### RankIC
+Example prompt:
 
-![Alpha158 and enhanced version: screening- and confirmation-period RankIC](docs/figures/benchmark/a158-signal-quality.svg)
+> Use the AxonX Skill to develop a separate qlib_factor plugin on the qlib_a158 baseline. Explore residual volatility, downside risk, and related candidate factors using only information available at signal time. Run controlled experiments through AxonX, select groups by training-period validation RankIC, retain task records, and report returns, drawdown, and factor definitions.
 
-Confirmation-period RankIC rose from **0.0915** to **0.0967**, an increase of **0.0052**.
+### 3. Have the agent develop a portfolio policy
 
-### Top10 / Top20 / Top30
+The agent follows the same process to develop [qlib_strategy](plugins/qlib_strategy/README.md), reusing augmented predictions to study holding and replacement rules. This experiment evaluates a fixed **3-day rank-retention policy**: hold for at least 3 market dates, retain highly ranked stocks, exit lower-ranked holdings first, and cap daily replacements at 20% of the stock count per side.
 
-![Confirmation-period Top10, Top20, and Top30 net annualized returns, maximum drawdown, and net Sharpe](docs/figures/benchmark/a158-topn-results.svg)
+Example prompt:
 
-Confirmation-period Top10 / Top20 / Top30 net annualized returns rose from **−5.74% / −3.24% / 2.13%** to **28.21% /
-24.93% / 19.10%**, increases of **33.95 / 28.16 / 16.97 percentage points**, with smaller maximum drawdowns. Top10 /
-Top20 net Sharpe improved; Top30 net Sharpe was not saved and is not recomputed in the chart.
+> Use the AxonX Skill to develop a separate qlib_strategy plugin that reuses qlib_factor predictions. Explore minimum holding periods, rank retention, and capped replacements. Keep data, costs, and fill assumptions fixed; use AxonX to compare net returns, Sharpe, drawdown, and turnover. Save task records and explain the selection.
 
-The 95% intervals for confirmation-period daily RankIC differences and Top10 / Top20 daily net return differences all
-span zero. These intervals use same-day paired enhanced and baseline observations with a 20-trading-day circular block
-bootstrap (2000 resamples, random seed 42); they are not intervals for differences in annualized compounded returns.
-Enhanced Top1–3 returns also declined.
+### Results for the three versions
 
-The backtest uses a closing-price execution proxy, delayed exits, and open positions carried at cost; returns are
-recognized on the actual exit date. It does not simulate after-hours order queues, partial fills, or daily unrealized
-profit and loss. Interpret the returns and drawdowns in light of these assumptions.
+The figures compare signal quality and Top20/Top30 net annualized returns across the three versions. The compact table shows Top20 risk and turnover over 909 market dates. The strategy reuses factor-model predictions.
 
-[Development plan](plugins/a158_enhanced/DEVELOPMENT_PLAN.md) · [Execution process](plugins/a158_enhanced/EXPERIMENT_PROCESS.md) · [Complete results](plugins/a158_enhanced/EXPERIMENT_RESULTS.md) · [Metrics and validation data](plugins/a158_enhanced/experiments/README.md) · [Backtest methodology](https://flowllm-ai.github.io/AxonX/en/research/backtest)
+![Signal quality](docs/figures/benchmark/qlib-signal-quality.svg)
 
-<a id="axonx-cli-commands-and-remote-execution"></a>
+![Portfolio performance](docs/figures/benchmark/qlib-topn-results.svg)
+
+Top20 risk and trading metrics:
+
+| Metric                        | [Alpha158 baseline](plugins/qlib_a158/README.md) | [Added factors](plugins/qlib_factor/README.md) | [Added strategy](plugins/qlib_strategy/README.md) |
+| ----------------------------- | -----------------------------------------------: | ---------------------------------------------: | ------------------------------------------------: |
+| Net Sharpe                    |                                           0.3619 |                                         0.4052 |                                            1.1575 |
+| Max drawdown                  |                                          -38.65% |                                        -40.69% |                                           -24.91% |
+| Mean daily two-sided turnover |                                          198.83% |                                        199.35% |                                            40.01% |
+
+The three configurations were rerun on machine 45 on 2026-10-10 with Qlib buy/sell fees. They have no independent confirmation window; base/factor feature_fraction is 0.9/1.0, so differences do not isolate the added factors. Results include missing quotes, proxy fills and a partial 2026.
+
+[Full experiment settings, metrics, and reproduction commands](docs/en/research/experiments.md#comparison) include configurations and task provenance for all three versions. The prompts above are illustrative development instructions.
 
 ## 🛠️ AxonX CLI commands and remote execution
 
@@ -377,9 +361,9 @@ in the current Python environment.
 | Help / service version                | `axonx help` / `axonx version`                                                                |
 | Start the service                     | `axonx start`                                                                                 |
 | List registered Tasks                 | `axonx exec` / `axonx list_installed_task_definitions`                                        |
-| Query a Task contract                 | `axonx get_task_definition --task a158_etl`                                                   |
+| Query a Task contract                 | `axonx get_task_definition --task qlib_a158_etl`                                              |
 | Execute in the current process        | `axonx exec --task demo --x 2 --y 3`                                                          |
-| Submit a research task                | `axonx submit --task a158_train --source-tasks '<etl_task_id>'`                               |
+| Submit a research task                | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`                          |
 | Wait for this run                     | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400`            |
 | Follow progress and logs              | `axonx stream_task --task-id '<task_id>' --stream true`                                       |
 | Query task list / status              | `axonx list_task_statuses` / `axonx status --task-id '<task_id>'`                             |
@@ -390,9 +374,9 @@ in the current Python environment.
 | Browse the workspace                  | `axonx list_entries --path ''`                                                                |
 | Preview an artifact                   | `axonx preview_file --path '<workspace-relative-path>'`                                       |
 | Query machines / resources            | `axonx list_machines` / `axonx machine_status`                                                |
-| Query plugins / details               | `axonx plugin list` / `axonx plugin show axonx-alpha158`                                      |
-| Inspect / build plugin source         | `axonx plugin inspect ./plugins/a158` / `axonx plugin build ./plugins/a158`                   |
-| Install / uninstall a plugin          | `axonx plugin install ./plugins/a158` / `axonx plugin uninstall axonx-alpha158`               |
+| Query plugins / details               | `axonx plugin list` / `axonx plugin show axonx-qlib-a158`                                     |
+| Inspect / build plugin source         | `axonx plugin inspect ./plugins/qlib_a158` / `axonx plugin build ./plugins/qlib_a158`         |
+| Install / uninstall a plugin          | `axonx plugin install ./plugins/qlib_a158` / `axonx plugin uninstall axonx-qlib-a158`         |
 
 ### Connect directly to a remote service with the CLI
 
@@ -416,7 +400,7 @@ starting a local service.
 Remote plugin installation builds a wheel locally, uploads it, and installs it in the target environment:
 
 ```bash
-axonx plugin install ./plugins/a158 --target 192.0.2.10:1024
+axonx plugin install ./plugins/qlib_a158 --target 192.0.2.10:1024
 ```
 
 `plugin build` always runs locally. Remote `plugin inspect` accepts a distribution or plugin name already installed on
@@ -454,7 +438,7 @@ the [remote machines guide](https://flowllm-ai.github.io/AxonX/en/guides/remote-
 | Component, Job, Task              | [Architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) · [Framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions)                                                                                                                                                        |
 | Task contracts and lifecycle      | [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts) · [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management) · [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)                                                                                    |
 | Agent development and operations  | [External agents](https://flowllm-ai.github.io/AxonX/en/agent/external) · [Development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide) · [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration) · [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration)                  |
-| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158) · [Alpha158 Enhanced](https://flowllm-ai.github.io/AxonX/en/plugins/alpha158-enhanced)                                                                                           |
+| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-a158) · [Qlib Factor](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-factor) · [Qlib Strategy](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-strategy)                       |
 | Quantitative research             | [Research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) · [Experiment design](https://flowllm-ai.github.io/AxonX/en/research/experiments) · [Interpreting results](https://flowllm-ai.github.io/AxonX/en/research/results) · [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) |
 | Remote execution                  | [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)                                                                                                                                                                                                                                                     |
 | CLI and configuration             | [CLI](https://flowllm-ai.github.io/AxonX/en/reference/cli) · [Configuration](https://flowllm-ai.github.io/AxonX/en/reference/configuration)                                                                                                                                                                                         |

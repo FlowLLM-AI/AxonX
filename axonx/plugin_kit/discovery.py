@@ -32,9 +32,6 @@ def _wheel_sha256(distribution: Any) -> str | None:
     digest = archive.get("hashes", {}).get("sha256")
     if isinstance(digest, str) and digest:
         return digest.lower()
-    legacy = archive.get("hash")
-    if isinstance(legacy, str) and legacy.startswith("sha256="):
-        return legacy.removeprefix("sha256=").lower()
     return None
 
 

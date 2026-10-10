@@ -25,7 +25,7 @@ Run a real task with the [quickstart](getting-started/quickstart.md), then inspe
 
 Start with the [research overview](research/overview.md). The [research workflow](research/workflow.md) and [Tushare guide](research/tushare.md) cover data preparation and stage execution. [Reading results](research/results.md) covers artifact inspection. [Experiment design and confirmation](research/experiments.md), [backtest methodology](research/backtest.md), and [strategy comparison](research/strategy-comparison.md) explain how to evaluate evidence.
 
-[Plugin management](plugins/management.md) covers installation, discovery, and deployment. [Alpha158](../../plugins/a158/README.md) provides the baseline research chain; [Alpha158 Enhanced](../../plugins/a158_enhanced/README.md) provides a concrete case of added features, ablations, and independent confirmation. Plugin documentation owns algorithm parameters and experiment numbers.
+[Plugin management](plugins/management.md) covers installation, discovery, and deployment. [Alpha158](../../plugins/qlib_a158/README.md) provides the baseline research chain; [Qlib Factor](../../plugins/qlib_factor/README.md) provides a concrete case of added features and ablations; [Qlib Strategy](../../plugins/qlib_strategy/README.md) adds rank retention and bounded replacements. Plugin documentation owns algorithm parameters and experiment numbers.
 
 ### Agent: choose an external host or built-in sessions
 
