@@ -1,6 +1,6 @@
 # 量化研究
 
-用 AxonX 将研究步骤组织为 Task，明确输入、保留可检查的产物并记录上下游关系。先完成服务连接与 [demo 教程](../getting-started/quickstart.md)。研究算法与数据要求由安装的插件定义。
+通过 AxonX 让 Agent 开发量化插件，再用 Task 评估改动，明确输入、保留可检查的产物并记录上下游关系。先完成服务连接与 [demo 教程](../getting-started/quickstart.md)。研究算法与数据要求由安装的插件定义。
 
 ## 选择下一步
 
@@ -23,6 +23,6 @@
 
 ## 阅读 Agent 开发实验案例
 
-[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)展示三个插件对应的三个版本：Alpha158 基线、增加两个风险因子、增加 3 日排名保留策略。共同设定、完整指标与选择依据见[实验对比](experiments.md#comparison)，各插件 README 维护自己的算法、差异配置与结果。策略为探索筛选结果，尚未独立确认。
+[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)展示三个插件对应的三个版本：Alpha158 基线、增加两个风险因子、增加 3 日排名保留策略。共同设定、完整指标与选择依据见[实验对比](experiments.md#comparison)，各插件 README 维护算法与差异配置。策略为探索筛选结果，尚未独立确认。
 
 可复用的方法见[实验设计](experiments.md)，Agent 接入方式见[外部 Agent](../agent/external.md)。

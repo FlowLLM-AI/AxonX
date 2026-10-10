@@ -68,7 +68,7 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 
 ## 阅读 Agent 开发的增强案例
 
-[项目 Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)介绍 Agent 如何开发独立插件并通过 AxonX 执行研究。[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)介绍特征定义、任务参数和执行命令。
+[README 开发流程](../../../README_ZH.md#agent-接入与开发指南)介绍 Skill + Prompt 驱动的插件开发；[项目 Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)展示 Alpha158 增强案例。[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)介绍特征定义、任务参数和执行命令。
 
 三组实验的共同设定与完整指标见[实验对比](#comparison)；各插件 README 只介绍算法与配置。原始日志、metadata 与日级产物留在执行工作区。
 

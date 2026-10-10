@@ -68,7 +68,7 @@ This is experiment analysis; Studio's strategy comparison page does not automati
 
 ## Inspect the agent-developed enhancement case
 
-The [project benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) explains how an agent developed a separate plugin and executed research through AxonX. [Qlib Factor](../../../plugins/qlib_factor/README.md) describes feature definitions, Task parameters and execution commands.
+The [README development workflow](../../../README.md#agent-access-and-development-guides) explains Skill + prompt plugin development; the [project benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) presents the Alpha158 enhancement case. [Qlib Factor](../../../plugins/qlib_factor/README.md) describes feature definitions, Task parameters and execution commands.
 
 Shared settings, full metrics, and selection evidence for the three versions appear in the [experiment comparison](#comparison). Plugin READMEs describe algorithms and configuration. Original logs, metadata, and daily artifacts remain in the execution workspace.
 

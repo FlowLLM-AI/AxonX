@@ -2,6 +2,13 @@
 
 Keep research algorithms in plugins and reuse the framework's extension points for execution, records, and interfaces. Choose the layer you need to extend before changing code.
 
+## Agent-assisted quantitative development
+
+Use a research prompt with the [AxonX Skill](../../../skills/axonx/SKILL.md) to create a new plugin or optimize an
+existing one through an external or built-in Agent. Provide source and code tools, implement and validate the
+research logic, install into the execution service, then evaluate changes through Tasks. See [Agent integration](../agent/overview.md)
+for setup and [experiment design](../research/experiments.md) for controls and confirmation.
+
 ## Choose an extension path
 
 | Goal                                           | Start here                                          | Contract to consult                                                             |

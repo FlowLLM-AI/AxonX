@@ -1,6 +1,6 @@
 # Quantitative research
 
-Use AxonX to turn research steps into Tasks with explicit inputs, inspectable artifacts, and upstream relationships. Start with a working service and the [demo tutorial](../getting-started/quickstart.md). Research algorithms and data requirements belong to installed plugins.
+Use AxonX to develop quantitative plugins with an Agent and evaluate changes through Tasks with explicit inputs, inspectable artifacts, and upstream relationships. Start with a working service and the [demo tutorial](../getting-started/quickstart.md). Research algorithms and data requirements belong to installed plugins.
 
 ## Choose the next step
 
@@ -23,6 +23,6 @@ Discover the installed Task schemas before submitting. Keep parameters, algorith
 
 ## Follow the agent-developed experiment
 
-The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) presents three versions corresponding to three plugins: Alpha158, two added risk factors, and a 3-day rank-retention policy. Shared settings, full metrics, and selection evidence live in the [experiment comparison](experiments.md#comparison); plugin READMEs maintain algorithms, configuration differences, and results. The policy was selected exploratorily and has not been independently confirmed.
+The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) presents three versions corresponding to three plugins: Alpha158, two added risk factors, and a 3-day rank-retention policy. Shared settings, full metrics, and selection evidence live in the [experiment comparison](experiments.md#comparison); plugin READMEs maintain algorithms and configuration differences. The policy was selected exploratorily and has not been independently confirmed.
 
 Read [experiment design](experiments.md) for the reusable method and [external agents](../agent/external.md) for agent access.

@@ -9,6 +9,8 @@ Alpha158 and enhanced Alpha158 use the same `BaseStockBacktestTask` and position
 
 The shared implementation lives in `axonx.task.builtins.stock`; new plugins should import from this package.
 
+![Stock backtest signals and daily equity accounting](../../figures/research/backtest-accounting.svg)
+
 ## Data contracts
 
 ETL publishes four independent artifacts:

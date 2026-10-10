@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1096" height="704" viewBox="0 0 1096 704" role="img" aria-labelledby="title desc">
   <title id="title">From plugin source to usable definitions</title>
-  <desc id="desc">Installation changes the Python environment; restart to assemble contributions.</desc>
+  <desc id="desc">Install into the execution service; check refresh and restart requirements.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
       <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
@@ -25,20 +25,20 @@
       <text x="754.0" y="220" text-anchor="start" font-size="18">Verify the wheel sha256</text>
       <rect x="730.0" y="370" width="270" height="160" rx="20" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <rect x="385.0" y="370" width="270" height="160" rx="20" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="409.0" y="408" text-anchor="start" font-size="23.0" font-weight="600">Restart service</text>
+      <text x="409.0" y="408" text-anchor="start" font-size="23.0" font-weight="600">Refresh / restart</text>
       <rect x="40.0" y="370" width="270" height="160" rx="20" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="64.0" y="408" text-anchor="start" font-size="23.0" font-weight="600">Verify Task catalog</text>
       <text x="64.0" y="450" text-anchor="start" font-size="18">Input / output schemas</text>
-      <text x="520.0" y="580.0" font-size="19" fill="#52677e" text-anchor="middle">content_sha256 identifies content; sha256 verifies the exact wheel file.</text>
-      <text x="44" y="92.0" font-size="18" fill="#143252" text-anchor="start">Installation changes the Python environment; restart to assemble contributions.</text>
+      <text x="520.0" y="580.0" font-size="19" fill="#52677e" text-anchor="middle">Task-only service installs refresh live; direct pip/source changes need restart.</text>
+      <text x="44" y="92.0" font-size="18" fill="#143252" text-anchor="start">Install into the execution service; check refresh and restart requirements.</text>
       <text x="409.0" y="220" text-anchor="start" font-size="18">Validate manifest and</text>
       <text x="409.0" y="248" text-anchor="start" font-size="18">fingerprint</text>
       <text x="754.0" y="406" text-anchor="start" font-size="23.0" font-weight="600">Target Python</text>
       <text x="754.0" y="441" text-anchor="start" font-size="23.0" font-weight="600">environment</text>
       <text x="754.0" y="475" text-anchor="start" font-size="18">Distribution and</text>
       <text x="754.0" y="503" text-anchor="start" font-size="18">dependencies</text>
-      <text x="409.0" y="450" text-anchor="start" font-size="18">Discover and load</text>
-      <text x="409.0" y="478" text-anchor="start" font-size="18">contributions</text>
+      <text x="409.0" y="450" text-anchor="start" font-size="18">Check restart_required</text>
+      <text x="409.0" y="478" text-anchor="start" font-size="18">Verify live definitions</text>
     </g>
     <path d="M 44 552 H 996" fill="none" stroke="#143252" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
   </g>

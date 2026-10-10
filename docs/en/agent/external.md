@@ -1,11 +1,11 @@
 ---
 title: "External Agents: Skill and CLI"
-description: Give an existing agent host research instructions and access AxonX through CLI or MCP.
+description: Develop quantitative plugins with Skill + prompt and execute experiments through CLI or MCP.
 ---
 
 # External Agents: Skill and CLI
 
-External agents use their own models and session environments to execute and inspect research through AxonX. This guide uses CLI access; read [MCP integration](mcp-integration.md) when the host needs to discover service tools directly.
+External Agents use their own models, code tools, and session environments to develop or improve quantitative plugins, then execute and inspect research through AxonX. This guide uses CLI access; read [MCP integration](mcp-integration.md) when the host needs to discover service tools directly.
 
 ![External Agent development and research workflow](../../figures/agent/external-workflow.svg)
 
@@ -15,7 +15,7 @@ Start a service with the [quickstart](../getting-started/quickstart.md), install
 
 The repository provides an [AxonX Skill](../../../skills/axonx/SKILL.md) for contract discovery, submission and waiting, evidence inspection, and plugin development. Load it using the host's supported Skill mechanism; installation directories and configuration differ among hosts.
 
-The Skill's relative documentation links refer to an AxonX source checkout. Keep that checkout and directory relationship, or adjust references to readable guide locations when deploying the Skill. Installing the Python package alone does not supply complete example plugin sources. You can also instruct the agent to read relevant sections of the [development and operations guide](../dev_guide.md) directly.
+The Skill uses absolute documentation and source URLs, so it can be copied independently. Its example source paths refer to the root of an AxonX checkout. For code development, provide a checkout and file/command tools; installing the Python package alone does not supply the example plugin sources. You can also have the Agent read the [development and operations guide](../dev_guide.md) directly.
 
 The external host manages model credentials; the AxonX service token authenticates research service access. Use configured credentials without putting tokens into prompts or research reports.
 
@@ -67,15 +67,16 @@ Omit `task_name` by default so the framework generates an instance name. Reusing
 ## Give the agent a concrete research goal
 
 ```text
-Read the AxonX development and operations guide and establish the execution service and available plugins.
-Reuse a successful ETL; fix data, training windows, costs, and backtest assumptions while comparing two feature configurations.
-Discover Task schemas before submission, save actual task_id and run_id values, and wait for each stage to succeed.
-Inspect model, prediction, and backtest artifacts. Report common-window metrics, failures, and limitations.
+Read the AxonX Skill and the baseline plugin source. Develop a separate plugin or optimize the named existing plugin.
+Define the hypothesis and fixed controls, implement the quantitative code, and test feature timing and artifact compatibility.
+Install into the selected service, discover live Task schemas, and execute the required research stages.
+Keep actual Task/Run IDs; inspect artifacts and report comparable metrics, failures, and limitations.
+Use development windows for candidate selection and reserve an independent confirmation window.
 ```
 
 Feature changes usually require ETL → Train → Predict → Backtest. Model changes can reuse a compatible ETL; portfolio-management changes can reuse a compatible Predict. Run factor analysis independently from ETL when diagnostics are needed. After changes to contracts, fields, or feature timing, verify whether old upstream artifacts remain reusable.
 
-Define controls and confirmation windows with [experiment design and confirmation](../research/experiments.md) before agent development experiments. See the [project benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) and [Qlib Factor](../../../plugins/qlib_factor/README.md) for the concrete case, prompt, and evidence links.
+Define controls and confirmation windows with [experiment design and confirmation](../research/experiments.md) before agent development experiments. See the [project benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) and [Qlib Factor](../../../plugins/qlib_factor/README.md) for the concrete case and evidence; see the [README development workflow](../../../README.md#agent-access-and-development-guides) for an example exploration prompt.
 
 ## What to report on completion
 

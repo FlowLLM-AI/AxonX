@@ -1,6 +1,6 @@
 ---
 title: 内置 Agent 使用
-description: 在 Studio 中通过会话查询任务、日志、血缘和研究产物。
+description: 在 Studio 会话中检查研究证据，并按需配置插件开发。
 ---
 
 # 内置 Agent 使用
@@ -42,6 +42,17 @@ AxonX Agent 将工作区查询工具接入 Claude 后端，用会话完成任务
 默认工具包括 `list_entries`、`preview_file`、`list_task_ids`、`list_task_statuses`、`status`、`read_task_log`、`get_task_graph` 和 `get_task_context`。Agent 先取得实际信息，再形成答复。
 
 不要只给“分析最新策略”而不给机器或任务范围。多个结果存在时，模型可能选到不同实验；要求它先列出候选任务供你确认。
+
+## 开发或优化插件
+
+开发代码时，提供 [AxonX Skill](../../../skills/axonx/SKILL.md) 或启用内置开发指南，
+将 Agent 的 `cwd` 指向可访问的源码仓库，并提供 SDK 文件／命令工具。
+默认 `cwd` 是服务工作区，不会自动包含插件源码。
+安装与提交通过可用 CLI 或显式配置的 Job 工具完成，见 [Agent 配置](configuration.md)。
+
+向 Agent 提供研究目标、基线或待优化插件、执行目标和评估标准。
+按[共享开发流程](overview.md#共同的研究循环)推进，探索 Prompt 示例见 [README](../../../README_ZH.md#agent-接入与开发指南)。
+代码改动与 Task 证据应独立于会话历史保留。
 
 ## 阅读流式消息
 

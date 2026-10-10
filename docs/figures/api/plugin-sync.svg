@@ -20,8 +20,8 @@
       <text x="444.0" y="200" font-size="18" font-weight="400" text-anchor="start">Verified wheel</text>
       <text x="444.0" y="227" font-size="18" font-weight="400" text-anchor="start">Target Python environment</text>
       <rect x="850" y="136" width="310" height="144" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="874.0" y="168" font-size="23" font-weight="700" text-anchor="start">Restart + discover</text>
-      <text x="874.0" y="200" font-size="18" font-weight="400" text-anchor="start">Load plugin contributions</text>
+      <text x="874.0" y="168" font-size="23" font-weight="700" text-anchor="start">Refresh / restart</text>
+      <text x="874.0" y="200" font-size="18" font-weight="400" text-anchor="start">Check restart_required</text>
       <text x="874.0" y="227" font-size="18" font-weight="400" text-anchor="start">Check live Task catalog</text>
       <rect x="420" y="338" width="310" height="144" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="444.0" y="370" font-size="23" font-weight="700" text-anchor="start">sync_tasks</text>

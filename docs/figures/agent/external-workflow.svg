@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1256" height="666" viewBox="0 0 1256 666" role="img" aria-labelledby="title desc">
   <title id="title">External Agent: develop, execute, inspect</title>
-  <desc id="desc">The host manages the model; AxonX supplies research contracts, execution, and evidence.</desc>
+  <desc id="desc">Prompt + Skill guide code development; AxonX runs Tasks and preserves evidence.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
@@ -10,12 +10,12 @@
   <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
     <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
       <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">External Agent: develop, execute, inspect</text>
-      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">The host manages the model; AxonX supplies research contracts, execution, and evidence.</text>
+      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">Prompt + Skill guide code development; AxonX runs Tasks and preserves evidence.</text>
       <rect x="40" y="142" width="250" height="170" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="64.0" y="174" font-size="23" font-weight="700" text-anchor="start">Prepare</text>
-      <text x="64.0" y="206" font-size="18" font-weight="400" text-anchor="start">Skill / dev guide</text>
+      <text x="64.0" y="206" font-size="18" font-weight="400" text-anchor="start">Prompt + Skill</text>
       <text x="64.0" y="233" font-size="18" font-weight="400" text-anchor="start">Service + credentials</text>
-      <text x="64.0" y="260" font-size="18" font-weight="400" text-anchor="start">Plugins + data</text>
+      <text x="64.0" y="260" font-size="18" font-weight="400" text-anchor="start">Source + tools + data</text>
       <rect x="330" y="142" width="250" height="170" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="354.0" y="174" font-size="23" font-weight="700" text-anchor="start">Discover</text>
       <text x="354.0" y="206" font-size="18" font-weight="400" text-anchor="start">Live Task schemas</text>
@@ -23,9 +23,9 @@
       <text x="354.0" y="260" font-size="18" font-weight="400" text-anchor="start">Reusable upstream IDs</text>
       <rect x="620" y="142" width="250" height="170" rx="20" fill="#f0edff" stroke="#d1c6ed" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="644.0" y="174" font-size="23" font-weight="700" text-anchor="start">Implement</text>
-      <text x="644.0" y="206" font-size="18" font-weight="400" text-anchor="start">Separate plugin</text>
+      <text x="644.0" y="206" font-size="18" font-weight="400" text-anchor="start">New / existing plugin</text>
       <text x="644.0" y="233" font-size="18" font-weight="400" text-anchor="start">Timing / parity checks</text>
-      <text x="644.0" y="260" font-size="18" font-weight="400" text-anchor="start">Install + restart</text>
+      <text x="644.0" y="260" font-size="18" font-weight="400" text-anchor="start">Install; verify catalog</text>
       <rect x="910" y="142" width="250" height="170" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="934.0" y="174" font-size="23" font-weight="700" text-anchor="start">Execute</text>
       <text x="934.0" y="206" font-size="18" font-weight="400" text-anchor="start">Submit each stage</text>
@@ -36,11 +36,13 @@
       <path d="M 870 227 H 910" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <path d="M 1035 312 V 368" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <rect x="40" y="368" width="1120" height="126" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.6" stroke-linecap="round" />
-      <text x="64.0" y="400" font-size="23" font-weight="700" text-anchor="start">Inspect and report</text>
+      <text x="64.0" y="400" font-size="23" font-weight="700" text-anchor="start">Inspect, report, iterate</text>
       <text x="64.0" y="432" font-size="18" font-weight="400" text-anchor="start">Parameters · Logs · Lineage · Metadata · Daily artifacts</text>
       <text x="64.0" y="459" font-size="18" font-weight="400" text-anchor="start">Common-window metrics · Failures · Trading assumptions · Uncertainty</text>
+      <path d="M 40 430 H 16 V 124 H 745 V 142" fill="none" stroke="#52738f" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+      <text x="600" y="116" font-size="16" text-anchor="middle" fill="#52738f">Evidence guides code and parameter changes</text>
       <text x="600.0" y="562" font-size="17" font-weight="400" text-anchor="middle">Keep the execution target consistent across stages; prepare its data and plugin environment.</text>
-      <text x="600.0" y="588" font-size="17" font-weight="400" text-anchor="middle">New research Tasks and external host sessions have separate identities.</text>
+      <text x="600.0" y="588" font-size="17" font-weight="400" text-anchor="middle">Research Task records and Agent sessions have separate identities.</text>
     </g>
     <path d="M 44 534 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
   </g>

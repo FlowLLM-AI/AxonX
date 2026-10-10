@@ -1,7 +1,9 @@
 # AxonX
 
-Agent-native quantitative research harness with plugin-based Tasks and CLI, HTTP,
-MCP, and Studio interfaces. Setup and contribution details: [CONTRIBUTING.md](CONTRIBUTING.md).
+Agent-native quantitative research harness providing tools and a runtime for code
+development, experiment execution, and result analysis. External or built-in Agents
+use the AxonX Skill and user research prompts to develop or improve plugins.
+Setup and contribution details: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Structure and Contracts
 
@@ -13,6 +15,17 @@ MCP, and Studio interfaces. Setup and contribution details: [CONTRIBUTING.md](CO
   task identity, lifecycle behavior, and artifact formats unless changing them
   is requested. Document intentional compatibility changes.
 - Preserve ownership and cleanup of async resources, streams, and subprocesses.
+
+## Agent Research Workflow
+
+- Use [AxonX Skill](skills/axonx/SKILL.md) and the user's research objective for
+  plugin development; Qlib Alpha158 is the reference workflow, and plugins can provide other methods.
+- Keep plugin source changes, execution-service installation, and Task submission
+  distinct. Verify the selected service's Task schemas and upstream artifact compatibility.
+- For experiments, retain code/version, data, windows, parameters, costs, and Task/Run IDs.
+  Distinguish implementation checks from evidence of research improvement.
+- Canonical development instructions live in `docs/en/dev_guide.md` and
+  `docs/zh/dev_guide.md`; keep the Skill's guide content aligned with the English source.
 
 ## Python and Plugins
 

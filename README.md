@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/axonx_studio/public/axonx-logo.svg" alt="AxonX" width="560" />
 </p>
 
-<p align="center"><strong>An Agent Harness for financial quantitative research.</strong></p>
+<p align="center"><strong>Turn research prompts into quantitative code and traceable experiments.</strong></p>
 
 <p align="center">
   <a href="https://github.com/FlowLLM-AI/AxonX/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/Python-3.12%2B-blue?logo=python&amp;logoColor=white&amp;style=flat-square" alt="Python 3.12+" /></a>
@@ -25,224 +25,79 @@
 
 ## 🧠 What is AxonX?
 
-**AxonX is an agent-native harness for financial quantitative research.**
+**AxonX is an agent-native harness for quantitative research, providing unified tools and a runtime for quantitative code development, experiment execution, and result analysis.**
 
-It packages data processing, factor analysis, training, prediction, and backtesting as **Tasks** with
-explicit inputs and outputs. Plugins provide the algorithms; the framework handles execution, records, and artifact
-management.
+Combine your exploration prompt with the [AxonX Skill](skills/axonx/SKILL.md), and use an external or built-in Agent
+to develop a new research plugin or optimize an existing one. The Agent writes quantitative code, runs experiments
+through AxonX, inspects results, and iterates on factors, models, and portfolio strategies.
+**You define the research question; the Agent implements it; the Harness manages execution and evidence.**
 
-Researchers use forms and charts in **AxonX Studio**, while Agents and scripts access capabilities through CLI / MCP.
-Each interface submits, tracks, and queries tasks through **Jobs**, using research records in the same workspace to
-inspect logs, artifacts, and upstream and downstream relationships.
+The reference workflow starts from **Qlib's Alpha158 / LightGBM**, then extends it through
+**`qlib_a158` → `qlib_factor` → `qlib_strategy`**. AxonX ports and adapts the Qlib workflow into typed Tasks and
+provides the development and execution environment for exploring improvements. The same plugin contracts can host
+other quantitative research methods.
+
+CLI, HTTP, MCP, and **AxonX Studio** share Jobs for submitting and querying Tasks. The selected execution service
+runs plugin code and stores parameters, status, dependencies, and artifacts in its workspace, so researchers and
+Agents can inspect the same evidence.
+
+[Agent development](#agent-access-and-development-guides) · [Plugins](#alpha158-and-the-plugin-system) ·
+[Experiments](#benchmark-agent-developed-market-cross-sectional-features) · [Quick start](#quick-start) ·
+<a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a>
 
 <a id="why-axonx"></a>
 
 ## ✨ Why AxonX?
 
-- Reusable research Tasks. Typed inputs and outputs define data, model, and artifact requirements. → [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts)
-- Manage execution. Run Tasks in worker processes; track status, progress, logs, and results; wait or cancel. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
-- Trace research results. Saved parameters, artifacts, and dependency graphs help you reuse data and compare experiments. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)
-- One workflow across interfaces. CLI / MCP, Studio, and Agents share Job and Task contracts, records, and artifacts. → [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio) · [Agent](https://flowllm-ai.github.io/AxonX/en/agent/usage)
-- Extend and run remotely. Add research plugins and execute Tasks in a selected target environment. → [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
+- **Turn research questions into quantitative code.** The Skill teaches plugin authoring, Task contracts, execution, and evidence inspection; your prompt defines what the Agent explores. → [AxonX Skill](skills/axonx/SKILL.md)
+- **Extend a working baseline.** Add features, change training logic, or develop portfolio policies in plugins while reusing compatible implementations and artifacts. → [Alpha158](plugins/qlib_a158/README.md) · [Factor](plugins/qlib_factor/README.md) · [Strategy](plugins/qlib_strategy/README.md)
+- **Execute experiments with consistent contracts.** Discover typed inputs and outputs, submit worker-process Tasks, follow progress and logs, wait for completion, or cancel a run. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
+- **Connect code changes to evidence.** Inspect configurations, Task/Run IDs, dependencies, models, predictions, and backtest artifacts to investigate failures and compare candidates. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage) · [Experiment design](docs/en/research/experiments.md)
+- **Use your preferred Agent and execution target.** Work through an external Agent or Studio's built-in Agent, inspect results visually, and run Tasks on a selected local or remote service. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
 
 ## 📰 Latest Updates
 
-- AxonX **0.1.0** released: an agent-native quantitative research harness with plugin-based Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access. → [Documentation](https://flowllm-ai.github.io/AxonX/en/)
-- Connect your Agent with SKILL.md + CLI: load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
-- AxonX Studio available: browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
-- Qlib three-version experiment: base / added factors / 3-day policy Top20 net annualized returns are **7.67% / 9.03% / 32.37%**, with 0.05% buy / 0.15% sell fees and missing quotes; the policy has not been independently confirmed. → [Comparison and full results](docs/en/research/experiments.md#comparison)
+- **2026-10-10 — Alpha158 enhancement experiments:** adapted baseline / risk-factor model / 3-day rank-retention strategy report Top20 net annualized returns of **7.67% / 9.03% / 32.37%**. Runs use 0.05% buy / 0.15% sell fees, report incomplete market data, and have no independent confirmation window. → [Full results and provenance](docs/en/research/experiments.md#comparison)
+- **Research plugin stack:** Alpha158, selectable factor groups, and rank-retention policies share research contracts and backtest accounting. Current source versions: AxonX **0.1.1**, research plugins **0.2.0**. → [Plugin system](#alpha158-and-the-plugin-system)
+- **Agent and Studio workflow:** develop with Skill + prompt; inspect Tasks, factors, training curves, predictions, and strategy comparisons in Studio. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
 
-![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
-
-<a id="quick-start"></a>
-
-## 🚀 Quick start
-
-Requires **Python 3.12+**. Local Task execution supports **macOS and Linux**.
-
-### Install from PyPI
-
-```bash
-pip install "axonx[studio]"
-```
-
-Includes the CLI, HTTP API, MCP, and prebuilt AxonX Studio. For core capabilities alone, install `axonx`. Research
-plugins are installed separately.
-
-### Install from source
-
-Building Studio requires Node.js 22.13+ (22.x), 24.x, or 26+:
-
-```bash
-git clone https://github.com/FlowLLM-AI/AxonX.git && cd AxonX
-pip install -e .
-(cd axonx_studio && npm ci && npm run build)
-pip install ./axonx_studio
-```
-
-For development dependencies and frontend hot reload, see the [contribution guide](CONTRIBUTING.md)
-and [Studio development documentation](https://flowllm-ai.github.io/AxonX/en/development/studio).
-
-### Configure environment variables
-
-Create `.env` in the startup directory. The CLI automatically loads configuration from the current directory or a parent
-directory; existing environment variables take precedence.
-
-```dotenv
-# Local service authentication: replace with your own token
-AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
-
-# Optional: target AxonX service (axonx start --config remote)
-# AXONX_TARGET=192.0.2.10:1024
-# AXONX_TARGET_TOKEN=your-target-service-token
-```
-
-For optional settings such as models, market-data downloads, and remote services, see [example.env](example.env).
-
-### Start AxonX
-
-Start with the defaults:
-
-```bash
-axonx start
-```
-
-Specify the listening IP and port:
-
-```bash
-axonx start --service.host 127.0.0.1 --service.port 8181
-```
-
-With a custom port, open `http://127.0.0.1:8181/` in your browser. Append `--target 127.0.0.1:8181` to subsequent CLI
-service commands and provide the local service token, for example:
-
-```bash
-axonx version --target 127.0.0.1:8181 --token '<local-service-token>'
-```
-
-When `--target` is specified, the CLI reads `AXONX_TARGET_TOKEN` by default; the `--token` above explicitly supplies
-local credentials. Local commands using the default port read `AXONX_SERVICE_TOKEN`. For remote service configuration,
-see [remote execution](#connect-directly-to-a-remote-service-with-the-cli).
-
-Keep the service running and execute subsequent CLI commands in another terminal.
-
-### Open AxonX Studio
-
-After starting with the defaults, open `http://127.0.0.1:1024/`, go to **Settings → Local service token**, and enter the
-`AXONX_SERVICE_TOKEN` configured in `.env`. You can then:
-
-- Query Task definitions, fill in parameters, submit tasks, and inspect status, progress, logs, and upstream and
-  downstream relationships.
-- Browse workspace files and inspect parameters, metadata, and research artifacts.
-- View factor analysis, training curves, predictions, backtest metrics, and period summaries.
-- Query machine resources and switch between configured local and remote services.
-- After configuring a model, use conversations on the Agent page to investigate tasks and analyze research results.
-
-<table>
-  <tr>
-    <th width="50%">Home</th>
-    <th width="50%">Task management</th>
-  </tr>
-  <tr>
-    <td valign="top">
-      <a href="docs/figures/studio/home.png"><img src="docs/figures/studio/home.png" alt="AxonX Studio home" width="100%" /></a>
-    </td>
-    <td valign="top">
-      <a href="docs/figures/studio/task-list.png"><img src="docs/figures/studio/task-list.png" alt="AxonX Studio task management: task status, progress, and feature navigation" width="100%" /></a>
-    </td>
-  </tr>
-</table>
-
-[Getting started with Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio)
-
-<a id="quick-demo"></a>
-
-## 🧪 Quick CLI demo
-
-### Download Tushare data
-
-Set `AXONX_TUSHARE_TOKEN` in the service's `.env` ([example.env](example.env)), then start or restart the service.
-Download a week's daily prices and adjustment factors with the built-in Tushare Task, then check its status and logs:
-
-```bash
-axonx submit \
-  --task download_tushare_task \
-  --task-name tushare-demo \
-  --start-date 20230901 \
-  --end-date 20230907 \
-  --datasets 'daily,adj_factor'
-
-axonx status --task-id 'api#download_tushare_task#tushare-demo'
-axonx read_task_log --task-id 'api#download_tushare_task#tushare-demo'
-```
-
-`--task` selects the Task and `--task-name` names it. Dates use `YYYYMMDD`; `--datasets` selects comma-separated data
-groups. The `submit` command returns JSON (mock response):
-
-```json
-{
-  "answer": {
-    "task_id": "api#download_tushare_task#tushare-demo",
-    "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
-    "task": "download_tushare_task"
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-`success: true` confirms submission; the Task downloads asynchronously and saves Parquet files under the workspace's
-`tushare/` directory when it succeeds.
-Use the returned `task_id` for queries and save `run_id` to wait for this execution with `wait_task`.
-
-### Other CLI commands
-
-Replace placeholder IDs with the returned `answer.task_id` / `answer.run_id`; submit downstream Tasks only after their
-inputs succeed.
-
-```bash
-# Task status, logs, and dependencies
-axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 600
-axonx status --task-id '<task_id>'
-axonx read_task_log --task-id '<task_id>'
-axonx get_task_graph --task-id '<task_id>'
-
-# Service and workspace
-axonx version
-axonx machine_status
-axonx list_entries --path ''
-
-# Plugins: install in the service's Python environment, then restart the service
-pip install axonx-qlib-a158
-axonx plugin list
-axonx plugin show axonx-qlib-a158
-
-# Research workflow (skip downloads if historical data is already available)
-axonx get_task_definition --task qlib_a158_etl
-axonx submit --task download_tushare_task --start-date 20140101 --end-date 20231231 --datasets 'static,stk_limit,daily,adj_factor,index_weight'
-axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20231231
-axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>' --train-start 20150101 --train-end 20230101
-axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>' --pred-start 20230101 --pred-end 20231231
-axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>'
-# Optional factor analysis: an independent downstream stage of ETL
-axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'
-```
-
-View results in **AxonX Studio**; see the [research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) and
-[CLI reference](docs/en/reference/cli.md) for details.
+![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261010-agent-code)
 
 <a id="agent-access-and-development-guides"></a>
 
-## 🤝 Agent access and development guides
+## 🤝 Develop quantitative plugins with an Agent
 
-| Method         | Usage                                                                                                                                  | Development guide                                                                                                                                              |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Built-in Agent | Configure a model, then use **Studio → Agent**; see [example.env](example.env) for model settings.                                     | Optionally load the development guide bundled with the installation. Its language follows the application's `language` setting, which defaults to English.     |
-| External Agent | Configure the [AxonX Skill](skills/axonx/SKILL.md) for Codex, Claude Code, or another Agent, and access the service through CLI / MCP. | Keep the source checkout referenced by the Skill, or adjust its documentation paths; see the [English development and operations guide](docs/en/dev_guide.md). |
+The development loop combines **your research prompt**, **the AxonX Skill**, and **an Agent with code and service access**:
+
+1. **Define the exploration.** Specify the baseline, hypothesis, data, evaluation windows, metrics, and execution target.
+2. **Implement the research.** The Agent reads the Skill and relevant source, writes or optimizes plugin code, registers Tasks, and validates the implementation.
+3. **Execute through the Harness.** Install the plugin in the selected service environment, inspect Task definitions, submit experiments, and wait for each upstream stage to succeed.
+4. **Inspect and iterate.** Read logs, metadata, and artifacts; compare candidates under declared controls; revise code or parameters and preserve the evidence.
+
+Example exploration prompt:
+
+> Read the AxonX Skill and the qlib_a158 implementation. Develop a separate research plugin to investigate whether
+> residual volatility and downside risk improve Alpha158 ranking. Use only information available at signal time.
+> Keep the data snapshot, labels, training parameters, evaluation windows, and trading costs fixed for factor
+> ablations. Implement and test the quantitative code, register and install the plugin, and run ETL, training,
+> prediction, and backtest Tasks through AxonX. Preserve Task/Run IDs and report RankIC, net returns, drawdown,
+> turnover, and limitations. Select candidates within the development window and reserve an independent confirmation window.
+
+You can also ask the Agent to optimize an existing plugin's feature calculation, training procedure, or portfolio
+policy. Specify whether the goal is runtime efficiency, signal quality, or trading performance, and how to evaluate it.
+
+| Agent          | Development setup                                                                                                                                                                      | Research access                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| External Agent | Load [AxonX Skill](skills/axonx/SKILL.md) in Codex, Claude Code, or another host; provide the source checkout and code tools.                                                          | Use the `axonx` CLI or connect to the service through MCP. The host supplies model credentials.              |
+| Built-in Agent | Configure model credentials and open **Studio → Agent**; provide the Skill or enable the bundled development guide, and configure `cwd` and development tools for the source checkout. | Use configured Job tools or the CLI through available command tools; the service supplies model credentials. |
+
+The Skill can be read directly or installed using your Agent host's supported mechanism. Its source paths refer to an
+AxonX checkout; a package installation alone does not include the example plugin sources. See the
+[development and operations guide](docs/en/dev_guide.md) for contracts and commands.
 
 ### Connect an external Agent through MCP
 
-After starting the service with the defaults, use these connection parameters in your Agent host:
+Start AxonX, then configure your Agent host:
 
 | Parameter             | Value                                         |
 | --------------------- | --------------------------------------------- |
@@ -250,13 +105,13 @@ After starting the service with the defaults, use these connection parameters in
 | Transport             | Streamable HTTP                               |
 | Authentication header | `Authorization: Bearer <AxonX service token>` |
 
-Use the `AXONX_SERVICE_TOKEN` of the service you connect to; adjust the host and port for a custom or remote service.
-For host configuration and tool discovery, see [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration).
+Use the connected service's token and adjust the address for custom ports or remote services.
+See [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration).
 
 ### Configure the built-in Agent
 
-The default backend uses the **Claude Agent SDK**. Set the model credentials, compatible service URL, and model name in
-`.env`:
+The default backend uses the Claude Agent SDK. Add your provider's credentials, Claude-compatible URL, and model name
+to `.env`, then restart the service:
 
 ```dotenv
 CLAUDE_CODE_API_KEY=your-model-api-key
@@ -264,202 +119,173 @@ CLAUDE_CODE_BASE_URL=https://api.anthropic.com
 CLAUDE_CODE_MODEL_NAME=your-model-name
 ```
 
-Replace the placeholders with your provider's credentials and available model name, and use its Claude-compatible URL.
-Restart AxonX after changing `.env`; then open **Studio → Agent**. See [example.env](example.env) for other optional settings.
-
-The built-in Agent's `components.agent.default.load_dev_guide` defaults to `false`. To load the Chinese guide, override
-the configuration in the startup command:
+To load the bundled English development guide:
 
 ```bash
-axonx start --components.agent.default.load_dev_guide true --language zh
+axonx start --components.agent.default.load_dev_guide true --language en
 ```
 
-Guide loading and tool configuration are independent. The Jobs available to the Agent are determined by `job_tools`,
-which provides task and artifact queries by default.
-See [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration).
+Guide loading defaults to `false` and is separate from tool configuration. The default Job bridge exposes task and
+artifact queries. For development, configure source access and SDK file/command tools; use the CLI or add the required
+Jobs to `job_tools` for installation and submission. See [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration).
 
 <a id="alpha158-and-the-plugin-system"></a>
 
-## 🧩 Alpha158 and the plugin system
+## 🧩 From Qlib Alpha158 to extensible research plugins
 
-[Alpha158](plugins/qlib_a158/README.md) packages 158 price and volume features, a LightGBM model, and TopN backtesting as
-research Tasks. The main chain is **ETL → Train → Predict → Backtest**, with factor analysis as an independent
-downstream stage of ETL.
+The research chain is **ETL → Train → Predict → Backtest**, with factor analysis branching independently from ETL.
+Three plugins progressively reuse implementations and artifacts:
 
-| Stage           | Main artifacts                                             |
-| --------------- | ---------------------------------------------------------- |
-| Data processing | Features, labels, trading status, and statistics.          |
-| Factor analysis | Factor diagnostics; not a prerequisite for training.       |
-| Training        | LightGBM model, validation curves, and feature importance. |
-| Prediction      | Out-of-sample predictions and statistics.                  |
-| Backtesting     | TopN backtests, period summaries, and holdings artifacts.  |
+| Plugin                                           | Research capabilities                                                    | Extension                                                                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| [qlib_a158](plugins/qlib_a158/README.md)         | 158 price/volume features, LightGBM, factor analysis, and TopN backtests | Adapts Qlib Alpha158 into AxonX Tasks.                                                                             |
+| [qlib_factor](plugins/qlib_factor/README.md)     | 13 optional market-moment, neutral-momentum, and risk features           | Extends ETL and training; reuses prediction and backtesting. Training still defaults to the 158 baseline features. |
+| [qlib_strategy](plugins/qlib_strategy/README.md) | Minimum holding periods, rank retention, and replacement limits          | Reuses predictions and the stock backtest ledger without retraining.                                               |
 
-For usage examples, see the [Quick CLI demo](#quick-demo) above; for complete parameters and data requirements, see
-the [plugin documentation](plugins/qlib_a158/README.md). To extend your own research methods, inspect, build, and install
-plugins from source. Relevant commands appear under [CLI commands](#axonx-cli-commands-and-remote-execution) below; for
-development and deployment, see [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
+The baseline uses Tushare data and adapts the universe, labels, training, and trading protocol; see
+[Differences from original Qlib](plugins/qlib_a158/README.md#differences-from-original-qlib).
+Plugin registration, Task contracts, and artifact requirements are covered in the [development guide](docs/en/dev_guide.md).
 
 <a id="benchmark-agent-developed-market-cross-sectional-features"></a>
 
-## 📊 Benchmark: from Qlib baseline to agent-developed factors and strategy
+## 📊 Alpha158 improvement case: factors and portfolio strategy
 
-The experiment starts by porting Qlib's Alpha158 / LightGBM setup, then uses an agent with the [AxonX Skill](skills/axonx/SKILL.md) to develop factors and a portfolio policy through AxonX. These steps produce three plugins: `qlib_a158`, `qlib_factor`, and `qlib_strategy`. AxonX saves task parameters, dependencies, and results.
+The experiment compares the Alpha158 baseline, a model with two added risk factors, and a portfolio strategy
+that reuses the factor-model predictions:
 
-### 1. Port Alpha158 to establish a baseline
+| Configuration           | Quantitative change                                                                                       | Top20 net annualized | Net Sharpe | Max drawdown | Daily two-sided turnover |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- | -------------------: | ---------: | -----------: | -----------------------: |
+| Alpha158 baseline       | 158 features; fixed 1-day holding                                                                         |                7.67% |     0.3619 |      -38.65% |                  198.83% |
+| Risk-factor model       | Add 20-day residual volatility and downside risk; 160 features                                            |                9.03% |     0.4052 |      -40.69% |                  199.35% |
+| Rank-retention strategy | Reuse factor predictions; minimum 3-day holding, rank retention, 20% daily replacement count cap per side |               32.37% |     1.1575 |      -24.91% |                   40.01% |
 
-[qlib_a158](plugins/qlib_a158/README.md) ports Qlib's 158 price/volume features and LightGBM model into **ETL → Train → Predict → Backtest** Tasks. The port adapts settings to this project's data and execution model:
-
-- **Data and labels**: Tushare adjusted prices and volumes across Shanghai/Shenzhen, excluding Beijing. Labels use signal-close to next-market-close returns, transformed into daily ranks after removing 2.5% of samples at each tail.
-- **Training**: `[20150101,20230101)`, reserving the last 10% of dates for early stopping before refitting the full training period; exclude labels crossing the cutoff. This experiment uses the AxonX parameter preset, learning rate 0.03, 31 leaves, and feature_fraction=0.9.
-- **Backtesting**: evaluate `20230103–20261008`, with Top20 as the primary portfolio and fixed 1-day holding. Use same-close proxy fills, price-limit and tradability constraints, and 0.05% buy / 0.15% sell fees.
-
-These are the ported experiment's settings and differ from the original Qlib example. See the [migration comparison](plugins/qlib_a158/README.md#differences-from-original-qlib) for details.
-
-### 2. Have the agent develop factor enhancements
-
-Using the AxonX Skill, the agent develops [qlib_factor](plugins/qlib_factor/README.md), submits training, prediction, and backtest Tasks through AxonX, and inspects artifacts to compare candidate factors. Training-period validation RankIC selects two stock-level risk factors: **20-day residual volatility and 20-day downside risk**, increasing model inputs from 158 to 160 columns.
-
-Example prompt:
-
-> Use the AxonX Skill to develop a separate qlib_factor plugin on the qlib_a158 baseline. Explore residual volatility, downside risk, and related candidate factors using only information available at signal time. Run controlled experiments through AxonX, select groups by training-period validation RankIC, retain task records, and report returns, drawdown, and factor definitions.
-
-### 3. Have the agent develop a portfolio policy
-
-The agent follows the same process to develop [qlib_strategy](plugins/qlib_strategy/README.md), reusing augmented predictions to study holding and replacement rules. This experiment evaluates a fixed **3-day rank-retention policy**: hold for at least 3 market dates, retain highly ranked stocks, exit lower-ranked holdings first, and cap daily replacements at 20% of the stock count per side.
-
-Example prompt:
-
-> Use the AxonX Skill to develop a separate qlib_strategy plugin that reuses qlib_factor predictions. Explore minimum holding periods, rank retention, and capped replacements. Keep data, costs, and fill assumptions fixed; use AxonX to compare net returns, Sharpe, drawdown, and turnover. Save task records and explain the selection.
-
-### Results for the three versions
-
-The figures compare signal quality and Top20/Top30 net annualized returns across the three versions. The compact table shows Top20 risk and turnover over 909 market dates. The strategy reuses factor-model predictions.
+Training covers `[20150101,20230101)`; evaluation covers `20230103–20261008`, or 909 market dates. Buy/sell fees are
+0.05% / 0.15%. The replacement cap limits stock counts, not transaction notional; initial construction is exempt.
+The strategy plugin's default minimum holding period is 10 days; this experiment explicitly uses 3.
 
 ![Signal quality](docs/figures/benchmark/qlib-signal-quality.svg)
 
 ![Portfolio performance](docs/figures/benchmark/qlib-topn-results.svg)
 
-Top20 risk and trading metrics:
+**Evidence limits:** the three configurations were rerun on 2026-10-10, but have no independent confirmation window.
+Base/factor `feature_fraction` is 0.9/1.0, so differences do not isolate the added factors. All three backtests report
+`incomplete_market_data`; fills use same-close quote proxies and 2026 is a partial year. These results describe the
+adapted AxonX experiments and do not establish outperformance over the original Qlib benchmark.
 
-| Metric                        | [Alpha158 baseline](plugins/qlib_a158/README.md) | [Added factors](plugins/qlib_factor/README.md) | [Added strategy](plugins/qlib_strategy/README.md) |
-| ----------------------------- | -----------------------------------------------: | ---------------------------------------------: | ------------------------------------------------: |
-| Net Sharpe                    |                                           0.3619 |                                         0.4052 |                                            1.1575 |
-| Max drawdown                  |                                          -38.65% |                                        -40.69% |                                           -24.91% |
-| Mean daily two-sided turnover |                                          198.83% |                                        199.35% |                                            40.01% |
+[Full settings, metrics, reproduction commands, and Task provenance](docs/en/research/experiments.md#comparison).
 
-The three configurations were rerun on machine 45 on 2026-10-10 with Qlib buy/sell fees. They have no independent confirmation window; base/factor feature_fraction is 0.9/1.0, so differences do not isolate the added factors. Results include missing quotes, proxy fills and a partial 2026.
+<a id="quick-start"></a>
 
-[Full experiment settings, metrics, and reproduction commands](docs/en/research/experiments.md#comparison) include configurations and task provenance for all three versions. The prompts above are illustrative development instructions.
+## 🚀 Quick start
 
-## 🛠️ AxonX CLI commands and remote execution
+Requires **Python 3.12+**; local Task execution supports **macOS and Linux**.
 
-CLI service commands call the corresponding Jobs. `exec` and plugin management commands without a specified target run
-in the current Python environment.
+### Install and start
 
-| Purpose                               | Example commands                                                                              |
-| ------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Help / service version                | `axonx help` / `axonx version`                                                                |
-| Start the service                     | `axonx start`                                                                                 |
-| List registered Tasks                 | `axonx exec` / `axonx list_installed_task_definitions`                                        |
-| Query a Task contract                 | `axonx get_task_definition --task qlib_a158_etl`                                              |
-| Execute in the current process        | `axonx exec --task demo --x 2 --y 3`                                                          |
-| Submit a research task                | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`                          |
-| Wait for this run                     | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400`            |
-| Follow progress and logs              | `axonx stream_task --task-id '<task_id>' --stream true`                                       |
-| Query task list / status              | `axonx list_task_statuses` / `axonx status --task-id '<task_id>'`                             |
-| Read logs                             | `axonx read_task_log --task-id '<task_id>'`                                                   |
-| Query context / dependency graph      | `axonx get_task_context --task-id '<task_id>'` / `axonx get_task_graph --task-id '<task_id>'` |
-| Cancel a task                         | `axonx cancel --task-id '<task_id>'` / `axonx cancel --run-id '<run_id>'`                     |
-| Delete finished tasks and their files | `axonx delete_tasks --task-ids '["<task_id>"]'`                                               |
-| Browse the workspace                  | `axonx list_entries --path ''`                                                                |
-| Preview an artifact                   | `axonx preview_file --path '<workspace-relative-path>'`                                       |
-| Query machines / resources            | `axonx list_machines` / `axonx machine_status`                                                |
-| Query plugins / details               | `axonx plugin list` / `axonx plugin show axonx-qlib-a158`                                     |
-| Inspect / build plugin source         | `axonx plugin inspect ./plugins/qlib_a158` / `axonx plugin build ./plugins/qlib_a158`         |
-| Install / uninstall a plugin          | `axonx plugin install ./plugins/qlib_a158` / `axonx plugin uninstall axonx-qlib-a158`         |
+```bash
+pip install "axonx[studio]"
+# Optional: install the Alpha158 plugin in the service environment
+pip install axonx-qlib-a158
+```
+
+Create `.env` in the startup directory with your local service token:
+
+```dotenv
+AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
+```
+
+```bash
+axonx start
+```
+
+The CLI loads `.env` from the current directory or a parent; existing environment variables take precedence.
+Keep the service running and use another terminal for subsequent commands. See [example.env](example.env) for model,
+market-data, and remote settings; see [CONTRIBUTING.md](CONTRIBUTING.md) for source development and Studio builds.
+Restart the service after direct pip installation or editable source changes.
+
+### Open Studio
+
+Visit `http://127.0.0.1:1024/` and enter `AXONX_SERVICE_TOKEN` in **Settings → Local service token**.
+See the [Studio guide](docs/en/getting-started/studio.md) for Tasks, research charts, and the Agent workspace.
+
+<table>
+  <tr><th width="50%">Home</th><th width="50%">Task management</th></tr>
+  <tr>
+    <td><a href="docs/figures/studio/home.png"><img src="docs/figures/studio/home.png" alt="AxonX Studio home" width="100%" /></a></td>
+    <td><a href="docs/figures/studio/task-list.png"><img src="docs/figures/studio/task-list.png" alt="AxonX Studio task management" width="100%" /></a></td>
+  </tr>
+</table>
+
+<a id="quick-demo"></a>
+
+### Verify your first Task
+
+The built-in demo requires no market-data or model credentials:
+
+```bash
+axonx submit --task demo --x 2 --y 3
+axonx wait_task --task-id '<returned_task_id>' --run-id '<returned_run_id>' --client-timeout 120
+axonx get_task_context --task-id '<returned_task_id>'
+```
+
+Use `answer.task_id` and `answer.run_id` returned by `submit`, and wait for `succeeded` before reading outputs or
+submitting downstream Tasks. `source_tasks` records lineage; it does not automatically run the DAG.
+
+For Alpha158, configure `AXONX_TUSHARE_TOKEN` and prepare enough historical data, then run the stages in the
+[research workflow](docs/en/research/workflow.md). Full commands for the three-version experiment are in the
+[reproduction guide](docs/en/research/experiments.md#comparison).
+
+<a id="axonx-cli-commands-and-remote-execution"></a>
+
+## 🛠️ CLI and remote execution
+
+See the [CLI reference](docs/en/reference/cli.md) for definitions, progress, and logs, and
+[plugin management](docs/en/plugins/management.md) for installation and updates.
 
 ### Connect directly to a remote service with the CLI
 
-First install AxonX and research plugins on the target machine, configure its own `AXONX_SERVICE_TOKEN`, and start a
-reachable service. On the client, configure the target token and explicitly specify the address for commands that
-support remote access:
+Set the target service's `AXONX_TARGET_TOKEN` and use the same `--target` for installation, submission, waiting, and queries:
 
 ```bash
-export AXONX_TARGET_TOKEN='your-target-service-token'
-axonx machine_status --target 192.0.2.10:1024
-axonx plugin list --target 192.0.2.10:1024
-axonx submit --task demo --x 2 --y 3 --target 192.0.2.10:1024
-axonx wait_task --task-id '<task_id>' --run-id '<run_id>' \
-  --client-timeout 120 --target 192.0.2.10:1024
+axonx plugin install ./plugins/qlib_factor --target 'http://<host>:1024'
+axonx get_task_definition --task qlib_factor_train --target 'http://<host>:1024'
 ```
 
-Replace the example address with your actual service. Use the same `--target` for submission, waiting, status, logs, and
-artifact queries; tasks use the target machine's plugins, data, and workspace. Direct CLI access does not require
-starting a local service.
-
-Remote plugin installation builds a wheel locally, uploads it, and installs it in the target environment:
-
-```bash
-axonx plugin install ./plugins/qlib_a158 --target 192.0.2.10:1024
-```
-
-`plugin build` always runs locally. Remote `plugin inspect` accepts a distribution or plugin name already installed on
-the target. `start` and `exec` do not execute remotely through `--target`.
+An explicit `--target` uses `AXONX_TARGET_TOKEN` by default; default local calls use `AXONX_SERVICE_TOKEN`.
+Without a target, plugin commands use the current Python environment.
 
 ### Use remote machines in Studio
 
-Configure the remote service address and token in the local `.env`:
-
-```dotenv
-# Optional: remote AxonX service for Studio
-AXONX_TARGET=192.0.2.10:1024
-AXONX_TARGET_TOKEN=your-target-service-token
-```
-
-Replace the example address with your actual service, then start with the built-in `remote` configuration:
-
-```bash
-axonx start --config remote
-```
-
-`remote` inherits the default configuration and adds the target address and token to the service's `targets`. Studio
-uses the local token to access the same-origin backend, which forwards requests to the selected remote service. For
-multiple targets, custom YAML, and connection troubleshooting, see
-the [remote machines guide](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines).
+Set `AXONX_TARGET` and `AXONX_TARGET_TOKEN` in the local service environment, run `axonx start --config remote`,
+and select the machine in Studio. The target service owns its plugins, data, and workspace;
+see [remote machines](docs/en/guides/remote-machines.md) for multiple-target configuration.
 
 <a id="axonx-documentation"></a>
 
-## 📚 AxonX documentation
+## 📚 Documentation
 
-| Topic                             | GitHub Pages documentation                                                                                                                                                                                                                                                                                                          |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Installation and your first Task  | [Quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart)                                                                                                                                                                                                                                                     |
-| Browser operation                 | [AxonX Studio](https://flowllm-ai.github.io/AxonX/en/getting-started/studio)                                                                                                                                                                                                                                                        |
-| Component, Job, Task              | [Architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) · [Framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions)                                                                                                                                                        |
-| Task contracts and lifecycle      | [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts) · [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management) · [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)                                                                                    |
-| Agent development and operations  | [External agents](https://flowllm-ai.github.io/AxonX/en/agent/external) · [Development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide) · [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration) · [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration)                  |
-| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-a158) · [Qlib Factor](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-factor) · [Qlib Strategy](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-strategy)                       |
-| Quantitative research             | [Research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) · [Experiment design](https://flowllm-ai.github.io/AxonX/en/research/experiments) · [Interpreting results](https://flowllm-ai.github.io/AxonX/en/research/results) · [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) |
-| Remote execution                  | [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)                                                                                                                                                                                                                                                     |
-| CLI and configuration             | [CLI](https://flowllm-ai.github.io/AxonX/en/reference/cli) · [Configuration](https://flowllm-ai.github.io/AxonX/en/reference/configuration)                                                                                                                                                                                         |
+| Goal                     | Start here                                                                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Install and run research | [Quickstart](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart) · [Research workflow](docs/en/research/workflow.md)                                              |
+| Develop with an Agent    | [AxonX Skill](skills/axonx/SKILL.md) · [Agent integration](docs/en/agent/external.md) · [Built-in configuration](docs/en/agent/configuration.md)                                |
+| Implement plugins        | [Task development](docs/en/dev_guide.md) · [Plugin management](docs/en/plugins/management.md) · [Artifact contracts](docs/en/reference/research-artifacts.md)                   |
+| Understand the Harness   | [Architecture](docs/en/concepts/architecture.md) · [Jobs and Tasks](docs/en/concepts/jobs-and-tasks.md) · [Framework extensions](docs/en/development/framework-extensions.md)   |
+| Evaluate results         | [Experiment design](docs/en/research/experiments.md) · [Backtest interpretation](docs/en/research/backtest.md) · [Strategy comparison](docs/en/research/strategy-comparison.md) |
+| Operate services         | [CLI reference](docs/en/reference/cli.md) · [Configuration](docs/en/reference/configuration.md) · [Remote execution](docs/en/guides/remote-machines.md)                         |
 
-Browse the [complete Chinese documentation](https://flowllm-ai.github.io/AxonX/zh/docs)
-or [English documentation](https://flowllm-ai.github.io/AxonX/en/docs).
+[English documentation](https://flowllm-ai.github.io/AxonX/en/docs) · [中文文档](https://flowllm-ai.github.io/AxonX/zh/docs)
 
 <a id="contributing"></a>
 
 ## 💬 Contributing
 
-Bug reports, feature requests, documentation improvements, research plugins, and code contributions are welcome.
-Search [existing issues](https://github.com/FlowLLM-AI/AxonX/issues) first; see
-the [contribution guide](CONTRIBUTING.md) for development setup, directory conventions, and required checks.
-
-Keep research algorithms in `plugins/` and reuse framework extension points. Update both English and Chinese
-documentation when behavior changes. When contributing experiments, include data and time windows, parameters, cost
-definitions, and result materials that others can verify.
+Contributions to the Harness, research plugins, experiment evidence, and documentation are welcome.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks, and [GitHub issues](https://github.com/FlowLLM-AI/AxonX/issues)
+for bugs and proposals. Keep algorithms in plugins, preserve public contracts, update both documentation languages,
+and include reproducible settings and artifacts when contributing research results.
 
 <a id="license"></a>
 
 ## ⚖️ License
 
-AxonX is released under the [Apache License 2.0](LICENSE).
+[Apache License 2.0](LICENSE).

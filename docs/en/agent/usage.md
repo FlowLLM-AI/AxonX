@@ -1,6 +1,6 @@
 ---
 title: Built-in Agent Usage
-description: Use sessions in Studio to query tasks, logs, lineage, and research artifacts.
+description: Use Studio sessions to inspect research evidence and configure plugin development.
 ---
 
 # Built-in Agent Usage
@@ -43,6 +43,17 @@ Do not treat top30_holdings as the actual position ledger.
 Default tools include `list_entries`, `preview_file`, `list_task_ids`, `list_task_statuses`, `status`, `read_task_log`, `get_task_graph`, and `get_task_context`. The Agent obtains actual information before composing its response.
 
 Avoid asking only to “analyze the latest strategy” without a machine or task scope. If multiple results exist, the model may select a different experiment; ask it to list candidate tasks for your confirmation first.
+
+## Develop or optimize a plugin
+
+For code development, provide the [AxonX Skill](../../../skills/axonx/SKILL.md) or enable the bundled development
+guide, set the Agent's `cwd` to an accessible source checkout, and make SDK file/command tools available.
+The default `cwd` is the service workspace, which does not automatically include plugin source.
+Use the available CLI or explicitly configured Job tools for installation and submission; see [Agent configuration](configuration.md).
+
+Give the Agent a research objective, baseline or plugin to optimize, execution target, and evaluation criteria.
+Follow the [shared development loop](overview.md#the-shared-research-loop); the [README](../../../README.md#agent-access-and-development-guides)
+provides an exploration prompt. Retain code changes and Task evidence separately from session history.
 
 ## Reading streamed messages
 

@@ -45,7 +45,7 @@ When using this document as a skill, perform only the operations required by the
 
 ## Background
 
-AxonX is a harness framework for financial quantitative research, organizing data acquisition and ETL, factor analysis, model training, prediction, and backtesting into Tasks with consistent input/output contracts.
+AxonX is an agent-native harness for quantitative research, providing tools and a runtime for quantitative code development, experiment execution, and result analysis. Combine a user research prompt with this guide to develop a new plugin or improve an existing one through an external or built-in Agent. Supply source access and file/command tools; implement and validate the quantitative code, install it in the selected execution service, run Tasks, and use the resulting evidence to iterate. Data acquisition and ETL, factor analysis, model training, prediction, and backtesting follow consistent Task input/output contracts.
 Plugins register research implementations; Tasks link upstream and downstream work through Task IDs. The CLI and HTTP service support submitting execution on local or remote machines and querying machine resources, runtime status, and logs.
 The framework records task configuration, dependencies, result metadata, and artifacts in the workspace, and provides Agents with task, dependency graph, and file query tools to verify research results, investigate failures, and reuse upstream data.
 
@@ -68,7 +68,7 @@ paths, class names, registered names, and dependency chain here are illustrative
 Every plugin Task must directly or indirectly inherit `BaseTask` and follow the public authoring contract in
 [`axonx/task/core/task.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/task.py). Registration alone does not replace this contract:
 
-- Declare a fixed `task_type`, `input_cls`, `output_cls`, and a detailed class docstring. Input and output models must
+- Declare a fixed `task_type`, `input_cls`, and `output_cls`; a detailed class docstring is recommended. Input and output models must
   inherit `BaseInputParams` and `BaseOutputParams` from [`core/params.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/params.py).
 - Implement `build_task_steps()` to yield synchronous callables in execution order, and `build_output_params()` to
   return a validated instance of the declared `output_cls`; returning a plain dictionary does not satisfy the contract.
@@ -82,6 +82,8 @@ for ETL, Analysis, Train, Predict, and Backtest. For these research stages, pref
 of the plugin's contract: preserve them and declare additional fields in subclasses. A custom Task may inherit
 `BaseTask` directly with its own parameter models, but must still follow the core contract; registration does not
 require every Task to inherit one of the five research base classes.
+
+For a synchronous sequence of installed Tasks, inherit `BaseCompositeTask` from `axonx.task` and call `run_task()` in your steps. It provides the default `BaseCompositeOutputParams`; custom composite outputs extend that model and use `composition_output()`. Children retain independent records and artifacts, while cancellation targets the parent. See [Composite Tasks](https://flowllm-ai.github.io/AxonX/en/guides/composite-tasks) for a complete plugin example and failure policies.
 
 Before implementation, read [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts), [Task lifecycle](https://flowllm-ai.github.io/AxonX/en/concepts/task-lifecycle),
 and [Research artifact contracts](https://flowllm-ai.github.io/AxonX/en/reference/research-artifacts). Standard Python fields alone do not guarantee
@@ -143,8 +145,7 @@ class Alpha158Task(BaseETLTask):
         return self.output_cls(**self.state["output"])
 ```
 
-A Task class must define a nonempty class docstring, used as the Task definition's `description`. Without it, Task resolution and definition queries raise
-`TypeError: Task ... must define a detailed class docstring`. Describe the task's purpose, input, and artifacts; method docstrings alone are insufficient.
+A Task class docstring supplies the Task definition's `description`. Missing or whitespace-only docstrings produce an empty string and do not block Task resolution, definition queries, or catalog display. A detailed description of the task's purpose, input, and artifacts is recommended; put the docstring before class attributes so Python recognizes it.
 
 `BaseETLOutputParams` already defines required fields `output_file`, `rows`, and `date_range`, so `self.state["output"]` must contain at least these three fields. Add fields to
 `Alpha158OutputParams` when additional results are needed.

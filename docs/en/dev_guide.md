@@ -40,7 +40,7 @@ When using this document as a skill, perform only the operations required by the
 
 ## Background
 
-AxonX is a harness framework for financial quantitative research, organizing data acquisition and ETL, factor analysis, model training, prediction, and backtesting into Tasks with consistent input/output contracts.
+AxonX is an agent-native harness for quantitative research, providing tools and a runtime for quantitative code development, experiment execution, and result analysis. Combine a user research prompt with this guide to develop a new plugin or improve an existing one through an external or built-in Agent. Supply source access and file/command tools; implement and validate the quantitative code, install it in the selected execution service, run Tasks, and use the resulting evidence to iterate. Data acquisition and ETL, factor analysis, model training, prediction, and backtesting follow consistent Task input/output contracts.
 Plugins register research implementations; Tasks link upstream and downstream work through Task IDs. The CLI and HTTP service support submitting execution on local or remote machines and querying machine resources, runtime status, and logs.
 The framework records task configuration, dependencies, result metadata, and artifacts in the workspace, and provides Agents with task, dependency graph, and file query tools to verify research results, investigate failures, and reuse upstream data.
 

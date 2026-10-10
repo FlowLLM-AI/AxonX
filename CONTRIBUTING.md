@@ -92,9 +92,7 @@ Use this path for research Tasks, factors, models, strategies, backtesting algor
 
 ### Development setup
 
-Create the Python environment and install the main package and development dependencies using the framework setup above, then install only the plugins needed for your change:
-
-For research plugin development, install the relevant plugin in editable mode:
+Create the Python environment and install the main package and development dependencies using the framework setup above, then install the plugins needed for your change in editable mode:
 
 ```bash
 axonx plugin install -e ./plugins/qlib_a158
@@ -110,6 +108,18 @@ The default pytest configuration includes factor and strategy plugin tests and a
 Follow existing plugin layouts, the [Task development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide), and the [plugin manifest contract](https://flowllm-ai.github.io/AxonX/en/reference/plugin-manifest). A new plugin should include package metadata, a plugin entry point and manifest, Task implementations, example configuration, tests, and English/Chinese READMEs.
 
 Preserve task identity, lifecycle, configuration, and artifact compatibility; explain intentional changes in documentation and the PR. Update `tool.setuptools.package-data` for new runtime resources so wheels and sdists include them. Use temporary test workspaces and keep research data, credentials, and generated experiment outputs out of the repository.
+
+### Develop with an Agent
+
+External and built-in Agents can use the [AxonX Skill](skills/axonx/SKILL.md) and a research prompt to develop a new
+plugin or improve an existing one. Provide a source checkout, file/command tools, and the selected execution service;
+see [Agent integration](docs/en/agent/overview.md) for the two access paths. Keep plugin code changes, installation,
+and experiment execution distinct, and apply the same contribution checks to Agent-authored code.
+
+Use Alpha158 as a reference implementation. Separate factor and strategy plugins can reuse compatible upstream code
+and artifacts. For claimed improvements, record the code revision, data snapshot, training/evaluation windows,
+parameters, costs, and Task/Run IDs; follow [experiment design](docs/en/research/experiments.md). Keep raw execution
+records in the research environment and publish sanitized evidence and reproduction instructions.
 
 ### Validation
 

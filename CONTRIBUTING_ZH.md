@@ -92,9 +92,7 @@ npm ci && npm run build
 
 ### 开发环境
 
-先按框架贡献中的步骤创建 Python 环境、安装主包及开发依赖，再仅安装本次开发所需的插件：
-
-开发研究插件时，以 editable 模式安装对应插件：
+先按框架贡献中的步骤创建 Python 环境、安装主包及开发依赖，再以 editable 模式安装本次开发所需的插件：
 
 ```bash
 axonx plugin install -e ./plugins/qlib_a158
@@ -110,6 +108,16 @@ axonx plugin install -e ./plugins/qlib_strategy
 参考现有插件组织代码，并遵循 [Task 开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide)和[插件协议](https://flowllm-ai.github.io/AxonX/zh/reference/plugin-manifest)。新增插件应包含包元数据、插件入口与 manifest、Task 实现、示例配置、测试和中英文 README。
 
 保持任务身份、生命周期、配置和产物格式的兼容性；有意变更时，在文档和 PR 中说明。新增运行时资源时更新 `tool.setuptools.package-data`，确保 wheel 和 sdist 包含这些文件。测试使用临时工作区，研究数据、凭据和实验生成产物不提交到仓库。
+
+### 使用 Agent 开发
+
+外部或内置 Agent 可以结合 [AxonX Skill](skills/axonx/SKILL.md) 与研究 Prompt，开发新插件或优化已有插件。
+提供源码仓库、文件／命令工具和选定的执行服务；两条接入路径见 [Agent 总览](docs/zh/agent/overview.md)。
+区分插件代码改动、安装与实验执行，Agent 编写的代码遵循相同的贡献检查。
+
+以 Alpha158 为参考实现，独立的因子和策略插件可以复用兼容的上游代码与产物。
+主张研究改进时，记录代码版本、数据快照、训练／评估窗口、参数、成本和 Task/Run ID，遵循[实验设计](docs/zh/research/experiments.md)。
+原始执行记录保留在研究环境，公开脱敏后的证据与复现说明。
 
 ### 验证
 

@@ -52,9 +52,9 @@ The persistent service manages Application through the ASGI lifespan. Service ex
 
 ## Plugins and Agents
 
-Plugins contribute Tasks, Components, and Jobs through installed Python distribution entry points and `plugin.yaml`. Task types and input/output schemas come from plugin classes; plugins implement the quantitative algorithms. Installation changes the environment, and contributions load during application assembly.
+Plugins contribute Tasks, Components, and Jobs through installed Python distribution entry points and `plugin.yaml`. Task types and input/output schemas come from plugin classes; plugins implement the quantitative algorithms. Components and Jobs load during application assembly. Task-only wheel updates through the installation Job can refresh live definitions and subsequent submissions; direct pip/source changes and changes marked `restart_required` need a service restart.
 
-Agent is one component capability, with a default implementation using the Claude backend. It can read task evidence through configured Job tools and is also affected by SDK tools, its working directory, and permission mode. Research Tasks can execute entirely independently of Agent.
+AxonX supplies the quantitative research Harness: Task contracts, execution, records, and artifact queries. The model/tool loop and conversational context are managed by the external Agent host or the built-in Claude Agent SDK backend. With a Skill or development guide, source access, and code tools, either Agent path can develop plugins and use Task evidence for iteration. The built-in Agent is a component whose capabilities depend on Job tools, SDK tools, working directory, and permission mode. Research Tasks can execute independently of Agent.
 
 A remote service is another complete Application with its own plugin environment, workers, and workspace. Studio forwards remote operations through the local backend, while an explicit CLI `--target` connects directly to the target.
 

@@ -1,17 +1,17 @@
 # AxonX 文档导航
 
-AxonX 是面向金融量化研究的 Agent Harness。插件提供算法，Task 定义研究步骤的输入与输出，框架管理执行、记录和产物。研究人员、外部 Agent 与脚本通过 Studio、CLI 或 MCP 使用同一套 Job 与工作区记录。
+AxonX 是面向 Agent 的量化研究 Harness，为量化代码开发、实验执行和结果分析提供工具与运行环境。外部或内置 Agent 将研究 Prompt 与 AxonX Skill 结合，开发或优化插件。Task 定义研究输入输出，共享的 Job 和工作区记录将执行与可检查的证据连接起来。
 
 ## 选择你的起点
 
-| 目标                | 从哪里开始                                                                           | 完成后你能做什么                     |
-| ------------------- | ------------------------------------------------------------------------------------ | ------------------------------------ |
-| 第一次使用 AxonX    | [快速开始](getting-started/quickstart.md) → [Studio 入门](getting-started/studio.md) | 提交 demo、等待终态、检查参数与结果  |
-| 开展量化研究        | [研究总览](research/overview.md) → [研究流程](research/workflow.md)                  | 准备数据，串联 ETL、训练、预测和回测 |
-| 让外部 Agent 做研究 | [Agent 接入总览](agent/overview.md) → [外部 Agent](agent/external.md)                | 通过 Skill、CLI 或 MCP 操作研究服务  |
-| 在 Studio 中对话    | [内置 Agent 配置](agent/configuration.md) → [内置 Agent 使用](agent/usage.md)        | 查询任务、排障、解释已有研究证据     |
-| 部署或管理任务      | [运行总览](guides/overview.md) → [远程机器](guides/remote-machines.md)               | 跟踪执行、管理文件、连接目标服务     |
-| 编写插件或接入代码  | [开发总览](development/overview.md) → [Task 契约](reference/task-contracts.md)       | 实现研究 Task，注册插件，调用服务    |
+| 目标                | 从哪里开始                                                                           | 完成后你能做什么                       |
+| ------------------- | ------------------------------------------------------------------------------------ | -------------------------------------- |
+| 第一次使用 AxonX    | [快速开始](getting-started/quickstart.md) → [Studio 入门](getting-started/studio.md) | 提交 demo、等待终态、检查参数与结果    |
+| 开展量化研究        | [研究总览](research/overview.md) → [研究流程](research/workflow.md)                  | 准备数据，串联 ETL、训练、预测和回测   |
+| 使用 Agent 开发研究 | [Agent 接入总览](agent/overview.md) → [外部 Agent](agent/external.md)                | 通过 Skill + Prompt 开发插件并验证改动 |
+| 在 Studio 中对话    | [内置 Agent 配置](agent/configuration.md) → [内置 Agent 使用](agent/usage.md)        | 查询任务、排障、解释已有研究证据       |
+| 部署或管理任务      | [运行总览](guides/overview.md) → [远程机器](guides/remote-machines.md)               | 跟踪执行、管理文件、连接目标服务       |
+| 编写插件或接入代码  | [开发总览](development/overview.md) → [Task 契约](reference/task-contracts.md)       | 实现研究 Task，注册插件，调用服务      |
 
 先了解项目定位和实验案例，可读[项目概览](../../README_ZH.md)。内置 demo 不需要行情或模型凭据；研究插件需要数据，内置 Agent 需要模型配置，外部 Agent 使用自身宿主的模型配置。
 
@@ -25,11 +25,11 @@ AxonX 是面向金融量化研究的 Agent Harness。插件提供算法，Task �
 
 先从[研究总览](research/overview.md)选择目标。[研究流程](research/workflow.md)和 [Tushare 数据](research/tushare.md)负责数据准备与阶段执行；[结果解读](research/results.md)负责检查各阶段产物；[实验设计与确认](research/experiments.md)、[回测口径](research/backtest.md)和[策略比较](research/strategy-comparison.md)负责评估证据。
 
-[插件管理](plugins/management.md)说明安装、发现和部署。[Alpha158](../../plugins/qlib_a158/README_ZH.md)是基础研究链，[Qlib Factor](../../plugins/qlib_factor/README_ZH.md)提供增强特征与消融案例；[Qlib Strategy](../../plugins/qlib_strategy/README_ZH.md)增加排名保留和有限换仓。算法参数与实验数值以插件文档为准。
+[插件管理](plugins/management.md)说明安装、发现和部署。[Alpha158](../../plugins/qlib_a158/README_ZH.md)是基础研究链，[Qlib Factor](../../plugins/qlib_factor/README_ZH.md)提供增强特征与消融案例；[Qlib Strategy](../../plugins/qlib_strategy/README_ZH.md)增加排名保留和有限换仓。算法与参数以插件文档为准，设定、指标和来源统一保留在[实验对比](research/experiments.md#comparison)。
 
 ### Agent：选择外部宿主或内置会话
 
-[接入总览](agent/overview.md)说明两条路径的前置条件。[外部 Agent](agent/external.md)介绍 Skill 与 CLI 的研究操作，[MCP 接入](agent/mcp-integration.md)解释服务工具发现与响应；[内置配置](agent/configuration.md)和[内置使用](agent/usage.md)介绍 Studio 中的 Claude Agent SDK 会话。
+[接入总览](agent/overview.md)说明两条路径的前置条件。[外部 Agent](agent/external.md)介绍 Skill + Prompt 驱动的插件开发与执行，[MCP 接入](agent/mcp-integration.md)解释服务工具发现与响应；[内置配置](agent/configuration.md)和[内置使用](agent/usage.md)介绍 Studio 中的 Claude Agent SDK 会话。
 
 ### 运行与部署：维护服务和执行环境
 

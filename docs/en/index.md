@@ -1,6 +1,6 @@
 # AxonX Documentation Map
 
-AxonX is an agent-native harness for financial quantitative research. Plugins provide algorithms, Tasks define research inputs and outputs, and the framework manages execution, records, and artifacts. Researchers, external agents, and scripts use the same Jobs and workspace records through Studio, CLI, or MCP.
+AxonX is an agent-native harness for quantitative research, providing tools and a runtime for quantitative code development, experiment execution, and result analysis. External or built-in Agents combine a research prompt with the AxonX Skill to develop or improve plugins. Tasks define research inputs and outputs; shared Jobs and workspace records connect execution to inspectable evidence.
 
 ## Choose your starting point
 
@@ -8,7 +8,7 @@ AxonX is an agent-native harness for financial quantitative research. Plugins pr
 | ------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Use AxonX for the first time    | [Quickstart](getting-started/quickstart.md) → [Studio](getting-started/studio.md)               | Submit a demo, wait for completion, inspect parameters and results  |
 | Conduct quantitative research   | [Research overview](research/overview.md) → [Research workflow](research/workflow.md)           | Prepare data and connect ETL, training, prediction, and backtesting |
-| Research with an external agent | [Agent integration overview](agent/overview.md) → [External agents](agent/external.md)          | Operate a research service through a Skill, CLI, or MCP             |
+| Develop research with an Agent  | [Agent integration overview](agent/overview.md) → [External agents](agent/external.md)          | Develop plugins and evaluate changes through Skill + prompt         |
 | Chat in Studio                  | [Built-in agent configuration](agent/configuration.md) → [Built-in agent usage](agent/usage.md) | Query tasks, troubleshoot, and explain existing research evidence   |
 | Deploy services or manage tasks | [Operations overview](guides/overview.md) → [Remote machines](guides/remote-machines.md)        | Track execution, manage files, and connect to target services       |
 | Develop plugins or client code  | [Development overview](development/overview.md) → [Task contracts](reference/task-contracts.md) | Implement research Tasks, register plugins, and call services       |
@@ -25,11 +25,11 @@ Run a real task with the [quickstart](getting-started/quickstart.md), then inspe
 
 Start with the [research overview](research/overview.md). The [research workflow](research/workflow.md) and [Tushare guide](research/tushare.md) cover data preparation and stage execution. [Reading results](research/results.md) covers artifact inspection. [Experiment design and confirmation](research/experiments.md), [backtest methodology](research/backtest.md), and [strategy comparison](research/strategy-comparison.md) explain how to evaluate evidence.
 
-[Plugin management](plugins/management.md) covers installation, discovery, and deployment. [Alpha158](../../plugins/qlib_a158/README.md) provides the baseline research chain; [Qlib Factor](../../plugins/qlib_factor/README.md) provides a concrete case of added features and ablations; [Qlib Strategy](../../plugins/qlib_strategy/README.md) adds rank retention and bounded replacements. Plugin documentation owns algorithm parameters and experiment numbers.
+[Plugin management](plugins/management.md) covers installation, discovery, and deployment. [Alpha158](../../plugins/qlib_a158/README.md) provides the baseline research chain; [Qlib Factor](../../plugins/qlib_factor/README.md) provides a concrete case of added features and ablations; [Qlib Strategy](../../plugins/qlib_strategy/README.md) adds rank retention and bounded replacements. Plugin documentation owns algorithms and parameters; the [experiment comparison](research/experiments.md#comparison) owns settings, metrics, and provenance.
 
 ### Agent: choose an external host or built-in sessions
 
-The [integration overview](agent/overview.md) explains prerequisites for each path. [External agents](agent/external.md) covers research with a Skill and CLI; [MCP integration](agent/mcp-integration.md) explains service tool discovery and responses. [Built-in configuration](agent/configuration.md) and [usage](agent/usage.md) cover Claude Agent SDK sessions in Studio.
+The [integration overview](agent/overview.md) explains prerequisites for each path. [External agents](agent/external.md) covers plugin development and execution with Skill + prompt; [MCP integration](agent/mcp-integration.md) explains service tool discovery and responses. [Built-in configuration](agent/configuration.md) and [usage](agent/usage.md) cover Claude Agent SDK sessions in Studio.
 
 ### Operations: maintain services and execution environments
 

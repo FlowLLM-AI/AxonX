@@ -2,6 +2,12 @@
 
 研究算法放在插件中，执行、记录与接口复用框架扩展点。改动前先选择需要扩展的层。
 
+## Agent 辅助量化开发
+
+将研究 Prompt 与 [AxonX Skill](../../../skills/axonx/SKILL.md) 结合，通过外部或内置 Agent 创建新插件或优化已有插件。
+提供源码和代码工具，实现并验证研究逻辑，安装到执行服务，再通过 Task 评估改动。
+接入准备见 [Agent 总览](../agent/overview.md)，控制条件与确认方法见[实验设计](../research/experiments.md)。
+
 ## 选择扩展路径
 
 | 目标                            | 从哪里开始                              | 查阅契约                                                          |
@@ -19,7 +25,7 @@
 
 发现已注册 Task 的 Schema，在临时工作区执行最小流程，检查输出元数据与声明的产物。特征时点、字段或上游要求变化时，复用旧记录前需要检查兼容性。
 
-算法比较见[实验设计](../research/experiments.md)，Agent 驱动开发见[外部 Agent](../agent/external.md)。[Qlib Factor 插件](../../../plugins/qlib_factor/README_ZH.md)展示独立实现、特征分组开关与独立确认。
+算法比较见[实验设计](../research/experiments.md)，Agent 驱动开发见[外部 Agent](../agent/external.md)。[Qlib Factor 插件](../../../plugins/qlib_factor/README_ZH.md)展示独立实现、特征分组开关与已记录的对比，当前实验尚未独立确认。
 
 ## 维护文档
 

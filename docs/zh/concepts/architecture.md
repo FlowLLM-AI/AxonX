@@ -52,9 +52,9 @@ Application 根据配置与注册表创建 Component、Job 和 Scheduler。组�
 
 ## 插件与 Agent 的位置
 
-插件通过已安装 Python distribution 的入口点和 `plugin.yaml` 提供 Task、Component 和 Job。Task 类型及其输入输出 Schema 来自插件类，具体量化算法由插件实现。安装改变环境，贡献加载发生在应用装配时。
+插件通过已安装 Python distribution 的入口点和 `plugin.yaml` 提供 Task、Component 和 Job。Task 类型及其输入输出 Schema 来自插件类，具体量化算法由插件实现。Component 和 Job 在应用装配时加载；通过安装 Job 更新仅含 Task 的 wheel 可刷新实际定义与后续提交，直接 pip／源码改动及标记 `restart_required` 的变更需重启服务。
 
-Agent 是组件能力之一，默认实现使用 Claude 后端。它能以配置的 Job 工具读取任务证据，也受到 SDK 工具、运行目录和权限模式影响。研究任务可以完全独立于 Agent 执行。
+AxonX 提供量化研究 Harness：Task 契约、执行、记录和产物查询。模型／工具循环与会话上下文由外部 Agent 宿主或内置 Claude Agent SDK 后端管理。具备 Skill 或开发指南、源码访问及代码工具时，两条 Agent 路径均可开发插件，并以 Task 证据驱动迭代。内置 Agent 是组件能力之一，实际能力取决于 Job 工具、SDK 工具、运行目录和权限模式。研究任务可独立于 Agent 执行。
 
 远程服务是另一个完整 Application，拥有自己的插件环境、worker 和工作区。Studio 的远程操作经本机后端转发，CLI 的显式 `--target` 则直接连接目标。
 

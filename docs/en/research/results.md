@@ -9,7 +9,7 @@ Studio organizes successful task results by ETL, factors, training, prediction, 
 
 ![Result reading order](../../figures/research/results-reading.svg)
 
-Screenshots on this page show existing research results from a remote workspace, with operations and fields in the English UI. Some results come from the `qlib_factor` plugin; sample sizes and feature counts reflect those actual experiments. Algorithm descriptions below still refer to the current `qlib_a158` implementation.
+Screenshots on this page show historical research results from a remote workspace in the English UI. Some use earlier plugin versions; their feature counts, labels, and metrics illustrate those runs, not the current Alpha158 baseline or the README three-version comparison. Use each Task's metadata and plugin version to interpret it. Algorithm descriptions below refer to the current `qlib_a158` implementation.
 
 ## From run pages to result pages
 

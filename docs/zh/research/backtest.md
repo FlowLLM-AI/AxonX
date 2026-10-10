@@ -9,6 +9,8 @@ Alpha158 和增强 Alpha158 共用 `BaseStockBacktestTask` 和持仓账本。股
 
 共享实现位于 `axonx.task.builtins.stock`，新插件应从该包导入。
 
+![股票回测信号与逐日权益记账](../../figures/research/backtest-accounting.svg)
+
 ## 数据契约
 
 ETL 发布四份独立产物：

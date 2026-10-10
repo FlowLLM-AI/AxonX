@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1056" height="512" viewBox="0 0 1056 512" role="img" aria-labelledby="title desc">
-  <title id="title">a158: Signals and Exit Accounting</title>
+  <title id="title">Stock Backtest: Signals and Equity</title>
   <desc id="desc">Daily-bar execution proxy; unfilled targets stay in cash and delayed exits lock capital.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
@@ -9,12 +9,12 @@
   <rect x="8" y="8" width="1040.0" height="496.0" rx="30" fill="#f5f9ff" stroke="#163450" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
   <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
     <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#163450">
-      <text x="44" y="60" font-size="32" font-weight="700" text-anchor="start">a158: Signals and Exit Accounting</text>
+      <text x="44" y="60" font-size="32" font-weight="700" text-anchor="start">Stock Backtest: Signals and Equity</text>
       <text x="44" y="102" font-size="18" text-anchor="start" fill="#163450">Daily-bar execution proxy; unfilled targets stay in cash and delayed exits lock capital.</text>
       <rect x="50.0" y="160" width="198.75" height="192" rx="20" fill="#e4f0ff" stroke="#74a5d5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="149.375" y="202" text-anchor="middle" font-size="23" font-weight="700">Signal Day</text>
       <text x="149.375" y="240" text-anchor="middle" font-size="18">Score rank / Top N</text>
-      <text x="149.375" y="300" text-anchor="middle" font-size="18">Top 30 target list</text>
+      <text x="149.375" y="300" text-anchor="middle" font-size="18">Top N targets</text>
       <path d="M 252.75 256 H 277.75" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <rect x="283.75" y="160" width="198.75" height="192" rx="20" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="383.125" y="202" text-anchor="middle" font-size="23" font-weight="700">Entry Proxy</text>
@@ -26,21 +26,21 @@
       <path d="M 486.5 256 H 511.5" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <rect x="517.5" y="160" width="198.75" height="192" rx="20" fill="#e4f0ff" stroke="#74a5d5" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="616.875" y="202" text-anchor="middle" font-size="23" font-weight="700">Hold / Exit</text>
-      <text x="616.875" y="240" text-anchor="middle" font-size="18">T+1 / sellable exit</text>
+      <text x="616.875" y="240" text-anchor="middle" font-size="18">Policy / sellable exit</text>
       <text x="616.875" y="300" text-anchor="middle" font-size="18">
-        <tspan x="616.875" dy="0">Open positions at</tspan>
-        <tspan x="616.875" dy="28">cost</tspan>
+        <tspan x="616.875" dy="0">Daily market</tspan>
+        <tspan x="616.875" dy="28">valuation</tspan>
       </text>
       <path d="M 720.25 256 H 745.25" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <rect x="751.25" y="160" width="198.75" height="192" rx="20" fill="#e6f6ef" stroke="#6fbb9b" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="850.625" y="202" text-anchor="middle" font-size="23" font-weight="700">Daily Returns</text>
       <text x="850.625" y="240" text-anchor="middle" font-size="18">
-        <tspan x="850.625" dy="0">Realized profit /</tspan>
-        <tspan x="850.625" dy="28">equity</tspan>
+        <tspan x="850.625" dy="0">Equity change /</tspan>
+        <tspan x="850.625" dy="28">prior equity</tspan>
       </text>
-      <text x="850.625" y="300" text-anchor="middle" font-size="18">Less turnover costs</text>
+      <text x="850.625" y="300" text-anchor="middle" font-size="18">Executed side fees</text>
       <text x="50" y="402.0" font-size="19">
-        <tspan x="50" dy="0">Top 30 lists signal targets. Portfolio returns use daily mark-to-market valuation.</tspan>
+        <tspan x="50" dy="0">Top N lists signal targets. Portfolio equity = cash + marked positions.</tspan>
       </text>
     </g>
     <path d="M 44 374 H 956" fill="none" stroke="#163450" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
