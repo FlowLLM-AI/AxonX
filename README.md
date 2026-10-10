@@ -50,7 +50,7 @@ inspect logs, artifacts, and upstream and downstream relationships.
 - AxonX **0.1.0** released: an agent-native quantitative research harness with plugin-based Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access. → [Documentation](https://flowllm-ai.github.io/AxonX/en/)
 - Connect your Agent with SKILL.md + CLI: load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
 - AxonX Studio available: browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
-- Qlib three-layer experiment: shared data and 0.05% buy / 0.15% sell fees; policy-layer Top20/Top30 net annualized returns are **19.35%/15.72%**. Factor groups use training validation, the primary policy is fixed in advance, and results include missing quotes. → [Complete record](plugins/qlib_a158/THREE_LAYER_EXPERIMENTS.md)
+- Qlib three-layer experiment: base / stock_risk / 10-day policy Top20 net annualized returns are **7.69% / 9.04% / 17.16%**, with 0.1% fees per side and missing quotes. → [Comparison and full results](docs/en/research/experiments.md#comparison)
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
@@ -303,21 +303,35 @@ development and deployment, see [plugin management](https://flowllm-ai.github.io
 
 ## 📊 Benchmark: Agent-developed market cross-sectional features
 
-Research uses `qlib_a158 → qlib_factor → qlib_strategy` for base features, context factors and portfolio policies. Submit and record experiments through the [AxonX Skill](skills/axonx/SKILL.md) and [development guide](docs/en/dev_guide.md).
+Research uses `qlib_a158 → qlib_factor → qlib_strategy` for base features, augmented factors and portfolio policies. Submit and record experiments through the [AxonX Skill](skills/axonx/SKILL.md) and [development guide](docs/en/dev_guide.md).
 
-Use rank × AxonX parameters, train on `[20150101,20230101)`, and evaluate `20230103–20261008`. Fees: 0.05% buy / 0.15% sell. Training-period validation RankIC selects `liquidity` (164 features) from 16 factor candidates. The primary policy is fixed at a 10-day minimum and a 20% daily count cap per side; 12 holding-period comparisons use base and factor predictions.
+Train `[20150101,20230101)` and evaluate `20230103–20261008`, 909 market dates, using rank labels, the AxonX LightGBM preset and 0.1% fees per side. Training-validation RankIC selects stock_risk (160 features). The predeclared policy uses a 10-day minimum, a 20% daily count cap per side and rank_buffer=1. Three days is exploratory on the reused development window; defaults remain unchanged.
 
-| Layer         | Top20 net annualized | Top30 net annualized |
-| ------------- | -------------------: | -------------------: |
-| qlib_a158     |                7.67% |                0.97% |
-| qlib_factor   |               -1.83% |               -1.58% |
-| qlib_strategy |               19.35% |               15.72% |
+| Metric                                   | Alpha158 | Factor: stock_risk | Strategy: 10d | Strategy: 3d |
+| ---------------------------------------- | -------: | -----------------: | ------------: | -----------: |
+| Overall IC                               |   0.0530 |             0.0545 |        0.0545 |       0.0545 |
+| Overall RankIC                           |   0.0923 |             0.0966 |        0.0966 |       0.0966 |
+| Overall RankICIR (annualized)            |  12.8817 |            14.2859 |       14.2859 |      14.2859 |
+| Overall RankICIR (unannualized)          |   0.8115 |             0.8999 |        0.8999 |       0.8999 |
+| Net annualized                           |    7.69% |              9.04% |        17.16% |       32.36% |
+| Net cumulative return                    |   30.63% |             36.64% |        77.06% |      174.92% |
+| Net Sharpe                               |   0.3624 |             0.4054 |        0.7026 |       1.1571 |
+| Net annualized volatility                |   28.20% |             28.53% |        25.49% |       26.19% |
+| Max drawdown                             |  -38.64% |            -40.67% |       -26.68% |      -24.91% |
+| Daily return win rate                    |   53.47% |             53.47% |        51.93% |       55.89% |
+| Mean daily two-sided turnover            |  198.83% |            199.35% |        19.23% |       40.02% |
+| Mean daily cost / prior equity           |  0.1988% |            0.1993% |       0.0192% |      0.0400% |
+| Closed trades                            |   18,032 |             18,079 |         1,739 |        3,624 |
+| Net active annualized vs universe mean   |   -3.47% |             -1.86% |         4.79% |       18.65% |
+| Net IR vs universe mean                  |  -0.1404 |            -0.0649 |        0.4387 |       1.4547 |
+| Net active max drawdown vs universe mean |  -28.47% |            -21.71% |       -19.46% |      -18.63% |
+| Net active annualized vs HS300 proxy     |    2.77% |              4.09% |        11.53% |       26.04% |
+| Net IR vs HS300 proxy                    |   0.2353 |             0.2947 |        0.6713 |       1.2699 |
+| Net active max drawdown vs HS300 proxy   |  -31.94% |            -29.34% |       -22.00% |      -23.96% |
 
-Shared data match value by value; the complete no-context prediction reproduces the base. Missing quotes produce `incomplete_market_data`; 2026 ends on October 8.
+Base feature_fraction=0.9; augmented models and matched controls use 1.0. Signal metrics are policy-independent. Portfolio metrics use 909 dates; Net IR/active metrics use 908 benchmark-valid dates and net daily returns minus benchmark returns. HS300 is a constituent-weighted proxy, not official index quotes. Base predictions earn more with the 10-day policy. The augmented 3-day policy improves on the same-parameter, same-policy control, without independent confirmation. All results report `incomplete_market_data`; same-close fills are a proxy and 2026 ends October 8.
 
-![Qlib three-layer net annualized returns](docs/figures/benchmark/qlib-topn-results.svg)
-
-[Complete three-layer record](plugins/qlib_a158/THREE_LAYER_EXPERIMENTS.md) · [Base scheme](plugins/qlib_a158/README.md) · [All factor candidates](plugins/qlib_factor/EXPERIMENT_RESULTS.md) · [All policy candidates](plugins/qlib_strategy/EXPERIMENT_RESULTS.md).
+[Three-layer comparison, shared settings and controls](docs/en/research/experiments.md#comparison) · [Factor implementation](plugins/qlib_factor/README.md) · [Policy implementation](plugins/qlib_strategy/README.md). Each plugin README records its own detailed settings and results; cross-plugin comparisons live only here and in docs. Experiment CSV/JSON have been removed.
 
 ## 🛠️ AxonX CLI commands and remote execution
 

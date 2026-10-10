@@ -1,5 +1,0 @@
-include README_ZH.md
-include EXPERIMENT_RESULTS*.md
-include HOLDING_PERIOD_RESULTS*.md
-include THREE_LAYER_EXPERIMENTS*.md
-recursive-include axonx_qlib_a158/scripts *.sh

@@ -1,6 +1,7 @@
-# Keep portable comparison metrics; exclude local execution archives.
-/experiments/*
-!/experiments/policy_comparison.csv
-!/experiments/README.md
-!/experiments/README_ZH.md
-!/experiments/yearly_comparison.csv
+# Experiment outputs remain in execution workspaces; final settings/results live in README.
+/experiments/
+/build/
+/dist/
+*.egg-info/
+__pycache__/
+.ruff_cache/

@@ -23,6 +23,6 @@
 
 ## 阅读 Agent 开发实验案例
 
-[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)比较统一数据、rank 标签、AxonX 参数与买入 0.05% / 卖出 0.15% 费用下的三层方案。按训练期验证选择增强组，预先固定策略主方案；策略层 Top20／Top30 净年化为 19.35%／15.72%，结果包含缺行情记录。
+[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)展示最终三层指标；[三层实验对比](experiments.md#comparison)维护共同设定、基准口径和同策略控制。每侧费用为 0.1%，10 日主策略 Top20／Top30 净年化为 17.16%／18.60%；3 日方案为探索候选。各插件 README 仅记录自己的详细设定与结果。
 
-可复用的方法见[实验设计](experiments.md)，已记录的证据见[三层实验记录](../../../plugins/qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md)。Agent 接入方式见[外部 Agent](../agent/external.md)。
+可复用的方法见[实验设计](experiments.md)，Agent 接入方式见[外部 Agent](../agent/external.md)。

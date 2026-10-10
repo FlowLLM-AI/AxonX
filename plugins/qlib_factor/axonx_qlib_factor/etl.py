@@ -28,7 +28,7 @@ class Alpha158OutputParams(BaseOutputParams):
 class Alpha158Task(BaseTask):
     """Build Alpha158 features and causal daily context from workspace market data.
 
-    Extends the baseline ETL with 26 context factors while preserving its stock,
+    Extends the baseline ETL with global return and stock-risk factors while preserving its stock,
     label and calendar artifacts. Writes the complete feature schema, feature
     statistics and daily context diagnostics for downstream model experiments.
     """
@@ -40,7 +40,7 @@ class Alpha158Task(BaseTask):
         yield self.calculate_cross_section_context
 
     def calculate_cross_section_context(self) -> None:
-        """Attach causal market, amount-group, relative, and interaction features."""
+        """Attach causal market-wide moments and stock-level momentum/risk features."""
         features, daily = calculate_context(self.state["frame"])
         self.state["frame"] = self.state["frame"].join(
             features, on=["trade_date", "ts_code"], how="left", maintain_order="left"
@@ -67,7 +67,7 @@ class Alpha158Task(BaseTask):
         output = super().build_output_params()
         output.protocol["qlib_deviations"][
             "features"
-        ] += " Adds 26 causal market, liquidity, relative and interaction context features."
+        ] += f" Adds {len(CONTEXT_FEATURES)} causal market-moment and stock-risk features."
         output.artifacts["context_daily"] = artifact_record(self.state["context_path"], self.task_dir)
         output.feature_schema["groups"] = [
             *[{"name": name, "features": list(columns)} for name, columns in FEATURE_GROUPS.items()],

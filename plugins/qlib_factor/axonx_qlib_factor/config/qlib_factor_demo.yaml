@@ -1,3 +1,4 @@
 # AxonX service configuration for the Qlib Factor research plugin.
-# Select context_groups, labels, model presets and fees when submitting Tasks.
+# Training defaults to context_groups=none (158 base features).
+# Select optional context groups, labels, model presets and fees when submitting Tasks.
 extends: default

@@ -47,7 +47,7 @@
 - AxonX **0.1.0** 发布： 面向量化研究的 Agent Harness，提供插件化 Task、执行跟踪、任务血缘，以及 CLI / MCP / Studio 统一接入。→ [官网文档](https://flowllm-ai.github.io/AxonX/zh/)
 - 通过 SKILL.md + CLI 接入 Agent： 为 Codex、Claude Code 等加载 [AxonX Skill](skills/axonx/SKILL.md)，让 Agent 发现 Task 契约、开发插件、提交研究任务并检查结果。→ [Agent 接入指南](https://flowllm-ai.github.io/AxonX/zh/agent/external)
 - AxonX Studio 能力发布： 在同一工作台浏览任务与产物、查看训练曲线与回测、比较策略。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>（数据与执行均为模拟）
-- Qlib 三层实验：统一数据和买入 0.05% / 卖出 0.15% 费用，策略层 Top20／Top30 净年化为 **19.35%／15.72%**。增强组按训练内验证选择，策略主方案预先固定；结果包含缺行情记录。→ [完整记录](plugins/qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md)
+- Qlib 三层实验：基础／stock_risk／10 日策略的 Top20 净年化为 **7.69%／9.04%／17.16%**；每侧费用 0.1%，含缺行情记录。→ [三层对比与完整指标](docs/zh/research/experiments.md#comparison)
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
@@ -286,21 +286,35 @@ Train → Predict → Backtest**，因子分析是 ETL 的独立下游。
 
 ## 📊 Benchmark Agent 开发市场横截面增强特征
 
-研究使用 `qlib_a158 → qlib_factor → qlib_strategy` 三层插件，分别提供基础特征、横截面增强和持仓策略。通过 [AxonX Skill](skills/axonx/SKILL.md) 与 [开发指南](docs/zh/dev_guide.md)提交并记录实验。
+研究使用 `qlib_a158 → qlib_factor → qlib_strategy` 三层插件，分别提供基础特征、增强因子和持仓策略。通过 [AxonX Skill](skills/axonx/SKILL.md) 与 [开发指南](docs/zh/dev_guide.md)提交并记录实验。
 
-统一 rank × AxonX 参数，训练 `[20150101,20230101)`，预测回测 `20230103–20261008`。买入 0.05% / 卖出 0.15%。16 个因子候选按训练期内部验证 RankIC 选择 `liquidity`（164 特征）；策略主方案预先固定为最短持有 10 日、每日每侧最多替换 20% 股票数量，另报告两种预测上的 12 组持有期对照。
+训练 `[20150101,20230101)`，评估 `20230103–20261008`，909 个市场日，rank 标签、AxonX LightGBM 预设、买卖每侧 0.1%。训练内验证 RankIC 选中 stock_risk（160 个特征）；策略预设最短持有 10 日、每侧每日 20% 股票数量上限、rank_buffer=1。3 日为重复开发窗口的探索候选，默认不变。
 
-| Layer         | Top20 net annualized | Top30 net annualized |
-| ------------- | -------------------: | -------------------: |
-| qlib_a158     |                7.67% |                0.97% |
-| qlib_factor   |               -1.83% |               -1.58% |
-| qlib_strategy |               19.35% |               15.72% |
+| 指标                         | Alpha158 | Factor: stock_risk | Strategy: 10d | Strategy: 3d |
+| ---------------------------- | -------: | -----------------: | ------------: | -----------: |
+| 整体 IC                      |   0.0530 |             0.0545 |        0.0545 |       0.0545 |
+| 整体 RankIC                  |   0.0923 |             0.0966 |        0.0966 |       0.0966 |
+| 整体 RankICIR（年化）        |  12.8817 |            14.2859 |       14.2859 |      14.2859 |
+| 整体 RankICIR（未年化）      |   0.8115 |             0.8999 |        0.8999 |       0.8999 |
+| Net annualized               |    7.69% |              9.04% |        17.16% |       32.36% |
+| 净累计收益                   |   30.63% |             36.64% |        77.06% |      174.92% |
+| Net Sharpe                   |   0.3624 |             0.4054 |        0.7026 |       1.1571 |
+| 净年化波动                   |   28.20% |             28.53% |        25.49% |       26.19% |
+| 最大回撤                     |  -38.64% |            -40.67% |       -26.68% |      -24.91% |
+| 日收益胜率                   |   53.47% |             53.47% |        51.93% |       55.89% |
+| 日均双边换手                 |  198.83% |            199.35% |        19.23% |       40.02% |
+| 日均费用 / 前日权益          |  0.1988% |            0.1993% |       0.0192% |      0.0400% |
+| 已完成交易                   |   18,032 |             18,079 |         1,739 |        3,624 |
+| 净超额年化 vs 市场均值       |   -3.47% |             -1.86% |         4.79% |       18.65% |
+| Net IR vs 市场均值           |  -0.1404 |            -0.0649 |        0.4387 |       1.4547 |
+| 净超额最大回撤 vs 市场均值   |  -28.47% |            -21.71% |       -19.46% |      -18.63% |
+| 净超额年化 vs HS300 代理     |    2.77% |              4.09% |        11.53% |       26.04% |
+| Net IR vs HS300 代理         |   0.2353 |             0.2947 |        0.6713 |       1.2699 |
+| 净超额最大回撤 vs HS300 代理 |  -31.94% |            -29.34% |       -22.00% |      -23.96% |
 
-共同数据逐值一致；无增强对照的完整预测重现基础层。部分缺行情结果标记 `incomplete_market_data`，2026 年统计至 10 月 8 日。
+基础模型 feature_fraction=0.9，增强及匹配控制为 1.0。整体信号指标与策略无关；组合指标用 909 日，Net IR/净超额指标用基准有效的 908 日，以扣费日收益减基准计算。HS300 为成分权重代理，不是官方指数行情。10 日策略下基础模型收益更高；3 日增强策略优于同参数、同策略控制，但尚无独立确认。全部结果标记 `incomplete_market_data`，同收盘报价为成交代理，2026 年仅统计至 10 月 8 日。
 
-![Qlib three-layer net annualized returns](docs/figures/benchmark/qlib-topn-results.svg)
-
-[完整三层记录](plugins/qlib_a158/THREE_LAYER_EXPERIMENTS_ZH.md) · [基础方案](plugins/qlib_a158/README_ZH.md) · [全部因子候选](plugins/qlib_factor/EXPERIMENT_RESULTS_ZH.md) · [全部策略候选](plugins/qlib_strategy/EXPERIMENT_RESULTS_ZH.md)。
+[三层对比、共同设定与控制实验](docs/zh/research/experiments.md#comparison) · [因子实现](plugins/qlib_factor/README_ZH.md) · [策略实现](plugins/qlib_strategy/README_ZH.md)。各插件 README 分别记录自己的详细设定和结果；跨插件对比仅维护在本页与 docs，实验 CSV/JSON 已删除。
 
 ## 🛠️ AxonX CLI 命令与远程执行
 

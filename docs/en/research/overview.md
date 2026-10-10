@@ -23,6 +23,6 @@ Discover the installed Task schemas before submitting. Keep parameters, algorith
 
 ## Follow the agent-developed experiment
 
-The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) compares three layers with shared data, rank labels, AxonX parameters and 0.05% buy / 0.15% sell fees. Training validation selects factors and the primary policy is fixed in advance. Policy-layer Top20/Top30 net annualized returns are 19.35%/15.72%, with missing quotes recorded.
+The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) shows final three-layer metrics. The [three-layer comparison](experiments.md#comparison) maintains shared settings, benchmark definitions and same-policy controls. Fees are 0.1% per side; the 10-day main policy earns 17.16%/18.60% annualized for Top20/Top30. Three days is exploratory. Each plugin README records only its own detailed settings and results.
 
-Read [experiment design](experiments.md) for the reusable method and the [three-layer record](../../../plugins/qlib_a158/THREE_LAYER_EXPERIMENTS.md) for recorded evidence. For agent access, continue with [external agents](../agent/external.md).
+Read [experiment design](experiments.md) for the reusable method and [external agents](../agent/external.md) for agent access.

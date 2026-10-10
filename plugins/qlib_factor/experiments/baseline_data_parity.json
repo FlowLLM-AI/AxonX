@@ -1,9 +1,0 @@
-{
-  "rows": 11446950,
-  "shared_columns": 175,
-  "all_values_equal": true,
-  "extra_columns": 26,
-  "market_labels_calendar_values_equal": true,
-  "none_predictions_equal_base": true,
-  "prediction_rows": 4635759
-}

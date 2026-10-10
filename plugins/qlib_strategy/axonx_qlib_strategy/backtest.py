@@ -24,7 +24,7 @@ class RankRetentionPolicy:
 
 
 class StrategyBacktestInput(BaseInput):
-    top_ns: list[int] = Field(default_factory=lambda: [5, 10, 20, 30])
+    top_ns: list[int] = Field(default_factory=lambda: [20, 30])
     holding_days: int = Field(default=1, ge=1, le=1, description="Fixed expiry is disabled; use minimum_holding_days.")
     replacement_fraction: float = Field(
         default=0.2, gt=0, le=1, description="Daily count cap per side; initial entry exempt."

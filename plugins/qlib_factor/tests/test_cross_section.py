@@ -1,52 +1,72 @@
-"""Verify information timing and amount grouping on a calendar-aligned panel."""
+"""Verify global moment definitions, causal timing and baseline feature selection."""
 
 from datetime import date, timedelta
 
+import numpy as np
 import polars as pl
 import pytest
 from polars.testing import assert_frame_equal
 
+from axonx_qlib_a158.internal.etl_pipeline import FEATURES
 from axonx_qlib_factor.internal.cross_section import (
     CONTEXT_FEATURES,
     FEATURE_GROUPS,
+    GLOBAL_FEATURES,
+    WINDOWS,
     calculate_context,
     selected_features,
 )
-from axonx_qlib_a158.internal.etl_pipeline import FEATURES
 
 
-def test_original_feature_contract_is_preserved():
-    assert len(FEATURES) == 158
-
-
-def panel(days=45):
-    rows = []
-    for symbol in range(12):
-        for day in range(days):
-            rows.append(
-                {
-                    "trade_date": (date(2020, 1, 1) + timedelta(days=day)).strftime("%Y%m%d"),
-                    "ts_code": f"S{symbol:02d}",
-                    "_close": 10 * (1 + (symbol - 5) * 0.001) ** day,
-                    "amount": float((symbol + 1) * 100),
-                    "vol": 100.0,
-                    "_has_market_data": True,
-                    "is_limit_up": symbol == 11,
-                    "is_limit_down": symbol == 0,
-                }
-            )
-    return pl.DataFrame(rows)
-
-
-def test_future_changes_and_extra_future_rows_do_not_change_history():
-    source = panel()
-    cutoff = "20200204"
-    baseline, daily = calculate_context(source)
-    altered = source.with_columns(
-        pl.when(pl.col("trade_date") > cutoff).then(pl.col("_close") * 2).otherwise(pl.col("_close")).alias("_close"),
-        pl.when(pl.col("trade_date") > cutoff).then(pl.col("amount") * 100).otherwise(pl.col("amount")).alias("amount"),
+def panel(days=20):
+    return pl.DataFrame(
+        [
+            {
+                "trade_date": (date(2020, 1, 1) + timedelta(days=day)).strftime("%Y%m%d"),
+                "ts_code": f"S{symbol:02d}",
+                "_close": 10 * (1 + (symbol - 5) * 0.01) ** day,
+                "amount": 100.0,
+                "vol": 100.0,
+                "_has_market_data": True,
+            }
+            for symbol in range(12)
+            for day in range(days)
+        ]
     )
-    changed, changed_daily = calculate_context(altered)
+
+
+def test_moments_match_independent_winsorized_reference_at_every_horizon():
+    features, daily = calculate_context(panel())
+    for window in WINDOWS:
+        returns = np.array([(1 + (symbol - 5) * 0.01) ** window - 1 for symbol in range(12)])
+        clipped = np.clip(returns, *np.quantile(returns, [0.02, 0.98]))
+        row = daily.filter(pl.col("trade_date") == "20200120").row(0, named=True)
+        assert row[f"market_count{window}"] == 12
+        assert row[f"f_context_market_mean{window}"] == pytest.approx(clipped.mean())
+        assert row[f"f_context_market_variance{window}"] == pytest.approx(clipped.var(ddof=1))
+    assert len(GLOBAL_FEATURES) == 8
+    assert len(CONTEXT_FEATURES) == 13
+    assert (
+        features.group_by("trade_date")
+        .agg(pl.col(*GLOBAL_FEATURES).n_unique())
+        .select(pl.col(*GLOBAL_FEATURES).max())
+        .row(0)
+        == (1,) * 8
+    )
+
+
+def test_future_changes_and_future_rows_do_not_change_history():
+    source = panel()
+    cutoff = "20200115"
+    baseline, daily = calculate_context(source)
+    changed, changed_daily = calculate_context(
+        source.with_columns(
+            pl.when(pl.col("trade_date") > cutoff)
+            .then(pl.col("_close") * 2)
+            .otherwise(pl.col("_close"))
+            .alias("_close")
+        )
+    )
     prefix, prefix_daily = calculate_context(source.filter(pl.col("trade_date") <= cutoff))
     expected = baseline.filter(pl.col("trade_date") <= cutoff).sort("trade_date", "ts_code")
     assert_frame_equal(expected, changed.filter(pl.col("trade_date") <= cutoff).sort("trade_date", "ts_code"))
@@ -57,86 +77,158 @@ def test_future_changes_and_extra_future_rows_do_not_change_history():
     assert_frame_equal(daily.filter(pl.col("trade_date") <= cutoff), prefix_daily)
 
 
-def test_current_amount_jump_does_not_reassign_historical_amount_rank():
-    source = panel()
+def test_short_history_missing_quotes_and_nonfinite_prices():
+    source = panel().with_columns(
+        pl.when((pl.col("ts_code") == "S00") & (pl.col("trade_date") == "20200117"))
+        .then(None)
+        .otherwise(pl.col("_close"))
+        .alias("_close"),
+        pl.when((pl.col("ts_code") == "S01") & (pl.col("trade_date") == "20200120"))
+        .then(0)
+        .otherwise(pl.col("vol"))
+        .alias("vol"),
+    )
+    features, daily = calculate_context(source)
+    row = daily.filter(pl.col("trade_date") == "20200120").row(0, named=True)
+    assert row["market_count3"] == 10
+    assert row["market_count1"] == 11
+    for window in WINDOWS:
+        assert (
+            features.filter(pl.col("trade_date") <= f"202001{window:02d}")[f"f_context_market_mean{window}"]
+            .is_null()
+            .all()
+        )
+    assert not features.select(pl.any_horizontal(pl.col(*CONTEXT_FEATURES).is_infinite())).to_series().any()
+
+
+def test_empty_singleton_flat_pool_and_labels_ignored():
+    source = panel().with_columns(pl.lit(10.0).alias("_close"))
+    features, daily = calculate_context(source)
+    changed, changed_daily = calculate_context(
+        source.with_columns(pl.lit(False).alias("is_buyable"), pl.lit(1e9).alias("label_return"))
+    )
+    assert_frame_equal(features, changed)
+    assert_frame_equal(daily, changed_daily)
+    assert daily.tail(1)["f_context_market_variance10"].item() == 0
+    _, singleton = calculate_context(source.filter(pl.col("ts_code") == "S00"))
+    assert singleton["f_context_market_variance1"].is_null().all()
+    _, empty = calculate_context(source.with_columns(pl.lit(0.0).alias("vol")))
+    assert empty["f_context_market_mean1"].is_null().all()
+
+
+def test_retired_groups_and_baseline_selection():
+    from axonx_qlib_factor.train import LgbmTrainInputParams, LgbmTrainTask
+
+    assert len(FEATURES) == 158
+    assert selected_features("variance,mean") == (*FEATURE_GROUPS["mean"], *FEATURE_GROUPS["variance"])
+    assert not selected_features("none")
+    for group in ("market", "liquidity", "relative", "interaction", "none,mean", ""):
+        with pytest.raises(ValueError):
+            LgbmTrainInputParams(context_groups=group)
+    task = object.__new__(LgbmTrainTask)
+    task.input_params = LgbmTrainInputParams()
+    retired = ("f_context_market_return", "f_context_relative_return")
+    assert task.select_features((*FEATURES, *CONTEXT_FEATURES, *retired)) == FEATURES
+    task.input_params = LgbmTrainInputParams(context_groups="mean")
+    assert task.select_features((*FEATURES, *CONTEXT_FEATURES, *retired)) == (*FEATURES, *FEATURE_GROUPS["mean"])
+
+
+def test_horizon_ablation_selects_only_requested_columns_and_validates_inputs():
+    from axonx_qlib_factor.train import LgbmTrainInputParams, LgbmTrainTask
+
+    task = object.__new__(LgbmTrainTask)
+    task.input_params = LgbmTrainInputParams(context_groups="mean,variance", context_windows=[10, 3, 10])
+    assert task.input_params.context_windows == [3, 10]
+    assert task.select_features((*FEATURES, *CONTEXT_FEATURES)) == (
+        *FEATURES,
+        "f_context_market_mean3",
+        "f_context_market_mean10",
+        "f_context_market_variance3",
+        "f_context_market_variance10",
+    )
+    for windows in ([], [2], [0, 1]):
+        with pytest.raises(ValueError):
+            LgbmTrainInputParams(context_windows=windows)
+    with pytest.raises(ValueError, match="missing requested"):
+        task.select_features(FEATURES)
+
+
+def dynamic_panel(days=100):
+    rows = []
+    for symbol in range(12):
+        price = 10.0
+        for day in range(days):
+            if day:
+                market = 0.015 * np.sin(day / 7) + 0.005 * np.cos(day / 3)
+                price *= 1 + (0.3 + symbol * 0.15) * market + 0.005 * np.sin(day / (symbol + 2))
+            rows.append(
+                {
+                    "trade_date": (date(2020, 1, 1) + timedelta(days=day)).strftime("%Y%m%d"),
+                    "ts_code": f"S{symbol:02d}",
+                    "_close": price,
+                    "amount": 100.0,
+                    "vol": 100.0,
+                    "_has_market_data": True,
+                }
+            )
+    return pl.DataFrame(rows)
+
+
+def test_stock_momentum_and_risk_match_independent_prior_beta_reference():
+    source = dynamic_panel()
+    features, _ = calculate_context(source)
+    closes = np.array([source.filter(pl.col("ts_code") == f"S{s:02d}")["_close"].to_numpy() for s in range(12)])
+    returns = closes[:, 1:] / closes[:, :-1] - 1
+    clipped = np.clip(returns, *np.quantile(returns, [0.02, 0.98], axis=0))
+    market = clipped.mean(axis=0)
+
+    def beta(symbol, day):
+        stock_prior = clipped[symbol, : day - 1][-60:]
+        market_prior = market[: day - 1][-60:]
+        return np.clip(np.cov(stock_prior, market_prior, ddof=1)[0, 1] / np.var(market_prior, ddof=1), -3, 3)
+
+    for symbol in (0, 5, 11):
+        actual = features.filter(pl.col("ts_code") == f"S{symbol:02d}").tail(1).row(0, named=True)
+        for window in (5, 10, 20):
+            expected = closes[symbol, -1] / closes[symbol, -1 - window] - 1
+            expected -= beta(symbol, 99) * (np.prod(1 + market[-window:]) - 1)
+            assert actual[f"f_context_neutral_momentum{window}"] == pytest.approx(expected, abs=1e-10)
+        residuals = [clipped[symbol, day - 1] - beta(symbol, day) * market[day - 1] for day in range(80, 100)]
+        assert actual["f_context_residual_vol20"] == pytest.approx(np.std(residuals, ddof=1), abs=1e-10)
+        assert actual["f_context_downside_risk20"] == pytest.approx(
+            np.sqrt(np.mean(np.minimum(clipped[symbol, -20:], 0) ** 2)), abs=1e-10
+        )
+
+
+def test_stock_features_remain_causal_with_full_beta_history():
+    source = dynamic_panel()
+    cutoff = "20200315"
     baseline, _ = calculate_context(source)
     changed, _ = calculate_context(
         source.with_columns(
-            pl.when((pl.col("trade_date") == "20200204") & (pl.col("ts_code") == "S00"))
-            .then(1e9)
-            .otherwise(pl.col("amount"))
-            .alias("amount"),
+            pl.when(pl.col("trade_date") > cutoff)
+            .then(pl.col("_close") * 2)
+            .otherwise(pl.col("_close"))
+            .alias("_close")
         )
     )
-    columns = ["trade_date", "ts_code", "f_context_amount_rank20", "f_context_group_relative_return"]
-    assert_frame_equal(
-        baseline.filter(pl.col("trade_date") == "20200204").select(columns).sort("ts_code"),
-        changed.filter(pl.col("trade_date") == "20200204").select(columns).sort("ts_code"),
+    prefix, _ = calculate_context(source.filter(pl.col("trade_date") <= cutoff))
+    expected = baseline.filter(pl.col("trade_date") <= cutoff).sort("trade_date", "ts_code")
+    assert_frame_equal(expected, changed.filter(pl.col("trade_date") <= cutoff).sort("trade_date", "ts_code"))
+    assert_frame_equal(expected, prefix.sort("trade_date", "ts_code"))
+    assert selected_features("neutral,risk", (10,)) == (*FEATURE_GROUPS["neutral"], *FEATURE_GROUPS["risk"])
+
+
+def test_nonfinite_endpoints_are_excluded_and_undefined_beta_stays_null():
+    source = panel().with_columns(
+        pl.when((pl.col("ts_code") == "S00") & (pl.col("trade_date") == "20200117"))
+        .then(float("inf"))
+        .otherwise(pl.col("_close"))
+        .alias("_close")
     )
-    assert changed.filter((pl.col("trade_date") == "20200204") & (pl.col("ts_code") == "S00"))[
-        "f_context_stock_amount_ratio"
-    ].item() == pytest.approx(1e7)
-
-
-def test_limit_stocks_remain_in_pool_and_future_labels_are_ignored():
-    source = panel()
-    baseline, daily = calculate_context(source)
-    changed, changed_daily = calculate_context(
-        source.with_columns(
-            pl.lit(False).alias("is_buyable"),
-            pl.lit(None).alias("label_return"),
-            pl.lit(False).alias("label_valid"),
-        )
-    )
-    assert_frame_equal(baseline, changed)
-    assert_frame_equal(daily, changed_daily)
-    assert daily.filter(pl.col("trade_date") == "20200204")["market_count"].item() == 12
-    assert daily.filter(pl.col("trade_date") == "20200204")["limit_up_ratio"].item() == pytest.approx(1 / 12)
-
-
-def test_suspension_is_zero_amount_history_and_missing_adjacent_return():
-    source = (
-        panel()
-        .with_columns(
-            pl.when((pl.col("ts_code") == "S00") & (pl.col("trade_date") == "20200203"))
-            .then(False)
-            .otherwise(pl.col("_has_market_data"))
-            .alias("_has_market_data"),
-        )
-        .with_columns(
-            pl.when(pl.col("_has_market_data")).then(pl.col("_close")).otherwise(None).alias("_close"),
-            pl.when(pl.col("_has_market_data")).then(pl.col("amount")).otherwise(None).alias("amount"),
-        )
-    )
-    features, _ = calculate_context(source)
-    assert (
-        features.filter((pl.col("ts_code") == "S00") & (pl.col("trade_date") == "20200204"))[
-            "f_context_relative_return"
-        ].item()
-        is None
-    )
-    row = features.filter((pl.col("ts_code") == "S00") & (pl.col("trade_date") == "20200205")).row(0, named=True)
-    assert row["f_context_stock_amount_ratio"] == pytest.approx(100 / 95)
-
-
-def test_ties_short_history_and_feature_group_validation():
-    features, daily = calculate_context(panel(12).with_columns(pl.lit(100.0).alias("amount")))
-    assert len(CONTEXT_FEATURES) == len(set(CONTEXT_FEATURES))
-    assert features.filter(pl.col("trade_date") == "20200105")["f_context_amount_rank20"].null_count() == 12
-    assert features.filter(pl.col("trade_date") == "20200112")["f_context_amount_rank20"].n_unique() == 1
-    assert daily["amount_spread"].null_count() == 12
-    assert not selected_features("none")
-    assert selected_features("relative,market") == (*FEATURE_GROUPS["market"], *FEATURE_GROUPS["relative"])
-    with pytest.raises(ValueError):
-        selected_features("market,unknown")
-
-
-def test_no_infinite_values_and_market_context_is_daily_constant():
-    features, _ = calculate_context(panel())
-    assert not features.select(pl.any_horizontal(pl.col(*CONTEXT_FEATURES).is_infinite())).to_series().any()
-    assert (
-        features.group_by("trade_date")
-        .agg(pl.col("f_context_market_return").n_unique())["f_context_market_return"]
-        .max()
-        == 1
-    )
+    _, daily = calculate_context(source)
+    assert daily.filter(pl.col("trade_date") == "20200120")["market_count3"].item() == 11
+    features, _ = calculate_context(panel(100).with_columns(pl.lit(10.0).alias("_close")))
+    assert features["f_context_residual_vol20"].is_null().all()
+    assert features["f_context_neutral_momentum10"].is_null().all()
+    assert features.tail(1)["f_context_downside_risk20"].item() == 0
