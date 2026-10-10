@@ -24,7 +24,7 @@ AxonX Agent 将工作区查询工具接入 Claude 后端，用会话完成任务
 
 ![AxonX Agent new chat workspace](../../figures/studio/agent-new-chat.png)
 
-在 **Agent** 的 **New chat** 输入问题，可按 Enter 发送、Shift+Enter 换行。截图只展示空白新会话，未发送模型请求，也未展示私人历史。
+在 **Agent** 的 **New chat** 输入问题，可按 Enter 发送、Shift+Enter 换行。截图展示静态 Playground 的空白新会话，包含研究 Prompt 和开发配置引导；未发送模型请求，数据与执行均为模拟，也未展示私人历史。
 
 提供具体 Task ID、问题和观察范围。示例提示：
 
@@ -50,7 +50,7 @@ AxonX Agent 将工作区查询工具接入 Claude 后端，用会话完成任务
 默认 `cwd` 是服务工作区，不会自动包含插件源码。
 安装与提交通过可用 CLI 或显式配置的 Job 工具完成，见 [Agent 配置](configuration.md)。
 
-向 Agent 提供研究目标、基线或待优化插件、执行目标和评估标准。
+向 Agent 提供研究目标、基线或待优化插件、数据、评估窗口、指标、成本和执行目标。分开完成源码修改、选定服务中的安装与 Task 提交，核对服务 Schema 和上游产物，并等待上游成功后再提交依赖 Task。
 按[共享开发流程](overview.md#共同的研究循环)推进，探索 Prompt 示例见 [README](../../../README_ZH.md#agent-接入与开发指南)。
 代码改动与 Task 证据应独立于会话历史保留。
 

@@ -295,17 +295,17 @@
     "machineUnavailable": "无法连接当前机器"
   },
   "home": {
-    "quantAria": "量化基础框架",
-    "quantTitle": "量化基础框架",
-    "quantLead": "从数据准备到策略验证",
+    "quantAria": "量化研究参考流程",
+    "quantTitle": "参考研究流程",
+    "quantLead": "Qlib Alpha158：ETL → 训练 → 预测 → 回测",
     "brandAria": "AxonX Agent 原生量化 Harness 框架",
-    "brandTitle": "量化 Harness 框架",
-    "brandLead": "以插件承载研究能力，通过 CLI / MCP 连接 Agent 与 Job，形成代码修改、任务运行与效果验证闭环。",
+    "brandTitle": "将研究问题变成可追溯的实验",
+    "brandLead": "结合研究 Prompt、AxonX Skill 与 Agent，开发或优化量化插件。AxonX 在选定服务执行 Task，保留研究证据，支持结果分析与迭代。",
     "submitTask": "提交任务",
     "manageTasks": "任务管理",
     "capabilitiesAria": "Harness 框架能力",
     "capabilitiesTitle": "Harness 框架能力",
-    "capabilitiesLead": "插件驱动、Agent 协作的研发闭环",
+    "capabilitiesLead": "Prompt + Skill + Agent → 代码、执行与证据",
     "steps": {
       "workspace": {
         "title": "工作区",
@@ -351,13 +351,15 @@
       },
       "agent": {
         "title": "Agent 研发协作",
-        "detail": "理解上下文 · 修改代码 · 调用框架"
+        "detail": "研究 Prompt + Skill · 开发与优化插件"
       },
       "feedback": {
         "title": "运行效果闭环",
-        "detail": "日志诊断 · 产物查看 · 迭代验证"
+        "detail": "检查证据 · 比较候选 · 迭代研究"
       }
-    }
+    },
+    "openAgent": "打开 Agent",
+    "factorBranch": "从 ETL 独立分出的分析支线"
   },
   "workspace": {
     "folder": "目录",
@@ -653,8 +655,8 @@
     "noSessions": "还没有会话",
     "conversation": "AxonX 对话",
     "loadingConversation": "正在恢复会话…",
-    "welcomeTitle": "从工作区开始分析",
-    "welcomeLead": "询问代码、任务、日志和产物，AxonX 会按需使用工作区工具。",
+    "welcomeTitle": "从研究问题开始",
+    "welcomeLead": "描述研究目标、基线、数据、评估窗口和执行目标，也可以询问已有 Task 与研究产物。",
     "working": "AxonX 正在处理",
     "composerPlaceholder": "向 AxonX 发送消息…",
     "composerHint": "Enter 发送，Shift + Enter 换行",
@@ -676,7 +678,8 @@
       "user": "你",
       "assistant": "AxonX",
       "system": "系统"
-    }
+    },
+    "developmentHint": "开发插件时，请提供 AxonX Skill 或启用开发指南，并在服务端配置源码访问与文件／命令工具。"
   },
   "taskGraph": {
     "copy_task_id": "复制任务 ID",

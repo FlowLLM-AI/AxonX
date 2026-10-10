@@ -8,7 +8,7 @@
 
 ## 阅读路径
 
-站点分为六个导航区：**开始使用、量化研究、Agent、运行与部署、接口参考、开发扩展**。Studio 入门归入开始使用，研究插件归入量化研究，API 与配置归入接口参考。每个分区以总览串联目标与专题指南；Agent 读者先选择外部接入或内置会话。首页链接到 README Benchmark 和复现说明，不重复维护指标表。
+站点分为六个导航区：**开始使用、量化研究、Agent、运行与部署、接口参考、开发扩展**。Studio 入门归入开始使用，研究插件归入量化研究，API 与配置归入接口参考。每个分区以总览串联目标与专题指南；Agent 读者先选择外部接入或内置会话。首页各章节直接从中英文根目录 README 生成，包括最新更新、Agent 开发、插件和实验证据；首屏摘要也来自 README，主题翻译只维护界面标签与简要流程卡片。
 
 [文档导航](../docs/zh/index.md)按目标提供阅读路径。项目与插件 README 维护概览与算法细节，指南链接到这些来源，避免重复维护实验数据表。每篇文档只有一个导航归属，可以跨区链接。
 
@@ -64,7 +64,7 @@ npm run preview
 | `.generated/site/`                               | 可重新生成的 VitePress 输入，包括 `.source-map.json`         |
 | `dist/`                                          | 可部署的 HTML、资源、Markdown、`llms.txt` 和 `llms-full.txt` |
 
-主题文案与 VitePress 界面标签统一维护在 `site/theme/locales/en.json` 和 `zh.json`，测试检查两份资源的键一致。`i18n.ts` 提供响应式语言资源与站内链接；`language.mjs` 负责语言选择与路由转换；`home.ts` 保存与语言无关的首页元数据。参考 Studio 将语言资源与功能代码分离的结构，响应式能力直接使用 Vue/VitePress，无需额外翻译依赖。Markdown 原文与导航标签继续维护在 `docs/`。
+主题文案与 VitePress 界面标签统一维护在 `site/theme/locales/en.json` 和 `zh.json`，测试检查两份资源的键一致。`i18n.ts` 提供响应式语言资源与站内链接；`language.mjs` 负责语言选择与路由转换；`home.ts` 保存简要研究流程的链接，`lib/readme-home.mjs` 将规范 README 章节渲染为生成的首页数据。参考 Studio 将语言资源与功能代码分离的结构，响应式能力直接使用 Vue/VitePress，无需额外翻译依赖。Markdown 原文与导航标签继续维护在 `docs/`。
 
 框架文件从 `docs/.vitepress/` 移至 `site/` 和 `lib/`，导航仍与内容放在一起。已有文档 URL 保留。早期的 `getting-started/introduction` 和 `guides/plugin-management` 路由仍不生成，也不提供重定向。
 

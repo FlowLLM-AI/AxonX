@@ -1,47 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1136" height="536" viewBox="0 0 1136 536" role="img" aria-labelledby="title desc">
-  <title id="title">Studio Navigation</title>
-  <desc id="desc">Move from submission to runtime inspection and research evidence.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
-    </marker>
-  </defs>
-  <rect x="8" y="8" width="1120.0" height="520.0" rx="30" fill="#f7f9fc" stroke="#172c49" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
-  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
-    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#172c49">
-      <text x="44" y="54" font-size="32" font-weight="700" text-anchor="start">Studio Navigation</text>
-      <text x="44" y="86" font-size="18" fill="#172c49" text-anchor="start">Move from submission to runtime inspection and research evidence.</text>
-      <path d="M260 197H294" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M518 197H552" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M776 197H810" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M410 255V267" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M668 255V267" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <rect x="44" y="143" width="216" height="108" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="62" y="176" font-size="23" font-weight="700">Submit</text>
-      <text x="62" y="205" font-size="18">Task Schema form</text>
-      <rect x="302" y="143" width="216" height="108" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="320" y="176" font-size="23" font-weight="700">Runtime</text>
-      <text x="320" y="205" font-size="18">Status / logs / graph</text>
-      <rect x="560" y="143" width="216" height="108" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="578" y="176" font-size="23" font-weight="700">Research</text>
-      <text x="578" y="205" font-size="18">Metadata / charts</text>
-      <rect x="818" y="143" width="216" height="108" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="836" y="176" font-size="23" font-weight="700">Compare</text>
-      <text x="836" y="205" font-size="18">
-        <tspan x="836" dy="0">Common-window</tspan>
-        <tspan x="836" dy="28">metrics</tspan>
-      </text>
-      <rect x="302" y="275" width="216" height="108" rx="20" fill="#eef2fa" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="320" y="308" font-size="23" font-weight="700">Resources</text>
-      <text x="320" y="337" font-size="18">CPU / memory / GPU</text>
-      <rect x="560" y="275" width="216" height="108" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="578" y="308" font-size="23" font-weight="700">Agent</text>
-      <text x="578" y="337" font-size="18">
-        <tspan x="578" dy="0">Task-grounded</tspan>
-        <tspan x="578" dy="28">analysis</tspan>
-      </text>
-      <rect x="44" y="391" width="992" height="48" rx="12" fill="#e9eff8" />
-      <text x="64" y="422" font-size="18" text-anchor="start">The browser calls its local backend. Remote target credentials stay in server configuration.</text>
-    </g>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1136" height="650" viewBox="0 0 1136 650" role="img" aria-labelledby="title desc">
+<title id="title">Studio: research prompt to experiment evidence</title>
+<desc id="desc">A research prompt and AxonX Skill guide an Agent with source tools to develop a plugin. Install it in the selected service, verify schemas, submit Tasks and inspect evidence in Studio. Source changes, installation and submission are separate. Factor analysis branches from ETL independently of training.</desc>
+<defs><marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#247baf"/></marker></defs>
+<rect x="8" y="8" width="1120" height="634" rx="30" fill="#f7f9fc" stroke="#172c49" stroke-opacity="0.35"/>
+<g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#172c49" data-diagram-content="true">
+<text x="44" y="52" font-size="30" font-weight="700">Studio: research prompt to experiment evidence</text>
+<text x="44" y="84" font-size="18">Develop code, install in the selected service, then submit and inspect Tasks.</text>
+<rect x="44" y="130" width="216" height="110" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
+<text x="62" y="162" font-size="21" font-weight="700">Prompt + Skill</text>
+<text x="62" y="192" font-size="16">Question / baseline</text>
+<text x="62" y="217" font-size="16">Data / windows / costs</text>
+<rect x="302" y="130" width="216" height="110" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
+<text x="320" y="162" font-size="21" font-weight="700">Agent</text>
+<text x="320" y="192" font-size="16">Source + dev tools</text>
+<text x="320" y="217" font-size="16">Develop plugin code</text>
+<rect x="560" y="130" width="216" height="110" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
+<text x="578" y="162" font-size="21" font-weight="700">Plugin</text>
+<text x="578" y="192" font-size="16">Register typed Tasks</text>
+<text x="578" y="217" font-size="16">Check implementation</text>
+<rect x="818" y="130" width="216" height="110" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
+<text x="836" y="162" font-size="21" font-weight="700">Execution service</text>
+<text x="836" y="192" font-size="16">Install / verify schemas</text>
+<text x="836" y="217" font-size="16">Select local / remote</text>
+<rect x="44" y="320" width="216" height="110" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
+<text x="62" y="352" font-size="21" font-weight="700">Submit</text>
+<text x="62" y="382" font-size="16">Task Schema form</text>
+<text x="62" y="407" font-size="16">Wait for upstream</text>
+<rect x="302" y="320" width="216" height="110" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
+<text x="320" y="352" font-size="21" font-weight="700">Runtime</text>
+<text x="320" y="382" font-size="16">Status / logs / graph</text>
+<text x="320" y="407" font-size="16">Machine resources</text>
+<rect x="560" y="320" width="216" height="110" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
+<text x="578" y="352" font-size="21" font-weight="700">Research</text>
+<text x="578" y="382" font-size="16">Metadata / artifacts</text>
+<text x="578" y="407" font-size="16">Workspace / charts</text>
+<rect x="818" y="320" width="216" height="110" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6"/>
+<text x="836" y="352" font-size="21" font-weight="700">Compare</text>
+<text x="836" y="382" font-size="16">Common date window</text>
+<text x="836" y="407" font-size="16">Protocol / costs</text>
+<path d="M260 185H294" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M518 185H552" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M776 185H810" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M260 375H294" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M518 375H552" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M776 375H810" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M926 240V280H152V320" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="44" y="474" width="992" height="90" rx="12" fill="#e9eff8"/>
+<text x="64" y="504" font-size="17">Reference: ETL → Train → Predict → Backtest; factor analysis branches from ETL.</text>
+<text x="64" y="533" font-size="17">Studio calls shared Jobs. Model and remote credentials are configured on the service.</text>
+</g></svg>

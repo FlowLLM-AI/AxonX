@@ -171,11 +171,30 @@ for (const page of Object.keys(map)) {
 }
 const cn = await readFile(site + "zh/index.html", "utf8");
 const en = await readFile(site + "en/index.html", "utf8");
-assert(cn.includes("可追踪的闭环"), "Chinese homepage was not rendered");
-assert(
-  en.includes("Connected. Traceable."),
-  "English homepage was not rendered",
+const homepage = JSON.parse(
+  await readFile(
+    new URL(
+      "../.generated/site/.vitepress/theme/readme-home.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
 );
+for (const [language, html] of [
+  ["zh", cn],
+  ["en", en],
+]) {
+  for (const section of homepage[language].sections) {
+    assert(
+      html.includes(section.html),
+      `Homepage differs from README section: ${language}/${section.title}`,
+    );
+  }
+  assert(
+    html.includes(homepage[language].summary),
+    `Homepage intro differs from README: ${language}`,
+  );
+}
 assert(
   !cn.includes('class="VPSidebar"'),
   "Homepage should use the full canvas",

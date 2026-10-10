@@ -76,6 +76,7 @@ const definitions = await axonx.invoke(
 ```bash
 npm run test
 npm run lint
+npm run format:check
 npm run build
 ```
 
@@ -105,7 +106,7 @@ npm run build:playground
 
 所有请求（包括事件流）统一经过 `AxonXClient.request`。默认 transport 调用同源 HTTP；Playground 模式由 `main.tsx` 在挂载前注入 `createPlayground()`，该客户端禁用认证。业务 API 无需按模式分支。未知 Job、文件与远程 target 返回明确错误，不回退到网络请求。
 
-`playground/fixtures.ts` 创建虚拟工作区，包含 ETL → 因子分析 → 训练 → 预测 → 回测完整链路与两组回测。JSON 表格预览实现现有 Parquet 预览协议，无需附带 Parquet 解码器。收益与汇总指标由同一组序列生成。
+`playground/fixtures.ts` 创建虚拟工作区，包含 ETL → 训练 → 预测 → 回测主链、从 ETL 独立分出的因子分析与两组回测。JSON 表格预览实现现有 Parquet 预览协议，无需附带 Parquet 解码器。收益与汇总指标由同一组序列生成。
 
 `playground/runtime.ts` 维护任务与文件状态，`agent.ts` 维护脚本会话及工具消息，`stream.ts` 负责事件订阅清理，`catalog.ts` 声明支持的 Job。提交任务按经过时间推进，即使没有订阅者也会继续；状态查询和事件流同步这些状态。取消任务停止执行；AbortSignal 只关闭过期订阅并释放计时器。成功任务生成 metadata 与产物，失败或取消任务不会生成。`strategy` 选择合成结果，`outcome` 选择成功或失败，提交配置不会执行真实研究算法。
 

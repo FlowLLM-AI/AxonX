@@ -55,7 +55,7 @@ CLI、HTTP、MCP 和 **AxonX Studio** 通过共享的 Job 提交、查询 Task�
 
 ## 📰 最新更新
 
-- **2026-10-10 — Alpha158 改进实验：** 适配后的基线／风险因子模型／3 日排名保留策略，Top20 净年化分别为 **7.67%／9.03%／32.37%**。买入费用 0.05%、卖出费用 0.15%；实验报告行情不完整，尚无独立确认窗口。→ [完整结果与任务来源](docs/zh/research/experiments.md#comparison)
+- **Alpha158 改进实验：** 适配后的基线／风险因子模型／3 日排名保留策略，Top20 净年化分别为 **7.67%／9.03%／32.37%**。买入费用 0.05%、卖出费用 0.15%；实验报告行情不完整，尚无独立确认窗口。→ [完整结果与任务来源](docs/zh/research/experiments.md#comparison)
 - **研究插件体系：** Alpha158、可选择的因子组与排名保留策略共享研究契约和回测记账。当前源码版本：AxonX **0.1.1**，研究插件 **0.2.0**。→ [插件系统](#alpha158-与插件系统)
 - **Agent 与 Studio 流程：** 通过 Skill + Prompt 开发，在 Studio 查看 Task、因子、训练曲线、预测及策略对比。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">Playground 在线试玩</a>（数据与执行均为模拟）
 

@@ -2,11 +2,23 @@
 
 Open **Playground** from the website navigation to try Studio without a service. It includes a complete research chain and two backtests. In task submission, select `playground.backtest`, choose `strategy` and `outcome`, then follow progress, logs and results in the task center or cancel execution. Successful tasks appear in Backtest; Strategy comparison compares the sample runs. Agent replies are scripted. All data and execution are simulated; refresh or use **Reset demo** to restore initial state.
 
-AxonX Studio is a workbench for tasks and research. It reads Job and Task definitions provided by the service, generates submission forms from Schemas, and displays run status, logs, dependencies, and standard research artifacts.
+AxonX Studio is the browser workspace for the agent-native quantitative research harness. Its home page connects research prompts, plugin development, Task execution, and evidence inspection. It reads Job and Task definitions provided by the service, generates submission forms from Schemas, and displays run status, logs, dependencies, and standard research artifacts.
 
 ![Studio navigation](../../figures/getting-started/studio-map.svg)
 
 The screenshots on this page use the English interface; the documentation is available in English and Chinese. Screenshots show actual pages, and the visible task and plugin counts depend on the current machine. Task identifiers, private paths, remote addresses, and browser tabs from real experiments are excluded from documentation images; `docs-demo` and `docs-child` in task-operation screenshots are built-in demos created specifically for the documentation.
+
+## Research and development entry points
+
+Home offers **Open Agent**, **Submit Task**, and **Manage Tasks**. Combine a research prompt with the [AxonX Skill](../../../skills/axonx/SKILL.md) and an external or built-in Agent to develop or improve a plugin. For built-in development, configure model credentials, source checkout access, and SDK file/command tools; provide the Skill or enable the development guide. See [Agent usage](../agent/usage.md#develop-or-optimize-a-plugin).
+
+Keep source changes, installation in the selected execution service, and Task submission separate. Verify the service's schemas and artifact requirements, then wait for each upstream Task to succeed. Studio does not automatically install source edits or run the dependency graph.
+
+The home workflow uses Qlib Alpha158 as a reference: **ETL → Train → Predict → Backtest**, with factor analysis branching independently from ETL. The plugins `qlib_a158`, `qlib_factor`, and `qlib_strategy` progressively provide baseline research, optional factors, and portfolio policies. Other research methods can use the same contracts. Preserve code/version, data, evaluation windows, parameters, costs, and Task/Run IDs when comparing candidates.
+
+![Studio home with research and Agent entry points](../../figures/studio/home.png)
+
+This home screenshot and the Agent new-chat screenshot use the static Playground's English interface. They show the current UI with simulated data and execution, without a model request or private session history. Other screenshots retain their service-backed documentation-demo provenance.
 
 ## Open Studio
 

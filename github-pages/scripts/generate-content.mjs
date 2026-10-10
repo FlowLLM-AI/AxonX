@@ -6,6 +6,8 @@ import { importedTitles } from "../lib/headings.mjs";
 import { mapLinks } from "../lib/links.mjs";
 import { contentCatalog, repository, published } from "../lib/site-model.mjs";
 import { siteSettings } from "../lib/settings.mjs";
+import { createMarkdownRenderer } from "vitepress";
+import { renderReadmeHome } from "../lib/readme-home.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const docs = path.join(root, "docs");
@@ -26,6 +28,7 @@ const routes = new Map(
   ]),
 );
 const assets = new Map();
+const homepageSources = {};
 
 await rm(output, { recursive: true, force: true });
 await cp(docs, output, {
@@ -93,7 +96,25 @@ for (const [route, original] of Object.entries(sourceMap)) {
   );
   await mkdir(path.dirname(path.join(output, route)), { recursive: true });
   await writeFile(path.join(output, route), content);
+  if (original === "README.md" || original === "README_ZH.md") {
+    homepageSources[route.slice(0, 2)] = content;
+  }
 }
+const markdown = await createMarkdownRenderer(output, { html: true });
+const homepage = Object.fromEntries(
+  ["en", "zh"].map((lang) => [
+    lang,
+    renderReadmeHome(homepageSources[lang], markdown, {
+      base,
+      overview: `${lang}/getting-started/overview`,
+    }),
+  ]),
+);
+await writeFile(
+  path.join(output, ".vitepress/theme/readme-home.json"),
+  JSON.stringify(homepage, null, 2),
+);
+
 for (const [target, source] of assets) {
   await mkdir(path.dirname(path.join(output, "public", target)), {
     recursive: true,

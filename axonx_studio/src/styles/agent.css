@@ -591,6 +591,10 @@
   gap: 10px;
   font-size: 12px;
 }
+.agent-welcome .agent-development-hint {
+  margin-top: 14px;
+  font-size: 12px;
+}
 .agent-conversation-state svg {
   width: 20px;
   color: var(--accent);

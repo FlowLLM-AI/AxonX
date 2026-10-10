@@ -2,11 +2,23 @@
 
 官网导航中的 **Playground** 可直接体验 Studio，无需启动服务。示例包括完整研究链路与两组回测。打开任务提交，选择 `playground.backtest`，设置 `strategy` 与 `outcome`，提交后在任务中心查看进度、日志及结果，也可以取消执行。成功任务会出现在回测页；策略比较可对比两组示例。Agent 为脚本回复。所有数据与执行均为模拟，刷新或点击「重置示例」恢复初始状态。
 
-AxonX Studio 是任务与研究工作台。它读取服务提供的 Job 和 Task 定义，用 Schema 生成提交表单，并展示运行状态、日志、依赖关系与标准研究产物。
+AxonX Studio 是面向 Agent 的量化研究 Harness 的浏览器工作台，首页连接研究 Prompt、插件开发、Task 执行与证据检查。它读取服务提供的 Job 和 Task 定义，用 Schema 生成提交表单，并展示运行状态、日志、依赖关系与标准研究产物。
 
 ![Studio navigation](../../figures/getting-started/studio-map.svg)
 
 本文截图使用英文界面，正文使用中文。截图展示实际页面；可见任务和插件数量取决于当前机器。真实实验的任务标识、私人路径、远程地址与浏览器标签栏不作为文档素材保留；任务操作截图中的 `docs-demo` 和 `docs-child` 是专门创建的内置演示。
+
+## 研究与开发入口
+
+首页提供 **打开 Agent**、**提交任务**与**任务管理**。结合研究 Prompt、[AxonX Skill](../../../skills/axonx/SKILL.md) 和外部或内置 Agent，开发或优化插件。内置 Agent 开发需要配置模型凭据、源码仓库访问和 SDK 文件／命令工具，并提供 Skill 或启用开发指南。详见[Agent 使用](../agent/usage.md#开发或优化插件)。
+
+源码修改、选定执行服务中的安装和 Task 提交应分开完成。先核对服务的 Schema 与产物要求，再等待每个上游 Task 成功后提交依赖任务。Studio 不会自动安装源码修改，也不会自动执行依赖图。
+
+首页以 Qlib Alpha158 为参考：主链为 **ETL → 训练 → 预测 → 回测**，因子分析从 ETL 独立分支。`qlib_a158`、`qlib_factor` 与 `qlib_strategy` 依次提供基线研究、可选因子和组合策略，其他研究方法也可使用相同契约。比较候选时，保留代码／版本、数据、评估窗口、参数、成本及 Task/Run ID。
+
+![包含研究与 Agent 入口的 Studio 首页](../../figures/studio/home.png)
+
+此首页截图与 Agent 新会话截图使用静态 Playground 的英文界面，展示当前 UI，数据与执行均为模拟，未发起模型请求，也不包含私人会话历史。其他截图保留原有服务端文档演示的来源。
 
 ## 打开 Studio
 

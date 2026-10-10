@@ -57,7 +57,7 @@ Agents can inspect the same evidence.
 
 ## 📰 Latest Updates
 
-- **2026-10-10 — Alpha158 enhancement experiments:** adapted baseline / risk-factor model / 3-day rank-retention strategy report Top20 net annualized returns of **7.67% / 9.03% / 32.37%**. Runs use 0.05% buy / 0.15% sell fees, report incomplete market data, and have no independent confirmation window. → [Full results and provenance](docs/en/research/experiments.md#comparison)
+- **Alpha158 enhancement experiments:** adapted baseline / risk-factor model / 3-day rank-retention strategy report Top20 net annualized returns of **7.67% / 9.03% / 32.37%**. Runs use 0.05% buy / 0.15% sell fees, report incomplete market data, and have no independent confirmation window. → [Full results and provenance](docs/en/research/experiments.md#comparison)
 - **Research plugin stack:** Alpha158, selectable factor groups, and rank-retention policies share research contracts and backtest accounting. Current source versions: AxonX **0.1.1**, research plugins **0.2.0**. → [Plugin system](#alpha158-and-the-plugin-system)
 - **Agent and Studio workflow:** develop with Skill + prompt; inspect Tasks, factors, training curves, predictions, and strategy comparisons in Studio. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
 

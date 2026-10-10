@@ -17,7 +17,6 @@ import { useTranslation } from "react-i18next";
 const quantSteps: SectionId[] = [
   "workspace",
   "etl",
-  "factors",
   "train",
   "predict",
   "backtest",
@@ -43,6 +42,21 @@ export default function HomePage({
   onNavigate: (page: "submit" | "tasks" | SectionId) => void;
 }) {
   const { t } = useTranslation();
+  const renderStep = (step: SectionId) => (
+    <button
+      className={`hero-quant-step hero-quant-${step}`}
+      onClick={() => onNavigate(step)}
+    >
+      <span className="hero-quant-icon">
+        <QuantIcon id={step} />
+      </span>
+      <span className="hero-quant-step-copy">
+        <strong>{t(`home.steps.${step}.title`)}</strong>
+        <small>{t(`home.steps.${step}.detail`)}</small>
+      </span>
+      <ArrowRight className="hero-quant-open" aria-hidden="true" />
+    </button>
+  );
   return (
     <section className="workspace-page overview-page">
       <div className="overview-hero">
@@ -55,19 +69,13 @@ export default function HomePage({
           <ol className="hero-quant-steps">
             {quantSteps.map((step, index) => (
               <li key={step}>
-                <button
-                  className={`hero-quant-step hero-quant-${step}`}
-                  onClick={() => onNavigate(step)}
-                >
-                  <span className="hero-quant-icon">
-                    <QuantIcon id={step} />
-                  </span>
-                  <span className="hero-quant-step-copy">
-                    <strong>{t(`home.steps.${step}.title`)}</strong>
-                    <small>{t(`home.steps.${step}.detail`)}</small>
-                  </span>
-                  <ArrowRight className="hero-quant-open" aria-hidden="true" />
-                </button>
+                {renderStep(step)}
+                {step === "etl" && (
+                  <div className="hero-quant-branch">
+                    <small>{t("home.factorBranch")}</small>
+                    {renderStep("factors")}
+                  </div>
+                )}
                 {index < quantSteps.length - 1 && (
                   <ArrowDown
                     className="hero-quant-connector"
@@ -95,6 +103,14 @@ export default function HomePage({
             <div className="hero-brand-actions">
               <button
                 className="primary-button"
+                onClick={() => onNavigate("agent")}
+              >
+                <Bot aria-hidden="true" />
+                {t("home.openAgent")}
+                <ArrowRight aria-hidden="true" />
+              </button>
+              <button
+                className="secondary-button"
                 onClick={() => onNavigate("submit")}
               >
                 <Send aria-hidden="true" />

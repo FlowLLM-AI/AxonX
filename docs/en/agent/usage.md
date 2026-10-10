@@ -24,7 +24,7 @@ Ordinary tasks do not require Agent calls. Agent calls require an additional mod
 
 ![AxonX Agent new chat workspace](../../figures/studio/agent-new-chat.png)
 
-Enter a question in **New chat** under **Agent**. Press Enter to send or Shift+Enter for a newline. The screenshot only shows an empty new session; no model request has been sent and no private history is shown.
+Enter a question in **New chat** under **Agent**. Press Enter to send or Shift+Enter for a newline. The screenshot shows an empty new session in the static Playground, including the research prompt and development setup guidance. No model request has been sent; data and execution are simulated, and no private history is shown.
 
 Provide a specific Task ID, question, and observation scope. Example prompts:
 
@@ -51,7 +51,7 @@ guide, set the Agent's `cwd` to an accessible source checkout, and make SDK file
 The default `cwd` is the service workspace, which does not automatically include plugin source.
 Use the available CLI or explicitly configured Job tools for installation and submission; see [Agent configuration](configuration.md).
 
-Give the Agent a research objective, baseline or plugin to optimize, execution target, and evaluation criteria.
+Give the Agent a research objective, baseline or plugin to optimize, data, evaluation windows, metrics, costs, and execution target. Keep source changes, installation in the selected service, and Task submission separate. Verify the service's schemas and upstream artifacts; wait for upstream success before submitting dependent Tasks.
 Follow the [shared development loop](overview.md#the-shared-research-loop); the [README](../../../README.md#agent-access-and-development-guides)
 provides an exploration prompt. Retain code changes and Task evidence separately from session history.
 

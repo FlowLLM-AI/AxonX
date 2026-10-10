@@ -340,6 +340,7 @@ export function seed() {
     const variant = tasks.has(`${kind}#demo`) ? "volatile" : "steady";
     const id = `${kind}#${variant === "steady" ? "demo" : "volatile"}`;
     const task = taskStatus(kind, id, `Demo ${kind} / ${variant}`);
+    if (kind === "train") source = ["etl#demo"];
     if (kind === "backtest") source = ["predict#demo"];
     task.config.source_tasks = source.join(",");
     tasks.set(id, task);

@@ -6,7 +6,11 @@ AxonX Studio 是 [AxonX](https://github.com/FlowLLM-AI/AxonX/blob/main/README_ZH
 
 Studio 使用 React 和 TypeScript 构建。AxonX 后端负责执行 Task、管理文件与会话并提供 Job API，研究插件负责实现算法。可用任务、API 和研究结果取决于当前选择的执行机器及其安装的插件。
 
+AxonX 是面向 Agent 的量化研究 Harness，提供代码开发、实验执行与结果分析所需的工具和运行环境。将研究 Prompt 与 [AxonX Skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md) 交给外部或内置 Agent，可开发或优化研究插件。Studio 提供内置 Agent 入口，并展示 CLI、MCP 共用的执行记录与产物；插件开发需要配置源码访问与开发工具。
+
 ![AxonX Studio 主页](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
+
+首页截图使用静态 Playground 的英文界面，数据与执行均为模拟。
 
 ## 主要功能
 
@@ -57,12 +61,22 @@ pip install axonx-studio
 
 ### 可选的研究与 Agent 配置
 
-- **研究插件：** 在执行服务的 Python 环境安装 `axonx-qlib-a158` 或 `axonx-qlib-factor`，然后重启服务。研究视图需要已完成的运行及标准 `metadata.json` 和产物输出。
+- **研究插件：** 在执行服务的 Python 环境安装 `axonx-qlib-a158`、`axonx-qlib-factor` 或 `axonx-qlib-strategy`，然后重启服务。研究视图需要已完成的运行及标准 `metadata.json` 和产物输出。
 - **Tushare 下载：** 在后端配置 `AXONX_TUSHARE_TOKEN`。仅在使用兼容的自定义接口时覆盖 `AXONX_TUSHARE_BASE_URL`。
 - **Agent：** 按服务商要求在后端配置 `CLAUDE_CODE_API_KEY`、`CLAUDE_CODE_BASE_URL` 和 `CLAUDE_CODE_MODEL_NAME`。普通 Task 无需模型凭据即可运行。停止 Agent 当前轮次不会取消它已提交的 Task。
 - **远程机器：** 配置后端服务的 `targets`，然后在 Studio 中选择目标。浏览器向本机服务认证，后端解析远程地址与凭据，通过 `target` 转发请求。
 
 详见[研究环境准备](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/research/workflow.md)、[Agent 配置](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/agent/configuration.md)与[远程机器](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/guides/remote-machines.md)。
+
+### 从研究 Prompt 到实验依据
+
+1. 明确基线、假设、数据、评估窗口、指标、成本与执行目标。
+2. 提供 AxonX Skill 或启用内置开发指南。将内置 Agent 的 `cwd` 指向可访问的源码仓库，并提供 SDK 文件／命令工具。模型凭据本身不完成插件开发配置。
+3. 实现并检查插件，再安装到选定的执行服务。源码修改、服务环境安装与 Task 提交是三个独立步骤。开发指南默认不加载，配置见 [Agent 配置](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/agent/configuration.md)。
+4. 核对服务提供的 Task Schema 和上游产物要求，依次提交各阶段，等待上游成功后再提交依赖任务。
+5. 在 Studio 查看 metadata、日志与图表。保留代码／版本、数据、窗口、参数、成本及 Task/Run ID；区分实现检查与研究改进证据。
+
+参考插件链为 `qlib_a158` → `qlib_factor` → `qlib_strategy`，分别提供 Alpha158/LightGBM、可选因子组和复用预测的组合策略。Task 主链是 **ETL → 训练 → 预测 → 回测**，因子分析从 ETL 独立分支；其他插件可以提供其他研究方法。策略比较在两个回测的共同日期区间进行，解读差异前应核对评估协议与成本。详见[实验结果与局限](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/research/experiments.md#comparison)。
 
 ## npm 分发与静态托管
 

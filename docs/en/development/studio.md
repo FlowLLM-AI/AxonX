@@ -76,6 +76,7 @@ Keep file previews workspace-relative. `/files` provides temporary uploads and c
 ```bash
 npm run test
 npm run lint
+npm run format:check
 npm run build
 ```
 
@@ -105,7 +106,7 @@ npm run build:playground
 
 All requests, including streams, go through `AxonXClient.request`. The default transport calls same-origin HTTP; `main.tsx` injects `createPlayground()` before mounting in Playground mode. Authentication is disabled for this simulated client. Feature API wrappers do not branch on mode. Unknown Jobs, files and remote targets return explicit errors without network fallback.
 
-`playground/fixtures.ts` creates a virtual workspace with a complete ETL → analysis → training → prediction → backtest chain and two backtests. JSON table previews implement the existing Parquet preview protocol without shipping a Parquet decoder. Returns and summary metrics are generated from the same series.
+`playground/fixtures.ts` creates a virtual workspace with an ETL → training → prediction → backtest chain, independent factor analysis from ETL, and two backtests. JSON table previews implement the existing Parquet preview protocol without shipping a Parquet decoder. Returns and summary metrics are generated from the same series.
 
 `playground/runtime.ts` owns task and file state; `agent.ts` owns scripted sessions and tool messages; `stream.ts` owns event subscription cleanup; `catalog.ts` declares supported Jobs. Submitted tasks advance from elapsed time even without subscribers; status requests and streams reconcile that state. Task cancellation stops execution, while AbortSignal only closes an obsolete subscription and releases its timer. Successful runs add metadata and artifacts; failed or cancelled runs do not. The `strategy` parameter selects synthetic results; `outcome` selects success or failure. No submitted configuration executes a real research algorithm.
 

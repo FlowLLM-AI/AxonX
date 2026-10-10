@@ -2,11 +2,15 @@
 
 English · [简体中文](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx_studio/README_ZH.md)
 
-AxonX Studio is the browser workspace for [AxonX](https://github.com/FlowLLM-AI/AxonX/blob/main/README.md), an agent-native quantitative research framework. It connects task submission, execution monitoring, workspace artifacts, research charts, and an Agent assistant to the same AxonX service.
+AxonX Studio is the browser workspace for [AxonX](https://github.com/FlowLLM-AI/AxonX/blob/main/README.md), an agent-native quantitative research harness for code development, experiment execution, and result analysis. It connects task submission, execution monitoring, workspace artifacts, research charts, and an Agent assistant to the same AxonX service.
 
 Studio is a React and TypeScript frontend. The AxonX backend executes Tasks, manages files and sessions, and exposes Job APIs; research plugins supply the algorithms. Available tasks, APIs, and results depend on the selected execution machine and its installed plugins.
 
+Combine a research prompt with the [AxonX Skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md) and an external or built-in Agent to develop or improve plugins. Studio provides access to the built-in Agent and the same execution records and artifacts used by CLI and MCP. Plugin development requires configured source access and development tools.
+
 ![AxonX Studio home](https://raw.githubusercontent.com/FlowLLM-AI/AxonX/main/docs/figures/studio/home.png)
+
+The home screenshot uses the English interface in the static Playground. Its data and execution are simulated.
 
 ## Features
 
@@ -57,12 +61,22 @@ Leave **Task Name** empty to generate a name for each experiment. Reusing a fixe
 
 ### Optional research and Agent setup
 
-- **Research plugins:** install `axonx-qlib-a158` or `axonx-qlib-factor` in the execution service's Python environment, then restart the service. Research views need completed runs with standard `metadata.json` and artifact outputs.
+- **Research plugins:** install `axonx-qlib-a158`, `axonx-qlib-factor`, or `axonx-qlib-strategy` in the execution service's Python environment, then restart the service. Research views need completed runs with standard `metadata.json` and artifact outputs.
 - **Tushare downloads:** configure `AXONX_TUSHARE_TOKEN` on the backend. Override `AXONX_TUSHARE_BASE_URL` only when using a compatible custom endpoint.
 - **Agent:** configure the backend's `CLAUDE_CODE_API_KEY`, `CLAUDE_CODE_BASE_URL`, and `CLAUDE_CODE_MODEL_NAME` as needed for your provider. Ordinary Tasks can run without model credentials. Stopping an Agent turn does not cancel a Task it submitted.
 - **Remote machines:** configure backend service `targets`, then select the target in Studio. The browser authenticates to the local service; the backend resolves remote addresses and credentials and forwards requests using `target`.
 
 See [research setup](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/research/workflow.md), [Agent configuration](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/agent/configuration.md), and [remote machines](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/guides/remote-machines.md).
+
+### From research prompt to evidence
+
+1. Define the baseline, hypothesis, data, evaluation windows, metrics, costs, and execution target.
+2. Provide the AxonX Skill or enable the bundled development guide. Configure the built-in Agent's `cwd` to an accessible source checkout and provide SDK file/command tools. Model credentials alone do not configure plugin development.
+3. Implement and check the plugin, then install it in the selected execution service. Source changes, service installation, and Task submission are separate steps. Guide loading defaults to `false`; see [Agent configuration](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/agent/configuration.md).
+4. Inspect the service's Task schemas and upstream artifact requirements, submit each stage, and wait for success before submitting dependent Tasks.
+5. Inspect metadata, logs, and charts in Studio. Preserve code/version, data, windows, parameters, costs, and Task/Run IDs; distinguish implementation checks from evidence of research improvement.
+
+The reference plugins are `qlib_a158` → `qlib_factor` → `qlib_strategy`: Alpha158/LightGBM, optional factor groups, and portfolio policies that reuse predictions. The Task chain is **ETL → Train → Predict → Backtest**; factor analysis branches independently from ETL. Other plugins can implement other methods. Strategy comparison uses two backtests over their common date interval; verify evaluation protocols and costs before interpreting differences. See [experiments and limitations](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/research/experiments.md#comparison).
 
 ## npm distribution and static hosting
 

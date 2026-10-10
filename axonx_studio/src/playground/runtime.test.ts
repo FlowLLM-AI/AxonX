@@ -64,6 +64,22 @@ describe("static Playground", () => {
             task_id: metadata.task_id,
           });
           expect(task.state).toBe("succeeded");
+          const expectedSource: Record<string, string> = {
+            analysis: "etl#demo",
+            train: "etl#demo",
+            predict: "train#demo",
+            backtest: "predict#demo",
+          };
+          if (
+            metadata.task_id === `${task_type}#demo` ||
+            metadata.task_id === "backtest#volatile"
+          )
+            expect(metadata.input_params.source_tasks).toBe(
+              expectedSource[task_type] || "",
+            );
+          expect(task.config.source_tasks).toBe(
+            metadata.input_params.source_tasks,
+          );
           if (task_type !== "etl")
             expect(
               parseSourceTasks(metadata.input_params.source_tasks),
@@ -92,6 +108,31 @@ describe("static Playground", () => {
       expect(fetch).not.toHaveBeenCalled();
     } finally {
       fetch.mockRestore();
+    }
+  });
+
+  it("submits training and factor analysis as independent ETL branches", async () => {
+    const api = client();
+    for (const kind of ["train", "analysis"]) {
+      const handle = await api.invoke<TaskHandle>("submit", {
+        task: `playground.${kind}`,
+      });
+      const task = await api.invoke<TaskStatus>("status", {
+        task_id: handle.task_id,
+      });
+      expect(task.config.source_tasks).toBe("etl#demo");
+      vi.advanceTimersByTime(7000);
+      const completed = await api.invoke<TaskStatus>("status", {
+        task_id: handle.task_id,
+      });
+      expect(completed.state).toBe("succeeded");
+      const preview = await api.invoke<WorkspacePreview>("preview_file", {
+        path: `runs/${handle.task_id}/metadata.json`,
+      });
+      if (preview.kind !== "json") throw new Error("Missing metadata");
+      expect(preview.data).toMatchObject({
+        input_params: { source_tasks: "etl#demo" },
+      });
     }
   });
 

@@ -8,7 +8,7 @@ The default deployment is <https://flowllm-ai.github.io/AxonX/>, with `/en/` and
 
 ## Reader journeys
 
-The site has six navigation areas: **Get started, Research, Agent, Operations, Reference, and Developers**. Studio tutorials belong to Get started; research plugins belong to Research; APIs and configuration belong to Reference. Each area opens with a goal-based overview. Agent readers first choose external integration or built-in sessions. The homepage links to the README benchmark and reproduction instructions without duplicating metric tables.
+The site has six navigation areas: **Get started, Research, Agent, Operations, Reference, and Developers**. Studio tutorials belong to Get started; research plugins belong to Research; APIs and configuration belong to Reference. Each area opens with a goal-based overview. Agent readers first choose external integration or built-in sessions. The homepage renders its sections directly from the English and Chinese root READMEs, including Latest Updates, Agent development, plugins, and experiment evidence. The hero summary also comes from the README; only interface labels and the compact workflow card live in theme translations.
 
 [The documentation map](../docs/en/index.md) provides goal-based reading paths. Project and plugin READMEs own overview and algorithm details; guides link to those sources instead of duplicating experiment tables. Each document has one navigation owner and may cross-link to related areas.
 
@@ -64,7 +64,7 @@ Generated files, dependencies, lockfiles, and output are excluded from formattin
 | `.generated/site/`                               | Disposable VitePress input, including `.source-map.json`                   |
 | `dist/`                                          | Deployable HTML, assets, Markdown, `llms.txt`, and `llms-full.txt`         |
 
-Theme translations and VitePress interface labels live in `site/theme/locales/en.json` and `zh.json`, with matching keys checked by tests. `i18n.ts` exposes reactive resources and localized links; `language.mjs` owns language selection and route conversion. `home.ts` holds language-independent homepage metadata. Follow Studio’s separation of language resources from feature code; Vue/VitePress supplies reactivity without another translation dependency. Keep canonical Markdown and navigation labels in `docs/`.
+Theme translations and VitePress interface labels live in `site/theme/locales/en.json` and `zh.json`, with matching keys checked by tests. `i18n.ts` exposes reactive resources and localized links; `language.mjs` owns language selection and route conversion. `home.ts` holds the compact research-loop links; `lib/readme-home.mjs` renders canonical README sections into generated homepage data. Follow Studio’s separation of language resources from feature code; Vue/VitePress supplies reactivity without another translation dependency. Keep canonical Markdown and navigation labels in `docs/`.
 
 Framework files were moved from `docs/.vitepress/` into `site/` and `lib/`; navigation remains next to content. Existing document URLs are retained. The older `getting-started/introduction` and `guides/plugin-management` routes remain absent without redirects.
 

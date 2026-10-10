@@ -241,7 +241,7 @@ export function createPlayground(): Transport {
           );
           const upstream = {
             analysis: "etl#demo",
-            train: "analysis#demo",
+            train: "etl#demo",
             predict: "train#demo",
             backtest: "predict#demo",
           }[definition.task_type];

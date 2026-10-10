@@ -295,17 +295,17 @@
     "machineUnavailable": "Machine unavailable"
   },
   "home": {
-    "quantAria": "Quant research framework",
-    "quantTitle": "Quant research",
-    "quantLead": "From market data to strategy validation",
+    "quantAria": "Reference quantitative research workflow",
+    "quantTitle": "Reference research workflow",
+    "quantLead": "Qlib Alpha158: ETL → Train → Predict → Backtest",
     "brandAria": "AxonX Agent-Native Quant Harness",
-    "brandTitle": "A harness for quant research",
-    "brandLead": "Package research capabilities as plugins and connect Agents to Jobs through CLI and MCP, closing the loop from code changes to Task execution and result validation.",
+    "brandTitle": "Turn research prompts into experiments",
+    "brandLead": "Combine your research prompt with the AxonX Skill and an Agent to develop or improve plugins. AxonX runs Tasks on the selected service and preserves the evidence for analysis and iteration.",
     "submitTask": "Submit Task",
     "manageTasks": "Manage Tasks",
     "capabilitiesAria": "Harness framework capabilities",
     "capabilitiesTitle": "Harness capabilities",
-    "capabilitiesLead": "A plugin-driven, Agent-assisted research loop",
+    "capabilitiesLead": "Prompt + Skill + Agent → code, execution, evidence",
     "steps": {
       "workspace": {
         "title": "Workspace",
@@ -351,13 +351,15 @@
       },
       "agent": {
         "title": "Agent research workflow",
-        "detail": "Understand context · edit code · invoke AxonX"
+        "detail": "Research prompt + Skill · develop and improve plugins"
       },
       "feedback": {
         "title": "Execution feedback loop",
-        "detail": "Diagnose logs · inspect artifacts · iterate"
+        "detail": "Inspect evidence · compare candidates · iterate"
       }
-    }
+    },
+    "openAgent": "Open Agent",
+    "factorBranch": "Independent branch from ETL"
   },
   "workspace": {
     "folder": "Folder",
@@ -653,8 +655,8 @@
     "noSessions": "No sessions yet",
     "conversation": "AxonX conversation",
     "loadingConversation": "Restoring conversation…",
-    "welcomeTitle": "Start with your workspace",
-    "welcomeLead": "Ask about code, tasks, logs, and artifacts. AxonX will use workspace tools as needed.",
+    "welcomeTitle": "Start with a research question",
+    "welcomeLead": "Describe your objective, baseline, data, evaluation windows, and execution target, or ask about existing Tasks and artifacts.",
     "working": "AxonX is working",
     "composerPlaceholder": "Message AxonX…",
     "composerHint": "Enter to send, Shift + Enter for a new line",
@@ -676,7 +678,8 @@
       "user": "You",
       "assistant": "AxonX",
       "system": "System"
-    }
+    },
+    "developmentHint": "For plugin development, provide the AxonX Skill or enable the development guide, and configure source access and file/command tools on the service."
   },
   "taskGraph": {
     "copy_task_id": "Copy task ID",

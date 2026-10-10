@@ -62,6 +62,7 @@ export function Conversation({
           </span>
           <h1>{t("agent.welcomeTitle")}</h1>
           <p>{t("agent.welcomeLead")}</p>
+          <p className="agent-development-hint">{t("agent.developmentHint")}</p>
         </div>
       ) : (
         <div className="agent-message-list">
