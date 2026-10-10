@@ -2,6 +2,8 @@
 
 AxonX 是面向 Agent 的量化研究 Harness，为量化代码开发、实验执行和结果分析提供统一工具与运行环境。用户提出研究问题，Agent 实现量化逻辑，Harness 管理执行与证据。
 
+参考研究插件适配 [Microsoft Qlib](https://github.com/microsoft/qlib) 的 Alpha158 基线，扩展可选因子与持仓策略。其他研究方法也可通过插件接入 AxonX。
+
 ## 选择你的起点
 
 | 目标            | 从这里开始                                                                           | 完成结果                           |

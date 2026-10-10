@@ -78,7 +78,6 @@
     "star": "Give AxonX a Star on GitHub!",
     "headline": "Quantitative research.",
     "headlineAccent": "Built with Agents.",
-    "lead": "An agent-native harness for quantitative code development, experiment execution, and result analysis. Use your research prompt and AxonX Skill to develop or improve plugins with an external or built-in Agent.",
     "tryStudio": "Try Studio",
     "getStarted": "Get started",
     "workflowTitle": "From research questions to code and evidence",
@@ -98,7 +97,7 @@
     "capabilitiesTitle": "Flexible research. Grounded execution.",
     "journeysTitle": "Continue by goal.",
     "documentationMap": "Documentation map",
-    "caseTitle": "Improving Alpha158 with factors and portfolio policies",
+    "caseTitle": "Improving Qlib Alpha158 with factors and portfolio policies",
     "experimentDesign": "Experiment design",
     "caseDescription": "Top20 net annualized returns are 7.67%, 9.03%, and 32.37% for Alpha158, two added risk factors, and 3-day rank retention, with buy/sell fees of 0.05%/0.15%. Base and factor models use different feature_fraction settings; market data is incomplete and there is no independent confirmation window.",
     "benchmark": "Full experiment & evidence",
@@ -119,7 +118,9 @@
       "backtest": "Backtesting"
     },
     "baselineLabel": "Reference example: Qlib Alpha158",
-    "startDeveloping": "Develop with an Agent"
+    "startDeveloping": "Develop with an Agent",
+    "leadBeforeQlib": "An agent-native harness for quantitative code development, experiment execution, and result analysis. Use your prompt and AxonX Skill with an Agent to improve ",
+    "leadAfterQlib": " Alpha158-based plugins or develop new research plugins."
   },
   "preferences": {
     "light": "Switch to light theme",

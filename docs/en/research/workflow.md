@@ -5,7 +5,7 @@ description: Connect data, factor analysis, training, prediction, and backtestin
 
 # Alpha158 Research Workflow
 
-AxonX provides research task execution, records, artifacts, and Studio visualization. This page uses `plugins/qlib_a158/` in the repository as a concrete algorithm implementation, building a complete path from Tushare data to backtest results. The enhanced `qlib_factor` plugin uses separate `qlib_factor_*` registration names and adds training feature-group parameters. Both share research stages and basic artifact structures, but cross-plugin upstream reuse still requires checking Task definitions, feature order, and protocols. See the [Qlib Factor](../../../plugins/qlib_factor/README.md) for usage.
+AxonX provides research task execution, records, artifacts, and Studio visualization. This page uses `plugins/qlib_a158/`, which adapts [Microsoft Qlib](https://github.com/microsoft/qlib)’s Alpha158 baseline, as a concrete algorithm implementation, building a complete path from Tushare data to backtest results. The enhanced `qlib_factor` plugin uses separate `qlib_factor_*` registration names and adds training feature-group parameters. Both share research stages and basic artifact structures, but cross-plugin upstream reuse still requires checking Task definitions, feature order, and protocols. See the [Qlib Factor](../../../plugins/qlib_factor/README.md) for usage.
 
 ![From data to research evidence](../../figures/research/workflow.svg)
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "axonx-qlib-factor"
 version = "0.2.0"
-description = "AxonX Alpha158 research plugin with optional context features, factor analysis, LightGBM training, prediction, and TopN backtesting."
+description = "AxonX research plugin extending the Alpha158 baseline with selectable market, neutral momentum, and risk factors for model experiments."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -16,10 +16,12 @@ authors = [
 keywords = [
     "axonx",
     "plugins",
+    "qlib",
     "quantitative-finance",
     "quantitative-research",
     "alpha158",
     "context-features",
+    "factor-research",
     "factor-analysis",
     "lightgbm",
     "backtesting",

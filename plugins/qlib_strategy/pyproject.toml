@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "axonx-qlib-strategy"
 version = "0.2.0"
-description = "Alpha158 factor research with rank retention and bounded daily portfolio replacements."
+description = "AxonX research plugin reusing Alpha158 factor predictions to evaluate portfolio policies with minimum holding periods, rank retention, and bounded daily replacements."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -16,12 +16,12 @@ authors = [
 keywords = [
     "axonx",
     "plugins",
+    "qlib",
     "quantitative-finance",
     "quantitative-research",
     "alpha158",
-    "context-features",
-    "factor-analysis",
-    "lightgbm",
+    "portfolio-strategy",
+    "rank-retention",
     "backtesting",
 ]
 classifiers = [

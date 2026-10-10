@@ -68,7 +68,7 @@ See [research setup](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/resea
 
 Give an external or built-in Agent your research question and the [AxonX Skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md). For built-in development, configure source access and file/command tools; see [Agent setup](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/agent/configuration.md). Develop the plugin, install it in the selected service, then submit Tasks and wait for upstream success.
 
-The reference workflow is **ETL → Train → Predict → Backtest**, with factor analysis branching from ETL. `qlib_a158`, `qlib_factor`, and `qlib_strategy` provide the baseline, optional factors, and portfolio policies. When comparing runs, retain code, data, windows, parameters, costs, and Task/Run IDs. See [research workflow](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/research/workflow.md).
+The Qlib Alpha158 reference workflow is **ETL → Train → Predict → Backtest**, with factor analysis branching from ETL. `qlib_a158`, `qlib_factor`, and `qlib_strategy` provide the baseline, optional factors, and portfolio policies. When comparing runs, retain code, data, windows, parameters, costs, and Task/Run IDs. See [research workflow](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/en/research/workflow.md).
 
 ## npm distribution and static hosting
 

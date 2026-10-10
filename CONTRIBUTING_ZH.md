@@ -115,7 +115,7 @@ axonx plugin install -e ./plugins/qlib_strategy
 提供源码仓库、文件／命令工具和选定的执行服务；两条接入路径见 [Agent 总览](docs/zh/agent/overview.md)。
 区分插件代码改动、安装与实验执行，Agent 编写的代码遵循相同的贡献检查。
 
-以 Alpha158 为参考实现，独立的因子和策略插件可以复用兼容的上游代码与产物。
+以适配后的 Qlib Alpha158 插件为参考实现，独立的因子和策略插件可以复用兼容的上游代码与产物。
 主张研究改进时，记录代码版本、数据快照、训练／评估窗口、参数、成本和 Task/Run ID，遵循[实验设计](docs/zh/research/experiments.md)。
 原始执行记录保留在研究环境，公开脱敏后的证据与复现说明。
 

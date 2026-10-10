@@ -1,6 +1,6 @@
 # Quantitative Research
 
-Implement quantitative logic in plugins, execute Tasks and retain evidence, then evaluate changes with consistent definitions. AxonX provides contracts and a runtime; plugins define algorithms and data requirements. Alpha158 is the reference workflow, and other methods can use the same plugin contracts.
+Implement quantitative logic in plugins, execute Tasks and retain evidence, then evaluate changes with consistent definitions. AxonX provides contracts and a runtime; plugins define algorithms and data requirements. The reference workflow adapts [Microsoft Qlib](https://github.com/microsoft/qlib)’s Alpha158 baseline; other methods can use the same plugin contracts.
 
 ## Choose a research step
 

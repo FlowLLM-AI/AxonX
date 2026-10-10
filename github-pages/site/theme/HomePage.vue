@@ -58,7 +58,13 @@ function moveTab(event: KeyboardEvent, target: number) {
           {{ t.home.headline }}<br /><span>{{ t.home.headlineAccent }}</span>
         </h1>
         <p class="hero-lead">
-          {{ t.home.lead }}
+          {{ t.home.leadBeforeQlib
+          }}<a
+            href="https://github.com/microsoft/qlib"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Qlib</a
+          >{{ t.home.leadAfterQlib }}
         </p>
         <div class="actions">
           <a class="action secondary" :href="playground" target="_self">

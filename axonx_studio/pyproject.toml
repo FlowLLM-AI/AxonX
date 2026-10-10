@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axonx-studio"
-version = "0.1.1"
-description = "Static frontend assets for AxonX Studio, a browser interface for quantitative research tasks and artifacts."
+version = "0.1.2"
+description = "Browser workspace for AxonX: built-in Agent sessions, Task control, and quantitative research result analysis."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -16,10 +16,12 @@ authors = [
 keywords = [
     "axonx",
     "studio",
+    "ai-agents",
     "web-interface",
     "quantitative-finance",
     "quantitative-research",
     "research-artifacts",
+    "visualization",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

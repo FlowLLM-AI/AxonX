@@ -32,6 +32,9 @@ to develop a new research plugin or optimize an existing one. The Agent writes q
 through AxonX, inspects results, and iterates on factors, models, and portfolio strategies.
 **You define the research question; the Agent implements it; the Harness manages execution and evidence.**
 
+The current research plugins adapt **[Microsoft Qlib](https://github.com/microsoft/qlib)’s Alpha158 baseline**, extending it with configurable factors
+and portfolio strategies. Agents can improve these plugins or develop new ones through the same Harness.
+
 CLI, HTTP, MCP, and **AxonX Studio** share Jobs for submitting and querying Tasks. The selected execution service
 runs plugin code and stores parameters, status, dependencies, and artifacts in its workspace, so researchers and
 Agents can inspect the same evidence.
@@ -45,14 +48,14 @@ Agents can inspect the same evidence.
 ## ✨ Why AxonX?
 
 - **Turn research questions into quantitative code.** The Skill teaches plugin authoring, Task contracts, execution, and evidence inspection; your prompt defines what the Agent explores. → [AxonX Skill](skills/axonx/SKILL.md)
-- **Extend a working baseline.** Add features, change training logic, or develop portfolio policies in plugins while reusing compatible implementations and artifacts. → [Alpha158](plugins/qlib_a158/README.md) · [Factor](plugins/qlib_factor/README.md) · [Strategy](plugins/qlib_strategy/README.md)
+- **Build on Qlib’s Alpha158 baseline.** Add features, change training logic, or develop portfolio policies in plugins while reusing compatible implementations and artifacts. → [Alpha158](plugins/qlib_a158/README.md) · [Factor](plugins/qlib_factor/README.md) · [Strategy](plugins/qlib_strategy/README.md)
 - **Execute experiments with consistent contracts.** Discover typed inputs and outputs, submit worker-process Tasks, follow progress and logs, wait for completion, or cancel a run. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
 - **Connect code changes to evidence.** Inspect configurations, Task/Run IDs, dependencies, models, predictions, and backtest artifacts to investigate failures and compare candidates. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage) · [Experiment design](docs/en/research/experiments.md)
 - **Use your preferred Agent and execution target.** Work through an external Agent or Studio's built-in Agent, inspect results visually, and run Tasks on a selected local or remote service. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
 
 ## 📰 Latest Updates
 
-- **Alpha158 enhancement experiments:** added risk factors and a rank-retention strategy improve Top20 net annualized returns over the adapted baseline by **1.36 and 24.70 percentage points**, respectively. → [Results and evidence limits](#benchmark-agent-developed-market-cross-sectional-features)
+- **Qlib Alpha158 enhancement experiments:** the risk-factor model and rank-retention strategy report Top20 net annualized returns above the adapted baseline by **1.36 and 24.70 percentage points**, respectively. → [Results and evidence limits](#benchmark-agent-developed-market-cross-sectional-features)
 - **Studio Playground:** explore Tasks and research charts with simulated data and execution. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a>
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261010-agent-code)

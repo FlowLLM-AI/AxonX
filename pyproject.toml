@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "axonx"
 dynamic = ["version"]
-description = "Agent-native harness for quantitative research, with plugin-based tasks, traceable artifacts, and CLI, Studio, and MCP interfaces."
+description = "Agent-native quantitative research harness. Help agents develop and improve research plugins, run experiments, and analyze traceable results through CLI, MCP, and Studio."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -16,15 +16,13 @@ authors = [
 keywords = [
     "agent-harness",
     "ai-agents",
-    "finance",
-    "financial-agents",
-    "financial-harness",
-    "quantitative-finance",
     "quantitative-research",
+    "quantitative-finance",
+    "qlib",
+    "factor-research",
+    "backtesting",
     "mcp",
     "plugins",
-    "backtesting",
-    "workflow",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -78,7 +76,7 @@ full = ["axonx[dev,studio]"]
 axonx = "axonx.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/FlowLLM-AI/AxonX"
+Homepage = "https://flowllm-ai.github.io/AxonX/"
 Documentation = "https://flowllm-ai.github.io/AxonX/en/docs"
 Issues = "https://github.com/FlowLLM-AI/AxonX/issues"
 Source = "https://github.com/FlowLLM-AI/AxonX"

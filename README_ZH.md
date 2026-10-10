@@ -31,6 +31,9 @@
 或在已有插件上优化。Agent 编写量化代码，通过 AxonX 执行实验、读取结果，继续迭代因子、模型与组合策略。
 **用户提出研究问题，Agent 实现量化逻辑，Harness 管理执行与证据。**
 
+现有研究插件适配 **[Microsoft Qlib](https://github.com/microsoft/qlib) 的 Alpha158 基线**，扩展可配置因子与持仓策略。
+Agent 可以通过同一套 Harness 改进这些插件，或开发新的研究插件。
+
 CLI、HTTP、MCP 和 **AxonX Studio** 通过共享的 Job 提交、查询 Task。
 选定的执行服务运行插件代码，将参数、状态、依赖和产物保存在自己的工作区，让研究者与 Agent 检查同一份证据。
 
@@ -43,14 +46,14 @@ CLI、HTTP、MCP 和 **AxonX Studio** 通过共享的 Job 提交、查询 Task�
 ## ✨ 为什么使用 AxonX？
 
 - **把研究问题落实为量化代码。** Skill 说明插件开发、Task 契约、执行与证据检查方法；用户的 Prompt 决定 Agent 探索什么。→ [AxonX Skill](skills/axonx/SKILL.md)
-- **从可运行的基线逐步扩展。** 在插件中增加特征、调整训练逻辑或开发持仓策略，同时复用兼容的实现与产物。→ [Alpha158](plugins/qlib_a158/README_ZH.md) · [因子](plugins/qlib_factor/README_ZH.md) · [策略](plugins/qlib_strategy/README_ZH.md)
+- **在 Qlib 的 Alpha158 基线上扩展。** 在插件中增加特征、调整训练逻辑或开发持仓策略，同时复用兼容的实现与产物。→ [Alpha158](plugins/qlib_a158/README_ZH.md) · [因子](plugins/qlib_factor/README_ZH.md) · [策略](plugins/qlib_strategy/README_ZH.md)
 - **通过统一契约执行实验。** 查询带类型的输入输出，提交工作进程 Task，跟踪进度与日志，等待完成或取消运行。→ [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)
 - **把代码改动与研究证据关联起来。** 检查配置、Task/Run ID、依赖、模型、预测和回测产物，用于排查失败与比较候选方案。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage) · [实验设计](docs/zh/research/experiments.md)
 - **选择 Agent 与执行环境。** 使用外部 Agent 或 Studio 内置 Agent，可视化检查结果，并在选定的本机或远程服务中运行 Task。→ [Agent 接入](https://flowllm-ai.github.io/AxonX/zh/agent/external) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
 
 ## 📰 最新更新
 
-- **Alpha158 改进实验：** 新增风险因子与排名保留策略的 Top20 净年化收益，相比适配后的基线分别提升 **1.36 和 24.70 个百分点**。→ [结果与证据边界](#benchmark-agent-开发市场横截面增强特征)
+- **Qlib Alpha158 改进实验：** 风险因子模型与排名保留策略的 Top20 净年化收益，相比适配后的基线分别高 **1.36 和 24.70 个百分点**。→ [结果与证据边界](#benchmark-agent-开发市场横截面增强特征)
 - **Studio Playground：** 使用模拟数据与执行流程体验任务管理和研究图表。→ <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=zh" target="_self">在线试玩</a>
 
 ![AxonX 研究与执行总览](docs/figures/getting-started/overview.svg?v=20261010-agent-code)

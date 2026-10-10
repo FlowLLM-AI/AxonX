@@ -1,6 +1,6 @@
 # Alpha158 Improvement Case
 
-This case compares the adapted Alpha158 baseline, two added risk factors, and a rank-retention strategy. For controls and independent confirmation, see [experiment design](experiments.md).
+This case compares the adapted Qlib Alpha158 baseline, two added risk factors, and a rank-retention strategy. For controls and independent confirmation, see [experiment design](experiments.md).
 
 This page retains one experiment group run on machine 45 on 2026-10-10 from commit `8fc1174`: Alpha158, risk factors, and 3-day rank retention. Both models rerun ETL, training, prediction and backtesting from the same data snapshot; the strategy reuses the new factor-model predictions. Buy/sell fees are 0.05% / 0.15%; all other parameters retain the existing settings. Plugin READMEs describe algorithms and interfaces.
 
@@ -80,6 +80,8 @@ Universe mean equally weights valid forward-label returns; HS300 is a constituen
 ## Limits
 
 This run evaluates the three fixed configurations, without candidate reselection or an independent confirmation window. Base/factor feature_fraction is 0.9/1.0, so differences do not isolate the added factors. 2026 is a partial year and fills use same-close quotes. All three backtests report `incomplete_market_data`; missing quotes can delay exits and retain stale marks.
+
+These results compare AxonX plugin configurations, not the original Qlib benchmark. Data, labels, training, and execution differ; see [differences from original Qlib](../../../plugins/qlib_a158/README.md#differences-from-original-qlib).
 
 ## Reproduce
 

@@ -68,7 +68,7 @@ pip install axonx-studio
 
 将研究问题和 [AxonX Skill](https://github.com/FlowLLM-AI/AxonX/blob/main/skills/axonx/SKILL.md) 交给外部或内置 Agent。内置开发需要配置源码访问与文件／命令工具，详见 [Agent 配置](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/agent/configuration.md)。先开发插件，再安装到选定服务，最后提交 Task，并等待上游成功。
 
-参考流程为 **ETL → 训练 → 预测 → 回测**，因子分析从 ETL 独立分支。`qlib_a158`、`qlib_factor` 与 `qlib_strategy` 分别提供基线、可选因子和组合策略。比较运行时，保留代码、数据、窗口、参数、成本及 Task/Run ID。详见[研究流程](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/research/workflow.md)。
+Qlib Alpha158 参考流程为 **ETL → 训练 → 预测 → 回测**，因子分析从 ETL 独立分支。`qlib_a158`、`qlib_factor` 与 `qlib_strategy` 分别提供基线、可选因子和组合策略。比较运行时，保留代码、数据、窗口、参数、成本及 Task/Run ID。详见[研究流程](https://github.com/FlowLLM-AI/AxonX/blob/main/docs/zh/research/workflow.md)。
 
 ## npm 分发与静态托管
 

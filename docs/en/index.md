@@ -2,6 +2,8 @@
 
 AxonX is an agent-native harness for quantitative research, providing unified tools and a runtime for quantitative code development, experiment execution, and result analysis. You define the research question; the Agent implements it; the Harness manages execution and evidence.
 
+The reference research plugins adapt [Microsoft Qlib](https://github.com/microsoft/qlib)’s Alpha158 baseline, adding selectable factors and portfolio policies. AxonX also supports new research methods through plugins.
+
 ## Choose your starting point
 
 | Goal                         | Start here                                                                                     | Outcome                                                         |

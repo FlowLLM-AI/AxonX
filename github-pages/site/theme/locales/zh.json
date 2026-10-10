@@ -78,7 +78,6 @@
     "star": "给 AxonX 点个 GitHub Star！",
     "headline": "量化研究",
     "headlineAccent": "借助 Agent 持续改进。",
-    "lead": "面向 Agent 的量化研究 Harness，为量化代码开发、实验执行和结果分析提供工具与运行环境。结合探索 Prompt 与 AxonX Skill，通过外部或内置 Agent 开发、改进研究插件。",
     "tryStudio": "体验 Studio",
     "getStarted": "快速开始",
     "workflowTitle": "从研究问题到代码与证据",
@@ -98,7 +97,7 @@
     "capabilitiesTitle": "研究自由扩展，执行有据可循。",
     "journeysTitle": "按目标深入。",
     "documentationMap": "文档导航",
-    "caseTitle": "改进 Alpha158：因子与持仓策略",
+    "caseTitle": "改进 Qlib Alpha158：因子与持仓策略",
     "experimentDesign": "实验方法",
     "caseDescription": "Alpha158 基线、两个风险因子与 3 日排名保留策略的 Top20 净年化为 7.67%、9.03% 和 32.37%，买入／卖出费用为 0.05%／0.15%。基础与因子模型的 feature_fraction 不同，行情数据不完整，尚无独立确认窗口。",
     "benchmark": "完整实验与证据",
@@ -119,7 +118,9 @@
       "backtest": "策略回测"
     },
     "baselineLabel": "参考实例：Qlib Alpha158",
-    "startDeveloping": "开始 Agent 开发"
+    "startDeveloping": "开始 Agent 开发",
+    "leadBeforeQlib": "面向 Agent 的量化研究 Harness，为量化代码开发、实验执行和结果分析提供工具与运行环境。结合探索 Prompt 与 AxonX Skill，通过 Agent 改进基于 ",
+    "leadAfterQlib": " Alpha158 的插件，或开发新的研究插件。"
   },
   "preferences": {
     "light": "切换到浅色主题",

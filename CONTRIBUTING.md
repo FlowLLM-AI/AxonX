@@ -116,7 +116,7 @@ plugin or improve an existing one. Provide a source checkout, file/command tools
 see [Agent integration](docs/en/agent/overview.md) for the two access paths. Keep plugin code changes, installation,
 and experiment execution distinct, and apply the same contribution checks to Agent-authored code.
 
-Use Alpha158 as a reference implementation. Separate factor and strategy plugins can reuse compatible upstream code
+Use the adapted Qlib Alpha158 plugin as a reference implementation. Separate factor and strategy plugins can reuse compatible upstream code
 and artifacts. For claimed improvements, record the code revision, data snapshot, training/evaluation windows,
 parameters, costs, and Task/Run IDs; follow [experiment design](docs/en/research/experiments.md). Keep raw execution
 records in the research environment and publish sanitized evidence and reproduction instructions.
