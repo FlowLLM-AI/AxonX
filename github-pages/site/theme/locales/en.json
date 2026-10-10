@@ -129,6 +129,10 @@
         "description": "Train on 2015–2022 and evaluate 2023–2026 with 0.05% buy / 0.15% sell fees. Baseline, risk-factor and 3-day strategy Top20 net annualized returns are 7.67%, 9.03% and 32.37%. Results include missing quotes and proxy fills; the strategy is exploratory.",
         "label": "Explore the results"
       }
+    },
+    "benchmarkFigures": {
+      "signal": "Alpha158 and risk-factor IC / RankIC comparison",
+      "portfolio": "Top20 / Top30 net annualized returns for baseline, risk factors and 3-day strategy"
     }
   },
   "preferences": {

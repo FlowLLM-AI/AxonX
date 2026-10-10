@@ -333,28 +333,19 @@ Example prompt:
 
 ### Results for the three versions
 
-The table compares overall signal quality and Top20 portfolio performance across the three versions. Portfolio metrics cover 909 market dates; active metrics use 908 benchmark-valid dates. The policy reuses factor-model predictions, so signal metrics are identical while portfolio returns reflect different holding and replacement rules.
+The figures compare signal quality and Top20/Top30 net annualized returns across the three versions. The compact table shows Top20 risk and turnover over 909 market dates. The strategy reuses factor-model predictions.
 
-| Metric                                   | [Alpha158 baseline](plugins/qlib_a158/README.md) | [Added factors](plugins/qlib_factor/README.md) | [Added strategy](plugins/qlib_strategy/README.md) |
-| ---------------------------------------- | -----------------------------------------------: | ---------------------------------------------: | ------------------------------------------------: |
-| Overall IC                               |                                           0.0530 |                                         0.0545 |                                            0.0545 |
-| Overall RankIC                           |                                           0.0923 |                                         0.0966 |                                            0.0966 |
-| Overall RankICIR (annualized)            |                                          12.8817 |                                        14.2859 |                                           14.2859 |
-| Net annualized                           |                                            7.67% |                                          9.03% |                                            32.37% |
-| Net cumulative return                    |                                           30.56% |                                         36.60% |                                           174.99% |
-| Net Sharpe                               |                                           0.3619 |                                         0.4052 |                                            1.1575 |
-| Net annualized volatility                |                                           28.20% |                                         28.53% |                                            26.19% |
-| Max drawdown                             |                                          -38.65% |                                        -40.69% |                                           -24.91% |
-| Daily return win rate                    |                                           53.47% |                                         53.47% |                                            55.89% |
-| Mean daily two-sided turnover            |                                          198.83% |                                        199.35% |                                            40.01% |
-| Mean daily cost / prior equity           |                                          0.1989% |                                        0.1994% |                                           0.0400% |
-| Closed trades                            |                                           18,032 |                                         18,079 |                                             3,624 |
-| Net active annualized vs universe mean   |                                           -3.50% |                                         -1.88% |                                            18.64% |
-| Net IR vs universe mean                  |                                          -0.1422 |                                        -0.0665 |                                            1.4543 |
-| Net active max drawdown vs universe mean |                                          -28.51% |                                        -21.71% |                                           -18.63% |
-| Net active annualized vs HS300 proxy     |                                            2.74% |                                          4.07% |                                            26.04% |
-| Net IR vs HS300 proxy                    |                                           0.2340 |                                         0.2936 |                                            1.2697 |
-| Net active max drawdown vs HS300 proxy   |                                          -31.94% |                                        -29.37% |                                           -23.96% |
+![Signal quality](docs/figures/benchmark/qlib-signal-quality.svg)
+
+![Portfolio performance](docs/figures/benchmark/qlib-topn-results.svg)
+
+Top20 risk and trading metrics:
+
+| Metric                        | [Alpha158 baseline](plugins/qlib_a158/README.md) | [Added factors](plugins/qlib_factor/README.md) | [Added strategy](plugins/qlib_strategy/README.md) |
+| ----------------------------- | -----------------------------------------------: | ---------------------------------------------: | ------------------------------------------------: |
+| Net Sharpe                    |                                           0.3619 |                                         0.4052 |                                            1.1575 |
+| Max drawdown                  |                                          -38.65% |                                        -40.69% |                                           -24.91% |
+| Mean daily two-sided turnover |                                          198.83% |                                        199.35% |                                            40.01% |
 
 The three configurations were rerun on machine 45 on 2026-10-10 with Qlib buy/sell fees. They have no independent confirmation window; base/factor feature_fraction is 0.9/1.0, so differences do not isolate the added factors. Results include missing quotes, proxy fills and a partial 2026.
 

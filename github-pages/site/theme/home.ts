@@ -1,3 +1,5 @@
+import signalQuality from "../../figures/benchmark/qlib-signal-quality.svg";
+import portfolioResults from "../../figures/benchmark/qlib-topn-results.svg";
 import lineage from "../../figures/studio/task-lineage.png";
 import training from "../../figures/studio/training-curves.png";
 import backtest from "../../figures/studio/backtest-overall.png";
@@ -106,3 +108,8 @@ export const updates: Update[] = [
   { id: "studio", target: "_self" },
   { id: "factor", page: "plugins/qlib-factor" },
 ];
+
+export const benchmarkFigures = [
+  { id: "signal", image: signalQuality },
+  { id: "portfolio", image: portfolioResults },
+] as const;

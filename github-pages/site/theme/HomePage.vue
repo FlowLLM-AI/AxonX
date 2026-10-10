@@ -9,6 +9,7 @@ import {
   screens,
   capabilities,
   updates,
+  benchmarkFigures,
 } from "./home";
 
 const { language, t, link, playground } = useSiteI18n();
@@ -299,6 +300,22 @@ function moveTab(event: KeyboardEvent, target: number) {
       <p class="section-lead">
         {{ t.home.caseDescription }}
       </p>
+      <div class="benchmark-figures">
+        <a
+          v-for="figure in benchmarkFigures"
+          :key="figure.id"
+          class="benchmark-chart"
+          :href="figure.image"
+        >
+          <img
+            :src="figure.image"
+            :alt="t.home.benchmarkFigures[figure.id]"
+            width="1000"
+            height="470"
+            loading="lazy"
+          />
+        </a>
+      </div>
       <div class="actions">
         <a
           class="action secondary"
