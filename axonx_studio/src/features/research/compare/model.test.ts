@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { DailyRow } from "../backtest/types";
 import {
   cumulativeSeries,
+  executionCostRates,
+  pairedMean,
   holdingOverlap,
   pairDays,
   periodComparison,
@@ -20,6 +22,47 @@ const day = (date: string, net: number, gross = net): DailyRow => ({
 });
 
 describe("strategy comparison", () => {
+  it("resolves executed-side fees and preserves explicit zero", () => {
+    expect(executionCostRates({ transaction_cost_rate: 0.001 })).toEqual({
+      buyCost: 0.001,
+      sellCost: 0.001,
+    });
+    expect(
+      executionCostRates({
+        transaction_cost_rate: 0.001,
+        buy_cost_rate: 0,
+        sell_cost_rate: 0.002,
+      }),
+    ).toEqual({ buyCost: 0, sellCost: 0.002 });
+    expect(
+      executionCostRates({ transaction_cost_rate: 0.001, buy_cost_rate: null }),
+    ).toEqual({ buyCost: 0.001, sellCost: 0.001 });
+  });
+
+  it("averages recorded execution costs on the shared window", () => {
+    const a = [
+      { ...day("20230102", 0.1), top30_transaction_cost: 0.01 },
+      { ...day("20230103", 0.1), top30_transaction_cost: 0 },
+      { ...day("20230104", 0.1), top30_transaction_cost: 0.002 },
+    ];
+    const paired = pairDays(
+      a,
+      [
+        { ...day("20230103", 0.1), top30_transaction_cost: 0.003 },
+        { ...day("20230104", 0.1), top30_transaction_cost: 0.005 },
+      ],
+      30,
+    );
+    expect(pairedMean(paired, "top30_transaction_cost").a).toBeCloseTo(0.001);
+    expect(pairedMean(paired, "top30_transaction_cost").b).toBeCloseTo(0.004);
+    expect(
+      pairedMean(
+        pairDays(a, [day("20230103", 0.1)], 30),
+        "top30_transaction_cost",
+      ).a,
+    ).toBeNaN();
+  });
+
   it("aligns dates before compounding either strategy", () => {
     const a = [
       day("20230102", 0.5),

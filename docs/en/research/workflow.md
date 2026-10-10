@@ -12,7 +12,7 @@ AxonX provides research task execution, records, artifacts, and Studio visualiza
 ## Before you start
 
 - Complete the [quickstart](../getting-started/quickstart.md), with a working service token and connection.
-- Install the a158 plugin in the service environment executing tasks. Installing it in the local CLI environment does not automatically change a remote machine's environment.
+- Install the qlib_a158 plugin in the service environment executing tasks. Installing it in the local CLI environment does not automatically change a remote machine's environment.
 - Have Tushare history covering the training and prediction periods, plus necessary master data, in the workspace.
 - Keep research tasks and upstream artifacts in the same workspace, or prepare complete upstream directories using [task synchronization](../guides/task-sync.md).
 
@@ -20,7 +20,7 @@ AxonX provides research task execution, records, artifacts, and Studio visualiza
 pip install axonx-qlib-a158
 ```
 
-If the service is already running, restart it after installation, then query its task catalog with `axonx list_installed_task_definitions`. Expect `qlib_a158_etl`, `qlib_a158_factor`, `qlib_a158_train`, `qlib_a158_predict`, and `qlib_a158_backtest`.
+Direct pip installation requires a service restart. Remote `axonx plugin install` refreshes Task definitions; restart only when `restart_required=true`. Query the task catalog with `axonx list_installed_task_definitions`. Expect `qlib_a158_etl`, `qlib_a158_factor`, `qlib_a158_train`, `qlib_a158_predict`, and `qlib_a158_backtest`.
 
 ## What each research stage produces
 
@@ -72,7 +72,7 @@ axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
   --transaction-cost-rate 0.002
 ```
 
-Perform the wait from the previous section between each submission. `source_tasks` uses ASCII commas to separate Task IDs. Each a158 stage requires a single upstream task of the corresponding type; do not arbitrarily add tasks of that type.
+Perform the wait from the previous section between each submission. `source_tasks` uses ASCII commas to separate Task IDs. Each qlib_a158 stage requires a single upstream task of the corresponding type; do not arbitrarily add tasks of that type.
 
 Training reserves the final dates in trading-day order for validation, with a default validation ratio of 10%. Validation and early stopping first select the iteration count, then all valid samples in the training window fit the final model. Saved training curves come from tuning; they are not the final model's performance on an independent test set.
 
@@ -80,7 +80,7 @@ Training reserves the final dates in trading-day order for validation, with a de
 
 By default, ETL outputs available data from `20140101`, while rolling features read earlier history. Downloading the latest 7 calendar days cannot support multi-year training or complete rolling windows.
 
-a158 publishes independent feature, raw-label, market, and calendar artifacts. Labels use the next market date at the same time; suspension or missing data invalidates that fixed-day return without extending its horizon. Training excludes label target dates at or beyond the exclusive cutoff and computes rank/CSZ targets after sample filtering. Prediction retains the full cross-section without joining labels. Backtesting selects signal-day candidates and values actual positions each market day; blocked exits retain capital.
+qlib_a158 publishes independent feature, raw-label, market, and calendar artifacts. Labels use the next market date at the same time; suspension or missing data invalidates that fixed-day return without extending its horizon. Training excludes label target dates at or beyond the exclusive cutoff and computes rank/CSZ targets after sample filtering. Prediction retains the full cross-section without joining labels. Backtesting selects signal-day candidates and values actual positions each market day; blocked exits retain capital.
 
 The default training target `label_return_rank` is a cross-sectional rank label. Prediction `pred` is a model score and cannot be interpreted directly as a return or probability of a price rise.
 
@@ -115,7 +115,7 @@ The script installs the plugin, refreshes the latest 7 days of raw data, and use
 | No valid labels in the training interval  | ETL dates, trading status, exit labels, and training boundaries |
 | Prediction starts before training ends    | `pred_start` and metadata `train_end_exclusive`                 |
 | Model validation fails                    | Whether the model file in the training directory was replaced   |
-| Backtest fields are missing               | Whether prediction artifacts match the a158 protocol            |
+| Backtest fields are missing               | Whether prediction artifacts match the qlib_a158 protocol       |
 
 Lineage graphs record explicit upstream relationships. They do not automatically schedule, fill in, or rerun the research chain. Rerunning with a fixed `task_name` replaces the directory record of a finished task; use different names and retain artifacts when comparing experiments.
 
@@ -123,5 +123,5 @@ Lineage graphs record explicit upstream relationships. They do not automatically
 
 - [Tushare data](tushare.md), [Interpreting results](results.md), [Interpreting backtests](backtest.md)
 - [Research artifact protocol](../reference/research-artifacts.md)
-- [a158 plugin manifest](../../../plugins/qlib_a158/axonx_qlib_a158/plugin.yaml)
+- [qlib_a158 plugin manifest](../../../plugins/qlib_a158/axonx_qlib_a158/plugin.yaml)
 - [Training implementation](../../../plugins/qlib_a158/axonx_qlib_a158/train.py), [Prediction implementation](../../../plugins/qlib_a158/axonx_qlib_a158/predict.py)

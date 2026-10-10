@@ -17,12 +17,12 @@
 
 ## 选择研究插件
 
-[插件管理](../plugins/management.md)介绍执行环境中的安装与发现。[Alpha158](../../../plugins/qlib_a158/README_ZH.md)提供基线价量特征、LightGBM 训练与 TopN 回测；[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)增加独立注册的 Task 和可配置特征分组。
+[插件管理](../plugins/management.md)介绍执行环境中的安装与发现。[Alpha158](../../../plugins/qlib_a158/README_ZH.md)提供基线价量特征、LightGBM 训练与 TopN 回测；[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)增加独立注册的 Task 和可配置特征分组；[Qlib Strategy](../../../plugins/qlib_strategy/README_ZH.md)复用预测并增加排名保留策略。
 
 提交前发现实际安装的 Task Schema。参数、算法与产物定义由插件维护；为 Studio 实现输出时，查阅[研究产物契约](../reference/research-artifacts.md)。
 
 ## 阅读 Agent 开发实验案例
 
-[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)展示最终三层指标；[三层实验对比](experiments.md#comparison)维护共同设定、基准口径和同策略控制。每侧费用为 0.1%，10 日主策略 Top20／Top30 净年化为 17.16%／18.60%；3 日方案为探索候选。各插件 README 仅记录自己的详细设定与结果。
+[README Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)展示三个插件对应的三个版本：Alpha158 基线、增加两个风险因子、增加 3 日排名保留策略。共同设定、完整指标与选择依据见[实验对比](experiments.md#comparison)，各插件 README 维护自己的算法、差异配置与结果。策略为探索筛选结果，尚未独立确认。
 
 可复用的方法见[实验设计](experiments.md)，Agent 接入方式见[外部 Agent](../agent/external.md)。

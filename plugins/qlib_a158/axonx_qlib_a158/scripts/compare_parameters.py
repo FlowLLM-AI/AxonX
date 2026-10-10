@@ -31,7 +31,7 @@ def run_comparison(options: argparse.Namespace) -> dict:
             raise RuntimeError(f"{task.task_id}: {status.error}")
         return task.task_id, status.result
 
-    labels = list(dict.fromkeys(getattr(options, "labels", ["rank"])))
+    labels = list(dict.fromkeys(options.labels))
     combinations = [(label, preset) for label in labels for preset in ("axonx", "qlib")]
     for label, preset in combinations:
         key = preset if len(labels) == 1 else f"{label}_{preset}"
@@ -60,8 +60,8 @@ def run_comparison(options: argparse.Namespace) -> dict:
             top_ns=options.top_ns,
             as_of_date=prediction["date_range"]["end"],
             transaction_cost_rate=options.transaction_cost_rate,
-            buy_cost_rate=getattr(options, "buy_cost_rate", None),
-            sell_cost_rate=getattr(options, "sell_cost_rate", None),
+            buy_cost_rate=options.buy_cost_rate,
+            sell_cost_rate=options.sell_cost_rate,
         )
         records[key] = {
             "label": label,

@@ -60,7 +60,7 @@ The framework records task configuration, dependencies, result metadata, and art
 
 ## Plugin Development
 
-A plugin can register multiple Tasks; the a158 example registers five Task types in `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml`. The a158
+A plugin can register multiple Tasks; the qlib_a158 example registers five Task types in `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml`. The qlib_a158
 paths, class names, registered names, and dependency chain here are illustrative; replace them with actual definitions when developing other research plugins. Plugin installation and Task submission are separate operations.
 
 ### Required authoring contracts
@@ -98,7 +98,7 @@ the intended consumers.
 | Predict  | Generate predictions using a model produced by Train and its associated ETL data. |
 | Backtest | Backtest Predict results to evaluate strategy performance.                        |
 
-Tasks link upstream and downstream through Task IDs. The a158 example's main dependency chain is ETL → Train → Predict → Backtest; Analysis uses ETL data for factor analysis.
+Tasks link upstream and downstream through Task IDs. The qlib_a158 example's main dependency chain is ETL → Train → Predict → Backtest; Analysis uses ETL data for factor analysis.
 
 ### Development Steps
 
@@ -158,7 +158,7 @@ tasks:
 
 `qlib_a158_etl` is the `--task` value for submission; the Python module precedes the colon and the Task class name follows it.
 
-For a new plugin, the package directory must contain `__init__.py`, and `plugins/qlib_a158/pyproject.toml` must declare the plugin entry point and registration file distributed with the package. The existing a158 plugin already configures these:
+For a new plugin, the package directory must contain `__init__.py`, and `plugins/qlib_a158/pyproject.toml` must declare the plugin entry point and registration file distributed with the package. The existing qlib_a158 plugin already configures these:
 
 ```toml
 [project.entry-points."axonx.plugins"]
@@ -199,8 +199,8 @@ Run only the Tasks needed for the current change and reuse unaffected successful
 
 Run Analysis only when factor diagnostics are needed. Select the following commands as required.
 
-| Command name | Description                                                                                         | Command                                                                | Remote arguments             |
-| ------------ | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------- |
+| Command name | Description                                                                                         | Command                                                                     | Remote arguments             |
+| ------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
 | `submit`     | Submit ETL to clean data and generate a dataset; the example specifies the data start date.         | `axonx submit --task qlib_a158_etl --start-date 20150101`                   | `--target 192.168.1.10:1024` |
 | `submit`     | Submit Analysis to analyze factors in the specified ETL artifacts.                                  | `axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'`       | `--target 192.168.1.10:1024` |
 | `submit`     | Submit Train to train a model using the specified ETL dataset.                                      | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`        | `--target 192.168.1.10:1024` |
@@ -247,14 +247,14 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 
 ### Startup and Local Execution
 
-| Command name | Description                                                                                                                                                                 | Command                                            | Remote arguments             |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------- |
-| `help`       | Show CLI usage, local commands, and how to call service Jobs.                                                                                                               | `axonx help`                                       | —                            |
-| `start`      | Load the registered `default` configuration when none is specified and start the local HTTP service.                                                                        | `axonx start`                                      | —                            |
-| `start`      | Start the service with an explicitly specified YAML file; the example path is relative to the AxonX repository root and can be replaced with the actual configuration file. | `axonx start --config axonx/config/default.yaml`   | —                            |
-| `exec`       | List executable registered Task names and entry classes in the current Python environment without running a Task.                                                           | `axonx exec`                                       | —                            |
+| Command name | Description                                                                                                                                                                 | Command                                                 | Remote arguments             |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------- |
+| `help`       | Show CLI usage, local commands, and how to call service Jobs.                                                                                                               | `axonx help`                                            | —                            |
+| `start`      | Load the registered `default` configuration when none is specified and start the local HTTP service.                                                                        | `axonx start`                                           | —                            |
+| `start`      | Start the service with an explicitly specified YAML file; the example path is relative to the AxonX repository root and can be replaced with the actual configuration file. | `axonx start --config axonx/config/default.yaml`        | —                            |
+| `exec`       | List executable registered Task names and entry classes in the current Python environment without running a Task.                                                           | `axonx exec`                                            | —                            |
 | `exec`       | Execute the specified ETL Task in the current process and output results without HTTP submission.                                                                           | `axonx exec --task qlib_a158_etl --start-date 20150101` | —                            |
-| `version`    | Query version information for the connected AxonX service.                                                                                                                  | `axonx version`                                    | `--target 192.168.1.10:1024` |
+| `version`    | Query version information for the connected AxonX service.                                                                                                                  | `axonx version`                                         | `--target 192.168.1.10:1024` |
 
 ### Plugin Management
 
@@ -264,18 +264,18 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 - Local `plugin inspect` accepts a source directory, wheel path, or installed plugin name; remote inspection accepts only a distribution or plugin name installed on the target service, such as
   `axonx-qlib-a158`. Do not simply append `--target` to local path examples; remote inspection does not upload source or wheels.
 
-| Command name       | Description                                                                                                                   | Command                                                        | Remote arguments             |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------- |
-| `plugin list`      | List installed plugins in the current environment or target service; `tasks` keys are registered Task names.                  | `axonx plugin list`                                            | `--target 192.168.1.10:1024` |
-| `plugin show`      | View a plugin's version, registered contributions, dependencies, and other information.                                       | `axonx plugin show axonx-qlib-a158`                             | `--target 192.168.1.10:1024` |
-| `plugin inspect`   | Inspect a plugin installed in the current environment or target service; pass its distribution or plugin name.                | `axonx plugin inspect axonx-qlib-a158`                          | `--target 192.168.1.10:1024` |
+| Command name       | Description                                                                                                                   | Command                                                             | Remote arguments             |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------- |
+| `plugin list`      | List installed plugins in the current environment or target service; `tasks` keys are registered Task names.                  | `axonx plugin list`                                                 | `--target 192.168.1.10:1024` |
+| `plugin show`      | View a plugin's version, registered contributions, dependencies, and other information.                                       | `axonx plugin show axonx-qlib-a158`                                 | `--target 192.168.1.10:1024` |
+| `plugin inspect`   | Inspect a plugin installed in the current environment or target service; pass its distribution or plugin name.                | `axonx plugin inspect axonx-qlib-a158`                              | `--target 192.168.1.10:1024` |
 | `plugin inspect`   | Build a wheel from local source or reuse a cached wheel to inspect plugin metadata without installation.                      | `axonx plugin inspect plugins/qlib_a158`                            | —                            |
-| `plugin inspect`   | Inspect plugin metadata from an existing local wheel without rebuilding or installing; replace the path with the actual file. | `axonx plugin inspect '<plugin_wheel_path>'`                   | —                            |
+| `plugin inspect`   | Inspect plugin metadata from an existing local wheel without rebuilding or installing; replace the path with the actual file. | `axonx plugin inspect '<plugin_wheel_path>'`                        | —                            |
 | `plugin build`     | Build from source or reuse a cached wheel and output its path, checksum, and plugin metadata without installation.            | `axonx plugin build plugins/qlib_a158`                              | —                            |
 | `plugin build`     | Generate a wheel in the specified directory for later distribution or installation.                                           | `axonx plugin build plugins/qlib_a158 --output .axonx/plugins/dist` | —                            |
 | `plugin install`   | Build a wheel locally from source and install it directly; with a remote target, upload and install it on the target service. | `axonx plugin install plugins/qlib_a158`                            | `--target 192.168.1.10:1024` |
-| `plugin install`   | Install an existing local wheel; with a remote target, upload and install it on the target service.                           | `axonx plugin install '<plugin_wheel_path>'`                   | `--target 192.168.1.10:1024` |
-| `plugin uninstall` | Uninstall the specified plugin from the current environment or target service.                                                | `axonx plugin uninstall axonx-qlib-a158`                        | `--target 192.168.1.10:1024` |
+| `plugin install`   | Install an existing local wheel; with a remote target, upload and install it on the target service.                           | `axonx plugin install '<plugin_wheel_path>'`                        | `--target 192.168.1.10:1024` |
+| `plugin uninstall` | Uninstall the specified plugin from the current environment or target service.                                                | `axonx plugin uninstall axonx-qlib-a158`                            | `--target 192.168.1.10:1024` |
 
 ### Machines
 
@@ -289,10 +289,10 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 
 | Command name          | Description                                                                                                                            | Command                                                                            | Remote arguments             |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------- |
-| `get_task_definition` | Query a complete Task definition; `--task` takes the registered name, not a Task ID or instance name.                                  | `axonx get_task_definition --task qlib_a158_etl`                                        | `--target 192.168.1.10:1024` |
-| `submit`              | Submit ETL with a framework-generated name; record `answer.task_id`, `answer.run_id`, and `answer.task`.                               | `axonx submit --task qlib_a158_etl --start-date 20150101`                               | `--target 192.168.1.10:1024` |
-| `submit`              | Use an explicit name to generate a fixed Task ID; reusing it replaces artifacts after the previous run finishes.                       | `axonx submit --task qlib_a158_etl --task-name default --start-date 20150101`           | `--target 192.168.1.10:1024` |
-| `submit`              | Submit training using the actual Task ID of a successful ETL as the data source.                                                       | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`                    | `--target 192.168.1.10:1024` |
+| `get_task_definition` | Query a complete Task definition; `--task` takes the registered name, not a Task ID or instance name.                                  | `axonx get_task_definition --task qlib_a158_etl`                                   | `--target 192.168.1.10:1024` |
+| `submit`              | Submit ETL with a framework-generated name; record `answer.task_id`, `answer.run_id`, and `answer.task`.                               | `axonx submit --task qlib_a158_etl --start-date 20150101`                          | `--target 192.168.1.10:1024` |
+| `submit`              | Use an explicit name to generate a fixed Task ID; reusing it replaces artifacts after the previous run finishes.                       | `axonx submit --task qlib_a158_etl --task-name default --start-date 20150101`      | `--target 192.168.1.10:1024` |
+| `submit`              | Submit training using the actual Task ID of a successful ETL as the data source.                                                       | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`               | `--target 192.168.1.10:1024` |
 | `wait_task`           | Wait for the specified Run ID to finish and return complete status; the response succeeds only for `succeeded`.                        | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
 | `stream_task`         | Continuously output a Task's progress and logs until completion, then return final status.                                             | `axonx stream_task --task-id '<task_id>' --stream true`                            | `--target 192.168.1.10:1024` |
 | `list_task_ids`       | List Task IDs with status files for subsequent queries.                                                                                | `axonx list_task_ids`                                                              | `--target 192.168.1.10:1024` |

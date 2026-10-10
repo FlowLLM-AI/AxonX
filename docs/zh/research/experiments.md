@@ -20,7 +20,7 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 | 样本与模型         | 保存标签、过滤规则、训练与验证窗口、超参数和随机种子     |
 | 执行与成本         | 保存股票池、成交代理、延迟退出、成本率、年化与无风险设置 |
 | 选择规则           | 事先确定候选集、主要指标、约束和并列时的处理             |
-| 实验证据           | 保存 Task/Run ID、输入、metadata、日志和关键产物         |
+| 实验证据           | 保存 Task/运行标识、输入、metadata、日志和关键产物       |
 
 固定随机种子不能替代固定数据和依赖环境。字段时点必须符合预测时可用信息，不能用未来标签或未来可交易性构建特征。
 
@@ -33,7 +33,7 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 
 用于选择方案的窗口不能同时作为独立确认。若看到确认结果后继续修改，需将该窗口视为开发信息，为新方案重新建立确认设计。
 
-当前 Qlib Factor 固定训练 `[20150101,20230101)`，使用训练期内部验证 RankIC 选择增强组，从 2023 年起报告统一样本外区间。Qlib Strategy 的主方案预先固定，持有期对照单独展示。最终三层对比见下文，各插件仅维护自己的设定与结果。
+当前 Qlib Factor 固定训练 `[20150101,20230101)`，使用训练期内部验证 RankIC 选择增强组，从 2023 年起报告统一样本外区间。Qlib Strategy 展示已有候选中表现更好的 3 日策略，该选择尚未独立确认。三个版本的对比见下文。
 
 ## 用 Task 保存消融链
 
@@ -56,13 +56,13 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 
 信号质量与组合收益应分别报告：RankIC 衡量排序相关性；净收益、回撤与 Sharpe 还受成本和成交、退出假设影响。某一个 Top N 改善不能推导所有组合规模都改善。
 
-[回测解读](backtest.md)区分插件汇总、前端窗口重算、毛收益与净收益。实验额外计算的净 Sharpe 应明确公式与数据来源，不能直接用原产物的 gross Sharpe 代替。
+[回测解读](backtest.md)区分插件汇总、前端窗口重算、毛收益与净收益。实验额外计算的净夏普比率 应明确公式与数据来源，不能直接用原产物的 gross Sharpe 代替。
 
 ## 解释增量与不确定性
 
 同一日期上的基线与增强方案可构成配对差值。报告点估计时，同时说明有效样本、缺失日期和时间相关性处理。区块 bootstrap 的统计对象、区块长度、次数与随机种子都应记录。
 
-循环区块 bootstrap 可用于每日 RankIC 或净收益的配对差值；应记录区块长度、重采样次数和种子，并区别每日均值差与年化复利收益差。本次统一三层对照报告点估计、完整候选及数据质量检查。
+循环区块 bootstrap 可用于每日 RankIC 或净收益的配对差值；应记录区块长度、重采样次数和种子，并区别每日均值差与年化复利收益差。本次三版本对照报告点估计、选择依据及数据质量限制。
 
 这种计算属于实验分析，Studio 策略比较页面不会自动生成上述 bootstrap 检验。原始日级产物、对齐方法与计算记录需要在实验环境保留。
 
@@ -70,7 +70,7 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 
 [项目 Benchmark](../../../README_ZH.md#benchmark-agent-开发市场横截面增强特征)介绍 Agent 如何开发独立插件并通过 AxonX 执行研究。[Qlib Factor](../../../plugins/qlib_factor/README_ZH.md)维护特征定义、任务参数、结论和复现命令。
 
-跨插件共同设定、完整指标与控制实验统一见[三层实验对比](#comparison)；各插件 README 分别维护自身的详细 Setting 和实验结果。原始日志、metadata 与日级产物留在执行工作区。
+三个版本的共同设定、完整指标和选择依据见[实验对比](#comparison)；各插件 README 维护自身算法、差异配置与结果。原始日志、metadata 与日级产物留在执行工作区。
 
 ## 报告结论
 
@@ -78,11 +78,11 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 
 <a id="comparison"></a>
 
-## 三层实验设定与结果对比
+## 三个插件、三个实验版本
 
-本节集中维护三个插件之间的共同实验设定、最终方案与必要控制。各插件内部只维护自己的详细设定与结果。共同设置只列一次，方案表仅列差异；实验 CSV/JSON、中间候选、历史报告和归档已删除。结果取自 45 机器成功任务的原始 metadata、summary.parquet、daily.parquet 和 trades.parquet，核对日期与输入哈希后整理。没有重新训练或重跑回测；原始运行产物仍留在执行工作区。
+文档只展示三个递进版本：Alpha158 基线、增加两个风险因子、复用增强预测的 3 日排名保留策略，分别对应 `qlib_a158`、`qlib_factor`、`qlib_strategy`。共同设定与指标口径在本页维护，各插件 README 维护自己的算法、差异配置与结果。数值整理自 45 机器成功任务的 metadata、summary.parquet、daily.parquet 和 trades.parquet，已核对日期与输入哈希；本次没有重新训练或回测，原始产物留在执行工作区。
 
-### 共同 Setting
+### 共同设定
 
 | 环节            | 设定                                                                                                                                                                                                                                          |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -96,118 +96,93 @@ AxonX 保存执行证据，实验设计决定这些证据能支持什么结论�
 | 样本外          | pred_start=20230101，pred_end=20261008；实际整体评估 20230103–20261008，909 个市场日，2026 为不完整年度。                                                                                                                                     |
 | 组合 / 成交     | 重点 Top20，Top30 辅助；收盘报价为成交代理，先卖后买，遵循涨跌停与可交易限制；新仓最多分配 1/N 权益，不能买入不补位，不能卖出继续持仓并占用资金，保留仓位不再平衡；不强制期末清仓。                                                           |
 | 费用 / 年化     | transaction_cost_rate=0.001，每次实际成交买卖各 0.1%；buy_cost_rate=sell_cost_rate=null，沿用共用费率，不设最低费用。annualization_days=252，annual_risk_free_rate=0.012。                                                                    |
-| 输入对齐        | 六组回测共用基础 ETL 的 market.parquet、calendar.parquet、labels.parquet；as_of_date=20261008，index_codes=[]，minimum_index_weight_coverage=0.98。                                                                                           |
+| 输入对齐        | 三个版本回测共用基础 ETL 的 market.parquet、calendar.parquet、labels.parquet；as_of_date=20261008，index_codes=[]，minimum_index_weight_coverage=0.98。                                                                                       |
 
 ### 最终方案的差异
 
-| Scheme                | context_groups | Features | feature_fraction | Best rounds | Validation RankIC | Exit policy             |
-| --------------------- | -------------- | -------: | ---------------: | ----------: | ----------------: | ----------------------- |
-| Alpha158              | —              |      158 |              0.9 |         422 |           0.10789 | fixed holding_days=1    |
-| Factor: stock_risk    | risk           |      160 |              1.0 |         426 |           0.11321 | fixed holding_days=1    |
-| Strategy: 10d         | risk           |      160 |              1.0 |         426 |           0.11321 | minimum_holding_days=10 |
-| Strategy: 3d          | risk           |      160 |              1.0 |         426 |           0.11321 | minimum_holding_days=3  |
-| Alpha158 + 10d        | —              |      158 |              0.9 |         422 |           0.10789 | minimum_holding_days=10 |
-| Matched Alpha158 + 3d | none           |      158 |              1.0 |         397 |           0.10776 | minimum_holding_days=3  |
+| 方案         | 插件            | 特征组 | 特征数 | 特征采样比例 | 最佳轮数 | 验证集秩信息系数（RankIC） | 退出规则                                  |
+| ------------ | --------------- | ------ | -----: | -----------: | -------: | -------------------------: | ----------------------------------------- |
+| Alpha158     | `qlib_a158`     | —      |    158 |          0.9 |      422 |                    0.10789 | 固定持有 1 日（`holding_days=1`）         |
+| 风险因子增强 | `qlib_factor`   | risk   |    160 |          1.0 |      426 |                    0.11321 | 固定持有 1 日（`holding_days=1`）         |
+| 3 日策略     | `qlib_strategy` | risk   |    160 |          1.0 |      426 |                    0.11321 | 最短持有 3 日（`minimum_holding_days=3`） |
 
-四组策略回测均为 `replacement_fraction=0.2`、`rank_buffer=1`：持满最短天数后，优先退出 TopN 以外的最差排名；Top20 每日每侧最多成交 4 只，Top30 为 6 只，首次建仓豁免。`holding_days=1` 在排名策略中不触发固定到期退出，planned_exit_date=null；这是数量上限，不是资金换手上限。10 日为预先指定主方案；3 日为探索候选，默认保持 10 日，因子默认仍为 none。
+策略版显式使用 `minimum_holding_days=3`、`replacement_fraction=0.2`、`rank_buffer=1`：持满最短天数后，优先退出 TopN 以外排名最差的持仓；Top20 每日每侧最多成交 4 只，Top30 为 6 只，首次建仓豁免。`holding_days=1` 不触发固定到期退出，planned_exit_date=null；限制的是股票数量。插件默认最短持有期仍为 10 日，因子默认组仍为 none，复现这两个增强版本需要显式传参。
 
-最终 stock_risk 只增加 `f_context_residual_vol20`、`f_context_downside_risk20`，不使用全局均值/方差或 neutral 列。`context_windows=[10]` 是该模型保存的训练配置，仅过滤全局因子，因此对 risk 组无影响。个股日收益按当日横截面 2%/98% 线性分位缩尾；市场收益为同截面的缩尾等权均值。beta 使用截至 T−1 的 60 个市场日、至少 30 个有效成对收益，以协方差/市场方差估计并截断至 [−3,3]；市场方差 ≤1e−12 时缺失。残差日收益为个股缩尾收益 − 历史 beta × 市场收益，20 日残差波动用样本标准差（ddof=1）；下行风险为 sqrt(mean(min(缩尾日收益,0)²))。两者要求 20 日内至少 16 个有效值，缺失/未定义保持缺失。
+因子版在 158 列基础上仅增加残差波动与下行风险两列（`context_groups=risk`）；计算时点、缺失值要求和公式见 [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md#experiments)。策略版直接复用该模型预测，不重新训练，所以整体信号指标相同。
 
 ### 指标口径
 
-整体 IC/RankIC 是信号日可选股票中有效次日标签与预测的每日 Pearson/Spearman 相关系数均值，与持仓 TopN 和策略无关。RankICIR 未年化值为 mean(日 RankIC)/std(日 RankIC,ddof=1)，年化值再乘 sqrt(252)；表中两种均列出，避免与不年化的因子分析口径混淆。
+整体 IC/RankIC 是信号日可选股票中有效次日标签与预测的每日 Pearson/Spearman 相关系数均值，与持仓 TopN 和策略无关。表中只报告年化秩信息比率（RankICIR）= mean(日 RankIC)/std(日 RankIC,ddof=1) × sqrt(252)；因子分析产物中的未年化值应先换算再比较。
 
-净年化 = (∏(1+r_net))^(252/D)−1；净 Sharpe = (mean(r_net)−[(1.012)^(1/252)−1])/std(r_net,ddof=1)×sqrt(252)。最大回撤基于复利净权益，峰值包含初始权益 1；换手 = (实际买入金额+卖出金额)/前日权益，全部换仓约 200%。胜率为净日收益大于 0 的比例。
+净年化 = (∏(1+r_net))^(252/D)−1；净夏普比率 = (mean(r_net)−[(1.012)^(1/252)−1])/std(r_net,ddof=1)×sqrt(252)。最大回撤基于复利净权益，峰值包含初始权益 1；换手 = (实际买入金额+卖出金额)/前日权益，全部换仓约 200%。胜率为净日收益大于 0 的比例。
 
 “市场均值”基准是有有效前向标签的预测全截面股票等权平均收益，不是仅 Top20，也不是风险因子计算中的缩尾均值。HS300 为信号中沪深 300 成分权重加权收益的代理，权重覆盖至少 98%；不是官方 CSI300 指数行情。两个基准的有效日期均为 20230104–20261008（908 日），净超额指标只用该共同窗口；组合自身指标用完整 909 日。
 
-扣费日超额 a_t = r_net,t−r_benchmark,t；**Net IR（净信息比率）** = mean(a)/std(a,ddof=1)×sqrt(252)。净超额年化用 ∏(1+a) 复利并按 908 日年化；净超额最大回撤也基于这条超额复利曲线。它们不是两个年化收益相减，也不是组合/基准权益比；原框架 information_ratio 字段用毛收益，本节重新从日级产物计算扣费指标。
+扣费日超额 a_t = r_net,t−r_benchmark,t；**净信息比率（年化）** = mean(a)/std(a,ddof=1)×sqrt(252)。净超额年化用 ∏(1+a) 复利并按 908 日年化；净超额最大回撤也基于这条超额复利曲线。它们不是两个年化收益相减，也不是组合/基准权益比；原框架 information_ratio 字段用毛收益，本节重新从日级产物计算扣费指标。
+
+![基线与 risk 因子的信号质量](../../figures/benchmark/qlib-signal-quality.svg)
+
+![三个研究版本的净年化收益](../../figures/benchmark/qlib-topn-results.svg)
 
 ### 整体信号与 Top20 完整指标
 
-| 指标                         | Alpha158 | Factor: stock_risk | Strategy: 10d | Strategy: 3d |
-| ---------------------------- | -------: | -----------------: | ------------: | -----------: |
-| 整体 IC                      |   0.0530 |             0.0545 |        0.0545 |       0.0545 |
-| 整体 RankIC                  |   0.0923 |             0.0966 |        0.0966 |       0.0966 |
-| 整体 RankICIR（年化）        |  12.8817 |            14.2859 |       14.2859 |      14.2859 |
-| 整体 RankICIR（未年化）      |   0.8115 |             0.8999 |        0.8999 |       0.8999 |
-| Net annualized               |    7.69% |              9.04% |        17.16% |       32.36% |
-| 净累计收益                   |   30.63% |             36.64% |        77.06% |      174.92% |
-| Net Sharpe                   |   0.3624 |             0.4054 |        0.7026 |       1.1571 |
-| 净年化波动                   |   28.20% |             28.53% |        25.49% |       26.19% |
-| 最大回撤                     |  -38.64% |            -40.67% |       -26.68% |      -24.91% |
-| 日收益胜率                   |   53.47% |             53.47% |        51.93% |       55.89% |
-| 日均双边换手                 |  198.83% |            199.35% |        19.23% |       40.02% |
-| 日均费用 / 前日权益          |  0.1988% |            0.1993% |       0.0192% |      0.0400% |
-| 已完成交易                   |   18,032 |             18,079 |         1,739 |        3,624 |
-| 净超额年化 vs 市场均值       |   -3.47% |             -1.86% |         4.79% |       18.65% |
-| Net IR vs 市场均值           |  -0.1404 |            -0.0649 |        0.4387 |       1.4547 |
-| 净超额最大回撤 vs 市场均值   |  -28.47% |            -21.71% |       -19.46% |      -18.63% |
-| 净超额年化 vs HS300 代理     |    2.77% |              4.09% |        11.53% |       26.04% |
-| Net IR vs HS300 代理         |   0.2353 |             0.2947 |        0.6713 |       1.2699 |
-| 净超额最大回撤 vs HS300 代理 |  -31.94% |            -29.34% |       -22.00% |      -23.96% |
+| 指标                              | Alpha158 | 风险因子增强 | 3 日策略 |
+| --------------------------------- | -------: | -----------: | -------: |
+| 整体信息系数（IC）                |   0.0530 |       0.0545 |   0.0545 |
+| 整体秩信息系数（RankIC）          |   0.0923 |       0.0966 |   0.0966 |
+| 整体秩信息比率（RankICIR，年化）  |  12.8817 |      14.2859 |  14.2859 |
+| 净年化收益                        |    7.69% |        9.04% |   32.36% |
+| 净累计收益                        |   30.63% |       36.64% |  174.92% |
+| 净夏普比率                        |   0.3624 |       0.4054 |   1.1571 |
+| 净年化波动率                      |   28.20% |       28.53% |   26.19% |
+| 最大回撤                          |  -38.64% |      -40.67% |  -24.91% |
+| 日收益胜率                        |   53.47% |       53.47% |   55.89% |
+| 日均双边换手                      |  198.83% |      199.35% |   40.02% |
+| 日均费用 / 前日权益               |  0.1988% |      0.1993% |  0.0400% |
+| 已完成交易                        |   18,032 |       18,079 |    3,624 |
+| 相对市场均值的净超额年化收益      |   -3.47% |       -1.86% |   18.65% |
+| 相对市场均值的净信息比率          |  -0.1404 |      -0.0649 |   1.4547 |
+| 相对市场均值的净超额最大回撤      |  -28.47% |      -21.71% |  -18.63% |
+| 相对沪深 300 代理的净超额年化收益 |    2.77% |        4.09% |   26.04% |
+| 相对沪深 300 代理的净信息比率     |   0.2353 |       0.2947 |   1.2699 |
+| 相对沪深 300 代理的净超额最大回撤 |  -31.94% |      -29.34% |  -23.96% |
 
-### 同策略控制：Top20
+### 选择依据与结论边界
 
-| 指标                         | Alpha158 + 10d | Matched Alpha158 + 3d |
-| ---------------------------- | -------------: | --------------------: |
-| 整体 IC                      |         0.0530 |                0.0529 |
-| 整体 RankIC                  |         0.0923 |                0.0922 |
-| 整体 RankICIR（年化）        |        12.8817 |               12.9202 |
-| 整体 RankICIR（未年化）      |         0.8115 |                0.8139 |
-| Net annualized               |         18.69% |                22.62% |
-| 净累计收益                   |         85.55% |               108.64% |
-| Net Sharpe                   |         0.7414 |                0.9010 |
-| 净年化波动                   |         26.13% |                24.72% |
-| 最大回撤                     |        -32.24% |               -36.19% |
-| 日收益胜率                   |         54.90% |                56.11% |
-| 日均双边换手                 |         19.77% |                40.01% |
-| 日均费用 / 前日权益          |        0.0198% |               0.0400% |
-| 已完成交易                   |          1,799 |                 3,624 |
-| 净超额年化 vs 市场均值       |          5.93% |                 9.01% |
-| Net IR vs 市场均值           |         0.4543 |                0.6364 |
-| 净超额最大回撤 vs 市场均值   |        -29.07% |               -25.97% |
-| 净超额年化 vs HS300 代理     |         13.00% |                16.56% |
-| Net IR vs HS300 代理         |         0.7197 |                0.9150 |
-| 净超额最大回撤 vs HS300 代理 |        -26.76% |               -30.31% |
-
-10 日策略下基础模型净年化 18.69%，高于增强模型 17.16%；3 日增强模型净年化 32.36%，高于匹配控制 22.62%，净 Sharpe 与回撤也改善。3 日相对 10 日增加换手，探索筛选不能作为独立确认，不据此改默认。
+3 日增强策略在已有候选中 Top20／Top30 净年化、净夏普比率 和回撤均优于 10 日方案，因此作为文档唯一展示的策略版本；其 Top20 日均双边换手更高（40.02%）。3 日同参数基础模型控制的 Top20 净年化为 22.62%，增强策略为 32.36%。这是重复开发窗口的探索筛选，尚无独立确认。基线与因子版的 feature_fraction 分别为 0.9 和 1.0，三个版本的收益差不能全部归因于新增因子。
 
 ### 基准自身表现（908 日）
 
-| Benchmark     | Annualized | Cumulative | Annualized volatility | Max drawdown | Daily win rate |
-| ------------- | ---------: | ---------: | --------------------: | -----------: | -------------: |
-| Universe mean |     11.12% |     46.22% |                25.06% |      -33.66% |         54.74% |
-| HS300 proxy   |      5.03% |     19.33% |                17.58% |      -22.46% |         49.78% |
+| 基准          | 年化收益 | 累计收益 | 年化波动率 | 最大回撤 | 日收益胜率 |
+| ------------- | -------: | -------: | ---------: | -------: | ---------: |
+| 市场均值      |   11.12% |   46.22% |     25.06% |  -33.66% |     54.74% |
+| 沪深 300 代理 |    5.03% |   19.33% |     17.58% |  -22.46% |     49.78% |
 
 ### Top30 辅助对比
 
-| Scheme                | Net annualized | Net Sharpe | Max drawdown | Turnover | Net IR: universe | Net IR: HS300 |
-| --------------------- | -------------: | ---------: | -----------: | -------: | ---------------: | ------------: |
-| Alpha158              |          0.99% |     0.1315 |      -40.59% |  199.03% |          -0.5933 |       -0.0776 |
-| Factor: stock_risk    |          4.27% |     0.2480 |      -41.41% |  199.37% |          -0.4236 |        0.0840 |
-| Strategy: 10d         |         18.60% |     0.7615 |      -28.32% |   19.45% |           0.5895 |        0.7631 |
-| Strategy: 3d          |         29.29% |     1.0880 |      -25.53% |   40.03% |           1.4086 |        1.1912 |
-| Alpha158 + 10d        |         22.57% |     0.8876 |      -31.95% |   19.78% |           0.7104 |        0.9347 |
-| Matched Alpha158 + 3d |         20.43% |     0.8395 |      -33.71% |   40.02% |           0.5513 |        0.8412 |
+| 方案         | 净年化收益 | 净夏普比率 | 最大回撤 | 日均双边换手 | 相对市场均值的净信息比率 | 相对沪深 300 代理的净信息比率 |
+| ------------ | ---------: | ---------: | -------: | -----------: | -----------------------: | ----------------------------: |
+| Alpha158     |      0.99% |     0.1315 |  -40.59% |      199.03% |                  -0.5933 |                       -0.0776 |
+| 风险因子增强 |      4.27% |     0.2480 |  -41.41% |      199.37% |                  -0.4236 |                        0.0840 |
+| 3 日策略     |     29.29% |     1.0880 |  -25.53% |       40.03% |                   1.4086 |                        1.1912 |
 
 ### Top20 分年稳定性
 
-| Year | Days | Alpha158 | Factor: stock_risk | Strategy: 10d | Strategy: 3d |
-| ---- | ---: | -------: | -----------------: | ------------: | -----------: |
-| 2023 |  242 |   -9.16% |            -10.08% |         5.39% |        9.65% |
-| 2024 |  242 |    5.09% |             10.54% |         4.25% |       17.73% |
-| 2025 |  243 |   48.64% |             56.68% |        43.69% |       72.54% |
-| 2026 |  182 |   -9.30% |            -14.73% |        19.94% |       39.43% |
+| 年份 | 交易日数 | Alpha158 | 风险因子增强 | 3 日策略 |
+| ---- | -------: | -------: | -----------: | -------: |
+| 2023 |      242 |   -9.16% |      -10.08% |    9.65% |
+| 2024 |      242 |    5.09% |       10.54% |   17.73% |
+| 2025 |      243 |   48.64% |       56.68% |   72.54% |
+| 2026 |      182 |   -9.30% |      -14.73% |   39.43% |
 
-表中为各年区间的净年化，2026 年截至 10 月 8 日。所有方案均为 `incomplete_market_data`；缺行情可能延迟卖出并使用旧估值，结果是暂定评价。同收盘成交是代理假设。固定到期的 Top20 延迟退出累计事件为基础 84、因子 60；策略没有计划到期日，该字段为 0，不表示不存在受阻卖单。六组期末均有 20 个未结算持仓。
+表中为各年区间的净年化，2026 年截至 10 月 8 日。所有方案均为 `incomplete_market_data`；缺行情可能延迟卖出并使用旧估值，结果是暂定评价。同收盘成交是代理假设。固定到期的 Top20 延迟退出累计事件为基础 84、因子 60；策略没有计划到期日，该字段为 0，不表示不存在受阻卖单。三个版本期末均有 20 个未结算持仓。
 
-### 复现最终 Setting
+### 复现最终设定
 
-先按[研究流程](workflow.md)准备行情并安装三个插件；每阶段保存 Task/Run ID 并等待成功后再提交下游，远程命令统一加同一 `--target`。以下训练显式列出会改变实验的参数；其余共同设置采用上表默认值，提交前用 `get_task_definition` 核对。各控制使用相同的基础行情、日历、标签文件。
+先按[研究流程](workflow.md)准备行情并安装三个插件；每阶段保存 Task/Run ID 并等待成功后再提交下游，远程命令统一加同一 `--target`。以下训练显式列出会改变实验的参数；其余共同设置按上表显式核对，提交前用 `get_task_definition` 核对。三个版本使用相同的基础行情、日历、标签文件。
 
 ```bash
-# Base model: 158 features
+# 基础模型：158 个特征
 axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 axonx submit --task qlib_a158_train --source-tasks '<base_etl_task_id>' \
   --train-start 20150101 --train-end 20230101 --label-column label_return_rank \
@@ -215,7 +190,7 @@ axonx submit --task qlib_a158_train --source-tasks '<base_etl_task_id>' \
 axonx submit --task qlib_a158_predict --source-tasks '<base_train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
-# Final factor model: 158 base + 2 risk features
+# 因子模型：158 个基础特征加两个风险因子
 axonx submit --task qlib_factor_etl --start-date 20150101 --end-date 20261008
 axonx submit --task qlib_factor_train --source-tasks '<factor_etl_task_id>' \
   --train-start 20150101 --train-end 20230101 --label-column label_return_rank \
@@ -224,52 +199,46 @@ axonx submit --task qlib_factor_train --source-tasks '<factor_etl_task_id>' \
 axonx submit --task qlib_factor_predict --source-tasks '<factor_train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
-# Fixed holding: run once for base and once for factor predictions
+# 固定持有：分别对基础和因子预测执行一次
 axonx submit --task qlib_factor_backtest --source-tasks '<factor_predict_task_id>' \
   --top-ns '[20,30]' --holding-days 1 --transaction-cost-rate 0.001 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
   --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
   --labels-file '<base_etl_labels_path>'
 
-# Predeclared 10-day policy; change minimum-holding-days to 3 for exploration
+# 策略版本：复用因子预测，采用选中的 3 日策略
 axonx submit --task qlib_strategy_backtest --source-tasks '<factor_predict_task_id>' \
-  --top-ns '[20,30]' --minimum-holding-days 10 \
+  --top-ns '[20,30]' --minimum-holding-days 3 \
   --replacement-fraction 0.2 --rank-buffer 1 --transaction-cost-rate 0.001 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
   --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
   --labels-file '<base_etl_labels_path>'
 ```
 
-基础固定到期控制将 task 改为 `qlib_a158_backtest` 并换入基础预测；基础 10 日控制仅换入基础预测。匹配 3 日控制使用同一增强 ETL 重新训练 `context_groups=none`、feature_fraction=1，其余设置不变，再预测并采用 3 日策略。新数据不能保证重现未发布的历史快照；不要复用同名任务覆盖已有结果。
+基础版使用 `qlib_a158_backtest` 并换入基础预测。新数据不能保证重现未发布的历史快照；不要复用同名任务覆盖已有结果。
 
 ### 最终任务来源与输入校验
 
 执行工作区：45 机器 `/nas/jinli.yl/data/axon`；表中仅保留最终链路。
 
-| Stage / scheme                  | Task ID                                          | Run ID                             |
-| ------------------------------- | ------------------------------------------------ | ---------------------------------- |
-| baseline: train                 | `train#qlib_a158_train#2026100912mMlp`           | `710de1c0530b430e94e0b92e7634cd2a` |
-| baseline: predict               | `predict#qlib_a158_predict#2026100912Qanw`       | `c8b97e5ec7bb483da455d988ec6216d3` |
-| full_none: train                | `train#qlib_factor_train#2026100916Lsy1`         | `a57d863cc3274580a3771faa31412f44` |
-| full_none: predict              | `predict#qlib_factor_predict#2026100917IgPv`     | `3ad34a2542584fd8b6b6e70296ac4e6b` |
-| stock_risk: train               | `train#qlib_factor_train#2026100917VGxi`         | `d55e035ab9c549ab840770b1e8444f10` |
-| stock_risk: predict             | `predict#qlib_factor_predict#2026100917Z7Ys`     | `1a033666806b4e359c6acc11f8b02399` |
-| Alpha158: backtest              | `backtest#qlib_a158_backtest#2026100916Y0Xb`     | `d10c8a78be104ee7a8a492b9cc438bde` |
-| Factor: stock_risk: backtest    | `backtest#qlib_factor_backtest#2026100917v6ku`   | `37cf5867c5d344da9c4b6a9b56bc6e24` |
-| Strategy: 10d: backtest         | `backtest#qlib_strategy_backtest#202610091847QW` | `f08ccc6d681648c9b63e96cacaad51b4` |
-| Strategy: 3d: backtest          | `backtest#qlib_strategy_backtest#2026100918JP6A` | `6e7306c9d9a54cdeb6c2aee6a36bd73d` |
-| Alpha158 + 10d: backtest        | `backtest#qlib_strategy_backtest#2026100918E4QT` | `3a28ad8734d949eb9b6289790dfe366b` |
-| Matched Alpha158 + 3d: backtest | `backtest#qlib_strategy_backtest#20261009185kDS` | `f98fe8ba2d7045d1a7588e04a82301ca` |
+| 阶段／方案       | 任务标识                                         | 运行标识                           |
+| ---------------- | ------------------------------------------------ | ---------------------------------- |
+| 基线训练         | `train#qlib_a158_train#2026100912mMlp`           | `710de1c0530b430e94e0b92e7634cd2a` |
+| 基线预测         | `predict#qlib_a158_predict#2026100912Qanw`       | `c8b97e5ec7bb483da455d988ec6216d3` |
+| 风险因子训练     | `train#qlib_factor_train#2026100917VGxi`         | `d55e035ab9c549ab840770b1e8444f10` |
+| 风险因子预测     | `predict#qlib_factor_predict#2026100917Z7Ys`     | `1a033666806b4e359c6acc11f8b02399` |
+| Alpha158 回测    | `backtest#qlib_a158_backtest#2026100916Y0Xb`     | `d10c8a78be104ee7a8a492b9cc438bde` |
+| 风险因子增强回测 | `backtest#qlib_factor_backtest#2026100917v6ku`   | `37cf5867c5d344da9c4b6a9b56bc6e24` |
+| 3 日策略回测     | `backtest#qlib_strategy_backtest#2026100918JP6A` | `6e7306c9d9a54cdeb6c2aee6a36bd73d` |
 
-| Input                             | SHA-256                                                            |
-| --------------------------------- | ------------------------------------------------------------------ |
-| market                            | `5240ca57a6ba0f045679c0661d2785bbb9c793e7bd5f4c1091d7998061e98b32` |
-| calendar                          | `cb40f3148a2ff06ff4ad1ace95ed1a8e4da5c45f844007562dbc8020aa2b15a5` |
-| labels                            | `39e1cabc39f5b6050a13c3a015a7d3b0c7912a80fbf285c2a093427ddff4ba3f` |
-| Alpha158: prediction              | `3337bb98e59986b3d3e10730ecff49fae0d3d31b7d6b8e163fe19a63510a8aad` |
-| Factor: stock_risk: prediction    | `cdb9eac261b18e85de008558f7ad4524b214ce72bd8fcf4e101492eda2a36f06` |
-| Matched Alpha158 + 3d: prediction | `694553443c32336eb274e6998c884dd59444f0a5561381162c1fe236863b7101` |
+| 输入                    | SHA-256                                                            |
+| ----------------------- | ------------------------------------------------------------------ |
+| market                  | `5240ca57a6ba0f045679c0661d2785bbb9c793e7bd5f4c1091d7998061e98b32` |
+| calendar                | `cb40f3148a2ff06ff4ad1ace95ed1a8e4da5c45f844007562dbc8020aa2b15a5` |
+| labels                  | `39e1cabc39f5b6050a13c3a015a7d3b0c7912a80fbf285c2a093427ddff4ba3f` |
+| Alpha158 预测           | `3337bb98e59986b3d3e10730ecff49fae0d3d31b7d6b8e163fe19a63510a8aad` |
+| Factor: 风险因子预测ion | `cdb9eac261b18e85de008558f7ad4524b214ce72bd8fcf4e101492eda2a36f06` |
 
-基础 ETL：`etl#qlib_a158_etl#2026100912u43E`；最终增强 ETL：`etl#qlib_factor_etl#2026100917HM2p`。同模型各策略的预测哈希相同，六组行情、日历和标签哈希一致。框架/插件为 0.1.1 / 0.2.0，Python 3.12.14、Polars 1.44.2、LightGBM 4.7.0；历史执行环境曾补入 portfolio_policy 扩展，部署时使用当前支持该扩展的源码版本。
+基础 ETL：`etl#qlib_a158_etl#2026100912u43E`；最终增强 ETL：`etl#qlib_factor_etl#2026100917HM2p`。同模型各策略的预测哈希相同，三个版本行情、日历和标签哈希一致。框架/插件为 0.1.1 / 0.2.0，Python 3.12.14、Polars 1.44.2、LightGBM 4.7.0。
 
 [Alpha158](../../../plugins/qlib_a158/README_ZH.md#experiments) · [Qlib Factor](../../../plugins/qlib_factor/README_ZH.md#experiments) · [Qlib Strategy](../../../plugins/qlib_strategy/README_ZH.md#experiments)

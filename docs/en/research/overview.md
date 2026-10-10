@@ -17,12 +17,12 @@ Factor analysis branches from ETL independently; it is not required before train
 
 ## Choose a research plugin
 
-[Plugin management](../plugins/management.md) explains installation and discovery in the execution environment. [Alpha158](../../../plugins/qlib_a158/README.md) provides the baseline price/volume features, LightGBM training, and TopN backtest. [Qlib Factor](../../../plugins/qlib_factor/README.md) adds independently registered Tasks and configurable feature groups.
+[Plugin management](../plugins/management.md) explains installation and discovery in the execution environment. [Alpha158](../../../plugins/qlib_a158/README.md) provides the baseline price/volume features, LightGBM training, and TopN backtest. [Qlib Factor](../../../plugins/qlib_factor/README.md) adds independently registered Tasks and configurable feature groups. [Qlib Strategy](../../../plugins/qlib_strategy/README.md) reuses predictions and adds rank-retention portfolio management.
 
 Discover the installed Task schemas before submitting. Keep parameters, algorithms, and artifact definitions with the plugin; use [research artifact contracts](../reference/research-artifacts.md) when implementing outputs for Studio.
 
 ## Follow the agent-developed experiment
 
-The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) shows final three-layer metrics. The [three-layer comparison](experiments.md#comparison) maintains shared settings, benchmark definitions and same-policy controls. Fees are 0.1% per side; the 10-day main policy earns 17.16%/18.60% annualized for Top20/Top30. Three days is exploratory. Each plugin README records only its own detailed settings and results.
+The [README benchmark](../../../README.md#benchmark-agent-developed-market-cross-sectional-features) presents three versions corresponding to three plugins: Alpha158, two added risk factors, and a 3-day rank-retention policy. Shared settings, full metrics, and selection evidence live in the [experiment comparison](experiments.md#comparison); plugin READMEs maintain algorithms, configuration differences, and results. The policy was selected exploratorily and has not been independently confirmed.
 
 Read [experiment design](experiments.md) for the reusable method and [external agents](../agent/external.md) for agent access.

@@ -50,7 +50,7 @@ inspect logs, artifacts, and upstream and downstream relationships.
 - AxonX **0.1.0** released: an agent-native quantitative research harness with plugin-based Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access. → [Documentation](https://flowllm-ai.github.io/AxonX/en/)
 - Connect your Agent with SKILL.md + CLI: load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
 - AxonX Studio available: browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
-- Qlib three-layer experiment: base / stock_risk / 10-day policy Top20 net annualized returns are **7.69% / 9.04% / 17.16%**, with 0.1% fees per side and missing quotes. → [Comparison and full results](docs/en/research/experiments.md#comparison)
+- Qlib three-version experiment: base / added factors / 3-day policy Top20 net annualized returns are **7.69% / 9.04% / 32.36%**, with 0.1% fees per side and missing quotes; the policy has not been independently confirmed. → [Comparison and full results](docs/en/research/experiments.md#comparison)
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
@@ -301,37 +301,47 @@ development and deployment, see [plugin management](https://flowllm-ai.github.io
 
 <a id="benchmark-agent-developed-market-cross-sectional-features"></a>
 
-## 📊 Benchmark: Agent-developed market cross-sectional features
+## 📊 Benchmark: from Qlib baseline to agent-developed factors and strategy
 
-Research uses `qlib_a158 → qlib_factor → qlib_strategy` for base features, augmented factors and portfolio policies. Submit and record experiments through the [AxonX Skill](skills/axonx/SKILL.md) and [development guide](docs/en/dev_guide.md).
+The experiment starts by porting Qlib's Alpha158 / LightGBM setup, then uses an agent with the [AxonX Skill](skills/axonx/SKILL.md) to develop factors and a portfolio policy through AxonX. These steps produce three plugins: `qlib_a158`, `qlib_factor`, and `qlib_strategy`. AxonX saves task parameters, dependencies, and results.
 
-Train `[20150101,20230101)` and evaluate `20230103–20261008`, 909 market dates, using rank labels, the AxonX LightGBM preset and 0.1% fees per side. Training-validation RankIC selects stock_risk (160 features). The predeclared policy uses a 10-day minimum, a 20% daily count cap per side and rank_buffer=1. Three days is exploratory on the reused development window; defaults remain unchanged.
+### 1. Port Alpha158 to establish a baseline
 
-| Metric                                   | Alpha158 | Factor: stock_risk | Strategy: 10d | Strategy: 3d |
-| ---------------------------------------- | -------: | -----------------: | ------------: | -----------: |
-| Overall IC                               |   0.0530 |             0.0545 |        0.0545 |       0.0545 |
-| Overall RankIC                           |   0.0923 |             0.0966 |        0.0966 |       0.0966 |
-| Overall RankICIR (annualized)            |  12.8817 |            14.2859 |       14.2859 |      14.2859 |
-| Overall RankICIR (unannualized)          |   0.8115 |             0.8999 |        0.8999 |       0.8999 |
-| Net annualized                           |    7.69% |              9.04% |        17.16% |       32.36% |
-| Net cumulative return                    |   30.63% |             36.64% |        77.06% |      174.92% |
-| Net Sharpe                               |   0.3624 |             0.4054 |        0.7026 |       1.1571 |
-| Net annualized volatility                |   28.20% |             28.53% |        25.49% |       26.19% |
-| Max drawdown                             |  -38.64% |            -40.67% |       -26.68% |      -24.91% |
-| Daily return win rate                    |   53.47% |             53.47% |        51.93% |       55.89% |
-| Mean daily two-sided turnover            |  198.83% |            199.35% |        19.23% |       40.02% |
-| Mean daily cost / prior equity           |  0.1988% |            0.1993% |       0.0192% |      0.0400% |
-| Closed trades                            |   18,032 |             18,079 |         1,739 |        3,624 |
-| Net active annualized vs universe mean   |   -3.47% |             -1.86% |         4.79% |       18.65% |
-| Net IR vs universe mean                  |  -0.1404 |            -0.0649 |        0.4387 |       1.4547 |
-| Net active max drawdown vs universe mean |  -28.47% |            -21.71% |       -19.46% |      -18.63% |
-| Net active annualized vs HS300 proxy     |    2.77% |              4.09% |        11.53% |       26.04% |
-| Net IR vs HS300 proxy                    |   0.2353 |             0.2947 |        0.6713 |       1.2699 |
-| Net active max drawdown vs HS300 proxy   |  -31.94% |            -29.34% |       -22.00% |      -23.96% |
+[qlib_a158](plugins/qlib_a158/README.md) ports Qlib's 158 price/volume features and LightGBM model into **ETL → Train → Predict → Backtest** Tasks. The port adapts settings to this project's data and execution model:
 
-Base feature_fraction=0.9; augmented models and matched controls use 1.0. Signal metrics are policy-independent. Portfolio metrics use 909 dates; Net IR/active metrics use 908 benchmark-valid dates and net daily returns minus benchmark returns. HS300 is a constituent-weighted proxy, not official index quotes. Base predictions earn more with the 10-day policy. The augmented 3-day policy improves on the same-parameter, same-policy control, without independent confirmation. All results report `incomplete_market_data`; same-close fills are a proxy and 2026 ends October 8.
+- **Data and labels**: Tushare adjusted prices and volumes across Shanghai/Shenzhen, excluding Beijing. Labels use signal-close to next-market-close returns, transformed into daily ranks after removing 2.5% of samples at each tail.
+- **Training**: `[20150101,20230101)`, reserving the last 10% of dates for early stopping before refitting the full training period; exclude labels crossing the cutoff. This experiment uses the AxonX parameter preset, learning rate 0.03, 31 leaves, and feature_fraction=0.9.
+- **Backtesting**: evaluate `20230103–20261008`, with Top20 as the primary portfolio and fixed 1-day holding. Use same-close proxy fills, price-limit and tradability constraints, and 0.1% fees per side.
 
-[Three-layer comparison, shared settings and controls](docs/en/research/experiments.md#comparison) · [Factor implementation](plugins/qlib_factor/README.md) · [Policy implementation](plugins/qlib_strategy/README.md). Each plugin README records its own detailed settings and results; cross-plugin comparisons live only here and in docs. Experiment CSV/JSON have been removed.
+These are the ported experiment's settings and differ from the original Qlib example. See the [migration comparison](plugins/qlib_a158/README.md#differences-from-original-qlib) for details.
+
+### 2. Have the agent develop factor enhancements
+
+Using the AxonX Skill, the agent develops [qlib_factor](plugins/qlib_factor/README.md), submits training, prediction, and backtest Tasks through AxonX, and inspects artifacts to compare candidate factors. Training-period validation RankIC selects two stock-level risk factors: **20-day residual volatility and 20-day downside risk**, increasing model inputs from 158 to 160 columns.
+
+Example prompt:
+
+> Use the AxonX Skill to develop a separate qlib_factor plugin on the qlib_a158 baseline. Explore residual volatility, downside risk, and related candidate factors using only information available at signal time. Run controlled experiments through AxonX, select groups by training-period validation RankIC, retain task records, and report returns, drawdown, and factor definitions.
+
+### 3. Have the agent develop a portfolio policy
+
+The agent follows the same process to develop [qlib_strategy](plugins/qlib_strategy/README.md), reusing augmented predictions to study holding and replacement rules. The documentation presents the better-performing candidate, a **3-day rank-retention policy**: hold for at least 3 market dates, retain highly ranked stocks, exit lower-ranked holdings first, and cap daily replacements at 20% of the stock count per side.
+
+Example prompt:
+
+> Use the AxonX Skill to develop a separate qlib_strategy plugin that reuses qlib_factor predictions. Explore minimum holding periods, rank retention, and capped replacements. Keep data, costs, and fill assumptions fixed; use AxonX to compare net returns, Sharpe, drawdown, and turnover. Save task records and explain the selection.
+
+### Results for the three versions
+
+| Version           | Plugin                                           | Top20 net annualized return | Net Sharpe | Max drawdown |
+| ----------------- | ------------------------------------------------ | --------------------------: | ---------: | -----------: |
+| Alpha158 baseline | [qlib_a158](plugins/qlib_a158/README.md)         |                       7.69% |     0.3624 |      -38.64% |
+| Added factors     | [qlib_factor](plugins/qlib_factor/README.md)     |                       9.04% |     0.4054 |      -40.67% |
+| Added strategy    | [qlib_strategy](plugins/qlib_strategy/README.md) |                      32.36% |     1.1571 |      -24.91% |
+
+The factor version raises returns but increases drawdown; the policy improves returns and risk metrics in this experiment. The 3-day candidate was selected exploratorily on a reused development window, without independent confirmation. Base/augmented feature_fraction is 0.9/1.0, so return differences do not isolate the added factors. Results also include missing quotes, same-close proxy fills, and a partial 2026.
+
+[Full experiment settings, metrics, and reproduction commands](docs/en/research/experiments.md#comparison) include configurations and task provenance for all three versions. The prompts above are illustrative development instructions.
 
 ## 🛠️ AxonX CLI commands and remote execution
 
@@ -420,7 +430,7 @@ the [remote machines guide](https://flowllm-ai.github.io/AxonX/en/guides/remote-
 | Component, Job, Task              | [Architecture](https://flowllm-ai.github.io/AxonX/en/concepts/architecture) · [Framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions)                                                                                                                                                        |
 | Task contracts and lifecycle      | [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts) · [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management) · [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage)                                                                                    |
 | Agent development and operations  | [External agents](https://flowllm-ai.github.io/AxonX/en/agent/external) · [Development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide) · [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration) · [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration)                  |
-| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-a158) · [Qlib Factor](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-factor)                                                                                                      |
+| Plugin development and deployment | [Plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management) · [Alpha158](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-a158) · [Qlib Factor](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-factor) · [Qlib Strategy](https://flowllm-ai.github.io/AxonX/en/plugins/qlib-strategy)                       |
 | Quantitative research             | [Research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow) · [Experiment design](https://flowllm-ai.github.io/AxonX/en/research/experiments) · [Interpreting results](https://flowllm-ai.github.io/AxonX/en/research/results) · [Interpreting backtests](https://flowllm-ai.github.io/AxonX/en/research/backtest) |
 | Remote execution                  | [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)                                                                                                                                                                                                                                                     |
 | CLI and configuration             | [CLI](https://flowllm-ai.github.io/AxonX/en/reference/cli) · [Configuration](https://flowllm-ai.github.io/AxonX/en/reference/configuration)                                                                                                                                                                                         |

@@ -98,16 +98,6 @@ def test_fixed_expiry_cannot_be_silently_configured():
         StrategyBacktestInput(holding_days=5)
 
 
-def test_missing_framework_extension_fails_instead_of_running_fixed_expiry(monkeypatch):
-    from axonx_qlib_strategy.backtest import StrategyBacktestTask
-    from axonx.task.builtins.stock.backtest import BaseStockBacktestTask
-
-    monkeypatch.delattr(BaseStockBacktestTask, "portfolio_policy")
-    task = object.__new__(StrategyBacktestTask)
-    with pytest.raises(RuntimeError, match="portfolio_policy extension"):
-        list(task.build_task_steps())
-
-
 @pytest.mark.parametrize("n,fraction,expected", [(1, 0.2, 1), (3, 0.2, 1), (5, 0.2, 1), (30, 0.2, 6)])
 def test_replacement_limit_rounds_down_with_minimum_one(n, fraction, expected):
     assert RankRetentionPolicy(fraction, 10, 1.0).replacement_limit(n) == expected

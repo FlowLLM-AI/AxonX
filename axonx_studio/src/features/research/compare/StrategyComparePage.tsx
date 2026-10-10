@@ -23,6 +23,7 @@ import type {
 import {
   cumulativeSeries,
   finite,
+  executionCostRates,
   holdingOverlap,
   pairDays,
   pairedMean,
@@ -37,7 +38,8 @@ import {
 type CompareTab = "overview" | "returns" | "periods" | "quality" | "trading";
 type CompareTask = BacktestArtifact & {
   settings: {
-    transactionCost?: number;
+    buyCost: number;
+    sellCost: number;
     annualizationDays?: number;
     riskFreeRate?: number;
   };
@@ -104,7 +106,7 @@ async function loadTasks(
             days: numeric(output.days),
             source: parseSourceTasks(input.source_tasks),
             settings: {
-              transactionCost: numeric(input.transaction_cost_rate),
+              ...executionCostRates(input),
               annualizationDays: numeric(input.annualization_days),
               riskFreeRate: numeric(input.annual_risk_free_rate),
             },
@@ -369,9 +371,12 @@ export default function StrategyComparePage({
     if (taskA.protocol?.version !== taskB.protocol?.version)
       warnings.push(t("compare.accounting_protocols_differ"));
     if (
-      Number.isFinite(taskA.settings.transactionCost) &&
-      Number.isFinite(taskB.settings.transactionCost) &&
-      taskA.settings.transactionCost !== taskB.settings.transactionCost
+      (["buyCost", "sellCost"] as const).some(
+        (side) =>
+          Number.isFinite(taskA.settings[side]) &&
+          Number.isFinite(taskB.settings[side]) &&
+          taskA.settings[side] !== taskB.settings[side],
+      )
     )
       warnings.push(t("compare.transaction_costs_differ"));
     if (
@@ -880,12 +885,14 @@ export default function StrategyComparePage({
                           metricRows[5],
                           {
                             label: t("compare.average_daily_cost"),
-                            a:
-                              statsA.turnover *
-                              (taskA.settings.transactionCost ?? NaN),
-                            b:
-                              statsB.turnover *
-                              (taskB.settings.transactionCost ?? NaN),
+                            a: pairedMean(
+                              visible,
+                              `top${selectedTopN}_transaction_cost`,
+                            ).a,
+                            b: pairedMean(
+                              visible,
+                              `top${selectedTopN}_transaction_cost`,
+                            ).b,
                             format: percent,
                           },
                         ]}

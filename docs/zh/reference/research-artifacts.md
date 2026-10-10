@@ -33,7 +33,7 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 `BaseOutputParams.artifacts` 默认空字典，类型是 `dict[str, dict[str, Any]]`。因此 Python 基类没有完整校验每条 artifact 的三字段；生产者应主动调用 helper，确保页面和下游能读取。
 
-下游 helper 解析路径本身并不自动核验所有摘要。a158 预测另行校验模型摘要，不能据此宣称所有上游数据均经过完整校验。
+下游 helper 解析路径本身并不自动核验所有摘要。qlib_a158 预测另行校验模型摘要，不能据此宣称所有上游数据均经过完整校验。
 
 ## 五类基础输出
 
@@ -51,7 +51,7 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 ## ETL 产物
 
-基类保存输出文件描述和列名。a158 扩展 feature_count、symbols、schema、protocol、market_state 等信息，生成：
+基类保存输出文件描述和列名。qlib_a158 扩展 feature_count、symbols、schema、protocol、market_state 等信息，生成：
 
 | artifact 名  | 文件               | 用途                               |
 | ------------ | ------------------ | ---------------------------------- |
@@ -61,7 +61,7 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 | `market`     | `market.parquet`   | 报价、复权因子、成交资格及行情状态 |
 | `calendar`   | `calendar.parquet` | 独立于预测资格的市场日期           |
 
-a158 下游通过 `artifacts.dataset.path` 解析数据，不能仅填写 `output_file` 而省略映射。输出文件字段保存完整字符串路径，而标准 artifact 应是 Task 目录内相对路径。
+qlib_a158 下游通过 `artifacts.dataset.path` 解析数据，不能仅填写 `output_file` 而省略映射。输出文件字段保存完整字符串路径，而标准 artifact 应是 Task 目录内相对路径。
 
 ## 因子分析 scores
 
@@ -76,9 +76,9 @@ a158 下游通过 `artifacts.dataset.path` 解析数据，不能仅填写 `outpu
 }
 ```
 
-这只是合法形状示例，不是 a158 的固定指标集合。Studio 动态遍历分组及指标，插件应保证指标名与定义可理解，并在详细文件或扩展定义字段交代样本、单位和计算范围。
+这只是合法形状示例，不是 qlib_a158 的固定指标集合。Studio 动态遍历分组及指标，插件应保证指标名与定义可理解，并在详细文件或扩展定义字段交代样本、单位和计算范围。
 
-a158 实际生成 `factor_analysis.csv`、`factor_quantiles.csv`，映射名分别为 `result`、`quantiles`，并保存 definitions、labels 等扩展字段。
+qlib_a158 实际生成 `factor_analysis.csv`、`factor_quantiles.csv`，映射名分别为 `result`、`quantiles`，并保存 definitions、labels 等扩展字段。
 
 ## 训练曲线模型
 
@@ -107,7 +107,7 @@ a158 实际生成 `factor_analysis.csv`、`factor_quantiles.csv`，映射名分�
 
 左轴同组应采用相近量纲和数值范围，右轴仅用于第二组尺度。协议不支持第三个数值轴。Studio 读取端只做轻量规范化；图表过滤长度不匹配的序列，计算轴范围时忽略非有限值，不会完整复验 Python 模型规则，也不会修复训练历史。生产者必须在发布前用模型验证。
 
-a158 把 L2 放左轴、L1 放右轴；曲线是调参模型的训练/验证历史。`model`、`feature_importance`、`evaluation_history` 分别引用最终模型、重要性和历史 CSV。
+qlib_a158 把 L2 放左轴、L1 放右轴；曲线是调参模型的训练/验证历史。`model`、`feature_importance`、`evaluation_history` 分别引用最终模型、重要性和历史 CSV。
 
 ## 预测统计
 
@@ -120,9 +120,9 @@ statistics.buyable_rows / candidate_rows
 statistics.indices.<column>.constituents / days_with_weights / null_rows
 ```
 
-缺少这些字段时页面显示空值，不意味着所有预测插件都必须提供 a158 股票统计。a158 artifact 名为 `predictions`，文件为 `predictions.parquet`。
+缺少这些字段时页面显示空值，不意味着所有预测插件都必须提供 qlib_a158 股票统计。qlib_a158 artifact 名为 `predictions`，文件为 `predictions.parquet`。
 
-股票回测使用 `axonx.task.builtins.stock` 的统一契约。预测行包含 `trade_date`、`trade_time`、`ts_code`、`pred`、`is_model_candidate`、`is_buyable_at_signal`、`signal_price` 和 `signal_adjustment_factor`；资格标志是非空 Boolean。a158 另外输出 `name`、`rank`、`buyable_rank` 和指数权重。预测不包含未来标签。ETL 独立发布 `dataset`、`labels`、`market`、`calendar`；`labels` 按信号主键存储 `label_target_date`、`label_return`、`label_valid`、`label_status`。Rank/CSZ 目标仅在训练完成截止时间及样本筛选后计算。
+股票回测使用 `axonx.task.builtins.stock` 的统一契约。预测行包含 `trade_date`、`trade_time`、`ts_code`、`pred`、`is_model_candidate`、`is_buyable_at_signal`、`signal_price` 和 `signal_adjustment_factor`；资格标志是非空 Boolean。qlib_a158 另外输出 `name`、`rank`、`buyable_rank` 和指数权重。预测不包含未来标签。ETL 独立发布 `dataset`、`labels`、`market`、`calendar`；`labels` 按信号主键存储 `label_target_date`、`label_return`、`label_valid`、`label_status`。Rank/CSZ 目标仅在训练完成截止时间及样本筛选后计算。
 
 ## 预测到股票回测的输入契约
 
@@ -189,7 +189,7 @@ Studio 从 `artifacts.daily.path` 和 `artifacts.summary.path` 加载两个表�
 
 明细是结构数组，前端读取 `rank`、`ts_code`、`name`、`prediction`、`daily_return`、`weight`。`daily_return` 是固定次一市场日标签，在截止时间不可用时为空。真实买卖日期和延期退出保存在 `positions`、`trades`；成交与未成交原因保存在 `orders`。
 
-当前页面硬编码 `top30_holdings`，不会因 holding_detail_top_n 的值改变而自动寻找新列。a158 这个字段是信号目标、包含未成交候选；不能描述为实际持仓账本。
+当前页面硬编码 `top30_holdings`，不会因 holding_detail_top_n 的值改变而自动寻找新列。qlib_a158 这个字段是信号目标、包含未成交候选；不能描述为实际持仓账本。
 
 ## 汇总表的展示字段
 
@@ -209,7 +209,7 @@ topN_gross_sharpe
 topN_information_ratio_<benchmark key>
 ```
 
-N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图和策略比较是浏览器计算。a158 毛累计汇总用复利，毛收益图用累加，口径说明见[回测解读](../research/backtest.md)。
+N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图和策略比较是浏览器计算。qlib_a158 毛累计汇总用复利，毛收益图用累加，口径说明见[回测解读](../research/backtest.md)。
 
 ## 生产者验收
 
@@ -227,4 +227,4 @@ N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图
 - [`产物 helper`](../../../axonx/task/storage/artifacts.py)
 - [`Studio 读取映射`](../../../axonx_studio/src/features/research/ResearchPage.tsx)
 - [`回测展示类型`](../../../axonx_studio/src/features/research/backtest/types.ts)
-- [`a158 输出实现`](../../../plugins/qlib_a158/axonx_qlib_a158/)
+- [`qlib_a158 输出实现`](../../../plugins/qlib_a158/axonx_qlib_a158/)

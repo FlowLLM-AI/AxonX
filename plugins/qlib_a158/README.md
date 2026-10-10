@@ -75,7 +75,7 @@ axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-With the AxonX core from this checkout, Task-only wheel updates through the remote installation Job refresh subsequent Task queries and submissions without restarting. Restart when `restart_required` is true, then query Task definitions to verify the fields. Direct `pip install`, editable source changes, and older cores without plugin import refresh require a service restart. Separate side fees require AxonX core with `buy_cost_rate` / `sell_cost_rate` support, such as the core from the same source checkout. See [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
+Task-only wheel updates through the remote installation Job refresh subsequent Task queries and submissions without restarting. Restart when `restart_required` is true, then query Task definitions to verify the fields. Direct `pip install` and editable source changes require a service restart. Install the AxonX core from this checkout together with the plugins. See [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
 
 ## Prepare data
 
@@ -195,23 +195,13 @@ These checks cover feature boundaries, label timing, four-way parameter comparis
 
 ## Final experiment settings and results
 
-This section records this plugin’s final experiment. See the [three-layer comparison](../../docs/en/research/experiments.md#comparison) for cross-plugin results. Metrics come from successful machine-45 Tasks and their metadata, summary.parquet, daily.parquet and trades.parquet; original artifacts remain in the execution workspace.
+This section records this plugin’s final experiment. See the [three-version comparison](../../docs/en/research/experiments.md#comparison) for cross-plugin results. Metrics come from successful machine-45 Tasks and their metadata, summary.parquet, daily.parquet and trades.parquet; original artifacts remain in the execution workspace.
 
-### Detailed Setting
+### Version configuration
 
-| Stage                 | Setting                                                                                                                                                                                                                                                                                                                                                         |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Data / universe       | Tushare adjusted prices and volumes; Shanghai/Shenzhen excluding Beijing, with no CSI300-only selection. ETL output 20150101–20261008: 11,446,950 rows and 5,477 stocks; 158 model features. min_history_coverage=0.8; no forward-filling suspensions or missing quotes.                                                                                        |
-| Training dates        | `[20150101,20230101)`; both signal date and label_target_date precede the exclusive cutoff. Internal validation starts 20220316, using the last 10% of dates.                                                                                                                                                                                                   |
-| Labels / filtering    | Adjusted signal-close to next-market-close returns; retain signal-date buyable rows with valid fixed-one-day labels available before cutoff. Trim 2.5% of raw returns at each daily tail; normalize average ranks to [0,1], singleton=0.5; transform fitting and validation samples separately. label_winsorize_tail=0.025; this experiment uses rank, not CSZ. |
-| Sample counts         | 6,147,420 rows before trimming; full-period refit on 5,838,557 rows after trimming; tuning train 5,010,901 and validation 823,601 rows.                                                                                                                                                                                                                         |
-| LightGBM              | 4.7.0, parameter_preset=axonx, objective=regression, metric=[l2,l1]; learning_rate=0.03, num_leaves=31, max_depth=-1, min_data_in_leaf=20, bagging_fraction=0.9, bagging_freq=1, lambda_l1=lambda_l2=0. feature_fraction=0.9.                                                                                                                                   |
-| Rounds / refit        | num_boost_round=1000, early_stopping_rounds=50; validation L2 selects rounds before refitting all training samples.                                                                                                                                                                                                                                             |
-| Determinism           | random_seed=42; LightGBM seed, feature_fraction_seed, bagging_seed and data_random_seed all 42; num_threads=8, deterministic=true, force_col_wise=true.                                                                                                                                                                                                         |
-| Out of sample         | pred_start=20230101, pred_end=20261008; actual overall evaluation 20230103–20261008, 909 market dates. 2026 is incomplete.                                                                                                                                                                                                                                      |
-| Portfolio / execution | Top20 primary, Top30 secondary; same-close quote proxy, sells before buys, price-limit and eligibility constraints. New entries receive at most 1/N equity; no replacement for unfilled entries, blocked exits retain capital, retained weights are not rebalanced. No forced final liquidation.                                                                |
-| Fees / annualization  | transaction_cost_rate=0.001 on each executed side; buy_cost_rate=sell_cost_rate=null uses the shared rate, without a minimum fee. annualization_days=252, annual_risk_free_rate=0.012.                                                                                                                                                                          |
-| Shared inputs         | This experiment uses the upstream ETL market.parquet, calendar.parquet and labels.parquet; as_of_date=20261008, index_codes=[], minimum_index_weight_coverage=0.98.                                                                                                                                                                                             |
+158 Alpha158 features; feature_fraction=0.9; fixed holding_days=1.
+
+Data, training windows, filtering, execution, and fee settings are maintained in the [three-version comparison](../../docs/en/research/experiments.md#comparison).
 
 The model uses 158 features and refits the full training period after early stopping selects 422 rounds. Validation RankIC is 0.10789.
 
@@ -219,13 +209,7 @@ This experiment uses fixed expiry with `holding_days=1`.
 
 ### Metric definitions
 
-Overall IC/RankIC averages daily Pearson/Spearman correlations between predictions and valid next-day labels on signal-date eligible stocks, independently of holdings and TopN. Unannualized RankICIR = mean(daily RankIC)/std(daily RankIC,ddof=1); the annualized version multiplies by sqrt(252). Both are shown to distinguish backtest and factor-analysis conventions.
-
-Net annualized = (∏(1+r_net))^(252/D)−1; net Sharpe = (mean(r_net)−[(1.012)^(1/252)−1])/std(r_net,ddof=1)×sqrt(252). Drawdown uses compounded net equity with initial equity 1 included in the running peak. Turnover = (executed buys+sells)/prior equity; full replacement is about 200%. Win rate is the share of positive net-return dates.
-
-The universe-mean benchmark equally weights the full prediction cross-section with valid forward labels, not just Top20 and not the clipped mean used in risk features. HS300 is a constituent-weighted return proxy with at least 98% weight coverage, not the official CSI300 index quote series. Both benchmarks have 908 valid dates, 20230104–20261008. Net active metrics use this shared window; portfolio-only metrics use all 909 dates.
-
-Net daily active return a_t = r_net,t−r_benchmark,t. **Net IR** = mean(a)/std(a,ddof=1)×sqrt(252). Net active annualized return compounds ∏(1+a) and annualizes over 908 dates; active drawdown uses the same compounded active-return curve. These are neither differences of annualized returns nor portfolio/benchmark equity ratios. Framework information_ratio fields use gross returns; this section recomputes net metrics from daily artifacts.
+Shared definitions for IC/RankIC, net returns, Sharpe, turnover, and active metrics are maintained in the [experiment comparison](../../docs/en/research/experiments.md#comparison). Portfolio metrics use 909 dates; active metrics use 908 benchmark-valid dates.
 
 ### Overall signals and full Top20 results
 
@@ -234,7 +218,6 @@ Net daily active return a_t = r_net,t−r_benchmark,t. **Net IR** = mean(a)/std(
 | Overall IC                               |   0.0530 |
 | Overall RankIC                           |   0.0923 |
 | Overall RankICIR (annualized)            |  12.8817 |
-| Overall RankICIR (unannualized)          |   0.8115 |
 | Net annualized                           |    7.69% |
 | Net cumulative return                    |   30.63% |
 | Net Sharpe                               |   0.3624 |

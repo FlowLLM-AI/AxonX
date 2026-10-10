@@ -8,7 +8,7 @@ from axonx_qlib_a158.train import (
     MODEL_LABELS,
 )
 
-from .internal.cross_section import PREFIX, WINDOWS, selected_features
+from .internal.cross_section import CONTEXT_FEATURES, PREFIX, WINDOWS, selected_features
 
 __all__ = ["LgbmTrainInputParams", "LgbmTrainOutputParams", "LgbmTrainTask", "MODEL_LABELS"]
 
@@ -61,7 +61,8 @@ class LgbmTrainTask(BaseTrainTask):
         requested = selected_features(self.input_params.context_groups, tuple(self.input_params.context_windows))
         if missing := set(requested) - set(features):
             raise ValueError(f"ETL missing requested context features: {sorted(missing)}")
-        # Also exclude retired context columns when reusing an older ETL.
+        if unknown := {name for name in features if name.startswith(PREFIX)} - set(CONTEXT_FEATURES):
+            raise ValueError(f"ETL has unsupported context features: {sorted(unknown)}; rerun current ETL")
         return tuple(name for name in features if not name.startswith(PREFIX) or name in requested)
 
     def build_output_params(self) -> LgbmTrainOutputParams:

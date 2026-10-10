@@ -12,7 +12,7 @@ AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使
 ## 开始前确认
 
 - 已完成[快速开始](../getting-started/quickstart.md)，服务 token 与连接可用。
-- 执行任务的服务环境已安装 a158 插件；本地 CLI 安装不会自动改变远程机器环境。
+- 执行任务的服务环境已安装 qlib_a158 插件；本地 CLI 安装不会自动改变远程机器环境。
 - 工作区已有覆盖训练和预测区间的 Tushare 历史数据，以及必要的主数据。
 - 研究任务与上游产物位于同一工作区，或者已按[任务同步](../guides/task-sync.md)准备好完整上游目录。
 
@@ -20,7 +20,7 @@ AxonX 提供研究任务的运行、记录、产物和 Studio 展示。本文使
 pip install axonx-qlib-a158
 ```
 
-服务已运行时，安装插件后重启服务，再运行 `axonx list_installed_task_definitions` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_factor`、`qlib_a158_train`、`qlib_a158_predict` 和 `qlib_a158_backtest`。
+直接 pip 安装后需重启服务；远程 `axonx plugin install` 会刷新 Task 定义，仅在 `restart_required=true` 时重启。运行 `axonx list_installed_task_definitions` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_factor`、`qlib_a158_train`、`qlib_a158_predict` 和 `qlib_a158_backtest`。
 
 ## 研究链中每一步产生什么
 
@@ -72,7 +72,7 @@ axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
   --transaction-cost-rate 0.002
 ```
 
-每条提交命令之间都要执行上一节的等待。`source_tasks` 使用英文逗号分隔 Task ID；a158 各阶段要求相应类型的单个上游，不能任意添加同类型任务。
+每条提交命令之间都要执行上一节的等待。`source_tasks` 使用英文逗号分隔 Task ID；qlib_a158 各阶段要求相应类型的单个上游，不能任意添加同类型任务。
 
 训练按交易日顺序保留末尾日期作验证，默认验证比例为 10%。先用验证集和早停选择轮数，再用训练窗口的全部有效样本拟合最终模型。保存的训练曲线来自调参阶段，不能将它当成最终模型在独立测试集上的表现。
 
@@ -80,7 +80,7 @@ axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
 
 ETL 默认输出从 `20140101` 开始的可用数据，滚动特征会读取更早的历史。下载最近 7 个自然日不能满足多年训练，更不足以生成完整滚动窗口。
 
-a158 独立发布特征、原始标签、行情和日历产物。标签固定为次一市场日同一时刻的收益，停牌或缺行情使标签无效，不延长期限。训练排除目标日期达到或超过截止日的标签，在样本筛选后计算 Rank/CSZ 目标。预测保留全截面，不关联未来标签。回测按信号日资格选择候选，逐市场日估值真实持仓；无法卖出时继续占用资金。
+qlib_a158 独立发布特征、原始标签、行情和日历产物。标签固定为次一市场日同一时刻的收益，停牌或缺行情使标签无效，不延长期限。训练排除目标日期达到或超过截止日的标签，在样本筛选后计算 Rank/CSZ 目标。预测保留全截面，不关联未来标签。回测按信号日资格选择候选，逐市场日估值真实持仓；无法卖出时继续占用资金。
 
 默认训练目标 `label_return_rank` 是截面排名标签，预测 `pred` 是模型评分，不能直接解释为收益率或上涨概率。
 
@@ -115,7 +115,7 @@ bash plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh
 | 训练区间没有有效标签            | ETL 日期、交易状态、退出标签与训练边界            |
 | 预测开始早于训练结束            | `pred_start` 与 metadata 的 `train_end_exclusive` |
 | 模型校验失败                    | 训练目录内 model 文件是否被替换                   |
-| 回测缺少字段                    | 是否为匹配 a158 协议的预测产物                    |
+| 回测缺少字段                    | 是否为匹配 qlib_a158 协议的预测产物               |
 
 血缘图记录显式上游关系，不自动调度、补齐或重跑研究链。使用固定 `task_name` 重跑会替换已结束任务的目录记录；需要比较实验时使用不同名称并保留产物。
 
@@ -123,5 +123,5 @@ bash plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh
 
 - [Tushare 数据](tushare.md)、[结果解读](results.md)、[回测解读](backtest.md)
 - [研究产物协议](../reference/research-artifacts.md)
-- [`a158 插件清单`](../../../plugins/qlib_a158/axonx_qlib_a158/plugin.yaml)
+- [`qlib_a158 插件清单`](../../../plugins/qlib_a158/axonx_qlib_a158/plugin.yaml)
 - [`训练实现`](../../../plugins/qlib_a158/axonx_qlib_a158/train.py)、[`预测实现`](../../../plugins/qlib_a158/axonx_qlib_a158/predict.py)

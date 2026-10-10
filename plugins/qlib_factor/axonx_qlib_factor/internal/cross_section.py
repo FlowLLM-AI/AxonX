@@ -112,5 +112,4 @@ def context_protocol() -> dict:
         "neutral_momentum": "stock cumulative 5/10/20-day return minus prior beta times compounded market return",
         "residual_vol20": "sample std of daily stock-minus-prior-beta-market residuals; min16/20 valid observations",
         "downside_risk20": "sqrt(mean(min(winsorized stock return,0)^2)); min16/20 valid observations",
-        "retired_groups": ["market", "liquidity", "relative", "interaction"],
     }

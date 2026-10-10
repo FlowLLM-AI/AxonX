@@ -91,7 +91,7 @@ Overlap = number of target symbols in the intersection / number in the union
 A = {a, b, c}, B = {b, c, d}: intersection 2 / union 4 = 50%
 ```
 
-It is neither the intersection divided by 30 nor capital-weighted overlap. The current page reads `top30_holdings`; changing return Top N does not switch to actual positions of that size. For a158, this compares Top 30 signal targets, including unfilled candidates.
+It is neither the intersection divided by 30 nor capital-weighted overlap. The current page reads `top30_holdings`; changing return Top N does not switch to actual positions of that size. For qlib_a158, this compares Top 30 signal targets, including unfilled candidates.
 
 ## Period returns and trading observations
 
@@ -124,3 +124,5 @@ Return differences may come from scores, candidate universes, weight coverage, c
 - [Interpreting backtest results](backtest.md), [Task lineage](../concepts/task-lineage.md)
 - [Comparison data model](../../../axonx_studio/src/features/research/compare/model.ts)
 - [Comparison page and parameter warnings](../../../axonx_studio/src/features/research/compare/StrategyComparePage.tsx)
+
+Studio compares effective buy/sell fee rates and displays mean recorded transaction costs on the shared trading window, including asymmetric fees and explicit zero rates.

@@ -55,7 +55,7 @@ The framework records task configuration, dependencies, result metadata, and art
 
 ## Plugin Development
 
-A plugin can register multiple Tasks; the a158 example registers five Task types in `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml`. The a158
+A plugin can register multiple Tasks; the qlib_a158 example registers five Task types in `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml`. The qlib_a158
 paths, class names, registered names, and dependency chain here are illustrative; replace them with actual definitions when developing other research plugins. Plugin installation and Task submission are separate operations.
 
 ### Required authoring contracts
@@ -95,7 +95,7 @@ the intended consumers.
 | Predict  | Generate predictions using a model produced by Train and its associated ETL data. |
 | Backtest | Backtest Predict results to evaluate strategy performance.                        |
 
-Tasks link upstream and downstream through Task IDs. The a158 example's main dependency chain is ETL → Train → Predict → Backtest; Analysis uses ETL data for factor analysis.
+Tasks link upstream and downstream through Task IDs. The qlib_a158 example's main dependency chain is ETL → Train → Predict → Backtest; Analysis uses ETL data for factor analysis.
 
 ### Development Steps
 
@@ -154,7 +154,7 @@ tasks:
 
 `qlib_a158_etl` is the `--task` value for submission; the Python module precedes the colon and the Task class name follows it.
 
-For a new plugin, the package directory must contain `__init__.py`, and `plugins/qlib_a158/pyproject.toml` must declare the plugin entry point and registration file distributed with the package. The existing a158 plugin already configures these:
+For a new plugin, the package directory must contain `__init__.py`, and `plugins/qlib_a158/pyproject.toml` must declare the plugin entry point and registration file distributed with the package. The existing qlib_a158 plugin already configures these:
 
 ```toml
 [project.entry-points."axonx.plugins"]

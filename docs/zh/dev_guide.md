@@ -55,7 +55,7 @@ AxonX 是面向金融量化研究的 Harness 框架，将数据获取与 ETL、�
 
 ## 插件开发
 
-插件可注册多个 Task；a158 示例在 `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` 中注册了五类 Task。本文的 a158
+插件可注册多个 Task；qlib_a158 示例在 `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` 中注册了五类 Task。本文的 qlib_a158
 路径、类名、注册名和依赖链仅用于示例，开发其他研究插件时应替换为实际定义。插件安装与 Task 提交是独立操作。
 
 ### 必须遵守的开发协议
@@ -91,7 +91,7 @@ Task 与参数类。实现这些研究阶段时，优先继承对应的 `Base*Ta
 | Predict  | 使用 Train 产出的模型及其关联的 ETL 数据生成预测。 |
 | Backtest | 使用 Predict 结果进行回测，评估策略表现。          |
 
-Task 通过 Task ID 关联上下游。a158 示例的主要依赖链为 ETL → Train → Predict → Backtest，Analysis 使用 ETL 数据开展因子分析。
+Task 通过 Task ID 关联上下游。qlib_a158 示例的主要依赖链为 ETL → Train → Predict → Backtest，Analysis 使用 ETL 数据开展因子分析。
 
 ### 开发步骤
 
@@ -150,7 +150,7 @@ tasks:
 
 `qlib_a158_etl` 是提交时的 `--task` 值；冒号前是 Python 模块，冒号后是 Task 类名。
 
-新建插件时，包目录需包含 `__init__.py`，并在 `plugins/qlib_a158/pyproject.toml` 中声明插件入口和随包分发的注册文件；已有 a158 插件已配置这些内容：
+新建插件时，包目录需包含 `__init__.py`，并在 `plugins/qlib_a158/pyproject.toml` 中声明插件入口和随包分发的注册文件；已有 qlib_a158 插件已配置这些内容：
 
 ```toml
 [project.entry-points."axonx.plugins"]

@@ -18,6 +18,13 @@ export interface StrategyStats {
 export const finite = (value: unknown) =>
   value == null || value === "" ? NaN : Number(value);
 
+export function executionCostRates(input: Record<string, unknown>) {
+  return {
+    buyCost: finite(input.buy_cost_rate ?? input.transaction_cost_rate),
+    sellCost: finite(input.sell_cost_rate ?? input.transaction_cost_rate),
+  };
+}
+
 export function pairDays(
   a: DailyRow[],
   b: DailyRow[],

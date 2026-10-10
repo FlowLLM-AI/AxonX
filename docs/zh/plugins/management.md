@@ -40,7 +40,7 @@ axonx plugin list
 
 ## 从源码构建和检查
 
-仓库中的 a158 目录可作为源码路径示例：
+仓库中的 qlib_a158 目录可作为源码路径示例：
 
 ```bash
 axonx plugin inspect ./plugins/qlib_a158

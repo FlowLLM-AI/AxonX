@@ -139,21 +139,6 @@ def test_etl_date_boundaries_reject_invalid_calendar_dates(value):
         Alpha158InputParams(start_date=value)
 
 
-def test_side_fees_fail_clearly_with_an_unsupported_core(tmp_path, monkeypatch):
-    from axonx_qlib_a158.backtest import Alpha158BacktestTask
-    from axonx.task.builtins.stock.engine import BacktestConfig
-
-    fields = {
-        key: value
-        for key, value in BacktestConfig.__dataclass_fields__.items()
-        if key not in {"buy_cost_rate", "sell_cost_rate"}
-    }
-    monkeypatch.setattr(BacktestConfig, "__dataclass_fields__", fields)
-    task = Alpha158BacktestTask({"buy_cost_rate": 0.0005}, workspace_path=tmp_path, reg_name="qlib_a158_backtest")
-    with pytest.raises(RuntimeError, match="Separate buy/sell fees require AxonX core"):
-        task.calculate()
-
-
 @pytest.mark.parametrize("failed_wait", [False, True])
 def test_pipeline_checks_selected_service_and_stops_on_failed_wait(tmp_path, failed_wait):
     import json

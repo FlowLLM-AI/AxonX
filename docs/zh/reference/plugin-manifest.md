@@ -162,7 +162,7 @@ axonx_example = ["plugin.yaml", "config/*.yaml"]
 
 如果 attr 是已存在对象，resolver 加载它，若可调用则调用并取得 YAML/JSON 路径；否则把目标包作为目录，按 attr/name 取对应配置文件。必须定位到一个实际配置文件。同名配置歧义会拒绝，不静默选一个。
 
-仓库 a158 使用独立 distribution axonx-qlib-a158、插件 entry-point qlib_a158 与 axonx_qlib_a158 包，可作为真实包结构参考。
+仓库 qlib_a158 使用独立 distribution axonx-qlib-a158、插件 entry-point qlib_a158 与 axonx_qlib_a158 包，可作为真实包结构参考。
 
 ## 相关文档
 

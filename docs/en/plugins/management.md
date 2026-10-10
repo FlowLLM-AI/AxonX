@@ -40,7 +40,7 @@ The following source and wheel commands are for plugin development and deploymen
 
 ## Build and inspect from source
 
-The repository's a158 directory is an example source path:
+The repository's qlib_a158 directory is an example source path:
 
 ```bash
 axonx plugin inspect ./plugins/qlib_a158

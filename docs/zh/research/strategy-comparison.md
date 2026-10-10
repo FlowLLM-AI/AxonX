@@ -91,7 +91,7 @@ B 日期：    02、03、04、05
 A = {a, b, c}，B = {b, c, d}：交集 2 / 并集 4 = 50%
 ```
 
-它不是交集除以 30，也不是资金加权重合。当前页面读取 `top30_holdings`，切换收益 Top N 不会变成相应规模的真实仓位比较。对 a158，它比较的是 Top 30 信号目标，包含未成交候选。
+它不是交集除以 30，也不是资金加权重合。当前页面读取 `top30_holdings`，切换收益 Top N 不会变成相应规模的真实仓位比较。对 qlib_a158，它比较的是 Top 30 信号目标，包含未成交候选。
 
 ## 分期收益与交易观察
 
@@ -124,3 +124,5 @@ A = {a, b, c}，B = {b, c, d}：交集 2 / 并集 4 = 50%
 - [回测结果解读](backtest.md)、[任务血缘](../concepts/task-lineage.md)
 - [`比较数据模型`](../../../axonx_studio/src/features/research/compare/model.ts)
 - [`比较页面与参数警告`](../../../axonx_studio/src/features/research/compare/StrategyComparePage.tsx)
+
+Studio 比较实际生效的买卖费率，并在共同交易窗口展示产物记录的平均成交费用，支持分侧费率与显式零费率。

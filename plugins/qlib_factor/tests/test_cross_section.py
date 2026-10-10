@@ -116,21 +116,23 @@ def test_empty_singleton_flat_pool_and_labels_ignored():
     assert empty["f_context_market_mean1"].is_null().all()
 
 
-def test_retired_groups_and_baseline_selection():
+def test_invalid_groups_and_baseline_selection():
     from axonx_qlib_factor.train import LgbmTrainInputParams, LgbmTrainTask
 
     assert len(FEATURES) == 158
     assert selected_features("variance,mean") == (*FEATURE_GROUPS["mean"], *FEATURE_GROUPS["variance"])
     assert not selected_features("none")
-    for group in ("market", "liquidity", "relative", "interaction", "none,mean", ""):
+    for group in ("unknown", "none,mean", ""):
         with pytest.raises(ValueError):
             LgbmTrainInputParams(context_groups=group)
     task = object.__new__(LgbmTrainTask)
     task.input_params = LgbmTrainInputParams()
-    retired = ("f_context_market_return", "f_context_relative_return")
-    assert task.select_features((*FEATURES, *CONTEXT_FEATURES, *retired)) == FEATURES
+    unsupported = ("f_context_unknown",)
+    with pytest.raises(ValueError, match="unsupported context features"):
+        task.select_features((*FEATURES, *CONTEXT_FEATURES, *unsupported))
+    assert task.select_features((*FEATURES, *CONTEXT_FEATURES)) == FEATURES
     task.input_params = LgbmTrainInputParams(context_groups="mean")
-    assert task.select_features((*FEATURES, *CONTEXT_FEATURES, *retired)) == (*FEATURES, *FEATURE_GROUPS["mean"])
+    assert task.select_features((*FEATURES, *CONTEXT_FEATURES)) == (*FEATURES, *FEATURE_GROUPS["mean"])
 
 
 def test_horizon_ablation_selects_only_requested_columns_and_validates_inputs():

@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README_ZH.md)
 
-`qlib_factor` adds two global factor families to the 158 Alpha158 inputs: cross-sectional return mean and variance over 1/3/5/10 trading days. ETL also publishes 5 stock-level momentum/risk columns: 13 optional columns and 171 features in total.
+`qlib_factor` adds two stock-level risk factors to the 158 Alpha158 inputs in the main experiment: 20-day residual volatility and downside risk, for 160 training features. ETL also publishes optional global mean, variance, and neutral momentum factors, for 171 columns in total. Reproduction commands here select only the `risk` group.
 
 Training inherits cutoff-safe labels, early stopping on the final 10% of training dates and full-period refitting. Prediction and ordinary backtesting reuse the base plugin.
 
@@ -17,9 +17,9 @@ Training inherits cutoff-safe labels, early stopping on the final 10% of trainin
 
 Stock returns are adjusted C(T)/C(T−h)−1 for h=1/3/5/10 market trading days. Both endpoints must have quotes, positive volume, amount and adjusted prices. Price-limit stocks remain included; future labels and tradability are never consulted. For each date/horizon, winsorize at the linear 2%/98% quantiles, following Axon2's global feature implementation, then calculate the equal-weight mean and sample variance (ddof=1). Empty pools remain null; singleton variance is null. Variance measures cross-sectional disagreement; near-zero mean alone does not establish that most stocks are range-bound.
 
-Features are available after T close and shared by every stock that day. Evaluate model ablations, since daily-constant factors have no cross-sectional IC. See [cross_section.py](axonx_qlib_factor/internal/cross_section.py); ETL saves daily values and horizon-specific pool counts.
+Global moments are available after T close and shared by every stock that day; momentum/risk features vary by stock. Evaluate model ablations, since daily-constant factors have no cross-sectional IC. See [cross_section.py](axonx_qlib_factor/internal/cross_section.py); ETL saves daily values and horizon-specific pool counts.
 
-`context_groups` accepts comma-separated `mean`, `variance`, `neutral`, `risk`, or `none`. The default remains `none` pending comparison. Compatibility change: the old `market/liquidity/relative/interaction` groups are retired. Old columns are excluded from new models and retired group configurations fail explicitly; historical tasks remain untouched. Rerun ETL for the new groups.
+`context_groups` accepts comma-separated `mean`, `variance`, `neutral`, `risk`, or `none`. The default remains `none`; the documented factor version explicitly uses `risk`. Unsupported groups and context columns fail validation.
 
 `context_windows` selects a nonempty subset of `[1,3,5,10]`, defaulting to all four horizons. ETL publishes all 13 factors; context_windows filters only global mean/variance, while stock groups retain their fixed windows. Ablations reuse that dataset, and training metadata records the selected windows. For example, `--context-groups mean,variance --context-windows '[10]'` adds only two 10-day factors.
 
@@ -35,7 +35,8 @@ axonx get_task_definition --task qlib_factor_train --target http://research.exam
 axonx submit --task qlib_factor_etl --start-date 20150101 --end-date 20261008 --target http://research.example:1024
 axonx submit --task qlib_factor_train --source-tasks '<etl_task_id>' \
   --train-start 20150101 --train-end 20230101 \
-  --label-column label_return_rank --parameter-preset axonx --target http://research.example:1024
+  --label-column label_return_rank --parameter-preset axonx \
+  --context-groups risk --feature-fraction 1.0 --target http://research.example:1024
 axonx submit --task qlib_factor_predict --source-tasks '<train_task_id>' \
   --pred-start 20230101 --pred-end 20261008 --target http://research.example:1024
 axonx submit --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
@@ -43,29 +44,19 @@ axonx submit --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
   --transaction-cost-rate 0.001 --target http://research.example:1024
 ```
 
-Save each returned Task ID and Run ID and wait for `succeeded` before submitting downstream work. `qlib_factor_analysis` is an optional diagnostic branch. With the core from this checkout, Task-only wheel updates through the remote installation Job apply without restarting; restart when `restart_required` is true and verify Task definitions. Direct pip/source changes and older cores without plugin import refresh require restart. See [Qlib Alpha158](../qlib_a158/README.md) for source data, labels and execution assumptions.
+Save each returned Task ID and Run ID and wait for `succeeded` before submitting downstream work. `qlib_factor_analysis` is an optional diagnostic branch. Task-only wheel updates through the remote installation Job apply without restarting; restart when `restart_required` is true and verify Task definitions. Direct pip/source changes require restart. See [Qlib Alpha158](../qlib_a158/README.md) for source data, labels and execution assumptions.
 
 <a id="experiments"></a>
 
 ## Final experiment settings and results
 
-This section records this plugin’s final experiment. See the [three-layer comparison](../../docs/en/research/experiments.md#comparison) for cross-plugin results. Metrics come from successful machine-45 Tasks and their metadata, summary.parquet, daily.parquet and trades.parquet; original artifacts remain in the execution workspace.
+This section records this plugin’s final experiment. See the [three-version comparison](../../docs/en/research/experiments.md#comparison) for cross-plugin results. Metrics come from successful machine-45 Tasks and their metadata, summary.parquet, daily.parquet and trades.parquet; original artifacts remain in the execution workspace.
 
-### Detailed Setting
+### Version configuration
 
-| Stage                 | Setting                                                                                                                                                                                                                                                                                                                                                         |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Data / universe       | Tushare adjusted prices and volumes; Shanghai/Shenzhen excluding Beijing, with no CSI300-only selection. ETL output 20150101–20261008: 11,446,950 rows and 5,477 stocks; Factor ETL publishes 171 features; the final risk model uses 160 columns. min_history_coverage=0.8; no forward-filling suspensions or missing quotes.                                  |
-| Training dates        | `[20150101,20230101)`; both signal date and label_target_date precede the exclusive cutoff. Internal validation starts 20220316, using the last 10% of dates.                                                                                                                                                                                                   |
-| Labels / filtering    | Adjusted signal-close to next-market-close returns; retain signal-date buyable rows with valid fixed-one-day labels available before cutoff. Trim 2.5% of raw returns at each daily tail; normalize average ranks to [0,1], singleton=0.5; transform fitting and validation samples separately. label_winsorize_tail=0.025; this experiment uses rank, not CSZ. |
-| Sample counts         | 6,147,420 rows before trimming; full-period refit on 5,838,557 rows after trimming; tuning train 5,010,901 and validation 823,601 rows.                                                                                                                                                                                                                         |
-| LightGBM              | 4.7.0, parameter_preset=axonx, objective=regression, metric=[l2,l1]; learning_rate=0.03, num_leaves=31, max_depth=-1, min_data_in_leaf=20, bagging_fraction=0.9, bagging_freq=1, lambda_l1=lambda_l2=0. feature_fraction=1.0.                                                                                                                                   |
-| Rounds / refit        | num_boost_round=1000, early_stopping_rounds=50; validation L2 selects rounds before refitting all training samples. Training-validation RankIC selects the final risk model.                                                                                                                                                                                    |
-| Determinism           | random_seed=42; LightGBM seed, feature_fraction_seed, bagging_seed and data_random_seed all 42; num_threads=8, deterministic=true, force_col_wise=true.                                                                                                                                                                                                         |
-| Out of sample         | pred_start=20230101, pred_end=20261008; actual overall evaluation 20230103–20261008, 909 market dates. 2026 is incomplete.                                                                                                                                                                                                                                      |
-| Portfolio / execution | Top20 primary, Top30 secondary; same-close quote proxy, sells before buys, price-limit and eligibility constraints. New entries receive at most 1/N equity; no replacement for unfilled entries, blocked exits retain capital, retained weights are not rebalanced. No forced final liquidation.                                                                |
-| Fees / annualization  | transaction_cost_rate=0.001 on each executed side; buy_cost_rate=sell_cost_rate=null uses the shared rate, without a minimum fee. annualization_days=252, annual_risk_free_rate=0.012.                                                                                                                                                                          |
-| Shared inputs         | This experiment uses the upstream ETL market.parquet, calendar.parquet and labels.parquet; as_of_date=20261008, index_codes=[], minimum_index_weight_coverage=0.98.                                                                                                                                                                                             |
+158 base features plus two risk factors; context_groups=risk, feature_fraction=1.0; fixed holding_days=1.
+
+Data, training windows, filtering, execution, and fee settings are maintained in the [three-version comparison](../../docs/en/research/experiments.md#comparison).
 
 The model uses 160 features and refits the full training period after early stopping selects 426 rounds. Validation RankIC is 0.11321.
 
@@ -75,13 +66,7 @@ context_groups=risk, context_windows=[10], fixed holding_days=1; the plugin defa
 
 ### Metric definitions
 
-Overall IC/RankIC averages daily Pearson/Spearman correlations between predictions and valid next-day labels on signal-date eligible stocks, independently of holdings and TopN. Unannualized RankICIR = mean(daily RankIC)/std(daily RankIC,ddof=1); the annualized version multiplies by sqrt(252). Both are shown to distinguish backtest and factor-analysis conventions.
-
-Net annualized = (∏(1+r_net))^(252/D)−1; net Sharpe = (mean(r_net)−[(1.012)^(1/252)−1])/std(r_net,ddof=1)×sqrt(252). Drawdown uses compounded net equity with initial equity 1 included in the running peak. Turnover = (executed buys+sells)/prior equity; full replacement is about 200%. Win rate is the share of positive net-return dates.
-
-The universe-mean benchmark equally weights the full prediction cross-section with valid forward labels, not just Top20 and not the clipped mean used in risk features. HS300 is a constituent-weighted return proxy with at least 98% weight coverage, not the official CSI300 index quote series. Both benchmarks have 908 valid dates, 20230104–20261008. Net active metrics use this shared window; portfolio-only metrics use all 909 dates.
-
-Net daily active return a_t = r_net,t−r_benchmark,t. **Net IR** = mean(a)/std(a,ddof=1)×sqrt(252). Net active annualized return compounds ∏(1+a) and annualizes over 908 dates; active drawdown uses the same compounded active-return curve. These are neither differences of annualized returns nor portfolio/benchmark equity ratios. Framework information_ratio fields use gross returns; this section recomputes net metrics from daily artifacts.
+Shared definitions for IC/RankIC, net returns, Sharpe, turnover, and active metrics are maintained in the [experiment comparison](../../docs/en/research/experiments.md#comparison). Portfolio metrics use 909 dates; active metrics use 908 benchmark-valid dates.
 
 ### Overall signals and full Top20 results
 
@@ -90,7 +75,6 @@ Net daily active return a_t = r_net,t−r_benchmark,t. **Net IR** = mean(a)/std(
 | Overall IC                               |             0.0545 |
 | Overall RankIC                           |             0.0966 |
 | Overall RankICIR (annualized)            |            14.2859 |
-| Overall RankICIR (unannualized)          |             0.8999 |
 | Net annualized                           |              9.04% |
 | Net cumulative return                    |             36.64% |
 | Net Sharpe                               |             0.4054 |
@@ -151,7 +135,6 @@ Execution workspace: `/nas/jinli.yl/data/axon` on machine 45.
 | ---------------------------- | ---------------------------------------------- | ---------------------------------- |
 | stock_risk: train            | `train#qlib_factor_train#2026100917VGxi`       | `d55e035ab9c549ab840770b1e8444f10` |
 | stock_risk: predict          | `predict#qlib_factor_predict#2026100917Z7Ys`   | `1a033666806b4e359c6acc11f8b02399` |
-| Factor: stock_risk: backtest | `backtest#qlib_factor_backtest#2026100917v6ku` | `37cf5867c5d344da9c4b6a9b56bc6e24` |
 | Factor: stock_risk: backtest | `backtest#qlib_factor_backtest#2026100917v6ku` | `37cf5867c5d344da9c4b6a9b56bc6e24` |
 
 | Input    | SHA-256                                                            |

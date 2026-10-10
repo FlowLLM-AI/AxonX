@@ -1,13 +1,11 @@
 """Rank retention and bounded daily replacements on the shared stock ledger."""
 
-from collections.abc import Iterable
 from dataclasses import dataclass
 import math
 
 from pydantic import Field
 from axonx_qlib_factor.backtest import Alpha158BacktestInputParams as BaseInput, Alpha158BacktestTask as BaseTask
 from axonx.task.builtins.stock.backtest import StockBacktestOutput
-from axonx.task.core import TaskStep
 
 
 @dataclass(frozen=True)
@@ -45,11 +43,6 @@ class StrategyBacktestTask(BaseTask):
 
     input_cls = StrategyBacktestInput
     input_params: StrategyBacktestInput
-
-    def build_task_steps(self) -> Iterable[TaskStep]:
-        if not hasattr(BaseTask, "portfolio_policy"):
-            raise RuntimeError("Deploy the current AxonX source with the portfolio_policy extension before running.")
-        yield from super().build_task_steps()
 
     def portfolio_policy(self) -> RankRetentionPolicy:
         p = self.input_params
