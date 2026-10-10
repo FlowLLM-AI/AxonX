@@ -50,7 +50,7 @@ inspect logs, artifacts, and upstream and downstream relationships.
 - AxonX **0.1.0** released: an agent-native quantitative research harness with plugin-based Tasks, execution tracking, task lineage, and shared CLI / MCP / Studio access. → [Documentation](https://flowllm-ai.github.io/AxonX/en/)
 - Connect your Agent with SKILL.md + CLI: load the [AxonX Skill](skills/axonx/SKILL.md) into Codex, Claude Code, or another Agent to discover Task contracts, develop plugins, submit research tasks, and inspect results. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external)
 - AxonX Studio available: browse tasks and artifacts, inspect training curves and backtests, and compare strategies in one workspace. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a> (simulated data and execution)
-- Qlib three-version experiment: base / added factors / 3-day policy Top20 net annualized returns are **7.69% / 9.04% / 32.36%**, with 0.1% fees per side and missing quotes; the policy has not been independently confirmed. → [Comparison and full results](docs/en/research/experiments.md#comparison)
+- Qlib three-version experiment: base / added factors / 3-day policy Top20 net annualized returns are **7.67% / 9.03% / 32.37%**, with 0.05% buy / 0.15% sell fees and missing quotes; the policy has not been independently confirmed. → [Comparison and full results](docs/en/research/experiments.md#comparison)
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261004-flat)
 
@@ -311,7 +311,7 @@ The experiment starts by porting Qlib's Alpha158 / LightGBM setup, then uses an 
 
 - **Data and labels**: Tushare adjusted prices and volumes across Shanghai/Shenzhen, excluding Beijing. Labels use signal-close to next-market-close returns, transformed into daily ranks after removing 2.5% of samples at each tail.
 - **Training**: `[20150101,20230101)`, reserving the last 10% of dates for early stopping before refitting the full training period; exclude labels crossing the cutoff. This experiment uses the AxonX parameter preset, learning rate 0.03, 31 leaves, and feature_fraction=0.9.
-- **Backtesting**: evaluate `20230103–20261008`, with Top20 as the primary portfolio and fixed 1-day holding. Use same-close proxy fills, price-limit and tradability constraints, and 0.1% fees per side.
+- **Backtesting**: evaluate `20230103–20261008`, with Top20 as the primary portfolio and fixed 1-day holding. Use same-close proxy fills, price-limit and tradability constraints, and 0.05% buy / 0.15% sell fees.
 
 These are the ported experiment's settings and differ from the original Qlib example. See the [migration comparison](plugins/qlib_a158/README.md#differences-from-original-qlib) for details.
 
@@ -325,7 +325,7 @@ Example prompt:
 
 ### 3. Have the agent develop a portfolio policy
 
-The agent follows the same process to develop [qlib_strategy](plugins/qlib_strategy/README.md), reusing augmented predictions to study holding and replacement rules. The documentation presents the better-performing candidate, a **3-day rank-retention policy**: hold for at least 3 market dates, retain highly ranked stocks, exit lower-ranked holdings first, and cap daily replacements at 20% of the stock count per side.
+The agent follows the same process to develop [qlib_strategy](plugins/qlib_strategy/README.md), reusing augmented predictions to study holding and replacement rules. This experiment evaluates a fixed **3-day rank-retention policy**: hold for at least 3 market dates, retain highly ranked stocks, exit lower-ranked holdings first, and cap daily replacements at 20% of the stock count per side.
 
 Example prompt:
 
@@ -340,23 +340,23 @@ The table compares overall signal quality and Top20 portfolio performance across
 | Overall IC                               |                                           0.0530 |                                         0.0545 |                                            0.0545 |
 | Overall RankIC                           |                                           0.0923 |                                         0.0966 |                                            0.0966 |
 | Overall RankICIR (annualized)            |                                          12.8817 |                                        14.2859 |                                           14.2859 |
-| Net annualized                           |                                            7.69% |                                          9.04% |                                            32.36% |
-| Net cumulative return                    |                                           30.63% |                                         36.64% |                                           174.92% |
-| Net Sharpe                               |                                           0.3624 |                                         0.4054 |                                            1.1571 |
+| Net annualized                           |                                            7.67% |                                          9.03% |                                            32.37% |
+| Net cumulative return                    |                                           30.56% |                                         36.60% |                                           174.99% |
+| Net Sharpe                               |                                           0.3619 |                                         0.4052 |                                            1.1575 |
 | Net annualized volatility                |                                           28.20% |                                         28.53% |                                            26.19% |
-| Max drawdown                             |                                          -38.64% |                                        -40.67% |                                           -24.91% |
+| Max drawdown                             |                                          -38.65% |                                        -40.69% |                                           -24.91% |
 | Daily return win rate                    |                                           53.47% |                                         53.47% |                                            55.89% |
-| Mean daily two-sided turnover            |                                          198.83% |                                        199.35% |                                            40.02% |
-| Mean daily cost / prior equity           |                                          0.1988% |                                        0.1993% |                                           0.0400% |
+| Mean daily two-sided turnover            |                                          198.83% |                                        199.35% |                                            40.01% |
+| Mean daily cost / prior equity           |                                          0.1989% |                                        0.1994% |                                           0.0400% |
 | Closed trades                            |                                           18,032 |                                         18,079 |                                             3,624 |
-| Net active annualized vs universe mean   |                                           -3.47% |                                         -1.86% |                                            18.65% |
-| Net IR vs universe mean                  |                                          -0.1404 |                                        -0.0649 |                                            1.4547 |
-| Net active max drawdown vs universe mean |                                          -28.47% |                                        -21.71% |                                           -18.63% |
-| Net active annualized vs HS300 proxy     |                                            2.77% |                                          4.09% |                                            26.04% |
-| Net IR vs HS300 proxy                    |                                           0.2353 |                                         0.2947 |                                            1.2699 |
-| Net active max drawdown vs HS300 proxy   |                                          -31.94% |                                        -29.34% |                                           -23.96% |
+| Net active annualized vs universe mean   |                                           -3.50% |                                         -1.88% |                                            18.64% |
+| Net IR vs universe mean                  |                                          -0.1422 |                                        -0.0665 |                                            1.4543 |
+| Net active max drawdown vs universe mean |                                          -28.51% |                                        -21.71% |                                           -18.63% |
+| Net active annualized vs HS300 proxy     |                                            2.74% |                                          4.07% |                                            26.04% |
+| Net IR vs HS300 proxy                    |                                           0.2340 |                                         0.2936 |                                            1.2697 |
+| Net active max drawdown vs HS300 proxy   |                                          -31.94% |                                        -29.37% |                                           -23.96% |
 
-The factor version raises returns but increases drawdown; the policy improves returns and risk metrics in this experiment. The 3-day candidate was selected exploratorily on a reused development window, without independent confirmation. Base/augmented feature_fraction is 0.9/1.0, so return differences do not isolate the added factors. Results also include missing quotes, same-close proxy fills, and a partial 2026.
+The three configurations were rerun on machine 45 on 2026-10-10 with Qlib buy/sell fees. They have no independent confirmation window; base/factor feature_fraction is 0.9/1.0, so differences do not isolate the added factors. Results include missing quotes, proxy fills and a partial 2026.
 
 [Full experiment settings, metrics, and reproduction commands](docs/en/research/experiments.md#comparison) include configurations and task provenance for all three versions. The prompts above are illustrative development instructions.
 

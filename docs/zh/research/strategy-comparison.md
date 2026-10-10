@@ -16,10 +16,13 @@ Studio 策略比较页面读取两个 Backtest Task 的日频产物，在共同�
 用不同任务名称保留不同训练、预测和回测结果。比较同一因素的变化时，其他设置尽量一致，例如使用同一 ETL、同一预测窗口，仅调整训练参数或成本。
 
 ```bash
-axonx submit --task qlib_a158_backtest --task-name cost-low \
-  --source-tasks '<Predict Task ID>' --buy-cost-rate 0.001 --sell-cost-rate 0.001
-axonx submit --task qlib_a158_backtest --task-name cost-high \
-  --source-tasks '<Predict Task ID>' --buy-cost-rate 0.003 --sell-cost-rate 0.003
+axonx submit --task qlib_a158_backtest --task-name fixed-holding \
+  --source-tasks '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1 \
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx submit --task qlib_strategy_backtest --task-name rank-retention \
+  --source-tasks '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 \
+  --replacement-fraction 0.2 --rank-buffer 1 \
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 各自等待成功后，在策略比较页面选择 A 和 B。Task ID 是实验身份，显示名称只能帮助识别；固定名称重跑替换目录后，无法把原结果当成仍保留的历史实验。

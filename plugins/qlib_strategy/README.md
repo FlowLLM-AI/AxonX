@@ -27,6 +27,6 @@ axonx submit --task qlib_strategy_backtest --source-tasks '<predict_task_id>' \
 
 Reuse successful base or factor predictions. Record returned Task / Run IDs and wait for success before reading results. Upstream `qlib_strategy_etl`, `qlib_strategy_analysis`, `qlib_strategy_train` and `qlib_strategy_predict` register factor-layer implementations; policy comparisons reuse predictions. Task-only wheel updates through the remote installation Job apply without restarting; restart when `restart_required` is true and verify Task definitions. Direct pip/source changes require restart. Install the AxonX core from this checkout together with the plugins.
 
-## Recorded experiments
+## Experiments
 
-Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/experiments.md#comparison). Historical records have not been rerun against the current code.
+Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/experiments.md#comparison). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.

@@ -29,4 +29,4 @@ axonx submit --task qlib_strategy_backtest --source-tasks '<predict_task_id>' \
 
 ## 实验记录
 
-历史实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/experiments.md#comparison)。这些历史记录不代表当前代码已重新运行验证。
+实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/experiments.md#comparison)。三组配置已在 45 机器使用买入 0.05%、卖出 0.15% 的费用重新运行。

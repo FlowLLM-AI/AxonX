@@ -101,7 +101,7 @@
     "documentationMap": "Documentation map",
     "caseTitle": "Qlib three-layer research: base, factors and portfolio policy",
     "experimentDesign": "Experiment design",
-    "caseDescription": "Train on 2015–2022 and evaluate 2023–2026 with 0.1% fees per side. Baseline, risk-factor and 3-day strategy Top20 net annualized returns are 7.69%, 9.04% and 32.36%. Results include missing quotes and proxy fills; the strategy is exploratory.",
+    "caseDescription": "Train on 2015–2022 and evaluate 2023–2026 with 0.05% buy / 0.15% sell fees. Baseline, risk-factor and 3-day strategy Top20 net annualized returns are 7.67%, 9.03% and 32.37%. Results include missing quotes and proxy fills; the strategy is exploratory.",
     "benchmark": "Read the benchmark",
     "reproduction": "Features, parameters, and reproduction",
     "closingTitle": "Start with one Task.",
@@ -126,7 +126,7 @@
       },
       "factor": {
         "title": "Qlib factor and policy experiments",
-        "description": "Train on 2015–2022 and evaluate 2023–2026 with 0.1% fees per side. Baseline, risk-factor and 3-day strategy Top20 net annualized returns are 7.69%, 9.04% and 32.36%. Results include missing quotes and proxy fills; the strategy is exploratory.",
+        "description": "Train on 2015–2022 and evaluate 2023–2026 with 0.05% buy / 0.15% sell fees. Baseline, risk-factor and 3-day strategy Top20 net annualized returns are 7.67%, 9.03% and 32.37%. Results include missing quotes and proxy fills; the strategy is exploratory.",
         "label": "Explore the results"
       }
     }

@@ -16,10 +16,13 @@ This page explains comparison UI calculations and operations. Define controls, s
 Use different task names to retain different training, prediction, and backtest results. When comparing changes in one factor, keep other settings as consistent as possible—for example, use the same ETL and prediction window while changing only training parameters or costs.
 
 ```bash
-axonx submit --task qlib_a158_backtest --task-name cost-low \
-  --source-tasks '<Predict Task ID>' --buy-cost-rate 0.001 --sell-cost-rate 0.001
-axonx submit --task qlib_a158_backtest --task-name cost-high \
-  --source-tasks '<Predict Task ID>' --buy-cost-rate 0.003 --sell-cost-rate 0.003
+axonx submit --task qlib_a158_backtest --task-name fixed-holding \
+  --source-tasks '<Predict Task ID>' --top-ns '[20,30]' --holding-days 1 \
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
+axonx submit --task qlib_strategy_backtest --task-name rank-retention \
+  --source-tasks '<Predict Task ID>' --top-ns '[20,30]' --minimum-holding-days 3 \
+  --replacement-fraction 0.2 --rank-buffer 1 \
+  --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
 Wait for each task to succeed, then select A and B on the strategy comparison page. The Task ID identifies the experiment; display names only help recognition. After a rerun with a fixed name replaces the directory, the original result can no longer be treated as retained experiment history.

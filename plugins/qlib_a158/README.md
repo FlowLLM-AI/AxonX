@@ -37,19 +37,6 @@ Training defaults to `parameter_preset=axonx`. `--parameter-preset qlib` switche
 
 Qlib aliases `colsample_bytree` / `subsample` map to `feature_fraction` / `bagging_fraction`. Its example leaves `subsample_freq` unset, so the `qlib` preset uses `bagging_freq=0`.
 
-## Parameter experiments
-
-After installation, run the four `rank/csz × axonx/qlib` training, prediction and backtest combinations locally in the workspace containing a successful ETL:
-
-```bash
-python -m axonx_qlib_a158.scripts.compare_parameters \
-  --workspace-path /path/to/workspace --etl-task '<etl_task_id>' \
-  --labels rank csz --train-start 20150101 --train-end 20230101 \
-  --pred-start 20230101 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
-```
-
-The script reuses one ETL locally for both parameter presets under each selected label and saves validation metrics, period summaries, input digests and Task IDs to `qlib_a158_comparison/` in the workspace. Backtesting ends on the actual prediction end date. Use `--help` for dates, TopN and fees. Omitting `--labels` compares the two parameter presets with the default rank label.
-
 ## Install and inspect
 
 Requires Python 3.12+ and AxonX `>=0.1.1,<0.2`; local Task execution supports macOS and Linux. Install into the execution service’s Python environment, then restart the service to reload contributions. LightGBM, NumPy, and Polars are installed as dependencies.
@@ -190,6 +177,6 @@ python -m pytest \
 
 These checks cover feature boundaries, label timing, four-way parameter comparisons, side fees, delayed exits and cash/position accounting.
 
-## Recorded experiments
+## Experiments
 
-Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/experiments.md#comparison). Historical records have not been rerun against the current code.
+Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/experiments.md#comparison). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.

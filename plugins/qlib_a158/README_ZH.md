@@ -37,19 +37,6 @@ AxonX 基于 Qlib Alpha158 / LightGBM 研究方案开发的量化插件，提供
 
 Qlib 的 `colsample_bytree` / `subsample` 分别对应 `feature_fraction` / `bagging_fraction`；其示例未配置 `subsample_freq`，因此 `qlib` 预设使用 `bagging_freq=0`。
 
-## 参数实验
-
-安装后可在成功 ETL 所在工作区本地执行 `rank/csz × axonx/qlib` 四组训练、预测和回测：
-
-```bash
-python -m axonx_qlib_a158.scripts.compare_parameters \
-  --workspace-path /path/to/workspace --etl-task '<etl_task_id>' \
-  --labels rank csz --train-start 20150101 --train-end 20230101 \
-  --pred-start 20230101 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
-```
-
-脚本在本地复用同一 ETL，对每个标签分别运行两个模型参数预设，将验证指标、分期汇总、输入摘要和 Task ID 保存到工作区的 `qlib_a158_comparison/`。回测截止日取实际预测截止日；日期、TopN 和费用可通过 `--help` 配置。省略 `--labels` 时仅比较默认 rank 标签的两个参数预设。
-
 ## 安装与检查
 
 要求 Python 3.12+ 和 AxonX `>=0.1.1,<0.2`；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
@@ -192,4 +179,4 @@ python -m pytest \
 
 ## 实验记录
 
-历史实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/experiments.md#comparison)。这些历史记录不代表当前代码已重新运行验证。
+实验设置、完整结果与产物来源统一见[研究实验指南](../../docs/zh/research/experiments.md#comparison)。三组配置已在 45 机器使用买入 0.05%、卖出 0.15% 的费用重新运行。

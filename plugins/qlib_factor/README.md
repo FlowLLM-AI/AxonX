@@ -46,6 +46,6 @@ axonx submit --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
 
 Save each returned Task ID and Run ID and wait for `succeeded` before submitting downstream work. `qlib_factor_analysis` is an optional diagnostic branch. Task-only wheel updates through the remote installation Job apply without restarting; restart when `restart_required` is true and verify Task definitions. Direct pip/source changes require restart. See [Qlib Alpha158](../qlib_a158/README.md) for source data, labels and execution assumptions.
 
-## Recorded experiments
+## Experiments
 
-Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/experiments.md#comparison). Historical records have not been rerun against the current code.
+Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/experiments.md#comparison). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.
