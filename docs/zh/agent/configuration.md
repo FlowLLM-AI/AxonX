@@ -52,11 +52,13 @@ components:
         - get_task_context
 ```
 
+此示例显式开启八个可选的查询 Job 工具。默认配置将 `job_tools` 保留为注释示例，使用开发指南中的 CLI。确保 Agent 环境能执行 `axonx`，并配置选定服务的地址和 token。
+
 此配置展示字段结构；模型与权限设置继续继承默认值。服务启动时会校验 Job 名称是否已配置，名单不能为空字符串、不允许重复；字符串不能代替列表。
 
 ## 内置开发指南
 
-应用级 `language` 支持 `en`（默认）和 `zh`，在需要指南的 Agent 上开启 `load_dev_guide`：
+Agent 默认加载内置指南。应用级 `language` 支持 `en`（默认）和 `zh`；在 Agent 上设置 `load_dev_guide: false` 可关闭加载：
 
 ```yaml
 extends: default
@@ -64,10 +66,10 @@ language: zh
 components:
   agent:
     default:
-      load_dev_guide: true
+      load_dev_guide: false
 ```
 
-`load_dev_guide` 默认是 `false`，关闭时不读取也不注入指南。开启后，Agent 在启动时读取一次对应语言的完整[开发指南](../dev_guide.md)。修改语言、开关或指南后需重启服务。没有应用上下文时使用 `en`；不支持的语言值会被拒绝。
+`load_dev_guide` 默认是 `true`，关闭时不读取也不注入指南。开启后，Agent 在启动时读取一次对应语言的完整[开发指南](../dev_guide.md)。修改语言、开关或指南后需重启服务。没有应用上下文时使用 `en`；不支持的语言值会被拒绝。
 
 Claude 后端将指南追加到已有系统提示词，保留 preset 的其他选项和原有 `append` 内容。字符串提示词在原文后追加；未配置提示词时使用 Claude Code preset。对于 `type: file` 提示词，后端以 UTF-8 读取文件并在原文后追加指南；相对路径基于 Agent 的 `cwd` 解析。新建和恢复会话的每一轮都使用启动时加载的同一份指南，不会累积重复内容。
 
@@ -95,15 +97,15 @@ export CLAUDE_CODE_MODEL_NAME='<可用模型名>'
 
 ## 框架管理字段
 
-| 字段                    | 默认行为                                     | 说明                                     |
-| ----------------------- | -------------------------------------------- | ---------------------------------------- |
-| `backend`               | 默认配置 `claude`                            | 当前内置实现                             |
-| `load_dev_guide`        | `false`                                      | 追加应用级 `language` 对应的内置开发指南 |
-| `job_tools`             | 组件构造默认空列表，默认配置给出八个查询 Job | 进程内 AxonX MCP 工具名单                |
-| `state_dir`             | `agent/claude`                               | 用于 SDK 配置目录，按组件名称再分一层    |
-| `session_store.backend` | `local`                                      | 当前仅支持 local                         |
-| `session_store.path`    | `agent/session-store`                        | 会话存储根目录                           |
-| `cwd`                   | 工作区根目录                                 | SDK 选项，由框架解析执行目录             |
+| 字段                    | 默认行为                         | 说明                                     |
+| ----------------------- | -------------------------------- | ---------------------------------------- |
+| `backend`               | 默认配置 `claude`                | 当前内置实现                             |
+| `load_dev_guide`        | `true`                           | 追加应用级 `language` 对应的内置开发指南 |
+| `job_tools`             | 默认空列表，默认配置保留注释示例 | 进程内 AxonX MCP 工具名单                |
+| `state_dir`             | `agent/claude`                   | 用于 SDK 配置目录，按组件名称再分一层    |
+| `session_store.backend` | `local`                          | 当前仅支持 local                         |
+| `session_store.path`    | `agent/session-store`            | 会话存储根目录                           |
+| `cwd`                   | 工作区根目录                     | SDK 选项，由框架解析执行目录             |
 
 状态路径相对工作区解析，绝对状态路径也必须位于工作区内。默认组件名为 `default` 时，SDK 配置目录是 `<workspace>/agent/claude/default`。
 
@@ -136,7 +138,7 @@ components:
 
 AxonX 把名单中的 Job 映射为 `mcp__axonx__<job-name>`，追加到 SDK `allowed_tools`；名单外 Job 不经这条桥接暴露。已有 `mcp_servers` 不能占用保留名 `axonx`。
 
-默认八个 Job 用于任务和文件查询，但 `allowed_tools` 的桥接名单不等于 SDK 整体安全策略。SDK 自身文件、命令工具及 project/plugins 可能具备其他能力，尤其默认 `bypassPermissions` 不会把所有动作变成只读。
+可选的八个 Job 示例用于任务和文件查询。`job_tools` 为空时不会注册进程内 AxonX MCP server。`allowed_tools` 的桥接名单不等于 SDK 整体安全策略。SDK 自身文件、命令工具及 project/plugins 可能具备其他能力，尤其默认 `bypassPermissions` 不会把所有动作变成只读。
 
 如果增加 `submit` 或 `cancel`，会改变 Agent 可调用的工作区操作。配置名单是能力授权，需要结合服务账号权限、cwd、SDK 工具和项目设置一起审查实际效果。
 

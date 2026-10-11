@@ -150,12 +150,13 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 加载随包提供的中文开发指南：
 
 ```bash
-axonx start --components.agent.default.load_dev_guide true --language zh
+axonx start --language zh
 ```
 
 进入 **Studio → Agent**，为源码仓库配置 `cwd` 和 SDK 文件／命令工具。
-指南加载默认为 `false`，与工具配置独立。默认 Job 桥接提供任务和产物查询。
-安装、提交可通过 CLI，或将所需 Job 加入 `job_tools`。
+指南加载默认为 `true`，任务查询、安装和提交使用指南中的 CLI。
+确保 Agent 能运行 `axonx`，并配置选定服务的地址和 token。`job_tools` 是可选的进程内桥接；
+需要直接调用 Job 工具时，取消示例名单的注释并按需调整。
 详见 [Agent 配置](https://flowllm-ai.github.io/AxonX/zh/agent/configuration)。
 
 ### 4. 向 Agent 提出研究目标

@@ -85,7 +85,7 @@ For continuous observation, use an HTTP streaming client or Studio. Ordinary MCP
 
 ## Built-in Agent tool bridge
 
-The built-in Claude backend creates an in-process MCP server with the reserved name `axonx`, mapping only Jobs configured in `job_tools`. This path calls Dispatcher directly without connecting to the local HTTP `/mcp`.
+When `job_tools` is nonempty, the built-in Claude backend creates an in-process MCP server with the reserved name `axonx`, mapping only Jobs configured in `job_tools`. This path calls Dispatcher directly without connecting to the local HTTP `/mcp`.
 
 The external MCP tool catalog can therefore differ from the Jobs available to the built-in Agent. The SDK's own tools and permissions are also independent of the Job list; see [Agent configuration](configuration.md).
 

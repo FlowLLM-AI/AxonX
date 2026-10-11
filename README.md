@@ -155,12 +155,13 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 To load the bundled English development guide:
 
 ```bash
-axonx start --components.agent.default.load_dev_guide true --language en
+axonx start --language en
 ```
 
 Open **Studio → Agent** and configure `cwd` and SDK file/command tools for the checkout.
-Guide loading defaults to `false` and is separate from tool configuration. The default Job bridge exposes task and
-artifact queries. Use the CLI or add the required Jobs to `job_tools` for installation and submission. See [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration).
+Guide loading defaults to `true`. Use the CLI described in the guide for task queries, installation, and submission.
+Ensure the Agent can run `axonx` with the selected service address and token. `job_tools` is an optional in-process
+bridge; uncomment and customize its example list when direct Job tools are needed. See [Agent configuration](https://flowllm-ai.github.io/AxonX/en/agent/configuration).
 
 ### 4. Give the Agent a research objective
 

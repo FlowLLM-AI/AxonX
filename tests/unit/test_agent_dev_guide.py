@@ -20,7 +20,10 @@ def context(tmp_path):
 
 def test_language_defaults_and_validation():
     assert ApplicationConfig().language == "en"
-    assert resolve_app_config(config="default", log_config=False)["language"] == "en"
+    config = resolve_app_config(config="default", log_config=False)
+    assert config["language"] == "en"
+    assert config["components"]["agent"]["default"]["load_dev_guide"] is True
+    assert config["components"]["agent"]["default"].get("job_tools", []) == []
     with pytest.raises(ValidationError):
         ApplicationConfig(language="fr")
 
@@ -38,7 +41,7 @@ async def test_disabled_guide_does_not_read_resources(context, monkeypatch):
 
     monkeypatch.setattr("axonx.components.agent.base.files", unexpected_read)
     prompt = {"type": "preset", "preset": "claude_code", "append": "Identity"}
-    async with ClaudeAgentComponent(app_context=context, system_prompt=prompt) as agent:
+    async with ClaudeAgentComponent(app_context=context, load_dev_guide=False, system_prompt=prompt) as agent:
         assert agent.dev_guide == ""
         options = agent._build_options(session_id="session", resume=False, depth=0)
         assert options.system_prompt == prompt
@@ -46,9 +49,9 @@ async def test_disabled_guide_does_not_read_resources(context, monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("language", ["en", "zh"])
-async def test_guide_language_and_startup_snapshot(context, language):
+async def test_default_guide_language_and_startup_snapshot(context, language):
     context.app_config.language = language
-    async with ClaudeAgentComponent(app_context=context, load_dev_guide=True) as agent:
+    async with ClaudeAgentComponent(app_context=context) as agent:
         expected = Path(f"docs/{language}/dev_guide.md").read_text(encoding="utf-8")
         assert agent.dev_guide == expected
         context.app_config.language = "zh" if language == "en" else "en"
@@ -56,6 +59,9 @@ async def test_guide_language_and_startup_snapshot(context, language):
             options = agent._build_options(session_id="session", resume=resume, depth=0)
             assert options.system_prompt == {"type": "preset", "preset": "claude_code", "append": expected}
         assert "load_dev_guide" not in agent.options
+        assert agent.job_tools == ()
+        assert agent._job_tool_server is None
+        assert options.mcp_servers == {}
 
 
 @pytest.mark.asyncio
@@ -112,5 +118,5 @@ async def test_enabled_guide_missing_resource_fails_startup(context, monkeypatch
 @pytest.mark.asyncio
 async def test_standalone_agent_uses_english(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    async with ClaudeAgentComponent(load_dev_guide=True) as agent:
+    async with ClaudeAgentComponent() as agent:
         assert agent.dev_guide == files("axonx.components.agent").joinpath("guides/en.md").read_text(encoding="utf-8")

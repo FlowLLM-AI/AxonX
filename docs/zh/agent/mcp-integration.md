@@ -85,7 +85,7 @@ asyncio.run(main())
 
 ## 内置 Agent 的工具桥接
 
-内置 Claude 后端创建进程内 MCP server，保留名为 `axonx`，只映射 `job_tools` 配置的 Job。这条路径直接调用 Dispatcher，不需要再连接本机 HTTP `/mcp`。
+`job_tools` 非空时，内置 Claude 后端创建进程内 MCP server，保留名为 `axonx`，只映射 `job_tools` 配置的 Job。这条路径直接调用 Dispatcher，不需要再连接本机 HTTP `/mcp`。
 
 因此，外部 MCP 工具目录与内置 Agent 可用 Job 可以不同。SDK 自身工具与权限同样独立于 Job 名单，见[Agent 配置](configuration.md)。
 

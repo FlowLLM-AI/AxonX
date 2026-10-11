@@ -18,7 +18,7 @@ class BaseAgentComponent(BaseComponent, ABC):
 
     component_type = ComponentEnum.AGENT
 
-    def __init__(self, load_dev_guide: bool = False, **kwargs) -> None:
+    def __init__(self, load_dev_guide: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
         if not isinstance(load_dev_guide, bool):
             raise TypeError("load_dev_guide must be a boolean")

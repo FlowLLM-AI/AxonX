@@ -90,7 +90,7 @@ Python 客户端应显式传 token，除非调用代码自己实现环境变量�
 
 `enable_serve: false` 可阻止某个 Job 被协议公开，供内部调度使用。隐藏页面入口并不等于关闭后端 Job，应以实际 `/jobs` 和服务配置为准。
 
-Agent 的默认 Job 工具列表主要包含查询能力，但 SDK 工具、project settings、cwd 和 permission_mode 仍会影响它的权限。默认 Agent 使用 bypassPermissions，不能据查询列表断言整个 Agent 是只读的。
+Agent 的默认 Job 工具列表为空，可选查询名单保留为注释示例，但 SDK 工具、project settings、cwd 和 permission_mode 仍会影响它的权限。默认 Agent 使用 bypassPermissions，不能据空列表或查询列表断言整个 Agent 是只读的。
 
 代理路由传递上游请求凭据，其作用与远程 Job 转发不同。不要把服务 Bearer token 误用为数据源 token。
 

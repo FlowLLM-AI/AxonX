@@ -25,7 +25,7 @@ AxonX 为 Agent 开发量化插件、执行实验和分析结果提供工具与�
 | 会话记录   | 外部宿主管理                                               | AxonX 会话存储管理                                  |
 | 推荐阅读   | [外部 Agent](external.md) → [MCP 接入](mcp-integration.md) | [内置配置](configuration.md) → [内置使用](usage.md) |
 
-外部 Agent 接入不要求配置 `CLAUDE_CODE_*` 或开启内置开发指南。内置 Agent 的默认八个 Job 工具用于任务与文件查询；外部 MCP 公开目录可能包含提交、取消和安装等更多操作。实际能力以所用路径的配置与 Schema 为准。
+外部 Agent 接入不要求配置 `CLAUDE_CODE_*` 或开启内置开发指南。内置 Agent 默认加载开发指南，按指南使用 CLI；进程内 `job_tools` 桥接为可选配置。外部 MCP 公开目录可能包含查询、提交、取消和安装等操作。实际能力以所用路径的配置与 Schema 为准。
 
 ## 共同的研究循环
 

@@ -5,7 +5,7 @@ description: 在 Studio 会话中检查研究证据，并按需配置插件开�
 
 # 内置 Agent 使用
 
-AxonX Agent 将工作区查询工具接入 Claude 后端，用会话完成任务排障和研究结果分析。默认 Job 工具主要用于读取任务、日志、关系和文件；模型结论仍应以真实工具结果为依据。
+AxonX Agent 使用 Claude 后端和默认加载的开发指南，通过 CLI 完成任务排障和研究结果分析。可通过 `job_tools` 开启直接调用的 Job 工具；模型结论仍应以真实工具结果为依据。
 
 本页介绍 Studio 中的内置会话。使用 Codex、Claude Code 等外部宿主时，见[外部 Agent](external.md)；两种路径的前置条件见[接入总览](overview.md)。
 
@@ -39,13 +39,13 @@ AxonX Agent 将工作区查询工具接入 Claude 后端，用会话完成任务
 不要把 top30_holdings 当作实际持仓账本。
 ```
 
-默认工具包括 `list_entries`、`preview_file`、`list_task_ids`、`list_task_statuses`、`status`、`read_task_log`、`get_task_graph` 和 `get_task_context`。Agent 先取得实际信息，再形成答复。
+开发指南涵盖的 CLI 命令包括 `list_entries`、`preview_file`、`list_task_ids`、`list_task_statuses`、`status`、`read_task_log`、`get_task_graph` 和 `get_task_context`。Agent 先取得实际信息，再形成答复。
 
 不要只给“分析最新策略”而不给机器或任务范围。多个结果存在时，模型可能选到不同实验；要求它先列出候选任务供你确认。
 
 ## 开发或优化插件
 
-开发代码时，提供 [AxonX Skill](../../../skills/axonx/SKILL.md) 或启用内置开发指南，
+开发代码时，使用默认启用的内置开发指南，或提供 [AxonX Skill](../../../skills/axonx/SKILL.md)，
 将 Agent 的 `cwd` 指向可访问的源码仓库，并提供 SDK 文件／命令工具。
 默认 `cwd` 是服务工作区，不会自动包含插件源码。
 安装与提交通过可用 CLI 或显式配置的 Job 工具完成，见 [Agent 配置](configuration.md)。
@@ -117,9 +117,9 @@ axonx cancel --task-id '<要取消的研究 Task ID>'
 
 ## 默认工具与权限边界
 
-默认 `job_tools` 不包含 `submit`、`python`、安装、删除或任务取消。需要暴露额外 Job 时由服务管理员显式配置。
+默认 `job_tools` 为空；默认 YAML 中的查询名单是注释示例。使用 CLI 时，确保 Agent 环境能执行 `axonx`，并配置选定服务的地址和 token。需要通过进程内桥接暴露 Job 时，由服务管理员显式配置。
 
-但 Claude SDK 自身工具、项目设置、插件和 `permission_mode` 也影响执行能力。默认配置使用 `bypassPermissions`，所以不能将 Job 查询名单理解成整个 Agent 只读。具体权限设计见[配置说明](configuration.md)。
+但 Claude SDK 自身工具、项目设置、插件和 `permission_mode` 也影响执行能力。默认配置使用 `bypassPermissions`，所以不能因 Job 名单为空或仅含查询就认为整个 Agent 只读。具体权限设计见[配置说明](configuration.md)。
 
 ## 失败检查
 

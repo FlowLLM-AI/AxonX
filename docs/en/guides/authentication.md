@@ -90,7 +90,7 @@ Clients authorized to call public Jobs can use the capabilities in that catalog.
 
 `enable_serve: false` prevents a Job from being exposed through protocols, allowing internal scheduling. Hiding a page entry does not disable the backend Job; rely on the actual `/jobs` and service configuration.
 
-The default Agent Job tool list mainly contains queries, but SDK tools, project settings, cwd, and permission_mode also affect its permissions. The default Agent uses bypassPermissions; a query list cannot establish that the entire Agent is read-only.
+The default Agent Job tool list is empty; an optional query list is provided as a commented example, but SDK tools, project settings, cwd, and permission_mode also affect its permissions. The default Agent uses bypassPermissions; an empty or query-only list cannot establish that the entire Agent is read-only.
 
 Proxy routes pass upstream request credentials and serve a different purpose from remote Job forwarding. Do not misuse the service Bearer token as a data-source token.
 

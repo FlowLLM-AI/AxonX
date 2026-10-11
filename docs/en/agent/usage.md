@@ -5,7 +5,7 @@ description: Use Studio sessions to inspect research evidence and configure plug
 
 # Built-in Agent Usage
 
-AxonX Agent connects workspace query tools to the Claude backend, using sessions to troubleshoot tasks and analyze research results. Default Job tools mainly read tasks, logs, relationships, and files; model conclusions must still be grounded in actual tool results.
+AxonX Agent uses the Claude backend and a development guide loaded by default to troubleshoot tasks and analyze research results through CLI operations. Direct Job tools can be enabled with `job_tools`; model conclusions must still be grounded in actual tool results.
 
 This page covers built-in Studio sessions. For external hosts such as Codex or Claude Code, see [external agents](external.md); see the [integration overview](overview.md) for prerequisites of each path.
 
@@ -40,14 +40,13 @@ Confirm their common window first, then explain why net returns and summary tabl
 Do not treat top30_holdings as the actual position ledger.
 ```
 
-Default tools include `list_entries`, `preview_file`, `list_task_ids`, `list_task_statuses`, `status`, `read_task_log`, `get_task_graph`, and `get_task_context`. The Agent obtains actual information before composing its response.
+The development guide covers CLI commands including `list_entries`, `preview_file`, `list_task_ids`, `list_task_statuses`, `status`, `read_task_log`, `get_task_graph`, and `get_task_context`. The Agent obtains actual information before composing its response.
 
 Avoid asking only to “analyze the latest strategy” without a machine or task scope. If multiple results exist, the model may select a different experiment; ask it to list candidate tasks for your confirmation first.
 
 ## Develop or optimize a plugin
 
-For code development, provide the [AxonX Skill](../../../skills/axonx/SKILL.md) or enable the bundled development
-guide, set the Agent's `cwd` to an accessible source checkout, and make SDK file/command tools available.
+For code development, use the bundled development guide (enabled by default) or provide the [AxonX Skill](../../../skills/axonx/SKILL.md), set the Agent's `cwd` to an accessible source checkout, and make SDK file/command tools available.
 The default `cwd` is the service workspace, which does not automatically include plugin source.
 Use the available CLI or explicitly configured Job tools for installation and submission; see [Agent configuration](configuration.md).
 
@@ -118,9 +117,9 @@ Session history remains usable after a turn is cancelled. Cancelling a task chan
 
 ## Default tools and permission boundaries
 
-Default `job_tools` do not include `submit`, `python`, installation, deletion, or task cancellation. Service administrators must explicitly configure additional Jobs to expose them.
+Default `job_tools` is empty; the query list in the default YAML is a commented example. To use CLI operations, make `axonx` available in the Agent environment and configure the selected service address and token. Service administrators can explicitly configure Jobs to expose them through the in-process bridge.
 
-However, the Claude SDK's own tools, project settings, plugins, and `permission_mode` also affect execution capabilities. The default configuration uses `bypassPermissions`, so the Job query list does not make the entire Agent read-only. See [configuration details](configuration.md) for permission design.
+However, the Claude SDK's own tools, project settings, plugins, and `permission_mode` also affect execution capabilities. The default configuration uses `bypassPermissions`, so an empty or query-only Job list does not make the entire Agent read-only. See [configuration details](configuration.md) for permission design.
 
 ## Failure checks
 
