@@ -183,7 +183,18 @@ class ClaudeMessageProjector:
                     else {}
                 )
                 patches.append(self._start(block_id, kind, payload=payload))
+            elif kind == "tool":
+                patches.append(
+                    AgentBlockPatch(
+                        operation="replace",
+                        block_id=block_id,
+                        block_type="tool",
+                        payload={"name": block.get("name"), "input": block.get("input") or {}, "text": ""},
+                    )
+                )
             state = self._blocks[block_id]
+            if kind == "tool":
+                state["text"] = ""
             complete = self._content(block, kind)
             if kind in {"text", "thinking"} and complete != state["text"]:
                 state["text"] = complete

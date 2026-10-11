@@ -56,6 +56,7 @@ export function AgentBlock({
   if (block.block_type === "tool") {
     const failed = block.status === "failed";
     const name = valueText(block.payload.name) || "Tool";
+    const input = block.text || valueText(block.payload.input);
     return (
       <details
         className={`agent-tool ${failed ? "failed" : ""}`}
@@ -75,10 +76,10 @@ export function AgentBlock({
           <ChevronDown className="agent-tool-chevron" />
         </summary>
         <div>
-          {block.payload.input != null && (
+          {(block.text || block.payload.input != null) && (
             <section>
               <small>INPUT</small>
-              <pre>{valueText(block.payload.input)}</pre>
+              <pre>{input}</pre>
             </section>
           )}
           {block.payload.result != null && (

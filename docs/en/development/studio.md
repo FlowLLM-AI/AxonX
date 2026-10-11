@@ -65,6 +65,8 @@ Prefer reusing SchemaForm. Integer and floating-point fields become numbers, enu
 
 Pass AbortSignal to cancel stale requests. Reuse `usePolling` for list polling and the SSE parser for long-task events. Completion of a Job call does not mean a background Task has finished. See [real-time events](../api/events.md) for the event protocol.
 
+Agent tool cards show accumulated JSON argument fragments while input is streaming. A complete tool message updates the existing card with formatted input and clears the partial text, so commands remain visible during execution without waiting for the end-of-turn history reload.
+
 ## Charts and files
 
 Research pages read task artifacts. New calculations should follow explicit definitions and explain differences from plugin summaries. See the [research artifact reference](../reference/research-artifacts.md) for the sources of training curves, returns, holdings, and other fields. Missing files and empty data should have clear empty states.

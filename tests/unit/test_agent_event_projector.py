@@ -61,6 +61,49 @@ def test_projector_pairs_tool_result_with_tool_use_id():
     assert finished[0].payload["status"] == "succeeded"
 
 
+def test_projector_replaces_streamed_tool_input_with_complete_arguments():
+    projector = ClaudeMessageProjector()
+
+    def stream(event):
+        return projector.project(StreamEvent(uuid="message-one", session_id="session-one", event=event))
+
+    stream(
+        {
+            "type": "content_block_start",
+            "index": 0,
+            "content_block": {"type": "tool_use", "id": "tool-one", "name": "Bash", "input": {}},
+        }
+    )
+    for fragment in ['{"command": "echo ', 'hello"}']:
+        patches = stream(
+            {
+                "type": "content_block_delta",
+                "index": 0,
+                "delta": {"type": "input_json_delta", "partial_json": fragment},
+            }
+        )
+        assert patches[0].block_id == "tool-one"
+        assert patches[0].delta == fragment
+    stopped = stream({"type": "content_block_stop", "index": 0})
+    assert stopped[0].payload["status"] == "running"
+
+    complete = projector.project(
+        AssistantMessage(
+            content=[ToolUseBlock(id="tool-one", name="Bash", input={"command": "echo hello"})],
+            model="test",
+            uuid="message-one",
+        )
+    )
+    assert len(complete) == 1
+    assert complete[0].block_id == "tool-one"
+    assert complete[0].operation == "replace"
+    assert complete[0].payload == {"name": "Bash", "input": {"command": "echo hello"}, "text": ""}
+
+    result = projector.project(UserMessage(content=[ToolResultBlock(tool_use_id="tool-one", content="hello")]))
+    assert result[0].block_id == "tool-one"
+    assert result[0].payload["status"] == "succeeded"
+
+
 def test_history_blocks_include_message_ownership():
     messages = [
         {
