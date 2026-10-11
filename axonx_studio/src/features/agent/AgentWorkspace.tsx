@@ -64,39 +64,49 @@ export default function AgentWorkspace({
   const activeSession = useRef<string | undefined>(sessionId);
   const controller = useRef<AbortController | null>(null);
   const runningRef = useRef(false);
+  const sessionsRequest = useRef(0);
   const draftRoute = useRef("");
 
-  const refreshSessions = useCallback(async () => {
-    setSessionsLoading(true);
-    try {
-      const result = await listAgentSessions(target);
-      setSessions(result);
-      onOptionsChange(
-        result.map((session) => ({
-          value: session.session_id,
-          label:
-            session.custom_title ||
-            session.summary ||
-            session.first_prompt ||
-            session.session_id,
-          detail: session.tag || session.backend,
-        })),
-      );
-      onConnection(true);
-    } catch (reason) {
-      if (!isAbortError(reason)) {
-        setError(errorMessage(reason));
-        onConnection(false);
+  const refreshSessions = useCallback(
+    async (signal?: AbortSignal) => {
+      const requestId = ++sessionsRequest.current;
+      setSessionsLoading(true);
+      try {
+        const result = await listAgentSessions(target, signal);
+        if (signal?.aborted || requestId !== sessionsRequest.current) return;
+        setSessions(result);
+        onOptionsChange(
+          result.map((session) => ({
+            value: session.session_id,
+            label:
+              session.custom_title ||
+              session.summary ||
+              session.first_prompt ||
+              session.session_id,
+            detail: session.tag || session.backend,
+          })),
+        );
+        onConnection(true);
+      } catch (reason) {
+        if (
+          !signal?.aborted &&
+          requestId === sessionsRequest.current &&
+          !isAbortError(reason)
+        ) {
+          setError(errorMessage(reason));
+          onConnection(false);
+        }
+      } finally {
+        if (requestId === sessionsRequest.current) setSessionsLoading(false);
       }
-    } finally {
-      setSessionsLoading(false);
-    }
-  }, [onConnection, onOptionsChange, target]);
+    },
+    [onConnection, onOptionsChange, target],
+  );
 
   const reconcile = useCallback(
-    async (id: string) => {
-      const result = await getAgentSession(id, target);
-      if (activeSession.current === id) {
+    async (id: string, signal: AbortSignal) => {
+      const result = await getAgentSession(id, target, signal);
+      if (!signal.aborted && activeSession.current === id) {
         setConversation(fromHistory(result.blocks));
         setError("");
       }
@@ -106,15 +116,24 @@ export default function AgentWorkspace({
   );
 
   useEffect(() => {
-    void refreshSessions();
+    const request = new AbortController();
+    void refreshSessions(request.signal);
+    return () => {
+      sessionsRequest.current += 1;
+      request.abort();
+    };
   }, [refreshSessions]);
 
   useEffect(() => () => controller.current?.abort(), [target]);
 
   useEffect(() => {
-    if (sessionId === activeSession.current && runningRef.current) return;
-    if (runningRef.current && sessionId !== activeSession.current)
-      controller.current?.abort();
+    if (
+      sessionId === activeSession.current &&
+      runningRef.current &&
+      !controller.current?.signal.aborted
+    )
+      return;
+    if (sessionId !== activeSession.current) controller.current?.abort();
     activeSession.current = sessionId;
     setError("");
     if (!sessionId) {
@@ -126,17 +145,19 @@ export default function AgentWorkspace({
     setHistoryLoading(true);
     getAgentSession(sessionId, target, request.signal)
       .then((result) => {
+        if (request.signal.aborted) return;
         if (activeSession.current === sessionId)
           setConversation(fromHistory(result.blocks));
         onConnection(true);
       })
       .catch((reason) => {
-        if (isAbortError(reason)) return;
+        if (request.signal.aborted || isAbortError(reason)) return;
         setError(errorMessage(reason));
         onConnection(false);
       })
       .finally(() => {
-        if (activeSession.current === sessionId) setHistoryLoading(false);
+        if (!request.signal.aborted && activeSession.current === sessionId)
+          setHistoryLoading(false);
       });
     return () => request.abort();
   }, [onConnection, target, sessionId]);
@@ -144,6 +165,7 @@ export default function AgentWorkspace({
   const send = useCallback(async () => {
     const message = draft.trim();
     if (!message || runningRef.current) return;
+    controller.current?.abort();
     const requestedSession = activeSession.current;
     const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setConversation((current) =>
@@ -158,6 +180,7 @@ export default function AgentWorkspace({
     let resolvedSession = requestedSession;
     let terminalReason = "";
     const onEvent = (event: JobEvent<unknown>) => {
+      if (streamController.signal.aborted) return;
       if (event.kind === "agent_message") {
         const agentEvent = event as AgentMessageEvent;
         if (!resolvedSession) {
@@ -186,25 +209,35 @@ export default function AgentWorkspace({
         streamController.signal,
         onEvent,
       );
-      onConnection(true);
+      if (!streamController.signal.aborted) onConnection(true);
     } catch (reason) {
-      if (!isAbortError(reason)) setError(errorMessage(reason));
+      if (!streamController.signal.aborted && !isAbortError(reason))
+        setError(errorMessage(reason));
     } finally {
       runningRef.current = false;
       setRunning(false);
       setStopping(false);
-      controller.current = null;
-      if (resolvedSession) {
-        try {
-          await reconcile(resolvedSession);
-          await refreshSessions();
-        } catch (reason) {
-          if (!isAbortError(reason)) setError(errorMessage(reason));
+      try {
+        if (resolvedSession && !streamController.signal.aborted) {
+          await reconcile(resolvedSession, streamController.signal);
+          if (!streamController.signal.aborted)
+            await refreshSessions(streamController.signal);
         }
+      } catch (reason) {
+        if (
+          !streamController.signal.aborted &&
+          activeSession.current === resolvedSession &&
+          !isAbortError(reason)
+        )
+          setError(errorMessage(reason));
+      } finally {
+        if (controller.current === streamController) controller.current = null;
       }
       if (
-        terminalReason === "aborted_streaming" ||
-        terminalReason === "aborted_tools"
+        !streamController.signal.aborted &&
+        activeSession.current === resolvedSession &&
+        (terminalReason === "aborted_streaming" ||
+          terminalReason === "aborted_tools")
       )
         setError(t("agent.cancelled"));
     }
