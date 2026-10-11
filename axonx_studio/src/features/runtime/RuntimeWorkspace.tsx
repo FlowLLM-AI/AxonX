@@ -7,6 +7,7 @@ import {
   Server,
   SlidersHorizontal,
 } from "lucide-react";
+import { UpdatePanel } from "../update/UpdatePanel";
 import { MachineDashboard } from "../machines/MachineDashboard";
 import { useMachineInfo } from "../machines/useMachineInfo";
 import { listTaskStatuses } from "../tasks/api";
@@ -170,6 +171,7 @@ function RuntimeEnvironment({
           </section>
         )
       )}
+      <UpdatePanel key={target || "local"} target={target} />
     </section>
   );
 }

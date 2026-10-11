@@ -10,6 +10,7 @@ from . import (
     sync,
     task_manager,
     task_repository,
+    updater,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "sync",
     "task_manager",
     "task_repository",
+    "updater",
 ]

@@ -149,3 +149,7 @@ build 只在本地，不能配远程 target。editable 只支持本地源码目�
 - [现有开发速查](../dev_guide.md)
 
 实现依据：`axonx/cli/parser.py`、`main.py`、`constants.py`、`plugin_kit/cli.py`。
+
+## 服务自更新
+
+[服务自更新](../guides/self-update.md)

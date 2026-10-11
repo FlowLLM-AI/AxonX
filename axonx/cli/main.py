@@ -5,11 +5,13 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from pathlib import Path
 from collections.abc import Sequence
 
 from ..components.client import ClientOptions
 from ..components.job import ResultEvent
-from ..config import ApplicationConfig, resolve_app_config
+from ..components.updater.worker import finish_startup
+from ..config import ApplicationConfig, ConfigResolver, resolve_app_config
 from ..constants import (
     AXONX_TASK_LOG_DIR,
     AXONX_TASK_TIMEZONE,
@@ -25,14 +27,16 @@ from ..constants import (
 from ..core import Application, run_remote_job, stream_remote_job
 from ..task.runtime import TaskCatalog, TaskCommandExecutor
 from ..utils import LoggingConfig, configure_logging, load_env
+from ..utils.env import find_env_file
 from .parser import Command, parse_command
 from .rendering import print_event_blocks, print_json, print_logo
 
 
-def _run_server(command: Command) -> int:
+def _run_server(command: Command, startup_arguments: list[str] | None = None) -> int:
     environment = load_env()
     arguments = {key: value for key, value in command.arguments.items() if key != CLI_RAW_ARGUMENTS}
-    config = resolve_app_config(**arguments)
+    resolver = ConfigResolver()
+    config = resolver.resolve(**arguments)
     config["environment"] = {**environment, **config.get("environment", {})}
     app = Application(**config)
     service = app.context.service
@@ -40,7 +44,20 @@ def _run_server(command: Command) -> int:
         raise ValueError("Application configuration does not define a service")
     if app.app_config.enable_logo:
         print_logo(app.app_config, service)
-    service.run_app(app)
+    service.restart_arguments = startup_arguments
+    service.startup_directory = Path.cwd().resolve()
+    service.configuration_paths = resolver.loaded_paths
+    service.environment_file = find_env_file()
+    updaters = app.context.components.get("updater", {}).values()
+    try:
+        service.run_app(app)
+    except BaseException as exc:
+        finish_startup(str(exc))
+        for updater in updaters:
+            updater.fail(f"Service shutdown failed: {exc}")
+        raise
+    for updater in updaters:
+        updater.handoff()
     return 0
 
 
@@ -140,11 +157,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         command, client_options = parse_command(args)
         if command.action == CLI_PLUGIN_COMMAND:
             return _run_plugin(command, client_options)
+        if command.action == CLI_START_COMMAND:
+            return _run_server(command, args)
         handler = _LOCAL_HANDLERS.get(command.action)
         if handler is not None:
             return handler(command)
         return _run_remote_job(command, client_options)
     except Exception as exc:  # noqa: BLE001 - CLI boundary converts failures to exit codes.
+        if args and args[0] == CLI_START_COMMAND:
+            finish_startup(str(exc))
         print(f"Error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2 if isinstance(exc, (FileNotFoundError, KeyError, TypeError, ValueError)) else 1
 

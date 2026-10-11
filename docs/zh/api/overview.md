@@ -125,7 +125,7 @@ output_schema 描述通用 JobResponse，不保证 answer 中各能力类型都�
 
 ## MCP 与事件
 
-MCP 按公开 Job 自动注册工具名、描述与 parameters，工具返回普通 JobResponse。MCP 的 Streamable HTTP 是传输模式，不能替代 `/jobs/{name}/events` 的 AxonX SSE 事件协议。实时任务日志、Agent 思考和工具块使用 [事件协议](events.md)。
+MCP 使用无状态 Streamable HTTP 和 JSON 响应，不跨调用保留服务端会话。MCP 按公开 Job 自动注册工具名、描述与 parameters，工具返回普通 JobResponse。MCP 的 Streamable HTTP 是传输模式，不能替代 `/jobs/{name}/events` 的 AxonX SSE 事件协议。实时任务日志、Agent 思考和工具块使用 [事件协议](events.md)。
 
 文件上传不通过 Job arguments 或 MCP 工具直接传字节，先使用 [文件传输路由](workspace.md#文件上传与清理)。
 

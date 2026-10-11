@@ -105,6 +105,7 @@ class ConfigResolver:
         self.config_dir = Path(config_dir)
         self.encoding = encoding
         self.registry = self._discover_configs()
+        self.loaded_paths: set[Path] = set()
 
     def _discover_configs(self) -> dict[str, Path]:
         if not self.config_dir.is_dir():
@@ -202,6 +203,7 @@ class ConfigResolver:
             chain = " -> ".join((*[item[1] for item in stack], name_or_path))
             raise ValueError(f"Circular config inheritance: {chain}")
 
+        self.loaded_paths.update((Path(os.path.abspath(path)), path.resolve()))
         config = self._read(path)
         raw_parents = config.pop("extends", ())
         parents = (raw_parents,) if isinstance(raw_parents, str) else tuple(raw_parents or ())
@@ -220,6 +222,7 @@ class ConfigResolver:
 
     def load(self, name_or_path: str | Path) -> dict:
         """Load one named or path-based configuration, including its parents."""
+        self.loaded_paths.clear()
         return self._load(str(name_or_path), ())
 
     def resolve(self, *, log_config: bool = True, **overrides) -> dict:

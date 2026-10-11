@@ -1,6 +1,7 @@
 """ASGI application factory for the HTTP service."""
 
 import os
+import asyncio
 import hmac
 from contextlib import asynccontextmanager
 
@@ -26,6 +27,8 @@ from .files import create_files_router
 from .jobs import create_jobs_router, create_mcp_server
 from .proxy import create_proxy_router
 from .studio import mount_studio, resolve_studio_dir
+from ...updater.manager import RESPONSE_CALLBACKS
+from ...updater.worker import finish_startup
 
 
 class _ProtocolAuthMiddleware:
@@ -52,6 +55,25 @@ class _ProtocolAuthMiddleware:
         await self.app(scope, receive, send)
 
 
+class _UpdateResponseMiddleware:
+    """Handoff only when the invoking HTTP/MCP response has finished sending."""
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        callbacks = []
+        token = RESPONSE_CALLBACKS.set(callbacks)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            RESPONSE_CALLBACKS.reset(token)
+            for callback in callbacks:
+                callback()
+
+
 def create_http_app(app, service) -> FastAPI:
     """Assemble the AxonX HTTP protocol and optional Studio UI."""
     public_jobs = {
@@ -74,9 +96,20 @@ def create_http_app(app, service) -> FastAPI:
                     "The HTTP service is unauthenticated; set service.token before "
                     "exposing it beyond a trusted network",
                 )
+
+            async def ready():
+                if service.server is None:
+                    return
+                while not service.server.started:
+                    await asyncio.sleep(0.05)
+                finish_startup()
+
+            readiness = asyncio.create_task(ready())
             try:
                 yield
             finally:
+                readiness.cancel()
+                await asyncio.gather(readiness, return_exceptions=True)
                 if previous_target is None:
                     os.environ.pop(AXONX_SERVICE_TARGET, None)
                 else:
@@ -85,6 +118,8 @@ def create_http_app(app, service) -> FastAPI:
     mcp_app = create_mcp_server(app, public_jobs).http_app(
         path=PROTOCOL_ROUTE_MCP,
         transport="streamable-http",
+        stateless_http=True,
+        json_response=True,
     )
     server = FastAPI(
         title=app.app_config.app_name,
@@ -102,6 +137,7 @@ def create_http_app(app, service) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    server.add_middleware(_UpdateResponseMiddleware)
     server.add_middleware(_ProtocolAuthMiddleware, token=service.token)
     server.router.routes.extend(mcp_app.routes)
     server.include_router(create_jobs_router(app, public_jobs))

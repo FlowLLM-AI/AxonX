@@ -720,5 +720,32 @@
     "docs": "Documentation",
     "reset": "Reset demo",
     "machine": "Demo browser"
+  },
+  "update": {
+    "title": "Update service",
+    "description": "Update AxonX and Studio on the selected machine, then restart the service. It will be temporarily unavailable.",
+    "unavailable": "Self-update is unavailable. The service needs update Jobs and token authentication.",
+    "method": "Update method",
+    "git": "Source repository · origin/main",
+    "pip": "Published packages · stable releases",
+    "gitHint": "Requires a source installation started inside its AxonX repository, Git and Node.js. Source changes and untracked source files will be discarded. Ignored files and runtime directories are retained.",
+    "pipHint": "Upgrade axonx and axonx-studio in the service’s Python environment. Editable installations must use source updates.",
+    "force": "Cancel active managed Runs before updating",
+    "confirmGit": "I agree to discard local source changes and restart this machine’s service.",
+    "confirmPip": "I agree to update packages and restart this machine’s service.",
+    "start": "Update and restart",
+    "reconnecting": "Updating / restarting. Waiting for the service to reconnect…",
+    "reload": "Reload Studio",
+    "phases": {
+      "accepted": "Update accepted",
+      "fetching": "Fetching main",
+      "cleaning": "Replacing source",
+      "building": "Building Studio",
+      "installing": "Installing packages",
+      "verifying": "Verifying installation",
+      "starting": "Starting service",
+      "succeeded": "Update completed",
+      "failed": "Update failed"
+    }
   }
 }

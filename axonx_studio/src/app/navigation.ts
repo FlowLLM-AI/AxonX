@@ -10,6 +10,7 @@ import {
   Network,
   GitCompareArrows,
   Sparkles,
+  Settings2,
   Workflow,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -44,6 +45,12 @@ export const navigationGroups: NavigationGroup[] = [
         route: { section: "runtime", view: "resources" },
         icon: Cpu,
         labelKey: "shell.navigation.resources",
+      },
+      {
+        id: "environment",
+        route: { section: "runtime", view: "environment" },
+        icon: Settings2,
+        labelKey: "runtime.environment",
       },
       {
         id: "agent",

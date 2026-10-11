@@ -45,6 +45,9 @@ def environment_operation[T, **P](function: Callable[P, Awaitable[T]]) -> Callab
                 ticket.set_result(None)
         try:
             await asyncio.shield(asyncio.wrap_future(ticket))
+            context = getattr(args[0], "app_context", None) if args else None
+            if context is not None and context.metadata.get("maintenance"):
+                raise RuntimeError("Service is in maintenance for self-update")
             return await function(*args, **kwargs)
         finally:
             with _OPERATION_QUEUE_LOCK:

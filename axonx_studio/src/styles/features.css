@@ -1110,6 +1110,7 @@
     overflow: hidden;
   }
   .runtime-workspace > .workspace-canvas {
+    width: 100%;
     height: auto;
     overflow: visible;
   }

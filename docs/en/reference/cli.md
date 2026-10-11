@@ -149,3 +149,7 @@ Ordinary Jobs print complete JSON; exec prints Task output rather than JobRespon
 - [Existing development quick reference](../dev_guide.md)
 
 Implementation references: `axonx/cli/parser.py`, `main.py`, `constants.py`, `plugin_kit/cli.py`.
+
+## Service self-update
+
+[Service self-update](../guides/self-update.md)

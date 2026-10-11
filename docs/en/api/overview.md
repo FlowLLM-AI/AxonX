@@ -125,7 +125,7 @@ Exceptions within executing Steps usually become success=false. After a streamin
 
 ## MCP and events
 
-MCP automatically registers tool names, descriptions, and parameters for public Jobs; tools return ordinary JobResponse. MCP's Streamable HTTP is a transport mode and does not replace the AxonX SSE event protocol at `/jobs/{name}/events`. Live task logs, Agent thinking, and tool blocks use the [Event protocol](events.md).
+MCP uses stateless Streamable HTTP with JSON responses; server sessions are not retained across calls. MCP automatically registers tool names, descriptions, and parameters for public Jobs; tools return ordinary JobResponse. MCP's Streamable HTTP is a transport mode and does not replace the AxonX SSE event protocol at `/jobs/{name}/events`. Live task logs, Agent thinking, and tool blocks use the [Event protocol](events.md).
 
 File uploads do not pass bytes directly through Job arguments or MCP tools; first use the [file-transfer routes](workspace.md#file-upload-and-cleanup).
 

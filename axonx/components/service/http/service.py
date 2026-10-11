@@ -1,5 +1,6 @@
 """HTTP service component backed by FastAPI and Uvicorn."""
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
@@ -36,6 +37,11 @@ class HttpService(BaseService):
         self.web_enabled = web_enabled
         self.token = token
         self.staged_files: StagedFiles | None = None
+        self.server = None
+        self.restart_arguments: list[str] | None = None
+        self.startup_directory = Path.cwd().resolve()
+        self.configuration_paths: set[Path] = set()
+        self.environment_file: Path | None = None
 
     def build_service(self, app: "Application") -> "FastAPI":
         """Build the ASGI application without starting a server."""
@@ -48,9 +54,19 @@ class HttpService(BaseService):
         """Serve the application with Uvicorn until shutdown."""
         import uvicorn
 
-        uvicorn.run(
-            self.build_service(app),
-            host=self.host,
-            port=self.port,
-            timeout_graceful_shutdown=self.shutdown_timeout,
+        self.server = uvicorn.Server(
+            uvicorn.Config(
+                self.build_service(app),
+                host=self.host,
+                port=self.port,
+                timeout_graceful_shutdown=self.shutdown_timeout,
+            )
         )
+        self.server.run()
+        if not self.server.started:
+            raise RuntimeError("HTTP service failed to start")
+
+    def request_shutdown(self) -> None:
+        """Stop accepting requests after the update response has been delivered."""
+        if self.server is not None:
+            self.server.should_exit = True

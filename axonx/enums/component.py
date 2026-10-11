@@ -18,6 +18,7 @@ class ComponentEnum(StrEnum):
     AGENT = "agent"
     SYNC = "sync"
     PROXY = "proxy"
+    UPDATER = "updater"
 
 
 ComponentType = str | ComponentEnum

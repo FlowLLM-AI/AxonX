@@ -113,6 +113,7 @@ export const groups = [
           "research/notifications",
           "guides/task-sync",
           "guides/operations",
+          "guides/self-update",
         ],
       ],
     ],

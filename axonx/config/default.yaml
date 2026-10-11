@@ -8,6 +8,10 @@ plugins:
   sources: []
 
 components:
+  updater:
+    default:
+      backend: local
+
   # =========== Task runtime components ===========
   task_repository:
     default:
@@ -109,6 +113,39 @@ jobs:
     description: Return the installed AxonX version.
     steps:
       - backend: version_step
+
+  update_from_git:
+    description: Discard source changes, update the startup repository to origin/main, build and restart.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        force: {type: boolean, default: false, description: Cancel active managed Runs before updating.}
+      additionalProperties: false
+    steps:
+      - backend: update_from_git_step
+
+  update_from_pip:
+    description: Upgrade axonx and axonx-studio from the package index and restart.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        force: {type: boolean, default: false, description: Cancel active managed Runs before updating.}
+      additionalProperties: false
+    steps:
+      - backend: update_from_pip_step
+
+  get_update_status:
+    description: Read an update record and log tail; omit update_id for the latest update.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        update_id: {type: string, pattern: "^[0-9a-f]{32}$"}
+      additionalProperties: false
+    steps:
+      - backend: get_update_status_step
 
   # =========== Plugin jobs ===========
   list_plugins:
