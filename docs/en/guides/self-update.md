@@ -4,6 +4,8 @@ A service started with `axonx start` can update its backend and Studio through a
 
 ## Choose an update method
 
+Studio defaults to **Source repository · origin/main**. Select the published-package method for a pip installation.
+
 ```bash
 # Discard local source changes and move the startup repository to origin/main
 axonx update_from_git

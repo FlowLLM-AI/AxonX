@@ -4,6 +4,8 @@
 
 ## 选择更新方式
 
+Studio 默认选择 **源码仓库 · origin/main**。通过 pip 安装的服务应选择发布包更新方式。
+
 ```bash
 # 丢弃本地源码改动，将启动目录所在仓库切换到 origin/main
 axonx update_from_git

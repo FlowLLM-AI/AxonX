@@ -17,7 +17,7 @@ let catalog = true;
 const record = () => ({
   update_id: "a".repeat(32),
   phase,
-  mode: "pip",
+  mode: "git",
   error: phase === "failed" ? "Install failed" : null,
   before: { axonx: "1", "axonx-studio": "1" },
   after: null,
@@ -49,7 +49,7 @@ beforeEach(() => {
           }
         : url === "/jobs/get_update_status"
           ? {
-              record: calls.some((call) => call.url === "/jobs/update_from_pip")
+              record: calls.some((call) => call.url === "/jobs/update_from_git")
                 ? record()
                 : null,
               log: "",
@@ -71,6 +71,7 @@ it("targets the selected machine and reconnects without treating a disconnect as
     root.render(<UpdatePanel target="http://remote:1024" />),
   );
   const button = container.querySelector("button")!;
+  expect(container.querySelector("select")!.value).toBe("git");
   expect(button.disabled).toBe(true);
   const checkboxes = container.querySelectorAll<HTMLInputElement>(
     'input[type="checkbox"]',
@@ -79,7 +80,7 @@ it("targets the selected machine and reconnects without treating a disconnect as
   await act(async () => checkboxes[1].click());
   await act(async () => button.click());
   const submission = calls.find(
-    (call) => call.url === "/jobs/update_from_pip",
+    (call) => call.url === "/jobs/update_from_git",
   )!;
   expect(submission.body).toEqual({
     arguments: { force: true },

@@ -27,7 +27,7 @@ export function UpdatePanel({ target }: { target?: string }) {
   const [available, setAvailable] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [force, setForce] = useState(false);
-  const [mode, setMode] = useState<"git" | "pip">("pip");
+  const [mode, setMode] = useState<"git" | "pip">("git");
   const [confirmed, setConfirmed] = useState(false);
   const updateId = status.record?.update_id;
   const active = Boolean(
@@ -122,8 +122,8 @@ export function UpdatePanel({ target }: { target?: string }) {
                 setConfirmed(false);
               }}
             >
-              <option value="pip">{t("update.pip")}</option>
               <option value="git">{t("update.git")}</option>
+              <option value="pip">{t("update.pip")}</option>
             </select>
           </label>
           <p>{t(mode === "git" ? "update.gitHint" : "update.pipHint")}</p>
