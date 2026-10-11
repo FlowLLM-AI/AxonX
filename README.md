@@ -55,7 +55,7 @@ Agents can inspect the same evidence.
 
 ## 📰 Latest Updates
 
-- **Qlib Alpha158 enhancement experiments:** the risk-factor model and rank-retention strategy report Top20 net annualized returns above the adapted baseline by **1.36 and 24.70 percentage points**, respectively. → [Results and evidence limits](#benchmark-agent-developed-market-cross-sectional-features)
+- **Qlib Alpha158 enhancement experiments:** the risk-factor model and rank-retention strategy report Top20 net annualized return improvements of **+1.36 pp and +24.70 pp**, respectively, over the adapted baseline (pp = percentage points). → [Results and evidence limits](#benchmark-agent-developed-market-cross-sectional-features)
 - **Studio Playground:** explore Tasks and research charts with simulated data and execution. → <a href="https://flowllm-ai.github.io/AxonX/playground/?lang=en" target="_self">Try Playground</a>
 
 ![AxonX research and execution overview](docs/figures/getting-started/overview.svg?v=20261010-agent-code)
