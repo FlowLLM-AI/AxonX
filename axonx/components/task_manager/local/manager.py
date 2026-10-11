@@ -162,9 +162,8 @@ class LocalTaskManager(BaseTaskManager):
             raise FileExistsError(f"Active Task already exists: {task.task_id}")
 
         log_path = self._logs.path(status)
-        if not await self.repository.delete_terminal(task.task_id):
+        if not await self.repository.reset_terminal(task.task_id):
             raise FileExistsError(f"Task cannot be replaced: {task.task_id}")
-        directory.mkdir(parents=True, exist_ok=False)
 
         remaining = await self.repository.entries()
         if self._logs.is_task_log(log_path) and all(self._logs.path(item) != log_path for item in remaining.values()):

@@ -14,7 +14,6 @@ class BaseInferenceInputParams(WindowInputParams):
 
 
 class BaseInferenceOutputParams(BaseOutputParams):
-    manifest_file: str
     model_identity: dict[str, str]
     windows: list[WindowResult] = Field(default_factory=list)
 
@@ -52,8 +51,8 @@ class BaseInferenceTask(_WindowTask):
             raise ValueError("initialize_run must set a nonempty model_identity")
         self._fixed_model_identity = TypeAdapter(dict[str, str]).validate_python(self.model_identity)
 
-    def manifest_data(self) -> dict:
-        return {**super().manifest_data(), "model_identity": self._fixed_model_identity}
+    def window_output(self) -> dict:
+        return {**super().window_output(), "model_identity": self._fixed_model_identity}
 
     def build_output_params(self) -> BaseInferenceOutputParams:
-        return self.output_cls(model_identity=self._fixed_model_identity, **self.window_output())
+        return self.output_cls(**self.window_output())

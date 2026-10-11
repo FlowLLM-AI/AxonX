@@ -56,7 +56,9 @@ axonx submit --task demo --task-name trial-01 --x 1 --y 2
 axonx submit --task demo --task-name trial-01 --x 2 --y 3
 ```
 
-固定名称对应同一 Task ID。已结束的任务可以被新执行替换，旧任务目录及其中产物会被删除并重新创建；活跃任务不能覆盖。
+固定名称对应同一 Task ID。已结束的任务可以被新执行替换，当次执行产物会清理，`persistent/` 保留；活跃任务不能覆盖。
+
+同名重跑清理当次执行文件（包括 metadata.json 和 events.jsonl），但保留约定的 `persistent/` 目录。通过 `self.persistent_dir` 保存累计业务数据；插件负责其格式、更新和并发控制。Run ID 和生命周期记录仍只描述当前执行。显式删除 Task 会一并删除持久数据；快照同步仍替换完整 Task 目录。`persistent/` 必须是普通目录，不能是符号链接。
 
 不同参数的实验比较应使用不同名称，例如 `trial-01`、`trial-02`，或使用默认生成名称。同名重跑并不在一个目录中保存完整历史；历史恢复需要事先备份。
 

@@ -241,7 +241,8 @@ def test_jsonl_preview_bounds_large_lines_and_preserves_next_record(tmp_path):
     first = preview_workspace_file(tmp_path, path.name, limit=200)
     assert first.truncated and first.has_more
     assert len(first.rows) == 1
-    assert first.rows[0].parse_error
+    assert first.rows[0].truncated
+    assert first.rows[0].parse_error is None
     assert len(first.rows[0].content) <= TEXT_PREVIEW_BYTES
     second = preview_workspace_file(tmp_path, path.name, offset=1)
     assert second.rows[0].data == {"next": True}

@@ -1,3 +1,4 @@
+import type { TaskMetadata } from "../tasks/types";
 import { parseSourceTasks } from "../../shared/lib/sourceTasks";
 import {
   lazy,
@@ -111,16 +112,10 @@ function useTasks(
                     "Invalid task metadata",
                 );
               }
-              const metadata = preview.data as Record<string, unknown>;
+              const metadata = preview.data as unknown as TaskMetadata;
               if (metadata.state !== "succeeded") return null;
-              const output = (metadata.output_params || {}) as Record<
-                string,
-                unknown
-              >;
-              const input = (metadata.input_params || {}) as Record<
-                string,
-                unknown
-              >;
+              const output = metadata.output_params;
+              const input = metadata.input_params;
               return {
                 rows: output.rows,
                 train_rows: output.train_rows,

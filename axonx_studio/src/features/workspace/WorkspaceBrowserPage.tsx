@@ -79,7 +79,8 @@ export default function WorkspaceBrowserPage({
   const [error, setError] = useState("");
   const [previewError, setPreviewError] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const [pageOffsets, setPageOffsets] = useState([0]);
+  const offset = pageOffsets[pageOffsets.length - 1];
   const [revision, setRevision] = useState(0);
 
   const loadDirectory = useCallback(
@@ -124,7 +125,7 @@ export default function WorkspaceBrowserPage({
     pending.add(controller);
     setLoading(new Set());
     setSelected(null);
-    setOffset(0);
+    setPageOffsets([0]);
     setError("");
     const reveal = async () => {
       let directory = await loadDirectory(ROOT, controller.signal);
@@ -427,7 +428,14 @@ export default function WorkspaceBrowserPage({
                   >
                     <FilePreview
                       preview={preview}
-                      onPage={(offset) => setOffset(offset)}
+                      previousOffset={pageOffsets[pageOffsets.length - 2] ?? 0}
+                      onPage={(nextOffset) =>
+                        setPageOffsets((pages) =>
+                          nextOffset < offset
+                            ? pages.slice(0, -1)
+                            : [...pages, nextOffset],
+                        )
+                      }
                     />
                   </Suspense>
                 )

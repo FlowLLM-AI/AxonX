@@ -5,8 +5,7 @@ import { getTaskStatus, listTaskStatuses } from "../tasks/api";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { usePolling } from "../../shared/hooks/usePolling";
 import type { TaskSummary } from "../tasks/types";
-import { loadOnlineReport } from "./api";
-import { isOnlineTask, type OnlineOutcome } from "./types";
+import { isOnlineTask, parseOnlineReport, type OnlineOutcome } from "./types";
 import { playground } from "../../app/environment";
 
 export default function OnlinePage({
@@ -128,7 +127,7 @@ export default function OnlinePage({
           </aside>
           {selected && (
             <RunReport
-              key={`${target}:${selected.task_id}`}
+              key={`${target}:${selected.task_id}:${selected.run_id}`}
               task={selected}
               target={target}
               onOpenTask={onOpenTask}
@@ -163,7 +162,7 @@ function RunReport({
     async (signal: AbortSignal) => {
       const full = await getTaskStatus(task.task_id, target, signal);
       signal.throwIfAborted();
-      return loadOnlineReport(full, target, signal);
+      return parseOnlineReport(full.output_params);
     },
     [task, target],
   );

@@ -9,9 +9,7 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from ...utils.fs import atomic_write_json
 from ..core import BaseInputParams, BaseTask
-from ..storage.artifacts import artifact_record
 
 
 class ExecutionWindow(BaseModel):
@@ -114,7 +112,7 @@ class _WindowTask(BaseTask):
         try:
             self.initialize_run()
             self.validate_run()
-            self.write_manifest()
+            self.publish_windows()
             for window in self.input_params.windows:
                 started = self.clock.monotonic()
                 try:
@@ -148,11 +146,11 @@ class _WindowTask(BaseTask):
                             elapsed_seconds=self.clock.monotonic() - started,
                         )
                     )
-                    self.write_manifest()
+                    self.publish_windows()
                     raise
                 result.elapsed_seconds = self.clock.monotonic() - started
                 self.window_results.append(result)
-                self.write_manifest()
+                self.publish_windows()
         except BaseException:
             try:
                 self.close_run()
@@ -162,16 +160,9 @@ class _WindowTask(BaseTask):
         else:
             self.close_run()
 
-    def write_manifest(self) -> None:
-        atomic_write_json(self.task_dir / "manifest.json", self.manifest_data())
-
-    def manifest_data(self) -> dict:
-        return {"windows": [result.model_dump(mode="json") for result in self.window_results]}
+    def publish_windows(self) -> None:
+        self.metadata.output_params.update(self.window_output())
+        self.persist_metadata()
 
     def window_output(self) -> dict:
-        path = self.task_dir / "manifest.json"
-        return {
-            "windows": self.window_results,
-            "manifest_file": str(path),
-            "artifacts": {"manifest": artifact_record(path, self.task_dir)},
-        }
+        return {"windows": [result.model_dump(mode="json") for result in self.window_results]}

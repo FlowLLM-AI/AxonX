@@ -1,3 +1,4 @@
+import type { TaskMetadata } from "../../tasks/types";
 import { parseSourceTasks } from "../../../shared/lib/sourceTasks";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -83,21 +84,21 @@ async function loadTasks(
             Array.isArray(preview.data)
           )
             return null;
-          const raw = preview.data as Record<string, unknown>;
+          const raw = preview.data as unknown as TaskMetadata;
           if (raw.state !== "succeeded") return null;
-          const input = (raw.input_params || {}) as Record<string, unknown>;
-          const output = (raw.output_params || {}) as Record<string, unknown>;
+          const input = raw.input_params;
+          const output = raw.output_params;
           const artifacts = output.artifacts as
             BacktestArtifact["artifacts"] | undefined;
           if (!artifacts?.daily?.path) return null;
           return {
             _path: entry.path,
-            task_key: String(raw.reg_name || "backtest"),
+            task_key: raw.reg_name,
             created_at: String(raw.created_at || ""),
             config: {
-              task_id: String(raw.task_id || entry.name),
+              task_id: raw.task_id,
               task_type: "backtest" as const,
-              task_name: String(input.task_name || "backtest"),
+              task_name: String(input.task_name),
             },
             artifacts,
             dimensions: output.dimensions as BacktestArtifact["dimensions"],

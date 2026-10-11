@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import inspect
-import shutil
 from collections.abc import Callable
 from datetime import UTC, datetime
 from time import perf_counter
@@ -21,6 +20,7 @@ from ..storage.workspace import (
     TaskMetadata,
     TaskStepStatus,
     read_task_metadata,
+    reset_task_directory,
     write_task_metadata,
 )
 
@@ -107,8 +107,7 @@ class TaskRunner:
             )
             replaceable = not task.is_generated_name and queued is not None and queued.state.is_terminal
             if replaceable:
-                shutil.rmtree(task.task_dir)
-                task.task_dir.mkdir(parents=True)
+                reset_task_directory(task.task_dir)
             elif not handed_over:
                 raise FileExistsError(f"Task directory already exists: {task.task_dir}")
         else:

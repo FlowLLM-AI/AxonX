@@ -14,7 +14,6 @@ class BaseRealtimeApiInputParams(WindowInputParams):
 
 
 class BaseRealtimeApiOutputParams(BaseOutputParams):
-    manifest_file: str
     windows: list[WindowResult] = Field(default_factory=list)
 
 

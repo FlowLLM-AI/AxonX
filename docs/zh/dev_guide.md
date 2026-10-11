@@ -58,6 +58,8 @@ AxonX 是面向 Agent 的量化研究 Harness，为量化代码开发、实验�
 插件可注册多个 Task；qlib_a158 示例在 `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` 中注册了五类 Task。本文的 qlib_a158
 路径、类名、注册名和依赖链仅用于示例，开发其他研究插件时应替换为实际定义。插件安装与 Task 提交是独立操作。
 
+同名重跑清理当次执行文件（包括 metadata.json 和 events.jsonl），但保留约定的 `persistent/` 目录。通过 `self.persistent_dir` 保存累计业务数据；插件负责其格式、更新和并发控制。Run ID 和生命周期记录仍只描述当前执行。显式删除 Task 会一并删除持久数据；快照同步仍替换完整 Task 目录。`persistent/` 必须是普通目录，不能是符号链接。
+
 ### 必须遵守的开发协议
 
 所有插件 Task 都必须直接或间接继承 `BaseTask`，并遵守

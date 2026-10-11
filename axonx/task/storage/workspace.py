@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import shutil
 import stat
 from datetime import datetime
 from pathlib import Path, PurePosixPath
@@ -18,6 +19,7 @@ from ..core.identity import task_type_from_id
 #: One workspace directory per task category holds that category's task directories.
 KINDS = tuple(kind.value for kind in TaskType)
 
+PERSISTENT_DIR = "persistent"
 METADATA_FILE = "metadata.json"
 #: The append-only log a worker writes its status transitions to, so a manager in
 #: another process can follow a running task event by event.
@@ -131,6 +133,23 @@ def is_task_directory(directory: Path, *, strict_io: bool = False) -> bool:
         except FileNotFoundError:
             return False
     return not directory.is_symlink() and not directory.parent.is_symlink() and directory.is_dir()
+
+
+def reset_task_directory(directory: Path) -> None:
+    """Clear run-owned files while retaining the Task's persistent data."""
+    if not is_task_directory(directory, strict_io=True):
+        raise ValueError(f"Invalid Task directory: {directory}")
+    persistent = directory / PERSISTENT_DIR
+    if persistent.is_symlink() or (persistent.exists() and not persistent.is_dir()):
+        raise ValueError(f"Persistent Task storage must be a regular directory: {persistent}")
+    # Keep the terminal record until the disposable files have been removed.
+    for path in sorted(directory.iterdir(), key=lambda path: path.name == METADATA_FILE):
+        if path.name == PERSISTENT_DIR:
+            continue
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
 
 
 def read_entry(root: Path, task_id: str) -> TaskMetadata | None:

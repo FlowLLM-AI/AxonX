@@ -68,15 +68,15 @@ def run_task(cls, tmp_path, **params):
     return task
 
 
-def test_wait_poll_skip_and_manifest(tmp_path):
+def test_wait_poll_skip_and_metadata(tmp_path):
     clock = FakeClock()
     task = run_task(Collector, tmp_path, windows=[window(clock, "past", -3, -1), window(clock, start=2)])
     assert task.calls == 2
     assert task.closed
     assert [item.status for item in task.output_params.windows] == ["skipped", "done"]
     assert task.clock.seconds == 3
-    assert json.loads((task.task_dir / "manifest.json").read_text())["windows"][1]["coverage"] == 1
-    assert task.output_params.artifacts["manifest"]["sha256"]
+    assert json.loads(task.metadata_path.read_text())["output_params"]["windows"][1]["coverage"] == 1
+    assert not (task.task_dir / "manifest.json").exists()
 
 
 def test_poll_timeout_is_bounded(tmp_path):
@@ -102,11 +102,17 @@ def test_failed_window_audited_and_cleanup_preserves_error(tmp_path):
     clock = FakeClock()
     task = Broken({"task_name": "test", "windows": [window(clock)]}, workspace_path=tmp_path, reg_name="test_online")
     task.clock = clock
+    snapshots = []
     with pytest.raises(ValueError, match="bad data"):
-        TaskRunner().run(task)
+        TaskRunner(emit=snapshots.append).run(task)
+    assert any(
+        status.state.value == "running" and status.output_params["windows"][0]["status"] == "failed"
+        for status in snapshots
+        if status.output_params.get("windows")
+    )
     assert task.closed
-    report = json.loads((task.task_dir / "manifest.json").read_text())
-    assert report["windows"][0]["status"] == "failed"
+    report = json.loads(task.metadata_path.read_text())
+    assert report["output_params"]["windows"][0]["status"] == "failed"
     assert task.metadata.state.value == "failed"
     assert task.metadata_path.exists()
 
@@ -155,7 +161,8 @@ def test_comparison_isolates_errors_and_protocol_mismatch(tmp_path):
     )
     TaskRunner().run(task)
     assert [item.status for item in task.output_params.comparisons] == ["error", "protocol_mismatch", "consistent"]
-    assert task.output_params.artifacts["comparison"]["path"] == "comparison.json"
+    assert not (task.task_dir / "comparison.json").exists()
+    assert task.metadata.output_params["comparisons"][0]["status"] == "error"
 
 
 def test_window_validation():
@@ -212,6 +219,6 @@ def test_business_skip_happens_before_future_window_wait(tmp_path, skip_seconds)
     assert task.closed
     assert task.output_params.windows[0].reason == "market_closed"
     assert task.output_params.windows[0].elapsed_seconds == skip_seconds
-    report = json.loads((task.task_dir / "manifest.json").read_text())
-    assert report["windows"][0]["status"] == "skipped"
-    assert report["windows"][0]["elapsed_seconds"] == skip_seconds
+    report = json.loads(task.metadata_path.read_text())
+    assert report["output_params"]["windows"][0]["status"] == "skipped"
+    assert report["output_params"]["windows"][0]["elapsed_seconds"] == skip_seconds

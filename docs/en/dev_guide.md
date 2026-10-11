@@ -58,6 +58,8 @@ The framework records task configuration, dependencies, result metadata, and art
 A plugin can register multiple Tasks; the qlib_a158 example registers five Task types in `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml`. The qlib_a158
 paths, class names, registered names, and dependency chain here are illustrative; replace them with actual definitions when developing other research plugins. Plugin installation and Task submission are separate operations.
 
+Same-name reruns clear run-owned files, including metadata.json and events.jsonl, while retaining the reserved `persistent/` directory. Use `self.persistent_dir` for cumulative business data; plugins own its schema, updates and locking. Run IDs and lifecycle records still describe only the current execution. Explicit Task deletion removes persistent data too; snapshot synchronization replaces the complete Task directory. `persistent/` must be a regular directory, not a symlink.
+
 ### Required authoring contracts
 
 Every plugin Task must directly or indirectly inherit `BaseTask` and follow the public authoring contract in

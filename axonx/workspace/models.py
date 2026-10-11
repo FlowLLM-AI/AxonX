@@ -86,6 +86,7 @@ class CsvPreview(PreviewBase):
 
 class JsonlRow(WorkspaceModel):
     line: int = Field(ge=1)
+    truncated: bool
     content: str
     data: Any = None
     parse_error: str | None = None

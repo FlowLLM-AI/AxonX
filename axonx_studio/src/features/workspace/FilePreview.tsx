@@ -15,9 +15,11 @@ import type { WorkspacePreview } from "./types";
 export function FilePreview({
   preview,
   onPage,
+  previousOffset,
 }: {
   preview: WorkspacePreview;
   onPage: (offset: number) => void;
+  previousOffset: number;
 }) {
   const { t } = useTranslation();
   if (preview.kind === "parquet") {
@@ -116,7 +118,9 @@ export function FilePreview({
         {preview.rows.map((row) => (
           <section className="workspace-jsonl-record" key={row.line}>
             <header>{t("workspacePreview.line", { line: row.line })}</header>
-            {row.parse_error ? (
+            {row.truncated ? (
+              <pre className="workspace-code">{row.content}</pre>
+            ) : row.parse_error ? (
               <>
                 <div className="workspace-notice error">
                   <AlertTriangle />
@@ -133,7 +137,7 @@ export function FilePreview({
         <footer className="workspace-jsonl-pagination">
           <button
             disabled={preview.offset === 0}
-            onClick={() => onPage(Math.max(0, preview.offset - preview.limit))}
+            onClick={() => onPage(previousOffset)}
           >
             {t("workspacePreview.previous")}
           </button>

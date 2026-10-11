@@ -319,6 +319,9 @@ def test_child_names_replace_terminal_outputs_and_keep_independent_runs(tmp_path
     TaskRunner().run(first)
     directory = task_path(tmp_path, results[0].task_id)
     (directory / "obsolete.txt").write_text("old")
+    history = directory / "persistent/signals.jsonl"
+    history.parent.mkdir()
+    history.write_text("retained history\n")
     second = parent(tmp_path, compose, input_params={"task_name": "axon2-core"})
     TaskRunner().run(second)
     assert first.task_id == "composite#composite#axon2-core"
@@ -327,6 +330,7 @@ def test_child_names_replace_terminal_outputs_and_keep_independent_runs(tmp_path
     assert results[0].task_id == "base#demo#axon2-core"
     assert results[0].run_id != results[1].run_id
     assert not (directory / "obsolete.txt").exists()
+    assert history.read_text() == "retained history\n"
     assert read_task_metadata(directory, results[1].task_id).run_id == results[1].run_id
     assert composition(second).children[0].run_id == results[1].run_id
 
@@ -822,3 +826,24 @@ async def test_real_worker_stop_settles_active_nested_children(tmp_path, monkeyp
         assert read_task_metadata(task_path(tmp_path, handle.task_id), handle.task_id).children[0].state == expected
     finally:
         await app.close()
+
+
+@pytest.mark.parametrize("kind", ["file", "symlink"])
+def test_rerun_rejects_invalid_persistent_storage_before_clearing_outputs(tmp_path, kind):
+    task = parent(tmp_path, lambda task: None, input_params={"task_name": "named"})
+    TaskRunner().run(task)
+    before = (task.task_dir / "metadata.json").read_bytes()
+    persistent = task.persistent_dir
+    if kind == "file":
+        persistent.write_text("invalid")
+    else:
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "keep.txt").write_text("keep")
+        persistent.symlink_to(outside, target_is_directory=True)
+    replacement = parent(tmp_path, lambda task: None, input_params={"task_name": "named"})
+    with pytest.raises(ValueError, match="Persistent Task storage"):
+        TaskRunner().run(replacement)
+    assert (task.task_dir / "metadata.json").read_bytes() == before
+    if kind == "symlink":
+        assert (outside / "keep.txt").read_text() == "keep"

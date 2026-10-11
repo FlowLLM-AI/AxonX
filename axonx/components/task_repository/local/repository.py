@@ -13,6 +13,7 @@ from ....task.storage.workspace import (
     TaskMetadata,
     is_task_directory,
     read_entry,
+    reset_task_directory,
     scan_entries,
     task_path,
     write_task_metadata,
@@ -110,6 +111,12 @@ class LocalTaskRepository(BaseTaskRepository):
             self._entries.pop(task_id, None)
 
     async def delete_terminal(self, task_id: str) -> bool:
+        return await self._clear_terminal(task_id, reset=False)
+
+    async def reset_terminal(self, task_id: str) -> bool:
+        return await self._clear_terminal(task_id, reset=True)
+
+    async def _clear_terminal(self, task_id: str, *, reset: bool) -> bool:
         async with self._lock:
             directory = task_path(self.root, task_id)
             if directory.is_symlink() or directory.parent.is_symlink():
@@ -118,9 +125,10 @@ class LocalTaskRepository(BaseTaskRepository):
             if entry is None or not entry.state.is_terminal:
                 return False
             try:
-                await asyncio.to_thread(shutil.rmtree, directory)
+                await asyncio.to_thread(reset_task_directory if reset else shutil.rmtree, directory)
             except FileNotFoundError:
-                pass
+                if directory.exists():
+                    raise
             self._entries.pop(task_id, None)
             return True
 

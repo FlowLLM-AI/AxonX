@@ -47,6 +47,10 @@ class BaseTaskRepository(BaseComponent, ABC):
         """Delete one terminal Task directory under the repository mutation lock."""
 
     @abstractmethod
+    async def reset_terminal(self, task_id: str) -> bool:
+        """Clear a terminal Run under the mutation lock, retaining persistent data."""
+
+    @abstractmethod
     async def reconcile(self) -> None:
         """Rebuild the index from disk."""
 

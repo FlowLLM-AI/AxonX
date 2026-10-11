@@ -68,6 +68,7 @@ export interface JsonlPreview extends PreviewBase {
   kind: "jsonl";
   rows: {
     line: number;
+    truncated: boolean;
     content: string;
     data: unknown;
     parse_error: string | null;

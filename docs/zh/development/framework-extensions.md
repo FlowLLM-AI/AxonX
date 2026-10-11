@@ -177,7 +177,7 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 `initialize_run` 获取任务拥有的资源；成功、初始化失败或执行失败后都会调用 `close_run`。清理异常不替代主异常。进程取消仍由现有 worker/task manager 管理，插件不新增进程调度器。
 
-原子发布的 `manifest.json` 在执行期间记录模型身份与已结束窗口，任务失败时也保留；`comparison.json` 逐项记录比对结果。成功输出通过 `artifacts` 索引报告，路径相对任务目录。TaskRunner 继续独占任务状态、身份及 metadata。业务数据保存在插件显式目录，先发布数据与元数据，再发布 ready 标记。最终数据发布、质量检查、归一化、交易日历与通知语义由插件负责；AxonX 不新增 Tushare 或模型依赖。
+窗口结果、固定模型身份和比对结果直接增量写入 `metadata.json.output_params`，失败时也保留。Runner 原子发布这一份记录，Studio 直接读取它。原有 `manifest.json`、`comparison.json`、`manifest_file` 和 `report_file` 契约已移除，不保留兼容读取。业务数据保存在插件显式目录，先发布数据与元数据，再发布 ready 标记。最终数据发布、质量检查、归一化、交易日历与通知语义由插件负责；AxonX 不新增 Tushare 或模型依赖。
 
 算法验证与模型等价性由研究插件负责。
 

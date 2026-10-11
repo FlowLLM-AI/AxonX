@@ -6,9 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ...enums import TaskType
-from ...utils.fs import atomic_write_json
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
-from ..storage.artifacts import artifact_record
 
 
 class PredictionComparison(BaseModel):
@@ -32,7 +30,6 @@ class BasePredictionCompareInputParams(BaseInputParams):
 
 
 class BasePredictionCompareOutputParams(BaseOutputParams):
-    report_file: str
     comparisons: list[PredictionComparison] = Field(default_factory=list)
 
 
@@ -59,17 +56,8 @@ class BasePredictionCompareTask(BaseTask):
             except Exception as exc:
                 result = PredictionComparison(key=key, status="error", reason=f"{type(exc).__name__}: {exc}")
             self.comparisons.append(result)
-            atomic_write_json(
-                self.task_dir / "comparison.json",
-                {
-                    "comparisons": [item.model_dump(mode="json") for item in self.comparisons],
-                },
-            )
+            self.metadata.output_params["comparisons"] = [item.model_dump(mode="json") for item in self.comparisons]
+            self.persist_metadata()
 
     def build_output_params(self) -> BasePredictionCompareOutputParams:
-        path = self.task_dir / "comparison.json"
-        return self.output_cls(
-            report_file=str(path),
-            comparisons=self.comparisons,
-            artifacts={"comparison": artifact_record(path, self.task_dir)},
-        )
+        return self.output_cls(comparisons=self.comparisons)

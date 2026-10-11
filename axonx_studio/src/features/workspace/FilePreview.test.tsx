@@ -23,12 +23,14 @@ const preview: JsonlPreview = {
   rows: [
     {
       line: 3,
+      truncated: false,
       content: '{"percentage":50}',
       data: { percentage: 50 },
       parse_error: null,
     },
     {
       line: 4,
+      truncated: false,
       content: "{broken",
       data: null,
       parse_error: "Expected property name",
@@ -37,13 +39,15 @@ const preview: JsonlPreview = {
 };
 
 describe("JSONL file preview", () => {
-  it("renders parsed records and malformed lines, and paginates by physical line", async () => {
+  it("renders parsed records and malformed lines, and returns to the actual previous page and advances by physical line", async () => {
     const container = document.createElement("div");
     const root = createRoot(container);
     const onPage = vi.fn();
     try {
       await act(async () =>
-        root.render(<FilePreview preview={preview} onPage={onPage} />),
+        root.render(
+          <FilePreview preview={preview} onPage={onPage} previousOffset={1} />,
+        ),
       );
       expect(container.textContent).toContain("workspacePreview.line 3");
       expect(container.textContent).toContain("percentage");
@@ -52,14 +56,40 @@ describe("JSONL file preview", () => {
       expect(container.textContent).toContain("Expected property name");
       const buttons = Array.from(container.querySelectorAll("footer button"));
       await act(async () => (buttons[0] as HTMLButtonElement).click());
-      expect(onPage).toHaveBeenLastCalledWith(0);
+      expect(onPage).toHaveBeenLastCalledWith(1);
       await act(async () => (buttons[1] as HTMLButtonElement).click());
       expect(onPage).toHaveBeenLastCalledWith(4);
       await act(async () =>
         root.render(
           <FilePreview
+            preview={{
+              ...preview,
+              truncated: true,
+              rows: [
+                {
+                  line: 5,
+                  content: '{"predictions":[',
+                  data: null,
+                  parse_error: null,
+                  truncated: true,
+                },
+              ],
+            }}
+            onPage={onPage}
+            previousOffset={1}
+          />,
+        ),
+      );
+      expect(container.textContent).toContain("workspacePreview.truncated");
+      expect(container.textContent).not.toContain(
+        "workspacePreview.invalidJson",
+      );
+      await act(async () =>
+        root.render(
+          <FilePreview
             preview={{ ...preview, rows: [], offset: 0, has_more: false }}
             onPage={onPage}
+            previousOffset={0}
           />,
         ),
       );

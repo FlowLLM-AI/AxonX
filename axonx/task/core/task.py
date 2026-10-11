@@ -17,7 +17,7 @@ from ...constants import (
 )
 from ...enums import ComponentEnum, TaskType
 from ...utils import get_log_path, get_logger
-from ..storage.workspace import METADATA_FILE, TaskMetadata, task_path
+from ..storage.workspace import PERSISTENT_DIR, METADATA_FILE, TaskMetadata, task_path
 from .context import TaskContext
 from .identity import generated_task_name, parse_source_tasks, validate_registration_name
 from .params import BaseInputParams, BaseOutputParams
@@ -105,6 +105,11 @@ class BaseTask(ABC):
     @property
     def task_dir(self) -> Path:
         return task_path(self.workspace_path, self.task_id)
+
+    @property
+    def persistent_dir(self) -> Path:
+        """Task-owned data retained across same-name reruns; deleted with the Task."""
+        return self.task_dir / PERSISTENT_DIR
 
     @property
     def metadata_path(self) -> Path:

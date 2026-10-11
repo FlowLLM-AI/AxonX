@@ -398,6 +398,7 @@ export function seed() {
       };
       return {
         line: index + 1,
+        truncated: false,
         content: JSON.stringify(data),
         data,
         parse_error: null,
@@ -518,32 +519,8 @@ function seedOnline(
         : sample.kind === "inference"
           ? "api#playground_online#demo"
           : "";
-    const reportName =
-      sample.kind === "analysis" ? "comparison.json" : "manifest.json";
-    task.output_params = {
-      ...sample.result,
-      [sample.kind === "analysis" ? "report_file" : "manifest_file"]:
-        `runs/${id}/${reportName}`,
-      artifacts: {
-        report: {
-          path: reportName,
-          size: JSON.stringify(sample.result).length,
-          sha256: "",
-        },
-      },
-    };
+    task.output_params = { ...sample.result, artifacts: {} };
     tasks.set(id, task);
-    files.set(`runs/${id}/${reportName}`, json(sample.result));
-    files.set(
-      `runs/${id}/metadata.json`,
-      json({
-        task_id: id,
-        task_type: sample.kind,
-        reg_name: "playground_online",
-        created_at: epoch,
-        input_params: task.input_params,
-        output_params: task.output_params,
-      }),
-    );
+    files.set(`runs/${id}/metadata.json`, json(task));
   }
 }

@@ -708,6 +708,10 @@ async def test_named_submission_replaces_completed_task(tmp_path):
             await asyncio.sleep(0.1)
 
         metadata_path = task_path(tmp_path, first.task_id) / "metadata.json"
+        history = metadata_path.parent / "persistent/signals.jsonl"
+        history.parent.mkdir()
+        history.write_text("retained history\n")
+        (metadata_path.parent / "obsolete.txt").write_text("old")
         before = metadata_path.read_bytes()
         with pytest.raises(ValueError, match="own Task ID"):
             await manager.submit(
@@ -727,12 +731,19 @@ async def test_named_submission_replaces_completed_task(tmp_path):
         assert metadata_path.read_bytes() == before
         assert (await manager.get_status(first.task_id)).run_id == first.run_id
 
-        second = (await app.run_job("submit", {"task": "demo", "task_name": "latest", "x": 4, "y": 5})).answer
+        response = await app.run_job("submit", {"task": "demo", "task_name": "latest", "x": 4, "y": 5})
+        assert response.success, response.answer
+        second = response.answer
         for _ in range(50):
             status = await manager.get_status(second.task_id)
             if status.state.is_terminal:
                 break
             await asyncio.sleep(0.1)
+        assert history.read_text() == "retained history\n"
+        assert not (metadata_path.parent / "obsolete.txt").exists()
+        await asyncio.gather(*manager._supervisor.monitors)
+        assert await manager.delete([second.task_id]) == [second.task_id]
+        assert not metadata_path.parent.exists()
 
     assert first.task_id == second.task_id == "base#demo#latest"
     assert first.run_id != second.run_id
@@ -949,3 +960,19 @@ async def test_cancel_job_terminates_its_worker_with_either_identifier(tmp_path,
         status = await manager.get_status(handle.task_id)
         assert status.run_id == handle.run_id
         assert status.state == TaskState.CANCELLED
+
+
+async def test_failed_terminal_reset_keeps_existing_record_indexed(tmp_path, exit_manager, monkeypatch):
+    task = DemoTask({"x": 1, "y": 2, "task_name": "reset"}, workspace_path=tmp_path, reg_name="demo")
+    status = TaskRunner().run(task)
+    repository = exit_manager.repository
+    await repository.reconcile()
+
+    def incomplete_reset(_directory):
+        raise FileNotFoundError("A run-owned file disappeared during cleanup")
+
+    monkeypatch.setattr("axonx.components.task_repository.local.repository.reset_task_directory", incomplete_reset)
+    with pytest.raises(FileNotFoundError, match="during cleanup"):
+        await repository.reset_terminal(task.task_id)
+    assert await repository.entry(task.task_id) == status
+    assert read_task_metadata(task.task_dir, task.task_id) == status

@@ -213,7 +213,6 @@ def _preview_jsonl(path: Path, size: int, offset: int, limit: int) -> JsonlPrevi
             data = None
             error = None
             if oversized:
-                error = "Line exceeds the page byte limit"
                 truncated = True
             else:
                 try:
@@ -222,7 +221,9 @@ def _preview_jsonl(path: Path, size: int, offset: int, limit: int) -> JsonlPrevi
                     data = _json_compatible(json.loads(content))
                 except (UnicodeDecodeError, json.JSONDecodeError) as exc:
                     error = str(exc)
-            rows.append(JsonlRow(line=offset + index + 1, content=content, data=data, parse_error=error))
+            rows.append(
+                JsonlRow(line=offset + index + 1, content=content, data=data, parse_error=error, truncated=oversized)
+            )
         has_more = bool(handle.read(1))
     return JsonlPreview(size=size, rows=rows, offset=offset, limit=limit, has_more=has_more, truncated=truncated)
 
