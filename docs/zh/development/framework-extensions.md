@@ -181,7 +181,7 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 ## 复合 Task 与清理
 
-同步业务顺序、条件和循环使用 `BaseCompositeTask`，通过内置 `submit` Job 只提交父任务。子任务在父任务 worker 内执行并保留独立记录，数据依赖显式传入 `source_tasks`。详见 [复合 Task](../guides/composite-tasks.md)。
+同步业务顺序、条件和循环使用 `BaseCompositeTask`，通过内置 `submit` Job 只提交父任务。子任务在父任务 worker 内执行，继承父实例名称并保留调用记录。重复调用同一注册名会覆盖终态产物，文件产物应在覆盖前消费。依赖其他 Task ID 的数据时显式传入 `source_tasks`。详见 [复合 Task](../guides/composite-tasks.md)。
 
 插件清单注册 Task；部署配置可以定义轻量 `pipeline` Job 和定时任务：
 

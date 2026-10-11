@@ -6,7 +6,6 @@ import os
 import re
 import shutil
 import sys
-from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -24,7 +23,7 @@ from axonx.task.builtins.demo import DemoTask, DemoTaskOutputParams
 from axonx.task.catalog import get_task_definition
 from axonx.task.runtime.executor import TaskCommandExecutor
 from axonx.task.runtime.runner import TaskRunner
-from axonx.task.storage.artifacts import artifact_path
+from axonx.task.storage.artifacts import artifact_path, artifact_record, read_metadata
 from axonx.task.storage.composition import (
     COMPOSITION_FILE,
     ChildTaskRecord,
@@ -58,11 +57,12 @@ def composition(task):
     return read_composition(task.task_dir, task.task_id, task.context.run_id)
 
 
-def test_sequence_loops_output_binding_and_explicit_lineage(tmp_path):
+def test_sequence_loops_output_binding_and_explicit_lineage(tmp_path, monkeypatch):
+    monkeypatch.setattr("axonx.task.catalog.resolver.resolve_task", lambda _name: DemoTask)
     results = []
 
     def compose(task):
-        first = task.run_task("demo", node_name="sum", x=2, y=3)
+        first = task.run_task("source", node_name="sum", x=2, y=3)
         assert isinstance(first.output_params, DemoTaskOutputParams)
         for index in range(3):
             results.append(
@@ -70,7 +70,10 @@ def test_sequence_loops_output_binding_and_explicit_lineage(tmp_path):
                     "demo", node_name=f"feature-{index}", x=first.output["result"], y=index, source_tasks=first.task_id
                 )
             )
-        # Keep the stage barrier: every feature exists before predictions begin.
+            current = read_status(task_path(tmp_path, results[-1].task_id), results[-1].task_id)
+            assert current.config["source_tasks"] == first.task_id
+            assert current.run_id == results[-1].run_id
+        # Numeric outputs are invocation snapshots, independent of overwritten directories.
         for index, result in enumerate(results):
             task.run_task("demo", node_name=f"predict-{index}", x=result.output["result"], y=1)
 
@@ -93,15 +96,89 @@ def test_sequence_loops_output_binding_and_explicit_lineage(tmp_path):
         child_status = read_status(directory, child.task_id)
         assert child_status.state == TaskState.SUCCEEDED
         assert child_status.pid == os.getpid()
-        assert child_status.run_id == child.run_id != task.context.run_id
+        assert child_status.run_id == (task.children[0].run_id if child.task == "source" else task.children[-1].run_id)
+        assert child.run_id != task.context.run_id
         assert (directory / "metadata.json").is_file()
     first_status = read_status(task_path(tmp_path, task.children[0].task_id), task.children[0].task_id)
-    feature_status = read_status(task_path(tmp_path, results[0].task_id), results[0].task_id)
     assert first_status.config["source_tasks"] == ""
-    assert feature_status.config["source_tasks"] == task.children[0].task_id
+    assert len({child.run_id for child in task.children}) == 7
+    assert len({child.task_id for child in task.children}) == 2
     metadata = json.loads(task.metadata_path.read_text())
     assert artifact_path(task.task_dir, metadata, "composition") == task.task_dir / COMPOSITION_FILE
     assert composition(task).children == list(task.children)
+
+
+@pytest.mark.parametrize("parent_name", ["pipeline", "a" * 32])
+def test_file_pipeline_consumes_each_output_before_replacement(tmp_path, monkeypatch, parent_name):
+    class FileOutput(BaseOutputParams):
+        result: int
+
+    class FileTask(DemoTask):
+        output_cls = FileOutput
+
+        def build_task_steps(self):
+            yield self.transform
+
+        def transform(self):
+            sources = self.input_params.source_tasks
+            if sources:
+                directory = self.source_task_dir(sources)
+                upstream = int(
+                    artifact_path(directory, read_metadata(directory / "metadata.json"), "value").read_text()
+                )
+            else:
+                upstream = self.input_params.x
+            self.state["result"] = upstream + self.input_params.y
+            (self.task_dir / "value.txt").write_text(str(self.state["result"]))
+
+        def build_output_params(self):
+            return self.output_cls(
+                result=self.state["result"],
+                artifacts={"value": artifact_record(self.task_dir / "value.txt", self.task_dir)},
+            )
+
+    monkeypatch.setattr("axonx.task.catalog.resolver.resolve_task", lambda _name: FileTask)
+
+    def compose(task):
+        predictions = []
+        for index in range(3):
+            feature = task.run_task("feature", node_name=f"feature-{index}", x=index, y=10)
+            predictions.append(task.run_task("predict", x=0, y=100, source_tasks=feature.task_id))
+        assert [prediction.output["result"] for prediction in predictions] == [110, 111, 112]
+        assert (task_path(tmp_path, feature.task_id) / "value.txt").read_text() == "12"
+        assert (task_path(tmp_path, predictions[-1].task_id) / "value.txt").read_text() == "112"
+
+    first = parent(tmp_path, compose, input_params={"task_name": parent_name})
+    TaskRunner().run(first)
+    assert len({child.task_id for child in first.children}) == 2
+    second = parent(tmp_path, compose, input_params={"task_name": parent_name})
+    TaskRunner().run(second)
+    assert [child.task_id for child in first.children] == [child.task_id for child in second.children]
+    assert {child.run_id for child in first.children}.isdisjoint(child.run_id for child in second.children)
+
+
+def test_nested_composites_and_separate_parents_inherit_the_same_name(tmp_path, monkeypatch):
+    class Nested(BaseCompositeTask):
+        def build_task_steps(self):
+            yield lambda: self.run_task("demo", x=1, y=2)
+
+    monkeypatch.setattr(
+        "axonx.task.catalog.resolver.resolve_task", lambda name: Nested if name == "nested" else DemoTask
+    )
+    results = []
+
+    def compose(task):
+        results.append(task.run_task("nested", node_name="left"))
+        results.append(task.run_task("nested", node_name="right"))
+
+    for name in ("first", "second"):
+        task = Composite({"task_name": "shared"}, workspace_path=tmp_path, reg_name=name, compose=compose)
+        TaskRunner().run(task)
+    assert {result.task_id for result in results} == {"composite#nested#shared"}
+    assert len({result.run_id for result in results}) == 4
+    assert {result.output["children"][0]["task_id"] for result in results} == {"base#demo#shared"}
+    latest = results[-1]
+    assert read_status(task_path(tmp_path, latest.task_id), latest.task_id).run_id == latest.run_id
 
 
 @pytest.mark.parametrize("change", ["replacement", "deletion"])
@@ -117,10 +194,18 @@ def test_child_startup_recovery_preserves_replacement_or_deleted_directory(tmp_p
             child = task.children[0]
             directory = task_path(tmp_path, child.task_id)
             if change == "replacement":
-                status = read_status(directory, child.task_id)
-                write_status(directory, status.model_copy(update={"run_id": "replacement"}))
+                directory.mkdir(parents=True)
+                write_status(
+                    directory,
+                    TaskStatus(
+                        task_id=child.task_id,
+                        run_id="replacement",
+                        task_type=TaskType.BASE,
+                        state=TaskState.QUEUED,
+                    ),
+                )
             else:
-                shutil.rmtree(directory)
+                shutil.rmtree(directory, ignore_errors=True)
             raise OSError("handoff failed")
         write_record()
 
@@ -198,7 +283,7 @@ def test_continue_records_failure_runs_later_child_and_fails_parent(tmp_path, mo
             _ = results[0].output
 
 
-def test_children_have_distinct_attempts_and_survive_named_parent_rerun(tmp_path):
+def test_children_keep_attempt_records_and_replace_outputs_on_parent_rerun(tmp_path):
     def compose(task):
         task.run_task("demo", node_name="repeated", x=1, y=2)
         task.run_task("demo", node_name="repeated", x=2, y=3)
@@ -213,9 +298,79 @@ def test_children_have_distinct_attempts_and_survive_named_parent_rerun(tmp_path
 
     assert first.task_id == second.task_id
     assert [child.attempt for child in first.children] == [1, 2]
-    assert len({child.task_id for child in (*first.children, *second.children)}) == 4
+    assert len({child.task_id for child in (*first.children, *second.children)}) == 1
+    assert len({child.run_id for child in (*first.children, *second.children)}) == 4
     for task_id, before in snapshots.items():
-        assert (task_path(tmp_path, task_id) / "metadata.json").read_bytes() == before
+        assert (task_path(tmp_path, task_id) / "metadata.json").read_bytes() != before
+
+
+def test_child_names_replace_terminal_outputs_and_keep_independent_runs(tmp_path):
+    results = []
+
+    def compose(task):
+        results.append(task.run_task("demo", x=2, y=3))
+
+    first = parent(tmp_path, compose, input_params={"task_name": "axon2-core"})
+    TaskRunner().run(first)
+    directory = task_path(tmp_path, results[0].task_id)
+    (directory / "obsolete.txt").write_text("old")
+    second = parent(tmp_path, compose, input_params={"task_name": "axon2-core"})
+    TaskRunner().run(second)
+    assert first.task_id == "composite#composite#axon2-core"
+    assert first.task_dir.parent.name == "composite"
+    assert results[0].task_id == results[1].task_id
+    assert results[0].task_id == "base#demo#axon2-core"
+    assert results[0].run_id != results[1].run_id
+    assert not (directory / "obsolete.txt").exists()
+    assert read_status(directory, results[1].task_id).run_id == results[1].run_id
+    assert composition(second).children[0].run_id == results[1].run_id
+
+
+@pytest.mark.parametrize("on_error", ["stop", "continue"])
+def test_self_source_is_rejected_without_replacing_previous_child(tmp_path, on_error):
+    snapshots = {}
+
+    def compose(owner):
+        first = owner.run_task("demo", x=1, y=2)
+        directory = task_path(tmp_path, first.task_id)
+        snapshots.update({path.name: path.read_bytes() for path in directory.glob("*")})
+        owner.run_task("demo", x=3, y=4, source_tasks=first.task_id, on_error=on_error)
+
+    task = parent(tmp_path, compose, input_params={"task_name": "shared"})
+    if on_error == "stop":
+        with pytest.raises(ChildTaskError, match="own Task ID"):
+            TaskRunner().run(task)
+    else:
+        assert TaskRunner().run(task).state == TaskState.FAILED
+    assert task.children[0].state == TaskState.SUCCEEDED
+    assert task.children[1].state == TaskState.FAILED
+    directory = task_path(tmp_path, task.children[0].task_id)
+    assert {path.name: path.read_bytes() for path in directory.glob("*")} == snapshots
+
+
+@pytest.mark.parametrize("state", [TaskState.QUEUED, TaskState.RUNNING])
+def test_reused_child_name_cannot_replace_active_run(tmp_path, state):
+    results = []
+    first = parent(
+        tmp_path,
+        lambda owner: results.append(owner.run_task("demo", x=1, y=2)),
+        input_params={"task_name": "axon2-core"},
+    )
+    TaskRunner().run(first)
+    existing = results[0]
+    directory = task_path(tmp_path, existing.task_id)
+    status = read_status(directory, existing.task_id).model_copy(update={"state": state})
+    write_status(directory, status)
+    before = (directory / "metadata.json").read_bytes()
+    task = parent(
+        tmp_path,
+        lambda owner: owner.run_task("demo", x=3, y=4),
+        input_params={"task_name": "axon2-core"},
+    )
+    with pytest.raises(ChildTaskError, match="already exists"):
+        TaskRunner().run(task)
+    assert read_status(directory, existing.task_id) == status
+    assert (directory / "metadata.json").read_bytes() == before
 
 
 def test_child_environment_never_borrows_parent_worker_identity(tmp_path, monkeypatch):
@@ -229,20 +384,7 @@ def test_child_environment_never_borrows_parent_worker_identity(tmp_path, monkey
     assert results[0].run_id != "worker-run"
 
 
-def test_collision_does_not_replace_existing_child(tmp_path):
-    task = parent(tmp_path, lambda owner: owner.run_task("demo", node_name="sum", on_error="continue", x=1, y=2))
-    identity = "\0".join((task.task_id, task.context.run_id, "sum", "1"))
-    name = "c-" + sha256(identity.encode()).hexdigest()[:30]
-    existing = DemoTask({"task_name": name, "x": 10, "y": 20}, workspace_path=tmp_path, reg_name="demo")
-    TaskRunner().run(existing)
-    before = existing.metadata_path.read_bytes()
-
-    assert TaskRunner().run(task).state == TaskState.FAILED
-    assert existing.metadata_path.read_bytes() == before
-    assert "FileExistsError" in task.children[0].error
-
-
-@pytest.mark.parametrize("failure_point", ["claimed", "queued_write", "handoff"])
+@pytest.mark.parametrize("failure_point", ["composition", "initial_status", "persistent_status"])
 @pytest.mark.parametrize("on_error", ["stop", "continue"])
 def test_child_startup_failure_settles_owned_status_and_closes_resources(
     tmp_path, monkeypatch, failure_point, on_error
@@ -277,21 +419,22 @@ def test_child_startup_failure_settles_owned_status_and_closes_resources(
     def flaky_composition():
         nonlocal failed
         if task.children and task.children[0].task_id is not None and not failed:
-            state = task.children[0].state
-            if (failure_point, state) in {("claimed", TaskState.QUEUED), ("handoff", TaskState.RUNNING)}:
+            if failure_point == "composition":
                 failed = True
                 raise OSError("startup write failed")
         write_record()
 
     def flaky_status(directory, status):
         nonlocal failed
-        if failure_point == "queued_write" and not failed:
+        if status.task_name == "resource" and (
+            failure_point == "persistent_status" or failure_point == "initial_status" and not failed
+        ):
             failed = True
             raise OSError("startup write failed")
         write_status(directory, status)
 
     monkeypatch.setattr(task, "_write_composition", flaky_composition)
-    monkeypatch.setattr("axonx.task.composite.write_status", flaky_status)
+    monkeypatch.setattr("axonx.task.runtime.runner.write_status", flaky_status)
     if on_error == "stop":
         with pytest.raises(ChildTaskError, match="startup write failed"):
             TaskRunner().run(task)
@@ -303,11 +446,15 @@ def test_child_startup_failure_settles_owned_status_and_closes_resources(
     assert events == ["close"]
     child = task.children[0]
     status = read_status(task_path(tmp_path, child.task_id), child.task_id)
-    assert status.state == child.state == TaskState.FAILED
-    assert status.run_id == child.run_id
-    assert status.exit_code == child.exit_code == 1
-    assert status.error == child.error == "OSError: startup write failed"
-    assert status.finished_at is not None
+    assert child.state == TaskState.FAILED
+    if failure_point in {"composition", "persistent_status"}:
+        assert status is None
+    else:
+        assert status.state == child.state == TaskState.FAILED
+        assert status.run_id == child.run_id
+        assert status.exit_code == child.exit_code == 1
+        assert status.error == child.error == "OSError: startup write failed"
+        assert status.finished_at is not None
     assert composition(task).children == list(task.children)
 
 
@@ -589,6 +736,7 @@ from pathlib import Path
 import axonx.task.catalog.resolver as resolver
 from axonx.task import BaseCompositeTask, BaseOutputParams, BaseTask
 from axonx.task.builtins.demo import DemoTaskInputParams
+from axonx.enums import TaskType
 from axonx.task.runtime.runner import TaskRunner
 
 class Hold(BaseTask):
@@ -608,6 +756,8 @@ class Inner(BaseCompositeTask):
         self.run_task("hold")
 
 class Outer(BaseCompositeTask):
+    # The manager submits the native base/demo definition in this fixture.
+    task_type = TaskType.BASE
     input_cls = DemoTaskInputParams
     def build_task_steps(self):
         yield self.child

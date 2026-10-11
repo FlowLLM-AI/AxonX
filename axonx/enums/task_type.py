@@ -7,6 +7,7 @@ class TaskType(StrEnum):
     """Enumerate the supported task categories."""
 
     BASE = "base"
+    COMPOSITE = "composite"
     API = "api"
     ETL = "etl"
     ANALYSIS = "analysis"

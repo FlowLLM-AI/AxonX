@@ -202,6 +202,7 @@
   },
   "types": {
     "base": "Base",
+    "composite": "Composite",
     "api": "API download",
     "etl": "ETL",
     "analysis": "Analysis",
@@ -688,6 +689,7 @@
     "copy_task_id": "Copy task ID",
     "kinds": {
       "base": "Base task",
+      "composite": "Composite task",
       "api": "API",
       "etl": "ETL",
       "analysis": "Factor analysis",

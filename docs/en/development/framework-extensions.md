@@ -181,7 +181,7 @@ Research plugins are responsible for algorithm validation and model equivalence.
 
 ## Composite Tasks and cleanup
 
-Use `BaseCompositeTask` for synchronous business sequencing, conditions and loops. Submit only the parent through the built-in `submit` Job. Children run in the parent's worker with independent records; pass `source_tasks` explicitly for data dependencies. See [Composite Tasks](../guides/composite-tasks.md).
+Use `BaseCompositeTask` for synchronous business sequencing, conditions and loops. Submit only the parent through the built-in `submit` Job. Children run in the parent's worker, inherit its instance name, and retain invocation records. Repeated calls of the same registration replace terminal outputs; consume file artifacts before replacement. Pass `source_tasks` explicitly for dependencies on other Task IDs. See [Composite Tasks](../guides/composite-tasks.md).
 
 The plugin manifest registers Tasks. Deployment configuration can define thin `pipeline` Jobs and schedules:
 

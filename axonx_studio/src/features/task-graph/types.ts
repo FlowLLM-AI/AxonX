@@ -1,5 +1,6 @@
 export type TaskKind =
   | "base"
+  | "composite"
   | "api"
   | "etl"
   | "analysis"

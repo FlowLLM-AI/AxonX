@@ -202,6 +202,7 @@
   },
   "types": {
     "base": "基础",
+    "composite": "复合",
     "api": "API 数据下载",
     "etl": "数据处理",
     "analysis": "分析",
@@ -688,6 +689,7 @@
     "copy_task_id": "复制任务 ID",
     "kinds": {
       "base": "基础任务",
+      "composite": "复合任务",
       "api": "API",
       "etl": "ETL",
       "analysis": "因子分析",

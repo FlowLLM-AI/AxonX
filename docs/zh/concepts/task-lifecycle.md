@@ -79,7 +79,7 @@ axonx cancel --run-id '<run_id>'
 
 文件记录可以恢复查询信息，不能自动恢复一个已中断 Python 进程的内存状态。
 
-[复合 Task](../guides/composite-tasks.md) 在父 worker 中同步执行子 Task，各子 Task 有独立的 Task ID 和 run ID。取消父 Task 来停止该 worker，管理器会将其活动子 Task 收敛为 cancelled；worker 异常退出时则收敛为 failed。即使父 Task 失败，成功子 Task 仍保留自身 metadata。允许子任务失败后继续也会使父 Task 最终失败，后续尝试成功不会清除早先的失败尝试。
+[复合 Task](../guides/composite-tasks.md) 在父 worker 中同步执行子 Task。子 Task 继承父任务实例名称，重复调用同一注册名会复用 Task ID 并覆盖终态产物，每次调用则有新的 run ID。取消父 Task 来停止该 worker，管理器会将其活动子 Task 收敛为 cancelled；worker 异常退出时则收敛为 failed。即使父 Task 失败，成功子 Task 仍保留自身 metadata，直到后续调用将其覆盖。允许子任务失败后继续也会使父 Task 最终失败，后续尝试成功不会清除早先的失败调用记录。
 
 ## 相关文档
 

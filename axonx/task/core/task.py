@@ -19,7 +19,7 @@ from ...enums import ComponentEnum, TaskType
 from ...utils import get_log_path, get_logger
 from ..storage.workspace import METADATA_FILE, task_path
 from .context import TaskContext
-from .identity import generated_task_name, validate_registration_name
+from .identity import generated_task_name, parse_source_tasks, validate_registration_name
 from .params import BaseInputParams, BaseOutputParams
 
 TaskStep: TypeAlias = Callable[[], None]
@@ -63,6 +63,8 @@ class BaseTask(ABC):
         task_id = task_id or generated_task_id
         if task_id != generated_task_id:
             raise ValueError(f"Assigned Task ID does not match its inputs: {task_id!r}")
+        if task_id in parse_source_tasks(self.input_params.source_tasks):
+            raise ValueError("A Task cannot use its own Task ID as an upstream source")
         self.context = TaskContext(
             workspace_path=workspace,
             registration_name=registration_name,

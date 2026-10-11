@@ -5,7 +5,7 @@ description: Combine registered Tasks with synchronous Python steps, explicit in
 
 # Composite Tasks
 
-`BaseCompositeTask` is a thin authoring layer over `BaseTask`. A composite is submitted, queried, and cancelled through the existing Task interfaces. Its children run sequentially in the parent's worker through `TaskRunner`, with separate Task IDs, run IDs, status files, metadata, and artifacts. Children share the worker PID and log file; they are not independently supervised workers.
+`BaseCompositeTask` is a thin authoring layer over `BaseTask`. A composite is submitted, queried, and cancelled through the existing Task interfaces. Its children run sequentially in the parent's worker through `TaskRunner`, with a separate Run ID for each invocation. Each installed registration uses the parent’s resolved `task_name` for its Task ID, status, metadata, and artifact directory. Repeated calls of the same registration replace that directory’s terminal outputs. Children share the worker PID and log file; they are not independently supervised workers.
 
 Use ordinary Python to express sequences, loops, and conditions. No Workflow service or configuration language is required. This first version supports local synchronous composition; it does not implement parallel execution, automatic retries, crash-resume, or distributed scheduling.
 
@@ -53,7 +53,6 @@ class DemoChainTask(BaseCompositeTask):
                 node_name=f"double-{index}",
                 x=total,
                 y=total,
-                source_tasks=previous.task_id,
             )
         self.state["total"] = previous.output["result"]
 
@@ -78,7 +77,7 @@ axonx exec --task demo_chain --x 2 --y 3 --doubles 2
 axonx submit --task demo_chain --x 2 --y 3 --doubles 2
 ```
 
-`run_task()` must be called while the parent is executing through `TaskRunner`. `task` is an installed registration name. `node_name` defaults to that name and accepts letters, digits, underscores, and hyphens. Repeating a node name records another numbered attempt; a node name cannot switch to a different Task definition.
+`run_task()` must be called while the parent is executing through `TaskRunner`. `task` is an installed registration name. `node_name` defaults to that name and accepts letters, digits, underscores, and hyphens. Repeating a node name records another numbered attempt; a node name cannot switch to a different Task definition. Node names and attempt numbers label invocation records and do not affect Task IDs or directories.
 
 The returned `ChildTaskResult` provides `task_id`, `run_id`, `success`, `record`, `output_params`, and `output`. `output_params` retains the child's declared Pydantic model; `output` is its JSON-mode dictionary. A construction/validation failure has no Task ID, and an exception before output preparation has no output. Check `success` before consuming results after a continued failure.
 
@@ -104,9 +103,9 @@ for dataset in datasets:
 
 Here `download_dataset` represents a plugin Task with a matching input schema. Continued failures are recorded and the parent still finishes as failed. Validation and lookup failures also follow this policy. `KeyboardInterrupt` and `SystemExit` always propagate. Repeated calls do not implement automatic retries or erase earlier failures. Preserve the inherited `exit_code()` when extending a composite so this aggregation remains in effect.
 
-Invalid runtime options, such as an unsupported `on_error` or conflicting node definition, raise `ValueError` before a child attempt is recorded. If preparation fails after the child directory is claimed and before Runner handoff, the runtime closes the child's resources and records failed status, even if its initial queued write failed. Continuation requires being able to persist the failure records; persistent storage errors can stop the parent.
+Invalid runtime options, such as an unsupported `on_error` or conflicting node definition, raise `ValueError` before a child attempt is recorded. If composition preparation fails before Runner handoff, the runtime closes the child’s resources and records the failed invocation; no child status directory is created. The Runner owns resources from entry: directory checks and initial status publication failures also close resources. After directory preparation, it persists failure status when storage permits; rejected existing runs remain untouched. Continuation requires being able to persist the failure records; persistent storage errors can stop the parent.
 
-Stage barriers are ordinary loop boundaries. To preserve a nightly feature/prediction pipeline, run the complete feature loop first, retain its results by time slot, then run the prediction loop with those results. Date, model version, and other business inputs should be resolved once and passed explicitly to the children.
+For a file-backed feature/prediction batch, run the feature and its prediction inside the same time-slot loop, consuming the feature artifacts before the next feature call replaces them. Keeping a `ChildTaskResult` retains its typed output snapshot, not a copy of its files. For independent per-slot artifacts, execute separate parent instances with distinct `task_name` values. Date, model version, and other business inputs should be resolved once and passed explicitly to the children.
 
 ## Records, ownership, and cancellation
 
@@ -114,7 +113,7 @@ The parent writes `composition.json` before executing each child and updates it 
 
 `BaseCompositeOutputParams` includes `composition_file`, child summaries, and a checksummed `composition` artifact. Use `composition_output()` to include these fields in custom typed output. Fail-fast parents retain the composition file even though successful metadata is not written.
 
-Containment does not create data-lineage edges. Pass `source_tasks` explicitly for actual upstream data dependencies. The runtime owns child instance names; passing `task_name` to `run_task()` is rejected. Child names fit the existing 32-character contract and include a digest of the parent run, node, and attempt. The runtime claims their directories exclusively, preventing accidental replacement of existing child results.
+Containment does not create data-lineage edges. Pass `source_tasks` explicitly for actual upstream data dependencies between different Task IDs. Every child, including nested composites, directly inherits the parent’s resolved `task_name`; passing `task_name` to `run_task()` is rejected. The runtime adds no hash, node name, or attempt number to the name. Repeated calls of the same registration use the same Task ID and replace terminal outputs through `TaskRunner`; active and unrecognized directories are rejected. Each invocation gets a new Run ID. A Task cannot use its own Task ID as an upstream source; construction rejects this before either submission or execution can replace any files. Invocation records retain states and errors, while old Run status and artifacts become unavailable after replacement. Parents with the same name share child directories even when their registrations differ. Shared fixed-name pipelines must serialize execution. Replacement does not preserve old Runs or provide failure rollback.
 
 Cancel the **parent** through TaskManager. The shared worker stops, then the manager settles active children, including nested composites, as cancelled. Unexpected worker exits settle them as failed. Already terminal children and replacement/foreign executions remain unchanged. A child is queryable through existing interfaces but cannot be cancelled independently through TaskManager because it has no separately managed worker. For `exec`, cancellation/termination is owned by the calling process; a separate service cannot settle that process's children.
 
@@ -129,9 +128,9 @@ axonx status --task-id '<child Task ID from composition.json>'
 axonx cancel --run-id '<parent run_id>'
 ```
 
-Replace the placeholders with the retained parent handle and recorded child IDs. The example parent uses Task type `base`. Once output is built, child summaries are also available in the parent's `status.result.children`, including a failed parent that continued past child failures. A fail-fast exception stops before output construction; inspect `composition.json` instead. Parent steps do not contain the children's step progress; query each child's status or stream for that detail.
+Replace the placeholders with the retained parent handle and recorded child IDs. Pure composite parents default to Task type `composite`, with directories such as `composite/composite#demo_chain#<name>/`. Subclasses can retain a specialized category such as `api` or `inference`. Once output is built, child summaries are also available in the parent's `status.result.children`, including a failed parent that continued past child failures. A fail-fast exception stops before output construction; inspect `composition.json` instead. Parent steps do not contain the children's step progress; query each child's status or stream for that detail.
 
-Fixed-name parent reruns retain existing Task replacement semantics: the previous parent directory is replaced, while uniquely named child directories remain. Use distinct parent names when preserving the full composition history matters. Deletion of a parent does not cascade to its children, and deleting a child does not update the parent's record.
+Fixed-name parent reruns replace the previous parent directory. Child outputs are replaced in the same named directories when their stages execute; children skipped by the new run remain on disk but are absent from its composition. Existing child directories and parents previously stored under `base` are not migrated automatically. Use distinct parent names when preserving the full composition history matters. Deletion of a parent does not cascade to its children, and deleting a child does not update the parent's record.
 
 Composition does not add resource locking or change cron overlap behavior. Protect shared data writes explicitly; the current Scheduler's `forbid` covers the Job invocation, not the lifetime of a submitted background Task. See [scheduling](scheduling.md).
 

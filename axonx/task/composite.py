@@ -4,19 +4,16 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from hashlib import sha256
 from typing import Literal
 from uuid import uuid4
 
 from pydantic import Field
 
 from ..constants import AXONX_DEFAULT_TIMEZONE
-from ..enums import TaskState
+from ..enums import TaskState, TaskType
 from .core import BaseOutputParams, BaseTask, validate_registration_name
 from .storage.artifacts import artifact_record
 from .storage.composition import COMPOSITION_FILE, ChildTaskRecord, TaskComposition, write_composition
-from .storage.workspace import TaskStatus, is_task_directory, read_status, write_status
 
 
 @dataclass(frozen=True)
@@ -63,11 +60,12 @@ class BaseCompositeOutputParams(BaseOutputParams):
 class BaseCompositeTask(BaseTask, ABC):
     """Compose registered Tasks with ordinary Python sequencing and loops.
 
-    Children run synchronously in this worker with independent identities and
-    records. ``on_error='continue'`` permits later work but does not turn the
+    Children run synchronously in this worker, inheriting the parent name and
+    retaining invocation snapshots. ``on_error='continue'`` permits later work but does not turn the
     overall run into a success. Cancellation is performed through the parent.
     """
 
+    task_type = TaskType.COMPOSITE
     output_cls = BaseCompositeOutputParams
 
     def __init__(self, *args, timezone: str = AXONX_DEFAULT_TIMEZONE, **kwargs):
@@ -103,12 +101,11 @@ class BaseCompositeTask(BaseTask, ABC):
         record = ChildTaskRecord(node_name=node_name, attempt=len(previous) + 1, task=task, run_id=uuid4().hex)
         self._composition.children.append(record)
         self._write_composition()
-        output = None
         try:
             output = self._run_child(record, inputs)
         except BaseException as exc:
             record.state = TaskState.FAILED
-            record.exit_code = record.exit_code or 1
+            record.exit_code = 1
             record.error = f"{type(exc).__name__}: {exc}"
             self._write_composition()
             # Interrupts and exits must never be swallowed by continue-on-error.
@@ -129,60 +126,24 @@ class BaseCompositeTask(BaseTask, ABC):
         from .catalog.resolver import resolve_task
         from .runtime.runner import TaskRunner
 
-        identity = f"{self.task_id}\0{self.context.run_id}\0{record.node_name}\0{record.attempt}"
-        name = "c-" + sha256(identity.encode()).hexdigest()[:30]
         child = resolve_task(record.task)(
-            {**inputs, "task_name": name},
+            {**inputs, "task_name": self.input_params.task_name},
             workspace_path=self.workspace_path,
             reg_name=record.task,
             timezone=self._child_timezone,
             run_id=record.run_id,
         )
-        queued = None
-        runner_started = False
+        record.task_id = child.task_id
+        record.state = TaskState.RUNNING
         try:
-            if child.task_dir.parent.is_symlink():
-                raise ValueError("Child Task type directory cannot be a symlink")
-            # Claim exclusively before handing a queued status to the Runner.
-            # A collision must not replace another run or its results.
-            child.task_dir.mkdir(parents=True, exist_ok=False)
-            record.task_id = child.task_id
-            queued = TaskStatus(
-                task_id=child.task_id,
-                run_id=record.run_id,
-                task_type=child.task_type,
-                task_name=record.task,
-                config=child.input_params.model_dump(mode="json"),
-                pid=child.pid,
-                created_at=child.created_at,
-                log_path=child.log_path,
-            )
             self._write_composition()
-            write_status(child.task_dir, queued)
-            record.state = TaskState.RUNNING
-            self._write_composition()
-            runner_started = True
-            status = TaskRunner().run(child)
-        except BaseException as exc:
-            if not runner_started:
-                try:
-                    child.close()
-                except Exception:
-                    child.logger.exception("Child Task resource cleanup failed")
-            status = None
-            if record.task_id is not None and is_task_directory(child.task_dir, strict_io=True):
-                # The first queued write may itself have failed. Keep a status
-                # for our claimed directory without recreating deleted runs.
-                status = read_status(child.task_dir, child.task_id, strict_io=True) or queued
-            if status is not None and status.run_id == record.run_id:
-                if not status.state.is_terminal:
-                    status.state = TaskState.FAILED
-                    status.exit_code = 1
-                    status.error = f"{type(exc).__name__}: {exc}"
-                    status.finished_at = datetime.now(UTC)
-                    write_status(child.task_dir, status)
-                record.exit_code = status.exit_code
+        except BaseException:
+            try:
+                child.close()
+            except Exception:
+                child.logger.exception("Child Task resource cleanup failed")
             raise
+        status = TaskRunner().run(child)
         record.state, record.exit_code, record.error = status.state, status.exit_code, status.error
         return child.output_params
 

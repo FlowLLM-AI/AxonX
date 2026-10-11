@@ -93,7 +93,8 @@ class TaskRunner:
         self.step = None
         task.logger.info(f"Task step completed step={name} elapsed_seconds={perf_counter() - started:.3f}")
 
-    def run(self, task: BaseTask) -> TaskStatus:
+    @staticmethod
+    def _prepare_directory(task: BaseTask) -> None:
         if task_type_from_id(task.task_id) != task.task_type:
             raise ValueError(f"Task type does not match its ID: {task.task_id}")
         if task.task_dir.parent.is_symlink():
@@ -113,27 +114,31 @@ class TaskRunner:
                 raise FileExistsError(f"Task directory already exists: {task.task_dir}")
         else:
             task.task_dir.mkdir(parents=True)
+
+    def run(self, task: BaseTask) -> TaskStatus:
+        """Own resource cleanup from entry, including rejected directory preparation."""
         self.task = task
-        self.status = TaskStatus(
-            task_id=task.task_id,
-            run_id=task.context.run_id,
-            task_type=task.task_type,
-            task_name=task.reg_name,
-            config=task.input_params.model_dump(mode="json"),
-            pid=task.pid,
-            created_at=task.created_at,
-            log_path=task.log_path,
-        )
-        status = self.status
-        task._progress = self.progress
         started = perf_counter()
         try:
-            self._publish()
-            task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
-            status.state = TaskState.RUNNING
-            status.started_at = datetime.now(UTC)
-            self._publish()
             try:
+                self._prepare_directory(task)
+                self.status = TaskStatus(
+                    task_id=task.task_id,
+                    run_id=task.context.run_id,
+                    task_type=task.task_type,
+                    task_name=task.reg_name,
+                    config=task.input_params.model_dump(mode="json"),
+                    pid=task.pid,
+                    created_at=task.created_at,
+                    log_path=task.log_path,
+                )
+                status = self.status
+                task._progress = self.progress
+                self._publish()
+                task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
+                status.state = TaskState.RUNNING
+                status.started_at = datetime.now(UTC)
+                self._publish()
                 for step in task.build_task_steps():
                     self._run_step(step)
             except BaseException:
@@ -161,6 +166,10 @@ class TaskRunner:
             )
             return status
         except BaseException as exc:
+            # Preparation rejection must never publish into another run's directory.
+            if self.status is None:
+                raise
+            status = self.status
             try:
                 task.on_failure(exc)
             except Exception:

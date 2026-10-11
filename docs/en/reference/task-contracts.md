@@ -30,7 +30,7 @@ class AddOutput(BaseOutputParams):
 
 ## Composite Task contracts
 
-`axonx.task` exports `BaseCompositeTask`, `BaseCompositeOutputParams`, `ChildTaskResult`, and `ChildTaskError`. The composite's default Task type is `base`; children keep the type and input/output contracts declared by their own definitions.
+`axonx.task` exports `BaseCompositeTask`, `BaseCompositeOutputParams`, `ChildTaskResult`, and `ChildTaskError`. The composite's default Task type is `composite`; children keep the type and input/output contracts declared by their own definitions.
 
 `BaseCompositeOutputParams` extends `BaseOutputParams` with required `composition_file: str` and `children: list[ChildTaskRecord]` (default empty). `composition_output()` supplies these fields and an `artifacts.composition` record whose relative path is `composition.json`. Custom output models extend this envelope with business fields.
 

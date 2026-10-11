@@ -30,7 +30,7 @@ class AddOutput(BaseOutputParams):
 
 ## 复合 Task 契约
 
-`axonx.task` 导出 `BaseCompositeTask`、`BaseCompositeOutputParams`、`ChildTaskResult` 和 `ChildTaskError`。复合 Task 默认类型为 `base`，子 Task 保留各自定义声明的类型和输入输出契约。
+`axonx.task` 导出 `BaseCompositeTask`、`BaseCompositeOutputParams`、`ChildTaskResult` 和 `ChildTaskError`。复合 Task 默认类型为 `composite`，子 Task 保留各自定义声明的类型和输入输出契约。
 
 `BaseCompositeOutputParams` 在 `BaseOutputParams` 上增加必需的 `composition_file: str` 和 `children: list[ChildTaskRecord]`（默认空列表）。`composition_output()` 提供这些字段，以及相对路径为 `composition.json` 的 `artifacts.composition` 记录。自定义输出模型在此封装上增加业务字段。
 

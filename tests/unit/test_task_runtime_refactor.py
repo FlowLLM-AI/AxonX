@@ -47,6 +47,54 @@ def test_success_status_is_published_after_metadata(tmp_path):
     assert observed == [True]
 
 
+@pytest.mark.parametrize("failure", ["active", "unknown", "symlink", "mkdir"])
+def test_runner_closes_rejected_task_once_without_overwriting_directory(tmp_path, monkeypatch, failure):
+    task = DemoTask({"x": 1, "y": 2, "task_name": "rejected"}, workspace_path=tmp_path, reg_name="demo")
+    if failure == "active":
+        task.task_dir.mkdir(parents=True)
+        write_status(
+            task.task_dir,
+            TaskStatus(task_id=task.task_id, run_id="foreign", task_type=TaskType.BASE, state=TaskState.RUNNING),
+        )
+    elif failure == "unknown":
+        task.task_dir.mkdir(parents=True)
+        (task.task_dir / "foreign.txt").write_text("retain")
+    elif failure == "symlink":
+        task.task_dir.parent.mkdir(parents=True)
+        foreign = tmp_path / "foreign"
+        foreign.mkdir()
+        (foreign / "foreign.txt").write_text("retain")
+        task.task_dir.symlink_to(foreign, target_is_directory=True)
+    else:
+        monkeypatch.setattr(TaskRunner, "_prepare_directory", Mock(side_effect=OSError("mkdir failed")))
+    before = {path.name: path.read_bytes() for path in task.task_dir.glob("*")} if task.task_dir.exists() else {}
+    task.close = Mock()
+    runner = TaskRunner()
+    with pytest.raises((FileExistsError, ValueError, OSError)):
+        runner.run(task)
+    task.close.assert_called_once_with()
+    after = {path.name: path.read_bytes() for path in task.task_dir.glob("*")} if task.task_dir.exists() else {}
+    assert after == before
+    assert task._progress is None
+    assert runner.task is runner.status is runner.step is None
+
+
+@pytest.mark.parametrize("with_other_source", [False, True])
+def test_task_rejects_self_source_before_replacing_outputs(tmp_path, with_other_source):
+    first = DemoTask({"x": 1, "y": 2, "task_name": "shared"}, workspace_path=tmp_path, reg_name="demo")
+    TaskRunner().run(first)
+    (first.task_dir / "value.txt").write_text("preserve")
+    before = {path.name: path.read_bytes() for path in first.task_dir.glob("*")}
+    sources = first.task_id + (",etl#upstream#other" if with_other_source else "")
+    with pytest.raises(ValueError, match="own Task ID"):
+        DemoTask(
+            {"x": 3, "y": 4, "task_name": "shared", "source_tasks": sources},
+            workspace_path=tmp_path,
+            reg_name="demo",
+        )
+    assert {path.name: path.read_bytes() for path in first.task_dir.glob("*")} == before
+
+
 def test_task_context_is_immutable_and_step_state_is_separate(tmp_path):
     task = DemoTask({"x": 2, "y": 3}, workspace_path=tmp_path, reg_name="demo")
 
@@ -655,6 +703,26 @@ async def test_named_submission_replaces_completed_task(tmp_path):
             if (await manager.get_status(first.task_id)).state.is_terminal:
                 break
             await asyncio.sleep(0.1)
+
+        metadata_path = task_path(tmp_path, first.task_id) / "metadata.json"
+        before = metadata_path.read_bytes()
+        with pytest.raises(ValueError, match="own Task ID"):
+            await manager.submit(
+                [
+                    "--task",
+                    "demo",
+                    "--task-name",
+                    "latest",
+                    "--x",
+                    "4",
+                    "--y",
+                    "5",
+                    "--source-tasks",
+                    first.task_id,
+                ]
+            )
+        assert metadata_path.read_bytes() == before
+        assert (await manager.get_status(first.task_id)).run_id == first.run_id
 
         second = (await app.run_job("submit", {"task": "demo", "task_name": "latest", "x": 4, "y": 5})).answer
         for _ in range(50):
