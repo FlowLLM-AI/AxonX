@@ -75,7 +75,6 @@ export function TaskDetailPage({
   const configCopied = configClipboard.copied === "config";
   const [hasResearch, setHasResearch] = useState(false);
   const [locateRequest, setLocateRequest] = useState(0);
-  const [aligned, setAligned] = useState(true);
   const [panels, setPanels] = useState({
     config: false,
     relations: false,
@@ -259,7 +258,7 @@ export function TaskDetailPage({
   useEffect(() => {
     if (followTail && logViewport.current)
       logViewport.current.scrollTop = logViewport.current.scrollHeight;
-  }, [followTail, logText]);
+  }, [followTail, logText, panels.logs]);
 
   const copyLog = () => logClipboard.copy(logText, "log");
   const copyConfig = async () => {
@@ -309,11 +308,9 @@ export function TaskDetailPage({
     (step) => step.percentage === 100,
   ).length;
   const togglePanel = (panel: keyof typeof panels) => {
-    setAligned(false);
     setPanels((current) => ({ ...current, [panel]: !current[panel] }));
   };
   const locateCurrentTask = () => {
-    setAligned(false);
     setPanels((current) => ({ ...current, relations: true }));
     setLocateRequest((current) => current + 1);
   };
@@ -375,255 +372,246 @@ export function TaskDetailPage({
           <button onClick={() => void loadStatus()}>{t("retry")}</button>
         </div>
       )}
-      <div
-        className={`task-detail-dashboard ${aligned ? "initially-aligned" : ""}`}
-      >
-        <div className="task-detail-column task-detail-left">
-          <DetailCard
-            className="task-config-card"
-            title={labels.config}
-            summary={t("taskDetail.configSummary", {
-              count: configEntries.length,
-            })}
-            icon={<Settings2 />}
-            open={panels.config}
-            onToggle={() => togglePanel("config")}
-            actions={
-              <button
-                onClick={() => void copyConfig()}
-                title={configCopied ? labels.copied : labels.copyConfig}
-                aria-label={configCopied ? labels.copied : labels.copyConfig}
-              >
-                {configCopied ? <Check /> : <Copy />}
-              </button>
-            }
-          >
-            <div className="config-source">
-              <span>{labels.task}</span>
-              <code>{task.task_name}</code>
-              <i>{labels.snapshot}</i>
-            </div>
-            {configEntries.length ? (
-              <dl className="task-config-list">
-                {configEntries.map(([key, value]) => (
-                  <div key={key}>
-                    <dt>{key}</dt>
-                    <dd title={formatConfigValue(value)}>
-                      {formatConfigValue(value)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <div className="task-config-empty">
-                <FileJson />
-                {labels.noConfig}
-              </div>
-            )}
-          </DetailCard>
-
-          <DetailCard
-            className="task-run-card"
-            title={labels.runDetails}
-            summary={`${completedSteps} ${labels.completedSteps}`}
-            icon={
-              <span className={`task-orb ${task.state}`}>
-                {task.task_type.slice(0, 1).toUpperCase()}
-              </span>
-            }
-            open={panels.details}
-            onToggle={() => togglePanel("details")}
-          >
-            <div className="task-run-meta">
-              <div>
-                <small>{t("started")}</small>
-                <strong>{formatDate(task.started_at)}</strong>
-              </div>
-              <div>
-                <small>{t("duration")}</small>
-                <strong>{formatDuration(task, t)}</strong>
-              </div>
-              <div>
-                <small>EXIT CODE</small>
-                <strong>{task.exit_code}</strong>
-              </div>
-            </div>
-            {progress && (
-              <div className="task-current-step">
-                <span>{t("progress")}</span>
-                <code title={progress.name}>{progress.name}</code>
-                <strong>{progress.percentage}%</strong>
-              </div>
-            )}
-            <DetailSection title={t("steps")}>
-              <div className="step-list">
-                {task.steps.length ? (
-                  task.steps.map((step, index) => {
-                    const percentage = Math.max(
-                      0,
-                      Math.min(100, step.percentage ?? 0),
-                    );
-                    const failed =
-                      task.state === "failed" &&
-                      index === task.steps.length - 1;
-                    const done = !failed && step.percentage === 100;
-                    return (
-                      <div
-                        className={`step-item ${failed ? "failed" : ""}`}
-                        key={`${step.name}-${index}`}
-                      >
-                        <span
-                          className={
-                            failed ? "failed" : done ? "done" : "active"
-                          }
-                          style={
-                            !failed && !done
-                              ? ({
-                                  "--step-progress": `${percentage}%`,
-                                } as React.CSSProperties)
-                              : undefined
-                          }
-                        >
-                          {failed ? <X /> : done ? <Check /> : index + 1}
-                        </span>
-                        <div>
-                          <strong>{step.name}</strong>
-                          <small>
-                            {failed
-                              ? task.error || t("error")
-                              : step.finished_at
-                                ? formatDate(step.finished_at)
-                                : step.started_at
-                                  ? `${Math.round(percentage)}%`
-                                  : t("notStarted")}
-                          </small>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="muted">{t("notStarted")}</p>
-                )}
-              </div>
-            </DetailSection>
-            {Object.keys(task.result).length > 0 && (
-              <DetailSection title={t("result")}>
-                <pre>{JSON.stringify(task.result, null, 2)}</pre>
-              </DetailSection>
-            )}
-          </DetailCard>
-        </div>
-
-        <div className="task-detail-column task-detail-right">
-          <DetailCard
-            className="task-relations-card"
-            title={labels.relations}
-            summary={labels.relationsSummary}
-            icon={<GitBranch />}
-            open={panels.relations}
-            onToggle={() => togglePanel("relations")}
-            actions={
-              <button
-                onClick={locateCurrentTask}
-                title={t("taskGraph.locate_current_task")}
-                aria-label={t("taskGraph.locate_current_task")}
-              >
-                <LocateFixed />
-              </button>
-            }
-          >
-            <TaskGraphPanel
-              taskId={taskId}
-              target={target}
-              locateRequest={locateRequest}
-              onOpenTask={onOpenTask}
-              onInterpretTask={onInterpretTask}
-              onConnection={onConnection}
-            />
-          </DetailCard>
-
-          <DetailCard
-            className="task-log-card"
-            title={labels.logs}
-            summary={task.log_path || labels.logUnavailable}
-            icon={<FileText />}
-            open={panels.logs}
-            onToggle={() => togglePanel("logs")}
-            actions={
-              <>
-                <button
-                  onClick={() => void loadLog(-1, "replace")}
-                  disabled={logLoading || !task.log_path}
-                  title={labels.refreshLog}
-                  aria-label={labels.refreshLog}
-                >
-                  <RefreshCw className={logLoading ? "spin" : undefined} />
-                </button>
-                <label className="log-follow">
-                  <input
-                    type="checkbox"
-                    checked={followTail}
-                    onChange={(event) => setFollowTail(event.target.checked)}
-                  />
-                  {labels.follow}
-                </label>
-                <button
-                  onClick={() => void copyLog()}
-                  disabled={!logText}
-                  title={copied ? labels.copied : labels.copy}
-                  aria-label={copied ? labels.copied : labels.copy}
-                >
-                  {copied ? <Check /> : <Copy />}
-                </button>
-              </>
-            }
-          >
-            <div className="log-panel">
-              <div className="log-meta">
-                <span>
-                  {labels.loaded}{" "}
-                  {formatBytes(
-                    Math.min(fileSize, Math.max(0, nextOffset - startOffset)),
-                  )}{" "}
-                  {labels.of} {formatBytes(fileSize)}
-                </span>
-                <span>{labels.bounded}</span>
-              </div>
-              {hasEarlier && !trimmed && (
-                <button
-                  className="load-earlier"
-                  onClick={() =>
-                    void loadLog(
-                      Math.max(0, startOffset - LOG_CHUNK_BYTES),
-                      "prepend",
-                    )
-                  }
-                  disabled={
-                    logLoading || logText.length > MAX_LOG_CHARACTERS - 1024
-                  }
-                >
-                  <ChevronUp />
-                  {labels.loadEarlier}
-                </button>
-              )}
-              {logError ? (
-                <div className="log-placeholder error">
-                  <strong>{labels.logError}</strong>
-                  <span>{logError}</span>
+      <div className="task-detail-dashboard">
+        <DetailCard
+          className="task-config-card"
+          title={labels.config}
+          summary={t("taskDetail.configSummary", {
+            count: configEntries.length,
+          })}
+          icon={<Settings2 />}
+          open={panels.config}
+          onToggle={() => togglePanel("config")}
+          actions={
+            <button
+              onClick={() => void copyConfig()}
+              title={configCopied ? labels.copied : labels.copyConfig}
+              aria-label={configCopied ? labels.copied : labels.copyConfig}
+            >
+              {configCopied ? <Check /> : <Copy />}
+            </button>
+          }
+        >
+          <div className="config-source">
+            <span>{labels.task}</span>
+            <code>{task.task_name}</code>
+            <i>{labels.snapshot}</i>
+          </div>
+          {configEntries.length ? (
+            <dl className="task-config-list">
+              {configEntries.map(([key, value]) => (
+                <div key={key}>
+                  <dt>{key}</dt>
+                  <dd title={formatConfigValue(value)}>
+                    {formatConfigValue(value)}
+                  </dd>
                 </div>
-              ) : !task.log_path ? (
-                <div className="log-placeholder">{labels.logUnavailable}</div>
-              ) : !logText && !logLoading ? (
-                <div className="log-placeholder">{labels.logEmpty}</div>
+              ))}
+            </dl>
+          ) : (
+            <div className="task-config-empty">
+              <FileJson />
+              {labels.noConfig}
+            </div>
+          )}
+        </DetailCard>
+
+        <DetailCard
+          className="task-relations-card"
+          title={labels.relations}
+          summary={labels.relationsSummary}
+          icon={<GitBranch />}
+          open={panels.relations}
+          onToggle={() => togglePanel("relations")}
+          actions={
+            <button
+              onClick={locateCurrentTask}
+              title={t("taskGraph.locate_current_task")}
+              aria-label={t("taskGraph.locate_current_task")}
+            >
+              <LocateFixed />
+            </button>
+          }
+        >
+          <TaskGraphPanel
+            taskId={taskId}
+            target={target}
+            locateRequest={locateRequest}
+            onOpenTask={onOpenTask}
+            onInterpretTask={onInterpretTask}
+            onConnection={onConnection}
+          />
+        </DetailCard>
+
+        <DetailCard
+          className="task-run-card"
+          title={labels.runDetails}
+          summary={`${completedSteps} ${labels.completedSteps}`}
+          icon={
+            <span className={`task-orb ${task.state}`}>
+              {task.task_type.slice(0, 1).toUpperCase()}
+            </span>
+          }
+          open={panels.details}
+          onToggle={() => togglePanel("details")}
+        >
+          <div className="task-run-meta">
+            <div>
+              <small>{t("started")}</small>
+              <strong>{formatDate(task.started_at)}</strong>
+            </div>
+            <div>
+              <small>{t("duration")}</small>
+              <strong>{formatDuration(task, t)}</strong>
+            </div>
+            <div>
+              <small>EXIT CODE</small>
+              <strong>{task.exit_code}</strong>
+            </div>
+          </div>
+          {progress && (
+            <div className="task-current-step">
+              <span>{t("progress")}</span>
+              <code title={progress.name}>{progress.name}</code>
+              <strong>{progress.percentage}%</strong>
+            </div>
+          )}
+          <DetailSection title={t("steps")}>
+            <div className="step-list">
+              {task.steps.length ? (
+                task.steps.map((step, index) => {
+                  const percentage = Math.max(
+                    0,
+                    Math.min(100, step.percentage ?? 0),
+                  );
+                  const failed =
+                    task.state === "failed" && index === task.steps.length - 1;
+                  const done = !failed && step.percentage === 100;
+                  return (
+                    <div
+                      className={`step-item ${failed ? "failed" : ""}`}
+                      key={`${step.name}-${index}`}
+                    >
+                      <span
+                        className={failed ? "failed" : done ? "done" : "active"}
+                        style={
+                          !failed && !done
+                            ? ({
+                                "--step-progress": `${percentage}%`,
+                              } as React.CSSProperties)
+                            : undefined
+                        }
+                      >
+                        {failed ? <X /> : done ? <Check /> : index + 1}
+                      </span>
+                      <div>
+                        <strong>{step.name}</strong>
+                        <small>
+                          {failed
+                            ? task.error || t("error")
+                            : step.finished_at
+                              ? formatDate(step.finished_at)
+                              : step.started_at
+                                ? `${Math.round(percentage)}%`
+                                : t("notStarted")}
+                        </small>
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
-                <pre className="log-content" ref={logViewport}>
-                  {logText}
-                  {logLoading && <span className="log-cursor" />}
-                </pre>
+                <p className="muted">{t("notStarted")}</p>
               )}
             </div>
-          </DetailCard>
-        </div>
+          </DetailSection>
+          {Object.keys(task.result).length > 0 && (
+            <DetailSection title={t("result")}>
+              <pre>{JSON.stringify(task.result, null, 2)}</pre>
+            </DetailSection>
+          )}
+        </DetailCard>
+
+        <DetailCard
+          className="task-log-card"
+          title={labels.logs}
+          summary={task.log_path || labels.logUnavailable}
+          icon={<FileText />}
+          open={panels.logs}
+          onToggle={() => togglePanel("logs")}
+          actions={
+            <>
+              <button
+                onClick={() => void loadLog(-1, "replace")}
+                disabled={logLoading || !task.log_path}
+                title={labels.refreshLog}
+                aria-label={labels.refreshLog}
+              >
+                <RefreshCw className={logLoading ? "spin" : undefined} />
+              </button>
+              <label className="log-follow">
+                <input
+                  type="checkbox"
+                  checked={followTail}
+                  onChange={(event) => setFollowTail(event.target.checked)}
+                />
+                {labels.follow}
+              </label>
+              <button
+                onClick={() => void copyLog()}
+                disabled={!logText}
+                title={copied ? labels.copied : labels.copy}
+                aria-label={copied ? labels.copied : labels.copy}
+              >
+                {copied ? <Check /> : <Copy />}
+              </button>
+            </>
+          }
+        >
+          <div className="log-panel">
+            <div className="log-meta">
+              <span>
+                {labels.loaded}{" "}
+                {formatBytes(
+                  Math.min(fileSize, Math.max(0, nextOffset - startOffset)),
+                )}{" "}
+                {labels.of} {formatBytes(fileSize)}
+              </span>
+              <span>{labels.bounded}</span>
+            </div>
+            {hasEarlier && !trimmed && (
+              <button
+                className="load-earlier"
+                onClick={() =>
+                  void loadLog(
+                    Math.max(0, startOffset - LOG_CHUNK_BYTES),
+                    "prepend",
+                  )
+                }
+                disabled={
+                  logLoading || logText.length > MAX_LOG_CHARACTERS - 1024
+                }
+              >
+                <ChevronUp />
+                {labels.loadEarlier}
+              </button>
+            )}
+            {logError ? (
+              <div className="log-placeholder error">
+                <strong>{labels.logError}</strong>
+                <span>{logError}</span>
+              </div>
+            ) : !task.log_path ? (
+              <div className="log-placeholder">{labels.logUnavailable}</div>
+            ) : !logText && !logLoading ? (
+              <div className="log-placeholder">{labels.logEmpty}</div>
+            ) : (
+              <pre className="log-content" ref={logViewport}>
+                {logText}
+                {logLoading && <span className="log-cursor" />}
+              </pre>
+            )}
+          </div>
+        </DetailCard>
       </div>
     </section>
   );

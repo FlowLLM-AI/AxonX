@@ -1263,25 +1263,12 @@
   min-height: 100%;
   overflow: visible;
 }
+/* Each card owns its height and scroll viewport. */
 .task-detail-dashboard {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 14px;
-}
-.task-detail-column {
-  display: contents;
-}
-.task-config-card {
-  order: 1;
-}
-.task-relations-card {
-  order: 2;
-}
-.task-run-card {
-  order: 3;
-}
-.task-log-card {
-  order: 4;
 }
 .task-detail-card {
   min-width: 0;
@@ -1418,7 +1405,25 @@
   color: var(--muted);
 }
 .task-detail-card-body {
+  min-width: 0;
+  max-height: min(60vh, 640px);
   padding: 18px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.task-config-card .task-config-list {
+  max-height: none;
+  overflow: visible;
+}
+.task-config-card .task-config-list > div {
+  min-width: 100%;
+  width: max-content;
+  grid-template-columns: minmax(105px, 1fr) minmax(0, 1fr);
+}
+.task-config-card .task-config-list dt,
+.task-config-card .task-config-list dd {
+  overflow: visible;
 }
 .task-run-card .task-detail-card-body {
   padding: 18px 20px 22px;
@@ -1443,21 +1448,35 @@
 .task-run-card .step-item strong {
   font-family: "JetBrains Mono", monospace;
   font-size: 11px;
+  white-space: pre;
 }
 .task-run-card .step-item small {
-  display: -webkit-box;
-  overflow: hidden;
   line-height: 1.45;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .task-log-card .task-detail-card-body,
 .task-relations-card .task-detail-card-body {
   padding: 0;
+  overflow: hidden;
+  scrollbar-gutter: auto;
 }
 .task-log-card .log-panel {
-  min-height: 460px;
-  height: clamp(460px, calc(100vh - 360px), 680px);
+  max-height: min(60vh, 640px);
+}
+.task-log-card .log-meta,
+.task-log-card .load-earlier {
+  flex-shrink: 0;
+}
+.task-log-card .log-content {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.task-log-card .log-placeholder {
+  overflow: auto;
+  align-items: safe center;
+  justify-content: safe center;
+  overflow-wrap: anywhere;
 }
 .task-log-card .log-content,
 .task-log-card .log-placeholder {
@@ -1480,45 +1499,7 @@
 }
 @container (min-width: 1050px) {
   .task-detail-dashboard {
-    display: grid;
-    grid-template-columns: minmax(360px, 0.9fr) minmax(500px, 1.1fr);
-    align-items: start;
-  }
-  .task-detail-column {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .task-detail-dashboard.initially-aligned {
-    align-items: stretch;
-  }
-  .task-detail-dashboard.initially-aligned .task-detail-column {
-    display: contents;
-  }
-  .task-detail-dashboard.initially-aligned
-    .task-relations-card
-    .task-detail-card-body,
-  .task-detail-dashboard.initially-aligned
-    .task-log-card
-    .task-detail-card-body {
-    min-height: 0;
-    display: flex;
-    flex: 1;
-  }
-  .task-detail-dashboard.initially-aligned
-    .task-log-card
-    .task-detail-card-body {
-    flex-direction: column;
-  }
-  .task-detail-dashboard.initially-aligned .task-relations-panel,
-  .task-detail-dashboard.initially-aligned .task-log-card .log-panel {
-    height: auto;
-    flex: 1;
-  }
-  .task-detail-dashboard.initially-aligned .task-log-card .log-panel {
-    min-height: 0;
-    height: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @container (max-width: 560px) {
@@ -1534,8 +1515,8 @@
   }
 }
 .task-relations-panel {
-  min-height: 340px;
-  height: clamp(340px, 42vh, 460px);
+  min-height: 0;
+  height: min(42vh, 460px);
   display: flex;
   flex-direction: column;
   background: var(--surface);
