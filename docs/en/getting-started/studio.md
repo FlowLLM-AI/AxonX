@@ -8,6 +8,8 @@ AxonX Studio is the browser workspace for the agent-native quantitative research
 
 The screenshots on this page use the English interface; the documentation is available in English and Chinese. Screenshots show actual pages, and the visible task and plugin counts depend on the current machine. Task identifiers, private paths, remote addresses, and browser tabs from real experiments are excluded from documentation images; `docs-demo` and `docs-child` in task-operation screenshots are built-in demos created specifically for the documentation.
 
+The home and workspace headers display `AxonX Studio` on one line, with the selected backend's version from `machine_status` below it. This is the AxonX service version. Switching machines refreshes it; loading or connection failures hide the version. Narrow screens and collapsed navigation retain the compact header.
+
 ## Research and development entry points
 
 Home offers **Open Agent**, **Submit Task**, and **Manage Tasks**. Give an Agent a research prompt and the [AxonX Skill](../../../skills/axonx/SKILL.md); configure source access and development tools for plugin authoring. Develop the plugin, install it in the selected service, then submit Tasks after upstream success. See [Agent usage](../agent/usage.md#develop-or-optimize-a-plugin).

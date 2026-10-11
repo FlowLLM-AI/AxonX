@@ -34,6 +34,7 @@ interface AppShellProps {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
   serviceOnline: boolean | null;
+  backendVersion?: string;
   authRequired: boolean;
   authTokenConfigured: boolean;
   setAuthToken: (token: string) => void;
@@ -52,6 +53,7 @@ export function AppShell(props: AppShellProps) {
     theme,
     setTheme,
     serviceOnline,
+    backendVersion,
     authRequired,
     authTokenConfigured,
     setAuthToken,
@@ -137,6 +139,11 @@ export function AppShell(props: AppShellProps) {
               <span className="brand-name">AxonX</span>
               <span className="brand-subtitle">Studio</span>
             </strong>
+            {backendVersion && (
+              <span className="brand-version" title={`v${backendVersion}`}>
+                v{backendVersion}
+              </span>
+            )}
           </span>
         </button>
         <nav className="pathbar" aria-label={t("shell.currentPath")}>

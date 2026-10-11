@@ -124,19 +124,22 @@
   filter: drop-shadow(0 5px 8px rgba(23, 119, 119, 0.18));
 }
 .studio-brand > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
 }
 .studio-brand > span > strong {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  align-items: baseline;
+  gap: 6px;
   overflow: hidden;
   letter-spacing: -0.025em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .studio-brand .brand-name {
+  flex: none;
   color: var(--accent);
   background: linear-gradient(110deg, var(--accent), var(--blue));
   background-clip: text;
@@ -146,11 +149,23 @@
   -webkit-text-fill-color: transparent;
 }
 .studio-brand .brand-subtitle {
+  flex: none;
   color: var(--faint);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
   letter-spacing: 0;
   line-height: 1.15;
+}
+.studio-brand .brand-version {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 .sidebar-collapsed .studio-brand {
   width: 70px;

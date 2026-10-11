@@ -126,26 +126,38 @@ function useMachines(
 function useServiceStatus(target: string | undefined, authRevision: number) {
   const [serviceOnline, setServiceOnline] = useState<boolean | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
+  const [backend, setBackend] = useState<{
+    target: string | undefined;
+    version: string;
+  } | null>(null);
 
   useEffect(() => {
     setServiceOnline(null);
     setAuthRequired(false);
+    setBackend(null);
     const check = async (signal: AbortSignal) => {
       try {
-        await machineStatus(target, signal);
+        const info = await machineStatus(target, signal);
         if (signal.aborted) return;
         setServiceOnline(true);
         setAuthRequired(false);
+        setBackend({ target, version: info.axonx.version });
       } catch (reason) {
         if (signal.aborted) return;
         setServiceOnline(false);
+        setBackend(null);
         setAuthRequired(reason instanceof AxonXError && reason.status === 401);
       }
     };
     return startPolling(check, 15, () => {}, true);
   }, [authRevision, target]);
 
-  return { serviceOnline, setServiceOnline, authRequired };
+  return {
+    serviceOnline,
+    setServiceOnline,
+    authRequired,
+    backendVersion: backend?.target === target ? backend?.version : undefined,
+  };
 }
 
 export function useStudio() {

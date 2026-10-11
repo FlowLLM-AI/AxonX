@@ -13,6 +13,7 @@ export default function App() {
       theme={studio.theme}
       setTheme={studio.setTheme}
       serviceOnline={studio.serviceOnline}
+      backendVersion={studio.backendVersion}
       authRequired={studio.authRequired}
       authTokenConfigured={studio.authTokenConfigured}
       setAuthToken={studio.setAuthToken}
