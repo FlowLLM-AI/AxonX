@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AxonXClient } from "../shared/api/client";
 import { streamJob } from "../shared/api/event";
 import { createPlayground } from "./runtime";
-import type { TaskHandle, TaskStatus } from "../features/tasks/types";
+import type { TaskHandle, TaskMetadata } from "../features/tasks/types";
+import type { TaskGraph } from "../features/task-graph/types";
 import type {
   WorkspaceDirectory,
   WorkspacePreview,
@@ -26,7 +27,7 @@ const submit = (api: AxonXClient, extra = {}) =>
 describe("static Playground", () => {
   it("returns summaries while preserving default full status and selected task details", async () => {
     const api = client();
-    const full = await api.invoke<TaskStatus[]>("list_task_statuses");
+    const full = await api.invoke<TaskMetadata[]>("list_task_statuses");
     const summaries = await api.invoke<
       import("../features/tasks/types").TaskSummary[]
     >("list_task_statuses", { detail: "summary" });
@@ -34,16 +35,23 @@ describe("static Playground", () => {
       full.map((task) => task.task_id),
     );
     for (const summary of summaries) {
-      expect(summary).not.toHaveProperty("config");
-      expect(summary).not.toHaveProperty("result");
+      expect(summary).not.toHaveProperty("input_params");
+      expect(summary).not.toHaveProperty("output_params");
       expect(summary).not.toHaveProperty("steps");
-      const detail = await api.invoke<TaskStatus>("status", {
+      const detail = await api.invoke<TaskMetadata>("status", {
         task_id: summary.task_id,
       });
-      expect(detail).toHaveProperty("result");
+      expect(detail).toHaveProperty("output_params");
       expect(summary.step_progress?.current ?? null).toBe(
         taskStepProgress(detail)?.current ?? null,
       );
+      const graph = await api.invoke<TaskGraph>("get_task_graph", {
+        task_id: summary.task_id,
+      });
+      const selected = graph.nodes.find(
+        (node) => node.task_id === summary.task_id,
+      );
+      expect(selected?.provisional).toBe(detail.state !== "succeeded");
     }
   });
   it("loads every research run and all declared artifacts without network or credentials", async () => {
@@ -74,6 +82,7 @@ describe("static Playground", () => {
           if (preview.kind !== "json") throw new Error("Missing metadata");
           const metadata = preview.data as {
             task_id: string;
+            state: string;
             output_params: {
               artifacts: Record<string, { path: string }>;
               output_file?: string;
@@ -84,10 +93,11 @@ describe("static Playground", () => {
             };
             input_params: { source_tasks: string };
           };
-          const task = await api.invoke<TaskStatus>("status", {
+          const task = await api.invoke<TaskMetadata>("status", {
             task_id: metadata.task_id,
           });
-          expect(task.state).toBe("succeeded");
+          if (task.state !== "succeeded") continue;
+          expect(metadata.state).toBe("succeeded");
           const expectedSource: Record<string, string> = {
             analysis: "etl#demo",
             train: "etl#demo",
@@ -101,7 +111,7 @@ describe("static Playground", () => {
             expect(metadata.input_params.source_tasks).toBe(
               expectedSource[task_type] || "",
             );
-          expect(task.config.source_tasks).toBe(
+          expect(task.input_params.source_tasks).toBe(
             metadata.input_params.source_tasks,
           );
           if (task_type !== "etl")
@@ -152,12 +162,12 @@ describe("static Playground", () => {
       const handle = await api.invoke<TaskHandle>("submit", {
         task: `playground.${kind}`,
       });
-      const task = await api.invoke<TaskStatus>("status", {
+      const task = await api.invoke<TaskMetadata>("status", {
         task_id: handle.task_id,
       });
-      expect(task.config.source_tasks).toBe("etl#demo");
+      expect(task.input_params.source_tasks).toBe("etl#demo");
       vi.advanceTimersByTime(7000);
-      const completed = await api.invoke<TaskStatus>("status", {
+      const completed = await api.invoke<TaskMetadata>("status", {
         task_id: handle.task_id,
       });
       expect(completed.state).toBe("succeeded");
@@ -238,7 +248,7 @@ describe("static Playground", () => {
   it("advances tasks without subscribers, writes artifacts, and isolates each browser runtime", async () => {
     const api = client();
     const handle = await submit(api, { strategy: "volatile" });
-    const status = () => api.invoke<TaskStatus>("status", { ...handle });
+    const status = () => api.invoke<TaskMetadata>("status", { ...handle });
     expect((await status()).state).toBe("queued");
     await vi.advanceTimersByTimeAsync(2000);
     expect((await status()).state).toBe("running");
@@ -266,22 +276,27 @@ describe("static Playground", () => {
       await api.invoke("cancel", { ...cancelled, run_id: "stale-run" }),
     ).toBe(false);
     expect(
-      (await api.invoke<TaskStatus>("status", { ...cancelled })).state,
+      (await api.invoke<TaskMetadata>("status", { ...cancelled })).state,
     ).toBe("queued");
     expect(await api.invoke("cancel", { run_id: cancelled.run_id })).toBe(true);
     const failed = await submit(api, { outcome: "failure" });
     await vi.advanceTimersByTimeAsync(7000);
     expect(
-      (await api.invoke<TaskStatus>("status", { ...cancelled })).state,
+      (await api.invoke<TaskMetadata>("status", { ...cancelled })).state,
     ).toBe("cancelled");
-    expect((await api.invoke<TaskStatus>("status", { ...failed })).state).toBe(
-      "failed",
-    );
-    await expect(
-      api.invoke("preview_file", {
-        path: `runs/${failed.task_id}/metadata.json`,
-      }),
-    ).rejects.toThrow("not found");
+    expect(
+      (await api.invoke<TaskMetadata>("status", { ...failed })).state,
+    ).toBe("failed");
+    const preview = await api.invoke<WorkspacePreview>("preview_file", {
+      path: `runs/${failed.task_id}/metadata.json`,
+    });
+    expect(preview.kind).toBe("json");
+    if (preview.kind !== "json") throw new Error("Missing failed metadata");
+    expect(preview.data).toMatchObject({
+      state: "failed",
+      output_params: {},
+      children: [],
+    });
   });
 
   it("cancels a current task by Task ID and rejects an empty cancellation", async () => {
@@ -294,7 +309,7 @@ describe("static Playground", () => {
     expect(await api.invoke("cancel", { task_id: handle.task_id })).toBe(true);
     expect(await api.invoke("cancel", { task_id: handle.task_id })).toBe(false);
     expect(
-      (await api.invoke<TaskStatus>("status", { task_id: handle.task_id }))
+      (await api.invoke<TaskMetadata>("status", { task_id: handle.task_id }))
         .state,
     ).toBe("cancelled");
   });
@@ -303,7 +318,7 @@ describe("static Playground", () => {
     const api = client();
     const handle = await submit(api);
     const kinds: string[] = [];
-    const result = streamJob<TaskStatus>(
+    const result = streamJob<TaskMetadata>(
       api,
       "stream_task",
       { ...handle },
@@ -340,9 +355,9 @@ describe("static Playground", () => {
     await rejected;
     expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(7000);
-    expect((await api.invoke<TaskStatus>("status", { ...handle })).state).toBe(
-      "succeeded",
-    );
+    expect(
+      (await api.invoke<TaskMetadata>("status", { ...handle })).state,
+    ).toBe("succeeded");
   });
 
   it("streams Agent history consistently and supports turn cancellation", async () => {

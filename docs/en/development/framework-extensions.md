@@ -16,6 +16,8 @@ Framework extensions suit scenarios requiring new long-lived dependencies, async
 
 A Job is asynchronous orchestration inside an Application; Task steps are synchronous functions. Both use similarly named Steps, but their base classes and execution boundaries differ.
 
+Task repository backends implement `entries()` and `entry()` as isolated `TaskMetadata` snapshots. Their `summaries()` method returns isolated lightweight projections sorted newest first by creation time and Task ID; project directly from the index without copying complete inputs, outputs, or child records. `put_metadata()` persists and indexes the unified lifecycle record.
+
 ## Providers and local registries
 
 `@provider("backend")` declares a class's implementation name. The framework's own axonx modules register as built-in; external Python classes only declare identity and do not automatically affect the global registry. Embedded applications must supply them to the current application through Application(providers=...) or a valid plugin manifest.

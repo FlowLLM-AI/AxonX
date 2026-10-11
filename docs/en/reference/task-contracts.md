@@ -30,11 +30,9 @@ class AddOutput(BaseOutputParams):
 
 ## Composite Task contracts
 
-`axonx.task` exports `BaseCompositeTask`, `BaseCompositeOutputParams`, `ChildTaskResult`, and `ChildTaskError`. The composite's default Task type is `composite`; children keep the type and input/output contracts declared by their own definitions.
+`axonx.task` exports `BaseCompositeTask`, `ChildTaskResult`, and `ChildTaskError`. The default Task type is `composite`, and the default output model is `BaseOutputParams`. Custom composite outputs extend `BaseOutputParams` with business fields only.
 
-`BaseCompositeOutputParams` extends `BaseOutputParams` with required `composition_file: str` and `children: list[ChildTaskRecord]` (default empty). `composition_output()` supplies these fields and an `artifacts.composition` record whose relative path is `composition.json`. Custom output models extend this envelope with business fields.
-
-The parent-owned `composition.json` has `version: 1`, `task_id`, `run_id`, and `children`. Each child entry records `node_name`, a positive `attempt`, the registered `task`, nullable `task_id`, `run_id`, `state`, `exit_code` (0–255), and `error`. Entries include failed construction attempts with no Task ID. Containment is independent of `source_tasks` lineage. See [Composite Tasks](../guides/composite-tasks.md) for invocation, failure, and cancellation semantics.
+The parent's `metadata.json.children` is the sole containment record. Each entry records `node_name`, positive `attempt`, registered `task`, nullable `task_id`, `run_id`, `state`, `exit_code` (0–255), and `error`. Failed construction attempts have no Task ID. There is no separate composition file or composition artifact; containment is independent of `source_tasks` lineage. See [Composite Tasks](../guides/composite-tasks.md).
 
 ## TaskContext
 
@@ -67,91 +65,30 @@ TaskHandle is the immutable dataclass returned by submit:
 
 The `task` field is the registration name. There is no `task_name` field or address for automatic remote routing. Clients must retain execution-machine information and use task_id + run_id to wait for this execution.
 
-## TaskStatus
+## TaskMetadata
 
-| Field                                 | Type/default                 | Meaning                                                              |
-| ------------------------------------- | ---------------------------- | -------------------------------------------------------------------- |
-| task_id                               | string; required             | Must match the directory ID                                          |
-| run_id                                | Nonempty string; required    | Current execution identity                                           |
-| task_type                             | TaskType; required           | Must match the type in the ID                                        |
-| task_name                             | string; default empty string | The current implementation writes the registration name              |
-| config                                | object; default {}           | JSON representation of typed input, including the instance task_name |
-| state                                 | TaskState; default queued    | Current execution state                                              |
-| pid                                   | integer or null              | Process identifier at that time                                      |
-| created_at / started_at / finished_at | datetime or null             | Creation, start, and finish times                                    |
-| steps                                 | TaskStepStatus[]; default [] | Snapshots of started steps                                           |
-| result                                | object; default {}           | Constructed typed output                                             |
-| error                                 | string; default empty string | Error description                                                    |
-| exit_code                             | integer; default 0           | 0–255                                                                |
-| log_path                              | string; default empty string | Separate log file location                                           |
+`metadata.json` is the authoritative lifecycle record from acceptance through completion, failure, or cancellation. Status queries return this same schema. The Runner updates one in-memory record and atomically replaces the file; Composite Tasks publish child snapshots through that Runner. After a worker stops, the manager reads its latest record and settles only matching Run IDs and PIDs. Ordinary text logs remain separate.
 
-TaskStepStatus contains nonempty name, nullable started_at/finished_at, and nullable percentage (0–100). The percentage describes the current step, rather than progress of the entire research task.
+| Field                                     | Meaning                                                                |
+| ----------------------------------------- | ---------------------------------------------------------------------- |
+| `task_id`, `run_id`, `task_type`          | Directory identity, current execution identity, and category           |
+| `reg_name`                                | Registered Task definition name                                        |
+| `input_params`                            | Typed input as JSON, including instance `task_name` and `source_tasks` |
+| `output_params`                           | Constructed business output; empty before preparation                  |
+| `state`, `exit_code`, `error`             | Current outcome; exit code is 0–255                                    |
+| `pid`, `log_path`                         | Owning worker and separate text log                                    |
+| `created_at`, `started_at`, `finished_at` | Nullable lifecycle timestamps                                          |
+| `steps`                                   | Step names, timestamps, and nullable percentages (0–100)               |
+| `children`                                | Child invocation snapshots, including failures before construction     |
 
-A simplified complete example of a successful status:
+Non-finite floating-point values become `null` when persisted. A failed nonzero exit may still have `output_params`; consumers must check `state` before treating output as a successful research artifact. The shared research helper `read_metadata()` requires `state=succeeded` and rejects missing or unsuccessful states; lifecycle inspection uses status queries or `read_task_metadata()` instead. Unknown legacy fields and old status/composition files are not read or migrated.
 
 ```json
 {
   "task_id": "base#demo#contract-01",
   "run_id": "a9f248807a0a496abf3738422b379a51",
   "task_type": "base",
-  "task_name": "demo",
-  "config": {
-    "task_name": "contract-01",
-    "source_tasks": "",
-    "x": 1,
-    "y": 2,
-    "fail": false
-  },
-  "state": "succeeded",
-  "pid": 12345,
-  "created_at": "2026-01-05T09:00:00+08:00",
-  "started_at": "2026-01-05T01:00:00Z",
-  "finished_at": "2026-01-05T01:00:01Z",
-  "steps": [
-    {
-      "name": "finish",
-      "started_at": "2026-01-05T01:00:00Z",
-      "finished_at": "2026-01-05T01:00:01Z",
-      "percentage": 100
-    }
-  ],
-  "result": {
-    "artifacts": {},
-    "result": 3,
-    "branch": "different",
-    "operands": ["x", "y"]
-  },
-  "error": "",
-  "exit_code": 0,
-  "log_path": ""
-}
-```
-
-steps shows only the final step; the actual demo includes more steps. The log value is empty solely to avoid specifying a deployment path; the logging system supplies the actual value.
-
-The key differences on failure are shown below; this is not a separate complete TaskStatus:
-
-```json
-{
-  "state": "failed",
-  "result": {},
-  "error": "RuntimeError: Demo failure requested",
-  "exit_code": 1
-}
-```
-
-A custom nonzero exit code also produces failed, but result may already exist; failure does not necessarily mean output was never constructed. The manager records cancellation as cancelled, usually with exit code 130.
-
-## TaskMetadata
-
-The metadata top level strictly represents successful tasks' inputs and outputs:
-
-```json
-{
-  "task_id": "base#demo#contract-01",
   "reg_name": "demo",
-  "created_at": "2026-01-05T09:00:00+08:00",
-  "task_type": "base",
   "input_params": {
     "task_name": "contract-01",
     "source_tasks": "",
@@ -164,13 +101,26 @@ The metadata top level strictly represents successful tasks' inputs and outputs:
     "result": 3,
     "branch": "different",
     "operands": ["x", "y"]
-  }
+  },
+  "children": [],
+  "state": "succeeded",
+  "pid": 1234,
+  "created_at": "2026-01-05T09:00:00+08:00",
+  "started_at": "2026-01-05T09:00:01+08:00",
+  "finished_at": "2026-01-05T09:00:02+08:00",
+  "steps": [
+    {
+      "name": "finish",
+      "started_at": "2026-01-05T09:00:01+08:00",
+      "finished_at": "2026-01-05T09:00:02+08:00",
+      "percentage": 100
+    }
+  ],
+  "error": "",
+  "exit_code": 0,
+  "log_path": ".axonx/logs/task.log"
 }
 ```
-
-metadata has no top-level run_id, state, result, or error. TaskStatus.result corresponds to metadata.output_params; the task identity's registration name is in metadata.reg_name.
-
-A successful execution first constructs output and determines the exit code, then writes metadata and publishes successful status. When metadata is written, nonfinite floating-point values are recursively converted to null for JSON consumers.
 
 ## Artifact records
 
@@ -192,7 +142,7 @@ Do not include the workspace root in artifact path. Consumers combine `<type>/<t
 
 ## Workspace reads and events
 
-TaskStatus requires run_id as the run identity.
+TaskMetadata requires run_id as the run identity.
 
 Workspace reading rejects invalid JSON, incorrect task_id/type, and unsafe directories, making records appear missing. Tolerant reading isolates bad records; it does not guarantee automatic repair of old data.
 
@@ -200,4 +150,4 @@ events.jsonl is an append-only progress record; ordinary logs are stored at log_
 
 [Jobs and Tasks](../concepts/jobs-and-tasks.md) · [Task API](../api/tasks.md) · [Research artifact contracts](research-artifacts.md)
 
-Source: [Input/output](../../../axonx/task/core/params.py), [Context](../../../axonx/task/core/context.py), [Definitions](../../../axonx/task/catalog/resolver.py), [Handle](../../../axonx/task/contracts/submission.py), [Status](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/metadata.py).
+Source: [Input/output](../../../axonx/task/core/params.py), [Context](../../../axonx/task/core/context.py), [Definitions](../../../axonx/task/catalog/resolver.py), [Handle](../../../axonx/task/contracts/submission.py), [Status](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/workspace.py).

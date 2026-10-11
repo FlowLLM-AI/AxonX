@@ -10,7 +10,7 @@ from ...task.contracts import TaskHandle
 from ...task.query.graph import TaskGraph
 from ...task.query.summary import summarize_status
 from ...task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
-from ...task.storage.workspace import TaskStatus
+from ...task.storage.workspace import TaskMetadata
 from ..base import BaseComponent
 
 
@@ -28,18 +28,18 @@ class BaseTaskManager(BaseComponent, ABC):
         return [status.task_id for status in await self.list_statuses()]
 
     @abstractmethod
-    async def list_statuses(self) -> list[TaskStatus]:
-        """Return snapshots from status files, newest first."""
+    async def list_statuses(self) -> list[TaskMetadata]:
+        """Return lifecycle metadata snapshots, newest first."""
 
     async def list_summaries(self) -> list[dict]:
         """Return list metadata; backends may project before copying large outputs."""
         return [summarize_status(status) for status in await self.list_statuses()]
 
     @abstractmethod
-    async def get_status(self, task_id: str) -> TaskStatus:
+    async def get_status(self, task_id: str) -> TaskMetadata:
         """Return one task status; raise KeyError if the ID is absent."""
 
-    async def wait(self, task_id: str, run_id: str, poll_interval: float = 1.0) -> TaskStatus:
+    async def wait(self, task_id: str, run_id: str, poll_interval: float = 1.0) -> TaskMetadata:
         """Wait for one specific run to finish and return its final status."""
         if poll_interval <= 0:
             raise ValueError("poll_interval must be positive")
@@ -79,6 +79,6 @@ class BaseTaskManager(BaseComponent, ABC):
 
         The stream carries only what happened — ``ProgressEvent`` and ``LogEvent`` — and
         ends when the task reaches a terminal state. The outcome is the task's
-        own final ``TaskStatus``, which the caller reads afterwards, so a job
+        own final ``TaskMetadata``, which the caller reads afterwards, so a job
         built on this stream still ends in exactly one terminal ``ResultEvent``.
         """

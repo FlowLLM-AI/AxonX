@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TasksPage } from "./TasksPage";
 import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
-import type { TaskStatus } from "./types";
+import type { TaskMetadata } from "./types";
 vi.mock("./api", () => ({
   listTaskStatuses: vi.fn(),
   cancelTask: vi.fn(),
@@ -28,21 +28,22 @@ function deferred<T>() {
 }
 function task(
   taskId: string,
-  state: TaskStatus["state"] = "running",
-): TaskStatus {
+  state: TaskMetadata["state"] = "running",
+): TaskMetadata {
   return {
     task_id: taskId,
     run_id: `run-${taskId}`,
     task_type: "train",
-    task_name: taskId,
-    config: {},
+    reg_name: taskId,
+    input_params: {},
     state,
     pid: null,
     created_at: null,
     started_at: null,
     finished_at: null,
     steps: [],
-    result: {},
+    children: [],
+    output_params: {},
     error: "",
     exit_code: 0,
     log_path: "",
@@ -94,7 +95,7 @@ afterEach(async () => {
 });
 describe("task request ownership", () => {
   it("deduplicates manual refresh while a list request is pending", async () => {
-    const pending = deferred<TaskStatus[]>();
+    const pending = deferred<TaskMetadata[]>();
     vi.mocked(listTaskStatuses).mockReturnValue(pending.promise);
     await render();
     await click('[aria-label="refreshNow"]');
@@ -106,7 +107,7 @@ describe("task request ownership", () => {
   });
   it("invalidates an older list after cancellation and ignores its late response", async () => {
     await render();
-    const pending = deferred<TaskStatus[]>();
+    const pending = deferred<TaskMetadata[]>();
     vi.mocked(listTaskStatuses).mockReturnValueOnce(pending.promise);
     await click('[aria-label="refreshNow"]');
     const signal = vi.mocked(listTaskStatuses).mock.calls[1][1]!;
@@ -132,7 +133,7 @@ describe("task request ownership", () => {
       await openMenu();
       await click('[role="menuitem"].danger');
       await click('[role="dialog"] .danger-button');
-      const nextList = deferred<TaskStatus[]>();
+      const nextList = deferred<TaskMetadata[]>();
       vi.mocked(listTaskStatuses).mockReturnValue(nextList.promise);
       await render("machine-b");
       const nextSignal = vi.mocked(listTaskStatuses).mock.calls[1][1]!;
@@ -161,7 +162,7 @@ describe("task request ownership", () => {
       await click('[role="menuitem"]:nth-of-type(2)');
       await click(".task-selection-actions .danger-outline");
       await click('[role="dialog"] .danger-button');
-      const nextList = deferred<TaskStatus[]>();
+      const nextList = deferred<TaskMetadata[]>();
       vi.mocked(listTaskStatuses).mockReturnValue(nextList.promise);
       await render("machine-b");
       const nextSignal = vi.mocked(listTaskStatuses).mock.calls[1][1]!;

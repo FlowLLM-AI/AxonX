@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ...constants import AXONX_DEFAULT_ENCODING
 from .events import LOG_WINDOW_BYTES, TaskLogChunk
-from .workspace import TaskStatus
+from .workspace import TaskMetadata
 
 
 class TaskLogReader:
@@ -17,7 +17,7 @@ class TaskLogReader:
         self.directory = directory.expanduser().resolve()
 
     @staticmethod
-    def path(status: TaskStatus | None) -> Path | None:
+    def path(status: TaskMetadata | None) -> Path | None:
         if status is None or not status.log_path:
             return None
         return Path(status.log_path).expanduser().resolve()

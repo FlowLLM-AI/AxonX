@@ -8,25 +8,25 @@
 
 以下均为 `POST /jobs/{name}`，请求体是 `{"arguments":{...}}`。远程转发时在封装顶层添加 `target`，不能放进 arguments。每个响应使用 [JobResponse](overview.md#响应与错误)，表格默认值依据当前内置配置和 Step。部署可修改 Job Schema，运行服务的 `/jobs` 是最终依据。
 
-所有示例 JSON 均为结构示例；任务、会话、文件路径与哈希必须替换为本服务实际返回的值。完整通用 TaskStatus 字段见 [Task 协议](../reference/task-contracts.md)。
+所有示例 JSON 均为结构示例；任务、会话、文件路径与哈希必须替换为本服务实际返回的值。完整通用 TaskMetadata 字段见 [Task 协议](../reference/task-contracts.md)。
 
 ## 接口清单
 
-| Job                               | 用途                                       |
-| --------------------------------- | ------------------------------------------ |
-| `list_installed_task_definitions` | 枚举当前 Python 环境中的内置与插件 Task。  |
-| `get_task_definition`             | 查询一个注册定义及输入输出 Schema。        |
-| `submit`                          | 启动独立子进程运行 Task。                  |
-| `wait_task`                       | 等待提交返回的特定执行结束。               |
-| `list_task_ids`                   | 列出存在状态文件的任务身份。               |
-| `list_task_statuses`              | 列出状态快照。                             |
-| `status`                          | 读取一个任务的当前状态。                   |
-| `read_task_log`                   | 按有界字节窗口读取日志。                   |
-| `stream_task`                     | 持续跟踪进度与日志直到任务停止。           |
-| `get_task_graph`                  | 读取包含所选 Task 的依赖图。               |
-| `get_task_context`                | 为 Agent 提供任务路径、状态与关系上下文。  |
-| `cancel`                          | 请求取消本服务管理的活跃 worker。          |
-| `delete_tasks`                    | 删除终态或 metadata-only Task 与关联文件。 |
+| Job                               | 用途                                      |
+| --------------------------------- | ----------------------------------------- |
+| `list_installed_task_definitions` | 枚举当前 Python 环境中的内置与插件 Task。 |
+| `get_task_definition`             | 查询一个注册定义及输入输出 Schema。       |
+| `submit`                          | 启动独立子进程运行 Task。                 |
+| `wait_task`                       | 等待提交返回的特定执行结束。              |
+| `list_task_ids`                   | 列出存在生命周期元数据记录的任务身份。    |
+| `list_task_statuses`              | 列出状态快照。                            |
+| `status`                          | 读取一个任务的当前状态。                  |
+| `read_task_log`                   | 按有界字节窗口读取日志。                  |
+| `stream_task`                     | 持续跟踪进度与日志直到任务停止。          |
+| `get_task_graph`                  | 读取包含所选 Task 的依赖图。              |
+| `get_task_context`                | 为 Agent 提供任务路径、状态与关系上下文。 |
+| `cancel`                          | 请求取消本服务管理的活跃 worker。         |
+| `delete_tasks`                    | 删除终态或 Task 与关联文件。              |
 
 ## list_installed_task_definitions
 
@@ -186,7 +186,7 @@ answer 是 TaskHandle：task_id、run_id、task。success=true 表示提交成�
 
 **响应**
 
-answer 是终态 TaskStatus；只有 state=succeeded 时 success=true。
+answer 是终态 TaskMetadata；只有 state=succeeded 时 success=true。
 
 ```json
 {
@@ -194,24 +194,25 @@ answer 是终态 TaskStatus；只有 state=succeeded 时 success=true。
     "task_id": "base#demo#api-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
     "task_type": "base",
-    "task_name": "demo",
     "state": "succeeded",
-    "config": {
-      "task_name": "api-demo",
-      "source_tasks": "",
-      "x": 1,
-      "y": 2,
-      "fail": false
-    },
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
     "pid": null,
     "exit_code": 0,
     "error": "",
-    "result": {},
     "steps": [],
-    "log_path": ""
+    "log_path": "",
+    "input_params": {
+      "task_name": "api-demo",
+      "source_tasks": "",
+      "x": 1,
+      "y": 2,
+      "fail": false
+    },
+    "output_params": {},
+    "reg_name": "demo",
+    "children": []
   },
   "success": true,
   "metadata": {}
@@ -224,7 +225,7 @@ poll_interval 默认 1 秒，没有业务超时参数。客户端 timeout 应覆
 
 ## list_task_ids
 
-列出存在状态文件的任务身份。
+列出存在生命周期元数据记录的任务身份。
 
 无公开业务参数；使用 `{"arguments":{}}`。
 
@@ -250,7 +251,7 @@ answer 是字符串 Task ID 数组。
 
 **行为与失败情况**
 
-metadata-only 目录没有状态时不进入此列表；列表不是全历史执行清单。
+只索引有效的统一 metadata 记录；列表不是全历史执行清单。
 
 ## list_task_statuses
 
@@ -272,9 +273,9 @@ metadata-only 目录没有状态时不进入此列表；列表不是全历史执
 
 **响应**
 
-`answer` 按 `created_at` 与 `task_id` 倒序。`full` 返回原有完整 TaskStatus；`summary` 返回 `task_id`、`run_id`、`task_type`、`task_name`、`state`、`pid`、`created_at`、`started_at`、`finished_at`、`exit_code`、`log_path` 和 `error`（最多 1,000 字符）。
+`answer` 按 `created_at` 与 `task_id` 倒序。`full` 返回原有完整 TaskMetadata；`summary` 返回 `task_id`、`run_id`、`task_type`、`reg_name`、`state`、`pid`、`created_at`、`started_at`、`finished_at`、`exit_code`、`log_path` 和 `error`（最多 1,000 字符）。
 
-摘要省略 `config`、`result` 和 `steps`，增加 `display_name`（配置中的任务名称或注册名称，最多 256 字符）、`is_online`（是否属于在线流水线）和 `step_progress`：无步骤时为 `null`，否则为 `{current, total, name, percentage}`。步骤序号从 1 开始，选择首个未完成步骤，全部完成时选择最后一步。名称最多 256 字符，百分比可以为 `null`。完整详情通过 `status` 读取。
+摘要省略 `input_params`、`output_params`、`children` 和 `steps`，增加 `display_name`（配置中的任务名称或注册名称，最多 256 字符）、`is_online`（是否属于在线流水线）和 `step_progress`：无步骤时为 `null`，否则为 `{current, total, name, percentage}`。步骤序号从 1 开始，选择首个未完成步骤，全部完成时选择最后一步。名称最多 256 字符，百分比可以为 `null`。完整详情通过 `status` 读取。
 
 ```json
 {
@@ -310,7 +311,7 @@ Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 
 **响应**
 
-answer 是 TaskStatus：身份、config、state、时间、pid、exit_code、error、steps、log_path。
+answer 是 TaskMetadata：身份、input_params、output_params、children、state、时间、pid、exit_code、error、steps、log_path。
 
 ```json
 {
@@ -318,24 +319,25 @@ answer 是 TaskStatus：身份、config、state、时间、pid、exit_code、err
     "task_id": "base#demo#api-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
     "task_type": "base",
-    "task_name": "demo",
     "state": "queued",
-    "config": {
-      "task_name": "api-demo",
-      "source_tasks": "",
-      "x": 1,
-      "y": 2,
-      "fail": false
-    },
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
     "pid": null,
     "exit_code": 0,
     "error": "",
-    "result": {},
     "steps": [],
-    "log_path": ""
+    "log_path": "",
+    "input_params": {
+      "task_name": "api-demo",
+      "source_tasks": "",
+      "x": 1,
+      "y": 2,
+      "fail": false
+    },
+    "output_params": {},
+    "reg_name": "demo",
+    "children": []
   },
   "success": true,
   "metadata": {}
@@ -344,7 +346,7 @@ answer 是 TaskStatus：身份、config、state、时间、pid、exit_code、err
 
 **行为与失败情况**
 
-不存在或只有 metadata 的任务没有状态时返回 KeyError 业务失败。queued/running 不是终态。
+没有有效统一 metadata 的任务返回 KeyError 业务失败。queued/running 不是终态。
 
 ## read_task_log
 
@@ -417,7 +419,7 @@ offset=-1 读取尾部；offset=0 从头开始。limit 单位字节，不是行�
 
 **响应**
 
-普通调用 answer 是终态 TaskStatus；SSE 有 progress/log，最终 result 携带相同状态。success 按 exit_code==0 设置。
+普通调用 answer 是终态 TaskMetadata；SSE 有 progress/log，最终 result 携带相同状态。success 按 exit_code==0 设置。
 
 ```json
 {
@@ -425,24 +427,25 @@ offset=-1 读取尾部；offset=0 从头开始。limit 单位字节，不是行�
     "task_id": "base#demo#api-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
     "task_type": "base",
-    "task_name": "demo",
     "state": "succeeded",
-    "config": {
-      "task_name": "api-demo",
-      "source_tasks": "",
-      "x": 1,
-      "y": 2,
-      "fail": false
-    },
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
     "pid": null,
     "exit_code": 0,
     "error": "",
-    "result": {},
     "steps": [],
-    "log_path": ""
+    "log_path": "",
+    "input_params": {
+      "task_name": "api-demo",
+      "source_tasks": "",
+      "x": 1,
+      "y": 2,
+      "fail": false
+    },
+    "output_params": {},
+    "reg_name": "demo",
+    "children": []
   },
   "success": true,
   "metadata": {}
@@ -503,7 +506,7 @@ answer 含 root_id、selected_id、nodes、edges；节点区分 missing、provis
 
 **行为与失败情况**
 
-图来自 status/metadata 中的 source_tasks，只呈现记录关系，不会执行 DAG。节点结构详见任务血缘文档；此例仅展示顶层形状。
+图来自 metadata.input_params.source_tasks，只呈现记录关系，不会执行 DAG。节点结构详见任务血缘文档；此例仅展示顶层形状。
 
 ## get_task_context
 
@@ -537,26 +540,27 @@ answer 含 task_id、status、metadata_exists、metadata_path、log_path、graph
       "task_id": "base#demo#api-demo",
       "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
       "task_type": "base",
-      "task_name": "demo",
       "state": "queued",
-      "config": {
-        "task_name": "api-demo",
-        "source_tasks": "",
-        "x": 1,
-        "y": 2,
-        "fail": false
-      },
       "created_at": "2026-10-02T00:00:00Z",
       "started_at": null,
       "finished_at": null,
       "pid": null,
       "exit_code": 0,
       "error": "",
-      "result": {},
       "steps": [],
-      "log_path": ""
+      "log_path": "",
+      "input_params": {
+        "task_name": "api-demo",
+        "source_tasks": "",
+        "x": 1,
+        "y": 2,
+        "fail": false
+      },
+      "output_params": {},
+      "reg_name": "demo",
+      "children": []
     },
-    "metadata_exists": false,
+    "metadata_exists": true,
     "metadata_path": "base/base#demo#api-demo/metadata.json",
     "log_path": null,
     "graph": {
@@ -591,7 +595,7 @@ answer 含 task_id、status、metadata_exists、metadata_path、log_path、graph
 
 **行为与失败情况**
 
-metadata_exists 是图中节点已发布元数据的判断，不能仅靠任务提交成功推断产物存在。
+metadata_exists 表示当前有效生命周期记录存在；研究是否成功应另行检查 state 和产物。
 
 ## cancel
 
@@ -631,7 +635,7 @@ answer 是布尔值；true 表示本次完成取消，false 表示没有取消�
 
 ## delete_tasks
 
-删除终态或 metadata-only Task 与关联文件。
+删除终态或 Task 与关联文件。
 
 | 参数       | 类型  | 必填 | 默认值      | 约束与含义                                              |
 | ---------- | ----- | ---- | ----------- | ------------------------------------------------------- |
@@ -677,7 +681,7 @@ Schema 失败在执行前返回 HTTP 422，例如 wait_task 缺 run_id；Task �
 }
 ```
 
-Available 列表由实际安装环境生成。wait_task 返回失败任务状态时 answer 仍是 TaskStatus，state=failed/cancelled，并保留 error 与 exit_code；不能假定失败 answer 永远是字符串。
+Available 列表由实际安装环境生成。wait_task 返回失败任务状态时 answer 仍是 TaskMetadata，state=failed/cancelled，并保留 error 与 exit_code；不能假定失败 answer 永远是字符串。
 
 删除和取消存在“请求有效但没有变更”的结果：delete_tasks 的 answer=[]、cancel 的 answer=false 可以与 success=true 同时出现，客户端应显示实际变更数量。
 

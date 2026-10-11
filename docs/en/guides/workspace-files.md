@@ -13,14 +13,14 @@ axonx list_task_runs --task-type train
 
 An empty path means the workspace root. Directory listings show directories first and sort by name; each response includes at most 5000 entries. When truncated is true, request the next page with offset set to the number of entries already read. Studio provides a Load more entries button. This is not a recursive file tree.
 
-`list_task_runs` selects task directories with metadata.json. failed or running tasks usually do not appear here; use task status queries to confirm execution.
+`list_task_runs` selects directories containing metadata.json in every lifecycle state. Inspect `state` to distinguish active, failed, cancelled, and successful executions.
 
 Paths cannot escape the workspace through absolute paths, `..`, or symbolic links. Directory entries may show symlinks, but they should not be treated as ordinary previewable files.
 
 ## Preview records and artifacts
 
 ```bash
-axonx preview_file --path 'base/base#demo#add-01/status.json'
+axonx preview_file --path 'base/base#demo#add-01/events.jsonl'
 axonx preview_file --path 'base/base#demo#add-01/metadata.json'
 ```
 
@@ -34,18 +34,19 @@ etl/<ETL Task ID>/data/features.parquet
 
 ## Formats and limits
 
-| Format            | Returned content                           | Limits                                                     |
-| ----------------- | ------------------------------------------ | ---------------------------------------------------------- |
-| txt               | UTF-8 text prefix                          | At most 512 KiB, marked truncated                          |
-| md / markdown     | Body and frontmatter                       | Same as above; frontmatter_error recorded separately       |
-| json / yaml / yml | Parsed content and structured data         | Limit notice returned above 32 MiB                         |
-| csv               | Column names and row window                | offset/limit control rows                                  |
-| parquet           | Columns, types, total rows, and row window | offset/limit control rows                                  |
-| Other extensions  | unsupported and size                       | Models, archives, and images are not automatically decoded |
+| Format            | Returned content                                             | Limits                                                     |
+| ----------------- | ------------------------------------------------------------ | ---------------------------------------------------------- |
+| txt               | UTF-8 text prefix                                            | At most 512 KiB, marked truncated                          |
+| md / markdown     | Body and frontmatter                                         | Same as above; frontmatter_error recorded separately       |
+| json / yaml / yml | Parsed content and structured data                           | Limit notice returned above 32 MiB                         |
+| csv               | Column names and row window                                  | offset/limit control rows                                  |
+| parquet           | Columns, types, total rows, and row window                   | offset/limit control rows                                  |
+| jsonl / ndjson    | Parsed records with physical line numbers and per-row errors | Paged by lines; at most 512 KiB of content per page        |
+| Other extensions  | unsupported and size                                         | Models, archives, and images are not automatically decoded |
 
 Text is parsed as UTF-8 by default, with BOM support. Renaming a binary file to txt does not make it valid text.
 
-Studio's Workspace page previews supported files from any workspace directory. CSV and Parquet previews use 200-row windows; JSON, YAML, Markdown, and text use the same bounded preview interfaces. The workspace root title returns to the root. Symbolic links are displayed but cannot be opened. Unsupported formats display their size and a preview-unavailable message.
+Studio's Workspace page previews supported files from any workspace directory. CSV, JSONL, and Parquet previews use 200-row windows; JSON, YAML, Markdown, and text use the same bounded preview interfaces. The workspace root title returns to the root. Symbolic links are displayed but cannot be opened. Unsupported formats display their size and a preview-unavailable message.
 
 ![Workspace browser previewing a research artifact with fictional Playground data](../../figures/studio/workspace-preview.jpg)
 
@@ -60,7 +61,7 @@ axonx preview_file --path 'tushare/2026/20260105/daily.parquet' \
 
 The path is only a typical raw-data example; first select an actual file with `list_entries`. offset is the number of data rows to skip, and limit ranges from 1–5000, defaulting to 200.
 
-These parameters apply to CSV/Parquet; they are not JSON text byte offsets. Directory pagination also uses offset, but counts entries rather than data rows. Task logs use another interface whose offset is measured in bytes.
+These parameters apply to CSV/JSONL/Parquet; they are not JSON text byte offsets. Directory pagination also uses offset, but counts entries rather than data rows. Task logs use another interface whose offset is measured in bytes.
 
 For large research files, previews provide quick checks of Schema, dates, and a small sample; complete statistics should read the full file in a local script or research Task. The first screen alone cannot establish that the entire dataset has no missing values.
 
@@ -94,3 +95,5 @@ Uploads are not general directory mirroring. Clean up staging files after succes
 [Workspace concepts](../concepts/workspace.md) · [Research artifact protocol](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)
 
 Source: [Directory operations](../../../axonx/workspace/browser.py), [Preview implementation](../../../axonx/workspace/preview.py), [Path constraints](../../../axonx/workspace/paths.py).
+
+JSONL preview preserves malformed or incomplete lines with `parse_error` and raw `content`, while valid rows include parsed `data`. Studio displays each row independently, supports previous/next pages, and marks byte-limited pages as truncated.

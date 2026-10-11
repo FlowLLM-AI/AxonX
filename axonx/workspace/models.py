@@ -84,6 +84,22 @@ class CsvPreview(PreviewBase):
     has_more: bool = False
 
 
+class JsonlRow(WorkspaceModel):
+    line: int = Field(ge=1)
+    content: str
+    data: Any = None
+    parse_error: str | None = None
+
+
+class JsonlPreview(PreviewBase):
+    kind: Literal["jsonl"] = "jsonl"
+    rows: list[JsonlRow] = Field(default_factory=list)
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1)
+    has_more: bool = False
+    truncated: bool = False
+
+
 class ParquetColumn(WorkspaceModel):
     name: str
     type: str
@@ -102,4 +118,6 @@ class ParquetPreview(PreviewBase):
     row_group_count: int = Field(ge=0)
 
 
-FilePreview = UnsupportedPreview | TextPreview | MarkdownPreview | StructuredPreview | CsvPreview | ParquetPreview
+FilePreview = (
+    UnsupportedPreview | TextPreview | MarkdownPreview | StructuredPreview | CsvPreview | JsonlPreview | ParquetPreview
+)

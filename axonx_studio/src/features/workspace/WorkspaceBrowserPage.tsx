@@ -41,7 +41,11 @@ const ROOT = "";
 function iconFor(entry: WorkspaceEntry) {
   if (entry.kind === "directory") return Folder;
   if (entry.preview_kind === "markdown") return FileText;
-  if (entry.preview_kind === "json" || entry.preview_kind === "yaml")
+  if (
+    entry.preview_kind === "json" ||
+    entry.preview_kind === "jsonl" ||
+    entry.preview_kind === "yaml"
+  )
     return FileJson;
   if (entry.preview_kind === "csv") return FileSpreadsheet;
   if (entry.preview_kind === "parquet") return Database;
@@ -379,7 +383,7 @@ export default function WorkspaceBrowserPage({
               <small>{t("shell.filePreview")}</small>
               <strong>{t("workspace.select")}</strong>
               <span>
-                CSV&nbsp;&nbsp;·&nbsp;&nbsp;PARQUET&nbsp;&nbsp;·&nbsp;&nbsp;JSON
+                CSV&nbsp;&nbsp;·&nbsp;&nbsp;PARQUET&nbsp;&nbsp;·&nbsp;&nbsp;JSON&nbsp;&nbsp;·&nbsp;&nbsp;JSONL
               </span>
             </div>
           ) : (

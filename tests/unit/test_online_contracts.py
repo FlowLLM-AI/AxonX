@@ -107,7 +107,8 @@ def test_failed_window_audited_and_cleanup_preserves_error(tmp_path):
     assert task.closed
     report = json.loads((task.task_dir / "manifest.json").read_text())
     assert report["windows"][0]["status"] == "failed"
-    assert not task.metadata_path.exists()
+    assert task.metadata.state.value == "failed"
+    assert task.metadata_path.exists()
 
 
 def test_inference_resolves_once_and_never_predicts_missing_inputs(tmp_path):

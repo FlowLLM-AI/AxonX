@@ -47,7 +47,7 @@ axonx status --task-id 'base#demo#cli-demo'
 axonx read_task_log --task-id 'base#demo#cli-demo' --offset -1 --limit 65536
 ```
 
-The final success of wait_task depends on whether the task succeeded. Successful submit means only that the task was accepted and started; it does not establish that metadata has been published. Rerunning with a fixed name replaces a terminal directory; active tasks cannot be overwritten.
+The final success of wait_task depends on whether the task succeeded. Successful submit means only that the task was accepted and started; it does not establish that output_params has been prepared or the task succeeded. Rerunning with a fixed name replaces a terminal directory; active tasks cannot be overwritten.
 
 ## Parameter and value conversion
 

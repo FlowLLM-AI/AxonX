@@ -101,6 +101,52 @@ export function FilePreview({
         <strong>{t("workspacePreview.unsupported")}</strong>
       </div>
     );
+  if (preview.kind === "jsonl") {
+    return (
+      <div className="workspace-document">
+        {preview.truncated && (
+          <div className="workspace-notice">
+            <AlertTriangle />
+            {t("workspacePreview.truncated")}
+          </div>
+        )}
+        {!preview.rows.length && (
+          <p className="muted">{t("workspacePreview.emptyJsonl")}</p>
+        )}
+        {preview.rows.map((row) => (
+          <section className="workspace-jsonl-record" key={row.line}>
+            <header>{t("workspacePreview.line", { line: row.line })}</header>
+            {row.parse_error ? (
+              <>
+                <div className="workspace-notice error">
+                  <AlertTriangle />
+                  <strong>{t("workspacePreview.invalidJson")}</strong>
+                  <span>{row.parse_error}</span>
+                </div>
+                <pre className="workspace-code">{row.content}</pre>
+              </>
+            ) : (
+              <StructuredTree value={row.data} />
+            )}
+          </section>
+        ))}
+        <footer className="workspace-jsonl-pagination">
+          <button
+            disabled={preview.offset === 0}
+            onClick={() => onPage(Math.max(0, preview.offset - preview.limit))}
+          >
+            {t("workspacePreview.previous")}
+          </button>
+          <button
+            disabled={!preview.has_more}
+            onClick={() => onPage(preview.offset + preview.rows.length)}
+          >
+            {t("workspacePreview.next")}
+          </button>
+        </footer>
+      </div>
+    );
+  }
   if (preview.kind === "csv") {
     const offset = preview.offset || 0;
     const limit = preview.limit || 200;

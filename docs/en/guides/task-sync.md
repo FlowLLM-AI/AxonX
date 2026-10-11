@@ -8,7 +8,7 @@ Task synchronization copies snapshots of terminal Task directories from a source
 
 The source component's target determines synchronization direction. The sender coalesces Repository changes and only sends Tasks with terminal status. queued/running tasks return to the pending queue and transfer after completion.
 
-Snapshots include status, metadata, events, and artifacts in the task directory; they exclude workspace-wide Tushare raw data, Agent sessions, external text logs, and plugin environments. Workers are not migrated, and the target does not continue running source processes.
+Snapshots include metadata, events, and artifacts in the task directory; they exclude workspace-wide Tushare raw data, Agent sessions, external text logs, and plugin environments. Workers are not migrated, and the target does not continue running source processes.
 
 A new snapshot replaces a same-name terminal directory on the target. Use different names for independent experiments on the two sides; synchronization is not a backup mechanism that retains multiple versions.
 

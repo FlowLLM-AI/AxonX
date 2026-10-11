@@ -46,7 +46,7 @@ export default function OnlinePage({
   const tasks = (data || []).filter(
     (task) =>
       (filter === "all" || task.task_type === filter) &&
-      `${task.task_id} ${task.display_name || task.task_name}`
+      `${task.task_id} ${task.display_name || task.reg_name}`
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
@@ -121,7 +121,7 @@ export default function OnlinePage({
                   {t(`onlinePipeline.kinds.${task.task_type}`)}
                   <Status value={task.state} />
                 </span>
-                <strong>{String(task.display_name || task.task_name)}</strong>
+                <strong>{String(task.display_name || task.reg_name)}</strong>
                 <small>{task.task_id}</small>
               </button>
             ))}
@@ -179,7 +179,7 @@ function RunReport({
           <p className="eyebrow">
             {t(`onlinePipeline.kinds.${task.task_type}`)}
           </p>
-          <h2>{String(task.display_name || task.task_name)}</h2>
+          <h2>{String(task.display_name || task.reg_name)}</h2>
           <small>{task.task_id}</small>
         </div>
         <button

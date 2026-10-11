@@ -75,7 +75,7 @@ Task 与参数类。实现这些研究阶段时，优先继承对应的 `Base*Ta
 一旦采用，其必填字段、类型与校验规则就是插件必须遵守的契约：保留这些约束，通过子类声明新增字段。
 自定义 Task 可以直接继承 `BaseTask` 并定义自己的参数模型，但仍须遵守核心协议；注册并不要求所有 Task 都继承五类研究基类之一。
 
-将已安装 Task 组合成同步流程时，可从 `axonx.task` 导入并继承 `BaseCompositeTask`，在步骤中调用 `run_task()`。纯复合 Task 默认类型为 `composite`。每个子 Task（包括嵌套复合 Task）直接使用父 Task 解析后的 `task_name`。重复调用同一注册名会覆盖同一目录中的终态产物，节点名和调用序号只用于标识调用记录。文件产物应在下次覆盖前消费，Task 不能将自身 ID 作为上游。共享固定名称的流程需要串行执行；保留历史时应使用不同父实例名称。它默认提供 `BaseCompositeOutputParams`；自定义复合输出继承该模型，并使用 `composition_output()`。取消操作指向父 Task。完整插件示例和失败策略见[复合 Task](https://flowllm-ai.github.io/AxonX/zh/guides/composite-tasks)。
+将已安装 Task 组合成同步流程时，可从 `axonx.task` 导入并继承 `BaseCompositeTask`，在步骤中调用 `run_task()`。纯复合 Task 默认类型为 `composite`。每个子 Task（包括嵌套复合 Task）直接使用父 Task 解析后的 `task_name`。重复调用同一注册名会覆盖同一目录中的终态产物，节点名和调用序号只用于标识调用记录。文件产物应在下次覆盖前消费，Task 不能将自身 ID 作为上游。共享固定名称的流程需要串行执行；保留历史时应使用不同父实例名称。它默认输出 `BaseOutputParams`，自定义输出只包含业务字段。子调用快照统一保存在顶层 `metadata.json.children`，失败和取消的运行也会保留。取消操作指向父 Task。完整插件示例和失败策略见[复合 Task](https://flowllm-ai.github.io/AxonX/zh/guides/composite-tasks)。
 
 实现前应阅读 [Task 契约](https://flowllm-ai.github.io/AxonX/zh/reference/task-contracts)、[Task 生命周期](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lifecycle) 和
 [研究产物协议](https://flowllm-ai.github.io/AxonX/zh/reference/research-artifacts)。仅满足 Python 标准字段不能保证与下游插件或 Studio 兼容；
@@ -223,7 +223,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
 - 使用提交响应中的实际 Task ID 和 Run ID，在同一服务上等待运行、查询状态、读取日志和检查产物。
 - 完整检查 `status`、`wait_task` 或 `stream_task` 的 `answer`：核对 `task_id`、`run_id` 和 `state`，并查看
-  `result`、`error`、`exit_code`、`log_path` 及步骤进度等字段。`status` 的 `success` 表示查询成功，不能据此判断 Task 成功。
+  `output_params`、`error`、`exit_code`、`log_path` 及步骤进度等字段。`status` 的 `success` 表示查询成功，不能据此判断 Task 成功。
 - `state` 为 `queued` 或 `running` 时继续等待；仅在 `succeeded` 时提交下游。`failed` 或 `cancelled` 时先检查错误和日志。
 - `wait_task` 必须传入提交返回的 `task_id`、`run_id`，等待指定运行结束；同一 Task ID 被重新提交后，Run ID 会变化， 不匹配时会报错。可用
   `--poll-interval 1` 设置轮询间隔（秒，必须大于 0，默认 1）。 长任务用 `--client-timeout 86400` 增加客户端请求超时；它不设置
@@ -296,7 +296,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 | `submit`              | 使用成功 ETL 的实际 Task ID 作为数据来源，提交训练 Task。                                | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`               | `--target 192.168.1.10:1024` |
 | `wait_task`           | 等待指定 Run ID 结束，返回完整状态；仅 `succeeded` 时响应成功。                          | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
 | `stream_task`         | 持续输出指定 Task 的进度与日志，直到结束并返回最终状态。                                 | `axonx stream_task --task-id '<task_id>' --stream true`                            | `--target 192.168.1.10:1024` |
-| `list_task_ids`       | 列出具有状态文件的 Task ID，供后续查询使用。                                             | `axonx list_task_ids`                                                              | `--target 192.168.1.10:1024` |
+| `list_task_ids`       | 列出具有生命周期元数据记录的 Task ID，供后续查询使用。                                   | `axonx list_task_ids`                                                              | `--target 192.168.1.10:1024` |
 | `list_task_statuses`  | 获取 Task 状态快照列表，便于检查多个 Task 的运行情况。                                   | `axonx list_task_statuses`                                                         | `--target 192.168.1.10:1024` |
 | `status`              | 获取指定 Task 当前的状态快照，不持续跟踪日志。                                           | `axonx status --task-id '<task_id>'`                                               | `--target 192.168.1.10:1024` |
 | `read_task_log`       | 单次读取指定 Task 的日志尾部，默认最多 65536 字节，用于查看最近输出。                    | `axonx read_task_log --task-id '<task_id>'`                                        | `--target 192.168.1.10:1024` |
@@ -304,8 +304,8 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 | `get_task_context`    | 汇总状态、元数据与日志路径、依赖图及上下游关系，供排查或后续研究使用。                   | `axonx get_task_context --task-id '<task_id>'`                                     | `--target 192.168.1.10:1024` |
 | `get_task_graph`      | 查询包含指定 Task 的依赖图，检查节点、连线和上下游关联。                                 | `axonx get_task_graph --task-id '<task_id>'`                                       | `--target 192.168.1.10:1024` |
 | `cancel`              | 取消正在排队或运行的 Task。                                                              | `axonx cancel --task-id '<task_id>'`                                               | `--target 192.168.1.10:1024` |
-| `delete_tasks`        | 删除已结束或仅有元数据的 Task 及其文件；单个 ID 也须用 JSON 数组传入。                   | `axonx delete_tasks --task-ids '["<task_id>"]'`                                    | `--target 192.168.1.10:1024` |
-| `delete_tasks`        | 一次删除多个已结束或仅有元数据的 Task 及其文件。                                         | `axonx delete_tasks --task-ids '["<task_id_1>","<task_id_2>"]'`                    | `--target 192.168.1.10:1024` |
+| `delete_tasks`        | 删除已结束的 Task 及其文件；单个 ID 也须用 JSON 数组传入。                               | `axonx delete_tasks --task-ids '["<task_id>"]'`                                    | `--target 192.168.1.10:1024` |
+| `delete_tasks`        | 一次删除多个已结束的 Task 及其文件。                                                     | `axonx delete_tasks --task-ids '["<task_id_1>","<task_id_2>"]'`                    | `--target 192.168.1.10:1024` |
 
 ### 工作区与同步
 
@@ -322,7 +322,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 | `POST /files`（HTTP）   | 上传一个文件到暂存区，返回 path、sha256、size。                                        | `curl -sS '<service-url>/files' -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" -F 'file=@<local_file>'`                            | 替换服务 URL 与 token        |
 | `DELETE /files`（HTTP） | 清理返回路径对应的暂存文件。                                                           | `curl -sS -X DELETE '<service-url>/files' -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" -G --data-urlencode 'path=<staged_path>'` | 替换服务 URL 与 token        |
 
-- 产物路径：成功运行后，元数据写入 `工作区/<task_type>/<task_id>/metadata.json`；`preview_file` 使用工作区相对路径。
+- 产物路径：执行期间持续将元数据写入 `工作区/<task_type>/<task_id>/metadata.json`；`preview_file` 使用工作区相对路径。
 - 实际取值：上传归档路径、目标服务地址和 Task ID 均从真实配置或服务响应取得，再执行对应命令。
 
 `/files` 是 HTTP 接口，须使用后续操作的同一服务 URL 与 token。multipart 接受恰好一个 `file` 文件与可选文本 `directory`（位于 `tmp` 下），由 curl 自动设置 Content-Type。原始二进制须提供 `x-file-name`，可选 `x-file-directory`；请求头优先于 multipart 元数据。默认单文件上限 256 MiB，multipart 请求额外允许 64 KiB 封装开销。

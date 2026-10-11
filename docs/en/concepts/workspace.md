@@ -12,12 +12,10 @@ The following illustrates a demo and a research plugin task; plugin filenames de
 .axonx/
   base/
     base#demo#trial-01/
-      status.json
       metadata.json
       events.jsonl
   etl/
     etl#my-etl#dataset-01/
-      status.json
       metadata.json
       events.jsonl
       dataset.parquet
@@ -36,18 +34,16 @@ The directory rule is `<task_type>/<task_id>`, rather than `<task_type>/<registe
 
 ## Runtime Records
 
-| File             | When it appears                   | Responsibility                                                                                          |
-| ---------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| status.json      | Acceptance and execution          | run_id, state, steps, errors, exit code, log path, result                                               |
-| metadata.json    | On success                        | Definition identity, creation time, typed input/output, artifact references, and lineage                |
-| events.jsonl     | When the worker records progress  | Replayable progress events recorded line by line                                                        |
-| composition.json | When a composite records children | Parent run identity and child invocation snapshots; see [Composite Tasks](../guides/composite-tasks.md) |
+| File            | Lifecycle                               | Contents                                                                                        |
+| --------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `metadata.json` | Acceptance through every terminal state | Identity, Run ID, input/output, state, steps, error, exit code, log path, and child invocations |
+| `events.jsonl`  | Appended as the worker reports progress | Replayable progress events, one JSON object per line                                            |
 
-Status is a mutable snapshot; metadata packages a successful result. They are not duplicates: metadata contains no `run_id`, and status `result` corresponds to metadata `output_params`.
+One atomic metadata snapshot is the authoritative Task record. The Runner owns updates during execution; the manager settles children and the parent after its worker stops. There are no separate status or composition documents, no duplicate result envelopes, and no legacy-format fallback.
 
-`composition.json` belongs to the parent directory. Child Task directories remain under their own type directories, rather than nested inside the parent. Synchronizing or deleting only the parent does not automatically synchronize or delete its children; include their Task IDs separately when preserving or cleaning up a complete flow.
+Child invocations are recorded in `metadata.json.children`; child directories remain under their own type directories, rather than below the parent. Synchronizing or deleting a parent does not include its children automatically.
 
-Atomic writes reduce the chance of reading partial JSON. Readers still tolerate invalid records or records inconsistent with directory identity by treating them as missing; manual file edits should not be a routine task management method.
+Readers treat malformed, unsafe, or identity-mismatched records as missing. They never read FIFOs or follow symbolic links. Transient I/O errors can be retried by lifecycle operations.
 
 ## Relative Artifact Paths
 
@@ -81,9 +77,9 @@ Do not treat an artifact's path as relative to the workspace root, or use absolu
 
 ## Indexes and Files
 
-TaskRepository scans and watches status and metadata under type directories, maintaining the index needed for task queries. Restarting can rebuild indexes from valid files; it does not retrain models or download raw data for you.
+TaskRepository scans and watches only metadata under type directories, maintaining one index for task queries. Restarting can rebuild indexes from valid files; it does not retrain models or download raw data for you.
 
-Task lists mainly depend on status records. Research result lists use task directories containing metadata, so successful research tasks, migrated records with only metadata, and failed tasks can have different visibility across entry points.
+Task lists include every valid lifecycle record. Studio research pages select records with `state=succeeded`; the existence of metadata alone does not mean an experiment succeeded.
 
 ## Backup Scope
 
@@ -97,4 +93,4 @@ Rerunning a fixed name replaces the old directory. Deleting upstream directories
 
 [Workspace Browsing](../guides/workspace-files.md) · [Task Contracts](../reference/task-contracts.md) · [Research Artifacts](../reference/research-artifacts.md) · [Backup and Recovery](../guides/operations.md)
 
-Source: [Workspace layout](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/metadata.py), [Artifact paths](../../../axonx/task/storage/artifacts.py).
+Source: [Workspace layout](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/workspace.py), [Artifact paths](../../../axonx/task/storage/artifacts.py).

@@ -95,7 +95,7 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
         status = TaskRunner().run(task)
         assert task.input_params.model_dump(mode="json") == original_inputs
         assert status.state == TaskState.SUCCEEDED, status.error
-        return task, status.result
+        return task, status.output_params
 
     states = tmp_path / "market_status.parquet"
     pl.DataFrame(

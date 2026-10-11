@@ -8,7 +8,7 @@
 
 同步方向由源端组件的 target 决定。发送方从 Repository 合并变化，只发送具有终态 status 的 Task。queued/running 任务回到待处理队列，结束后再传输。
 
-包括任务目录中的 status、metadata、events 和产物；不包含整个工作区的 Tushare 原始数据、Agent 会话、外部文本日志或插件环境。不迁移 worker，不会让目标继续运行源端进程。
+包括任务目录中的 metadata、events 和产物；不包含整个工作区的 Tushare 原始数据、Agent 会话、外部文本日志或插件环境。不迁移 worker，不会让目标继续运行源端进程。
 
 目标同名终态目录将被新快照替换。双方独立实验最好使用不同名称；同步不是保留多个版本的备份机制。
 

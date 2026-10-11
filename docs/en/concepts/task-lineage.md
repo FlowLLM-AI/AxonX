@@ -30,17 +30,13 @@ The base protocol validates ID format, but does not verify that upstream directo
 
 ## Where the Graph Comes From
 
-A successful Task's metadata.input_params.source_tasks is the final source of relationships. For tasks without successful metadata, queries use status.config.source_tasks to generate provisional relationships.
+Lineage is always read from `metadata.input_params.source_tasks`. A recorded reference does not certify data quality or compatibility.
 
-| Field                 | Explanation                                                       |
-| --------------------- | ----------------------------------------------------------------- |
-| parent_ids            | Upstream Task IDs declared by the current node                    |
-| provisional=true      | A status record exists, but final metadata does not yet exist     |
-| missing=true          | An upstream task is referenced, but has no valid workspace record |
-| state                 | Execution state when status exists; may be empty                  |
-| edges.from / edges.to | Direction from upstream to downstream                             |
-
-Graph queries return the connected component containing the selected task, including upstream and downstream nodes, rather than only direct parents. `root_id` is a root identifier in the graph, not a scheduling instruction for what to execute next.
+| Field              | Meaning                                           |
+| ------------------ | ------------------------------------------------- |
+| `parent_ids`       | Declared upstream Task IDs                        |
+| `provisional=true` | The Task has not reached `state=succeeded`        |
+| `missing=true`     | The referenced Task has no valid current metadata |
 
 ## Querying and Inspecting
 
@@ -49,7 +45,7 @@ axonx get_task_graph --task-id 'predict#my-predict#prediction-01'
 axonx get_task_context --task-id 'predict#my-predict#prediction-01'
 ```
 
-Studio's task lineage entry lets you select nodes, inspect related tasks, and navigate to results. To confirm a node precisely, inspect its status, metadata, and artifacts; an edge only shows that a reference was recorded.
+Studio's task lineage entry lets you select nodes, inspect related tasks, and navigate to results. To confirm a node precisely, inspect its metadata state and artifacts; an edge only shows that a reference was recorded.
 
 The following uses two built-in demo tasks to illustrate the records. The parameter snapshot for `docs-child` explicitly sets `source_tasks=base#demo#docs-demo` while using its own x=5 and y=5.
 

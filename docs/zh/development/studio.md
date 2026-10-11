@@ -112,7 +112,7 @@ npm run build:playground
 
 `playground/fixtures.ts` 创建虚拟工作区，包含 ETL → 训练 → 预测 → 回测主链、从 ETL 独立分出的因子分析与两组回测。JSON 表格预览实现现有 Parquet 预览协议，无需附带 Parquet 解码器。收益与汇总指标由同一组序列生成。
 
-`playground/runtime.ts` 维护任务与文件状态，`agent.ts` 维护脚本会话及工具消息，`stream.ts` 负责事件订阅清理，`catalog.ts` 声明支持的 Job。提交任务按经过时间推进，即使没有订阅者也会继续；状态查询和事件流同步这些状态。取消任务停止执行；AbortSignal 只关闭过期订阅并释放计时器。成功任务生成 metadata 与产物，失败或取消任务不会生成。`strategy` 选择合成结果，`outcome` 选择成功或失败，提交配置不会执行真实研究算法。
+`playground/runtime.ts` 维护任务与文件状态，`agent.ts` 维护脚本会话及工具消息，`stream.ts` 负责事件订阅清理，`catalog.ts` 声明支持的 Job。提交任务按经过时间推进，即使没有订阅者也会继续；状态查询和事件流同步这些状态。取消任务停止执行；AbortSignal 只关闭过期订阅并释放计时器。所有状态均保留统一 metadata，成功任务生成业务产物。`strategy` 选择合成结果，`outcome` 选择成功或失败，提交配置不会执行真实研究算法。
 
 刷新或点击「重置示例」恢复初始状态，不持久化执行状态。测试覆盖数据契约、分页、生命周期、删除、事件流清理、脚本会话和网络隔离。应检查正式与 Playground 两种构建；站点验证会检查合并后的入口与资源路径。
 
@@ -120,6 +120,6 @@ npm run build:playground
 
 导航中的 **在线链路** 打开 `#local/online/runs`，汇总 API 采集、在线推理和预测比对任务（通过 `comparison_keys` 或 `comparisons` 识别），支持搜索、筛选与任务详情跳转。展示窗口覆盖率、输入超时、固定模型身份及比对指标。任务状态与窗口结果分别展示：报告任务完成时，也可能存在不完整窗口或单项比对异常。
 
-页面复用现有同源 Job，保留所选机器 target。可见页面中的活跃任务每五秒刷新；页面或机器切换后清理过期请求和轮询。已完成任务读取 status result，运行中或失败任务通过分页工作区目录接口读取增量报告，包括尚未生成 metadata.json 的任务目录。空工作区和尚未发布报告各有空状态，请求失败提供错误信息与刷新操作。
+页面复用现有同源 Job，保留所选机器 target。可见页面中的活跃任务每五秒刷新；页面或机器切换后清理过期请求和轮询。已完成任务读取 metadata.output_params，运行中或失败任务通过分页工作区目录接口读取增量报告，包括 metadata.output_params 尚未准备的任务。空工作区和尚未发布报告各有空状态，请求失败提供错误信息与刷新操作。
 
 无需 Python 或凭据即可预览：运行 `npm run dev:playground`，打开 `http://localhost:4173/AxonX/playground/#local/online/runs`。合成样例包含完整/部分/跳过采集、成功推理与输入超时、预测一致、源数据修订差异、协议不符及输入缺失。这些样例仅演示合同，不执行 a_stock 模型，也不代表迁移等价性已通过验证。

@@ -108,7 +108,7 @@ axonx status --task-id 'base#demo#first-demo'
 axonx read_task_log --task-id 'base#demo#first-demo'
 ```
 
-The final state should be `succeeded`, and `result.result` should be `5`. `wait_task` checks both Task ID and run_id to avoid waiting for another execution that reruns the same name.
+The final state should be `succeeded`, and `answer.output_params.result` should be `5`. `wait_task` checks both Task ID and run_id to avoid waiting for another execution that reruns the same name.
 
 You can also follow progress and logs while the task is running:
 
@@ -120,13 +120,12 @@ Demo finishes quickly, so the follow command may immediately read its final stat
 
 ## Inspect persistent records
 
-A successful task directory contains `status.json`, `events.jsonl`, and `metadata.json`:
+Every accepted Task stores its lifecycle in `metadata.json` and progress in `events.jsonl`:
 
 ```text
 .axonx/
   base/
     base#demo#first-demo/
-      status.json
       events.jsonl
       metadata.json
 ```

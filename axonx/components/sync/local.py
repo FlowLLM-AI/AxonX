@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ...config import TargetConfig
 from ...constants import MAX_ARCHIVE_BYTES
-from ...task.storage.workspace import read_status, task_directory, task_path
+from ...task.storage.workspace import read_task_metadata, task_directory, task_path
 from ...task.sync import (
     SYNC_ARCHIVE_NAME,
     SyncReport,
@@ -148,7 +148,7 @@ class LocalSyncComponent(BaseSyncComponent):
         machine, so synchronization publishes only terminal snapshots.
         """
         directory = task_path(self.root, task_id)
-        status = read_status(directory, task_id)
+        status = read_task_metadata(directory, task_id)
         return status is not None and status.state.is_terminal
 
     def _settled(self, task_ids: Sequence[str]) -> list[str]:

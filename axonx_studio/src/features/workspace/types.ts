@@ -1,6 +1,13 @@
 export type WorkspaceEntryKind = "directory" | "file" | "symlink";
 export type WorkspacePreviewKind =
-  "text" | "markdown" | "json" | "yaml" | "csv" | "parquet" | "unsupported";
+  | "text"
+  | "markdown"
+  | "json"
+  | "jsonl"
+  | "yaml"
+  | "csv"
+  | "parquet"
+  | "unsupported";
 
 export interface WorkspaceEntry {
   name: string;
@@ -57,6 +64,20 @@ export interface CsvPreview extends PreviewBase {
   has_more: boolean;
 }
 
+export interface JsonlPreview extends PreviewBase {
+  kind: "jsonl";
+  rows: {
+    line: number;
+    content: string;
+    data: unknown;
+    parse_error: string | null;
+  }[];
+  offset: number;
+  limit: number;
+  has_more: boolean;
+  truncated: boolean;
+}
+
 export interface ParquetPreview extends PreviewBase {
   kind: "parquet";
   columns: string[];
@@ -75,4 +96,5 @@ export type WorkspacePreview =
   | MarkdownPreview
   | StructuredPreview
   | CsvPreview
+  | JsonlPreview
   | ParquetPreview;

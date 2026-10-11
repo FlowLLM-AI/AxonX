@@ -12,7 +12,7 @@ describe("online incremental report", () => {
   it("reads a failed task's audit report with its machine target and abort signal", async () => {
     const task = taskStatus("inference", "inference#demo#test", "demo");
     task.state = "failed";
-    task.result = {};
+    task.output_params = {};
     const signal = new AbortController().signal;
     vi.mocked(listWorkspaceEntries).mockResolvedValueOnce({
       path: "inference",
@@ -82,7 +82,7 @@ describe("online incremental report", () => {
   it("finds active runs beyond the first directory page", async () => {
     const task = taskStatus("inference", "inference#demo#test", "demo");
     task.state = "running";
-    task.result = {};
+    task.output_params = {};
     const entry = (name: string, path: string) => ({
       name,
       path,

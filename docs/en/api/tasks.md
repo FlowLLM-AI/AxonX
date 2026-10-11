@@ -8,7 +8,7 @@ Task submission, status, logs, and lineage queries share the Job protocol. Query
 
 All endpoints below use `POST /jobs/{name}` with a `{"arguments":{...}}` request body. For remote forwarding, add `target` at the envelope's top level, outside arguments. Every response uses [JobResponse](overview.md#responses-and-errors). Table defaults come from the current built-in configuration and Steps. Deployments may change Job Schemas; the running service's `/jobs` is authoritative.
 
-All JSON examples illustrate structure; replace task IDs, session IDs, file paths, and hashes with values actually returned by your service. See [Task contracts](../reference/task-contracts.md) for the complete shared TaskStatus fields.
+All JSON examples illustrate structure; replace task IDs, session IDs, file paths, and hashes with values actually returned by your service. See [Task contracts](../reference/task-contracts.md) for the complete shared TaskMetadata fields.
 
 ## Endpoint list
 
@@ -18,7 +18,7 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 | `get_task_definition`             | Query a registered definition and its input/output Schemas.            |
 | `submit`                          | Start a separate subprocess to run a Task.                             |
 | `wait_task`                       | Wait for the specific execution returned by submission to finish.      |
-| `list_task_ids`                   | List task identities with status files.                                |
+| `list_task_ids`                   | List task identities with lifecycle metadata records.                  |
 | `list_task_statuses`              | List status snapshots.                                                 |
 | `status`                          | Read a task's current status.                                          |
 | `read_task_log`                   | Read logs within a bounded byte window.                                |
@@ -26,7 +26,7 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 | `get_task_graph`                  | Read the dependency graph containing the selected Task.                |
 | `get_task_context`                | Provide the Agent with task paths, status, and relationship context.   |
 | `cancel`                          | Request cancellation of an active worker managed by this service.      |
-| `delete_tasks`                    | Delete terminal or metadata-only Tasks and associated files.           |
+| `delete_tasks`                    | Delete terminal or Tasks and associated files.                         |
 
 ## list_installed_task_definitions
 
@@ -186,7 +186,7 @@ Only the business fields listed in the table are accepted.
 
 **Response**
 
-answer is a terminal TaskStatus; success=true only when state=succeeded.
+answer is a terminal TaskMetadata; success=true only when state=succeeded.
 
 ```json
 {
@@ -194,24 +194,25 @@ answer is a terminal TaskStatus; success=true only when state=succeeded.
     "task_id": "base#demo#api-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
     "task_type": "base",
-    "task_name": "demo",
     "state": "succeeded",
-    "config": {
-      "task_name": "api-demo",
-      "source_tasks": "",
-      "x": 1,
-      "y": 2,
-      "fail": false
-    },
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
     "pid": null,
     "exit_code": 0,
     "error": "",
-    "result": {},
     "steps": [],
-    "log_path": ""
+    "log_path": "",
+    "input_params": {
+      "task_name": "api-demo",
+      "source_tasks": "",
+      "x": 1,
+      "y": 2,
+      "fail": false
+    },
+    "output_params": {},
+    "reg_name": "demo",
+    "children": []
   },
   "success": true,
   "metadata": {}
@@ -224,7 +225,7 @@ poll_interval defaults to 1 second; there is no business timeout parameter. The 
 
 ## list_task_ids
 
-List task identities with status files.
+List task identities with lifecycle metadata records.
 
 No public business parameters; use `{"arguments":{}}`.
 
@@ -250,7 +251,7 @@ answer is an array of Task ID strings.
 
 **Behavior and failure cases**
 
-Metadata-only directories without status do not appear in this list; it is not a complete historical execution list.
+Only valid unified metadata records are indexed; the list is not a full execution history.
 
 ## list_task_statuses
 
@@ -272,9 +273,9 @@ Optional `detail`: `full` (default, preserves the existing response) or `summary
 
 **Response**
 
-`answer` is sorted by `created_at` and `task_id` in descending order. With `full`, each item is the unchanged TaskStatus. With `summary`, each item contains `task_id`, `run_id`, `task_type`, `task_name`, `state`, `pid`, `created_at`, `started_at`, `finished_at`, `exit_code`, `log_path`, and `error` (at most 1,000 characters).
+`answer` is sorted by `created_at` and `task_id` in descending order. With `full`, each item is the unchanged TaskMetadata. With `summary`, each item contains `task_id`, `run_id`, `task_type`, `reg_name`, `state`, `pid`, `created_at`, `started_at`, `finished_at`, `exit_code`, `log_path`, and `error` (at most 1,000 characters).
 
-Summaries omit `config`, `result`, and `steps`. They add `display_name` (configuration task name or registered name, at most 256 characters), `is_online` (whether the task belongs in the online pipeline), and `step_progress`: `null` when there are no steps, otherwise `{current, total, name, percentage}`. Step numbers are one-based; the first unfinished step is selected, or the last step when all are finished. The name is limited to 256 characters; percentage may be null. Read `status` for complete details.
+Summaries omit `input_params`, `output_params`, `children`, and `steps`. They add `display_name` (configuration task name or registered name, at most 256 characters), `is_online` (whether the task belongs in the online pipeline), and `step_progress`: `null` when there are no steps, otherwise `{current, total, name, percentage}`. Step numbers are one-based; the first unfinished step is selected, or the last step when all are finished. The name is limited to 256 characters; percentage may be null. Read `status` for complete details.
 
 ```json
 {
@@ -310,7 +311,7 @@ The Schema does not prohibit extra fields; this does not mean those fields will 
 
 **Response**
 
-answer is TaskStatus: identity, config, state, timestamps, pid, exit_code, error, steps, and log_path.
+answer is TaskMetadata: identity, input_params, output_params, children, state, timestamps, pid, exit_code, error, steps, and log_path.
 
 ```json
 {
@@ -318,24 +319,25 @@ answer is TaskStatus: identity, config, state, timestamps, pid, exit_code, error
     "task_id": "base#demo#api-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
     "task_type": "base",
-    "task_name": "demo",
     "state": "queued",
-    "config": {
-      "task_name": "api-demo",
-      "source_tasks": "",
-      "x": 1,
-      "y": 2,
-      "fail": false
-    },
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
     "pid": null,
     "exit_code": 0,
     "error": "",
-    "result": {},
     "steps": [],
-    "log_path": ""
+    "log_path": "",
+    "input_params": {
+      "task_name": "api-demo",
+      "source_tasks": "",
+      "x": 1,
+      "y": 2,
+      "fail": false
+    },
+    "output_params": {},
+    "reg_name": "demo",
+    "children": []
   },
   "success": true,
   "metadata": {}
@@ -344,7 +346,7 @@ answer is TaskStatus: identity, config, state, timestamps, pid, exit_code, error
 
 **Behavior and failure cases**
 
-A nonexistent task, or a metadata-only task without status, returns a KeyError business failure. queued/running are not terminal states.
+A task without valid unified metadata returns a KeyError business failure. queued/running are not terminal states.
 
 ## read_task_log
 
@@ -417,7 +419,7 @@ Only the business fields listed in the table are accepted.
 
 **Response**
 
-For an ordinary call, answer is the terminal TaskStatus. SSE emits progress/log events and the final result carries the same status. success is set according to exit_code==0.
+For an ordinary call, answer is the terminal TaskMetadata. SSE emits progress/log events and the final result carries the same status. success is set according to exit_code==0.
 
 ```json
 {
@@ -425,24 +427,25 @@ For an ordinary call, answer is the terminal TaskStatus. SSE emits progress/log 
     "task_id": "base#demo#api-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
     "task_type": "base",
-    "task_name": "demo",
     "state": "succeeded",
-    "config": {
-      "task_name": "api-demo",
-      "source_tasks": "",
-      "x": 1,
-      "y": 2,
-      "fail": false
-    },
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
     "pid": null,
     "exit_code": 0,
     "error": "",
-    "result": {},
     "steps": [],
-    "log_path": ""
+    "log_path": "",
+    "input_params": {
+      "task_name": "api-demo",
+      "source_tasks": "",
+      "x": 1,
+      "y": 2,
+      "fail": false
+    },
+    "output_params": {},
+    "reg_name": "demo",
+    "children": []
   },
   "success": true,
   "metadata": {}
@@ -503,7 +506,7 @@ answer contains root_id, selected_id, nodes, and edges; nodes distinguish missin
 
 **Behavior and failure cases**
 
-The graph comes from source_tasks in status/metadata and represents recorded relationships; it does not execute a DAG. See the task-lineage documentation for node structures; this example shows only the top-level shape.
+The graph comes from metadata.input_params.source_tasks and represents recorded relationships; it does not execute a DAG. See the task-lineage documentation for node structures; this example shows only the top-level shape.
 
 ## get_task_context
 
@@ -537,26 +540,27 @@ answer contains task_id, status, metadata_exists, metadata_path, log_path, graph
       "task_id": "base#demo#api-demo",
       "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
       "task_type": "base",
-      "task_name": "demo",
       "state": "queued",
-      "config": {
-        "task_name": "api-demo",
-        "source_tasks": "",
-        "x": 1,
-        "y": 2,
-        "fail": false
-      },
       "created_at": "2026-10-02T00:00:00Z",
       "started_at": null,
       "finished_at": null,
       "pid": null,
       "exit_code": 0,
       "error": "",
-      "result": {},
       "steps": [],
-      "log_path": ""
+      "log_path": "",
+      "input_params": {
+        "task_name": "api-demo",
+        "source_tasks": "",
+        "x": 1,
+        "y": 2,
+        "fail": false
+      },
+      "output_params": {},
+      "reg_name": "demo",
+      "children": []
     },
-    "metadata_exists": false,
+    "metadata_exists": true,
     "metadata_path": "base/base#demo#api-demo/metadata.json",
     "log_path": null,
     "graph": {
@@ -591,7 +595,7 @@ answer contains task_id, status, metadata_exists, metadata_path, log_path, graph
 
 **Behavior and failure cases**
 
-metadata_exists indicates whether a node in the graph has published metadata; successful submission alone does not establish that artifacts exist.
+metadata_exists indicates whether the current valid lifecycle record exists; check state and artifacts separately to establish research success.
 
 ## cancel
 
@@ -631,7 +635,7 @@ Tasks already in a terminal state, or without a cancellable managed process, ret
 
 ## delete_tasks
 
-Delete terminal or metadata-only Tasks and associated files.
+Delete terminal or Tasks and associated files.
 
 | Parameter  | Type  | Required | Default       | Constraints and meaning                                       |
 | ---------- | ----- | -------- | ------------- | ------------------------------------------------------------- |
@@ -677,7 +681,7 @@ Schema failures return HTTP 422 before execution, for example when wait_task lac
 }
 ```
 
-The Available list is generated from the actual installed environment. When wait_task returns a failed task status, answer remains TaskStatus with state=failed/cancelled, retaining error and exit_code; do not assume that a failure answer is always a string.
+The Available list is generated from the actual installed environment. When wait_task returns a failed task status, answer remains TaskMetadata with state=failed/cancelled, retaining error and exit_code; do not assume that a failure answer is always a string.
 
 Deletion and cancellation can return a valid request with no changes: delete_tasks may return answer=[], and cancel may return answer=false, alongside success=true. Clients should display the actual number of changes.
 

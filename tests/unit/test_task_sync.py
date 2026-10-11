@@ -24,7 +24,7 @@ STATUS = (
 def _task(tmp_path):
     directory = tmp_path / TASK_DIRECTORY
     directory.mkdir(parents=True)
-    (directory / "status.json").write_bytes(STATUS)
+    (directory / "metadata.json").write_bytes(STATUS)
     return directory
 
 
@@ -57,7 +57,7 @@ def test_archive_applier_rejects_noncanonical_member_names(tmp_path):
     archive_path = tmp_path / "incoming.tar.gz"
     with tarfile.open(archive_path, "w:gz") as archive:
         for name, content in {
-            f"{TASK_DIRECTORY}/status.json": STATUS,
+            f"{TASK_DIRECTORY}/metadata.json": STATUS,
             f"./{TASK_DIRECTORY}/result.txt": b"ambiguous",
         }.items():
             member = tarfile.TarInfo(name)

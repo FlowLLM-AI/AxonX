@@ -227,6 +227,7 @@
     "loadingRuntime": "正在加载 AxonX 运行状态…"
   },
   "taskDetail": {
+    "children": "子任务调用",
     "refreshLog": "刷新日志",
     "openResearch": "查看研究",
     "loadEarlier": "加载更早日志",
@@ -375,6 +376,8 @@
     "pathUnavailable": "工作区路径不可访问：{{path}}"
   },
   "workspacePreview": {
+    "line": "第 {{line}} 行",
+    "emptyJsonl": "当前页没有记录",
     "unsupported": "暂不支持预览此文件",
     "parquet": "Parquet 数据预览",
     "rowCount": "总行数",
@@ -701,7 +704,7 @@
     "loading_task_relationships": "正在加载任务关系…",
     "unable_to_load_relationships": "无法读取任务关系",
     "locate_current_task": "定位当前任务",
-    "some_tasks_use_provisional_relationships": "包含尚未生成正式元数据的任务，关系会随运行结果更新。",
+    "some_tasks_use_provisional_relationships": "部分任务尚未成功完成，其血缘关系仍为暂定状态。",
     "open_task": "打开任务"
   },
   "trainingCurve": {

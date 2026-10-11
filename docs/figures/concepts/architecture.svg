@@ -32,7 +32,7 @@
       <path d="M 860 494 V 526" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" />
       <rect x="40" y="526" width="1120" height="94" rx="18.8" fill="#ffffff" stroke="#ccd9e5" stroke-width="1.6" stroke-linecap="round" />
       <text x="64.0" y="558" font-size="23" font-weight="700" text-anchor="start">Workspace records + separate logs</text>
-      <text x="64.0" y="590" font-size="18" font-weight="400" text-anchor="start">status.json · metadata.json · events.jsonl · Research artifacts · Recorded log_path</text>
+      <text x="64.0" y="590" font-size="18" font-weight="400" text-anchor="start">metadata.json · events.jsonl · Research artifacts · Recorded log_path</text>
       <text x="600.0" y="670.0" font-size="17" font-weight="400" text-anchor="middle">Plugins contribute Tasks, Jobs, and Components; each target owns its environment and records.</text>
       <text x="600.0" y="696.0" font-size="17" font-weight="400" text-anchor="middle">Solid arrows: call / execution / write. Dashed arrows: query / read.</text>
     </g>

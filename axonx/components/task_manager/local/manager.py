@@ -29,16 +29,16 @@ from ....task.query import (
     stream_task,
     task_graph,
 )
-from ....task.query.summary import summarize_status
+from ....task.query.summary import task_sort_key
 from ....task.runtime.arguments import build_task_argv, parse_task_argv
-from ....task.storage.composition import settle_composition
+from ....task.storage.composition import settle_children
 from ....task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
 from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import (
-    TaskStatus,
+    TaskMetadata,
     is_task_directory,
     read_entry,
-    read_status,
+    read_task_metadata,
     task_path,
 )
 from ...registry import provider
@@ -47,7 +47,7 @@ from ..base import BaseTaskManager
 from .supervisor import TaskProcessSupervisor, WorkerExit
 
 # The stderr tail one failure message carries: enough for a traceback's last
-# frames, bounded so a chatty worker cannot bloat the status file a UI reads.
+# frames, bounded so a chatty worker cannot bloat the lifecycle record a UI reads.
 ERROR_TAIL_CHARS = 2_048
 
 
@@ -75,9 +75,8 @@ class LocalTaskManager(BaseTaskManager):
 
     async def _close(self) -> None:
         terminated = await self._supervisor.shutdown()
-        for entry in (await self.repository.entries()).values():
-            status = entry.status
-            if status is not None and status.run_id in terminated and not status.state.is_terminal:
+        for status in (await self.repository.entries()).values():
+            if status.run_id in terminated and not status.state.is_terminal:
                 await self._finish(status, TaskState.CANCELLED, 130, "Task manager stopped")
 
     @environment_operation
@@ -96,16 +95,16 @@ class LocalTaskManager(BaseTaskManager):
             async with self._lock:
                 if not await self._reserve(task, not task.is_generated_name):
                     continue
-                status = TaskStatus(
+                status = TaskMetadata(
                     task_id=task.task_id,
                     run_id=run_id,
                     task_type=task.task_type,
-                    task_name=registration_name,
-                    config=task.input_params.model_dump(mode="json"),
+                    reg_name=registration_name,
+                    input_params=task.input_params.model_dump(mode="json"),
                     state=TaskState.QUEUED,
                     created_at=task.created_at,
                 )
-                await self.repository.put_status(status)
+                await self.repository.put_metadata(status)
             break
         else:
             raise RuntimeError("Could not allocate a unique Task name")
@@ -158,9 +157,8 @@ class LocalTaskManager(BaseTaskManager):
             if not replace:
                 return False
 
-        entry = await asyncio.to_thread(read_entry, self.workspace_path, task.task_id)
-        status = entry.status if entry else None
-        if entry is None or (status is not None and not status.state.is_terminal):
+        status = await asyncio.to_thread(read_entry, self.workspace_path, task.task_id)
+        if status is None or not status.state.is_terminal:
             raise FileExistsError(f"Active Task already exists: {task.task_id}")
 
         log_path = self._logs.path(status)
@@ -168,35 +166,19 @@ class LocalTaskManager(BaseTaskManager):
             raise FileExistsError(f"Task cannot be replaced: {task.task_id}")
         directory.mkdir(parents=True, exist_ok=False)
 
-        remaining = await self.repository.statuses()
+        remaining = await self.repository.entries()
         if self._logs.is_task_log(log_path) and all(self._logs.path(item) != log_path for item in remaining.values()):
             await asyncio.to_thread(log_path.unlink, missing_ok=True)
         return True
 
-    async def list_statuses(self) -> list[TaskStatus]:
-        statuses = [status.model_copy(deep=True) for status in (await self.repository.statuses()).values()]
-        statuses.sort(
-            key=lambda status: (
-                (status.created_at.timestamp() if status.created_at is not None else float("-inf")),
-                status.task_id,
-            ),
-            reverse=True,
-        )
-        return statuses
+    async def list_statuses(self) -> list[TaskMetadata]:
+        return sorted((await self.repository.entries()).values(), key=task_sort_key, reverse=True)
 
     async def list_summaries(self) -> list[dict]:
-        statuses = list((await self.repository.statuses()).values())
-        statuses.sort(
-            key=lambda status: (
-                status.created_at.timestamp() if status.created_at is not None else float("-inf"),
-                status.task_id,
-            ),
-            reverse=True,
-        )
-        return [summarize_status(status) for status in statuses]
+        return await self.repository.summaries()
 
-    async def get_status(self, task_id: str) -> TaskStatus:
-        return (await self._status_of(task_id)).model_copy(deep=True)
+    async def get_status(self, task_id: str) -> TaskMetadata:
+        return await self._status_of(task_id)
 
     async def get_graph(self, task_id: str) -> TaskGraph:
         return task_graph(await self.repository.entries(), task_id)
@@ -233,7 +215,7 @@ class LocalTaskManager(BaseTaskManager):
         async with self._lock:
             if task_id is not None:
                 try:
-                    status = (await self.repository.entry(task_id)).status
+                    status = await self.repository.entry(task_id)
                 except KeyError:
                     status = None
                 if status is None or (run_id is not None and status.run_id != run_id):
@@ -241,7 +223,7 @@ class LocalTaskManager(BaseTaskManager):
                 run_id = status.run_id
             else:
                 status = next(
-                    (item for item in (await self.repository.statuses()).values() if item.run_id == run_id),
+                    (item for item in (await self.repository.entries()).values() if item.run_id == run_id),
                     None,
                 )
             assert run_id is not None
@@ -260,7 +242,7 @@ class LocalTaskManager(BaseTaskManager):
         async with self._lock:
             entries = await self.repository.entries()
             # Count how many tasks still reference each log before anything is removed.
-            logs = Counter(self._logs.path(entry.status) for entry in entries.values())
+            logs = Counter(self._logs.path(entry) for entry in entries.values())
             for task_id in dict.fromkeys(task_ids):
                 try:
                     directory = task_path(self.workspace_path, task_id)
@@ -269,10 +251,8 @@ class LocalTaskManager(BaseTaskManager):
                 entry = entries.get(task_id)
                 if entry is None or directory.is_symlink() or directory.parent.is_symlink():
                     continue
-                status = entry.status
-                if status is not None and (
-                    not status.state.is_terminal or self._supervisor.is_managed_run(status.run_id)
-                ):
+                status = entry
+                if not status.state.is_terminal or self._supervisor.is_managed_run(status.run_id):
                     continue
                 if not await self.repository.delete_terminal(task_id):
                     continue
@@ -283,32 +263,35 @@ class LocalTaskManager(BaseTaskManager):
                 deleted.append(task_id)
         return deleted
 
-    async def _status_of(self, task_id: str) -> TaskStatus:
+    async def _status_of(self, task_id: str) -> TaskMetadata:
         """Return a task's status as the index holds it; raise KeyError when it has none."""
-        status = (await self.repository.entry(task_id)).status
-        if status is None:
-            raise KeyError(task_id)
-        return status
+        return await self.repository.entry(task_id)
 
-    async def _write_status(self, status: TaskStatus) -> None:
+    async def _write_task_metadata(self, status: TaskMetadata) -> None:
         """Persist one status this manager decided and index it, ahead of the watcher."""
         directory = task_path(self.workspace_path, status.task_id)
         if not is_task_directory(directory, strict_io=True):
             # A delete won the race, and writing would recreate the directory it removed.
             return
-        await self.repository.put_status(status)
+        await self.repository.put_metadata(status)
 
-    async def _finish(self, status: TaskStatus, state: TaskState, code: int, error: str) -> None:
+    async def _finish(self, status: TaskMetadata, state: TaskState, code: int, error: str) -> None:
+        current = await asyncio.to_thread(
+            read_task_metadata, task_path(self.workspace_path, status.task_id), status.task_id, strict_io=True
+        )
+        if current is None or current.run_id != status.run_id:
+            await self.repository.reconcile()
+            return
+        status = current
         if state in {TaskState.FAILED, TaskState.CANCELLED}:
-            children = await asyncio.to_thread(settle_composition, self.workspace_path, status, state, code, error)
+            children = await asyncio.to_thread(settle_children, self.workspace_path, status, state, code, error)
             for child in children:
-                await self._write_status(child)
-        status = status.model_copy(deep=True)
+                await self._write_task_metadata(child)
         status.state = state
         status.finished_at = datetime.now(UTC)
         status.exit_code = code
         status.error = error
-        await self._write_status(status)
+        await self._write_task_metadata(status)
 
     async def _handle_worker_exit(self, worker_exit: WorkerExit) -> None:
         """Fail an owned Run only after observing its worker exit without a final status.
@@ -322,7 +305,7 @@ class LocalTaskManager(BaseTaskManager):
         code = min(255, abs(worker_exit.return_code)) or 1
         async with self._lock:
             status = await asyncio.to_thread(
-                read_status,
+                read_task_metadata,
                 task_path(self.workspace_path, worker_exit.task_id),
                 worker_exit.task_id,
                 strict_io=True,

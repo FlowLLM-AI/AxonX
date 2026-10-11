@@ -23,12 +23,11 @@ import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { formatBytes } from "../../shared/lib/format";
 import { isAbortError } from "../../shared/lib/errors";
 import type { JobEvent } from "../../shared/api/event";
-import type { TaskStatus } from "./types";
+import type { TaskMetadata } from "./types";
 import { cancelTask, getTaskStatus, readTaskLog, streamTask } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 import { Status } from "./TasksPage";
 import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
-import { previewWorkspaceFile } from "../workspace/api";
 
 const ACTIVE = new Set(["queued", "running"]);
 const LOG_CHUNK_BYTES = 65_536;
@@ -56,7 +55,7 @@ export function TaskDetailPage({
     string,
     string
   >;
-  const [task, setTask] = useState<TaskStatus | null>(null);
+  const [task, setTask] = useState<TaskMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
@@ -73,7 +72,6 @@ export function TaskDetailPage({
   const configClipboard = useCopyFeedback();
   const copied = logClipboard.copied === "log";
   const configCopied = configClipboard.copied === "config";
-  const [hasResearch, setHasResearch] = useState(false);
   const [locateRequest, setLocateRequest] = useState(0);
   const [panels, setPanels] = useState({
     config: false,
@@ -86,41 +84,12 @@ export function TaskDetailPage({
   const logLength = useRef(0);
   const taskState = task?.state;
 
-  useEffect(() => {
-    const kind = task?.task_type;
-    if (
-      !kind ||
-      !taskState ||
-      ACTIVE.has(taskState) ||
-      !["etl", "analysis", "train", "predict", "backtest"].includes(kind)
-    ) {
-      setHasResearch(false);
-      return;
-    }
-    const controller = new AbortController();
-    setHasResearch(false);
-    void previewWorkspaceFile(
-      `${kind}/${taskId}/metadata.json`,
-      0,
-      1,
-      target,
-      controller.signal,
-    )
-      .then((preview) => {
-        if (!controller.signal.aborted)
-          setHasResearch(
-            preview.kind === "json" &&
-              !!preview.data &&
-              !Array.isArray(preview.data) &&
-              typeof preview.data === "object" &&
-              (preview.data as Record<string, unknown>).task_id === taskId,
-          );
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setHasResearch(false);
-      });
-    return () => controller.abort();
-  }, [target, task?.task_type, taskId, taskState]);
+  const hasResearch =
+    task?.state === "succeeded" &&
+    ["etl", "analysis", "train", "predict", "backtest"].includes(
+      task.task_type,
+    ) &&
+    Object.keys(task.output_params).length > 0;
 
   const loadStatus = useCallback(async () => {
     setLoading(true);
@@ -203,7 +172,7 @@ export function TaskDetailPage({
   useEffect(() => {
     if (!taskState || !ACTIVE.has(taskState)) return;
     const controller = new AbortController();
-    const onEvent = (event: JobEvent<TaskStatus>) => {
+    const onEvent = (event: JobEvent<TaskMetadata>) => {
       if (event.kind === "progress") {
         setTask((current) => {
           if (!current) return current;
@@ -264,7 +233,7 @@ export function TaskDetailPage({
   const copyConfig = async () => {
     if (!task) return;
     await configClipboard.copy(
-      JSON.stringify(task.config || {}, null, 2),
+      JSON.stringify(task.input_params || {}, null, 2),
       "config",
     );
   };
@@ -303,7 +272,7 @@ export function TaskDetailPage({
       </section>
     );
   const progress = taskStepProgress(task);
-  const configEntries = Object.entries(task.config || {});
+  const configEntries = Object.entries(task.input_params || {});
   const completedSteps = task.steps.filter(
     (step) => step.percentage === 100,
   ).length;
@@ -394,7 +363,7 @@ export function TaskDetailPage({
         >
           <div className="config-source">
             <span>{labels.task}</span>
-            <code>{task.task_name}</code>
+            <code>{task.reg_name}</code>
             <i>{labels.snapshot}</i>
           </div>
           {configEntries.length ? (
@@ -524,9 +493,35 @@ export function TaskDetailPage({
               )}
             </div>
           </DetailSection>
-          {Object.keys(task.result).length > 0 && (
+          {task.children.length > 0 && (
+            <DetailSection title={t("taskDetail.children")}>
+              <div className="step-list">
+                {task.children.map((child, index) => (
+                  <div className="step-item" key={child.run_id}>
+                    <span>{index + 1}</span>
+                    <div>
+                      <strong>
+                        {child.node_name} · {child.attempt}
+                      </strong>
+                      {child.task_id ? (
+                        <button onClick={() => onOpenTask(child.task_id!)}>
+                          {child.task_id}
+                        </button>
+                      ) : (
+                        <code>{child.task}</code>
+                      )}
+                      <small>{child.run_id}</small>
+                      {child.error && <small>{child.error}</small>}
+                    </div>
+                    <Status state={child.state} />
+                  </div>
+                ))}
+              </div>
+            </DetailSection>
+          )}
+          {Object.keys(task.output_params).length > 0 && (
             <DetailSection title={t("result")}>
-              <pre>{JSON.stringify(task.result, null, 2)}</pre>
+              <pre>{JSON.stringify(task.output_params, null, 2)}</pre>
             </DetailSection>
           )}
         </DetailCard>

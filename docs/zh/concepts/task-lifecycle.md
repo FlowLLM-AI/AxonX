@@ -15,7 +15,7 @@ Task ID 标识工作区中的一个任务目录，`run_id` 标识一轮执行。
 
 `task_name` 允许 1–32 个英文字母、数字或连字符。省略或传空字符串时，框架使用包含小时级时间前缀和随机后缀的名称。Task ID 中的 `#` 必须保留，shell 中应使用引号。
 
-注意持久状态的 `task_name` 字段当前保存 Task 注册名。实例名称位于 `status.config.task_name`，以及 `metadata.input_params.task_name`。不要用状态顶层的这个字段反推目录后缀。
+统一记录使用 `metadata.reg_name` 保存定义注册名，使用 `metadata.input_params.task_name` 保存解析后的实例名。
 
 ## 状态含义
 
@@ -42,16 +42,11 @@ Task ID 标识工作区中的一个任务目录，`run_id` 标识一轮执行。
 
 步骤生成器可以按中间状态动态产生后续步骤，因此当前步骤数量不一定是完整总数。不能简单把“已执行步骤 / 当前步骤数”当成可靠的整项任务百分比。
 
-## 成功记录发布顺序
+## 生命周期记录发布
 
-正常成功执行会依次完成：
+受理执行时在 `metadata.json` 创建 queued 记录。Runner 在启动步骤、报告进度和记录子调用时更新同一记录。同步步骤和资源清理完成后，准备 `output_params`、确定退出码，并将终态与输出一起原子发布。
 
-1. 所有同步步骤返回。
-2. `build_output_params()` 返回正确 output_cls 的实例。
-3. 获取输出与退出码；退出码为 0 时写入 metadata。
-4. 发布 succeeded 状态。
-
-因此成功状态发布前，metadata 已经写入。失败或取消任务通常只有 status、进度事件和部分产物，没有成功 metadata。Studio 研究列表按 metadata 查找结果，所以任务列表可见不等于研究页面可见。
+失败和取消的任务也保留相同 metadata，包含错误和子调用快照。准备输出前 `output_params` 为空，非零退出码仍可能保留已构建输出。Studio 研究页面筛选 `state=succeeded`，状态查询则包含所有状态。进度事件先追加，再发布对应 metadata 快照。
 
 ## 固定名称重跑
 

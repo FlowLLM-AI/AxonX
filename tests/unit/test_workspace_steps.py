@@ -62,7 +62,7 @@ def test_task_archive_replaces_the_complete_directory(tmp_path):
     staged = StagedFiles(tmp_path).store(
         _archive(
             {
-                f"{TASK_DIRECTORY}/status.json": TERMINAL_STATUS,
+                f"{TASK_DIRECTORY}/metadata.json": TERMINAL_STATUS,
                 f"{TASK_DIRECTORY}/result.txt": b"new",
                 f"{TASK_DIRECTORY}/nested/value.txt": b"nested",
             },
@@ -100,7 +100,7 @@ async def test_sync_tasks_job_discards_consumed_and_refused_archives(tmp_path):
     valid = staged_files.store(
         _archive(
             {
-                f"{TASK_DIRECTORY}/status.json": TERMINAL_STATUS,
+                f"{TASK_DIRECTORY}/metadata.json": TERMINAL_STATUS,
                 f"{TASK_DIRECTORY}/result.txt": b"ok",
             }
         ),
@@ -213,3 +213,47 @@ async def test_workspace_job_passes_directory_offset(tmp_path, monkeypatch):
     assert response.success is True
     assert [entry.name for entry in response.answer.entries] == ["c"]
     assert response.answer.truncated is False
+
+
+@pytest.mark.parametrize("extension", ["jsonl", "ndjson"])
+def test_jsonl_preview_paginates_and_keeps_malformed_rows(tmp_path, extension):
+    path = tmp_path / f"events.{extension}"
+    path.write_bytes(b'\xef\xbb\xbf{"kind":"progress","percentage":25}\n{broken\nnull\n[1,2]\n')
+    first = preview_workspace_file(tmp_path, path.name, offset=0, limit=2)
+    assert first.kind == "jsonl"
+    assert first.rows[0].data == {"kind": "progress", "percentage": 25}
+    assert first.rows[0].line == 1
+    assert first.rows[1].parse_error
+    assert first.rows[1].content == "{broken"
+    assert first.has_more
+    last = preview_workspace_file(tmp_path, path.name, offset=2, limit=2)
+    assert [row.line for row in last.rows] == [3, 4]
+    assert [row.data for row in last.rows] == [None, [1, 2]]
+    assert all(row.parse_error is None for row in last.rows)
+    assert not last.has_more
+
+
+def test_jsonl_preview_bounds_large_lines_and_preserves_next_record(tmp_path):
+    from axonx.workspace.preview import TEXT_PREVIEW_BYTES
+
+    path = tmp_path / "large.jsonl"
+    path.write_bytes(b'"' + b"x" * (TEXT_PREVIEW_BYTES * 2) + b'"\n{"next":true}\n')
+    first = preview_workspace_file(tmp_path, path.name, limit=200)
+    assert first.truncated and first.has_more
+    assert len(first.rows) == 1
+    assert first.rows[0].parse_error
+    assert len(first.rows[0].content) <= TEXT_PREVIEW_BYTES
+    second = preview_workspace_file(tmp_path, path.name, offset=1)
+    assert second.rows[0].data == {"next": True}
+    assert not second.has_more
+
+
+def test_jsonl_preview_handles_empty_and_partial_utf8_records(tmp_path):
+    path = tmp_path / "events.jsonl"
+    path.write_bytes(b"")
+    assert preview_workspace_file(tmp_path, path.name).rows == []
+    path.write_bytes(b'\xff\n{"open":')
+    preview = preview_workspace_file(tmp_path, path.name)
+    assert len(preview.rows) == 2
+    assert all(row.parse_error for row in preview.rows)
+    assert not preview.has_more

@@ -23,7 +23,7 @@ Query `/health` with a token to check protocol connectivity. A 401 caused by a m
 | status.error / exit_code    | Final error for a Task run                                                    |
 | read_task_log               | Detailed worker logs from steps, plugins, and model libraries                 |
 | events.jsonl                | Progress event replay, distinct from text logs                                |
-| metadata.json               | Successful configuration and output, without failure stack traces             |
+| metadata.json               | Current input, output, state, errors, and child invocations                   |
 
 ```bash
 axonx status --task-id '<Task ID>'
@@ -56,7 +56,7 @@ While the owning service is running, its supervisor detects a forcibly killed wo
 
 Repository watches and polls record changes by default, and parameters such as debounce make short delays normal. Check JSON validity, consistency of task_id/type with the directory, and whether the service uses the expected workspace.
 
-When watcher observation windows are missed, Repository/synchronization rechecks records. Indexes can be rebuilt from valid status and metadata, but this does not repair corrupt JSON or missing artifacts.
+When watcher observation windows are missed, Repository/synchronization rechecks records. Indexes can be rebuilt from valid metadata, but this does not repair corrupt JSON or missing artifacts.
 
 Research pages use directories containing metadata. Failed tasks, base demos, and tasks missing metadata may not appear in research result pages; valid metadata does not guarantee all chart fields are present.
 

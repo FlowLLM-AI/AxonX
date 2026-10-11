@@ -1,5 +1,5 @@
 import { listWorkspaceEntries, previewWorkspaceFile } from "../workspace/api";
-import type { TaskStatus } from "../tasks/types";
+import type { TaskMetadata } from "../tasks/types";
 import { parseOnlineReport, type OnlineReport } from "./types";
 
 async function findEntry(
@@ -20,13 +20,13 @@ async function findEntry(
 }
 
 export async function loadOnlineReport(
-  task: TaskStatus,
+  task: TaskMetadata,
   target: string | undefined,
   signal: AbortSignal,
 ): Promise<OnlineReport> {
-  if (task.result.windows || task.result.comparisons)
-    return parseOnlineReport(task.result);
-  // Running and failed tasks have no metadata.json; list_task_runs omits them.
+  if (task.output_params.windows || task.output_params.comparisons)
+    return parseOnlineReport(task.output_params);
+  // Running tasks may publish business reports before preparing their final output.
   const entry = await findEntry(task.task_type, task.task_id, target, signal);
   if (!entry) return {};
   const filename =

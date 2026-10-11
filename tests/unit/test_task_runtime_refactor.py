@@ -26,10 +26,10 @@ from axonx.task.query.stream import stream_task
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.events import LOG_WINDOW_BYTES, read_event_lines
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import TaskStatus, read_entry, read_status, task_path, write_status
+from axonx.task.storage.workspace import TaskMetadata, read_entry, read_task_metadata, task_path, write_task_metadata
 
 
-def test_success_status_is_published_after_metadata(tmp_path):
+def test_success_is_published_with_matching_persisted_output(tmp_path):
     task = DemoTask(
         {"x": 2, "y": 3, "task_name": "finished"},
         workspace_path=tmp_path,
@@ -39,12 +39,15 @@ def test_success_status_is_published_after_metadata(tmp_path):
 
     def on_status(status):
         if status.state == TaskState.SUCCEEDED:
-            observed.append((task.task_dir / "metadata.json").exists())
+            persisted = read_task_metadata(task.task_dir, task.task_id)
+            assert persisted == status
+            assert persisted.output_params["result"] == 5
+            observed.append(persisted.state)
 
     result = TaskRunner(emit=on_status).run(task)
 
     assert result.state == TaskState.SUCCEEDED
-    assert observed == [True]
+    assert observed == [TaskState.SUCCEEDED]
 
 
 @pytest.mark.parametrize("failure", ["active", "unknown", "symlink", "mkdir"])
@@ -52,9 +55,9 @@ def test_runner_closes_rejected_task_once_without_overwriting_directory(tmp_path
     task = DemoTask({"x": 1, "y": 2, "task_name": "rejected"}, workspace_path=tmp_path, reg_name="demo")
     if failure == "active":
         task.task_dir.mkdir(parents=True)
-        write_status(
+        write_task_metadata(
             task.task_dir,
-            TaskStatus(task_id=task.task_id, run_id="foreign", task_type=TaskType.BASE, state=TaskState.RUNNING),
+            TaskMetadata(task_id=task.task_id, run_id="foreign", task_type=TaskType.BASE, state=TaskState.RUNNING),
         )
     elif failure == "unknown":
         task.task_dir.mkdir(parents=True)
@@ -146,7 +149,7 @@ def test_include_time_is_not_a_task_option(tmp_path):
 
 def test_task_status_requires_run_id():
     with pytest.raises(ValueError):
-        TaskStatus.model_validate({"task_id": "analysis#sample#run", "execution_id": "old", "task_type": "analysis"})
+        TaskMetadata.model_validate({"task_id": "analysis#sample#run", "execution_id": "old", "task_type": "analysis"})
 
 
 def test_log_windows_do_not_split_utf8_codepoints(tmp_path):
@@ -177,7 +180,7 @@ def test_event_reader_restarts_after_journal_replacement(tmp_path):
 
 
 async def test_stream_reports_task_disappearance_instead_of_success(tmp_path):
-    status = TaskStatus(
+    status = TaskMetadata(
         task_id="analysis#sample#gone",
         run_id="gone",
         task_type=TaskType.ANALYSIS,
@@ -185,7 +188,7 @@ async def test_stream_reports_task_disappearance_instead_of_success(tmp_path):
     )
     calls = 0
 
-    async def read_status(_task_id):
+    async def read_task_metadata(_task_id):
         nonlocal calls
         calls += 1
         if calls == 1:
@@ -201,7 +204,7 @@ async def test_stream_reports_task_disappearance_instead_of_success(tmp_path):
             stream_task(
                 tmp_path,
                 TaskLogReader(tmp_path),
-                read_status,
+                read_task_metadata,
                 Logger(),
                 status.task_id,
                 0.01,
@@ -213,7 +216,7 @@ async def test_terminal_stream_drains_all_log_windows(tmp_path):
     log_path = tmp_path / "task.log"
     content = "x" * (LOG_WINDOW_BYTES * 2 + 17)
     log_path.write_text(content, encoding="utf-8")
-    status = TaskStatus(
+    status = TaskMetadata(
         task_id="analysis#sample#done",
         run_id="done",
         task_type=TaskType.ANALYSIS,
@@ -221,7 +224,7 @@ async def test_terminal_stream_drains_all_log_windows(tmp_path):
         log_path=str(log_path),
     )
 
-    async def read_status(_task_id):
+    async def read_task_metadata(_task_id):
         return status
 
     class Logger:
@@ -233,7 +236,7 @@ async def test_terminal_stream_drains_all_log_windows(tmp_path):
         async for event in stream_task(
             tmp_path,
             TaskLogReader(tmp_path),
-            read_status,
+            read_task_metadata,
             Logger(),
             status.task_id,
             0.01,
@@ -247,7 +250,7 @@ async def test_terminal_stream_drains_all_log_windows(tmp_path):
 async def test_stream_follows_log_path_created_after_subscription(tmp_path):
     log_path = tmp_path / "task.log"
     log_path.write_text("live log\n", encoding="utf-8")
-    queued = TaskStatus(
+    queued = TaskMetadata(
         task_id="analysis#sample#late-log",
         run_id="late-log",
         task_type=TaskType.ANALYSIS,
@@ -256,7 +259,7 @@ async def test_stream_follows_log_path_created_after_subscription(tmp_path):
     finished = queued.model_copy(update={"state": TaskState.SUCCEEDED, "log_path": str(log_path)})
     calls = 0
 
-    async def read_status(_task_id):
+    async def read_task_metadata(_task_id):
         nonlocal calls
         calls += 1
         return queued if calls == 1 else finished
@@ -270,7 +273,7 @@ async def test_stream_follows_log_path_created_after_subscription(tmp_path):
         async for event in stream_task(
             tmp_path,
             TaskLogReader(tmp_path),
-            read_status,
+            read_task_metadata,
             Logger(),
             queued.task_id,
             0.001,
@@ -282,13 +285,13 @@ async def test_stream_follows_log_path_created_after_subscription(tmp_path):
 
 async def test_statuses_are_sorted_by_creation_time_not_task_id():
     now = datetime.now(UTC)
-    older = TaskStatus(
+    older = TaskMetadata(
         task_id="analysis#z#older",
         run_id="older",
         task_type=TaskType.ANALYSIS,
         created_at=now - timedelta(days=1),
     )
-    newer = TaskStatus(
+    newer = TaskMetadata(
         task_id="analysis#a#newer",
         run_id="newer",
         task_type=TaskType.ANALYSIS,
@@ -296,7 +299,7 @@ async def test_statuses_are_sorted_by_creation_time_not_task_id():
     )
 
     class Index:
-        async def statuses(self):
+        async def entries(self):
             return {older.task_id: older, newer.task_id: newer}
 
     manager = object.__new__(LocalTaskManager)
@@ -309,7 +312,7 @@ async def test_statuses_are_sorted_by_creation_time_not_task_id():
 
 @pytest.mark.parametrize("identifiers", ["task", "run", "both"])
 async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid(identifiers):
-    status = TaskStatus(
+    status = TaskMetadata(
         task_id="analysis#sample#running",
         run_id="current-run",
         task_type=TaskType.ANALYSIS,
@@ -322,9 +325,9 @@ async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid(ident
     class Repository:
         async def entry(self, _task_id):
             assert manager._lock.locked()
-            return type("Entry", (), {"status": status})()
+            return status
 
-        async def statuses(self):
+        async def entries(self):
             return {status.task_id: status}
 
     class Supervisor:
@@ -367,7 +370,7 @@ def exit_manager(tmp_path):
 
 @pytest.mark.parametrize("exit_code,expected_code", [(0, 1), (7, 7), (-9, 9)])
 async def test_worker_exit_without_final_status_fails_exact_run(tmp_path, exit_manager, exit_code, expected_code):
-    status = TaskStatus(
+    status = TaskMetadata(
         task_id="analysis#sample#running",
         run_id="current-run",
         task_type=TaskType.ANALYSIS,
@@ -375,7 +378,7 @@ async def test_worker_exit_without_final_status_fails_exact_run(tmp_path, exit_m
     )
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
-    write_status(directory, status)
+    write_task_metadata(directory, status)
     finished = []
 
     async def finish(*args):
@@ -398,19 +401,19 @@ async def test_worker_exit_without_final_status_fails_exact_run(tmp_path, exit_m
 
 @pytest.mark.parametrize("state", [TaskState.SUCCEEDED, TaskState.FAILED, TaskState.CANCELLED])
 async def test_worker_exit_preserves_final_status_on_disk(tmp_path, exit_manager, state):
-    status = TaskStatus(task_id="base#demo#finished", run_id="run", task_type=TaskType.BASE, state=state)
+    status = TaskMetadata(task_id="base#demo#finished", run_id="run", task_type=TaskType.BASE, state=state)
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
-    await exit_manager.repository.put_status(status.model_copy(update={"state": TaskState.RUNNING}))
-    write_status(directory, status)
-    before = (directory / "status.json").read_bytes()
+    await exit_manager.repository.put_metadata(status.model_copy(update={"state": TaskState.RUNNING}))
+    write_task_metadata(directory, status)
+    before = (directory / "metadata.json").read_bytes()
     await exit_manager._handle_worker_exit(WorkerExit(7, "late exit", status.task_id, status.run_id))
-    assert (directory / "status.json").read_bytes() == before
+    assert (directory / "metadata.json").read_bytes() == before
     assert await exit_manager.get_status(status.task_id) == status
 
 
 async def test_old_worker_exit_preserves_replacement_run(tmp_path, exit_manager):
-    status = TaskStatus(
+    status = TaskMetadata(
         task_id="base#demo#named",
         run_id="new-run",
         task_type=TaskType.BASE,
@@ -418,20 +421,20 @@ async def test_old_worker_exit_preserves_replacement_run(tmp_path, exit_manager)
     )
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
-    await exit_manager.repository.put_status(status.model_copy(update={"run_id": "old-run"}))
-    write_status(directory, status)
-    before = (directory / "status.json").read_bytes()
+    await exit_manager.repository.put_metadata(status.model_copy(update={"run_id": "old-run"}))
+    write_task_metadata(directory, status)
+    before = (directory / "metadata.json").read_bytes()
     await exit_manager._handle_worker_exit(WorkerExit(7, "old worker", status.task_id, "old-run"))
-    assert (directory / "status.json").read_bytes() == before
+    assert (directory / "metadata.json").read_bytes() == before
     assert await exit_manager.get_status(status.task_id) == status
 
 
 async def test_worker_exit_does_not_recreate_deleted_task(tmp_path, exit_manager):
-    status = TaskStatus(task_id="base#demo#deleted", run_id="run", task_type=TaskType.BASE, state=TaskState.FAILED)
+    status = TaskMetadata(task_id="base#demo#deleted", run_id="run", task_type=TaskType.BASE, state=TaskState.FAILED)
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
-    await exit_manager.repository.put_status(status)
-    (directory / "status.json").unlink()
+    await exit_manager.repository.put_metadata(status)
+    (directory / "metadata.json").unlink()
     directory.rmdir()
 
     await exit_manager._handle_worker_exit(WorkerExit(7, "gone", status.task_id, status.run_id))
@@ -447,31 +450,31 @@ async def test_worker_exit_skips_missing_status_file(tmp_path, exit_manager):
 
     await exit_manager._handle_worker_exit(WorkerExit(7, "gone", directory.name, "run"))
 
-    assert not (directory / "status.json").exists()
+    assert not (directory / "metadata.json").exists()
     with pytest.raises(KeyError):
         await exit_manager.get_status(directory.name)
 
 
 @pytest.mark.parametrize("link", ["kind", "task", "status"])
 def test_strict_status_read_refuses_symlinks(tmp_path, link):
-    status = TaskStatus(task_id="base#demo#linked", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
+    status = TaskMetadata(task_id="base#demo#linked", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
-    write_status(directory, status)
-    path = {"kind": directory.parent, "task": directory, "status": directory / "status.json"}[link]
+    write_task_metadata(directory, status)
+    path = {"kind": directory.parent, "task": directory, "status": directory / "metadata.json"}[link]
     target = tmp_path / "saved"
     path.rename(target)
     path.symlink_to(target, target_is_directory=link != "status")
 
-    assert read_status(directory, status.task_id, strict_io=True) is None
+    assert read_task_metadata(directory, status.task_id, strict_io=True) is None
 
 
 async def test_worker_exit_retries_transient_status_write_failure(tmp_path, exit_manager, monkeypatch):
-    status = TaskStatus(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
+    status = TaskMetadata(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
-    await exit_manager.repository.put_status(status)
-    put_status = exit_manager.repository.put_status
+    await exit_manager.repository.put_metadata(status)
+    put_status = exit_manager.repository.put_metadata
     attempts = 0
 
     async def flaky_write(value):
@@ -484,7 +487,7 @@ async def test_worker_exit_retries_transient_status_write_failure(tmp_path, exit
     async def wait():
         return 7
 
-    monkeypatch.setattr(exit_manager.repository, "put_status", flaky_write)
+    monkeypatch.setattr(exit_manager.repository, "put_metadata", flaky_write)
     monkeypatch.setattr("axonx.components.task_manager.local.supervisor.EXIT_RETRY_SECONDS", 0)
     supervisor = TaskProcessSupervisor(0, Mock(), exit_manager._handle_worker_exit)
     process = SimpleNamespace(pid=123, stderr=None, returncode=7, wait=wait)
@@ -492,18 +495,18 @@ async def test_worker_exit_retries_transient_status_write_failure(tmp_path, exit
 
     assert attempts == 2
     assert (await exit_manager.get_status(status.task_id)).state == TaskState.FAILED
-    assert read_entry(tmp_path, status.task_id).status.exit_code == 7
+    assert read_entry(tmp_path, status.task_id).exit_code == 7
 
 
 @pytest.mark.parametrize(
     "failure_point", ["status_read", "directory_stat", "status_stat", "manager_write_stat", "repository_write_stat"]
 )
 async def test_worker_exit_retries_transient_status_io_failure(tmp_path, exit_manager, monkeypatch, failure_point):
-    status = TaskStatus(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
+    status = TaskMetadata(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
-    await exit_manager.repository.put_status(status)
-    target = directory / "status.json" if failure_point in {"status_read", "status_stat"} else directory
+    await exit_manager.repository.put_metadata(status)
+    target = directory / "metadata.json" if failure_point in {"status_read", "status_stat"} else directory
     fail_at = {"manager_write_stat": 2, "repository_write_stat": 3}.get(failure_point, 1)
     operation = "read_text" if failure_point == "status_read" else "lstat"
     original = getattr(Path, operation)
@@ -529,7 +532,7 @@ async def test_worker_exit_retries_transient_status_io_failure(tmp_path, exit_ma
     assert attempts > fail_at
     supervisor.logger.exception.assert_called_once()
     assert (await exit_manager.get_status(status.task_id)).state == TaskState.FAILED
-    assert read_entry(tmp_path, status.task_id).status.exit_code == 7
+    assert read_entry(tmp_path, status.task_id).exit_code == 7
 
 
 async def test_shutdown_cancels_exit_retries_after_worker_is_reaped():
@@ -560,7 +563,7 @@ async def test_shutdown_cancels_exit_retries_after_worker_is_reaped():
 
 async def test_shared_workspace_services_leave_unowned_active_runs_unchanged(tmp_path):
     statuses = [
-        TaskStatus(
+        TaskMetadata(
             task_id=f"base#demo#{state.value}",
             run_id=state.value,
             task_type=TaskType.BASE,
@@ -572,7 +575,7 @@ async def test_shared_workspace_services_leave_unowned_active_runs_unchanged(tmp
     for status in statuses:
         directory = task_path(tmp_path, status.task_id)
         directory.mkdir(parents=True)
-        write_status(directory, status)
+        write_task_metadata(directory, status)
 
     def app():
         return Application(
@@ -594,7 +597,7 @@ async def test_shared_workspace_services_leave_unowned_active_runs_unchanged(tmp
                 assert await manager.get_status(status.task_id) == status
     # Startup and shutdown must not infer failure from a foreign or missing PID.
     for status in statuses:
-        assert read_entry(tmp_path, status.task_id).status == status
+        assert read_entry(tmp_path, status.task_id) == status
 
 
 async def test_owned_worker_crash_is_detected_without_pid_scanning(tmp_path, monkeypatch):
@@ -672,8 +675,8 @@ async def test_submission_returns_queryable_task_handle(tmp_path):
     assert waited.success is True
     assert status.run_id == handle.run_id
     assert status.state == TaskState.SUCCEEDED
-    assert status.result["result"] == 5
-    assert status.config["source_tasks"] == sources
+    assert status.output_params["result"] == 5
+    assert status.input_params["source_tasks"] == sources
     metadata = json.loads((tmp_path / "base" / handle.task_id / "metadata.json").read_text())
     assert metadata["input_params"]["source_tasks"] == sources
     assert failed.success is False
@@ -734,7 +737,7 @@ async def test_named_submission_replaces_completed_task(tmp_path):
     assert first.task_id == second.task_id == "base#demo#latest"
     assert first.run_id != second.run_id
     assert status.state == TaskState.SUCCEEDED
-    assert status.result["result"] == 9
+    assert status.output_params["result"] == 9
 
 
 async def test_named_submission_cannot_replace_active_task(tmp_path):
@@ -744,9 +747,9 @@ async def test_named_submission_cannot_replace_active_task(tmp_path):
         reg_name="demo",
     )
     task.task_dir.mkdir(parents=True)
-    write_status(
+    write_task_metadata(
         task.task_dir,
-        TaskStatus(
+        TaskMetadata(
             task_id=task.task_id,
             run_id="active-run",
             task_type=task.task_type,
@@ -762,7 +765,7 @@ async def test_named_submission_cannot_replace_active_task(tmp_path):
 
 
 async def test_cancel_old_run_never_cancels_or_updates_replacement():
-    status = TaskStatus(
+    status = TaskMetadata(
         task_id="analysis#sample#named",
         run_id="new-run",
         task_type=TaskType.ANALYSIS,
@@ -772,7 +775,7 @@ async def test_cancel_old_run_never_cancels_or_updates_replacement():
 
     class Repository:
         async def entry(self, task_id):
-            return type("Entry", (), {"status": status})()
+            return status
 
     class Supervisor:
         def is_managed_run(self, run_id):
@@ -793,7 +796,7 @@ async def test_cancel_old_run_never_cancels_or_updates_replacement():
 
 @pytest.mark.parametrize("identifiers", ["task", "run", "both"])
 async def test_cancel_cannot_confirm_unmanaged_active_run(identifiers):
-    status = TaskStatus(
+    status = TaskMetadata(
         task_id="analysis#sample#named",
         run_id="run",
         task_type=TaskType.ANALYSIS,
@@ -802,9 +805,9 @@ async def test_cancel_cannot_confirm_unmanaged_active_run(identifiers):
 
     class Repository:
         async def entry(self, task_id):
-            return type("Entry", (), {"status": status})()
+            return status
 
-        async def statuses(self):
+        async def entries(self):
             return {status.task_id: status}
 
     class Supervisor:
@@ -825,7 +828,7 @@ async def test_cancel_cannot_confirm_unmanaged_active_run(identifiers):
 
 
 async def test_run_only_cancellation_stops_old_worker_without_updating_replacement():
-    replacement = TaskStatus(
+    replacement = TaskMetadata(
         task_id="analysis#sample#named",
         run_id="new-run",
         task_type=TaskType.ANALYSIS,
@@ -834,7 +837,7 @@ async def test_run_only_cancellation_stops_old_worker_without_updating_replaceme
     cancelled = []
 
     class Repository:
-        async def statuses(self):
+        async def entries(self):
             return {replacement.task_id: replacement}
 
     class Supervisor:
@@ -864,7 +867,7 @@ async def test_cancel_unknown_identifier_returns_false(arguments):
         async def entry(self, task_id):
             raise KeyError(task_id)
 
-        async def statuses(self):
+        async def entries(self):
             return {}
 
     class Supervisor:

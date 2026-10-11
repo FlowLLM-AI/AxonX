@@ -10,15 +10,15 @@ from typing import Any
 from ...components.job.events import JOB_EVENT_ADAPTER, JobEvent, LogEvent
 from ..storage.events import LOG_WINDOW_BYTES, read_event_lines
 from ..storage.logs import TaskLogReader
-from ..storage.workspace import EVENTS_FILE, TaskStatus, task_path
+from ..storage.workspace import EVENTS_FILE, TaskMetadata, task_path
 
-StatusReader = Callable[[str], Awaitable[TaskStatus]]
+StatusReader = Callable[[str], Awaitable[TaskMetadata]]
 
 
 async def stream_task(
     workspace: Path,
     logs: TaskLogReader,
-    read_status: StatusReader,
+    read_task_metadata: StatusReader,
     logger: Any,
     task_id: str,
     poll_interval: float,
@@ -32,7 +32,7 @@ async def stream_task(
     log_warned = False
     terminal_idle = False
     while True:
-        status = await read_status(task_id)
+        status = await read_task_metadata(task_id)
         current_log_path = logs.path(status)
         if current_log_path != log_path:
             log_path = current_log_path
@@ -61,7 +61,7 @@ async def stream_task(
             log_offset = chunk.next_offset
             log_has_more = chunk.has_more_after
 
-        status = await read_status(task_id)
+        status = await read_task_metadata(task_id)
         if logs.path(status) != log_path:
             terminal_idle = False
             continue

@@ -299,7 +299,7 @@ async def test_remote_install_with_real_pip_refreshes_definition_and_submission(
         )
         assert submitted.success is True, submitted.answer
         status = await manager.get_status(submitted.answer["task_id"])
-        assert status.config["minimum_fee"] == 8
+        assert status.input_params["minimum_fee"] == 8
         assert len(launched) == 1
         assert resolve_task("hot_task") is not old
     assert not staged_path.exists()
@@ -526,7 +526,7 @@ async def test_cancelled_install_drains_thread_before_cleanup_and_next_submissio
         assert mutation.cancelled()
         assert not path.exists()
         handle = submission.result()
-        assert (await manager.get_status(handle.task_id)).config["minimum_fee"] == 8
+        assert (await manager.get_status(handle.task_id)).input_params["minimum_fee"] == 8
         assert len(launched) == 1
 
 

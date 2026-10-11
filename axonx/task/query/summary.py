@@ -1,9 +1,17 @@
 """Project task status snapshots into bounded list responses."""
 
-from ..storage.workspace import TaskStatus
+from ..storage.workspace import TaskMetadata
 
 
-def summarize_status(status: TaskStatus) -> dict:
+def task_sort_key(metadata: TaskMetadata) -> tuple[float, str]:
+    """Order lifecycle records consistently by creation time and Task ID."""
+    return (
+        metadata.created_at.timestamp() if metadata.created_at is not None else float("-inf"),
+        metadata.task_id,
+    )
+
+
+def summarize_status(status: TaskMetadata) -> dict:
     """Keep list metadata and one progress summary, without copying task outputs."""
     summary = {
         name: getattr(status, name)
@@ -11,7 +19,7 @@ def summarize_status(status: TaskStatus) -> dict:
             "task_id",
             "run_id",
             "task_type",
-            "task_name",
+            "reg_name",
             "state",
             "pid",
             "created_at",
@@ -22,11 +30,12 @@ def summarize_status(status: TaskStatus) -> dict:
         )
     }
     summary["error"] = status.error[:1000]
-    summary["display_name"] = str(status.config.get("task_name") or status.task_name)[:256]
+    summary["display_name"] = str(status.input_params.get("task_name") or status.reg_name)[:256]
     summary["is_online"] = status.task_type.value in {"api", "inference"} or (
         status.task_type.value == "analysis"
         and (
-            isinstance(status.result.get("comparisons"), list) or isinstance(status.config.get("comparison_keys"), list)
+            isinstance(status.output_params.get("comparisons"), list)
+            or isinstance(status.input_params.get("comparison_keys"), list)
         )
     )
     summary["step_progress"] = None

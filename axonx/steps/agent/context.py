@@ -32,7 +32,7 @@ class GetTaskContextStep(BaseStep):
         self.response.answer = {
             "task_id": task_id,
             "status": status,
-            "metadata_exists": not selected.missing and not selected.provisional,
+            "metadata_exists": not selected.missing,
             "metadata_path": f"{task_directory(task_id)}/{METADATA_FILE}",
             "log_path": status.log_path or None,
             "graph": graph,

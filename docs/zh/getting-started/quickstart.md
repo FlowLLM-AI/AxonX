@@ -108,7 +108,7 @@ axonx status --task-id 'base#demo#first-demo'
 axonx read_task_log --task-id 'base#demo#first-demo'
 ```
 
-最终状态应为 `succeeded`，`result.result` 为 `5`。`wait_task` 同时检查 Task ID 与 run_id，避免等待到同名重跑的其他执行。
+最终状态应为 `succeeded`，`answer.output_params.result` 为 `5`。`wait_task` 同时检查 Task ID 与 run_id，避免等待到同名重跑的其他执行。
 
 也可以在任务运行时跟随进度和日志：
 
@@ -120,13 +120,12 @@ Demo 很快结束，跟随命令可能直接读到终态。对于长任务，根
 
 ## 查看持久化记录
 
-成功任务目录中包含 `status.json`、`events.jsonl` 和 `metadata.json`：
+受理后的 Task 使用 `metadata.json` 保存生命周期，使用 `events.jsonl` 保存进度：
 
 ```text
 .axonx/
   base/
     base#demo#first-demo/
-      status.json
       events.jsonl
       metadata.json
 ```

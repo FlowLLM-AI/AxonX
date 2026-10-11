@@ -7,7 +7,14 @@ import { parseSourceTasks } from "../shared/lib/sourceTasks";
 import type { Transport } from "../shared/api/client";
 import type { JobEvent } from "../shared/api/event";
 import type { WorkspaceDirectory } from "../features/workspace/types";
-import { addArtifacts, definitions, epoch, seed, taskStatus } from "./fixtures";
+import {
+  json,
+  addArtifacts,
+  definitions,
+  epoch,
+  seed,
+  taskStatus,
+} from "./fixtures";
 
 const envelope = (answer: unknown, success = true, metadata = {}) => ({
   answer,
@@ -54,27 +61,30 @@ export function createPlayground(): Transport {
       if (elapsed >= 6000) {
         running.delete(id);
         task.finished_at = new Date(started + 6000).toISOString();
-        task.state = task.config.outcome === "failure" ? "failed" : "succeeded";
+        task.state =
+          task.input_params.outcome === "failure" ? "failed" : "succeeded";
         if (task.state === "failed") {
           task.error = "Simulated missing input / 模拟输入缺失";
           task.exit_code = 1;
         } else {
-          task.result = { output_dir: `runs/${id}` };
+          task.output_params = { output_dir: `runs/${id}` };
           addArtifacts(
             files,
             task,
-            String(task.config.strategy),
-            parseSourceTasks(task.config.source_tasks),
+            String(task.input_params.strategy),
+            parseSourceTasks(task.input_params.source_tasks),
           );
         }
       }
     }
+    for (const task of tasks.values())
+      files.set(`runs/${task.task_id}/metadata.json`, json(task));
   }
   const log = (id: string) => {
     const task = requiredTask(id);
     return (
       [
-        `[demo] ${task.task_name}`,
+        `[demo] ${task.reg_name}`,
         ...task.steps
           .filter((step) => step.started_at)
           .map(
@@ -211,15 +221,21 @@ export function createPlayground(): Transport {
           return response(
             [...tasks.values()].reverse().map((task) => {
               if (args.detail !== "summary") return task;
-              const { config, result, steps, ...summary } = task;
-              void result;
+              const {
+                input_params,
+                output_params,
+                steps,
+                children,
+                ...summary
+              } = task;
+              void output_params;
+              void children;
               return {
                 ...summary,
                 error: task.error.slice(0, 1000),
-                display_name: String(config.task_name || task.task_name).slice(
-                  0,
-                  256,
-                ),
+                display_name: String(
+                  input_params.task_name || task.reg_name,
+                ).slice(0, 256),
                 is_online: isOnlineTask(task),
                 step_progress: steps.length
                   ? { ...taskStepProgress(task), total: steps.length }
@@ -265,7 +281,7 @@ export function createPlayground(): Transport {
             predict: "train#demo",
             backtest: "predict#demo",
           }[definition.task_type];
-          task.config = {
+          task.input_params = {
             ...args,
             strategy: args.strategy || "steady",
             source_tasks: upstream && tasks.has(upstream) ? upstream : "",
@@ -274,7 +290,7 @@ export function createPlayground(): Transport {
           task.started_at = null;
           task.finished_at = null;
           task.state = "queued";
-          task.result = {};
+          task.output_params = {};
           task.steps = task.steps.map((step) => ({
             ...step,
             percentage: 0,
@@ -323,7 +339,11 @@ export function createPlayground(): Transport {
         case "preview_file": {
           const file = files.get(String(args.path));
           if (!file) throw new Error(`Demo file not found: ${args.path}`);
-          if (file.kind === "parquet" || file.kind === "csv") {
+          if (
+            file.kind === "parquet" ||
+            file.kind === "csv" ||
+            file.kind === "jsonl"
+          ) {
             const offset = Number(args.offset || 0);
             const limit = Number(args.limit ?? 200);
             if (
@@ -357,10 +377,16 @@ export function createPlayground(): Transport {
           const connected = new Set([id]);
           for (const nodeId of connected) {
             const task = tasks.get(nodeId);
-            for (const parent of parseSourceTasks(task?.config.source_tasks))
+            for (const parent of parseSourceTasks(
+              task?.input_params.source_tasks,
+            ))
               connected.add(parent);
             for (const child of tasks.values())
-              if (parseSourceTasks(child.config.source_tasks).includes(nodeId))
+              if (
+                parseSourceTasks(child.input_params.source_tasks).includes(
+                  nodeId,
+                )
+              )
                 connected.add(child.task_id);
           }
           const nodes = [...connected].map((nodeId) => {
@@ -368,12 +394,12 @@ export function createPlayground(): Transport {
             return {
               task_id: nodeId,
               kind: task?.task_type || nodeId.split("#")[0],
-              task_name: task?.task_name || null,
+              task_name: task?.reg_name || null,
               created_at: task?.created_at || null,
-              parent_ids: parseSourceTasks(task?.config.source_tasks),
+              parent_ids: parseSourceTasks(task?.input_params.source_tasks),
               state: task?.state || null,
               missing: !task,
-              provisional: false,
+              provisional: !!task && task.state !== "succeeded",
             };
           });
           return response({

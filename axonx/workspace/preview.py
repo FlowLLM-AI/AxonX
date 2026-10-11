@@ -15,6 +15,8 @@ from .models import (
     CsvPreview,
     FilePreview,
     MarkdownPreview,
+    JsonlPreview,
+    JsonlRow,
     ParquetColumn,
     ParquetPreview,
     StructuredPreview,
@@ -32,6 +34,8 @@ PREVIEW_KINDS = {
     ".md": "markdown",
     ".markdown": "markdown",
     ".json": "json",
+    ".jsonl": "jsonl",
+    ".ndjson": "jsonl",
     ".yaml": "yaml",
     ".yml": "yaml",
     ".csv": "csv",
@@ -64,6 +68,8 @@ def preview_workspace_file(
         return UnsupportedPreview(size=size)
     if kind == "parquet":
         return _preview_parquet(path, size, offset, limit)
+    if kind == "jsonl":
+        return _preview_jsonl(path, size, offset, limit)
     if kind == "csv":
         return _preview_csv(path, size, offset, limit)
     if kind in {"json", "yaml"}:
@@ -174,6 +180,51 @@ def _preview_yaml(content: str, size: int) -> StructuredPreview:
         problem = getattr(exc, "problem", None) or str(exc)
         error = f"Line {mark.line + 1}, column {mark.column + 1}: {problem}" if mark is not None else problem
         return StructuredPreview(kind="yaml", size=size, content=content, parse_error=error)
+
+
+def _read_jsonl_line(handle, budget: int) -> tuple[bytes, bool]:
+    """Bound memory even when a single record exceeds the page byte budget."""
+    raw = handle.readline(budget + 1)
+    oversized = len(raw) > budget
+    if oversized and not raw.endswith(b"\n"):
+        while chunk := handle.readline(TEXT_PREVIEW_BYTES):
+            if chunk.endswith(b"\n"):
+                break
+    return raw[:budget], oversized
+
+
+def _preview_jsonl(path: Path, size: int, offset: int, limit: int) -> JsonlPreview:
+    rows = []
+    remaining = TEXT_PREVIEW_BYTES
+    truncated = False
+    with path.open("rb") as handle:
+        for _ in range(offset):
+            raw, _ = _read_jsonl_line(handle, TEXT_PREVIEW_BYTES)
+            if not raw:
+                break
+        for index in range(limit):
+            if remaining <= 0:
+                break
+            raw, oversized = _read_jsonl_line(handle, remaining)
+            if not raw:
+                break
+            remaining -= len(raw)
+            content = raw.decode("utf-8-sig" if offset + index == 0 else "utf-8", errors="replace").rstrip("\r\n")
+            data = None
+            error = None
+            if oversized:
+                error = "Line exceeds the page byte limit"
+                truncated = True
+            else:
+                try:
+                    # Strict UTF-8 validation belongs to the individual row.
+                    content = raw.decode("utf-8-sig" if offset + index == 0 else "utf-8").rstrip("\r\n")
+                    data = _json_compatible(json.loads(content))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    error = str(exc)
+            rows.append(JsonlRow(line=offset + index + 1, content=content, data=data, parse_error=error))
+        has_more = bool(handle.read(1))
+    return JsonlPreview(size=size, rows=rows, offset=offset, limit=limit, has_more=has_more, truncated=truncated)
 
 
 def _preview_csv(path: Path, size: int, offset: int, limit: int) -> CsvPreview:

@@ -54,7 +54,7 @@ def test_prediction_resolves_dataset_from_string_metadata(tmp_path):
     etl_dir = task_path(tmp_path, ETL)
     etl_dir.mkdir(parents=True)
     (etl_dir / "metadata.json").write_text(
-        json.dumps({"output_params": {"artifacts": {"dataset": {"path": "dataset.parquet"}}}})
+        json.dumps({"state": "succeeded", "output_params": {"artifacts": {"dataset": {"path": "dataset.parquet"}}}})
     )
     task = LgbmPredictTask({"source_tasks": TRAIN}, workspace_path=tmp_path, reg_name="predict")
     task.state["train_metadata"] = {"input_params": {"source_tasks": ETL}}

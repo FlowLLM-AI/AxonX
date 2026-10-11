@@ -8,7 +8,7 @@ Workspace Jobs handle directories, metadata, and data previews. File transfer us
 
 All endpoints below use `POST /jobs/{name}` with a `{"arguments":{...}}` request body. For remote forwarding, add `target` at the envelope's top level, outside arguments. Every response uses [JobResponse](overview.md#responses-and-errors). Table defaults come from the current built-in configuration and Steps. Deployments may change Job Schemas; the running service's `/jobs` is authoritative.
 
-All JSON examples illustrate structure; replace task IDs, session IDs, file paths, and hashes with values actually returned by your service. See [Task contracts](../reference/task-contracts.md) for the complete shared TaskStatus fields.
+All JSON examples illustrate structure; replace task IDs, session IDs, file paths, and hashes with values actually returned by your service. See [Task contracts](../reference/task-contracts.md) for the complete shared TaskMetadata fields.
 
 ## Endpoint list
 
@@ -96,17 +96,17 @@ answer has the same structure as WorkspaceListing, retaining only task-result di
 
 **Behavior and failure cases**
 
-Running or failed directories without metadata are excluded from the research-results list. task_type is a directory name, rather than a Task registration name.
+All lifecycle states have metadata; inspect `state` rather than file existence to select successful research results. task_type is a directory name, rather than a Task registration name.
 
 ## preview_file
 
 Preview supported file types.
 
-| Parameter | Type    | Required | Default       | Constraints and meaning                                                               |
-| --------- | ------- | -------- | ------------- | ------------------------------------------------------------------------------------- |
-| `path`    | string  | Yes      | `— (omitted)` | Path relative to the service workspace                                                |
-| `offset`  | integer | No       | `0`           | Number of data rows to skip in CSV/Parquet previews; minimum=0                        |
-| `limit`   | integer | No       | `200`         | Maximum number of data rows returned in CSV/Parquet previews; minimum=1, maximum=5000 |
+| Parameter | Type    | Required | Default       | Constraints and meaning                                                                     |
+| --------- | ------- | -------- | ------------- | ------------------------------------------------------------------------------------------- |
+| `path`    | string  | Yes      | `— (omitted)` | Path relative to the service workspace                                                      |
+| `offset`  | integer | No       | `0`           | Number of data rows to skip in CSV/JSONL/Parquet previews; minimum=0                        |
+| `limit`   | integer | No       | `200`         | Maximum number of data rows returned in CSV/JSONL/Parquet previews; minimum=1, maximum=5000 |
 
 Only the business fields listed in the table are accepted.
 
@@ -122,7 +122,7 @@ Only the business fields listed in the table are accepted.
 
 **Response**
 
-answer is discriminated by kind: text/markdown/json/yaml/csv/parquet/unsupported; every type includes size.
+answer is discriminated by kind: text/markdown/json/jsonl/yaml/csv/parquet/unsupported; every type includes size.
 
 ```json
 {
@@ -141,7 +141,7 @@ answer is discriminated by kind: text/markdown/json/yaml/csv/parquet/unsupported
 
 **Behavior and failure cases**
 
-offset/limit apply only to CSV and Parquet data rows, default to 0/200, and have a maximum limit of 5000. text/markdown reads at most 512 KiB; JSON/YAML larger than 32 MiB returns parse_error. Parsing failure can still have success=true; always inspect parse_error.
+offset/limit apply only to CSV, JSONL, and Parquet data rows, default to 0/200, and have a maximum limit of 5000. text/markdown reads at most 512 KiB; JSON/YAML larger than 32 MiB returns parse_error. Parsing failure can still have success=true; always inspect parse_error.
 
 ## delete_entries
 
@@ -256,3 +256,5 @@ The example path is a placeholder; replace it with the actual path. The cleanup 
 | unsupported | size                                                            | The endpoint provides no preview content for this format     |
 
 Raw file size in bytes, row-pagination offset, and log-byte offset are distinct information. Text previews have no general character pagination. Parquet row counts and row-group information come from file metadata; returned rows represent only the current window.
+
+JSONL/NDJSON previews return `rows` (`line`, `content`, `data`, `parse_error`), `offset`, `limit`, `has_more`, and `truncated`. Offsets count physical lines, including malformed records. Pages are bounded to 512 KiB; individual row errors do not reject the whole preview.

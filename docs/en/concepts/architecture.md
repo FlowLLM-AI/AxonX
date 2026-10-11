@@ -13,7 +13,7 @@ AxonX separates capability calls, research execution, and result storage. The CL
 | Orchestration | Validate parameters, execute asynchronous steps, and produce JobResponse | Dispatcher, Job, BaseStep                 |
 | Component     | Manage reusable capabilities and their lifecycles                        | TaskManager, TaskRepository, Agent, Proxy |
 | Task          | Execute specific research steps and produce validated results            | BaseTask and plugin Tasks                 |
-| Storage       | Save status, successful metadata, progress, and research artifacts       | Workspace and separate log directory      |
+| Storage       | Save unified lifecycle metadata, progress events, and research artifacts | Workspace and separate log directory      |
 
 Regular HTTP calls and SSE event calls pass through the same Job capability layer. MCP maps public Jobs to tools and returns regular responses. SSE is a separate HTTP endpoint for live events; these are different transports.
 
@@ -37,7 +37,7 @@ Using `submit --task demo` as an example:
 2. The local TaskManager validates the task definition and identity, creates a queued record, and starts a separate subprocess.
 3. The Job returns a TaskHandle containing `task_id`, `run_id`, and the registered name.
 4. The worker parses typed input, executes synchronous steps sequentially, and writes progress, status, and logs.
-5. On success, it builds typed output, writes `metadata.json`, then publishes the successful status.
+5. It atomically publishes typed output and terminal state together in `metadata.json`.
 6. The client confirms the terminal state with `wait_task` and reads results from files or research pages.
 
 `axonx exec` runs the same kind of Task directly in the current CLI process, without HTTP or a persistent TaskManager. Process isolation supports cancellation and reconciliation after abnormal exits; it is not a code security sandbox.

@@ -2900,3 +2900,37 @@
     justify-content: flex-start;
   }
 }
+
+.workspace-jsonl-record {
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1rem;
+  min-width: 0;
+}
+.workspace-jsonl-record > header {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+.workspace-jsonl-pagination {
+  display: flex;
+  gap: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .studio-workspace .workspace-browser {
+    display: block;
+  }
+  .studio-workspace .workspace-tree-panel {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 220px;
+    resize: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .workspace-browser > .context-resizer {
+    display: none;
+  }
+}

@@ -40,7 +40,7 @@ axonx wait_task --task-id 'base#demo#add-01' \
 
 Increase the client timeout for long tasks. The default client request timeout is 60 seconds; a client timeout or closing the browser does not cancel the Task, and you can query its state again.
 
-On success, `answer.state` is succeeded and `answer.result` contains outputs including result=3, branch=different, and operands. On failure, JobResponse.success is false; continue by reading error and logs.
+On success, `answer.state` is succeeded and `answer.output_params` contains outputs including result=3, branch=different, and operands. On failure, JobResponse.success is false; continue by reading error and logs.
 
 For live observation, use:
 
@@ -99,7 +99,7 @@ demo finishes quickly and usually cannot reliably demonstrate cancellation. If c
 
 After correcting parameters, use a new name to retain the failure record; reusing a fixed name replaces the old task directory. There is no general automatic checkpoint resume. If a plugin implements recovery, follow its documentation.
 
-For a [Composite Task](composite-tasks.md), retain and cancel the parent's handle. Child Tasks have separate IDs and status records but share the parent's worker, so they cannot be cancelled independently. Inspect the parent's `composition.json` for child IDs, then use the same status, log, and stream commands for each child. Deleting a terminal parent does not delete its children.
+For a [Composite Task](composite-tasks.md), retain and cancel the parent's handle. Child Tasks have separate IDs and status records but share the parent's worker, so they cannot be cancelled independently. Inspect the parent's `metadata.json` for child IDs, then use the same status, log, and stream commands for each child. Deleting a terminal parent does not delete its children.
 
 ## Delete terminal tasks
 
@@ -107,7 +107,7 @@ For a [Composite Task](composite-tasks.md), retain and cancel the parent's handl
 axonx delete_tasks --task-ids '["base#demo#failure-01"]'
 ```
 
-Deletion only applies to terminal or metadata-only records; active tasks are rejected. It removes task files. Check [Lineage relationships](../concepts/task-lineage.md) before cleanup to ensure upstream artifacts are no longer needed.
+Deletion only applies to terminal records; active tasks are rejected. It removes task files. Check [Lineage relationships](../concepts/task-lineage.md) before cleanup to ensure upstream artifacts are no longer needed.
 
 Use `delete_tasks` for ordinary task cleanup and `delete_entries` for arbitrary workspace file deletion; their scopes and protections differ.
 

@@ -19,7 +19,7 @@ from ...constants import (
 )
 from ..catalog.resolver import installed_tasks, resolve_task
 from ..core.task import BaseTask
-from ..storage.workspace import TaskStatus
+from ..storage.workspace import TaskMetadata
 from .arguments import split_task_arguments
 from .runner import TaskRunner
 
@@ -43,7 +43,7 @@ class TaskExecution:
     """Completed task output together with its final status."""
 
     output: dict
-    status: TaskStatus
+    status: TaskMetadata
 
     @property
     def exit_code(self) -> int:

@@ -13,14 +13,14 @@ axonx list_task_runs --task-type train
 
 空 path 表示工作区根。目录列表优先展示目录，并按名称排序；单次最多 5000 项。truncated 为 true 时，将已读取条目数作为 offset 请求下一页；Studio 提供“加载更多条目”按钮。它不是递归文件树。
 
-`list_task_runs` 筛选具有 metadata.json 的任务目录。若任务 failed 或仍在 running，通常不会在这里出现；请使用任务状态查询确认执行。
+`list_task_runs` 筛选所有生命周期状态中包含 metadata.json 的目录，应检查 `state` 区分运行、失败、取消和成功。
 
 路径不能借助绝对路径、`..` 或符号链接逃离工作区。目录项中可显示 symlink，但不应把它当成可预览的普通文件。
 
 ## 预览记录与产物
 
 ```bash
-axonx preview_file --path 'base/base#demo#add-01/status.json'
+axonx preview_file --path 'base/base#demo#add-01/events.jsonl'
 axonx preview_file --path 'base/base#demo#add-01/metadata.json'
 ```
 
@@ -34,18 +34,19 @@ etl/<ETL Task ID>/data/features.parquet
 
 ## 格式与限制
 
-| 格式              | 返回内容                 | 限制                             |
-| ----------------- | ------------------------ | -------------------------------- |
-| txt               | UTF-8 文本前缀           | 最多 512 KiB，标记 truncated     |
-| md / markdown     | 正文与 frontmatter       | 同上，frontmatter_error 单独记录 |
-| json / yaml / yml | 解析内容与结构化 data    | 超过 32 MiB 返回限制提示         |
-| csv               | 列名与行窗口             | offset/limit 控制行数            |
-| parquet           | 列、类型、总行数与行窗口 | offset/limit 控制行数            |
-| 其他扩展名        | unsupported 与大小       | 不自动解码模型、压缩包或图片     |
+| 格式              | 返回内容                     | 限制                             |
+| ----------------- | ---------------------------- | -------------------------------- |
+| txt               | UTF-8 文本前缀               | 最多 512 KiB，标记 truncated     |
+| md / markdown     | 正文与 frontmatter           | 同上，frontmatter_error 单独记录 |
+| json / yaml / yml | 解析内容与结构化 data        | 超过 32 MiB 返回限制提示         |
+| csv               | 列名与行窗口                 | offset/limit 控制行数            |
+| parquet           | 列、类型、总行数与行窗口     | offset/limit 控制行数            |
+| jsonl / ndjson    | 解析记录、实际行号和逐行错误 | 按行分页，每页最多 512 KiB 内容  |
+| 其他扩展名        | unsupported 与大小           | 不自动解码模型、压缩包或图片     |
 
 文本默认按 UTF-8（支持 BOM）解析。二进制文件改后缀为 txt 不会使其变成有效文本。
 
-Studio 的工作区页面可预览任意工作区目录内的支持格式文件。CSV 与 Parquet 使用每页 200 行的窗口；JSON、YAML、Markdown 与文本使用相同的有界预览接口。点击工作区根节点标题可返回根目录。符号链接会显示但无法打开；不支持的格式显示文件大小和无法预览的提示。
+Studio 的工作区页面可预览任意工作区目录内的支持格式文件。CSV、JSONL 与 Parquet 使用每页 200 行的窗口；JSON、YAML、Markdown 与文本使用相同的有界预览接口。点击工作区根节点标题可返回根目录。符号链接会显示但无法打开；不支持的格式显示文件大小和无法预览的提示。
 
 ![工作区浏览器预览研究产物（Playground 虚构数据）](../../figures/studio/workspace-preview.jpg)
 
@@ -60,7 +61,7 @@ axonx preview_file --path 'tushare/2026/20260105/daily.parquet' \
 
 路径仅为常见原始数据示例，应先用 `list_entries` 选择实际文件。offset 是跳过的数据行数，limit 为 1–5000，默认 200。
 
-这些参数适用于 CSV/Parquet，不是 JSON 文本的字节偏移。目录分页也使用 offset，但计数单位是目录条目而不是数据行。任务日志使用另一个接口，其 offset 是字节单位。
+这些参数适用于 CSV/JSONL/Parquet，不是 JSON 文本的字节偏移。目录分页也使用 offset，但计数单位是目录条目而不是数据行。任务日志使用另一个接口，其 offset 是字节单位。
 
 研究大文件时，预览用于快速检查 Schema、日期和少量样本；完整统计应由本机脚本或研究 Task 读取完整文件。仅凭首屏不能判断全数据不存在缺失值。
 
@@ -94,3 +95,5 @@ axonx delete_entries --paths '["temporary/report.txt"]'
 [工作区概念](../concepts/workspace.md) · [研究产物协议](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)
 
 源码：[目录操作](../../../axonx/workspace/browser.py)、[预览实现](../../../axonx/workspace/preview.py)、[路径约束](../../../axonx/workspace/paths.py)。
+
+JSONL 预览保留损坏或未写完的行，通过 `parse_error` 和原始 `content` 展示；有效行提供解析后的 `data`。Studio 独立展示每一行，支持上一页／下一页，并标记受到字节预算限制的页面。

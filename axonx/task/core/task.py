@@ -17,7 +17,7 @@ from ...constants import (
 )
 from ...enums import ComponentEnum, TaskType
 from ...utils import get_log_path, get_logger
-from ..storage.workspace import METADATA_FILE, task_path
+from ..storage.workspace import METADATA_FILE, TaskMetadata, task_path
 from .context import TaskContext
 from .identity import generated_task_name, parse_source_tasks, validate_registration_name
 from .params import BaseInputParams, BaseOutputParams
@@ -79,6 +79,8 @@ class BaseTask(ABC):
         self.pid = os.getpid()
         self.log_path = str(get_log_path() or "")
         self._progress: Callable[[float], None] | None = None
+        self._persist_metadata: Callable[[], None] | None = None
+        self._metadata: TaskMetadata | None = None
 
     @property
     def workspace_path(self) -> Path:
@@ -107,6 +109,19 @@ class BaseTask(ABC):
     @property
     def metadata_path(self) -> Path:
         return self.task_dir / METADATA_FILE
+
+    @property
+    def metadata(self) -> TaskMetadata:
+        """The runtime's current record; available during and after execution."""
+        if self._metadata is None:
+            raise RuntimeError("Task metadata is unavailable before execution starts")
+        return self._metadata
+
+    def persist_metadata(self) -> None:
+        """Publish changes to the shared record while its Runner owns execution."""
+        if self._persist_metadata is None:
+            raise RuntimeError("Task metadata can only be persisted inside the TaskRunner")
+        self._persist_metadata()  # pylint: disable=not-callable
 
     def source_task_dir(self, task_id: str) -> Path:
         return task_path(self.workspace_path, task_id)

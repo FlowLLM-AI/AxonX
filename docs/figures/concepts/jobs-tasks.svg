@@ -32,7 +32,7 @@
       <rect x="850" y="368" width="310" height="140" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
       <text x="874.0" y="400" font-size="23" font-weight="700" text-anchor="start">Publish final state</text>
       <text x="874.0" y="432" font-size="18" font-weight="400" text-anchor="start">succeeded / failed / cancelled</text>
-      <text x="874.0" y="459" font-size="18" font-weight="400" text-anchor="start">Metadata only on success</text>
+      <text x="874.0" y="459" font-size="18" font-weight="400" text-anchor="start">Metadata in every state</text>
       <path d="M 290 246 H 350 V 438 H 420" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <path d="M 720 438 H 850" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
       <path d="M 1005 368 V 266" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" />

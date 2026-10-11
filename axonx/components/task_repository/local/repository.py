@@ -8,15 +8,14 @@ from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
 
+from ....task.query.summary import summarize_status, task_sort_key
 from ....task.storage.workspace import (
-    TaskEntry,
-    TaskRecord,
-    TaskStatus,
+    TaskMetadata,
     is_task_directory,
     read_entry,
     scan_entries,
     task_path,
-    write_status,
+    write_task_metadata,
 )
 from ....task.sync import SyncTasksReport, TaskArchiveApplier
 from ...registry import provider
@@ -40,7 +39,7 @@ class LocalTaskRepository(BaseTaskRepository):
     ) -> None:
         super().__init__(**kwargs)
         self.root = self.workspace_path.expanduser().resolve()
-        self._entries: dict[str, TaskEntry] = {}
+        self._entries: dict[str, TaskMetadata] = {}
         self._lock = asyncio.Lock()
         self._subscriptions: set[TaskChangeSubscription] = set()
         self._watcher = TaskWorkspaceWatcher(
@@ -83,30 +82,28 @@ class LocalTaskRepository(BaseTaskRepository):
         async with self._lock:
             self._entries = await asyncio.to_thread(scan_entries, self.root)
 
-    async def entries(self) -> Mapping[str, TaskEntry]:
+    async def entries(self) -> Mapping[str, TaskMetadata]:
         async with self._lock:
-            return dict(self._entries)
+            return {task_id: metadata.model_copy(deep=True) for task_id, metadata in self._entries.items()}
 
-    async def entry(self, task_id: str) -> TaskEntry:
+    async def entry(self, task_id: str) -> TaskMetadata:
         async with self._lock:
-            return self._entries[task_id]
+            return self._entries[task_id].model_copy(deep=True)
 
-    async def statuses(self) -> Mapping[str, TaskStatus]:
+    async def summaries(self) -> list[dict]:
         async with self._lock:
-            return {task_id: entry.status for task_id, entry in self._entries.items() if entry.status is not None}
+            return [
+                summarize_status(metadata)
+                for metadata in sorted(self._entries.values(), key=task_sort_key, reverse=True)
+            ]
 
-    async def records(self) -> Mapping[str, TaskRecord]:
-        async with self._lock:
-            return {task_id: entry.record for task_id, entry in self._entries.items() if entry.record is not None}
-
-    async def put_status(self, status: TaskStatus) -> None:
+    async def put_metadata(self, status: TaskMetadata) -> None:
         async with self._lock:
             directory = task_path(self.root, status.task_id)
             if not is_task_directory(directory, strict_io=True):
                 return
-            await asyncio.to_thread(write_status, directory, status)
-            entry = self._entries.get(status.task_id)
-            self._entries[status.task_id] = TaskEntry(status, entry.record if entry else None)
+            await asyncio.to_thread(write_task_metadata, directory, status)
+            self._entries[status.task_id] = status.model_copy(deep=True)
 
     async def forget(self, task_id: str) -> None:
         async with self._lock:
@@ -118,7 +115,7 @@ class LocalTaskRepository(BaseTaskRepository):
             if directory.is_symlink() or directory.parent.is_symlink():
                 return False
             entry = await asyncio.to_thread(read_entry, self.root, task_id)
-            if entry is None or (entry.status is not None and not entry.status.state.is_terminal):
+            if entry is None or not entry.state.is_terminal:
                 return False
             try:
                 await asyncio.to_thread(shutil.rmtree, directory)

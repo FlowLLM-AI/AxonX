@@ -132,7 +132,7 @@ export function TasksPage({
       tasks.map((task) => ({
         value: task.task_id,
         label: task.task_id,
-        detail: task.task_name || task.task_type,
+        detail: task.reg_name || task.task_type,
       })),
     );
   }, [tasks, onTasksChange]);

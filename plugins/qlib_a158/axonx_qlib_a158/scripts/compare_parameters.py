@@ -29,7 +29,7 @@ def run_comparison(options: argparse.Namespace) -> dict:
         status = TaskRunner().run(task)
         if status.state != TaskState.SUCCEEDED:
             raise RuntimeError(f"{task.task_id}: {status.error}")
-        return task.task_id, status.result
+        return task.task_id, status.output_params
 
     labels = list(dict.fromkeys(options.labels))
     combinations = [(label, preset) for label in labels for preset in ("axonx", "qlib")]

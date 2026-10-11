@@ -10,27 +10,39 @@ export interface TaskStepStatus {
   percentage: number | null;
 }
 
-export interface TaskStatus {
+export interface ChildTaskRecord {
+  node_name: string;
+  attempt: number;
+  task: string;
+  task_id: string | null;
+  run_id: string;
+  state: TaskState;
+  exit_code: number;
+  error: string;
+}
+
+export interface TaskMetadata {
   task_id: string;
   run_id: string;
   task_type: string;
-  task_name: string;
-  config: Record<string, unknown>;
+  reg_name: string;
+  input_params: Record<string, unknown>;
   state: TaskState;
   pid: number | null;
   created_at: string | null;
   started_at: string | null;
   finished_at: string | null;
   steps: TaskStepStatus[];
-  result: Record<string, unknown>;
+  children: ChildTaskRecord[];
+  output_params: Record<string, unknown>;
   error: string;
   exit_code: number;
   log_path: string;
 }
 
 export interface TaskSummary extends Omit<
-  TaskStatus,
-  "config" | "result" | "steps"
+  TaskMetadata,
+  "input_params" | "output_params" | "steps" | "children"
 > {
   display_name?: string;
   is_online?: boolean;

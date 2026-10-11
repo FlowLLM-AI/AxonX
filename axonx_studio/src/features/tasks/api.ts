@@ -4,7 +4,7 @@ import type {
   TaskDefinition,
   TaskHandle,
   TaskLogChunk,
-  TaskStatus,
+  TaskMetadata,
   TaskSummary,
 } from "./types";
 
@@ -15,7 +15,7 @@ export const listTaskStatuses = (target?: string, signal?: AbortSignal) =>
     { target, signal },
   );
 export const listFullTaskStatuses = (target?: string, signal?: AbortSignal) =>
-  axonx.invoke<TaskStatus[]>(
+  axonx.invoke<TaskMetadata[]>(
     "list_task_statuses",
     { detail: "full" },
     { target, signal },
@@ -25,7 +25,7 @@ export const getTaskStatus = (
   target?: string,
   signal?: AbortSignal,
 ) =>
-  axonx.invoke<TaskStatus>("status", { task_id: taskId }, { target, signal });
+  axonx.invoke<TaskMetadata>("status", { task_id: taskId }, { target, signal });
 export const readTaskLog = (
   taskId: string,
   offset = -1,
@@ -61,9 +61,9 @@ export const streamTask = (
   taskId: string,
   target: string | undefined,
   signal: AbortSignal,
-  onEvent: (event: JobEvent<TaskStatus>) => void,
+  onEvent: (event: JobEvent<TaskMetadata>) => void,
 ) =>
-  streamJob<TaskStatus>(
+  streamJob<TaskMetadata>(
     axonx,
     "stream_task",
     { task_id: taskId },

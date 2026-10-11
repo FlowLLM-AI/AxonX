@@ -63,7 +63,7 @@ Both demos in the screenshot succeeded; see [Task management](../guides/task-man
 
 **Task management** provides filters for task type, state, and name, and supports automatic refresh every 5 seconds, details, cancellation, and multi-selection deletion. Active task details show progress and logs through an event stream; completed logs can be read on demand.
 
-The dependency graph shows tasks and upstream relationships. Relationships for running tasks may come from status configuration, while successful task relationships come from metadata; missing upstream records appear as missing nodes. Graph relationships are not an automatic execution plan.
+The dependency graph shows tasks and upstream relationships. Relationships come from metadata.input_params.source_tasks in every lifecycle state; tasks that have not succeeded are marked provisional; missing upstream records appear as missing nodes. Graph relationships are not an automatic execution plan.
 
 **Machine resources** shows CPU, memory, and GPU metrics for the current target. Device data depends on the machine and available vendor tools; missing GPU data does not necessarily indicate GPU failure, nor does it mean the framework automatically selects machines or allocates devices.
 

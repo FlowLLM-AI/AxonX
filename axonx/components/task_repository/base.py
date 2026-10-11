@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from ...enums import ComponentEnum
-from ...task.storage.workspace import TaskEntry, TaskRecord, TaskStatus
+from ...task.storage.workspace import TaskMetadata
 from ...task.sync import SyncTasksReport
 from ..base import BaseComponent
 from .subscription import TaskChangeSubscription
@@ -23,23 +23,19 @@ class BaseTaskRepository(BaseComponent, ABC):
         """Return an isolated coalescing subscription."""
 
     @abstractmethod
-    async def entries(self) -> Mapping[str, TaskEntry]:
-        """Return an immutable snapshot of indexed entries."""
+    async def entries(self) -> Mapping[str, TaskMetadata]:
+        """Return isolated snapshots of indexed entries."""
 
     @abstractmethod
-    async def entry(self, task_id: str) -> TaskEntry:
+    async def entry(self, task_id: str) -> TaskMetadata:
         """Return one indexed entry or raise ``KeyError``."""
 
     @abstractmethod
-    async def statuses(self) -> Mapping[str, TaskStatus]:
-        """Return indexed statuses keyed by Task ID."""
+    async def summaries(self) -> list[dict]:
+        """Project isolated lightweight summaries directly from the index, newest first."""
 
     @abstractmethod
-    async def records(self) -> Mapping[str, TaskRecord]:
-        """Return indexed metadata records keyed by Task ID."""
-
-    @abstractmethod
-    async def put_status(self, status: TaskStatus) -> None:
+    async def put_metadata(self, status: TaskMetadata) -> None:
         """Persist and index a status owned by this application."""
 
     @abstractmethod

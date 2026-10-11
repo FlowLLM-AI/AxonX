@@ -8,7 +8,7 @@
 
 以下均为 `POST /jobs/{name}`，请求体是 `{"arguments":{...}}`。远程转发时在封装顶层添加 `target`，不能放进 arguments。每个响应使用 [JobResponse](overview.md#响应与错误)，表格默认值依据当前内置配置和 Step。部署可修改 Job Schema，运行服务的 `/jobs` 是最终依据。
 
-所有示例 JSON 均为结构示例；任务、会话、文件路径与哈希必须替换为本服务实际返回的值。完整通用 TaskStatus 字段见 [Task 协议](../reference/task-contracts.md)。
+所有示例 JSON 均为结构示例；任务、会话、文件路径与哈希必须替换为本服务实际返回的值。完整通用 TaskMetadata 字段见 [Task 协议](../reference/task-contracts.md)。
 
 ## 接口清单
 
@@ -96,17 +96,17 @@ answer 与 WorkspaceListing 相同，只保留任务结果目录。
 
 **行为与失败情况**
 
-正在执行或失败而没有 metadata 的目录不进入研究结果列表。task_type 是目录名，不是 Task 注册名。
+所有生命周期状态都保留 metadata，应根据 state 筛选成功研究结果。task_type 是目录名，不是 Task 注册名。
 
 ## preview_file
 
 预览支持类型的文件。
 
-| 参数     | 类型    | 必填 | 默认值      | 约束与含义                                                  |
-| -------- | ------- | ---- | ----------- | ----------------------------------------------------------- |
-| `path`   | string  | 是   | `—（省略）` | 服务工作区相对路径                                          |
-| `offset` | integer | 否   | `0`         | CSV/Parquet 预览跳过的数据行数；minimum=0                   |
-| `limit`  | integer | 否   | `200`       | CSV/Parquet 预览最多返回的数据行数；minimum=1, maximum=5000 |
+| 参数     | 类型    | 必填 | 默认值      | 约束与含义                                                        |
+| -------- | ------- | ---- | ----------- | ----------------------------------------------------------------- |
+| `path`   | string  | 是   | `—（省略）` | 服务工作区相对路径                                                |
+| `offset` | integer | 否   | `0`         | CSV/JSONL/Parquet 预览跳过的数据行数；minimum=0                   |
+| `limit`  | integer | 否   | `200`       | CSV/JSONL/Parquet 预览最多返回的数据行数；minimum=1, maximum=5000 |
 
 只接受表中业务字段。
 
@@ -122,7 +122,7 @@ answer 与 WorkspaceListing 相同，只保留任务结果目录。
 
 **响应**
 
-answer 按 kind 判别：text/markdown/json/yaml/csv/parquet/unsupported；每种都有 size。
+answer 按 kind 判别：text/markdown/json/jsonl/yaml/csv/parquet/unsupported；每种都有 size。
 
 ```json
 {
@@ -141,7 +141,7 @@ answer 按 kind 判别：text/markdown/json/yaml/csv/parquet/unsupported；每�
 
 **行为与失败情况**
 
-offset/limit 仅对 CSV、Parquet 的数据行有效，默认 0/200，上限 5000。text/markdown 最多读取 512 KiB；JSON/YAML 超过 32 MiB 返回 parse_error。解析失败可仍是 success=true，必须查看 parse_error。
+offset/limit 仅对 CSV、JSONL、Parquet 的数据行有效，默认 0/200，上限 5000。text/markdown 最多读取 512 KiB；JSON/YAML 超过 32 MiB 返回 parse_error。解析失败可仍是 success=true，必须查看 parse_error。
 
 ## delete_entries
 
@@ -256,3 +256,5 @@ curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fyour-digest%
 | unsupported | size                                                         | 接口不提供该格式的预览内容           |
 
 原始文件字节大小、行分页 offset 与日志字节 offset 是三种不同信息。文本预览没有通用字符分页。Parquet 行数与分组信息来自文件元数据，返回 rows 只是当前窗口。
+
+JSONL/NDJSON 预览返回 `rows`（`line`、`content`、`data`、`parse_error`）、`offset`、`limit`、`has_more` 和 `truncated`。偏移按实际行计数，包含损坏记录。每页限制为 512 KiB，单行错误不会使整个预览失败。

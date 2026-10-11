@@ -13,7 +13,7 @@ AxonX 将能力调用、研究执行和结果存储分开。CLI、Studio 与外�
 | 编排   | 参数校验、执行异步步骤、形成 JobResponse | Dispatcher、Job、BaseStep                 |
 | 组件   | 管理可复用能力和生命周期                 | TaskManager、TaskRepository、Agent、Proxy |
 | 任务   | 执行具体研究步骤，生成校验后的结果       | BaseTask 和插件 Task                      |
-| 存储   | 保存状态、成功元数据、进度与研究产物     | 工作区和独立日志目录                      |
+| 存储   | 保存生命周期元数据、进度与研究产物       | 工作区和独立日志目录                      |
 
 HTTP 的普通调用与 SSE 事件调用经过相同 Job 能力层。MCP 把公开 Job 映射为工具，返回普通响应。SSE 是另一个 HTTP 入口，提供实时事件；两者不应作为同一种传输理解。
 
@@ -37,7 +37,7 @@ HTTP 的普通调用与 SSE 事件调用经过相同 Job 能力层。MCP 把公�
 2. 本机 TaskManager 校验任务定义与身份，创建 queued 记录，启动独立子进程。
 3. Job 返回含 `task_id`、`run_id`、注册名的 TaskHandle。
 4. worker 解析 typed input，顺序执行同步步骤并写进度、状态和日志。
-5. 成功时构建 typed output，先写 `metadata.json`，再发布成功状态。
+5. 在 `metadata.json` 中原子发布 typed output 与终态。
 6. 客户端通过 `wait_task` 确认终态，通过文件或研究页面读取结果。
 
 `axonx exec` 直接在当前 CLI 进程运行同一种 Task，不走 HTTP 或常驻 TaskManager。进程隔离方便取消和异常对账，并不等于代码安全沙箱。

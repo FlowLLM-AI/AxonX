@@ -40,7 +40,7 @@ axonx wait_task --task-id 'base#demo#add-01' \
 
 长任务需要调大客户端超时。默认客户端请求超时为 60 秒；客户端超时或关闭浏览器不等于 Task 被取消，可以重新查状态。
 
-成功时 `answer.state` 为 succeeded，`answer.result` 包含 result=3、branch=different、operands 等输出。失败时 JobResponse.success 为 false，应继续读取 error 和日志。
+成功时 `answer.state` 为 succeeded，`answer.output_params` 包含 result=3、branch=different、operands 等输出。失败时 JobResponse.success 为 false，应继续读取 error 和日志。
 
 实时观察可使用：
 
@@ -97,7 +97,7 @@ axonx cancel --task-id '<活跃 Task ID>'
 
 demo 很快完成，通常不能用它稳定演示取消。取消返回 false 时，应核对任务是否已经结束、是否由当前管理器管理，以及执行机器是否选择正确。
 
-对于[复合 Task](composite-tasks.md)，应保存并取消父 handle。子 Task 有独立 ID 和状态记录，但共用父 worker，无法单独取消。从父 `composition.json` 获取子 ID，再使用相同的状态、日志和事件流命令查询各子 Task。删除终态父 Task 不会删除其子 Task。
+对于[复合 Task](composite-tasks.md)，应保存并取消父 handle。子 Task 有独立 ID 和状态记录，但共用父 worker，无法单独取消。从父 `metadata.json` 获取子 ID，再使用相同的状态、日志和事件流命令查询各子 Task。删除终态父 Task 不会删除其子 Task。
 
 修正参数后可用新名称保留失败记录；复用固定名称会替换旧任务目录。没有通用的自动断点续跑，插件自己实现恢复时应遵循其文档。
 
@@ -107,7 +107,7 @@ demo 很快完成，通常不能用它稳定演示取消。取消返回 false �
 axonx delete_tasks --task-ids '["base#demo#failure-01"]'
 ```
 
-删除只适用于终态或 metadata-only 记录，活跃任务会被拒绝。删除会移除任务文件，清理前先检查[血缘关系](../concepts/task-lineage.md)，确保上游产物不再被需要。
+删除只适用于终态记录，活跃任务会被拒绝。删除会移除任务文件，清理前先检查[血缘关系](../concepts/task-lineage.md)，确保上游产物不再被需要。
 
 一般任务清理使用 `delete_tasks`；任意工作区文件删除使用 `delete_entries`，两者的范围与保护不同。
 

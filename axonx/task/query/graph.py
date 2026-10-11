@@ -1,9 +1,4 @@
-"""Build dependency graphs from every Task entry in a workspace.
-
-Successful Tasks describe their final lineage in ``metadata.json``. Tasks that
-are queued, running, failed, or cancelled may not have metadata yet, so their
-status configuration is used as a provisional source of dependency information.
-"""
+"""Build data-lineage graphs from the unified Task records."""
 
 from __future__ import annotations
 
@@ -13,7 +8,8 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.identity import parse_source_tasks, task_type_from_id
-from ..storage.workspace import KINDS, TaskEntry
+from ...enums import TaskState
+from ..storage.workspace import KINDS, TaskMetadata
 
 KIND_ORDER = {kind: index for index, kind in enumerate(KINDS)}
 
@@ -42,8 +38,8 @@ class TaskGraph(BaseModel):
     edges: list[TaskGraphEdge]
 
 
-def task_graph(entries: Mapping[str, TaskEntry], task_id: str) -> TaskGraph:
-    """Return the connected graph containing one status or metadata entry."""
+def task_graph(entries: Mapping[str, TaskMetadata], task_id: str) -> TaskGraph:
+    """Return the connected graph containing one lifecycle record."""
     if task_id not in entries:
         raise KeyError(task_id)
     nodes = _nodes(entries)
@@ -74,30 +70,23 @@ def _status_sources(config: Mapping[str, Any] | None) -> list[str]:
         return []
 
 
-def _node(task_id: str, entries: Mapping[str, TaskEntry]) -> TaskGraphNode:
+def _node(task_id: str, entries: Mapping[str, TaskMetadata]) -> TaskGraphNode:
     entry = entries.get(task_id)
-    record = entry.record if entry else None
-    status = entry.status if entry else None
-    parents = (
-        parse_source_tasks(record.source_tasks)
-        if record is not None
-        else _status_sources(status.config if status else None)
-    )
+    parents = _status_sources(entry.input_params if entry else None)
     parents = [parent for parent in parents if parent != task_id]
     return TaskGraphNode(
         task_id=task_id,
         kind=task_type_from_id(task_id).value,
-        task_name=(record.reg_name if record else None) or (status.task_name if status else None),
-        created_at=(record.created_at if record else None)
-        or (status.created_at.isoformat() if status and status.created_at else None),
+        task_name=entry.reg_name if entry else None,
+        created_at=entry.created_at.isoformat() if entry and entry.created_at else None,
         parent_ids=parents,
-        state=status.state.value if status else None,
+        state=entry.state.value if entry else None,
         missing=entry is None,
-        provisional=record is None and status is not None,
+        provisional=entry is not None and entry.state != TaskState.SUCCEEDED,
     )
 
 
-def _nodes(entries: Mapping[str, TaskEntry]) -> dict[str, TaskGraphNode]:
+def _nodes(entries: Mapping[str, TaskMetadata]) -> dict[str, TaskGraphNode]:
     nodes = {task_id: _node(task_id, entries) for task_id in entries}
     for node in tuple(nodes.values()):
         for parent in node.parent_ids:

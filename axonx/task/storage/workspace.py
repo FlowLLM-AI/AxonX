@@ -1,46 +1,27 @@
-"""The on-disk layout of a Task workspace, and the records it holds.
-
-A workspace root holds one directory per task category, one directory per task run
-below it, and three runtime records inside that one directory: ``status.json``, the
-status a worker rewrites as it runs; ``metadata.json``, the record it writes once
-the run succeeds; and ``events.jsonl``, the append-only status transitions a
-follower replays. Composite Tasks also retain ``composition.json`` for their
-child invocations. Everything that has to know that layout — the task runner, the
-task manager and the sync component — reads it from here, so a change to it is one
-edit rather than four.
-
-These reads are the lenient side of the format. A task's files are written by
-another process and may be half-written, hand-edited or foreign, so a file that
-does not describe the task it sits under reads as absent rather than raising: a
-workspace is what it is, not what it should be.
-"""
+"""One atomic lifecycle record and one append-only event journal per Task directory."""
 
 from __future__ import annotations
 
-import json
+import math
 import stat
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ...constants import AXONX_DEFAULT_ENCODING
 from ...enums import TaskState, TaskType
 from ...utils.fs import atomic_write_json
-from ..core.identity import parse_source_tasks, task_type_from_id
+from ..core.identity import task_type_from_id
 
 #: One workspace directory per task category holds that category's task directories.
 KINDS = tuple(kind.value for kind in TaskType)
 
-STATUS_FILE = "status.json"
 METADATA_FILE = "metadata.json"
 #: The append-only log a worker writes its status transitions to, so a manager in
 #: another process can follow a running task event by event.
 EVENTS_FILE = "events.jsonl"
-#: The two files whose changes can alter the task manager's indexed record.
-RECORD_FILES = frozenset({STATUS_FILE, METADATA_FILE})
 
 
 class TaskStepStatus(BaseModel):
@@ -52,43 +33,40 @@ class TaskStepStatus(BaseModel):
     percentage: float | None = Field(default=None, ge=0, le=100)
 
 
-class TaskStatus(BaseModel):
-    """Persisted mutable state of one Task run."""
+class ChildTaskRecord(BaseModel):
+    """Snapshot of one child invocation; invalid inputs may have no Task ID."""
 
+    model_config = ConfigDict(extra="forbid")
+    node_name: str
+    attempt: int = Field(ge=1)
+    task: str
+    task_id: str | None = None
+    run_id: str
+    state: TaskState = TaskState.QUEUED
+    exit_code: int = Field(default=0, ge=0, le=255)
+    error: str = ""
+
+
+class TaskMetadata(BaseModel):
+    """The complete current lifecycle record, from queued to terminal."""
+
+    model_config = ConfigDict(extra="forbid")
     task_id: str
     run_id: str = Field(min_length=1)
     task_type: TaskType
-    task_name: str = ""
-    config: dict[str, Any] = Field(default_factory=dict)
+    reg_name: str = ""
+    input_params: dict[str, Any] = Field(default_factory=dict)
+    output_params: dict[str, Any] = Field(default_factory=dict)
+    children: list[ChildTaskRecord] = Field(default_factory=list)
     state: TaskState = TaskState.QUEUED
     pid: int | None = None
     created_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
     steps: list[TaskStepStatus] = Field(default_factory=list)
-    result: dict[str, Any] = Field(default_factory=dict)
     error: str = ""
     exit_code: int = Field(default=0, ge=0, le=255)
     log_path: str = ""
-
-
-@dataclass(frozen=True)
-class TaskRecord:
-    """What a task directory declares about itself in ``metadata.json``."""
-
-    task_id: str
-    task_type: TaskType
-    reg_name: str | None
-    created_at: str | None
-    source_tasks: str
-
-
-@dataclass(frozen=True)
-class TaskEntry:
-    """One task directory, as read: the status it reported and the record it declares."""
-
-    status: TaskStatus | None
-    record: TaskRecord | None
 
 
 def task_directory(task_id: str) -> str:
@@ -155,15 +133,15 @@ def is_task_directory(directory: Path, *, strict_io: bool = False) -> bool:
     return not directory.is_symlink() and not directory.parent.is_symlink() and directory.is_dir()
 
 
-def read_entry(root: Path, task_id: str) -> TaskEntry | None:
+def read_entry(root: Path, task_id: str) -> TaskMetadata | None:
     """Read one task directory, or None when it holds nothing to index."""
     directory = task_path(root, task_id)
-    return _read(directory, task_id) if is_task_directory(directory) else None
+    return read_task_metadata(directory, task_id)
 
 
-def scan_entries(root: Path) -> dict[str, TaskEntry]:
+def scan_entries(root: Path) -> dict[str, TaskMetadata]:
     """Read every task directory below a workspace root, keyed by task ID."""
-    entries: dict[str, TaskEntry] = {}
+    entries: dict[str, TaskMetadata] = {}
     for parent in kind_directories(root):
         if parent.is_symlink() or not parent.is_dir():
             continue
@@ -180,25 +158,18 @@ def scan_entries(root: Path) -> dict[str, TaskEntry]:
                 parse_task_directory(f"{parent.name}/{directory.name}")
             except ValueError:
                 continue
-            if (entry := _read(directory, directory.name)) is not None:
+            if (entry := read_task_metadata(directory, directory.name)) is not None:
                 entries[directory.name] = entry
     return entries
 
 
-def read_status(directory: Path, task_id: str, *, strict_io: bool = False) -> TaskStatus | None:
-    """Read persisted status, optionally propagating I/O errors other than missing files.
-
-    Strict reads also check directories without suppressing stat errors, while
-    refusing symlinks just as workspace indexing does.
-    """
-    path = directory / STATUS_FILE
+def read_task_metadata(directory: Path, task_id: str, *, strict_io: bool = False) -> TaskMetadata | None:
+    """Read a matching regular record; strict reads propagate transient I/O failures."""
+    path = directory / METADATA_FILE
     try:
-        if strict_io:
-            if not is_task_directory(directory, strict_io=True) or stat.S_ISLNK(path.lstat().st_mode):
-                return None
-        elif path.is_symlink():
+        if not is_task_directory(directory, strict_io=strict_io) or not stat.S_ISREG(path.lstat().st_mode):
             return None
-        status = TaskStatus.model_validate_json(path.read_text(encoding=AXONX_DEFAULT_ENCODING))
+        metadata = TaskMetadata.model_validate_json(path.read_text(encoding=AXONX_DEFAULT_ENCODING))
     except FileNotFoundError:
         return None
     except OSError:
@@ -207,35 +178,22 @@ def read_status(directory: Path, task_id: str, *, strict_io: bool = False) -> Ta
         return None
     except (UnicodeError, ValueError):
         return None
-    return status if status.task_id == task_id and status.task_type == task_type_from_id(task_id) else None
+    return metadata if metadata.task_id == task_id and metadata.task_type == task_type_from_id(task_id) else None
 
 
-def read_record(directory: Path, task_id: str) -> TaskRecord | None:
-    """Read a task's record, or None when it declares nothing about this task."""
-    path = directory / METADATA_FILE
-    if path.is_symlink():
-        return None
-    try:
-        value = json.loads(path.read_text(encoding=AXONX_DEFAULT_ENCODING))
-    except (OSError, UnicodeError, ValueError):
-        return None
-    if not isinstance(value, dict):
-        return None
-    task_type = task_type_from_id(task_id)
-    if value.get("task_id") != task_id or value.get("task_type") != task_type.value:
-        return None
-    return TaskRecord(
-        task_id=task_id,
-        task_type=task_type,
-        reg_name=_text(value, "reg_name"),
-        created_at=_text(value, "created_at"),
-        source_tasks=_source_tasks(value.get("input_params"), task_id),
-    )
+def write_task_metadata(directory: Path, metadata: TaskMetadata) -> None:
+    """Atomically replace the complete record; non-finite output values become null."""
+    atomic_write_json(directory / METADATA_FILE, _finite(metadata.model_dump(mode="json")))
 
 
-def write_status(directory: Path, status: TaskStatus) -> None:
-    """Persist one task status atomically, beside that task's other files."""
-    atomic_write_json(directory / STATUS_FILE, status.model_dump(mode="json"))
+def _finite(value: Any) -> Any:
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: _finite(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_finite(item) for item in value]
+    return value
 
 
 def task_id_from_path(root: Path, raw_path: str) -> str | None:
@@ -260,32 +218,8 @@ def task_record_id_from_path(root: Path, raw_path: str) -> str | None:
     except ValueError:
         return None
     if len(parts) == 3:
-        if parts[2] not in RECORD_FILES:
+        if parts[2] != METADATA_FILE:
             return None
     elif len(parts) != 2:
         return None
     return task_id_from_path(root, raw_path)
-
-
-def _read(directory: Path, task_id: str) -> TaskEntry | None:
-    """Read both record files of one task directory, or None when neither holds anything."""
-    entry = TaskEntry(read_status(directory, task_id), read_record(directory, task_id))
-    return entry if entry.status is not None or entry.record is not None else None
-
-
-def _text(value: dict, key: str) -> str | None:
-    """Read one optional string field of a record document."""
-    field = value.get(key)
-    return field if isinstance(field, str) else None
-
-
-def _source_tasks(input_params: Any, task_id: str) -> str:
-    """Return the parent task IDs a record declares.
-
-    Invalid declarations and self-references do not contribute graph edges.
-    """
-    params = input_params if isinstance(input_params, dict) else {}
-    try:
-        return ",".join(source for source in parse_source_tasks(params.get("source_tasks", "")) if source != task_id)
-    except ValueError:
-        return ""

@@ -84,6 +84,7 @@ async function loadTasks(
           )
             return null;
           const raw = preview.data as Record<string, unknown>;
+          if (raw.state !== "succeeded") return null;
           const input = (raw.input_params || {}) as Record<string, unknown>;
           const output = (raw.output_params || {}) as Record<string, unknown>;
           const artifacts = output.artifacts as

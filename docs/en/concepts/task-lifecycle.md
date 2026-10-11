@@ -15,7 +15,7 @@ A Task ID identifies a task directory in the workspace; `run_id` identifies one 
 
 `task_name` allows 1–32 English letters, digits, or hyphens. If omitted or passed as an empty string, the framework uses a name with an hourly timestamp prefix and random suffix. Keep the `#` characters in Task IDs and quote them in the shell.
 
-The `task_name` field in persistent status currently stores the registered Task name. The instance name is in `status.config.task_name` and `metadata.input_params.task_name`. Do not infer the directory suffix from this top-level status field.
+The unified record stores the definition registration in `metadata.reg_name`, and the resolved instance name in `metadata.input_params.task_name`.
 
 ## State Meanings
 
@@ -42,16 +42,11 @@ The `steps` field in status stores the name, start/end times, and percentage of 
 
 The step generator can dynamically yield subsequent steps based on intermediate state, so the current number of steps may not be the final total. “Executed steps / current step count” is not a reliable overall task percentage.
 
-## Publication Order for Successful Records
+## Lifecycle Record Publication
 
-Normal successful execution completes these operations in order:
+The queued record is created in `metadata.json` when execution is accepted. The Runner updates the same record as it starts steps, reports progress, and records child invocations. Once synchronous steps and resource cleanup complete, it prepares `output_params`, determines the exit code, and atomically publishes the terminal state and output together.
 
-1. All synchronous steps return.
-2. `build_output_params()` returns an instance of the correct output_cls.
-3. Output and exit code are obtained; metadata is written when the exit code is 0.
-4. The succeeded status is published.
-
-Metadata is therefore already written before the successful status is published. Failed or cancelled tasks usually have only status, progress events, and partial artifacts, without successful metadata. Studio research lists locate results through metadata, so appearing in the task list does not imply appearing on research pages.
+Failed and cancelled tasks retain this same metadata record, including errors and child snapshots. Before output preparation, `output_params` is empty; a nonzero exit may retain constructed output. Studio research pages select `state=succeeded`, while status queries include every state. Progress events are appended before the matching metadata snapshot is published.
 
 ## Rerunning a Fixed Name
 

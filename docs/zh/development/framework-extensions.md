@@ -16,6 +16,8 @@
 
 Job 是 Application 内的异步编排；Task 的步骤是同步函数。两者的 Step 名称相似，基类与执行边界不同。
 
+Task repository 后端通过 `entries()` 和 `entry()` 返回独立的 `TaskMetadata` 快照。`summaries()` 返回独立的轻量投影，按创建时间和 Task ID 从新到旧排序；应直接从索引投影，不复制完整输入、输出或子调用记录。`put_metadata()` 持久化并索引统一生命周期记录。
+
 ## Provider 与局部 registry
 
 `@provider("backend")` 声明类的实现名。框架自带的 axonx 模块会注册为 built-in；外部 Python 类只声明身份，不自动污染全局注册表。嵌入应用需通过 Application(providers=...) 或合法插件 manifest 交给当前应用。

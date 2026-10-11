@@ -7,13 +7,10 @@ from dataclasses import dataclass
 from typing import Literal
 from uuid import uuid4
 
-from pydantic import Field
-
 from ..constants import AXONX_DEFAULT_TIMEZONE
 from ..enums import TaskState, TaskType
 from .core import BaseOutputParams, BaseTask, validate_registration_name
-from .storage.artifacts import artifact_record
-from .storage.composition import COMPOSITION_FILE, ChildTaskRecord, TaskComposition, write_composition
+from .storage.workspace import ChildTaskRecord
 
 
 @dataclass(frozen=True)
@@ -52,11 +49,6 @@ class ChildTaskError(RuntimeError):
         super().__init__(f"Child Task {result.record.node_name!r} failed: {result.record.error}")
 
 
-class BaseCompositeOutputParams(BaseOutputParams):
-    composition_file: str
-    children: list[ChildTaskRecord] = Field(default_factory=list)
-
-
 class BaseCompositeTask(BaseTask, ABC):
     """Compose registered Tasks with ordinary Python sequencing and loops.
 
@@ -66,17 +58,16 @@ class BaseCompositeTask(BaseTask, ABC):
     """
 
     task_type = TaskType.COMPOSITE
-    output_cls = BaseCompositeOutputParams
+    output_cls = BaseOutputParams
 
     def __init__(self, *args, timezone: str = AXONX_DEFAULT_TIMEZONE, **kwargs):
         super().__init__(*args, timezone=timezone, **kwargs)
         self._child_timezone = timezone
-        self._composition = TaskComposition(task_id=self.task_id, run_id=self.context.run_id)
 
     @property
     def children(self) -> tuple[ChildTaskRecord, ...]:
         """Expose defensive snapshots, never mutable runtime records."""
-        return tuple(child.model_copy(deep=True) for child in self._composition.children)
+        return tuple(child.model_copy(deep=True) for child in self._metadata.children) if self._metadata else ()
 
     def run_task(
         self,
@@ -95,19 +86,19 @@ class BaseCompositeTask(BaseTask, ABC):
             raise ValueError("on_error must be 'stop' or 'continue'")
         if "task_name" in inputs:
             raise ValueError("Child task_name is owned by the composition runtime")
-        previous = [child for child in self._composition.children if child.node_name == node_name]
+        previous = [child for child in self.metadata.children if child.node_name == node_name]
         if any(child.task != task for child in previous):
             raise ValueError(f"Node {node_name!r} already refers to another Task")
         record = ChildTaskRecord(node_name=node_name, attempt=len(previous) + 1, task=task, run_id=uuid4().hex)
-        self._composition.children.append(record)
-        self._write_composition()
+        self.metadata.children.append(record)
+        self.persist_metadata()
         try:
             output = self._run_child(record, inputs)
         except BaseException as exc:
             record.state = TaskState.FAILED
             record.exit_code = 1
             record.error = f"{type(exc).__name__}: {exc}"
-            self._write_composition()
+            self.persist_metadata()
             # Interrupts and exits must never be swallowed by continue-on-error.
             if not isinstance(exc, Exception):
                 raise
@@ -115,7 +106,7 @@ class BaseCompositeTask(BaseTask, ABC):
             if on_error == "stop":
                 raise ChildTaskError(result) from exc
             return result
-        self._write_composition()
+        self.persist_metadata()
         result = ChildTaskResult(record.model_copy(deep=True), output)
         if not result.success and on_error == "stop":
             raise ChildTaskError(result)
@@ -136,7 +127,7 @@ class BaseCompositeTask(BaseTask, ABC):
         record.task_id = child.task_id
         record.state = TaskState.RUNNING
         try:
-            self._write_composition()
+            self.persist_metadata()
         except BaseException:
             try:
                 child.close()
@@ -147,24 +138,9 @@ class BaseCompositeTask(BaseTask, ABC):
         record.state, record.exit_code, record.error = status.state, status.exit_code, status.error
         return child.output_params
 
-    def _write_composition(self) -> None:
-        write_composition(self.task_dir, self._composition)
-
-    def composition_output(self) -> dict:
-        """Build the common output envelope for Tasks adding business result fields."""
-        self._write_composition()
-        path = self.task_dir / COMPOSITION_FILE
-        return {
-            "composition_file": str(path),
-            "children": list(self.children),
-            "artifacts": {"composition": artifact_record(path, self.task_dir)},
-        }
-
-    def build_output_params(self) -> BaseCompositeOutputParams:
-        return self.output_cls(**self.composition_output())
+    def build_output_params(self) -> BaseOutputParams:
+        return self.output_cls()
 
     # Unlike a leaf's static exit code, composition aggregates owned run records.
     def exit_code(self, _output: dict) -> int:  # pylint: disable=arguments-differ
-        return next(
-            (child.exit_code or 1 for child in self._composition.children if child.state != TaskState.SUCCEEDED), 0
-        )
+        return next((child.exit_code or 1 for child in self.metadata.children if child.state != TaskState.SUCCEEDED), 0)

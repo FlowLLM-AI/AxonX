@@ -23,7 +23,7 @@ axonx list_task_statuses
 | status.error / exit_code | 某轮 Task 最终错误                        |
 | read_task_log            | worker 中步骤、插件与模型库的详细日志     |
 | events.jsonl             | 进度事件回放，不等于文本日志              |
-| metadata.json            | 成功配置和输出，不包含失败堆栈            |
+| metadata.json            | 当前输入输出、状态、错误与子调用          |
 
 ```bash
 axonx status --task-id '<Task ID>'
@@ -56,7 +56,7 @@ axonx read_task_log --task-id '<Task ID>' --offset -1 --limit 65536
 
 Repository 默认监听并轮询记录变化，debounce 等参数使短时间延迟正常。检查 JSON 合法性、task_id/type 与目录是否一致，以及服务是否使用预期工作区。
 
-watcher 出现监视窗口缺失时，Repository/同步会重新检查记录。索引可由有效 status 和 metadata 重建，但不会修复损坏 JSON 或缺失产物。
+watcher 出现监视窗口缺失时，Repository/同步会重新检查记录。索引可由有效 metadata 重建，但不会修复损坏 JSON 或缺失产物。
 
 研究页面使用含 metadata 的目录。失败任务、base demo 或 metadata 缺失任务不保证出现在研究结果页；metadata 有效也不保证所有图表字段齐全。
 

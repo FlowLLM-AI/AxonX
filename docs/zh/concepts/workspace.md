@@ -12,12 +12,10 @@
 .axonx/
   base/
     base#demo#trial-01/
-      status.json
       metadata.json
       events.jsonl
   etl/
     etl#my-etl#dataset-01/
-      status.json
       metadata.json
       events.jsonl
       dataset.parquet
@@ -36,18 +34,16 @@ logs/                            # 独立日志目录，不一定在工作区内
 
 ## 运行记录
 
-| 文件             | 何时出现               | 负责什么                                                              |
-| ---------------- | ---------------------- | --------------------------------------------------------------------- |
-| status.json      | 受理与运行过程         | run_id、state、步骤、错误、退出码、日志路径、result                   |
-| metadata.json    | 成功时                 | 定义身份、创建时间、typed input/output、产物引用与血缘                |
-| events.jsonl     | worker 记录进度时      | 按行记录可回放的进度事件                                              |
-| composition.json | 复合 Task 记录子执行时 | 父运行身份和子执行快照，参见[复合 Task](../guides/composite-tasks.md) |
+| 文件            | 生命周期              | 内容                                                                   |
+| --------------- | --------------------- | ---------------------------------------------------------------------- |
+| `metadata.json` | 从受理到所有终态      | 身份、Run ID、输入输出、状态、步骤、错误、退出码、日志路径和子调用记录 |
+| `events.jsonl`  | worker 报告进度时追加 | 可回放的进度事件，每行一个 JSON 对象                                   |
 
-status 是可变快照，metadata 是成功结果封装。它们不是同一内容的两个副本：metadata 不含 `run_id`，status 的 `result` 对应 metadata 的 `output_params`。
+一个原子 metadata 快照是唯一 Task 记录。执行期间由 Runner 更新；worker 停止后，由管理器收敛父子任务。不再使用独立状态或组合文件，不重复保存结果封装，也不回退读取旧格式。
 
-`composition.json` 位于父目录中。子 Task 目录仍位于各自类型目录下，不嵌套在父目录内。仅同步或删除父 Task 不会自动同步或删除子 Task；保留或清理完整流程时，应另行包含各子 Task ID。
+子调用记录保存在 `metadata.json.children`；子目录仍位于各自类型目录下，不嵌套在父目录内。同步或删除父任务不会自动包含子任务。
 
-记录通过原子写入降低读到半个 JSON 的机会。读取端仍会容忍不合法或与目录身份不一致的记录，把它当成缺失；手工修改文件不应作为常规任务管理方式。
+读取端将损坏、不安全或身份不匹配的记录视为缺失，不读取 FIFO 或跟随符号链接。生命周期操作可以重试临时 I/O 错误。
 
 ## 产物的相对路径
 
@@ -81,9 +77,9 @@ etl/etl#my-etl#dataset-01/data/dataset.parquet
 
 ## 索引与文件的关系
 
-TaskRepository 扫描和监听类型目录下的 status 与 metadata，维护任务查询所需索引。重启可以根据有效文件重新建立索引；它不替你重新训练模型或重新下载原始数据。
+TaskRepository 只扫描和监听类型目录下的 metadata，维护一个任务索引。重启可从有效记录重建查询信息，不会重新训练模型或下载原始数据。
 
-任务列表主要依赖状态记录。研究结果列表使用含 metadata 的任务目录，因而成功研究任务、只有 metadata 的迁移记录，以及失败任务在不同入口的可见性可能不同。
+任务列表包含所有有效生命周期记录。Studio 研究页面选择 `state=succeeded` 的记录，metadata 存在不代表实验成功。
 
 ## 备份范围
 
@@ -97,4 +93,4 @@ TaskRepository 扫描和监听类型目录下的 status 与 metadata，维护任
 
 [工作区浏览](../guides/workspace-files.md) · [Task 契约](../reference/task-contracts.md) · [研究产物](../reference/research-artifacts.md) · [备份恢复](../guides/operations.md)
 
-源码：[工作区布局](../../../axonx/task/storage/workspace.py)、[元数据](../../../axonx/task/storage/metadata.py)、[产物路径](../../../axonx/task/storage/artifacts.py)。
+源码：[工作区布局](../../../axonx/task/storage/workspace.py)、[元数据](../../../axonx/task/storage/workspace.py)、[产物路径](../../../axonx/task/storage/artifacts.py)。

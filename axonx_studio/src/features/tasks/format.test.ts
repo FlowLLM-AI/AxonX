@@ -6,9 +6,10 @@ import type { TaskSummary } from "./types";
 describe("task summary progress", () => {
   it("preserves the step index without the historical steps", () => {
     const full = taskStatus("api", "api#test#summary", "test");
-    const { config, result, steps, ...metadata } = full;
-    void config;
-    void result;
+    const { input_params, output_params, steps, children, ...metadata } = full;
+    void input_params;
+    void output_params;
+    void children;
     void steps;
     const summary: TaskSummary = {
       ...metadata,

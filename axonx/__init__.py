@@ -17,7 +17,7 @@ from .components.task_repository.base import BaseTaskRepository
 from .core import Application
 from .steps.base import BaseStep
 from .task.core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
-from .task.storage.metadata import TaskMetadata
+from .task.storage.workspace import TaskMetadata
 
 __all__ = [
     "Application",

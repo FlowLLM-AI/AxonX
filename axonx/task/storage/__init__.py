@@ -2,12 +2,11 @@
 
 from .artifacts import artifact_path, artifact_record, read_metadata
 from .logs import TaskLogReader
-from .workspace import TaskEntry, TaskRecord
+from .workspace import TaskMetadata
 
 __all__ = [
-    "TaskEntry",
     "TaskLogReader",
-    "TaskRecord",
+    "TaskMetadata",
     "artifact_path",
     "artifact_record",
     "read_metadata",

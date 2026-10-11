@@ -30,11 +30,9 @@ class AddOutput(BaseOutputParams):
 
 ## 复合 Task 契约
 
-`axonx.task` 导出 `BaseCompositeTask`、`BaseCompositeOutputParams`、`ChildTaskResult` 和 `ChildTaskError`。复合 Task 默认类型为 `composite`，子 Task 保留各自定义声明的类型和输入输出契约。
+`axonx.task` 导出 `BaseCompositeTask`、`ChildTaskResult` 和 `ChildTaskError`。默认 Task 类型为 `composite`，默认输出模型为 `BaseOutputParams`。自定义复合输出继承 `BaseOutputParams`，只声明业务字段。
 
-`BaseCompositeOutputParams` 在 `BaseOutputParams` 上增加必需的 `composition_file: str` 和 `children: list[ChildTaskRecord]`（默认空列表）。`composition_output()` 提供这些字段，以及相对路径为 `composition.json` 的 `artifacts.composition` 记录。自定义输出模型在此封装上增加业务字段。
-
-父 Task 拥有的 `composition.json` 包含 `version: 1`、`task_id`、`run_id` 和 `children`。每个子条目记录 `node_name`、正整数 `attempt`、注册名 `task`、可空 `task_id`、`run_id`、`state`、`exit_code`（0–255）和 `error`。构造失败的尝试也会记录，此时没有 Task ID。包含关系独立于 `source_tasks` 血缘。调用方式、失败和取消语义见[复合 Task](../guides/composite-tasks.md)。
+父任务的 `metadata.json.children` 是唯一的包含关系记录。每条记录包含 `node_name`、正整数 `attempt`、注册名 `task`、可空 `task_id`、`run_id`、`state`、`exit_code`（0–255）和 `error`。构造失败的调用没有 Task ID。不再使用独立组合文件或组合产物；包含关系与 `source_tasks` 血缘相互独立。参见[复合 Task](../guides/composite-tasks.md)。
 
 ## TaskContext
 
@@ -67,91 +65,30 @@ TaskHandle 是 submit 返回的 immutable dataclass：
 
 字段 `task` 是注册名。这里没有 `task_name` 字段，也没有自动路由到远端的地址。客户端需保留执行机器信息，并以 task_id + run_id 等待这一轮。
 
-## TaskStatus
+## TaskMetadata
 
-| 字段                                  | 类型/默认                 | 含义                                       |
-| ------------------------------------- | ------------------------- | ------------------------------------------ |
-| task_id                               | string，必需              | 必须与目录 ID 一致                         |
-| run_id                                | 非空 string，必需         | 当前执行身份                               |
-| task_type                             | TaskType，必需            | 必须与 ID 中类型一致                       |
-| task_name                             | string，默认空串          | 当前实现写入注册名                         |
-| config                                | object，默认 {}           | typed input 的 JSON 表示，含实例 task_name |
-| state                                 | TaskState，默认 queued    | 当前执行状态                               |
-| pid                                   | integer 或 null           | 当时运行进程标识                           |
-| created_at / started_at / finished_at | datetime 或 null          | 创建、开始和结束时刻                       |
-| steps                                 | TaskStepStatus[]，默认 [] | 已开始步骤快照                             |
-| result                                | object，默认 {}           | 构建后的 typed output                      |
-| error                                 | string，默认空串          | 错误说明                                   |
-| exit_code                             | integer，默认 0           | 0–255                                      |
-| log_path                              | string，默认空串          | 独立日志文件位置                           |
+`metadata.json` 是从受理到成功、失败或取消的唯一生命周期记录，状态查询返回相同结构。Runner 更新同一个内存记录并原子替换文件；复合 Task 通过该 Runner 发布子调用快照。worker 停止后，管理器读取最新记录，只收敛 Run ID 与 PID 匹配的执行。普通文本日志仍独立保存。
 
-TaskStepStatus 包含非空 name、可空 started_at/finished_at、可空 percentage（0–100）。百分比描述当前步骤，不是整项研究进度。
+| 字段                                      | 含义                                                      |
+| ----------------------------------------- | --------------------------------------------------------- |
+| `task_id`、`run_id`、`task_type`          | 目录身份、当前执行身份和类型                              |
+| `reg_name`                                | Task 定义注册名                                           |
+| `input_params`                            | 类型化输入的 JSON，包含实例 `task_name` 和 `source_tasks` |
+| `output_params`                           | 已构建的业务输出，准备完成前为空                          |
+| `state`、`exit_code`、`error`             | 当前结果，退出码范围 0–255                                |
+| `pid`、`log_path`                         | 所属 worker 与独立文本日志                                |
+| `created_at`、`started_at`、`finished_at` | 可空的生命周期时间                                        |
+| `steps`                                   | 步骤名、时间与可空的进度百分比（0–100）                   |
+| `children`                                | 子调用快照，包含构造前失败的调用                          |
 
-成功状态的简化完整例子：
+持久化时，非有限浮点数转换为 `null`。非零退出码的失败任务也可能保留 `output_params`；使用者应检查 `state`，再将输出作为成功研究产物使用。共享研究辅助函数 `read_metadata()` 要求 `state=succeeded`，拒绝缺失或未成功的状态；生命周期检查应使用状态查询或 `read_task_metadata()`。不读取或迁移旧状态、组合文件及旧字段。
 
 ```json
 {
   "task_id": "base#demo#contract-01",
   "run_id": "a9f248807a0a496abf3738422b379a51",
   "task_type": "base",
-  "task_name": "demo",
-  "config": {
-    "task_name": "contract-01",
-    "source_tasks": "",
-    "x": 1,
-    "y": 2,
-    "fail": false
-  },
-  "state": "succeeded",
-  "pid": 12345,
-  "created_at": "2026-01-05T09:00:00+08:00",
-  "started_at": "2026-01-05T01:00:00Z",
-  "finished_at": "2026-01-05T01:00:01Z",
-  "steps": [
-    {
-      "name": "finish",
-      "started_at": "2026-01-05T01:00:00Z",
-      "finished_at": "2026-01-05T01:00:01Z",
-      "percentage": 100
-    }
-  ],
-  "result": {
-    "artifacts": {},
-    "result": 3,
-    "branch": "different",
-    "operands": ["x", "y"]
-  },
-  "error": "",
-  "exit_code": 0,
-  "log_path": ""
-}
-```
-
-steps 仅展示最后一个步骤，实际 demo 包含更多步骤。日志为空只为避免绑定某个部署路径，真实值由日志系统给出。
-
-失败时关键差异如下，不是独立完整 TaskStatus：
-
-```json
-{
-  "state": "failed",
-  "result": {},
-  "error": "RuntimeError: Demo failure requested",
-  "exit_code": 1
-}
-```
-
-非零自定义退出码也进入 failed，但可能已有 result；失败不必然意味着 output 从未构建。取消由管理器记录 cancelled，通常使用退出码 130。
-
-## TaskMetadata
-
-metadata 顶层严格表达成功任务的输入与输出：
-
-```json
-{
-  "task_id": "base#demo#contract-01",
   "reg_name": "demo",
-  "created_at": "2026-01-05T09:00:00+08:00",
-  "task_type": "base",
   "input_params": {
     "task_name": "contract-01",
     "source_tasks": "",
@@ -164,13 +101,26 @@ metadata 顶层严格表达成功任务的输入与输出：
     "result": 3,
     "branch": "different",
     "operands": ["x", "y"]
-  }
+  },
+  "children": [],
+  "state": "succeeded",
+  "pid": 1234,
+  "created_at": "2026-01-05T09:00:00+08:00",
+  "started_at": "2026-01-05T09:00:01+08:00",
+  "finished_at": "2026-01-05T09:00:02+08:00",
+  "steps": [
+    {
+      "name": "finish",
+      "started_at": "2026-01-05T09:00:01+08:00",
+      "finished_at": "2026-01-05T09:00:02+08:00",
+      "percentage": 100
+    }
+  ],
+  "error": "",
+  "exit_code": 0,
+  "log_path": ".axonx/logs/task.log"
 }
 ```
-
-metadata 没有顶层 run_id、state、result 或 error。TaskStatus.result 与 metadata.output_params 对应；任务身份注册名在 metadata.reg_name。
-
-成功过程先构建输出、确定退出码，再写 metadata，然后发布成功 status。非有限浮点数在 metadata 写入时递归转换成 null，以便被 JSON 消费者读取。
 
 ## Artifact 记录
 
@@ -192,7 +142,7 @@ metadata 没有顶层 run_id、state、result 或 error。TaskStatus.result 与 
 
 ## 工作区读取与事件
 
-TaskStatus 使用 run_id 标识一次运行，该字段为必填。
+TaskMetadata 使用 run_id 标识一次运行，该字段为必填。
 
 工作区读取会拒绝非法 JSON、错误 task_id/type 和不安全目录，表现为记录缺失。容错读取旨在隔离坏记录，不保证自动修复旧数据。
 
@@ -200,4 +150,4 @@ events.jsonl 是追加进度记录；普通日志在 log_path。写入端先记�
 
 [Job 与 Task](../concepts/jobs-and-tasks.md) · [Task API](../api/tasks.md) · [研究产物协议](research-artifacts.md)
 
-源码：[输入输出](../../../axonx/task/core/params.py)、[Context](../../../axonx/task/core/context.py)、[定义](../../../axonx/task/catalog/resolver.py)、[Handle](../../../axonx/task/contracts/submission.py)、[状态](../../../axonx/task/storage/workspace.py)、[Metadata](../../../axonx/task/storage/metadata.py)。
+源码：[输入输出](../../../axonx/task/core/params.py)、[Context](../../../axonx/task/core/context.py)、[定义](../../../axonx/task/catalog/resolver.py)、[Handle](../../../axonx/task/contracts/submission.py)、[状态](../../../axonx/task/storage/workspace.py)、[Metadata](../../../axonx/task/storage/workspace.py)。

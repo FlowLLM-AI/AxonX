@@ -16,13 +16,12 @@ from ...components.job.events import ProgressEvent
 from ...enums import TaskState
 from ..core.identity import task_type_from_id
 from ..storage.events import append_event
-from ..storage.metadata import write_task_metadata
 from ..storage.workspace import (
     EVENTS_FILE,
-    TaskStatus,
+    TaskMetadata,
     TaskStepStatus,
-    read_status,
-    write_status,
+    read_task_metadata,
+    write_task_metadata,
 )
 
 if TYPE_CHECKING:
@@ -30,10 +29,10 @@ if TYPE_CHECKING:
 
 
 class TaskRunner:
-    def __init__(self, emit: Callable[[TaskStatus], None] | None = None) -> None:
+    def __init__(self, emit: Callable[[TaskMetadata], None] | None = None) -> None:
         self.emit = emit
         self.task: BaseTask | None = None
-        self.status: TaskStatus | None = None
+        self.status: TaskMetadata | None = None
         self.step: TaskStepStatus | None = None
 
     def _publish(self) -> None:
@@ -45,7 +44,7 @@ class TaskRunner:
         # chance to read every progress event leading to it.
         if self.emit is None and self.step is not None:
             append_event(task.task_dir / EVENTS_FILE, ProgressEvent.from_status(self.step))
-        write_status(task.task_dir, status)
+        write_task_metadata(task.task_dir, status)
         if self.emit is not None:
             self.emit(status.model_copy(deep=True))
 
@@ -102,7 +101,7 @@ class TaskRunner:
         if task.task_dir.is_symlink():
             raise ValueError(f"Task directory cannot be a symlink: {task.task_dir}")
         if task.task_dir.exists():
-            queued = read_status(task.task_dir, task.task_id)
+            queued = read_task_metadata(task.task_dir, task.task_id)
             handed_over = (
                 queued is not None and queued.state == TaskState.QUEUED and queued.run_id == task.context.run_id
             )
@@ -115,24 +114,26 @@ class TaskRunner:
         else:
             task.task_dir.mkdir(parents=True)
 
-    def run(self, task: BaseTask) -> TaskStatus:
+    def run(self, task: BaseTask) -> TaskMetadata:
         """Own resource cleanup from entry, including rejected directory preparation."""
         self.task = task
         started = perf_counter()
         try:
             try:
                 self._prepare_directory(task)
-                self.status = TaskStatus(
+                self.status = TaskMetadata(
                     task_id=task.task_id,
                     run_id=task.context.run_id,
                     task_type=task.task_type,
-                    task_name=task.reg_name,
-                    config=task.input_params.model_dump(mode="json"),
+                    reg_name=task.reg_name,
+                    input_params=task.input_params.model_dump(mode="json"),
                     pid=task.pid,
                     created_at=task.created_at,
                     log_path=task.log_path,
                 )
                 status = self.status
+                task._metadata = status
+                task._persist_metadata = self._publish
                 task._progress = self.progress
                 self._publish()
                 task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
@@ -153,12 +154,10 @@ class TaskRunner:
             output = task.output
             exit_code = task.exit_code(output)
             status.exit_code = exit_code
-            status.result = output
+            status.output_params = output
             status.state = TaskState.SUCCEEDED if exit_code == 0 else TaskState.FAILED
             status.error = "" if exit_code == 0 else f"Task exited with code {exit_code}"
             status.finished_at = datetime.now(UTC)
-            if exit_code == 0:
-                write_task_metadata(task)
             self._publish()
             task.logger.info(
                 f"Task completed task_id={task.task_id} exit_code={exit_code} "
@@ -186,6 +185,7 @@ class TaskRunner:
             raise
         finally:
             task._progress = None
+            task._persist_metadata = None
             self.task = None
             self.status = None
             self.step = None

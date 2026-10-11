@@ -47,7 +47,7 @@ axonx status --task-id 'base#demo#cli-demo'
 axonx read_task_log --task-id 'base#demo#cli-demo' --offset -1 --limit 65536
 ```
 
-wait_task 的最终 success 取决于任务是否 succeeded。submit 成功只表示接受并启动，不能立即假定 metadata 已发布。固定名称重跑会替换终态目录，活跃任务不能覆盖。
+wait_task 的最终 success 取决于任务是否 succeeded。submit 成功只表示接受并启动，不能立即假定 output_params 已准备或任务已成功。固定名称重跑会替换终态目录，活跃任务不能覆盖。
 
 ## 参数与值转换
 

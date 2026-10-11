@@ -1,4 +1,4 @@
-import type { TaskDefinition, TaskStatus } from "../features/tasks/types";
+import type { TaskDefinition, TaskMetadata } from "../features/tasks/types";
 import type { WorkspacePreview } from "../features/workspace/types";
 import type { DailyRow, SummaryRow } from "../features/research/backtest/types";
 import { strategyStats } from "../features/research/compare/model";
@@ -40,25 +40,30 @@ export const definitions: TaskDefinition[] = kinds.map((kind) => ({
   },
 }));
 
-export function taskStatus(kind: string, id: string, name: string): TaskStatus {
+export function taskStatus(
+  kind: string,
+  id: string,
+  name: string,
+): TaskMetadata {
   return {
     task_id: id,
     run_id: id,
     task_type: kind,
-    task_name: name,
-    config: { task_name: name },
+    reg_name: name,
+    input_params: { task_name: name },
     state: "succeeded",
     pid: null,
     created_at: epoch,
     started_at: epoch,
     finished_at: epoch,
+    children: [],
     steps: ["Prepare", "Simulate", "Write artifacts"].map((name) => ({
       name,
       started_at: epoch,
       finished_at: epoch,
       percentage: 100,
     })),
-    result: { output_dir: `runs/${id}` },
+    output_params: { output_dir: `runs/${id}` },
     error: "",
     exit_code: 0,
     log_path: `runs/${id}/task.log`,
@@ -144,7 +149,7 @@ function annualRatio(values: number[]) {
 
 export function addArtifacts(
   files: Map<string, WorkspacePreview>,
-  task: TaskStatus,
+  task: TaskMetadata,
   strategy = "steady",
   source: string[] = [],
 ) {
@@ -266,70 +271,70 @@ export function addArtifacts(
       { path: file, size: files.get(`${path}/${file}`)!.size, sha256: "" },
     ]),
   );
-  files.set(
-    `${path}/metadata.json`,
-    json({
-      task_id: task.task_id,
-      task_type: task.task_type,
-      reg_name: `playground.${task.task_type}`,
-      created_at: task.created_at,
-      input_params: {
-        ...task.config,
-        task_name: task.task_name,
-        source_tasks: source.join(","),
+  const metadata = {
+    ...task,
+    task_id: task.task_id,
+    task_type: task.task_type,
+    reg_name: `playground.${task.task_type}`,
+    created_at: task.created_at,
+    input_params: {
+      ...task.input_params,
+      task_name: task.reg_name,
+      source_tasks: source.join(","),
+    },
+    output_params: {
+      ...(outputKey ? { [outputKey]: `${path}/${output}` } : {}),
+      ...(task.task_type === "train"
+        ? { model_files: { model: `${path}/${output}` } }
+        : {}),
+      ...(task.task_type === "predict"
+        ? { score_columns: { model: "pred" } }
+        : {}),
+      rows: predictions.length,
+      train_rows: 1200,
+      days: 60,
+      date_range: { start: dates[0], end: dates.at(-1) },
+      feature_columns: ["momentum", "value", "quality"],
+      label_columns: ["label_return", "label_valid"],
+      target_columns: ["label_return_rank"],
+      output_columns: Object.keys(predictions[0]),
+      model_name: "Synthetic model",
+      parameters: { strategy },
+      metrics: { mse: 0.002, ic: 0.06 },
+      scores: {
+        "ic/return_1d": { momentum: 0.08, value: 0.04, quality: -0.02 },
       },
-      output_params: {
-        ...(outputKey ? { [outputKey]: `${path}/${output}` } : {}),
-        ...(task.task_type === "train"
-          ? { model_files: { model: `${path}/${output}` } }
-          : {}),
-        ...(task.task_type === "predict"
-          ? { score_columns: { model: "pred" } }
-          : {}),
-        rows: predictions.length,
-        train_rows: 1200,
+      training_curve: {
+        x: Array.from({ length: 20 }, (_, i) => String(i + 1)),
+        y_left: {
+          train: Array.from({ length: 20 }, (_, i) => 0.04 / (i + 1)),
+          validation: Array.from(
+            { length: 20 },
+            (_, i) => 0.045 / (i + 1) + 0.002,
+          ),
+        },
+        y_right: {},
+      },
+      evaluation_status: "done",
+      protocol: { version: 2 },
+      statistics: {
         days: 60,
-        date_range: { start: dates[0], end: dates.at(-1) },
-        feature_columns: ["momentum", "value", "quality"],
-        label_columns: ["label_return", "label_valid"],
-        target_columns: ["label_return_rank"],
-        output_columns: Object.keys(predictions[0]),
-        model_name: "Synthetic model",
-        parameters: { strategy },
-        metrics: { mse: 0.002, ic: 0.06 },
-        scores: {
-          "ic/return_1d": { momentum: 0.08, value: 0.04, quality: -0.02 },
-        },
-        training_curve: {
-          x: Array.from({ length: 20 }, (_, i) => String(i + 1)),
-          y_left: {
-            train: Array.from({ length: 20 }, (_, i) => 0.04 / (i + 1)),
-            validation: Array.from(
-              { length: 20 },
-              (_, i) => 0.045 / (i + 1) + 0.002,
-            ),
-          },
-          y_right: {},
-        },
-        evaluation_status: "done",
-        protocol: { version: 2 },
-        statistics: {
-          days: 60,
-          symbols: 30,
-          pred: { min: 0.001, max: 0.03, mean: 0.0155, median: 0.0155 },
-          buyable_rows: 1800,
-          candidate_rows: 1800,
-          indices: {},
-        },
-        dimensions: {
-          top_ns: [5, 10, 30],
-          holding_detail_top_n: 30,
-          benchmarks: [{ key: "demo", label: "Synthetic benchmark" }],
-        },
-        artifacts,
+        symbols: 30,
+        pred: { min: 0.001, max: 0.03, mean: 0.0155, median: 0.0155 },
+        buyable_rows: 1800,
+        candidate_rows: 1800,
+        indices: {},
       },
-    }),
-  );
+      dimensions: {
+        top_ns: [5, 10, 30],
+        holding_detail_top_n: 30,
+        benchmarks: [{ key: "demo", label: "Synthetic benchmark" }],
+      },
+      artifacts,
+    },
+  };
+  Object.assign(task, metadata);
+  files.set(`${path}/metadata.json`, json(task));
   files.set(`${path}/task.log`, {
     kind: "text",
     content: "Synthetic research completed. No Python or LLM was executed.\n",
@@ -339,7 +344,7 @@ export function addArtifacts(
 }
 
 export function seed() {
-  const tasks = new Map<string, TaskStatus>();
+  const tasks = new Map<string, TaskMetadata>();
   const files = new Map<string, WorkspacePreview>();
   let source: string[] = [];
   for (const kind of [...kinds, "backtest"] as const) {
@@ -348,7 +353,7 @@ export function seed() {
     const task = taskStatus(kind, id, `Demo ${kind} / ${variant}`);
     if (kind === "train") source = ["etl#demo"];
     if (kind === "backtest") source = ["predict#demo"];
-    task.config.source_tasks = source.join(",");
+    task.input_params.source_tasks = source.join(",");
     tasks.set(id, task);
     addArtifacts(files, task, variant, source);
     if (variant === "steady") source = [id];
@@ -380,13 +385,39 @@ export function seed() {
   failed.state = "failed";
   failed.error = "Simulated missing input";
   failed.exit_code = 1;
-  failed.result = {};
+  failed.output_params = {};
   tasks.set(failed.task_id, failed);
+  for (const task of tasks.values()) {
+    const path = `runs/${task.task_id}`;
+    files.set(`${path}/metadata.json`, json(task));
+    const rows = task.steps.map((step, index) => {
+      const data = {
+        kind: "progress",
+        step: step.name,
+        percentage: step.percentage,
+      };
+      return {
+        line: index + 1,
+        content: JSON.stringify(data),
+        data,
+        parse_error: null,
+      };
+    });
+    files.set(`${path}/events.jsonl`, {
+      kind: "jsonl",
+      size: rows.reduce((size, row) => size + row.content.length + 1, 0),
+      rows,
+      offset: 0,
+      limit: 200,
+      has_more: false,
+      truncated: false,
+    });
+  }
   return { tasks, files };
 }
 
 function seedOnline(
-  tasks: Map<string, TaskStatus>,
+  tasks: Map<string, TaskMetadata>,
   files: Map<string, WorkspacePreview>,
 ) {
   const windows = [
@@ -476,12 +507,12 @@ function seedOnline(
   for (const sample of samples) {
     const id = `${sample.kind}#playground_online#demo`;
     const task = taskStatus(sample.kind, id, sample.name);
-    task.config.task_name = sample.name;
+    task.input_params.task_name = sample.name;
     if (sample.kind === "analysis")
-      task.config.comparison_keys = sample.result.comparisons?.map(
+      task.input_params.comparison_keys = sample.result.comparisons?.map(
         (item) => item.key,
       );
-    task.config.source_tasks =
+    task.input_params.source_tasks =
       sample.kind === "analysis"
         ? "inference#playground_online#demo"
         : sample.kind === "inference"
@@ -489,7 +520,7 @@ function seedOnline(
           : "";
     const reportName =
       sample.kind === "analysis" ? "comparison.json" : "manifest.json";
-    task.result = {
+    task.output_params = {
       ...sample.result,
       [sample.kind === "analysis" ? "report_file" : "manifest_file"]:
         `runs/${id}/${reportName}`,
@@ -510,8 +541,8 @@ function seedOnline(
         task_type: sample.kind,
         reg_name: "playground_online",
         created_at: epoch,
-        input_params: task.config,
-        output_params: task.result,
+        input_params: task.input_params,
+        output_params: task.output_params,
       }),
     );
   }

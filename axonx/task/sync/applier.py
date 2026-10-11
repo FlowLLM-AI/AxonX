@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath
 
 from ...constants import MAX_UPLOAD_BYTES
 from ...workspace.paths import WorkspacePaths
-from ..storage.workspace import parse_task_directory, read_status
+from ..storage.workspace import parse_task_directory, read_task_metadata
 from .models import SyncTasksReport
 
 MAX_SYNC_DELETIONS = 200
@@ -109,7 +109,7 @@ class TaskArchiveApplier:
     def _validate_snapshots(root: Path, tasks: set[str]) -> None:
         for relative_path in tasks:
             task_id = relative_path.split("/", 1)[1]
-            status = read_status(root / relative_path, task_id)
+            status = read_task_metadata(root / relative_path, task_id)
             if status is None or not status.state.is_terminal:
                 raise ValueError(f"Sync archive Task is missing a terminal status: {relative_path}")
 

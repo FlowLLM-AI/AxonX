@@ -112,6 +112,7 @@ function useTasks(
                 );
               }
               const metadata = preview.data as Record<string, unknown>;
+              if (metadata.state !== "succeeded") return null;
               const output = (metadata.output_params || {}) as Record<
                 string,
                 unknown

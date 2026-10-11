@@ -303,7 +303,7 @@ jobs:
           type: string
           enum: [summary, full]
           default: full
-          description: Return lightweight list metadata or complete TaskStatus snapshots.
+          description: Return lightweight list metadata or complete TaskMetadata snapshots.
     steps:
       - backend: list_statuses
 
@@ -413,13 +413,13 @@ jobs:
       - backend: cancel
 
   delete_tasks:
-    description: Delete terminal or metadata-only Tasks and their files.
+    description: Delete terminal Tasks and their files.
     parameters:
       type: object
       properties:
         task_ids:
           type: array
-          description: IDs of terminal or metadata-only tasks to delete.
+          description: IDs of terminal tasks to delete.
           items:
             type: string
           minItems: 1
@@ -481,7 +481,7 @@ jobs:
           minimum: 1
           maximum: 5000
           default: 200
-          description: Maximum number of rows to return for CSV or Parquet previews.
+          description: Maximum number of rows to return for CSV, JSONL, or Parquet previews.
       required:
         - path
       additionalProperties: false
