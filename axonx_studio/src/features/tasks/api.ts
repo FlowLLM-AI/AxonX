@@ -5,10 +5,21 @@ import type {
   TaskHandle,
   TaskLogChunk,
   TaskStatus,
+  TaskSummary,
 } from "./types";
 
 export const listTaskStatuses = (target?: string, signal?: AbortSignal) =>
-  axonx.invoke<TaskStatus[]>("list_task_statuses", {}, { target, signal });
+  axonx.invoke<TaskSummary[]>(
+    "list_task_statuses",
+    { detail: "summary" },
+    { target, signal },
+  );
+export const listFullTaskStatuses = (target?: string, signal?: AbortSignal) =>
+  axonx.invoke<TaskStatus[]>(
+    "list_task_statuses",
+    { detail: "full" },
+    { target, signal },
+  );
 export const getTaskStatus = (
   taskId: string,
   target?: string,

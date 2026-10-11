@@ -284,7 +284,15 @@ jobs:
       - backend: list_ids
 
   list_task_statuses:
-    description: List Task status snapshots.
+    description: List Task status snapshots or lightweight summaries.
+    parameters:
+      type: object
+      properties:
+        detail:
+          type: string
+          enum: [summary, full]
+          default: full
+          description: Return lightweight list metadata or complete TaskStatus snapshots.
     steps:
       - backend: list_statuses
 

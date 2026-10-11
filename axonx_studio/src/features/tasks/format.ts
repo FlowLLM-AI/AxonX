@@ -1,6 +1,6 @@
 import { formatDateTime } from "../../shared/lib/format";
 import type { TFunction } from "i18next";
-import type { TaskStatus } from "./types";
+import type { TaskStatus, TaskSummary } from "./types";
 
 export interface TaskStepProgress {
   current: number;
@@ -8,7 +8,21 @@ export interface TaskStepProgress {
   percentage: number;
 }
 
-export function taskStepProgress(task: TaskStatus): TaskStepProgress | null {
+export function taskStepProgress(
+  task: TaskStatus | TaskSummary,
+): TaskStepProgress | null {
+  if (!("steps" in task)) {
+    const progress = task.step_progress;
+    return progress
+      ? {
+          ...progress,
+          percentage: Math.max(
+            0,
+            Math.min(100, Math.round(progress.percentage ?? 0)),
+          ),
+        }
+      : null;
+  }
   if (!task.steps.length) return null;
   const activeIndex = task.steps.findIndex((step) => !step.finished_at);
   const currentIndex = activeIndex >= 0 ? activeIndex : task.steps.length - 1;
@@ -24,7 +38,7 @@ export function formatDate(value: string | null) {
   return formatDateTime(value);
 }
 
-export function formatDuration(task: TaskStatus, t: TFunction) {
+export function formatDuration(task: TaskStatus | TaskSummary, t: TFunction) {
   if (!task.started_at) return "—";
   const end = task.finished_at
     ? new Date(task.finished_at).getTime()

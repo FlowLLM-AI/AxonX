@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { listTaskStatuses, submitTask } from "./features/tasks/api";
+import { listFullTaskStatuses, submitTask } from "./features/tasks/api";
 
 interface ModelContext {
   registerTool(
@@ -42,7 +42,7 @@ export function useAxonXWebMcp() {
             additionalProperties: false,
           },
           annotations: { readOnlyHint: true, untrustedContentHint: false },
-          execute: async () => ({ tasks: await listTaskStatuses() }),
+          execute: async () => ({ tasks: await listFullTaskStatuses() }),
         },
         { signal: lifecycle.signal },
       ),

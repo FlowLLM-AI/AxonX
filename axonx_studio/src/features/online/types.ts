@@ -1,4 +1,4 @@
-import type { TaskStatus } from "../tasks/types";
+import type { TaskStatus, TaskSummary } from "../tasks/types";
 
 export interface OnlineOutcome {
   key: string;
@@ -14,12 +14,14 @@ export interface OnlineReport {
   comparisons?: OnlineOutcome[];
   model_identity?: Record<string, string>;
 }
-export const isOnlineTask = (task: TaskStatus) =>
-  task.task_type === "api" ||
-  task.task_type === "inference" ||
-  (task.task_type === "analysis" &&
-    (Array.isArray(task.result.comparisons) ||
-      Array.isArray(task.config.comparison_keys)));
+export const isOnlineTask = (task: TaskStatus | TaskSummary) =>
+  !("result" in task)
+    ? task.is_online === true
+    : task.task_type === "api" ||
+      task.task_type === "inference" ||
+      (task.task_type === "analysis" &&
+        (Array.isArray(task.result.comparisons) ||
+          Array.isArray(task.config.comparison_keys)));
 
 const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);

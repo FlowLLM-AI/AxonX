@@ -14,7 +14,12 @@ const schemas: Record<
   machine_status: { output: "object" },
   list_machines: { output: "array" },
   list_installed_task_definitions: { output: "array" },
-  list_task_statuses: { output: "array" },
+  list_task_statuses: {
+    input: {
+      detail: { type: "string", enum: ["summary", "full"], default: "full" },
+    },
+    output: "array",
+  },
   status: { input: task, output: "object" },
   cancel: {
     input: { run_id: text("backtest#demo") },

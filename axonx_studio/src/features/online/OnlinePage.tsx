@@ -1,10 +1,10 @@
 import { useCallback, useState } from "react";
 import { Activity, ArrowUpRight, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { listTaskStatuses } from "../tasks/api";
+import { getTaskStatus, listTaskStatuses } from "../tasks/api";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { usePolling } from "../../shared/hooks/usePolling";
-import type { TaskStatus } from "../tasks/types";
+import type { TaskSummary } from "../tasks/types";
 import { loadOnlineReport } from "./api";
 import { isOnlineTask, type OnlineOutcome } from "./types";
 import { playground } from "../../app/environment";
@@ -46,7 +46,7 @@ export default function OnlinePage({
   const tasks = (data || []).filter(
     (task) =>
       (filter === "all" || task.task_type === filter) &&
-      `${task.task_id} ${task.config.task_name || task.task_name}`
+      `${task.task_id} ${task.display_name || task.task_name}`
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
@@ -121,9 +121,7 @@ export default function OnlinePage({
                   {t(`onlinePipeline.kinds.${task.task_type}`)}
                   <Status value={task.state} />
                 </span>
-                <strong>
-                  {String(task.config.task_name || task.task_name)}
-                </strong>
+                <strong>{String(task.display_name || task.task_name)}</strong>
                 <small>{task.task_id}</small>
               </button>
             ))}
@@ -156,13 +154,17 @@ function RunReport({
   target,
   onOpenTask,
 }: {
-  task: TaskStatus;
+  task: TaskSummary;
   target?: string;
   onOpenTask: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const load = useCallback(
-    (signal: AbortSignal) => loadOnlineReport(task, target, signal),
+    async (signal: AbortSignal) => {
+      const full = await getTaskStatus(task.task_id, target, signal);
+      signal.throwIfAborted();
+      return loadOnlineReport(full, target, signal);
+    },
     [task, target],
   );
   const { data, error, loading, reload } = useAsyncResource(load);
@@ -177,7 +179,7 @@ function RunReport({
           <p className="eyebrow">
             {t(`onlinePipeline.kinds.${task.task_type}`)}
           </p>
-          <h2>{String(task.config.task_name || task.task_name)}</h2>
+          <h2>{String(task.display_name || task.task_name)}</h2>
           <small>{task.task_id}</small>
         </div>
         <button

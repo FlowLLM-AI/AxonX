@@ -15,7 +15,12 @@ class ListTaskIdsStep(TaskManagerStep):
 @provider("list_statuses")
 class ListTaskStatusesStep(TaskManagerStep):
     async def execute(self):
-        self.response.answer = await self.task_manager.list_statuses()
+        detail = self.context.get("detail", "full")
+        if detail not in {"summary", "full"}:
+            raise ValueError("detail must be summary or full")
+        self.response.answer = (
+            await self.task_manager.list_summaries() if detail == "summary" else await self.task_manager.list_statuses()
+        )
 
 
 @provider("get_status")

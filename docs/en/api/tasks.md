@@ -254,9 +254,13 @@ Metadata-only directories without status do not appear in this list; it is not a
 
 ## list_task_statuses
 
-List status snapshots.
+List full status snapshots or lightweight summaries.
 
-No public business parameters; use `{"arguments":{}}`.
+Optional `detail`: `full` (default, preserves the existing response) or `summary`. Studio uses `summary` for lists.
+
+```json
+{ "arguments": { "detail": "summary" } }
+```
 
 **Request**
 
@@ -268,7 +272,9 @@ No public business parameters; use `{"arguments":{}}`.
 
 **Response**
 
-answer is an array of TaskStatus, sorted by created_at and task_id in descending order.
+`answer` is sorted by `created_at` and `task_id` in descending order. With `full`, each item is the unchanged TaskStatus. With `summary`, each item contains `task_id`, `run_id`, `task_type`, `task_name`, `state`, `pid`, `created_at`, `started_at`, `finished_at`, `exit_code`, `log_path`, and `error` (at most 1,000 characters).
+
+Summaries omit `config`, `result`, and `steps`. They add `display_name` (configuration task name or registered name, at most 256 characters), `is_online` (whether the task belongs in the online pipeline), and `step_progress`: `null` when there are no steps, otherwise `{current, total, name, percentage}`. Step numbers are one-based; the first unfinished step is selected, or the last step when all are finished. The name is limited to 256 characters; percentage may be null. Read `status` for complete details.
 
 ```json
 {
@@ -280,7 +286,7 @@ answer is an array of TaskStatus, sorted by created_at and task_id in descending
 
 **Behavior and failure cases**
 
-No server-side pagination or filtering parameters are provided. Clients can filter by type, state, and configuration as needed.
+No server-side pagination or filtering parameters are provided. Clients can filter by type and state; filtering by configuration requires `full`. Invalid `detail` values are rejected by argument validation.
 
 ## status
 

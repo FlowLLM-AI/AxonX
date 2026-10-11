@@ -29,6 +29,7 @@ from ....task.query import (
     stream_task,
     task_graph,
 )
+from ....task.query.summary import summarize_status
 from ....task.runtime.arguments import build_task_argv, parse_task_argv
 from ....task.storage.composition import settle_composition
 from ....task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
@@ -182,6 +183,17 @@ class LocalTaskManager(BaseTaskManager):
             reverse=True,
         )
         return statuses
+
+    async def list_summaries(self) -> list[dict]:
+        statuses = list((await self.repository.statuses()).values())
+        statuses.sort(
+            key=lambda status: (
+                status.created_at.timestamp() if status.created_at is not None else float("-inf"),
+                status.task_id,
+            ),
+            reverse=True,
+        )
+        return [summarize_status(status) for status in statuses]
 
     async def get_status(self, task_id: str) -> TaskStatus:
         return (await self._status_of(task_id)).model_copy(deep=True)

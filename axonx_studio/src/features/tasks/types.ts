@@ -28,6 +28,20 @@ export interface TaskStatus {
   log_path: string;
 }
 
+export interface TaskSummary extends Omit<
+  TaskStatus,
+  "config" | "result" | "steps"
+> {
+  display_name?: string;
+  is_online?: boolean;
+  step_progress?: {
+    current: number;
+    total: number;
+    name: string;
+    percentage: number | null;
+  } | null;
+}
+
 export interface TaskLogChunk {
   content: string;
   start_offset: number;

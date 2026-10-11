@@ -8,6 +8,7 @@ from ...components.job.events import JobEvent
 from ...enums import ComponentEnum
 from ...task.contracts import TaskHandle
 from ...task.query.graph import TaskGraph
+from ...task.query.summary import summarize_status
 from ...task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
 from ...task.storage.workspace import TaskStatus
 from ..base import BaseComponent
@@ -29,6 +30,10 @@ class BaseTaskManager(BaseComponent, ABC):
     @abstractmethod
     async def list_statuses(self) -> list[TaskStatus]:
         """Return snapshots from status files, newest first."""
+
+    async def list_summaries(self) -> list[dict]:
+        """Return list metadata; backends may project before copying large outputs."""
+        return [summarize_status(status) for status in await self.list_statuses()]
 
     @abstractmethod
     async def get_status(self, task_id: str) -> TaskStatus:

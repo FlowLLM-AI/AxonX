@@ -1,3 +1,4 @@
+import { taskStepProgress } from "../features/tasks/format";
 import { parseSourceTasks } from "../shared/lib/sourceTasks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AxonXClient } from "../shared/api/client";
@@ -23,6 +24,28 @@ const submit = (api: AxonXClient, extra = {}) =>
   api.invoke<TaskHandle>("submit", { task: "playground.backtest", ...extra });
 
 describe("static Playground", () => {
+  it("returns summaries while preserving default full status and selected task details", async () => {
+    const api = client();
+    const full = await api.invoke<TaskStatus[]>("list_task_statuses");
+    const summaries = await api.invoke<
+      import("../features/tasks/types").TaskSummary[]
+    >("list_task_statuses", { detail: "summary" });
+    expect(summaries.map((task) => task.task_id)).toEqual(
+      full.map((task) => task.task_id),
+    );
+    for (const summary of summaries) {
+      expect(summary).not.toHaveProperty("config");
+      expect(summary).not.toHaveProperty("result");
+      expect(summary).not.toHaveProperty("steps");
+      const detail = await api.invoke<TaskStatus>("status", {
+        task_id: summary.task_id,
+      });
+      expect(detail).toHaveProperty("result");
+      expect(summary.step_progress?.current ?? null).toBe(
+        taskStepProgress(detail)?.current ?? null,
+      );
+    }
+  });
   it("loads every research run and all declared artifacts without network or credentials", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")

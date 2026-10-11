@@ -1,3 +1,5 @@
+import { taskStepProgress } from "../features/tasks/format";
+import { isOnlineTask } from "../features/online/types";
 import { catalog } from "./catalog";
 import { createAgent } from "./agent";
 import { sse } from "./stream";
@@ -206,7 +208,25 @@ export function createPlayground(): Transport {
         case "list_installed_task_definitions":
           return response(definitions);
         case "list_task_statuses":
-          return response([...tasks.values()].reverse());
+          return response(
+            [...tasks.values()].reverse().map((task) => {
+              if (args.detail !== "summary") return task;
+              const { config, result, steps, ...summary } = task;
+              void result;
+              return {
+                ...summary,
+                error: task.error.slice(0, 1000),
+                display_name: String(config.task_name || task.task_name).slice(
+                  0,
+                  256,
+                ),
+                is_online: isOnlineTask(task),
+                step_progress: steps.length
+                  ? { ...taskStepProgress(task), total: steps.length }
+                  : null,
+              };
+            }),
+          );
         case "status":
           return response(requiredTask(id));
         case "read_task_log":

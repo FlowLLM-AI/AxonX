@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { usePolling } from "../../shared/hooks/usePolling";
 import type { ContextOption } from "../../app/types";
-import type { TaskState, TaskStatus } from "./types";
+import type { TaskState, TaskSummary } from "./types";
 import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 
@@ -37,7 +37,7 @@ export function TasksPage({
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [tasks, setTasks] = useState<TaskStatus[]>([]);
+  const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -47,12 +47,12 @@ export function TasksPage({
     "",
   );
   const [type, setType] = useState("");
-  const [cancelTarget, setCancelTarget] = useState<TaskStatus | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<TaskSummary | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
-    task: TaskStatus;
+    task: TaskSummary;
     x: number;
     y: number;
   } | null>(null);
@@ -208,7 +208,7 @@ export function TasksPage({
       return next;
     });
 
-  const beginSelection = (task: TaskStatus) => {
+  const beginSelection = (task: TaskSummary) => {
     if (ACTIVE.has(task.state)) return;
     setSelectionMode(true);
     setSelected((previous) => new Set(previous).add(task.task_id));
@@ -601,7 +601,7 @@ export function TasksPage({
   );
 }
 
-function taskTimestamp(task: TaskStatus) {
+function taskTimestamp(task: TaskSummary) {
   const value = task.started_at || task.created_at || task.finished_at;
   return value ? new Date(value).getTime() : 0;
 }
@@ -614,7 +614,7 @@ function TaskRow({
   onOpen,
   onContextMenu,
 }: {
-  task: TaskStatus;
+  task: TaskSummary;
   selectionMode: boolean;
   selected: boolean;
   onSelect: () => void;

@@ -254,9 +254,13 @@ metadata-only 目录没有状态时不进入此列表；列表不是全历史执
 
 ## list_task_statuses
 
-列出状态快照。
+列出完整状态快照或轻量摘要。
 
-无公开业务参数；使用 `{"arguments":{}}`。
+可选参数 `detail`：`full`（默认，保持现有响应）或 `summary`。Studio 列表使用 `summary`。
+
+```json
+{ "arguments": { "detail": "summary" } }
+```
 
 **请求**
 
@@ -268,7 +272,9 @@ metadata-only 目录没有状态时不进入此列表；列表不是全历史执
 
 **响应**
 
-answer 是 TaskStatus 数组，按 created_at 与 task_id 倒序。
+`answer` 按 `created_at` 与 `task_id` 倒序。`full` 返回原有完整 TaskStatus；`summary` 返回 `task_id`、`run_id`、`task_type`、`task_name`、`state`、`pid`、`created_at`、`started_at`、`finished_at`、`exit_code`、`log_path` 和 `error`（最多 1,000 字符）。
+
+摘要省略 `config`、`result` 和 `steps`，增加 `display_name`（配置中的任务名称或注册名称，最多 256 字符）、`is_online`（是否属于在线流水线）和 `step_progress`：无步骤时为 `null`，否则为 `{current, total, name, percentage}`。步骤序号从 1 开始，选择首个未完成步骤，全部完成时选择最后一步。名称最多 256 字符，百分比可以为 `null`。完整详情通过 `status` 读取。
 
 ```json
 {
@@ -280,7 +286,7 @@ answer 是 TaskStatus 数组，按 created_at 与 task_id 倒序。
 
 **行为与失败情况**
 
-不提供服务器分页与筛选参数。需要筛选时由客户端按类型、状态和配置处理。
+不提供服务器分页与筛选参数。客户端可以按类型和状态筛选；按配置筛选需要使用 `full`。无效的 `detail` 值会被参数校验拒绝。
 
 ## status
 
