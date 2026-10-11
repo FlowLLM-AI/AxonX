@@ -25,7 +25,7 @@ def application(tmp_path, token="secret"):
     config["jobs"] = {
         name: value
         for name, value in config["jobs"].items()
-        if name in {"update_from_git", "update_from_pip", "get_update_status", "version"}
+        if name in {"update_from_git", "update_from_pip", "restart_service", "get_update_status", "version"}
     }
     config["service"].update(token=token, web_enabled=False)
     app = Application(**config)
@@ -37,7 +37,8 @@ def application(tmp_path, token="secret"):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("stream", [False, True])
-async def test_update_response_precedes_shutdown_and_blocks_mutations(tmp_path, monkeypatch, stream):
+@pytest.mark.parametrize("job", ["update_from_pip", "restart_service"])
+async def test_update_response_precedes_shutdown_and_blocks_mutations(tmp_path, monkeypatch, stream, job):
     app, updater = application(tmp_path)
     monkeypatch.setattr(updater, "_plan", lambda mode, service: {"cwd": str(tmp_path), "arguments": ["start"]})
     server = app.context.service.build_service(app)
@@ -63,7 +64,7 @@ async def test_update_response_precedes_shutdown_and_blocks_mutations(tmp_path, 
                 await original(scope, receive, observed)
 
             transport.app = wrapped
-            url = "/jobs/update_from_pip" + ("/events" if stream else "")
+            url = "/jobs/" + job + ("/events" if stream else "")
             response = await client.post(url, json={"arguments": {}})
             assert response.status_code == 200
             assert sent[-1]["type"] == "http.response.body"
@@ -92,6 +93,7 @@ async def test_unauthenticated_service_hides_updates(tmp_path):
             catalog = (await client.get("/jobs")).json()["answer"]["items"]
             assert not any(item["name"].startswith("update_") for item in catalog)
             assert (await client.post("/jobs/update_from_git", json={"arguments": {}})).status_code == 404
+            assert (await client.post("/jobs/restart_service", json={"arguments": {}})).status_code == 404
 
 
 @pytest.mark.asyncio
@@ -110,7 +112,8 @@ async def test_preflight_failure_does_not_cancel_tasks(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_active_tasks_and_forced_cancellation(tmp_path, monkeypatch):
+@pytest.mark.parametrize("mode", ["pip", "restart"])
+async def test_active_tasks_and_forced_cancellation(tmp_path, monkeypatch, mode):
     app, updater = application(tmp_path)
     active = SimpleNamespace(state=SimpleNamespace(is_terminal=False), task_id="demo", run_id="run")
     cancelled = []
@@ -128,9 +131,9 @@ async def test_active_tasks_and_forced_cancellation(tmp_path, monkeypatch):
     token = RESPONSE_CALLBACKS.set([])
     try:
         with pytest.raises(RuntimeError, match="Active Tasks"):
-            await updater.request("pip")
+            await updater.request(mode)
         assert not cancelled
-        record = await updater.request("pip", force=True)
+        record = await updater.request(mode, force=True)
         assert record["phase"] == "accepted"
         assert cancelled == [{"task_id": "demo", "run_id": "run"}]
     finally:
@@ -192,6 +195,45 @@ def test_worker_preserves_restart_command_and_records_install_failure(tmp_path, 
     assert calls[0] == [sys.executable, "-m", "pip", "install", "--upgrade", "axonx", "axonx-studio"]
     worker.finish_startup()
     assert json.loads(path.read_text())["phase"] == ("failed" if fail else "succeeded")
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_restart_worker_skips_all_commands_and_retains_startup(tmp_path, monkeypatch, fail):
+    path = make_record(tmp_path, "restart")
+    monkeypatch.setattr(worker, "run_command", lambda *_: pytest.fail("Restart must not run Git, npm or pip"))
+    directories = []
+    monkeypatch.setattr(worker.os, "chdir", directories.append)
+
+    def restart(executable, argv):
+        assert executable == sys.executable
+        assert argv == [sys.executable, "-m", "axonx.cli", "start", "--port", "9876"]
+        if fail:
+            raise OSError("cannot exec")
+        raise ReplacedProcess
+
+    monkeypatch.setattr(worker.os, "execv", restart)
+    monkeypatch.setenv(worker.RECORD_ENV, "")
+    with pytest.raises(OSError if fail else ReplacedProcess):
+        worker.execute(path)
+    assert directories == [str(tmp_path)]
+    record = json.loads(path.read_text())
+    assert record["phase"] == ("failed" if fail else "starting")
+    assert record["error"] == ("Restart failed: cannot exec" if fail else None)
+    worker.finish_startup()
+    assert json.loads(path.read_text())["phase"] == ("failed" if fail else "succeeded")
+
+
+def test_restart_plan_requires_no_source_or_build_tools(tmp_path, monkeypatch):
+    _, updater = application(tmp_path)
+    service = updater.app_context.service
+    service.startup_directory = tmp_path
+    service.restart_arguments = ["start", "--service.port", "1025"]
+    monkeypatch.setattr("axonx.components.updater.manager.shutil.which", lambda *_: None)
+    monkeypatch.setattr(subprocess, "check_output", lambda *_args, **_kwargs: pytest.fail("No Git preflight"))
+    plan = updater._plan("restart", service)
+    assert plan["cwd"] == str(tmp_path)
+    assert plan["arguments"] == service.restart_arguments
+    assert set(plan) == {"cwd", "arguments"}
 
 
 def test_startup_failure_is_not_success(tmp_path, monkeypatch):
@@ -304,7 +346,8 @@ async def test_mcp_update_returns_acceptance_before_shutdown(tmp_path, monkeypat
 
 
 @pytest.mark.parametrize("updater_name", ["default", "custom"])
-def test_real_service_reexec_retains_pid_and_reports_ready(tmp_path, updater_name):
+@pytest.mark.parametrize("job", ["update_from_pip", "restart_service"])
+def test_real_service_reexec_retains_pid_and_reports_ready(tmp_path, updater_name, job):
     """Exercise actual CLI -> updater -> CLI execs with package mutations replaced."""
     import os
     import socket
@@ -326,11 +369,11 @@ def test_real_service_reexec_retains_pid_and_reports_ready(tmp_path, updater_nam
         "log_to_file": False,
         "enable_logo": False,
         "components": {"updater": {updater_name: {"backend": "local"}}},
-        "jobs": {name: defaults["jobs"][name] for name in ("update_from_pip", "get_update_status")},
+        "jobs": {name: defaults["jobs"][name] for name in (job, "get_update_status")},
         "service": {"backend": "http", "host": "127.0.0.1", "port": port, "token": "secret", "web_enabled": False},
     }
-    for job in config["jobs"].values():
-        job["steps"][0]["updater"] = updater_name
+    for job_config in config["jobs"].values():
+        job_config["steps"][0]["updater"] = updater_name
     config_path = tmp_path / "service.yaml"
     config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
     bootstrap = tmp_path / "bootstrap.py"
@@ -359,10 +402,15 @@ if __name__ ==""")
     path.write_text(script)
     return result
 manager.shutil.copyfile = snapshot
-manager.UpdateManager._plan = lambda self, mode, service: {
-    'cwd': str(service.startup_directory), 'arguments': service.restart_arguments,
-    'verification': 'import axonx',
-}
+original_plan = manager.UpdateManager._plan
+def plan(self, mode, service):
+    if mode == "restart":
+        return original_plan(self, mode, service)
+    return {
+        'cwd': str(service.startup_directory), 'arguments': service.restart_arguments,
+        'verification': 'import axonx',
+    }
+manager.UpdateManager._plan = plan
 raise SystemExit(main(['start', '--config', sys.argv[1]]))
 """,
         encoding="utf-8",
@@ -393,7 +441,7 @@ raise SystemExit(main(['start', '--config', sys.argv[1]]))
             while time.monotonic() < deadline:
                 assert process.poll() is None, output.read_text()
                 try:
-                    accepted = request("update_from_pip")
+                    accepted = request(job)
                     break
                 except (urllib.error.URLError, TimeoutError):
                     time.sleep(0.05)

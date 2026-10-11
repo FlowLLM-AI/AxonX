@@ -99,10 +99,13 @@ class UpdateManager(BaseComponent):
         return record
 
     def _plan(self, mode: str, service) -> dict:
-        if mode not in {"git", "pip"}:
+        if mode not in {"git", "pip", "restart"}:
             raise ValueError("Unknown update mode")
         cwd = service.startup_directory
-        plan = {"cwd": str(cwd), "arguments": service.restart_arguments, "verification": VERIFICATION}
+        plan = {"cwd": str(cwd), "arguments": service.restart_arguments}
+        if mode == "restart":
+            return plan
+        plan["verification"] = VERIFICATION
         source_file = Path(__file__).resolve().parents[2] / "__init__.py"
         if mode == "pip":
             if Path(source_file).resolve().parent == (cwd / "axonx").resolve():

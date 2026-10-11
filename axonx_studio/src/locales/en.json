@@ -722,17 +722,17 @@
     "machine": "Demo browser"
   },
   "update": {
-    "title": "Update service",
-    "description": "Update AxonX and Studio on the selected machine, then restart the service. It will be temporarily unavailable.",
-    "unavailable": "Self-update is unavailable. The service needs update Jobs and token authentication.",
-    "method": "Update method",
+    "title": "Update or restart service",
+    "description": "Update AxonX and Studio, or restart the selected service from disk. The service will be temporarily unavailable.",
+    "unavailable": "Update and restart are unavailable. The service needs operation/status Jobs and token authentication.",
+    "method": "Operation",
     "git": "Source repository · origin/main",
     "pip": "Published packages · stable releases",
     "gitHint": "Requires a source installation started inside its AxonX repository, Git and Node.js. Source changes and untracked source files will be discarded. Ignored files and runtime directories are retained.",
     "pipHint": "Upgrade axonx and axonx-studio in the service’s Python environment. Editable installations must use source updates.",
-    "force": "Cancel active managed Runs before updating",
-    "confirmGit": "I agree to discard local source changes and restart this machine’s service.",
-    "confirmPip": "I agree to update packages and restart this machine’s service.",
+    "force": "Cancel active managed Runs before updating or restarting",
+    "gitConfirm": "I agree to discard local source changes and restart this machine’s service.",
+    "pipConfirm": "I agree to update packages and restart this machine’s service.",
     "start": "Update and restart",
     "reconnecting": "Updating / restarting. Waiting for the service to reconnect…",
     "reload": "Reload Studio",
@@ -746,6 +746,16 @@
       "starting": "Starting service",
       "succeeded": "Update completed",
       "failed": "Update failed"
+    },
+    "restart": "Restart only",
+    "restartHint": "Reload the existing code from disk with the original Python environment, working directory and startup arguments. No source update, build or package installation.",
+    "restartConfirm": "I agree to restart this machine’s service.",
+    "startRestart": "Restart service",
+    "restartPhases": {
+      "accepted": "Restart accepted",
+      "starting": "Starting service",
+      "succeeded": "Restart completed",
+      "failed": "Restart failed"
     }
   }
 }

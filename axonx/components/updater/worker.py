@@ -110,6 +110,7 @@ def execute(path: Path) -> None:
 
         try:
             cwd = plan["cwd"]
+            packages = ["--upgrade", "axonx", "axonx-studio"]
             if record["mode"] == "git":
                 cwd = plan["repository"]
                 run("fetching", ["git", "fetch", "origin", "+refs/heads/main:refs/remotes/origin/main"], cwd)
@@ -127,11 +128,10 @@ def execute(path: Path) -> None:
                 run("building", ["npm", "ci"], studio)
                 run("building", ["npm", "run", "build"], studio)
                 packages = ["-e", cwd, "-e", studio]
-            else:
-                packages = ["--upgrade", "axonx", "axonx-studio"]
-            run("installing", [sys.executable, "-m", "pip", "install", *packages], cwd)
-            run("verifying", [sys.executable, "-m", "pip", "check"], cwd)
-            run("verifying", [sys.executable, "-c", plan["verification"]], plan["cwd"])
+            if record["mode"] != "restart":
+                run("installing", [sys.executable, "-m", "pip", "install", *packages], cwd)
+                run("verifying", [sys.executable, "-m", "pip", "check"], cwd)
+                run("verifying", [sys.executable, "-c", plan["verification"]], plan["cwd"])
             record.update(phase="starting", after=versions())
             save(path, record)
         except BaseException as exc:

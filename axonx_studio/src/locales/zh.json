@@ -722,17 +722,17 @@
     "machine": "演示浏览器"
   },
   "update": {
-    "title": "服务自更新",
-    "description": "更新所选机器的 AxonX 和 Studio，然后重启服务。更新期间服务会暂时不可用。",
-    "unavailable": "自更新不可用。服务需要配置更新 Job 和 token 认证。",
-    "method": "更新方式",
+    "title": "服务更新与重启",
+    "description": "更新 AxonX 和 Studio，或从磁盘重新启动所选服务。操作期间服务会暂时不可用。",
+    "unavailable": "更新与重启不可用。服务需要配置操作和状态查询 Job，并启用 token 认证。",
+    "method": "操作方式",
     "git": "源码仓库 · origin/main",
     "pip": "发布包 · 最新稳定版本",
     "gitHint": "需要从 AxonX 源码仓库内启动服务，并安装 Git 和 Node.js。将丢弃源码改动和未跟踪的源码文件；保留忽略文件及运行数据目录。",
     "pipHint": "在服务的 Python 环境中更新 axonx 和 axonx-studio。editable 源码安装需要使用源码更新。",
-    "force": "更新前取消正在运行的受管理 Run",
-    "confirmGit": "我同意丢弃本地源码改动，并重启这台机器的服务。",
-    "confirmPip": "我同意更新安装包，并重启这台机器的服务。",
+    "force": "更新或重启前取消正在运行的受管理 Run",
+    "gitConfirm": "我同意丢弃本地源码改动，并重启这台机器的服务。",
+    "pipConfirm": "我同意更新安装包，并重启这台机器的服务。",
     "start": "更新并重启",
     "reconnecting": "正在更新或重启，等待服务恢复连接…",
     "reload": "重新加载 Studio",
@@ -746,6 +746,16 @@
       "starting": "正在启动服务",
       "succeeded": "更新完成",
       "failed": "更新失败"
+    },
+    "restart": "仅重启服务",
+    "restartHint": "使用原 Python 环境、工作目录和启动参数，重新加载磁盘上的现有代码。不拉取源码、不构建、不安装包。",
+    "restartConfirm": "我同意重启这台机器的服务。",
+    "startRestart": "重启服务",
+    "restartPhases": {
+      "accepted": "已接受重启",
+      "starting": "正在启动服务",
+      "succeeded": "重启完成",
+      "failed": "重启失败"
     }
   }
 }

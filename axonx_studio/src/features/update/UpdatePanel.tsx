@@ -4,9 +4,17 @@ import { useTranslation } from "react-i18next";
 import { axonx } from "../../shared/api/client";
 import { usePolling } from "../../shared/hooks/usePolling";
 
+const operationJobs = {
+  git: "update_from_git",
+  pip: "update_from_pip",
+  restart: "restart_service",
+};
+type UpdateMode = keyof typeof operationJobs;
+const modes = Object.keys(operationJobs) as UpdateMode[];
+
 interface UpdateRecord {
   update_id: string;
-  mode: "git" | "pip";
+  mode: UpdateMode;
   phase: string;
   error: string | null;
   before: Record<string, string | null>;
@@ -24,10 +32,14 @@ export function UpdatePanel({ target }: { target?: string }) {
   const [error, setError] = useState("");
   const [submissionError, setSubmissionError] = useState("");
   const [disconnected, setDisconnected] = useState(false);
-  const [available, setAvailable] = useState(false);
+  const [availableModes, setAvailableModes] = useState<UpdateMode[]>([]);
+  const available = availableModes.length > 0;
   const [submitting, setSubmitting] = useState(false);
   const [force, setForce] = useState(false);
-  const [mode, setMode] = useState<"git" | "pip">("git");
+  const [selectedMode, setSelectedMode] = useState<UpdateMode>("git");
+  const mode = availableModes.includes(selectedMode)
+    ? selectedMode
+    : (availableModes[0] ?? "git");
   const [confirmed, setConfirmed] = useState(false);
   const updateId = status.record?.update_id;
   const active = Boolean(
@@ -42,14 +54,13 @@ export function UpdatePanel({ target }: { target?: string }) {
         if (!available) {
           const catalog = await axonx.jobs({ target, signal });
           if (signal.aborted || version !== requestVersion.current) return;
-          const supported = [
-            "update_from_git",
-            "update_from_pip",
-            "get_update_status",
-          ].every((name) => catalog.items.some((job) => job.name === name));
-          setAvailable(supported);
+          const jobs = new Set(catalog.items.map((job) => job.name));
+          const supported = jobs.has("get_update_status")
+            ? modes.filter((mode) => jobs.has(operationJobs[mode]))
+            : [];
+          setAvailableModes(supported);
           setError("");
-          if (!supported) return;
+          if (!supported.length) return;
         }
         const result = await axonx.invoke<UpdateStatus>(
           "get_update_status",
@@ -78,7 +89,7 @@ export function UpdatePanel({ target }: { target?: string }) {
     setError("");
     try {
       const record = await axonx.invoke<UpdateRecord>(
-        `update_from_${mode}`,
+        operationJobs[mode],
         { force },
         { target, signal },
       );
@@ -118,15 +129,18 @@ export function UpdatePanel({ target }: { target?: string }) {
               value={mode}
               disabled={active || submitting}
               onChange={(event) => {
-                setMode(event.target.value as "git" | "pip");
+                setSelectedMode(event.target.value as UpdateMode);
                 setConfirmed(false);
               }}
             >
-              <option value="git">{t("update.git")}</option>
-              <option value="pip">{t("update.pip")}</option>
+              {availableModes.map((mode) => (
+                <option key={mode} value={mode}>
+                  {t(`update.${mode}`)}
+                </option>
+              ))}
             </select>
           </label>
-          <p>{t(mode === "git" ? "update.gitHint" : "update.pipHint")}</p>
+          <p>{t(`update.${mode}Hint`)}</p>
           <label className="update-checkbox">
             <input
               type="checkbox"
@@ -143,7 +157,7 @@ export function UpdatePanel({ target }: { target?: string }) {
               disabled={active || submitting}
               onChange={(event) => setConfirmed(event.target.checked)}
             />
-            {t(mode === "git" ? "update.confirmGit" : "update.confirmPip")}
+            {t(`update.${mode}Confirm`)}
           </label>
           <button
             className="secondary-button"
@@ -154,7 +168,7 @@ export function UpdatePanel({ target }: { target?: string }) {
             }}
           >
             <RefreshCw className={active || submitting ? "spin" : ""} />
-            {t("update.start")}
+            {t(mode === "restart" ? "update.startRestart" : "update.start")}
           </button>
         </>
       )}
@@ -163,9 +177,12 @@ export function UpdatePanel({ target }: { target?: string }) {
           <strong>
             {disconnected
               ? t("update.reconnecting")
-              : t(`update.phases.${status.record.phase}`, {
-                  defaultValue: status.record.phase,
-                })}
+              : t(
+                  `update.${status.record.mode === "restart" ? "restartPhases" : "phases"}.${status.record.phase}`,
+                  {
+                    defaultValue: status.record.phase,
+                  },
+                )}
           </strong>
           <small>{status.record.update_id}</small>
           {status.record.error && <p role="alert">{status.record.error}</p>}

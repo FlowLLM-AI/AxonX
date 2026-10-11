@@ -1,6 +1,6 @@
 # Service self-update
 
-A service started with `axonx start` can update its backend and Studio through authenticated Jobs. In Studio, open **Run → Environment → Update service** on the selected machine. Set the service token before using this feature; update Jobs are hidden on unauthenticated services.
+A service started with `axonx start` can update its backend and Studio through authenticated Jobs. In Studio, open **Run → Environment → Update or restart service** on the selected machine. Set the service token before using this feature; update Jobs are hidden on unauthenticated services.
 
 ## Choose an update method
 
@@ -24,6 +24,22 @@ The Git method requires the service to load AxonX from the repository containing
 The pip method runs the service interpreter's `-m pip install --upgrade axonx axonx-studio`. No npm build is needed: the Studio Python package contains static assets. Source installations and imports that shadow the installed packages (including through `PYTHONPATH`) are rejected; use Git updates for source installations. Stable releases are selected by pip's normal upgrade behavior.
 
 Use a dedicated writable Python environment for the service. Self-update does not coordinate other independent processes using that environment, upgrade research plugins, or guarantee that independently published package versions are compatible.
+
+## Restart without updating
+
+Select **Restart only** in Studio, or run:
+
+```bash
+axonx restart_service
+# Explicitly cancel active managed Runs first
+axonx restart_service --force true
+```
+
+Studio lists the operations configured on the selected service. A restart-only service needs `restart_service` and `get_update_status`; Git and pip update Jobs are optional.
+
+This authenticated Job reuses the maintenance, shutdown and process replacement flow. It skips Git, npm, pip installation and installation checks, then starts a fresh Python interpreter with the original environment, working directory and startup arguments. The port and PID are retained. Installed packages and editable source are loaded from disk again. Git, Node.js and a Studio installation are not required for this mode. Active Tasks prevent restart unless `force=true` successfully cancels them.
+
+Restart records use `mode: restart` and the existing `get_update_status` Job, with phases `accepted`, `starting`, `succeeded` or `failed`. Success still requires the replacement server to start listening. Restart does not update another service's independent repository or Python environment, and does not coordinate services sharing installed files.
 
 ## Admission and restart
 

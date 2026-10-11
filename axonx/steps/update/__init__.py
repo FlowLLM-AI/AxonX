@@ -1,16 +1,18 @@
 """Self-update Job Steps."""
 
-from abc import ABC
-
 from ...components.registry import provider
 from ...enums import ComponentEnum
 from ..base import BaseStep
 
 
-class UpdateStep(BaseStep, ABC):
-    """Resolve the configured update manager."""
+class UpdateStep(BaseStep):
+    """Share update admission and configured manager resolution."""
 
     component_domains = (ComponentEnum.UPDATER,)
+    mode: str
+
+    async def execute(self):
+        self.response.answer = await self.updater.request(self.mode, self.context.get("force", False))
 
     @property
     def updater(self):
@@ -21,16 +23,21 @@ class UpdateStep(BaseStep, ABC):
 class UpdateFromGitStep(UpdateStep):
     """Discard source changes and update to origin/main."""
 
-    async def execute(self):
-        self.response.answer = await self.updater.request("git", self.context.get("force", False))
+    mode = "git"
 
 
 @provider("update_from_pip_step")
 class UpdateFromPipStep(UpdateStep):
     """Upgrade the published backend and Studio packages."""
 
-    async def execute(self):
-        self.response.answer = await self.updater.request("pip", self.context.get("force", False))
+    mode = "pip"
+
+
+@provider("restart_service_step")
+class RestartServiceStep(UpdateStep):
+    """Restart using the original arguments without changing installed files."""
+
+    mode = "restart"
 
 
 @provider("get_update_status_step")

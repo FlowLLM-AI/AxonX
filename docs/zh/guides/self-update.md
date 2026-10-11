@@ -1,6 +1,6 @@
 # 服务自更新
 
-通过 `axonx start` 启动的服务可以使用经过认证的 Job 更新后端和 Studio。在 Studio 中，选择目标机器，打开 **运行 → 环境 → 服务自更新**。使用前配置服务 token；未认证服务不会暴露更新 Job。
+通过 `axonx start` 启动的服务可以使用经过认证的 Job 更新后端和 Studio。在 Studio 中，选择目标机器，打开 **运行 → 环境 → 服务更新与重启**。使用前配置服务 token；未认证服务不会暴露更新 Job。
 
 ## 选择更新方式
 
@@ -24,6 +24,22 @@ Git 方式要求服务从原启动目录所在仓库加载 AxonX，并已安装 
 pip 方式使用服务解释器执行 `-m pip install --upgrade axonx axonx-studio`。Studio 的 Python 包包含静态资源，因此不需要 npm 构建。源码安装、导入路径遮蔽已安装包的情况（包括 `PYTHONPATH`）会被拒绝；源码安装使用 Git 更新。稳定版本选择遵循 pip 的常规升级行为。
 
 服务应使用独立且可写的 Python 环境。自更新不会协调使用同一环境的其他独立进程，不会升级研究插件，也不保证独立发布的两个包版本兼容。
+
+## 不更新，仅重启
+
+在 Studio 中选择 **仅重启服务**，或执行：
+
+```bash
+axonx restart_service
+# 显式取消正在运行的受管理 Run
+axonx restart_service --force true
+```
+
+Studio 按所选服务实际配置的 Job 展示操作。仅重启的服务需要 `restart_service` 和 `get_update_status`，无需配置 Git 或 pip 更新 Job。
+
+该 Job 需要认证，复用维护、关闭和进程替换流程。跳过 Git、npm、pip 安装及安装检查，使用原环境、工作目录和启动参数启动新的 Python 解释器，保留端口和 PID，重新从磁盘加载已安装的包及 editable 源码。此模式不要求 Git、Node.js 或已安装 Studio。默认有活动 Task 时拒绝重启；只有 `force=true` 成功取消它们后才继续。
+
+重启记录使用 `mode: restart`，通过现有的 `get_update_status` Job 查询，阶段为 `accepted`、`starting`、`succeeded` 或 `failed`。仍需替换后的服务成功监听才记为成功。仅重启不会更新另一个服务的独立仓库或 Python 环境，也不会协调共用安装文件的其他服务。
 
 ## 接受请求和重启
 

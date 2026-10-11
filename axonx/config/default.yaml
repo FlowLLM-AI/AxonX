@@ -136,6 +136,17 @@ jobs:
     steps:
       - backend: update_from_pip_step
 
+  restart_service:
+    description: Restart from disk with the original startup arguments, without updating, building or installing.
+    requires_auth: true
+    parameters:
+      type: object
+      properties:
+        force: {type: boolean, default: false, description: Cancel active managed Runs before restarting.}
+      additionalProperties: false
+    steps:
+      - backend: restart_service_step
+
   get_update_status:
     description: Read an update record and log tail; omit update_id for the latest update.
     requires_auth: true
