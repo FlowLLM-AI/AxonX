@@ -7,11 +7,20 @@ import tarfile
 from zipfile import ZipFile
 
 import pytest
+from packaging.requirements import Requirement
 
 SCRIPT = Path(__file__).resolve().parents[2] / ".github/scripts/verify-packages.py"
 SPEC = importlib.util.spec_from_file_location("verify_packages", SCRIPT)
 VERIFY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VERIFY)
+
+
+@pytest.mark.parametrize("source", [entry[1] for entry in VERIFY.PACKAGES[1:]])
+def test_research_plugins_accept_current_core_version(source):
+    core_version = VERIFY.read_project(VERIFY.ROOT)["version"]
+    dependencies = [Requirement(value) for value in VERIFY.read_project(source)["dependencies"]]
+    core_requirement = next(requirement for requirement in dependencies if requirement.name == "axonx")
+    assert core_version in core_requirement.specifier, f"{source.name} excludes AxonX {core_version}"
 
 
 @pytest.fixture
