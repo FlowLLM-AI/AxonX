@@ -1,6 +1,7 @@
 """Python execution avoids shell quoting and keeps bounded subprocess contracts."""
 
 import asyncio
+from contextlib import suppress
 import json
 import os
 import signal
@@ -127,8 +128,10 @@ async def test_python_cleanup_does_not_wait_for_descendant_pipe_eof(tmp_path, de
             assert "timed out" in output.stderr
         with pytest.raises(ProcessLookupError):
             os.kill(pid, 0)
-        if not detached and psutil.pid_exists(child_pid):
-            assert psutil.Process(child_pid).status() == psutil.STATUS_ZOMBIE
+        if not detached:
+            # The OS may reap the child before or during the status query.
+            with suppress(psutil.NoSuchProcess):
+                assert psutil.Process(child_pid).status() == psutil.STATUS_ZOMBIE
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

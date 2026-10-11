@@ -456,7 +456,7 @@ raise SystemExit(main(['start', '--config', sys.argv[1]]))
                     if status and status["phase"] == "succeeded":
                         assert status["update_id"] == accepted["answer"]["update_id"]
                         break
-                except (urllib.error.URLError, TimeoutError):
+                except (urllib.error.URLError, TimeoutError, ConnectionError):
                     pass
                 time.sleep(0.05)
             else:
