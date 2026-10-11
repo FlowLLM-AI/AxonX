@@ -103,9 +103,8 @@ class UpdateManager(BaseComponent):
             raise ValueError("Unknown update mode")
         cwd = service.startup_directory
         plan = {"cwd": str(cwd), "arguments": service.restart_arguments, "verification": VERIFICATION}
+        source_file = Path(__file__).resolve().parents[2] / "__init__.py"
         if mode == "pip":
-            from ... import __file__ as source_file
-
             if Path(source_file).resolve().parent == (cwd / "axonx").resolve():
                 raise ValueError("Startup directory shadows the installed package; use Git update or start elsewhere")
             from importlib import metadata
@@ -138,8 +137,6 @@ class UpdateManager(BaseComponent):
                 text=True,
             ).strip()
         ).resolve()
-        from ... import __file__ as source_file
-
         if not Path(source_file).resolve().is_relative_to(repository / "axonx"):
             raise ValueError("The running AxonX package does not belong to the startup repository")
         if not (repository / "axonx_studio" / "package.json").is_file():

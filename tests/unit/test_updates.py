@@ -424,7 +424,7 @@ raise SystemExit(main(['start', '--config', sys.argv[1]]))
 
 
 def test_git_plan_protects_runtime_without_excluding_source_subdirectory(tmp_path, monkeypatch):
-    import axonx
+    from axonx.components.updater import manager
 
     app, updater = application(tmp_path)
     repository = tmp_path / "source"
@@ -441,7 +441,7 @@ def test_git_plan_protects_runtime_without_excluding_source_subdirectory(tmp_pat
         check=True,
         capture_output=True,
     )
-    monkeypatch.setattr(axonx, "__file__", str(source))
+    monkeypatch.setattr(manager, "__file__", str(source.parent / "components" / "updater" / "manager.py"))
     app.context.service.startup_directory = repository / "axonx_studio"
     app.app_config.workspace_dir = str(repository / "runtime" / "research")
     plan = updater._plan("git", app.context.service)
@@ -479,11 +479,11 @@ def test_git_plan_protects_runtime_without_excluding_source_subdirectory(tmp_pat
 
 
 def test_pip_plan_does_not_mistake_ancestor_directory_for_import_shadow(tmp_path, monkeypatch):
-    import axonx
+    from axonx.components.updater import manager
     from importlib import metadata
 
     app, updater = application(tmp_path)
-    monkeypatch.setattr(axonx, "__file__", str(tmp_path / "site" / "axonx" / "__init__.py"))
+    monkeypatch.setattr(manager, "__file__", str(tmp_path / "site" / "axonx" / "components" / "updater" / "manager.py"))
 
     def distribution(name):
         return SimpleNamespace(
@@ -501,7 +501,9 @@ def test_pip_plan_does_not_mistake_ancestor_directory_for_import_shadow(tmp_path
     with pytest.raises(ValueError, match="shadows"):
         updater._plan("pip", app.context.service)
     app.context.service.startup_directory = tmp_path
-    monkeypatch.setattr(axonx, "__file__", str(tmp_path / "other-source" / "axonx" / "__init__.py"))
+    monkeypatch.setattr(
+        manager, "__file__", str(tmp_path / "other-source" / "axonx" / "components" / "updater" / "manager.py")
+    )
     with pytest.raises(ValueError, match="Source imports shadow"):
         updater._plan("pip", app.context.service)
 
