@@ -15,11 +15,19 @@ Set these variables in the service environment executing the Task:
 
 ```bash
 export AXONX_TUSHARE_TOKEN='<data API token>'
-# Override the URL only for your own compatible API or proxy
+# Direct connection to your own compatible upstream (not an AxonX proxy)
 export AXONX_TUSHARE_BASE_URL='http://<data service>/dataapi'
 ```
 
 The built-in client defaults to `http://api.waditu.com/dataapi`. Requests use `<base_url>/<api_name>` and submit `api_name`, `token`, `params`, and `fields` as JSON. Custom services must support this protocol. This token and the `AXONX_SERVICE_TOKEN` protecting the AxonX HTTP service are separate credentials.
+
+When connecting through an AxonX proxy named `tushare`, use the proxy root instead:
+
+```bash
+export AXONX_TUSHARE_BASE_URL='http://<AxonX proxy host>:1024/proxy/tushare'
+```
+
+The client appends `/trade_cal` or another API name. `/tushare` alone is not the AxonX proxy route; the `/proxy` prefix is required. On the proxy service, `components.proxy.tushare.upstream_base_url` points to the real upstream. The commented default configuration obtains that upstream from `AXONX_TUSHARE_BASE_URL`, while download clients use the same variable name for their destination. Keep these process environments separate; if the proxy and Task share one service, use a separate variable for the configured upstream as shown in [HTTP proxy](../guides/http-proxy.md).
 
 Access scope, quotas, and authorization are determined upstream; this page only describes current client and task behavior. For an AxonX proxy, see [HTTP proxy](../guides/http-proxy.md). Do not assume that replacing the URL guarantees protocol compatibility.
 

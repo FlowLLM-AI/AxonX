@@ -15,11 +15,19 @@ description: 下载原始行情分区、静态主数据和沪深 300 权重。
 
 ```bash
 export AXONX_TUSHARE_TOKEN='<数据接口 token>'
-# 使用自有兼容接口或代理时才覆盖地址
+# 直接连接自有兼容上游（不是 AxonX 代理地址）
 export AXONX_TUSHARE_BASE_URL='http://<数据服务>/dataapi'
 ```
 
 内置客户端默认地址是 `http://api.waditu.com/dataapi`，请求使用 `<base_url>/<api_name>`，以 JSON 提交 `api_name`、`token`、`params` 和 `fields`。自有服务需兼容该协议。这个 token 与保护 AxonX HTTP 服务的 `AXONX_SERVICE_TOKEN` 是两种凭据。
+
+通过名为 `tushare` 的 AxonX 代理连接时，改用代理根地址：
+
+```bash
+export AXONX_TUSHARE_BASE_URL='http://<AxonX 代理机器>:1024/proxy/tushare'
+```
+
+客户端会追加 `/trade_cal` 等 API 名。单独的 `/tushare` 不是 AxonX 代理路由，必须保留 `/proxy` 前缀。代理服务中的 `components.proxy.tushare.upstream_base_url` 指向真实上游；默认配置的注释示例从 `AXONX_TUSHARE_BASE_URL` 读取这个上游，而下载客户端用同名变量指定请求目标。应区分两种进程的环境；代理和 Task 在同一服务运行时，按 [HTTP 代理](../guides/http-proxy.md) 示例使用独立变量配置上游。
 
 数据服务可访问范围、额度与授权由上游决定；本文仅说明当前客户端和任务的行为。通过 AxonX 代理时参阅[HTTP 代理](../guides/http-proxy.md)，不要仅替换地址就假定上游协议一致。
 

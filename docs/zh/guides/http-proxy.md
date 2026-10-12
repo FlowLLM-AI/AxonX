@@ -76,6 +76,12 @@ curl -sS 'http://127.0.0.1:1024/proxy/tushare/trade_cal' \
 
 服务日志记录代理方法与路径；上游拒绝时同时检查上游 token、字段和权限，不要只改 AxonX 服务 token。
 
+### 遇到 405 时先核对地址
+
+路由前缀是 `/proxy/{name}`。名为 `tushare` 的代理对应客户端根地址 `http://<代理机器>:1024/proxy/tushare`，交易日历请求为 `POST /proxy/tushare/trade_cal`。`POST /tushare/trade_cal` 不会进入代理；启用 Studio 时，未匹配路由的 POST 可能返回 `405 Method Not Allowed`。仅凭这个响应，不能断定上游拒绝请求或代理组件未加载。
+
+先确认启动日志列出 `proxy:tushare`，再发起小范围交易日历查询，检查是否出现 `Proxy request method=POST path=trade_cal`。没有该日志时，核对机器、端口与 `/proxy` 前缀；出现后再检查转发响应和上游设置。交易日历查询成功只验证连通性与响应格式，不代表整批下载的权限和数据完整性已验证。
+
 ## Tushare 使用路径
 
 download_tushare_task 的客户端读取环境变量 `AXONX_TUSHARE_BASE_URL`。将它设为代理根地址 `http://127.0.0.1:1024/proxy/tushare`，客户端会追加 API 名，例如 `/trade_cal`，再由代理访问配置上游。代理不自动下载数据、不改交易日，也不提供数据缓存。

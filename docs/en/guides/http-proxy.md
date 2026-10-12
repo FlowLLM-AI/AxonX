@@ -76,6 +76,12 @@ Proxy responses have no `success` or `answer` wrapper; clients should assess HTT
 
 Service logs record the proxy method and path; when the upstream rejects a request, also check its token, fields, and permissions rather than only changing the AxonX service token.
 
+### Check the URL before diagnosing a 405
+
+The prefix is `/proxy/{name}`. For `tushare`, a client base URL is `http://<proxy host>:1024/proxy/tushare`, and a calendar request is `POST /proxy/tushare/trade_cal`. `POST /tushare/trade_cal` does not enter the proxy; with Studio enabled, an unmatched POST can return `405 Method Not Allowed`. That response alone does not show that the upstream rejected the request or that the proxy component failed to load.
+
+Check that the startup log lists `proxy:tushare`, then look for `Proxy request method=POST path=trade_cal` when making a small calendar query. If that entry is absent, check the host, port and `/proxy` prefix. If it is present, inspect the forwarded response and upstream settings. A successful calendar query verifies connectivity and response format, not the permissions or completeness of a full download.
+
 ## Tushare usage path
 
 The download_tushare_task client reads the environment variable `AXONX_TUSHARE_BASE_URL`. Set it to the proxy root `http://127.0.0.1:1024/proxy/tushare`; the client appends the API name, such as `/trade_cal`, and the proxy accesses the configured upstream. The proxy does not automatically download data, change trading days, or provide a data cache.
