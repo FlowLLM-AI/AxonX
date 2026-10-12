@@ -68,14 +68,19 @@ class UpdateManager(BaseComponent):
             raise RuntimeError("An update is already pending")
         plan = await run_in_thread(self._plan, mode, service)
         for manager in self.app_context.components.get("task_manager", {}).values():
-            active = [status for status in await manager.list_statuses() if not status.state.is_terminal]
+            active = await manager.list_managed_run_ids()
             if active and not force:
                 raise RuntimeError("Active Tasks prevent updating; force=true cancels managed Runs")
-            for status in active:
-                if not await manager.cancel(task_id=status.task_id, run_id=status.run_id):
-                    # Completion may race with cancellation; recheck before rejecting.
-                    if not (await manager.get_status(status.task_id)).state.is_terminal:
-                        raise RuntimeError(f"Cannot stop active Run: {status.run_id}")
+            for run_id in active:
+                try:
+                    cancelled = await manager.cancel(run_id=run_id)
+                except RuntimeError:
+                    # A worker may exit before cancel resolves its workspace record.
+                    if run_id in await manager.list_managed_run_ids():
+                        raise
+                    continue
+                if not cancelled and run_id in await manager.list_managed_run_ids():
+                    raise RuntimeError(f"Cannot stop active Run: {run_id}")
         update_id = uuid4().hex
         folder = self.directory / update_id
         folder.mkdir(parents=True, mode=0o700)

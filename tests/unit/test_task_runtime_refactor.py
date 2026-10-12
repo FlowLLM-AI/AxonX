@@ -1056,3 +1056,9 @@ async def test_failed_terminal_reset_keeps_existing_record_indexed(tmp_path, exi
         await repository.reset_terminal(task.task_id)
     assert await repository.entry(task.task_id) == status
     assert read_task_metadata(task.task_dir, task.task_id) == status
+
+
+async def test_maintenance_includes_workers_after_terminal_metadata_or_named_replacement():
+    manager = object.__new__(LocalTaskManager)
+    manager._supervisor = SimpleNamespace(run_pids={"finished-worker": 1, "replaced-worker": 2})
+    assert await manager.list_managed_run_ids() == ["finished-worker", "replaced-worker"]

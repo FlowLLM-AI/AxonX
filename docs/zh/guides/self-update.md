@@ -37,13 +37,13 @@ axonx restart_service --force true
 
 Studio 按所选服务实际配置的 Job 展示操作。仅重启的服务需要 `restart_service` 和 `get_update_status`，无需配置 Git 或 pip 更新 Job。
 
-该 Job 需要认证，复用维护、关闭和进程替换流程。跳过 Git、npm、pip 安装及安装检查，使用原环境、工作目录和启动参数启动新的 Python 解释器，保留端口和 PID，重新从磁盘加载已安装的包及 editable 源码。此模式不要求 Git、Node.js 或已安装 Studio。默认有活动 Task 时拒绝重启；只有 `force=true` 成功取消它们后才继续。
+该 Job 需要认证，复用维护、关闭和进程替换流程。跳过 Git、npm、pip 安装及安装检查，使用原环境、工作目录和启动参数启动新的 Python 解释器，保留端口和 PID，重新从磁盘加载已安装的包及 editable 源码。此模式不要求 Git、Node.js 或已安装 Studio。默认本服务有受管理 worker 时拒绝重启；只有 `force=true` 成功停止它们后才继续，共享工作区中的外部 Run 不阻止重启。
 
 重启记录使用 `mode: restart`，通过现有的 `get_update_status` Job 查询，阶段为 `accepted`、`starting`、`succeeded` 或 `failed`。仍需替换后的服务成功监听才记为成功。仅重启不会更新另一个服务的独立仓库或 Python 环境，也不会协调共用安装文件的其他服务。
 
 ## 接受请求和重启
 
-默认有活动 Task 时拒绝更新。`force=true` 会在接受请求前取消精确的受管理 Run；无法确认终止的活动 Run 会阻止更新。源码和环境预检查先于取消操作。接受请求后进入维护状态：拒绝新的本地 Job（`version` 和 `get_update_status` 除外）、插件环境变更和 Task 提交。
+默认本服务有受管理 worker Run 时拒绝更新或重启。共享工作区中由其他服务或 CLI 启动的 Run 不阻止本服务重启，也不会被取消。已发布终态但进程尚未退出的受管理 worker 仍需停止。共享源码或 Python 环境的 Git/pip 更新仍会影响其他服务，应协调部署。`force=true` 会在接受请求前取消精确的受管理 Run；无法确认终止的受管理 Run 会阻止更新。源码和环境预检查先于取消操作。接受请求后进入维护状态：拒绝新的本地 Job（`version` 和 `get_update_status` 除外）、插件环境变更和 Task 提交。
 
 发起更新的 HTTP、SSE 或 MCP 响应发送完成后才开始关闭服务。Application 正常清理流、组件和子进程。关闭后的服务将自身替换为预先保存的纯标准库更新执行器，执行更新后使用同一解释器、原启动目录及原 `axonx start` 参数重新启动。整个过程保留进程 PID，也适用于 systemd 或 launchd 托管。自定义嵌入式 ASGI 应用不支持自动重启。
 

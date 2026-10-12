@@ -175,6 +175,10 @@ class LocalTaskManager(BaseTaskManager):
     async def list_statuses(self) -> list[TaskMetadata]:
         return sorted((await self.repository.entries()).values(), key=task_sort_key, reverse=True)
 
+    async def list_managed_run_ids(self) -> list[str]:
+        """Include tracked workers even when metadata has finished or been replaced."""
+        return list(self._supervisor.run_pids)
+
     async def list_summaries(self) -> list[dict]:
         return await self.repository.summaries()
 

@@ -35,6 +35,14 @@ class BaseTaskManager(BaseComponent, ABC):
         """Return list metadata; backends may project before copying large outputs."""
         return [summarize_status(status) for status in await self.list_statuses()]
 
+    async def list_managed_run_ids(self) -> list[str]:
+        """Return Runs owned by this manager for service maintenance.
+
+        Backends exposing shared workspace records must override this method.
+        The default preserves maintenance behavior for existing private backends.
+        """
+        return [status.run_id for status in await self.list_statuses() if not status.state.is_terminal]
+
     @abstractmethod
     async def get_status(self, task_id: str) -> TaskMetadata:
         """Return one task status; raise KeyError if the ID is absent."""

@@ -218,6 +218,8 @@ schedules:
 
 Business Tasks own shared-data locks and business overlap policies. Composition does not supply distributed locking. Scheduler concurrency covers the Job invocation; a submission Job returns before the background Task completes. TaskManager supervises the accepted worker and owns shutdown and cancellation. Cancel the parent Run to stop its in-process children. Closing a submission Job does not cancel an already accepted Task.
 
+Maintenance uses `list_managed_run_ids()` to select worker Runs owned by this service, including workers whose metadata is terminal or whose named Task was replaced. Backends that expose records from a shared workspace must override the default private-backend implementation. Return process ownership, not PIDs inferred from persisted metadata.
+
 Task managers implement `cancel(task_id=None, run_id=None)`. At least one ID is required: `task_id` selects the current execution under the manager lock, while `run_id` selects an exact Run. Supplying both checks the current pair and returns false for a mismatch. To cancel an owned execution, pass its exact `run_id`.
 
 Synchronous `BaseTask.close()` releases owned resources after step execution, including step and initialization failures. Cleanup failures preserve a primary step exception. `on_failure(error)` can persist business summaries when steps, output construction or cleanup fail; the runner still owns failed status. These callbacks cannot guarantee cleanup after forced process termination.

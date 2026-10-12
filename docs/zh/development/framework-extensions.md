@@ -218,6 +218,8 @@ schedules:
 
 共享数据锁及业务重叠策略由业务 Task 负责；复合 Task 不提供分布式锁。调度并发策略只覆盖 Job 调用，提交 Job 在后台 Task 完成前已经返回。TaskManager 监督已受理 worker，并负责停机和取消。取消父 Run 会停止同进程子任务；关闭提交 Job 不会取消已受理的 Task。
 
+维护操作通过 `list_managed_run_ids()` 选择本服务拥有的 worker Run，包括 metadata 已终态或具名 Task 已被替换但进程仍受管理的 worker。暴露共享工作区记录的后端必须覆盖默认的私有后端实现。返回实际进程管理归属，不应根据持久化 metadata 的 PID 推断。
+
 Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID：`task_id` 在 manager 锁内选定当前执行，`run_id` 精确指定某个 Run。同时提供两个 ID 时会校验当前身份，不匹配则返回 false。需要精确清理某次执行时传 `run_id`。
 
 同步 `BaseTask.close()` 在步骤执行后释放资源，包括步骤和初始化失败。清理失败不会覆盖原步骤异常。`on_failure(error)` 可在步骤、输出构造或清理失败时保存业务摘要，失败状态仍由 runner 管理。强制终止进程时不能保证回调执行。

@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
+from axonx.components.task_manager.local.manager import LocalTaskManager
 from axonx.components.updater.manager import RESPONSE_CALLBACKS
 from axonx.components.updater import worker
 from axonx.config import resolve_app_config
@@ -115,18 +116,19 @@ async def test_preflight_failure_does_not_cancel_tasks(tmp_path, monkeypatch):
 @pytest.mark.parametrize("mode", ["pip", "restart"])
 async def test_active_tasks_and_forced_cancellation(tmp_path, monkeypatch, mode):
     app, updater = application(tmp_path)
-    active = SimpleNamespace(state=SimpleNamespace(is_terminal=False), task_id="demo", run_id="run")
     cancelled = []
 
-    async def statuses():
-        return [active]
+    async def managed_runs():
+        return ["run"]
 
     async def cancel(**kwargs):
         cancelled.append(kwargs)
         return True
 
     # Inject a fake configured manager without constructing research workers.
-    app.context._components["task_manager"] = {"default": SimpleNamespace(list_statuses=statuses, cancel=cancel)}
+    app.context._components["task_manager"] = {
+        "default": SimpleNamespace(list_managed_run_ids=managed_runs, cancel=cancel)
+    }
     monkeypatch.setattr(updater, "_plan", lambda *_: {})
     token = RESPONSE_CALLBACKS.set([])
     try:
@@ -135,7 +137,7 @@ async def test_active_tasks_and_forced_cancellation(tmp_path, monkeypatch, mode)
         assert not cancelled
         record = await updater.request(mode, force=True)
         assert record["phase"] == "accepted"
-        assert cancelled == [{"task_id": "demo", "run_id": "run"}]
+        assert cancelled == [{"run_id": "run"}]
     finally:
         RESPONSE_CALLBACKS.reset(token)
 
@@ -625,3 +627,63 @@ def test_interruption_records_failure_without_restarting(tmp_path, monkeypatch):
     record = json.loads(path.read_text())
     assert record["phase"] == "failed"
     assert record["error"] == "KeyboardInterrupt"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("force", [False, True])
+async def test_restart_ignores_shared_workspace_runs_owned_by_another_service(tmp_path, monkeypatch, force):
+    app, updater = application(tmp_path)
+    manager = object.__new__(LocalTaskManager)
+    manager._supervisor = SimpleNamespace(run_pids={})
+
+    async def statuses():
+        pytest.fail("Maintenance must inspect process ownership, not shared workspace states")
+
+    async def cancel(**kwargs):
+        pytest.fail("Foreign Runs must not be cancelled")
+
+    manager.list_statuses = statuses
+    manager.cancel = cancel
+    app.context._components["task_manager"] = {"default": manager}
+    monkeypatch.setattr(updater, "_plan", lambda *_: {})
+    token = RESPONSE_CALLBACKS.set([])
+    try:
+        assert (await updater.request("restart", force=force))["phase"] == "accepted"
+    finally:
+        RESPONSE_CALLBACKS.reset(token)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("still_managed", [False, True])
+@pytest.mark.parametrize("raises", [False, True])
+async def test_maintenance_rechecks_process_ownership_when_cancellation_returns_false(
+    tmp_path, monkeypatch, still_managed, raises
+):
+    app, updater = application(tmp_path)
+    manager = object.__new__(LocalTaskManager)
+    manager._supervisor = SimpleNamespace(run_pids={"owned-run": 123})
+    cancelled = []
+
+    async def cancel(**kwargs):
+        cancelled.append(kwargs)
+        if not still_managed:
+            manager._supervisor.run_pids.clear()
+        if raises:
+            raise RuntimeError("Worker cancellation failed")
+        return False
+
+    manager.cancel = cancel
+    app.context._components["task_manager"] = {"default": manager}
+    monkeypatch.setattr(updater, "_plan", lambda *_: {})
+    token = RESPONSE_CALLBACKS.set([])
+    try:
+        if still_managed:
+            error = "Worker cancellation failed" if raises else "Cannot stop active Run: owned-run"
+            with pytest.raises(RuntimeError, match=error):
+                await updater.request("restart", force=True)
+            assert updater.pending is None
+        else:
+            assert (await updater.request("restart", force=True))["phase"] == "accepted"
+        assert cancelled == [{"run_id": "owned-run"}]
+    finally:
+        RESPONSE_CALLBACKS.reset(token)
