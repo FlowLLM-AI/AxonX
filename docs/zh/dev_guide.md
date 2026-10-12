@@ -184,7 +184,9 @@ axonx plugin install -e plugins/qlib_a158
 axonx plugin install plugins/qlib_a158 --target 192.168.1.10:1024
 ```
 
-CLI 会在本机构建 wheel，上传并安装到目标服务。记录代码版本和实验配置；源码修改后重新部署，检查 `restart_required` 并查询目标 Task 定义。
+CLI 会在本机构建 wheel，上传并安装到目标服务。记录代码版本和实验配置。远程提交前先部署本机插件改动；Git push 或相同的包版本号不会更新执行服务。目标仍返回旧 Task 定义时，在已授权的运行流程中重新部署。
+
+安装后检查 `error` 和 `restart_required`，在已授权的服务管理范围内完成所需重启。提交前，在同一目标重新查询 Task 定义，核验预期默认值与执行资源；提交后记录返回的 Task/Run ID。安装或核验失败时，停止并报告具体问题。用户要求遇到问题先讨论时，遵循该要求。
 
 #### 3. 确认插件与 Task 注册
 

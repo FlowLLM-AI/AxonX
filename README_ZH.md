@@ -90,6 +90,18 @@ CLI 从当前目录或父目录加载 `.env`，已有环境变量优先。保持
 模型、行情与远程配置见 [example.env](example.env)；源码开发与 Studio 构建见[贡献指南](CONTRIBUTING_ZH.md)。
 直接 pip 安装或 editable 源码改动后需重启服务。
 
+远程提交前先部署本机插件改动；Git push 或相同的包版本号不会更新执行服务。检查 `error` 和 `restart_required`，在已授权的服务管理范围内完成所需重启，提交前核验目标 Task 定义与资源。安装或核验失败时停止并报告；记录提交返回的 Task/Run ID。完整流程见[开发指南](docs/zh/dev_guide.md#_2-安装插件)。
+
+远程执行时，将 `<host:port>` 替换为所选服务地址并配置 `AXONX_TARGET_TOKEN`。下方插件与 Task 仅为示例，使用实际源码路径和注册任务名。
+
+```bash
+axonx list_machines
+axonx plugin install ./plugins/qlib_a158 --target <host:port>
+axonx get_task_definition --task qlib_a158_etl --target <host:port>
+axonx machine_status --target <host:port>
+axonx submit --task qlib_a158_etl --start-date 20150101 --target <host:port>
+```
+
 <a id="快速演示"></a>
 
 ### 2. 验证服务并打开 Studio

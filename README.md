@@ -93,6 +93,18 @@ Keep the service running and use another terminal for subsequent commands. See [
 market-data, and remote settings; see [CONTRIBUTING.md](CONTRIBUTING.md) for source development and Studio builds.
 Restart the service after direct pip installation or editable source changes.
 
+Deploy local plugin changes before remote submission; a Git push or matching package version does not update the execution service. Check `error` and `restart_required`, complete any required restart within the authorized service-management scope, and verify the target Task definition and resources before submitting. Stop and report installation or verification failures; record returned Task/Run IDs. See the [development guide](docs/en/dev_guide.md#_2-install-the-plugin) for the full workflow.
+
+For remote execution, replace `<host:port>` with the selected service address and configure `AXONX_TARGET_TOKEN`. The plugin and Task below are examples; use the actual source path and registered Task.
+
+```bash
+axonx list_machines
+axonx plugin install ./plugins/qlib_a158 --target <host:port>
+axonx get_task_definition --task qlib_a158_etl --target <host:port>
+axonx machine_status --target <host:port>
+axonx submit --task qlib_a158_etl --start-date 20150101 --target <host:port>
+```
+
 <a id="quick-demo"></a>
 
 ### 2. Verify the service and open Studio

@@ -193,7 +193,9 @@ For fixed-version experiments, use `axonx plugin install plugins/qlib_a158` to b
 axonx plugin install plugins/qlib_a158 --target 192.168.1.10:1024
 ```
 
-The CLI builds the wheel locally, uploads it, and installs it on the target service. Record the code revision and experiment configuration; redeploy after source changes, check `restart_required`, and query the target Task definition.
+The CLI builds the wheel locally, uploads it, and installs it on the target service. Record the code revision and experiment configuration. Deploy local plugin changes before remote submission; a Git push or matching package version does not update the execution service. If the target still returns an older Task definition, redeploy within the authorized run workflow.
+
+After installation, check `error` and `restart_required`. Complete any required restart within the authorized service-management scope. Re-query the Task definition on the same target and verify the intended defaults and execution resources before submitting; record the returned Task/Run IDs. If installation or verification fails, stop and report the concrete problem. Follow any user instruction to discuss problems before continuing.
 
 #### 3. Confirm Plugin and Task Registration
 
