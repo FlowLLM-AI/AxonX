@@ -878,6 +878,7 @@
     }
   },
   "replica": {
+    "coverage": "File coverage and omissions",
     "label": "Result display replica",
     "description": "Metrics describe the full source run. Available files may cover fewer dates; input snapshots are omitted. This replica cannot be used as a research input.",
     "sample": "{{name}}: {{start}}–{{end}}, {{rows}} of {{total}} rows",

@@ -6,7 +6,7 @@ Task synchronization publishes terminal **display replicas**, not executable wor
 
 A replica contains `metadata.json`, execution events, published outputs and the files required by their model or online manifests. Upstream `inputs/`, pinned `model_snapshot/`, unreferenced files, temporary workspaces, external logs and plugin environments are excluded. Local hard-link input snapshots remain intact.
 
-Source metrics and research protocols retain the original run semantics. `metadata.replica` has `purpose: display`, source and policy digests, actual file sizes and SHA256 values, omitted paths/reasons, sampled row counts/date coverage and the source log path. The local `log_path` is empty. Studio labels replicas and reports their coverage. Consumers reject replicas as research inputs; replicas are never forwarded as synchronization sources.
+Source metrics and research protocols retain the original run semantics. `metadata.replica` has `purpose: display`, source and policy digests, actual file sizes and SHA256 values, omitted paths/reasons, sampled row counts/date coverage and the source log path. The local `log_path` is empty. Studio labels replicas; file coverage and omissions expand on demand. Consumers reject replicas as research inputs; replicas are never forwarded as synchronization sources.
 
 ## One budget
 

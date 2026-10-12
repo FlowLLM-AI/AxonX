@@ -42,6 +42,8 @@ it.each(["en", "zh"])(
     await act(async () => {
       root.render(<ReplicaNotice replica={replica} />);
     });
+    expect(container.querySelector("details")?.open).toBe(false);
+    expect(container.textContent).toContain(i18n.t("replica.coverage"));
     expect(container.textContent).toContain(i18n.t("replica.label"));
     expect(container.textContent).toContain("20260105");
     expect(container.textContent).toContain("20260106");

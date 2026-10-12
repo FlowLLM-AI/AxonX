@@ -15,27 +15,32 @@ export function ReplicaNotice({
     <aside className="replica-notice">
       <strong>{t("replica.label")}</strong>
       <p>{t("replica.description")}</p>
-      {sampled.length > 0 && (
-        <ul>
-          {sampled.map(([name, file]) => (
-            <li key={name}>
-              {t("replica.sample", {
-                name,
-                start: file.dates[0] || "—",
-                end: file.dates.at(-1) || "—",
-                rows: file.rows,
-                total: file.source_rows,
+      {(sampled.length > 0 || Object.keys(replica.omitted).length > 0) && (
+        <details>
+          <summary>{t("replica.coverage")}</summary>
+          {sampled.length > 0 && (
+            <ul>
+              {sampled.map(([name, file]) => (
+                <li key={name}>
+                  {t("replica.sample", {
+                    name,
+                    start: file.dates[0] || "—",
+                    end: file.dates.at(-1) || "—",
+                    rows: file.rows,
+                    total: file.source_rows,
+                  })}
+                </li>
+              ))}
+            </ul>
+          )}
+          {Object.keys(replica.omitted).length > 0 && (
+            <p>
+              {t("replica.omitted", {
+                files: Object.keys(replica.omitted).join(", "),
               })}
-            </li>
-          ))}
-        </ul>
-      )}
-      {Object.keys(replica.omitted).length > 0 && (
-        <p>
-          {t("replica.omitted", {
-            files: Object.keys(replica.omitted).join(", "),
-          })}
-        </p>
+            </p>
+          )}
+        </details>
       )}
     </aside>
   );
