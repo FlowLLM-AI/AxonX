@@ -2,6 +2,8 @@
 
 Scheduler triggers configured Jobs according to Cron and time zones, passing fixed arguments. The default `schedules` is empty, so no scheduled research runs in the background. Scheduling concurrency policies constrain the called Job's lifecycle; Tasks that continue running after submission require separate control.
 
+For scheduled Tasks, use `job: submit` and set `arguments.task` to the registered Task name. Put fixed Task parameters in `arguments`; a dedicated submission Job is unnecessary.
+
 ![Boundary between Cron and background Tasks](../../figures/guides/scheduling.svg)
 
 ## Minimal configuration

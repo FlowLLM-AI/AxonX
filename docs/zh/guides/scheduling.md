@@ -2,6 +2,8 @@
 
 Scheduler 按 Cron 和时区触发配置中的 Job，传入固定 arguments。默认 `schedules` 为空，没有后台定时研究。调度并发策略限制的是被调用 Job 的生命周期，提交后继续运行的 Task 需要单独控制。
 
+定时 Task 使用 `job: submit`，在 `arguments.task` 中指定注册名；固定 Task 参数放入 `arguments`，无需专用提交 Job。
+
 ![Cron 与后台 Task 的边界](../../figures/guides/scheduling.svg)
 
 ## 最小配置

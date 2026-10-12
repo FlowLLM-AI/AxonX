@@ -59,6 +59,8 @@ AxonX 是面向 Agent 的量化研究 Harness，为量化代码开发、实验�
 
 ## 插件开发
 
+Task 统一通过 `axonx submit --task <名称>` 提交；无服务时使用 `axonx exec --task <名称>`。在插件清单中注册 Task，无需增加专用提交 Job。Job 用于有独立用途的能力；定时 Task 使用 `job: submit` 和 `arguments.task`。
+
 插件可注册多个 Task；qlib_a158 示例在 `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` 中注册了五类 Task。本文的 qlib_a158
 路径、类名、注册名和依赖链仅用于示例，开发其他研究插件时应替换为实际定义。插件安装与 Task 提交是独立操作。
 

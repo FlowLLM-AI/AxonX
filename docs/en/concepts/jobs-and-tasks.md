@@ -19,6 +19,8 @@ Here, “synchronous” means a function must execute and return directly: it ca
 
 ## From Names to Execution Identity
 
+Submit every Task through `axonx submit --task <name>`; without a service, use `axonx exec --task <name>`. Register Tasks in the plugin manifest, without a dedicated submission Job. Keep Jobs for capabilities with a separate purpose; schedules submit Tasks with `job: submit` and `arguments.task`.
+
 ```bash
 axonx get_task_definition --task demo
 axonx submit --task demo --task-name add-check --x 1 --y 2

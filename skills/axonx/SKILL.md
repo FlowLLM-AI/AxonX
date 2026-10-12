@@ -64,6 +64,8 @@ The framework records task configuration, dependencies, result metadata, and art
 
 ## Plugin Development
 
+Submit every Task through `axonx submit --task <name>`; without a service, use `axonx exec --task <name>`. Register Tasks in the plugin manifest, without a dedicated submission Job. Keep Jobs for capabilities with a separate purpose; schedules submit Tasks with `job: submit` and `arguments.task`.
+
 A plugin can register multiple Tasks; the qlib_a158 example registers five Task types in `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml`. The qlib_a158
 paths, class names, registered names, and dependency chain here are illustrative; replace them with actual definitions when developing other research plugins. Plugin installation and Task submission are separate operations.
 

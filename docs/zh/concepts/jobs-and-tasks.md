@@ -19,6 +19,8 @@ Job 是 AxonX Application 内的异步能力调用；Task 是有类型输入输�
 
 ## 从名字到执行身份
 
+Task 统一通过 `axonx submit --task <名称>` 提交；无服务时使用 `axonx exec --task <名称>`。在插件清单中注册 Task，无需增加专用提交 Job。Job 用于有独立用途的能力；定时 Task 使用 `job: submit` 和 `arguments.task`。
+
 ```bash
 axonx get_task_definition --task demo
 axonx submit --task demo --task-name add-check --x 1 --y 2
