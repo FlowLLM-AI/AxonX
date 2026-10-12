@@ -153,3 +153,7 @@ events.jsonl 是追加进度记录；普通日志在 log_path。写入端先记�
 [Job 与 Task](../concepts/jobs-and-tasks.md) · [Task API](../api/tasks.md) · [研究产物协议](research-artifacts.md)
 
 源码：[输入输出](../../../axonx/task/core/params.py)、[Context](../../../axonx/task/core/context.py)、[定义](../../../axonx/task/catalog/resolver.py)、[Handle](../../../axonx/task/contracts/submission.py)、[状态](../../../axonx/task/storage/workspace.py)、[Metadata](../../../axonx/task/storage/workspace.py)。
+
+## 展示副本
+
+源任务的 `TaskMetadata.replica` 为 null。同步结果包含展示清单：`purpose`、`source_digest`、`policy_digest`、`files`、`omitted`、`source_log_path`。文件记录实际大小和哈希，以及采样行数和日期。源输出和指标保留原值，展示消费者使用实际文件清单。研究输入消费者拒绝副本。

@@ -12,6 +12,7 @@ from ..enums import TaskType
 from ..utils.fs import file_sha256
 
 PROTOCOL_VERSION = 1
+STOCK_SIGNALS_FORMAT = "stock-signals-v1"
 
 
 class Protocol(BaseModel):

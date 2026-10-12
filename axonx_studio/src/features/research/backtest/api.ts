@@ -42,11 +42,21 @@ const loadParquetRows = async <T extends NumericRow>(
   }
 };
 
+const requireSignalsFormat = (meta: BacktestArtifact) => {
+  if (
+    meta.artifacts.targets ||
+    (meta.artifacts.signals && meta.signals_format !== "stock-signals-v1")
+  ) {
+    throw new Error(i18n.t("backtest.errors.signalsFormat"));
+  }
+};
+
 export async function loadBacktest(
   meta: BacktestArtifact,
   target?: string,
   signal?: AbortSignal,
 ) {
+  requireSignalsFormat(meta);
   const daily = meta.artifacts?.daily?.path;
   const summary = meta.artifacts?.summary?.path;
   if (!daily || !summary)
@@ -66,6 +76,7 @@ export async function loadBacktestDaily(
   target?: string,
   signal?: AbortSignal,
 ) {
+  requireSignalsFormat(meta);
   const daily = meta.artifacts?.daily?.path;
   if (!daily) throw new Error(i18n.t("backtest.errors.missingDaily"));
   return loadParquetRows<DailyRow>(`${meta._path}/${daily}`, target, signal);

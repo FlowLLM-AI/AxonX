@@ -23,19 +23,14 @@ class TaskFile:
 @dataclass(frozen=True, slots=True)
 class TaskPlan:
     files: tuple[TaskFile, ...]
-    rejected: tuple[str, ...]
     size: int
 
     @property
     def empty(self) -> bool:
-        return not self.files and not self.rejected
-
-    @property
-    def transferable(self) -> bool:
-        return bool(self.files) and not self.rejected
+        return not self.files
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SyncReport:
     uploaded: list[str] = field(default_factory=list)
     rejected: list[str] = field(default_factory=list)

@@ -10,6 +10,7 @@ from ..constants import (
     AXONX_DEFAULT_LOG_DIR,
     AXONX_DEFAULT_TIMEZONE,
     AXONX_NAME,
+    DEFAULT_TRANSFER_BUDGET_BYTES,
 )
 from ..utils.target import normalize_target
 
@@ -87,6 +88,7 @@ class ApplicationConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     app_name: str = AXONX_NAME
     workspace_dir: str = ".axonx"
+    transfer_budget_bytes: int = Field(default=DEFAULT_TRANSFER_BUDGET_BYTES, gt=0, strict=True)
     log_dir: str = AXONX_DEFAULT_LOG_DIR
     timezone: str = AXONX_DEFAULT_TIMEZONE
     language: Literal["en", "zh"] = "en"

@@ -17,6 +17,7 @@ export interface OnlineCommit {
   artifacts: Record<string, ArtifactFile>;
 }
 export interface ReportSettings {
+  signals_format: "stock-signals-v1";
   strategy_identity: string;
   dimensions: {
     top_ns: number[];
@@ -85,6 +86,7 @@ function settings(value: unknown): value is ReportSettings {
   const { top_ns, benchmarks, holding_detail_top_n } = value.dimensions;
   const { start, end } = value.date_range;
   return (
+    value.signals_format === "stock-signals-v1" &&
     digest(value.strategy_identity) &&
     Array.isArray(top_ns) &&
     top_ns.length > 0 &&
@@ -149,7 +151,6 @@ export function parseCommit(value: unknown): OnlineCommit {
     "positions",
     "orders",
     "trades",
-    "targets",
     "prediction_protocol",
     "calendar",
     "input_features",

@@ -1,3 +1,4 @@
+import type { DisplayReplica } from "../../shared/lib/replica";
 import type { JsonSchema } from "../../shared/schema/types";
 
 export type TaskState =
@@ -38,12 +39,14 @@ export interface TaskMetadata {
   error: string;
   exit_code: number;
   log_path: string;
+  replica: DisplayReplica | null;
 }
 
 export interface TaskSummary extends Omit<
   TaskMetadata,
-  "input_params" | "output_params" | "steps" | "children"
+  "input_params" | "output_params" | "steps" | "children" | "replica"
 > {
+  is_replica?: boolean;
   display_name?: string;
   is_online?: boolean;
   step_progress?: {

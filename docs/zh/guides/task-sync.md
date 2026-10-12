@@ -1,28 +1,26 @@
-# 任务快照同步
+# 结果展示同步
 
-任务同步把源服务的完整终态 Task 目录复制到目标。每次源服务启动，先读取目标的 `task_sync_index`，再扫描本地终态目录，将缺失或内容不同的快照加入队列。不持久化确认状态或失败记录。
+任务同步发布终态任务的**结果展示副本**，不是可执行的工作区备份。`task_names` 匹配 `<task type>#<registration>#<task name>` 的最后一段；空列表包含所有名称。复合任务和子任务独立应用同一筛选规则。
 
-## 范围与生命周期
+## 内容与语义
 
-`task_names` 精确匹配 `<task type>#<registration>#<task name>` 的最后一段，不限制任务类型和注册名。空列表包含所有名称。启动对账使用文件名和内容的 SHA256 摘要，包含 metadata、events 和产物；因此同名任务重跑、同一运行的产物更新都能被识别。计算摘要需要读取两端匹配的快照，大工作区的启动对账耗时更长。
+副本包含 `metadata.json`、执行事件、发布的产物及模型或在线清单引用的必要文件。排除上游 `inputs/`、固定模型输入 `model_snapshot/`、未发布文件、临时工作区、外部日志及插件环境。本地硬链接输入快照保持完整。
 
-运行期间，Repository 变化按 Task ID 合并，只有终态快照会发送。queued/running 任务跳过，等待后续完成事件。Watcher 故障恢复时重新对账，补齐漏掉的变化。本地删除不会删除远端记录。
+源指标与研究协议保留原始运行语义。`metadata.replica` 保存 `purpose: display`、源与策略摘要、实际文件大小和 SHA256、省略路径及原因、采样行数与日期范围、源日志路径。目标本地 `log_path` 为空。Studio 标记副本并展示覆盖范围。计算消费者拒绝将副本作为研究输入；副本不会作为同步源继续转发。
 
-快照不包含整个工作区的 Tushare 原始数据、Agent 会话、外部日志和插件环境，不迁移 worker，也不自动复制其他名称的依赖任务。远端重跑仍需要对应插件、数据和执行环境。
+## 唯一预算
 
-## 目标配置
+应用级 `transfer_budget_bytes` 默认 536870912（512 MiB），控制每个归档的压缩前总大小，包括 metadata 与 tar 开销，同时控制上传上限。发送端通过 `task_sync_index` 使用两端较小预算。没有独立单文件大小选项；`max_file_bytes`、`max_archive_bytes` 会被拒绝。
 
-两端都需要更新后的 AxonX 默认配置，包含 `task_sync_index`、`sync_tasks` 和 `/files`。旧接收端没有索引 Job，无法参与启动对账。接收端无需启用发送组件。
+能放入预算时保持文件完整。否则按共同的最近完整 `trade_date` 范围重新生成日期型业务 Parquet。采样检查实际编码大小，保留类型及文件元数据，绝不截断字节或单个交易日。模型、JSON、任务记录、报告汇总、交易流水和参考交易日历不采样。最近一个完整交易日仍放不下时省略可采样数据并记录原因；必要的不可采样内容超限则明确拒绝。源文件和原始指标均不改变。
 
-```bash
-export AXONX_SERVICE_TOKEN='<接收端 token>'
-axonx start --service.host 0.0.0.0 --service.port 1024
-```
+## 配置
 
-## 源端配置
+两端使用相同应用预算，接收端无需配置同步组件。目标 token 应与接收服务的鉴权 token 一致。
 
 ```yaml
 extends: default
+transfer_budget_bytes: 536870912
 targets:
   - address: http://archive.example:1024
     token: ${AXONX_SYNC_REMOTE_TOKEN}
@@ -30,12 +28,9 @@ components:
   sync:
     default:
       backend: local
-      task_repository: default
       target: http://archive.example:1024
       task_names: [research-model]
       max_archives_per_flush: 4
-      max_file_bytes: 104857600
-      max_archive_bytes: 268435456
       timeout_seconds: 300
 jobs:
   sync_flush:
@@ -50,35 +45,20 @@ schedules:
     concurrency_policy: forbid
 ```
 
-```bash
-export AXONX_SYNC_REMOTE_TOKEN='<接收端 token>'
-axonx start --config sync-source.yaml
-```
+## 对账、重试与清理
 
-组件的 target 必须匹配配置的目标地址。多个目标分别配置同步组件和独立调度的 flush Job；发往同一目标的名称可以共用组件和归档批次。
+`task_sync_index` 返回 `transfer_budget_bytes` 与 `tasks` 映射，其中每个已校验副本包含 `source_digest`、`policy_digest`。启动时比较源端发布内容和采样策略。相同副本跳过；重跑、产物或预算变化会触发替换。仅被排除的输入内容变化无需重传。
 
-`task_ids`、`task_id_prefixes`、`sync_on_start` 已移除，使用时会报错。过滤改用 `task_names`，启动对账始终执行。旧工作区 `sync/*.json` 状态文件不再读取，可以手动清理。
+Repository 事件将终态源任务加入队列；Watcher 漏事件恢复后触发对账。启动索引失败在后续 flush 重试。暂时性的准备、上传或提交失败保留队列；确定性无效产物或不可采样内容超限明确报告，避免每分钟无效重试。未尝试批次保留队列。队列仅存于内存，重启对账恢复中断传输。本地删除不自动传播。
 
-## 批次、失败与预算
+一个任务副本完整装入一个归档。接收端验证精确文件清单、大小和哈希，拒绝覆盖活跃任务，并原子提交，失败回滚。成功、失败和取消均清理源端采样临时文件及远端上传暂存文件；取消等待后台准备结束后再清理文件。
 
-多个完整 Task 合并成归档，同一轮 flush 复用 HTTP 连接。默认单文件上限 100 MiB、归档预算 256 MiB、每轮最多四个归档。一个 Task 必须装进一个归档，不拆分大任务。`max_archive_bytes` 必须大于 `max_file_bytes`，并遵守接收端 256 MiB 上传限制。
+## 破坏式格式
 
-`SyncReport` 包含 `uploaded`、`rejected`、`oversized`、`deferred`、`archives`。`archives` 表示尝试的归档数。deferred 是尚未尝试的任务，留在内存队列中等待下一轮调度。过大或不完整的快照记录日志后丢弃。
-
-每个批次只尝试一次，失败记录日志后丢弃，其他批次可以继续。发送端校验 `JobResponse.success` 和上传 SHA256，HTTP 200 不代表应用成功。成功或失败后都会尝试清理上传暂存文件。不保存失败列表，也不自动重试。修复连接或大小限制后重启源端，重新对账补齐缺失或旧快照。本地新变化也可以再次触发该任务发送。
-
-启动对账失败时，源端记录日志后继续运行，不进行全量重传。后续本地变化仍可发送；目标恢复后重启源端补齐已有缺口。
-
-接收端拒绝覆盖或删除活跃 Task，应用失败时回滚本次操作。同 ID 终态目录整体替换，不保留历史版本备份。
+两端必须使用新的展示副本格式。旧完整目录归档及旧索引响应直接拒绝，无兼容读取或迁移路径。回测先按统一的 `signals.parquet` 格式重新生成产物，再发布。手动 `sync_tasks` 接受准备好的副本归档或显式删除，不接受未标记的普通任务目录。
 
 ## 验证
 
-1. 提交名称匹配的 Task，等待终态及下一轮 flush。
-2. 对比目标 metadata 和产物 SHA256。
-3. 重启源端，完全相同的快照不应进入队列。
-4. 同名重跑或更新产物，启动对账应识别新快照。
-5. 传输失败时检查日志，修复后重启补齐。
-
-手动同步仍可先 `POST /files` 上传完整 Task 归档，再用 `answer.path` 调用 `sync_tasks`。手动 API 保留显式删除能力；自动发送端不发送删除。
+检查匹配的父子任务均出现、输入快照不存在、样本保留最近完整日期、源文件不变、实际哈希匹配副本清单、重启不重复传输、预算与运行变化可更新、暂时性失败可恢复、临时文件已清理。
 
 [调度](scheduling.md) · [远程机器](remote-machines.md) · [同步 API](../api/plugins-sync.md)

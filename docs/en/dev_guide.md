@@ -64,7 +64,7 @@ Submit every Task through `axonx submit --task <name>`; without a service, use `
 A plugin can register multiple Tasks; the qlib_a158 example registers five Task types in `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml`. The qlib_a158
 paths, class names, registered names, and dependency chain here are illustrative; replace them with actual definitions when developing other research plugins. Plugin installation and Task submission are separate operations.
 
-Same-name reruns clear run-owned files, including metadata.json and events.jsonl, while retaining the reserved `persistent/` directory. Use `self.persistent_dir` for cumulative business data; plugins own its schema, updates and locking. Run IDs and lifecycle records still describe only the current execution. Explicit Task deletion removes persistent data too; snapshot synchronization replaces the complete Task directory. `persistent/` must be a regular directory, not a symlink.
+Same-name reruns clear run-owned files, including metadata.json and events.jsonl, while retaining the reserved `persistent/` directory. Use `self.persistent_dir` for cumulative business data; plugins own its schema, updates and locking. Run IDs and lifecycle records still describe only the current execution. Explicit Task deletion removes persistent data too; display synchronization atomically replaces the target Task directory with selected outputs. `persistent/` must be a regular directory, not a symlink.
 
 ### Required authoring contracts
 
@@ -339,6 +339,6 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 - Artifact paths: throughout execution, metadata is written to `workspace/<task_type>/<task_id>/metadata.json`; `preview_file` uses workspace-relative paths.
 - Actual values: obtain upload archive paths, target service addresses, and Task IDs from real configuration or service responses before executing the corresponding commands.
 
-`/files` is an HTTP endpoint; use the same service URL and token as subsequent operations. Multipart accepts exactly one `file` and an optional text `directory` under `tmp`; let curl set Content-Type. Raw binary requires `x-file-name` and accepts `x-file-directory`. Headers override multipart metadata. The default file limit is 256 MiB; multipart requests allow another 64 KiB for framing.
+`/files` is an HTTP endpoint; use the same service URL and token as subsequent operations. Multipart accepts exactly one `file` and an optional text `directory` under `tmp`; let curl set Content-Type. Raw binary requires `x-file-name` and accepts `x-file-directory`. Headers override multipart metadata. The default file limit is 512 MiB; multipart requests allow another 64 KiB for framing.
 
-Check `success` and retain `answer.path`, `answer.sha256`, and `answer.size`. The path is relative to the receiving workspace. Use it for `sync_tasks` with a valid Task snapshot archive, or pass path and sha256 to `install_plugin`; uploading only stages bytes. Consumers clean up staged files; use the table's DELETE request for unconsumed uploads. Repeated cleanup is harmless.
+Check `success` and retain `answer.path`, `answer.sha256`, and `answer.size`. The path is relative to the receiving workspace. Use it for `sync_tasks` with a verified display-replica archive, or pass path and sha256 to `install_plugin`; uploading only stages bytes. Consumers clean up staged files; use the table's DELETE request for unconsumed uploads. Repeated cleanup is harmless.

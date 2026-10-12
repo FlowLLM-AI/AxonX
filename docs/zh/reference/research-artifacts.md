@@ -244,3 +244,9 @@ N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图
 - [`Studio 读取映射`](../../../axonx_studio/src/features/research/ResearchPage.tsx)
 - [`回测展示类型`](../../../axonx_studio/src/features/research/backtest/types.ts)
 - [`qlib_a158 输出实现`](../../../plugins/qlib_a158/axonx_qlib_a158/)
+
+## 统一回测信号
+
+唯一的 `signals.parquet` 保留全部输入信号，增加非空 Boolean `is_backtest_candidate`、可空 `target_rank`、可空 `label_return`。筛选候选标记即可得到回测候选表。不再生成 `targets.parquet` 或 `targets_file`。缺少标签不影响候选资格。预测打分协议不变。旧回测产物需重新生成，读取端不支持旧格式。
+
+产物声明 `signals_format: stock-signals-v1`。读取端拒绝旧版回测产物和在线提交，请重新运行生成新产物；预测原始打分协议保持不变。

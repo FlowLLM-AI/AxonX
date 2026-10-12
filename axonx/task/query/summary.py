@@ -38,6 +38,7 @@ def summarize_status(status: TaskMetadata) -> dict:
             or isinstance(status.input_params.get("comparison_keys"), list)
         )
     )
+    summary["is_replica"] = status.replica is not None
     summary["step_progress"] = None
     if status.steps:
         index = next((i for i, step in enumerate(status.steps) if step.finished_at is None), len(status.steps) - 1)

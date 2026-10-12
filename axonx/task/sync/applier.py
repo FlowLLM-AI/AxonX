@@ -1,4 +1,4 @@
-"""Validate and atomically apply Task snapshot archives."""
+"""Validate and atomically apply display-replica archives."""
 
 from __future__ import annotations
 
@@ -9,21 +9,26 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from ...constants import MAX_UPLOAD_BYTES
+from ...constants import DEFAULT_TRANSFER_BUDGET_BYTES
 from ...workspace.paths import WorkspacePaths
 from ..storage.workspace import parse_task_directory, read_task_metadata
+from .index import verify_replica
 from .models import SyncTasksReport
 
 MAX_SYNC_DELETIONS = 200
 MAX_ARCHIVE_MEMBERS = 100_000
-MAX_EXTRACT_RATIO = 100
 
 
 class TaskArchiveApplier:
-    """Apply complete Task snapshots with rollback on commit failure."""
+    """Apply verified display replicas with rollback on commit failure."""
 
-    def __init__(self, workspace_path: Path) -> None:
+    def __init__(
+        self,
+        workspace_path: Path,
+        transfer_budget_bytes: int = DEFAULT_TRANSFER_BUDGET_BYTES,
+    ) -> None:
         self.paths = WorkspacePaths(workspace_path)
+        self.transfer_budget_bytes = transfer_budget_bytes
 
     def apply(
         self,
@@ -32,8 +37,8 @@ class TaskArchiveApplier:
         archive_name: str | None = None,
     ) -> SyncTasksReport:
         removed = self._deletions(deletions)
-        if archive_path is not None and archive_path.stat().st_size > MAX_UPLOAD_BYTES:
-            raise ValueError(f"Sync archive exceeds {MAX_UPLOAD_BYTES} bytes")
+        if archive_path is not None and archive_path.stat().st_size > self.transfer_budget_bytes:
+            raise ValueError(f"Sync archive exceeds {self.transfer_budget_bytes} bytes")
         with tempfile.TemporaryDirectory(prefix=".axonx-sync-", dir=self.paths.root) as temporary:
             staging = Path(temporary)
             extracted = staging / "incoming"
@@ -69,11 +74,10 @@ class TaskArchiveApplier:
         except tarfile.TarError as exc:
             raise ValueError(f"Invalid sync archive: {exc}") from exc
 
-    @staticmethod
-    def _check_bounds(members: Sequence[tarfile.TarInfo]) -> None:
+    def _check_bounds(self, members: Sequence[tarfile.TarInfo]) -> None:
         if len(members) > MAX_ARCHIVE_MEMBERS:
             raise ValueError(f"Sync archive exceeds {MAX_ARCHIVE_MEMBERS} members")
-        if sum(member.size for member in members) > MAX_UPLOAD_BYTES * MAX_EXTRACT_RATIO:
+        if 10240 + sum(512 + ((member.size + 511) // 512) * 512 for member in members) > self.transfer_budget_bytes:
             raise ValueError("Sync archive expands beyond the configured limit")
 
     def _member(self, member: tarfile.TarInfo, destination: str) -> tarfile.TarInfo:
@@ -112,6 +116,7 @@ class TaskArchiveApplier:
             status = read_task_metadata(root / relative_path, task_id)
             if status is None or not status.state.is_terminal:
                 raise ValueError(f"Sync archive Task is missing a terminal status: {relative_path}")
+            verify_replica(root, task_id)
 
     def _commit(
         self,

@@ -47,6 +47,7 @@ function task(
     error: "",
     exit_code: 0,
     log_path: "",
+    replica: null,
   };
 }
 let root: Root;

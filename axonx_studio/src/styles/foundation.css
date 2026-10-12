@@ -656,7 +656,7 @@
   gap: 11px;
   margin: 0 0 14px -13px;
 }
-.step-item > span {
+.step-item > span:first-child {
   width: 25px;
   height: 25px;
   display: grid;

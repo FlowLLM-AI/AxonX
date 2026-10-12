@@ -1,5 +1,6 @@
 language: en
 workspace_dir: ${AXONX_WORKSPACE_DIR:-.axonx}
+transfer_budget_bytes: 536870912
 
 # =========== Known target services ===========
 targets: []
@@ -91,8 +92,6 @@ components:
   #     target: ${AXONX_SYNC_TARGET}
   #     task_names: []
   #     max_archives_per_flush: 4
-  #     max_file_bytes: 104857600
-  #     max_archive_bytes: 268435456
   #     timeout_seconds: 300
 
 # =========== HTTP service ===========

@@ -1,12 +1,19 @@
 """One mark-to-market cash/position ledger for stock prediction backtests."""
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 import polars as pl
 
-from .data import KEYS, MARKET_COLUMNS, SIGNAL_COLUMNS, normalize_calendar, normalize_keys, validate_keys
+from .data import (
+    KEYS,
+    MARKET_COLUMNS,
+    SIGNAL_COLUMNS,
+    normalize_calendar,
+    normalize_keys,
+    validate_keys,
+)
 
 
 class PortfolioPolicy(Protocol):
@@ -138,14 +145,24 @@ def run_backtest(
         )
         for n in config.top_ns:
             portfolio = portfolios[n]
-            cash, previous_equity, book = portfolio["cash"], portfolio["equity"], portfolio["book"]
+            cash, previous_equity, book = (
+                portfolio["cash"],
+                portfolio["equity"],
+                portfolio["book"],
+            )
             fees = bought = sold = 0.0
             sell_count = buy_count = 0
             limit = _replacement_limit(policy, n) if date != dates[0] else n
             ranks = ranks_by_date.get(date, {})
             delayed_exits = unfilled = 0
             held = (
-                sorted(book, key=lambda code, current=ranks: (-current.get(code, math.inf), code))
+                sorted(
+                    book,
+                    key=lambda code, current=ranks: (
+                        -current.get(code, math.inf),
+                        code,
+                    ),
+                )
                 if policy is not None
                 else list(book)
             )
@@ -160,7 +177,9 @@ def run_backtest(
                 due = position["planned_exit_date"]
                 eligible = (
                     policy.should_exit(
-                        rank=ranks.get(code), age=date_indices[date] - date_indices[position["entry_date"]], n=n
+                        rank=ranks.get(code),
+                        age=date_indices[date] - date_indices[position["entry_date"]],
+                        n=n,
                     )
                     if policy is not None
                     else due is not None and date >= due
@@ -308,7 +327,7 @@ def run_backtest(
                     "count": len(book),
                     "open_positions": len(book),
                     "delayed_open_positions": sum(
-                        (p["planned_exit_date"] is not None and date >= p["planned_exit_date"] for p in book.values())
+                        p["planned_exit_date"] is not None and date >= p["planned_exit_date"] for p in book.values()
                     ),
                     "unsettled_positions": len(book),
                     "delayed_exits": delayed_exits,
@@ -355,9 +374,24 @@ def run_backtest(
     frames = {
         "daily": output,
         "summary": _summarize(
-            output, benchmarks, config.annual_risk_free_rate, config.annualization_days, config.top_ns
+            output,
+            benchmarks,
+            config.annual_risk_free_rate,
+            config.annualization_days,
+            config.top_ns,
         ),
-        "targets": targets.rename({"_target_return": "label_return"}),
+        "signals": signals.join(
+            targets.select(
+                *KEYS,
+                pl.lit(True).alias("is_backtest_candidate"),
+                "target_rank",
+                pl.col("_target_return").alias("label_return"),
+            ),
+            on=list(KEYS),
+            how="left",
+            validate="1:1",
+            maintain_order="left",
+        ).with_columns(pl.col("is_backtest_candidate").fill_null(False)),
         "orders": _frame(
             orders,
             {
@@ -476,7 +510,10 @@ def _diagnostics(
             idcg = sum((2**v - 1) / math.log2(rank + 2) for rank, v in enumerate(ideal[:n]))
             row[f"top{n}_ndcg"] = dcg / idcg if idcg else None
         quality.append(row)
-    schema = {"trade_date": pl.String, **{f"top{n}_ndcg": pl.Float64 for n in config.top_ns}}
+    schema = {
+        "trade_date": pl.String,
+        **{f"top{n}_ndcg": pl.Float64 for n in config.top_ns},
+    }
     diagnostics = diagnostics.join(
         pl.DataFrame(quality, schema=schema), on="trade_date", how="full", coalesce=True
     ).with_columns(pl.when(pl.col(c).is_finite()).then(pl.col(c)).otherwise(None).alias(c) for c in ("ic", "rank_ic"))

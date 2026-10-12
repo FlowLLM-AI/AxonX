@@ -89,12 +89,8 @@ TASK_ID_SEPARATOR = "#"
 GENERATED_TASK_NAME_TIME_FORMAT = "%Y%m%d%H"
 TASK_NAME_PATTERN = r"^[A-Za-z0-9-]{1,32}$"
 
-# The largest file one upload request may stage, and the largest archive the sync
-# component may build to send through one. An archive is uploaded as a single
-# request, so the sync budget has to stay below the receiving workspace's upload
-# limit; keeping both here is what makes that relation visible.
-MAX_UPLOAD_BYTES = 256 * 1024 * 1024
-MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
+# One application budget for uploads and uncompressed display-replica archives.
+DEFAULT_TRANSFER_BUDGET_BYTES = 512 * 1024 * 1024
 
 # Request budget shared by the Tushare connector and the Task built on it.
 TUSHARE_TIMEOUT_SECONDS = 600

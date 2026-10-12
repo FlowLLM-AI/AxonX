@@ -153,3 +153,7 @@ events.jsonl is an append-only progress record; ordinary logs are stored at log_
 [Jobs and Tasks](../concepts/jobs-and-tasks.md) · [Task API](../api/tasks.md) · [Research artifact contracts](research-artifacts.md)
 
 Source: [Input/output](../../../axonx/task/core/params.py), [Context](../../../axonx/task/core/context.py), [Definitions](../../../axonx/task/catalog/resolver.py), [Handle](../../../axonx/task/contracts/submission.py), [Status](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/workspace.py).
+
+## Display replicas
+
+`TaskMetadata.replica` is null for source runs. A synchronized result has a display manifest containing `purpose`, `source_digest`, `policy_digest`, `files`, `omitted`, and `source_log_path`. Each file records actual size/hash and optional sampling rows/dates. Source outputs and metrics remain original; display consumers use the actual file manifest. Research input consumers reject replicas.

@@ -9,7 +9,7 @@ description: 用同步 Python 步骤组合已注册的 Task，显式传递输入
 
 顺序、循环和条件分支使用普通 Python 表达，不需要额外的 Workflow 服务或配置语言。第一版支持本机同步组合，不提供并行执行、自动重试、崩溃续跑或分布式调度。
 
-同名重跑清理当次执行文件（包括 metadata.json 和 events.jsonl），但保留约定的 `persistent/` 目录。通过 `self.persistent_dir` 保存累计业务数据；插件负责其格式、更新和并发控制。Run ID 和生命周期记录仍只描述当前执行。显式删除 Task 会一并删除持久数据；快照同步仍替换完整 Task 目录。`persistent/` 必须是普通目录，不能是符号链接。
+同名重跑清理当次执行文件（包括 metadata.json 和 events.jsonl），但保留约定的 `persistent/` 目录。通过 `self.persistent_dir` 保存累计业务数据；插件负责其格式、更新和并发控制。Run ID 和生命周期记录仍只描述当前执行。显式删除 Task 会一并删除持久数据；展示同步以所选产物原子替换目标 Task 目录。`persistent/` 必须是普通目录，不能是符号链接。
 
 ## 编写复合 Task
 

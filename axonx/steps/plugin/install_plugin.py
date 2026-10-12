@@ -15,7 +15,10 @@ class InstallPluginStep(BaseStep):
     async def execute(self):
         path = self.context["path"]
         sha256 = self.context["sha256"]
-        staged_files = StagedFiles(self.workspace_path)
+        staged_files = StagedFiles(
+            self.workspace_path,
+            transfer_budget_bytes=self.app_config.transfer_budget_bytes,
+        )
         staged = staged_files.file(path)
         try:
             artifact_directory = self.workspace_path / "plugins" / "artifacts"

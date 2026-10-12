@@ -613,7 +613,8 @@
     "errors": {
       "parquetRequired": "Backtest artifacts must be Parquet files",
       "missingDailySummary": "Backtest metadata is missing daily or summary artifacts",
-      "missingDaily": "Backtest metadata is missing the daily artifact"
+      "missingDaily": "Backtest metadata is missing the daily artifact",
+      "signalsFormat": "Unsupported stock signals format; rerun the task with the current protocol"
     },
     "noSummaryData": "NO SUMMARY DATA",
     "daily_mean_in_range": "Daily mean in range",
@@ -875,5 +876,12 @@
       "quarter": "Quarter",
       "month": "Month"
     }
+  },
+  "replica": {
+    "label": "Result display replica",
+    "description": "Metrics describe the full source run. Available files may cover fewer dates; input snapshots are omitted. This replica cannot be used as a research input.",
+    "sample": "{{name}}: {{start}}–{{end}}, {{rows}} of {{total}} rows",
+    "omitted": "Not synchronized: {{files}}",
+    "logUnavailable": "Logs were not synchronized"
   }
 }

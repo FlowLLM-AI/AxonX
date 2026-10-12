@@ -196,3 +196,17 @@ def test_later_signal_times_do_not_invalidate_earlier_reports(store):
     assert not history.report_is_current(earlier.model_copy(update={"commit_id": "f" * 32}))
     publish(store, trade_time="1430")
     assert not store.history("0" * 64).report_is_current(earlier)
+
+
+@pytest.mark.parametrize("role", ["targets", "signals"])
+def test_old_stock_commits_cannot_be_read_as_current_history(store, role):
+    import json
+
+    publish(store)
+    value = json.loads(store.manifest.read_text())
+    commit = value["commits"][0]
+    commit["artifacts"][role] = commit["artifacts"]["signal"]
+    with pytest.raises(ValidationError, match="Unsupported stock signals format"):
+        from axonx.task.contracts import OnlineHistory
+
+        OnlineHistory.model_validate(value)

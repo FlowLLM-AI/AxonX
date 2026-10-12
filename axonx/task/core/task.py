@@ -17,9 +17,20 @@ from ...constants import (
 )
 from ...enums import ComponentEnum, TaskType
 from ...utils import get_log_path, get_logger
-from ..storage.workspace import PERSISTENT_DIR, METADATA_FILE, TaskMetadata, task_path
+from ..storage.workspace import (
+    METADATA_FILE,
+    PERSISTENT_DIR,
+    TaskMetadata,
+    read_task_metadata,
+    task_id_from_path,
+    task_path,
+)
 from .context import TaskContext
-from .identity import generated_task_name, parse_source_tasks, validate_registration_name
+from .identity import (
+    generated_task_name,
+    parse_source_tasks,
+    validate_registration_name,
+)
 from .params import BaseInputParams, BaseOutputParams
 
 TaskStep: TypeAlias = Callable[[], None]
@@ -129,7 +140,11 @@ class BaseTask(ABC):
         self._persist_metadata()  # pylint: disable=not-callable
 
     def source_task_dir(self, task_id: str) -> Path:
-        return task_path(self.workspace_path, task_id)
+        directory = task_path(self.workspace_path, task_id)
+        metadata = read_task_metadata(directory, task_id)
+        if metadata is not None and metadata.replica is not None:
+            raise ValueError("Display replicas cannot be used as research inputs")
+        return directory
 
     @staticmethod
     def normalize_yyyymmdd(value: object, *, optional: bool = False) -> str | None:
@@ -146,7 +161,11 @@ class BaseTask(ABC):
 
     def resolve_workspace_path(self, path: str | Path) -> Path:
         path = Path(path).expanduser()
-        return (path if path.is_absolute() else self.workspace_path / path).resolve()
+        resolved = (path if path.is_absolute() else self.workspace_path / path).resolve()
+        owner = task_id_from_path(self.workspace_path.resolve(), str(resolved))
+        if owner is not None:
+            self.source_task_dir(owner)
+        return resolved
 
     def on_failure(self, error: BaseException) -> None:
         """Record business-specific failure details; the runner owns task status."""

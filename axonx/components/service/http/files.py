@@ -63,7 +63,7 @@ def create_files_router(service, staged_files) -> APIRouter:
         service.logger.info(f"File endpoint called: name=copy_file arguments={arguments}")
         content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
         multipart = content_type == "multipart/form-data"
-        body_limit = staged_files.max_upload_bytes + (MULTIPART_OVERHEAD_BYTES if multipart else 0)
+        body_limit = staged_files.transfer_budget_bytes + (MULTIPART_OVERHEAD_BYTES if multipart else 0)
         _check_upload_size(request, body_limit)
         try:
             if multipart:
@@ -154,7 +154,7 @@ class _UploadParser(MultiPartParser):
 async def _copy_multipart(staged_files, request: Request, filename: str, directory: str | None):
     """Parse one file and optional directory, then reuse content-addressed storage."""
     try:
-        form = await _UploadParser(request, staged_files.max_upload_bytes).parse()
+        form = await _UploadParser(request, staged_files.transfer_budget_bytes).parse()
     except (MultiPartException, MultipartParseError) as exc:
         raise HTTPException(400, str(exc)) from exc
 

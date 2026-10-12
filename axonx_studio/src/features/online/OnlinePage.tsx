@@ -8,6 +8,7 @@ import type { TaskSummary } from "../tasks/types";
 import { isOnlineTask, parseOnlineReport, type OnlineOutcome } from "./types";
 import { playground } from "../../app/environment";
 import { StockReport } from "./StockReport";
+import { ReplicaNotice } from "../../shared/ReplicaNotice";
 
 export default function OnlinePage({
   target,
@@ -163,7 +164,10 @@ function RunReport({
     async (signal: AbortSignal) => {
       const full = await getTaskStatus(task.task_id, target, signal);
       signal.throwIfAborted();
-      return parseOnlineReport(full.output_params);
+      return {
+        ...parseOnlineReport(full.output_params),
+        replica: full.replica,
+      };
     },
     [task.task_id, target],
   );
@@ -223,6 +227,7 @@ function RunReport({
   );
   return (
     <article className="online-report">
+      <ReplicaNotice replica={data?.replica} />
       <header>
         <div>
           <p className="eyebrow">

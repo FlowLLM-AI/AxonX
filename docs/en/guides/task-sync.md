@@ -1,28 +1,26 @@
-# Task snapshot synchronization
+# Result display synchronization
 
-Task synchronization copies complete terminal Task directories from a source to a target. On every source startup, it reads the target's `task_sync_index`, scans local terminal directories, and queues missing or different snapshots. There is no persisted acknowledgement or failed-transfer state.
+Task synchronization publishes terminal **display replicas**, not executable workspace backups. `task_names` matches the final segment of `<task type>#<registration>#<task name>`; an empty list includes every name. Composite and child Tasks are selected independently by the same rule.
 
-## Scope and lifecycle
+## Content and semantics
 
-`task_names` matches the last segment of `<task type>#<registration>#<task name>`, across all task types and registrations. An empty list includes every name. Startup comparison uses SHA256 content digests of file names and contents, including metadata, events, and artifacts. This detects named-task reruns and artifact changes even when the Task ID is unchanged. Hashing reads the matching snapshots on both machines; large workspaces take longer to reconcile.
+A replica contains `metadata.json`, execution events, published outputs and the files required by their model or online manifests. Upstream `inputs/`, pinned `model_snapshot/`, unreferenced files, temporary workspaces, external logs and plugin environments are excluded. Local hard-link input snapshots remain intact.
 
-During operation, Repository changes are coalesced by Task ID. Only terminal snapshots are sent; queued/running tasks are skipped until a later completion change. A watcher recovery reconciles the indexes again to recover missed changes. Local deletion is ignored and does not delete target records.
+Source metrics and research protocols retain the original run semantics. `metadata.replica` has `purpose: display`, source and policy digests, actual file sizes and SHA256 values, omitted paths/reasons, sampled row counts/date coverage and the source log path. The local `log_path` is empty. Studio labels replicas and reports their coverage. Consumers reject replicas as research inputs; replicas are never forwarded as synchronization sources.
 
-Snapshots exclude workspace-wide Tushare raw data, Agent sessions, external logs, and plugin environments. They do not migrate workers or automatically copy dependencies with other task names. Target reruns still require plugins, data, and an execution environment.
+## One budget
 
-## Target setup
+The application-level `transfer_budget_bytes` defaults to 536870912 (512 MiB). It controls each archive's uncompressed total, including metadata and tar overhead, and the upload limit. The sender negotiates the smaller source/receiver budget using `task_sync_index`. There is no independent file-size option. `max_file_bytes` and `max_archive_bytes` are rejected.
 
-Both services need the updated AxonX default configuration with `task_sync_index`, `sync_tasks`, and `/files`. An older receiver without the index Job cannot participate in startup reconciliation. A target does not need the sender-side sync component.
+Complete files are kept whenever they fit. Otherwise, date-keyed business Parquet files are rewritten using a shared suffix of recent complete `trade_date` values. Sampling checks actual encoded sizes and preserves types and file metadata; it never truncates bytes or individual days. Models, JSON, metadata, report aggregates, transaction ledgers and reference calendars are not sampled. If the newest complete day cannot fit, sampleable data is omitted with a reason. Required non-sampleable content exceeding the budget is rejected. Original files and metrics never change.
 
-```bash
-export AXONX_SERVICE_TOKEN='<receiver token>'
-axonx start --service.host 0.0.0.0 --service.port 1024
-```
+## Configuration
 
-## Source configuration
+Use the same application budget on both services. Receivers do not need a sync component. Set the configured target's token to the receiving service's authentication token.
 
 ```yaml
 extends: default
+transfer_budget_bytes: 536870912
 targets:
   - address: http://archive.example:1024
     token: ${AXONX_SYNC_REMOTE_TOKEN}
@@ -30,12 +28,9 @@ components:
   sync:
     default:
       backend: local
-      task_repository: default
       target: http://archive.example:1024
       task_names: [research-model]
       max_archives_per_flush: 4
-      max_file_bytes: 104857600
-      max_archive_bytes: 268435456
       timeout_seconds: 300
 jobs:
   sync_flush:
@@ -50,35 +45,20 @@ schedules:
     concurrency_policy: forbid
 ```
 
-```bash
-export AXONX_SYNC_REMOTE_TOKEN='<receiver token>'
-axonx start --config sync-source.yaml
-```
+## Reconciliation, retries and cleanup
 
-The component's target must match a configured address. For multiple destinations, configure one sync component and one independently scheduled flush Job per destination. Names sent to the same destination can share a component and archive batches.
+`task_sync_index` returns `transfer_budget_bytes` and a `tasks` map containing `source_digest` and `policy_digest` for each verified replica. Startup compares published source content and the current sampling policy. Identical replicas are skipped; reruns, output changes or budget changes produce replacements. Excluded input changes alone do not require retransmission.
 
-`task_ids`, `task_id_prefixes`, and `sync_on_start` have been removed and are rejected. Replace identity filters with `task_names`; startup reconciliation is always performed. Old workspace `sync/*.json` state files are ignored and may be removed manually.
+Repository events queue terminal source Tasks. Missed watcher events trigger reconciliation. Startup index failures retry on subsequent flushes. Temporary planning/upload/commit failures remain queued; deterministic invalid outputs or non-sampleable budget failures are reported instead of retrying every minute. Unattempted batches remain queued. Queue state is in memory; startup reconciliation repairs interrupted transfers. Local deletion never propagates automatically.
 
-## Batching, failures, and budgets
+A Task replica fits entirely in one archive. The receiver verifies the exact file inventory, sizes and checksums, rejects active Task replacements, and atomically commits with rollback. Source sampling files and remote uploads are cleaned up on success, failure and cancellation. Cancellation waits for background staging work before deleting its files.
 
-Multiple complete Tasks are packed into one archive, and the HTTP connection is reused throughout a flush. The per-file limit defaults to 100 MiB, the archive budget to 256 MiB, and the per-flush archive count to four. A Task must fit in one archive; large Tasks are not split. `max_archive_bytes` must exceed `max_file_bytes` and must respect the receiver's 256 MiB upload limit.
+## Breaking format
 
-`SyncReport` includes `uploaded`, `rejected`, `oversized`, `deferred`, and `archives`. `archives` counts attempted batches. Deferred Tasks have not been attempted and remain in the memory queue for the next scheduled flush. Oversized or incomplete snapshots are logged and dropped from that queue.
-
-Each batch is attempted once. A failed batch is logged and discarded; other batches can continue. HTTP 200 is not enough: the sender checks `JobResponse.success` and the upload SHA256. Temporary uploads are cleaned up after success or failure. No failure list or automatic retry queue is retained. Restart the source after fixing connectivity or size limits to reconcile and queue missing or stale snapshots again. New local changes can also queue a Task again.
-
-If startup reconciliation fails, the source logs the error and continues without a full replay. Subsequent local changes can still be sent; restarting after the target recovers repairs existing gaps.
-
-The receiver rejects replacements or deletions of active Tasks and rolls back the current apply operation on failure. Same-ID terminal directories are replaced in full. This is not historical versioned backup.
+Both services must use this display-replica format. Old complete-directory archives and old index responses are rejected; no legacy-reader or migration path is provided. Regenerate backtest artifacts using the unified `signals.parquet` schema before publishing them. Manual `sync_tasks` accepts prepared replica archives or explicit deletions, not arbitrary unmarked Task directories.
 
 ## Verification
 
-1. Submit a Task with a configured name and wait for terminal status and the next flush.
-2. Compare target metadata and artifact SHA256 values.
-3. Restart the source: identical snapshots should not be queued.
-4. Rerun a named Task or update an artifact: startup comparison should queue the changed snapshot.
-5. For transfer errors, inspect logs, fix the cause, and restart to repair gaps.
+Verify that matching parent/child Tasks appear; inputs are absent; samples retain complete recent days; original source files remain unchanged; actual hashes match the replica manifest; restart skips identical replicas; changed budgets/runs update replicas; transient failures recover; temporary files are removed.
 
-For manual transfers, upload a complete Task archive using `POST /files`, then call `sync_tasks` with `answer.path`. The manual API still supports explicit deletions; the automatic sender never sends them.
-
-[Scheduling](scheduling.md) · [Remote machines](remote-machines.md) · [Synchronization API](../api/plugins-sync.md)
+[Scheduling](scheduling.md) · [Remote machines](remote-machines.md) · [Sync API](../api/plugins-sync.md)

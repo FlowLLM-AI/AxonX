@@ -19,6 +19,7 @@ from ....task.storage.workspace import (
     write_task_metadata,
 )
 from ....task.sync import SyncTasksReport, TaskArchiveApplier
+from ....utils.async_work import run_blocking
 from ...registry import provider
 from ..base import BaseTaskRepository
 from ..subscription import TaskChanges, TaskChangeSubscription
@@ -152,8 +153,8 @@ class LocalTaskRepository(BaseTaskRepository):
         archive_name: str | None,
     ) -> SyncTasksReport:
         async with self._lock:
-            report = await asyncio.to_thread(
-                TaskArchiveApplier(self.root).apply,
+            report = await run_blocking(
+                TaskArchiveApplier(self.root, self.app_config.transfer_budget_bytes).apply,
                 archive_path,
                 deletions,
                 archive_name,

@@ -1,3 +1,4 @@
+import type { DisplayReplica } from "../../shared/lib/replica";
 export type ResearchKind =
   "analysis" | "backtest" | "etl" | "train" | "predict";
 export type ResearchPageId =
@@ -25,6 +26,7 @@ export interface TrainingCurveData {
 
 export interface ResearchArtifact {
   _path: string;
+  replica?: DisplayReplica | null;
   _modified?: number;
   task_key: string;
   created_at: string;
@@ -37,6 +39,7 @@ export interface ResearchArtifact {
   target_columns?: string[];
   output_columns?: string[];
   evaluation_status?: string;
+  signals_format?: "stock-signals-v1";
   protocol?: {
     version?: number;
     [key: string]: unknown;

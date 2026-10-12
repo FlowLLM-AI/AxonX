@@ -295,7 +295,12 @@ def test_index_diagnostics_ignore_outside_scores_and_returns():
         config,
         as_of_date="20260108",
     )
-    assert before.frames["targets"]["ts_code"].to_list() == ["A", "D"]
+    merged = before.frames["signals"]
+    assert merged["ts_code"].to_list() == ["A", "D", "C"]
+    assert merged.filter(pl.col("is_backtest_candidate"))["ts_code"].to_list() == ["A", "D"]
+    excluded = merged.filter(~pl.col("is_backtest_candidate"))
+    assert excluded["target_rank"].to_list() == [None]
+    assert excluded["label_return"].to_list() == [None]
     columns = ["ic", "rank_ic", "top1_ndcg"]
     assert before.frames["daily"].select(columns).equals(after.frames["daily"].select(columns))
     assert before.frames["daily"]["top1_ndcg"][0] == pytest.approx(1.0)
@@ -341,7 +346,7 @@ def test_empty_labels_keep_portfolio_and_nullable_diagnostics():
     )
     assert result.frames["daily"]["ic"].null_count() == 4
     assert result.frames["daily"]["top3_ndcg"].null_count() == 4
-    assert result.frames["targets"]["label_return"].null_count() == signals.height
+    assert result.frames["signals"]["label_return"].null_count() == signals.height
 
 
 @pytest.mark.parametrize("bad_time", ["2400", "1260", "945", "15:00", None])

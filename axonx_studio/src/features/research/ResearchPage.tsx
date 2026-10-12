@@ -1,3 +1,5 @@
+import { displayArtifacts } from "../../shared/lib/replica";
+import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import type { TaskMetadata } from "../tasks/types";
 import { parseSourceTasks } from "../../shared/lib/sourceTasks";
 import {
@@ -132,6 +134,7 @@ function useTasks(
                 output_columns: output.output_columns,
                 prediction_statistics: output.statistics,
                 evaluation_status: output.evaluation_status,
+                signals_format: output.signals_format,
                 protocol: output.protocol,
                 index_weight_columns: output.index_weight_columns,
                 scores: output.scores,
@@ -140,7 +143,8 @@ function useTasks(
                 parameters: output.parameters,
                 training_curve: normalizeTrainingCurve(output.training_curve),
                 dimensions: output.dimensions,
-                artifacts: (output.artifacts || {}) as Meta["artifacts"],
+                artifacts: displayArtifacts(metadata),
+                replica: metadata.replica,
                 task_key: String(metadata.reg_name),
                 task_id: String(metadata.task_id),
                 task_type: metadata.task_type as Kind,
@@ -680,6 +684,7 @@ function ArtifactDetail({
           </div>
         </header>
       }
+      <ReplicaNotice replica={meta.replica} />
       {upstreams.length > 0 && (
         <div className="lineage-strip">
           <span>

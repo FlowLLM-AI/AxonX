@@ -244,3 +244,9 @@ Do not manually substitute placeholder digests for real files or alter metadata 
 - [`Studio reading mappings`](../../../axonx_studio/src/features/research/ResearchPage.tsx)
 - [`Backtest presentation types`](../../../axonx_studio/src/features/research/backtest/types.ts)
 - [`qlib_a158 output implementations`](../../../plugins/qlib_a158/axonx_qlib_a158/)
+
+## Unified backtest signals
+
+The sole `signals.parquet` retains every input signal and adds non-null Boolean `is_backtest_candidate`, nullable `target_rank`, and nullable `label_return`. Filtering the candidate flag yields the backtest candidate table. No `targets.parquet` or `targets_file` is produced. Missing labels do not remove candidate membership. Prediction scoring protocols are unchanged. Old backtest files must be regenerated; readers do not support the previous format.
+
+Outputs declare `signals_format: stock-signals-v1`. Readers reject former backtest outputs and online commits; rerun their tasks to generate current outputs. The raw prediction scoring protocol remains unchanged.

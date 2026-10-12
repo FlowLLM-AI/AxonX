@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import polars as pl
 from pydantic import Field, field_validator
@@ -10,16 +10,16 @@ from pydantic import Field, field_validator
 from ....enums import TaskType
 from ....utils.fs import atomic_write, file_sha256
 from ...contracts import (
-    BaseBacktestTask,
+    BacktestBenchmark,
+    BacktestDimensions,
     BaseBacktestInputParams,
     BaseBacktestOutputParams,
-    BacktestDimensions,
-    BacktestBenchmark,
+    BaseBacktestTask,
 )
 from ...core import TaskStep, parse_source_tasks, task_type_from_id
+from ...protocol import STOCK_SIGNALS_FORMAT, PredictionProtocol, task_protocol
 from ...storage import artifact_record, read_metadata
 from ...storage.inputs import pin_source_artifacts
-from ...protocol import PredictionProtocol, task_protocol
 from .engine import BacktestConfig, PortfolioPolicy, run_backtest
 
 
@@ -68,10 +68,11 @@ class StockBacktestInput(StockPortfolioInput):
 
 
 class StockBacktestOutput(BaseBacktestOutputParams):
+    signals_format: Literal["stock-signals-v1"]
     evaluation_status: str
     daily_file: str
     summary_file: str
-    targets_file: str
+    signals_file: str
     orders_file: str
     positions_file: str
     trades_file: str
@@ -163,6 +164,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
     def build_output_params(self) -> StockBacktestOutput:
         daily = self.state["result"].frames["daily"]
         return self.output_cls(
+            signals_format=STOCK_SIGNALS_FORMAT,
             evaluation_status=self.state["result"].status,
             dimensions=BacktestDimensions(
                 top_ns=self.input_params.top_ns,

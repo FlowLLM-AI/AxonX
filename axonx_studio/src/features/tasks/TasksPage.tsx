@@ -654,6 +654,9 @@ function TaskRow({
           <div>
             <span className="task-id-line">
               <strong title={task.task_id}>{task.task_id}</strong>
+              {task.is_replica && (
+                <small className="replica-label">{t("replica.label")}</small>
+              )}
               <button
                 type="button"
                 className={copied ? "copied" : ""}

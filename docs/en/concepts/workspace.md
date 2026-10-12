@@ -32,7 +32,7 @@ logs/                            # Separate log directory, not necessarily insid
 
 The directory rule is `<task_type>/<task_id>`, rather than `<task_type>/<registered_name>/<run_id>`. Task type directories come from the enumeration; a directory's existence does not mean its algorithm plugin is installed.
 
-The reserved `persistent/` directory holds Task-owned cumulative business data. Same-name reruns retain it and clear all other run-owned files; explicit Task deletion removes it, and snapshot synchronization replaces it with the rest of the directory. Plugins own its schema, updates, and locking. It must be a regular directory, not a symbolic link.
+The reserved `persistent/` directory holds Task-owned cumulative business data. Same-name reruns retain it and clear all other run-owned files; explicit Task deletion removes it, and display synchronization replaces the target directory with selected published outputs. Plugins own its schema, updates, and locking. It must be a regular directory, not a symbolic link.
 
 ## Runtime Records
 

@@ -12,13 +12,13 @@
 
 ## 接口清单
 
-| Job                | 用途                                    |
-| ------------------ | --------------------------------------- |
-| `list_plugins`     | 检查服务 Python 环境的全部 AxonX 插件。 |
-| `inspect_plugin`   | 检查一个已安装插件。                    |
-| `install_plugin`   | 安装已上传且校验通过的 wheel。          |
-| `uninstall_plugin` | 从服务环境卸载插件 distribution。       |
-| `sync_tasks`       | 接收任务归档并替换目录，或只应用删除。  |
+| Job                | 用途                                                 |
+| ------------------ | ---------------------------------------------------- |
+| `list_plugins`     | 检查服务 Python 环境的全部 AxonX 插件。              |
+| `inspect_plugin`   | 检查一个已安装插件。                                 |
+| `install_plugin`   | 安装已上传且校验通过的 wheel。                       |
+| `uninstall_plugin` | 从服务环境卸载插件 distribution。                    |
+| `sync_tasks`       | 接收经过校验的展示副本归档并替换目录，或只应用删除。 |
 
 ## list_plugins
 
@@ -190,7 +190,7 @@ answer 为 PluginUninstallResult：distribution、restart_required。
 
 ## sync_tasks
 
-接收任务归档并替换目录，或只应用删除。
+接收经过校验的展示副本归档并替换目录，或只应用删除。
 
 | 参数        | 类型   | 必填 | 默认值      | 约束与含义                         |
 | ----------- | ------ | ---- | ----------- | ---------------------------------- |
@@ -240,11 +240,11 @@ sync_tasks 对暂存路径/归档的 OSError、TypeError、ValueError 直接返�
 { "answer": "Staged file does not exist", "success": false, "metadata": {} }
 ```
 
-接收端检查目录身份与归档路径，应用替换时保留回滚机制。这里传输的是终态任务目录快照，不迁移进程、插件环境、Agent 会话或原始数据树。
+接收端检查目录身份与归档路径，应用替换时保留回滚机制。这里传输的是包含所选发布产物的终态展示副本，不迁移进程、插件环境、Agent 会话、上游输入或原始数据树。
 
-## 启动快照索引
+## task_sync_index
 
-`task_sync_index` 接受可选的 `task_names` 列表，返回终态 Task ID 到 SHA256 内容摘要的映射。自动发送端在启动时对账，不保留失败状态，不传播删除。
+接收 `task_names`，返回 `answer.transfer_budget_bytes` 和 `answer.tasks`。每个 Task ID 对应校验展示文件后的 `source_digest`、`policy_digest`。`sync_tasks` 仅接收终态展示副本归档，且必须包含完整实际文件清单。未标记的源任务归档直接拒绝。发送端启动时对账，后续 flush 重试暂时失败，不传播删除。参见[结果展示同步](../guides/task-sync.md)。
 
 ## sync_flush 的可见性
 

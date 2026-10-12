@@ -58,7 +58,7 @@ axonx submit --task demo --task-name trial-01 --x 2 --y 3
 
 A fixed name corresponds to the same Task ID. A new execution can replace a finished task: run-owned artifacts are cleared while `persistent/` is retained. An active task cannot be overwritten.
 
-Same-name reruns clear run-owned files, including metadata.json and events.jsonl, while retaining the reserved `persistent/` directory. Use `self.persistent_dir` for cumulative business data; plugins own its schema, updates and locking. Run IDs and lifecycle records still describe only the current execution. Explicit Task deletion removes persistent data too; snapshot synchronization replaces the complete Task directory. `persistent/` must be a regular directory, not a symlink.
+Same-name reruns clear run-owned files, including metadata.json and events.jsonl, while retaining the reserved `persistent/` directory. Use `self.persistent_dir` for cumulative business data; plugins own its schema, updates and locking. Run IDs and lifecycle records still describe only the current execution. Explicit Task deletion removes persistent data too; display synchronization atomically replaces the target Task directory with selected outputs. `persistent/` must be a regular directory, not a symlink.
 
 Use different names such as `trial-01` and `trial-02`, or generated default names, when comparing experiments with different parameters. Rerunning the same name does not preserve a complete history in one directory; recovery requires a prior backup.
 

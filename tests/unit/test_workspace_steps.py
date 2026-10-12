@@ -1,6 +1,8 @@
 """Workspace handlers and task-archive application."""
 
+import hashlib
 import io
+import json
 import tarfile
 from pathlib import Path
 
@@ -45,6 +47,25 @@ def test_staged_file_is_verified_before_consumption(tmp_path):
 
 
 def _archive(files: dict[str, bytes]) -> bytes:
+    metadata_path = f"{TASK_DIRECTORY}/metadata.json"
+    if metadata_path in files:
+        metadata = json.loads(files[metadata_path])
+        metadata["replica"] = {
+            "purpose": "display",
+            "source_digest": "a" * 64,
+            "policy_digest": "b" * 64,
+            "files": {
+                name.removeprefix(TASK_DIRECTORY + "/"): {
+                    "size": len(content),
+                    "sha256": hashlib.sha256(content).hexdigest(),
+                }
+                for name, content in files.items()
+                if name != metadata_path
+            },
+            "omitted": {},
+            "source_log_path": "",
+        }
+        files = {**files, metadata_path: json.dumps(metadata).encode()}
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
         for name, content in files.items():

@@ -111,7 +111,7 @@ Static queries use pagination, deduplicate page results, and detect repeated pag
 | ETL lacks master data                   | Download `static` separately and check all three static files                                                  |
 | Insufficient ETL history                | Download earlier history; the latest 7 days cannot support multi-year training                                 |
 
-Raw data lives outside task directories, so task snapshot synchronization does not automatically copy `tushare/`. When migrating a research environment, back up the data root separately, or first generate and save the data needed for research as ETL task artifacts.
+Raw data lives outside task directories, so result display synchronization does not automatically copy `tushare/`. When migrating a research environment, back up the data root separately, or first generate and save the data needed for research as ETL task artifacts.
 
 ## Related documentation and implementation
 

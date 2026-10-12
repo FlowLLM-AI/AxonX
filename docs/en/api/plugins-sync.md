@@ -12,13 +12,13 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 ## Endpoint list
 
-| Job                | Purpose                                                                  |
-| ------------------ | ------------------------------------------------------------------------ |
-| `list_plugins`     | Inspect all AxonX plugins in the service's Python environment.           |
-| `inspect_plugin`   | Inspect an installed plugin.                                             |
-| `install_plugin`   | Install an uploaded and verified wheel.                                  |
-| `uninstall_plugin` | Uninstall a plugin distribution from the service environment.            |
-| `sync_tasks`       | Receive a task archive and replace directories, or apply deletions only. |
+| Job                | Purpose                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| `list_plugins`     | Inspect all AxonX plugins in the service's Python environment.                               |
+| `inspect_plugin`   | Inspect an installed plugin.                                                                 |
+| `install_plugin`   | Install an uploaded and verified wheel.                                                      |
+| `uninstall_plugin` | Uninstall a plugin distribution from the service environment.                                |
+| `sync_tasks`       | Receive a verified display-replica archive and replace directories, or apply deletions only. |
 
 ## list_plugins
 
@@ -190,7 +190,7 @@ Uninstalling removes Task registrations from subsequent queries and submissions 
 
 ## sync_tasks
 
-Receive a task archive and replace directories, or apply deletions only.
+Receive a verified display-replica archive and replace directories, or apply deletions only.
 
 | Parameter   | Type   | Required | Default       | Constraints and meaning                             |
 | ----------- | ------ | -------- | ------------- | --------------------------------------------------- |
@@ -240,11 +240,11 @@ sync_tasks directly returns business-failure text for OSError, TypeError, or Val
 { "answer": "Staged file does not exist", "success": false, "metadata": {} }
 ```
 
-The receiver validates directory identity and archive paths, retaining rollback support when applying replacements. The transfer consists of snapshots of terminal task directories; it does not migrate processes, plugin environments, Agent sessions, or raw data trees.
+The receiver validates directory identity and archive paths, retaining rollback support when applying replacements. The transfer consists of terminal display replicas with selected published outputs; it does not migrate processes, plugin environments, Agent sessions, upstream inputs, or raw data trees.
 
-## Startup snapshot index
+## task_sync_index
 
-`task_sync_index` accepts an optional `task_names` list and returns terminal Task IDs mapped to SHA256 content digests. The automatic sender uses it on startup, retains no failure state, and does not propagate deletions.
+Accepts `task_names` and returns `answer.transfer_budget_bytes` plus `answer.tasks`. Each Task ID maps to `source_digest` and `policy_digest` after validating its display files. `sync_tasks` accepts only terminal display-replica archives with a complete actual-file manifest. Unmarked source archives are rejected. The sender reconciles on startup and retries transient failures on later flushes, without propagating deletions. See [Result display synchronization](../guides/task-sync.md).
 
 ## Visibility of sync_flush
 

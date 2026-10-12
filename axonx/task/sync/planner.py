@@ -1,59 +1,93 @@
-"""Plan complete Task snapshots and bounded archive batches."""
+"""Select published task outputs and pack complete display replicas."""
 
 from __future__ import annotations
 
-import os
+import json
 from pathlib import Path
 
-from ..storage.workspace import task_path
+from ..protocol import STOCK_SIGNALS_FORMAT
+from ..storage.workspace import EVENTS_FILE, METADATA_FILE, read_entry, task_path
+from .errors import SnapshotChangedError
 from .models import TaskFile, TaskPlan
 
-ARCHIVE_HEADROOM_BYTES = 4096
+
+def task_file(path: Path, relative: str) -> TaskFile:
+    stat = path.stat()
+    return TaskFile(path, relative, stat.st_size, stat.st_mtime_ns, stat.st_ino)
 
 
-def plan_task(root: Path, task_id: str, max_file_bytes: int) -> TaskPlan:
+def plan_task(root: Path, task_id: str) -> TaskPlan:
+    """Only published outputs and their manifest dependencies belong to a replica."""
     directory = task_path(root, task_id)
-    files: list[TaskFile] = []
-    rejected: list[str] = []
-    for path in sorted(directory.rglob("*")):
-        if os.path.islink(path) or not path.is_file():
-            continue
-        relative = path.relative_to(directory).as_posix()
-        try:
-            stat = path.stat()
-        except OSError:
-            rejected.append(relative)
-            continue
-        if stat.st_size > max_file_bytes:
-            rejected.append(relative)
-            continue
-        files.append(TaskFile(path, relative, stat.st_size, stat.st_mtime_ns, stat.st_ino))
-    return TaskPlan(
-        tuple(files),
-        tuple(sorted(rejected)),
-        sum(file.archived_bytes for file in files),
-    )
+    metadata = read_entry(root, task_id)
+    if metadata is None or not metadata.state.is_terminal or metadata.replica is not None:
+        raise SnapshotChangedError(f"Task is not a terminal source snapshot: {task_id}")
+    paths = {METADATA_FILE}
+    artifacts = metadata.output_params.get("artifacts", {})
+    if metadata.task_type.value == "backtest" and (
+        "targets" in artifacts
+        or "signals" in artifacts
+        and metadata.output_params.get("signals_format") != STOCK_SIGNALS_FORMAT
+    ):
+        raise ValueError("Unsupported stock signals format; regenerate backtest outputs")
+    if (directory / EVENTS_FILE).is_file():
+        paths.add(EVENTS_FILE)
+    visited: set[str] = set()
+
+    def references(value):
+        if isinstance(value, dict):
+            if isinstance(value.get("path"), str) and "sha256" in value:
+                yield value["path"]
+            for nested in value.values():
+                yield from references(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                yield from references(nested)
+
+    def include(relative: str, parent: Path = directory):
+        candidate = Path(relative)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            raise ValueError(f"Artifact path must stay inside its Task: {relative}")
+        path = parent / candidate
+        if not path.is_file() and parent != directory:
+            path = directory / candidate
+        if not path.resolve().is_relative_to(directory.resolve()) or any(
+            p.is_symlink() for p in (path, *path.parents) if p != directory.parent
+        ):
+            raise ValueError(f"Artifact path escapes its Task: {relative}")
+        name = path.relative_to(directory).as_posix()
+        if name.split("/", 1)[0] in {"inputs", "model_snapshot"}:
+            return
+        if not path.is_file():
+            raise SnapshotChangedError(f"Published artifact is missing: {path}")
+        paths.add(name)
+        if path.suffix == ".json" and name not in visited:
+            visited.add(name)
+            for reference in references(json.loads(path.read_text(encoding="utf-8"))):
+                # Online records use Task-relative paths; model manifests use file-relative paths.
+                base = directory if (directory / reference).is_file() else path.parent
+                include(reference, base)
+
+    for reference in references(metadata.output_params):
+        include(reference)
+    files = tuple(task_file(directory / name, name) for name in sorted(paths))
+    return TaskPlan(files, sum(item.archived_bytes for item in files))
 
 
-def archive_budget(max_archive_bytes: int) -> int:
-    reserve = max(ARCHIVE_HEADROOM_BYTES, max_archive_bytes // 1024)
-    return max(max_archive_bytes - reserve, 1)
+def archive_budget(transfer_budget_bytes: int) -> int:
+    """Reserve tar padding and worst-case gzip overhead inside the same total budget."""
+    return max(0, transfer_budget_bytes - 10240 - max(4096, transfer_budget_bytes // 1024))
 
 
-def pack_batches(
-    plans: dict[str, TaskPlan],
-    budget: int,
-    max_batches: int,
-) -> tuple[list[list[str]], list[str], list[str]]:
+def pack_batches(plans: dict[str, TaskPlan], budget: int, max_batches: int):
     batches: list[list[str]] = []
     rejected: list[str] = []
     current: list[str] = []
     used = 0
-    for task_id in sorted(plans):
-        plan = plans[task_id]
+    for task_id, plan in sorted(plans.items()):
         if plan.empty:
             continue
-        if not plan.transferable or plan.size > budget:
+        if plan.size > budget:
             rejected.append(task_id)
             continue
         if current and used + plan.size > budget:

@@ -27,23 +27,24 @@ extends is not a persistent ApplicationConfig field; the resolver removes it fir
 
 The table lists model defaults, which differ from the expanded built-in default.yaml. For example, model components/jobs are empty, while default.yaml configures task components, an Agent, and multiple Jobs.
 
-| Field          | Type                                      | Model default | Meaning and constraints                                    |
-| -------------- | ----------------------------------------- | ------------- | ---------------------------------------------------------- |
-| app_name       | string                                    | AxonX         | Display name in logs and protocols                         |
-| workspace_dir  | string                                    | .axonx        | Root directory for tasks, artifacts, and application state |
-| log_dir        | string                                    | logs          | Service and task log directory                             |
-| timezone       | string                                    | Asia/Shanghai | Default application/task timezone                          |
-| language       | `en` / `zh`                               | en            | Built-in Agent guide language                              |
-| enable_logo    | boolean                                   | true          | CLI start prints the startup logo                          |
-| log_to_console | boolean                                   | true          | Console logging                                            |
-| log_to_file    | boolean                                   | true          | File logging                                               |
-| plugins        | PluginConfig                              | sources=[]    | Startup plugin sources                                     |
-| targets        | TargetConfig[]                            | []            | Service targets to which the backend may forward           |
-| environment    | dict[string,string]                       | {}            | Application environment injected into workers and Agents   |
-| components     | dict[category,dict[name,ComponentConfig]] | {}            | Named component groups                                     |
-| jobs           | dict[public_name,JobConfig]               | {}            | Job definitions                                            |
-| schedules      | dict[name,ScheduleConfig]                 | {}            | Schedulers                                                 |
-| service        | ComponentConfig/null                      | null          | Service component; CLI start requires service              |
+| Field                 | Type                                      | Model default | Meaning and constraints                                             |
+| --------------------- | ----------------------------------------- | ------------- | ------------------------------------------------------------------- |
+| app_name              | string                                    | AxonX         | Display name in logs and protocols                                  |
+| workspace_dir         | string                                    | .axonx        | Root directory for tasks, artifacts, and application state          |
+| transfer_budget_bytes | integer                                   | 536870912     | One budget for uploads and uncompressed display replicas (512 MiB). |
+| log_dir               | string                                    | logs          | Service and task log directory                                      |
+| timezone              | string                                    | Asia/Shanghai | Default application/task timezone                                   |
+| language              | `en` / `zh`                               | en            | Built-in Agent guide language                                       |
+| enable_logo           | boolean                                   | true          | CLI start prints the startup logo                                   |
+| log_to_console        | boolean                                   | true          | Console logging                                                     |
+| log_to_file           | boolean                                   | true          | File logging                                                        |
+| plugins               | PluginConfig                              | sources=[]    | Startup plugin sources                                              |
+| targets               | TargetConfig[]                            | []            | Service targets to which the backend may forward                    |
+| environment           | dict[string,string]                       | {}            | Application environment injected into workers and Agents            |
+| components            | dict[category,dict[name,ComponentConfig]] | {}            | Named component groups                                              |
+| jobs                  | dict[public_name,JobConfig]               | {}            | Job definitions                                                     |
+| schedules             | dict[name,ScheduleConfig]                 | {}            | Schedulers                                                          |
+| service               | ComponentConfig/null                      | null          | Service component; CLI start requires service                       |
 
 The model prohibits unknown top-level fields. Normalized target addresses must not be duplicated. environment values must be strings, rather than numbers or nested objects.
 

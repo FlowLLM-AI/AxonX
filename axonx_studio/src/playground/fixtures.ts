@@ -67,6 +67,7 @@ export function taskStatus(
     error: "",
     exit_code: 0,
     log_path: `runs/${id}/task.log`,
+    replica: null,
   };
 }
 
@@ -581,6 +582,7 @@ function seedStockOnline(
       sell_cost_rate: 0.0015,
     };
     const settings: import("../features/online/report").ReportSettings = {
+      signals_format: "stock-signals-v1",
       strategy_identity: strategyIdentity,
       dimensions: {
         top_ns: [5, 10],
@@ -595,7 +597,12 @@ function seedStockOnline(
     };
     const tables: Record<string, Record<string, unknown>[]> = {
       signal,
-      signals: signal,
+      signals: signal.map((row) => ({
+        ...row,
+        is_backtest_candidate: row.is_buyable_at_signal,
+        target_rank: row.is_buyable_at_signal ? row.buyable_rank : null,
+        label_return: null,
+      })),
       predictions: signal,
       market: signal,
       daily,
@@ -654,7 +661,6 @@ function seedStockOnline(
         realized_return: 0.012,
         fee: 0.0003,
       })),
-      targets: signal,
       calendar: allDaily.map((row) => ({ trade_date: row.trade_date })),
       input_features: signal,
     };

@@ -613,7 +613,8 @@
     "errors": {
       "parquetRequired": "回测产物必须是 Parquet 文件",
       "missingDailySummary": "回测 metadata 缺少 daily 或 summary 产物",
-      "missingDaily": "回测 metadata 缺少 daily 产物"
+      "missingDaily": "回测 metadata 缺少 daily 产物",
+      "signalsFormat": "不支持旧版股票信号格式，请使用当前协议重新运行任务"
     },
     "noSummaryData": "暂无汇总数据",
     "daily_mean_in_range": "区间日均",
@@ -875,5 +876,12 @@
       "quarter": "季度",
       "month": "月度"
     }
+  },
+  "replica": {
+    "label": "结果展示副本",
+    "description": "指标来自源端完整运行。可用文件可能只覆盖部分日期，输入快照未同步。此副本不能作为研究输入。",
+    "sample": "{{name}}：{{start}}–{{end}}，保留 {{rows}} / {{total}} 行",
+    "omitted": "未同步：{{files}}",
+    "logUnavailable": "日志未同步"
   }
 }

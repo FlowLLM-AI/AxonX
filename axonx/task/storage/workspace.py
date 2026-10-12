@@ -16,6 +16,7 @@ from ...enums import TaskState, TaskType
 from ...utils.fs import atomic_write_json
 from ..core.identity import task_type_from_id
 from ..protocol import Protocol
+from .replica import DisplayReplica
 
 #: One workspace directory per task category holds that category's task directories.
 KINDS = tuple(kind.value for kind in TaskType)
@@ -70,6 +71,7 @@ class TaskMetadata(Protocol):
     error: str = ""
     exit_code: int = Field(default=0, ge=0, le=255)
     log_path: str = ""
+    replica: DisplayReplica | None = None
 
 
 def task_directory(task_id: str) -> str:

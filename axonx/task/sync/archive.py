@@ -1,23 +1,19 @@
-"""Build deterministic archives from complete Task snapshot plans."""
+"""Build deterministic archives from prepared display-replica plans."""
 
 from __future__ import annotations
 
 import gzip
 import os
-import sys
 import tarfile
 from collections.abc import Sequence
 from pathlib import Path
 
 from ..storage.workspace import task_directory
+from .errors import SnapshotChangedError
 from .models import TaskFile, TaskPlan
-from .planner import plan_task
+from .planner import task_file
 
 SYNC_ARCHIVE_NAME = "axonx-sync.tar.gz"
-
-
-class SnapshotChangedError(OSError):
-    """A planned Task changed before its snapshot finished building."""
 
 
 def build_archive(plans: dict[str, TaskPlan], task_ids: Sequence[str], target: Path) -> list[str]:
@@ -29,15 +25,12 @@ def build_archive(plans: dict[str, TaskPlan], task_ids: Sequence[str], target: P
     ):
         for task_id in task_ids:
             plan = plans[task_id]
-            if not plan.transferable:
+            if plan.empty:
                 raise SnapshotChangedError(f"Task snapshot is incomplete: {task_directory(task_id)}")
             for item in plan.files:
                 _add_file(archive, task_id, item)
-            directory = plan.files[0].path
-            for _ in Path(plan.files[0].relative).parts:
-                directory = directory.parent
-            if plan != plan_task(directory.parent.parent, task_id, sys.maxsize):
-                raise SnapshotChangedError(f"Task changed while archiving: {task_id}")
+            if any(task_file(item.path, item.relative) != item for item in plan.files):
+                raise SnapshotChangedError(f"Replica changed while archiving: {task_id}")
             included.append(task_directory(task_id))
     return included
 

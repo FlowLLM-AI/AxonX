@@ -3,10 +3,17 @@
 from datetime import date
 from typing import Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from ...enums import TaskType
-from ..protocol import Protocol, validate_protocol
+from ..protocol import STOCK_SIGNALS_FORMAT, Protocol, validate_protocol
 from .backtest import BacktestDimensions
 
 
@@ -38,8 +45,13 @@ class OnlineCommit(BaseModel):
     artifacts: dict[str, OnlineArtifact] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_date(self):
+    def validate_commit(self):
         validate_protocol(self.protocol, TaskType.INFERENCE)
+        if "targets" in self.artifacts or (
+            "signals" in self.artifacts
+            and self.protocol.get("report", {}).get("signals_format") != STOCK_SIGNALS_FORMAT
+        ):
+            raise ValueError("Unsupported stock signals format; regenerate online records with a new task_name")
         date(
             int(self.trade_date[:4]),
             int(self.trade_date[4:6]),
@@ -94,6 +106,7 @@ class StockOnlineReport(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     kind: Literal["stock_online"] = "stock_online"
+    signals_format: Literal["stock-signals-v1"]
     commit: OnlineCommit
     strategy_identity: str = Field(pattern=r"^[0-9a-f]{64}$")
     dimensions: BacktestDimensions
@@ -110,7 +123,6 @@ class StockOnlineReport(BaseModel):
             "signal",
             "market",
             "signals",
-            "targets",
             "orders",
             "positions",
             "trades",

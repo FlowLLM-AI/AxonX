@@ -27,23 +27,24 @@ extends 不是 ApplicationConfig 的持久字段，由解析器先消除。Pytho
 
 下表为模型默认值，不等于内置 default.yaml 展开的结果；例如模型 components/jobs 为空，但 default.yaml 已配置任务组件、Agent 和多个 Job。
 
-| 字段           | 类型                                  | 模型默认值    | 含义与限制                         |
-| -------------- | ------------------------------------- | ------------- | ---------------------------------- |
-| app_name       | string                                | AxonX         | 日志与协议显示名称                 |
-| workspace_dir  | string                                | .axonx        | 任务、产物与应用状态根目录         |
-| log_dir        | string                                | logs          | 服务与任务日志目录                 |
-| timezone       | string                                | Asia/Shanghai | 默认应用/任务时区                  |
-| language       | `en` / `zh`                           | en            | Agent 内置指南语言                 |
-| enable_logo    | boolean                               | true          | CLI start 打印启动标识             |
-| log_to_console | boolean                               | true          | 控制台日志                         |
-| log_to_file    | boolean                               | true          | 文件日志                           |
-| plugins        | PluginConfig                          | sources=[]    | 启动插件来源                       |
-| targets        | TargetConfig[]                        | []            | 后端可转发的服务目标               |
-| environment    | dict[string,string]                   | {}            | 注入 worker、Agent 的应用环境      |
-| components     | dict[类别,dict[名称,ComponentConfig]] | {}            | 命名组件组                         |
-| jobs           | dict[公开名,JobConfig]                | {}            | Job 定义                           |
-| schedules      | dict[名称,ScheduleConfig]             | {}            | 调度器                             |
-| service        | ComponentConfig/null                  | null          | 服务组件；CLI start 必须有 service |
+| 字段                  | 类型                                  | 模型默认值    | 含义与限制                                  |
+| --------------------- | ------------------------------------- | ------------- | ------------------------------------------- |
+| app_name              | string                                | AxonX         | 日志与协议显示名称                          |
+| workspace_dir         | string                                | .axonx        | 任务、产物与应用状态根目录                  |
+| transfer_budget_bytes | integer                               | 536870912     | 上传与压缩前展示副本的唯一预算（512 MiB）。 |
+| log_dir               | string                                | logs          | 服务与任务日志目录                          |
+| timezone              | string                                | Asia/Shanghai | 默认应用/任务时区                           |
+| language              | `en` / `zh`                           | en            | Agent 内置指南语言                          |
+| enable_logo           | boolean                               | true          | CLI start 打印启动标识                      |
+| log_to_console        | boolean                               | true          | 控制台日志                                  |
+| log_to_file           | boolean                               | true          | 文件日志                                    |
+| plugins               | PluginConfig                          | sources=[]    | 启动插件来源                                |
+| targets               | TargetConfig[]                        | []            | 后端可转发的服务目标                        |
+| environment           | dict[string,string]                   | {}            | 注入 worker、Agent 的应用环境               |
+| components            | dict[类别,dict[名称,ComponentConfig]] | {}            | 命名组件组                                  |
+| jobs                  | dict[公开名,JobConfig]                | {}            | Job 定义                                    |
+| schedules             | dict[名称,ScheduleConfig]             | {}            | 调度器                                      |
+| service               | ComponentConfig/null                  | null          | 服务组件；CLI start 必须有 service          |
 
 模型禁止未知顶层字段。目标地址规范化后不得重复。environment 值必须是字符串，不应放数字或嵌套对象。
 

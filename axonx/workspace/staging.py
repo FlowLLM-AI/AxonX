@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from contextlib import suppress
 from pathlib import Path
 
-from ..constants import MAX_UPLOAD_BYTES
+from ..constants import DEFAULT_TRANSFER_BUDGET_BYTES
 from ..utils.fs import atomic_write, file_sha256
 from .models import StagedFile
 from .paths import COPY_DIR, WorkspacePaths
@@ -29,12 +29,12 @@ class StagedFiles:
         self,
         workspace_path: Path,
         copy_dir: str = COPY_DIR,
-        max_upload_bytes: int = MAX_UPLOAD_BYTES,
+        transfer_budget_bytes: int = DEFAULT_TRANSFER_BUDGET_BYTES,
     ) -> None:
-        if max_upload_bytes <= 0:
-            raise ValueError("max_upload_bytes must be positive")
+        if transfer_budget_bytes <= 0:
+            raise ValueError("transfer_budget_bytes must be positive")
         self.paths = WorkspacePaths(workspace_path, copy_dir)
-        self.max_upload_bytes = max_upload_bytes
+        self.transfer_budget_bytes = transfer_budget_bytes
 
     def file(self, relative_path: str) -> Path:
         """Resolve and verify an existing content-addressed staged file."""
@@ -130,8 +130,8 @@ class StagedFiles:
         return self.paths.relative(target)
 
     def _check_size(self, size: int) -> None:
-        if size > self.max_upload_bytes:
-            raise ValueError(f"Upload exceeds the configured limit of {self.max_upload_bytes} bytes")
+        if size > self.transfer_budget_bytes:
+            raise ValueError(f"Upload exceeds the configured budget of {self.transfer_budget_bytes} bytes")
 
     def _place(self, target_dir: Path, name: str, data: bytes) -> StagedFile:
         digest = hashlib.sha256(data).hexdigest()

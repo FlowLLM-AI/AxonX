@@ -9,11 +9,15 @@ import pytest
 from anyio import CancelScope, lowlevel
 from fastapi import FastAPI
 from loguru import logger
-from starlette.datastructures import UploadFile
 from starlette import formparsers
+from starlette.datastructures import UploadFile
 from starlette.requests import ClientDisconnect, Request
 
-from axonx.components.service.http.files import MULTIPART_OVERHEAD_BYTES, _UploadParser, create_files_router
+from axonx.components.service.http.files import (
+    MULTIPART_OVERHEAD_BYTES,
+    _UploadParser,
+    create_files_router,
+)
 from axonx.workspace.staging import StagedFiles
 
 
@@ -36,7 +40,7 @@ def closed_spools(monkeypatch):
 @pytest.fixture
 def endpoint(tmp_path):
     """Use an isolated workspace and a small limit without the full service."""
-    staged = StagedFiles(tmp_path, max_upload_bytes=32)
+    staged = StagedFiles(tmp_path, transfer_budget_bytes=32)
     server = FastAPI()
     server.include_router(create_files_router(SimpleNamespace(logger=logger), staged))
     return server, staged
@@ -91,7 +95,7 @@ async def test_multipart_headers_override_form_metadata_and_close_spool(endpoint
 async def test_large_multipart_spools_to_disk_and_preserves_bytes(endpoint, tmp_path, closed_spools):
     server, staged = endpoint
     payload = b"x" * (1024 * 1024 + 1)
-    staged.max_upload_bytes = len(payload)
+    staged.transfer_budget_bytes = len(payload)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         response = await client.post("/files", files={"file": ("large.bin", payload)})
     assert response.status_code == 200
@@ -104,7 +108,7 @@ async def test_large_multipart_spools_to_disk_and_preserves_bytes(endpoint, tmp_
 async def test_multipart_closes_rolled_spool_when_storage_is_cancelled(endpoint, monkeypatch, closed_spools):
     server, staged = endpoint
     payload = b"x" * (1024 * 1024 + 1)
-    staged.max_upload_bytes = len(payload)
+    staged.transfer_budget_bytes = len(payload)
     with CancelScope() as scope:
 
         async def cancelled_store(*args, **kwargs):

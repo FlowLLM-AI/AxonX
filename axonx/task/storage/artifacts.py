@@ -5,8 +5,8 @@ from pathlib import Path
 
 from ...constants import AXONX_DEFAULT_ENCODING
 from ...enums import TaskState
-from ..protocol import validate_protocol
 from ...utils.fs import file_sha256
+from ..protocol import validate_protocol
 
 
 def read_metadata(path: Path) -> dict:
@@ -15,6 +15,8 @@ def read_metadata(path: Path) -> dict:
     if not isinstance(value, dict):
         raise TypeError(f"metadata must be a JSON object: {path}")
     validate_protocol(value)
+    if value.get("replica") is not None:
+        raise ValueError("Display replicas cannot be used as research inputs")
     if value.get("state") != TaskState.SUCCEEDED.value:
         raise ValueError(f"Upstream Task must have succeeded: {path} (state={value.get('state')!r})")
     return value

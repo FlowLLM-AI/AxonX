@@ -47,7 +47,7 @@ class HttpService(BaseService):
         """Build the ASGI application without starting a server."""
         from .app import create_http_app
 
-        self.staged_files = StagedFiles(app.workspace_path)
+        self.staged_files = StagedFiles(app.workspace_path, transfer_budget_bytes=app.app_config.transfer_budget_bytes)
         return create_http_app(app, self)
 
     def run_app(self, app: "Application") -> None:

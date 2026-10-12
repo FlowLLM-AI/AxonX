@@ -171,3 +171,12 @@ it("rejects conflicting report settings and invalid signal dates", () => {
   invalid.commit.trade_date = "20260230";
   expect(() => parseStockReport(invalid)).toThrow("Invalid online commit");
 });
+
+it("rejects the former online signals protocol", () => {
+  const report = parseStockReport(
+    seed().tasks.get(taskId)!.output_params.report,
+  );
+  const invalid = structuredClone(report) as unknown as Record<string, unknown>;
+  delete invalid.signals_format;
+  expect(() => parseStockReport(invalid)).toThrow();
+});

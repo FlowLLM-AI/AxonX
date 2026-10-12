@@ -14,7 +14,10 @@ class SyncTasksStep(TaskRepositoryStep):
 
     async def execute(self):
         path = self.context.get("path") or None
-        staged_files = StagedFiles(self.workspace_path)
+        staged_files = StagedFiles(
+            self.workspace_path,
+            transfer_budget_bytes=self.app_config.transfer_budget_bytes,
+        )
         try:
             archive = None if path is None else staged_files.file(path)
             answer = await self.task_repository.apply_sync(

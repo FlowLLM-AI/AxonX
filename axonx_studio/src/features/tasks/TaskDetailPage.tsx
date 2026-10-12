@@ -1,3 +1,4 @@
+import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { isOnlineTask } from "../online/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -286,6 +287,7 @@ export function TaskDetailPage({
 
   return (
     <section className="workspace-page task-detail-page">
+      <ReplicaNotice replica={task.replica} />
       <div className="task-detail-heading">
         <button className="detail-back" onClick={onBack}>
           <ArrowLeft />
@@ -504,7 +506,10 @@ export function TaskDetailPage({
                         {child.node_name} · {child.attempt}
                       </strong>
                       {child.task_id ? (
-                        <button onClick={() => onOpenTask(child.task_id!)}>
+                        <button
+                          className="child-task-link"
+                          onClick={() => onOpenTask(child.task_id!)}
+                        >
                           {child.task_id}
                         </button>
                       ) : (
@@ -529,7 +534,11 @@ export function TaskDetailPage({
         <DetailCard
           className="task-log-card"
           title={labels.logs}
-          summary={task.log_path || labels.logUnavailable}
+          summary={
+            task.replica
+              ? t("replica.logUnavailable")
+              : task.log_path || labels.logUnavailable
+          }
           icon={<FileText />}
           open={panels.logs}
           onToggle={() => togglePanel("logs")}
@@ -596,7 +605,11 @@ export function TaskDetailPage({
                 <span>{logError}</span>
               </div>
             ) : !task.log_path ? (
-              <div className="log-placeholder">{labels.logUnavailable}</div>
+              <div className="log-placeholder">
+                {task.replica
+                  ? t("replica.logUnavailable")
+                  : labels.logUnavailable}
+              </div>
             ) : !logText && !logLoading ? (
               <div className="log-placeholder">{labels.logEmpty}</div>
             ) : (
