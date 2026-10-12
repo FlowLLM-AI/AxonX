@@ -66,7 +66,9 @@ def run_backtest(
     *,
     as_of_date: str,
     policy: PortfolioPolicy | None = None,
+    events=None,
 ) -> BacktestResult:
+    """Replay each Top N independently; optional events supply reset/apply/blocked hooks."""
     _validate_config(config, policy)
     buy_cost_rate, sell_cost_rate = config.buy_cost_rate, config.sell_cost_rate
     signals, market = normalize_keys(signals), normalize_keys(market)
@@ -128,28 +130,27 @@ def run_backtest(
         else {}
     )
     selected = targets.filter(pl.col("target_rank") <= max(config.top_ns))
-    groups = {key[0]: frame.to_dicts() for key, frame in selected.partition_by("trade_date", as_dict=True).items()}
-    by_date = {d: groups.get(d, []) for d in dates}
+    by_date = {key[0]: frame.to_dicts() for key, frame in selected.partition_by("trade_date", as_dict=True).items()}
     daily, orders, positions, trades = [], [], [], []
     incomplete = False
-    portfolios = {n: {"cash": 1.0, "equity": 1.0, "book": {}} for n in config.top_ns}
-    for date in dates:
-        needed = {row["ts_code"] for row in by_date[date]} | {
-            code for portfolio in portfolios.values() for code in portfolio["book"]
-        }
-        day_market = market_days.get(date)
-        quotes = (
-            {row["ts_code"]: row for row in day_market.filter(pl.col("ts_code").is_in(needed)).to_dicts()}
-            if day_market is not None
-            else {}
-        )
-        for n in config.top_ns:
-            portfolio = portfolios[n]
-            cash, previous_equity, book = (
-                portfolio["cash"],
-                portfolio["equity"],
-                portfolio["book"],
+    successors = events.successors if events is not None else set()
+    for n in config.top_ns:
+        cash, previous_equity, book = 1.0, 1.0, {}
+        if events is not None:
+            events.reset(n)
+        for date in dates:
+            needed = {row["ts_code"] for row in by_date.get(date, [])[:n]} | set(book) | successors
+            day_market = market_days.get(date)
+            quotes = (
+                {row["ts_code"]: row for row in day_market.filter(pl.col("ts_code").is_in(needed)).to_dicts()}
+                if day_market is not None
+                else {}
             )
+            if events is not None:
+                cash = events.apply(date, slot, book, cash, quotes)
+            pending_cash = events.pending_cash if events is not None else 0.0
+            if not math.isfinite(pending_cash) or pending_cash < 0:
+                raise ValueError("Invalid pending cash")
             fees = bought = sold = 0.0
             sell_count = buy_count = 0
             limit = _replacement_limit(policy, n) if date != dates[0] else n
@@ -172,6 +173,8 @@ def run_backtest(
                 status = _quote_status(quote, config)
                 if status == "quoted":
                     position["mark"] = quote["price"] * quote["adjustment_factor"]
+                    if events is not None:
+                        position["last_factor"] = quote["adjustment_factor"]
                 elif status == "missing_data":
                     incomplete = True
                 due = position["planned_exit_date"]
@@ -235,20 +238,25 @@ def run_backtest(
                     }
                 )
                 del book[code]
-            equity = cash + sum(p["units"] * p["mark"] for p in book.values())
+            equity = cash + pending_cash + sum(p["units"] * p["mark"] for p in book.values())
             allocation = equity / n
-            for signal in by_date[date][:n]:
+            for signal in by_date.get(date, [])[:n]:
                 code = signal["ts_code"]
                 if code in book or buy_count >= limit:
                     continue
                 quote = quotes.get(code)
                 status = _quote_status(quote, config)
-                if status == "missing_data":
+                blocked = events is not None and events.blocked(code)
+                if status == "missing_data" and not blocked:
                     incomplete = True
                 reason = (
-                    status
-                    if status != "quoted"
-                    else ("not_buyable" if not quote["can_buy"] else "capacity" if len(book) >= n else "")
+                    "security_event"
+                    if blocked
+                    else (
+                        status
+                        if status != "quoted"
+                        else ("not_buyable" if not quote["can_buy"] else "capacity" if len(book) >= n else "")
+                    )
                 )
                 principal = min(allocation, cash / (1 + buy_cost_rate)) if not reason else 0.0
                 if principal <= 1e-12:
@@ -279,6 +287,12 @@ def run_backtest(
                     "entry_date": date,
                     "planned_exit_date": due,
                 }
+                if events is not None:
+                    book[code].update(
+                        entry_shares=principal / quote["price"],
+                        entry_factor=quote["adjustment_factor"],
+                        last_factor=quote["adjustment_factor"],
+                    )
                 cash -= principal + fee
                 fees += fee
                 bought += principal
@@ -295,8 +309,8 @@ def run_backtest(
                         "fee": fee,
                     }
                 )
-            equity = cash + sum(p["units"] * p["mark"] for p in book.values())
-            if cash < -1e-10 or equity <= 0:
+            equity = cash + pending_cash + sum(p["units"] * p["mark"] for p in book.values())
+            if not math.isfinite(cash) or not math.isfinite(equity) or cash < -1e-10 or equity <= 0:
                 raise ValueError("Invalid portfolio cash or equity")
             for code, p in book.items():
                 due = p["planned_exit_date"]
@@ -334,43 +348,14 @@ def run_backtest(
                     "unfilled_entries": unfilled,
                 }
             )
-            portfolio.update(cash=cash, equity=equity)
-    daily_long = pl.DataFrame(daily)
-    output = pl.DataFrame({"trade_date": dates})
-    for n in config.top_ns:
-        part = daily_long.filter(pl.col("top_n") == n).drop("top_n")
-        output = output.join(
-            part.rename({c: f"top{n}_{c}" for c in part.columns if c != "trade_date"}),
-            on="trade_date",
-            validate="1:1",
-        )
-    diagnostics, benchmarks = _diagnostics(signals, targets, labels, as_of_date, config)
-    output = output.join(diagnostics, on="trade_date", how="left").with_columns(
-        pl.col("ic", "rank_ic").cast(pl.Float64)
-    )
-    if labels is not None:
-        target_labels = (
-            normalize_keys(labels)
-            .filter(pl.col("label_valid") & (pl.col("label_target_date").cast(pl.String) <= as_of_date))
-            .select(*KEYS, pl.col("label_return").alias("_target_return"))
-        )
-        targets = targets.join(target_labels, on=list(KEYS), how="left", validate="1:1")
-    else:
-        targets = targets.with_columns(pl.lit(None, dtype=pl.Float64).alias("_target_return"))
-    details = targets.group_by("trade_date").agg(
-        pl.len().alias("candidate_count"),
-        pl.struct(
-            pl.col("target_rank").alias("rank"),
-            "ts_code",
-            (pl.col("name") if "name" in targets.columns else pl.col("ts_code").alias("name")),
-            pl.col("pred").alias("prediction"),
-            pl.col("_target_return").alias("daily_return"),
-            (1.0 / pl.min_horizontal(pl.len(), pl.lit(30))).alias("weight"),
-        )
-        .filter(pl.col("target_rank") <= 30)
-        .alias("top30_holdings"),
-    )
-    output = output.join(details, on="trade_date", how="left").with_columns(pl.col("candidate_count").fill_null(0))
+            if events is not None:
+                daily[-1]["pending_cash"] = pending_cash
+            previous_equity = equity
+    # Keep exported records chronological across independent Top N runs.
+    n_order = {n: index for index, n in enumerate(config.top_ns)}
+    for rows in (orders, positions, trades):
+        rows.sort(key=lambda row: (row.get("trade_date", row.get("exit_date")), n_order[row["top_n"]]))
+    output, targets, benchmarks = _daily_output(dates, daily, signals, targets, labels, as_of_date, config)
     frames = {
         "daily": output,
         "summary": _summarize(
@@ -453,6 +438,47 @@ def _quote_status(quote: dict[str, Any] | None, config: BacktestConfig) -> str:
         # actual suspensions from missing quotes; this is a temporary assumption.
         return "suspended"
     return status
+
+
+def _daily_output(dates, daily, signals, targets, labels, as_of_date, config):
+    """Assemble daily metrics and candidate diagnostics after execution."""
+    daily_long = pl.DataFrame(daily)
+    output = pl.DataFrame({"trade_date": dates})
+    for n in config.top_ns:
+        part = daily_long.filter(pl.col("top_n") == n).drop("top_n")
+        output = output.join(
+            part.rename({c: f"top{n}_{c}" for c in part.columns if c != "trade_date"}),
+            on="trade_date",
+            validate="1:1",
+        )
+    diagnostics, benchmarks = _diagnostics(signals, targets, labels, as_of_date, config)
+    output = output.join(diagnostics, on="trade_date", how="left").with_columns(
+        pl.col("ic", "rank_ic").cast(pl.Float64)
+    )
+    if labels is not None:
+        target_labels = (
+            normalize_keys(labels)
+            .filter(pl.col("label_valid") & (pl.col("label_target_date").cast(pl.String) <= as_of_date))
+            .select(*KEYS, pl.col("label_return").alias("_target_return"))
+        )
+        targets = targets.join(target_labels, on=list(KEYS), how="left", validate="1:1")
+    else:
+        targets = targets.with_columns(pl.lit(None, dtype=pl.Float64).alias("_target_return"))
+    details = targets.group_by("trade_date").agg(
+        pl.len().alias("candidate_count"),
+        pl.struct(
+            pl.col("target_rank").alias("rank"),
+            "ts_code",
+            (pl.col("name") if "name" in targets.columns else pl.col("ts_code").alias("name")),
+            pl.col("pred").alias("prediction"),
+            pl.col("_target_return").alias("daily_return"),
+            (1.0 / pl.min_horizontal(pl.len(), pl.lit(30))).alias("weight"),
+        )
+        .filter(pl.col("target_rank") <= 30)
+        .alias("top30_holdings"),
+    )
+    output = output.join(details, on="trade_date", how="left").with_columns(pl.col("candidate_count").fill_null(0))
+    return output, targets, benchmarks
 
 
 def _frame(rows: list[dict[str, Any]], schema: dict[str, Any]) -> pl.DataFrame:

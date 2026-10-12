@@ -398,3 +398,127 @@ def test_backtest_schema_has_only_explicit_side_fees():
         StockBacktestInput(transaction_cost_rate=0.001)
     with pytest.raises(ValueError):
         StockBacktestInput(buy_cost_rate=None)
+
+
+class RecordingEvents:
+    successors = {"C"}
+
+    def __init__(self, *, lock_first=False, pending_cash=0.0, blocked_codes=()):
+        self.lock_first = lock_first
+        self.pending_cash = pending_cash
+        self.blocked_codes = set(blocked_codes)
+        self.runs = {}
+        self.top_n = None
+
+    def reset(self, top_n):
+        self.top_n = top_n
+        self.runs[top_n] = []
+
+    def apply(self, date, slot, book, cash, quotes):
+        self.runs[self.top_n].append((date, slot, {code: dict(p) for code, p in book.items()}, set(quotes)))
+        if self.lock_first and self.top_n == 1 and "A" in book:
+            quotes["A"]["can_sell"] = False
+        return cash
+
+    def blocked(self, code):
+        return code in self.blocked_codes
+
+
+def test_top_ns_replay_matches_separate_runs():
+    signals, market, calendar = inputs()
+    config = BacktestConfig(top_ns=(2, 1))
+    combined = run_backtest(signals, market, calendar, None, config, as_of_date="20260108")
+    for n in config.top_ns:
+        separate = run_backtest(signals, market, calendar, None, BacktestConfig(top_ns=(n,)), as_of_date="20260108")
+        columns = ["trade_date", *[c for c in separate.frames["daily"].columns if c.startswith(f"top{n}_")]]
+        assert combined.frames["daily"].select(columns).equals(separate.frames["daily"].select(columns))
+        for name in ("orders", "positions", "trades"):
+            assert combined.frames[name].filter(pl.col("top_n") == n).equals(separate.frames[name])
+
+
+def test_noop_events_preserve_execution_and_load_successor_quotes():
+    signals, market, calendar = inputs()
+    market = pl.concat(
+        [
+            market,
+            market.filter(pl.col("ts_code") == "A").with_columns(pl.lit("C").alias("ts_code")),
+        ]
+    )
+    events = RecordingEvents()
+    config = BacktestConfig(top_ns=(1, 2))
+    original = run_backtest(signals, market, calendar, None, config, as_of_date="20260108")
+    result = run_backtest(signals, market, calendar, None, config, as_of_date="20260108", events=events)
+    assert result.status == original.status
+    assert result.benchmark_keys == original.benchmark_keys
+    for name, frame in original.frames.items():
+        actual = result.frames[name]
+        if name == "daily":
+            assert actual.select("top1_pending_cash", "top2_pending_cash").to_numpy().sum() == 0
+            actual = actual.drop("top1_pending_cash", "top2_pending_cash")
+        assert frame.equals(actual), name
+    for calls in events.runs.values():
+        assert len(calls) == calendar.height
+        date, slot, book, quotes = calls[1]
+        assert (date, slot) == ("20260106", "1445")
+        assert "C" in quotes
+        position = book["A"]
+        assert position["entry_shares"] == pytest.approx(position["principal"] / position["entry_price"])
+        assert position["entry_factor"] == position["last_factor"] == 1
+
+
+def test_event_quote_mutations_do_not_affect_the_next_top_n_replay():
+    signals, market, calendar = inputs()
+    market = market.with_columns(
+        pl.col("price").fill_null(10),
+        pl.lit("quoted").alias("market_status"),
+        pl.lit(True).alias("can_buy"),
+        pl.lit(True).alias("can_sell"),
+    )
+    result = run_backtest(
+        signals,
+        market,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1, 2)),
+        as_of_date="20260108",
+        events=RecordingEvents(lock_first=True),
+    )
+    orders = result.frames["orders"].filter((pl.col("trade_date") == "20260106") & (pl.col("side") == "sell"))
+    assert orders.select("top_n", "status").rows() == [(1, "unfilled"), (2, "filled")]
+    assert market["can_sell"].all()
+
+
+@pytest.mark.parametrize("pending_cash", [-0.1, float("nan"), float("inf")])
+def test_event_receivables_must_be_finite_and_nonnegative(pending_cash):
+    signals, market, calendar = inputs()
+    with pytest.raises(ValueError, match="Invalid pending cash"):
+        run_backtest(
+            signals,
+            market,
+            calendar,
+            None,
+            BacktestConfig(top_ns=(1,)),
+            as_of_date="20260108",
+            events=RecordingEvents(pending_cash=pending_cash),
+        )
+
+
+def test_event_blocked_candidate_without_quotes_does_not_mark_replay_incomplete():
+    signals, market, calendar = inputs()
+    market = market.filter(pl.col("ts_code") != "A")
+    result = run_backtest(
+        signals,
+        market,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1,)),
+        as_of_date="20260108",
+        events=RecordingEvents(blocked_codes={"A"}),
+    )
+    assert result.status == "done"
+    order = result.frames["orders"].row(0, named=True)
+    assert (order["ts_code"], order["status"], order["reason"]) == (
+        "A",
+        "unfilled",
+        "security_event",
+    )

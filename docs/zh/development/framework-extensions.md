@@ -229,3 +229,5 @@ Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID�
 ## 股票持仓策略
 
 `BaseStockBacktestTask.portfolio_policy()` 向共用股票成交账本提供可选的 `PortfolioPolicy`。插件实现 `replacement_limit(n)` 和 `should_exit(rank=..., age=..., n=...)`；决策只接收当日合格候选排名与已持有的市场日数。引擎在首次建仓后限制每侧实际成交数量，优先退出最差排名，并统一处理报价校验、现金、费用与产物。策略持仓没有固定计划退出日期。[Qlib Strategy](../../../plugins/qlib_strategy/README_ZH.md) 使用此扩展。
+
+股票回测插件可向 `run_backtest` 传入可选 `events` 处理器，提供 `successors`、`reset(top_n)`、`apply(date, slot, book, cash, quotes) -> cash`、`blocked(code)` 和 `pending_cash`。引擎遍历 `top_ns`，每个 N 从初始资金、空持仓和重置的事件状态开始，完整重放所有日期。当次执行可修改报价，不影响其他 N。待收款必须有限且非负，计入净值，到账前不能用于买入。引擎在每日估值/交易前调用，并在买入前检查。事件事实及具体证券逻辑保留在插件中；不传处理器时维持原有执行和产物格式。
