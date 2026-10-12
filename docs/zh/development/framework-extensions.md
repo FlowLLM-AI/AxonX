@@ -171,15 +171,29 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 - `BaseInferenceTask`（`inference`）：在 `initialize_run` 中解析单个模型并设置非空 `model_identity`，实现 `inputs_ready` 和 `infer`。输入等待超时记录 `incomplete`；数据质量、历史新鲜度异常记录 `failed` 并停止任务。初始化时复制模型身份用于审计；插件也必须固定实际 Predictor。
 - `BasePredictionCompareTask`（`analysis`）：实现 `compare(key)`，返回 `PredictionComparison`。状态包括 `consistent`、`different`、`protocol_mismatch`、`missing`、`error`。逐项隔离异常，即使单项失败也完成汇总报告。此合同不继承因子分析的 rows/scores。
 
-窗口输入包含按开始时间排序、key 唯一的 `ExecutionWindow`，其 `start_at`、`end_at` 必须带时区，另有正数 `poll_interval_seconds`。等待与耗时使用共享 `WindowClock`，测试可注入假时钟。`DeadlineBudget.remaining_seconds` 使用单调时钟，插件必须据此限制每次请求超时、重试及退避。此工具无法强制中断同步钩子。已错过的窗口标记 skipped；超过截止时间返回的结果不能标记 done。
+窗口输入包含按开始时间排序、key 唯一的 `ExecutionWindow`，其 `start_at`、`end_at` 必须带时区，另有正数 `poll_interval_seconds`。等待与耗时使用共享 `WindowClock`，测试可注入假时钟。`DeadlineBudget.remaining_seconds` 使用单调时钟，插件必须据此限制每次请求超时、重试及退避。此工具无法强制中断同步钩子。已错过的窗口标记 skipped；未提交且超过截止时间返回的结果不能标记 done。
 
 插件可实现 `window_skip_reason(window)`，在等待前跳过不适用的业务窗口（例如休市），并在审计记录中保留原始时间安排。
 
 `initialize_run` 获取任务拥有的资源；成功、初始化失败或执行失败后都会调用 `close_run`。清理异常不替代主异常。进程取消仍由现有 worker/task manager 管理，插件不新增进程调度器。
 
-窗口结果、固定模型身份和比对结果直接增量写入 `metadata.json.output_params`，失败时也保留。Runner 原子发布这一份记录，Studio 直接读取它。原有 `manifest.json`、`comparison.json`、`manifest_file` 和 `report_file` 契约已移除，不保留兼容读取。业务数据保存在插件显式目录，先发布数据与元数据，再发布 ready 标记。最终数据发布、质量检查、归一化、交易日历与通知语义由插件负责；AxonX 不新增 Tushare 或模型依赖。
+窗口结果、固定模型身份和比对结果直接增量写入 `metadata.json.output_params`，失败时也保留。Runner 原子发布这一份记录，Studio 直接读取它。原有 `manifest.json`、`comparison.json`、`manifest_file` 和 `report_file` 契约已移除，不保留兼容读取。业务数据保存在插件显式目录，先发布数据与元数据，再发布 ready 标记。在线数据发布使用下述不可变存储；质量检查、归一化、交易日历与通知语义由插件负责；AxonX 不新增 Tushare 或模型依赖。
 
 算法验证与模型等价性由研究插件负责。
+
+### 不可变在线提交
+
+通过 `axonx.task.storage.online` 的 `OnlineStore` 发布在线数据。先在临时执行目录准备产物并校验报告，再携带 `DeadlineBudget` 调用 `commit`。新内容复制到 `persistent/online/commits/<commit_id>/`，相同的不可变内容在修订间共享；写入固定的 `history.json` 后，原子替换 `persistent/online/manifest.json`。manifest 替换是唯一提交点。异常或超时保留之前的历史。提交锁的等待受截止时间约束；历史已变化时拒绝覆盖较新的提交。不应在 Task 生命周期之外修改存储。通过 `prepare(commit, history_path)` 回调在发布前构造报告并校验产物。
+
+`OnlineCommit` 记录 Task/Run ID、信号日期/时点、连续修订号、提交时间、固定模型身份、预测协议以及带 SHA256 的产物角色。`OnlineHistory.active(as_of)` 选择信号日期截止范围内的有效修订。历史替换保留原始预测和决策，并使后续组合报告过期，直到重新重放；通过 `report_is_current` 判断。特征和分数选择语义一致时允许模型升级沿用同一策略；组合或特征语义变化需要新的 Task 名称。
+
+已提交的 `WindowResult` 同时携带 `commit_id` 和 `committed_at`。及时完成的原子提交保持 `done`，不会因后续记账跨过截止时间而降为超时；未提交的迟到结果仍为 `incomplete`。若进程在提交和生命周期元数据持久化之间终止，以 manifest 为已提交结果依据。
+
+股票插件通过 `output_params.report` 暴露 `StockOnlineReport`：提交、策略身份、回测维度、日期范围、组合参数、分数选择、评价状态和缺失信号日期。产物角色包括 `predictions`（当次原始分数）、`signal`（当次最终排名）、`signals`（截止日期内的有效排名）、`market`、`calendar`、`input_features`、`prediction_protocol`、`targets`、`orders`、`positions`、`trades`、`daily` 和 `summary`。组合产物沿用股票回测 schema。模拟结果与券商实际成交分开；成熟标签由后续评价处理。即使配置将缺失行情视为停牌，也必须显示缺失信号日期。
+
+将固定历史发布为 `artifacts.signal_history`。消费者通过 `pin_online_history(task, source_id, as_of=...)` 独立复制 manifest 和经过校验的文件，再通过 `online_artifact` 按角色读取。即使最新执行失败，或未发布生命周期元数据就已终止，也以持久化 manifest 为提交依据。重放持久化最终排名，不重新计算历史选股。错过窗口或休市时可以展示前一次提交的报告，并保留其原始日期与 Run ID。
+
+该方案替代 JSONL 信号日志、时段前缀产物名和推理 `ready.json`，不提供兼容读取或转换。旧在线 Task 请使用新 Task 名称重新生成。采集 ready 标记继续作为输入发布协议。组合评价目前重放所选截止日期内的有效历史，不维护增量券商账户。
 
 ## 复合 Task 与清理
 

@@ -520,7 +520,214 @@ function seedOnline(
           ? "api#playground_online#demo"
           : "";
     task.output_params = { ...sample.result, artifacts: {} };
+    if (sample.kind === "inference") seedStockOnline(files, task);
     tasks.set(id, task);
     files.set(`runs/${id}/metadata.json`, json(task));
   }
+}
+
+function seedStockOnline(
+  files: Map<string, WorkspacePreview>,
+  task: TaskMetadata,
+) {
+  const strategyIdentity = "a".repeat(64);
+  const history: import("../features/online/report").OnlineHistory = {
+    version: 1,
+    task_type: "inference",
+    kind: "online_history",
+    strategy_identity: strategyIdentity,
+    commits: [],
+  };
+  const allDaily = dailyRows("steady").slice(0, 12);
+  for (let i = 0; i <= allDaily.length; i++) {
+    const index = Math.min(i, allDaily.length - 1);
+    const date = allDaily[index].trade_date;
+    const commitId = (i + 1).toString(16).padStart(32, "0");
+    const signal = Array.from({ length: 30 }, (_, rank) => ({
+      trade_date: date,
+      trade_time: "1445",
+      ts_code: `DEMO${String(rank + 1).padStart(3, "0")}`,
+      name: `Synthetic ${rank + 1}`,
+      pred: (30 - rank) / 100 + index / 1000,
+      pred_seed_0: (30 - rank) / 100 + index / 1000,
+      rank: rank + 1,
+      buyable_rank: rank % 7 === 0 ? null : rank + 1 - Math.ceil(rank / 7),
+      is_buyable_at_signal: rank % 7 !== 0,
+      is_model_candidate: true,
+      signal_price: 10 + rank * 1.25,
+      signal_adjustment_factor: 1,
+    }));
+    let net = 1;
+    const daily = allDaily.slice(0, index + 1).map((row) => {
+      net *= 1 + Number(row.top5_net_return);
+      return {
+        ...row,
+        top5_net_value: net,
+        top10_net_value: net,
+        top5_cash_weight: 0.04,
+        top10_cash_weight: 0.04,
+        top5_count: 5,
+        top10_count: 10,
+        top5_transaction_cost: 0.0002,
+        top10_transaction_cost: 0.0002,
+      };
+    });
+    const portfolio = {
+      top_ns: [5, 10],
+      holding_days: 3,
+      score_aggregation: "mean",
+      missing_market_as_suspension: false,
+      buy_cost_rate: 0.0005,
+      sell_cost_rate: 0.0015,
+    };
+    const settings: import("../features/online/report").ReportSettings = {
+      strategy_identity: strategyIdentity,
+      dimensions: {
+        top_ns: [5, 10],
+        holding_detail_top_n: 30,
+        benchmarks: [{ key: "demo", label: "Synthetic benchmark" }],
+      },
+      date_range: { start: allDaily[0].trade_date, end: date },
+      portfolio,
+      score_selection: { method: "mean", seeds: [0] },
+      evaluation_status: "done",
+      missing_dates: [],
+    };
+    const tables: Record<string, Record<string, unknown>[]> = {
+      signal,
+      signals: signal,
+      predictions: signal,
+      market: signal,
+      daily,
+      summary: [
+        {
+          period_type: "overall",
+          period: "overall",
+          trading_days: index + 1,
+          top5_net_annualized_return: 0.16,
+          top10_net_annualized_return: 0.14,
+          top5_gross_sharpe: 1.8,
+          top10_gross_sharpe: 1.7,
+          top5_net_max_drawdown: -0.022,
+          top10_net_max_drawdown: -0.02,
+        },
+      ],
+      positions: [5, 10].flatMap((n) =>
+        signal.slice(1, n + 1).map((row) => ({
+          top_n: n,
+          trade_date: date,
+          ts_code: row.ts_code,
+          entry_date: allDaily[Math.max(0, index - 2)].trade_date,
+          planned_exit_date: null,
+          weight: 0.96 / n,
+          market_value: (net * 0.96) / n,
+          exit_delayed: false,
+        })),
+      ),
+      orders: [5, 10].flatMap((n) => [
+        {
+          top_n: n,
+          trade_date: date,
+          ts_code: "DEMO002",
+          side: "buy",
+          status: "filled",
+          reason: "",
+          notional: 0.96 / n,
+          fee: (0.0005 * 0.96) / n,
+        },
+        {
+          top_n: n,
+          trade_date: date,
+          ts_code: "DEMO008",
+          side: "buy",
+          status: "unfilled",
+          reason: "not_buyable",
+          notional: 0,
+          fee: 0,
+        },
+      ]),
+      trades: [5, 10].map((n) => ({
+        top_n: n,
+        ts_code: "DEMO003",
+        entry_date: allDaily[0].trade_date,
+        exit_date: date,
+        realized_return: 0.012,
+        fee: 0.0003,
+      })),
+      targets: signal,
+      calendar: allDaily.map((row) => ({ trade_date: row.trade_date })),
+      input_features: signal,
+    };
+    const artifacts: Record<
+      string,
+      { path: string; size: number; sha256: string }
+    > = {};
+    const put = (role: string, preview: WorkspacePreview, suffix: string) => {
+      const path = `persistent/online/commits/${commitId}/${role}.${suffix}`;
+      artifacts[role] = { path, size: preview.size, sha256: "b".repeat(64) };
+      files.set(`inference/${task.task_id}/${path}`, preview);
+    };
+    for (const [role, rows] of Object.entries(tables))
+      put(role, table(rows), "parquet");
+    const identity = {
+      family: "synthetic",
+      models_sha256: "c".repeat(64),
+      features_sha256: "d".repeat(64),
+      trade_time: "1445",
+    };
+    const protocol = {
+      version: 1,
+      task_type: "inference",
+      model_identity: identity,
+      dates: [date],
+      score_columns: { seed_0: "pred_seed_0" },
+      predictions_sha256: "b".repeat(64),
+      portfolio,
+      report: settings,
+    };
+    put("prediction_protocol", json(protocol), "json");
+    history.commits.push({
+      commit_id: commitId,
+      task_id: task.task_id,
+      run_id: `demo-run-${i}`,
+      trade_date: date,
+      trade_time: "1445",
+      revision: i === allDaily.length ? 2 : 1,
+      committed_at: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T14:45:10+08:00`,
+      model_identity: identity,
+      protocol,
+      artifacts,
+    });
+  }
+  const commit = history.commits.at(-1)!;
+  const historyPath = `persistent/online/commits/${commit.commit_id}/history.json`;
+  files.set(`inference/${task.task_id}/${historyPath}`, json(history));
+  files.set(
+    `inference/${task.task_id}/persistent/online/manifest.json`,
+    json(history),
+  );
+  task.output_params = {
+    model_identity: commit.model_identity,
+    windows: [
+      {
+        key: "1445",
+        status: "done",
+        rows: 30,
+        elapsed_seconds: 4.2,
+        commit_id: commit.commit_id,
+        committed_at: commit.committed_at,
+        metrics: {
+          feature_seconds: 2.8,
+          prediction_seconds: 0.9,
+          candidate_count: 30,
+          buyable_count: 25,
+        },
+      },
+    ],
+    report: { kind: "stock_online", commit, ...commit.protocol.report },
+    artifacts: {
+      ...commit.artifacts,
+      signal_history: { path: historyPath, size: 1, sha256: "e".repeat(64) },
+    },
+  };
 }

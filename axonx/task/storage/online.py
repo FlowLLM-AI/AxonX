@@ -1,0 +1,172 @@
+"""One atomic manifest publishes immutable online artifacts and revision history."""
+
+import fcntl
+import json
+import shutil
+import re
+from collections.abc import Callable
+from contextlib import contextmanager
+from pathlib import Path
+from uuid import uuid4
+
+from ..contracts.online import OnlineCommit, OnlineHistory
+from ..contracts.windows import DeadlineBudget
+from ..protocol import PROTOCOL_VERSION
+from .artifacts import artifact_path, artifact_record
+from ...utils.fs import atomic_write, atomic_write_json, file_sha256, snapshot_file
+
+
+@contextmanager
+def publication_lock(path: Path, budget: DeadlineBudget):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as lock:
+        while True:
+            budget.check()
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                budget.sleep(0.1)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def read_online_history(path: Path) -> OnlineHistory:
+    return OnlineHistory.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+
+def online_artifact(root: Path, commit: OnlineCommit, role: str) -> Path:
+    record = commit.artifacts[role].model_dump()
+    path = artifact_path(root, {"output_params": {"artifacts": {role: record}}}, role)
+    if path.stat().st_size != record["size"] or file_sha256(path) != record["sha256"]:
+        raise ValueError(f"Online artifact SHA256 mismatch: {role}")
+    return path
+
+
+class OnlineStore:
+    """Task-owned history survives reruns. Unreferenced files are never committed."""
+
+    def __init__(self, task):
+        self.task = task
+        self.root = task.persistent_dir / "online"
+        self.manifest = self.root / "manifest.json"
+
+    def history(self, strategy_identity: str) -> OnlineHistory:
+        if not self.manifest.exists():
+            return OnlineHistory(version=PROTOCOL_VERSION, strategy_identity=strategy_identity)
+        history = read_online_history(self.manifest)
+        if history.strategy_identity != strategy_identity:
+            raise ValueError("Online strategy changed; use a new task_name for a new strategy")
+        return history
+
+    def commit(
+        self,
+        *,
+        history: OnlineHistory,
+        trade_date: str,
+        trade_time: str,
+        model_identity: dict[str, str],
+        protocol: dict,
+        files: dict[str, Path],
+        budget: DeadlineBudget,
+        prepare: Callable[[OnlineCommit, Path], object] | None = None,
+    ) -> tuple[OnlineCommit, Path]:
+        """All fallible work precedes the manifest swap; never undo a committed result."""
+        with publication_lock(self.root / "publication.lock", budget):
+            if history != self.history(history.strategy_identity):
+                raise ValueError("Online history changed before publication; retry with current history")
+            if any(c.task_id != self.task.task_id for c in history.commits):
+                raise ValueError("Online history belongs to another Task")
+            commit_id = uuid4().hex
+            folder = self.root / "commits" / commit_id
+            folder.mkdir(parents=True)
+            published = False
+            try:
+                records = {}
+                existing = {a.sha256: (c, role) for c in history.commits for role, a in c.artifacts.items()}
+                for role, source in files.items():
+                    if re.fullmatch(r"[A-Za-z0-9_-]+", role) is None:
+                        raise ValueError("Invalid online artifact role")
+                    budget.check()
+                    # Roles are logical names; source basenames cannot collide across roles.
+                    target = folder / f"{role}{source.suffix}"
+                    digest = file_sha256(source)
+                    if digest in existing:
+                        previous = online_artifact(self.task.task_dir, *existing[digest])
+                        snapshot_file(previous, target)
+                    else:
+                        shutil.copyfile(source, target)
+                    records[role] = artifact_record(target, self.task.task_dir)
+                    if records[role]["sha256"] != digest:
+                        raise ValueError("Online input changed during publication")
+                budget.check()
+                commit = OnlineCommit(
+                    commit_id=commit_id,
+                    task_id=self.task.task_id,
+                    run_id=self.task.context.run_id,
+                    trade_date=trade_date,
+                    trade_time=trade_time,
+                    revision=1 + sum((c.trade_date, c.trade_time) == (trade_date, trade_time) for c in history.commits),
+                    committed_at=budget.clock.now(),
+                    model_identity=model_identity,
+                    protocol=protocol,
+                    artifacts=records,
+                )
+                updated = OnlineHistory(
+                    version=PROTOCOL_VERSION,
+                    strategy_identity=history.strategy_identity,
+                    commits=[*history.commits, commit],
+                )
+                snapshot = folder / "history.json"
+                atomic_write_json(snapshot, updated.model_dump(mode="json"))
+                if prepare is not None:
+                    prepare(commit, snapshot)
+
+                # Check after serialization and immediately before the single publication point.
+                def publish(temporary):
+                    shutil.copyfile(snapshot, temporary)
+                    budget.check()
+
+                atomic_write(self.manifest, publish)
+                published = True
+                return commit, snapshot
+            finally:
+                if not published:
+                    shutil.rmtree(folder, ignore_errors=True)
+
+
+def pin_online_history(task, source_id: str, *, as_of: str | None = None) -> tuple[OnlineHistory, Path]:
+    """Snapshot the manifest and every referenced artifact, preserving verified provenance."""
+    upstream = task.source_task_dir(source_id)
+    source = artifact_path(
+        upstream,
+        {"output_params": {"artifacts": {"signal_history": {"path": "persistent/online/manifest.json"}}}},
+        "signal_history",
+    )
+    history = read_online_history(source)
+    if any(commit.task_id != source_id for commit in history.commits):
+        raise ValueError("Online history belongs to another Task")
+    root = task.task_dir / "inputs" / "online"
+    commits = []
+    for commit in history.commits:
+        if as_of is not None and commit.trade_date > as_of:
+            continue
+        records = {}
+        for role, record in commit.artifacts.items():
+            path = online_artifact(upstream, commit, role)
+            target = root / commit.commit_id / Path(record.path).name
+            atomic_write(target, lambda temporary, source=path: shutil.copyfile(source, temporary))
+            if file_sha256(target) != record.sha256:
+                raise ValueError("Online source changed during snapshot")
+            records[role] = artifact_record(target, task.task_dir)
+        commits.append(OnlineCommit.model_validate({**commit.model_dump(), "artifacts": records}))
+    pinned = OnlineHistory(
+        version=PROTOCOL_VERSION,
+        strategy_identity=history.strategy_identity,
+        commits=commits,
+    )
+    manifest = root / "history.json"
+    atomic_write_json(manifest, pinned.model_dump(mode="json"))
+    return pinned, manifest

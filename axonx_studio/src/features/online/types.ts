@@ -1,4 +1,10 @@
 import type { TaskMetadata, TaskSummary } from "../tasks/types";
+import type { ArtifactFile } from "../research/types";
+import {
+  parseStockReport,
+  artifactPath,
+  type StockOnlineReport,
+} from "./report";
 
 export interface OnlineOutcome {
   key: string;
@@ -13,6 +19,8 @@ export interface OnlineReport {
   windows?: OnlineOutcome[];
   comparisons?: OnlineOutcome[];
   model_identity?: Record<string, string>;
+  report?: StockOnlineReport | null;
+  artifacts?: Record<string, ArtifactFile>;
 }
 export const isOnlineTask = (task: TaskMetadata | TaskSummary) =>
   !("output_params" in task)
@@ -59,5 +67,13 @@ export function parseOnlineReport(value: unknown): OnlineReport {
       ))
   )
     throw new Error("Invalid online report: model_identity");
+  if (value.report != null) {
+    parseStockReport(value.report);
+    if (
+      !record(value.artifacts) ||
+      !artifactPath(value.artifacts.signal_history)
+    )
+      throw new Error("Missing online history artifact");
+  }
   return value as OnlineReport;
 }

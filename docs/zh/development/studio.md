@@ -123,3 +123,5 @@ npm run build:playground
 页面复用现有同源 Job，保留所选机器 target。可见页面中的活跃任务每五秒刷新；页面或机器切换后清理过期请求和轮询。已完成任务读取 metadata.output_params，运行中或失败任务通过分页工作区目录接口读取增量报告，包括 metadata.output_params 尚未准备的任务。空工作区和尚未发布报告各有空状态，请求失败提供错误信息与刷新操作。
 
 无需 Python 或凭据即可预览：运行 `npm run dev:playground`，打开 `http://localhost:4173/AxonX/playground/#local/online/runs`。合成样例包含完整/部分/跳过采集、成功推理与输入超时、预测一致、源数据修订差异、协议不符及输入缺失。这些样例仅演示合同，不执行 a_stock 模型，也不代表迁移等价性已通过验证。
+
+股票推理新增信号、模拟组合、历史表现、信号历史和运行状态页签。读取 `output_params.report` 和作为提交依据的 `persistent/online/manifest.json`，按角色加载 Parquet 产物。默认展示最新提交，包括已提交但执行未能更新元数据的结果。表格支持排序、搜索、可买筛选和分页；日期与修订选择保留原始提交来源。组合页显示持仓、模拟订单和已结束交易；历史表现复用回测图表，展示净收益、回撤、换手和成本，支持日期区间选择。过期报告、缺失日期和停牌假设保持可见。Playground 包含十二个信号日期及保留的替换修订。

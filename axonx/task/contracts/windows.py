@@ -30,11 +30,21 @@ class WindowResult(BaseModel):
     key: str
     status: Literal["done", "skipped", "incomplete", "failed"]
     reason: str = ""
+    commit_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
+    committed_at: AwareDatetime | None = None
     elapsed_seconds: float = Field(default=0, ge=0)
     rows: int = Field(default=0, ge=0)
     coverage: float | None = Field(default=None, ge=0, le=1)
     artifacts: dict[str, dict[str, Any]] = Field(default_factory=dict)
     metrics: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_commit(self):
+        if (self.commit_id is None) != (self.committed_at is None):
+            raise ValueError("commit_id and committed_at must be supplied together")
+        if self.commit_id is not None and self.status != "done":
+            raise ValueError("Only completed windows may publish a commit")
+        return self
 
 
 class WindowInputParams(BaseInputParams):
@@ -77,6 +87,11 @@ class DeadlineBudget:
 
     def sleep(self, seconds: float) -> None:
         self.clock.sleep(max(0, min(seconds, self.remaining_seconds)))
+
+    def check(self) -> None:
+        """Fail before beginning or publishing work after the deadline."""
+        if self.remaining_seconds <= 0:
+            raise TimeoutError("Window deadline exceeded")
 
 
 class _WindowTask(BaseTask):
@@ -133,9 +148,18 @@ class _WindowTask(BaseTask):
                             result = self.execute_window(window, budget)
                             if result.key != window.key:
                                 raise ValueError("Window result key does not match the executing window")
-                            if result.status == "done" and budget.remaining_seconds <= 0:
+                            if result.commit_id and (
+                                result.status != "done"
+                                or result.committed_at is None
+                                or not window.start_at <= result.committed_at <= window.end_at
+                            ):
+                                raise ValueError("Invalid committed window result")
+                            if result.status == "done" and not result.commit_id and budget.remaining_seconds <= 0:
                                 result = result.model_copy(
-                                    update={"status": "incomplete", "reason": "deadline_exceeded"}
+                                    update={
+                                        "status": "incomplete",
+                                        "reason": "deadline_exceeded",
+                                    }
                                 )
                 except Exception as exc:
                     self.window_results.append(

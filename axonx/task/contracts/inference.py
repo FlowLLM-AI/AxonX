@@ -6,7 +6,13 @@ from pydantic import Field, TypeAdapter
 
 from ...enums import TaskType
 from ..core import BaseOutputParams
-from .windows import DeadlineBudget, ExecutionWindow, WindowInputParams, WindowResult, _WindowTask
+from .windows import (
+    DeadlineBudget,
+    ExecutionWindow,
+    WindowInputParams,
+    WindowResult,
+    _WindowTask,
+)
 
 
 class BaseInferenceInputParams(WindowInputParams):
@@ -38,11 +44,18 @@ class BaseInferenceTask(_WindowTask):
         """Validate freshness/quality, then predict with the fixed model and normalization."""
 
     def execute_window(self, window: ExecutionWindow, budget: DeadlineBudget) -> WindowResult:
+        if self.model_identity != self._fixed_model_identity:
+            raise ValueError("Model identity changed within an inference run")
         while budget.remaining_seconds > 0:
             if self.inputs_ready(window):
                 if budget.remaining_seconds <= 0:
                     break
-                return self.infer(window, budget)
+                if self.model_identity != self._fixed_model_identity:
+                    raise ValueError("Model identity changed within an inference run")
+                result = self.infer(window, budget)
+                if self.model_identity != self._fixed_model_identity:
+                    raise ValueError("Model identity changed within an inference run")
+                return result
             budget.sleep(self.input_params.poll_interval_seconds)
         return WindowResult(key=window.key, status="incomplete", reason="inputs_timeout")
 

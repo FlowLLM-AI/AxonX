@@ -321,7 +321,11 @@ export function createPlayground(): Transport {
             running.delete(id);
             tasks.delete(id);
             for (const path of files.keys())
-              if (path.startsWith(`runs/${id}/`)) files.delete(path);
+              if (
+                path.startsWith(`runs/${id}/`) ||
+                path.startsWith(`${id.split("#")[0]}/${id}/`)
+              )
+                files.delete(path);
           }
           return response(ids);
         }

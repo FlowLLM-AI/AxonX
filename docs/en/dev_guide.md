@@ -6,6 +6,8 @@ Source paths such as `plugins/qlib_a158/...` are relative to the root of an Axon
 
 AxonX owns protocol v1 in `axonx.task.protocol`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file hash. Feature contracts, semantic fingerprints and verified model snapshots are shared AxonX helpers. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
 
+Online inference publications use `OnlineStore` and role-based `OnlineCommit` artifacts. Final signals and simulated portfolio ledgers are persisted as immutable Parquet revisions under `persistent/online/commits/`; one atomic manifest selects effective history. Publish its frozen snapshot as `signal_history`. Historical revisions retain audit evidence and invalidate later portfolio reports until replay. Consumers use `pin_online_history` to verify and snapshot files. JSONL signal journals and inference ready markers are removed without compatibility readers; regenerate old online Tasks under a fresh name. Collection ready markers remain unchanged.
+
 ## Prepare the Environment and Service
 
 Use Python 3.12+ on macOS or Linux for local Task execution. In your chosen working directory, create and activate a virtual environment, then install the core:

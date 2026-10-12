@@ -222,3 +222,57 @@ def test_business_skip_happens_before_future_window_wait(tmp_path, skip_seconds)
     report = json.loads(task.metadata_path.read_text())
     assert report["output_params"]["windows"][0]["status"] == "skipped"
     assert report["output_params"]["windows"][0]["elapsed_seconds"] == skip_seconds
+
+
+def test_committed_publication_is_not_reclassified_after_the_atomic_swap(tmp_path):
+    class Committed(Collector):
+        def collect(self, item, budget):
+            committed_at = self.clock.now()
+            self.clock.sleep(10)
+            return WindowResult(key=item.key, status="done", commit_id="0" * 32, committed_at=committed_at)
+
+    task = run_task(Committed, tmp_path)
+    assert task.output_params.windows[0].status == "done"
+
+
+def test_inference_rejects_model_changes_between_windows(tmp_path):
+    class Changed(BaseInferenceTask):
+        def initialize_run(self):
+            self.model_identity = {"fingerprint": "fixed"}
+
+        def inputs_ready(self, _window):
+            return True
+
+        def infer(self, item, _budget):
+            self.model_identity = {"fingerprint": "changed"}
+            return WindowResult(key=item.key, status="done")
+
+    clock = FakeClock()
+    with pytest.raises(ValueError, match="Model identity changed"):
+        run_task(Changed, tmp_path, windows=[window(clock, "first"), window(clock, "second", end=8)])
+
+
+@pytest.mark.parametrize("stage", ["inputs", "prediction"])
+def test_inference_rejects_identity_drift_within_one_window(tmp_path, stage):
+    class Changed(BaseInferenceTask):
+        def initialize_run(self):
+            self.model_identity = {"fingerprint": "fixed"}
+
+        def inputs_ready(self, _window):
+            if stage == "inputs":
+                self.model_identity["fingerprint"] = "changed"
+            return True
+
+        def infer(self, item, _budget):
+            self.model_identity["fingerprint"] = "changed"
+            return WindowResult(key=item.key, status="done")
+
+    with pytest.raises(ValueError, match="Model identity changed"):
+        run_task(Changed, tmp_path)
+
+
+def test_commit_markers_must_be_complete_and_completed():
+    with pytest.raises(ValidationError, match="supplied together"):
+        WindowResult(key="1445", status="done", committed_at=FakeClock().now())
+    with pytest.raises(ValidationError, match="completed windows"):
+        WindowResult(key="1445", status="incomplete", commit_id="0" * 32, committed_at=FakeClock().now())

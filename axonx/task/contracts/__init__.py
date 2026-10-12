@@ -23,8 +23,17 @@ from .train import (
 )
 
 from .windows import DeadlineBudget, ExecutionWindow, WindowClock, WindowResult
-from .realtime import BaseRealtimeApiInputParams, BaseRealtimeApiOutputParams, BaseRealtimeApiTask
-from .inference import BaseInferenceInputParams, BaseInferenceOutputParams, BaseInferenceTask
+from .realtime import (
+    BaseRealtimeApiInputParams,
+    BaseRealtimeApiOutputParams,
+    BaseRealtimeApiTask,
+)
+from .inference import (
+    BaseInferenceInputParams,
+    BaseInferenceOutputParams,
+    BaseInferenceTask,
+)
+from .online import OnlineArtifact, OnlineCommit, OnlineHistory, StockOnlineReport
 from .compare import (
     BasePredictionCompareInputParams,
     BasePredictionCompareOutputParams,
@@ -62,6 +71,10 @@ __all__ = [
     "BaseInferenceInputParams",
     "BaseInferenceOutputParams",
     "BaseInferenceTask",
+    "OnlineArtifact",
+    "OnlineCommit",
+    "OnlineHistory",
+    "StockOnlineReport",
     "BasePredictionCompareInputParams",
     "BasePredictionCompareOutputParams",
     "BasePredictionCompareTask",

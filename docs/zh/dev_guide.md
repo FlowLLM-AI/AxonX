@@ -6,6 +6,8 @@
 
 AxonX 在 `axonx.task.protocol` 中统一定义协议 v1，`task_type` 复用现有 `TaskType`。训练通过 `output_params.protocol` 和一个 `models.json` 发布集合，不再生成成员或 checkpoint 的 metadata 文件。离线与在线预测共享一份 `model_identity`（`models_sha256`、`features_sha256`）、`dates`、`score_columns` 和文件哈希。特征契约、语义指纹与模型快照校验均使用 AxonX 公共工具。缺少协议头和旧格式直接拒绝，产物需要重新生成；包发布版本独立管理。
 
+在线推理通过 `OnlineStore` 和按角色引用产物的 `OnlineCommit` 发布结果。最终信号和模拟组合账本以不可变 Parquet 修订保存在 `persistent/online/commits/`，单一原子 manifest 选择有效历史；其固定快照发布为 `signal_history`。历史修订保留审计证据，并使后续组合报告过期，直到重放。消费者通过 `pin_online_history` 校验并固定文件。JSONL 信号日志和推理 ready 标记已移除，不提供兼容读取；旧在线 Task 使用新名称重新生成。采集 ready 标记保持不变。
+
 ## 准备环境与服务
 
 本地 Task 执行使用 Python 3.12+，支持 macOS 和 Linux。在选定的工作目录创建并激活虚拟环境，再安装核心包：

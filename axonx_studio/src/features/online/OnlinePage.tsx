@@ -7,6 +7,7 @@ import { usePolling } from "../../shared/hooks/usePolling";
 import type { TaskSummary } from "../tasks/types";
 import { isOnlineTask, parseOnlineReport, type OnlineOutcome } from "./types";
 import { playground } from "../../app/environment";
+import { StockReport } from "./StockReport";
 
 export default function OnlinePage({
   target,
@@ -127,7 +128,7 @@ export default function OnlinePage({
           </aside>
           {selected && (
             <RunReport
-              key={`${target}:${selected.task_id}:${selected.run_id}`}
+              key={`${target}:${selected.task_id}:${selected.run_id}:${selected.state}`}
               task={selected}
               target={target}
               onOpenTask={onOpenTask}
@@ -164,36 +165,19 @@ function RunReport({
       signal.throwIfAborted();
       return parseOnlineReport(full.output_params);
     },
-    [task, target],
+    [task.task_id, target],
   );
   const { data, error, loading, reload } = useAsyncResource(load);
   const rows = data?.windows || data?.comparisons || [];
+  const refresh = useCallback(async () => {
+    await reload();
+  }, [reload]);
+  usePolling(refresh, ["running", "queued"].includes(task.state), 5);
   const done = rows.filter(
     (row) => row.status === "done" || row.status === "consistent",
   ).length;
-  return (
-    <article className="online-report">
-      <header>
-        <div>
-          <p className="eyebrow">
-            {t(`onlinePipeline.kinds.${task.task_type}`)}
-          </p>
-          <h2>{String(task.display_name || task.reg_name)}</h2>
-          <small>{task.task_id}</small>
-        </div>
-        <button
-          className="secondary-button"
-          onClick={() => onOpenTask(task.task_id)}
-        >
-          {t("onlinePipeline.openTask")}
-          <ArrowUpRight />
-        </button>
-      </header>
-      {task.error && (
-        <div className="error-state" role="alert">
-          {task.error}
-        </div>
-      )}
+  const runtime = (
+    <>
       <div className="online-summary">
         <div>
           <span>{t("onlinePipeline.runState")}</span>
@@ -228,19 +212,55 @@ function RunReport({
             : "onlinePipeline.windows",
         )}
       </h3>
-      {error ? (
+      {loading && !data ? (
+        <div className="loading-state">{t("shell.loading")}</div>
+      ) : !rows.length ? (
+        <div className="empty-state">{t("onlinePipeline.pending")}</div>
+      ) : (
+        rows.map((row) => <Outcome key={row.key} row={row} />)
+      )}
+    </>
+  );
+  return (
+    <article className="online-report">
+      <header>
+        <div>
+          <p className="eyebrow">
+            {t(`onlinePipeline.kinds.${task.task_type}`)}
+          </p>
+          <h2>{String(task.display_name || task.reg_name)}</h2>
+          <small>{task.task_id}</small>
+        </div>
+        <button
+          className="secondary-button"
+          onClick={() => onOpenTask(task.task_id)}
+        >
+          {t("onlinePipeline.openTask")}
+          <ArrowUpRight />
+        </button>
+      </header>
+      {task.error && (
+        <div className="error-state" role="alert">
+          {task.error}
+        </div>
+      )}
+      {error && (
         <div className="error-state" role="alert">
           {error}
           <button onClick={() => void reload()}>
             {t("onlinePipeline.refresh")}
           </button>
         </div>
-      ) : loading && !data ? (
-        <div className="loading-state">{t("shell.loading")}</div>
-      ) : !rows.length ? (
-        <div className="empty-state">{t("onlinePipeline.pending")}</div>
+      )}
+      {data?.report ? (
+        <StockReport
+          key={`${target}:${data.report.commit.commit_id}`}
+          report={data.report}
+          target={target}
+          runtime={runtime}
+        />
       ) : (
-        rows.map((row) => <Outcome key={row.key} row={row} />)
+        runtime
       )}
     </article>
   );
