@@ -30,6 +30,7 @@ def compose_application(
             log_dir=app_config.log_dir,
             log_to_console=app_config.log_to_console,
             log_to_file=app_config.log_to_file,
+            timezone=app_config.timezone,
         ),
     )
     logger = get_logger()

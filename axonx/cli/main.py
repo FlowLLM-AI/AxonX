@@ -118,7 +118,7 @@ def _run_exec(command: Command) -> int:
         workspace_dir = workspace_dir or app_config.workspace_dir
         log_dir = log_dir or app_config.log_dir
         timezone = timezone or app_config.timezone
-    configure_logging(LoggingConfig(log_dir=log_dir))
+    configure_logging(LoggingConfig(log_dir=log_dir, timezone=timezone))
     result = TaskCommandExecutor(workspace_dir, timezone=timezone).execute(command)
     if isinstance(result, TaskCatalog):
         for name, task_class in sorted(result.tasks.items()):

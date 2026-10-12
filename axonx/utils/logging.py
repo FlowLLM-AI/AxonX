@@ -9,16 +9,21 @@ from datetime import datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from loguru import logger
 
 from ..constants import (
     AXONX_DEFAULT_ENCODING,
     AXONX_DEFAULT_LOG_DIR,
+    AXONX_DEFAULT_TIMEZONE,
     LOG_ARGUMENT_MAX_LENGTH,
 )
 
-_LOG_FORMAT = "{time:YYYY-MM-DD HH:mm:ss} | {level:<8} | {extra[name]} | {file}:{line} | {function} | {message}"
+_LOG_FORMAT = (
+    "{time:%Y-%m-%d %H:%M:%S} {extra[utc_offset]} | {level:<8} | "
+    "{extra[name]} | {file}:{line} | {function} | {message}"
+)
 _LOCK = RLock()
 _LOG_PATH: Path | None = None
 
@@ -44,6 +49,7 @@ class LoggingConfig:
     level: str = "INFO"
     log_to_console: bool = True
     log_to_file: bool = True
+    timezone: str = AXONX_DEFAULT_TIMEZONE
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "log_dir", Path(self.log_dir))
@@ -52,9 +58,20 @@ class LoggingConfig:
 def configure_logging(config: LoggingConfig) -> None:
     """Explicitly replace the process-wide AxonX logging sinks."""
     global _LOG_PATH
+    try:
+        log_timezone = ZoneInfo(config.timezone)
+    except ZoneInfoNotFoundError:
+        raise ValueError(f"Unknown timezone: {config.timezone!r}") from None
+
+    def apply_timezone(record: dict[str, Any]) -> None:
+        record["time"] = record["time"].astimezone(log_timezone)
+        # Loguru's Z token calls tzinfo.utcoffset(None), which ZoneInfo does not support.
+        offset = record["time"].strftime("%z")
+        record["extra"]["utc_offset"] = f"{offset[:3]}:{offset[3:]}"
+
     with _LOCK:
         logger.remove()
-        logger.configure(extra={"name": "axonx"})
+        logger.configure(extra={"name": "axonx"}, patcher=apply_timezone)
         _LOG_PATH = None
 
         if config.log_to_console:
@@ -68,7 +85,7 @@ def configure_logging(config: LoggingConfig) -> None:
         if config.log_to_file:
             log_dir = config.log_dir.expanduser().resolve()
             log_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now().astimezone().strftime("%Y-%m-%d_%H-%M-%S")
+            timestamp = datetime.now(log_timezone).strftime("%Y-%m-%d_%H-%M-%S")
             _LOG_PATH = log_dir / f"{timestamp}_{os.getpid()}.log"
             logger.add(
                 _LOG_PATH,

@@ -47,6 +47,8 @@ extends 不是 ApplicationConfig 的持久字段，由解析器先消除。Pytho
 
 模型禁止未知顶层字段。目标地址规范化后不得重复。environment 值必须是字符串，不应放数字或嵌套对象。
 
+`timezone` 同时控制服务与任务 worker 的日志时间、日志文件名中的启动时间及午夜轮转，不依赖服务器系统时区。日志行包含 UTC 偏移量（例如 `2026-10-12 15:47:25 +08:00`）。直接使用 `LoggingConfig` 时默认采用 `Asia/Shanghai`，可通过其 `timezone` 覆盖。Loguru 自动生成的归档后缀仍使用服务器系统时区。已有日志文件保持原样。
+
 ## 配置发现与继承
 
 `--config default`、`--config remote` 查找内置命名配置。安装包可通过 `axonx.configs` entry point 贡献其他名称；内置和外部同名、外部多个同名都拒绝。文件路径支持 .yaml/.yml/.json；相对文件路径先按当前工作目录尝试，再按内置配置目录尝试。

@@ -47,6 +47,8 @@ The table lists model defaults, which differ from the expanded built-in default.
 
 The model prohibits unknown top-level fields. Normalized target addresses must not be duplicated. environment values must be strings, rather than numbers or nested objects.
 
+`timezone` also controls service and task worker log timestamps, the startup timestamp in log filenames, and midnight rotation, independently of the host's system timezone. Log lines include the UTC offset (for example, `2026-10-12 15:47:25 +08:00`). Direct `LoggingConfig` users default to `Asia/Shanghai` and can override its `timezone`. Loguru-generated archive suffixes still use the host's system timezone. Existing log files are unchanged.
+
 ## Configuration discovery and inheritance
 
 `--config default` and `--config remote` locate built-in named configurations. Packages may contribute other names through the `axonx.configs` entry point; collisions between built-in and external names, or among external names, are rejected. File paths support .yaml/.yml/.json. Relative file paths are tried against the current working directory first, then the built-in configuration directory.
