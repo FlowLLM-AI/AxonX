@@ -20,7 +20,7 @@ from axonx.workspace.staging import StagedFiles
 TASK_ID = "etl#demo#run1234567890"
 TASK_DIRECTORY = f"etl/{TASK_ID}"
 TERMINAL_STATUS = (
-    b'{"task_id":"etl#demo#run1234567890","run_id":"remote",'
+    b'{"version":1,"task_id":"etl#demo#run1234567890","run_id":"remote",'
     b'"task_type":"etl",'
     b'"state":"succeeded","exit_code":0}'
 )

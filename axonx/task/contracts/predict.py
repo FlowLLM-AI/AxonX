@@ -3,9 +3,10 @@
 from abc import ABC
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from ...enums import TaskType
+from ..protocol import PredictionProtocol
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 
@@ -21,8 +22,15 @@ class BasePredictOutputParams(BaseOutputParams):
     rows: int
     date_range: dict[str, str]
     output_columns: list[str] = Field(default_factory=list)
-    protocol: dict[str, Any] = Field(default_factory=dict)
+    protocol: dict[str, Any]
     statistics: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_prediction_protocol(self):
+        protocol = PredictionProtocol.model_validate(self.protocol)
+        if protocol.task_type != TaskType.PREDICT or protocol.score_columns != self.score_columns:
+            raise ValueError("Prediction output differs from its protocol")
+        return self
 
 
 class BasePredictTask(BaseTask, ABC):

@@ -7,6 +7,7 @@ from axonx.task.storage.workspace import TaskMetadata
 
 def status(task_id: str, task_type: TaskType, **config) -> TaskMetadata:
     return TaskMetadata(
+        version=1,
         task_id=task_id,
         run_id=task_id,
         task_type=task_type,

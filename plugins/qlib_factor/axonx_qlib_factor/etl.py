@@ -15,7 +15,12 @@ from axonx.task.core import TaskStep
 from axonx.task.storage import artifact_record
 from axonx.utils.fs import atomic_write
 
-from .internal.cross_section import CONTEXT_FEATURES, FEATURE_GROUPS, calculate_context, context_protocol
+from .internal.cross_section import (
+    CONTEXT_FEATURES,
+    FEATURE_GROUPS,
+    calculate_context,
+    context_protocol,
+)
 
 __all__ = ["Alpha158InputParams", "Alpha158OutputParams", "Alpha158Task"]
 
@@ -56,7 +61,10 @@ class Alpha158Task(BaseTask):
     def write_outputs(self) -> None:
         super().write_outputs()
         path = self.task_dir / "context_daily.parquet"
-        atomic_write(path, lambda temporary: self.state["context_daily"].write_parquet(temporary, compression="zstd"))
+        atomic_write(
+            path,
+            lambda temporary: self.state["context_daily"].write_parquet(temporary, compression="zstd"),
+        )
         self.state["context_path"] = path
 
     def additional_output_params(self) -> dict:
@@ -65,6 +73,8 @@ class Alpha158Task(BaseTask):
 
     def build_output_params(self) -> Alpha158OutputParams:
         output = super().build_output_params()
+        output.protocol["feature_family"] = "qlib_factor"
+        output.protocol["feature_rules"]["context"] = context_protocol()
         output.protocol["qlib_deviations"][
             "features"
         ] += f" Adds {len(CONTEXT_FEATURES)} causal market-moment and stock-risk features."

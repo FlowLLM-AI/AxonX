@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 
 from ...enums import TaskType
+from ..protocol import ModelCollection
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 
@@ -62,6 +63,7 @@ class TrainingCurve(BaseModel):
 
 class BaseTrainOutputParams(BaseOutputParams):
     model_files: dict[str, str] = Field(min_length=1, description="Named members of the trained model collection.")
+    protocol: dict[str, Any]
     train_rows: int
     model_name: str | None = None
     feature_columns: list[str] = Field(default_factory=list)
@@ -72,6 +74,13 @@ class BaseTrainOutputParams(BaseOutputParams):
         default_factory=TrainingCurve,
         description="Optional aligned training history with up to two value ranges, one per y-axis.",
     )
+
+    @model_validator(mode="after")
+    def validate_model_collection(self):
+        collection = ModelCollection.model_validate(self.protocol)
+        if self.model_files.keys() != collection.members.keys():
+            raise ValueError("Training output members differ from its protocol")
+        return self
 
 
 class BaseTrainTask(BaseTask, ABC):

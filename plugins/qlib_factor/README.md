@@ -58,3 +58,5 @@ Save each returned Task ID and Run ID and wait for `succeeded` before submitting
 ## Experiments
 
 Settings, full results and artifact provenance are maintained in the [research experiment guide](../../docs/en/research/alpha158-case.md). The three configurations were rerun on machine 45 with 0.05% buy / 0.15% sell fees.
+
+AxonX owns protocol v1 in `axonx.task.protocol`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file hash. Feature contracts, semantic fingerprints and verified model snapshots are shared AxonX helpers. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.

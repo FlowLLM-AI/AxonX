@@ -14,7 +14,11 @@ from axonx.task.storage import artifact_record, read_metadata
 @pytest.mark.parametrize("state", [None, "queued", "running", "failed", "cancelled", "unknown"])
 def test_research_metadata_rejects_unsuccessful_or_missing_state(tmp_path, state):
     path = tmp_path / "metadata.json"
-    value = {"output_params": {"artifacts": {"dataset": {"path": "dataset.parquet"}}}}
+    value = {
+        "version": 1,
+        "task_type": "etl",
+        "output_params": {"artifacts": {"dataset": {"path": "dataset.parquet"}}},
+    }
     if state is not None:
         value["state"] = state
     path.write_text(json.dumps(value), encoding="utf-8")
@@ -52,5 +56,6 @@ def test_backtest_accepts_artifact_only_after_successful_upstream_run(tmp_path, 
             consumer.source_file(source.task_id, "predictions")
     else:
         path, metadata = consumer.source_file(source.task_id, "predictions")
-        assert path == source.task_dir / "predictions.parquet"
+        assert path.is_relative_to(consumer.task_dir)
+        assert path.read_bytes() == (source.task_dir / "predictions.parquet").read_bytes()
         assert metadata["state"] == TaskState.SUCCEEDED.value

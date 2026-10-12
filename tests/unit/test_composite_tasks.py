@@ -13,7 +13,10 @@ from unittest.mock import Mock
 import pytest
 
 from axonx.components.task_manager.local.manager import LocalTaskManager
-from axonx.components.task_manager.local.supervisor import TaskProcessSupervisor, WorkerExit
+from axonx.components.task_manager.local.supervisor import (
+    TaskProcessSupervisor,
+    WorkerExit,
+)
 from axonx.components.task_repository import LocalTaskRepository
 from axonx.core import Application
 from axonx.enums import TaskState, TaskType
@@ -68,7 +71,11 @@ def test_sequence_loops_output_binding_and_explicit_lineage(tmp_path, monkeypatc
         for index in range(3):
             results.append(
                 task.run_task(
-                    "demo", node_name=f"feature-{index}", x=first.output["result"], y=index, source_tasks=first.task_id
+                    "demo",
+                    node_name=f"feature-{index}",
+                    x=first.output["result"],
+                    y=index,
+                    source_tasks=first.task_id,
                 )
             )
             current = read_task_metadata(task_path(tmp_path, results[-1].task_id), results[-1].task_id)
@@ -147,7 +154,11 @@ def test_file_pipeline_consumes_each_output_before_replacement(tmp_path, monkeyp
         for index in range(3):
             feature = task.run_task("feature", node_name=f"feature-{index}", x=index, y=10)
             predictions.append(task.run_task("predict", x=0, y=100, source_tasks=feature.task_id))
-        assert [prediction.output["result"] for prediction in predictions] == [110, 111, 112]
+        assert [prediction.output["result"] for prediction in predictions] == [
+            110,
+            111,
+            112,
+        ]
         assert (task_path(tmp_path, feature.task_id) / "value.txt").read_text() == "12"
         assert (task_path(tmp_path, predictions[-1].task_id) / "value.txt").read_text() == "112"
 
@@ -166,7 +177,8 @@ def test_nested_composites_and_separate_parents_inherit_the_same_name(tmp_path, 
             yield lambda: self.run_task("demo", x=1, y=2)
 
     monkeypatch.setattr(
-        "axonx.task.catalog.resolver.resolve_task", lambda name: Nested if name == "nested" else DemoTask
+        "axonx.task.catalog.resolver.resolve_task",
+        lambda name: Nested if name == "nested" else DemoTask,
     )
     results = []
 
@@ -175,7 +187,12 @@ def test_nested_composites_and_separate_parents_inherit_the_same_name(tmp_path, 
         results.append(task.run_task("nested", node_name="right"))
 
     for name in ("first", "second"):
-        task = Composite({"task_name": "shared"}, workspace_path=tmp_path, reg_name=name, compose=compose)
+        task = Composite(
+            {"task_name": "shared"},
+            workspace_path=tmp_path,
+            reg_name=name,
+            compose=compose,
+        )
         TaskRunner().run(task)
     assert {result.task_id for result in results} == {"composite#nested#shared"}
     assert len({result.run_id for result in results}) == 4
@@ -202,6 +219,7 @@ def test_child_startup_recovery_preserves_replacement_or_deleted_directory(tmp_p
                 write_task_metadata(
                     directory,
                     TaskMetadata(
+                        version=1,
                         task_id=child.task_id,
                         run_id="replacement",
                         task_type=TaskType.BASE,
@@ -414,7 +432,8 @@ def test_child_startup_failure_settles_owned_status_and_closes_resources(
             return BaseOutputParams()
 
     monkeypatch.setattr(
-        "axonx.task.catalog.resolver.resolve_task", lambda name: ResourceTask if name == "resource" else DemoTask
+        "axonx.task.catalog.resolver.resolve_task",
+        lambda name: ResourceTask if name == "resource" else DemoTask,
     )
 
     def compose(owner):
@@ -498,13 +517,19 @@ def test_continue_does_not_swallow_interrupts_and_child_resources_close(tmp_path
     assert task.children[0].state == TaskState.FAILED
 
 
-def test_invalid_runtime_options_and_calls_outside_runner_do_not_start_children(tmp_path):
+def test_invalid_runtime_options_and_calls_outside_runner_do_not_start_children(
+    tmp_path,
+):
     task = parent(tmp_path, lambda _owner: None)
     with pytest.raises(RuntimeError, match="parent TaskRunner"):
         task.run_task("demo", x=1, y=2)
 
     def compose(owner):
-        for options in ({"on_error": "invalid"}, {"task_name": "chosen"}, {"node_name": "../escape"}):
+        for options in (
+            {"on_error": "invalid"},
+            {"task_name": "chosen"},
+            {"node_name": "../escape"},
+        ):
             with pytest.raises(ValueError):
                 owner.run_task("demo", x=1, y=2, **options)
 
@@ -556,7 +581,8 @@ def test_nested_composite_propagates_output_and_failure(tmp_path, monkeypatch, f
             self.run_task("demo", x=1, y=2, fail=failed, on_error="continue")
 
     monkeypatch.setattr(
-        "axonx.task.catalog.resolver.resolve_task", lambda name: Nested if name == "nested" else DemoTask
+        "axonx.task.catalog.resolver.resolve_task",
+        lambda name: Nested if name == "nested" else DemoTask,
     )
     results = []
 
@@ -581,9 +607,16 @@ def test_documented_plugin_example_resolves_and_executes_through_command_entry(t
     code = re.search(r"```python\n(.*?)\n```", guide.read_text(), re.DOTALL).group(1)
     namespace = {"__name__": __name__}
     exec(compile(code, str(guide), "exec"), namespace)  # pylint: disable=exec-used
-    monkeypatch.setattr(sys.modules[__name__], "DemoChainTask", namespace["DemoChainTask"], raising=False)
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "DemoChainTask",
+        namespace["DemoChainTask"],
+        raising=False,
+    )
     plugin = PluginInfo(
-        distribution="composite-example", version="1", tasks={"demo_chain": f"{__name__}:DemoChainTask"}
+        distribution="composite-example",
+        version="1",
+        tasks={"demo_chain": f"{__name__}:DemoChainTask"},
     )
     monkeypatch.setattr("axonx.task.catalog.resolver.list_installed_plugins", lambda: [plugin])
 
@@ -591,7 +624,10 @@ def test_documented_plugin_example_resolves_and_executes_through_command_entry(t
     assert definition.source == "plugin"
     assert "children" not in definition.output_schema["properties"]
     execution = TaskCommandExecutor(tmp_path).execute(
-        SimpleNamespace(action="exec", arguments={"task": "demo_chain", "x": 2, "y": 3, "doubles": 2})
+        SimpleNamespace(
+            action="exec",
+            arguments={"task": "demo_chain", "x": 2, "y": 3, "doubles": 2},
+        )
     )
     assert execution.status.state == TaskState.SUCCEEDED
     assert execution.output["total"] == 20
@@ -609,7 +645,14 @@ def manager(tmp_path):
 
 
 def save_status(tmp_path, name, *, state=TaskState.RUNNING, run_id="run", pid=123):
-    status = TaskMetadata(task_id=f"base#{name}#test", run_id=run_id, task_type=TaskType.BASE, state=state, pid=pid)
+    status = TaskMetadata(
+        version=1,
+        task_id=f"base#{name}#test",
+        run_id=run_id,
+        task_type=TaskType.BASE,
+        state=state,
+        pid=pid,
+    )
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
     write_task_metadata(directory, status)
@@ -641,7 +684,10 @@ async def test_settlement_updates_nested_children_preserving_success_and_foreign
     replaced = save_status(tmp_path, "replaced", run_id="old")
     link_children(tmp_path, nested, leaf)
     link_children(tmp_path, root, nested, success, foreign, replaced)
-    write_task_metadata(task_path(tmp_path, replaced.task_id), replaced.model_copy(update={"run_id": "new"}))
+    write_task_metadata(
+        task_path(tmp_path, replaced.task_id),
+        replaced.model_copy(update={"run_id": "new"}),
+    )
 
     await manager._finish(root, state, code, "worker stopped")
 

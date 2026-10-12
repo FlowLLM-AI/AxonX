@@ -5,6 +5,7 @@ from pathlib import Path
 
 from ...constants import AXONX_DEFAULT_ENCODING
 from ...enums import TaskState
+from ..protocol import validate_protocol
 from ...utils.fs import file_sha256
 
 
@@ -13,6 +14,7 @@ def read_metadata(path: Path) -> dict:
     value = json.loads(path.read_text(encoding=AXONX_DEFAULT_ENCODING))
     if not isinstance(value, dict):
         raise TypeError(f"metadata must be a JSON object: {path}")
+    validate_protocol(value)
     if value.get("state") != TaskState.SUCCEEDED.value:
         raise ValueError(f"Upstream Task must have succeeded: {path} (state={value.get('state')!r})")
     return value

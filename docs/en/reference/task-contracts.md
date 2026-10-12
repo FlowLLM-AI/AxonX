@@ -2,6 +2,8 @@
 
 This page defines the basic contracts shared by Task authors, API users, and file consumers. See [Research artifact contracts](research-artifacts.md) for research-specific fields and [Task lifecycle](../concepts/task-lifecycle.md) for execution semantics. Timestamps and run_id values in the following examples are illustrative.
 
+All persisted Task records use the shared protocol header `version=1`, `task_type=TaskType`; readers reject absent or unsupported versions.
+
 ## Input and output base classes
 
 BaseInputParams uses `extra="forbid"` and assignment validation. Each Task's input_cls declares business fields on top of the base class.

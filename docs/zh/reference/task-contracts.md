@@ -2,6 +2,8 @@
 
 本页定义 Task 作者、API 使用者与文件消费者共享的基本契约。研究专属字段见[研究产物协议](research-artifacts.md)；运行语义见[任务生命周期](../concepts/task-lifecycle.md)。以下示例的时间与 run_id 为演示值。
 
+所有持久化 Task 记录统一使用 `version=1`、`task_type=TaskType` 协议头；读取时拒绝缺少版本或不支持的版本。
+
 ## 输入与输出基类
 
 BaseInputParams 使用 `extra="forbid"` 和赋值校验。每个 Task 的 input_cls 在基类上声明业务字段。

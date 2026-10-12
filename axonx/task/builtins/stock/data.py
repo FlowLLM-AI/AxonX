@@ -4,8 +4,12 @@ from collections.abc import Sequence
 from typing import Any
 
 import polars as pl
+from pydantic import field_validator
 
 from ...contracts import BaseETLOutputParams
+from ....enums import TaskType
+from ...protocol import task_protocol
+from .protocol import validate_feature_protocol
 
 
 class StockETLOutput(BaseETLOutputParams):
@@ -14,8 +18,12 @@ class StockETLOutput(BaseETLOutputParams):
     calendar_file: str
     protocol: dict
 
+    @field_validator("protocol")
+    @classmethod
+    def validate_etl_protocol(cls, value):
+        return validate_feature_protocol(value)
 
-VERSION = 2
+
 KEYS = ("trade_date", "trade_time", "ts_code")
 LABEL_COLUMNS = (
     *KEYS,
@@ -104,7 +112,10 @@ def fixed_labels(signals: pl.DataFrame, market: pl.DataFrame, calendar: pl.DataF
         validate="m:1",
     )
     result = result.join(
-        market.select(*KEYS, pl.col("market_status").alias("_entry_status")), on=list(KEYS), how="left", validate="1:1"
+        market.select(*KEYS, pl.col("market_status").alias("_entry_status")),
+        on=list(KEYS),
+        how="left",
+        validate="1:1",
     )
     last = market["trade_date"].max()
     valid = (
@@ -162,7 +173,7 @@ def transform_labels(frame: pl.DataFrame, *, reference: pl.Expr, winsorize_tail:
 
 def stock_protocol(*, trade_time: str) -> dict[str, Any]:
     return {
-        "version": VERSION,
+        **task_protocol(TaskType.ETL),
         "trade_time": trade_time,
         "return_unit": "decimal",
         "date_format": "YYYYMMDD",

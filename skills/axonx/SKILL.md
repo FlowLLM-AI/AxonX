@@ -9,6 +9,8 @@ This guide can be read independently or installed as an Agent skill. Documentati
 
 Source paths such as `plugins/qlib_a158/...` are relative to the root of an AxonX source checkout, not to this document or the Agent workspace. Run source development and plugin build commands from that checkout. Workspace paths passed to Jobs such as `preview_file` are relative to the selected service's workspace. Package installation alone does not provide the example plugin sources.
 
+AxonX owns protocol v1 in `axonx.task.protocol`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file hash. Feature contracts, semantic fingerprints and verified model snapshots are shared AxonX helpers. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
+
 ## Prepare the Environment and Service
 
 Use Python 3.12+ on macOS or Linux for local Task execution. In your chosen working directory, create and activate a virtual environment, then install the core:
@@ -91,7 +93,6 @@ Before implementation, read [Task contracts](https://flowllm-ai.github.io/AxonX/
 and [Research artifact contracts](https://flowllm-ai.github.io/AxonX/en/reference/research-artifacts). Standard Python fields alone do not guarantee
 compatibility with downstream plugins or Studio; also satisfy the artifact mappings and presentation fields used by
 the intended consumers.
-
 
 ### Task Types
 

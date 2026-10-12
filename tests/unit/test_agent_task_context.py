@@ -13,6 +13,7 @@ from axonx.task.storage.workspace import (
 
 def _status(task_id: str, task_type: TaskType, sources=(), *, log_path=""):
     return TaskMetadata(
+        version=1,
         task_id=task_id,
         run_id=f"run-{task_id}",
         task_type=task_type,

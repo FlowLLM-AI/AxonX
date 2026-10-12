@@ -19,6 +19,7 @@ from ....constants import (
     AXONX_TASK_TIMEZONE,
     AXONX_TASK_WORKSPACE_DIR,
 )
+from ....task.protocol import PROTOCOL_VERSION
 from ....enums import TaskState
 from ....plugin_kit.environment import environment_operation, run_in_thread, serialized
 from ....task.catalog import resolve_task
@@ -96,6 +97,7 @@ class LocalTaskManager(BaseTaskManager):
                 if not await self._reserve(task, not task.is_generated_name):
                     continue
                 status = TaskMetadata(
+                    version=PROTOCOL_VERSION,
                     task_id=task.task_id,
                     run_id=run_id,
                     task_type=task.task_type,
@@ -276,7 +278,10 @@ class LocalTaskManager(BaseTaskManager):
 
     async def _finish(self, status: TaskMetadata, state: TaskState, code: int, error: str) -> None:
         current = await asyncio.to_thread(
-            read_task_metadata, task_path(self.workspace_path, status.task_id), status.task_id, strict_io=True
+            read_task_metadata,
+            task_path(self.workspace_path, status.task_id),
+            status.task_id,
+            strict_io=True,
         )
         if current is None or current.run_id != status.run_id:
             await self.repository.reconcile()

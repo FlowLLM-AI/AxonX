@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from ...components.job.events import ProgressEvent
 from ...enums import TaskState
+from ..protocol import PROTOCOL_VERSION
 from ..core.identity import task_type_from_id
 from ..storage.events import append_event
 from ..storage.workspace import (
@@ -121,6 +122,7 @@ class TaskRunner:
             try:
                 self._prepare_directory(task)
                 self.status = TaskMetadata(
+                    version=PROTOCOL_VERSION,
                     task_id=task.task_id,
                     run_id=task.context.run_id,
                     task_type=task.task_type,

@@ -17,9 +17,12 @@ from axonx.task.contracts import (
     BaseTrainTask,
 )
 from axonx.task.core import TaskStep
-from axonx.task.builtins.stock.data import VERSION, transform_labels
-from axonx.task.storage import artifact_path, artifact_record, read_metadata
-from axonx.utils.fs import atomic_write
+from axonx.task.builtins.stock.data import transform_labels
+from axonx.task.storage import artifact_record, read_metadata
+from axonx.task.storage.inputs import pin_source_artifacts
+from axonx.utils.fs import atomic_write, atomic_write_json, file_sha256
+from axonx.task.builtins.stock.protocol import feature_contract
+from axonx.task.protocol import ModelCollection, task_protocol, validate_protocol
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix
@@ -32,8 +35,6 @@ class LgbmTrainOutputParams(BaseTrainOutputParams):
     feature_importance_file: str
     evaluation_history_file: str
     best_iteration: int
-    protocol: dict
-    model: dict
     rows: dict[str, int]
     validation_metrics: dict
 
@@ -168,16 +169,17 @@ class LgbmTrainTask(BaseTrainTask):
         source_dir = self.source_task_dir(etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
         source_metadata = read_metadata(source_metadata_path)
-        if source_metadata["output_params"].get("protocol", {}).get("version") != VERSION:
-            raise ValueError("Unsupported ETL stock protocol version")
-        dataset_path = artifact_path(source_dir, source_metadata, "dataset")
+        validate_protocol(source_metadata["output_params"]["protocol"], TaskType.ETL)
+        dataset_path, labels_path = pin_source_artifacts(
+            self, etl_task_id, "dataset", "labels", metadata=source_metadata
+        )
         output_dir = self.task_dir
         self.state.update(
             source_dir=source_dir,
             source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
             dataset_path=dataset_path,
-            labels_path=artifact_path(source_dir, source_metadata, "labels"),
+            labels_path=labels_path,
             model_path=output_dir / "model.txt",
             importance_path=output_dir / "feature_importance.csv",
             history_path=output_dir / "evaluation_history.csv",
@@ -191,7 +193,7 @@ class LgbmTrainTask(BaseTrainTask):
         path: Path = self.state["dataset_path"]
         if not path.is_file():
             raise FileNotFoundError(f"Alpha158 数据不存在: {path}")
-        features = tuple(self.state["source_metadata"].get("output_params", {}).get("feature_columns", ()))
+        features = tuple(self.state["source_metadata"]["output_params"]["protocol"]["default_feature_cols"])
         if not features:
             raise ValueError("ETL metadata 缺少 feature_columns")
         features = self.select_features(features)
@@ -468,6 +470,9 @@ class LgbmTrainTask(BaseTrainTask):
             f"importance={self.state['importance_path']} history={self.state['history_path']}",
         )
 
+    def additional_training_protocol(self) -> dict:
+        return {}
+
     def build_output_params(self) -> LgbmTrainOutputParams:
         output_dir: Path = self.task_dir
         frame: pl.DataFrame = self.state["frame"]
@@ -479,8 +484,16 @@ class LgbmTrainTask(BaseTrainTask):
         )
         for name, path_key in artifact_paths:
             artifacts[name] = artifact_record(self.state[path_key], output_dir)
-        return self.output_cls(
-            protocol={
+        model = {
+            "library": "lightgbm",
+            "library_version": self._lightgbm().__version__,
+            "parameters": self._parameters(),
+            "best_iteration": self.state["best_iteration"],
+            "feature_names": list(self.state["features"]),
+        }
+        values = {
+            "protocol": {
+                **self.additional_training_protocol(),
                 "qlib_reference": QLIB_REFERENCE,
                 "qlib_deviations": {key: DEVIATIONS[key] for key in ("label", "training")},
                 "parameter_preset": self.input_params.parameter_preset,
@@ -488,7 +501,7 @@ class LgbmTrainTask(BaseTrainTask):
                 "train_end_exclusive": self.input_params.train_end,
                 "validation_start_inclusive": self.state["validation_start"],
                 "label_column": self.input_params.label_column,
-                "version": VERSION,
+                **task_protocol(TaskType.TRAIN),
                 "label_transform": {
                     "reference": "cutoff-safe eligible training rows",
                     "winsorize_tail": self.input_params.label_winsorize_tail,
@@ -503,16 +516,16 @@ class LgbmTrainTask(BaseTrainTask):
                     "label_target_date < train_end; transforms after temporal filtering"
                 ),
             },
-            feature_columns=list(self.state["features"]),
-            target_columns=[self.input_params.label_column],
-            model_name="LightGBM",
-            metrics={
+            "feature_columns": list(self.state["features"]),
+            "target_columns": [self.input_params.label_column],
+            "model_name": "LightGBM",
+            "metrics": {
                 name: value
                 for name, value in self.state["validation_metrics"].items()
                 if isinstance(value, (int, float)) and math.isfinite(value)
             },
-            parameters=self._parameters(),
-            training_curve={
+            "parameters": self._parameters(),
+            "training_curve": {
                 "x": [str(iteration) for iteration in self.state["history"]["iteration"].to_list()],
                 # L2 is mean squared error and L1 is mean absolute error.
                 # Their numeric ranges differ, so training and validation
@@ -528,13 +541,7 @@ class LgbmTrainTask(BaseTrainTask):
                     if column.endswith("_l1")
                 },
             },
-            model={
-                "library": "lightgbm",
-                "library_version": self._lightgbm().__version__,
-                "parameters": self._parameters(),
-                "best_iteration": self.state["best_iteration"],
-            },
-            rows={
+            "rows": {
                 "loaded": self.state["loaded_rows"],
                 "eligible": self.state["pre_trim_rows"],
                 "before_trim": self.state["pre_trim_rows"],
@@ -542,11 +549,29 @@ class LgbmTrainTask(BaseTrainTask):
                 "tuning_train": self.state["tuning_train"].height,
                 "validation": self.state["validation"].height,
             },
-            validation_metrics=self.state["validation_metrics"],
+            "validation_metrics": self.state["validation_metrics"],
+            "artifacts": artifacts,
+            "model_files": {"model": str(self.state["model_path"])},
+            "feature_importance_file": str(self.state["importance_path"]),
+            "evaluation_history_file": str(self.state["history_path"]),
+            "train_rows": frame.height,
+            "best_iteration": self.state["best_iteration"],
+        }
+
+        collection = ModelCollection(
+            **values["protocol"],
+            members={
+                "model": {
+                    "model_artifact": "model",
+                    "model_sha256": file_sha256(self.state["model_path"]),
+                    "model": model,
+                }
+            },
+            feature_protocol=feature_contract(self.state["source_metadata"]["output_params"]["protocol"]),
             artifacts=artifacts,
-            model_files={"model": str(self.state["model_path"])},
-            feature_importance_file=str(self.state["importance_path"]),
-            evaluation_history_file=str(self.state["history_path"]),
-            train_rows=frame.height,
-            best_iteration=self.state["best_iteration"],
-        )
+        ).model_dump(mode="json")
+        manifest_path = output_dir / "models.json"
+        atomic_write_json(manifest_path, collection)
+        values["artifacts"]["model_manifest"] = artifact_record(manifest_path, output_dir)
+        values["protocol"] = collection
+        return self.output_cls(**values)

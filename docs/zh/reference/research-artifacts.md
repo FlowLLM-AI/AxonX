@@ -9,6 +9,14 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 ![产物阅读链](../../figures/research/results-reading.svg)
 
+## 统一协议 v1
+
+AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可独立使用的研究元数据必须包含 `version=1`，并在 `task_type` 中复用现有 `TaskType`；不新增产物 kind 枚举，不保留插件自己的版本计数器。读取时拒绝缺少协议头和其他版本的数据。旧工作区和模型需要重新生成，不提供迁移或回退读取。
+
+训练使用 `ModelCollection`：一个 `models.json` 保存特征契约、训练上下文、命名成员、模型配置及带哈希的产物引用。成员和 checkpoint 权重不再各自生成 metadata 文件。`BaseTrainOutputParams.protocol` 保存集合，`model_files` 使用相同成员名。插件保留原生权重序列化；带版本的模型容器使用同一个公共协议头。
+
+离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份字符串值的 `model_identity`、覆盖日期 `dates`、分数列 `score_columns` 和文件哈希 `predictions_sha256`。模型身份使用 `models_sha256` 和 `features_sha256`，不包含日期、路径，也不按日期重复复制身份。股票特征契约与指纹由 `axonx.task.builtins.stock.protocol` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.models` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
+
 ## metadata 与产物映射
 
 标准 Task 记录在 metadata 顶层保存身份、输入参数、输出参数等信息；研究字段位于 `output_params`，不要把它们写到顶层期待 Studio 自动识别。
@@ -157,7 +165,7 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
 
 回测输入还需独立的 `market` 和 `calendar` 产物；可选 `labels` 用于 IC、RankIC、NDCG、目标标签收益和基准收益，无标签时仍可运行组合账本。指定文件时分别传 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`，上述 `input_file` 为预测 Parquet。
 
-通过 Predict Task ID 解析时，预测 metadata 的 `output_params.artifacts.predictions` 必须提供产物记录（相对 `path`、`size`、`sha256`），并声明 `output_params.protocol.version=2`。`protocol.market_source_task` 指向提供行情、日历和标签的 ETL Task；也可在 `source_tasks` 显式指定 ETL 来源或传入对应文件路径。任务解析会校验来源产物摘要。`statistics` 是展示信息，不是回测选股输入。
+通过 Predict Task ID 解析时，预测 metadata 的 `output_params.artifacts.predictions` 必须提供产物记录（相对 `path`、`size`、`sha256`），并声明 `output_params.protocol.version=1`。`protocol.market_source_task` 指向提供行情、日历和标签的 ETL Task；也可在 `source_tasks` 显式指定 ETL 来源或传入对应文件路径。任务解析会校验来源产物摘要。`statistics` 是展示信息，不是回测选股输入。
 
 ## 回测 dimensions 与 protocol
 
@@ -168,7 +176,11 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
     "holding_detail_top_n": 30,
     "benchmarks": [{ "key": "universe", "label": "Universe" }]
   },
-  "protocol": { "version": 2, "return_unit": "decimal" },
+  "protocol": {
+    "version": 1,
+    "task_type": "backtest",
+    "return_unit": "decimal"
+  },
   "date_range": { "start": "20230103", "end": "20231229" },
   "days": 250
 }

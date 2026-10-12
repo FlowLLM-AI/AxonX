@@ -11,7 +11,12 @@ from pydantic.json_schema import SkipJsonSchema
 
 from axonx.task.contracts import BaseETLInputParams, BaseETLTask
 from axonx.task.core import TaskStep
-from axonx.task.builtins.stock.data import StockETLOutput, fixed_labels, stock_protocol, apply_market_status
+from axonx.task.builtins.stock.data import (
+    StockETLOutput,
+    fixed_labels,
+    stock_protocol,
+    apply_market_status,
+)
 from axonx.utils.fs import atomic_write
 from axonx.task.storage import artifact_record
 
@@ -349,7 +354,10 @@ class Alpha158Task(BaseETLTask):
             status = status.filter(
                 pl.col("trade_date")
                 .cast(pl.String)
-                .is_between(pl.lit(market["trade_date"].min()), pl.lit(market["trade_date"].max()))
+                .is_between(
+                    pl.lit(market["trade_date"].min()),
+                    pl.lit(market["trade_date"].max()),
+                )
             )
             market = apply_market_status(market, status)
         self.state["market"] = market
@@ -510,6 +518,14 @@ class Alpha158Task(BaseETLTask):
             },
             protocol={
                 **stock_protocol(trade_time="1500"),
+                "feature_family": "qlib_a158",
+                "feature_cols": list((*FEATURES, *self.extra_features)),
+                "default_feature_cols": list((*FEATURES, *self.extra_features)),
+                "global_feature_groups": {},
+                "feature_rules": {
+                    "history_days": HISTORY_DAYS,
+                    "min_history_coverage": self.input_params.min_history_coverage,
+                },
                 "qlib_reference": QLIB_REFERENCE,
                 "qlib_deviations": {
                     key: DEVIATIONS[key] for key in ("universe", "features", "data", "label", "limits")

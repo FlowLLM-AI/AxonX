@@ -17,8 +17,9 @@ from ...contracts import (
     BacktestBenchmark,
 )
 from ...core import TaskStep, parse_source_tasks, task_type_from_id
-from ...storage import artifact_path, artifact_record, read_metadata
-from .data import VERSION
+from ...storage import artifact_record, read_metadata
+from ...storage.inputs import pin_source_artifacts
+from ...protocol import PredictionProtocol, task_protocol
 from .engine import BacktestConfig, PortfolioPolicy, run_backtest
 
 
@@ -89,9 +90,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
     def source_file(self, task_id: str, name: str) -> tuple[Path, dict[str, Any]]:
         root = self.source_task_dir(task_id)
         metadata = read_metadata(root / "metadata.json")
-        path = artifact_path(root, metadata, name)
-        if file_sha256(path) != metadata["output_params"]["artifacts"][name]["sha256"]:
-            raise ValueError(f"Source artifact changed: {task_id}/{name}")
+        (path,) = pin_source_artifacts(self, task_id, name, metadata=metadata)
         return path, metadata
 
     def resolve_inputs(self) -> None:
@@ -102,8 +101,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
         if paths["input"] is None:
             prediction = p.source_task(TaskType.PREDICT)
             paths["input"], metadata = self.source_file(prediction, "predictions")
-            if metadata["output_params"]["protocol"].get("version") != VERSION:
-                raise ValueError("Unsupported prediction stock protocol version")
+            PredictionProtocol.model_validate(metadata["output_params"]["protocol"])
             etl = etl or metadata["output_params"]["protocol"]["market_source_task"]
         if etl:
             for key in ("market", "calendar", "labels"):
@@ -172,7 +170,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
                 benchmarks=[BacktestBenchmark(key=k, label=k) for k in self.state["result"].benchmark_keys],
             ),
             protocol={
-                "version": VERSION,
+                **task_protocol(TaskType.BACKTEST),
                 "return_unit": "decimal",
                 "valuation": "daily adjusted-price mark to market; confirmed suspension carries last mark"
                 + ("; missing quotes are assumed suspended" if self.input_params.missing_market_as_suspension else ""),

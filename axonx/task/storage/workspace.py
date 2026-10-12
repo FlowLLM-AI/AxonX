@@ -15,6 +15,7 @@ from ...constants import AXONX_DEFAULT_ENCODING
 from ...enums import TaskState, TaskType
 from ...utils.fs import atomic_write_json
 from ..core.identity import task_type_from_id
+from ..protocol import Protocol
 
 #: One workspace directory per task category holds that category's task directories.
 KINDS = tuple(kind.value for kind in TaskType)
@@ -49,7 +50,7 @@ class ChildTaskRecord(BaseModel):
     error: str = ""
 
 
-class TaskMetadata(BaseModel):
+class TaskMetadata(Protocol):
     """The complete current lifecycle record, from queued to terminal."""
 
     model_config = ConfigDict(extra="forbid")

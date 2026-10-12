@@ -10,7 +10,12 @@ from axonx_qlib_a158.train import (
 
 from .internal.cross_section import CONTEXT_FEATURES, PREFIX, WINDOWS, selected_features
 
-__all__ = ["LgbmTrainInputParams", "LgbmTrainOutputParams", "LgbmTrainTask", "MODEL_LABELS"]
+__all__ = [
+    "LgbmTrainInputParams",
+    "LgbmTrainOutputParams",
+    "LgbmTrainTask",
+    "MODEL_LABELS",
+]
 
 
 class LgbmTrainInputParams(BaseTrainInput):
@@ -65,8 +70,8 @@ class LgbmTrainTask(BaseTrainTask):
             raise ValueError(f"ETL has unsupported context features: {sorted(unknown)}; rerun current ETL")
         return tuple(name for name in features if not name.startswith(PREFIX) or name in requested)
 
-    def build_output_params(self) -> LgbmTrainOutputParams:
-        output = super().build_output_params()
-        output.protocol["context_groups"] = self.input_params.context_groups
-        output.protocol["context_windows"] = self.input_params.context_windows
-        return output
+    def additional_training_protocol(self) -> dict:
+        return {
+            "context_groups": self.input_params.context_groups,
+            "context_windows": self.input_params.context_windows,
+        }

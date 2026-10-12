@@ -3,6 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
+from axonx.task.protocol import task_protocol
+from axonx.enums import TaskType
 from axonx.task.contracts import BasePredictOutputParams, BaseTrainOutputParams
 
 PREDICT_PARAMS = {
@@ -16,8 +18,24 @@ PREDICT_PARAMS = {
 def test_collection_contracts_preserve_members(members):
     model_files = {member: f"{member}/model.pt" for member in members}
     score_columns = {member: f"pred_{member}" for member in members}
-    train = BaseTrainOutputParams(model_files=model_files, train_rows=10)
-    prediction = BasePredictOutputParams(**PREDICT_PARAMS, score_columns=score_columns)
+    train_protocol = {
+        **task_protocol(TaskType.TRAIN),
+        "feature_protocol": task_protocol(TaskType.ETL),
+        "members": {member: {"model_artifact": member, "model_sha256": "0" * 64, "model": {}} for member in members},
+        "artifacts": {member: {"path": model_files[member], "sha256": "0" * 64} for member in members},
+    }
+    train = BaseTrainOutputParams(model_files=model_files, train_rows=10, protocol=train_protocol)
+    prediction = BasePredictOutputParams(
+        **PREDICT_PARAMS,
+        score_columns=score_columns,
+        protocol={
+            **task_protocol(TaskType.PREDICT),
+            "model_identity": {"models_sha256": "0" * 64},
+            "dates": ["20240102"],
+            "score_columns": score_columns,
+            "predictions_sha256": "0" * 64,
+        },
+    )
     assert train.model_dump()["model_files"] == model_files
     assert prediction.model_dump()["score_columns"] == score_columns
     assert "model_file" not in train.model_dump()
@@ -33,3 +51,30 @@ def test_train_requires_collection_contract(fields):
 def test_predict_requires_collection_contract(fields):
     with pytest.raises(ValidationError):
         BasePredictOutputParams(**PREDICT_PARAMS, **fields)
+
+
+@pytest.mark.parametrize("producer", [TaskType.PREDICT, TaskType.INFERENCE])
+def test_prediction_output_requires_matching_producer_and_scores(producer):
+    protocol = {
+        **task_protocol(producer),
+        "model_identity": {"model": "test"},
+        "dates": ["20240102"],
+        "score_columns": {"model": "score"},
+        "predictions_sha256": "0" * 64,
+    }
+    with pytest.raises(ValidationError, match="differs from its protocol"):
+        BasePredictOutputParams(**PREDICT_PARAMS, score_columns={"model": "other"}, protocol=protocol)
+    if producer == TaskType.INFERENCE:
+        with pytest.raises(ValidationError, match="differs from its protocol"):
+            BasePredictOutputParams(**PREDICT_PARAMS, score_columns=protocol["score_columns"], protocol=protocol)
+
+
+def test_training_output_requires_matching_members():
+    protocol = {
+        **task_protocol(TaskType.TRAIN),
+        "feature_protocol": task_protocol(TaskType.ETL),
+        "members": {"model": {"model_artifact": "model", "model_sha256": "0" * 64, "model": {}}},
+        "artifacts": {"model": {"path": "model.pt", "sha256": "0" * 64}},
+    }
+    with pytest.raises(ValidationError, match="members differ"):
+        BaseTrainOutputParams(model_files={"other": "model.pt"}, train_rows=1, protocol=protocol)

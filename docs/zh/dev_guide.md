@@ -4,6 +4,8 @@
 
 `plugins/qlib_a158/...` 等源码路径相对于 AxonX 源码仓库根目录，不是本文所在目录或 Agent 工作区。源码开发与插件构建命令应从该仓库根目录执行。`preview_file` 等 Job 的工作区路径相对于所选服务的工作区。仅安装 Python 包不会提供示例插件源码。
 
+AxonX 在 `axonx.task.protocol` 中统一定义协议 v1，`task_type` 复用现有 `TaskType`。训练通过 `output_params.protocol` 和一个 `models.json` 发布集合，不再生成成员或 checkpoint 的 metadata 文件。离线与在线预测共享一份 `model_identity`（`models_sha256`、`features_sha256`）、`dates`、`score_columns` 和文件哈希。特征契约、语义指纹与模型快照校验均使用 AxonX 公共工具。缺少协议头和旧格式直接拒绝，产物需要重新生成；包发布版本独立管理。
+
 ## 准备环境与服务
 
 本地 Task 执行使用 Python 3.12+，支持 macOS 和 Linux。在选定的工作目录创建并激活虚拟环境，再安装核心包：

@@ -3,9 +3,10 @@
 from abc import ABC
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from ...enums import TaskType
+from ..protocol import validate_protocol
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 
@@ -33,6 +34,11 @@ class BaseBacktestOutputParams(BaseOutputParams):
     protocol: dict[str, Any]
     date_range: dict[str, str]
     days: int
+
+    @field_validator("protocol")
+    @classmethod
+    def validate_backtest_protocol(cls, value):
+        return validate_protocol(value, TaskType.BACKTEST)
 
 
 class BaseBacktestTask(BaseTask, ABC):

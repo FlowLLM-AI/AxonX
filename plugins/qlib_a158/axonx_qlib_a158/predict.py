@@ -15,10 +15,19 @@ from axonx.task.contracts import (
     BasePredictOutputParams,
     BasePredictTask,
 )
-from axonx.task.builtins.stock.data import KEYS, VERSION, validate_keys
+from axonx.task.builtins.stock.data import KEYS, validate_keys
 from axonx.task.core import TaskStep, parse_source_tasks, task_type_from_id
-from axonx.task.storage import artifact_path, artifact_record, read_metadata
-from axonx.utils.fs import atomic_write, file_sha256
+from axonx.task.storage import artifact_record
+from axonx.task.storage.inputs import pin_source_artifacts, source_artifact
+from axonx.task.storage.models import snapshot_model_collection
+from axonx.utils.fs import atomic_write
+from axonx.task.builtins.stock.protocol import feature_identity
+from axonx.task.protocol import (
+    ModelCollection,
+    fingerprint,
+    prediction_protocol,
+    validate_protocol,
+)
 
 from .internal.modeling import feature_matrix
 
@@ -75,20 +84,23 @@ class LgbmPredictTask(BasePredictTask):
         train_task_id = self.input_params.source_task(TaskType.TRAIN)
         train_dir = self.source_task_dir(train_task_id)
         train_metadata_path = train_dir / "metadata.json"
-        train_metadata = read_metadata(train_metadata_path)
-        if train_metadata["output_params"].get("protocol", {}).get("version") != VERSION:
-            raise ValueError("Unsupported training stock protocol version")
-        model_path = artifact_path(train_dir, train_metadata, "model")
-        train_end = train_metadata.get("output_params", {}).get("protocol", {}).get("train_end_exclusive")
+        manifest_path, train_metadata = source_artifact(self, train_task_id, "model_manifest")
+        manifest_path = snapshot_model_collection(
+            manifest_path,
+            self.task_dir / "model_snapshot",
+            expected_sha256=train_metadata["output_params"]["artifacts"]["model_manifest"]["sha256"],
+        )
+        collection = ModelCollection.model_validate_json(manifest_path.read_text()).model_dump(mode="json")
+        self.state["model_collection"] = collection
+        member = collection["members"]["model"]
+        model_path = manifest_path.parent / collection["artifacts"][member["model_artifact"]]["path"]
+        train_end = collection["train_end_exclusive"]
         if not isinstance(train_end, str):
             raise TypeError("训练 metadata 缺少 protocol.train_end_exclusive")
         if self.input_params.pred_start < train_end:
             raise ValueError(
                 f"pred_start 不能早于 train_end: {self.input_params.pred_start} < {train_end}",
             )
-        expected_hash = train_metadata.get("output_params", {}).get("artifacts", {}).get("model", {}).get("sha256")
-        if expected_hash and file_sha256(model_path) != expected_hash:
-            raise ValueError(f"模型文件 SHA256 与训练 metadata 不一致: {model_path}")
         output_dir = self.task_dir
         self.state.update(
             train_dir=train_dir,
@@ -111,8 +123,12 @@ class LgbmPredictTask(BasePredictTask):
         etl_task_id = etl_sources[0]
         etl_dir = self.source_task_dir(etl_task_id)
         etl_metadata_path = etl_dir / "metadata.json"
-        etl_metadata = read_metadata(etl_metadata_path)
-        dataset_path = artifact_path(etl_dir, etl_metadata, "dataset")
+        dataset_path, etl_metadata = source_artifact(self, etl_task_id, "dataset")
+        feature_protocol = etl_metadata["output_params"]["protocol"]
+        validate_protocol(feature_protocol, TaskType.ETL)
+        if feature_identity(feature_protocol) != feature_identity(self.state["model_collection"]["feature_protocol"]):
+            raise ValueError("Feature protocol differs from training")
+        (dataset_path,) = pin_source_artifacts(self, etl_task_id, "dataset", metadata=etl_metadata)
         self.state.update(
             etl_task_id=etl_task_id,
             etl_dir=etl_dir,
@@ -126,7 +142,7 @@ class LgbmPredictTask(BasePredictTask):
         path: Path = self.state["dataset_path"]
         if not path.is_file():
             raise FileNotFoundError(f"Alpha158 数据不存在: {path}")
-        features = tuple(self.state["train_metadata"].get("output_params", {}).get("feature_columns", ()))
+        features = tuple(self.state["model_collection"]["members"]["model"]["model"]["feature_names"])
         if not features:
             raise ValueError("训练 metadata 缺少 feature_columns")
         schema = pl.read_parquet_schema(path)
@@ -193,7 +209,7 @@ class LgbmPredictTask(BasePredictTask):
         frame: pl.DataFrame = self.state["frame"]
         matrix = feature_matrix(frame, self.state["features"])
         self.report_progress(30)
-        best_iteration = self.state["train_metadata"]["output_params"]["model"]["best_iteration"]
+        best_iteration = self.state["model_collection"]["members"]["model"]["model"]["best_iteration"]
         prediction = np.asarray(
             self.state["model"].predict(matrix, num_iteration=best_iteration),
             dtype=float,
@@ -214,7 +230,10 @@ class LgbmPredictTask(BasePredictTask):
                 "signal_adjustment_factor",
                 *self.state["index_columns"],
             )
-            .sort(["trade_date", "trade_time", "pred", "ts_code"], descending=[False, False, True, False])
+            .sort(
+                ["trade_date", "trade_time", "pred", "ts_code"],
+                descending=[False, False, True, False],
+            )
             .with_columns(
                 pl.int_range(1, pl.len() + 1).over(list(KEYS[:2])).alias("rank"),
                 pl.when(pl.col("is_buyable_at_signal"))
@@ -270,14 +289,23 @@ class LgbmPredictTask(BasePredictTask):
                     for column in self.state["index_columns"]
                 },
             },
-            model_target=self.state["train_metadata"]["output_params"]["protocol"]["label_column"],
+            model_target=self.state["model_collection"]["label_column"],
             index_weight_columns=list(self.state["index_columns"]),
-            protocol={
-                "version": VERSION,
-                "return_unit": "decimal",
-                "market_source_task": self.state["etl_task_id"],
-                "model_sha256": file_sha256(self.state["model_path"]),
-                "ranking": "pred descending, ts_code ascending",
-            },
+            protocol=prediction_protocol(
+                TaskType.PREDICT,
+                {
+                    "models_sha256": fingerprint(
+                        {key: value["model_sha256"] for key, value in self.state["model_collection"]["members"].items()}
+                    ),
+                    "features_sha256": feature_identity(self.state["etl_metadata"]["output_params"]["protocol"]),
+                    "family": self.state["etl_metadata"]["output_params"]["protocol"]["feature_family"],
+                    "trade_time": "1500",
+                    "return_unit": "decimal",
+                },
+                self.state["predictions_path"],
+                frame["trade_date"].unique(),
+                {"model": "pred"},
+                market_source_task=self.state["etl_task_id"],
+            ),
             artifacts={"predictions": artifact_record(self.state["predictions_path"], self.task_dir)},
         )

@@ -9,6 +9,14 @@ Research Tasks publish results through typed `output_params`. Studio extracts pr
 
 ![Artifact reading chain](../../figures/research/results-reading.svg)
 
+## Shared protocol v1
+
+AxonX owns the shared research protocol in `axonx.task.protocol`. Task records and portable research metadata require `version=1` and the existing `TaskType` in `task_type`; there is no separate artifact-kind enum or plugin version counter. Readers reject missing headers and other versions. Regenerate old workspaces and models; no migration or fallback reader is provided.
+
+Training uses `ModelCollection`: one `models.json` stores the feature contract, training context, named members, model configurations and hash-verified artifact references. Member and checkpoint weights have no separate metadata sidecars. `BaseTrainOutputParams.protocol` contains the collection; `model_files` names its members. Plugins retain their native weight serialization; versioned model containers use the same shared header.
+
+Offline and online prediction use `PredictionProtocol`, with producer type `predict` or `inference`. It stores one string-valued `model_identity`, covered `dates`, `score_columns` and `predictions_sha256`. Model identity uses `models_sha256` and `features_sha256`; dates and paths are not model identity. Predictions do not duplicate identities for each date. Stock feature contracts and fingerprints come from `axonx.task.builtins.stock.protocol`; fingerprints include semantic rules and ordered features, excluding locations, date coverage and quality counters. `snapshot_model_collection` in `axonx.task.storage.models` verifies portable model snapshots. Artifacts remain exclusively in `output_params.artifacts` on Task records; package release versions are independent.
+
 ## Mapping metadata to artifacts
 
 Standard Task records store identity, input parameters, output parameters, and related information at the metadata top level. Research fields belong in `output_params`; placing them at the top level does not make Studio recognize them automatically.
@@ -39,13 +47,13 @@ Resolving paths through downstream helpers does not itself automatically verify 
 
 Required below means the model has no default; not every field is displayed separately in Studio.
 
-| Type     | Required base-class fields                                | Optional or default base-class fields                                     |
-| -------- | --------------------------------------------------------- | ------------------------------------------------------------------------- |
-| ETL      | `output_file`, `rows`, `date_range`                       | `feature_columns=[]`, `label_columns=[]`                                  |
-| Analysis | `result_file`, `rows`                                     | `scores={}`                                                               |
-| Train    | `model_files`, `train_rows`                               | `model_name`, feature/target columns, metrics, parameters, training_curve |
-| Predict  | `predictions_file`, `score_columns`, `rows`, `date_range` | `output_columns=[]`, `protocol={}`, `statistics={}`                       |
-| Backtest | `dimensions`, `protocol`, `date_range`, `days`            | Shared `artifacts={}`                                                     |
+| Type     | Required base-class fields                                            | Optional or default base-class fields                                     |
+| -------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| ETL      | `output_file`, `rows`, `date_range`                                   | `feature_columns=[]`, `label_columns=[]`                                  |
+| Analysis | `result_file`, `rows`                                                 | `scores={}`                                                               |
+| Train    | `model_files`, `protocol`, `train_rows`                               | `model_name`, feature/target columns, metrics, parameters, training_curve |
+| Predict  | `predictions_file`, `score_columns`, `protocol`, `rows`, `date_range` | `output_columns=[]`, `statistics={}`                                      |
+| Backtest | `dimensions`, `protocol`, `date_range`, `days`                        | Shared `artifacts={}`                                                     |
 
 All types extend `BaseOutputParams`; output subclasses must declare extra fields or `extra=forbid` validation fails. `date_range` is a string mapping; pages read `start` and `end`, so producers should use these keys.
 
@@ -157,7 +165,7 @@ Predictions need no feature columns, `actual_return`, future labels or future ex
 
 Backtesting also requires independent `market` and `calendar` artifacts. Optional `labels` supplies IC, RankIC, NDCG, target label returns and benchmark returns; the portfolio ledger can run without labels. For explicit files, pass `input_file`, `market_file`, `calendar_file` and optional `labels_file`, where `input_file` is prediction Parquet.
 
-When resolving a Predict Task ID, prediction metadata must publish an artifact record (relative `path`, `size`, `sha256`) under `output_params.artifacts.predictions` and declare `output_params.protocol.version=2`. `protocol.market_source_task` identifies the ETL Task supplying market, calendar and labels; an ETL source can also be supplied explicitly in `source_tasks`, or the corresponding file paths can be provided. Task resolution verifies source artifact digests. `statistics` is presentation information, not a selection input.
+When resolving a Predict Task ID, prediction metadata must publish an artifact record (relative `path`, `size`, `sha256`) under `output_params.artifacts.predictions` and declare `output_params.protocol.version=1`. `protocol.market_source_task` identifies the ETL Task supplying market, calendar and labels; an ETL source can also be supplied explicitly in `source_tasks`, or the corresponding file paths can be provided. Task resolution verifies source artifact digests. `statistics` is presentation information, not a selection input.
 
 ## Backtest dimensions and protocol
 
@@ -168,7 +176,11 @@ When resolving a Predict Task ID, prediction metadata must publish an artifact r
     "holding_detail_top_n": 30,
     "benchmarks": [{ "key": "universe", "label": "Universe" }]
   },
-  "protocol": { "version": 2, "return_unit": "decimal" },
+  "protocol": {
+    "version": 1,
+    "task_type": "backtest",
+    "return_unit": "decimal"
+  },
   "date_range": { "start": "20230103", "end": "20231229" },
   "days": 250
 }

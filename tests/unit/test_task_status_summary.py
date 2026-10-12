@@ -19,10 +19,15 @@ from axonx.task.storage.workspace import TaskMetadata, TaskStepStatus
 
 def status():
     return TaskMetadata(
+        version=1,
         task_id="analysis#test#summary",
         run_id="run",
         task_type="analysis",
-        input_params={"task_name": "friendly", "comparison_keys": [], "large": "x" * 100000},
+        input_params={
+            "task_name": "friendly",
+            "comparison_keys": [],
+            "large": "x" * 100000,
+        },
         output_params={"comparisons": [], "large": "x" * 100000},
         steps=[
             TaskStepStatus(name="done", finished_at=datetime.now(UTC), percentage=100),
@@ -39,7 +44,12 @@ def test_summary_preserves_progress_and_bounds_large_fields():
     assert not {"input_params", "output_params", "steps", "children"} & summary.keys()
     assert summary["display_name"] == "friendly"
     assert summary["is_online"] is True
-    assert summary["step_progress"] == {"current": 2, "total": 3, "name": "active", "percentage": 42}
+    assert summary["step_progress"] == {
+        "current": 2,
+        "total": 3,
+        "name": "active",
+        "percentage": 42,
+    }
     assert len(summary["error"]) == 1000
     assert len(task.error) == 2000
     task.steps = []

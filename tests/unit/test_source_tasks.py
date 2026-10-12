@@ -27,7 +27,17 @@ def test_empty_sources(value):
 
 
 @pytest.mark.parametrize(
-    "value", [[ETL], None, f"{ETL}，{TRAIN}", f"{ETL},", f",{ETL}", f"{ETL},,{TRAIN}", f"{ETL},{ETL}", "invalid"]
+    "value",
+    [
+        [ETL],
+        None,
+        f"{ETL}，{TRAIN}",
+        f"{ETL},",
+        f",{ETL}",
+        f"{ETL},,{TRAIN}",
+        f"{ETL},{ETL}",
+        "invalid",
+    ],
 )
 def test_invalid_sources_are_rejected(value):
     with pytest.raises(ValidationError):
@@ -43,8 +53,14 @@ def test_source_type_requires_exactly_one_match():
 
 def test_cli_and_structured_arguments_use_the_same_string():
     sources = f"{ETL},{TRAIN}"
-    assert parse_task_argv(["--task", "demo", "--source-tasks", sources]) == ("demo", {"source_tasks": sources})
-    assert parse_task_argv(build_task_argv("demo", {"source_tasks": sources})) == ("demo", {"source_tasks": sources})
+    assert parse_task_argv(["--task", "demo", "--source-tasks", sources]) == (
+        "demo",
+        {"source_tasks": sources},
+    )
+    assert parse_task_argv(build_task_argv("demo", {"source_tasks": sources})) == (
+        "demo",
+        {"source_tasks": sources},
+    )
 
 
 def test_prediction_resolves_dataset_from_string_metadata(tmp_path):
@@ -53,13 +69,31 @@ def test_prediction_resolves_dataset_from_string_metadata(tmp_path):
 
     etl_dir = task_path(tmp_path, ETL)
     etl_dir.mkdir(parents=True)
+    from axonx.task.storage import artifact_record
+
+    dataset = etl_dir / "dataset.parquet"
+    dataset.write_bytes(b"dataset")
     (etl_dir / "metadata.json").write_text(
-        json.dumps({"state": "succeeded", "output_params": {"artifacts": {"dataset": {"path": "dataset.parquet"}}}})
+        json.dumps(
+            {
+                "task_id": ETL,
+                "run_id": "test",
+                "version": 1,
+                "task_type": "etl",
+                "state": "succeeded",
+                "output_params": {
+                    "protocol": {"version": 1, "task_type": "etl"},
+                    "artifacts": {"dataset": artifact_record(dataset, etl_dir)},
+                },
+            }
+        )
     )
     task = LgbmPredictTask({"source_tasks": TRAIN}, workspace_path=tmp_path, reg_name="predict")
     task.state["train_metadata"] = {"input_params": {"source_tasks": ETL}}
 
+    task.state["model_collection"] = {"feature_protocol": {"version": 1, "task_type": "etl"}}
     task.resolve_source_dataset()
 
     assert task.state["etl_task_id"] == ETL
-    assert task.state["dataset_path"] == etl_dir / "dataset.parquet"
+    assert task.state["dataset_path"].read_bytes() == dataset.read_bytes()
+    assert task.state["dataset_path"].is_relative_to(task.task_dir)

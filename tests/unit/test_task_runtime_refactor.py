@@ -16,7 +16,10 @@ import yaml
 
 from axonx.components.job import LogEvent
 from axonx.components.task_manager.local.manager import LocalTaskManager
-from axonx.components.task_manager.local.supervisor import TaskProcessSupervisor, WorkerExit
+from axonx.components.task_manager.local.supervisor import (
+    TaskProcessSupervisor,
+    WorkerExit,
+)
 from axonx.components.task_repository import LocalTaskRepository
 from axonx.core import Application
 from axonx.enums import TaskState, TaskType
@@ -26,7 +29,13 @@ from axonx.task.query.stream import stream_task
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.events import LOG_WINDOW_BYTES, read_event_lines
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import TaskMetadata, read_entry, read_task_metadata, task_path, write_task_metadata
+from axonx.task.storage.workspace import (
+    TaskMetadata,
+    read_entry,
+    read_task_metadata,
+    task_path,
+    write_task_metadata,
+)
 
 
 def test_success_is_published_with_matching_persisted_output(tmp_path):
@@ -52,12 +61,22 @@ def test_success_is_published_with_matching_persisted_output(tmp_path):
 
 @pytest.mark.parametrize("failure", ["active", "unknown", "symlink", "mkdir"])
 def test_runner_closes_rejected_task_once_without_overwriting_directory(tmp_path, monkeypatch, failure):
-    task = DemoTask({"x": 1, "y": 2, "task_name": "rejected"}, workspace_path=tmp_path, reg_name="demo")
+    task = DemoTask(
+        {"x": 1, "y": 2, "task_name": "rejected"},
+        workspace_path=tmp_path,
+        reg_name="demo",
+    )
     if failure == "active":
         task.task_dir.mkdir(parents=True)
         write_task_metadata(
             task.task_dir,
-            TaskMetadata(task_id=task.task_id, run_id="foreign", task_type=TaskType.BASE, state=TaskState.RUNNING),
+            TaskMetadata(
+                version=1,
+                task_id=task.task_id,
+                run_id="foreign",
+                task_type=TaskType.BASE,
+                state=TaskState.RUNNING,
+            ),
         )
     elif failure == "unknown":
         task.task_dir.mkdir(parents=True)
@@ -84,7 +103,11 @@ def test_runner_closes_rejected_task_once_without_overwriting_directory(tmp_path
 
 @pytest.mark.parametrize("with_other_source", [False, True])
 def test_task_rejects_self_source_before_replacing_outputs(tmp_path, with_other_source):
-    first = DemoTask({"x": 1, "y": 2, "task_name": "shared"}, workspace_path=tmp_path, reg_name="demo")
+    first = DemoTask(
+        {"x": 1, "y": 2, "task_name": "shared"},
+        workspace_path=tmp_path,
+        reg_name="demo",
+    )
     TaskRunner().run(first)
     (first.task_dir / "value.txt").write_text("preserve")
     before = {path.name: path.read_bytes() for path in first.task_dir.glob("*")}
@@ -149,7 +172,13 @@ def test_include_time_is_not_a_task_option(tmp_path):
 
 def test_task_status_requires_run_id():
     with pytest.raises(ValueError):
-        TaskMetadata.model_validate({"task_id": "analysis#sample#run", "execution_id": "old", "task_type": "analysis"})
+        TaskMetadata.model_validate(
+            {
+                "task_id": "analysis#sample#run",
+                "execution_id": "old",
+                "task_type": "analysis",
+            }
+        )
 
 
 def test_log_windows_do_not_split_utf8_codepoints(tmp_path):
@@ -181,6 +210,7 @@ def test_event_reader_restarts_after_journal_replacement(tmp_path):
 
 async def test_stream_reports_task_disappearance_instead_of_success(tmp_path):
     status = TaskMetadata(
+        version=1,
         task_id="analysis#sample#gone",
         run_id="gone",
         task_type=TaskType.ANALYSIS,
@@ -217,6 +247,7 @@ async def test_terminal_stream_drains_all_log_windows(tmp_path):
     content = "x" * (LOG_WINDOW_BYTES * 2 + 17)
     log_path.write_text(content, encoding="utf-8")
     status = TaskMetadata(
+        version=1,
         task_id="analysis#sample#done",
         run_id="done",
         task_type=TaskType.ANALYSIS,
@@ -251,6 +282,7 @@ async def test_stream_follows_log_path_created_after_subscription(tmp_path):
     log_path = tmp_path / "task.log"
     log_path.write_text("live log\n", encoding="utf-8")
     queued = TaskMetadata(
+        version=1,
         task_id="analysis#sample#late-log",
         run_id="late-log",
         task_type=TaskType.ANALYSIS,
@@ -286,12 +318,14 @@ async def test_stream_follows_log_path_created_after_subscription(tmp_path):
 async def test_statuses_are_sorted_by_creation_time_not_task_id():
     now = datetime.now(UTC)
     older = TaskMetadata(
+        version=1,
         task_id="analysis#z#older",
         run_id="older",
         task_type=TaskType.ANALYSIS,
         created_at=now - timedelta(days=1),
     )
     newer = TaskMetadata(
+        version=1,
         task_id="analysis#a#newer",
         run_id="newer",
         task_type=TaskType.ANALYSIS,
@@ -313,6 +347,7 @@ async def test_statuses_are_sorted_by_creation_time_not_task_id():
 @pytest.mark.parametrize("identifiers", ["task", "run", "both"])
 async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid(identifiers):
     status = TaskMetadata(
+        version=1,
         task_id="analysis#sample#running",
         run_id="current-run",
         task_type=TaskType.ANALYSIS,
@@ -371,6 +406,7 @@ def exit_manager(tmp_path):
 @pytest.mark.parametrize("exit_code,expected_code", [(0, 1), (7, 7), (-9, 9)])
 async def test_worker_exit_without_final_status_fails_exact_run(tmp_path, exit_manager, exit_code, expected_code):
     status = TaskMetadata(
+        version=1,
         task_id="analysis#sample#running",
         run_id="current-run",
         task_type=TaskType.ANALYSIS,
@@ -401,7 +437,7 @@ async def test_worker_exit_without_final_status_fails_exact_run(tmp_path, exit_m
 
 @pytest.mark.parametrize("state", [TaskState.SUCCEEDED, TaskState.FAILED, TaskState.CANCELLED])
 async def test_worker_exit_preserves_final_status_on_disk(tmp_path, exit_manager, state):
-    status = TaskMetadata(task_id="base#demo#finished", run_id="run", task_type=TaskType.BASE, state=state)
+    status = TaskMetadata(version=1, task_id="base#demo#finished", run_id="run", task_type=TaskType.BASE, state=state)
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
     await exit_manager.repository.put_metadata(status.model_copy(update={"state": TaskState.RUNNING}))
@@ -414,6 +450,7 @@ async def test_worker_exit_preserves_final_status_on_disk(tmp_path, exit_manager
 
 async def test_old_worker_exit_preserves_replacement_run(tmp_path, exit_manager):
     status = TaskMetadata(
+        version=1,
         task_id="base#demo#named",
         run_id="new-run",
         task_type=TaskType.BASE,
@@ -430,7 +467,13 @@ async def test_old_worker_exit_preserves_replacement_run(tmp_path, exit_manager)
 
 
 async def test_worker_exit_does_not_recreate_deleted_task(tmp_path, exit_manager):
-    status = TaskMetadata(task_id="base#demo#deleted", run_id="run", task_type=TaskType.BASE, state=TaskState.FAILED)
+    status = TaskMetadata(
+        version=1,
+        task_id="base#demo#deleted",
+        run_id="run",
+        task_type=TaskType.BASE,
+        state=TaskState.FAILED,
+    )
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
     await exit_manager.repository.put_metadata(status)
@@ -457,11 +500,21 @@ async def test_worker_exit_skips_missing_status_file(tmp_path, exit_manager):
 
 @pytest.mark.parametrize("link", ["kind", "task", "status"])
 def test_strict_status_read_refuses_symlinks(tmp_path, link):
-    status = TaskMetadata(task_id="base#demo#linked", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
+    status = TaskMetadata(
+        version=1,
+        task_id="base#demo#linked",
+        run_id="run",
+        task_type=TaskType.BASE,
+        state=TaskState.RUNNING,
+    )
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
     write_task_metadata(directory, status)
-    path = {"kind": directory.parent, "task": directory, "status": directory / "metadata.json"}[link]
+    path = {
+        "kind": directory.parent,
+        "task": directory,
+        "status": directory / "metadata.json",
+    }[link]
     target = tmp_path / "saved"
     path.rename(target)
     path.symlink_to(target, target_is_directory=link != "status")
@@ -470,7 +523,13 @@ def test_strict_status_read_refuses_symlinks(tmp_path, link):
 
 
 async def test_worker_exit_retries_transient_status_write_failure(tmp_path, exit_manager, monkeypatch):
-    status = TaskMetadata(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
+    status = TaskMetadata(
+        version=1,
+        task_id="base#demo#crashed",
+        run_id="run",
+        task_type=TaskType.BASE,
+        state=TaskState.RUNNING,
+    )
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
     await exit_manager.repository.put_metadata(status)
@@ -499,10 +558,23 @@ async def test_worker_exit_retries_transient_status_write_failure(tmp_path, exit
 
 
 @pytest.mark.parametrize(
-    "failure_point", ["status_read", "directory_stat", "status_stat", "manager_write_stat", "repository_write_stat"]
+    "failure_point",
+    [
+        "status_read",
+        "directory_stat",
+        "status_stat",
+        "manager_write_stat",
+        "repository_write_stat",
+    ],
 )
 async def test_worker_exit_retries_transient_status_io_failure(tmp_path, exit_manager, monkeypatch, failure_point):
-    status = TaskMetadata(task_id="base#demo#crashed", run_id="run", task_type=TaskType.BASE, state=TaskState.RUNNING)
+    status = TaskMetadata(
+        version=1,
+        task_id="base#demo#crashed",
+        run_id="run",
+        task_type=TaskType.BASE,
+        state=TaskState.RUNNING,
+    )
     directory = task_path(tmp_path, status.task_id)
     directory.mkdir(parents=True)
     await exit_manager.repository.put_metadata(status)
@@ -564,6 +636,7 @@ async def test_shutdown_cancels_exit_retries_after_worker_is_reaped():
 async def test_shared_workspace_services_leave_unowned_active_runs_unchanged(tmp_path):
     statuses = [
         TaskMetadata(
+            version=1,
             task_id=f"base#demo#{state.value}",
             run_id=state.value,
             task_type=TaskType.BASE,
@@ -761,6 +834,7 @@ async def test_named_submission_cannot_replace_active_task(tmp_path):
     write_task_metadata(
         task.task_dir,
         TaskMetadata(
+            version=1,
             task_id=task.task_id,
             run_id="active-run",
             task_type=task.task_type,
@@ -777,6 +851,7 @@ async def test_named_submission_cannot_replace_active_task(tmp_path):
 
 async def test_cancel_old_run_never_cancels_or_updates_replacement():
     status = TaskMetadata(
+        version=1,
         task_id="analysis#sample#named",
         run_id="new-run",
         task_type=TaskType.ANALYSIS,
@@ -808,6 +883,7 @@ async def test_cancel_old_run_never_cancels_or_updates_replacement():
 @pytest.mark.parametrize("identifiers", ["task", "run", "both"])
 async def test_cancel_cannot_confirm_unmanaged_active_run(identifiers):
     status = TaskMetadata(
+        version=1,
         task_id="analysis#sample#named",
         run_id="run",
         task_type=TaskType.ANALYSIS,
@@ -840,6 +916,7 @@ async def test_cancel_cannot_confirm_unmanaged_active_run(identifiers):
 
 async def test_run_only_cancellation_stops_old_worker_without_updating_replacement():
     replacement = TaskMetadata(
+        version=1,
         task_id="analysis#sample#named",
         run_id="new-run",
         task_type=TaskType.ANALYSIS,
@@ -971,7 +1048,10 @@ async def test_failed_terminal_reset_keeps_existing_record_indexed(tmp_path, exi
     def incomplete_reset(_directory):
         raise FileNotFoundError("A run-owned file disappeared during cleanup")
 
-    monkeypatch.setattr("axonx.components.task_repository.local.repository.reset_task_directory", incomplete_reset)
+    monkeypatch.setattr(
+        "axonx.components.task_repository.local.repository.reset_task_directory",
+        incomplete_reset,
+    )
     with pytest.raises(FileNotFoundError, match="during cleanup"):
         await repository.reset_terminal(task.task_id)
     assert await repository.entry(task.task_id) == status

@@ -15,7 +15,8 @@ from axonx.task.contracts import (
     BaseAnalysisTask,
 )
 from axonx.task.core import TaskStep
-from axonx.task.storage import artifact_path, artifact_record, read_metadata
+from axonx.task.storage import artifact_record, read_metadata
+from axonx.task.storage.inputs import pin_source_artifacts
 from axonx.utils.fs import atomic_write
 
 from .internal.analysis import FactorMetricsCalculator
@@ -74,14 +75,16 @@ class FactorAnalysisTask(BaseAnalysisTask):
         source_dir = self.source_task_dir(etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
         source_metadata = read_metadata(source_metadata_path)
-        dataset_path = artifact_path(source_dir, source_metadata, "dataset")
+        dataset_path, labels_path = pin_source_artifacts(
+            self, etl_task_id, "dataset", "labels", metadata=source_metadata
+        )
         output_dir = self.task_dir
         self.state.update(
             source_dir=source_dir,
             source_metadata_path=source_metadata_path,
             source_metadata=source_metadata,
             dataset_path=dataset_path,
-            labels_path=artifact_path(source_dir, source_metadata, "labels"),
+            labels_path=labels_path,
             result_path=output_dir / "factor_analysis.csv",
             quantiles_path=output_dir / "factor_quantiles.csv",
         )
@@ -95,7 +98,7 @@ class FactorAnalysisTask(BaseAnalysisTask):
         if not dataset_path.is_file():
             raise FileNotFoundError(f"Alpha158 数据不存在: {dataset_path}")
         metadata = self.state["source_metadata"]
-        features = tuple(metadata.get("output_params", {}).get("feature_columns", ()))
+        features = tuple(metadata["output_params"]["protocol"]["default_feature_cols"])
         if not features:
             raise ValueError("ETL metadata 缺少 feature_columns")
         schema = pl.read_parquet_schema(dataset_path)
