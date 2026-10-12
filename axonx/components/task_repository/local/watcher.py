@@ -47,7 +47,7 @@ class TaskWorkspaceWatcher:
                 self.logger.exception("Task workspace watcher failed; retrying")
                 recovering = True
                 pump.cancel()
-                with suppress(asyncio.CancelledError):
+                with suppress(asyncio.CancelledError, Exception):
                     await pump
                 await asyncio.sleep(1)
 

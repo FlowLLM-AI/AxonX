@@ -1,5 +1,8 @@
 """Task repository watcher and subscription contracts."""
 
+import asyncio
+from unittest.mock import Mock
+
 import pytest
 
 from axonx.components.task_repository import (
@@ -7,6 +10,7 @@ from axonx.components.task_repository import (
     TaskChanges,
     TaskChangeSubscription,
 )
+from axonx.components.task_repository.local.watcher import TaskWorkspaceWatcher
 
 
 def test_repository_collects_watch_options():
@@ -19,6 +23,38 @@ def test_repository_collects_watch_options():
         "step": 3_000,
         "poll_delay_ms": 50,
     }
+
+
+@pytest.mark.asyncio
+async def test_watcher_recovers_after_failed_pump(tmp_path, monkeypatch):
+    recovered = asyncio.Event()
+    changes = []
+    attempts = 0
+
+    async def handler(change):
+        changes.append(change)
+        recovered.set()
+
+    async def pump():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise ExceptionGroup("watcher failed", [OSError(40, "Too many levels of symbolic links")])
+        await asyncio.Event().wait()
+
+    logger = Mock()
+    watcher = TaskWorkspaceWatcher(tmp_path, {}, handler, logger)
+    monkeypatch.setattr(watcher, "_pump", pump)
+    task = asyncio.create_task(watcher.run())
+    try:
+        await asyncio.wait_for(recovered.wait(), timeout=3)
+        assert attempts == 2
+        assert changes == [TaskChanges(resync=True)]
+        assert not task.done()
+        logger.exception.assert_called_once()
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 @pytest.mark.asyncio
