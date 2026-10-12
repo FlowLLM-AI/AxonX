@@ -38,7 +38,6 @@ class TaskPlan:
 @dataclass(frozen=True, slots=True)
 class SyncReport:
     uploaded: list[str] = field(default_factory=list)
-    deleted: list[str] = field(default_factory=list)
     rejected: list[str] = field(default_factory=list)
     oversized: list[str] = field(default_factory=list)
     deferred: list[str] = field(default_factory=list)

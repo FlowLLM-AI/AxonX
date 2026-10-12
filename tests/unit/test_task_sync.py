@@ -1,11 +1,10 @@
-"""Task synchronization planning, archive, and durable state contracts."""
+"""Task synchronization planning and complete archive contracts."""
 
 import io
 import tarfile
 
 import pytest
 
-from axonx.components.sync.state import SyncStateStore
 from axonx.task.sync import (
     SnapshotChangedError,
     TaskArchiveApplier,
@@ -68,9 +67,9 @@ def test_archive_applier_rejects_noncanonical_member_names(tmp_path):
         TaskArchiveApplier(tmp_path).apply(archive_path, [])
 
 
-def test_sync_state_survives_restart_and_tracks_remote_acknowledgements(tmp_path):
-    first = SyncStateStore(tmp_path, "10.0.0.8")
-    first.save({TASK_ID})
-
-    second = SyncStateStore(tmp_path, "10.0.0.8")
-    assert second.load() == {TASK_ID}
+def test_archive_build_rejects_files_added_after_planning(tmp_path):
+    directory = _task(tmp_path)
+    plan = plan_task(tmp_path, TASK_ID, max_file_bytes=1_000)
+    (directory / "new-result.txt").write_text("late artifact", encoding="utf-8")
+    with pytest.raises(SnapshotChangedError, match="changed while archiving"):
+        build_archive({TASK_ID: plan}, [TASK_ID], tmp_path / "snapshot.tar.gz")

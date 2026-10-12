@@ -1,31 +1,25 @@
 # 任务快照同步
 
-任务同步把源服务的终态 Task 目录快照复制到目标服务，并传播已确认任务的删除。它适合把完成的研究记录汇总到另一工作区。默认配置关闭同步组件、flush Job 和定时调度，需要同时启用。
+任务同步把源服务的完整终态 Task 目录复制到目标。每次源服务启动，先读取目标的 `task_sync_index`，再扫描本地终态目录，将缺失或内容不同的快照加入队列。不持久化确认状态或失败记录。
 
-![Task 快照同步](../../figures/guides/task-sync.svg)
+## 范围与生命周期
 
-## 同步范围与方向
+`task_names` 精确匹配 `<task type>#<registration>#<task name>` 的最后一段，不限制任务类型和注册名。空列表包含所有名称。启动对账使用文件名和内容的 SHA256 摘要，包含 metadata、events 和产物；因此同名任务重跑、同一运行的产物更新都能被识别。计算摘要需要读取两端匹配的快照，大工作区的启动对账耗时更长。
 
-同步方向由源端组件的 target 决定。发送方从 Repository 合并变化，只发送具有终态 status 的 Task。queued/running 任务回到待处理队列，结束后再传输。
+运行期间，Repository 变化按 Task ID 合并，只有终态快照会发送。queued/running 任务跳过，等待后续完成事件。Watcher 故障恢复时重新对账，补齐漏掉的变化。本地删除不会删除远端记录。
 
-包括任务目录中的 metadata、events 和产物；不包含整个工作区的 Tushare 原始数据、Agent 会话、外部文本日志或插件环境。不迁移 worker，不会让目标继续运行源端进程。
+快照不包含整个工作区的 Tushare 原始数据、Agent 会话、外部日志和插件环境，不迁移 worker，也不自动复制其他名称的依赖任务。远端重跑仍需要对应插件、数据和执行环境。
 
-目标同名终态目录将被新快照替换。双方独立实验最好使用不同名称；同步不是保留多个版本的备份机制。
+## 目标配置
 
-## 准备目标服务
-
-目标使用默认配置中的 sync_tasks 和文件上传能力。配置独立 token 并启动：
+两端都需要更新后的 AxonX 默认配置，包含 `task_sync_index`、`sync_tasks` 和 `/files`。旧接收端没有索引 Job，无法参与启动对账。接收端无需启用发送组件。
 
 ```bash
 export AXONX_SERVICE_TOKEN='<接收端 token>'
 axonx start --service.host 0.0.0.0 --service.port 1024
 ```
 
-确保源端能访问接收端。目标无需为了接收而启用发送端 sync 组件。收到记录后可以查看结果，但重跑仍需要对应插件、数据与环境。
-
-## 源端最小配置
-
-创建 `sync-source.yaml`，域名为占位示例：
+## 源端配置
 
 ```yaml
 extends: default
@@ -38,9 +32,7 @@ components:
       backend: local
       task_repository: default
       target: http://archive.example:1024
-      sync_on_start: true
-      task_ids: []
-      task_id_prefixes: []
+      task_names: [research-model]
       max_archives_per_flush: 4
       max_file_bytes: 104857600
       max_archive_bytes: 268435456
@@ -53,70 +45,40 @@ jobs:
         sync: default
 schedules:
   workspace_sync:
-    backend: cron
     job: sync_flush
     cron: "* * * * *"
     concurrency_policy: forbid
 ```
 
 ```bash
-export AXONX_SERVICE_TOKEN='<源端 token>'
 export AXONX_SYNC_REMOTE_TOKEN='<接收端 token>'
 axonx start --config sync-source.yaml
 ```
 
-sync.target 必须与已配置 targets 地址匹配，否则启动失败。`sync_flush` 在这个示例中不对外公开，由 Scheduler 内部调用；因此不能直接假设 CLI 可以调用它。
+组件的 target 必须匹配配置的目标地址。多个目标分别配置同步组件和独立调度的 flush Job；发往同一目标的名称可以共用组件和归档批次。
 
-## 首次验证
+`task_ids`、`task_id_prefixes`、`sync_on_start` 已移除，使用时会报错。过滤改用 `task_names`，启动对账始终执行。旧工作区 `sync/*.json` 状态文件不再读取，可以手动清理。
 
-1. 在源端提交并等待一个独立名称 demo 完成。
-2. 等待下一个 flush 调度；检查源端日志中错误与同步结果。
-3. 在目标查询相同 Task ID 的 status 与 metadata。
-4. 若同步研究任务，核对 artifact 文件大小和 sha256。
-5. 重启源端时，sync_on_start=true 会重新排队当前记录；这不是仅复制新增文件。
+## 批次、失败与预算
 
-默认有分钟级调度和 Repository 的变更合并延迟，因此它不是实时逐字节复制。
+多个完整 Task 合并成归档，同一轮 flush 复用 HTTP 连接。默认单文件上限 100 MiB、归档预算 256 MiB、每轮最多四个归档。一个 Task 必须装进一个归档，不拆分大任务。`max_archive_bytes` 必须大于 `max_file_bytes`，并遵守接收端 256 MiB 上传限制。
 
-## 过滤与预算
+`SyncReport` 包含 `uploaded`、`rejected`、`oversized`、`deferred`、`archives`。`archives` 表示尝试的归档数。deferred 是尚未尝试的任务，留在内存队列中等待下一轮调度。过大或不完整的快照记录日志后丢弃。
 
-| 选项                   | 含义                            |
-| ---------------------- | ------------------------------- |
-| task_ids               | 精确 Task ID 白名单             |
-| task_id_prefixes       | 按 Task ID 前缀匹配             |
-| 两组过滤都为空         | 不按身份过滤                    |
-| 两组都有值             | 精确匹配或前缀匹配即可          |
-| max_file_bytes         | 单个文件的预算，默认 100 MiB    |
-| max_archive_bytes      | 单个上传归档预算，默认 256 MiB  |
-| max_archives_per_flush | 每次归档数，默认 4              |
-| timeout_seconds        | 目标 HTTP 调用超时，默认 300 秒 |
+每个批次只尝试一次，失败记录日志后丢弃，其他批次可以继续。发送端校验 `JobResponse.success` 和上传 SHA256，HTTP 200 不代表应用成功。成功或失败后都会尝试清理上传暂存文件。不保存失败列表，也不自动重试。修复连接或大小限制后重启源端，重新对账补齐缺失或旧快照。本地新变化也可以再次触发该任务发送。
 
-max_archive_bytes 必须大于 max_file_bytes，并应不超过目标上传能力。默认 `/files` 最大上传 256 MiB。文件太大时不应单纯提高源端值而忽略接收端限制。
+启动对账失败时，源端记录日志后继续运行，不进行全量重传。后续本地变化仍可发送；目标恢复后重启源端补齐已有缺口。
 
-结果区分 uploaded、deleted、rejected、oversized、deferred 与 archives。deferred 表示本轮归档预算用完，后续继续；oversized 表示任务无法在当前预算内复制，需缩小产物或调整预算；rejected 标明不满足完整快照约束的文件，应检查源端目录。
+接收端拒绝覆盖或删除活跃 Task，应用失败时回滚本次操作。同 ID 终态目录整体替换，不保留历史版本备份。
 
-手动同步时，先通过二进制或 multipart `POST /files` 向接收服务上传符合同步格式的 Task 快照归档，再用返回的 `answer.path` 调用同一服务的 `sync_tasks`。单独上传不会应用快照。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
+## 验证
 
-## 删除、失败与回滚
+1. 提交名称匹配的 Task，等待终态及下一轮 flush。
+2. 对比目标 metadata 和产物 SHA256。
+3. 重启源端，完全相同的快照不应进入队列。
+4. 同名重跑或更新产物，启动对账应识别新快照。
+5. 传输失败时检查日志，修复后重启补齐。
 
-源端维护已确认任务集合。已确认任务在源端消失且符合过滤时，删除会发送到目标。未成功确认的源端任务不应被当成已同步任务传播删除。
+手动同步仍可先 `POST /files` 上传完整 Task 归档，再用 `answer.path` 调用 `sync_tasks`。手动 API 保留显式删除能力；自动发送端不发送删除。
 
-发送端上传归档后调用 sync_tasks，检查 JobResponse.success；HTTP 200 不能替代业务结果。失败的变更重新排队，下轮重试，上传暂存文件会在结束时尝试清理。
-
-接收端校验归档和任务目录，应用替换与删除时保留回滚能力。目标活跃任务不能被同步覆盖；失败应先查接收错误，而不是强制删除正在运行的目录。
-
-回滚处理当前应用过程，不能作为长期历史恢复。意外传播的合法删除或覆盖仍需要独立备份恢复。
-
-## 排障
-
-| 现象               | 检查                                            |
-| ------------------ | ----------------------------------------------- |
-| 一直无传输         | sync、sync_flush、schedule 是否都启用           |
-| 启动失败           | target 是否存在于 targets，组件依赖与配置合法性 |
-| running 任务不出现 | 发送方仅复制终态，这是正常过滤                  |
-| 401/502            | 目标 token、连通性和接收日志                    |
-| 产物过大           | rejected/oversized、文件与归档预算              |
-| 目标没有原始数据   | 原始数据本来不属于 Task 快照                    |
-
-[调度](scheduling.md) · [远程机器](remote-machines.md) · [备份恢复](operations.md) · [同步 API](../api/plugins-sync.md)
-
-源码：[发送端组件](../../../axonx/components/sync/local.py)、[同步协议实现](../../../axonx/task/sync/)、[默认配置](../../../axonx/config/default.yaml)。
+[调度](scheduling.md) · [远程机器](remote-machines.md) · [同步 API](../api/plugins-sync.md)

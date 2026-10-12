@@ -242,9 +242,13 @@ sync_tasks directly returns business-failure text for OSError, TypeError, or Val
 
 The receiver validates directory identity and archive paths, retaining rollback support when applying replacements. The transfer consists of snapshots of terminal task directories; it does not migrate processes, plugin environments, Agent sessions, or raw data trees.
 
+## Startup snapshot index
+
+`task_sync_index` accepts an optional `task_names` list and returns terminal Task IDs mapped to SHA256 content digests. The automatic sender uses it on startup, retains no failure state, and does not propagate deletions.
+
 ## Visibility of sync_flush
 
-sync_flush is commented out by default in default.yaml; enable_serve=false in the enabling example restricts it to internal scheduling. It is not a default public API and cannot be assumed to appear in /jobs. SyncReport contains uploaded, deleted, rejected, oversized, deferred, and archives; see [Task synchronization](../guides/task-sync.md).
+sync_flush is commented out by default in default.yaml; enable_serve=false in the enabling example restricts it to internal scheduling. It is not a default public API and cannot be assumed to appear in /jobs. SyncReport contains uploaded, rejected, oversized, deferred, and archives; see [Task synchronization](../guides/task-sync.md).
 
 ## Related documentation
 

@@ -1,4 +1,4 @@
-"""Replicate queued task-directory changes to a target service."""
+"""Reconcile terminal Task snapshots on startup and send subsequent changes once."""
 
 from __future__ import annotations
 
@@ -20,12 +20,12 @@ from ...task.sync import (
     pack_batches,
     plan_task,
 )
+from ...task.sync.index import matches_task_name, snapshot_index, validate_task_names
 from ...utils.fs import file_sha256
 from ..client import HttpClient
 from ..registry import provider
 from ..task_repository import BaseTaskRepository, TaskChangeSubscription
 from .base import BaseSyncComponent
-from .state import SyncStateStore
 
 MAX_FILE_BYTES = 100 * 1024 * 1024
 MAX_ARCHIVES_PER_FLUSH = 4
@@ -34,11 +34,7 @@ SYNC_TIMEOUT_SECONDS = 300.0
 
 @provider("local")
 class LocalSyncComponent(BaseSyncComponent):
-    """Replicate workspace task directories to a configured AxonX target.
-
-    Change detection comes from the shared Task repository. Calling :meth:`flush` is a
-    separate policy, normally owned by a scheduled Job.
-    """
+    """Keep an in-memory queue; failed transfers are repaired by restart reconciliation."""
 
     repository: BaseTaskRepository
 
@@ -50,11 +46,12 @@ class LocalSyncComponent(BaseSyncComponent):
         max_archive_bytes: int = MAX_ARCHIVE_BYTES,
         max_archives_per_flush: int = MAX_ARCHIVES_PER_FLUSH,
         timeout_seconds: float = SYNC_TIMEOUT_SECONDS,
-        sync_on_start: bool = True,
-        task_ids: Sequence[str] | None = None,
-        task_id_prefixes: Sequence[str] | None = None,
+        task_names: Sequence[str] | None = None,
         **kwargs,
     ) -> None:
+        removed = {"task_ids", "task_id_prefixes", "sync_on_start"} & kwargs.keys()
+        if removed:
+            raise ValueError(f"Removed sync options: {', '.join(sorted(removed))}; use task_names")
         super().__init__(**kwargs)
         if not isinstance(target, str) or not target.strip():
             raise ValueError("target must be a non-empty configured service address")
@@ -72,162 +69,123 @@ class LocalSyncComponent(BaseSyncComponent):
         self.max_archive_bytes = max_archive_bytes
         self.max_archives_per_flush = max_archives_per_flush
         self.timeout = timeout_seconds
-        self.sync_on_start = sync_on_start
-        if isinstance(task_ids, str) or isinstance(task_id_prefixes, str):
-            raise ValueError("Task filters must be lists of strings")
-        self.task_ids = frozenset(task_ids or ())
-        self.task_id_prefixes = tuple(task_id_prefixes or ())
-        if any(not isinstance(value, str) or not value for value in (*self.task_ids, *self.task_id_prefixes)):
-            raise ValueError("Task filters must contain non-empty strings")
+        self.task_names = validate_task_names(task_names)
         self.root = self.workspace_path.expanduser().resolve()
-        self._state = SyncStateStore(self.root, self.target)
         self.configured_target: TargetConfig | None = None
         self._pending: set[str] = set()
-        self._acknowledged: set[str] = set()
-        self._resync = False
-        self._change_lock = asyncio.Lock()
         self._flush_lock = asyncio.Lock()
         self._changes: TaskChangeSubscription | None = None
         self._change_consumer: asyncio.Task[None] | None = None
 
+    def _client(self) -> HttpClient:
+        configured = self.configured_target or self.app_config.resolve_target(self.target)
+        return HttpClient(target=configured.address, timeout=self.timeout, token=configured.token)
+
+    async def _reconcile(self) -> None:
+        """Compare remote content first, then local terminal directories; never persist failures."""
+        try:
+            async with self._client() as client:
+                response = await client.run_job("task_sync_index", {"task_names": sorted(self.task_names)})
+            remote = response.answer
+            if not response.success or not isinstance(remote, dict):
+                raise ValueError(f"Remote sync index failed: {remote}")
+            if any(not isinstance(key, str) or not isinstance(value, str) for key, value in remote.items()):
+                raise ValueError("Remote sync index must map Task IDs to content digests")
+            local = await asyncio.to_thread(snapshot_index, self.root, self.task_names)
+            self._pending.update(task_id for task_id, digest in local.items() if remote.get(task_id) != digest)
+            self.logger.info(f"Task sync reconciled target={self.target}: queued={len(self._pending)}")
+        except Exception as exc:
+            self.logger.warning(f"Task sync reconciliation skipped target={self.target}: {exc}; restart to repair")
+
     async def _start(self) -> None:
-        # Resolve the target once so a misconfigured address fails startup rather
-        # than every flush.
         self.configured_target = self.app_config.resolve_target(self.target)
+        self._pending.clear()
+        # Subscribe before scanning so changes during startup are retained.
         self._changes = self.repository.subscribe()
-        self._change_consumer = asyncio.create_task(self._consume_changes(), name="axonx-sync-queue")
-        self._acknowledged = await asyncio.to_thread(self._state.load)
-        current = set((await self.repository.entries()).keys())
-        if self.sync_on_start and current:
-            # A restart replays the whole workspace rather than assuming the target
-            # still holds what it held last time.
-            self.logger.info(f"Workspace sync queued its whole workspace: tasks={len(current)}")
-            await self._requeue(current)
+        await self._reconcile()
+        self._change_consumer = asyncio.create_task(self._consume_changes(), name=f"axonx-sync:{self.name}")
 
     async def _close(self) -> None:
         if self._changes is not None:
             self._changes.close()
-            self._changes = None
         if self._change_consumer is not None:
             self._change_consumer.cancel()
             with suppress(asyncio.CancelledError):
                 await self._change_consumer
-            self._change_consumer = None
+        self._changes = None
+        self._change_consumer = None
+        self._pending.clear()
 
     async def _consume_changes(self) -> None:
-        """Coalesce repository batches into the next scheduled flush."""
         assert self._changes is not None
         async for changes in self._changes:
-            async with self._change_lock:
-                self._pending.update(changes.task_ids)
-                self._resync |= changes.resync
-
-    async def _take_changed(self) -> tuple[set[str], bool]:
-        """Drain the queue and report whether the repository missed a watch window."""
-        async with self._change_lock:
-            taken, self._pending = self._pending, set()
-            resync, self._resync = self._resync, False
-            return taken, resync
-
-    async def _requeue(self, task_ids: Sequence[str]) -> None:
-        async with self._change_lock:
-            self._pending.update(task_ids)
+            if changes.resync:
+                # Recover missed watcher events using the same stateless comparison.
+                await self._reconcile()
+            self._pending.update(task_id for task_id in changes.task_ids if self._should_sync(task_id))
 
     def _should_sync(self, task_id: str) -> bool:
-        return not (self.task_ids or self.task_id_prefixes) or (
-            task_id in self.task_ids or task_id.startswith(self.task_id_prefixes)
-        )
-
-    def _plan(self, task_ids: Sequence[str]) -> dict[str, TaskPlan]:
-        return {task_id: plan_task(self.root, task_id, self.max_file_bytes) for task_id in task_ids}
-
-    def _is_settled(self, task_id: str) -> bool:
-        """Whether a task has stopped writing, so its files are safe to ship whole.
-
-        A receiver must never infer liveness from a process ID owned by another
-        machine, so synchronization publishes only terminal snapshots.
-        """
-        directory = task_path(self.root, task_id)
-        status = read_task_metadata(directory, task_id)
-        return status is not None and status.state.is_terminal
+        return matches_task_name(task_id, self.task_names)
 
     def _settled(self, task_ids: Sequence[str]) -> list[str]:
-        return [task_id for task_id in task_ids if self._is_settled(task_id)]
+        settled = []
+        for task_id in task_ids:
+            status = read_task_metadata(task_path(self.root, task_id), task_id)
+            if status is not None and status.state.is_terminal:
+                settled.append(task_id)
+        return settled
 
-    async def _send(self, archive: Path | None, deletions: Sequence[str]) -> None:
-        """Upload one archive for the receiver to apply, and report removals."""
-        configured = self.configured_target or self.app_config.resolve_target(self.target)
-        async with HttpClient(
-            target=configured.address,
-            timeout=self.timeout,
-            token=configured.token,
-        ) as client:
-            staged: str | None = None
+    async def _send(self, client: HttpClient, archive: Path) -> None:
+        staged: str | None = None
+        try:
+            digest = await asyncio.to_thread(file_sha256, archive)
+            copied = await client.copy_file(archive, filename=SYNC_ARCHIVE_NAME)
+            staged = copied.path
+            if copied.sha256 != digest:
+                raise ValueError("Remote workspace copy does not match the uploaded archive")
+            response = await client.run_job("sync_tasks", {"path": staged})
+            if not response.success:
+                raise ValueError(f"Remote sync apply failed: {response.answer}")
+        finally:
+            if staged is not None:
+                with suppress(Exception):
+                    await client.discard_file(staged)
+
+    def _plan(self, pending: Sequence[str]) -> dict[str, TaskPlan]:
+        plans = {}
+        for task_id in pending:
             try:
-                if archive is not None:
-                    digest = await asyncio.to_thread(file_sha256, archive)
-                    copied = await client.copy_file(archive, filename=SYNC_ARCHIVE_NAME)
-                    staged = copied.path
-                    # The receiver recomputes the digest of what actually arrived.
-                    if copied.sha256 != digest:
-                        raise ValueError("Remote workspace copy does not match the uploaded archive")
-                response = await client.run_job(
-                    "sync_tasks",
-                    {"path": staged, "deletions": list(deletions)},
-                )
-            finally:
-                if staged is not None:
-                    with suppress(Exception):
-                        await client.discard_file(staged)
-        # A step that reports failure still answers with HTTP 200, so the payload
-        # is what decides, not the status code.
-        if not response.success:
-            raise ValueError(f"Remote sync apply failed: {response.answer}")
+                plans[task_id] = plan_task(self.root, task_id, self.max_file_bytes)
+            except OSError as exc:
+                self.logger.warning(f"Task sync planning failed: {task_id}: {exc}; restart to repair")
+        return plans
 
-    async def _transfer(self, pending: Sequence[str], removed: Sequence[str]) -> SyncReport:
+    async def _transfer(self, pending: Sequence[str]) -> SyncReport:
         plans = await asyncio.to_thread(self._plan, pending)
         batches, oversized, deferred = pack_batches(
-            plans,
-            archive_budget(self.max_archive_bytes),
-            self.max_archives_per_flush,
+            plans, archive_budget(self.max_archive_bytes), self.max_archives_per_flush
         )
-        # Every plan is reported, not just the ones that reached an archive: a task
-        # whose files are all too large never gets a batch, and dropping it without
-        # a word is what the report and these warnings exist to prevent.
+        # Unattempted tasks remain queued; rejected/oversized tasks do not retry.
+        self._pending.update(deferred)
         rejected = [f"{task_directory(task_id)}/{name}" for task_id, plan in plans.items() for name in plan.rejected]
-        uploaded: list[str] = []
-        delivered = False
-        if batches:
-            with tempfile.TemporaryDirectory(prefix="axonx-sync-") as staging:
-                archive = Path(staging) / SYNC_ARCHIVE_NAME
-                for index, batch in enumerate(batches):
-                    included = await asyncio.to_thread(build_archive, plans, batch, archive)
-                    if archive.stat().st_size > self.max_archive_bytes:
-                        raise ValueError(f"Built sync archive exceeds {self.max_archive_bytes} bytes")
-                    # Deletions ride along with the first archive so they are reported
-                    # even when the removed tasks were the only thing that changed.
-                    await self._send(archive, removed if index == 0 else [])
-                    delivered = True
-                    uploaded.extend(included)
-        elif removed:
-            # Nothing to upload, but the receiver still has to drop what went away.
-            # Nothing is deferred either: a deferral always comes with a batch.
-            await self._send(None, removed)
-            delivered = True
-        if deferred:
-            # Nothing was sent for these, so they have to come back next interval.
-            await self._requeue(deferred)
-        if oversized:
-            await self._requeue(oversized)
-        if rejected:
-            self.logger.warning(f"Rejecting incomplete Task snapshots: files={', '.join(rejected)}")
         for task_id in oversized:
-            self.logger.warning(
-                f"Skipping a task that cannot be replicated within the size limits: task={task_directory(task_id)}",
-            )
+            self.logger.warning(f"Task sync snapshot exceeds limits or is incomplete: {task_id}; restart after repair")
+        uploaded: list[str] = []
+        if batches:
+            async with self._client() as client:
+                with tempfile.TemporaryDirectory(prefix="axonx-sync-") as staging:
+                    archive = Path(staging) / SYNC_ARCHIVE_NAME
+                    for batch in batches:
+                        try:
+                            included = await asyncio.to_thread(build_archive, plans, batch, archive)
+                            if archive.stat().st_size > self.max_archive_bytes:
+                                raise ValueError(f"Built sync archive exceeds {self.max_archive_bytes} bytes")
+                            await self._send(client, archive)
+                            uploaded.extend(included)
+                        except Exception as exc:
+                            self.logger.warning(f"Task sync batch failed target={self.target}: {batch}: {exc}")
         return SyncReport(
             uploaded=uploaded,
-            deleted=list(removed) if delivered else [],
             rejected=rejected,
             oversized=[task_directory(task_id) for task_id in oversized],
             deferred=[task_directory(task_id) for task_id in deferred],
@@ -235,38 +193,16 @@ class LocalSyncComponent(BaseSyncComponent):
         )
 
     async def flush(self) -> SyncReport:
-        """Replicate the changes queued since the last flush."""
+        """Send each queued terminal snapshot once, without retry or deletion propagation."""
         async with self._flush_lock:
-            queued, resync = await self._take_changed()
-            current = set((await self.repository.entries()).keys())
-            if resync:
-                # The watcher missed a window, so the whole workspace is re-examined
-                # rather than only what it managed to report.
-                self.logger.warning("Task repository watcher was down; re-examining the whole workspace")
-                queued |= current
-            # The receiver names task directories by their kind and ID together.
-            removed = sorted(
-                task_directory(task_id) for task_id in self._acknowledged - current if self._should_sync(task_id)
-            )
-            pending = sorted(filter(self._should_sync, queued & current))
-            if pending:
-                settled = set(await asyncio.to_thread(self._settled, pending))
-                # A task that is still writing goes back in the queue rather than out
-                # of it, so it is picked up as soon as it finishes.
-                await self._requeue([task_id for task_id in pending if task_id not in settled])
-                pending = [task_id for task_id in pending if task_id in settled]
-            if not pending and not removed:
+            queued, self._pending = self._pending, set()
+            if not queued:
+                return SyncReport()
+            pending = await asyncio.to_thread(self._settled, sorted(filter(self._should_sync, queued)))
+            if not pending:
                 return SyncReport()
             try:
-                result = await self._transfer(pending, removed)
-            except BaseException:
-                # The batch was already drained, so a failed round must put it back
-                # rather than wait for the files to change again.
-                await self._requeue(pending)
-                raise
-            uploaded_ids = {path.split("/", 1)[1] for path in result.uploaded}
-            deleted_ids = {path.split("/", 1)[1] for path in result.deleted}
-            self._acknowledged.difference_update(deleted_ids)
-            self._acknowledged.update(uploaded_ids)
-            await asyncio.to_thread(self._state.save, self._acknowledged)
-            return result
+                return await self._transfer(pending)
+            except Exception as exc:
+                self.logger.warning(f"Task sync flush failed target={self.target}: {exc}; restart to repair")
+                return SyncReport()

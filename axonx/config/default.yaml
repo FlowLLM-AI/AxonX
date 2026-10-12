@@ -89,9 +89,7 @@ components:
   #     backend: local
   #     task_repository: default
   #     target: ${AXONX_SYNC_TARGET}
-  #     sync_on_start: true
-  #     task_ids: []
-  #     task_id_prefixes: []
+  #     task_names: []
   #     max_archives_per_flush: 4
   #     max_file_bytes: 104857600
   #     max_archive_bytes: 268435456
@@ -515,6 +513,20 @@ jobs:
   #   steps:
   #     - backend: sync_flush_step
   #       sync: default
+
+  task_sync_index:
+    description: Read content digests of terminal Task snapshots for startup reconciliation.
+    parameters:
+      type: object
+      properties:
+        task_names:
+          type: array
+          items:
+            type: string
+            pattern: "^[A-Za-z0-9-]{1,32}$"
+      additionalProperties: false
+    steps:
+      - backend: task_sync_index_step
 
   sync_tasks:
     description: Replace task directories from one uploaded sync archive.

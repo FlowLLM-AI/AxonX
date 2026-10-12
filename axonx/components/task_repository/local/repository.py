@@ -158,7 +158,13 @@ class LocalTaskRepository(BaseTaskRepository):
                 deletions,
                 archive_name,
             )
-            self._entries = await asyncio.to_thread(scan_entries, self.root)
+            for relative_path in report.applied + report.deleted:
+                task_id = relative_path.split("/", 1)[1]
+                entry = await asyncio.to_thread(read_entry, self.root, task_id)
+                if entry is None:
+                    self._entries.pop(task_id, None)
+                else:
+                    self._entries[task_id] = entry
         changed = frozenset(path.split("/", 1)[1] for path in report.applied + report.deleted)
         self._publish(TaskChanges(changed))
         return report

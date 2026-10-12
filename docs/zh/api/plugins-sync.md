@@ -242,9 +242,13 @@ sync_tasks 对暂存路径/归档的 OSError、TypeError、ValueError 直接返�
 
 接收端检查目录身份与归档路径，应用替换时保留回滚机制。这里传输的是终态任务目录快照，不迁移进程、插件环境、Agent 会话或原始数据树。
 
+## 启动快照索引
+
+`task_sync_index` 接受可选的 `task_names` 列表，返回终态 Task ID 到 SHA256 内容摘要的映射。自动发送端在启动时对账，不保留失败状态，不传播删除。
+
 ## sync_flush 的可见性
 
-sync_flush 在 default.yaml 中默认被注释；启用示例中的 enable_serve=false 使其只用于内部调度。它不是默认对外 API，不能在 /jobs 中假定存在。结果 SyncReport 含 uploaded、deleted、rejected、oversized、deferred、archives，详见 [任务同步](../guides/task-sync.md)。
+sync_flush 在 default.yaml 中默认被注释；启用示例中的 enable_serve=false 使其只用于内部调度。它不是默认对外 API，不能在 /jobs 中假定存在。结果 SyncReport 含 uploaded、rejected、oversized、deferred、archives，详见 [任务同步](../guides/task-sync.md)。
 
 ## 相关文档
 

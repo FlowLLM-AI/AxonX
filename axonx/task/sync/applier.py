@@ -131,6 +131,9 @@ class TaskArchiveApplier:
                     continue
                 if target.is_symlink() or not target.is_dir():
                     raise ValueError(f"Task target is not a directory: {relative_path}")
+                status = read_task_metadata(target, relative_path.split("/", 1)[1], strict_io=True)
+                if status is not None and not status.state.is_terminal:
+                    raise ValueError(f"Cannot overwrite active Task: {relative_path}")
                 backup = backup_root / relative_path
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(target, backup)

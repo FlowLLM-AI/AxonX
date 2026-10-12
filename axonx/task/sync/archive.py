@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import gzip
 import os
+import sys
 import tarfile
 from collections.abc import Sequence
 from pathlib import Path
 
 from ..storage.workspace import task_directory
 from .models import TaskFile, TaskPlan
+from .planner import plan_task
 
 SYNC_ARCHIVE_NAME = "axonx-sync.tar.gz"
 
@@ -31,6 +33,11 @@ def build_archive(plans: dict[str, TaskPlan], task_ids: Sequence[str], target: P
                 raise SnapshotChangedError(f"Task snapshot is incomplete: {task_directory(task_id)}")
             for item in plan.files:
                 _add_file(archive, task_id, item)
+            directory = plan.files[0].path
+            for _ in Path(plan.files[0].relative).parts:
+                directory = directory.parent
+            if plan != plan_task(directory.parent.parent, task_id, sys.maxsize):
+                raise SnapshotChangedError(f"Task changed while archiving: {task_id}")
             included.append(task_directory(task_id))
     return included
 
