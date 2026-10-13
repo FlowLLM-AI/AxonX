@@ -110,6 +110,53 @@ def test_locked_capital_mark_to_market_and_delayed_exit():
     assert daily["trade_date"].to_list() == calendar["trade_date"].to_list()
 
 
+class ExitOutsideTopN:
+    """Minimal membership policy for testing the engine's signal-day boundary."""
+
+    def replacement_limit(self, n):
+        return n
+
+    def should_exit(self, *, rank, age, n):
+        return age >= 1 and (rank is None or rank > n)
+
+
+@pytest.mark.parametrize("last_day_signals", ["absent", "member", "no_candidates"])
+def test_policy_only_exits_on_signal_days(last_day_signals):
+    signals, market, calendar = inputs()
+    signals = signals.filter(pl.col("ts_code") == "A")
+    if last_day_signals != "absent":
+        signals = pl.concat(
+            [
+                signals,
+                signals.with_columns(
+                    pl.lit("20260107").alias("trade_date"),
+                    pl.lit(last_day_signals == "member").alias("is_buyable_at_signal"),
+                ),
+            ]
+        )
+    market = market.with_columns(
+        pl.col("price").fill_null(10.0),
+        pl.lit(True).alias("can_sell"),
+        pl.lit("quoted").alias("market_status"),
+    )
+    result = run_backtest(
+        signals,
+        market,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1,), holding_days=None, buy_cost_rate=0, sell_cost_rate=0),
+        as_of_date="20260108",
+        policy=ExitOutsideTopN(),
+    )
+    assert result.frames["orders"].filter(pl.col("trade_date") == "20260106").is_empty()
+    assert result.frames["trades"]["exit_date"].to_list() == (
+        ["20260107"] if last_day_signals == "no_candidates" else []
+    )
+    assert result.frames["daily"]["top1_net_value"].to_list() == pytest.approx(
+        [1.0, 1.0, 1.1, 1.1 if last_day_signals == "no_candidates" else 1.2]
+    )
+
+
 @pytest.mark.parametrize("absent", [False, True])
 @pytest.mark.parametrize("side", ["buy", "sell"])
 def test_missing_market_can_be_assumed_suspended_without_changing_accounting(absent, side):

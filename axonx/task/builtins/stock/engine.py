@@ -109,7 +109,7 @@ def run_backtest(
     market = market.filter(pl.col("trade_time") == slot)
     all_dates = normalize_calendar(calendar)["trade_date"].to_list()
     date_indices = {date: index for index, date in enumerate(all_dates)}
-    if not set(signals["trade_date"]).issubset(all_dates):
+    if not (signal_dates := set(signals["trade_date"])).issubset(all_dates):
         raise ValueError("Signal dates must belong to the market calendar")
     dates = [d for d in all_dates if signals["trade_date"].min() <= d <= as_of_date]
     if not dates:
@@ -179,7 +179,8 @@ def run_backtest(
                     incomplete = True
                 due = position["planned_exit_date"]
                 eligible = (
-                    policy.should_exit(
+                    date in signal_dates
+                    and policy.should_exit(
                         rank=ranks.get(code),
                         age=date_indices[date] - date_indices[position["entry_date"]],
                         n=n,
