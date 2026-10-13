@@ -105,7 +105,7 @@ def context_protocol() -> dict:
         "market_pool": (
             "positive adjusted close, volume and amount with quotes at both endpoints; includes limit stocks"
         ),
-        "outliers": "per-date/per-horizon 2%/98% linear-quantile winsorization, matching Axon2 reference",
+        "outliers": "per-date/per-horizon 2%/98% linear-quantile winsorization",
         "moments": "equal-weight mean and sample variance (ddof=1); empty/singleton variance remains null",
         "common_context_diagnostic": "global mean/variance have no cross-sectional IC; evaluate model ablations",
         "stock_beta": "paired winsorized stock/market returns; prior60 calendar days, min30; beta clipped [-3,3]",

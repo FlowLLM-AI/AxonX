@@ -370,19 +370,19 @@ def test_child_names_replace_terminal_outputs_and_keep_independent_runs(tmp_path
     def compose(task):
         results.append(task.run_task("demo", x=2, y=3))
 
-    first = parent(tmp_path, compose, input_params={"task_name": "axon2-core"})
+    first = parent(tmp_path, compose, input_params={"task_name": "research-core"})
     TaskRunner().run(first)
     directory = task_path(tmp_path, results[0].task_id)
     (directory / "obsolete.txt").write_text("old")
     history = directory / "persistent/signals.jsonl"
     history.parent.mkdir()
     history.write_text("retained history\n")
-    second = parent(tmp_path, compose, input_params={"task_name": "axon2-core"})
+    second = parent(tmp_path, compose, input_params={"task_name": "research-core"})
     TaskRunner().run(second)
-    assert first.task_id == "composite#composite#axon2-core"
+    assert first.task_id == "composite#composite#research-core"
     assert first.task_dir.parent.name == "composite"
     assert results[0].task_id == results[1].task_id
-    assert results[0].task_id == "base#demo#axon2-core"
+    assert results[0].task_id == "base#demo#research-core"
     assert results[0].run_id != results[1].run_id
     assert not (directory / "obsolete.txt").exists()
     assert history.read_text() == "retained history\n"
@@ -418,7 +418,7 @@ def test_reused_child_name_cannot_replace_active_run(tmp_path, state):
     first = parent(
         tmp_path,
         lambda owner: results.append(owner.run_task("demo", x=1, y=2)),
-        input_params={"task_name": "axon2-core"},
+        input_params={"task_name": "research-core"},
     )
     TaskRunner().run(first)
     existing = results[0]
@@ -429,7 +429,7 @@ def test_reused_child_name_cannot_replace_active_run(tmp_path, state):
     task = parent(
         tmp_path,
         lambda owner: owner.run_task("demo", x=3, y=4),
-        input_params={"task_name": "axon2-core"},
+        input_params={"task_name": "research-core"},
     )
     with pytest.raises(ChildTaskError, match="already exists"):
         TaskRunner().run(task)

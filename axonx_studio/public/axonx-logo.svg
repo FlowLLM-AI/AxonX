@@ -3,7 +3,7 @@
   <desc id="axonx-desc">AxonX rounded wordmark with signal junctions in the A and final X.</desc>
 
   <defs>
-    <!-- Mirrors Axon Studio's teal-to-cobalt interface palette. -->
+    <!-- Mirrors AxonX Studio's teal-to-cobalt interface palette. -->
     <linearGradient id="axonx-brand" x1="34" y1="36" x2="948" y2="242" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#20D2B5"/>
       <stop offset="0.38" stop-color="#0C8B72"/>

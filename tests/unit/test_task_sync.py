@@ -29,7 +29,7 @@ from axonx.task.sync.index import (
 from axonx.task.sync.planner import archive_budget
 from axonx.task.sync.replica import prepare_replica
 
-TASK_ID = "etl#demo#axon2-core"
+TASK_ID = "etl#demo#research-core"
 
 
 def source_task(root: Path, task_id=TASK_ID):
@@ -226,7 +226,7 @@ def test_receiver_refuses_a_replica_over_its_total_budget(tmp_path):
 
 @pytest.mark.parametrize("role", ["targets", "signals"])
 def test_old_stock_signal_outputs_are_rejected(tmp_path, role):
-    directory, metadata = source_task(tmp_path, "backtest#demo#axon2-core")
+    directory, metadata = source_task(tmp_path, "backtest#demo#research-core")
     path = directory / f"{role}.parquet"
     path.write_bytes(b"old output")
     publish(directory, metadata, **{role: path})

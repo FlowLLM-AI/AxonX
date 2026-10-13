@@ -26,7 +26,7 @@ class Repository:
         return self.changes
 
 
-def task(root, task_id="etl#demo#axon2-core", state="succeeded", run_id="first"):
+def task(root, task_id="etl#demo#research-core", state="succeeded", run_id="first"):
     directory = task_path(root, task_id)
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "result.txt").write_text("result")
@@ -45,7 +45,7 @@ def task(root, task_id="etl#demo#axon2-core", state="succeeded", run_id="first")
 
 
 def sync_component(root, monkeypatch, remote=None, budget=512 * 1024 * 1024):
-    sync = LocalSyncComponent(target="http://remote:1024", task_names=["axon2-core"])
+    sync = LocalSyncComponent(target="http://remote:1024", task_names=["research-core"])
     sync.root = root
     sync.app_context = SimpleNamespace(
         app_config=ApplicationConfig(transfer_budget_bytes=budget, targets=[{"address": "http://remote:1024"}])
@@ -63,13 +63,13 @@ def sync_component(root, monkeypatch, remote=None, budget=512 * 1024 * 1024):
 
 @pytest.mark.parametrize("kind", ["etl", "train", "inference", "backtest", "composite"])
 def test_filter_matches_only_exact_task_name(kind):
-    sync = LocalSyncComponent(target="remote:1024", task_names=["axon-v1", "axon-v2"])
-    assert sync._should_sync(f"{kind}#any_registration#axon-v1")
-    assert not sync._should_sync(f"{kind}#axon-v1#other")
-    assert not sync._should_sync(f"{kind}#any_registration#axon-v10")
+    sync = LocalSyncComponent(target="remote:1024", task_names=["research-v1", "research-v2"])
+    assert sync._should_sync(f"{kind}#any_registration#research-v1")
+    assert not sync._should_sync(f"{kind}#research-v1#other")
+    assert not sync._should_sync(f"{kind}#any_registration#research-v10")
 
 
-@pytest.mark.parametrize("names", ["axon-v1", [""], [None], ["bad_name"], {"name": "axon-v1"}])
+@pytest.mark.parametrize("names", ["research-v1", [""], [None], ["bad_name"], {"name": "research-v1"}])
 def test_invalid_filters_are_rejected(names):
     with pytest.raises(ValueError, match="task_names"):
         LocalSyncComponent(target="remote:1024", task_names=names)
@@ -101,14 +101,14 @@ async def test_reconciliation_recovers_after_remote_startup_failure(tmp_path, mo
     sync._send = AsyncMock()
     async with sync:
         assert sync._needs_reconcile
-        assert (await sync.flush()).uploaded == ["etl/etl#demo#axon2-core"]
+        assert (await sync.flush()).uploaded == ["etl/etl#demo#research-core"]
         assert not sync._needs_reconcile
         assert client.run_job.await_count == 2
 
 
 @pytest.mark.asyncio
 async def test_terminal_event_sends_but_running_and_deletion_do_not(tmp_path, monkeypatch):
-    task_id = "etl#demo#axon2-core"
+    task_id = "etl#demo#research-core"
     directory = task(tmp_path, state="running")
     sync, _ = sync_component(tmp_path, monkeypatch)
     sync._send = AsyncMock()
@@ -127,7 +127,7 @@ async def test_terminal_event_sends_but_running_and_deletion_do_not(tmp_path, mo
 
 @pytest.mark.asyncio
 async def test_failed_batch_is_retried_and_deferred_tasks_remain_queued(tmp_path, monkeypatch):
-    ids = [f"etl#demo{i}#axon2-core" for i in range(3)]
+    ids = [f"etl#demo{i}#research-core" for i in range(3)]
     for task_id in ids:
         task(tmp_path, task_id)
     sync, _ = sync_component(tmp_path, monkeypatch, budget=17 * 1024)
@@ -144,7 +144,7 @@ async def test_failed_batch_is_retried_and_deferred_tasks_remain_queued(tmp_path
 
 @pytest.mark.asyncio
 async def test_deterministic_budget_failure_is_reported_without_retry(tmp_path, monkeypatch):
-    task_id = "etl#demo#axon2-core"
+    task_id = "etl#demo#research-core"
     task(tmp_path)
     sync, _ = sync_component(tmp_path, monkeypatch, budget=1)
     sync._pending.add(task_id)
@@ -159,7 +159,7 @@ async def test_authenticated_roundtrip_reconciles_reruns_and_skips_replicas(tmp_
     source, remote = tmp_path / "source", tmp_path / "remote"
     source.mkdir()
     remote.mkdir()
-    ids = ["etl#demo#axon2-core", "train#demo#axon2-core", "composite#demo#axon2-core"]
+    ids = ["etl#demo#research-core", "train#demo#research-core", "composite#demo#research-core"]
     for task_id in ids:
         directory = task(source, task_id)
         (directory / "inputs").mkdir()
@@ -236,7 +236,7 @@ async def test_cancelled_blocking_work_finishes_before_resource_cleanup(cancella
 
 @pytest.mark.asyncio
 async def test_settling_failure_preserves_the_pending_queue(tmp_path, monkeypatch):
-    task_id = "etl#demo#axon2-core"
+    task_id = "etl#demo#research-core"
     task(tmp_path)
     sync, _ = sync_component(tmp_path, monkeypatch)
     sync._pending.add(task_id)
