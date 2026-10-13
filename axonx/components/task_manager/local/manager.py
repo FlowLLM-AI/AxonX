@@ -20,6 +20,7 @@ from ....constants import (
     AXONX_TASK_WORKSPACE_DIR,
 )
 from ....task.protocol import PROTOCOL_VERSION
+from ....task.source import TASK_SOURCE, TASK_SOURCE_ENV
 from ....enums import TaskState
 from ....plugin_kit.environment import environment_operation, run_in_thread, serialized
 from ....task.catalog import resolve_task
@@ -102,6 +103,7 @@ class LocalTaskManager(BaseTaskManager):
                     run_id=run_id,
                     task_type=task.task_type,
                     reg_name=registration_name,
+                    source=TASK_SOURCE.get(),
                     input_params=task.input_params.model_dump(mode="json"),
                     state=TaskState.QUEUED,
                     created_at=task.created_at,
@@ -121,6 +123,7 @@ class LocalTaskManager(BaseTaskManager):
             AXONX_TASK_TIMEZONE: self.app_config.timezone,
             AXONX_TASK_ID: task.task_id,
             AXONX_TASK_RUN_ID: run_id,
+            TASK_SOURCE_ENV: status.source.model_dump_json(),
             AXONX_TASK_CREATED_AT: task.created_at.isoformat(),
         }
         try:
@@ -145,6 +148,7 @@ class LocalTaskManager(BaseTaskManager):
             reg_name=registration_name,
             timezone=self.app_config.timezone,
             run_id=run_id,
+            source=TASK_SOURCE.get(),
         )
 
     async def _reserve(self, task: BaseTask, replace: bool) -> bool:

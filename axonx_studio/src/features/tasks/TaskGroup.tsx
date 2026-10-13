@@ -9,6 +9,8 @@ import type { TaskSummary } from "./types";
 interface GroupProps {
   group: TaskGroupData;
   filterKey: string;
+  separateHistory?: boolean;
+  showHistory?: boolean;
   selectionMode: boolean;
   selected: Set<string>;
   onToggle: (ids: string[]) => void;
@@ -51,6 +53,7 @@ export function TaskGroup(props: GroupProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(group.active > 0);
   const latest = group.tasks[0];
+  const label = group.label || group.key;
   const ids = group.tasks
     .filter((task) => !ACTIVE.has(task.state))
     .map((task) => task.task_id);
@@ -65,13 +68,13 @@ export function TaskGroup(props: GroupProps) {
             ids={ids}
             selected={selected}
             onToggle={onToggle}
-            label={t("taskGroups.selectGroup", { group: group.key })}
+            label={t("taskGroups.selectGroup", { group: label })}
           />
         )}
         <button
           className="task-group-toggle"
           aria-expanded={expanded}
-          aria-label={group.key}
+          aria-label={label}
           onClick={() => setExpanded(!expanded)}
         >
           <ChevronDown className="task-group-chevron" size={16} />
@@ -79,7 +82,7 @@ export function TaskGroup(props: GroupProps) {
             <Layers size={14} />
           </span>
           <span className="task-group-title">
-            <strong title={group.key}>{group.key}</strong>
+            <strong title={label}>{label}</strong>
             <small>
               {t(`types.${group.type}`, group.type)} ·{" "}
               {t(
@@ -166,25 +169,51 @@ export function TaskTableHeading({
   );
 }
 
-function GroupMembers({
+function GroupMembers(props: GroupProps & { expanded: boolean }) {
+  const { t } = useTranslation();
+  if (!props.separateHistory)
+    return <GroupTable {...props} tasks={props.group.tasks} />;
+  const active = props.group.tasks.filter((task) => ACTIVE.has(task.state));
+  const finished = props.group.tasks.filter((task) => !ACTIVE.has(task.state));
+  return (
+    <>
+      {active.length > 0 && <GroupTable {...props} tasks={active} />}
+      {finished.length > 0 && (
+        <details
+          className="schedule-history"
+          hidden={!props.expanded}
+          open={props.showHistory}
+        >
+          <summary>
+            {t("schedules.history", { count: finished.length })}
+          </summary>
+          <GroupTable {...props} tasks={finished} />
+        </details>
+      )}
+    </>
+  );
+}
+
+function GroupTable({
   group,
+  tasks: members,
   selectionMode,
   selected,
   onToggle,
   onOpenTask,
   onContextMenu,
   expanded,
-}: GroupProps & { expanded: boolean }) {
+}: GroupProps & { expanded: boolean; tasks: TaskSummary[] }) {
   const { t } = useTranslation();
   const [position, setPosition] = useState(0);
   if (!expanded) return null;
-  const pages = Math.ceil(group.tasks.length / PAGE_SIZE);
+  const pages = Math.ceil(members.length / PAGE_SIZE);
   const page = Math.min(position, pages - 1);
-  const tasks = group.tasks.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const tasks = members.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   return (
     <div className="task-group-members">
       <div className="table-wrap">
-        <table aria-label={group.key}>
+        <table aria-label={group.label || group.key}>
           <TaskTableColumns selectionMode={selectionMode} />
           <TaskTableHeading
             selectionMode={selectionMode}
@@ -210,8 +239,8 @@ function GroupMembers({
           <span>
             {t("taskGroups.range", {
               start: page * PAGE_SIZE + 1,
-              end: Math.min((page + 1) * PAGE_SIZE, group.tasks.length),
-              count: group.tasks.length,
+              end: Math.min((page + 1) * PAGE_SIZE, members.length),
+              count: members.length,
             })}
           </span>
           <button

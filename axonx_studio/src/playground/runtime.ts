@@ -13,6 +13,7 @@ import {
   definitions,
   epoch,
   seed,
+  schedules,
   taskStatus,
 } from "./fixtures";
 
@@ -217,6 +218,8 @@ export function createPlayground(): Transport {
           });
         case "list_installed_task_definitions":
           return response(definitions);
+        case "list_schedules":
+          return response(schedules);
         case "list_task_statuses":
           return response(
             [...tasks.values()].reverse().map((task) => {

@@ -29,6 +29,7 @@ def summarize_status(status: TaskMetadata) -> dict:
             "log_path",
         )
     }
+    summary["source"] = status.source.model_dump(mode="json")
     summary["error"] = status.error[:1000]
     summary["display_name"] = str(status.input_params.get("task_name") or status.reg_name)[:256]
     summary["is_online"] = status.task_type.value in {"api", "inference"} or (

@@ -21,14 +21,28 @@ interface UpdateRecord {
   after: Record<string, string | null> | null;
   commit: string | null;
 }
+interface RestartBlocker {
+  task_id: string;
+  run_id: string;
+  schedule: string;
+}
 interface UpdateStatus {
+  restart_blockers: RestartBlocker[];
   record: UpdateRecord | null;
   log: string;
 }
 
 export function UpdatePanel({ target }: { target?: string }) {
+  return <UpdatePanelContent key={target || "local"} target={target} />;
+}
+
+function UpdatePanelContent({ target }: { target?: string }) {
   const { t } = useTranslation();
-  const [status, setStatus] = useState<UpdateStatus>({ record: null, log: "" });
+  const [status, setStatus] = useState<UpdateStatus>({
+    record: null,
+    log: "",
+    restart_blockers: [],
+  });
   const [error, setError] = useState("");
   const [submissionError, setSubmissionError] = useState("");
   const [disconnected, setDisconnected] = useState(false);
@@ -41,6 +55,7 @@ export function UpdatePanel({ target }: { target?: string }) {
     ? selectedMode
     : (availableModes[0] ?? "git");
   const [confirmed, setConfirmed] = useState(false);
+  const blocked = status.restart_blockers.length > 0;
   const updateId = status.record?.update_id;
   const active = Boolean(
     status.record && !["failed", "succeeded"].includes(status.record.phase),
@@ -83,6 +98,7 @@ export function UpdatePanel({ target }: { target?: string }) {
   usePolling(read, !submitting, 3, true);
 
   const start = async (signal: AbortSignal) => {
+    if (blocked) return;
     requestVersion.current += 1;
     setSubmissionError("");
     setSubmitting(true);
@@ -94,7 +110,7 @@ export function UpdatePanel({ target }: { target?: string }) {
         { target, signal },
       );
       if (signal.aborted) return;
-      setStatus({ record, log: "" });
+      setStatus({ record, log: "", restart_blockers: [] });
       setConfirmed(false);
     } catch (cause) {
       if (!signal.aborted) setSubmissionError(String(cause));
@@ -141,6 +157,18 @@ export function UpdatePanel({ target }: { target?: string }) {
             </select>
           </label>
           <p>{t(`update.${mode}Hint`)}</p>
+          {blocked && (
+            <div className="error-banner" role="alert">
+              <div>
+                <strong>{t("update.scheduledBlocked")}</strong>
+                {status.restart_blockers.map((task) => (
+                  <span key={task.run_id}>
+                    {task.schedule} · {task.task_id}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           <label className="update-checkbox">
             <input
               type="checkbox"
@@ -161,7 +189,9 @@ export function UpdatePanel({ target }: { target?: string }) {
           </label>
           <button
             className="secondary-button"
-            disabled={!confirmed || active || submitting}
+            disabled={
+              !confirmed || active || submitting || blocked || Boolean(error)
+            }
             onClick={() => {
               if (submissionController.current)
                 void start(submissionController.current.signal);

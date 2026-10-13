@@ -769,7 +769,8 @@
       "starting": "正在启动服务",
       "succeeded": "重启完成",
       "failed": "重启失败"
-    }
+    },
+    "scheduledBlocked": "定时来源 Task 正在排队或运行，无法更新或重启服务。勾选强制取消也不能绕过此限制。"
   },
   "onlineReport": {
     "tabsLabel": "在线报告",
@@ -901,5 +902,34 @@
     "selectMembers": "选择该组终态任务",
     "deleteMembers": "删除该组终态任务",
     "deleteConfirm": "确定删除该组的 {{count}} 个终态任务？"
+  },
+  "schedules": {
+    "tabs": {
+      "scheduled": "定时任务",
+      "other": "非定时任务"
+    },
+    "sources": {
+      "submit": "主动提交",
+      "exec": "直接执行",
+      "unknown": "来源未知"
+    },
+    "scheduledSource": "定时：{{name}}",
+    "removed": "此服务已不再配置该定时任务",
+    "nextRun": "下次触发",
+    "lastJob": "最近 Job 触发",
+    "policy": "Job 并发策略",
+    "runningJobs": "执行中的 Job：{{count}}",
+    "policies": {
+      "allow": "允许重叠",
+      "forbid": "跳过重叠",
+      "replace": "替换上次 Job"
+    },
+    "noActiveTasks": "暂无排队或运行中的任务。",
+    "history": "已结束任务 · {{count}}",
+    "arguments": "Job 参数",
+    "emptyTitle": "暂无定时计划",
+    "emptyHint": "在选中服务的配置中添加 schedules，并重启服务加载。",
+    "total": "{{schedules}} 个计划 · {{count}} 个任务",
+    "search": "搜索计划、描述、Task ID、类型或 PID"
   }
 }

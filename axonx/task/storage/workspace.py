@@ -16,6 +16,7 @@ from ...enums import TaskState, TaskType
 from ...utils.fs import atomic_write_json
 from ..core.identity import task_type_from_id
 from ..protocol import Protocol
+from ..source import TaskSource
 from .replica import DisplayReplica
 
 #: One workspace directory per task category holds that category's task directories.
@@ -59,6 +60,7 @@ class TaskMetadata(Protocol):
     run_id: str = Field(min_length=1)
     task_type: TaskType
     reg_name: str = ""
+    source: TaskSource = Field(default_factory=TaskSource)
     input_params: dict[str, Any] = Field(default_factory=dict)
     output_params: dict[str, Any] = Field(default_factory=dict)
     children: list[ChildTaskRecord] = Field(default_factory=list)

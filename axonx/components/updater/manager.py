@@ -67,6 +67,10 @@ class UpdateManager(BaseComponent):
         if self.pending is not None:
             raise RuntimeError("An update is already pending")
         plan = await run_in_thread(self._plan, mode, service)
+        blockers = await self.restart_blockers()
+        if blockers:
+            names = ", ".join(item["task_id"] for item in blockers)
+            raise RuntimeError(f"Active scheduled Tasks prevent service update or restart: {names}")
         for manager in self.app_context.components.get("task_manager", {}).values():
             active = await manager.list_managed_run_ids()
             if active and not force:
@@ -188,6 +192,13 @@ class UpdateManager(BaseComponent):
             excludes.extend(["-e", "/" + pattern])
         plan.update(repository=str(repository), protected=protected_paths, excludes=excludes)
         return plan
+
+    async def restart_blockers(self) -> list[dict]:
+        """Never allow forced maintenance to cancel scheduled Tasks."""
+        blockers = []
+        for manager in self.app_context.components.get("task_manager", {}).values():
+            blockers.extend(await manager.list_restart_blockers())
+        return blockers
 
     def status(self, update_id: str | None = None) -> dict:
         """Read one update or the latest record, plus a bounded log tail."""

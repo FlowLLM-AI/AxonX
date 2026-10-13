@@ -123,6 +123,7 @@ class BaseCompositeTask(BaseTask, ABC):
             reg_name=record.task,
             timezone=self._child_timezone,
             run_id=record.run_id,
+            source=self.context.source,
         )
         record.task_id = child.task_id
         record.state = TaskState.RUNNING

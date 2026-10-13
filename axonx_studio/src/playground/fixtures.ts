@@ -1,9 +1,47 @@
-import type { TaskDefinition, TaskMetadata } from "../features/tasks/types";
+import type {
+  Schedule,
+  TaskDefinition,
+  TaskMetadata,
+} from "../features/tasks/types";
 import type { WorkspacePreview } from "../features/workspace/types";
 import type { DailyRow, SummaryRow } from "../features/research/backtest/types";
 import { strategyStats } from "../features/research/compare/model";
 
 export const epoch = "2026-01-05T09:00:00.000Z";
+export const schedules: Schedule[] = [
+  {
+    name: "daily_training",
+    job: "submit",
+    description: "Run the daily training example / 每日运行训练示例",
+    cron: "0 17 * * 1-5",
+    timezone: "Asia/Shanghai",
+    arguments: { task: "playground.train" },
+    concurrency_policy: "forbid",
+    next_run_at: "2026-01-06T09:00:00.000Z",
+    running: 0,
+    last_trigger: {
+      name: "daily_training",
+      job: "submit",
+      trigger_id: "demo-daily",
+      triggered_at: epoch,
+      state: "succeeded",
+      error: "",
+    },
+  },
+  {
+    name: "workspace_sync",
+    job: "sync_flush",
+    description:
+      "Synchronize display artifacts every ten minutes / 每十分钟同步展示产物",
+    cron: "*/10 * * * *",
+    timezone: "UTC",
+    arguments: {},
+    concurrency_policy: "forbid",
+    next_run_at: "2026-01-05T09:10:00.000Z",
+    running: 0,
+    last_trigger: null,
+  },
+];
 export const kinds = [
   "etl",
   "analysis",
@@ -50,6 +88,7 @@ export function taskStatus(
     run_id: id,
     task_type: kind,
     reg_name: name,
+    source: { kind: "submit", schedule: null },
     input_params: { task_name: name },
     state: "succeeded",
     pid: null,
@@ -277,6 +316,7 @@ export function addArtifacts(
     task_id: task.task_id,
     task_type: task.task_type,
     reg_name: `playground.${task.task_type}`,
+    source: { kind: "submit", schedule: null },
     created_at: task.created_at,
     input_params: {
       ...task.input_params,
@@ -357,6 +397,7 @@ export function seed() {
     task.input_params.source_tasks = source.join(",");
     tasks.set(id, task);
     addArtifacts(files, task, variant, source);
+    if (kind === "train") task.source.schedule = schedules[0].last_trigger;
     if (variant === "steady") source = [id];
   }
   seedOnline(tasks, files);
@@ -387,6 +428,12 @@ export function seed() {
   failed.error = "Simulated missing input";
   failed.exit_code = 1;
   failed.output_params = {};
+  failed.source.schedule = {
+    name: "removed_training",
+    job: "submit",
+    trigger_id: "demo-removed",
+    triggered_at: epoch,
+  };
   tasks.set(failed.task_id, failed);
   for (const task of tasks.values()) {
     const path = `runs/${task.task_id}`;

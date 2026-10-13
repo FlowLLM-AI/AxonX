@@ -68,3 +68,5 @@ Build, installation or verification failure records an error and attempts to sta
 ## MCP transport
 
 The MCP endpoint now uses stateless Streamable HTTP with JSON responses. Clients must not rely on retained server sessions across calls or restarts.
+
+Active scheduled Tasks are an exception to forced cancellation: queued or running schedule-origin Tasks owned by this service prevent Git updates, pip updates, and disk restarts even with `force=true`. Studio displays their schedule names and Task IDs and disables the action. The backend checks the same rule before cancelling any worker. Admission and Task worker launch share the environment-operation queue, so a concurrent schedule submission cannot slip between this check and maintenance.

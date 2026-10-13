@@ -17,6 +17,7 @@ let catalog = true;
 let jobNames: string[];
 let submissionError = "";
 let acceptedMode: string | null;
+let restartBlockers: { task_id: string; run_id: string; schedule: string }[];
 const record = () => ({
   update_id: "a".repeat(32),
   phase,
@@ -35,6 +36,7 @@ beforeEach(() => {
   catalog = true;
   submissionError = "";
   acceptedMode = null;
+  restartBlockers = [];
   jobNames = [
     "update_from_git",
     "update_from_pip",
@@ -69,6 +71,7 @@ beforeEach(() => {
             ? {
                 record: acceptedMode ? record() : null,
                 log: "",
+                restart_blockers: restartBlockers,
               }
             : record();
       return new Response(JSON.stringify({ success: true, answer }));
@@ -234,4 +237,60 @@ it("reports rejected restart requests and keeps controls available for retry", a
   );
   expect(container.querySelector("button")!.disabled).toBe(false);
   expect(container.textContent).not.toContain("update.restartPhases.accepted");
+});
+
+it("blocks updates and restarts for scheduled Tasks even with force", async () => {
+  restartBlockers = [
+    { task_id: "base#demo#daily", run_id: "run", schedule: "daily" },
+  ];
+  await act(async () =>
+    root.render(<UpdatePanel target="http://remote:1024" />),
+  );
+  const button = container.querySelector("button")!;
+  const checkboxes = container.querySelectorAll<HTMLInputElement>(
+    'input[type="checkbox"]',
+  );
+  await act(async () => checkboxes[0].click());
+  await act(async () => checkboxes[1].click());
+  expect(button.disabled).toBe(true);
+  expect(container.textContent).toContain("update.scheduledBlocked");
+  expect(container.textContent).toContain("base#demo#daily");
+  const select = container.querySelector("select")!;
+  await act(async () => {
+    select.value = "restart";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await act(async () => checkboxes[1].click());
+  expect(button.disabled).toBe(true);
+  await act(async () => button.click());
+  expect(calls.some((call) => call.url === "/jobs/restart_service")).toBe(
+    false,
+  );
+  restartBlockers = [];
+  await act(async () => vi.advanceTimersByTimeAsync(3000));
+  expect(container.textContent).not.toContain("update.scheduledBlocked");
+  expect(button.disabled).toBe(false);
+});
+
+it("resets state and consent when switching machines", async () => {
+  restartBlockers = [
+    { task_id: "base#demo#daily", run_id: "run", schedule: "daily" },
+  ];
+  await act(async () =>
+    root.render(<UpdatePanel target="http://remote:1024" />),
+  );
+  await act(async () =>
+    container
+      .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[1]
+      .click(),
+  );
+  restartBlockers = [];
+  jobNames = ["restart_service", "get_update_status"];
+  await act(async () =>
+    root.render(<UpdatePanel target="http://remote:1025" />),
+  );
+  expect(container.querySelector("select")!.value).toBe("restart");
+  expect(container.textContent).not.toContain("update.scheduledBlocked");
+  expect(container.querySelector("button")!.disabled).toBe(true);
+  expect(calls.at(-1)?.body.target).toBe("http://remote:1025");
 });

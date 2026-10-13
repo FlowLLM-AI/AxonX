@@ -769,7 +769,8 @@
       "starting": "Starting service",
       "succeeded": "Restart completed",
       "failed": "Restart failed"
-    }
+    },
+    "scheduledBlocked": "Active scheduled Tasks prevent service updates and restarts. Forced cancellation cannot override this."
   },
   "onlineReport": {
     "tabsLabel": "Online report",
@@ -901,5 +902,34 @@
     "selectMembers": "Select terminal tasks in this group",
     "deleteMembers": "Delete terminal tasks in this group",
     "deleteConfirm": "Delete {{count}} terminal tasks in this group?"
+  },
+  "schedules": {
+    "tabs": {
+      "scheduled": "Scheduled tasks",
+      "other": "Other tasks"
+    },
+    "sources": {
+      "submit": "Submitted",
+      "exec": "Direct execution",
+      "unknown": "Unknown source"
+    },
+    "scheduledSource": "Schedule: {{name}}",
+    "removed": "Schedule no longer configured on this service",
+    "nextRun": "Next trigger",
+    "lastJob": "Latest Job trigger",
+    "policy": "Job concurrency",
+    "runningJobs": "Running Jobs: {{count}}",
+    "policies": {
+      "allow": "Allow overlap",
+      "forbid": "Skip overlap",
+      "replace": "Replace previous Job"
+    },
+    "noActiveTasks": "No queued or running Tasks.",
+    "history": "Finished Tasks · {{count}}",
+    "arguments": "Job arguments",
+    "emptyTitle": "No configured schedules",
+    "emptyHint": "Add schedules to the selected service configuration and restart it to load them.",
+    "total": "{{schedules}} schedules · {{count}} Tasks",
+    "search": "Search schedule, description, Task ID, type, or PID"
   }
 }

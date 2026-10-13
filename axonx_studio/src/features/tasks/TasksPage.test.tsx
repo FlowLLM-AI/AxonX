@@ -3,10 +3,16 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TasksPage } from "./TasksPage";
-import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
+import {
+  cancelTask,
+  deleteTasks,
+  listTaskStatuses,
+  listSchedules,
+} from "./api";
 import type { TaskMetadata } from "./types";
 vi.mock("./api", () => ({
   listTaskStatuses: vi.fn(),
+  listSchedules: vi.fn(),
   cancelTask: vi.fn(),
   deleteTasks: vi.fn(),
 }));
@@ -35,6 +41,7 @@ function task(
     run_id: `run-${taskId}`,
     task_type: "train",
     reg_name: taskId.split("#")[1],
+    source: { kind: "submit", schedule: null },
     input_params: {},
     state,
     pid: null,
@@ -85,6 +92,7 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.useFakeTimers();
   vi.resetAllMocks();
+  vi.mocked(listSchedules).mockResolvedValue([]);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -469,4 +477,138 @@ describe("grouped task list", () => {
       "machine-a",
     );
   });
+});
+
+it("separates schedule Tasks and lists schedules without Tasks", async () => {
+  const scheduled = task("train#demo#scheduled");
+  scheduled.source.schedule = {
+    name: "daily",
+    job: "submit",
+    trigger_id: "trigger",
+    triggered_at: "2026-10-13T01:00:00Z",
+  };
+  vi.mocked(listTaskStatuses).mockResolvedValue([
+    scheduled,
+    task("train#demo#manual", "succeeded"),
+  ]);
+  const schedule = (name: string, job: string) => ({
+    name,
+    job,
+    description: `Description for ${name}`,
+    cron: "0 9 * * *",
+    timezone: "Asia/Shanghai",
+    arguments: {},
+    concurrency_policy: "forbid" as const,
+    next_run_at: "2026-10-14T01:00:00Z",
+    running: 0,
+    last_trigger: null,
+  });
+  vi.mocked(listSchedules).mockResolvedValue([
+    schedule("daily", "submit"),
+    schedule("sync", "sync_flush"),
+  ]);
+  await render();
+  expect(container.textContent).not.toContain("sync_flush");
+  await click('[role="tab"]');
+  expect(
+    container.querySelector('[role="tab"]')?.getAttribute("aria-selected"),
+  ).toBe("true");
+  expect(container.textContent).toContain("sync_flush");
+  expect(container.textContent).toContain("Asia/Shanghai");
+  expect(container.textContent).toContain("schedules.noActiveTasks");
+  expect(container.textContent).toContain("Description for daily");
+  expect(container.textContent).toContain("scheduled");
+  expect(container.textContent).not.toContain("manual");
+  await click("tbody tr");
+  expect(onOpenTask).toHaveBeenCalledWith(scheduled.task_id);
+  expect(vi.mocked(listSchedules).mock.calls[0][0]).toBe("machine-a");
+});
+
+it.each(["running", "succeeded"] as const)(
+  "retains %s schedule Tasks after configuration removal",
+  async (state) => {
+    const scheduled = task("train#demo#old", state);
+    scheduled.source.schedule = {
+      name: "removed",
+      job: "submit",
+      trigger_id: "trigger",
+      triggered_at: "2026-10-13T01:00:00Z",
+    };
+    vi.mocked(listTaskStatuses).mockResolvedValue([scheduled]);
+    await render();
+    await click('[role="tab"]');
+    expect(container.textContent).toContain("schedules.removed");
+    expect(container.querySelectorAll(".schedule-card")).toHaveLength(1);
+    expect(container.querySelectorAll(".task-group")).toHaveLength(1);
+    if (state === "succeeded") {
+      await click(".task-group-toggle");
+      await click(".schedule-history > summary");
+    }
+    expect(container.querySelector("tbody tr")).not.toBeNull();
+  },
+);
+
+it("keeps active tasks visible and isolates finished group actions within a schedule", async () => {
+  const active = task("train#demo#active");
+  const finished = task("train#demo#finished", "succeeded");
+  for (const item of [active, finished]) {
+    item.source.schedule = {
+      name: "daily",
+      job: "submit",
+      trigger_id: "trigger",
+      triggered_at: "2026-10-13T01:00:00Z",
+    };
+  }
+  vi.mocked(listTaskStatuses).mockResolvedValue([active, finished]);
+  await render();
+  await click('[role="tab"]');
+  expect(container.querySelectorAll(".task-group")).toHaveLength(1);
+  expect(
+    container.querySelectorAll(".task-group > .task-group-members tbody tr"),
+  ).toHaveLength(1);
+  expect(container.querySelector("tbody")?.textContent).toContain("active");
+  expect(
+    container.querySelector<HTMLDetailsElement>(".schedule-history")?.open,
+  ).toBe(false);
+  await click(".schedule-history > summary");
+  await act(async () =>
+    container
+      .querySelector(".schedule-card .task-group-header")!
+      .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true })),
+  );
+  await click('[role="menuitem"].danger');
+  vi.mocked(deleteTasks).mockResolvedValue([finished.task_id]);
+  await click('[role="dialog"] .danger-button');
+  expect(deleteTasks).toHaveBeenCalledWith([finished.task_id], "machine-a");
+});
+
+it("reports schedule loading failures and never mixes records from another target", async () => {
+  vi.mocked(listSchedules).mockRejectedValueOnce(
+    new Error("Schedules unavailable"),
+  );
+  await render();
+  expect(container.textContent).toContain("Schedules unavailable");
+  expect(onConnection).toHaveBeenLastCalledWith(false);
+  await render("machine-b");
+  expect(container.textContent).not.toContain("Schedules unavailable");
+  expect(vi.mocked(listSchedules).mock.calls.at(-1)?.[0]).toBe("machine-b");
+});
+
+it("uses schedule-specific empty state and supports keyboard tab navigation", async () => {
+  vi.mocked(listTaskStatuses).mockResolvedValue([]);
+  await render();
+  const other = container.querySelector<HTMLButtonElement>("#tasks-tab-other")!;
+  expect(other.tabIndex).toBe(0);
+  await act(async () =>
+    other.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Home", bubbles: true }),
+    ),
+  );
+  const scheduled = container.querySelector<HTMLButtonElement>(
+    "#tasks-tab-scheduled",
+  )!;
+  expect(scheduled.tabIndex).toBe(0);
+  expect(document.activeElement).toBe(scheduled);
+  expect(container.textContent).toContain("schedules.emptyTitle");
+  expect(container.textContent).toContain("schedules.emptyHint");
 });

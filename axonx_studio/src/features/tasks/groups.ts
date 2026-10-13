@@ -12,6 +12,7 @@ export const STATES: TaskState[] = [
 export type StateFilter = "" | "active" | "attention" | TaskState;
 export interface TaskGroupData {
   key: string;
+  label?: string;
   type: string;
   total: number;
   tasks: TaskSummary[];

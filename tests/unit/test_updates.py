@@ -5,6 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -127,7 +128,9 @@ async def test_active_tasks_and_forced_cancellation(tmp_path, monkeypatch, mode)
 
     # Inject a fake configured manager without constructing research workers.
     app.context._components["task_manager"] = {
-        "default": SimpleNamespace(list_managed_run_ids=managed_runs, cancel=cancel)
+        "default": SimpleNamespace(
+            list_managed_run_ids=managed_runs, cancel=cancel, list_restart_blockers=AsyncMock(return_value=[])
+        )
     }
     monkeypatch.setattr(updater, "_plan", lambda *_: {})
     token = RESPONSE_CALLBACKS.set([])
@@ -662,6 +665,7 @@ async def test_maintenance_rechecks_process_ownership_when_cancellation_returns_
     app, updater = application(tmp_path)
     manager = object.__new__(LocalTaskManager)
     manager._supervisor = SimpleNamespace(run_pids={"owned-run": 123})
+    manager.list_summaries = AsyncMock(return_value=[])
     cancelled = []
 
     async def cancel(**kwargs):

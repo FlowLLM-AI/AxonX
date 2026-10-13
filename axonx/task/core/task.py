@@ -25,6 +25,7 @@ from ..storage.workspace import (
     task_id_from_path,
     task_path,
 )
+from ..source import TaskSource
 from .context import TaskContext
 from .identity import (
     generated_task_name,
@@ -54,6 +55,7 @@ class BaseTask(ABC):
         task_id: str | None = None,
         run_id: str | None = None,
         created_at: datetime | None = None,
+        source: TaskSource | None = None,
     ):
         self.input_params = self.input_cls.model_validate(input_params)
         workspace = Path(workspace_path).expanduser().resolve()
@@ -83,6 +85,7 @@ class BaseTask(ABC):
             run_id=run_id or uuid4().hex,
             created_at=created_at,
             logger=get_logger(type(self).__name__),
+            source=source or TaskSource(kind="exec"),
         )
         self.state: dict[str, Any] = {}
         self._output_params: BaseOutputParams | None = None

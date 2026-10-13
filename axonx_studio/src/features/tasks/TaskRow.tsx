@@ -78,7 +78,14 @@ export function TaskRow({
                 )}
               </button>
             </span>
-            <small>PID {task.pid || "—"}</small>
+            <small>
+              PID {task.pid || "—"} ·{" "}
+              {task.source.schedule
+                ? t("schedules.scheduledSource", {
+                    name: task.source.schedule.name,
+                  })
+                : t(`schedules.sources.${task.source.kind}`)}
+            </small>
           </div>
         </div>
       </td>

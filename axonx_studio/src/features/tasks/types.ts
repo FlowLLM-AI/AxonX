@@ -22,11 +22,37 @@ export interface ChildTaskRecord {
   error: string;
 }
 
+export interface ScheduleTrigger {
+  name: string;
+  job: string;
+  trigger_id: string;
+  triggered_at: string;
+}
+
+export interface TaskSource {
+  kind: "submit" | "exec" | "unknown";
+  schedule: ScheduleTrigger | null;
+}
+
+export interface Schedule {
+  name: string;
+  job: string;
+  description: string;
+  cron: string;
+  timezone: string;
+  arguments: Record<string, unknown>;
+  concurrency_policy: "allow" | "forbid" | "replace";
+  next_run_at: string | null;
+  running: number;
+  last_trigger: (ScheduleTrigger & { state: TaskState; error: string }) | null;
+}
+
 export interface TaskMetadata {
   task_id: string;
   run_id: string;
   task_type: string;
   reg_name: string;
+  source: TaskSource;
   input_params: Record<string, unknown>;
   state: TaskState;
   pid: number | null;

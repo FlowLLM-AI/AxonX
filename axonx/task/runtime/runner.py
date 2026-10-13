@@ -146,6 +146,7 @@ class TaskRunner:
                     run_id=task.context.run_id,
                     task_type=task.task_type,
                     reg_name=task.reg_name,
+                    source=task.context.source,
                     input_params=task.input_params.model_dump(mode="json"),
                     pid=task.pid,
                     created_at=task.created_at,

@@ -11,6 +11,7 @@ const task = (
   run_id: id,
   task_type: id.split("#")[0],
   reg_name: id.split("#")[1],
+  source: { kind: "submit", schedule: null },
   state,
   pid: 1234,
   created_at: date,

@@ -139,14 +139,15 @@ PipelineJob 按 `defaults` → caller arguments → system 递归合并，并在
 
 ## ScheduleConfig
 
-| 字段               | 类型                 | 默认值 | 含义                    |
-| ------------------ | -------------------- | ------ | ----------------------- |
-| backend            | 非空 string          | cron   | 调度实现                |
-| job                | 非空 string          | 必填   | 调用的 Job 名           |
-| cron               | 非空 string          | 必填   | Cron 表达式             |
-| arguments          | object               | {}     | Job 参数                |
-| timezone           | 非空 string/null     | null   | null 使用应用时区       |
-| concurrency_policy | forbid/allow/replace | forbid | 同一调度 Job 的重叠策略 |
+| 字段               | 类型                 | 默认值 | 含义                              |
+| ------------------ | -------------------- | ------ | --------------------------------- |
+| backend            | 非空 string          | cron   | 调度实现                          |
+| description        | string               | ""     | 定时计划描述；为空时使用 Job 描述 |
+| job                | 非空 string          | 必填   | 调用的 Job 名                     |
+| cron               | 非空 string          | 必填   | Cron 表达式                       |
+| arguments          | object               | {}     | Job 参数                          |
+| timezone           | 非空 string/null     | null   | null 使用应用时区                 |
+| concurrency_policy | forbid/allow/replace | forbid | 同一调度 Job 的重叠策略           |
 
 默认 schedules={}。策略作用于被调度 Job 的执行；submit 返回后，后台 Task 可仍在运行。启用示例见 [定时调度](../guides/scheduling.md)。
 

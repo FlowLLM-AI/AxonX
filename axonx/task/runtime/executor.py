@@ -20,6 +20,7 @@ from ...constants import (
 from ..catalog.resolver import installed_tasks, resolve_task
 from ..core.task import BaseTask
 from ..storage.workspace import TaskMetadata
+from ..source import TASK_SOURCE_ENV, TaskSource
 from .arguments import split_task_arguments
 from .runner import TaskRunner
 
@@ -77,6 +78,9 @@ class TaskCommandExecutor:
             task_id=os.environ.get(AXONX_TASK_ID),
             run_id=os.environ.get(AXONX_TASK_RUN_ID),
             created_at=datetime.fromisoformat(created_at) if created_at else None,
+            source=(
+                TaskSource.model_validate_json(os.environ[TASK_SOURCE_ENV]) if TASK_SOURCE_ENV in os.environ else None
+            ),
         )
         status = TaskRunner().run(task)
         return TaskExecution(task.output, status)

@@ -45,4 +45,7 @@ class GetUpdateStatusStep(UpdateStep):
     """Read durable update status across service restarts."""
 
     async def execute(self):
-        self.response.answer = self.updater.status(self.context.get("update_id"))
+        self.response.answer = {
+            **self.updater.status(self.context.get("update_id")),
+            "restart_blockers": await self.updater.restart_blockers(),
+        }

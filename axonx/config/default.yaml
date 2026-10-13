@@ -286,6 +286,14 @@ jobs:
     steps:
       - backend: wait_task
 
+  list_schedules:
+    description: List configured schedules and their current trigger status.
+    parameters:
+      type: object
+      additionalProperties: false
+    steps:
+      - backend: list_schedules_step
+
   list_task_ids:
     description: List Task IDs with a status file.
     steps:
@@ -672,12 +680,14 @@ schedules: {}
 # schedules:
 #   workspace_sync:
 #     backend: cron
+#     description: Synchronize display artifacts with the configured destination.
 #     job: sync_flush
 #     cron: "* * * * *"
 #
 #   # Download at 16:00 on weekdays; requires AXONX_TUSHARE_TOKEN.
 #   download_tushare_at_1600:
 #     backend: cron
+#     description: Download recent Tushare market data after the weekday close.
 #     job: submit
 #     cron: "0 16 * * 1-5"
 #     arguments:
@@ -689,6 +699,7 @@ schedules: {}
 #   # Requires DINGTALK_CLIENT_ID, DINGTALK_CLIENT_SECRET and DINGTALK_CONVERSATIONS.
 #   send_dingtalk_at_1700:
 #     backend: cron
+#     description: Send the daily research reminder to DingTalk.
 #     job: submit
 #     cron: "0 17 * * 1-5"
 #     arguments:

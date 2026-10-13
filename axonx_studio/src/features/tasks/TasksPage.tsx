@@ -13,14 +13,20 @@ import {
 import { useTranslation } from "react-i18next";
 import { usePolling } from "../../shared/hooks/usePolling";
 import type { ContextOption } from "../../app/types";
-import type { TaskSummary } from "./types";
-import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
+import type { Schedule, TaskSummary } from "./types";
+import {
+  cancelTask,
+  deleteTasks,
+  listTaskStatuses,
+  listSchedules,
+} from "./api";
 import {
   ACTIVE,
   ATTENTION,
   STATES,
   groupTasks,
   type StateFilter,
+  type TaskGroupData,
 } from "./groups";
 import {
   TaskGroup,
@@ -28,6 +34,8 @@ import {
   TaskTableColumns,
   TaskTableHeading,
 } from "./TaskGroup";
+
+import { ScheduleCard } from "./ScheduleCard";
 
 type MenuTarget =
   { kind: "task"; task: TaskSummary } | { kind: "group"; groupKey: string };
@@ -46,6 +54,8 @@ export function TasksPage({
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [tab, setTab] = useState<"scheduled" | "other">("other");
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,9 +92,13 @@ export function TasksPage({
       if (quiet) setRefreshing(true);
       else setLoading(true);
       try {
-        const result = await listTaskStatuses(target, controller.signal);
+        const [result, configuredSchedules] = await Promise.all([
+          listTaskStatuses(target, controller.signal),
+          listSchedules(target, controller.signal),
+        ]);
         if (controller.signal.aborted) return;
         setTasks(result);
+        setSchedules(configuredSchedules);
         const selectable = new Set(
           result
             .filter((task) => !ACTIVE.has(task.state))
@@ -100,6 +114,7 @@ export function TasksPage({
         if (controller.signal.aborted) return;
         setError(reason instanceof Error ? reason.message : String(reason));
         onConnection(false);
+        controller.abort();
       } finally {
         signal?.removeEventListener("abort", abort);
         if (request.current === controller) {
@@ -116,6 +131,7 @@ export function TasksPage({
     const controller = new AbortController();
     lifetime.current = controller;
     setTasks([]);
+    setSchedules([]);
     setSelected(new Set());
     setSelectionMode(false);
     setContextMenu(null);
@@ -160,20 +176,61 @@ export function TasksPage({
   const poll = useCallback((signal: AbortSignal) => load(true, signal), [load]);
   const seconds = usePolling(poll, autoRefresh, 5);
 
+  const visibleTasks = useMemo(
+    () =>
+      tasks.filter(
+        (task) => Boolean(task.source.schedule) === (tab === "scheduled"),
+      ),
+    [tasks, tab],
+  );
+  const scheduleGroups = useMemo(() => {
+    const entries = new Map<string, Schedule | null>(
+      schedules.map((schedule) => [schedule.name, schedule]),
+    );
+    for (const task of visibleTasks) {
+      const name = task.source.schedule?.name;
+      if (name && !entries.has(name)) entries.set(name, null);
+    }
+    const query = search.trim().toLowerCase();
+    return [...entries]
+      .flatMap(([name, schedule]) => {
+        const matchesSchedule =
+          `${name} ${schedule?.job ?? ""} ${schedule?.description ?? ""}`
+            .toLowerCase()
+            .includes(query);
+        const members = visibleTasks.filter(
+          (task) => task.source.schedule?.name === name,
+        );
+        const filter = { search: matchesSchedule ? "" : search, state, type };
+        const groups = groupTasks(members, filter).map((group) => ({
+          ...group,
+          key: JSON.stringify([name, group.key]),
+          label: group.key,
+        }));
+        const active = groups.some((group) => group.active > 0);
+        return groups.length || matchesSchedule
+          ? [{ name, schedule, groups, active }]
+          : [];
+      })
+      .sort((a, b) => Number(b.active) - Number(a.active));
+  }, [schedules, visibleTasks, search, state, type]);
   const types = useMemo(
-    () => [...new Set(tasks.map((task) => task.task_type))].sort(),
-    [tasks],
+    () => [...new Set(visibleTasks.map((task) => task.task_type))].sort(),
+    [visibleTasks],
   );
   const groups = useMemo(
-    () => groupTasks(tasks, { search, state, type }),
-    [tasks, search, state, type],
+    () =>
+      tab === "scheduled"
+        ? scheduleGroups.flatMap((entry) => entry.groups)
+        : groupTasks(visibleTasks, { search, state, type }),
+    [tab, scheduleGroups, visibleTasks, search, state, type],
   );
   const filtered = groups.flatMap((group) => group.tasks);
   const filterKey = JSON.stringify([search.trim().toLowerCase(), state, type]);
   const stats = {
-    total: tasks.length,
-    active: tasks.filter((item) => ACTIVE.has(item.state)).length,
-    attention: tasks.filter((item) => ATTENTION.has(item.state)).length,
+    total: visibleTasks.length,
+    active: visibleTasks.filter((item) => ACTIVE.has(item.state)).length,
+    attention: visibleTasks.filter((item) => ATTENTION.has(item.state)).length,
   };
   const selectableIds = filtered
     .filter((task) => !ACTIVE.has(task.state))
@@ -221,6 +278,16 @@ export function TasksPage({
   const finishSelection = () => {
     setSelectionMode(false);
     setSelected(new Set());
+  };
+
+  const changeTab = (value: "scheduled" | "other") => {
+    if (tab === value) return;
+    setTab(value);
+    finishSelection();
+    setContextMenu(null);
+    setSearch("");
+    setState("");
+    setType("");
   };
 
   const confirmCancel = async () => {
@@ -275,6 +342,26 @@ export function TasksPage({
       if (!signal.aborted) setDeleting(false);
     }
   };
+
+  const renderGroup = (group: TaskGroupData) => (
+    <TaskGroup
+      key={group.key}
+      group={group}
+      separateHistory={tab === "scheduled"}
+      showHistory={Boolean(search || state || type)}
+      filterKey={filterKey}
+      selectionMode={selectionMode}
+      selected={selected}
+      onToggle={toggleTasks}
+      onOpenTask={onOpenTask}
+      onGroupContextMenu={(event) =>
+        openContextMenu({ kind: "group", groupKey: group.key }, event)
+      }
+      onContextMenu={(task, event) =>
+        openContextMenu({ kind: "task", task }, event)
+      }
+    />
+  );
 
   return (
     <section className="workspace-page">
@@ -337,7 +424,47 @@ export function TasksPage({
         </div>
       )}
 
-      <div className="data-panel task-groups-panel">
+      <div
+        className="task-runtime-tabs"
+        role="tablist"
+        aria-label={t("taskTitle")}
+      >
+        {(["scheduled", "other"] as const).map((value) => (
+          <button
+            key={value}
+            role="tab"
+            id={`tasks-tab-${value}`}
+            aria-controls="tasks-panel"
+            aria-selected={tab === value}
+            tabIndex={tab === value ? 0 : -1}
+            onClick={() => changeTab(value)}
+            onKeyDown={(event) => {
+              const next =
+                event.key === "Home"
+                  ? "scheduled"
+                  : event.key === "End"
+                    ? "other"
+                    : event.key === "ArrowLeft" || event.key === "ArrowRight"
+                      ? value === "scheduled"
+                        ? "other"
+                        : "scheduled"
+                      : null;
+              if (!next) return;
+              event.preventDefault();
+              changeTab(next);
+              document.getElementById(`tasks-tab-${next}`)?.focus();
+            }}
+          >
+            {t(`schedules.tabs.${value}`)}
+          </button>
+        ))}
+      </div>
+      <div
+        id="tasks-panel"
+        role="tabpanel"
+        aria-labelledby={`tasks-tab-${tab}`}
+        className="data-panel task-groups-panel"
+      >
         <div className="task-group-toolbar">
           {selectionMode ? (
             <GroupSelection
@@ -358,21 +485,28 @@ export function TasksPage({
           <label className="search-field">
             <Search size={16} />
             <input
-              aria-label={t("search")}
+              aria-label={t(
+                tab === "scheduled" ? "schedules.search" : "search",
+              )}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("search")}
+              placeholder={t(
+                tab === "scheduled" ? "schedules.search" : "search",
+              )}
             />
           </label>
           <span className="task-group-total">
             {t(
-              filtered.length === tasks.length
-                ? "taskGroups.total"
-                : "taskGroups.matchingTotal",
+              tab === "scheduled"
+                ? "schedules.total"
+                : filtered.length === visibleTasks.length
+                  ? "taskGroups.total"
+                  : "taskGroups.matchingTotal",
               {
                 groups: groups.length,
+                schedules: scheduleGroups.length,
                 count: filtered.length,
-                total: tasks.length,
+                total: visibleTasks.length,
               },
             )}
           </span>
@@ -383,12 +517,12 @@ export function TasksPage({
             onChange={(event) => setType(event.target.value)}
           >
             <option value="">
-              {t("allTypes")} · {tasks.length}
+              {t("allTypes")} · {visibleTasks.length}
             </option>
             {types.map((value) => (
               <option key={value} value={value}>
                 {t(`types.${value}`, value)} ·{" "}
-                {tasks.filter((task) => task.task_type === value).length}
+                {visibleTasks.filter((task) => task.task_type === value).length}
               </option>
             ))}
           </select>
@@ -410,13 +544,13 @@ export function TasksPage({
             {STATES.map((value) => (
               <option key={value} value={value}>
                 {t(`states.${value}`)} ·{" "}
-                {tasks.filter((task) => task.state === value).length}
+                {visibleTasks.filter((task) => task.state === value).length}
               </option>
             ))}
           </select>
         </div>
         <div className="task-groups" key={target || "local"}>
-          {groups.length > 0 && (
+          {tab === "other" && groups.length > 0 && (
             <div className="task-list-heading table-wrap" aria-hidden="true">
               <table>
                 <TaskTableColumns selectionMode={selectionMode} />
@@ -424,36 +558,51 @@ export function TasksPage({
               </table>
             </div>
           )}
-          {groups.map((group) => (
-            <TaskGroup
-              key={group.key}
-              group={group}
-              filterKey={filterKey}
-              selectionMode={selectionMode}
-              selected={selected}
-              onToggle={toggleTasks}
-              onOpenTask={onOpenTask}
-              onGroupContextMenu={(event) =>
-                openContextMenu({ kind: "group", groupKey: group.key }, event)
-              }
-              onContextMenu={(task, event) =>
-                openContextMenu({ kind: "task", task }, event)
-              }
-            />
-          ))}
-          {!loading && filtered.length === 0 && (
-            <div className="empty-state">
-              <span className="empty-glyph">⌁</span>
-              <strong>{tasks.length ? t("noMatches") : t("noTasks")}</strong>
-              <p>{tasks.length ? t("noMatches") : t("noTasksHint")}</p>
-              {!tasks.length && (
-                <button className="primary-button" onClick={onSubmit}>
-                  <Plus size={17} />
-                  {t("pages.submit")}
-                </button>
-              )}
-            </div>
-          )}
+          {tab === "scheduled"
+            ? scheduleGroups.map((entry) => (
+                <ScheduleCard
+                  key={entry.name}
+                  name={entry.name}
+                  schedule={entry.schedule}
+                >
+                  {!entry.active && (
+                    <p className="muted">{t("schedules.noActiveTasks")}</p>
+                  )}
+                  {entry.groups.map(renderGroup)}
+                </ScheduleCard>
+              ))
+            : groups.map(renderGroup)}
+          {!loading &&
+            filtered.length === 0 &&
+            (tab !== "scheduled" || !scheduleGroups.length) && (
+              <div className="empty-state">
+                <span className="empty-glyph">⌁</span>
+                <strong>
+                  {search || state || type
+                    ? t("noMatches")
+                    : t(
+                        tab === "scheduled"
+                          ? "schedules.emptyTitle"
+                          : "noTasks",
+                      )}
+                </strong>
+                <p>
+                  {search || state || type
+                    ? t("noMatches")
+                    : t(
+                        tab === "scheduled"
+                          ? "schedules.emptyHint"
+                          : "noTasksHint",
+                      )}
+                </p>
+                {!visibleTasks.length && tab === "other" && (
+                  <button className="primary-button" onClick={onSubmit}>
+                    <Plus size={17} />
+                    {t("pages.submit")}
+                  </button>
+                )}
+              </div>
+            )}
           {loading && (
             <div className="loading-state">
               <LoaderCircle className="spin" /> {t("tasks.loadingRuntime")}
@@ -471,7 +620,7 @@ export function TasksPage({
           {contextMenu.kind === "group" ? (
             <>
               <header>
-                <span>{contextMenu.groupKey}</span>
+                <span>{menuGroup?.label || contextMenu.groupKey}</span>
                 <small>
                   {t("taskGroups.terminalCount", { count: groupIds.length })}
                 </small>
@@ -497,7 +646,7 @@ export function TasksPage({
                 onClick={() => {
                   setDeleteTarget({
                     ids: groupIds,
-                    group: contextMenu.groupKey,
+                    group: menuGroup?.label || contextMenu.groupKey,
                   });
                   setContextMenu(null);
                 }}

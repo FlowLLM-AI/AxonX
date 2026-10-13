@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence
 
 from ...components.job.events import JobEvent
-from ...enums import ComponentEnum
+from ...enums import ComponentEnum, TaskState
 from ...task.contracts import TaskHandle
 from ...task.query.graph import TaskGraph
 from ...task.query.summary import summarize_status
@@ -42,6 +42,19 @@ class BaseTaskManager(BaseComponent, ABC):
         The default preserves maintenance behavior for existing private backends.
         """
         return [status.run_id for status in await self.list_statuses() if not status.state.is_terminal]
+
+    async def list_restart_blockers(self) -> list[dict]:
+        """Scheduled Runs owned by this service that prevent maintenance."""
+        owned = set(await self.list_managed_run_ids())
+        if not owned:
+            return []
+        return [
+            {"task_id": status["task_id"], "run_id": status["run_id"], "schedule": status["source"]["schedule"]["name"]}
+            for status in await self.list_summaries()
+            if status["run_id"] in owned
+            and status["state"] in {TaskState.QUEUED, TaskState.RUNNING}
+            and status["source"]["schedule"] is not None
+        ]
 
     @abstractmethod
     async def get_status(self, task_id: str) -> TaskMetadata:

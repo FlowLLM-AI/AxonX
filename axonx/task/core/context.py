@@ -7,6 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ..source import TaskSource
+
 
 @dataclass(frozen=True)
 class TaskContext:
@@ -18,3 +20,4 @@ class TaskContext:
     run_id: str
     created_at: datetime
     logger: Any
+    source: TaskSource

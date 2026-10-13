@@ -5,12 +5,15 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 from contextlib import suppress
-from datetime import datetime
+from copy import deepcopy
+from datetime import UTC, datetime
 from typing import Any, Literal
+from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from croniter import croniter
 
+from ...task.source import TASK_SOURCE, ScheduleTrigger, TaskSource
 from ..registry import provider
 from .base import BaseScheduler
 
@@ -28,6 +31,7 @@ class CronScheduler(BaseScheduler):
         arguments: Mapping[str, Any] | None = None,
         timezone: str | None = None,
         concurrency_policy: ConcurrencyPolicy = "forbid",
+        description: str = "",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -45,9 +49,11 @@ class CronScheduler(BaseScheduler):
             raise ValueError(f"Unknown timezone: {timezone_name!r}") from None
 
         self.job_name = job
+        self.description = description
         self.cron = cron
         self.arguments = dict(arguments or {})
         self.concurrency_policy = concurrency_policy
+        self.last_trigger: dict | None = None
         self._runner: asyncio.Task[None] | None = None
         self._executions: set[asyncio.Task[None]] = set()
 
@@ -61,10 +67,26 @@ class CronScheduler(BaseScheduler):
             name=f"axonx-scheduler:{self.name}",
         )
 
+    def describe(self) -> dict:
+        return {
+            "name": self.name,
+            "job": self.job_name,
+            "description": self.description or self.app_context.jobs[self.job_name].description,
+            "cron": self.cron,
+            "timezone": str(self.timezone),
+            "arguments": deepcopy(self.arguments),
+            "concurrency_policy": self.concurrency_policy,
+            "next_run_at": self._next_run().isoformat() if self.is_started else None,
+            "running": sum(not task.done() for task in self._executions),
+            "last_trigger": deepcopy(self.last_trigger),
+        }
+
+    def _next_run(self, now: datetime | None = None) -> datetime:
+        return croniter(self.cron, now or datetime.now(self.timezone)).get_next(datetime)
+
     def _next_delay(self) -> float:
         now = datetime.now(self.timezone)
-        next_run = croniter(self.cron, now).get_next(datetime)
-        return max(0.0, (next_run - now).total_seconds())
+        return max(0.0, self._next_run(now).timestamp() - now.timestamp())
 
     async def _run_forever(self) -> None:
         while True:
@@ -95,13 +117,29 @@ class CronScheduler(BaseScheduler):
         task.add_done_callback(self._executions.discard)
 
     async def _execute(self) -> None:
+        trigger = ScheduleTrigger(
+            name=self.name, job=self.job_name, trigger_id=uuid4().hex, triggered_at=datetime.now(UTC)
+        )
+        result = {**trigger.model_dump(mode="json"), "state": "running", "error": ""}
+        self.last_trigger = result
+        token = TASK_SOURCE.set(TaskSource(kind="submit", schedule=trigger))
         try:
             response = await self.app_context.dispatcher.run(self.job_name, self.arguments)
-        except Exception:
+        except asyncio.CancelledError:
+            result["state"] = "cancelled"
+            raise
+        except Exception as exc:
+            result.update(state="failed", error=str(exc))
             self.logger.exception(f"Scheduled Job {self.job_name!r} raised")
-            return
-        if not response.success:
-            self.logger.warning(f"Scheduled Job {self.job_name!r} failed: {response.answer}")
+        else:
+            result.update(
+                state="succeeded" if response.success else "failed",
+                error="" if response.success else str(response.answer),
+            )
+            if not response.success:
+                self.logger.warning(f"Scheduled Job {self.job_name!r} failed: {response.answer}")
+        finally:
+            TASK_SOURCE.reset(token)
 
     async def _close(self) -> None:
         runner, self._runner = self._runner, None

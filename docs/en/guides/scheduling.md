@@ -15,6 +15,7 @@ extends: default
 schedules:
   hourly_version:
     backend: cron
+    description: Check the service version every hour.
     job: version
     cron: "0 * * * *"
     timezone: Asia/Shanghai
@@ -102,3 +103,15 @@ Closing Application stops the scheduling loop and cancels Jobs still executing. 
 [Task management](task-management.md) · [Task synchronization](task-sync.md) · [Configuration reference](../reference/configuration.md) · [Jobs and Tasks](../concepts/jobs-and-tasks.md)
 
 Source: [CronScheduler](../../../axonx/components/scheduler/cron.py), [ScheduleConfig](../../../axonx/config/models.py).
+
+## Task center and execution provenance
+
+Studio's Task center has **Scheduled tasks** and **Other tasks** tabs. The scheduled tab lists every configured schedule on the selected service, including schedules that have not fired and Jobs such as synchronization that do not create Tasks. Each card shows the description, with queued and running Tasks directly underneath and finished records in a collapsed section. Set `schedules.<name>.description` for a specific explanation; otherwise the scheduled Job description is shown. Records from removed schedules retain their attribution and appear under a schedule marked as no longer configured.
+
+`list_schedules` returns each schedule's name, description, Job, Cron expression, timezone, arguments, Job concurrency policy, next trigger, executing Job count, and latest Job trigger result. The latest result describes the Job call: successful `submit` means admission succeeded, not that its background Task finished. This trigger snapshot lives in memory and resets on service startup; it is not an execution history.
+
+Task metadata and list summaries include framework-owned `source`: `kind` identifies `submit`, direct `exec`, or unknown provenance; optional `schedule` contains the schedule name, Job, trigger ID, and trigger time. Workers and composite children retain the same trigger attribution. This metadata does not enter plugin inputs or Task identity. Explicit user, API, and Agent submissions share the `submit` source; those callers are not inferred from Task names.
+
+A fixed-name Task still retains only its current Run. Grouping by schedule does not add historical Runs. Display replicas retain the producer's provenance, but do not become locally managed workers.
+
+Queued or running schedule-origin Tasks owned by the selected service block **service updates and restarts**, including requests with `force=true`. Finished Tasks, untriggered schedules, and foreign workers do not impose this restriction. Task cancellation, deletion, and submission retain their existing behavior. See [Service self-update](self-update.md).

@@ -48,6 +48,7 @@ class ScheduleConfig(ComponentConfig):
     """Configure one trigger that invokes a named Job."""
 
     backend: str = Field(default="cron", min_length=1)
+    description: str = ""
     job: str = Field(min_length=1)
     cron: str = Field(min_length=1)
     arguments: dict[str, Any] = Field(default_factory=dict)

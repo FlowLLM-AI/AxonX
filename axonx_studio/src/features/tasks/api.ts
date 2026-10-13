@@ -1,12 +1,16 @@
 import { axonx } from "../../shared/api/client";
 import { streamJob, type JobEvent } from "../../shared/api/event";
 import type {
+  Schedule,
   TaskDefinition,
   TaskHandle,
   TaskLogChunk,
   TaskMetadata,
   TaskSummary,
 } from "./types";
+
+export const listSchedules = (target?: string, signal?: AbortSignal) =>
+  axonx.invoke<Schedule[]>("list_schedules", {}, { target, signal });
 
 export const listTaskStatuses = (target?: string, signal?: AbortSignal) =>
   axonx.invoke<TaskSummary[]>(

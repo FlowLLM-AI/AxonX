@@ -299,7 +299,12 @@ export function TaskDetailPage({
           <span className="task-detail-subtitle">
             <Status state={task.state} />
             {t(`types.${task.task_type}`, task.task_type)} · PID{" "}
-            {task.pid || "—"}
+            {task.pid || "—"} ·{" "}
+            {task.source.schedule
+              ? t("schedules.scheduledSource", {
+                  name: task.source.schedule.name,
+                })
+              : t(`schedules.sources.${task.source.kind}`)}
           </span>
         </div>
         <div className="task-detail-heading-actions">

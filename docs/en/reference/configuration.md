@@ -139,14 +139,15 @@ PipelineJob recursively merges `defaults` → caller arguments → system and de
 
 ## ScheduleConfig
 
-| Field              | Type                 | Default  | Meaning                                   |
-| ------------------ | -------------------- | -------- | ----------------------------------------- |
-| backend            | Nonempty string      | cron     | Scheduler implementation                  |
-| job                | Nonempty string      | Required | Job name to invoke                        |
-| cron               | Nonempty string      | Required | Cron expression                           |
-| arguments          | object               | {}       | Job arguments                             |
-| timezone           | Nonempty string/null | null     | null uses the application timezone        |
-| concurrency_policy | forbid/allow/replace | forbid   | Overlap policy for the same scheduled Job |
+| Field              | Type                 | Default  | Meaning                                              |
+| ------------------ | -------------------- | -------- | ---------------------------------------------------- |
+| backend            | Nonempty string      | cron     | Scheduler implementation                             |
+| description        | string               | ""       | Schedule description; empty uses the Job description |
+| job                | Nonempty string      | Required | Job name to invoke                                   |
+| cron               | Nonempty string      | Required | Cron expression                                      |
+| arguments          | object               | {}       | Job arguments                                        |
+| timezone           | Nonempty string/null | null     | null uses the application timezone                   |
+| concurrency_policy | forbid/allow/replace | forbid   | Overlap policy for the same scheduled Job            |
 
 The default is schedules={}. Policies apply to execution of the scheduled Job; after submit returns, the background Task may still be running. See [Scheduling](../guides/scheduling.md) for an enabling example.
 

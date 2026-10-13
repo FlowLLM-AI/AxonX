@@ -15,6 +15,7 @@ extends: default
 schedules:
   hourly_version:
     backend: cron
+    description: 每小时检查服务版本。
     job: version
     cron: "0 * * * *"
     timezone: Asia/Shanghai
@@ -102,3 +103,15 @@ schedules:
 [Task 管理](task-management.md) · [任务同步](task-sync.md) · [配置参考](../reference/configuration.md) · [Job 与 Task](../concepts/jobs-and-tasks.md)
 
 源码：[CronScheduler](../../../axonx/components/scheduler/cron.py)、[ScheduleConfig](../../../axonx/config/models.py)。
+
+## 任务中心与执行来源
+
+Studio 任务中心包含**定时任务**和**非定时任务**两个 Tab。定时页展示所选服务的全部定时配置，包括尚未触发的配置，以及同步等不创建 Task 的 Job。每张卡片显示描述，下方直接挂载排队和运行中的 Task，已结束记录放在折叠区。可通过 `schedules.<name>.description` 配置具体说明；未配置时显示所调用 Job 的描述。已删除配置的 Task 仍保留归属，并标注对应定时任务已不再配置。
+
+`list_schedules` 返回每个定时任务的名称、描述、Job、Cron、时区、参数、Job 并发策略、下次触发时间、执行中的 Job 数量及最近 Job 触发结果。最近结果表示 Job 调用结果：`submit` 成功表示提交成功，不表示后台 Task 已完成。该触发快照保存在内存中，服务启动后重置，不是执行历史。
+
+Task 元数据和列表摘要包含框架管理的 `source`：`kind` 区分 `submit`、直接 `exec` 和未知来源；可选 `schedule` 包含定时任务名称、Job、触发 ID 和触发时间。Worker 和组合子 Task 保留同一触发归属。来源信息不进入插件输入参数或 Task 身份。用户、API 和 Agent 主动提交均标记为 `submit`，不通过 Task 名称推断调用方。
+
+固定名称 Task 仍仅保留当前 Run。按定时任务分组不会增加历史 Run。展示副本保留生产方来源，但不因此成为本机管理的 Worker。
+
+所选服务拥有的定时来源 Task 正在排队或运行时，禁止**服务更新与重启**，`force=true` 也不能绕过。已结束的 Task、尚未触发的定时配置和其他服务拥有的 Worker 不受此限制。Task 取消、删除和提交保持原有行为。参见[服务自更新](self-update.md)。

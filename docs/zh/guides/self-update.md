@@ -68,3 +68,5 @@ axonx get_update_status
 ## MCP 传输
 
 MCP 端点统一使用无状态 Streamable HTTP 和 JSON 响应。客户端不能依赖跨调用或跨重启保留的服务端会话。
+
+定时来源 Task 不允许通过强制取消绕过限制：本服务拥有的定时来源 Task 正在排队或运行时，Git 更新、pip 更新和从磁盘重启均被拒绝，即使设置 `force=true`。Studio 展示对应定时任务名称与 Task ID，并禁用操作按钮。后端在取消任何 Worker 前执行同一检查。操作准入与 Task Worker 启动共用环境操作队列，避免并发定时提交进入检查与维护之间的窗口。
