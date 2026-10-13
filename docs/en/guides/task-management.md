@@ -6,7 +6,7 @@ This page uses the built-in demo to demonstrate definition discovery, submission
 
 ## Grouped task list
 
-Studio groups task records by `<task type>#<registration>`, with active groups first and initially expanded. Group headers show matching/total counts, matching state counts and the latest matching run time. Expanded groups show task names and 50 records per page, newest first; records without a name segment show their complete Task ID. Copying and opening a task always use its complete Task ID.
+Studio groups task records by `<task type>#<registration>`, with active groups first and initially expanded. Group headers show matching/total counts, matching state counts and the latest matching run time. A shared column heading and compact group headers keep task rows aligned. Expanded groups show task names and 50 records per page, newest first; records without a name segment show their complete Task ID. Copying and opening a task always use its complete Task ID.
 
 Search, type and state filters apply to individual tasks before grouping. Group and filter-wide selection includes only matching terminal tasks across all pages, including collapsed groups. Existing selections remain selected when filters change; check the selected count before deleting. Polling and collapsing a group preserve its page position. Changing filters resets pagination, and switching machines resets expansion, pagination and selection.
 

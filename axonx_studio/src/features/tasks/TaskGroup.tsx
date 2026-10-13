@@ -76,7 +76,7 @@ export function TaskGroup(props: GroupProps) {
         >
           <ChevronDown className="task-group-chevron" size={16} />
           <span className="task-group-icon">
-            <Layers size={19} />
+            <Layers size={14} />
           </span>
           <span className="task-group-title">
             <strong title={group.key}>{group.key}</strong>
@@ -101,8 +101,7 @@ export function TaskGroup(props: GroupProps) {
               </span>
             ))}
           </span>
-          <span className="task-group-latest">
-            <small>{t("taskGroups.latest")}</small>
+          <span className="task-group-latest" title={t("taskGroups.latest")}>
             <span>
               {formatDate(
                 latest.started_at || latest.created_at || latest.finished_at,
@@ -117,6 +116,56 @@ export function TaskGroup(props: GroupProps) {
 }
 
 const PAGE_SIZE = 50;
+
+export function TaskTableColumns({
+  selectionMode,
+}: {
+  selectionMode: boolean;
+}) {
+  return (
+    <colgroup>
+      {selectionMode && <col className="select-column" />}
+      <col className="task-id-column" />
+      <col className="state-column" />
+      <col className="progress-column" />
+      <col className="started-column" />
+      <col className="duration-column" />
+    </colgroup>
+  );
+}
+
+export function TaskTableHeading({
+  selectionMode,
+  className,
+}: {
+  selectionMode: boolean;
+  className?: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <thead className={className}>
+      <tr>
+        {selectionMode && <th className="select-column" />}
+        <th className="task-id-column" scope="col">
+          {t("taskGroups.name")}
+        </th>
+        <th className="state-column" scope="col">
+          {t("state")}
+        </th>
+        <th className="progress-column" scope="col">
+          {t("progress")}
+        </th>
+        <th className="started-column" scope="col">
+          {t("started")}
+        </th>
+        <th className="duration-column" scope="col">
+          {t("duration")}
+        </th>
+      </tr>
+    </thead>
+  );
+}
+
 function GroupMembers({
   group,
   selectionMode,
@@ -135,17 +184,12 @@ function GroupMembers({
   return (
     <div className="task-group-members">
       <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              {selectionMode && <th className="select-column" />}
-              <th className="task-id-column">{t("taskGroups.name")}</th>
-              <th className="state-column">{t("state")}</th>
-              <th className="progress-column">{t("progress")}</th>
-              <th className="started-column">{t("started")}</th>
-              <th className="duration-column">{t("duration")}</th>
-            </tr>
-          </thead>
+        <table aria-label={group.key}>
+          <TaskTableColumns selectionMode={selectionMode} />
+          <TaskTableHeading
+            selectionMode={selectionMode}
+            className="task-member-heading"
+          />
           <tbody>
             {tasks.map((task) => (
               <TaskRow

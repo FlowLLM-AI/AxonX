@@ -22,7 +22,12 @@ import {
   groupTasks,
   type StateFilter,
 } from "./groups";
-import { TaskGroup, GroupSelection } from "./TaskGroup";
+import {
+  TaskGroup,
+  GroupSelection,
+  TaskTableColumns,
+  TaskTableHeading,
+} from "./TaskGroup";
 
 type MenuTarget =
   { kind: "task"; task: TaskSummary } | { kind: "group"; groupKey: string };
@@ -411,6 +416,14 @@ export function TasksPage({
           </select>
         </div>
         <div className="task-groups" key={target || "local"}>
+          {groups.length > 0 && (
+            <div className="task-list-heading table-wrap" aria-hidden="true">
+              <table>
+                <TaskTableColumns selectionMode={selectionMode} />
+                <TaskTableHeading selectionMode={selectionMode} />
+              </table>
+            </div>
+          )}
           {groups.map((group) => (
             <TaskGroup
               key={group.key}
