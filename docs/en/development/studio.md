@@ -16,6 +16,8 @@ The complete development toolchain requires Node.js 22.13+ (22.x), 24.x, or 26+ 
 
 `npm run build` performs TypeScript checks first, then outputs `dist`. Install the Python package with `pip install ./axonx_studio` from the repository root to let AxonX serve those assets. The development server provides hot updates.
 
+If a mounted Studio build is removed while the service is running, page requests return `503` with a recovery message; missing asset requests return `404` or `503`. API routes remain available. Restore the build at the same path, or restart the service after changing the package installation path. This handles missing files before response headers are sent; it cannot replace a response whose transfer has already started.
+
 ## Directory responsibilities
 
 | Location            | Responsibility                                                                           |
