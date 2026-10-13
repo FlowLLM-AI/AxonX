@@ -4,6 +4,12 @@ This page uses the built-in demo to demonstrate definition discovery, submission
 
 ![Task management workflow](../../figures/guides/task-management.svg)
 
+## Grouped task list
+
+Studio groups task records by `<task type>#<registration>`, with active groups first and initially expanded. Group headers show matching/total counts, matching state counts and the latest matching run time. Expanded groups show task names and 50 records per page, newest first; records without a name segment show their complete Task ID. Copying and opening a task always use its complete Task ID.
+
+Search, type and state filters apply to individual tasks before grouping. Group and filter-wide selection includes only matching terminal tasks across all pages, including collapsed groups. Existing selections remain selected when filters change; check the selected count before deleting. Polling and collapsing a group preserve its page position. Changing filters resets pagination, and switching machines resets expansion, pagination and selection.
+
 ## Discover definitions
 
 ```bash
@@ -27,9 +33,9 @@ To retain multiple experiments, use a new name for each run or omit `--task-name
 
 In Studio, select the execution machine, open the task submission page, select demo, enter x/y, and submit. Open task details to confirm identity and state; a submission message does not indicate completed execution.
 
-The screenshot below shows the English task list. `docs-demo` and `docs-child` are two independent demo runs created for documentation, both in Succeeded state. Their names differ from this page's CLI example `add-01`, but illustrate the same task management workflow.
+The screenshot below uses illustrative data to show the grouped list: the active training group opens initially, while completed analysis, backtest, ETL and prediction groups remain collapsed. Expand a group to inspect its individual tasks.
 
-![Two successful demo runs in the English Studio task list](../../figures/studio/task-list.png)
+![Grouped task list in the English Studio](../../figures/studio/task-list.png)
 
 ## Wait for completion
 

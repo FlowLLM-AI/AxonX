@@ -34,7 +34,7 @@ function task(
     task_id: taskId,
     run_id: `run-${taskId}`,
     task_type: "train",
-    reg_name: taskId,
+    reg_name: taskId.split("#")[1],
     input_params: {},
     state,
     pid: null,
@@ -53,13 +53,14 @@ function task(
 let root: Root;
 let container: HTMLDivElement;
 const onConnection = vi.fn();
+const onOpenTask = vi.fn();
 async function render(target = "machine-a") {
   await act(async () => {
     root.render(
       <TasksPage
         target={target}
         onSubmit={() => {}}
-        onOpenTask={() => {}}
+        onOpenTask={onOpenTask}
         onConnection={onConnection}
       />,
     );
@@ -73,6 +74,7 @@ async function click(selector: string) {
   });
 }
 async function openMenu() {
+  if (!container.querySelector("tbody tr")) await click(".task-group-toggle");
   await act(async () => {
     container
       .querySelector("tbody tr")!
@@ -86,7 +88,7 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  vi.mocked(listTaskStatuses).mockResolvedValue([task("train#a")]);
+  vi.mocked(listTaskStatuses).mockResolvedValue([task("train#demo#a")]);
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -114,16 +116,20 @@ describe("task request ownership", () => {
     const signal = vi.mocked(listTaskStatuses).mock.calls[1][1]!;
     vi.mocked(cancelTask).mockResolvedValue(true);
     vi.mocked(listTaskStatuses).mockResolvedValue([
-      task("train#fresh", "cancelled"),
+      task("train#demo#fresh", "cancelled"),
     ]);
     await openMenu();
     await click('[role="menuitem"].danger');
     await click('[role="dialog"] .danger-button');
-    expect(cancelTask).toHaveBeenCalledWith("run-train#a", "machine-a");
+    expect(cancelTask).toHaveBeenCalledWith("run-train#demo#a", "machine-a");
     expect(signal.aborted).toBe(true);
-    await act(async () => pending.resolve([task("train#stale")]));
-    expect(container.textContent).toContain("train#fresh");
-    expect(container.textContent).not.toContain("train#stale");
+    await act(async () => pending.resolve([task("train#demo#stale")]));
+    expect(
+      container.querySelector('strong[title="train#demo#fresh"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('strong[title="train#demo#stale"]'),
+    ).toBeNull();
   });
   it.each(["success", "failure"])(
     "ignores cancellation %s after switching machines",
@@ -145,8 +151,10 @@ describe("task request ownership", () => {
       expect(nextSignal.aborted).toBe(false);
       expect(listTaskStatuses).toHaveBeenCalledTimes(2);
       expect(container.textContent).not.toContain("old machine failure");
-      await act(async () => nextList.resolve([task("train#b")]));
-      expect(container.textContent).toContain("train#b");
+      await act(async () => nextList.resolve([task("train#demo#b")]));
+      expect(
+        container.querySelector('strong[title="train#demo#b"]'),
+      ).not.toBeNull();
       expect(container.querySelector('[role="dialog"]')).toBeNull();
     },
   );
@@ -154,7 +162,7 @@ describe("task request ownership", () => {
     "ignores deletion %s after switching machines",
     async (outcome) => {
       vi.mocked(listTaskStatuses).mockResolvedValue([
-        task("train#a", "succeeded"),
+        task("train#demo#a", "succeeded"),
       ]);
       await render();
       const deletion = deferred<string[]>();
@@ -168,7 +176,7 @@ describe("task request ownership", () => {
       await render("machine-b");
       const nextSignal = vi.mocked(listTaskStatuses).mock.calls[1][1]!;
       await act(async () => {
-        if (outcome === "success") deletion.resolve(["train#a"]);
+        if (outcome === "success") deletion.resolve(["train#demo#a"]);
         else deletion.reject(new Error("old machine failure"));
       });
       expect(nextSignal.aborted).toBe(false);
@@ -176,13 +184,15 @@ describe("task request ownership", () => {
       expect(container.textContent).not.toContain("old machine failure");
       expect(container.querySelector('[role="dialog"]')).toBeNull();
       expect(container.querySelector(".task-selection-actions")).toBeNull();
-      await act(async () => nextList.resolve([task("train#b")]));
-      expect(container.textContent).toContain("train#b");
+      await act(async () => nextList.resolve([task("train#demo#b")]));
+      expect(
+        container.querySelector('strong[title="train#demo#b"]'),
+      ).not.toBeNull();
     },
   );
   it("does not launch a new list when deletion finishes after leaving the page", async () => {
     vi.mocked(listTaskStatuses).mockResolvedValue([
-      task("train#a", "succeeded"),
+      task("train#demo#a", "succeeded"),
     ]);
     await render();
     const deletion = deferred<string[]>();
@@ -192,7 +202,164 @@ describe("task request ownership", () => {
     await click(".task-selection-actions .danger-outline");
     await click('[role="dialog"] .danger-button');
     await act(async () => root.render(null));
-    await act(async () => deletion.resolve(["train#a"]));
+    await act(async () => deletion.resolve(["train#demo#a"]));
     expect(listTaskStatuses).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("grouped task list", () => {
+  it("collapses terminal groups and opens the complete task identity", async () => {
+    vi.mocked(listTaskStatuses).mockResolvedValue([
+      task("train#demo#first", "succeeded"),
+      task("train#demo#second", "failed"),
+    ]);
+    await render();
+    expect(container.querySelectorAll(".task-group")).toHaveLength(1);
+    expect(container.querySelector("tbody")).toBeNull();
+    await click(".task-group-toggle");
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(container.querySelector("tbody strong")!.textContent).toBe("first");
+    await click("tbody tr");
+    expect(onOpenTask).toHaveBeenCalledWith("train#demo#first");
+  });
+
+  it("keeps collapsed active groups and page positions across polling", async () => {
+    const records = Array.from({ length: 101 }, (_, index) =>
+      task(`train#demo#run-${String(index).padStart(3, "0")}`),
+    );
+    vi.mocked(listTaskStatuses).mockResolvedValue(records);
+    await render();
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(50);
+    await click('[aria-label="taskGroups.next"]');
+    expect(container.querySelector("tbody strong")!.textContent).toBe(
+      "run-050",
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(container.querySelector("tbody strong")!.textContent).toBe(
+      "run-050",
+    );
+    await click(".task-group-toggle");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(container.querySelector("tbody")).toBeNull();
+    await click(".task-group-toggle");
+    expect(container.querySelector("tbody strong")!.textContent).toBe(
+      "run-050",
+    );
+    await act(async () => {
+      const select = container.querySelector<HTMLSelectElement>(
+        '[aria-label="state"]',
+      )!;
+      select.value = "running";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(container.querySelector("tbody strong")!.textContent).toBe(
+      "run-000",
+    );
+  });
+
+  it("selects terminal members across pages and shows a partial group selection", async () => {
+    const records = Array.from({ length: 51 }, (_, index) =>
+      task(`train#demo#run-${index}`, "succeeded"),
+    );
+    records.push(task("train#demo#active"));
+    vi.mocked(listTaskStatuses).mockResolvedValue(records);
+    await render();
+    await click('[aria-label="enableMultiSelect"]');
+    const group = container.querySelector<HTMLInputElement>(
+      ".task-group-header input",
+    )!;
+    await click("tbody input:not(:disabled)");
+    expect(group.indeterminate).toBe(true);
+    await act(async () => group.click());
+    expect(group.checked).toBe(true);
+    await click(".task-selection-actions .danger-outline");
+    vi.mocked(deleteTasks).mockResolvedValue(
+      records
+        .filter((item) => item.state !== "running")
+        .map((item) => item.task_id),
+    );
+    await click('[role="dialog"] .danger-button');
+    expect(vi.mocked(deleteTasks).mock.calls[0][0]).toHaveLength(51);
+    expect(vi.mocked(deleteTasks).mock.calls[0][0]).not.toContain(
+      "train#demo#active",
+    );
+  });
+
+  it("group selection includes only filtered terminal task identities", async () => {
+    vi.mocked(listTaskStatuses).mockResolvedValue([
+      task("train#demo#good", "succeeded"),
+      task("train#demo#bad", "failed"),
+      task("train#demo#active"),
+    ]);
+    await render();
+    await act(async () => {
+      const select = container.querySelector<HTMLSelectElement>(
+        '[aria-label="state"]',
+      )!;
+      select.value = "failed";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
+    await click('[aria-label="enableMultiSelect"]');
+    await click(".task-group-header input");
+    await click(".task-selection-actions .danger-outline");
+    vi.mocked(deleteTasks).mockResolvedValue(["train#demo#bad"]);
+    await click('[role="dialog"] .danger-button');
+    expect(deleteTasks).toHaveBeenCalledWith(["train#demo#bad"], "machine-a");
+  });
+
+  it("resets group expansion and pagination when switching machines", async () => {
+    vi.mocked(listTaskStatuses).mockResolvedValue([
+      task("train#demo#done", "succeeded"),
+    ]);
+    await render();
+    await click(".task-group-toggle");
+    await render("machine-b");
+    expect(container.querySelector("tbody")).toBeNull();
+  });
+
+  it("shows the full identity when a demo task has no name segment and copies without opening", async () => {
+    vi.mocked(listTaskStatuses).mockResolvedValue([
+      task("train#demo", "succeeded"),
+    ]);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    await render();
+    await click(".task-group-toggle");
+    expect(container.querySelector("tbody strong")!.textContent).toBe(
+      "train#demo",
+    );
+    await click('[aria-label="copyTaskId"]');
+    expect(writeText).toHaveBeenCalledWith("train#demo");
+    expect(onOpenTask).not.toHaveBeenCalled();
+  });
+
+  it("filter-wide selection includes collapsed groups and excludes active tasks", async () => {
+    const records = [
+      task("train#first#done", "succeeded"),
+      task("train#second#failed", "failed"),
+      task("train#second#active"),
+    ];
+    vi.mocked(listTaskStatuses).mockResolvedValue(records);
+    await render();
+    await click('[aria-label="enableMultiSelect"]');
+    await click('[aria-label="taskGroups.selectFiltered"]');
+    expect(
+      container.querySelector<HTMLInputElement>("tbody input:disabled")!
+        .checked,
+    ).toBe(false);
+    await click(".task-selection-actions .danger-outline");
+    vi.mocked(deleteTasks).mockResolvedValue(
+      records.slice(0, 2).map((item) => item.task_id),
+    );
+    await click('[role="dialog"] .danger-button');
+    expect(deleteTasks).toHaveBeenCalledWith(
+      ["train#second#failed", "train#first#done"],
+      "machine-a",
+    );
   });
 });

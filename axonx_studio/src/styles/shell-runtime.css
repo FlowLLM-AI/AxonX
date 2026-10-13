@@ -681,64 +681,6 @@
   min-height: 0;
   flex: 1;
 }
-.runtime-workspace .table-wrap {
-  height: 100%;
-  min-height: 0;
-  overflow: auto;
-}
-.runtime-workspace .table-wrap table {
-  min-width: 740px;
-}
-.runtime-workspace .table-wrap thead {
-  position: sticky;
-  z-index: 2;
-  top: 0;
-}
-.runtime-workspace .table-wrap::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-.runtime-workspace .table-wrap::-webkit-scrollbar-track {
-  background: var(--surface-2);
-}
-.runtime-workspace .table-wrap::-webkit-scrollbar-thumb {
-  border: 3px solid var(--surface-2);
-  border-radius: 999px;
-  background: var(--faint);
-}
-.runtime-workspace .table-wrap table {
-  min-width: 950px;
-}
-.runtime-workspace .table-wrap .select-column {
-  width: 42px;
-}
-.runtime-workspace .table-wrap .task-filter-column,
-.runtime-workspace .table-wrap .task-id-column {
-  width: 320px;
-  max-width: 320px;
-  padding-left: 24px;
-}
-.runtime-workspace .table-wrap .type-column {
-  width: 105px;
-}
-.runtime-workspace .table-wrap .state-column {
-  width: 95px;
-}
-.runtime-workspace .table-wrap .progress-column {
-  width: 110px;
-  min-width: 110px;
-}
-.runtime-workspace .table-wrap .started-column {
-  width: 140px;
-}
-.runtime-workspace .table-wrap .duration-column {
-  width: 78px;
-  padding-right: 24px;
-  text-align: right;
-}
-.runtime-workspace .table-wrap .task-identity strong {
-  font-size: 12px;
-}
 .runtime-workspace .workspace-canvas {
   overflow: hidden;
 }
@@ -756,11 +698,6 @@
   max-width: 100%;
   overflow: hidden;
 }
-.runtime-workspace .table-wrap {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
 .runtime-workspace {
   width: 100%;
   max-width: 100%;
@@ -774,20 +711,6 @@
 }
 .runtime-workspace .workspace-canvas > .workspace-page > .data-panel {
   position: relative;
-}
-.runtime-workspace
-  .workspace-canvas
-  > .workspace-page
-  > .data-panel
-  > .table-wrap {
-  position: absolute;
-  inset: 0;
-  width: auto;
-  max-width: none;
-  height: auto;
-  overflow-x: auto;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 .runtime-environment-page {
   max-width: 1180px;

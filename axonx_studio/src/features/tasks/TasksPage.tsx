@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Ban,
-  Check,
   CheckSquare2,
-  Copy,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -13,15 +11,18 @@ import {
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { usePolling } from "../../shared/hooks/usePolling";
 import type { ContextOption } from "../../app/types";
-import type { TaskState, TaskSummary } from "./types";
+import type { TaskSummary } from "./types";
 import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
-import { formatDate, formatDuration, taskStepProgress } from "./format";
-
-const ACTIVE = new Set<TaskState>(["queued", "running"]);
-const ATTENTION = new Set<TaskState>(["failed", "cancelled"]);
+import {
+  ACTIVE,
+  ATTENTION,
+  STATES,
+  groupTasks,
+  type StateFilter,
+} from "./groups";
+import { TaskGroup, GroupSelection } from "./TaskGroup";
 
 export function TasksPage({
   target,
@@ -43,9 +44,7 @@ export function TasksPage({
   const [error, setError] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [search, setSearch] = useState("");
-  const [state, setState] = useState<"" | "active" | "attention" | TaskState>(
-    "",
-  );
+  const [state, setState] = useState<StateFilter>("");
   const [type, setType] = useState("");
   const [cancelTarget, setCancelTarget] = useState<TaskSummary | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -76,19 +75,15 @@ export function TasksPage({
       try {
         const result = await listTaskStatuses(target, controller.signal);
         if (controller.signal.aborted) return;
-        const ordered = [...result].sort(
-          (left, right) => taskTimestamp(right) - taskTimestamp(left),
+        setTasks(result);
+        const selectable = new Set(
+          result
+            .filter((task) => !ACTIVE.has(task.state))
+            .map((task) => task.task_id),
         );
-        setTasks(ordered);
         setSelected(
           (previous) =>
-            new Set(
-              [...previous].filter((taskId) =>
-                ordered.some(
-                  (task) => task.task_id === taskId && !ACTIVE.has(task.state),
-                ),
-              ),
-            ),
+            new Set([...previous].filter((taskId) => selectable.has(taskId))),
         );
         setError("");
         onConnection(true);
@@ -160,24 +155,12 @@ export function TasksPage({
     () => [...new Set(tasks.map((task) => task.task_type))].sort(),
     [tasks],
   );
-  const filtered = useMemo(
-    () =>
-      tasks.filter((task) => {
-        const query = search.trim().toLowerCase();
-        const matches =
-          !query ||
-          `${task.task_id} ${task.task_type} ${task.pid || ""}`
-            .toLowerCase()
-            .includes(query);
-        const matchesState =
-          !state ||
-          (state === "active" && ACTIVE.has(task.state)) ||
-          (state === "attention" && ATTENTION.has(task.state)) ||
-          task.state === state;
-        return matches && matchesState && (!type || task.task_type === type);
-      }),
+  const groups = useMemo(
+    () => groupTasks(tasks, { search, state, type }),
     [tasks, search, state, type],
   );
+  const filtered = groups.flatMap((group) => group.tasks);
+  const filterKey = JSON.stringify([search.trim().toLowerCase(), state, type]);
   const stats = {
     total: tasks.length,
     active: tasks.filter((item) => ACTIVE.has(item.state)).length,
@@ -187,24 +170,11 @@ export function TasksPage({
     .filter((task) => !ACTIVE.has(task.state))
     .map((task) => task.task_id);
   const selectedIds = [...selected];
-  const allVisibleSelected =
-    selectableIds.length > 0 &&
-    selectableIds.every((taskId) => selected.has(taskId));
-
-  const toggleAllVisible = () =>
+  const toggleTasks = (ids: string[]) =>
     setSelected((previous) => {
       const next = new Set(previous);
-      if (allVisibleSelected)
-        selectableIds.forEach((taskId) => next.delete(taskId));
-      else selectableIds.forEach((taskId) => next.add(taskId));
-      return next;
-    });
-
-  const toggleTask = (taskId: string) =>
-    setSelected((previous) => {
-      const next = new Set(previous);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
+      const remove = ids.every((id) => next.has(id));
+      ids.forEach((id) => (remove ? next.delete(id) : next.add(id)));
       return next;
     });
 
@@ -333,125 +303,110 @@ export function TasksPage({
         </div>
       )}
 
-      <div className="data-panel">
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                {selectionMode && (
-                  <th className="select-column">
-                    <input
-                      type="checkbox"
-                      aria-label={t("selectAll")}
-                      checked={allVisibleSelected}
-                      disabled={!selectableIds.length}
-                      onChange={toggleAllVisible}
-                    />
-                  </th>
-                )}
-                <th className="task-filter-column">
-                  <div className="table-search-head">
-                    <span>{t("taskId")}</span>
-                    <label className="search-field">
-                      <Search size={15} />
-                      <input
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder={t("search")}
-                      />
-                    </label>
-                    <small>
-                      {filtered.length} / {tasks.length}
-                    </small>
-                  </div>
-                </th>
-                <th className="type-column">
-                  <select
-                    className="table-filter-select"
-                    aria-label={t("type")}
-                    value={type}
-                    onChange={(event) => setType(event.target.value)}
-                  >
-                    <option value="">
-                      {t("allTypes")} · {tasks.length}
-                    </option>
-                    {types.map((value) => (
-                      <option key={value} value={value}>
-                        {t(`types.${value}`, value)} ·{" "}
-                        {
-                          tasks.filter((task) => task.task_type === value)
-                            .length
-                        }
-                      </option>
-                    ))}
-                  </select>
-                </th>
-                <th className="state-column">
-                  <select
-                    className="table-filter-select"
-                    aria-label={t("state")}
-                    value={state}
-                    onChange={(event) =>
-                      setState(
-                        event.target.value as
-                          "" | "active" | "attention" | TaskState,
-                      )
-                    }
-                  >
-                    <option value="">
-                      {t("allStates")} · {stats.total}
-                    </option>
-                    <option value="active">
-                      {t("active")} · {stats.active}
-                    </option>
-                    <option value="attention">
-                      {t("attention")} · {stats.attention}
-                    </option>
-                    {Object.entries(
-                      t("states", { returnObjects: true }) as Record<
-                        string,
-                        string
-                      >,
-                    ).map(([key, label]) => (
-                      <option key={key} value={key}>
-                        {label} ·{" "}
-                        {tasks.filter((task) => task.state === key).length}
-                      </option>
-                    ))}
-                  </select>
-                </th>
-                <th className="progress-column">{t("progress")}</th>
-                <th className="started-column">{t("started")}</th>
-                <th className="duration-column">{t("duration")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((task) => (
-                <TaskRow
-                  key={task.task_id}
-                  task={task}
-                  selectionMode={selectionMode}
-                  selected={selected.has(task.task_id)}
-                  onSelect={() => toggleTask(task.task_id)}
-                  onOpen={() => onOpenTask(task.task_id)}
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    setContextMenu({
-                      task,
-                      x: Math.max(
-                        6,
-                        Math.min(event.clientX, window.innerWidth - 224),
-                      ),
-                      y: Math.max(
-                        6,
-                        Math.min(event.clientY, window.innerHeight - 240),
-                      ),
-                    });
-                  }}
-                />
-              ))}
-            </tbody>
-          </table>
+      <div className="data-panel task-groups-panel">
+        <div className="task-group-toolbar">
+          {selectionMode ? (
+            <GroupSelection
+              ids={selectableIds}
+              selected={selected}
+              onToggle={toggleTasks}
+              label={t("taskGroups.selectFiltered")}
+            />
+          ) : (
+            <button
+              className="secondary-button"
+              onClick={() => setSelectionMode(true)}
+              aria-label={t("enableMultiSelect")}
+            >
+              <CheckSquare2 size={16} />
+            </button>
+          )}
+          <label className="search-field">
+            <Search size={16} />
+            <input
+              aria-label={t("search")}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("search")}
+            />
+          </label>
+          <span className="task-group-total">
+            {t(
+              filtered.length === tasks.length
+                ? "taskGroups.total"
+                : "taskGroups.matchingTotal",
+              {
+                groups: groups.length,
+                count: filtered.length,
+                total: tasks.length,
+              },
+            )}
+          </span>
+          <select
+            className="table-filter-select"
+            aria-label={t("type")}
+            value={type}
+            onChange={(event) => setType(event.target.value)}
+          >
+            <option value="">
+              {t("allTypes")} · {tasks.length}
+            </option>
+            {types.map((value) => (
+              <option key={value} value={value}>
+                {t(`types.${value}`, value)} ·{" "}
+                {tasks.filter((task) => task.task_type === value).length}
+              </option>
+            ))}
+          </select>
+          <select
+            className="table-filter-select"
+            aria-label={t("state")}
+            value={state}
+            onChange={(event) => setState(event.target.value as StateFilter)}
+          >
+            <option value="">
+              {t("allStates")} · {stats.total}
+            </option>
+            <option value="active">
+              {t("active")} · {stats.active}
+            </option>
+            <option value="attention">
+              {t("attention")} · {stats.attention}
+            </option>
+            {STATES.map((value) => (
+              <option key={value} value={value}>
+                {t(`states.${value}`)} ·{" "}
+                {tasks.filter((task) => task.state === value).length}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="task-groups" key={target || "local"}>
+          {groups.map((group) => (
+            <TaskGroup
+              key={group.key}
+              group={group}
+              filterKey={filterKey}
+              selectionMode={selectionMode}
+              selected={selected}
+              onToggle={toggleTasks}
+              onOpenTask={onOpenTask}
+              onContextMenu={(task, event) => {
+                event.preventDefault();
+                setContextMenu({
+                  task,
+                  x: Math.max(
+                    6,
+                    Math.min(event.clientX, window.innerWidth - 224),
+                  ),
+                  y: Math.max(
+                    6,
+                    Math.min(event.clientY, window.innerHeight - 240),
+                  ),
+                });
+              }}
+            />
+          ))}
           {!loading && filtered.length === 0 && (
             <div className="empty-state">
               <span className="empty-glyph">⌁</span>
@@ -598,134 +553,5 @@ export function TasksPage({
         </div>
       )}
     </section>
-  );
-}
-
-function taskTimestamp(task: TaskSummary) {
-  const value = task.started_at || task.created_at || task.finished_at;
-  return value ? new Date(value).getTime() : 0;
-}
-
-function TaskRow({
-  task,
-  selectionMode,
-  selected,
-  onSelect,
-  onOpen,
-  onContextMenu,
-}: {
-  task: TaskSummary;
-  selectionMode: boolean;
-  selected: boolean;
-  onSelect: () => void;
-  onOpen: () => void;
-  onContextMenu: (event: React.MouseEvent<HTMLTableRowElement>) => void;
-}) {
-  const { t } = useTranslation();
-  const progress = taskStepProgress(task);
-  const selectable = !ACTIVE.has(task.state);
-  const clipboard = useCopyFeedback();
-  const copied = clipboard.copied === task.task_id;
-  return (
-    <tr
-      className={selected ? "selected" : ""}
-      onClick={selectionMode ? (selectable ? onSelect : undefined) : onOpen}
-      onContextMenu={onContextMenu}
-    >
-      {selectionMode && (
-        <td
-          className="select-column"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <input
-            type="checkbox"
-            aria-label={t("selectTask", { taskId: task.task_id })}
-            checked={selected}
-            disabled={!selectable}
-            onChange={onSelect}
-          />
-        </td>
-      )}
-      <td className="task-id-column">
-        <div className="task-identity">
-          <span className={`task-orb ${task.state}`}>
-            {task.task_type.slice(0, 1).toUpperCase()}
-          </span>
-          <div>
-            <span className="task-id-line">
-              <strong title={task.task_id}>{task.task_id}</strong>
-              {task.is_replica && (
-                <small className="replica-label">{t("replica.label")}</small>
-              )}
-              <button
-                type="button"
-                className={copied ? "copied" : ""}
-                aria-label={copied ? t("copied") : t("copyTaskId")}
-                title={copied ? t("copied") : t("copyTaskId")}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void clipboard.copy(task.task_id);
-                }}
-              >
-                {copied ? (
-                  <>
-                    <Check />
-                    <span aria-live="polite">{t("copied")}</span>
-                  </>
-                ) : (
-                  <Copy />
-                )}
-              </button>
-            </span>
-            <small>PID {task.pid || "—"}</small>
-          </div>
-        </div>
-      </td>
-      <td className="type-column">
-        <span className="type-chip">
-          {t(`types.${task.task_type}`, task.task_type)}
-        </span>
-      </td>
-      <td className="state-column">
-        <Status state={task.state} />
-      </td>
-      <td className="progress-column">
-        {progress ? (
-          <div className="progress-cell">
-            <span className="progress-step">
-              <small>{t("step")}</small>
-              <strong>{progress.current}</strong>
-            </span>
-            <span
-              className="progress-ring"
-              style={
-                {
-                  "--step-progress": `${progress.percentage}%`,
-                } as React.CSSProperties
-              }
-            >
-              <strong>{progress.percentage}</strong>
-              <small>%</small>
-            </span>
-          </div>
-        ) : (
-          <span className="muted">{t("notStarted")}</span>
-        )}
-      </td>
-      <td className="started-column">
-        {formatDate(task.started_at || task.created_at)}
-      </td>
-      <td className="duration-column">{formatDuration(task, t)}</td>
-    </tr>
-  );
-}
-
-export function Status({ state }: { state: TaskState }) {
-  const { t } = useTranslation();
-  return (
-    <span className={`status-badge ${state}`}>
-      <i />
-      {t(`states.${state}`)}
-    </span>
   );
 }

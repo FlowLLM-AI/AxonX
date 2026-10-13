@@ -381,9 +381,6 @@
     height: auto;
     min-height: calc(100vh - 303px);
   }
-  .runtime-workspace .table-wrap {
-    height: 70vh;
-  }
 }
 @media (max-width: 760px) {
   .runtime-environment-card > div {

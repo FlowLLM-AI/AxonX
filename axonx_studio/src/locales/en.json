@@ -884,5 +884,18 @@
     "sample": "{{name}}: {{start}}–{{end}}, {{rows}} of {{total}} rows",
     "omitted": "Not synchronized: {{files}}",
     "logUnavailable": "Logs were not synchronized"
+  },
+  "taskGroups": {
+    "total": "{{groups}} groups · {{count}} tasks",
+    "members": "{{count}} tasks",
+    "latest": "Latest run",
+    "name": "Task name",
+    "selectFiltered": "Select all filtered terminal tasks",
+    "selectGroup": "Select filtered terminal tasks in {{group}}",
+    "range": "{{start}}–{{end}} of {{count}} tasks",
+    "previous": "Previous task page",
+    "next": "Next task page",
+    "matching": "{{count}} / {{total}} tasks",
+    "matchingTotal": "{{groups}} groups · {{count}} / {{total}} tasks"
   }
 }

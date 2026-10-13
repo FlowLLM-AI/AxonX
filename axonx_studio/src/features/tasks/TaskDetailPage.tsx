@@ -27,7 +27,7 @@ import type { JobEvent } from "../../shared/api/event";
 import type { TaskMetadata } from "./types";
 import { cancelTask, getTaskStatus, readTaskLog, streamTask } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
-import { Status } from "./TasksPage";
+import { Status } from "./TaskRow";
 import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
 
 const ACTIVE = new Set(["queued", "running"]);
