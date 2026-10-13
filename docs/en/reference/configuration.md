@@ -50,6 +50,8 @@ The model prohibits unknown top-level fields. Normalized target addresses must n
 
 `timezone` also controls service and task worker log timestamps, the startup timestamp in log filenames, and midnight rotation, independently of the host's system timezone. Log lines include the UTC offset (for example, `2026-10-12 15:47:25 +08:00`). Direct `LoggingConfig` users default to `Asia/Shanghai` and can override its `timezone`. Loguru-generated archive suffixes still use the host's system timezone. Existing log files are unchanged.
 
+Process logs, independent Run logs, and rotated archives are retained for 7 days based on their last modification time. Cleanup runs when file logging is configured and hourly while the service is running. Active process logs and locked Run logs are skipped, even during quiet periods. Cleanup only removes AxonX-generated log files directly inside `log_dir`; Task metadata and artifacts remain available. Log queries report that logs are unavailable after expiration or removal, and terminal streams still replay retained progress events.
+
 ## Configuration discovery and inheritance
 
 `--config default` and `--config remote` locate built-in named configurations. Packages may contribute other names through the `axonx.configs` entry point; collisions between built-in and external names, or among external names, are rejected. File paths support .yaml/.yml/.json. Relative file paths are tried against the current working directory first, then the built-in configuration directory.

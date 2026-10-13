@@ -5,7 +5,7 @@ description: 用同步 Python 步骤组合已注册的 Task，显式传递输入
 
 # 复合 Task
 
-`BaseCompositeTask` 是 `BaseTask` 上的一层薄封装。复合 Task 使用现有接口提交、查询和取消，子 Task 在父 worker 中通过 `TaskRunner` 串行执行，每次调用拥有新的 Run ID。每个注册名使用父任务解析后的 `task_name` 构造 Task ID，并保存统一 metadata 和产物；重复调用同一注册名会覆盖该目录中的终态产物。子 Task 共用 worker PID 和日志文件，没有独立受管的 worker。
+`BaseCompositeTask` 是 `BaseTask` 上的一层薄封装。复合 Task 使用现有接口提交、查询和取消，子 Task 在父 worker 中通过 `TaskRunner` 串行执行，每次调用拥有新的 Run ID。每个注册名使用父任务解析后的 `task_name` 构造 Task ID，并保存统一 metadata 和产物；重复调用同一注册名会覆盖该目录中的终态产物。子 Task 共用 worker PID，但每个 Run 拥有独立日志文件；父任务日志也包含其嵌套子任务的日志。子 Task 没有独立受管的 worker。已完成任务的日志流读取有限的日志快照后结束，即使旧任务共用的进程日志仍在增长，也不会继续等待。 Run 日志遵循统一的 7 天保留策略，运行中的 Run 日志不会被清理。
 
 顺序、循环和条件分支使用普通 Python 表达，不需要额外的 Workflow 服务或配置语言。第一版支持本机同步组合，不提供并行执行、自动重试、崩溃续跑或分布式调度。
 

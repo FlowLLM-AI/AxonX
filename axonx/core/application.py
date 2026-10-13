@@ -13,6 +13,9 @@ from ..components.job.contracts import JobResponse
 from ..components.job.events import JobEvent
 from ..components.registry import ProviderRegistry
 from ..config import ApplicationConfig
+from ..utils.async_work import run_blocking
+from ..utils.log_retention import LOG_CLEANUP_INTERVAL, cleanup_log_files
+from ..utils.logging import get_logger
 from .composition import compose_application
 from .context import ApplicationContext
 from .graph import ComponentGraph
@@ -30,6 +33,7 @@ class Application:
         self._started: list[BaseComponent] = []
         self._lifecycle_lock = asyncio.Lock()
         self.is_started = False
+        self._log_cleanup_task: asyncio.Task[None] | None = None
 
     @property
     def app_config(self) -> ApplicationConfig:
@@ -64,11 +68,32 @@ class Application:
                     ) from None
                 raise
             self.is_started = True
+            if self.app_config.log_to_file:
+                self._log_cleanup_task = asyncio.create_task(self._maintain_logs(), name="axonx-log-cleanup")
+
+    async def _maintain_logs(self) -> None:
+        directory = Path(self.app_config.log_dir).expanduser().resolve()
+        while True:
+            await asyncio.sleep(LOG_CLEANUP_INTERVAL)
+            try:
+                await run_blocking(cleanup_log_files, directory)
+            except Exception:
+                get_logger("Application").exception("Log cleanup failed; retrying at the next interval")
 
     async def close(self) -> None:
         """Close every started object in reverse order, without short-circuiting."""
         async with self._lifecycle_lock:
-            errors = await self._close_started()
+            errors: list[BaseException] = []
+            if self._log_cleanup_task is not None:
+                self._log_cleanup_task.cancel()
+                try:
+                    await self._log_cleanup_task
+                except asyncio.CancelledError:
+                    pass
+                except BaseException as exc:  # noqa: BLE001 - cleanup must continue.
+                    errors.append(exc)
+                self._log_cleanup_task = None
+            errors.extend(await self._close_started())
             self.is_started = False
             if errors:
                 raise BaseExceptionGroup("Application cleanup failed", errors)

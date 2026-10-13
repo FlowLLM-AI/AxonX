@@ -7,12 +7,14 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable
+from contextlib import ExitStack
 from datetime import UTC, datetime
 from time import perf_counter
 from typing import TYPE_CHECKING
 
 from ...components.job.events import ProgressEvent
 from ...enums import TaskState
+from ...utils.logging import task_log_scope
 from ..protocol import PROTOCOL_VERSION
 from ..core.identity import task_type_from_id
 from ..storage.events import append_event
@@ -116,6 +118,23 @@ class TaskRunner:
 
     def run(self, task: BaseTask) -> TaskMetadata:
         """Own resource cleanup from entry, including rejected directory preparation."""
+        with ExitStack() as stack:
+            try:
+                log_path = stack.enter_context(task_log_scope(task.context.run_id))
+            except BaseException:
+                self._close_after_error(task)
+                raise
+            task.log_path = str(log_path or "")
+            return self._run(task)
+
+    @staticmethod
+    def _close_after_error(task: BaseTask) -> None:
+        try:
+            task.close()
+        except Exception:
+            task.logger.exception("Task resource cleanup failed")
+
+    def _run(self, task: BaseTask) -> TaskMetadata:
         self.task = task
         started = perf_counter()
         try:
@@ -144,10 +163,7 @@ class TaskRunner:
                 for step in task.build_task_steps():
                     self._run_step(step)
             except BaseException:
-                try:
-                    task.close()
-                except Exception:
-                    task.logger.exception("Task resource cleanup failed")
+                self._close_after_error(task)
                 raise
             else:
                 task.close()
@@ -159,11 +175,11 @@ class TaskRunner:
             status.state = TaskState.SUCCEEDED if exit_code == 0 else TaskState.FAILED
             status.error = "" if exit_code == 0 else f"Task exited with code {exit_code}"
             status.finished_at = datetime.now(UTC)
-            self._publish()
             task.logger.info(
                 f"Task completed task_id={task.task_id} exit_code={exit_code} "
                 f"elapsed_seconds={perf_counter() - started:.3f}",
             )
+            self._publish()
             return status
         except BaseException as exc:
             # Preparation rejection must never publish into another run's directory.
@@ -178,11 +194,11 @@ class TaskRunner:
             status.exit_code = 1
             status.error = f"{type(exc).__name__}: {exc}"
             status.finished_at = datetime.now(UTC)
-            self._publish()
             task.logger.exception(
                 f"Task failed task_id={task.task_id} elapsed_seconds={perf_counter() - started:.3f} "
                 f"error={type(exc).__name__}",
             )
+            self._publish()
             raise
         finally:
             task._progress = None

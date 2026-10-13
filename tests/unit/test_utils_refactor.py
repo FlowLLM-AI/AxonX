@@ -27,7 +27,9 @@ from axonx.utils.logging import (
     configure_logging,
     get_log_path,
     get_logger,
+    task_log_scope,
 )
+from axonx.utils.log_retention import LOG_RETENTION_SECONDS, cleanup_log_files
 
 
 def test_dotenv_does_not_override_process_environment(tmp_path, monkeypatch):
@@ -201,6 +203,84 @@ def test_logging_rotates_at_configured_midnight(tmp_path, monkeypatch):
         assert "before midnight" not in content
         assert "2026-10-13 00:00:00 +08:00" in content
         assert "after midnight" in content
+    finally:
+        configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
+
+
+def test_log_retention_cleans_only_expired_axonx_logs(tmp_path, monkeypatch):
+    now = datetime.now(timezone.utc).timestamp()
+    old = now - LOG_RETENTION_SECONDS - 1
+    monkeypatch.setattr("axonx.utils.log_retention.time", lambda: now)
+    monkeypatch.setattr("axonx.utils.log_retention.psutil.pid_exists", lambda pid: pid == os.getpid())
+    expired = [
+        tmp_path / "2026-01-01_00-00-00_123.log",
+        tmp_path / f"2026-01-01_00-00-00_123_{'a' * 64}.log",
+        tmp_path / f"2026-01-01_00-00-00_{os.getpid()}.2026-01-02_00-00-00_000000.log.zip",
+    ]
+    retained = [
+        tmp_path / "2026-01-01_00-00-00_124.log",
+        tmp_path / f"2026-01-01_00-00-00_{os.getpid()}.log",
+        tmp_path / "update.log",
+        tmp_path / "metadata.json",
+    ]
+    for path in expired + retained:
+        path.write_text("keep or expire", encoding="utf-8")
+        os.utime(path, (old, old))
+    os.utime(retained[0], (now - LOG_RETENTION_SECONDS, now - LOG_RETENTION_SECONDS))
+    outside = tmp_path / "outside"
+    outside.write_text("preserve", encoding="utf-8")
+    link = tmp_path / "2026-01-01_00-00-00_125.log"
+    link.symlink_to(outside)
+    subdirectory = tmp_path / "nested"
+    subdirectory.mkdir()
+    nested = subdirectory / expired[0].name
+    nested.write_text("preserve", encoding="utf-8")
+    os.utime(nested, (old, old))
+
+    cleanup_log_files(tmp_path)
+
+    assert all(not path.exists() for path in expired)
+    assert all(path.exists() for path in retained)
+    assert link.is_symlink() and outside.read_text(encoding="utf-8") == "preserve"
+    assert nested.exists()
+
+
+def test_logging_configuration_cleans_expired_logs_at_startup(tmp_path):
+    path = tmp_path / f"2026-01-01_00-00-00_123_{'a' * 64}.log"
+    path.write_text("expired", encoding="utf-8")
+    os.utime(path, (0, 0))
+    configure_logging(LoggingConfig(log_dir=tmp_path, log_to_console=False))
+    try:
+        assert not path.exists()
+        assert get_log_path().exists()
+    finally:
+        configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
+
+
+def test_retention_preserves_quiet_active_runs_and_releases_their_locks(tmp_path):
+    configure_logging(LoggingConfig(log_dir=tmp_path, log_to_console=False))
+    try:
+        with task_log_scope("active") as path:
+            get_logger().info("before cleanup")
+            os.utime(path, (0, 0))
+            # A service must honor a worker's lock across process boundaries.
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "from pathlib import Path; import sys; "
+                    "from axonx.utils.log_retention import cleanup_log_files; cleanup_log_files(Path(sys.argv[1]))",
+                    str(tmp_path),
+                ],
+                check=True,
+                timeout=10,
+            )
+            assert path.exists()
+            get_logger().info("after cleanup")
+        assert "after cleanup" in path.read_text(encoding="utf-8")
+        os.utime(path, (0, 0))
+        cleanup_log_files(tmp_path)
+        assert not path.exists()
     finally:
         configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
 

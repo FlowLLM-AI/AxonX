@@ -61,6 +61,43 @@ def composition(task):
     return read_task_metadata(task.task_dir, task.task_id)
 
 
+def test_child_logs_are_isolated_and_parent_keeps_complete_chain(tmp_path, monkeypatch):
+    from axonx.utils.logging import LoggingConfig, configure_logging
+
+    class LoggedTask(DemoTask):
+        def finish(self):
+            self.logger.info(f"child-marker-{self.reg_name}")
+            super().finish()
+
+    monkeypatch.setattr("axonx.task.catalog.resolver.resolve_task", lambda _name: LoggedTask)
+    configure_logging(LoggingConfig(log_dir=tmp_path / "logs", log_to_console=False))
+    try:
+        task = parent(tmp_path / "workspace", lambda p: [p.run_task(name, x=1, y=2) for name in ("feature", "train")])
+        status = TaskRunner().run(task)
+        children = [read_task_metadata(task_path(task.workspace_path, c.task_id), c.task_id) for c in task.children]
+        assert len({status.log_path, *(c.log_path for c in children)}) == 3
+        first, second = [Path(c.log_path).read_text(encoding="utf-8") for c in children]
+        assert "child-marker-feature" in first
+        assert "child-marker-train" not in first
+        assert "child-marker-train" in second
+        assert "child-marker-feature" not in second
+        complete = Path(status.log_path).read_text(encoding="utf-8")
+        assert "child-marker-feature" in complete and "child-marker-train" in complete
+        assert "Task completed" in first and "Task completed" in second
+    finally:
+        configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
+
+
+def test_log_setup_failure_closes_task_without_publishing_metadata(tmp_path, monkeypatch):
+    task = DemoTask({"x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo")
+    task.close = Mock()
+    monkeypatch.setattr("axonx.task.runtime.runner.task_log_scope", Mock(side_effect=OSError("log unavailable")))
+    with pytest.raises(OSError, match="log unavailable"):
+        TaskRunner().run(task)
+    task.close.assert_called_once()
+    assert not task.metadata_path.exists()
+
+
 def test_sequence_loops_output_binding_and_explicit_lineage(tmp_path, monkeypatch):
     monkeypatch.setattr("axonx.task.catalog.resolver.resolve_task", lambda _name: DemoTask)
     results = []

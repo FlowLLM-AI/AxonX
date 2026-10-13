@@ -33,7 +33,7 @@ class TaskLogReader:
         if not self.is_task_log(path):
             raise ValueError("Task log path is outside the configured log directory")
         if not path.is_file():
-            raise FileNotFoundError(f"Task log does not exist: {path.name}")
+            raise FileNotFoundError(f"Task log is unavailable (retained for 7 days): {path.name}")
         file_size = path.stat().st_size
         reset = offset > file_size
         tail = offset < 0 or reset

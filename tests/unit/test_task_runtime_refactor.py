@@ -15,6 +15,7 @@ import pytest
 import yaml
 
 from axonx.components.job import LogEvent
+from axonx.components.job.events import ProgressEvent
 from axonx.components.task_manager.local.manager import LocalTaskManager
 from axonx.components.task_manager.local.supervisor import (
     TaskProcessSupervisor,
@@ -27,15 +28,17 @@ from axonx.task.builtins import DemoTask
 from axonx.task.core import task_type_from_id
 from axonx.task.query.stream import stream_task
 from axonx.task.runtime.runner import TaskRunner
-from axonx.task.storage.events import LOG_WINDOW_BYTES, read_event_lines
+from axonx.task.storage.events import LOG_WINDOW_BYTES, append_event, read_event_lines
 from axonx.task.storage.logs import TaskLogReader
 from axonx.task.storage.workspace import (
+    EVENTS_FILE,
     TaskMetadata,
     read_entry,
     read_task_metadata,
     task_path,
     write_task_metadata,
 )
+from axonx.utils.logging import LoggingConfig, configure_logging
 
 
 def test_success_is_published_with_matching_persisted_output(tmp_path):
@@ -276,6 +279,163 @@ async def test_terminal_stream_drains_all_log_windows(tmp_path):
     assert all(isinstance(event, LogEvent) for event in events)
     assert "".join(event.content for event in events) == content
     assert len(events) == 3
+
+
+async def test_terminal_stream_finishes_while_shared_log_keeps_growing(tmp_path):
+    path = tmp_path / "shared.log"
+    content = "feature completed\n" + "x" * LOG_WINDOW_BYTES
+    path.write_text(content)
+    status = TaskMetadata(
+        version=1,
+        task_id="analysis#sample#done",
+        run_id="done",
+        task_type=TaskType.ANALYSIS,
+        state=TaskState.SUCCEEDED,
+        log_path=str(path),
+    )
+    calls = 0
+
+    async def read_status(_task_id):
+        nonlocal calls
+        calls += 1
+        if calls > 8:
+            raise AssertionError("Terminal stream waited for the sibling log to stop")
+        if calls > 1:
+            with path.open("a") as handle:
+                handle.write("train is still running\n")
+        return status
+
+    events = [
+        event
+        async for event in stream_task(tmp_path, TaskLogReader(tmp_path), read_status, Mock(), status.task_id, 0.001)
+    ]
+    assert "".join(event.content for event in events) == content
+
+
+@pytest.mark.parametrize("state", [TaskState.SUCCEEDED, TaskState.FAILED])
+@pytest.mark.parametrize("with_log", [True, False])
+async def test_stream_drains_events_written_during_terminal_transition(tmp_path, state, with_log):
+    path = tmp_path / "task.log"
+    path.write_text("running\n", encoding="utf-8")
+    running = TaskMetadata(
+        version=1,
+        task_id="analysis#sample#transition",
+        run_id="transition",
+        task_type=TaskType.ANALYSIS,
+        state=TaskState.RUNNING,
+        log_path=str(path) if with_log else "",
+    )
+    journal = task_path(tmp_path, running.task_id) / EVENTS_FILE
+    journal.parent.mkdir(parents=True)
+    append_event(journal, ProgressEvent(name="finish", percentage=0))
+    calls = 0
+
+    async def read_status(_task_id):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return running
+        if calls == 2:
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write("final log\n")
+            append_event(journal, ProgressEvent(name="finish", percentage=100))
+        return running.model_copy(update={"state": state})
+
+    events = [
+        event
+        async for event in stream_task(tmp_path, TaskLogReader(tmp_path), read_status, Mock(), running.task_id, 0.001)
+    ]
+    assert [event.percentage for event in events if isinstance(event, ProgressEvent)] == [0, 100]
+    assert "".join(event.content for event in events if isinstance(event, LogEvent)) == (
+        "running\nfinal log\n" if with_log else ""
+    )
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_terminal_status_is_published_after_final_log(tmp_path, fails):
+    class LoggedTask(DemoTask):
+        def finish(self):
+            if fails:
+                raise RuntimeError("failure marker")
+            super().finish()
+
+    configure_logging(LoggingConfig(log_dir=tmp_path / "logs", log_to_console=False))
+    try:
+        task = LoggedTask({"x": 1, "y": 2}, workspace_path=tmp_path / "workspace", reg_name="demo")
+        observed = []
+
+        def on_status(status):
+            if status.state.is_terminal:
+                content = Path(status.log_path).read_text(encoding="utf-8")
+                assert ("Task failed" if fails else "Task completed") in content
+                if fails:
+                    assert "RuntimeError: failure marker" in content
+                observed.append(status.state)
+
+        runner = TaskRunner(emit=on_status)
+        if fails:
+            with pytest.raises(RuntimeError, match="failure marker"):
+                runner.run(task)
+        else:
+            runner.run(task)
+        assert observed == [TaskState.FAILED if fails else TaskState.SUCCEEDED]
+    finally:
+        configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
+
+
+async def test_terminal_stream_replays_journal_when_log_has_expired(tmp_path):
+    status = TaskMetadata(
+        version=1,
+        task_id="analysis#sample#expired",
+        run_id="expired",
+        task_type=TaskType.ANALYSIS,
+        state=TaskState.SUCCEEDED,
+        log_path=str(tmp_path / "expired.log"),
+    )
+    journal = task_path(tmp_path, status.task_id) / EVENTS_FILE
+    journal.parent.mkdir(parents=True)
+    append_event(journal, ProgressEvent(name="finish", percentage=100))
+
+    async def read_status(_task_id):
+        return status
+
+    events = [
+        event
+        async for event in stream_task(tmp_path, TaskLogReader(tmp_path), read_status, Mock(), status.task_id, 0.001)
+    ]
+    assert events == [ProgressEvent(name="finish", percentage=100)]
+    with pytest.raises(FileNotFoundError, match="retained for 7 days"):
+        TaskLogReader(tmp_path).read(Path(status.log_path))
+
+
+@pytest.mark.parametrize("final_content", ["final\n", ""])
+async def test_terminal_stream_handles_log_truncation(tmp_path, final_content):
+    path = tmp_path / "task.log"
+    path.write_text("previous content\n", encoding="utf-8")
+    running = TaskMetadata(
+        version=1,
+        task_id="analysis#sample#truncated",
+        run_id="truncated",
+        task_type=TaskType.ANALYSIS,
+        state=TaskState.RUNNING,
+        log_path=str(path),
+    )
+    calls = 0
+
+    async def read_status(_task_id):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return running
+        path.write_text(final_content, encoding="utf-8")
+        return running.model_copy(update={"state": TaskState.SUCCEEDED})
+
+    events = [
+        event
+        async for event in stream_task(tmp_path, TaskLogReader(tmp_path), read_status, Mock(), running.task_id, 0.001)
+    ]
+    assert [event.content for event in events] == ["previous content\n", final_content]
+    assert events[-1].reset
 
 
 async def test_stream_follows_log_path_created_after_subscription(tmp_path):

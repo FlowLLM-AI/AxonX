@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import fcntl
 import os
 import sys
+from contextlib import ExitStack, contextmanager, suppress
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import sha256
 from pathlib import Path
 from threading import RLock
 from typing import Any
@@ -19,6 +23,7 @@ from ..constants import (
     AXONX_DEFAULT_TIMEZONE,
     LOG_ARGUMENT_MAX_LENGTH,
 )
+from .log_retention import cleanup_log_files
 
 _LOG_FORMAT = (
     "{time:%Y-%m-%d %H:%M:%S} {extra[utc_offset]} | {level:<8} | "
@@ -26,6 +31,8 @@ _LOG_FORMAT = (
 )
 _LOCK = RLock()
 _LOG_PATH: Path | None = None
+_LOG_LEVEL = "INFO"
+_TASK_RUNS: ContextVar[tuple[str, ...]] = ContextVar("axonx_log_task_runs", default=())
 
 
 def _write_stderr(message: object) -> None:
@@ -57,7 +64,7 @@ class LoggingConfig:
 
 def configure_logging(config: LoggingConfig) -> None:
     """Explicitly replace the process-wide AxonX logging sinks."""
-    global _LOG_PATH
+    global _LOG_PATH, _LOG_LEVEL
     try:
         log_timezone = ZoneInfo(config.timezone)
     except ZoneInfoNotFoundError:
@@ -73,6 +80,7 @@ def configure_logging(config: LoggingConfig) -> None:
         logger.remove()
         logger.configure(extra={"name": "axonx"}, patcher=apply_timezone)
         _LOG_PATH = None
+        _LOG_LEVEL = config.level
 
         if config.log_to_console:
             logger.add(
@@ -92,10 +100,10 @@ def configure_logging(config: LoggingConfig) -> None:
                 level=config.level,
                 format=_LOG_FORMAT,
                 rotation="00:00",
-                retention="7 days",
                 compression="zip",
                 encoding=AXONX_DEFAULT_ENCODING,
             )
+            cleanup_log_files(log_dir)
 
 
 def get_logger(name: str = "axonx") -> Any:
@@ -108,3 +116,37 @@ def get_log_path() -> Path | None:
     """Return the file receiving logs for the current process."""
     with _LOCK:
         return _LOG_PATH
+
+
+@contextmanager
+def task_log_scope(run_id: str):
+    """Capture one Run and its nested children without capturing sibling Runs."""
+    runs = (*_TASK_RUNS.get(), run_id)
+    token = _TASK_RUNS.set(runs)
+    try:
+        with ExitStack() as stack:
+            process_path = get_log_path()
+            path = None
+            if process_path is not None:
+                identity = sha256(run_id.encode("utf-8")).hexdigest()
+                path = process_path.with_name(f"{process_path.stem}_{identity}.log")
+                handle = stack.enter_context(path.open("ab"))
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                sink = logger.add(
+                    path,
+                    level=_LOG_LEVEL,
+                    format=_LOG_FORMAT,
+                    encoding=AXONX_DEFAULT_ENCODING,
+                    filter=lambda record: run_id in record["extra"].get("task_runs", ()),
+                )
+                stack.callback(_remove_sink, sink)
+            with logger.contextualize(task_runs=runs):
+                yield path
+    finally:
+        _TASK_RUNS.reset(token)
+
+
+def _remove_sink(sink: int) -> None:
+    # Reconfiguration may already have removed this process-wide sink.
+    with suppress(ValueError):
+        logger.remove(sink)
