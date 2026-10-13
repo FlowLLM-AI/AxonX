@@ -896,6 +896,10 @@
     "previous": "上一页任务",
     "next": "下一页任务",
     "matching": "{{count}} / {{total}} 个任务",
-    "matchingTotal": "{{groups}} 组 · {{count}} / {{total}} 个任务"
+    "matchingTotal": "{{groups}} 组 · {{count}} / {{total}} 个任务",
+    "terminalCount": "{{count}} 个匹配的终态任务",
+    "selectMembers": "选择该组终态任务",
+    "deleteMembers": "删除该组终态任务",
+    "deleteConfirm": "确定删除该组的 {{count}} 个终态任务？"
   }
 }

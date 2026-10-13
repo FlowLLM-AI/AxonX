@@ -24,6 +24,9 @@ import {
 } from "./groups";
 import { TaskGroup, GroupSelection } from "./TaskGroup";
 
+type MenuTarget =
+  { kind: "task"; task: TaskSummary } | { kind: "group"; groupKey: string };
+
 export function TasksPage({
   target,
   onSubmit,
@@ -50,12 +53,13 @@ export function TasksPage({
   const [cancelling, setCancelling] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{
-    task: TaskSummary;
-    x: number;
-    y: number;
+  const [contextMenu, setContextMenu] = useState<
+    (MenuTarget & { x: number; y: number }) | null
+  >(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    ids: string[];
+    group?: string;
   } | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const request = useRef<AbortController | null>(null);
@@ -112,7 +116,7 @@ export function TasksPage({
     setContextMenu(null);
     setCancelTarget(null);
     setCancelling(false);
-    setDeleteOpen(false);
+    setDeleteTarget(null);
     setDeleting(false);
     setError("");
     void load();
@@ -170,6 +174,30 @@ export function TasksPage({
     .filter((task) => !ACTIVE.has(task.state))
     .map((task) => task.task_id);
   const selectedIds = [...selected];
+  const terminalIds = new Set(
+    tasks.filter((task) => !ACTIVE.has(task.state)).map((task) => task.task_id),
+  );
+  const deleteIds = (deleteTarget?.ids || []).filter((id) =>
+    terminalIds.has(id),
+  );
+  const menuGroup =
+    contextMenu?.kind === "group"
+      ? groups.find((group) => group.key === contextMenu.groupKey)
+      : undefined;
+  const groupIds = (menuGroup?.tasks || [])
+    .filter((task) => !ACTIVE.has(task.state))
+    .map((task) => task.task_id);
+  const openContextMenu = (
+    item: MenuTarget,
+    event: React.MouseEvent<HTMLElement>,
+  ) => {
+    event.preventDefault();
+    setContextMenu({
+      ...item,
+      x: Math.max(6, Math.min(event.clientX, window.innerWidth - 224)),
+      y: Math.max(6, Math.min(event.clientY, window.innerHeight - 240)),
+    });
+  };
   const toggleTasks = (ids: string[]) =>
     setSelected((previous) => {
       const next = new Set(previous);
@@ -211,8 +239,8 @@ export function TasksPage({
 
   const confirmDelete = async () => {
     const signal = lifetime.current?.signal;
-    if (!selectedIds.length || !signal || signal.aborted) return;
-    const requested = selectedIds;
+    if (!deleteIds.length || !signal || signal.aborted) return;
+    const requested = deleteIds;
     setDeleting(true);
     try {
       const deleted = await deleteTasks(requested, target);
@@ -222,8 +250,9 @@ export function TasksPage({
         deleted.forEach((taskId) => next.delete(taskId));
         return next;
       });
-      if (deleted.length === requested.length) setSelectionMode(false);
-      setDeleteOpen(false);
+      if (selectedIds.every((id) => deleted.includes(id)))
+        setSelectionMode(false);
+      setDeleteTarget(null);
       await load(true, signal, true);
       if (signal.aborted) return;
       if (deleted.length !== requested.length)
@@ -235,7 +264,7 @@ export function TasksPage({
         );
     } catch (reason) {
       if (signal.aborted) return;
-      setDeleteOpen(false);
+      setDeleteTarget(null);
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       if (!signal.aborted) setDeleting(false);
@@ -256,7 +285,7 @@ export function TasksPage({
               <span>{t("selectedCount", { count: selected.size })}</span>
               <button
                 className="danger-outline"
-                onClick={() => setDeleteOpen(true)}
+                onClick={() => setDeleteTarget({ ids: selectedIds })}
                 disabled={!selected.size}
               >
                 <Trash2 size={14} />
@@ -391,20 +420,12 @@ export function TasksPage({
               selected={selected}
               onToggle={toggleTasks}
               onOpenTask={onOpenTask}
-              onContextMenu={(task, event) => {
-                event.preventDefault();
-                setContextMenu({
-                  task,
-                  x: Math.max(
-                    6,
-                    Math.min(event.clientX, window.innerWidth - 224),
-                  ),
-                  y: Math.max(
-                    6,
-                    Math.min(event.clientY, window.innerHeight - 240),
-                  ),
-                });
-              }}
+              onGroupContextMenu={(event) =>
+                openContextMenu({ kind: "group", groupKey: group.key }, event)
+              }
+              onContextMenu={(task, event) =>
+                openContextMenu({ kind: "task", task }, event)
+              }
             />
           ))}
           {!loading && filtered.length === 0 && (
@@ -427,48 +448,90 @@ export function TasksPage({
           )}
         </div>
       </div>
-      {contextMenu && (
+      {contextMenu && (contextMenu.kind === "task" || menuGroup) && (
         <div
           className="workspace-context-menu task-context-menu"
           role="menu"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(event) => event.stopPropagation()}
         >
-          <header>
-            <span>{contextMenu.task.task_id}</span>
-            <small>{t(`types.${contextMenu.task.task_type}`)}</small>
-          </header>
-          <button
-            role="menuitem"
-            onClick={() => {
-              onOpenTask(contextMenu.task.task_id);
-              setContextMenu(null);
-            }}
-          >
-            <Search />
-            {t("details")}
-          </button>
-          {!ACTIVE.has(contextMenu.task.state) && (
-            <button
-              role="menuitem"
-              onClick={() => beginSelection(contextMenu.task)}
-            >
-              <CheckSquare2 />
-              {t("enableMultiSelect")}
-            </button>
-          )}
-          {ACTIVE.has(contextMenu.task.state) && (
-            <button
-              className="danger"
-              role="menuitem"
-              onClick={() => {
-                setCancelTarget(contextMenu.task);
-                setContextMenu(null);
-              }}
-            >
-              <Ban />
-              {t("cancel")}
-            </button>
+          {contextMenu.kind === "group" ? (
+            <>
+              <header>
+                <span>{contextMenu.groupKey}</span>
+                <small>
+                  {t("taskGroups.terminalCount", { count: groupIds.length })}
+                </small>
+              </header>
+              <button
+                role="menuitem"
+                disabled={!groupIds.length}
+                onClick={() => {
+                  setSelectionMode(true);
+                  setSelected(
+                    (previous) => new Set([...previous, ...groupIds]),
+                  );
+                  setContextMenu(null);
+                }}
+              >
+                <CheckSquare2 />
+                {t("taskGroups.selectMembers")}
+              </button>
+              <button
+                className="danger"
+                role="menuitem"
+                disabled={!groupIds.length}
+                onClick={() => {
+                  setDeleteTarget({
+                    ids: groupIds,
+                    group: contextMenu.groupKey,
+                  });
+                  setContextMenu(null);
+                }}
+              >
+                <Trash2 />
+                {t("taskGroups.deleteMembers")}
+              </button>
+            </>
+          ) : (
+            <>
+              <header>
+                <span>{contextMenu.task.task_id}</span>
+                <small>{t(`types.${contextMenu.task.task_type}`)}</small>
+              </header>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  onOpenTask(contextMenu.task.task_id);
+                  setContextMenu(null);
+                }}
+              >
+                <Search />
+                {t("details")}
+              </button>
+              {!ACTIVE.has(contextMenu.task.state) && (
+                <button
+                  role="menuitem"
+                  onClick={() => beginSelection(contextMenu.task)}
+                >
+                  <CheckSquare2 />
+                  {t("enableMultiSelect")}
+                </button>
+              )}
+              {ACTIVE.has(contextMenu.task.state) && (
+                <button
+                  className="danger"
+                  role="menuitem"
+                  onClick={() => {
+                    setCancelTarget(contextMenu.task);
+                    setContextMenu(null);
+                  }}
+                >
+                  <Ban />
+                  {t("cancel")}
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -512,10 +575,10 @@ export function TasksPage({
           </div>
         </div>
       )}
-      {deleteOpen && (
+      {deleteTarget && (
         <div
           className="modal-backdrop"
-          onMouseDown={() => setDeleteOpen(false)}
+          onMouseDown={() => setDeleteTarget(null)}
         >
           <div
             className="confirm-modal"
@@ -525,26 +588,36 @@ export function TasksPage({
           >
             <button
               className="close-button"
-              onClick={() => setDeleteOpen(false)}
+              onClick={() => setDeleteTarget(null)}
             >
               <X />
             </button>
             <span className="danger-icon">
               <Trash2 />
             </span>
-            <h2>{t("deleteConfirm", { count: selected.size })}</h2>
+            <h2>
+              {t(
+                deleteTarget.group
+                  ? "taskGroups.deleteConfirm"
+                  : "deleteConfirm",
+                {
+                  count: deleteIds.length,
+                },
+              )}
+            </h2>
+            {deleteTarget.group && <code>{deleteTarget.group}</code>}
             <p>{t("deleteHint")}</p>
             <div>
               <button
                 className="secondary-button"
-                onClick={() => setDeleteOpen(false)}
+                onClick={() => setDeleteTarget(null)}
               >
                 {t("close")}
               </button>
               <button
                 className="danger-button"
                 onClick={() => void confirmDelete()}
-                disabled={deleting}
+                disabled={deleting || !deleteIds.length}
               >
                 {deleting ? t("deleting") : t("confirmDelete")}
               </button>

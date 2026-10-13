@@ -896,6 +896,10 @@
     "previous": "Previous task page",
     "next": "Next task page",
     "matching": "{{count}} / {{total}} tasks",
-    "matchingTotal": "{{groups}} groups · {{count}} / {{total}} tasks"
+    "matchingTotal": "{{groups}} groups · {{count}} / {{total}} tasks",
+    "terminalCount": "{{count}} matching terminal tasks",
+    "selectMembers": "Select terminal tasks in this group",
+    "deleteMembers": "Delete terminal tasks in this group",
+    "deleteConfirm": "Delete {{count}} terminal tasks in this group?"
   }
 }

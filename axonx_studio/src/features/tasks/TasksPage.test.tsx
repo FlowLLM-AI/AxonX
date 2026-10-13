@@ -208,6 +208,113 @@ describe("task request ownership", () => {
 });
 
 describe("grouped task list", () => {
+  async function openGroupMenu(key = "train#demo") {
+    await act(async () => {
+      container
+        .querySelector(`[aria-label="${key}"]`)!
+        .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    });
+  }
+
+  it("right-click selects terminal tasks across pages without expanding the group", async () => {
+    const records = Array.from({ length: 51 }, (_, index) =>
+      task(`train#demo#run-${index}`, "succeeded"),
+    );
+    vi.mocked(listTaskStatuses).mockResolvedValue(records);
+    await render();
+    await openGroupMenu();
+    expect(container.querySelector("tbody")).toBeNull();
+    await click('[role="menuitem"]:not(.danger)');
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+    expect(
+      container.querySelector<HTMLInputElement>(".task-group-header input")!
+        .checked,
+    ).toBe(true);
+    await click(".task-selection-actions .danger-outline");
+    vi.mocked(deleteTasks).mockResolvedValue(
+      records.map((item) => item.task_id),
+    );
+    await click('[role="dialog"] .danger-button');
+    expect(vi.mocked(deleteTasks).mock.calls[0][0]).toHaveLength(51);
+  });
+
+  it("group deletion confirms only matching terminal tasks and preserves other selections", async () => {
+    vi.mocked(listTaskStatuses).mockResolvedValue([
+      task("train#other#keep", "succeeded"),
+      task("train#demo#good", "succeeded"),
+      task("train#demo#bad", "failed"),
+      task("train#demo#active"),
+    ]);
+    await render();
+    await openGroupMenu("train#other");
+    await click('[role="menuitem"]:not(.danger)');
+    await act(async () => {
+      const select = container.querySelector<HTMLSelectElement>(
+        '[aria-label="state"]',
+      )!;
+      select.value = "failed";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await openGroupMenu();
+    await click('[role="menuitem"].danger');
+    expect(deleteTasks).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    vi.mocked(deleteTasks).mockResolvedValue(["train#demo#bad"]);
+    await click('[role="dialog"] .danger-button');
+    expect(deleteTasks).toHaveBeenCalledWith(["train#demo#bad"], "machine-a");
+    expect(container.querySelector(".task-selection-actions")).not.toBeNull();
+    await act(async () => {
+      const select = container.querySelector<HTMLSelectElement>(
+        '[aria-label="state"]',
+      )!;
+      select.value = "";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(
+      container
+        .querySelector<HTMLInputElement>('[aria-label="train#other"]')!
+        .parentElement!.querySelector<HTMLInputElement>("input")!.checked,
+    ).toBe(true);
+  });
+
+  it("disables group actions for active-only groups and closes on Escape", async () => {
+    vi.mocked(listTaskStatuses).mockResolvedValue([
+      task("train#demo#running"),
+      task("train#demo#queued", "queued"),
+    ]);
+    await render();
+    await openGroupMenu();
+    expect(
+      [
+        ...container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+      ].every((button) => button.disabled),
+    ).toBe(true);
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("does not delete a task that became active while group confirmation was open", async () => {
+    vi.mocked(listTaskStatuses).mockResolvedValue([
+      task("train#demo#done", "succeeded"),
+    ]);
+    await render();
+    await openGroupMenu();
+    await click('[role="menuitem"].danger');
+    vi.mocked(listTaskStatuses).mockResolvedValue([task("train#demo#done")]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(
+      container.querySelector<HTMLButtonElement>(
+        '[role="dialog"] .danger-button',
+      )!.disabled,
+    ).toBe(true);
+    await click('[role="dialog"] .danger-button');
+    expect(deleteTasks).not.toHaveBeenCalled();
+  });
+
   it("collapses terminal groups and opens the complete task identity", async () => {
     vi.mocked(listTaskStatuses).mockResolvedValue([
       task("train#demo#first", "succeeded"),

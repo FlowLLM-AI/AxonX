@@ -13,6 +13,7 @@ interface GroupProps {
   selected: Set<string>;
   onToggle: (ids: string[]) => void;
   onOpenTask: (taskId: string) => void;
+  onGroupContextMenu: (event: React.MouseEvent<HTMLElement>) => void;
   onContextMenu: (
     task: TaskSummary,
     event: React.MouseEvent<HTMLTableRowElement>,
@@ -55,7 +56,10 @@ export function TaskGroup(props: GroupProps) {
     .map((task) => task.task_id);
   return (
     <section className={`task-group ${expanded ? "expanded" : ""}`}>
-      <header className="task-group-header">
+      <header
+        className="task-group-header"
+        onContextMenu={props.onGroupContextMenu}
+      >
         {selectionMode && (
           <GroupSelection
             ids={ids}

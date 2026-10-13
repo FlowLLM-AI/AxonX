@@ -10,6 +10,8 @@ Studio groups task records by `<task type>#<registration>`, with active groups f
 
 Search, type and state filters apply to individual tasks before grouping. Group and filter-wide selection includes only matching terminal tasks across all pages, including collapsed groups. Existing selections remain selected when filters change; check the selected count before deleting. Polling and collapsing a group preserve its page position. Changing filters resets pagination, and switching machines resets expansion, pagination and selection.
 
+Right-click a group header to select or delete its matching terminal tasks across all pages, even while the group is collapsed. Group deletion requires confirmation and affects only that group; existing selections in other groups are retained. Running and queued tasks cannot be selected or deleted.
+
 ## Discover definitions
 
 ```bash
