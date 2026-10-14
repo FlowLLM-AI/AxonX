@@ -1,4 +1,5 @@
 import type { TaskMetadata } from "../../tasks/types";
+import { displayArtifacts } from "../../../shared/lib/replica";
 import { parseSourceTasks } from "../../../shared/lib/sourceTasks";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -88,9 +89,8 @@ async function loadTasks(
           if (raw.state !== "succeeded") return null;
           const input = raw.input_params;
           const output = raw.output_params;
-          const artifacts = output.artifacts as
-            BacktestArtifact["artifacts"] | undefined;
-          if (!artifacts?.daily?.path) return null;
+          const artifacts = displayArtifacts(raw);
+          if (!artifacts.daily?.path) return null;
           return {
             _path: entry.path,
             task_key: raw.reg_name,
@@ -101,6 +101,8 @@ async function loadTasks(
               task_name: String(input.task_name),
             },
             artifacts,
+            signals_format:
+              output.signals_format as BacktestArtifact["signals_format"],
             dimensions: output.dimensions as BacktestArtifact["dimensions"],
             evaluation_status: output.evaluation_status as string | undefined,
             protocol: output.protocol as BacktestArtifact["protocol"],
@@ -286,6 +288,7 @@ export default function StrategyComparePage({
       loadBacktestDaily(taskB, target, controller.signal),
     ])
       .then(([a, b]) => {
+        if (controller.signal.aborted) return;
         setDailyA(a);
         setDailyB(b);
         setLoadedPair(`${idA}\n${idB}`);

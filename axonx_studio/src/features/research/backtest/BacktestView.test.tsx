@@ -117,6 +117,67 @@ describe("stock backtest report", () => {
     },
   );
 
+  it.each(["en", "zh"])(
+    "labels every benchmark IR in summary tables in %s",
+    async (language) => {
+      await i18n.changeLanguage(language);
+      vi.mocked(loadBacktest).mockResolvedValue({
+        daily,
+        summary: [
+          {
+            period_type: "overall",
+            period: "overall",
+            period_start: "20260105",
+            period_end: "20260105",
+            trading_days: 1,
+            ic_mean: 0,
+            icir: 0,
+            rank_ic_mean: 0,
+            rank_icir: 0,
+            top1_information_ratio_universe: 1.4,
+            top3_information_ratio_custom: 2.3,
+          },
+        ],
+      });
+      await act(async () =>
+        root.render(
+          <BacktestView
+            meta={{
+              ...meta,
+              dimensions: {
+                ...meta.dimensions,
+                benchmarks: [
+                  { key: "universe", label: "universe" },
+                  { key: "custom", label: "Custom index" },
+                ],
+              },
+            }}
+          />,
+        ),
+      );
+      await act(async () =>
+        Array.from(
+          container.querySelectorAll<HTMLButtonElement>(
+            ".backtest-tabs button",
+          ),
+        )
+          .find((button) => button.textContent === i18n.t("backtest.overall"))!
+          .click(),
+      );
+      expect(container.textContent).not.toContain("backtest.metrics.");
+      for (const label of ["IR · universe", "IR · Custom index"]) {
+        const button = Array.from(
+          container.querySelectorAll<HTMLButtonElement>(".summary-sort-button"),
+        ).find((button) => button.textContent === label)!;
+        expect(button.getAttribute("aria-label")).toContain(label);
+        await act(async () => button.click());
+        expect(button.closest("th")?.getAttribute("aria-sort")).toBe(
+          "ascending",
+        );
+      }
+    },
+  );
+
   it("renders empty data and request failures", async () => {
     vi.mocked(loadBacktest).mockResolvedValue({ daily: [], summary: [] });
     await render();

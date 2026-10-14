@@ -671,6 +671,7 @@ function HoldingsPanel({
 
 type SummaryMetric = {
   key: string;
+  label?: string;
   format: (value: unknown) => string;
   percent: boolean;
 };
@@ -832,7 +833,6 @@ function SummaryView({
     ...benchmarks.map(({ key, label }) => ({
       key: `information_ratio_${key}`,
       label: `IR · ${label}`,
-      english: `IR · ${label}`,
       format: fixed,
       percent: false,
     })),
@@ -1100,7 +1100,7 @@ function SummaryView({
                   {metrics.map((metric) =>
                     sortHeader(
                       metric.key,
-                      t(`backtest.metrics.${metric.key}`),
+                      metric.label ?? t(`backtest.metrics.${metric.key}`),
                       detailSort,
                       (key) =>
                         setDetailSort((current) =>

@@ -76,7 +76,7 @@ Adjusted-price units preserve value across corporate-action price changes. Marke
 | ----------- | ----------------------------------------------------------------------------- |
 | `daily`     | Calendar-aligned returns, equity, cash, open positions and signal diagnostics |
 | `summary`   | Overall, yearly, quarterly and monthly statistics                             |
-| `targets`   | Signal-selected candidates                                                    |
+| `signals`   | Unified stock signals with candidate flags, target ranks and label returns    |
 | `orders`    | Actual fills and unfilled reasons                                             |
 | `positions` | Actual daily holdings, adjusted units, weights and market values              |
 | `trades`    | Completed holding periods, actual entry/exit prices, returns and fees         |
@@ -92,3 +92,5 @@ IC, RankIC and NDCG use the same signal-day buyable candidate pool as target sel
 Studio reads `daily`, `summary` and `dimensions`. Net-return charts compound daily net returns, while the accumulated-gross chart sums daily gross returns; the latter need not equal compounded gross return in the summary. Period tables are task-generated and do not automatically rerun when the chart range changes.
 
 Studio derives return and NDCG series from `dimensions.top_ns`, displays incomplete market-data evaluations as provisional, and exposes all portfolio artifacts. Prediction statistics describe signal-time scores and eligibility; schema version 2 does not embed future returns or valid-return coverage in predictions. Empty statistics and missing labels display as unavailable.
+
+Studio comparison preserves `signals_format` from Task metadata and reads available display-replica artifacts. Current stock backtests use `stock-signals-v1`; legacy `targets` artifacts or unversioned `signals` require regenerating the backtest. Benchmark information-ratio headers use the labels declared in `dimensions.benchmarks`.
