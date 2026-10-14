@@ -7,7 +7,8 @@ import {
   type OnlineHistory,
   type ReportTab,
 } from "./report";
-import { loadRows } from "./api";
+import { QualityReport } from "./QualityReport";
+import { loadQuality, loadRows } from "./api";
 import { ReportTable, type Column } from "./ReportTable";
 import { display } from "./format";
 import { SignalTable } from "./SignalTable";
@@ -28,6 +29,12 @@ export function CommitReport({
   const [topN, setTopN] = useState(commit.protocol.report.dimensions.top_ns[0]);
   const load = useCallback(
     async (signal: AbortSignal) => {
+      if (tab === "quality")
+        return {
+          tables: {} as Record<string, Record<string, unknown>[]>,
+          previousRows: [],
+          quality: await loadQuality(commit, target, signal),
+        };
       const previous =
         history &&
         activeCommits({
@@ -56,7 +63,11 @@ export function CommitReport({
         tab === "signal" && previous
           ? await loadRows(previous, "signal", target, signal)
           : [];
-      return { tables: Object.fromEntries(tables), previousRows };
+      return {
+        tables: Object.fromEntries(tables),
+        previousRows,
+        quality: null,
+      };
     },
     [commit, history, tab, target],
   );
@@ -72,6 +83,17 @@ export function CommitReport({
     );
   if (loading || !data)
     return <div className="loading-state">{t("shell.loading")}</div>;
+  if (tab === "quality")
+    return data.quality ? (
+      <QualityReport
+        summary={data.quality}
+        taskId={commit.task_id}
+        target={target}
+        artifacts={commit.artifacts}
+      />
+    ) : (
+      <div className="empty-state">{t("quality.empty")}</div>
+    );
   const settings = commit.protocol.report;
   const tables = data.tables;
   const current = tables.daily?.find(

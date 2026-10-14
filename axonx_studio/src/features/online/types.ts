@@ -1,3 +1,4 @@
+import { parseQuality } from "./quality";
 import type { TaskMetadata, TaskSummary } from "../tasks/types";
 import type { ArtifactFile } from "../research/types";
 import {
@@ -14,6 +15,7 @@ export interface OnlineOutcome {
   rows?: number;
   coverage?: number | null;
   metrics?: Record<string, unknown>;
+  artifacts?: Record<string, ArtifactFile>;
 }
 export interface OnlineReport {
   windows?: OnlineOutcome[];
@@ -50,6 +52,14 @@ export function parseOnlineReport(value: unknown): OnlineReport {
         if (row.reason !== undefined && typeof row.reason !== "string")
           return false;
         if (row.metrics !== undefined && !record(row.metrics)) return false;
+        if (record(row.metrics) && row.metrics.quality != null)
+          parseQuality(row.metrics.quality);
+        if (
+          row.artifacts !== undefined &&
+          (!record(row.artifacts) ||
+            !Object.values(row.artifacts).every(artifactPath))
+        )
+          return false;
         return ["coverage", "rows", "elapsed_seconds"].every(
           (field) =>
             row[field] == null ||

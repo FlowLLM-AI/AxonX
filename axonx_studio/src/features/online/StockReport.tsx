@@ -45,6 +45,7 @@ export function StockReport({
             "signal",
             "portfolio",
             "performance",
+            "quality",
             "history",
             "runtime",
           ] as ReportTab[]

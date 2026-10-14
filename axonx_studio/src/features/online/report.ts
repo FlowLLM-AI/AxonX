@@ -1,5 +1,5 @@
 export type ReportTab =
-  "signal" | "portfolio" | "performance" | "history" | "runtime";
+  "signal" | "portfolio" | "performance" | "history" | "runtime" | "quality";
 
 import type { ArtifactFile } from "../research/types";
 import type { BenchmarkDefinition } from "../research/backtest/types";

@@ -7,6 +7,8 @@ import { usePolling } from "../../shared/hooks/usePolling";
 import type { TaskSummary } from "../tasks/types";
 import { isOnlineTask, parseOnlineReport, type OnlineOutcome } from "./types";
 import { playground } from "../../app/environment";
+import { QualityReport } from "./QualityReport";
+import { parseQuality } from "./quality";
 import { StockReport } from "./StockReport";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 
@@ -221,7 +223,14 @@ function RunReport({
       ) : !rows.length ? (
         <div className="empty-state">{t("onlinePipeline.pending")}</div>
       ) : (
-        rows.map((row) => <Outcome key={row.key} row={row} />)
+        rows.map((row) => (
+          <Outcome
+            key={row.key}
+            row={row}
+            taskId={task.task_id}
+            target={target}
+          />
+        ))
       )}
     </>
   );
@@ -257,6 +266,14 @@ function RunReport({
           </button>
         </div>
       )}
+      {data?.report && data.report.commit.run_id !== task.run_id && (
+        <div className="online-warning" role="status">
+          {t("quality.previousSignal", {
+            date: data.report.commit.trade_date,
+            time: data.report.commit.trade_time,
+          })}
+        </div>
+      )}
       {data?.report ? (
         <StockReport
           key={`${target}:${data.report.commit.commit_id}`}
@@ -271,7 +288,15 @@ function RunReport({
   );
 }
 
-function Outcome({ row }: { row: OnlineOutcome }) {
+function Outcome({
+  row,
+  taskId,
+  target,
+}: {
+  row: OnlineOutcome;
+  taskId: string;
+  target?: string;
+}) {
   const { t } = useTranslation();
   return (
     <section className="online-outcome">
@@ -299,17 +324,27 @@ function Outcome({ row }: { row: OnlineOutcome }) {
             <strong>{row.elapsed_seconds.toFixed(1)}s</strong>
           </div>
         )}
-        {Object.entries(row.metrics || {}).map(([key, value]) => (
-          <div key={key}>
-            <span>{t(`onlinePipeline.metrics.${key}`, key)}</span>
-            <strong>
-              {typeof value === "object"
-                ? JSON.stringify(value)
-                : String(value)}
-            </strong>
-          </div>
-        ))}
+        {Object.entries(row.metrics || {})
+          .filter(([key]) => key !== "quality")
+          .map(([key, value]) => (
+            <div key={key}>
+              <span>{t(`onlinePipeline.metrics.${key}`, key)}</span>
+              <strong>
+                {typeof value === "object"
+                  ? JSON.stringify(value)
+                  : String(value)}
+              </strong>
+            </div>
+          ))}
       </div>
+      {row.metrics?.quality != null && (
+        <QualityReport
+          summary={parseQuality(row.metrics.quality)}
+          taskId={taskId}
+          target={target}
+          artifacts={row.artifacts}
+        />
+      )}
       {row.reason && (
         <p className="online-reason">
           {t(`onlinePipeline.reasons.${row.reason}`, row.reason)}

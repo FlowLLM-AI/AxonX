@@ -1,3 +1,5 @@
+import type { ArtifactFile } from "../research/types";
+import { parseQuality } from "./quality";
 import { previewWorkspaceFile } from "../workspace/api";
 import { artifactPath, parseHistory, type OnlineCommit } from "./report";
 
@@ -31,10 +33,19 @@ export async function loadRows(
   const artifact = commit.artifacts[role];
   if (!artifactPath(artifact))
     throw new Error(`Missing online artifact: ${role}`);
+  return loadArtifactRows(commit.task_id, artifact, target, signal);
+}
+export async function loadArtifactRows(
+  taskId: string,
+  artifact: ArtifactFile,
+  target?: string,
+  signal?: AbortSignal,
+) {
+  if (!artifactPath(artifact)) throw new Error("Invalid online artifact");
   const rows: Record<string, unknown>[] = [];
   for (let offset = 0; ; offset += 5000) {
     const preview = await previewWorkspaceFile(
-      `${taskRoot(commit.task_id)}/${artifact.path}`,
+      `${taskRoot(taskId)}/${artifact.path}`,
       offset,
       5000,
       target,
@@ -42,7 +53,7 @@ export async function loadRows(
     );
     signal?.throwIfAborted();
     if (preview.kind !== "parquet")
-      throw new Error(`Expected Parquet: ${role}`);
+      throw new Error("Expected Parquet artifact");
     rows.push(
       ...preview.rows.map((row) =>
         Object.fromEntries(
@@ -52,4 +63,25 @@ export async function loadRows(
     );
     if (!preview.has_more) return rows;
   }
+}
+
+export async function loadQuality(
+  commit: OnlineCommit,
+  target?: string,
+  signal?: AbortSignal,
+) {
+  const artifact = commit.artifacts.quality_summary;
+  if (!artifact) return null;
+  if (!artifactPath(artifact)) throw new Error("Invalid quality artifact");
+  const preview = await previewWorkspaceFile(
+    `${taskRoot(commit.task_id)}/${artifact.path}`,
+    0,
+    1,
+    target,
+    signal,
+  );
+  signal?.throwIfAborted();
+  if (preview.kind !== "json" || preview.parse_error || preview.truncated)
+    throw new Error("Invalid quality file");
+  return parseQuality(preview.data);
 }

@@ -722,6 +722,56 @@ function seedStockOnline(
     };
     for (const [role, rows] of Object.entries(tables))
       put(role, table(rows), "parquet");
+    const quality = {
+      version: 1,
+      trade_date: date,
+      trade_time: "1445",
+      checks: [
+        {
+          stage: "collection/1445_bar",
+          reason: "missing_slots",
+          action: "warning",
+          input_count: 35,
+          output_count: 35,
+          matched_count: 5,
+          removed_count: 0,
+          coverage: 30 / 35,
+          threshold: 0.8,
+          samples: [{ ts_code: "DEMO031", missing_slots: "1445" }],
+        },
+        {
+          stage: "prediction",
+          reason: "not_buyable",
+          action: "unbuyable",
+          input_count: 30,
+          output_count: 30,
+          matched_count: 5,
+          removed_count: 0,
+          samples: [{ ts_code: "DEMO001", is_limit_up: true }],
+        },
+      ],
+    };
+    put("quality_summary", json(quality), "json");
+    put(
+      "quality_details",
+      table([
+        {
+          stage: "collection/1445_bar",
+          reason: "missing_slots",
+          action: "warning",
+          ts_code: "DEMO031",
+          details: JSON.stringify({ missing_slots: "1445" }),
+        },
+        {
+          stage: "prediction",
+          reason: "not_buyable",
+          action: "unbuyable",
+          ts_code: "DEMO001",
+          details: JSON.stringify({ is_limit_up: true }),
+        },
+      ]),
+      "parquet",
+    );
     const identity = {
       family: "synthetic",
       models_sha256: "c".repeat(64),
@@ -753,6 +803,7 @@ function seedStockOnline(
     });
   }
   const commit = history.commits.at(-1)!;
+  task.run_id = commit.run_id;
   const historyPath = `persistent/online/commits/${commit.commit_id}/history.json`;
   files.set(`inference/${task.task_id}/${historyPath}`, json(history));
   files.set(

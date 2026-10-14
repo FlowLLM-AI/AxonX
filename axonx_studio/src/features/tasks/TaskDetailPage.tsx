@@ -1,4 +1,5 @@
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
+import { TaskQuality } from "../online/QualityReport";
 import { isOnlineTask } from "../online/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -529,6 +530,11 @@ export function TaskDetailPage({
               </div>
             </DetailSection>
           )}
+          <TaskQuality
+            windows={task.output_params.windows}
+            taskId={task.task_id}
+            target={target}
+          />
           {Object.keys(task.output_params).length > 0 && (
             <DetailSection title={t("result")}>
               <pre>{JSON.stringify(task.output_params, null, 2)}</pre>
