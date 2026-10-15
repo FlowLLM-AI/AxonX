@@ -2,26 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Iterable
 from pathlib import Path
 
 from ...components.job.events import JobEvent, ProgressEvent
-from ...progress import TaskStepStatus
 from ...constants import AXONX_DEFAULT_ENCODING
+from ...progress import TaskStepStatus
 
 LOG_WINDOW_BYTES = 65_536
-
-
-@dataclass(frozen=True, slots=True)
-class TaskLogChunk:
-    content: str = ""
-    start_offset: int = 0
-    next_offset: int = 0
-    file_size: int = 0
-    has_more_before: bool = False
-    has_more_after: bool = False
-    reset: bool = False
 
 
 def append_event(path: Path, event: JobEvent) -> None:

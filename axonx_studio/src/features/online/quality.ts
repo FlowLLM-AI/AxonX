@@ -1,4 +1,4 @@
-import { record } from "./report";
+import { isRecord } from "../../shared/lib/values";
 
 interface QualityCheck {
   stage: string;
@@ -20,14 +20,14 @@ export interface QualitySummary {
 }
 export function parseQuality(value: unknown): QualitySummary {
   if (
-    !record(value) ||
+    !isRecord(value) ||
     value.version !== 1 ||
     typeof value.trade_date !== "string" ||
     typeof value.trade_time !== "string" ||
     !Array.isArray(value.checks) ||
     !value.checks.every(
       (check) =>
-        record(check) &&
+        isRecord(check) &&
         ["stage", "reason", "action"].every(
           (key) => typeof check[key] === "string",
         ) &&
@@ -46,7 +46,7 @@ export function parseQuality(value: unknown): QualitySummary {
               check[key] <= 1),
         ) &&
         Array.isArray(check.samples) &&
-        check.samples.every(record),
+        check.samples.every(isRecord),
     )
   )
     throw new Error("Invalid quality summary");

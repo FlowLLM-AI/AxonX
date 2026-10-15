@@ -54,7 +54,7 @@ def test_concurrent_substeps_are_durable_throttled_and_replayable(tmp_path):
     assert len(substeps) < 40  # Counter updates are coalesced; transitions remain immediate.
     assert {a["name"] for a in substeps if a["state"] == "done"} == {f"file:{i}" for i in range(8)}
     summary = summarize_status(status)
-    assert summary["is_online"] and summary["report_kind"] == "online_pipeline"
+    assert summary.is_online and summary.report_kind == "online_pipeline"
     assert "steps" not in summary
     with pytest.raises(RuntimeError, match="TaskRunner"):
         task.report_progress(name="late", state="done")

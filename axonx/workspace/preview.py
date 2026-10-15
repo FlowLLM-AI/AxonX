@@ -161,7 +161,6 @@ def _preview_json(content: str, size: int) -> StructuredPreview:
     return StructuredPreview(
         kind="json",
         size=size,
-        content=json.dumps(data, ensure_ascii=False, indent=2),
         data=data,
     )
 
@@ -172,7 +171,6 @@ def _preview_yaml(content: str, size: int) -> StructuredPreview:
         return StructuredPreview(
             kind="yaml",
             size=size,
-            content=yaml.safe_dump(parsed, allow_unicode=True, sort_keys=False),
             data=_json_compatible(parsed),
         )
     except yaml.YAMLError as exc:

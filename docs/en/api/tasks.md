@@ -375,7 +375,7 @@ The Schema does not prohibit extra fields; this does not mean those fields will 
 
 **Response**
 
-answer is TaskLogChunk: content, start_offset, next_offset, file_size, has_more_before, has_more_after, and reset.
+answer is LogChunk: content, start_offset, next_offset, file_size, has_more_before, has_more_after, and reset.
 
 ```json
 {
@@ -694,3 +694,17 @@ Deletion and cancellation can return a valid request with no changes: delete_tas
 - [Event protocol](events.md)
 
 Implementation references: `axonx/config/default.yaml`, `axonx/steps/task/` and `axonx/components/service/http/jobs.py`.
+
+## Studio query projections
+
+`detail: summary` returns the generated `TaskSummary` contract. A summary is a
+query projection, never a second persisted Task record. Research and comparison
+lists request summaries; only selected Tasks are loaded through `status`. Full
+outputs, training curves, and artifact registries belong to the detail response.
+Task graphs are built under the repository lock without cloning Task outputs.
+
+Studio wire contracts are generated from Python, including summaries, graphs,
+Job events, and Agent session presentation. Research outputs are discriminated by
+`task_type`; online execution windows and prediction comparisons retain separate
+status enums. Update the Python contract and run `npm run contracts:generate`
+from `axonx_studio/` when changing these interfaces.

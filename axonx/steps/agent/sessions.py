@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC
 
 from ...components.registry import provider
+from ...components.agent.contracts import AgentMutationResult
 from ...enums import ComponentEnum
 from ..base import BaseStep
 
@@ -35,21 +36,21 @@ class GetAgentSessionStep(AgentSessionStep):
 class RenameAgentSessionStep(AgentSessionStep):
     async def execute(self):
         await self.agent_wrapper.rename_session(self.context["session_id"], self.context["title"])
-        self.response.answer = {"session_id": self.context["session_id"]}
+        self.response.answer = AgentMutationResult(session_id=self.context["session_id"])
 
 
 @provider("tag_agent_session_step")
 class TagAgentSessionStep(AgentSessionStep):
     async def execute(self):
         await self.agent_wrapper.tag_session(self.context["session_id"], self.context.get("tag"))
-        self.response.answer = {"session_id": self.context["session_id"]}
+        self.response.answer = AgentMutationResult(session_id=self.context["session_id"])
 
 
 @provider("delete_agent_session_step")
 class DeleteAgentSessionStep(AgentSessionStep):
     async def execute(self):
         await self.agent_wrapper.delete_session(self.context["session_id"])
-        self.response.answer = {"session_id": self.context["session_id"]}
+        self.response.answer = AgentMutationResult(session_id=self.context["session_id"])
 
 
 @provider("fork_agent_session_step")
@@ -60,11 +61,11 @@ class ForkAgentSessionStep(AgentSessionStep):
             up_to_message_id=self.context.get("up_to_message_id"),
             title=self.context.get("title"),
         )
-        self.response.answer = {"session_id": session_id}
+        self.response.answer = AgentMutationResult(session_id=session_id)
 
 
 @provider("cancel_agent_turn_step")
 class CancelAgentTurnStep(AgentSessionStep):
     async def execute(self):
         await self.agent_wrapper.cancel_turn(self.context["session_id"])
-        self.response.answer = {"session_id": self.context["session_id"]}
+        self.response.answer = AgentMutationResult(session_id=self.context["session_id"])

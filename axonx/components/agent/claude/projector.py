@@ -22,12 +22,6 @@ def sdk_value(value: Any) -> Any:
     return value
 
 
-def message_payload(message: Any) -> dict[str, Any]:
-    if not is_dataclass(message):
-        raise TypeError(f"Unsupported Claude message: {type(message).__name__}")
-    return {field.name: sdk_value(getattr(message, field.name)) for field in fields(message)}
-
-
 class ClaudeMessageProjector:
     """Stateful projection for one streamed Claude turn."""
 

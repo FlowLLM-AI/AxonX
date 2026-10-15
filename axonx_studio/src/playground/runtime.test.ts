@@ -1,22 +1,22 @@
-import { taskStepProgress } from "../features/tasks/format";
-import { parseSourceTasks } from "../shared/lib/sourceTasks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AxonXClient } from "../shared/api/client";
-import { streamJob } from "../shared/api/event";
-import { createPlayground } from "./runtime";
-import type { TaskHandle, TaskMetadata } from "../features/tasks/types";
-import type { TaskGraph } from "../features/task-graph/types";
-import type {
-  WorkspaceDirectory,
-  WorkspacePreview,
-} from "../features/workspace/types";
-import type { AgentSession, AgentSessionInfo } from "../features/agent/types";
 import {
-  fromHistory,
   applyAgentEvent,
   emptyConversation,
+  fromHistory,
   optimisticUserBlock,
 } from "../features/agent/reducer";
+import type { AgentSession, AgentSessionInfo } from "../features/agent/types";
+import type { TaskGraph } from "../features/task-graph/types";
+import { taskStepProgress } from "../features/tasks/format";
+import type { TaskHandle, TaskMetadata } from "../features/tasks/types";
+import type {
+  WorkspaceListing,
+  WorkspacePreview,
+} from "../features/workspace/types";
+import { AxonXClient } from "../shared/api/client";
+import { streamJob } from "../shared/api/event";
+import { parseSourceTasks } from "../shared/lib/sourceTasks";
+import { createPlayground } from "./runtime";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -70,7 +70,7 @@ describe("static Playground", () => {
         "predict",
         "backtest",
       ]) {
-        const runs = await api.invoke<WorkspaceDirectory>("list_task_runs", {
+        const runs = await api.invoke<WorkspaceListing>("list_task_runs", {
           task_type,
         });
         expect(runs.entries.length).toBeGreaterThan(0);
@@ -85,11 +85,7 @@ describe("static Playground", () => {
             state: string;
             output_params: {
               artifacts: Record<string, { path: string }>;
-              output_file?: string;
-              result_file?: string;
-              model_files?: Record<string, string>;
-              score_columns?: Record<string, string>;
-              predictions_file?: string;
+              protocol?: Record<string, unknown>;
             };
             input_params: { source_tasks: string };
           };
@@ -120,26 +116,19 @@ describe("static Playground", () => {
             ).toHaveLength(1);
           for (const id of parseSourceTasks(metadata.input_params.source_tasks))
             await api.invoke("status", { task_id: id });
-          for (const key of [
-            "output_file",
-            "result_file",
-            "predictions_file",
-          ] as const) {
-            const path = metadata.output_params[key];
-            if (path) await api.invoke("preview_file", { path });
-          }
+          expect(metadata.output_params).not.toHaveProperty("output_file");
+          expect(metadata.output_params).not.toHaveProperty("result_file");
+          expect(metadata.output_params).not.toHaveProperty("model_files");
+          expect(metadata.output_params).not.toHaveProperty("predictions_file");
           if (task_type === "train")
             expect(
-              Object.keys(metadata.output_params.model_files || {}),
-            ).toEqual(["model"]);
+              metadata.output_params.artifacts.model_manifest,
+            ).toBeDefined();
           if (task_type === "predict")
-            expect(metadata.output_params.score_columns).toEqual({
-              model: "pred",
-            });
-          for (const path of Object.values(
-            metadata.output_params.model_files || {},
-          ))
-            await api.invoke("preview_file", { path });
+            expect(
+              (metadata.output_params.protocol as { score_columns: object })
+                .score_columns,
+            ).toEqual({ model: "pred" });
           for (const artifact of Object.values(
             metadata.output_params.artifacts,
           )) {
@@ -172,7 +161,7 @@ describe("static Playground", () => {
       });
       expect(completed.state).toBe("succeeded");
       const preview = await api.invoke<WorkspacePreview>("preview_file", {
-        path: `runs/${handle.task_id}/metadata.json`,
+        path: `${handle.task_id.split("#")[0]}/${handle.task_id}/metadata.json`,
       });
       if (preview.kind !== "json") throw new Error("Missing metadata");
       expect(preview.data).toMatchObject({
@@ -184,11 +173,11 @@ describe("static Playground", () => {
   it("keeps return summaries and graph lineage consistent with rendered data", async () => {
     const api = client();
     const daily = await api.invoke<WorkspacePreview>("preview_file", {
-      path: "runs/backtest#demo/universes/all/daily.parquet",
+      path: "backtest/backtest#demo/universes/all/daily.parquet",
       limit: 100,
     });
     const summary = await api.invoke<WorkspacePreview>("preview_file", {
-      path: "runs/backtest#demo/universes/all/summary.parquet",
+      path: "backtest/backtest#demo/universes/all/summary.parquet",
       limit: 100,
     });
     if (daily.kind !== "parquet" || summary.kind !== "parquet")
@@ -255,7 +244,7 @@ describe("static Playground", () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect((await status()).state).toBe("succeeded");
     await api.invoke("preview_file", {
-      path: `runs/${handle.task_id}/universes/all/daily.parquet`,
+      path: `${handle.task_id.split("#")[0]}/${handle.task_id}/universes/all/daily.parquet`,
     });
     await expect(client().invoke("status", { ...handle })).rejects.toThrow(
       "Unknown demo task",
@@ -264,7 +253,7 @@ describe("static Playground", () => {
     await expect(status()).rejects.toThrow("Unknown demo task");
     await expect(
       api.invoke("preview_file", {
-        path: `runs/${handle.task_id}/metadata.json`,
+        path: `${handle.task_id.split("#")[0]}/${handle.task_id}/metadata.json`,
       }),
     ).rejects.toThrow("not found");
   });
@@ -288,7 +277,7 @@ describe("static Playground", () => {
       (await api.invoke<TaskMetadata>("status", { ...failed })).state,
     ).toBe("failed");
     const preview = await api.invoke<WorkspacePreview>("preview_file", {
-      path: `runs/${failed.task_id}/metadata.json`,
+      path: `${failed.task_id.split("#")[0]}/${failed.task_id}/metadata.json`,
     });
     expect(preview.kind).toBe("json");
     if (preview.kind !== "json") throw new Error("Missing failed metadata");

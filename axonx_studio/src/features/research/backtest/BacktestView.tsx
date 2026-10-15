@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { taskDirectory } from "../../../shared/lib/tasks";
 import {
   AlertTriangle,
   ArrowDown,
@@ -10,6 +9,8 @@ import {
   LockKeyhole,
   RotateCcw,
 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { loadBacktest } from "./api";
 import { BacktestChart } from "./BacktestChart";
 import { DateRangeSlider } from "./DateRangeSlider";
@@ -157,7 +158,7 @@ export function BacktestView({
 }) {
   return (
     <UniverseBacktest
-      key={`${target || ""}:${meta._path}:${meta._modified || ""}`}
+      key={`${target || ""}:${taskDirectory(meta.task_id)}:${meta.run_id}`}
       meta={meta}
       target={target}
     />
@@ -172,11 +173,11 @@ function UniverseBacktest({
   target?: string;
 }) {
   const { t } = useTranslation();
-  const [universe, setUniverse] = useState(meta.default_universe);
+  const [universe, setUniverse] = useState(meta.output_params.default_universe);
   const cache = useRef(
     new Map<string, { daily: DailyRow[]; summary: SummaryRow[] }>(),
   );
-  const report = meta.universes?.[universe];
+  const report = meta.output_params.universes?.[universe];
   const [daily, setDaily] = useState<DailyRow[]>([]);
   const [summary, setSummary] = useState<SummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -218,11 +219,13 @@ function UniverseBacktest({
           value={universe || ""}
           onChange={(event) => setUniverse(event.target.value)}
         >
-          {Object.entries(meta.universes || {}).map(([key, value]) => (
-            <option key={key} value={key}>
-              {value.label}
-            </option>
-          ))}
+          {Object.entries(meta.output_params.universes || {}).map(
+            ([key, value]) => (
+              <option key={key} value={key}>
+                {value.label}
+              </option>
+            ),
+          )}
         </select>
       </label>
       {report && (

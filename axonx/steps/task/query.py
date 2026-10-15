@@ -18,9 +18,9 @@ class ListTaskStatusesStep(TaskManagerStep):
         detail = self.context.get("detail", "full")
         if detail not in {"summary", "full"}:
             raise ValueError("detail must be summary or full")
-        self.response.answer = (
-            await self.task_manager.list_summaries() if detail == "summary" else await self.task_manager.list_statuses()
-        )
+        filters = {key: self.context[key] for key in ("task_type", "state") if self.context.get(key) is not None}
+        query = self.task_manager.list_summaries if detail == "summary" else self.task_manager.list_statuses
+        self.response.answer = await query(**filters)
 
 
 @provider("get_status")

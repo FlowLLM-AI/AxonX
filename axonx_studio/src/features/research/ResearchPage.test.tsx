@@ -1,25 +1,33 @@
+import { axonx } from "../../shared/api/client";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import { seed } from "../../playground/fixtures";
 import { listTaskRuns, previewWorkspaceFile } from "../workspace/api";
 import ResearchPage from "./ResearchPage";
-import i18n from "../../i18n";
 
+vi.mock("../../shared/api/client", () => ({ axonx: { invoke: vi.fn() } }));
 vi.mock("../workspace/api", () => ({
   listTaskRuns: vi.fn(),
   previewWorkspaceFile: vi.fn(),
   deleteWorkspaceEntries: vi.fn(),
 }));
+vi.mock("./TrainingCurveChart", () => ({ TrainingCurveChart: () => null }));
 vi.mock("./backtest/BacktestChart", () => ({ BacktestChart: () => null }));
 
 it.each(["en", "zh"])(
   "loads universe metadata through the research index on the selected machine in %s",
   async (language) => {
     await i18n.changeLanguage(language);
-    const { files } = seed();
-    const path = "runs/backtest#demo";
+    const { files, tasks } = seed();
+    vi.mocked(axonx.invoke).mockImplementation(async (name) =>
+      name === "status"
+        ? tasks.get("backtest#demo")!
+        : [tasks.get("backtest#demo")!],
+    );
+    const path = "backtest/backtest#demo";
     vi.mocked(listTaskRuns).mockResolvedValue({
       path: "backtest",
       truncated: false,
@@ -101,3 +109,49 @@ it.each(["en", "zh"])(
     }
   },
 );
+
+it("reads training member count from the canonical model manifest", async () => {
+  const { files, tasks } = seed();
+  const task = tasks.get("train#demo")!;
+  vi.mocked(axonx.invoke).mockImplementation(async (name) =>
+    name === "status" ? task : [task],
+  );
+  vi.mocked(previewWorkspaceFile).mockImplementation(async (path) => {
+    const preview = files.get(path);
+    if (!preview) throw new Error(`Missing fixture ${path}`);
+    return preview;
+  });
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <ResearchPage
+          kind="train"
+          target="remote"
+          initialSelectedId="train#demo"
+          onConnection={vi.fn()}
+          onNavigate={vi.fn()}
+        />,
+      ),
+    );
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      const card = [
+        ...container.querySelectorAll(".artifact-kpis article"),
+      ].find((node) =>
+        node.textContent?.includes(i18n.t("research.model_members")),
+      );
+      expect(card?.querySelector("strong")?.textContent).toBe("1");
+    });
+    expect(previewWorkspaceFile).toHaveBeenCalledWith(
+      "train/train#demo/models.json",
+      0,
+      1,
+      "remote",
+      expect.any(AbortSignal),
+    );
+  } finally {
+    await act(async () => root.unmount());
+  }
+});

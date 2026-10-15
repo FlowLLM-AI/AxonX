@@ -6,8 +6,8 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ...enums import TaskType
-from ..protocol import validate_protocol
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
+from ..protocol import validate_protocol
 
 
 class BacktestBenchmark(BaseModel):
@@ -23,10 +23,6 @@ class BacktestDimensions(BaseModel):
     top_ns: list[int]
     holding_detail_top_n: int
     benchmarks: list[BacktestBenchmark]
-
-
-class BaseBacktestInputParams(BaseInputParams):
-    pass
 
 
 class BacktestUniverse(BaseModel):
@@ -77,5 +73,5 @@ class BaseBacktestTask(BaseTask, ABC):
     """Evaluate predictions and publish standard daily and summary artifacts."""
 
     task_type = TaskType.BACKTEST
-    input_cls = BaseBacktestInputParams
+    input_cls = BaseInputParams
     output_cls = BaseBacktestOutputParams

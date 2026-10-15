@@ -1,4 +1,4 @@
-import type { AgentSession, AgentHistoryBlock } from "../features/agent/types";
+import type { AgentHistoryBlock, AgentSession } from "../features/agent/types";
 import type { JobEvent } from "../shared/api/event";
 import { sse } from "./stream";
 
@@ -22,6 +22,11 @@ export function createAgent() {
     const id = `demo-session-${++serial}`;
     const session: AgentSession = {
       info: {
+        file_size: null,
+        custom_title: null,
+        git_branch: null,
+        cwd: null,
+        tag: null,
         session_id: id,
         summary: prompt,
         first_prompt: prompt,
@@ -29,7 +34,6 @@ export function createAgent() {
         last_modified: Date.now(),
         created_at: Date.now(),
       },
-      messages: [],
       blocks: [],
     };
     sessions.set(id, session);
@@ -164,7 +168,8 @@ export function createAgent() {
           kind: "agent_message",
           session_id: session.info.session_id,
           type_name: "AssistantMessage",
-          message: { uuid: assistant.message_uuid },
+          message_uuid: assistant.message_uuid,
+          role: "assistant",
           sequence: ++sequence,
           presentation: patches,
         });

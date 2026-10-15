@@ -3,11 +3,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
-import { AxonXClient, configureClient } from "../../shared/api/client";
+import { seed } from "../../playground/fixtures";
 import { createPlayground } from "../../playground/runtime";
+import { AxonXClient, configureClient } from "../../shared/api/client";
 import OnlinePage from "./OnlinePage";
 import { parseHistory, parseStockReport } from "./report";
-import { seed } from "../../playground/fixtures";
 
 vi.mock("../research/backtest/BacktestChart", () => ({
   BacktestChart: ({ rows }: { rows: unknown[] }) => (
@@ -165,8 +165,10 @@ it("rejects conflicting report settings and invalid signal dates", () => {
     seed().tasks.get(taskId)!.output_params.report,
   );
   const conflicting = structuredClone(report);
-  conflicting.portfolio = { ...conflicting.portfolio, holding_days: 100 };
-  expect(() => parseStockReport(conflicting)).toThrow("settings differ");
+  Object.assign(conflicting, { portfolio: { holding_days: 100 } });
+  expect(() => parseStockReport(conflicting)).toThrow(
+    "Invalid stock online report",
+  );
   const invalid = structuredClone(report);
   invalid.commit.trade_date = "20260230";
   expect(() => parseStockReport(invalid)).toThrow("Invalid online commit");
@@ -177,6 +179,7 @@ it("rejects the former online signals protocol", () => {
     seed().tasks.get(taskId)!.output_params.report,
   );
   const invalid = structuredClone(report) as unknown as Record<string, unknown>;
-  delete invalid.signals_format;
+  delete (invalid.commit as { protocol: { report: Record<string, unknown> } })
+    .protocol.report.signals_format;
   expect(() => parseStockReport(invalid)).toThrow();
 });

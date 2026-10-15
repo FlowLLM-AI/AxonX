@@ -8,6 +8,8 @@ import type { DisplayReplica } from "./lib/replica";
 
 const replica: DisplayReplica = {
   purpose: "display",
+  snapshot: null,
+  log: null,
   source_digest: "a".repeat(64),
   policy_digest: "b".repeat(64),
   files: {

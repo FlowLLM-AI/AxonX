@@ -13,6 +13,9 @@ describe("task summary progress", () => {
     void steps;
     const summary: TaskSummary = {
       ...metadata,
+      display_name: "test",
+      is_replica: false,
+      is_online: false,
       step_progress: {
         current: 24000,
         total: 24001,

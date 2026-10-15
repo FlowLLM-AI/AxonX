@@ -7,8 +7,10 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 
-from .contracts import JobResponse
+from ..agent.contracts import AgentBlockType
+from ...logs import LogChunk
 from ...progress import TaskStepStatus
+from .contracts import JobResponse
 
 
 class ProgressEvent(TaskStepStatus):
@@ -19,15 +21,8 @@ class ProgressEvent(TaskStepStatus):
         return cls.model_validate(status, from_attributes=True)
 
 
-class LogEvent(BaseModel):
+class LogEvent(LogChunk):
     kind: Literal["log"] = "log"
-    content: str = ""
-    start_offset: int = 0
-    next_offset: int = 0
-    file_size: int = 0
-    has_more_before: bool = False
-    has_more_after: bool = False
-    reset: bool = False
     channel: str = "task"
 
     @classmethod
@@ -47,7 +42,7 @@ class ArtifactEvent(BaseModel):
 class AgentBlockPatch(BaseModel):
     operation: Literal["start", "append", "replace", "finish"]
     block_id: str = Field(min_length=1)
-    block_type: Literal["thinking", "text", "tool", "system", "error"]
+    block_type: AgentBlockType
     delta: str = ""
     payload: dict[str, Any] = Field(default_factory=dict)
 
@@ -56,7 +51,8 @@ class AgentMessageEvent(BaseModel):
     kind: Literal["agent_message"] = "agent_message"
     session_id: str = Field(min_length=1)
     type_name: str
-    message: dict[str, Any]
+    message_uuid: str
+    role: Literal["user", "assistant", "system"]
     sequence: int = Field(ge=0)
     presentation: list[AgentBlockPatch] = Field(default_factory=list)
 

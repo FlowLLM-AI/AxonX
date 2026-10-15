@@ -52,7 +52,7 @@ progress may update the same name multiple times. A single step's percentage is 
 | reset                            | boolean, false       | Log reset indicator                                        |
 | channel                          | string, `"task"`     | Log channel                                                |
 
-TaskLogChunk from the read API and log events share their main fields; log events additionally include kind/channel. Pagination uses byte offsets, rather than JavaScript character counts. When reset appears, reset local window state, then process the chunk using its offsets.
+LogChunk from the read API and log events share their main fields; log events additionally include kind/channel. Pagination uses byte offsets, rather than JavaScript character counts. When reset appears, reset local window state, then process the chunk using its offsets.
 
 ### artifact
 

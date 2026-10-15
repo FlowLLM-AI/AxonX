@@ -493,7 +493,7 @@ async def test_statuses_are_sorted_by_creation_time_not_task_id():
     )
 
     class Index:
-        async def entries(self):
+        async def entries(self, **_filters):
             return {older.task_id: older, newer.task_id: newer}
 
     manager = object.__new__(LocalTaskManager)
@@ -522,7 +522,7 @@ async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid(ident
             assert manager._lock.locked()
             return status
 
-        async def entries(self):
+        async def entries(self, **_filters):
             return {status.task_id: status}
 
     class Supervisor:
@@ -1054,7 +1054,7 @@ async def test_cancel_cannot_confirm_unmanaged_active_run(identifiers):
         async def entry(self, task_id):
             return status
 
-        async def entries(self):
+        async def entries(self, **_filters):
             return {status.task_id: status}
 
     class Supervisor:
@@ -1085,7 +1085,7 @@ async def test_run_only_cancellation_stops_old_worker_without_updating_replaceme
     cancelled = []
 
     class Repository:
-        async def entries(self):
+        async def entries(self, **_filters):
             return {replacement.task_id: replacement}
 
     class Supervisor:
@@ -1115,7 +1115,7 @@ async def test_cancel_unknown_identifier_returns_false(arguments):
         async def entry(self, task_id):
             raise KeyError(task_id)
 
-        async def entries(self):
+        async def entries(self, **_filters):
             return {}
 
     class Supervisor:

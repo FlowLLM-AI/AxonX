@@ -21,7 +21,7 @@ def snapshot_model_collection(manifest_file: Path, destination: Path, *, expecte
         if not target.resolve().is_relative_to(destination.resolve()):
             raise ValueError("Model member path escapes snapshot directory")
         snapshot_file(source, target)
-        if file_sha256(target) != member["model_sha256"]:
+        if file_sha256(target) != manifest["artifacts"][name]["sha256"]:
             raise ValueError("Model collection changed during snapshot")
         records[name] = artifact_record(target, destination)
     path = destination / "models.json"

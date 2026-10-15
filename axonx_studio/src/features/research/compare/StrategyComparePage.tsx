@@ -1,7 +1,3 @@
-import type { TaskMetadata } from "../../tasks/types";
-import { displayArtifacts } from "../../../shared/lib/replica";
-import { parseSourceTasks } from "../../../shared/lib/sourceTasks";
-import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -11,8 +7,12 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listTaskRuns, previewWorkspaceFile } from "../../workspace/api";
+import { useAsyncResource } from "../../../shared/hooks/useAsyncResource";
+import type { TaskSummary } from "../../tasks/types";
+import { parseSourceTasks } from "../../../shared/lib/sourceTasks";
+import { getResearchTask, listResearchTasks } from "../api";
 import { BacktestChart } from "../backtest/BacktestChart";
 import { loadBacktestDaily } from "../backtest/api";
 import type {
@@ -24,8 +24,8 @@ import type {
 } from "../backtest/types";
 import {
   cumulativeSeries,
-  finite,
   executionCostRates,
+  finite,
   holdingOverlap,
   pairDays,
   pairedMean,
@@ -37,16 +37,9 @@ import {
   type PeriodUnit,
 } from "./model";
 
-type CompareTab = "overview" | "returns" | "periods" | "quality" | "trading";
-type CompareTask = BacktestArtifact & {
-  settings: {
-    buyCost: number;
-    sellCost: number;
-    annualizationDays?: number;
-    riskFreeRate?: number;
-  };
-};
+const EMPTY_TASKS: TaskSummary[] = [];
 
+type CompareTab = "overview" | "returns" | "periods" | "quality" | "trading";
 const numeric = (value: unknown) => {
   const number = finite(value);
   return Number.isFinite(number) ? number : NaN;
@@ -61,66 +54,12 @@ const dateInput = (value: string) =>
   `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
 const compactDate = (value: string) => value.replaceAll("-", "");
 
-async function loadTasks(
-  target: string | undefined,
-  signal: AbortSignal,
-): Promise<CompareTask[]> {
-  const directory = await listTaskRuns("backtest", target, signal);
-  const records = await Promise.all(
-    directory.entries
-      .filter((entry) => entry.kind === "directory")
-      .map(async (entry): Promise<CompareTask | null> => {
-        try {
-          const preview = await previewWorkspaceFile(
-            `${entry.path}/metadata.json`,
-            0,
-            200,
-            target,
-            signal,
-          );
-          if (
-            preview.kind !== "json" ||
-            !preview.data ||
-            typeof preview.data !== "object" ||
-            Array.isArray(preview.data)
-          )
-            return null;
-          const raw = preview.data as unknown as TaskMetadata;
-          if (raw.state !== "succeeded") return null;
-          const input = raw.input_params;
-          const output = raw.output_params;
-          const artifacts = displayArtifacts(raw);
-          if (!output.universes || !output.default_universe) return null;
-          return {
-            _path: entry.path,
-            task_key: raw.reg_name,
-            created_at: String(raw.created_at || ""),
-            config: {
-              task_id: raw.task_id,
-              task_type: "backtest" as const,
-              task_name: String(input.task_name),
-            },
-            artifacts,
-            signals_format:
-              output.signals_format as BacktestArtifact["signals_format"],
-            default_universe: output.default_universe as string,
-            universes: output.universes as BacktestArtifact["universes"],
-            protocol: output.protocol as BacktestArtifact["protocol"],
-            source: parseSourceTasks(input.source_tasks),
-            settings: {
-              ...executionCostRates(input),
-              annualizationDays: numeric(input.annualization_days),
-              riskFreeRate: numeric(input.annual_risk_free_rate),
-            },
-          } satisfies CompareTask;
-        } catch {
-          return null;
-        }
-      }),
-  );
-  return records
-    .filter((task): task is CompareTask => task !== null)
-    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+function comparisonSettings(task: BacktestArtifact | null) {
+  return {
+    ...executionCostRates(task?.input_params || {}),
+    annualizationDays: numeric(task?.input_params.annualization_days),
+    riskFreeRate: numeric(task?.input_params.annual_risk_free_rate),
+  };
 }
 
 function ComparisonTable({
@@ -213,10 +152,7 @@ export default function StrategyComparePage({
   const { t, i18n } = useTranslation();
   const zh = i18n.resolvedLanguage === "zh";
   const locale = zh ? "zh-CN" : "en-US";
-  const [tasks, setTasks] = useState<CompareTask[]>([]);
-  const [listLoading, setListLoading] = useState(true);
-  const [listError, setListError] = useState("");
-  const [reload, setReload] = useState(0);
+
   const [query, setQuery] = useState("");
   const [idA, setIdA] = useState(initialTaskId || "");
   const [idB, setIdB] = useState("");
@@ -246,46 +182,67 @@ export default function StrategyComparePage({
   useEffect(() => {
     if (initialTaskId) setIdA(initialTaskId);
   }, [initialTaskId]);
-  useEffect(() => {
-    const controller = new AbortController();
-    setListLoading(true);
-    setListError("");
-    loadTasks(target, controller.signal)
-      .then((values) => {
-        if (!controller.signal.aborted) {
-          setTasks(values);
-          onConnection(true);
-        }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setListError(String(error));
-          onConnection(false);
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setListLoading(false);
-      });
-    return () => controller.abort();
-  }, [target, reload, onConnection]);
+  const loadList = useCallback(
+    async (signal: AbortSignal) => {
+      try {
+        const summaries = await listResearchTasks("backtest", target, signal);
+        signal.throwIfAborted();
+        onConnection(true);
+        return summaries;
+      } catch (error) {
+        if (!signal.aborted) onConnection(false);
+        throw error;
+      }
+    },
+    [target, onConnection],
+  );
+  const {
+    data: summaries,
+    loading: listLoading,
+    error: listError,
+    reload: reloadList,
+  } = useAsyncResource(loadList);
+  const tasks = summaries ?? EMPTY_TASKS;
 
   const [universeA, setUniverseA] = useState("");
   const [universeB, setUniverseB] = useState("");
-  const taskA = tasks.find((task) => task.config.task_id === idA);
-  const taskB = tasks.find((task) => task.config.task_id === idB);
-  const selectedA = taskA?.universes[universeA]
+  const loadSelected = useCallback(
+    async (signal: AbortSignal) => {
+      const ids = [idA, idB].filter((id) =>
+        tasks.some((task) => task.task_id === id),
+      );
+      return Promise.all(
+        [...new Set(ids)].map((id) =>
+          getResearchTask("backtest", id, target, signal),
+        ),
+      );
+    },
+    [idA, idB, tasks, target],
+  );
+  const {
+    data: selectedTasks,
+    error: detailError,
+    loading: detailLoading,
+  } = useAsyncResource(loadSelected);
+  const taskA = selectedTasks?.find((task) => task.task_id === idA) || null;
+  const taskB = selectedTasks?.find((task) => task.task_id === idB) || null;
+  const settingsA = comparisonSettings(taskA);
+  const settingsB = comparisonSettings(taskB);
+  const selectedA = taskA?.output_params.universes[universeA]
     ? universeA
-    : taskA?.default_universe || "";
-  const selectedB = taskB?.universes[universeB]
+    : taskA?.output_params.default_universe || "";
+  const selectedB = taskB?.output_params.universes[universeB]
     ? universeB
-    : taskB?.default_universe || "";
-  const reportA = taskA?.universes[selectedA];
-  const reportB = taskB?.universes[selectedB];
+    : taskB?.output_params.default_universe || "";
+  const reportA = taskA?.output_params.universes[selectedA];
+  const reportB = taskB?.output_params.universes[selectedB];
   const pair = `${idA}:${selectedA}\n${idB}:${selectedB}`;
   useEffect(() => {
-    if (!taskA || !taskB || idA === idB) {
+    if (detailLoading || !taskA || !taskB || idA === idB) {
       setDailyA([]);
       setDailyB([]);
+      setDataError("");
+      setDataLoading(false);
       setLoadedPair("");
       return;
     }
@@ -316,6 +273,7 @@ export default function StrategyComparePage({
   }, [
     taskA,
     taskB,
+    detailLoading,
     idA,
     idB,
     selectedA,
@@ -350,9 +308,9 @@ export default function StrategyComparePage({
   const annualizationDays =
     taskA &&
     taskB &&
-    Number.isFinite(taskA.settings.annualizationDays) &&
-    taskA.settings.annualizationDays === taskB.settings.annualizationDays
-      ? taskA.settings.annualizationDays!
+    Number.isFinite(settingsA.annualizationDays) &&
+    settingsA.annualizationDays === settingsB.annualizationDays
+      ? settingsA.annualizationDays!
       : 252;
   const statsA = useMemo(
     () => strategyStats(visible, "a", selectedTopN, annualizationDays),
@@ -371,7 +329,7 @@ export default function StrategyComparePage({
       row.date === "__start__" ? { ...row, date: t("common.start") } : row,
     );
   const availableTasks = tasks.filter((task) =>
-    `${task.config.task_id} ${task.config.task_name}`
+    `${task.task_id} ${task.display_name}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
@@ -390,24 +348,30 @@ export default function StrategyComparePage({
       )
     )
       warnings.push(t("backtest.incomplete_market_data"));
-    if (taskA.protocol?.version !== taskB.protocol?.version)
+    if (
+      taskA.output_params.protocol?.version !==
+      taskB.output_params.protocol?.version
+    )
       warnings.push(t("compare.accounting_protocols_differ"));
     if (
       (["buyCost", "sellCost"] as const).some(
         (side) =>
-          Number.isFinite(taskA.settings[side]) &&
-          Number.isFinite(taskB.settings[side]) &&
-          taskA.settings[side] !== taskB.settings[side],
+          Number.isFinite(settingsA[side]) &&
+          Number.isFinite(settingsB[side]) &&
+          settingsA[side] !== settingsB[side],
       )
     )
       warnings.push(t("compare.transaction_costs_differ"));
     if (
-      Number.isFinite(taskA.settings.annualizationDays) &&
-      Number.isFinite(taskB.settings.annualizationDays) &&
-      taskA.settings.annualizationDays !== taskB.settings.annualizationDays
+      Number.isFinite(settingsA.annualizationDays) &&
+      Number.isFinite(settingsB.annualizationDays) &&
+      settingsA.annualizationDays !== settingsB.annualizationDays
     )
       warnings.push(t("compare.annualization_differs_comparison_uses_252"));
-    if ((taskA.source || []).join() !== (taskB.source || []).join())
+    if (
+      parseSourceTasks(taskA.input_params.source_tasks).join() !==
+      parseSourceTasks(taskB.input_params.source_tasks).join()
+    )
       warnings.push(t("compare.prediction_sources_differ"));
     if (dailyA.length !== points.length || dailyB.length !== points.length)
       warnings.push(t("compare.only_shared_days_with_valid"));
@@ -486,7 +450,7 @@ export default function StrategyComparePage({
               <button
                 type="button"
                 className="run-index-refresh rail-refresh"
-                onClick={() => setReload((value) => value + 1)}
+                onClick={() => void reloadList()}
                 aria-label={t("compare.refresh_tasks")}
               >
                 <RefreshCw className={listLoading ? "spin" : ""} />
@@ -525,28 +489,22 @@ export default function StrategyComparePage({
             {availableTasks.map((task) => (
               <article
                 className={
-                  idA === task.config.task_id || idB === task.config.task_id
-                    ? "active"
-                    : ""
+                  idA === task.task_id || idB === task.task_id ? "active" : ""
                 }
-                key={task.config.task_id}
+                key={task.task_id}
               >
                 <button
                   className="run-main rail-list-item compare-run-item"
                   type="button"
-                  aria-pressed={
-                    idA === task.config.task_id || idB === task.config.task_id
-                  }
-                  onClick={() => toggleTask(task.config.task_id)}
+                  aria-pressed={idA === task.task_id || idB === task.task_id}
+                  onClick={() => toggleTask(task.task_id)}
                 >
                   <span className="run-item-avatar rail-avatar run-kind-backtest">
-                    {task.task_key.slice(0, 1).toUpperCase()}
+                    {task.reg_name.slice(0, 1).toUpperCase()}
                   </span>
                   <span className="rail-item-copy">
-                    <strong>{task.task_key}</strong>
-                    <code title={task.config.task_id}>
-                      {task.config.task_id}
-                    </code>
+                    <strong>{task.reg_name}</strong>
+                    <code title={task.task_id}>{task.task_id}</code>
                     <small>
                       {task.created_at
                         ? new Date(task.created_at).toLocaleString(locale)
@@ -554,11 +512,11 @@ export default function StrategyComparePage({
                     </small>
                   </span>
                   <span
-                    className={`compare-slot-badge${idA === task.config.task_id ? " slot-a" : idB === task.config.task_id ? " slot-b" : ""}`}
+                    className={`compare-slot-badge${idA === task.task_id ? " slot-a" : idB === task.task_id ? " slot-b" : ""}`}
                   >
-                    {idA === task.config.task_id
+                    {idA === task.task_id
                       ? "A"
-                      : idB === task.config.task_id
+                      : idB === task.task_id
                         ? "B"
                         : "+"}
                   </span>
@@ -577,8 +535,8 @@ export default function StrategyComparePage({
                 <span>{index === 0 ? "A" : "B"}</span>
                 <div>
                   <small>{t("compare.backtest_task")}</small>
-                  <strong title={task?.config.task_id}>
-                    {task?.config.task_id || t("compare.choose_from_the_list")}
+                  <strong title={task?.task_id}>
+                    {task?.task_id || t("compare.choose_from_the_list")}
                   </strong>
                   {task && (
                     <select
@@ -590,11 +548,13 @@ export default function StrategyComparePage({
                         )
                       }
                     >
-                      {Object.entries(task.universes).map(([key, report]) => (
-                        <option key={key} value={key}>
-                          {report.label}
-                        </option>
-                      ))}
+                      {Object.entries(task.output_params.universes).map(
+                        ([key, report]) => (
+                          <option key={key} value={key}>
+                            {report.label}
+                          </option>
+                        ),
+                      )}
                     </select>
                   )}
                 </div>
@@ -615,7 +575,19 @@ export default function StrategyComparePage({
               <ArrowLeftRight />
             </button>
           </div>
-          {!taskA || !taskB ? (
+          {dataError || detailError ? (
+            <div className="compare-empty error" role="alert">
+              <AlertTriangle />
+              <strong>{t("compare.unable_to_load_backtests")}</strong>
+              <span>{dataError || detailError}</span>
+            </div>
+          ) : detailLoading ||
+            (taskA && taskB && (dataLoading || loadedPair !== pair)) ? (
+            <div className="compare-empty">
+              <LoaderCircle className="spin" />
+              <strong>{t("compare.calculating_shared_window")}</strong>
+            </div>
+          ) : !taskA || !taskB ? (
             <div className="compare-empty">
               <GitCompareArrows />
               <strong>{t("compare.select_two_backtests_to_compare")}</strong>
@@ -624,17 +596,6 @@ export default function StrategyComparePage({
                   ? t("compare.only_one_backtest_is_available")
                   : t("compare.click_two_task_versions_on")}
               </span>
-            </div>
-          ) : dataError ? (
-            <div className="compare-empty error">
-              <AlertTriangle />
-              <strong>{t("compare.unable_to_load_backtests")}</strong>
-              <span>{dataError}</span>
-            </div>
-          ) : dataLoading || loadedPair !== pair ? (
-            <div className="compare-empty">
-              <LoaderCircle className="spin" />
-              <strong>{t("compare.calculating_shared_window")}</strong>
             </div>
           ) : !commonTopNs.length ? (
             <div className="compare-empty error">

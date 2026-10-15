@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 import shutil
 import stat
-from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -16,7 +15,7 @@ from ...enums import TaskState, TaskType
 from ...utils.fs import atomic_write_json
 from ..core.identity import task_type_from_id
 from ..protocol import Protocol
-from ..source import TaskSource
+from ..status import TaskStatus
 from .replica import DisplayReplica
 from ...progress import TaskStepStatus
 
@@ -44,28 +43,14 @@ class ChildTaskRecord(BaseModel):
     error: str = ""
 
 
-class TaskMetadata(Protocol):
+class TaskMetadata(Protocol, TaskStatus):
     """The complete current lifecycle record, from queued to terminal."""
 
     model_config = ConfigDict(extra="forbid")
-    task_id: str
-    run_id: str = Field(min_length=1)
-    task_type: TaskType
-    reg_name: str = ""
-    source: TaskSource = Field(default_factory=TaskSource)
     input_params: dict[str, Any] = Field(default_factory=dict)
     output_params: dict[str, Any] = Field(default_factory=dict)
     children: list[ChildTaskRecord] = Field(default_factory=list)
-    report_kind: str | None = None
-    state: TaskState = TaskState.QUEUED
-    pid: int | None = None
-    created_at: datetime | None = None
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
     steps: list[TaskStepStatus] = Field(default_factory=list)
-    error: str = ""
-    exit_code: int = Field(default=0, ge=0, le=255)
-    log_path: str = ""
     replica: DisplayReplica | None = None
 
 

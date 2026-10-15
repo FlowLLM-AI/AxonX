@@ -65,3 +65,9 @@ repos:
         entry: prettier --check
         additional_dependencies: [prettier@3.9.9]
         files: '^(axonx_studio|github-pages|docs)/.*\.(ts|tsx|mts|js|mjs|json|css|html|vue|md)$'
+      - id: studio-contracts
+        name: Studio contracts match Python models
+        language: system
+        entry: python -m scripts.generate_studio_contracts --check
+        pass_filenames: false
+        files: '^(axonx/.*\.py|scripts/generate_studio_contracts\.py|axonx_studio/src/shared/api/contracts\.ts)$'

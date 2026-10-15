@@ -8,12 +8,7 @@ from ...enums import TaskType
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 
-class BaseAnalysisInputParams(BaseInputParams):
-    pass
-
-
 class BaseAnalysisOutputParams(BaseOutputParams):
-    result_file: str
     rows: int
     scores: dict[str, dict[str, float]] = Field(default_factory=dict)
 
@@ -25,5 +20,5 @@ class BaseAnalysisTask(BaseTask, ABC):
     """
 
     task_type = TaskType.ANALYSIS
-    input_cls = BaseAnalysisInputParams
+    input_cls = BaseInputParams
     output_cls = BaseAnalysisOutputParams

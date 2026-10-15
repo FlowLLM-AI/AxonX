@@ -105,6 +105,7 @@ it("follows a completed replica every five seconds using its replicated log", as
   task.state = "succeeded";
   task.replica = {
     purpose: "display",
+    snapshot: null,
     source_digest: "a".repeat(64),
     policy_digest: "b".repeat(64),
     files: {},

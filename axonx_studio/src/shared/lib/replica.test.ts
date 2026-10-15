@@ -10,6 +10,8 @@ it("uses actual sampled hashes and excludes omitted artifact links", () => {
   };
   metadata.replica = {
     purpose: "display",
+    snapshot: null,
+    log: null,
     source_digest: "a".repeat(64),
     policy_digest: "b".repeat(64),
     files: {

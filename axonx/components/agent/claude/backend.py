@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import suppress
 from collections import defaultdict
 from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import asdict, fields
 from functools import lru_cache
 from pathlib import Path
@@ -18,12 +18,18 @@ from ...job.events import AgentMessageEvent, JobEvent, ResultEvent
 from ...registry import provider
 from ..base import BaseAgentComponent
 from ..local_session_store import LocalAgentSessionStore
-from .projector import ClaudeMessageProjector, history_blocks, message_payload
+from ..contracts import AgentSession, AgentSessionInfo
+from .projector import ClaudeMessageProjector, history_blocks
 from .session_store import ClaudeSessionStoreAdapter
 from .tools import JobToolServer
 
 if TYPE_CHECKING:
-    from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, ResultMessage, SystemPromptPreset
+    from claude_agent_sdk import (
+        ClaudeAgentOptions,
+        ClaudeSDKClient,
+        ResultMessage,
+        SystemPromptPreset,
+    )
 
 
 @lru_cache(maxsize=1)
@@ -207,7 +213,8 @@ class ClaudeAgentComponent(BaseAgentComponent):
                 yield AgentMessageEvent(
                     session_id=current_session,
                     type_name="SessionStart",
-                    message={"session_id": current_session, "resumed": resume},
+                    message_uuid=f"{current_session}:init",
+                    role="system",
                     sequence=sequence,
                 )
                 sequence += 1
@@ -224,7 +231,20 @@ class ClaudeAgentComponent(BaseAgentComponent):
                     yield AgentMessageEvent(
                         session_id=event_session,
                         type_name=type(sdk_message).__name__,
-                        message=message_payload(sdk_message),
+                        message_uuid=str(
+                            getattr(sdk_message, "uuid", None)
+                            or getattr(sdk_message, "message_id", None)
+                            or f"{event_session}:{sequence}"
+                        ),
+                        role=(
+                            "user"
+                            if type(sdk_message).__name__ == "UserMessage"
+                            else (
+                                "assistant"
+                                if type(sdk_message).__name__ in {"AssistantMessage", "StreamEvent"}
+                                else "system"
+                            )
+                        ),
                         sequence=sequence,
                         presentation=patches,
                     )
@@ -242,13 +262,13 @@ class ClaudeAgentComponent(BaseAgentComponent):
             if not result_seen:
                 raise RuntimeError("Claude SDK produced no ResultMessage")
 
-    async def list_sessions(self, *, limit: int | None = None, offset: int = 0) -> list[dict[str, Any]]:
+    async def list_sessions(self, *, limit: int | None = None, offset: int = 0) -> list[AgentSessionInfo]:
         from claude_agent_sdk import list_sessions_from_store
 
         sessions = await list_sessions_from_store(self.sdk_store, directory=str(self.cwd), limit=limit, offset=offset)
-        return [{**asdict(item), "backend": self.backend} for item in sessions]
+        return [AgentSessionInfo(**asdict(item), backend=self.backend) for item in sessions]
 
-    async def get_session(self, session_id: str, *, limit: int | None = None, offset: int = 0) -> dict[str, Any]:
+    async def get_session(self, session_id: str, *, limit: int | None = None, offset: int = 0) -> AgentSession:
         from claude_agent_sdk import (
             get_session_info_from_store,
             get_session_messages_from_store,
@@ -264,11 +284,10 @@ class ClaudeAgentComponent(BaseAgentComponent):
             limit=limit,
             offset=offset,
         )
-        return {
-            "info": {**asdict(info), "backend": self.backend},
-            "messages": [asdict(item) for item in messages],
-            "blocks": history_blocks(messages),
-        }
+        return AgentSession(
+            info=AgentSessionInfo(**asdict(info), backend=self.backend),
+            blocks=history_blocks(messages),
+        )
 
     async def rename_session(self, session_id: str, title: str) -> None:
         from claude_agent_sdk import rename_session_via_store

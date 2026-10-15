@@ -603,9 +603,9 @@ def test_empty_universe_keeps_cash_and_does_not_erase_signal_dates():
 
 
 def test_backtest_contract_requires_reports_and_resolves_every_artifact():
+    from axonx.enums import TaskType
     from axonx.task.contracts import BaseBacktestOutputParams
     from axonx.task.protocol import task_protocol
-    from axonx.enums import TaskType
 
     report = {
         "label": "All",
@@ -616,7 +616,13 @@ def test_backtest_contract_requires_reports_and_resolves_every_artifact():
         "evaluation_status": "done",
         "artifacts": {"daily": "all_daily", "summary": "all_summary"},
     }
-    shared = {"protocol": task_protocol(TaskType.BACKTEST), "artifacts": {"all_daily": {}, "all_summary": {}}}
+    shared = {
+        "protocol": task_protocol(TaskType.BACKTEST),
+        "artifacts": {
+            "all_daily": {"path": "daily.parquet", "size": 1, "sha256": "0" * 64},
+            "all_summary": {"path": "summary.parquet", "size": 1, "sha256": "0" * 64},
+        },
+    }
     assert BaseBacktestOutputParams(default_universe="all", universes={"all": report}, **shared)
     with pytest.raises(ValueError, match="default_universe"):
         BaseBacktestOutputParams(default_universe="missing", universes={"all": report}, **shared)

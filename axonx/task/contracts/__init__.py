@@ -1,81 +1,78 @@
 """Optional standard contracts for common data and model Task capabilities."""
 
+from ..artifact import ArtifactRecord
+from ..core import BaseInputParams
 from .analysis import (
-    BaseAnalysisInputParams,
     BaseAnalysisOutputParams,
     BaseAnalysisTask,
 )
 from .backtest import (
-    BacktestUniverse,
-    BacktestUniverseReport,
     BacktestBenchmark,
     BacktestDimensions,
-    BaseBacktestInputParams,
+    BacktestUniverse,
+    BacktestUniverseReport,
     BaseBacktestOutputParams,
     BaseBacktestTask,
 )
-from .etl import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
-from .predict import BasePredictInputParams, BasePredictOutputParams, BasePredictTask
-from .submission import TaskHandle
-from .train import (
-    BaseTrainInputParams,
-    BaseTrainOutputParams,
-    BaseTrainTask,
-    TrainingCurve,
-)
-
-from .windows import DeadlineBudget, ExecutionWindow, WindowClock, WindowResult
-from .realtime import (
-    BaseRealtimeApiInputParams,
-    BaseRealtimeApiOutputParams,
-    BaseRealtimeApiTask,
-)
-from .inference import (
-    BaseInferenceInputParams,
-    BaseInferenceOutputParams,
-    BaseInferenceTask,
-)
-from .online import OnlineArtifact, OnlineCommit, OnlineHistory, StockOnlineReport
 from .compare import (
     BasePredictionCompareInputParams,
     BasePredictionCompareOutputParams,
     BasePredictionCompareTask,
     PredictionComparison,
 )
+from .etl import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
+from .inference import (
+    BaseInferenceOutputParams,
+    BaseInferenceTask,
+)
+from .online import OnlineCommit, OnlineHistory, StockOnlineReport, StockReportSettings
+from .predict import BasePredictOutputParams, BasePredictTask
+from .realtime import BaseRealtimeApiTask
+from .submission import TaskHandle
+from .train import (
+    BaseTrainOutputParams,
+    BaseTrainTask,
+    TrainingCurve,
+)
+from .windows import (
+    DeadlineBudget,
+    ExecutionWindow,
+    WindowClock,
+    WindowInputParams,
+    WindowOutputParams,
+    WindowResult,
+)
 
 __all__ = [
     "BacktestUniverse",
     "BacktestUniverseReport",
-    "BaseAnalysisInputParams",
     "BaseAnalysisOutputParams",
     "BaseAnalysisTask",
     "BacktestBenchmark",
     "BacktestDimensions",
-    "BaseBacktestInputParams",
     "BaseBacktestOutputParams",
     "BaseBacktestTask",
     "BaseETLInputParams",
     "BaseETLOutputParams",
     "BaseETLTask",
-    "BasePredictInputParams",
     "BasePredictOutputParams",
     "BasePredictTask",
-    "BaseTrainInputParams",
     "BaseTrainOutputParams",
     "BaseTrainTask",
+    "BaseInputParams",
+    "WindowInputParams",
     "TaskHandle",
     "TrainingCurve",
     "DeadlineBudget",
     "ExecutionWindow",
     "WindowClock",
     "WindowResult",
-    "BaseRealtimeApiInputParams",
-    "BaseRealtimeApiOutputParams",
+    "WindowOutputParams",
     "BaseRealtimeApiTask",
-    "BaseInferenceInputParams",
     "BaseInferenceOutputParams",
     "BaseInferenceTask",
-    "OnlineArtifact",
+    "ArtifactRecord",
+    "StockReportSettings",
     "OnlineCommit",
     "OnlineHistory",
     "StockOnlineReport",

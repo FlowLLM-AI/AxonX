@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
+import { seed, table } from "../../playground/fixtures";
 import { previewWorkspaceFile } from "../workspace/api";
 import { loadHistory, loadRows } from "./api";
-import { seed, table } from "../../playground/fixtures";
 import { parseStockReport } from "./report";
 
 vi.mock("../workspace/api", () => ({ previewWorkspaceFile: vi.fn() }));
@@ -44,7 +44,5 @@ it("rejects partial history previews and non-Parquet data", async () => {
   await expect(loadHistory(taskId)).rejects.toThrow(
     "Invalid online history file",
   );
-  await expect(loadRows(report.commit, "signal")).rejects.toThrow(
-    "Expected Parquet",
-  );
+  await expect(loadRows(report.commit, "signal")).rejects.toThrow("Parquet");
 });

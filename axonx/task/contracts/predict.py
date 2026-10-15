@@ -6,19 +6,13 @@ from typing import Any
 from pydantic import Field, model_validator
 
 from ...enums import TaskType
-from ..protocol import PredictionProtocol
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
-
-
-class BasePredictInputParams(BaseInputParams):
-    pass
+from ..protocol import PredictionProtocol
 
 
 class BasePredictOutputParams(BaseOutputParams):
     """Describe the prediction artifact consumed by downstream tasks."""
 
-    predictions_file: str
-    score_columns: dict[str, str] = Field(min_length=1, description="Model member IDs mapped to raw score columns.")
     rows: int
     date_range: dict[str, str]
     output_columns: list[str] = Field(default_factory=list)
@@ -28,7 +22,7 @@ class BasePredictOutputParams(BaseOutputParams):
     @model_validator(mode="after")
     def validate_prediction_protocol(self):
         protocol = PredictionProtocol.model_validate(self.protocol)
-        if protocol.task_type != TaskType.PREDICT or protocol.score_columns != self.score_columns:
+        if protocol.task_type != TaskType.PREDICT:
             raise ValueError("Prediction output differs from its protocol")
         return self
 
@@ -40,5 +34,5 @@ class BasePredictTask(BaseTask, ABC):
     """
 
     task_type = TaskType.PREDICT
-    input_cls = BasePredictInputParams
+    input_cls = BaseInputParams
     output_cls = BasePredictOutputParams

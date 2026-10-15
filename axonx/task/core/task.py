@@ -17,6 +17,8 @@ from ...constants import (
 )
 from ...enums import ComponentEnum, TaskType
 from ...utils import get_log_path, get_logger
+from ..clock import WindowClock
+from ..source import TaskSource
 from ..storage.workspace import (
     METADATA_FILE,
     PERSISTENT_DIR,
@@ -25,8 +27,6 @@ from ..storage.workspace import (
     task_id_from_path,
     task_path,
 )
-from ..source import TaskSource
-from ..clock import WindowClock
 from .context import TaskContext
 from .identity import (
     generated_task_name,
@@ -197,6 +197,13 @@ class BaseTask(ABC):
     @property
     def output(self) -> dict:
         return self.output_params.model_dump(mode="json", by_alias=True)
+
+    def artifact_path(self, name: str) -> Path:
+        """Resolve a validated published output within this Task's directory."""
+        from ..storage.artifacts import artifact_path
+
+        record = self.output_params.artifacts[name].model_dump()
+        return artifact_path(self.task_dir, {"output_params": {"artifacts": {name: record}}}, name)
 
     def prepare_output(self) -> BaseOutputParams:
         """Build one typed result after all steps complete."""

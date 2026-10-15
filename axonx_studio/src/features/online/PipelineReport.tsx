@@ -382,6 +382,9 @@ function Outcome({
   target?: string;
 }) {
   const { t } = useTranslation();
+  const coverage = "coverage" in row ? row.coverage : null;
+  const rows = "rows" in row ? row.rows : null;
+  const elapsed = "elapsed_seconds" in row ? row.elapsed_seconds : null;
   return (
     <section className="online-outcome">
       <header>
@@ -391,23 +394,23 @@ function Outcome({
         </span>
       </header>
       <div className="online-metrics">
-        {row.coverage != null && (
+        {coverage != null && (
           <div>
             <span>{t("onlinePipeline.coverage")}</span>
-            <strong>{(row.coverage * 100).toFixed(1)}%</strong>
-            <progress max={1} value={row.coverage} />
+            <strong>{(coverage * 100).toFixed(1)}%</strong>
+            <progress max={1} value={coverage} />
           </div>
         )}
-        {row.rows != null && (
+        {rows != null && (
           <div>
             <span>{t("onlinePipeline.rows")}</span>
-            <strong>{row.rows.toLocaleString()}</strong>
+            <strong>{rows.toLocaleString()}</strong>
           </div>
         )}
-        {row.elapsed_seconds != null && (
+        {elapsed != null && (
           <div>
             <span>{t("onlinePipeline.elapsed")}</span>
-            <strong>{row.elapsed_seconds.toFixed(1)}s</strong>
+            <strong>{elapsed.toFixed(1)}s</strong>
           </div>
         )}
         {Object.entries(row.metrics || {})

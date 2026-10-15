@@ -8,8 +8,9 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from ..core import BaseInputParams, BaseTask
+from ..artifact import ArtifactRecord
 from ..clock import WindowClock
+from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 
 class ExecutionWindow(BaseModel):
@@ -35,7 +36,7 @@ class WindowResult(BaseModel):
     elapsed_seconds: float = Field(default=0, ge=0)
     rows: int = Field(default=0, ge=0)
     coverage: float | None = Field(default=None, ge=0, le=1)
-    artifacts: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    artifacts: dict[str, ArtifactRecord] = Field(default_factory=dict)
     metrics: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -45,6 +46,10 @@ class WindowResult(BaseModel):
         if self.commit_id is not None and self.status != "done":
             raise ValueError("Only completed windows may publish a commit")
         return self
+
+
+class WindowOutputParams(BaseOutputParams):
+    windows: list[WindowResult] = Field(default_factory=list)
 
 
 class WindowInputParams(BaseInputParams):
@@ -84,7 +89,9 @@ class DeadlineBudget:
 class _WindowTask(BaseTask):
     """Shared orchestration only; no market calendar, model or data format assumptions."""
 
+    report_kind = "online"
     input_cls = WindowInputParams
+    output_cls = WindowOutputParams
     window_results: list[WindowResult]
     clock: WindowClock
 
@@ -177,3 +184,6 @@ class _WindowTask(BaseTask):
 
     def window_output(self) -> dict:
         return {"windows": [result.model_dump(mode="json") for result in self.window_results]}
+
+    def build_output_params(self) -> WindowOutputParams:
+        return self.output_cls(**self.window_output())

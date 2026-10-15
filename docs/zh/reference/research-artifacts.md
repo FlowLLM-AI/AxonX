@@ -13,7 +13,7 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可独立使用的研究元数据必须包含 `version=1`，并在 `task_type` 中复用现有 `TaskType`；不新增产物 kind 枚举，不保留插件自己的版本计数器。读取时拒绝缺少协议头和其他版本的数据。旧工作区和模型需要重新生成，不提供迁移或回退读取。
 
-训练使用 `ModelCollection`：一个 `models.json` 保存特征契约、训练上下文、命名成员、模型配置及带哈希的产物引用。成员和 checkpoint 权重不再各自生成 metadata 文件。`BaseTrainOutputParams.protocol` 保存集合，`model_files` 使用相同成员名。插件保留原生权重序列化；带版本的模型容器使用同一个公共协议头。
+训练通过 `artifacts.model_manifest` 注册唯一的 `models.json`，保存特征契约、训练上下文、成员配置和产物引用。成员只引用产物名称，哈希只保存在产物记录中。任务输出保留训练摘要和曲线，不再重复保存完整集合和模型路径。
 
 离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份字符串值的 `model_identity`、覆盖日期 `dates`、分数列 `score_columns` 和文件哈希 `predictions_sha256`。模型身份使用 `models_sha256` 和 `features_sha256`，不包含日期、路径，也不按日期重复复制身份。股票特征契约与指纹由 `axonx.task.builtins.stock.protocol` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.models` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
 
@@ -39,7 +39,7 @@ AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可�
 
 示例 size 和摘要只是说明字段；实际必须从生成文件计算。`artifact_record(path, task_dir)` 会生成相对路径、字节大小与 SHA-256。`artifact_path(task_dir, metadata, name)` 解析记录并拒绝绝对路径或越出任务目录的路径。
 
-`BaseOutputParams.artifacts` 默认空字典，类型是 `dict[str, dict[str, Any]]`。因此 Python 基类没有完整校验每条 artifact 的三字段；生产者应主动调用 helper，确保页面和下游能读取。
+`BaseOutputParams.artifacts` 使用 `dict[str, ArtifactRecord]`，统一校验任务内相对路径、非负文件大小和 SHA-256。通过 `task.artifact_path(name)` 解析产物，无需额外绝对路径字段。
 
 下游 helper 解析路径本身并不自动核验所有摘要。qlib_a158 预测另行校验模型摘要，不能据此宣称所有上游数据均经过完整校验。
 
@@ -47,17 +47,17 @@ AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可�
 
 下表的必填指模型没有默认值；不是所有字段都在 Studio 单独展示。
 
-| 类型     | 基类必填                                                  | 基类可选或默认字段                                             |
-| -------- | --------------------------------------------------------- | -------------------------------------------------------------- |
-| ETL      | `output_file`、`rows`、`date_range`                       | `feature_columns=[]`、`label_columns=[]`                       |
-| Analysis | `result_file`、`rows`                                     | `scores={}`                                                    |
-| Train    | `model_files`、`train_rows`                               | `model_name`、特征/目标列、metrics、parameters、training_curve |
-| Predict  | `predictions_file`、`score_columns`、`rows`、`date_range` | `output_columns=[]`、`protocol={}`、`statistics={}`            |
-| Backtest | `default_universe`、`universes`、`protocol`               | 共享的 `artifacts={}`                                          |
+| 类型     | 基类必填                                    | 基类可选或默认字段                                      |
+| -------- | ------------------------------------------- | ------------------------------------------------------- |
+| ETL      | `rows`、`date_range`                        | `feature_columns=[]`、`label_columns=[]`                |
+| Analysis | `rows`                                      | `scores={}`                                             |
+| Train    | `train_rows`、注册的 `model_manifest` 产物  | `model_name`、列名、metrics、parameters、training_curve |
+| Predict  | `protocol`、`rows`、`date_range`            | `output_columns=[]`、`statistics={}`                    |
+| Backtest | `default_universe`、`universes`、`protocol` | 共享的 `artifacts={}`                                   |
 
 所有类型继承 `BaseOutputParams`；额外字段需通过输出子类声明，否则 `extra=forbid` 校验失败。`date_range` 是字符串映射，页面按 `start` 与 `end` 取值，生产者应采用这些 key。
 
-训练输出通过非空 `model_files` 映射声明成员标识和模型路径；预测输出通过非空 `score_columns` 映射声明成员标识及 `predictions_file` 中的原始分数列。单成员生产者也使用相同集合契约。多模型股票插件在调用共享回测账本前选择或聚合原始分数，`pred` 表示最终选股分数。
+训练成员仅由模型清单声明；预测分数映射仅保存在 `protocol.score_columns`，数据通过 `artifacts.predictions` 注册。单成员生产者使用相同集合契约。股票插件在调用回测账本前选择或聚合原始分数，`pred` 表示最终选股分数。
 
 此集合契约替代旧 `model_file` 字段，并要求预测输出声明 `score_columns`；不兼容旧版插件输出和历史 metadata。成员数量用于区分单成员和多成员输出，不表示预测目标数量：单个模型可以包含多个目标，多个模型也可以预测同一个目标。
 
@@ -73,7 +73,7 @@ AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可�
 | `market`     | `market.parquet`   | 报价、复权因子、成交资格及行情状态 |
 | `calendar`   | `calendar.parquet` | 独立于预测资格的市场日期           |
 
-qlib_a158 下游通过 `artifacts.dataset.path` 解析数据，不能仅填写 `output_file` 而省略映射。输出文件字段保存完整字符串路径，而标准 artifact 应是 Task 目录内相对路径。
+所有下游通过任务内相对路径 `artifacts` 注册表读取文件。ETL、分析、预测和训练输出均不再保存重复的绝对文件路径。
 
 ## 因子分析 scores
 
@@ -286,3 +286,5 @@ N 替换为 dimensions 中的实际数字。汇总表是插件输出；收益图
 唯一的 `signals.parquet` 保留全部输入信号，增加非空 Boolean `is_backtest_candidate`、可空 `target_rank`、可空 `label_return`。筛选候选标记即可得到回测候选表。不再生成 `targets.parquet` 或 `targets_file`。缺少标签不影响候选资格。预测打分协议不变。旧回测产物需重新生成，读取端不支持旧格式。
 
 产物声明 `signals_format: stock-signals-v1`。读取端拒绝旧版回测产物和在线提交，请重新运行生成新产物；预测原始打分协议保持不变。
+
+Studio 直接保存任务记录及其 `output_params`，不再平铺第二套研究对象。研究和比较页面复用索引查询，先过滤再复制结果。在线报告设置仅保存在 `report.commit.protocol.report`。Agent 历史接口只返回展示块，原始 transcript 仍由会话存储持有。修改 Python 传输契约后，在 `axonx_studio/` 执行 `npm run contracts:generate` 和 `npm run contracts:check`。

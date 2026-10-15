@@ -58,14 +58,12 @@ def test_collection_snapshot_survives_source_replacement_and_rejects_corruption(
 ):
     model = tmp_path / "model.txt"
     model.write_bytes(b"original model")
-    digest = file_sha256(model)
     record = {
         **task_protocol(TaskType.TRAIN),
         "feature_protocol": task_protocol(TaskType.ETL),
         "members": {
             "model": {
                 "model_artifact": "weights",
-                "model_sha256": digest,
                 "model": {"library": "test"},
             }
         },
@@ -79,8 +77,8 @@ def test_collection_snapshot_survives_source_replacement_and_rejects_corruption(
     assert (snapshot.parent / pinned["artifacts"]["weights"]["path"]).read_bytes() == b"original model"
     with pytest.raises(ValueError, match="changed during snapshot"):
         snapshot_model_collection(manifest, tmp_path / "corrupt")
-    record["members"]["model"]["model_sha256"] = "0" * 64
-    with pytest.raises(ValidationError, match="differs from artifact"):
+    record["members"]["model"]["model_artifact"] = "missing"
+    with pytest.raises(ValidationError, match="unregistered"):
         ModelCollection.model_validate(record)
 
 

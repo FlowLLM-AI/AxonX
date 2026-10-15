@@ -104,7 +104,7 @@ def _event_blocks(event: JobEvent) -> list[tuple[str, object]]:
             (f"Agent / {patch.block_type} / {patch.operation}", patch.model_dump(mode="json"))
             for patch in event.presentation
         ]
-    return [(f"Agent / {event.type_name}", event.message)]
+    return [(f"Agent / {event.type_name}", event.model_dump(mode="json"))]
 
 
 def print_event_blocks(event: JobEvent) -> None:

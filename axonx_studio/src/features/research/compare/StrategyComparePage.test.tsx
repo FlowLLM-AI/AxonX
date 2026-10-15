@@ -1,3 +1,4 @@
+import { axonx } from "../../../shared/api/client";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -7,6 +8,7 @@ import { table } from "../../../playground/fixtures";
 import { listTaskRuns, previewWorkspaceFile } from "../../workspace/api";
 import StrategyComparePage from "./StrategyComparePage";
 
+vi.mock("../../../shared/api/client", () => ({ axonx: { invoke: vi.fn() } }));
 vi.mock("../../workspace/api", () => ({
   listTaskRuns: vi.fn(),
   previewWorkspaceFile: vi.fn(),
@@ -15,6 +17,7 @@ vi.mock("../backtest/BacktestChart", () => ({ BacktestChart: () => null }));
 let container: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.clearAllMocks();
   container = document.createElement("div");
   root = createRoot(container);
@@ -92,6 +95,24 @@ it.each(["en", "zh"])(
         },
       };
     });
+    vi.mocked(axonx.invoke).mockImplementation(async (job, args) => {
+      const values = await Promise.all(
+        ["a", "b"].map(async (name) => {
+          const preview = await previewWorkspaceFile(
+            `backtest/${name}/metadata.json`,
+          );
+          if (preview.kind !== "json") throw new Error("Expected metadata");
+          return {
+            ...(preview.data as Record<string, unknown>),
+            task_id: `backtest#${name}`,
+            task_type: "backtest",
+          };
+        }),
+      );
+      return job === "status"
+        ? values.find((item) => item.task_id === args?.task_id)!
+        : values;
+    });
     await act(async () =>
       root.render(
         <StrategyComparePage target="remote" onConnection={vi.fn()} />,
@@ -108,7 +129,7 @@ it.each(["en", "zh"])(
     expect(container.querySelector(".compare-tabs")).not.toBeNull();
     for (const name of ["a", "b"]) {
       expect(previewWorkspaceFile).toHaveBeenCalledWith(
-        `backtest/${name}/daily.parquet`,
+        `backtest/backtest#${name}/daily.parquet`,
         0,
         5000,
         "remote",
@@ -117,3 +138,74 @@ it.each(["en", "zh"])(
     }
   },
 );
+
+it("loads only selected details and displays detail failures", async () => {
+  vi.mocked(axonx.invoke).mockImplementation(async (job) => {
+    if (job === "status") throw new Error("Detail service offline");
+    return ["a", "b"].map((name) => ({
+      task_id: `backtest#${name}`,
+      reg_name: name,
+      display_name: name,
+      run_id: name,
+      task_type: "backtest",
+      state: "succeeded",
+    }));
+  });
+  await act(async () =>
+    root.render(<StrategyComparePage target="remote" onConnection={vi.fn()} />),
+  );
+  expect(
+    vi.mocked(axonx.invoke).mock.calls.filter(([job]) => job === "status"),
+  ).toHaveLength(0);
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>(".compare-run-item")!.click(),
+  );
+  const detailCalls = vi
+    .mocked(axonx.invoke)
+    .mock.calls.filter(([job]) => job === "status");
+  expect(detailCalls).toHaveLength(1);
+  expect(detailCalls[0][1]).toEqual({ task_id: "backtest#a" });
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    "Detail service offline",
+  );
+});
+
+it("does not request old task IDs from a newly selected machine while its list is pending", async () => {
+  const onConnection = vi.fn();
+  vi.mocked(axonx.invoke).mockImplementation(async (job, _args, options) => {
+    if (job === "status") throw new Error("not requested in this test");
+    if (options?.target === "machine-b") return new Promise(() => {});
+    return [
+      {
+        task_id: "backtest#only-a",
+        reg_name: "only-a",
+        display_name: "only-a",
+        task_type: "backtest",
+        run_id: "a",
+        state: "succeeded",
+      },
+    ];
+  });
+  await act(async () =>
+    root.render(
+      <StrategyComparePage
+        target="machine-a"
+        initialTaskId="backtest#only-a"
+        onConnection={onConnection}
+      />,
+    ),
+  );
+  vi.mocked(axonx.invoke).mockClear();
+  await act(async () =>
+    root.render(
+      <StrategyComparePage
+        target="machine-b"
+        initialTaskId="backtest#only-a"
+        onConnection={onConnection}
+      />,
+    ),
+  );
+  expect(
+    vi.mocked(axonx.invoke).mock.calls.filter(([job]) => job === "status"),
+  ).toHaveLength(0);
+});

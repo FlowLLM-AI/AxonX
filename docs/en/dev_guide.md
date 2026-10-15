@@ -152,7 +152,7 @@ class Alpha158Task(BaseETLTask):
 
 A Task class docstring supplies the Task definition's `description`. Missing or whitespace-only docstrings produce an empty string and do not block Task resolution, definition queries, or catalog display. A detailed description of the task's purpose, input, and artifacts is recommended; put the docstring before class attributes so Python recognizes it.
 
-`BaseETLOutputParams` already defines required fields `output_file`, `rows`, and `date_range`, so `self.state["output"]` must contain at least these three fields. Add fields to
+`BaseETLOutputParams` already defines required fields `rows` and `date_range`, so `self.state["output"]` must contain these fields and an `artifacts.dataset` record. Add fields to
 `Alpha158OutputParams` when additional results are needed.
 
 `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` registers the Task name used by the CLI:

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WorkspaceBrowserPage from "./WorkspaceBrowserPage";
 import { listWorkspaceEntries, previewWorkspaceFile } from "./api";
 import type {
-  WorkspaceDirectory,
+  WorkspaceListing,
   WorkspaceEntry,
   WorkspacePreview,
 } from "./types";
@@ -48,7 +48,7 @@ function directory(
   path: string,
   entries: WorkspaceEntry[] = [],
   truncated = false,
-): WorkspaceDirectory {
+): WorkspaceListing {
   return { path, entries, truncated };
 }
 function deferred<T>() {
@@ -235,7 +235,7 @@ describe("workspace browser", () => {
   });
 
   it("aborts old machine listings and starts with an empty cache", async () => {
-    const pending = deferred<WorkspaceDirectory>();
+    const pending = deferred<WorkspaceListing>();
     vi.mocked(listWorkspaceEntries).mockReturnValueOnce(pending.promise);
     await render();
     const signal = vi.mocked(listWorkspaceEntries).mock.calls[0][2]!;

@@ -4,15 +4,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ...utils.build_info import BuildInfo
+
 
 class MachineModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-class AxonxInfo(MachineModel):
-    version: str = Field(min_length=1)
-    git_commit: str | None = None
-    git_branch: str | None = None
 
 
 class CpuInfo(MachineModel):
@@ -65,7 +61,7 @@ class GpuInfo(MachineModel):
 
 
 class MachineInfo(MachineModel):
-    axonx: AxonxInfo
+    axonx: BuildInfo
     cpu: CpuInfo
     memory: MemoryInfo
     gpus: list[GpuInfo] = Field(default_factory=list)

@@ -1,16 +1,19 @@
-import type { ArtifactFile } from "../research/types";
-import { parseQuality } from "./quality";
-import { previewWorkspaceFile } from "../workspace/api";
-import { artifactPath, parseHistory, type OnlineCommit } from "./report";
+import { isArtifactRecord } from "../../shared/api/artifacts";
+import { taskDirectory } from "../../shared/lib/tasks";
+import type { ArtifactRecord } from "../../shared/api/contracts";
+import { loadParquetRows } from "../workspace/parquet";
 
-export const taskRoot = (taskId: string) => `${taskId.split("#")[0]}/${taskId}`;
+import { previewWorkspaceFile } from "../workspace/api";
+import { parseQuality } from "./quality";
+import { parseHistory, type OnlineCommit } from "./report";
+
 export async function loadHistory(
   taskId: string,
   target?: string,
   signal?: AbortSignal,
 ) {
   const preview = await previewWorkspaceFile(
-    `${taskRoot(taskId)}/persistent/online/manifest.json`,
+    `${taskDirectory(taskId)}/persistent/online/manifest.json`,
     0,
     1,
     target,
@@ -31,38 +34,22 @@ export async function loadRows(
   signal?: AbortSignal,
 ) {
   const artifact = commit.artifacts[role];
-  if (!artifactPath(artifact))
+  if (!isArtifactRecord(artifact))
     throw new Error(`Missing online artifact: ${role}`);
   return loadArtifactRows(commit.task_id, artifact, target, signal);
 }
 export async function loadArtifactRows(
   taskId: string,
-  artifact: ArtifactFile,
+  artifact: ArtifactRecord,
   target?: string,
   signal?: AbortSignal,
 ) {
-  if (!artifactPath(artifact)) throw new Error("Invalid online artifact");
-  const rows: Record<string, unknown>[] = [];
-  for (let offset = 0; ; offset += 5000) {
-    const preview = await previewWorkspaceFile(
-      `${taskRoot(taskId)}/${artifact.path}`,
-      offset,
-      5000,
-      target,
-      signal,
-    );
-    signal?.throwIfAborted();
-    if (preview.kind !== "parquet")
-      throw new Error("Expected Parquet artifact");
-    rows.push(
-      ...preview.rows.map((row) =>
-        Object.fromEntries(
-          preview.columns.map((column, index) => [column, row[index]]),
-        ),
-      ),
-    );
-    if (!preview.has_more) return rows;
-  }
+  if (!isArtifactRecord(artifact)) throw new Error("Invalid online artifact");
+  return loadParquetRows(
+    `${taskDirectory(taskId)}/${artifact.path}`,
+    target,
+    signal,
+  );
 }
 
 export async function loadQuality(
@@ -72,9 +59,9 @@ export async function loadQuality(
 ) {
   const artifact = commit.artifacts.quality_summary;
   if (!artifact) return null;
-  if (!artifactPath(artifact)) throw new Error("Invalid quality artifact");
+  if (!isArtifactRecord(artifact)) throw new Error("Invalid quality artifact");
   const preview = await previewWorkspaceFile(
-    `${taskRoot(commit.task_id)}/${artifact.path}`,
+    `${taskDirectory(commit.task_id)}/${artifact.path}`,
     0,
     1,
     target,

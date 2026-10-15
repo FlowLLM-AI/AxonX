@@ -12,11 +12,9 @@ from pydantic import (
 )
 
 from ...enums import TaskType
-from ..protocol import STOCK_SIGNALS_FORMAT, Protocol, validate_protocol
 from ..artifact import ArtifactRecord
+from ..protocol import STOCK_SIGNALS_FORMAT, Protocol, validate_protocol
 from .backtest import BacktestDimensions
-
-OnlineArtifact = ArtifactRecord
 
 
 class OnlineCommit(BaseModel):
@@ -30,7 +28,7 @@ class OnlineCommit(BaseModel):
     committed_at: AwareDatetime
     model_identity: dict[str, str] = Field(min_length=1)
     protocol: dict[str, Any]
-    artifacts: dict[str, OnlineArtifact] = Field(min_length=1)
+    artifacts: dict[str, ArtifactRecord] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_commit(self):
@@ -92,13 +90,11 @@ class OnlineHistory(Protocol):
         )
 
 
-class StockOnlineReport(BaseModel):
+class StockReportSettings(BaseModel):
     """The stock report uses the same portfolio artifact schemas as backtests."""
 
     model_config = ConfigDict(extra="forbid")
-    kind: Literal["stock_online"] = "stock_online"
     signals_format: Literal["stock-signals-v1"]
-    commit: OnlineCommit
     strategy_identity: str = Field(pattern=r"^[0-9a-f]{64}$")
     dimensions: BacktestDimensions
     date_range: dict[str, str]
@@ -108,27 +104,7 @@ class StockOnlineReport(BaseModel):
     missing_dates: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_artifacts(self):
-        required = {
-            "predictions",
-            "signal",
-            "market",
-            "signals",
-            "orders",
-            "positions",
-            "trades",
-            "daily",
-            "summary",
-            "prediction_protocol",
-            "calendar",
-            "input_features",
-        }
-        if missing := required - self.commit.artifacts.keys():
-            raise ValueError(f"Incomplete stock online report: {sorted(missing)}")
-        if self.date_range.get("end") != self.commit.trade_date:
-            raise ValueError("Online report must end at its committed signal date")
-        if self.model_dump(mode="json", exclude={"kind", "commit"}) != self.commit.protocol.get("report"):
-            raise ValueError("Online report settings differ from its commit")
+    def validate_settings(self):
         start, end = (self.date_range.get(key, "") for key in ("start", "end"))
         for value in (start, end, *self.missing_dates):
             if len(value) != 8 or not value.isdigit():
@@ -143,4 +119,39 @@ class StockOnlineReport(BaseModel):
             or self.dimensions.holding_detail_top_n <= 0
         ):
             raise ValueError("Invalid online report dimensions")
+        return self
+
+
+STOCK_REPORT_ARTIFACTS = frozenset(
+    {
+        "predictions",
+        "signal",
+        "market",
+        "signals",
+        "orders",
+        "positions",
+        "trades",
+        "daily",
+        "summary",
+        "prediction_protocol",
+        "calendar",
+        "input_features",
+    }
+)
+
+
+class StockOnlineReport(BaseModel):
+    """A report is one immutable publication; settings live in its protocol."""
+
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["stock_online"] = "stock_online"
+    commit: OnlineCommit
+
+    @model_validator(mode="after")
+    def validate_report(self):
+        settings = StockReportSettings.model_validate(self.commit.protocol.get("report"))
+        if settings.date_range["end"] != self.commit.trade_date:
+            raise ValueError("Online report must end at its committed signal date")
+        if missing := STOCK_REPORT_ARTIFACTS - self.commit.artifacts.keys():
+            raise ValueError(f"Incomplete stock online report: {sorted(missing)}")
         return self

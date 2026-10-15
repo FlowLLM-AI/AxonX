@@ -2,25 +2,19 @@
 
 from abc import abstractmethod
 
-from pydantic import Field
-
 from ...enums import TaskType
-from ..core import BaseOutputParams
-from .windows import DeadlineBudget, ExecutionWindow, WindowInputParams, WindowResult, _WindowTask
-
-
-class BaseRealtimeApiInputParams(WindowInputParams):
-    pass
-
-
-class BaseRealtimeApiOutputParams(BaseOutputParams):
-    windows: list[WindowResult] = Field(default_factory=list)
+from .windows import (
+    DeadlineBudget,
+    ExecutionWindow,
+    WindowInputParams,
+    WindowResult,
+    _WindowTask,
+)
 
 
 class BaseRealtimeApiTask(_WindowTask):
     task_type = TaskType.API
-    input_cls = BaseRealtimeApiInputParams
-    output_cls = BaseRealtimeApiOutputParams
+    input_cls = WindowInputParams
 
     @abstractmethod
     def collect(self, window: ExecutionWindow, budget: DeadlineBudget) -> WindowResult | None:
@@ -33,6 +27,3 @@ class BaseRealtimeApiTask(_WindowTask):
                 return result
             budget.sleep(self.input_params.poll_interval_seconds)
         return WindowResult(key=window.key, status="incomplete", reason="deadline_exceeded")
-
-    def build_output_params(self) -> BaseRealtimeApiOutputParams:
-        return self.output_cls(**self.window_output())

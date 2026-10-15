@@ -7,12 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 
 from ...enums import TaskType
-from ..protocol import ModelCollection
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
-
-
-class BaseTrainInputParams(BaseInputParams):
-    pass
 
 
 class TrainingCurve(BaseModel):
@@ -62,8 +57,6 @@ class TrainingCurve(BaseModel):
 
 
 class BaseTrainOutputParams(BaseOutputParams):
-    model_files: dict[str, str] = Field(min_length=1, description="Named members of the trained model collection.")
-    protocol: dict[str, Any]
     train_rows: int
     model_name: str | None = None
     feature_columns: list[str] = Field(default_factory=list)
@@ -77,9 +70,8 @@ class BaseTrainOutputParams(BaseOutputParams):
 
     @model_validator(mode="after")
     def validate_model_collection(self):
-        collection = ModelCollection.model_validate(self.protocol)
-        if self.model_files.keys() != collection.members.keys():
-            raise ValueError("Training output members differ from its protocol")
+        if "model_manifest" not in self.artifacts:
+            raise ValueError("Training output requires a model_manifest artifact")
         return self
 
 
@@ -90,5 +82,5 @@ class BaseTrainTask(BaseTask, ABC):
     """
 
     task_type = TaskType.TRAIN
-    input_cls = BaseTrainInputParams
+    input_cls = BaseInputParams
     output_cls = BaseTrainOutputParams

@@ -1,11 +1,14 @@
+import { isArtifactRecord } from "../../shared/api/artifacts";
+import { isRecord } from "../../shared/lib/values";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ArtifactFile } from "../research/types";
+import type { ArtifactRecord } from "../../shared/api/contracts";
+
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { loadArtifactRows } from "./api";
-import { record, artifactPath } from "./report";
-import { ReportTable } from "./ReportTable";
 import { parseQuality, type QualitySummary } from "./quality";
+
+import { ReportTable } from "./ReportTable";
 
 export function QualityReport({
   summary,
@@ -15,7 +18,7 @@ export function QualityReport({
 }: {
   summary: QualitySummary;
   taskId: string;
-  artifacts?: Record<string, ArtifactFile>;
+  artifacts?: Record<string, ArtifactRecord>;
   target?: string;
 }) {
   const { t } = useTranslation();
@@ -125,7 +128,7 @@ function QualityDetails({
   target,
 }: {
   taskId: string;
-  artifact: ArtifactFile;
+  artifact: ArtifactRecord;
   target?: string;
 }) {
   const { t } = useTranslation();
@@ -185,15 +188,15 @@ export function TaskQuality({
   return windows
     .filter(
       (row) =>
-        record(row) && record(row.metrics) && row.metrics.quality != null,
+        isRecord(row) && isRecord(row.metrics) && row.metrics.quality != null,
     )
     .map((row) => {
       try {
         const summary = parseQuality(row.metrics.quality);
         if (
           row.artifacts != null &&
-          (!record(row.artifacts) ||
-            !Object.values(row.artifacts).every(artifactPath))
+          (!isRecord(row.artifacts) ||
+            !Object.values(row.artifacts).every(isArtifactRecord))
         )
           throw new Error("Invalid quality artifacts");
         return (

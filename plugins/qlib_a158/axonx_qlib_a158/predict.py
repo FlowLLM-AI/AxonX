@@ -1,6 +1,7 @@
 """Run full-cross-section prediction from an Alpha158 LightGBM training task."""
 
 from __future__ import annotations
+
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Self
@@ -10,24 +11,24 @@ import polars as pl
 from pydantic import Field, field_validator, model_validator
 
 from axonx.enums import TaskType
+from axonx.task.builtins.stock.data import KEYS, validate_keys
+from axonx.task.builtins.stock.protocol import feature_identity
 from axonx.task.contracts import (
-    BasePredictInputParams,
+    BaseInputParams,
     BasePredictOutputParams,
     BasePredictTask,
 )
-from axonx.task.builtins.stock.data import KEYS, validate_keys
 from axonx.task.core import TaskStep, parse_source_tasks, task_type_from_id
-from axonx.task.storage import artifact_record
-from axonx.task.storage.inputs import pin_source_artifacts, source_artifact
-from axonx.task.storage.models import snapshot_model_collection
-from axonx.utils.fs import atomic_write
-from axonx.task.builtins.stock.protocol import feature_identity
 from axonx.task.protocol import (
     ModelCollection,
     fingerprint,
     prediction_protocol,
     validate_protocol,
 )
+from axonx.task.storage import artifact_record
+from axonx.task.storage.inputs import pin_source_artifacts, source_artifact
+from axonx.task.storage.models import snapshot_model_collection
+from axonx.utils.fs import atomic_write
 
 from .internal.modeling import feature_matrix
 
@@ -37,7 +38,7 @@ class LgbmPredictOutputParams(BasePredictOutputParams):
     index_weight_columns: list[str]
 
 
-class LgbmPredictInputParams(BasePredictInputParams):
+class LgbmPredictInputParams(BaseInputParams):
     """Configure an out-of-sample prediction interval for a training task."""
 
     pred_start: str = Field(
@@ -261,8 +262,6 @@ class LgbmPredictTask(BasePredictTask):
     def build_output_params(self) -> LgbmPredictOutputParams:
         frame = self.state["predictions"]
         return self.output_cls(
-            predictions_file=str(self.state["predictions_path"]),
-            score_columns={"model": "pred"},
             rows=frame.height,
             date_range={
                 "start": frame["trade_date"].min(),
@@ -295,7 +294,10 @@ class LgbmPredictTask(BasePredictTask):
                 TaskType.PREDICT,
                 {
                     "models_sha256": fingerprint(
-                        {key: value["model_sha256"] for key, value in self.state["model_collection"]["members"].items()}
+                        {
+                            key: self.state["model_collection"]["artifacts"][value["model_artifact"]]["sha256"]
+                            for key, value in self.state["model_collection"]["members"].items()
+                        }
                     ),
                     "features_sha256": feature_identity(self.state["etl_metadata"]["output_params"]["protocol"]),
                     "family": self.state["etl_metadata"]["output_params"]["protocol"]["feature_family"],

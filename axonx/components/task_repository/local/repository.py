@@ -8,7 +8,8 @@ from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
 
-from ....task.query.summary import summarize_status, task_sort_key
+from ....task.query.graph import TaskGraph, task_graph
+from ....task.query.summary import TaskSummary, summarize_status, task_sort_key
 from ....task.storage.workspace import (
     TaskMetadata,
     is_task_directory,
@@ -84,20 +85,29 @@ class LocalTaskRepository(BaseTaskRepository):
         async with self._lock:
             self._entries = await asyncio.to_thread(scan_entries, self.root)
 
-    async def entries(self) -> Mapping[str, TaskMetadata]:
+    async def entries(self, *, task_type: str | None = None, state: str | None = None) -> Mapping[str, TaskMetadata]:
         async with self._lock:
-            return {task_id: metadata.model_copy(deep=True) for task_id, metadata in self._entries.items()}
+            return {
+                task_id: metadata.model_copy(deep=True)
+                for task_id, metadata in self._entries.items()
+                if (task_type is None or metadata.task_type == task_type) and (state is None or metadata.state == state)
+            }
 
     async def entry(self, task_id: str) -> TaskMetadata:
         async with self._lock:
             return self._entries[task_id].model_copy(deep=True)
 
-    async def summaries(self) -> list[dict]:
+    async def summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
         async with self._lock:
             return [
                 summarize_status(metadata)
                 for metadata in sorted(self._entries.values(), key=task_sort_key, reverse=True)
+                if (task_type is None or metadata.task_type == task_type) and (state is None or metadata.state == state)
             ]
+
+    async def graph(self, task_id: str) -> TaskGraph:
+        async with self._lock:
+            return task_graph(self._entries, task_id)
 
     async def put_metadata(self, status: TaskMetadata) -> None:
         async with self._lock:

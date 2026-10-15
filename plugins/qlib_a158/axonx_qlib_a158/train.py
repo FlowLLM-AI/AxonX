@@ -1,6 +1,7 @@
 """Train one LightGBM model from an Alpha158 ETL task."""
 
 from __future__ import annotations
+
 import math
 from collections.abc import Iterable
 from pathlib import Path
@@ -11,18 +12,18 @@ import polars as pl
 from pydantic import Field, field_validator, model_validator
 
 from axonx.enums import TaskType
+from axonx.task.builtins.stock.data import transform_labels
+from axonx.task.builtins.stock.protocol import feature_contract
 from axonx.task.contracts import (
-    BaseTrainInputParams,
+    BaseInputParams,
     BaseTrainOutputParams,
     BaseTrainTask,
 )
 from axonx.task.core import TaskStep
-from axonx.task.builtins.stock.data import transform_labels
+from axonx.task.protocol import ModelCollection, task_protocol, validate_protocol
 from axonx.task.storage import artifact_record, read_metadata
 from axonx.task.storage.inputs import pin_source_artifacts
-from axonx.utils.fs import atomic_write, atomic_write_json, file_sha256
-from axonx.task.builtins.stock.protocol import feature_contract
-from axonx.task.protocol import ModelCollection, task_protocol, validate_protocol
+from axonx.utils.fs import atomic_write, atomic_write_json
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix
@@ -32,14 +33,12 @@ MODEL_LABELS = (*LABELS, *CSZ_LABELS, *RANK_LABELS)
 
 
 class LgbmTrainOutputParams(BaseTrainOutputParams):
-    feature_importance_file: str
-    evaluation_history_file: str
     best_iteration: int
     rows: dict[str, int]
     validation_metrics: dict
 
 
-class LgbmTrainInputParams(BaseTrainInputParams):
+class LgbmTrainInputParams(BaseInputParams):
     """Configure one time-separated Alpha158 LightGBM training run."""
 
     parameter_preset: Literal["axonx", "qlib"] = Field(
@@ -551,9 +550,6 @@ class LgbmTrainTask(BaseTrainTask):
             },
             "validation_metrics": self.state["validation_metrics"],
             "artifacts": artifacts,
-            "model_files": {"model": str(self.state["model_path"])},
-            "feature_importance_file": str(self.state["importance_path"]),
-            "evaluation_history_file": str(self.state["history_path"]),
             "train_rows": frame.height,
             "best_iteration": self.state["best_iteration"],
         }
@@ -563,7 +559,6 @@ class LgbmTrainTask(BaseTrainTask):
             members={
                 "model": {
                     "model_artifact": "model",
-                    "model_sha256": file_sha256(self.state["model_path"]),
                     "model": model,
                 }
             },
@@ -573,5 +568,5 @@ class LgbmTrainTask(BaseTrainTask):
         manifest_path = output_dir / "models.json"
         atomic_write_json(manifest_path, collection)
         values["artifacts"]["model_manifest"] = artifact_record(manifest_path, output_dir)
-        values["protocol"] = collection
+        del values["protocol"]
         return self.output_cls(**values)

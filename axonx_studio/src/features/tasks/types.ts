@@ -1,33 +1,13 @@
-import type { TaskStepStatus } from "../../shared/api/event";
-export type { TaskStepStatus } from "../../shared/api/event";
-import type { DisplayReplica } from "../../shared/lib/replica";
 import type { JsonSchema } from "../../shared/schema/types";
+export type { TaskStepStatus } from "../../shared/api/event";
 
-export type TaskState =
-  "queued" | "running" | "succeeded" | "failed" | "cancelled";
-
-export interface ChildTaskRecord {
-  node_name: string;
-  attempt: number;
-  task: string;
-  task_id: string | null;
-  run_id: string;
-  state: TaskState;
-  exit_code: number;
-  error: string;
-}
-
-export interface ScheduleTrigger {
-  name: string;
-  job: string;
-  trigger_id: string;
-  triggered_at: string;
-}
-
-export interface TaskSource {
-  kind: "submit" | "exec" | "unknown";
-  schedule: ScheduleTrigger | null;
-}
+export type {
+  TaskState,
+  ChildTaskRecord,
+  ScheduleTrigger,
+  TaskSource,
+} from "../../shared/api/contracts";
+import type { TaskState, ScheduleTrigger } from "../../shared/api/contracts";
 
 export interface Schedule {
   name: string;
@@ -42,66 +22,18 @@ export interface Schedule {
   last_trigger: (ScheduleTrigger & { state: TaskState; error: string }) | null;
 }
 
-export interface TaskMetadata {
-  task_id: string;
-  run_id: string;
-  task_type: string;
-  reg_name: string;
-  source: TaskSource;
-  input_params: Record<string, unknown>;
-  state: TaskState;
-  pid: number | null;
-  created_at: string | null;
-  started_at: string | null;
-  finished_at: string | null;
-  steps: TaskStepStatus[];
-  report_kind?: string | null;
-  children: ChildTaskRecord[];
-  output_params: Record<string, unknown>;
-  error: string;
-  exit_code: number;
-  log_path: string;
-  replica: DisplayReplica | null;
-}
+export type { TaskMetadata } from "../../shared/api/contracts";
+export type { TaskSummary } from "../../shared/api/contracts";
 
-export interface TaskSummary extends Omit<
-  TaskMetadata,
-  "input_params" | "output_params" | "steps" | "children" | "replica"
-> {
-  is_replica?: boolean;
-  display_name?: string;
-  is_online?: boolean;
-  step_progress?: {
-    current: number;
-    total: number;
-    name: string;
-    percentage: number | null;
-  } | null;
-}
+export type { LogChunk } from "../../shared/api/contracts";
 
-export interface TaskLogChunk {
-  content: string;
-  start_offset: number;
-  next_offset: number;
-  file_size: number;
-  has_more_before: boolean;
-  has_more_after: boolean;
-  reset: boolean;
-  channel?: string;
-}
-
-export interface TaskDefinition {
-  name: string;
-  source: "native" | "plugin";
-  plugin?: string | null;
-  task_type: string;
-  description: string;
+import type { TaskDefinition as DefinitionContract } from "../../shared/api/contracts";
+export type TaskDefinition = Omit<
+  DefinitionContract,
+  "input_schema" | "output_schema"
+> & {
   input_schema: JsonSchema;
   output_schema: JsonSchema;
-}
+};
 
-export interface TaskHandle {
-  task_id: string;
-  run_id: string;
-  task: string;
-}
+export type { TaskHandle } from "../../shared/api/contracts";

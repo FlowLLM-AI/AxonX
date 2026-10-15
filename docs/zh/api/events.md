@@ -52,7 +52,7 @@ progress 可多次更新同一个名称。不要将单个步骤的百分比当�
 | reset                            | boolean，false   | 日志重置提示                 |
 | channel                          | string，`"task"` | 日志通道                     |
 
-读取 API 的 TaskLogChunk 与 log 事件共享主要字段，后者再加 kind/channel。分页用字节偏移，不用 JavaScript 字符长度。出现 reset 时重置本地窗口状态，再按本块偏移处理。
+读取 API 的 LogChunk 与 log 事件共享主要字段，后者再加 kind/channel。分页用字节偏移，不用 JavaScript 字符长度。出现 reset 时重置本地窗口状态，再按本块偏移处理。
 
 ### artifact
 

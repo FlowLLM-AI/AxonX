@@ -4,77 +4,22 @@ import {
   type AxonXClient,
   type RequestOptions,
 } from "./client";
+import type { LogEvent } from "./contracts";
 import type { JobResponse } from "./types";
 
-export interface TaskStepStatus {
-  name: string;
-  started_at: string | null;
-  finished_at: string | null;
-  percentage: number | null;
-  parent?: string | null;
-  label?: string;
-  group?: string;
-  state?:
-    | "pending"
-    | "waiting"
-    | "running"
-    | "done"
-    | "failed"
-    | "missed"
-    | "skipped";
-  phase?: string;
-  completed?: number | null;
-  total?: number | null;
-  unit?: string;
-  scheduled_at?: string | null;
-  deadline?: string | null;
-  updated_at?: string | null;
-  metrics?: Record<string, unknown>;
-  files?: Record<string, string>;
-  error?: string;
-}
+import type { TaskStepStatus as StepContract } from "./contracts";
+/** Presentation also accepts partial live progress snapshots. */
+export type TaskStepStatus = Pick<
+  StepContract,
+  "name" | "started_at" | "finished_at" | "percentage"
+> &
+  Partial<StepContract>;
 
-export interface ProgressEvent extends TaskStepStatus {
-  kind: "progress";
-}
+export type { ProgressEvent, ArtifactEvent, LogEvent } from "./contracts";
+import type { ProgressEvent, ArtifactEvent } from "./contracts";
 
-export interface LogEvent {
-  kind: "log";
-  content: string;
-  start_offset: number;
-  next_offset: number;
-  file_size: number;
-  has_more_before: boolean;
-  has_more_after: boolean;
-  reset: boolean;
-  channel: string;
-}
-
-export interface ArtifactEvent {
-  kind: "artifact";
-  path: string;
-  sha256: string;
-  size: number;
-  media_type: string | null;
-  extra: Record<string, unknown>;
-}
-
-export interface AgentBlockPatch {
-  operation: "start" | "append" | "replace" | "finish";
-  block_id: string;
-  block_type: "thinking" | "text" | "tool" | "system" | "error";
-  delta: string;
-  payload: Record<string, unknown>;
-}
-
-export interface AgentMessageEvent {
-  kind: "agent_message";
-  session_id: string;
-  type_name: string;
-  message: Record<string, unknown>;
-  sequence: number;
-  presentation: AgentBlockPatch[];
-}
+export type { AgentBlockPatch, AgentMessageEvent } from "./contracts";
+import type { AgentMessageEvent } from "./contracts";
 
 export interface ResultEvent<T = unknown> extends JobResponse<T> {
   kind: "result";

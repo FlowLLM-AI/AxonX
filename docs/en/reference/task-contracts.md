@@ -142,7 +142,7 @@ The base class only specifies artifacts as a nested mapping. path, size, and sha
 
 Do not include the workspace root in artifact path. Consumers combine `<type>/<task_id>/<artifact.path>` and check the producing plugin's expected logical names, such as dataset, model, or daily.
 
-`axonx.task.artifact.ArtifactRecord` owns portable relative path, byte size and SHA256 validation. The existing `OnlineArtifact` import is an alias of that record. Public output mappings retain their JSON shape. `PortfolioSettings` in `axonx.task.builtins.stock` owns common portfolio fields and conversion to the execution engine; plugins override business defaults and selection rules.
+`axonx.task.artifact.ArtifactRecord` owns portable relative path, byte size and SHA256 validation. The existing `ArtifactRecord` import is an alias of that record. Public output mappings retain their JSON shape. `PortfolioSettings` in `axonx.task.builtins.stock` owns common portfolio fields and conversion to the execution engine; plugins override business defaults and selection rules.
 
 Online publication keeps `persistent/online/manifest.json` as a complete, self-contained v1 history. New frozen `commits/<commit_id>/history.json` files use `kind=online_history_node`: at most 16 commits plus a size/hash-verified Task-relative reference to the preceding completed group. Use `read_online_history()` to read either representation. Existing full snapshots remain readable and can precede new nodes; no old records are rewritten. Copying a frozen node requires its referenced predecessor files, which Task synchronization includes automatically. `pin_online_history()` exports a complete v1 history and all referenced artifacts for independent consumption.
 
@@ -185,3 +185,16 @@ Display replicas carry `replica.snapshot` (source, root Task/Run, capture time a
 `axonx.task.replay` provides `ReplaySource`, `ReplayStream` and `ReplayCursor`. `ReplayStream.create(directory, events, context=..., attributes=...)` copies payloads into a new directory and publishes `stream.json`; existing datasets are not overwritten. Each event has a key, timezone-aware `available_at`, file records (relative path, size, SHA256) and plugin attributes. Context files pin run-level inputs. Opening a stream validates ordering, paths and every file hash. Transfer the whole directory, not only its manifest.
 
 `ReplayCursor.wait(deadline, consume, ready)` advances to event availability, consumes ordered events synchronously and stops when `ready()` is true. Events at or after the deadline are not delivered; an exhausted stream advances to the deadline and returns false. Plugins own schemas, market calendars, validation and publication, as well as missing-input policy and isolated outputs. This contract does not synthesize historical responses or permit fallback network access. Plugins must label reconstructed window snapshots separately from original request recordings and record their remaining external dependencies.
+
+## Migration to AxonX 0.3
+
+The 0.3 release replaces the previous Task and Studio wire contracts. Update the
+framework, Studio and consuming plugins together. Axon and Axon2 require
+`axonx>=0.3.0`; bundled Qlib plugins require their 0.3 peers. Regenerate previous
+Task outputs rather than mixing old records with the new schema. These source
+changes do not publish packages; install the coordinated source checkouts until
+the matching releases are available.
+
+Training member counts are read from the registered model manifest, including
+multi-member collections; replicas omitting it show an unavailable count.
+Research and comparison lists retain only summaries and load selected details.

@@ -26,7 +26,7 @@ import { formatBytes } from "../../shared/lib/format";
 import type { ContextOption } from "../../app/types";
 import { useTranslation } from "react-i18next";
 import type {
-  WorkspaceDirectory,
+  WorkspaceListing,
   WorkspaceEntry,
   WorkspacePreview,
 } from "./types";
@@ -67,10 +67,10 @@ export default function WorkspaceBrowserPage({
   onOptionsChange?: (options: ContextOption[]) => void;
 }) {
   const { t } = useTranslation();
-  const cache = useRef(new Map<string, WorkspaceDirectory>());
+  const cache = useRef(new Map<string, WorkspaceListing>());
   const requests = useRef(new Set<AbortController>());
   const [directories, setDirectories] = useState<
-    Record<string, WorkspaceDirectory>
+    Record<string, WorkspaceListing>
   >({});
   const [expanded, setExpanded] = useState(new Set([ROOT]));
   const [loading, setLoading] = useState(new Set<string>());

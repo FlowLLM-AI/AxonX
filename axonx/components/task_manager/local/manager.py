@@ -19,28 +19,28 @@ from ....constants import (
     AXONX_TASK_TIMEZONE,
     AXONX_TASK_WORKSPACE_DIR,
 )
-from ....task.protocol import PROTOCOL_VERSION
-from ....task.source import TASK_SOURCE, TASK_SOURCE_ENV
 from ....enums import TaskState
+from ....logs import LogChunk
 from ....plugin_kit.environment import environment_operation, run_in_thread, serialized
+from ....progress import settle_steps
 from ....task.catalog import resolve_task
 from ....task.contracts import TaskHandle
 from ....task.core import BaseTask
+from ....task.protocol import PROTOCOL_VERSION
 from ....task.query import (
     TaskGraph,
     stream_task,
-    task_graph,
 )
 from ....task.query.summary import task_sort_key
 from ....task.runtime.arguments import build_task_argv, parse_task_argv
+from ....task.source import TASK_SOURCE, TASK_SOURCE_ENV
 from ....task.storage.composition import settle_children
-from ....progress import settle_steps
 from ....task.storage.events import (
     LOG_WINDOW_BYTES,
-    TaskLogChunk,
     append_progress_snapshots,
 )
 from ....task.storage.logs import TaskLogReader
+from ....task.query.summary import TaskSummary
 from ....task.storage.workspace import (
     EVENTS_FILE,
     TaskMetadata,
@@ -185,21 +185,23 @@ class LocalTaskManager(BaseTaskManager):
             await asyncio.to_thread(log_path.unlink, missing_ok=True)
         return True
 
-    async def list_statuses(self) -> list[TaskMetadata]:
-        return sorted((await self.repository.entries()).values(), key=task_sort_key, reverse=True)
+    async def list_statuses(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskMetadata]:
+        return sorted(
+            (await self.repository.entries(task_type=task_type, state=state)).values(), key=task_sort_key, reverse=True
+        )
 
     async def list_managed_run_ids(self) -> list[str]:
         """Include tracked workers even when metadata has finished or been replaced."""
         return list(self._supervisor.run_pids)
 
-    async def list_summaries(self) -> list[dict]:
-        return await self.repository.summaries()
+    async def list_summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
+        return await self.repository.summaries(task_type=task_type, state=state)
 
     async def get_status(self, task_id: str) -> TaskMetadata:
         return await self._status_of(task_id)
 
     async def get_graph(self, task_id: str) -> TaskGraph:
-        return task_graph(await self.repository.entries(), task_id)
+        return await self.repository.graph(task_id)
 
     async def read_log(
         self,
@@ -208,7 +210,7 @@ class LocalTaskManager(BaseTaskManager):
         limit: int = LOG_WINDOW_BYTES,
         *,
         run_id: str | None = None,
-    ) -> TaskLogChunk:
+    ) -> LogChunk:
         status = await self._status_of(task_id)
         if run_id is not None and status.run_id != run_id:
             raise ValueError(f"Task run changed: {task_id}")

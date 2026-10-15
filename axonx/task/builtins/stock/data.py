@@ -6,16 +6,13 @@ from typing import Any
 import polars as pl
 from pydantic import field_validator
 
-from ...contracts import BaseETLOutputParams
 from ....enums import TaskType
+from ...contracts import BaseETLOutputParams
 from ...protocol import task_protocol
 from .protocol import validate_feature_protocol
 
 
 class StockETLOutput(BaseETLOutputParams):
-    labels_file: str
-    market_file: str
-    calendar_file: str
     protocol: dict
 
     @field_validator("protocol")

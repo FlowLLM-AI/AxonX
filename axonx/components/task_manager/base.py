@@ -6,10 +6,11 @@ from collections.abc import AsyncIterator, Sequence
 
 from ...components.job.events import JobEvent
 from ...enums import ComponentEnum, TaskState
+from ...logs import LogChunk
 from ...task.contracts import TaskHandle
 from ...task.query.graph import TaskGraph
-from ...task.query.summary import summarize_status
-from ...task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
+from ...task.query.summary import TaskSummary, summarize_status
+from ...task.storage.events import LOG_WINDOW_BYTES
 from ...task.storage.workspace import TaskMetadata
 from ..base import BaseComponent
 
@@ -25,15 +26,15 @@ class BaseTaskManager(BaseComponent, ABC):
 
     async def list_ids(self) -> list[str]:
         """Return the IDs of every task with a status, newest first."""
-        return [status.task_id for status in await self.list_statuses()]
+        return [status.task_id for status in await self.list_summaries()]
 
     @abstractmethod
-    async def list_statuses(self) -> list[TaskMetadata]:
+    async def list_statuses(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskMetadata]:
         """Return lifecycle metadata snapshots, newest first."""
 
-    async def list_summaries(self) -> list[dict]:
+    async def list_summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
         """Return list metadata; backends may project before copying large outputs."""
-        return [summarize_status(status) for status in await self.list_statuses()]
+        return [summarize_status(status) for status in await self.list_statuses(task_type=task_type, state=state)]
 
     async def list_managed_run_ids(self) -> list[str]:
         """Return Runs owned by this manager for service maintenance.
@@ -50,14 +51,14 @@ class BaseTaskManager(BaseComponent, ABC):
             return []
         return [
             {
-                "task_id": status["task_id"],
-                "run_id": status["run_id"],
-                "schedule": status["source"]["schedule"]["name"],
+                "task_id": status.task_id,
+                "run_id": status.run_id,
+                "schedule": status.source.schedule.name,
             }
             for status in await self.list_summaries()
-            if status["run_id"] in owned
-            and status["state"] in {TaskState.QUEUED, TaskState.RUNNING}
-            and status["source"]["schedule"] is not None
+            if status.run_id in owned
+            and status.state in {TaskState.QUEUED, TaskState.RUNNING}
+            and status.source.schedule is not None
         ]
 
     @abstractmethod
@@ -102,7 +103,7 @@ class BaseTaskManager(BaseComponent, ABC):
         limit: int = LOG_WINDOW_BYTES,
         *,
         run_id: str | None = None,
-    ) -> TaskLogChunk:
+    ) -> LogChunk:
         """Read a bounded range of a task log; raise KeyError if the ID is absent."""
 
     @abstractmethod

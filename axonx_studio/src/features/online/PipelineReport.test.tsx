@@ -28,6 +28,7 @@ beforeEach(() => {
   child.output_params = {};
   child.steps = [
     {
+      ...child.steps[0],
       name: "feature",
       label: "feature",
       parent: "run_windows",
@@ -62,7 +63,15 @@ const render = async () =>
   act(async () =>
     root.render(
       <PipelineReport
-        task={{ ...parent, is_online: true } as TaskSummary}
+        task={
+          {
+            ...parent,
+            display_name: "online",
+            is_replica: false,
+            step_progress: null,
+            is_online: true,
+          } as TaskSummary
+        }
         target={target}
         onOpenTask={vi.fn()}
       />,

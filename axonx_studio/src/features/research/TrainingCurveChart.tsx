@@ -8,7 +8,7 @@ import {
 } from "echarts/components";
 import { init, use as registerECharts } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import type { TrainingCurveData } from "./types";
+import type { TrainingCurve } from "./types";
 import { useTranslation } from "react-i18next";
 
 registerECharts([
@@ -20,7 +20,7 @@ registerECharts([
   CanvasRenderer,
 ]);
 
-export function TrainingCurveChart({ curve }: { curve: TrainingCurveData }) {
+export function TrainingCurveChart({ curve }: { curve: TrainingCurve }) {
   const { t } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState(

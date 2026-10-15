@@ -13,7 +13,7 @@ Research Tasks publish results through typed `output_params`. Studio extracts pr
 
 AxonX owns the shared research protocol in `axonx.task.protocol`. Task records and portable research metadata require `version=1` and the existing `TaskType` in `task_type`; there is no separate artifact-kind enum or plugin version counter. Readers reject missing headers and other versions. Regenerate old workspaces and models; no migration or fallback reader is provided.
 
-Training uses `ModelCollection`: one `models.json` stores the feature contract, training context, named members, model configurations and hash-verified artifact references. Member and checkpoint weights have no separate metadata sidecars. `BaseTrainOutputParams.protocol` contains the collection; `model_files` names its members. Plugins retain their native weight serialization; versioned model containers use the same shared header.
+Training uses `ModelCollection`: the registered `artifacts.model_manifest` points to one `models.json` containing the feature contract, training context, named members, model configurations and verified artifact references. Each member references an artifact by name; its hash lives only in that artifact record. Task outputs retain training summaries and curves, without duplicating the collection or model paths.
 
 Offline and online prediction use `PredictionProtocol`, with producer type `predict` or `inference`. It stores one string-valued `model_identity`, covered `dates`, `score_columns` and `predictions_sha256`. Model identity uses `models_sha256` and `features_sha256`; dates and paths are not model identity. Predictions do not duplicate identities for each date. Stock feature contracts and fingerprints come from `axonx.task.builtins.stock.protocol`; fingerprints include semantic rules and ordered features, excluding locations, date coverage and quality counters. `snapshot_model_collection` in `axonx.task.storage.models` verifies portable model snapshots. Artifacts remain exclusively in `output_params.artifacts` on Task records; package release versions are independent.
 
@@ -39,7 +39,7 @@ The following is a structural excerpt, rather than complete TaskMetadata:
 
 The example size and digest only illustrate fields; calculate actual values from generated files. `artifact_record(path, task_dir)` generates a relative path, byte size, and SHA-256. `artifact_path(task_dir, metadata, name)` resolves a record and rejects absolute paths or paths escaping the task directory.
 
-`BaseOutputParams.artifacts` defaults to an empty dictionary with type `dict[str, dict[str, Any]]`. The Python base class therefore does not fully validate each artifact's three fields. Producers should explicitly call the helpers to ensure pages and downstream consumers can read them.
+`BaseOutputParams.artifacts` is `dict[str, ArtifactRecord]`. Every output validates each relative path, nonnegative byte size and SHA-256 digest. `task.artifact_path(name)` resolves a published output without a separate absolute-path field.
 
 Resolving paths through downstream helpers does not itself automatically verify every digest. qlib_a158 prediction separately verifies the model digest; this does not establish complete verification of all upstream data.
 
@@ -47,13 +47,13 @@ Resolving paths through downstream helpers does not itself automatically verify 
 
 Required below means the model has no default; not every field is displayed separately in Studio.
 
-| Type     | Required base-class fields                                            | Optional or default base-class fields                                     |
-| -------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| ETL      | `output_file`, `rows`, `date_range`                                   | `feature_columns=[]`, `label_columns=[]`                                  |
-| Analysis | `result_file`, `rows`                                                 | `scores={}`                                                               |
-| Train    | `model_files`, `protocol`, `train_rows`                               | `model_name`, feature/target columns, metrics, parameters, training_curve |
-| Predict  | `predictions_file`, `score_columns`, `protocol`, `rows`, `date_range` | `output_columns=[]`, `statistics={}`                                      |
-| Backtest | `default_universe`, `universes`, `protocol`                           | Shared `artifacts={}`                                                     |
+| Type     | Required base-class fields                         | Optional or default base-class fields                      |
+| -------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| ETL      | `rows`, `date_range`                               | `feature_columns=[]`, `label_columns=[]`                   |
+| Analysis | `rows`                                             | `scores={}`                                                |
+| Train    | `train_rows`, registered `model_manifest` artifact | `model_name`, columns, metrics, parameters, training_curve |
+| Predict  | `protocol`, `rows`, `date_range`                   | `output_columns=[]`, `statistics={}`                       |
+| Backtest | `default_universe`, `universes`, `protocol`        | Shared `artifacts={}`                                      |
 
 All types extend `BaseOutputParams`; output subclasses must declare extra fields or `extra=forbid` validation fails. `date_range` is a string mapping; pages read `start` and `end`, so producers should use these keys.
 
@@ -69,7 +69,7 @@ The base class stores output-file descriptions and column names. qlib_a158 adds 
 | `market`      | `market.parquet`   | Quotes, adjustment factors, execution flags and states    |
 | `calendar`    | `calendar.parquet` | Market dates independent of prediction eligibility        |
 
-qlib_a158 downstream consumers resolve data through `artifacts.dataset.path`; filling only `output_file` while omitting the mapping is insufficient. Output file fields store full path strings, while standard artifacts should use paths relative to the Task directory.
+All consumers resolve output files through the task-relative `artifacts` registry. ETL, analysis, prediction and training no longer publish duplicate absolute file paths.
 
 ## Factor-analysis scores
 
@@ -88,9 +88,9 @@ This illustrates a valid shape rather than a fixed qlib_a158 metric set. Studio 
 
 qlib_a158 actually generates `factor_analysis.csv` and `factor_quantiles.csv`, mapped as `result` and `quantiles`, respectively, and stores extension fields such as definitions and labels.
 
-Training outputs use a nonempty `model_files` mapping from member ID to model path. Prediction outputs use a nonempty `score_columns` mapping from member ID to raw score column in `predictions_file`. Single-member producers use the same collection contract. Multi-model stock plugins select or aggregate raw scores before invoking the shared backtest ledger; `pred` is the final selection score.
+Training members are declared only in the model manifest. Prediction score mappings are declared only in `protocol.score_columns`, and prediction data is registered as `artifacts.predictions`. Single-member producers use the same collection contract. Stock plugins select or aggregate raw scores before invoking the shared backtest ledger; `pred` is the final selection score.
 
-This collection contract replaces the legacy `model_file` field and requires `score_columns` for predictions; legacy plugin outputs and historical metadata are not supported. Member count distinguishes single-member from multi-member output, not the number of prediction targets. A single model may have multiple targets, and multiple models may share one target.
+Historical output formats are unsupported and must be regenerated. Member count distinguishes single-member from multi-member output, independently of prediction target count.
 
 ## Training curve model
 
@@ -117,7 +117,7 @@ Requirements:
 - Series names cannot repeat across the left and right axes.
 - Empty x and empty groups on both axes indicate no curve data.
 
-Series within the left-axis group should use similar units and numeric ranges; the right axis is only for a second scale group. The protocol does not support a third numeric axis. Studio performs only lightweight normalization when reading: charts filter out series with mismatched lengths and ignore nonfinite values when calculating axis ranges. They do not fully revalidate the Python model's rules or repair training history. Producers must validate with the model before publishing.
+Series within the left-axis group should use similar units and numeric ranges; the right axis is only for a second scale group. The protocol does not support a third numeric axis. Studio reads the validated training curve directly from `output_params.training_curve`; chart rendering filters mismatched series and nonfinite values.
 
 qlib_a158 places L2 on the left axis and L1 on the right; the curve is the tuning model's training/validation history. `model`, `feature_importance`, and `evaluation_history` reference the final model, feature importance, and history CSV, respectively.
 
@@ -286,3 +286,5 @@ Do not manually substitute placeholder digests for real files or alter metadata 
 The sole `signals.parquet` retains every input signal and adds non-null Boolean `is_backtest_candidate`, nullable `target_rank`, and nullable `label_return`. Filtering the candidate flag yields the backtest candidate table. No `targets.parquet` or `targets_file` is produced. Missing labels do not remove candidate membership. Prediction scoring protocols are unchanged. Old backtest files must be regenerated; readers do not support the previous format.
 
 Outputs declare `signals_format: stock-signals-v1`. Readers reject former backtest outputs and online commits; rerun their tasks to generate current outputs. The raw prediction scoring protocol remains unchanged.
+
+Studio keeps the task record and its nested `output_params`, without a flattened research copy. Research and comparison pages share a filtered task-index query; filtering precedes deep copying. Online report settings live only in `report.commit.protocol.report`. Agent history responses expose display blocks; original transcripts stay in the session store. Run `npm run contracts:generate` and `npm run contracts:check` in `axonx_studio/` after changing Python wire contracts.

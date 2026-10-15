@@ -4,7 +4,7 @@ import type {
   Schedule,
   TaskDefinition,
   TaskHandle,
-  TaskLogChunk,
+  LogChunk,
   TaskMetadata,
   TaskSummary,
 } from "./types";
@@ -38,7 +38,7 @@ export const readTaskLog = (
   signal?: AbortSignal,
   runId?: string,
 ) =>
-  axonx.invoke<TaskLogChunk>(
+  axonx.invoke<LogChunk>(
     "read_task_log",
     { task_id: taskId, offset, limit, ...(runId ? { run_id: runId } : {}) },
     { target, signal },

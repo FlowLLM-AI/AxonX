@@ -148,7 +148,7 @@ class Alpha158Task(BaseETLTask):
 
 Task 类的 docstring 用于 Task 定义的 `description`。缺少或仅含空白时返回空字符串，不阻塞 Task 解析、定义查询或任务列表展示。建议说明任务用途、输入及产物；docstring 必须放在类属性之前，才能被 Python 识别。
 
-`BaseETLOutputParams` 已定义必填字段 `output_file`、`rows`、`date_range`，因此 `self.state["output"]` 至少包含这三个字段；需要额外结果时，再在
+`BaseETLOutputParams` 已定义必填字段 `rows`、`date_range`，因此 `self.state["output"]` 包含这些字段及 `artifacts.dataset` 记录；需要额外结果时，再在
 `Alpha158OutputParams` 中添加字段。
 
 `plugins/qlib_a158/axonx_qlib_a158/plugin.yaml` 注册 CLI 使用的 Task 名称：

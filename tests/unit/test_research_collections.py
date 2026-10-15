@@ -1,80 +1,66 @@
-"""Research producers use the same collection contract for one or many models."""
+"""Research outputs reference one artifact registry and one model manifest."""
 
 import pytest
 from pydantic import ValidationError
 
-from axonx.task.protocol import task_protocol
 from axonx.enums import TaskType
 from axonx.task.contracts import BasePredictOutputParams, BaseTrainOutputParams
+from axonx.task.core import BaseOutputParams
+from axonx.task.protocol import ModelCollection, task_protocol
 
-PREDICT_PARAMS = {
-    "predictions_file": "predictions.parquet",
-    "rows": 10,
-    "date_range": {"start": "20240102", "end": "20240102"},
-}
+
+def artifact(path):
+    return {"path": path, "size": 1, "sha256": "0" * 64}
 
 
 @pytest.mark.parametrize("members", [["model"], ["seed_0", "seed_42"]])
 def test_collection_contracts_preserve_members(members):
-    model_files = {member: f"{member}/model.pt" for member in members}
-    score_columns = {member: f"pred_{member}" for member in members}
-    train_protocol = {
+    collection = ModelCollection(
         **task_protocol(TaskType.TRAIN),
-        "feature_protocol": task_protocol(TaskType.ETL),
-        "members": {member: {"model_artifact": member, "model_sha256": "0" * 64, "model": {}} for member in members},
-        "artifacts": {member: {"path": model_files[member], "sha256": "0" * 64} for member in members},
-    }
-    train = BaseTrainOutputParams(model_files=model_files, train_rows=10, protocol=train_protocol)
-    prediction = BasePredictOutputParams(
-        **PREDICT_PARAMS,
-        score_columns=score_columns,
-        protocol={
-            **task_protocol(TaskType.PREDICT),
-            "model_identity": {"models_sha256": "0" * 64},
-            "dates": ["20240102"],
-            "score_columns": score_columns,
-            "predictions_sha256": "0" * 64,
-        },
+        feature_protocol=task_protocol(TaskType.ETL),
+        members={key: {"model_artifact": key, "model": {}} for key in members},
+        artifacts={key: artifact(f"{key}/model.pt") for key in members},
     )
-    assert train.model_dump()["model_files"] == model_files
-    assert prediction.model_dump()["score_columns"] == score_columns
-    assert "model_file" not in train.model_dump()
+    train = BaseTrainOutputParams(train_rows=10, artifacts={"model_manifest": artifact("models.json")})
+    assert set(collection.members) == set(members)
+    assert set(train.model_dump()["artifacts"]) == {"model_manifest"}
+    assert "protocol" not in train.model_dump()
+    assert "model_files" not in train.model_dump()
+    assert "model_sha256" not in collection.model_dump()["members"][members[0]]
 
 
-@pytest.mark.parametrize("fields", [{}, {"model_files": {}}, {"model_file": "model.pt"}])
-def test_train_requires_collection_contract(fields):
+@pytest.mark.parametrize("record", [{}, {"path": "../outside", "size": 1, "sha256": "0" * 64}])
+def test_every_output_validates_artifact_records(record):
     with pytest.raises(ValidationError):
-        BaseTrainOutputParams(**fields, train_rows=10)
+        BaseOutputParams(artifacts={"data": record})
 
 
-@pytest.mark.parametrize("fields", [{}, {"score_columns": {}}])
-def test_predict_requires_collection_contract(fields):
-    with pytest.raises(ValidationError):
-        BasePredictOutputParams(**PREDICT_PARAMS, **fields)
+def test_training_requires_a_manifest():
+    with pytest.raises(ValidationError, match="model_manifest"):
+        BaseTrainOutputParams(train_rows=10)
 
 
-@pytest.mark.parametrize("producer", [TaskType.PREDICT, TaskType.INFERENCE])
-def test_prediction_output_requires_matching_producer_and_scores(producer):
+def test_prediction_score_mapping_has_one_source():
     protocol = {
-        **task_protocol(producer),
-        "model_identity": {"model": "test"},
+        **task_protocol(TaskType.PREDICT),
+        "model_identity": {"models_sha256": "0" * 64},
         "dates": ["20240102"],
         "score_columns": {"model": "score"},
         "predictions_sha256": "0" * 64,
     }
+    values = {"rows": 10, "date_range": {"start": "20240102", "end": "20240102"}, "protocol": protocol}
+    output = BasePredictOutputParams(**values)
+    assert output.protocol["score_columns"] == {"model": "score"}
+    assert "score_columns" not in output.model_dump()
     with pytest.raises(ValidationError, match="differs from its protocol"):
-        BasePredictOutputParams(**PREDICT_PARAMS, score_columns={"model": "other"}, protocol=protocol)
-    if producer == TaskType.INFERENCE:
-        with pytest.raises(ValidationError, match="differs from its protocol"):
-            BasePredictOutputParams(**PREDICT_PARAMS, score_columns=protocol["score_columns"], protocol=protocol)
+        BasePredictOutputParams(**{**values, "protocol": {**protocol, "task_type": "inference"}})
 
 
-def test_training_output_requires_matching_members():
-    protocol = {
-        **task_protocol(TaskType.TRAIN),
-        "feature_protocol": task_protocol(TaskType.ETL),
-        "members": {"model": {"model_artifact": "model", "model_sha256": "0" * 64, "model": {}}},
-        "artifacts": {"model": {"path": "model.pt", "sha256": "0" * 64}},
-    }
-    with pytest.raises(ValidationError, match="members differ"):
-        BaseTrainOutputParams(model_files={"other": "model.pt"}, train_rows=1, protocol=protocol)
+def test_members_reference_registered_artifacts():
+    with pytest.raises(ValidationError, match="unregistered"):
+        ModelCollection(
+            **task_protocol(TaskType.TRAIN),
+            feature_protocol=task_protocol(TaskType.ETL),
+            members={"model": {"model_artifact": "missing", "model": {}}},
+            artifacts={"other": artifact("model.pt")},
+        )

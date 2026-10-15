@@ -15,7 +15,8 @@ function event(
     kind: "agent_message",
     session_id: "session-1",
     type_name: "StreamEvent",
-    message: { uuid: "message-1" },
+    message_uuid: "message-1",
+    role: "assistant",
     sequence,
     presentation,
   };
@@ -88,7 +89,8 @@ describe("agent conversation reducer", () => {
         },
       ]),
       type_name: "UserMessage",
-      message: { uuid: "tool-result-message" },
+      message_uuid: "tool-result-message",
+      role: "assistant",
     });
 
     expect(state.blocks["tool-1"]).toMatchObject({

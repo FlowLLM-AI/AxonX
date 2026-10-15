@@ -181,10 +181,10 @@ def test_preparation_cannot_publish_after_the_deadline(store):
 
 @pytest.mark.parametrize("path", ["../outside", "/absolute", "a/../b", "a\\\\b", "a//b", "./b"])
 def test_artifact_paths_must_be_portable_and_confined(path):
-    from axonx.task.contracts.online import OnlineArtifact
+    from axonx.task.artifact import ArtifactRecord
 
     with pytest.raises(ValidationError, match="relative task path"):
-        OnlineArtifact(path=path, size=0, sha256="0" * 64)
+        ArtifactRecord(path=path, size=0, sha256="0" * 64)
 
 
 def test_publication_lock_wait_is_bounded(store):
@@ -248,9 +248,8 @@ def test_frozen_snapshots_store_bounded_groups_and_verify_the_previous_snapshot(
 
 
 def test_frozen_chain_can_extend_a_legacy_full_snapshot(store):
-    from axonx.utils.fs import atomic_write_json
-
     from axonx.task.storage.history import HISTORY_BLOCK_SIZE
+    from axonx.utils.fs import atomic_write_json
 
     for _ in range(HISTORY_BLOCK_SIZE):
         first, snapshot = publish(store)
@@ -298,8 +297,8 @@ def test_history_chain_export_includes_predecessors_without_recursive_planning(
     tmp_path,
 ):
     from axonx.enums import TaskState, TaskType
-    from axonx.task.storage.history import HistoryNode
     from axonx.task.storage.artifacts import artifact_record
+    from axonx.task.storage.history import HistoryNode
     from axonx.task.storage.workspace import (
         TaskMetadata,
         task_path,

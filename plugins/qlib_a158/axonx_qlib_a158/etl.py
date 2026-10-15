@@ -9,16 +9,16 @@ import polars as pl
 from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from axonx.task.contracts import BaseETLInputParams, BaseETLTask
-from axonx.task.core import TaskStep
 from axonx.task.builtins.stock.data import (
     StockETLOutput,
+    apply_market_status,
     fixed_labels,
     stock_protocol,
-    apply_market_status,
 )
-from axonx.utils.fs import atomic_write
+from axonx.task.contracts import BaseETLInputParams, BaseETLTask
+from axonx.task.core import TaskStep
 from axonx.task.storage import artifact_record
+from axonx.utils.fs import atomic_write
 
 from .internal.etl_pipeline import (
     FEATURES,
@@ -53,7 +53,6 @@ from .internal.reference import DEVIATIONS, QLIB_REFERENCE
 
 
 class Alpha158OutputParams(StockETLOutput):
-    statistics_file: str
     feature_count: int
     symbols: int
     feature_schema: dict
@@ -531,7 +530,6 @@ class Alpha158Task(BaseETLTask):
                     key: DEVIATIONS[key] for key in ("universe", "features", "data", "label", "limits")
                 },
             },
-            **{name + "_file": str(self.state[name + "_path"]) for name in ("labels", "market", "calendar")},
             index_weight_columns=["index_weight_hs300"],
             market_state_columns=list(MARKET_STATE_COLUMNS),
             market_state={
@@ -556,8 +554,6 @@ class Alpha158Task(BaseETLTask):
                 },
                 "statistics": statistics_record,
             },
-            output_file=self.state["output_file"],
-            statistics_file=self.state["statistics_file"],
             feature_count=self.state["feature_count"],
             **self.additional_output_params(),
         )

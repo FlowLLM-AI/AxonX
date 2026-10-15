@@ -32,7 +32,8 @@ describe("AgentBlock", () => {
         kind: "agent_message",
         session_id: "session-1",
         type_name: "StreamEvent",
-        message: { uuid: "message-1" },
+        message_uuid: "message-1",
+        role: "assistant",
         sequence: 0,
         presentation: [
           { operation, block_id: "tool-1", block_type: "tool", delta, payload },

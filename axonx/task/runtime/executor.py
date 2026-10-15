@@ -19,8 +19,8 @@ from ...constants import (
 )
 from ..catalog.resolver import installed_tasks, resolve_task
 from ..core.task import BaseTask
-from ..storage.workspace import TaskMetadata
 from ..source import TASK_SOURCE_ENV, TaskSource
+from ..storage.workspace import TaskMetadata
 from .arguments import split_task_arguments
 from .runner import TaskRunner
 
@@ -39,19 +39,11 @@ class TaskCatalog:
     tasks: dict[str, type[BaseTask]]
 
 
-@dataclass(frozen=True, init=False)
+@dataclass(frozen=True)
 class TaskExecution:
     """Completed task output together with its final status."""
 
     status: TaskMetadata
-
-    def __init__(self, output: dict | None = None, status: TaskMetadata | None = None):
-        """Accept the former constructor while keeping one authoritative result."""
-        if status is None:
-            raise TypeError("TaskExecution requires status")
-        if output is not None and output != status.output_params:
-            raise ValueError("TaskExecution output differs from status")
-        object.__setattr__(self, "status", status)
 
     @property
     def output(self) -> dict:

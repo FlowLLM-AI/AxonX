@@ -14,7 +14,6 @@ class BaseETLInputParams(BaseInputParams):
 
 
 class BaseETLOutputParams(BaseOutputParams):
-    output_file: str
     rows: int
     date_range: dict[str, str]
     feature_columns: list[str] = Field(default_factory=list)

@@ -131,3 +131,17 @@ Stock inference adds Signals, Simulated portfolio, Forward performance, Signal h
 ### Online data quality
 
 The stock report's **Data quality** tab reads versioned `quality_summary` and `quality_details` artifacts from the selected immutable commit. Runtime windows and Task details also display `windows[].metrics.quality`, including failed collection/inference windows. Tables show input, remaining, matched and removed counts, actions, coverage and thresholds. Reason counts may overlap. Warnings do not add filters. Samples are expandable; full security details load on demand with target/cancellation preserved, support search and can be exported as JSON. Old records show an empty state. A failed/current run's diagnostics remain separate from the previous successful signal's date/time. Playground includes synthetic diagnostics for visual verification.
+
+### Data ownership and loading
+
+Successful JSON/YAML previews carry parsed `data`; `content` is empty. A failed
+parse retains `content` for error inspection. Consumers must not depend on a
+second serialized representation of successfully parsed data.
+
+Online report tabs share a report-owned artifact table cache keyed by service,
+Task, path, and SHA256. It coalesces requests, retains at most 32 tables within a
+16 MiB serialized-text budget, and aborts pending work when the report is disposed.
+This budget estimates retained payload size, not JavaScript heap usage. Failed
+requests are retried, and oversized tables are not retained. Cancelling one tab
+must not cancel another tab's shared request. Async resources expose data only
+for the current loader identity, preventing cross-machine stale responses.

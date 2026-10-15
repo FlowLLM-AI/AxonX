@@ -1,12 +1,16 @@
 import { useTranslation } from "react-i18next";
-import type { ResearchArtifact } from "./types";
 import { fmt } from "./format";
+import type { ResearchArtifact } from "./types";
 
-export function PredictionOverview({ meta }: { meta: ResearchArtifact }) {
+export function PredictionOverview({
+  meta,
+}: {
+  meta: ResearchArtifact<"predict">;
+}) {
   const { t } = useTranslation();
-  const stats = meta.prediction_statistics;
-  const columns = meta.output_columns?.length
-    ? meta.output_columns
+  const stats = meta.output_params.statistics;
+  const columns = meta.output_params.output_columns?.length
+    ? meta.output_params.output_columns
     : [
         "trade_date",
         "trade_time",
@@ -19,12 +23,12 @@ export function PredictionOverview({ meta }: { meta: ResearchArtifact }) {
         "signal_adjustment_factor",
         "rank",
         "buyable_rank",
-        ...(meta.index_weight_columns || []),
+        ...(meta.output_params.index_weight_columns || []),
       ];
   const rate = (count?: number) =>
-    count === undefined || !meta.rows
+    count === undefined || !meta.output_params.rows
       ? "—"
-      : `${fmt((count / meta.rows) * 100, 1)}%`;
+      : `${fmt((count / meta.output_params.rows) * 100, 1)}%`;
   const indices = Object.entries(stats?.indices || {});
   return (
     <>
@@ -81,7 +85,7 @@ export function PredictionOverview({ meta }: { meta: ResearchArtifact }) {
             ))
           ) : (
             <span>
-              {(meta.index_weight_columns || [])
+              {(meta.output_params.index_weight_columns || [])
                 .map((column) =>
                   column.replace("index_weight_", "").toUpperCase(),
                 )

@@ -142,7 +142,7 @@ TaskHandle 是 submit 返回的 immutable dataclass：
 
 不要把工作区根路径写进 artifact path。消费者组合 `<type>/<task_id>/<artifact.path>`，并核对生产插件约定的逻辑名称，例如 dataset、model 或 daily。
 
-`axonx.task.artifact.ArtifactRecord` 统一校验可移植相对路径、字节数和 SHA256；原有 `OnlineArtifact` 导入名是该类型的别名，公开输出映射的 JSON 形状不变。`axonx.task.builtins.stock` 中的 `PortfolioSettings` 统一维护投资组合公共字段及引擎配置转换，插件只覆盖业务默认值和选股规则。
+`axonx.task.artifact.ArtifactRecord` 统一校验可移植相对路径、字节数和 SHA256；原有 `ArtifactRecord` 导入名是该类型的别名，公开输出映射的 JSON 形状不变。`axonx.task.builtins.stock` 中的 `PortfolioSettings` 统一维护投资组合公共字段及引擎配置转换，插件只覆盖业务默认值和选股规则。
 
 在线发布仍将 `persistent/online/manifest.json` 保存为完整、可独立读取的 v1 历史。新冻结的 `commits/<commit_id>/history.json` 使用 `kind=online_history_node`：仅保存最多 16 个 commit，以及前一个完整分组快照的 Task 相对路径、大小及哈希引用。使用 `read_online_history()` 读取两种表示；已有完整快照仍可读取并作为新节点的前序，不重写旧记录。单独复制冻结节点时必须一并复制其前序依赖，Task 同步会自动包含这些文件。`pin_online_history()` 导出完整 v1 历史及所有引用产物，供独立消费。
 
@@ -185,3 +185,13 @@ Task 声明 `report_kind = "online_pipeline"` 接入 Studio 在线索引。`run_
 `axonx.task.replay` 提供 `ReplaySource`、`ReplayStream`、`ReplayCursor`。`ReplayStream.create(directory, events, context=..., attributes=...)` 复制数据文件到新目录，发布 `stream.json`，不覆盖已有数据集。事件包括 key、带时区的 `available_at`、文件记录（相对路径、大小、SHA256）和插件属性；context 文件固定运行级输入。打开数据流时校验事件顺序、路径和全部文件哈希。转移时需要整个目录，不能只复制 manifest。
 
 `ReplayCursor.wait(deadline, consume, ready)` 推进到事件可用时间，按顺序同步消费，`ready()` 满足后停止。截止时刻及之后的事件不会交付；事件耗尽则推进到截止时间并返回 false。插件负责数据格式、交易日历、校验发布、输入缺失策略和输出隔离。该契约不补造历史返回，也不允许回退到网络补数据；插件须区分还原的窗口快照与原始请求录制，并记录尚未固定的外部依赖。
+
+## 迁移到 AxonX 0.3
+
+0.3 版本替换旧的 Task 和 Studio 传输契约。框架、Studio 与消费插件应一起
+更新。Axon 和 Axon2 要求 `axonx>=0.3.0`，内置 Qlib 插件要求同为 0.3 的
+依赖插件。旧 Task 输出需要重新生成，不能混用新旧记录。这些源码修改
+不会发布安装包；对应版本发布之前，应使用配套的源码检出安装。
+
+训练模型成员数从注册的模型清单读取，支持多成员集合；展示副本省略
+清单时显示不可用。研究和比较列表只保留摘要，选中后加载详情。

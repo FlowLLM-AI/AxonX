@@ -1,11 +1,11 @@
+import type { DailyRow, SummaryRow } from "../features/research/backtest/types";
+import { strategyStats } from "../features/research/compare/model";
 import type {
   Schedule,
   TaskDefinition,
   TaskMetadata,
 } from "../features/tasks/types";
 import type { WorkspacePreview } from "../features/workspace/types";
-import type { DailyRow, SummaryRow } from "../features/research/backtest/types";
-import { strategyStats } from "../features/research/compare/model";
 
 export const epoch = "2026-01-05T09:00:00.000Z";
 export const schedules: Schedule[] = [
@@ -79,11 +79,13 @@ export const definitions: TaskDefinition[] = kinds.map((kind) => ({
 }));
 
 export function taskStatus(
-  kind: string,
+  kind: TaskMetadata["task_type"],
   id: string,
   name: string,
 ): TaskMetadata {
   return {
+    version: 1,
+    report_kind: kind === "inference" ? "online" : null,
     task_id: id,
     run_id: id,
     task_type: kind,
@@ -98,14 +100,28 @@ export function taskStatus(
     children: [],
     steps: ["Prepare", "Simulate", "Write artifacts"].map((name) => ({
       name,
+      label: "",
+      parent: null,
+      group: "",
+      state: "done",
+      phase: "",
+      completed: null,
+      total: null,
+      unit: "",
+      scheduled_at: null,
+      deadline: null,
+      updated_at: epoch,
+      metrics: {},
+      files: {},
+      error: "",
       started_at: epoch,
       finished_at: epoch,
       percentage: 100,
     })),
-    output_params: { output_dir: `runs/${id}` },
+    output_params: { output_dir: `${id.split("#")[0]}/${id}` },
     error: "",
     exit_code: 0,
-    log_path: `runs/${id}/task.log`,
+    log_path: `${id.split("#")[0]}/${id}/task.log`,
     replica: null,
   };
 }
@@ -193,7 +209,7 @@ export function addArtifacts(
   strategy = "steady",
   source: string[] = [],
 ) {
-  const path = `runs/${task.task_id}`;
+  const path = `${task.task_type}/${task.task_id}`;
   const daily = dailyRows(strategy);
   const periods: SummaryRow[] = [];
   for (const type of ["overall", "year", "quarter", "month"] as const) {
@@ -289,13 +305,18 @@ export function addArtifacts(
           hs300_daily: "universes/hs300/daily.parquet",
           hs300_summary: "universes/hs300/summary.parquet",
         }
-      : { output };
-  const outputKey = {
-    etl: "output_file",
-    analysis: "result_file",
-    train: undefined,
-    predict: "predictions_file",
-  }[task.task_type];
+      : task.task_type === "train"
+        ? { model: "model.json", model_manifest: "models.json" }
+        : {
+            [(
+              {
+                etl: "dataset",
+                train: "model_manifest",
+                predict: "predictions",
+                analysis: "result",
+              } as Partial<Record<TaskMetadata["task_type"], string>>
+            )[task.task_type] || "output"]: output,
+          };
   if (task.task_type === "backtest") {
     for (const universe of ["all", "hs300"]) {
       files.set(`${path}/universes/${universe}/daily.parquet`, table(daily));
@@ -315,10 +336,36 @@ export function addArtifacts(
           )
         : table(predictions),
     );
+  if (task.task_type === "train")
+    files.set(
+      `${path}/models.json`,
+      json({
+        version: 1,
+        task_type: "train",
+        feature_protocol: { version: 1, task_type: "etl" },
+        members: {
+          model: {
+            model_artifact: "model",
+            model: { kind: "synthetic-model", strategy },
+          },
+        },
+        artifacts: {
+          model: {
+            path: "model.json",
+            size: files.get(`${path}/model.json`)!.size,
+            sha256: "0".repeat(64),
+          },
+        },
+      }),
+    );
   const artifacts = Object.fromEntries(
     Object.entries(artifactFiles).map(([key, file]) => [
       key,
-      { path: file, size: files.get(`${path}/${file}`)!.size, sha256: "" },
+      {
+        path: file,
+        size: files.get(`${path}/${file}`)!.size,
+        sha256: "0".repeat(64),
+      },
     ]),
   );
   const metadata = {
@@ -334,13 +381,6 @@ export function addArtifacts(
       source_tasks: source.join(","),
     },
     output_params: {
-      ...(outputKey ? { [outputKey]: `${path}/${output}` } : {}),
-      ...(task.task_type === "train"
-        ? { model_files: { model: `${path}/${output}` } }
-        : {}),
-      ...(task.task_type === "predict"
-        ? { score_columns: { model: "pred" } }
-        : {}),
       rows: predictions.length,
       train_rows: 1200,
       days: 60,
@@ -367,7 +407,18 @@ export function addArtifacts(
         y_right: {},
       },
       evaluation_status: "done",
-      protocol: { version: 2 },
+      protocol: {
+        version: 1,
+        task_type: task.task_type,
+        ...(task.task_type === "predict"
+          ? {
+              score_columns: { model: "pred" },
+              model_identity: { model: "synthetic" },
+              dates,
+              predictions_sha256: "0".repeat(64),
+            }
+          : {}),
+      },
       statistics: {
         days: 60,
         symbols: 30,
@@ -471,7 +522,7 @@ export function seed() {
   };
   tasks.set(failed.task_id, failed);
   for (const task of tasks.values()) {
-    const path = `runs/${task.task_id}`;
+    const path = `${task.task_type}/${task.task_id}`;
     files.set(`${path}/metadata.json`, json(task));
     const rows = task.steps.map((step, index) => {
       const data = {
@@ -590,7 +641,12 @@ function seedOnline(
   ];
   for (const sample of samples) {
     const id = `${sample.kind}#playground_online#demo`;
-    const task = taskStatus(sample.kind, id, sample.name);
+    const task = taskStatus(
+      sample.kind as TaskMetadata["task_type"],
+      id,
+      sample.name,
+    );
+    task.report_kind = "online";
     task.input_params.task_name = sample.name;
     if (sample.kind === "analysis")
       task.input_params.comparison_keys = sample.result.comparisons?.map(
@@ -605,7 +661,7 @@ function seedOnline(
     task.output_params = { ...sample.result, artifacts: {} };
     if (sample.kind === "inference") seedStockOnline(files, task);
     tasks.set(id, task);
-    files.set(`runs/${id}/metadata.json`, json(task));
+    files.set(`${id.split("#")[0]}/${id}/metadata.json`, json(task));
   }
   const child = tasks.get("inference#playground_online#demo")!;
   const id = "composite#playground_online#demo";
@@ -627,7 +683,7 @@ function seedOnline(
       error: "",
     },
   ];
-  const step: import("../features/tasks/types").TaskStepStatus = {
+  const step: import("../shared/api/contracts").TaskStepStatus = {
     name: "collection:snapshot",
     label: "snapshot",
     parent: "execute",
@@ -672,7 +728,7 @@ function seedOnline(
   parent.input_params.models = { "1445": [{ task_name: "demo" }] };
   parent.children[0].node_name = "demo-1445-a_stock_online_predict";
   tasks.set(id, parent);
-  files.set(`runs/${id}/metadata.json`, json(parent));
+  files.set(`${id.split("#")[0]}/${id}/metadata.json`, json(parent));
 }
 
 function seedStockOnline(
@@ -929,7 +985,7 @@ function seedStockOnline(
         },
       },
     ],
-    report: { kind: "stock_online", commit, ...commit.protocol.report },
+    report: { kind: "stock_online", commit },
     artifacts: {
       ...commit.artifacts,
       signal_history: { path: historyPath, size: 1, sha256: "e".repeat(64) },

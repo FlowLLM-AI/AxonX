@@ -1,5 +1,5 @@
 import { axonx } from "../../shared/api/client";
-import type { WorkspaceDirectory, WorkspacePreview } from "./types";
+import type { WorkspaceListing, WorkspacePreview } from "./types";
 
 export const listWorkspaceEntries = (
   path = "",
@@ -7,7 +7,7 @@ export const listWorkspaceEntries = (
   signal?: AbortSignal,
   offset = 0,
 ) =>
-  axonx.invoke<WorkspaceDirectory>(
+  axonx.invoke<WorkspaceListing>(
     "list_entries",
     { path, offset },
     { target, signal },
@@ -18,7 +18,7 @@ export const listTaskRuns = (
   target?: string,
   signal?: AbortSignal,
 ) =>
-  axonx.invoke<WorkspaceDirectory>(
+  axonx.invoke<WorkspaceListing>(
     "list_task_runs",
     { task_type: taskType },
     { target, signal },

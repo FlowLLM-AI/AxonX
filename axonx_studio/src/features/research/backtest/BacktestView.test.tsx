@@ -1,3 +1,4 @@
+import { taskStatus } from "../../../playground/fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -27,27 +28,31 @@ vi.mock("./BacktestChart", () => ({
   ),
 }));
 const meta: BacktestArtifact = {
-  _path: "backtest/demo",
-  task_key: "backtest",
+  ...taskStatus("backtest", "backtest#demo", "demo"),
   created_at: "",
-  config: {
-    task_id: "backtest#demo",
-    task_type: "backtest",
-    task_name: "demo",
-  },
-  default_universe: "all",
-  universes: {
-    all: {
-      label: "All market",
-      parameters: {},
-      dimensions: { top_ns: [1, 3], holding_detail_top_n: 30, benchmarks: [] },
-      date_range: { start: "20260105", end: "20260105" },
-      days: 1,
-      evaluation_status: "incomplete_market_data",
-      artifacts: { daily: "all_daily", summary: "all_summary" },
+  reg_name: "backtest",
+  task_type: "backtest",
+  output_params: {
+    protocol: { version: 1, task_type: "backtest" },
+    signals_format: "stock-signals-v1",
+    default_universe: "all",
+    universes: {
+      all: {
+        label: "All market",
+        parameters: {},
+        dimensions: {
+          top_ns: [1, 3],
+          holding_detail_top_n: 30,
+          benchmarks: [],
+        },
+        date_range: { start: "20260105", end: "20260105" },
+        days: 1,
+        evaluation_status: "incomplete_market_data",
+        artifacts: { daily: "all_daily", summary: "all_summary" },
+      },
     },
+    artifacts: {},
   },
-  artifacts: {},
 };
 const daily: DailyRow[] = [
   {
@@ -155,16 +160,19 @@ describe("stock backtest report", () => {
           <BacktestView
             meta={{
               ...meta,
-              universes: {
-                ...meta.universes,
-                all: {
-                  ...meta.universes.all,
-                  dimensions: {
-                    ...meta.universes.all.dimensions,
-                    benchmarks: [
-                      { key: "universe", label: "universe" },
-                      { key: "custom", label: "Custom index" },
-                    ],
+              output_params: {
+                ...meta.output_params,
+                universes: {
+                  ...meta.output_params.universes,
+                  all: {
+                    ...meta.output_params.universes.all,
+                    dimensions: {
+                      ...meta.output_params.universes.all.dimensions,
+                      benchmarks: [
+                        { key: "universe", label: "universe" },
+                        { key: "custom", label: "Custom index" },
+                      ],
+                    },
                   },
                 },
               },
@@ -203,7 +211,9 @@ describe("stock backtest report", () => {
     );
     vi.mocked(loadBacktest).mockRejectedValue(new Error("Service offline"));
     await act(async () =>
-      root.render(<BacktestView meta={{ ...meta, _path: "other" }} />),
+      root.render(
+        <BacktestView meta={{ ...meta, task_id: "backtest#other" }} />,
+      ),
     );
     expect(container.textContent).toContain("Service offline");
   });
@@ -212,9 +222,12 @@ describe("stock backtest report", () => {
 it("switches complete universe reports and reuses cached data", async () => {
   const multi = {
     ...meta,
-    universes: {
-      ...meta.universes,
-      hs300: { ...meta.universes.all, label: "HS300" },
+    output_params: {
+      ...meta.output_params,
+      universes: {
+        ...meta.output_params.universes,
+        hs300: { ...meta.output_params.universes.all, label: "HS300" },
+      },
     },
   };
   await act(async () =>
@@ -250,9 +263,12 @@ it("ignores a stale universe response after selection changes", async () => {
   );
   const multi = {
     ...meta,
-    universes: {
-      ...meta.universes,
-      hs300: { ...meta.universes.all, label: "HS300" },
+    output_params: {
+      ...meta.output_params,
+      universes: {
+        ...meta.output_params.universes,
+        hs300: { ...meta.output_params.universes.all, label: "HS300" },
+      },
     },
   };
   await act(async () => root.render(<BacktestView meta={multi} />));

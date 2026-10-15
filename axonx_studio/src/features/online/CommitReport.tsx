@@ -8,7 +8,8 @@ import {
   type ReportTab,
 } from "./report";
 import { QualityReport } from "./QualityReport";
-import { loadQuality, loadRows } from "./api";
+import type { ArtifactTableCache } from "./artifactCache";
+import { loadQuality } from "./api";
 import { ReportTable, type Column } from "./ReportTable";
 import { display } from "./format";
 import { SignalTable } from "./SignalTable";
@@ -16,11 +17,13 @@ import { Performance } from "./Performance";
 
 export function CommitReport({
   commit,
+  cache,
   history,
   tab,
   target,
 }: {
   commit: OnlineCommit;
+  cache: ArtifactTableCache;
   history?: OnlineHistory | null;
   tab: ReportTab;
   target?: string;
@@ -56,12 +59,12 @@ export function CommitReport({
       const tables = await Promise.all(
         roles.map(
           async (role) =>
-            [role, await loadRows(commit, role, target, signal)] as const,
+            [role, await cache.load(commit.artifacts[role], signal)] as const,
         ),
       );
       const previousRows =
         tab === "signal" && previous
-          ? await loadRows(previous, "signal", target, signal)
+          ? await cache.load(previous.artifacts.signal, signal)
           : [];
       return {
         tables: Object.fromEntries(tables),
@@ -69,7 +72,7 @@ export function CommitReport({
         quality: null,
       };
     },
-    [commit, history, tab, target],
+    [cache, commit, history, tab, target],
   );
   const { data, error, loading, reload } = useAsyncResource(load);
   if (error)

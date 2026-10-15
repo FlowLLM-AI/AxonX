@@ -22,7 +22,12 @@ export function fromHistory(blocks: AgentHistoryBlock[]): ConversationState {
   return {
     order: blocks.map((block) => block.block_id),
     blocks: Object.fromEntries(
-      blocks.map((block) => [block.block_id, { ...block }]),
+      blocks.map((block) => {
+        const { text: _text, status: _status, ...payload } = block.payload;
+        void _text;
+        void _status;
+        return [block.block_id, { ...block, payload }];
+      }),
     ),
   };
 }
@@ -48,27 +53,6 @@ export function optimisticUserBlock(
   };
 }
 
-function stringField(value: unknown): string | undefined {
-  return typeof value === "string" && value ? value : undefined;
-}
-
-function eventIdentity(event: AgentMessageEvent) {
-  const role =
-    event.type_name === "UserMessage"
-      ? "user"
-      : event.type_name === "AssistantMessage" ||
-          event.type_name === "StreamEvent"
-        ? "assistant"
-        : "system";
-  return {
-    role: role as DisplayBlock["role"],
-    messageUuid:
-      stringField(event.message.uuid) ||
-      stringField(event.message.message_id) ||
-      `${event.session_id}:${event.sequence}`,
-  };
-}
-
 function applyPatch(
   state: ConversationState,
   patch: AgentBlockPatch,
@@ -85,14 +69,19 @@ function applyPatch(
     text: "",
     payload: {},
   };
-  const payload = { ...created.payload, ...patch.payload };
+  const {
+    text: replacementText,
+    status: replacementStatus,
+    ...details
+  } = patch.payload;
+  const payload = { ...created.payload, ...details };
   let text = created.text;
   if (patch.operation === "append") text += patch.delta;
-  if (patch.operation === "replace" && typeof patch.payload.text === "string")
-    text = patch.payload.text;
+  if (patch.operation === "replace" && typeof replacementText === "string")
+    text = replacementText;
   const status =
-    typeof patch.payload.status === "string"
-      ? patch.payload.status
+    typeof replacementStatus === "string"
+      ? replacementStatus
       : patch.operation === "finish"
         ? "completed"
         : created.status;
@@ -113,7 +102,7 @@ export function applyAgentEvent(
   state: ConversationState,
   event: AgentMessageEvent,
 ): ConversationState {
-  const { role, messageUuid } = eventIdentity(event);
+  const { role, message_uuid: messageUuid } = event;
   return event.presentation.reduce(
     (current, patch) => applyPatch(current, patch, role, messageUuid),
     state,

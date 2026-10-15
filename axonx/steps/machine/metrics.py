@@ -3,7 +3,7 @@
 import psutil
 
 from ...utils.build_info import get_build_info
-from .contracts import AxonxInfo, CpuInfo, MachineInfo, MemoryInfo
+from .contracts import CpuInfo, MachineInfo, MemoryInfo
 from .gpu import collect_gpus
 
 
@@ -13,11 +13,7 @@ def collect_machine_info(sample_interval: float, logger) -> MachineInfo:
     for warning in gpu_collection.warnings:
         logger.warning(warning)
     return MachineInfo(
-        axonx=AxonxInfo(
-            version=build.version,
-            git_commit=build.git_commit,
-            git_branch=build.git_branch,
-        ),
+        axonx=build,
         cpu=collect_cpu(sample_interval),
         memory=collect_memory(),
         gpus=list(gpu_collection.devices),

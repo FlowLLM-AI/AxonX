@@ -2,10 +2,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import AgentWorkspace from "./AgentWorkspace";
-import { getAgentSession, listAgentSessions, streamAgentChat } from "./api";
 import type { AppRoute } from "../../app/routes";
 import type { JobEvent } from "../../shared/api/event";
+import AgentWorkspace from "./AgentWorkspace";
+import { getAgentSession, listAgentSessions, streamAgentChat } from "./api";
 
 vi.mock("./api", () => ({
   getAgentSession: vi.fn(),
@@ -79,7 +79,8 @@ async function startTurn() {
       kind: "agent_message",
       session_id: "new-session",
       type_name: "SessionStart",
-      message: {},
+      message_uuid: "new-session:init",
+      role: "system",
       sequence: 0,
       presentation: [],
     });
@@ -96,7 +97,19 @@ beforeEach(() => {
   root = createRoot(container);
   vi.mocked(listAgentSessions).mockResolvedValue([]);
   vi.mocked(getAgentSession).mockImplementation(async (id) => ({
-    info: { session_id: id, summary: "", last_modified: 0, backend: "claude" },
+    info: {
+      file_size: null,
+      custom_title: null,
+      first_prompt: null,
+      git_branch: null,
+      cwd: null,
+      tag: null,
+      created_at: null,
+      session_id: id,
+      summary: "",
+      last_modified: 0,
+      backend: "claude",
+    },
     messages: [],
     blocks: [],
   }));

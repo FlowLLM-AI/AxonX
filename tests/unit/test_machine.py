@@ -21,6 +21,7 @@ from axonx.steps.machine.metrics import (
     collect_memory,
 )
 from axonx.steps.machine.steps import MachineStatusStep
+from axonx.utils.build_info import BuildInfo
 
 
 def test_parse_nvidia_output():
@@ -161,7 +162,7 @@ def test_no_gpu_is_an_empty_list(monkeypatch):
     step = MachineStatusStep(cpu_sample_interval=0)
     monkeypatch.setattr(
         "axonx.steps.machine.metrics.get_build_info",
-        lambda: SimpleNamespace(version="1.2.3", git_commit=None, git_branch=None),
+        lambda: BuildInfo(version="1.2.3"),
     )
     monkeypatch.setattr(
         "axonx.steps.machine.metrics.collect_cpu",

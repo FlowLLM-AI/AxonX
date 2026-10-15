@@ -1,5 +1,6 @@
 """Actual ETL/train/predict/backtest lifecycle for all three research layers."""
 
+import json
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -59,17 +60,17 @@ def raw_data(root):
 def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
     pytest.importorskip("lightgbm")
     if layer != "baseline":
+        from axonx_qlib_a158.analysis import FactorAnalysisTask
+        from axonx_qlib_a158.backtest import Alpha158BacktestTask
+        from axonx_qlib_a158.predict import LgbmPredictTask
         from axonx_qlib_factor.etl import Alpha158Task
         from axonx_qlib_factor.train import LgbmTrainTask
-        from axonx_qlib_a158.predict import LgbmPredictTask
-        from axonx_qlib_a158.backtest import Alpha158BacktestTask
-        from axonx_qlib_a158.analysis import FactorAnalysisTask
     else:
-        from axonx_qlib_a158.etl import Alpha158Task
-        from axonx_qlib_a158.train import LgbmTrainTask
-        from axonx_qlib_a158.predict import LgbmPredictTask
-        from axonx_qlib_a158.backtest import Alpha158BacktestTask
         from axonx_qlib_a158.analysis import FactorAnalysisTask
+        from axonx_qlib_a158.backtest import Alpha158BacktestTask
+        from axonx_qlib_a158.etl import Alpha158Task
+        from axonx_qlib_a158.predict import LgbmPredictTask
+        from axonx_qlib_a158.train import LgbmTrainTask
     if layer == "strategy":
         from axonx_qlib_strategy.backtest import StrategyBacktestTask
 
@@ -105,7 +106,7 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
     assert etl.state["daily_files"][0].parent.name == dates[0]
     metadata = read_metadata(etl.metadata_path)
     assert {"dataset", "labels", "market", "calendar"} <= set(output["artifacts"])
-    dataset = pl.read_parquet(output["output_file"])
+    dataset = pl.read_parquet((etl.task_dir / output["artifacts"]["dataset"]["path"]))
     assert not any(c.startswith("label_") or c in {"exit_date", "exit_delayed"} for c in dataset.columns)
     suspended = dataset.filter((pl.col("trade_date") == dates[64]) & (pl.col("ts_code") == "000001.SZ"))
     assert suspended["is_model_candidate"].item()
@@ -133,11 +134,16 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
     assert train.state["frame"]["label_target_date"].max() < dates[75]
     assert train.state["tuning_train"]["label_target_date"].max() < train.state["validation_start"]
     predict, predicted = run(LgbmPredictTask, "predict", source_tasks=train.task_id, pred_start=dates[75])
-    assert trained["model_files"] == {"model": str(train.state["model_path"])}
-    assert predicted["score_columns"] == {"model": "pred"}
-    assert trained["model_files"].keys() == predicted["score_columns"].keys()
-    predictions = pl.read_parquet(predicted["predictions_file"])
-    assert set(predicted["score_columns"].values()) <= set(predictions.columns)
+    assert set(
+        json.loads((train.task_dir / trained["artifacts"]["model_manifest"]["path"]).read_text())["members"]
+    ) == {"model"}
+    assert predicted["protocol"]["score_columns"] == {"model": "pred"}
+    assert (
+        json.loads((train.task_dir / trained["artifacts"]["model_manifest"]["path"]).read_text())["members"].keys()
+        == predicted["protocol"]["score_columns"].keys()
+    )
+    predictions = pl.read_parquet((predict.task_dir / predicted["artifacts"]["predictions"]["path"]))
+    assert set(predicted["protocol"]["score_columns"].values()) <= set(predictions.columns)
     assert "actual_return" not in predictions.columns
     stats = predicted["statistics"]
     assert stats["days"] == 10 and stats["symbols"] == 6
@@ -179,5 +185,7 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
         ).height
         > 0
     )
-    _, analysis = run(FactorAnalysisTask, "factor", source_tasks=etl.task_id, minimum_daily_samples=3, quantiles=3)
-    assert Path(analysis["result_file"]).is_file()
+    analysis_task, analysis = run(
+        FactorAnalysisTask, "factor", source_tasks=etl.task_id, minimum_daily_samples=3, quantiles=3
+    )
+    assert Path((analysis_task.task_dir / analysis["artifacts"]["result"]["path"])).is_file()

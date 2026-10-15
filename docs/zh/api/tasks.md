@@ -375,7 +375,7 @@ Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 
 **响应**
 
-answer 是 TaskLogChunk：content、start_offset、next_offset、file_size、has_more_before、has_more_after、reset。
+answer 是 LogChunk：content、start_offset、next_offset、file_size、has_more_before、has_more_after、reset。
 
 ```json
 {
@@ -694,3 +694,15 @@ Available 列表由实际安装环境生成。wait_task 返回失败任务状态
 - [事件协议](events.md)
 
 实现依据：`axonx/config/default.yaml`、`axonx/steps/task/` 与 `axonx/components/service/http/jobs.py`。
+
+## Studio 查询投影
+
+`detail: summary` 返回生成的 `TaskSummary` 契约。摘要只在查询时投影，
+不会另存一份 Task 记录。研究和策略比较列表请求摘要，仅对选中的 Task
+通过 `status` 加载详情。完整输出、训练曲线和产物注册表属于详情响应。
+任务图在仓库索引锁内构建，不复制 Task 的完整输出。
+
+Studio 的传输类型从 Python 契约生成，覆盖摘要、任务图、Job 事件和
+Agent 会话展示。研究输出按 `task_type` 区分；在线执行窗口与预测比较
+保留各自的状态枚举。修改接口时更新 Python 契约，再从 `axonx_studio/`
+运行 `npm run contracts:generate`。

@@ -12,11 +12,11 @@ from pydantic import ValidationError
 from axonx.task.contracts import (
     BaseInferenceTask,
     BasePredictionCompareTask,
-    BaseRealtimeApiInputParams,
     BaseRealtimeApiTask,
     ExecutionWindow,
     PredictionComparison,
     WindowClock,
+    WindowInputParams,
     WindowResult,
 )
 from axonx.task.runtime.runner import TaskRunner
@@ -170,9 +170,9 @@ def test_window_validation():
     with pytest.raises(ValidationError):
         ExecutionWindow(key="x", start_at=datetime(2026, 1, 1), end_at=datetime(2026, 1, 2))
     with pytest.raises(ValidationError, match="unique"):
-        BaseRealtimeApiInputParams(windows=[window(clock), window(clock)])
+        WindowInputParams(windows=[window(clock), window(clock)])
     with pytest.raises(ValidationError):
-        BaseRealtimeApiInputParams(windows=[window(clock)], poll_interval_seconds=float("inf"))
+        WindowInputParams(windows=[window(clock)], poll_interval_seconds=float("inf"))
 
 
 def test_initialization_failure_still_closes_resources(tmp_path):

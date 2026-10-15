@@ -1,59 +1,20 @@
-import { previewWorkspaceFile } from "../../workspace/api";
-import type { WorkspacePreview } from "../../workspace/types";
-import type {
-  BacktestArtifact,
-  DailyRow,
-  NumericRow,
-  SummaryRow,
-} from "./types";
+import { taskDirectory } from "../../../shared/lib/tasks";
 import i18n from "../../../i18n";
-
-const rowsOf = <T extends NumericRow>(preview: WorkspacePreview): T[] => {
-  if (preview.kind !== "parquet")
-    throw new Error(i18n.t("backtest.errors.parquetRequired"));
-  const columns = preview.columns || [];
-  return (preview.rows || []).map(
-    (row) =>
-      Object.fromEntries(
-        columns.map((column, index) => [column, row[index]]),
-      ) as T,
-  );
-};
-
-const loadParquetRows = async <T extends NumericRow>(
-  path: string,
-  target?: string,
-  signal?: AbortSignal,
-): Promise<T[]> => {
-  const pageSize = 5000;
-  const rows: T[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const preview = await previewWorkspaceFile(
-      path,
-      offset,
-      pageSize,
-      target,
-      signal,
-    );
-    if (preview.kind !== "parquet")
-      throw new Error(i18n.t("backtest.errors.parquetRequired"));
-    rows.push(...rowsOf<T>(preview));
-    if (!preview.has_more) return rows;
-  }
-};
+import { loadParquetRows } from "../../workspace/parquet";
+import type { BacktestArtifact, DailyRow, SummaryRow } from "./types";
 
 function universeArtifact(
   meta: BacktestArtifact,
   universe: string,
   role: "daily" | "summary",
 ) {
-  if (meta.signals_format !== "stock-signals-v1")
+  if (meta.output_params.signals_format !== "stock-signals-v1")
     throw new Error(i18n.t("backtest.errors.signalsFormat"));
-  const report = meta.universes?.[universe];
+  const report = meta.output_params.universes?.[universe];
   if (!report) throw new Error(i18n.t("backtest.errors.missingUniverse"));
-  const path = meta.artifacts[report.artifacts[role]]?.path;
+  const path = meta.output_params.artifacts[report.artifacts[role]]?.path;
   if (!path) throw new Error(i18n.t("backtest.errors.missingDailySummary"));
-  return `${meta._path}/${path}`;
+  return `${taskDirectory(meta.task_id)}/${path}`;
 }
 
 export async function loadBacktest(

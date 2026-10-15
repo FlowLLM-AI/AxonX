@@ -14,20 +14,20 @@ from ...contracts import (
     BacktestDimensions,
     BacktestUniverse,
     BacktestUniverseReport,
-    BaseBacktestInputParams,
     BaseBacktestOutputParams,
     BaseBacktestTask,
+    BaseInputParams,
 )
 from ...core import TaskStep, parse_source_tasks, task_type_from_id
 from ...protocol import STOCK_SIGNALS_FORMAT, PredictionProtocol, task_protocol
 from ...storage import artifact_record, read_metadata
 from ...storage.inputs import pin_source_artifacts
-from .engine import BacktestConfig, PortfolioPolicy, run_backtest
 from .data import KEYS
+from .engine import BacktestConfig, PortfolioPolicy, run_backtest
 from .settings import PortfolioSettings
 
 
-class StockPortfolioInput(PortfolioSettings, BaseBacktestInputParams):
+class StockPortfolioInput(PortfolioSettings, BaseInputParams):
     input_file: Path | None = None
     market_file: Path | None = None
     calendar_file: Path | None = None

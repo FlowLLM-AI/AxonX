@@ -6,6 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ...enums import TaskType
+from ..artifact import ArtifactRecord
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 
@@ -15,7 +16,7 @@ class PredictionComparison(BaseModel):
     status: Literal["consistent", "different", "protocol_mismatch", "missing", "error"]
     reason: str = ""
     metrics: dict[str, Any] = Field(default_factory=dict)
-    artifacts: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    artifacts: dict[str, ArtifactRecord] = Field(default_factory=dict)
 
 
 class BasePredictionCompareInputParams(BaseInputParams):
@@ -36,6 +37,7 @@ class BasePredictionCompareOutputParams(BaseOutputParams):
 class BasePredictionCompareTask(BaseTask):
     comparisons: list[PredictionComparison]
     task_type = TaskType.ANALYSIS
+    report_kind = "online"
     input_cls = BasePredictionCompareInputParams
     output_cls = BasePredictionCompareOutputParams
 

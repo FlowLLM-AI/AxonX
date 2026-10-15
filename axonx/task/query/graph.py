@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.identity import parse_source_tasks, task_type_from_id
-from ...enums import TaskState
+from ...enums import TaskState, TaskType
 from ..storage.workspace import KINDS, TaskMetadata
 
 KIND_ORDER = {kind: index for index, kind in enumerate(KINDS)}
@@ -16,11 +16,11 @@ KIND_ORDER = {kind: index for index, kind in enumerate(KINDS)}
 
 class TaskGraphNode(BaseModel):
     task_id: str
-    kind: str
+    kind: TaskType
     task_name: str | None
     created_at: str | None
     parent_ids: list[str]
-    state: str | None
+    state: TaskState | None
     missing: bool
     provisional: bool
 

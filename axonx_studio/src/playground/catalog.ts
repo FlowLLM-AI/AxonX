@@ -18,6 +18,11 @@ const schemas: Record<
   list_task_statuses: {
     input: {
       detail: { type: "string", enum: ["summary", "full"], default: "full" },
+      task_type: { type: "string" },
+      state: {
+        type: "string",
+        enum: ["queued", "running", "succeeded", "failed", "cancelled"],
+      },
     },
     output: "array",
   },
@@ -71,7 +76,7 @@ const schemas: Record<
   },
   preview_file: {
     input: {
-      path: text("runs/backtest#demo/metadata.json"),
+      path: text("backtest/backtest#demo/metadata.json"),
       offset: { type: "integer", default: 0 },
       limit: { type: "integer", default: 200 },
     },
@@ -82,7 +87,7 @@ const schemas: Record<
       paths: {
         type: "array",
         items: { type: "string" },
-        default: ["runs/backtest#volatile"],
+        default: ["backtest/backtest#volatile"],
       },
     },
     output: "array",

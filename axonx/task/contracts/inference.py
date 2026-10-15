@@ -2,33 +2,28 @@
 
 from abc import abstractmethod
 
-from pydantic import Field, TypeAdapter
+from pydantic import TypeAdapter
 
 from ...enums import TaskType
-from ..core import BaseOutputParams
 from .windows import (
     DeadlineBudget,
     ExecutionWindow,
     WindowInputParams,
+    WindowOutputParams,
     WindowResult,
     _WindowTask,
 )
 
 
-class BaseInferenceInputParams(WindowInputParams):
-    pass
-
-
-class BaseInferenceOutputParams(BaseOutputParams):
+class BaseInferenceOutputParams(WindowOutputParams):
     model_identity: dict[str, str]
-    windows: list[WindowResult] = Field(default_factory=list)
 
 
 class BaseInferenceTask(_WindowTask):
     model_identity: dict[str, str]
     _fixed_model_identity: dict[str, str]
     task_type = TaskType.INFERENCE
-    input_cls = BaseInferenceInputParams
+    input_cls = WindowInputParams
     output_cls = BaseInferenceOutputParams
 
     @abstractmethod
@@ -66,6 +61,3 @@ class BaseInferenceTask(_WindowTask):
 
     def window_output(self) -> dict:
         return {**super().window_output(), "model_identity": self._fixed_model_identity}
-
-    def build_output_params(self) -> BaseInferenceOutputParams:
-        return self.output_cls(**self.window_output())

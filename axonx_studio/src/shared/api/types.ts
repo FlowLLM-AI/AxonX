@@ -1,19 +1,16 @@
 import type { JsonSchema } from "../schema/types";
+import type {
+  JobResponse as ResponseContract,
+  JobInfo as InfoContract,
+} from "./contracts";
 
-export interface JobResponse<T = unknown> {
+export type JobResponse<T = unknown> = Omit<ResponseContract, "answer"> & {
   answer: T;
-  success: boolean;
-  metadata: Record<string, unknown>;
-}
-
-export interface JobInfo {
-  name: string;
-  description: string;
+};
+export type JobInfo = Omit<InfoContract, "input_schema" | "output_schema"> & {
   input_schema: JsonSchema;
   output_schema: JsonSchema;
-}
-
-export interface JobCatalog {
+};
+export type JobCatalog = Omit<import("./contracts").JobCatalog, "items"> & {
   items: JobInfo[];
-  total: number;
-}
+};

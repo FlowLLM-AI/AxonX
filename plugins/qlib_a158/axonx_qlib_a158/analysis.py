@@ -1,6 +1,7 @@
 """Analyze Alpha158 factors against the close-to-close holding return."""
 
 from __future__ import annotations
+
 import math
 from collections.abc import Iterable
 from pathlib import Path
@@ -10,9 +11,9 @@ from pydantic import Field
 
 from axonx.enums import TaskType
 from axonx.task.contracts import (
-    BaseAnalysisInputParams,
     BaseAnalysisOutputParams,
     BaseAnalysisTask,
+    BaseInputParams,
 )
 from axonx.task.core import TaskStep
 from axonx.task.storage import artifact_record, read_metadata
@@ -24,13 +25,12 @@ from .internal.etl_pipeline import LABELS
 
 
 class FactorAnalysisOutputParams(BaseAnalysisOutputParams):
-    quantiles_file: str
     feature_count: int
     labels: list[str]
     definitions: dict[str, str]
 
 
-class FactorAnalysisInputParams(BaseAnalysisInputParams):
+class FactorAnalysisInputParams(BaseInputParams):
     """Configure factor diagnostics sourced from one Alpha158 ETL task."""
 
     quantiles: int = Field(
@@ -220,6 +220,4 @@ class FactorAnalysisTask(BaseAnalysisTask):
                 "result": result_record,
                 "quantiles": quantiles_record,
             },
-            result_file=str(self.state["result_path"]),
-            quantiles_file=str(self.state["quantiles_path"]),
         )

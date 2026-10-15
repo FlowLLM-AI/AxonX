@@ -1,3 +1,4 @@
+import { taskStatus } from "../../playground/fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -8,13 +9,19 @@ import type { ResearchArtifact } from "./types";
 
 let root: Root;
 let container: HTMLDivElement;
-const meta: ResearchArtifact = {
-  _path: "predict/demo",
-  task_key: "predict",
+const meta: ResearchArtifact<"predict"> = {
+  ...taskStatus("predict", "predict#demo", "demo"),
+  task_type: "predict",
   created_at: "",
-  rows: 4,
-  config: { task_id: "predict#demo", task_type: "predict", task_name: "demo" },
-  artifacts: {},
+  reg_name: "predict",
+  output_params: {
+    rows: 4,
+    date_range: {},
+    output_columns: [],
+    protocol: {},
+    statistics: {},
+    artifacts: {},
+  },
 };
 beforeEach(() => {
   container = document.createElement("div");
@@ -34,7 +41,12 @@ describe("prediction overview", () => {
       await i18n.changeLanguage(language);
       await act(async () =>
         root.render(
-          <PredictionOverview meta={{ ...meta, prediction_statistics: {} }} />,
+          <PredictionOverview
+            meta={{
+              ...meta,
+              output_params: { ...meta.output_params, statistics: {} },
+            }}
+          />,
         ),
       );
       expect(container.textContent).toContain("—");
@@ -58,12 +70,15 @@ describe("prediction overview", () => {
           <PredictionOverview
             meta={{
               ...meta,
-              prediction_statistics: {
-                pred: { mean: 0.25 },
-                days: 2,
-                symbols: 2,
-                buyable_rows: 2,
-                candidate_rows: 1,
+              output_params: {
+                ...meta.output_params,
+                statistics: {
+                  pred: { mean: 0.25 },
+                  days: 2,
+                  symbols: 2,
+                  buyable_rows: 2,
+                  candidate_rows: 1,
+                },
               },
             }}
           />,

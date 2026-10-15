@@ -279,3 +279,13 @@ def test_jsonl_preview_handles_empty_and_partial_utf8_records(tmp_path):
     assert len(preview.rows) == 2
     assert all(row.parse_error for row in preview.rows)
     assert not preview.has_more
+
+
+@pytest.mark.parametrize(("suffix", "content"), [("json", '{"value": [1, 2]}'), ("yaml", "value: [1, 2]\n")])
+def test_structured_preview_has_one_successful_representation(tmp_path, suffix, content):
+    path = tmp_path / f"data.{suffix}"
+    path.write_text(content)
+    preview = preview_workspace_file(tmp_path, path.name)
+    assert preview.data == {"value": [1, 2]}
+    assert preview.content == ""
+    assert preview.parse_error is None

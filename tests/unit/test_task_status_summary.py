@@ -1,18 +1,18 @@
 """List summaries remain small without changing full snapshots or stored records."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock
 from importlib.resources import files
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 import yaml
 
+from axonx.components.service import HttpService
 from axonx.components.task_manager.local.manager import LocalTaskManager
 from axonx.components.task_repository import LocalTaskRepository
 from axonx.core import Application
-from axonx.components.service import HttpService
 from axonx.task.query.summary import summarize_status
 from axonx.task.storage.workspace import TaskMetadata, TaskStepStatus
 
@@ -23,6 +23,7 @@ def status():
         task_id="analysis#test#summary",
         run_id="run",
         task_type="analysis",
+        report_kind="online",
         input_params={
             "task_name": "friendly",
             "comparison_keys": [],
@@ -41,21 +42,21 @@ def status():
 def test_summary_preserves_progress_and_bounds_large_fields():
     task = status()
     summary = summarize_status(task)
-    assert not {"input_params", "output_params", "steps", "children"} & summary.keys()
-    assert summary["display_name"] == "friendly"
-    assert summary["is_online"] is True
-    assert summary["step_progress"] == {
+    assert not {"input_params", "output_params", "steps", "children"} & summary.model_fields_set
+    assert summary.display_name == "friendly"
+    assert summary.is_online is True
+    assert summary.step_progress.model_dump() == {
         "current": 2,
         "total": 3,
         "name": "active",
         "percentage": 42,
     }
-    assert len(summary["error"]) == 1000
+    assert len(summary.error) == 1000
     assert len(task.error) == 2000
     task.steps = []
-    assert summarize_status(task)["step_progress"] is None
+    assert summarize_status(task).step_progress is None
     task.steps = [TaskStepStatus(name="finished", finished_at=datetime.now(UTC), percentage=100)]
-    assert summarize_status(task)["step_progress"]["current"] == 1
+    assert summarize_status(task).step_progress.current == 1
 
 
 async def test_local_summary_avoids_full_snapshot_copy(tmp_path, monkeypatch):
@@ -76,8 +77,8 @@ async def test_local_summary_avoids_full_snapshot_copy(tmp_path, monkeypatch):
     manager.list_statuses = AsyncMock(side_effect=AssertionError("Full list must not be copied"))
     summaries = await manager.list_summaries()
     assert summaries == [summarize_status(task), summarize_status(older)]
-    summaries[0]["step_progress"]["name"] = "changed"
-    assert (await manager.list_summaries())[0]["step_progress"]["name"] == "active"
+    summaries[0].step_progress.name = "changed"
+    assert (await manager.list_summaries())[0].step_progress.name == "active"
 
 
 async def test_job_defaults_to_full_and_validates_detail(tmp_path):
@@ -127,3 +128,48 @@ async def test_job_defaults_to_full_and_validates_detail(tmp_path):
             assert invalid.status_code == 422
         with pytest.raises(ValueError, match="detail"):
             await app.run_job("list_task_statuses", {"detail": "invalid"})
+
+
+async def test_filtered_index_copies_only_matching_results(tmp_path, monkeypatch):
+    selected = status()
+    selected.state = "succeeded"
+    excluded = selected.model_copy(update={"task_id": "train#large#excluded", "task_type": "train"}, deep=True)
+    repository = LocalTaskRepository(
+        app_context=SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
+    )
+    repository._entries = {selected.task_id: selected, excluded.task_id: excluded}
+    original_copy = TaskMetadata.model_copy
+    copied = []
+
+    def track_copy(record, **kwargs):
+        assert record.task_id == selected.task_id, "Excluded outputs must never be copied"
+        copied.append(record.task_id)
+        return original_copy(record, **kwargs)
+
+    monkeypatch.setattr(TaskMetadata, "model_copy", track_copy)
+    result = await repository.entries(task_type="analysis", state="succeeded")
+    assert copied == [selected.task_id]
+    result[selected.task_id].output_params["comparisons"].append("consumer mutation")
+    assert selected.output_params["comparisons"] == []
+    assert [item.task_id for item in await repository.summaries(task_type="analysis", state="succeeded")] == [
+        selected.task_id
+    ]
+
+
+async def test_graph_projects_under_repository_lock_without_copying_outputs(tmp_path, monkeypatch):
+    task = status()
+    repository = LocalTaskRepository(
+        app_context=SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
+    )
+    repository._entries = {task.task_id: task}
+
+    def refuse_copy(*_args, **_kwargs):
+        raise AssertionError("Graph queries must not copy complete task records")
+
+    monkeypatch.setattr(TaskMetadata, "model_copy", refuse_copy)
+    manager = object.__new__(LocalTaskManager)
+    manager.repository = repository
+    graph = await manager.get_graph(task.task_id)
+    assert graph.nodes[0].task_id == task.task_id
+    graph.nodes[0].parent_ids.append("consumer mutation")
+    assert (await manager.get_graph(task.task_id)).nodes[0].parent_ids == []

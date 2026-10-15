@@ -118,7 +118,12 @@ jobs:
     parameters:
       type: object
       properties:
-        force: {type: boolean, default: false, description: Cancel active managed Runs before updating.}
+        force:
+          {
+            type: boolean,
+            default: false,
+            description: Cancel active managed Runs before updating.,
+          }
       additionalProperties: false
     steps:
       - backend: update_from_git_step
@@ -129,7 +134,12 @@ jobs:
     parameters:
       type: object
       properties:
-        force: {type: boolean, default: false, description: Cancel active managed Runs before updating.}
+        force:
+          {
+            type: boolean,
+            default: false,
+            description: Cancel active managed Runs before updating.,
+          }
       additionalProperties: false
     steps:
       - backend: update_from_pip_step
@@ -140,7 +150,12 @@ jobs:
     parameters:
       type: object
       properties:
-        force: {type: boolean, default: false, description: Cancel active managed Runs before restarting.}
+        force:
+          {
+            type: boolean,
+            default: false,
+            description: Cancel active managed Runs before restarting.,
+          }
       additionalProperties: false
     steps:
       - backend: restart_service_step
@@ -151,7 +166,7 @@ jobs:
     parameters:
       type: object
       properties:
-        update_id: {type: string, pattern: "^[0-9a-f]{32}$"}
+        update_id: { type: string, pattern: "^[0-9a-f]{32}$" }
       additionalProperties: false
     steps:
       - backend: get_update_status_step
@@ -279,9 +294,9 @@ jobs:
     parameters:
       type: object
       properties:
-        task_id: {type: string, minLength: 1}
-        run_id: {type: string, minLength: 1}
-        poll_interval: {type: number, exclusiveMinimum: 0, default: 1}
+        task_id: { type: string, minLength: 1 }
+        run_id: { type: string, minLength: 1 }
+        poll_interval: { type: number, exclusiveMinimum: 0, default: 1 }
       required: [task_id, run_id]
       additionalProperties: false
     steps:
@@ -310,6 +325,13 @@ jobs:
           enum: [summary, full]
           default: full
           description: Return lightweight list metadata or complete TaskMetadata snapshots.
+        task_type:
+          type: string
+          description: Filter complete snapshots by task category before copying outputs.
+        state:
+          type: string
+          enum: [queued, running, succeeded, failed, cancelled]
+          description: Filter complete snapshots by lifecycle state.
     steps:
       - backend: list_statuses
 
@@ -610,9 +632,13 @@ jobs:
     parameters:
       type: object
       properties:
-        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
-        limit: {type: integer, minimum: 1, maximum: 1000}
-        offset: {type: integer, minimum: 0, default: 0}
+        session_id:
+          {
+            type: string,
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+          }
+        limit: { type: integer, minimum: 1, maximum: 1000 }
+        offset: { type: integer, minimum: 0, default: 0 }
       required: [session_id]
       additionalProperties: false
     steps:
@@ -624,8 +650,12 @@ jobs:
     parameters:
       type: object
       properties:
-        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
-        title: {type: string, minLength: 1}
+        session_id:
+          {
+            type: string,
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+          }
+        title: { type: string, minLength: 1 }
       required: [session_id, title]
       additionalProperties: false
     steps:
@@ -637,8 +667,12 @@ jobs:
     parameters:
       type: object
       properties:
-        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
-        tag: {type: [string, "null"]}
+        session_id:
+          {
+            type: string,
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+          }
+        tag: { type: [string, "null"] }
       required: [session_id, tag]
       additionalProperties: false
     steps:
@@ -650,7 +684,11 @@ jobs:
     parameters:
       type: object
       properties:
-        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
+        session_id:
+          {
+            type: string,
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+          }
       required: [session_id]
       additionalProperties: false
     steps:
@@ -662,9 +700,17 @@ jobs:
     parameters:
       type: object
       properties:
-        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
-        up_to_message_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
-        title: {type: string, minLength: 1}
+        session_id:
+          {
+            type: string,
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+          }
+        up_to_message_id:
+          {
+            type: string,
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+          }
+        title: { type: string, minLength: 1 }
       required: [session_id]
       additionalProperties: false
     steps:
@@ -676,7 +722,11 @@ jobs:
     parameters:
       type: object
       properties:
-        session_id: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"}
+        session_id:
+          {
+            type: string,
+            pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+          }
       required: [session_id]
       additionalProperties: false
     steps:

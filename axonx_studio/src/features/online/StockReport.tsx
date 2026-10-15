@@ -1,4 +1,10 @@
-import { useCallback, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import {
@@ -8,6 +14,7 @@ import {
   type StockOnlineReport,
   type ReportTab,
 } from "./report";
+import { ArtifactTableCache } from "./artifactCache";
 import { loadHistory } from "./api";
 import { CommitReport } from "./CommitReport";
 
@@ -21,11 +28,16 @@ export function StockReport({
   runtime: ReactNode;
 }) {
   const { t } = useTranslation();
+  const cache = useMemo(
+    () => new ArtifactTableCache(report.commit.task_id, target),
+    [target, report.commit.task_id],
+  );
+  useEffect(() => () => cache.clear(), [cache]);
   const [tab, setTab] = useState<ReportTab>("signal");
   const [commitId, setCommitId] = useState("");
   const load = useCallback(
     (signal: AbortSignal) => loadHistory(report.commit.task_id, target, signal),
-    [report.commit.task_id, target],
+    [report.commit, target],
   );
   const { data: history, error, loading, reload } = useAsyncResource(load);
   const commit =
@@ -126,6 +138,7 @@ export function StockReport({
             />
           ) : (
             <CommitReport
+              cache={cache}
               key={`${target}:${commit.commit_id}:${tab}`}
               commit={commit}
               history={history}

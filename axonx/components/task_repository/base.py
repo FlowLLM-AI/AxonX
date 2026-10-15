@@ -7,6 +7,8 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from ...enums import ComponentEnum
+from ...task.query.graph import TaskGraph
+from ...task.query.summary import TaskSummary
 from ...task.storage.workspace import TaskMetadata
 from ...task.sync import SyncTasksReport
 from ..base import BaseComponent
@@ -23,7 +25,7 @@ class BaseTaskRepository(BaseComponent, ABC):
         """Return an isolated coalescing subscription."""
 
     @abstractmethod
-    async def entries(self) -> Mapping[str, TaskMetadata]:
+    async def entries(self, *, task_type: str | None = None, state: str | None = None) -> Mapping[str, TaskMetadata]:
         """Return isolated snapshots of indexed entries."""
 
     @abstractmethod
@@ -31,8 +33,12 @@ class BaseTaskRepository(BaseComponent, ABC):
         """Return one indexed entry or raise ``KeyError``."""
 
     @abstractmethod
-    async def summaries(self) -> list[dict]:
+    async def summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
         """Project isolated lightweight summaries directly from the index, newest first."""
+
+    @abstractmethod
+    async def graph(self, task_id: str) -> TaskGraph:
+        """Build a graph under the index lock without copying task outputs."""
 
     @abstractmethod
     async def put_metadata(self, status: TaskMetadata) -> None:

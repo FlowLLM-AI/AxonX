@@ -39,7 +39,7 @@ Qlib 的 `colsample_bytree` / `subsample` 分别对应 `feature_fraction` / `bag
 
 ## 安装与检查
 
-要求 Python 3.12+ 和 AxonX `>=0.1.1,<0.2`；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
+要求 Python 3.12+ 和 AxonX `>=0.3.0`；本地任务执行支持 macOS 和 Linux。安装在执行服务使用的 Python 环境中，再重启服务以重新加载插件。LightGBM、NumPy 和 Polars 随插件依赖安装。
 
 插件尚未发布到 PyPI。先安装 AxonX 主包并克隆仓库，再从仓库根目录安装固定版本的 wheel：
 

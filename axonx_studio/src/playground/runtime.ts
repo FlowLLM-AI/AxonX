@@ -1,21 +1,22 @@
-import { taskStepProgress } from "../features/tasks/format";
+import type { TaskMetadata } from "../features/tasks/types";
 import { isOnlineTask } from "../features/online/types";
-import { catalog } from "./catalog";
-import { createAgent } from "./agent";
-import { sse } from "./stream";
-import { parseSourceTasks } from "../shared/lib/sourceTasks";
+import { taskStepProgress } from "../features/tasks/format";
+import type { WorkspaceListing } from "../features/workspace/types";
 import type { Transport } from "../shared/api/client";
 import type { JobEvent } from "../shared/api/event";
-import type { WorkspaceDirectory } from "../features/workspace/types";
+import { parseSourceTasks } from "../shared/lib/sourceTasks";
+import { createAgent } from "./agent";
+import { catalog } from "./catalog";
 import {
-  json,
   addArtifacts,
   definitions,
   epoch,
-  seed,
+  json,
   schedules,
+  seed,
   taskStatus,
 } from "./fixtures";
+import { sse } from "./stream";
 
 const envelope = (answer: unknown, success = true, metadata = {}) => ({
   answer,
@@ -68,7 +69,7 @@ export function createPlayground(): Transport {
           task.error = "Simulated missing input / 模拟输入缺失";
           task.exit_code = 1;
         } else {
-          task.output_params = { output_dir: `runs/${id}` };
+          task.output_params = { output_dir: `${id.split("#")[0]}/${id}` };
           addArtifacts(
             files,
             task,
@@ -79,7 +80,7 @@ export function createPlayground(): Transport {
       }
     }
     for (const task of tasks.values())
-      files.set(`runs/${task.task_id}/metadata.json`, json(task));
+      files.set(`${task.task_type}/${task.task_id}/metadata.json`, json(task));
   }
   const log = (id: string) => {
     const task = requiredTask(id);
@@ -113,9 +114,9 @@ export function createPlayground(): Transport {
       channel: "stdout",
     };
   };
-  function directory(path: string, offset = 0): WorkspaceDirectory {
+  function directory(path: string, offset = 0): WorkspaceListing {
     const prefix = path ? `${path}/` : "";
-    const entries = new Map<string, WorkspaceDirectory["entries"][number]>();
+    const entries = new Map<string, WorkspaceListing["entries"][number]>();
     for (const [file, preview] of files) {
       if (!file.startsWith(prefix)) continue;
       const remainder = file.slice(prefix.length);
@@ -172,7 +173,7 @@ export function createPlayground(): Transport {
             ];
             if (!running.has(id)) {
               for (const [path, file] of files)
-                if (path.startsWith(`runs/${id}/`))
+                if (path.startsWith(`${id.split("#")[0]}/${id}/`))
                   events.push({
                     kind: "artifact",
                     path,
@@ -222,29 +223,40 @@ export function createPlayground(): Transport {
           return response(schedules);
         case "list_task_statuses":
           return response(
-            [...tasks.values()].reverse().map((task) => {
-              if (args.detail !== "summary") return task;
-              const {
-                input_params,
-                output_params,
-                steps,
-                children,
-                ...summary
-              } = task;
-              void output_params;
-              void children;
-              return {
-                ...summary,
-                error: task.error.slice(0, 1000),
-                display_name: String(
-                  input_params.task_name || task.reg_name,
-                ).slice(0, 256),
-                is_online: isOnlineTask(task),
-                step_progress: steps.length
-                  ? { ...taskStepProgress(task), total: steps.length }
-                  : null,
-              };
-            }),
+            [...tasks.values()]
+              .filter(
+                (task) =>
+                  (!args.task_type || task.task_type === args.task_type) &&
+                  (!args.state || task.state === args.state),
+              )
+              .reverse()
+              .map((task) => {
+                if (args.detail !== "summary") return task;
+                const {
+                  input_params,
+                  output_params,
+                  steps,
+                  children,
+                  replica,
+                  version,
+                  ...summary
+                } = task;
+                void output_params;
+                void children;
+                void version;
+                return {
+                  ...summary,
+                  error: task.error.slice(0, 1000),
+                  display_name: String(
+                    input_params.task_name || task.reg_name,
+                  ).slice(0, 256),
+                  is_online: isOnlineTask(task),
+                  is_replica: replica !== null,
+                  step_progress: steps.length
+                    ? { ...taskStepProgress(task), total: steps.length }
+                    : null,
+                };
+              }),
           );
         case "status":
           return response(requiredTask(id));
@@ -274,16 +286,18 @@ export function createPlayground(): Transport {
             throw new Error("Unknown demo outcome");
           const id = `${definition.task_type}#submitted-${++serial}`;
           const task = taskStatus(
-            definition.task_type,
+            definition.task_type as TaskMetadata["task_type"],
             id,
             String(args.task_name || `Demo ${definition.task_type}`),
           );
-          const upstream = {
-            analysis: "etl#demo",
-            train: "etl#demo",
-            predict: "train#demo",
-            backtest: "predict#demo",
-          }[definition.task_type];
+          const upstream = (
+            {
+              analysis: "etl#demo",
+              train: "etl#demo",
+              predict: "train#demo",
+              backtest: "predict#demo",
+            } as Partial<Record<TaskMetadata["task_type"], string>>
+          )[definition.task_type];
           task.input_params = {
             ...args,
             strategy: args.strategy || "steady",
@@ -324,10 +338,7 @@ export function createPlayground(): Transport {
             running.delete(id);
             tasks.delete(id);
             for (const path of files.keys())
-              if (
-                path.startsWith(`runs/${id}/`) ||
-                path.startsWith(`${id.split("#")[0]}/${id}/`)
-              )
+              if (path.startsWith(`${id.split("#")[0]}/${id}/`))
                 files.delete(path);
           }
           return response(ids);
@@ -337,7 +348,7 @@ export function createPlayground(): Transport {
             directory(String(args.path || ""), Number(args.offset || 0)),
           );
         case "list_task_runs": {
-          const dir = directory("runs");
+          const dir = directory(String(args.task_type));
           dir.entries = dir.entries.filter(
             (entry) => tasks.get(entry.name)?.task_type === args.task_type,
           );

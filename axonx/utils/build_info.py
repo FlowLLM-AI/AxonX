@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import os
 import subprocess
-from dataclasses import dataclass
 from functools import cache
 from importlib import metadata
 from pathlib import Path
+
+from pydantic import BaseModel, ConfigDict, Field
 
 # Distribution this package is published as, and the source tree holding it.
 PACKAGE_NAME = "axonx"
@@ -23,13 +24,13 @@ GIT_BRANCH_ENV = "AXONX_GIT_BRANCH"
 GIT_TIMEOUT_SECONDS = 2.0
 
 
-@dataclass(frozen=True, slots=True)
-class BuildInfo:
+class BuildInfo(BaseModel):
     """Version-control identity of the running AxonX build."""
 
-    version: str
-    git_commit: str | None
-    git_branch: str | None
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    version: str = Field(min_length=1)
+    git_commit: str | None = None
+    git_branch: str | None = None
 
 
 @cache
@@ -65,7 +66,7 @@ def git_branch() -> str | None:
 @cache
 def get_build_info() -> BuildInfo:
     """Return one consistent build identity snapshot for this process."""
-    return BuildInfo(axonx_version(), git_commit(), git_branch())
+    return BuildInfo(version=axonx_version(), git_commit=git_commit(), git_branch=git_branch())
 
 
 def _git(*arguments: str) -> str | None:
