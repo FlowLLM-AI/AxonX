@@ -95,7 +95,7 @@ function UpdatePanelContent({ target }: { target?: string }) {
     [target, updateId, active, available],
   );
 
-  usePolling(read, !submitting, 3, true);
+  usePolling(read, !submitting, 5, true);
 
   const start = async (signal: AbortSignal) => {
     if (blocked) return;

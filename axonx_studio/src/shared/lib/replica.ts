@@ -14,6 +14,14 @@ export interface DisplayReplica {
   files: Record<string, ReplicaFile>;
   omitted: Record<string, string>;
   source_log_path: string;
+  snapshot?: {
+    source_id: string;
+    root_task_id: string;
+    root_run_id: string;
+    captured_at: string;
+    revision: number;
+  } | null;
+  log?: { path: string; start: number; end: number } | null;
 }
 export function displayArtifacts(metadata: TaskMetadata) {
   const artifacts = (metadata.output_params.artifacts || {}) as Record<

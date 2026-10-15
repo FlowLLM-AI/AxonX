@@ -11,8 +11,15 @@ from pathlib import Path, PurePosixPath
 
 from ...constants import DEFAULT_TRANSFER_BUDGET_BYTES
 from ...workspace.paths import WorkspacePaths
-from ..storage.workspace import parse_task_directory, read_task_metadata
+from ...utils.fs import file_sha256, snapshot_file
+from ..storage.workspace import (
+    parse_task_directory,
+    read_task_metadata,
+    task_directory,
+    read_entry,
+)
 from .index import verify_replica
+from ..storage.composition import current_children
 from .models import SyncTasksReport
 
 MAX_SYNC_DELETIONS = 200
@@ -69,6 +76,7 @@ class TaskArchiveApplier:
                     tasks.add(self._task_of(canonical))
                 target.mkdir()
                 archive.extractall(target, members=members, filter=self._member)
+                self._hydrate(target, tasks)
                 self._validate_snapshots(target, tasks)
                 return tasks, len(members)
         except tarfile.TarError as exc:
@@ -109,13 +117,67 @@ class TaskArchiveApplier:
             self.paths.resolve_deletable(relative_path)
         return unique
 
+    def _hydrate(self, root: Path, tasks: set[str]) -> None:
+        """Reuse only explicitly checksummed files from the same existing Run."""
+        expanded = 10240 + sum(512 + ((p.stat().st_size + 511) // 512) * 512 for p in root.rglob("*") if p.is_file())
+        for relative_path in tasks:
+            directory = root / relative_path
+            task_id = relative_path.split("/", 1)[1]
+            status = read_task_metadata(directory, task_id)
+            if status is None or status.replica is None or status.replica.snapshot is None:
+                continue
+            previous = read_task_metadata(self.paths.root / relative_path, task_id)
+            for name, record in status.replica.files.items():
+                path = Path(name)
+                if path.is_absolute() or ".." in path.parts or path.as_posix() != name:
+                    raise ValueError(f"Invalid replica path: {name}")
+                target = directory / name
+                if target.is_file():
+                    continue
+                expanded += 512 + ((record.size + 511) // 512) * 512
+                if expanded > self.transfer_budget_bytes:
+                    raise ValueError("Hydrated replica exceeds the transfer budget")
+                old = previous.replica if previous is not None and previous.run_id == status.run_id else None
+                if old is None:
+                    raise ValueError(f"Missing replica delta base: {task_id}/{name}")
+                source = self.paths.root / relative_path / name
+                if old.files.get(name) != record or any(p.is_symlink() for p in (source, *source.parents)):
+                    raise ValueError(f"Replica delta base differs: {task_id}/{name}")
+                if source.stat().st_size != record.size or file_sha256(source) != record.sha256:
+                    raise ValueError(f"Replica delta base is corrupt: {task_id}/{name}")
+                target.parent.mkdir(parents=True, exist_ok=True)
+                snapshot_file(source, target)
+
     @staticmethod
     def _validate_snapshots(root: Path, tasks: set[str]) -> None:
         for relative_path in tasks:
             task_id = relative_path.split("/", 1)[1]
             status = read_task_metadata(root / relative_path, task_id)
-            if status is None or not status.state.is_terminal:
-                raise ValueError(f"Sync archive Task is missing a terminal status: {relative_path}")
+            if status is None or status.replica is None:
+                raise ValueError(f"Sync archive Task is missing a display replica status: {relative_path}")
+            snapshot = status.replica.snapshot
+            if snapshot is not None:
+                if task_directory(snapshot.root_task_id) not in tasks:
+                    raise ValueError("Live snapshot must include its parent Task")
+                parent = read_entry(root, snapshot.root_task_id)
+                if (
+                    parent is None
+                    or parent.replica is None
+                    or parent.run_id != snapshot.root_run_id
+                    or parent.replica.snapshot != snapshot
+                ):
+                    raise ValueError("Live snapshot parent identity differs")
+                for child in current_children(status):
+                    if child.task_id is None:
+                        continue
+                    linked = read_entry(root, child.task_id)
+                    if (
+                        linked is None
+                        or linked.run_id != child.run_id
+                        or linked.replica is None
+                        or linked.replica.snapshot != snapshot
+                    ):
+                        raise ValueError("Live snapshot child identity differs")
             verify_replica(root, task_id)
 
     def _commit(
@@ -137,7 +199,24 @@ class TaskArchiveApplier:
                 if target.is_symlink() or not target.is_dir():
                     raise ValueError(f"Task target is not a directory: {relative_path}")
                 status = read_task_metadata(target, relative_path.split("/", 1)[1], strict_io=True)
-                if status is not None and not status.state.is_terminal:
+                incoming = (
+                    read_task_metadata(extracted / relative_path, relative_path.split("/", 1)[1])
+                    if relative_path in replacements
+                    else None
+                )
+                old = status.replica.snapshot if status is not None and status.replica is not None else None
+                new = incoming.replica.snapshot if incoming is not None and incoming.replica is not None else None
+                if old is not None and incoming is not None:
+                    if (
+                        new is None
+                        or new.source_id != old.source_id
+                        or new.root_task_id != old.root_task_id
+                        or new.revision <= old.revision
+                    ):
+                        raise ValueError(f"Stale or conflicting live snapshot: {relative_path}")
+                    if status.run_id == incoming.run_id and status.state.is_terminal and not incoming.state.is_terminal:
+                        raise ValueError(f"Cannot regress a terminal Run: {relative_path}")
+                if status is not None and not status.state.is_terminal and (old is None or new is None):
                     raise ValueError(f"Cannot overwrite active Task: {relative_path}")
                 backup = backup_root / relative_path
                 backup.parent.mkdir(parents=True, exist_ok=True)

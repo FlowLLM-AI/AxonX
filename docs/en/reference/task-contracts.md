@@ -157,3 +157,15 @@ Source: [Input/output](../../../axonx/task/core/params.py), [Context](../../../a
 ## Display replicas
 
 `TaskMetadata.replica` is null for source runs. A synchronized result has a display manifest containing `purpose`, `source_digest`, `policy_digest`, `files`, `omitted`, and `source_log_path`. Each file records actual size/hash and optional sampling rows/dates. Source outputs and metrics remain original; display consumers use the actual file manifest. Research input consumers reject replicas.
+
+## Concurrent step progress
+
+`BaseTask.report_progress(percentage)` updates the executing step. `report_progress(name="download", state="running", completed=10, total=100, unit="requests")` updates a named substep in the same `metadata.steps` list. Each substep has a `parent` identifying the executing step. `TaskStepStatus` is shared by metadata and `ProgressEvent` (`kind=progress`); there is no separate activity object, event or storage field. Optional fields cover labels/groups, state/phase, counts, schedules/deadlines, metrics, committed file paths and errors. Request completion and usable coverage are separate measurements.
+
+The Runner serializes progress updates and metadata publication. Named counter updates are throttled to once per second per substep; state/phase changes and terminal updates publish immediately. Final snapshots retain all counts. Stop and join background producers before their executing step returns. Failure/cancellation and worker-exit cleanup settle unfinished progress while preserving completed work. Window results remain business outputs; progress never publishes business artifacts or online commits.
+
+`children` is the sole lifecycle record for child invocations. Planned models come from validated task inputs; the UI derives their execution state from child records and their internal phases from child steps. A named child directory contains the latest invocation; earlier attempts remain in the parent's records, and display synchronization captures only the latest invocation per directory. It rejects an unexpected replacement Run rather than substituting it.
+
+Tasks declare `report_kind = "online_pipeline"` for the Studio pipeline index. `run_task(..., task_name="model-1445")` names a child explicitly and defaults its node name to `<task_name>-<registration>`; omitting `task_name` inherits the parent name and defaults the node name to the registration. Lifecycle, source inheritance and cleanup are framework-owned. Activity metadata/events and the separate live index response are removed without fallback readers; regenerate records written with those unpublished contracts and upgrade plugins, source services, receivers and Studio together.
+
+Display replicas carry `replica.snapshot` (source, root Task/Run, capture time and revision) and `replica.log` (path and original byte range) when synchronized as a group. They retain source state, clear the PID and remain read-only. See [Display sync](../guides/task-sync.md).

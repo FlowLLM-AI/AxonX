@@ -1,16 +1,15 @@
 import { useCallback, useState } from "react";
-import { Activity, ArrowUpRight, RefreshCw } from "lucide-react";
+import { Activity, ArrowRight, LoaderCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { getTaskStatus, listTaskStatuses } from "../tasks/api";
+import { listTaskStatuses } from "../tasks/api";
+import { Status } from "../tasks/TaskRow";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { usePolling } from "../../shared/hooks/usePolling";
-import type { TaskSummary } from "../tasks/types";
-import { isOnlineTask, parseOnlineReport, type OnlineOutcome } from "./types";
+import { RailResizer } from "../../shared/ui/RailResizer";
+import { RunIndexControls } from "../../shared/ui/RunIndexControls";
 import { playground } from "../../app/environment";
-import { QualityReport } from "./QualityReport";
-import { parseQuality } from "./quality";
-import { StockReport } from "./StockReport";
-import { ReplicaNotice } from "../../shared/ReplicaNotice";
+import { isOnlineTask } from "./types";
+import { PipelineReport } from "./PipelineReport";
 
 export default function OnlinePage({
   target,
@@ -25,8 +24,7 @@ export default function OnlinePage({
   onConnection: (online: boolean) => void;
   onOpenTask: (id: string) => void;
 }) {
-  const { t } = useTranslation();
-  const [filter, setFilter] = useState("all");
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -38,318 +36,113 @@ export default function OnlinePage({
           .sort((a, b) =>
             (b.created_at || "").localeCompare(a.created_at || ""),
           );
-      } catch (error) {
+      } catch (reason) {
         if (!signal.aborted) onConnection(false);
-        throw error;
+        throw reason;
       }
     },
     [target, onConnection],
   );
   const { data, loading, error, reload } = useAsyncResource(load);
-  const tasks = (data || []).filter(
-    (task) =>
-      (filter === "all" || task.task_type === filter) &&
-      `${task.task_id} ${task.display_name || task.reg_name}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
-  );
-  const selected =
-    tasks.find((task) => task.task_id === initialTaskId) || tasks[0];
   const refresh = useCallback(async () => {
     await reload();
   }, [reload]);
-  usePolling(
-    refresh,
-    !!data?.some((task) => ["running", "queued"].includes(task.state)),
-    5,
+  usePolling(refresh, true);
+  const tasks = (data || []).filter(
+    (task) => task.report_kind === "online_pipeline",
   );
+  const visible = tasks.filter((task) =>
+    `${task.task_id} ${task.display_name || task.reg_name}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  const selected =
+    data?.find((task) => task.task_id === initialTaskId) || visible[0];
   return (
-    <section className="workspace-page online-page">
-      <header className="online-heading">
-        <div>
-          <p className="eyebrow">AXONX / LIVE</p>
-          <h1>{t("onlinePipeline.title")}</h1>
-          <p>{t("onlinePipeline.lead")}</p>
-        </div>
-        <button className="secondary-button" onClick={() => void reload()}>
-          <RefreshCw />
-          {t("onlinePipeline.refresh")}
-        </button>
-      </header>
-      {playground && (
-        <div className="online-demo">
-          <Activity size={16} />
-          {t("onlinePipeline.demo")}
-        </div>
-      )}
-      <div className="online-filters">
-        <div>
-          {["all", "api", "inference", "analysis"].map((kind) => (
-            <button
-              key={kind}
-              className={filter === kind ? "active" : ""}
-              aria-pressed={filter === kind}
-              onClick={() => setFilter(kind)}
-            >
-              {t(`onlinePipeline.kinds.${kind}`)}
-            </button>
-          ))}
-        </div>
-        <input
-          aria-label={t("onlinePipeline.search")}
-          placeholder={t("onlinePipeline.search")}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </div>
-      {error ? (
-        <div className="error-state" role="alert">
-          {error}
-        </div>
-      ) : loading && !data ? (
-        <div className="loading-state">{t("shell.loading")}</div>
-      ) : !tasks.length ? (
-        <div className="empty-state">{t("onlinePipeline.empty")}</div>
-      ) : (
-        <div className="online-layout">
-          <aside className="online-runs">
-            {tasks.map((task) => (
-              <button
-                key={task.task_id}
-                className={selected?.task_id === task.task_id ? "active" : ""}
-                aria-pressed={selected?.task_id === task.task_id}
-                onClick={() => onSelected(task.task_id)}
-              >
-                <span>
-                  {t(`onlinePipeline.kinds.${task.task_type}`)}
-                  <Status value={task.state} />
-                </span>
-                <strong>{String(task.display_name || task.reg_name)}</strong>
-                <small>{task.task_id}</small>
-              </button>
-            ))}
-          </aside>
-          {selected && (
-            <RunReport
-              key={`${target}:${selected.task_id}:${selected.run_id}:${selected.state}`}
+    <section className="workspace-page research-page online-workbench">
+      <div className="research-layout">
+        <aside className="run-index rail-panel">
+          <RunIndexControls
+            title={t("research.task_versions")}
+            count={tasks.length}
+            loading={loading}
+            query={query}
+            onQuery={setQuery}
+            searchLabel={t("research.search_task_id")}
+            refreshLabel={t("onlinePipeline.refresh")}
+            onRefresh={() => void reload()}
+          />
+          <div className="rail-scroll">
+            {loading && !data ? (
+              <span className="run-loading">
+                <LoaderCircle className="spin" />
+              </span>
+            ) : (
+              visible.map((task) => (
+                <article
+                  className={selected?.task_id === task.task_id ? "active" : ""}
+                  key={task.task_id}
+                >
+                  <button
+                    className="run-main rail-list-item"
+                    aria-pressed={selected?.task_id === task.task_id}
+                    onClick={() => onSelected(task.task_id)}
+                  >
+                    <span className="run-item-avatar rail-avatar">
+                      <Activity />
+                    </span>
+                    <span className="rail-item-copy">
+                      <strong>{task.display_name || task.reg_name}</strong>
+                      <code>{task.task_id}</code>
+                      <small>
+                        {task.created_at
+                          ? new Date(task.created_at).toLocaleString(
+                              i18n?.resolvedLanguage === "zh"
+                                ? "zh-CN"
+                                : "en-US",
+                            )
+                          : "—"}
+                      </small>
+                      <Status state={task.state} />
+                    </span>
+                    <ArrowRight />
+                  </button>
+                </article>
+              ))
+            )}
+          </div>
+        </aside>
+        <RailResizer min={180} max={460} className="context-resizer" />
+        <main className="research-canvas">
+          {playground && (
+            <div className="online-demo">
+              <Activity size={16} />
+              {t("onlinePipeline.demo")}
+            </div>
+          )}
+          {error && (
+            <div className="error-state" role="alert">
+              {error}
+              <button onClick={() => void reload()}>{t("retry")}</button>
+            </div>
+          )}
+          {selected ? (
+            <PipelineReport
+              key={`${target}:${selected.task_id}:${selected.run_id}`}
               task={selected}
               target={target}
               onOpenTask={onOpenTask}
             />
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function Status({ value }: { value: string }) {
-  const { t } = useTranslation();
-  return (
-    <span className={`online-status status-${value}`}>
-      {t(`onlinePipeline.status.${value}`, value)}
-    </span>
-  );
-}
-
-function RunReport({
-  task,
-  target,
-  onOpenTask,
-}: {
-  task: TaskSummary;
-  target?: string;
-  onOpenTask: (id: string) => void;
-}) {
-  const { t } = useTranslation();
-  const load = useCallback(
-    async (signal: AbortSignal) => {
-      const full = await getTaskStatus(task.task_id, target, signal);
-      signal.throwIfAborted();
-      return {
-        ...parseOnlineReport(full.output_params),
-        replica: full.replica,
-      };
-    },
-    [task.task_id, target],
-  );
-  const { data, error, loading, reload } = useAsyncResource(load);
-  const rows = data?.windows || data?.comparisons || [];
-  const refresh = useCallback(async () => {
-    await reload();
-  }, [reload]);
-  usePolling(refresh, ["running", "queued"].includes(task.state), 5);
-  const done = rows.filter(
-    (row) => row.status === "done" || row.status === "consistent",
-  ).length;
-  const runtime = (
-    <>
-      <div className="online-summary">
-        <div>
-          <span>{t("onlinePipeline.runState")}</span>
-          <Status value={task.state} />
-        </div>
-        <div>
-          <span>{t("onlinePipeline.outcomes")}</span>
-          <strong>{rows.length}</strong>
-        </div>
-        <div>
-          <span>{t("onlinePipeline.complete")}</span>
-          <strong>
-            {done} / {rows.length}
-          </strong>
-        </div>
-      </div>
-      {data?.model_identity && (
-        <div className="online-model">
-          <strong>{t("onlinePipeline.model")}</strong>
-          {Object.entries(data.model_identity).map(([key, value]) => (
-            <span key={key}>
-              <small>{key}</small>
-              <code>{value}</code>
-            </span>
-          ))}
-        </div>
-      )}
-      <h3>
-        {t(
-          task.task_type === "analysis"
-            ? "onlinePipeline.comparisons"
-            : "onlinePipeline.windows",
-        )}
-      </h3>
-      {loading && !data ? (
-        <div className="loading-state">{t("shell.loading")}</div>
-      ) : !rows.length ? (
-        <div className="empty-state">{t("onlinePipeline.pending")}</div>
-      ) : (
-        rows.map((row) => (
-          <Outcome
-            key={row.key}
-            row={row}
-            taskId={task.task_id}
-            target={target}
-          />
-        ))
-      )}
-    </>
-  );
-  return (
-    <article className="online-report">
-      <ReplicaNotice replica={data?.replica} />
-      <header>
-        <div>
-          <p className="eyebrow">
-            {t(`onlinePipeline.kinds.${task.task_type}`)}
-          </p>
-          <h2>{String(task.display_name || task.reg_name)}</h2>
-          <small>{task.task_id}</small>
-        </div>
-        <button
-          className="secondary-button"
-          onClick={() => onOpenTask(task.task_id)}
-        >
-          {t("onlinePipeline.openTask")}
-          <ArrowUpRight />
-        </button>
-      </header>
-      {task.error && (
-        <div className="error-state" role="alert">
-          {task.error}
-        </div>
-      )}
-      {error && (
-        <div className="error-state" role="alert">
-          {error}
-          <button onClick={() => void reload()}>
-            {t("onlinePipeline.refresh")}
-          </button>
-        </div>
-      )}
-      {data?.report && data.report.commit.run_id !== task.run_id && (
-        <div className="online-warning" role="status">
-          {t("quality.previousSignal", {
-            date: data.report.commit.trade_date,
-            time: data.report.commit.trade_time,
-          })}
-        </div>
-      )}
-      {data?.report ? (
-        <StockReport
-          key={`${target}:${data.report.commit.commit_id}`}
-          report={data.report}
-          target={target}
-          runtime={runtime}
-        />
-      ) : (
-        runtime
-      )}
-    </article>
-  );
-}
-
-function Outcome({
-  row,
-  taskId,
-  target,
-}: {
-  row: OnlineOutcome;
-  taskId: string;
-  target?: string;
-}) {
-  const { t } = useTranslation();
-  return (
-    <section className="online-outcome">
-      <header>
-        <strong>{row.key}</strong>
-        <Status value={row.status} />
-      </header>
-      <div className="online-metrics">
-        {row.coverage != null && (
-          <div>
-            <span>{t("onlinePipeline.coverage")}</span>
-            <strong>{(row.coverage * 100).toFixed(1)}%</strong>
-            <progress max={1} value={row.coverage} />
-          </div>
-        )}
-        {row.rows != null && (
-          <div>
-            <span>{t("onlinePipeline.rows")}</span>
-            <strong>{row.rows.toLocaleString()}</strong>
-          </div>
-        )}
-        {row.elapsed_seconds != null && (
-          <div>
-            <span>{t("onlinePipeline.elapsed")}</span>
-            <strong>{row.elapsed_seconds.toFixed(1)}s</strong>
-          </div>
-        )}
-        {Object.entries(row.metrics || {})
-          .filter(([key]) => key !== "quality")
-          .map(([key, value]) => (
-            <div key={key}>
-              <span>{t(`onlinePipeline.metrics.${key}`, key)}</span>
+          ) : (
+            <div className="empty-research">
+              <Activity />
               <strong>
-                {typeof value === "object"
-                  ? JSON.stringify(value)
-                  : String(value)}
+                {loading ? t("shell.loading") : t("onlinePipeline.empty")}
               </strong>
             </div>
-          ))}
+          )}
+        </main>
       </div>
-      {row.metrics?.quality != null && (
-        <QualityReport
-          summary={parseQuality(row.metrics.quality)}
-          taskId={taskId}
-          target={target}
-          artifacts={row.artifacts}
-        />
-      )}
-      {row.reason && (
-        <p className="online-reason">
-          {t(`onlinePipeline.reasons.${row.reason}`, row.reason)}
-        </p>
-      )}
     </section>
   );
 }

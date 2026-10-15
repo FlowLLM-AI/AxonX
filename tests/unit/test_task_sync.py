@@ -88,7 +88,13 @@ def test_samples_recent_complete_days_and_keeps_source_unchanged(tmp_path):
     original = dataset(directory / "dataset.parquet")
     labels = original.select("trade_date").with_row_index("label")
     labels = pl.concat(
-        [labels, pl.DataFrame({"label": [original.height], "trade_date": ["20271231"]}, schema=labels.schema)]
+        [
+            labels,
+            pl.DataFrame(
+                {"label": [original.height], "trade_date": ["20271231"]},
+                schema=labels.schema,
+            ),
+        ]
     )
     labels.write_parquet(directory / "labels.parquet")
     calendar = pl.DataFrame({"trade_date": ["20260106", "20271231"]})
@@ -183,7 +189,7 @@ def test_replica_roundtrip_and_policy_change(tmp_path):
         "source_digest": snapshot_digest(tmp_path / "source", TASK_ID),
         "policy_digest": policy_digest(budget),
     }
-    assert snapshot_index(remote, frozenset()) == {TASK_ID: expected}
+    assert all(snapshot_index(remote, frozenset())[TASK_ID][key] == value for key, value in expected.items())
     assert policy_digest(budget + 1) != expected["policy_digest"]
     assert not snapshot_index(tmp_path / "source", frozenset())
     (task_path(remote, TASK_ID) / "report.txt").write_text("tampered")

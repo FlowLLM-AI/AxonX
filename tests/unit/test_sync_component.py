@@ -136,7 +136,7 @@ async def test_failed_batch_is_retried_and_deferred_tasks_remain_queued(tmp_path
     sync._send = AsyncMock(side_effect=[ConnectionError("offline"), None, None, None])
     report = await sync.flush()
     assert report.uploaded == [f"etl/{ids[1]}"]
-    assert report.deferred == [f"etl/{ids[2]}"]
+    assert set(report.deferred) == {f"etl/{ids[0]}", f"etl/{ids[2]}"}
     assert sync._pending == {ids[0], ids[2]}
     assert set((await sync.flush()).uploaded) == {f"etl/{ids[0]}", f"etl/{ids[2]}"}
     assert not sync._pending
@@ -159,7 +159,11 @@ async def test_authenticated_roundtrip_reconciles_reruns_and_skips_replicas(tmp_
     source, remote = tmp_path / "source", tmp_path / "remote"
     source.mkdir()
     remote.mkdir()
-    ids = ["etl#demo#research-core", "train#demo#research-core", "composite#demo#research-core"]
+    ids = [
+        "etl#demo#research-core",
+        "train#demo#research-core",
+        "composite#demo#research-core",
+    ]
     for task_id in ids:
         directory = task(source, task_id)
         (directory / "inputs").mkdir()

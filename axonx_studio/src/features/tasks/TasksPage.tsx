@@ -174,7 +174,7 @@ export function TasksPage({
     };
   }, [contextMenu]);
   const poll = useCallback((signal: AbortSignal) => load(true, signal), [load]);
-  const seconds = usePolling(poll, autoRefresh, 5);
+  const seconds = usePolling(poll, autoRefresh);
 
   const visibleTasks = useMemo(
     () =>
@@ -680,19 +680,20 @@ export function TasksPage({
                   {t("enableMultiSelect")}
                 </button>
               )}
-              {ACTIVE.has(contextMenu.task.state) && (
-                <button
-                  className="danger"
-                  role="menuitem"
-                  onClick={() => {
-                    setCancelTarget(contextMenu.task);
-                    setContextMenu(null);
-                  }}
-                >
-                  <Ban />
-                  {t("cancel")}
-                </button>
-              )}
+              {ACTIVE.has(contextMenu.task.state) &&
+                !contextMenu.task.is_replica && (
+                  <button
+                    className="danger"
+                    role="menuitem"
+                    onClick={() => {
+                      setCancelTarget(contextMenu.task);
+                      setContextMenu(null);
+                    }}
+                  >
+                    <Ban />
+                    {t("cancel")}
+                  </button>
+                )}
             </>
           )}
         </div>

@@ -91,6 +91,7 @@ components:
   #     task_repository: default
   #     target: ${AXONX_SYNC_TARGET}
   #     task_names: []
+  #     live_task_ids: []
   #     max_archives_per_flush: 4
   #     timeout_seconds: 300
 
@@ -333,6 +334,9 @@ jobs:
         task_id:
           type: string
           description: ID of the task whose log is read.
+        run_id:
+          type: string
+          description: Optional exact Run ID; refuse a replacement run before reading its log.
         offset:
           type: integer
           minimum: -1
@@ -340,7 +344,7 @@ jobs:
           description: Byte offset to start reading from; negative values read the tail of the log.
         limit:
           type: integer
-          minimum: 1024
+          minimum: 1
           maximum: 262144
           default: 65536
           description: Maximum number of bytes to return.
@@ -522,7 +526,7 @@ jobs:
   #       sync: default
 
   task_sync_index:
-    description: Read content digests of terminal Task snapshots for startup reconciliation.
+    description: Read verified display snapshots for reconciliation.
     parameters:
       type: object
       properties:
@@ -531,6 +535,11 @@ jobs:
           items:
             type: string
             pattern: "^[A-Za-z0-9-]{1,32}$"
+        live_task_ids:
+          type: array
+          items:
+            type: string
+            minLength: 1
       additionalProperties: false
     steps:
       - backend: task_sync_index_step

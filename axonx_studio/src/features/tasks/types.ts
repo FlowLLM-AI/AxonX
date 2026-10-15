@@ -1,15 +1,10 @@
+import type { TaskStepStatus } from "../../shared/api/event";
+export type { TaskStepStatus } from "../../shared/api/event";
 import type { DisplayReplica } from "../../shared/lib/replica";
 import type { JsonSchema } from "../../shared/schema/types";
 
 export type TaskState =
   "queued" | "running" | "succeeded" | "failed" | "cancelled";
-
-export interface TaskStepStatus {
-  name: string;
-  started_at: string | null;
-  finished_at: string | null;
-  percentage: number | null;
-}
 
 export interface ChildTaskRecord {
   node_name: string;
@@ -60,6 +55,7 @@ export interface TaskMetadata {
   started_at: string | null;
   finished_at: string | null;
   steps: TaskStepStatus[];
+  report_kind?: string | null;
   children: ChildTaskRecord[];
   output_params: Record<string, unknown>;
   error: string;

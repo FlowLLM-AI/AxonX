@@ -22,6 +22,8 @@ class TaskFile:
 
 @dataclass(frozen=True, slots=True)
 class TaskPlan:
+    """Files to transfer and reserved archive size, including any hydrated delta base."""
+
     files: tuple[TaskFile, ...]
     size: int
 

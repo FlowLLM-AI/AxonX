@@ -607,6 +607,72 @@ function seedOnline(
     tasks.set(id, task);
     files.set(`runs/${id}/metadata.json`, json(task));
   }
+  const child = tasks.get("inference#playground_online#demo")!;
+  const id = "composite#playground_online#demo";
+  const parent = taskStatus("composite", id, "Synthetic online pipeline");
+  parent.report_kind = "online_pipeline";
+  parent.input_params = {
+    task_name: "Synthetic online pipeline",
+    trade_date: "2026-01-05",
+  };
+  parent.children = [
+    {
+      node_name: "model-1445",
+      task: child.reg_name,
+      task_id: child.task_id,
+      run_id: child.run_id,
+      attempt: 1,
+      state: child.state,
+      exit_code: 0,
+      error: "",
+    },
+  ];
+  const step: import("../features/tasks/types").TaskStepStatus = {
+    name: "collection:snapshot",
+    label: "snapshot",
+    parent: "execute",
+    percentage: 100,
+    group: "collection",
+    state: "done",
+    phase: "committed",
+    completed: 5100,
+    total: 5100,
+    unit: "stocks",
+    scheduled_at: epoch,
+    deadline: epoch,
+    started_at: epoch,
+    finished_at: epoch,
+    updated_at: epoch,
+    metrics: { coverage: 0.998 },
+    files: { data: "tushare/2026/20260105/rt/rt_k/data.csv" },
+    error: "",
+  };
+  child.steps = [
+    ...child.steps,
+    ...[
+      "initialization",
+      "feature",
+      "prediction",
+      "portfolio",
+      "publication",
+    ].map((name) => ({
+      ...step,
+      name,
+      label: name,
+      parent: "run_windows",
+      group: "inference",
+      phase: "",
+      completed: null,
+      total: null,
+      files: {},
+      metrics: {},
+    })),
+  ];
+  parent.steps.push(step);
+  parent.input_params.models = { "1445": [{ task_name: "demo" }] };
+  parent.children[0].node_name = "demo-1445-a_stock_online_predict";
+  tasks.set(id, parent);
+  files.set(`runs/${id}/metadata.json`, json(parent));
 }
 
 function seedStockOnline(

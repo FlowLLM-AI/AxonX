@@ -110,12 +110,12 @@ it("targets the selected machine and reconnects without treating a disconnect as
   await act(async () => vi.advanceTimersByTimeAsync(100));
   expect(calls.length).toBe(count);
   offline = true;
-  await act(async () => vi.advanceTimersByTimeAsync(3000));
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
   expect(container.textContent).toContain("update.reconnecting");
   expect(container.textContent).not.toContain("update.phases.succeeded");
   offline = false;
   phase = "failed";
-  await act(async () => vi.advanceTimersByTimeAsync(3000));
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
   expect(container.textContent).toContain("Install failed");
   expect(container.textContent).toContain("update.phases.failed");
   expect(container.textContent).not.toContain("update.reload");
@@ -137,7 +137,7 @@ it("retries discovery after opening during a restart or before supplying a token
   );
   expect(container.textContent).toContain("offline");
   offline = false;
-  await act(async () => vi.advanceTimersByTimeAsync(3000));
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
   expect(container.querySelector("select")).not.toBeNull();
   expect(container.querySelector('[role="alert"]')).toBeNull();
 });
@@ -174,7 +174,7 @@ it("restarts the selected service without submitting an update and reports resta
   );
   expect(container.textContent).toContain("update.restartPhases.accepted");
   phase = "succeeded";
-  await act(async () => vi.advanceTimersByTimeAsync(3000));
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
   expect(container.textContent).toContain("update.restartPhases.succeeded");
   expect(container.textContent).toContain("update.reload");
 });
@@ -206,11 +206,11 @@ it("allows restarting services with no update Jobs", async () => {
   await act(async () => container.querySelector("button")!.click());
   expect(calls.some((call) => call.url === "/jobs/restart_service")).toBe(true);
   offline = true;
-  await act(async () => vi.advanceTimersByTimeAsync(3000));
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
   expect(container.textContent).toContain("update.reconnecting");
   offline = false;
   phase = "failed";
-  await act(async () => vi.advanceTimersByTimeAsync(3000));
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
   expect(container.textContent).toContain("update.restartPhases.failed");
   expect(container.textContent).not.toContain("update.reload");
 });
@@ -267,7 +267,7 @@ it("blocks updates and restarts for scheduled Tasks even with force", async () =
     false,
   );
   restartBlockers = [];
-  await act(async () => vi.advanceTimersByTimeAsync(3000));
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
   expect(container.textContent).not.toContain("update.scheduledBlocked");
   expect(button.disabled).toBe(false);
 });

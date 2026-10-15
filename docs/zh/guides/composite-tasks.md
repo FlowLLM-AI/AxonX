@@ -5,7 +5,7 @@ description: 用同步 Python 步骤组合已注册的 Task，显式传递输入
 
 # 复合 Task
 
-`BaseCompositeTask` 是 `BaseTask` 上的一层薄封装。复合 Task 使用现有接口提交、查询和取消，子 Task 在父 worker 中通过 `TaskRunner` 串行执行，每次调用拥有新的 Run ID。每个注册名使用父任务解析后的 `task_name` 构造 Task ID，并保存统一 metadata 和产物；重复调用同一注册名会覆盖该目录中的终态产物。子 Task 共用 worker PID，但每个 Run 拥有独立日志文件；父任务日志也包含其嵌套子任务的日志。子 Task 没有独立受管的 worker。已完成任务的日志流读取有限的日志快照后结束，即使旧任务共用的进程日志仍在增长，也不会继续等待。 Run 日志遵循统一的 7 天保留策略，运行中的 Run 日志不会被清理。
+`BaseCompositeTask` 是 `BaseTask` 上的一层薄封装。复合 Task 使用现有接口提交、查询和取消，子 Task 在父 worker 中通过 `TaskRunner` 串行执行，每次调用拥有新的 Run ID。每个注册名默认使用父任务解析后的 `task_name` 构造 Task ID，并保存统一 metadata 和产物；重复调用同一注册名会覆盖该目录中的终态产物。子 Task 共用 worker PID，但每个 Run 拥有独立日志文件；父任务日志也包含其嵌套子任务的日志。子 Task 没有独立受管的 worker。已完成任务的日志流读取有限的日志快照后结束，即使旧任务共用的进程日志仍在增长，也不会继续等待。 Run 日志遵循统一的 7 天保留策略，运行中的 Run 日志不会被清理。
 
 顺序、循环和条件分支使用普通 Python 表达，不需要额外的 Workflow 服务或配置语言。第一版支持本机同步组合，不提供并行执行、自动重试、崩溃续跑或分布式调度。
 
@@ -115,7 +115,7 @@ Runner 在执行期间持续写入 `metadata.json`。父 Task 在每个子任务
 
 复合 Task 默认输出为 `BaseOutputParams`。自定义输出继承该模型，声明并正常返回业务字段；子调用记录只保存在顶层 `metadata.json.children`。失败和取消的父任务也保留该记录，包括尚未构建业务输出的失败即停场景。
 
-包含关系不会自动生成数据血缘边。实际读取不同 Task ID 的上游数据时应显式传入 `source_tasks`。每个子 Task（包括嵌套复合 Task）直接继承父 Task 解析后的 `task_name`，`run_task()` 不接受单独的 `task_name`。运行时不会在名称中追加摘要、节点名或调用序号。重复调用同一注册名会复用 Task ID，通过 `TaskRunner` 覆盖终态产物；活动或无法识别的目录会被拒绝。每次调用生成新的 Run ID。Task 不能将自身 ID 作为上游，构造阶段会在提交或执行覆盖文件前拒绝这种调用。调用记录保留状态和错误，但覆盖后旧 Run 的状态与产物不再可用。即使父 Task 注册名不同，同名父 Task 仍共享子目录。共享固定名称的流程需要串行执行；覆盖不保留旧 Run，也不提供失败回滚。
+包含关系不会自动生成数据血缘边。实际读取不同 Task ID 的上游数据时应显式传入 `source_tasks`。每个子 Task（包括嵌套复合 Task）默认继承父 Task 解析后的 `task_name`，`run_task(..., task_name="instance")` 可显式指定独立实例。运行时不会在名称中追加摘要、节点名或调用序号。重复调用同一注册名会复用 Task ID，通过 `TaskRunner` 覆盖终态产物；活动或无法识别的目录会被拒绝。每次调用生成新的 Run ID。Task 不能将自身 ID 作为上游，构造阶段会在提交或执行覆盖文件前拒绝这种调用。调用记录保留状态和错误，但覆盖后旧 Run 的状态与产物不再可用。即使父 Task 注册名不同，同名父 Task 仍共享子目录。共享固定名称的流程需要串行执行；覆盖不保留旧 Run，也不提供失败回滚。
 
 通过 TaskManager 取消**父 Task**。共用 worker 停止后，管理器将活动子 Task（包括嵌套复合 Task）收敛为 cancelled；worker 异常退出时收敛为 failed。已经终态的子 Task、替换后的执行和其他进程的执行保持原状态。子 Task 可以使用现有接口查询，但没有独立受管 worker，不能通过 TaskManager 单独取消。`exec` 的取消与终止由调用进程负责，另一个服务无法替该进程收敛子状态。
 
@@ -137,3 +137,5 @@ axonx cancel --run-id '<父 run_id>'
 复合 Task 不增加资源锁，也不改变 cron 的重叠策略。共享数据写入仍应显式加锁，当前 Scheduler 的 `forbid` 只覆盖 Job 调用，不覆盖已提交的后台 Task 全生命周期。参见[定时运行](scheduling.md)。
 
 源码：[复合 Task 编写接口](../../../axonx/task/composite.py)、[组合记录](../../../axonx/task/storage/composition.py)、[TaskRunner](../../../axonx/task/runtime/runner.py)。
+
+子任务默认继承父 task_name；需要独立模型实例时，使用 `run_task("predict", task_name="model-1445", ...)` 显式指定。节点名称只标识调用记录，不能替代实例名称。

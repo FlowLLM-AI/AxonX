@@ -6,12 +6,36 @@ import {
 } from "./client";
 import type { JobResponse } from "./types";
 
-export interface ProgressEvent {
-  kind: "progress";
+export interface TaskStepStatus {
   name: string;
   started_at: string | null;
   finished_at: string | null;
   percentage: number | null;
+  parent?: string | null;
+  label?: string;
+  group?: string;
+  state?:
+    | "pending"
+    | "waiting"
+    | "running"
+    | "done"
+    | "failed"
+    | "missed"
+    | "skipped";
+  phase?: string;
+  completed?: number | null;
+  total?: number | null;
+  unit?: string;
+  scheduled_at?: string | null;
+  deadline?: string | null;
+  updated_at?: string | null;
+  metrics?: Record<string, unknown>;
+  files?: Record<string, string>;
+  error?: string;
+}
+
+export interface ProgressEvent extends TaskStepStatus {
+  kind: "progress";
 }
 
 export interface LogEvent {

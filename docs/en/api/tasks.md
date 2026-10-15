@@ -355,8 +355,9 @@ Read logs within a bounded byte window.
 | Parameter | Type    | Required | Default       | Constraints and meaning                                             |
 | --------- | ------- | -------- | ------------- | ------------------------------------------------------------------- |
 | `task_id` | string  | Yes      | `— (omitted)` | Full Task ID                                                        |
+| `run_id`  | string  | No       | —             | Optional exact Run ID; reject replacement runs before reading.      |
 | `offset`  | integer | No       | `-1`          | Starting byte offset for log reading; -1 reads the tail; minimum=-1 |
-| `limit`   | integer | No       | `65536`       | Maximum number of bytes to read; minimum=1024, maximum=262144       |
+| `limit`   | integer | No       | `65536`       | Maximum number of bytes to read; minimum=1, maximum=262144          |
 
 The Schema does not prohibit extra fields; this does not mean those fields will be used.
 

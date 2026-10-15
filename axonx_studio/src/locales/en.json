@@ -126,11 +126,11 @@
   "online": "Online",
   "onlinePipeline": {
     "title": "Online pipeline",
-    "lead": "Collection windows, fixed-model inference and prediction reconciliation.",
+    "lead": "Follow data collection, model inference and logs for each trading day.",
     "refresh": "Refresh",
     "demo": "Synthetic preview · all data and results are fictional.",
     "search": "Search runs",
-    "empty": "No online runs yet. Submit a collection, inference or prediction comparison task.",
+    "empty": "No online pipelines yet. Run an online composite task to follow its progress.",
     "pending": "No window report has been published yet.",
     "openTask": "Task details",
     "runState": "Task state",
@@ -146,7 +146,8 @@
       "all": "All runs",
       "api": "Collection",
       "inference": "Inference",
-      "analysis": "Reconciliation"
+      "analysis": "Reconciliation",
+      "composite": "Online pipelines"
     },
     "status": {
       "queued": "Queued",
@@ -161,7 +162,10 @@
       "different": "Differences",
       "protocol_mismatch": "Protocol mismatch",
       "missing": "Missing inputs",
-      "error": "Error"
+      "error": "Error",
+      "pending": "Pending",
+      "waiting": "Waiting",
+      "missed": "Missed"
     },
     "metrics": {
       "top5_overlap": "Top 5 overlap",
@@ -183,8 +187,45 @@
       "feature_deadline": "Feature construction deadline",
       "prediction_deadline": "Prediction deadline",
       "portfolio_deadline": "Portfolio calculation deadline",
-      "publication_deadline": "Publication deadline"
-    }
+      "publication_deadline": "Publication deadline",
+      "data_not_ready_before_deadline": "Inputs were not ready before the deadline",
+      "incomplete_history": "Historical bar coverage is insufficient"
+    },
+    "collection": "Data collection",
+    "models": "Model inference",
+    "scheduled": "Scheduled (Shanghai)",
+    "deadline": "Deadline (Shanghai)",
+    "updated": "Updated (Shanghai)",
+    "files": "Committed files",
+    "logSource": "Log source",
+    "chainLog": "Entire pipeline",
+    "replacedRun": "This task was replaced by a newer run. Refresh to view it.",
+    "closed": "Market closed; collection and inference were skipped.",
+    "collectionHint": "Collection follows configured signal times. Request progress and valid coverage are separate; files appear after validation and commit.",
+    "published": "Signal published by this run: {{date}} {{time}}",
+    "previousPublication": "Showing an earlier publication: {{date}} {{time}}",
+    "phases": {
+      "download": "Downloading",
+      "validation": "Validating",
+      "committed": "Committed",
+      "initialization": "Initializing model and history",
+      "feature": "Building features",
+      "prediction": "Predicting",
+      "portfolio": "Calculating portfolio",
+      "publication": "Publishing",
+      "waiting_inputs": "Waiting for inputs and preceding models",
+      "snapshot": "Opening snapshot"
+    },
+    "units": {
+      "requests": "stock requests",
+      "stocks": "stocks"
+    },
+    "remaining": "{{seconds}} seconds until deadline",
+    "stageDetails": "Execution stages and signal results",
+    "currentAction": "Current activity",
+    "nextSignal": "Next signal",
+    "refreshHint": "Refreshes every 5s",
+    "changedSnapshot": "Synchronization changed the snapshot. Refreshing shortly."
   },
   "offline": "Offline",
   "cpuUsage": "CPU usage",
@@ -887,7 +928,12 @@
     "description": "Metrics describe the full source run. Available files may cover fewer dates; input snapshots are omitted. This replica cannot be used as a research input.",
     "sample": "{{name}}: {{start}}–{{end}}, {{rows}} of {{total}} rows",
     "omitted": "Not synchronized: {{files}}",
-    "logUnavailable": "Logs were not synchronized"
+    "logUnavailable": "Logs were not synchronized",
+    "liveLabel": "Live display replica",
+    "liveDescription": "Read-only source snapshot. This page refreshes every 5 seconds; new data arrives on the configured sync schedule.",
+    "captured": "Source captured: {{time}}",
+    "age": "{{seconds}}s ago",
+    "logTail": "Showing the latest 1 MiB of logs."
   },
   "taskGroups": {
     "total": "{{groups}} groups · {{count}} tasks",

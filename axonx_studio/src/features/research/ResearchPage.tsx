@@ -1,3 +1,4 @@
+import { RunIndexControls } from "../../shared/ui/RunIndexControls";
 import { displayArtifacts } from "../../shared/lib/replica";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import type { TaskMetadata } from "../tasks/types";
@@ -25,7 +26,6 @@ import {
   GitBranch,
   LoaderCircle,
   RefreshCw,
-  Search,
   Sparkles,
   Trash2,
   TrendingUp,
@@ -353,30 +353,16 @@ export default function ResearchPage({
           <aside
             className={`run-index rail-panel ${selectionMode ? "selecting" : ""}`}
           >
-            <header className="run-index-header rail-header">
-              <div className="run-index-heading rail-heading">
-                <small>TASK VERSIONS</small>
-                <strong>{t("research.task_versions")}</strong>
-              </div>
-              <div className="run-index-tools">
-                <em>{tasks.length}</em>
-                <button
-                  className="run-index-refresh rail-refresh"
-                  aria-label={t("research.refresh")}
-                  onClick={load}
-                >
-                  <RefreshCw className={loading ? "spin" : ""} />
-                </button>
-              </div>
-            </header>
-            <label className="run-index-search rail-search">
-              <Search />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t("research.search_task_id")}
-              />
-            </label>
+            <RunIndexControls
+              title={t("research.task_versions")}
+              count={tasks.length}
+              loading={loading}
+              query={query}
+              onQuery={setQuery}
+              searchLabel={t("research.search_task_id")}
+              refreshLabel={t("research.refresh")}
+              onRefresh={load}
+            />
             <div className="rail-scroll">
               {loading && !tasks.length ? (
                 <span className="run-loading">

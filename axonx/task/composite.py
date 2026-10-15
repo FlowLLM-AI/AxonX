@@ -75,21 +75,28 @@ class BaseCompositeTask(BaseTask, ABC):
         *,
         node_name: str | None = None,
         on_error: Literal["stop", "continue"] = "stop",
+        task_name: str | None = None,
         **inputs,
     ) -> ChildTaskResult:
         """Run one child through its full lifecycle and bind its output explicitly."""
         if self._progress is None:
             raise RuntimeError("Child Tasks must run inside the parent TaskRunner")
         validate_registration_name(task)
-        node_name = validate_registration_name(node_name or task)
+        node_name = validate_registration_name(node_name or (f"{task_name}-{task}" if task_name is not None else task))
         if on_error not in {"stop", "continue"}:
             raise ValueError("on_error must be 'stop' or 'continue'")
-        if "task_name" in inputs:
-            raise ValueError("Child task_name is owned by the composition runtime")
+
+        if task_name is not None:
+            inputs["task_name"] = task_name
         previous = [child for child in self.metadata.children if child.node_name == node_name]
         if any(child.task != task for child in previous):
             raise ValueError(f"Node {node_name!r} already refers to another Task")
-        record = ChildTaskRecord(node_name=node_name, attempt=len(previous) + 1, task=task, run_id=uuid4().hex)
+        record = ChildTaskRecord(
+            node_name=node_name,
+            attempt=len(previous) + 1,
+            task=task,
+            run_id=uuid4().hex,
+        )
         self.metadata.children.append(record)
         self.persist_metadata()
         try:
@@ -118,7 +125,7 @@ class BaseCompositeTask(BaseTask, ABC):
         from .runtime.runner import TaskRunner
 
         child = resolve_task(record.task)(
-            {**inputs, "task_name": self.input_params.task_name},
+            {"task_name": self.input_params.task_name, **inputs},
             workspace_path=self.workspace_path,
             reg_name=record.task,
             timezone=self._child_timezone,
@@ -136,7 +143,11 @@ class BaseCompositeTask(BaseTask, ABC):
                 child.logger.exception("Child Task resource cleanup failed")
             raise
         status = TaskRunner().run(child)
-        record.state, record.exit_code, record.error = status.state, status.exit_code, status.error
+        record.state, record.exit_code, record.error = (
+            status.state,
+            status.exit_code,
+            status.error,
+        )
         return child.output_params
 
     def build_output_params(self) -> BaseOutputParams:
@@ -144,4 +155,7 @@ class BaseCompositeTask(BaseTask, ABC):
 
     # Unlike a leaf's static exit code, composition aggregates owned run records.
     def exit_code(self, _output: dict) -> int:  # pylint: disable=arguments-differ
-        return next((child.exit_code or 1 for child in self.metadata.children if child.state != TaskState.SUCCEEDED), 0)
+        return next(
+            (child.exit_code or 1 for child in self.metadata.children if child.state != TaskState.SUCCEEDED),
+            0,
+        )

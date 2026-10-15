@@ -27,7 +27,8 @@ export interface OnlineReport {
 export const isOnlineTask = (task: TaskMetadata | TaskSummary) =>
   !("output_params" in task)
     ? task.is_online === true
-    : task.task_type === "api" ||
+    : task.report_kind === "online_pipeline" ||
+      (task.task_type === "api" && Array.isArray(task.input_params.windows)) ||
       task.task_type === "inference" ||
       (task.task_type === "analysis" &&
         (Array.isArray(task.output_params.comparisons) ||

@@ -240,11 +240,11 @@ sync_tasks 对暂存路径/归档的 OSError、TypeError、ValueError 直接返�
 { "answer": "Staged file does not exist", "success": false, "metadata": {} }
 ```
 
-接收端检查目录身份与归档路径，应用替换时保留回滚机制。这里传输的是包含所选发布产物的终态展示副本，不迁移进程、插件环境、Agent 会话、上游输入或原始数据树。
+接收端检查目录身份与归档路径，应用替换时保留回滚机制。这里传输的是包含所选发布产物的展示副本，不迁移进程、插件环境、Agent 会话、上游输入或原始数据树。
 
 ## task_sync_index
 
-接收 `task_names`，返回 `answer.transfer_budget_bytes` 和 `answer.tasks`。每个 Task ID 对应校验展示文件后的 `source_digest`、`policy_digest`。`sync_tasks` 仅接收终态展示副本归档，且必须包含完整实际文件清单。未标记的源任务归档直接拒绝。发送端启动时对账，后续 flush 重试暂时失败，不传播删除。参见[结果展示同步](../guides/task-sync.md)。
+接收可选 `task_names`、`live_task_ids`，返回 `answer.transfer_budget_bytes`、统一的摘要及 Run/文件哈希映射 `answer.tasks`。`sync_tasks` 接收终态副本或完整在线父子任务组，须保留完整清单并校验差量基底。未标记的源任务归档直接拒绝。本机活跃任务不能被覆盖；在线副本接收同一来源的更新版本。发送端启动时对账普通任务，每次 flush 捕获在线任务组，不自动传播删除。参见[结果展示同步](../guides/task-sync.md)。
 
 ## sync_flush 的可见性
 

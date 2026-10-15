@@ -49,7 +49,11 @@ class BaseTaskManager(BaseComponent, ABC):
         if not owned:
             return []
         return [
-            {"task_id": status["task_id"], "run_id": status["run_id"], "schedule": status["source"]["schedule"]["name"]}
+            {
+                "task_id": status["task_id"],
+                "run_id": status["run_id"],
+                "schedule": status["source"]["schedule"]["name"],
+            }
             for status in await self.list_summaries()
             if status["run_id"] in owned
             and status["state"] in {TaskState.QUEUED, TaskState.RUNNING}
@@ -91,7 +95,14 @@ class BaseTaskManager(BaseComponent, ABC):
         """Return the graph containing one task; raise KeyError if absent."""
 
     @abstractmethod
-    async def read_log(self, task_id: str, offset: int = -1, limit: int = LOG_WINDOW_BYTES) -> TaskLogChunk:
+    async def read_log(
+        self,
+        task_id: str,
+        offset: int = -1,
+        limit: int = LOG_WINDOW_BYTES,
+        *,
+        run_id: str | None = None,
+    ) -> TaskLogChunk:
         """Read a bounded range of a task log; raise KeyError if the ID is absent."""
 
     @abstractmethod

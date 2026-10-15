@@ -49,12 +49,21 @@ def snapshot_digest(root: Path, task_id: str) -> str:
 
 def verify_replica(root: Path, task_id: str) -> None:
     metadata = read_entry(root, task_id)
-    if metadata is None or metadata.replica is None or not metadata.state.is_terminal:
-        raise ValueError(f"Task is not a terminal display replica: {task_id}")
+    if (
+        metadata is None
+        or metadata.replica is None
+        or (not metadata.state.is_terminal and metadata.replica.snapshot is None)
+    ):
+        raise ValueError(f"Task is not a display replica: {task_id}")
     directory = task_path(root, task_id)
     actual = {p.relative_to(directory).as_posix() for p in directory.rglob("*") if p.is_file()}
     if actual != {"metadata.json", *metadata.replica.files}:
         raise ValueError(f"Replica file manifest differs from its directory: {task_id}")
+    log = metadata.replica.log
+    if log is not None:
+        record = metadata.replica.files.get(log.path)
+        if record is None or log.end - log.start != record.size:
+            raise ValueError(f"Invalid replica log range: {task_id}")
     for name, record in metadata.replica.files.items():
         relative = Path(name)
         path = directory / relative
@@ -68,16 +77,34 @@ def verify_replica(root: Path, task_id: str) -> None:
             raise ValueError(f"Replica artifact checksum mismatch: {task_id}/{name}")
 
 
-def snapshot_index(root: Path, task_names: frozenset[str]) -> dict[str, dict[str, str]]:
+def snapshot_index(root: Path, task_names: frozenset[str], roots: frozenset[str] = frozenset()) -> dict:
+    """One verified index for all selected display replicas."""
     result = {}
-    for task_id, metadata in scan_entries(root).items():
-        if metadata.state.is_terminal and metadata.replica is not None and matches_task_name(task_id, task_names):
-            try:
-                verify_replica(root, task_id)
-                result[task_id] = {
-                    "source_digest": metadata.replica.source_digest,
-                    "policy_digest": metadata.replica.policy_digest,
-                }
-            except (OSError, ValueError) as exc:
-                get_logger("task-sync-index").warning(f"Skipping invalid display replica {task_id}: {exc}")
+    for identity, metadata in scan_entries(root).items():
+        replica = metadata.replica
+        if replica is None:
+            continue
+        selected = metadata.state.is_terminal and matches_task_name(identity, task_names)
+        if not selected and not (replica.snapshot and replica.snapshot.root_task_id in roots):
+            continue
+        try:
+            verify_replica(root, identity)
+            result[identity] = {
+                "source_digest": replica.source_digest,
+                "policy_digest": replica.policy_digest,
+                "run_id": metadata.run_id,
+                "files": {name: item.sha256 for name, item in replica.files.items()},
+            }
+        except (OSError, ValueError) as exc:
+            get_logger("task-sync-index").warning(f"Skipping invalid display replica {identity}: {exc}")
     return result
+
+
+def validate_live_task_ids(values) -> frozenset[str]:
+    from ..core.identity import task_type_from_id
+
+    if values is not None and not isinstance(values, (list, tuple, set, frozenset)):
+        raise ValueError("live_task_ids must be a list of Task IDs")
+    for value in values or ():
+        task_type_from_id(value)
+    return frozenset(values or ())

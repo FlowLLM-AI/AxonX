@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import codecs
+from dataclasses import replace
 from pathlib import Path
 
 from ...constants import AXONX_DEFAULT_ENCODING
 from .events import LOG_WINDOW_BYTES, TaskLogChunk
-from .workspace import TaskMetadata
+from .workspace import TaskMetadata, task_path, read_entry
 
 
 class TaskLogReader:
@@ -21,6 +22,41 @@ class TaskLogReader:
         if status is None or not status.log_path:
             return None
         return Path(status.log_path).expanduser().resolve()
+
+    def read_status(
+        self,
+        workspace: Path,
+        status: TaskMetadata,
+        offset: int = -1,
+        limit: int = LOG_WINDOW_BYTES,
+    ) -> TaskLogChunk:
+        if status.replica is None:
+            return self.read(self.path(status), offset, limit)
+        if offset < -1 or limit <= 0:
+            raise ValueError("Invalid task log range")
+        log = status.replica.log
+        if log is None:
+            return TaskLogChunk()
+        directory = task_path(workspace, status.task_id)
+        path = directory / log.path
+        if not path.resolve().is_relative_to(directory.resolve()) or any(p.is_symlink() for p in (path, *path.parents)):
+            raise ValueError("Replica log path escapes its Task")
+        record = status.replica.files.get(log.path)
+        if record is None or record.size != log.end - log.start or path.stat().st_size != record.size:
+            raise ValueError("Replica log snapshot differs from its manifest")
+        reset = offset >= 0 and (offset < log.start or offset > log.end)
+        local = -1 if offset < 0 or reset else offset - log.start
+        chunk = TaskLogReader(directory).read(path, local, limit)
+        current = read_entry(workspace, status.task_id)
+        if current is None or current.run_id != status.run_id or current.replica != status.replica:
+            raise ValueError("Replica changed while reading logs; retry the current snapshot")
+        return replace(
+            chunk,
+            start_offset=chunk.start_offset + log.start,
+            next_offset=chunk.next_offset + log.start,
+            file_size=log.end,
+            reset=reset,
+        )
 
     def is_task_log(self, path: Path | None) -> bool:
         return path is not None and path.suffix == ".log" and path.is_relative_to(self.directory)

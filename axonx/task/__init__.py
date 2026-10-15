@@ -3,6 +3,7 @@
 from .core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
 from .composite import BaseCompositeTask, ChildTaskError, ChildTaskResult
 from .storage.workspace import TaskMetadata
+from ..progress import TaskStepStatus
 from . import builtins
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "ChildTaskError",
     "ChildTaskResult",
     "TaskMetadata",
+    "TaskStepStatus",
     "TaskStep",
     "builtins",
 ]

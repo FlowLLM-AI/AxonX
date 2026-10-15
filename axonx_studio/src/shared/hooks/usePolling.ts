@@ -4,7 +4,7 @@ import { startPolling } from "../lib/polling";
 export function usePolling(
   callback: (signal: AbortSignal) => Promise<void>,
   enabled: boolean,
-  intervalSeconds: number,
+  intervalSeconds = 5,
   immediate = false,
 ) {
   const [seconds, setSeconds] = useState(intervalSeconds);

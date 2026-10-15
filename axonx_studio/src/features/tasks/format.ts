@@ -23,10 +23,11 @@ export function taskStepProgress(
         }
       : null;
   }
-  if (!task.steps.length) return null;
-  const activeIndex = task.steps.findIndex((step) => !step.finished_at);
-  const currentIndex = activeIndex >= 0 ? activeIndex : task.steps.length - 1;
-  const step = task.steps[currentIndex];
+  const steps = task.steps.filter((step) => !step.parent);
+  if (!steps.length) return null;
+  const activeIndex = steps.findIndex((step) => !step.finished_at);
+  const currentIndex = activeIndex >= 0 ? activeIndex : steps.length - 1;
+  const step = steps[currentIndex];
   return {
     current: currentIndex + 1,
     name: step.name,

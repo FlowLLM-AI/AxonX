@@ -34,9 +34,15 @@ from ....task.query import (
 from ....task.query.summary import task_sort_key
 from ....task.runtime.arguments import build_task_argv, parse_task_argv
 from ....task.storage.composition import settle_children
-from ....task.storage.events import LOG_WINDOW_BYTES, TaskLogChunk
+from ....progress import settle_steps
+from ....task.storage.events import (
+    LOG_WINDOW_BYTES,
+    TaskLogChunk,
+    append_progress_snapshots,
+)
 from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import (
+    EVENTS_FILE,
     TaskMetadata,
     is_task_directory,
     read_entry,
@@ -104,6 +110,7 @@ class LocalTaskManager(BaseTaskManager):
                     task_type=task.task_type,
                     reg_name=registration_name,
                     source=TASK_SOURCE.get(),
+                    report_kind=task.report_kind,
                     input_params=task.input_params.model_dump(mode="json"),
                     state=TaskState.QUEUED,
                     created_at=task.created_at,
@@ -164,6 +171,8 @@ class LocalTaskManager(BaseTaskManager):
                 return False
 
         status = await asyncio.to_thread(read_entry, self.workspace_path, task.task_id)
+        if status is not None and status.replica is not None:
+            raise ValueError("Display replicas are read-only; execute on the source service")
         if status is None or not status.state.is_terminal:
             raise FileExistsError(f"Active Task already exists: {task.task_id}")
 
@@ -192,10 +201,21 @@ class LocalTaskManager(BaseTaskManager):
     async def get_graph(self, task_id: str) -> TaskGraph:
         return task_graph(await self.repository.entries(), task_id)
 
-    async def read_log(self, task_id: str, offset: int = -1, limit: int = LOG_WINDOW_BYTES) -> TaskLogChunk:
+    async def read_log(
+        self,
+        task_id: str,
+        offset: int = -1,
+        limit: int = LOG_WINDOW_BYTES,
+        *,
+        run_id: str | None = None,
+    ) -> TaskLogChunk:
+        status = await self._status_of(task_id)
+        if run_id is not None and status.run_id != run_id:
+            raise ValueError(f"Task run changed: {task_id}")
         return await asyncio.to_thread(
-            self._logs.read,
-            self._logs.path(await self._status_of(task_id)),
+            self._logs.read_status,
+            self.workspace_path,
+            status,
             offset,
             limit,
         )
@@ -236,6 +256,8 @@ class LocalTaskManager(BaseTaskManager):
                     None,
                 )
             assert run_id is not None
+            if status is not None and status.replica is not None:
+                raise ValueError("Display replicas are read-only; cancel on the source service")
             if status is not None and not status.state.is_terminal and not self._supervisor.is_managed_run(run_id):
                 raise RuntimeError(f"Cannot confirm termination of unmanaged Run: {status.task_id} {run_id}")
             # Supervisor identity is immutable even if the named Task has been replaced.
@@ -298,11 +320,27 @@ class LocalTaskManager(BaseTaskManager):
         if state in {TaskState.FAILED, TaskState.CANCELLED}:
             children = await asyncio.to_thread(settle_children, self.workspace_path, status, state, code, error)
             for child in children:
+                await asyncio.to_thread(
+                    append_progress_snapshots,
+                    task_path(self.workspace_path, child.task_id) / EVENTS_FILE,
+                    child.steps,
+                )
                 await self._write_task_metadata(child)
         status.state = state
         status.finished_at = datetime.now(UTC)
+        settle_steps(
+            status.steps,
+            failed=state != TaskState.SUCCEEDED,
+            error=error,
+            now=status.finished_at,
+        )
         status.exit_code = code
         status.error = error
+        await asyncio.to_thread(
+            append_progress_snapshots,
+            task_path(self.workspace_path, status.task_id) / EVENTS_FILE,
+            status.steps,
+        )
         await self._write_task_metadata(status)
 
     async def _handle_worker_exit(self, worker_exit: WorkerExit) -> None:

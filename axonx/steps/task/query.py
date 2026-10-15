@@ -36,6 +36,7 @@ class ReadTaskLogStep(TaskManagerStep):
             self.context["task_id"],
             self.context.get("offset", -1),
             self.context.get("limit", LOG_WINDOW_BYTES),
+            run_id=self.context.get("run_id"),
         )
         # The same shape serves the query and the stream, so a reader can seek
         # through history and follow the live tail with one handler.

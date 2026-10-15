@@ -3,20 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 
 from .contracts import JobResponse
+from ...progress import TaskStepStatus
 
 
-class ProgressEvent(BaseModel):
+class ProgressEvent(TaskStepStatus):
     kind: Literal["progress"] = "progress"
-    name: str = Field(min_length=1)
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
-    percentage: float | None = Field(default=None, ge=0, le=100)
 
     @classmethod
     def from_status(cls, status: Any) -> ProgressEvent:

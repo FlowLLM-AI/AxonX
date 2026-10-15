@@ -18,6 +18,7 @@ from ..core.identity import task_type_from_id
 from ..protocol import Protocol
 from ..source import TaskSource
 from .replica import DisplayReplica
+from ...progress import TaskStepStatus
 
 #: One workspace directory per task category holds that category's task directories.
 KINDS = tuple(kind.value for kind in TaskType)
@@ -27,15 +28,6 @@ METADATA_FILE = "metadata.json"
 #: The append-only log a worker writes its status transitions to, so a manager in
 #: another process can follow a running task event by event.
 EVENTS_FILE = "events.jsonl"
-
-
-class TaskStepStatus(BaseModel):
-    """Progress persisted for one Task step."""
-
-    name: str = Field(min_length=1)
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
-    percentage: float | None = Field(default=None, ge=0, le=100)
 
 
 class ChildTaskRecord(BaseModel):
@@ -64,6 +56,7 @@ class TaskMetadata(Protocol):
     input_params: dict[str, Any] = Field(default_factory=dict)
     output_params: dict[str, Any] = Field(default_factory=dict)
     children: list[ChildTaskRecord] = Field(default_factory=list)
+    report_kind: str | None = None
     state: TaskState = TaskState.QUEUED
     pid: int | None = None
     created_at: datetime | None = None

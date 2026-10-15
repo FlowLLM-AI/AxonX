@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from ...enums import TaskState
+from ...progress import settle_steps
 from .workspace import TaskMetadata, read_task_metadata, task_path
 
 
@@ -39,13 +40,27 @@ def settle_children(
             if not status.state.is_terminal:
                 status.state, status.exit_code, status.error = state, code, error
                 status.finished_at = datetime.now(UTC)
+                settle_steps(status.steps, failed=True, error=error, now=status.finished_at)
                 nested_changed = True
             if nested_changed:
                 updates.append(status)
-            if (child.state, child.exit_code, child.error) != (status.state, status.exit_code, status.error):
-                child.state, child.exit_code, child.error = status.state, status.exit_code, status.error
+            if (child.state, child.exit_code, child.error) != (
+                status.state,
+                status.exit_code,
+                status.error,
+            ):
+                child.state, child.exit_code, child.error = (
+                    status.state,
+                    status.exit_code,
+                    status.error,
+                )
                 changed = True
         return changed
 
     visit(parent)
     return updates
+
+
+def current_children(status: TaskMetadata):
+    """Named directories contain the latest invocation; earlier attempts stay in metadata."""
+    return {child.task_id: child for child in status.children if child.task_id}.values()

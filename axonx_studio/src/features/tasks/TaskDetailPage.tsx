@@ -1,13 +1,14 @@
+import { TaskLogPanel } from "./TaskLogPanel";
+import { TaskSteps } from "./TaskSteps";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { TaskQuality } from "../online/QualityReport";
 import { isOnlineTask } from "../online/types";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   Ban,
   Check,
   ChevronDown,
-  ChevronUp,
   Copy,
   FileJson,
   FileText,
@@ -15,25 +16,20 @@ import {
   Bot,
   LoaderCircle,
   LocateFixed,
-  RefreshCw,
   ArrowUpRight,
   Settings2,
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
-import { formatBytes } from "../../shared/lib/format";
-import { isAbortError } from "../../shared/lib/errors";
-import type { JobEvent } from "../../shared/api/event";
 import type { TaskMetadata } from "./types";
-import { cancelTask, getTaskStatus, readTaskLog, streamTask } from "./api";
+import { usePolling } from "../../shared/hooks/usePolling";
+import { cancelTask, getTaskStatus } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 import { Status } from "./TaskRow";
 import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
 
 const ACTIVE = new Set(["queued", "running"]);
-const LOG_CHUNK_BYTES = 65_536;
-const MAX_LOG_CHARACTERS = 524_288;
 
 export function TaskDetailPage({
   taskId,
@@ -61,18 +57,7 @@ export function TaskDetailPage({
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
-  const [logText, setLogText] = useState("");
-  const [logError, setLogError] = useState("");
-  const [logLoading, setLogLoading] = useState(false);
-  const [startOffset, setStartOffset] = useState(0);
-  const [nextOffset, setNextOffset] = useState(0);
-  const [fileSize, setFileSize] = useState(0);
-  const [hasEarlier, setHasEarlier] = useState(false);
-  const [trimmed, setTrimmed] = useState(false);
-  const [followTail, setFollowTail] = useState(true);
-  const logClipboard = useCopyFeedback();
   const configClipboard = useCopyFeedback();
-  const copied = logClipboard.copied === "log";
   const configCopied = configClipboard.copied === "config";
   const [locateRequest, setLocateRequest] = useState(0);
   const [panels, setPanels] = useState({
@@ -81,10 +66,6 @@ export function TaskDetailPage({
     details: true,
     logs: true,
   });
-  const logViewport = useRef<HTMLPreElement>(null);
-  const logRequest = useRef(false);
-  const logLength = useRef(0);
-  const taskState = task?.state;
 
   const hasResearch =
     task?.state === "succeeded" &&
@@ -93,145 +74,40 @@ export function TaskDetailPage({
     ) &&
     Object.keys(task.output_params).length > 0;
 
-  const loadStatus = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await getTaskStatus(taskId, target);
-      setTask(result);
-      setError("");
-      onConnection(true);
-      return result;
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-      onConnection(false);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [onConnection, target, taskId]);
-
-  const loadLog = useCallback(
-    async (offset: number, mode: "replace" | "append" | "prepend") => {
-      if (logRequest.current) return;
-      logRequest.current = true;
-      setLogLoading(true);
+  const loadStatus = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
       try {
-        const limit =
-          mode === "prepend"
-            ? Math.min(
-                LOG_CHUNK_BYTES,
-                Math.max(1024, MAX_LOG_CHARACTERS - logLength.current),
-              )
-            : LOG_CHUNK_BYTES;
-        const chunk = await readTaskLog(taskId, offset, limit, target);
-        setFileSize(chunk.file_size);
-        setLogError("");
-        if (mode === "replace" || chunk.reset) {
-          logLength.current = chunk.content.length;
-          setLogText(chunk.content);
-          setStartOffset(chunk.start_offset);
-          setTrimmed(false);
-          setNextOffset(chunk.next_offset);
-          setHasEarlier(chunk.has_more_before);
-        } else if (mode === "prepend") {
-          setLogText((current) => {
-            const combined = `${chunk.content}${current}`;
-            logLength.current = combined.length;
-            return combined;
-          });
-          setStartOffset(chunk.start_offset);
-          setHasEarlier(chunk.has_more_before);
-        } else if (chunk.content) {
-          setLogText((current) => {
-            const combined = `${current}${chunk.content}`;
-            if (combined.length <= MAX_LOG_CHARACTERS) {
-              logLength.current = combined.length;
-              return combined;
-            }
-            logLength.current = MAX_LOG_CHARACTERS;
-            setTrimmed(true);
-            setHasEarlier(false);
-            return combined.slice(-MAX_LOG_CHARACTERS);
-          });
-          setNextOffset(chunk.next_offset);
-        }
-      } catch (reason) {
-        setLogError(reason instanceof Error ? reason.message : String(reason));
-      } finally {
-        logRequest.current = false;
-        setLogLoading(false);
-      }
-    },
-    [target, taskId],
-  );
-
-  useEffect(() => {
-    void loadStatus().then((result) => {
-      if (result?.log_path && !ACTIVE.has(result.state))
-        void loadLog(-1, "replace");
-    });
-  }, [loadLog, loadStatus]);
-  useEffect(() => {
-    if (!taskState || !ACTIVE.has(taskState)) return;
-    const controller = new AbortController();
-    const onEvent = (event: JobEvent<TaskMetadata>) => {
-      if (event.kind === "progress") {
-        setTask((current) => {
-          if (!current) return current;
-          const step = {
-            name: event.name,
-            started_at: event.started_at,
-            finished_at: event.finished_at,
-            percentage: event.percentage,
-          };
-          const index = current.steps.findIndex(
-            (item) => item.name === event.name,
-          );
-          const steps = [...current.steps];
-          if (index < 0) steps.push(step);
-          else steps[index] = step;
-          return { ...current, steps };
-        });
-      }
-      if (event.kind === "log") {
-        setFileSize(event.file_size);
-        setStartOffset(event.start_offset);
-        setNextOffset(event.next_offset);
-        setHasEarlier(event.has_more_before);
-        setLogText((current) => {
-          const combined = event.reset
-            ? event.content
-            : current + event.content;
-          if (combined.length <= MAX_LOG_CHARACTERS) {
-            logLength.current = combined.length;
-            return combined;
-          }
-          setTrimmed(true);
-          setHasEarlier(false);
-          logLength.current = MAX_LOG_CHARACTERS;
-          return combined.slice(-MAX_LOG_CHARACTERS);
-        });
-      }
-    };
-    void streamTask(taskId, target, controller.signal, onEvent)
-      .then((result) => {
+        const result = await getTaskStatus(taskId, target, signal);
+        signal?.throwIfAborted();
         setTask(result);
         setError("");
         onConnection(true);
-      })
-      .catch((reason) => {
-        if (isAbortError(reason)) return;
+        return result;
+      } catch (reason) {
+        if (signal?.aborted) return null;
         setError(reason instanceof Error ? reason.message : String(reason));
-        void loadStatus();
-      });
-    return () => controller.abort();
-  }, [loadStatus, onConnection, target, taskId, taskState]);
-  useEffect(() => {
-    if (followTail && logViewport.current)
-      logViewport.current.scrollTop = logViewport.current.scrollHeight;
-  }, [followTail, logText, panels.logs]);
+        onConnection(false);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onConnection, target, taskId],
+  );
 
-  const copyLog = () => logClipboard.copy(logText, "log");
+  const refreshStatus = useCallback(
+    async (signal: AbortSignal) => {
+      await loadStatus(signal);
+    },
+    [loadStatus],
+  );
+  usePolling(refreshStatus, true);
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadStatus(controller.signal);
+    return () => controller.abort();
+  }, [loadStatus]);
   const copyConfig = async () => {
     if (!task) return;
     await configClipboard.copy(
@@ -275,7 +151,8 @@ export function TaskDetailPage({
     );
   const progress = taskStepProgress(task);
   const configEntries = Object.entries(task.input_params || {});
-  const completedSteps = task.steps.filter(
+  const executionSteps = task.steps.filter((step) => !step.parent);
+  const completedSteps = executionSteps.filter(
     (step) => step.percentage === 100,
   ).length;
   const togglePanel = (panel: keyof typeof panels) => {
@@ -288,7 +165,7 @@ export function TaskDetailPage({
 
   return (
     <section className="workspace-page task-detail-page">
-      <ReplicaNotice replica={task.replica} />
+      <ReplicaNotice replica={task.replica} state={task.state} />
       <div className="task-detail-heading">
         <button className="detail-back" onClick={onBack}>
           <ArrowLeft />
@@ -330,7 +207,7 @@ export function TaskDetailPage({
             <Bot />
             {t("agent.interpretTask")}
           </button>
-          {ACTIVE.has(task.state) && (
+          {ACTIVE.has(task.state) && !task.replica && (
             <button
               className="danger-outline task-detail-cancel"
               onClick={() => void cancel()}
@@ -455,14 +332,15 @@ export function TaskDetailPage({
           )}
           <DetailSection title={t("steps")}>
             <div className="step-list">
-              {task.steps.length ? (
-                task.steps.map((step, index) => {
+              {executionSteps.length ? (
+                executionSteps.map((step, index) => {
                   const percentage = Math.max(
                     0,
                     Math.min(100, step.percentage ?? 0),
                   );
                   const failed =
-                    task.state === "failed" && index === task.steps.length - 1;
+                    task.state === "failed" &&
+                    index === executionSteps.length - 1;
                   const done = !failed && step.percentage === 100;
                   return (
                     <div
@@ -530,6 +408,7 @@ export function TaskDetailPage({
               </div>
             </DetailSection>
           )}
+          <TaskSteps steps={task.steps.filter((step) => step.parent)} />
           <TaskQuality
             windows={task.output_params.windows}
             taskId={task.task_id}
@@ -553,83 +432,12 @@ export function TaskDetailPage({
           icon={<FileText />}
           open={panels.logs}
           onToggle={() => togglePanel("logs")}
-          actions={
-            <>
-              <button
-                onClick={() => void loadLog(-1, "replace")}
-                disabled={logLoading || !task.log_path}
-                title={labels.refreshLog}
-                aria-label={labels.refreshLog}
-              >
-                <RefreshCw className={logLoading ? "spin" : undefined} />
-              </button>
-              <label className="log-follow">
-                <input
-                  type="checkbox"
-                  checked={followTail}
-                  onChange={(event) => setFollowTail(event.target.checked)}
-                />
-                {labels.follow}
-              </label>
-              <button
-                onClick={() => void copyLog()}
-                disabled={!logText}
-                title={copied ? labels.copied : labels.copy}
-                aria-label={copied ? labels.copied : labels.copy}
-              >
-                {copied ? <Check /> : <Copy />}
-              </button>
-            </>
-          }
         >
-          <div className="log-panel">
-            <div className="log-meta">
-              <span>
-                {labels.loaded}{" "}
-                {formatBytes(
-                  Math.min(fileSize, Math.max(0, nextOffset - startOffset)),
-                )}{" "}
-                {labels.of} {formatBytes(fileSize)}
-              </span>
-              <span>{labels.bounded}</span>
-            </div>
-            {hasEarlier && !trimmed && (
-              <button
-                className="load-earlier"
-                onClick={() =>
-                  void loadLog(
-                    Math.max(0, startOffset - LOG_CHUNK_BYTES),
-                    "prepend",
-                  )
-                }
-                disabled={
-                  logLoading || logText.length > MAX_LOG_CHARACTERS - 1024
-                }
-              >
-                <ChevronUp />
-                {labels.loadEarlier}
-              </button>
-            )}
-            {logError ? (
-              <div className="log-placeholder error">
-                <strong>{labels.logError}</strong>
-                <span>{logError}</span>
-              </div>
-            ) : !task.log_path ? (
-              <div className="log-placeholder">
-                {task.replica
-                  ? t("replica.logUnavailable")
-                  : labels.logUnavailable}
-              </div>
-            ) : !logText && !logLoading ? (
-              <div className="log-placeholder">{labels.logEmpty}</div>
-            ) : (
-              <pre className="log-content" ref={logViewport}>
-                {logText}
-                {logLoading && <span className="log-cursor" />}
-              </pre>
-            )}
-          </div>
+          <TaskLogPanel
+            key={`${target}:${task.task_id}:${task.run_id}`}
+            task={task}
+            target={target}
+          />
         </DetailCard>
       </div>
     </section>

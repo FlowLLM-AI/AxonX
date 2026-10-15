@@ -7,19 +7,21 @@ import { createPlayground } from "../../playground/runtime";
 import OnlinePage from "./OnlinePage";
 import { parseOnlineReport } from "./types";
 
+const translate = (key: string) => key;
 vi.mock("react-i18next", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-i18next")>()),
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: translate }),
 }));
 let root: Root;
 let container: HTMLDivElement;
 const onConnection = vi.fn();
 const onOpenTask = vi.fn();
 const onSelected = vi.fn();
-const render = async () => {
+const render = async (initialTaskId?: string) => {
   await act(async () => {
     root.render(
       <OnlinePage
+        initialTaskId={initialTaskId}
         onConnection={onConnection}
         onSelected={onSelected}
         onOpenTask={onOpenTask}
@@ -41,28 +43,29 @@ afterEach(async () => {
 });
 
 describe("online pipeline", () => {
-  it("shows reconciliation, filters collection and opens task details without a backend", async () => {
+  it("shows root pipeline collection, model stages and logs; comparison remains accessible", async () => {
     await render();
+    expect(container.textContent).toContain("onlinePipeline.collection");
+    expect(container.textContent).toContain("99.8%");
+    expect(container.textContent).toContain("5,100");
+    expect(container.textContent).toContain("onlinePipeline.chainLog");
+    expect(container.querySelector(".log-content")?.textContent).toContain(
+      "[demo]",
+    );
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(".online-report > header button")!
+        .click(),
+    );
+    expect(onOpenTask).toHaveBeenCalledWith("composite#playground_online#demo");
+    expect(container.querySelector(".online-filters")).toBeNull();
+    expect(container.querySelector(".run-index-header")).not.toBeNull();
+    expect(container.querySelectorAll(".run-index article")).toHaveLength(1);
+    await render("analysis#playground_online#demo");
     expect(container.textContent).toContain(
       "onlinePipeline.status.protocol_mismatch",
     );
     expect(container.textContent).toContain("0.0012");
-    await act(async () => {
-      container
-        .querySelector<HTMLButtonElement>(".online-report > header button")!
-        .click();
-    });
-    expect(onOpenTask).toHaveBeenCalledWith("analysis#playground_online#demo");
-    await act(async () => {
-      Array.from(
-        container.querySelectorAll<HTMLButtonElement>(".online-filters button"),
-      )
-        .find((button) => button.textContent === "onlinePipeline.kinds.api")!
-        .click();
-    });
-    expect(container.textContent).toContain("99.8%");
-    expect(container.textContent).toContain("onlinePipeline.status.incomplete");
-    expect(container.textContent).toContain("onlinePipeline.status.skipped");
     expect(onConnection).toHaveBeenCalledWith(true);
   });
 
@@ -81,9 +84,7 @@ describe("online pipeline", () => {
       }, false),
     );
     await act(async () => {
-      container
-        .querySelector<HTMLButtonElement>(".online-heading button")!
-        .click();
+      container.querySelector<HTMLButtonElement>(".rail-refresh")!.click();
     });
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "Service offline",
@@ -101,4 +102,29 @@ describe("online pipeline", () => {
       "Invalid online report",
     );
   });
+});
+
+it("discovers scheduled pipelines even when the first list was empty", async () => {
+  vi.useFakeTimers();
+  try {
+    let available = false;
+    const demo = createPlayground();
+    configureClient(
+      new AxonXClient(async (url, init) => {
+        if (String(url).includes("list_task_statuses") && !available)
+          return Response.json({ answer: [], success: true });
+        return demo(url, init);
+      }, false),
+    );
+    await render();
+    expect(container.querySelectorAll(".run-index article")).toHaveLength(0);
+    available = true;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(container.querySelectorAll(".run-index article")).toHaveLength(1);
+    expect(container.querySelector(".online-filters")).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
 });

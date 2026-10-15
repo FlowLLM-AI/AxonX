@@ -72,7 +72,10 @@ def test_child_logs_are_isolated_and_parent_keeps_complete_chain(tmp_path, monke
     monkeypatch.setattr("axonx.task.catalog.resolver.resolve_task", lambda _name: LoggedTask)
     configure_logging(LoggingConfig(log_dir=tmp_path / "logs", log_to_console=False))
     try:
-        task = parent(tmp_path / "workspace", lambda p: [p.run_task(name, x=1, y=2) for name in ("feature", "train")])
+        task = parent(
+            tmp_path / "workspace",
+            lambda p: [p.run_task(name, x=1, y=2) for name in ("feature", "train")],
+        )
         status = TaskRunner().run(task)
         children = [read_task_metadata(task_path(task.workspace_path, c.task_id), c.task_id) for c in task.children]
         assert len({status.log_path, *(c.log_path for c in children)}) == 3
@@ -91,7 +94,10 @@ def test_child_logs_are_isolated_and_parent_keeps_complete_chain(tmp_path, monke
 def test_log_setup_failure_closes_task_without_publishing_metadata(tmp_path, monkeypatch):
     task = DemoTask({"x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo")
     task.close = Mock()
-    monkeypatch.setattr("axonx.task.runtime.runner.task_log_scope", Mock(side_effect=OSError("log unavailable")))
+    monkeypatch.setattr(
+        "axonx.task.runtime.runner.task_log_scope",
+        Mock(side_effect=OSError("log unavailable")),
+    )
     with pytest.raises(OSError, match="log unavailable"):
         TaskRunner().run(task)
     task.close.assert_called_once()
@@ -564,7 +570,6 @@ def test_invalid_runtime_options_and_calls_outside_runner_do_not_start_children(
     def compose(owner):
         for options in (
             {"on_error": "invalid"},
-            {"task_name": "chosen"},
             {"node_name": "../escape"},
         ):
             with pytest.raises(ValueError):
@@ -930,3 +935,16 @@ def test_rerun_rejects_invalid_persistent_storage_before_clearing_outputs(tmp_pa
     assert (task.task_dir / "metadata.json").read_bytes() == before
     if kind == "symlink":
         assert (outside / "keep.txt").read_text() == "keep"
+
+
+def test_child_instance_name_is_explicit_and_inherits_source(tmp_path):
+    results = []
+    task = parent(
+        tmp_path,
+        lambda owner: results.append(owner.run_task("demo", task_name="model-1445", x=1, y=2)),
+    )
+    TaskRunner().run(task)
+    assert results[0].task_id == "base#demo#model-1445"
+    assert task.children[0].node_name == "model-1445-demo"
+    child = read_task_metadata(task_path(tmp_path, results[0].task_id), results[0].task_id)
+    assert child.source == task.context.source

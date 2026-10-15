@@ -45,7 +45,11 @@ async def stream_task(
             # snapshot observed at completion, rather than waiting for siblings.
             try:
                 terminal_end = (
-                    (await asyncio.to_thread(log_path.stat)).st_size if logs.is_task_log(log_path) else log_offset
+                    status.replica.log.end
+                    if status.replica and status.replica.log
+                    else (
+                        (await asyncio.to_thread(log_path.stat)).st_size if logs.is_task_log(log_path) else log_offset
+                    )
                 )
             except OSError:
                 terminal_end = log_offset
@@ -65,7 +69,7 @@ async def stream_task(
                 limit = min(limit, remaining)
             if limit <= 0:
                 return
-            chunk = await asyncio.to_thread(logs.read, log_path, log_offset, limit)
+            chunk = await asyncio.to_thread(logs.read_status, workspace, status, log_offset, limit)
         except (OSError, ValueError) as exc:
             log_has_more = False
             log_advanced = False

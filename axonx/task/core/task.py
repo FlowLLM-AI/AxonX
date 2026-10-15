@@ -44,6 +44,7 @@ class BaseTask(ABC):
     task_type: ClassVar[TaskType] = TaskType.BASE
     input_cls: ClassVar[type[BaseInputParams]] = BaseInputParams
     output_cls: ClassVar[type[BaseOutputParams]] = BaseOutputParams
+    report_kind: ClassVar[str | None] = None
 
     def __init__(
         self,
@@ -92,7 +93,7 @@ class BaseTask(ABC):
 
         self.pid = os.getpid()
         self.log_path = str(get_log_path() or "")
-        self._progress: Callable[[float], None] | None = None
+        self._progress: Callable[..., None] | None = None
         self._persist_metadata: Callable[[], None] | None = None
         self._metadata: TaskMetadata | None = None
 
@@ -202,11 +203,22 @@ class BaseTask(ABC):
         self._output_params = output
         return output
 
-    def report_progress(self, percentage: float) -> None:
-        if self._progress is None:
-            raise RuntimeError("Progress can only be reported while a Task is running")
-        # TaskRunner installs the callable for the duration of a run.
-        self._progress(percentage)  # pylint: disable=not-callable
+    def report_progress(
+        self,
+        percentage: float | None = None,
+        *,
+        name: str | None = None,
+        **changes: Any,
+    ) -> None:
+        """Update the executing step, or a named concurrent substep.
+
+        Named substeps are validated and throttled by the Runner. Stop and join
+        background producers before this Task's lifecycle ends.
+        """
+        progress = self._progress
+        if progress is None:
+            raise RuntimeError("Progress can only be reported inside the TaskRunner")
+        progress(percentage, name=name, **changes)  # pylint: disable=not-callable
 
     @staticmethod
     def exit_code(_output: dict) -> int:

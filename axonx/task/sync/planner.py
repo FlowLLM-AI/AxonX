@@ -6,7 +6,13 @@ import json
 from pathlib import Path
 
 from ..protocol import STOCK_SIGNALS_FORMAT
-from ..storage.workspace import EVENTS_FILE, METADATA_FILE, read_entry, task_path
+from ..storage.workspace import (
+    EVENTS_FILE,
+    METADATA_FILE,
+    TaskMetadata,
+    read_entry,
+    task_path,
+)
 from .errors import SnapshotChangedError
 from .models import TaskFile, TaskPlan
 
@@ -16,11 +22,11 @@ def task_file(path: Path, relative: str) -> TaskFile:
     return TaskFile(path, relative, stat.st_size, stat.st_mtime_ns, stat.st_ino)
 
 
-def plan_task(root: Path, task_id: str) -> TaskPlan:
+def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None) -> TaskPlan:
     """Only published outputs and their manifest dependencies belong to a replica."""
     directory = task_path(root, task_id)
-    metadata = read_entry(root, task_id)
-    if metadata is None or not metadata.state.is_terminal or metadata.replica is not None:
+    metadata = snapshot or read_entry(root, task_id)
+    if metadata is None or (snapshot is None and not metadata.state.is_terminal) or metadata.replica is not None:
         raise SnapshotChangedError(f"Task is not a terminal source snapshot: {task_id}")
     paths = {METADATA_FILE}
     artifacts = metadata.output_params.get("artifacts", {})
@@ -38,7 +44,18 @@ def plan_task(root: Path, task_id: str) -> TaskPlan:
         if isinstance(value, dict):
             if isinstance(value.get("path"), str) and "sha256" in value:
                 yield value["path"]
-            for nested in value.values():
+            for role, nested in value.items():
+                if snapshot is not None and (
+                    role
+                    in {
+                        "features",
+                        "input_features",
+                        "feature_protocol",
+                        "model_manifest",
+                    }
+                    or role.startswith(("model_", "source_", "debug_"))
+                ):
+                    continue
                 yield from references(nested)
         elif isinstance(value, list):
             for nested in value:
@@ -84,7 +101,7 @@ def pack_batches(plans: dict[str, TaskPlan], budget: int, max_batches: int):
     rejected: list[str] = []
     current: list[str] = []
     used = 0
-    for task_id, plan in sorted(plans.items()):
+    for task_id, plan in plans.items():
         if plan.empty:
             continue
         if plan.size > budget:

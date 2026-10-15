@@ -240,11 +240,11 @@ sync_tasks directly returns business-failure text for OSError, TypeError, or Val
 { "answer": "Staged file does not exist", "success": false, "metadata": {} }
 ```
 
-The receiver validates directory identity and archive paths, retaining rollback support when applying replacements. The transfer consists of terminal display replicas with selected published outputs; it does not migrate processes, plugin environments, Agent sessions, upstream inputs, or raw data trees.
+The receiver validates directory identity and archive paths, retaining rollback support when applying replacements. The transfer consists of display replicas with selected published outputs; it does not migrate processes, plugin environments, Agent sessions, upstream inputs, or raw data trees.
 
 ## task_sync_index
 
-Accepts `task_names` and returns `answer.transfer_budget_bytes` plus `answer.tasks`. Each Task ID maps to `source_digest` and `policy_digest` after validating its display files. `sync_tasks` accepts only terminal display-replica archives with a complete actual-file manifest. Unmarked source archives are rejected. The sender reconciles on startup and retries transient failures on later flushes, without propagating deletions. See [Result display synchronization](../guides/task-sync.md).
+Accepts optional `task_names` and `live_task_ids`. Returns `answer.transfer_budget_bytes`, one `answer.tasks` index (source/policy digests, verified Run IDs and file hashes). `sync_tasks` accepts terminal replicas or complete live groups with a full manifest and verified delta bases. Unmarked source archives are rejected. Native active Tasks cannot be overwritten; live replicas accept newer snapshots from the same source. The sender reconciles ordinary Tasks on startup and captures live groups on each flush. Deletions are not propagated automatically. See [Result display synchronization](../guides/task-sync.md).
 
 ## Visibility of sync_flush
 

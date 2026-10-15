@@ -157,3 +157,15 @@ events.jsonl 是追加进度记录；普通日志在 log_path。写入端先记�
 ## 展示副本
 
 源任务的 `TaskMetadata.replica` 为 null。同步结果包含展示清单：`purpose`、`source_digest`、`policy_digest`、`files`、`omitted`、`source_log_path`。文件记录实际大小和哈希，以及采样行数和日期。源输出和指标保留原值，展示消费者使用实际文件清单。研究输入消费者拒绝副本。
+
+## 并发步骤进度
+
+`BaseTask.report_progress(percentage)` 更新当前执行步骤。`report_progress(name="download", state="running", completed=10, total=100, unit="requests")` 在同一个 `metadata.steps` 列表内更新具名子步骤，`parent` 指向所属执行步骤。metadata 与 `ProgressEvent`（`kind=progress`）共用 `TaskStepStatus`，不另设活动对象、活动事件或存储字段。可选字段包括名称/分组、状态/阶段、计数、计划/截止时间、指标、已提交文件路径和错误。请求完成与有效数据覆盖率分别计量。
+
+Runner 将进度更新和 metadata 发布串行化；具名子步骤计数每秒最多持久化一次，状态/阶段变化及终态立即发布，最终快照保留全部计数。执行步骤返回前须停止并回收后台生产线程。失败、取消及 worker 退出清理会收尾未完成进度，保留已完成工作。窗口结果仍是业务输出，进度不负责发布业务产物或在线 commit。
+
+`children` 是子任务调用生命周期的唯一记录。模型计划来自校验后的输入，界面从子任务记录读取执行状态，从子任务 steps 读取内部阶段。同名子任务目录只保存最新调用，早先 attempt 保留在父记录中；展示同步只捕获每个目录的最新调用。遇到非预期替换 Run 时拒绝同步，不自动替换引用。
+
+Task 声明 `report_kind = "online_pipeline"` 接入 Studio 在线索引。`run_task(..., task_name="model-1445")` 显式命名子任务，默认节点名为 `<task_name>-<registration>`；省略 `task_name` 时继承父名称，默认节点名为注册名；生命周期、来源继承和资源回收由框架负责。移除 Activity metadata/事件及独立 live 索引响应，不提供兼容读取；使用这些未发布契约生成的记录需要重建，插件、源服务、接收服务和 Studio 须一起升级。
+
+按组同步的展示副本携带 `replica.snapshot`（来源、父 Task/Run、捕获时间及版本）和 `replica.log`（路径及原始字节范围），保留源状态、清空 PID 且只读。参见[展示同步](../guides/task-sync.md)。
