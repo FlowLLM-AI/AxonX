@@ -5,36 +5,35 @@ import {
   ArrowRight,
   Bot,
   ChartNoAxesCombined,
+  Crosshair,
+  FolderSearch,
+  GitCompareArrows,
   FileCode2,
   Network,
   Puzzle,
   Send,
+  Workflow,
 } from "lucide-react";
-import { navigationItems } from "../app/navigation";
 import type { SectionId } from "../app/routes";
 import { useTranslation } from "react-i18next";
 
-const quantSteps: SectionId[] = [
-  "workspace",
-  "etl",
-  "train",
-  "predict",
-  "backtest",
-];
+const researchSteps = [
+  { id: "question", icon: Crosshair },
+  { id: "agent", icon: Bot },
+  { id: "plugin", icon: FileCode2 },
+  { id: "experiment", icon: Workflow },
+  { id: "evidence", icon: FolderSearch },
+  { id: "iterate", icon: GitCompareArrows },
+] as const;
 
 const harnessFeatures = [
   { id: "plugin", code: "PLUGIN", icon: Puzzle },
-  { id: "machine", code: "MACHINE", icon: Network },
-  { id: "job", code: "JOB", icon: FileCode2 },
+  { id: "job", code: "TOOLS", icon: FileCode2 },
   { id: "task", code: "TASK", icon: Activity },
-  { id: "agent", code: "AGENT", icon: Bot },
-  { id: "feedback", code: "FEEDBACK", icon: ChartNoAxesCombined },
+  { id: "machine", code: "TARGET", icon: Network },
+  { id: "evidence", code: "EVIDENCE", icon: FolderSearch },
+  { id: "agent", code: "AGENT", icon: ChartNoAxesCombined },
 ] as const;
-
-function QuantIcon({ id }: { id: SectionId }) {
-  const Icon = navigationItems.find((item) => item.id === id)?.icon;
-  return Icon ? <Icon aria-hidden="true" /> : null;
-}
 
 export default function HomePage({
   onNavigate,
@@ -42,48 +41,41 @@ export default function HomePage({
   onNavigate: (page: "submit" | "tasks" | SectionId) => void;
 }) {
   const { t } = useTranslation();
-  const renderStep = (step: SectionId) => (
-    <button
-      className={`hero-quant-step hero-quant-${step}`}
-      onClick={() => onNavigate(step)}
-    >
-      <span className="hero-quant-icon">
-        <QuantIcon id={step} />
-      </span>
-      <span className="hero-quant-step-copy">
-        <strong>{t(`home.steps.${step}.title`)}</strong>
-        <small>{t(`home.steps.${step}.detail`)}</small>
-      </span>
-      <ArrowRight className="hero-quant-open" aria-hidden="true" />
-    </button>
-  );
   return (
     <section className="workspace-page overview-page">
       <div className="overview-hero">
         <section className="hero-quant" aria-label={t("home.quantAria")}>
           <div className="hero-quant-heading">
-            <span>01 / QUANT RESEARCH</span>
+            <span>01 / AGENT RESEARCH</span>
             <h2>{t("home.quantTitle")}</h2>
             <p>{t("home.quantLead")}</p>
           </div>
           <ol className="hero-quant-steps">
-            {quantSteps.map((step, index) => (
-              <li key={step}>
-                {renderStep(step)}
-                {step === "etl" && (
-                  <div className="hero-quant-branch">
-                    <small>{t("home.factorBranch")}</small>
-                    {renderStep("factors")}
+            {researchSteps.map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <li key={step.id}>
+                  <div className={`hero-quant-step hero-quant-${step.id}`}>
+                    <span className="hero-quant-icon">
+                      <Icon aria-hidden="true" />
+                    </span>
+                    <span className="hero-quant-step-copy">
+                      <strong>{t(`home.steps.${step.id}.title`)}</strong>
+                      <small>{t(`home.steps.${step.id}.detail`)}</small>
+                    </span>
+                    <span className="hero-quant-number" aria-hidden="true">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
                   </div>
-                )}
-                {index < quantSteps.length - 1 && (
-                  <ArrowDown
-                    className="hero-quant-connector"
-                    aria-hidden="true"
-                  />
-                )}
-              </li>
-            ))}
+                  {index < researchSteps.length - 1 && (
+                    <ArrowDown
+                      className="hero-quant-connector"
+                      aria-hidden="true"
+                    />
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </section>
 
@@ -100,6 +92,9 @@ export default function HomePage({
             <img src={assetUrl("axonx-logo.svg")} alt="AxonX" />
             <h1>{t("home.brandTitle")}</h1>
             <p>{t("home.brandLead")}</p>
+            <small className="hero-brand-agent-note">
+              {t("home.agentNote")}
+            </small>
             <div className="hero-brand-actions">
               <button
                 className="primary-button"

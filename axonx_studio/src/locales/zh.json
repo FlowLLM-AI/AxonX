@@ -347,72 +347,72 @@
     "machineUnavailable": "无法连接当前机器"
   },
   "home": {
-    "quantAria": "量化研究参考流程",
-    "quantTitle": "参考研究流程",
-    "quantLead": "Qlib Alpha158 参考流程 · 因子分析独立分支",
-    "brandAria": "AxonX Agent 原生量化 Harness 框架",
-    "brandTitle": "从研究问题，到实验依据",
-    "brandLead": "结合研究 Prompt、AxonX Skill 与 Agent 开发插件，在同一工作台运行实验、查看结果。",
+    "quantAria": "Agent 研究流程",
+    "quantTitle": "从问题到实验",
+    "quantLead": "研究 Prompt + AxonX Skill，驱动 Agent 开发与迭代",
+    "brandAria": "AxonX Agent 原生量化研究 Harness",
+    "brandTitle": "让研究问题成为量化代码与可追溯实验",
+    "brandLead": "为 Agent 提供统一的量化开发工具与运行环境，支持插件开发、实验执行和结果分析。",
     "submitTask": "提交",
     "manageTasks": "任务管理",
     "capabilitiesAria": "Harness 框架能力",
-    "capabilitiesTitle": "Harness 框架能力",
-    "capabilitiesLead": "代码开发、实验执行与结果分析",
+    "capabilitiesTitle": "Harness 提供的能力",
+    "capabilitiesLead": "统一工具与运行环境，连接代码、执行和证据",
     "steps": {
-      "workspace": {
-        "title": "工作区",
-        "detail": "浏览数据与研究产物"
+      "question": {
+        "title": "定义研究问题",
+        "detail": "明确假设、基线、数据与评价标准"
       },
-      "etl": {
-        "title": "ETL 特征构建",
-        "detail": "清洗数据，生成特征"
+      "agent": {
+        "title": "连接研究 Agent",
+        "detail": "外部或内置 Agent，结合 AxonX Skill"
       },
-      "factors": {
-        "title": "因子分析",
-        "detail": "检验因子表现"
+      "plugin": {
+        "title": "开发研究插件",
+        "detail": "编写或优化因子、模型与组合策略"
       },
-      "train": {
-        "title": "模型训练",
-        "detail": "拟合模型，评估效果"
+      "experiment": {
+        "title": "执行研究实验",
+        "detail": "安装到目标服务，提交并跟踪 Task"
       },
-      "predict": {
-        "title": "离线预测",
-        "detail": "生成预测结果"
+      "evidence": {
+        "title": "检查实验依据",
+        "detail": "查看参数、日志、指标与研究产物"
       },
-      "backtest": {
-        "title": "离线回测",
-        "detail": "验证策略表现"
+      "iterate": {
+        "title": "比较与迭代",
+        "detail": "对比候选方案，依据结果继续优化"
       }
     },
     "features": {
       "plugin": {
-        "title": "插件化扩展",
-        "detail": "局部开发 · 独立安装 · 能力注册"
-      },
-      "machine": {
-        "title": "多机器节点",
-        "detail": "资源监测 · 远端运行 · 统一管理"
+        "title": "可扩展研究插件",
+        "detail": "复用已有实现，扩展因子、模型和策略"
       },
       "job": {
-        "title": "声明式 Job 接口",
-        "detail": "Schema 驱动 · CLI / MCP 双入口"
+        "title": "统一工具接口",
+        "detail": "CLI、HTTP、MCP 与 Studio 共用 Jobs"
       },
       "task": {
-        "title": "Task 生命周期",
-        "detail": "提交执行 · 状态日志 · 取消清理"
+        "title": "实验任务管理",
+        "detail": "查询定义、提交运行、跟踪日志与取消"
+      },
+      "machine": {
+        "title": "本地与远程执行",
+        "detail": "在选定服务运行，查看资源与运行状态"
+      },
+      "evidence": {
+        "title": "可追溯实验依据",
+        "detail": "保留参数、Task/Run ID、依赖与产物"
       },
       "agent": {
-        "title": "Agent 研发协作",
-        "detail": "研究 Prompt + Skill · 开发与优化插件"
-      },
-      "feedback": {
-        "title": "运行效果闭环",
-        "detail": "检查证据 · 比较候选 · 迭代研究"
+        "title": "Agent 与可视化协作",
+        "detail": "Agent 检查结果，研究者在 Studio 分析"
       }
     },
     "openAgent": "打开 Agent",
-    "factorBranch": "从 ETL 独立分出的分析支线",
-    "journey": "研究问题 → 量化代码 → 可追溯实验"
+    "journey": "你定义问题 · Agent 实现 · Harness 管理执行与证据",
+    "agentNote": "支持外部 Agent 与 Studio 内置 Agent"
   },
   "workspace": {
     "folder": "目录",
