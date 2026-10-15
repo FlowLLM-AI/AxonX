@@ -186,11 +186,11 @@ Display replicas carry `replica.snapshot` (source, root Task/Run, capture time a
 
 `ReplayCursor.wait(deadline, consume, ready)` advances to event availability, consumes ordered events synchronously and stops when `ready()` is true. Events at or after the deadline are not delivered; an exhausted stream advances to the deadline and returns false. Plugins own schemas, market calendars, validation and publication, as well as missing-input policy and isolated outputs. This contract does not synthesize historical responses or permit fallback network access. Plugins must label reconstructed window snapshots separately from original request recordings and record their remaining external dependencies.
 
-## Migration to AxonX 0.3
+## Migration to AxonX 0.2.1
 
-The 0.3 release replaces the previous Task and Studio wire contracts. Update the
+The 0.2.1 release replaces the previous Task and Studio wire contracts. Update the
 framework, Studio and consuming plugins together. Axon and Axon2 require
-`axonx>=0.3.0`; bundled Qlib plugins require their 0.3 peers. Regenerate previous
+`axonx>=0.2.1`; bundled Qlib plugins require their separately versioned 0.2 peers. Regenerate previous
 Task outputs rather than mixing old records with the new schema. These source
 changes do not publish packages; install the coordinated source checkouts until
 the matching releases are available.
