@@ -9,7 +9,7 @@ from pathlib import Path
 from ...enums import ComponentEnum
 from ...task.query.graph import TaskGraph
 from ...task.query.summary import TaskSummary
-from ...task.storage.workspace import TaskMetadata
+from ...task.schemas.lifecycle import TaskMetadata
 from ...task.sync import SyncTasksReport
 from ..base import BaseComponent
 from .subscription import TaskChangeSubscription

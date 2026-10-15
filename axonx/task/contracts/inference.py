@@ -5,14 +5,8 @@ from abc import abstractmethod
 from pydantic import TypeAdapter
 
 from ...enums import TaskType
-from .windows import (
-    DeadlineBudget,
-    ExecutionWindow,
-    WindowInputParams,
-    WindowOutputParams,
-    WindowResult,
-    _WindowTask,
-)
+from ..core.clock import DeadlineBudget
+from .windows import ExecutionWindow, WindowInputParams, WindowOutputParams, WindowResult, _WindowTask
 
 
 class BaseInferenceOutputParams(WindowOutputParams):

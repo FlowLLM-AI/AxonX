@@ -24,31 +24,23 @@ from ....logs import LogChunk
 from ....plugin_kit.environment import environment_operation, run_in_thread, serialized
 from ....progress import settle_steps
 from ....task.catalog import resolve_task
-from ....task.contracts import TaskHandle
+from ....task.schemas.lifecycle import TaskHandle, TaskMetadata
 from ....task.core import BaseTask
-from ....task.protocol import PROTOCOL_VERSION
+from ....task.schemas.protocol import PROTOCOL_VERSION
 from ....task.query import (
     TaskGraph,
     stream_task,
 )
-from ....task.query.summary import task_sort_key
+from ....task.query.summary import task_sort_key, TaskSummary
 from ....task.runtime.arguments import build_task_argv, parse_task_argv
-from ....task.source import TASK_SOURCE, TASK_SOURCE_ENV
-from ....task.storage.composition import settle_children
+from ....task.runtime.source import TASK_SOURCE, TASK_SOURCE_ENV
+from ....task.runtime.composition import settle_children
 from ....task.storage.events import (
     LOG_WINDOW_BYTES,
     append_progress_snapshots,
 )
 from ....task.storage.logs import TaskLogReader
-from ....task.query.summary import TaskSummary
-from ....task.storage.workspace import (
-    EVENTS_FILE,
-    TaskMetadata,
-    is_task_directory,
-    read_entry,
-    read_task_metadata,
-    task_path,
-)
+from ....task.storage.workspace import EVENTS_FILE, is_task_directory, read_entry, read_task_metadata, task_path
 from ...registry import provider
 from ...task_repository import BaseTaskRepository
 from ..base import BaseTaskManager

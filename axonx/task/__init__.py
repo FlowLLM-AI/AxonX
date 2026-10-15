@@ -1,8 +1,8 @@
 """Task authoring, execution, persistence, and built-in capabilities."""
 
 from .core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
-from .composite import BaseCompositeTask, ChildTaskError, ChildTaskResult
-from .storage.workspace import TaskMetadata
+from .core.composite import BaseCompositeTask, ChildTaskError, ChildTaskResult
+from .schemas.lifecycle import TaskMetadata
 from ..progress import TaskStepStatus
 from . import builtins
 

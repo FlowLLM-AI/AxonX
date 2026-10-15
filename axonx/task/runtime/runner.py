@@ -17,17 +17,17 @@ from ...components.job.events import ProgressEvent
 from ...progress import settle_steps
 from ...enums import TaskState
 from ...utils.logging import task_log_scope
-from ..protocol import PROTOCOL_VERSION
+from ..schemas.protocol import PROTOCOL_VERSION
 from ..core.identity import task_type_from_id
 from ..storage.events import append_event, append_progress_snapshots
 from ..storage.workspace import (
     EVENTS_FILE,
-    TaskMetadata,
     TaskStepStatus,
     read_task_metadata,
     reset_task_directory,
     write_task_metadata,
 )
+from ..schemas.lifecycle import TaskMetadata
 
 if TYPE_CHECKING:
     from ..core.task import BaseTask

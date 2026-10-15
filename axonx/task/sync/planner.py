@@ -5,14 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ..protocol import STOCK_SIGNALS_FORMAT
-from ..storage.workspace import (
-    EVENTS_FILE,
-    METADATA_FILE,
-    TaskMetadata,
-    read_entry,
-    task_path,
-)
+from ..schemas.protocol import STOCK_SIGNALS_FORMAT
+from ..storage.workspace import EVENTS_FILE, METADATA_FILE, read_entry, task_path
+from ..schemas.lifecycle import TaskMetadata
 from .errors import SnapshotChangedError
 from .models import TaskFile, TaskPlan
 

@@ -7,7 +7,7 @@ from pydantic import Field, model_validator
 
 from ...enums import TaskType
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
-from ..protocol import PredictionProtocol
+from ..schemas.prediction import PredictionProtocol
 
 
 class BasePredictOutputParams(BaseOutputParams):

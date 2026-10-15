@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from ....constants import TUSHARE_TIMEOUT_SECONDS
-from ...contracts.windows import DeadlineBudget
+from ...core.clock import DeadlineBudget
 
 if TYPE_CHECKING:
     import pandas as pd

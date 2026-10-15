@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from ..artifact import ArtifactRecord
-from ..clock import WindowClock
+from ..schemas.artifact import ArtifactRecord
+from ..core.clock import DeadlineBudget, WindowClock
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 
@@ -64,26 +63,6 @@ class WindowInputParams(BaseInputParams):
         if self.windows != sorted(self.windows, key=lambda window: window.start_at):
             raise ValueError("windows must be ordered by start_at")
         return self
-
-
-class DeadlineBudget:
-    """Plugins must bound request timeouts, retries and backoff by remaining seconds."""
-
-    def __init__(self, clock: WindowClock, end_at: datetime):
-        self.clock = clock
-        self.deadline = clock.monotonic() + max(0, (end_at - clock.now()).total_seconds())
-
-    @property
-    def remaining_seconds(self) -> float:
-        return max(0, self.deadline - self.clock.monotonic())
-
-    def sleep(self, seconds: float) -> None:
-        self.clock.sleep(max(0, min(seconds, self.remaining_seconds)))
-
-    def check(self) -> None:
-        """Fail before beginning or publishing work after the deadline."""
-        if self.remaining_seconds <= 0:
-            raise TimeoutError("Window deadline exceeded")
 
 
 class _WindowTask(BaseTask):
@@ -187,3 +166,13 @@ class _WindowTask(BaseTask):
 
     def build_output_params(self) -> WindowOutputParams:
         return self.output_cls(**self.window_output())
+
+
+__all__ = [
+    "DeadlineBudget",
+    "ExecutionWindow",
+    "WindowClock",
+    "WindowInputParams",
+    "WindowOutputParams",
+    "WindowResult",
+]

@@ -4,7 +4,7 @@ import hashlib
 from pathlib import Path
 
 from ...utils.fs import atomic_write_json, file_sha256, snapshot_file
-from ..protocol import ModelCollection
+from ..schemas.model import ModelCollection
 from .artifacts import artifact_record
 
 

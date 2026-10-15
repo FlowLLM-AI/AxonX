@@ -2,7 +2,7 @@
 
 from .artifacts import artifact_path, artifact_record, read_metadata
 from .logs import TaskLogReader
-from .workspace import TaskMetadata
+from ..schemas.lifecycle import TaskMetadata
 
 __all__ = [
     "TaskLogReader",

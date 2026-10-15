@@ -2,33 +2,25 @@
 
 from __future__ import annotations
 
-import io
 import socket
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 
 import polars as pl
-import pyarrow as pa
 import pyarrow.parquet as pq
 
 from ...utils.fs import file_sha256, snapshot_file
-from ..storage.replica import DisplayReplica, ReplicaFile, LiveSnapshot, ReplicaLog
-from ..storage.composition import current_children
+from ..schemas.lifecycle import TaskMetadata, current_children
+from ..schemas.protocol import fingerprint
+from ..schemas.replica import DisplayReplica, LiveSnapshot, ReplicaFile, ReplicaLog
 from ..storage.logs import TaskLogReader
-from ..protocol import fingerprint
-from ..storage.workspace import (
-    METADATA_FILE,
-    EVENTS_FILE,
-    TaskMetadata,
-    read_entry,
-    task_path,
-    write_task_metadata,
-)
+from ..storage.workspace import METADATA_FILE, EVENTS_FILE, read_entry, task_path, write_task_metadata
 from .errors import ReplicaBudgetError, SnapshotChangedError
 from .index import policy_digest, snapshot_digest
 from .models import TaskPlan
 from .planner import archive_budget, plan_task, task_file
+from .sampling import trade_day, write_sample
 
 # Full reports, transaction ledgers and reference calendars remain source-complete.
 COMPLETE_FILES = {
@@ -39,50 +31,6 @@ COMPLETE_FILES = {
     "trades.parquet",
     "calendar.parquet",
 }
-
-
-def _day():
-    return pl.col("trade_date").cast(pl.String).str.replace_all("-", "")
-
-
-class _BudgetWriter(io.BufferedWriter):
-    def __init__(self, path: Path, limit: int):
-        super().__init__(path.open("wb", buffering=0))
-        self.limit = limit
-
-    def write(self, data):
-        if self.tell() + len(data) > self.limit:
-            raise ReplicaBudgetError("Encoded sample exceeds the remaining transfer budget")
-        return super().write(data)
-
-
-def _write_sample(source: Path, target: Path, dates: list[str], limit: int) -> None:
-    parquet = pq.ParquetFile(source)
-    groups = []
-    column = next(i for i in range(len(parquet.schema)) if parquet.schema.column(i).path == "trade_date")
-    for index in range(parquet.metadata.num_row_groups):
-        stats = parquet.metadata.row_group(index).column(column).statistics
-        if stats is not None and stats.has_min_max:
-            lower, upper = str(stats.min).replace("-", ""), str(stats.max).replace("-", "")
-            if not any(lower <= day <= upper for day in dates):
-                continue
-        groups.append(index)
-    with (
-        _BudgetWriter(target, limit) as stream,
-        pq.ParquetWriter(stream, parquet.schema_arrow, compression="zstd") as writer,
-    ):
-        pending, pending_bytes = [], 0
-        for batch in parquet.iter_batches(batch_size=8192, row_groups=groups):
-            frame = pl.from_arrow(batch).filter(_day().is_in(dates))
-            if frame.height:
-                table = frame.to_arrow().cast(parquet.schema_arrow)
-                pending.append(table)
-                pending_bytes += table.nbytes
-                if pending_bytes >= 16 * 1024 * 1024:
-                    writer.write_table(pa.concat_tables(pending))
-                    pending, pending_bytes = [], 0
-        if pending:
-            writer.write_table(pa.concat_tables(pending))
 
 
 def prepare_replica(
@@ -156,7 +104,7 @@ def prepare_replica(
                 # Unlink the staging hard link before writing; never alter the source inode.
                 target.unlink(missing_ok=True)
                 try:
-                    _write_sample(item.path, target, dates, max(0, remaining))
+                    write_sample(item.path, target, dates, max(0, remaining))
                 except ReplicaBudgetError:
                     target.unlink(missing_ok=True)
                     return None
@@ -197,7 +145,7 @@ def prepare_replica(
                 continue
             if "trade_date" not in pl.read_parquet_schema(item.path):
                 continue
-            counts = pl.scan_parquet(item.path).select(_day()).group_by("trade_date").len().collect()
+            counts = pl.scan_parquet(item.path).select(trade_day()).group_by("trade_date").len().collect()
             days = dict(counts.iter_rows())
             if days and all(isinstance(day, str) and len(day) == 8 and day.isdigit() for day in days):
                 sampleable[name] = days

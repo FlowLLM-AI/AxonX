@@ -9,7 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.identity import parse_source_tasks, task_type_from_id
 from ...enums import TaskState, TaskType
-from ..storage.workspace import KINDS, TaskMetadata
+from ..storage.workspace import KINDS
+from ..schemas.lifecycle import TaskMetadata
 
 KIND_ORDER = {kind: index for index, kind in enumerate(KINDS)}
 

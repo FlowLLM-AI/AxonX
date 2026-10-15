@@ -10,7 +10,8 @@ from typing import Any
 from ...components.job.events import JOB_EVENT_ADAPTER, JobEvent, LogEvent
 from ..storage.events import LOG_WINDOW_BYTES, read_event_lines
 from ..storage.logs import TaskLogReader
-from ..storage.workspace import EVENTS_FILE, TaskMetadata, task_path
+from ..storage.workspace import EVENTS_FILE, task_path
+from ..schemas.lifecycle import TaskMetadata
 
 StatusReader = Callable[[str], Awaitable[TaskMetadata]]
 

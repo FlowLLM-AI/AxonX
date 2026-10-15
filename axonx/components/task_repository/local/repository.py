@@ -10,8 +10,8 @@ from pathlib import Path
 
 from ....task.query.graph import TaskGraph, task_graph
 from ....task.query.summary import TaskSummary, summarize_status, task_sort_key
+from ....task.schemas.lifecycle import TaskMetadata
 from ....task.storage.workspace import (
-    TaskMetadata,
     is_task_directory,
     read_entry,
     reset_task_directory,

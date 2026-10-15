@@ -19,10 +19,10 @@ from ...constants import (
 )
 from ..catalog.resolver import installed_tasks, resolve_task
 from ..core.task import BaseTask
-from ..source import TASK_SOURCE_ENV, TaskSource
-from ..storage.workspace import TaskMetadata
+from ..schemas.lifecycle import TaskMetadata, TaskSource
 from .arguments import split_task_arguments
 from .runner import TaskRunner
+from .source import TASK_SOURCE_ENV
 
 
 class TaskCommand(Protocol):

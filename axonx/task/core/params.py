@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ...constants import TASK_NAME_PATTERN
 from ...enums import TaskType
-from ..artifact import ArtifactRecord
+from ..schemas.artifact import ArtifactRecord
 from .identity import parse_source_tasks, task_type_from_id
 
 _TASK_NAME = re.compile(TASK_NAME_PATTERN)

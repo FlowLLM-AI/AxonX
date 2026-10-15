@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from ..source import TaskSource
+from ..schemas.lifecycle import TaskSource
 
 
 @dataclass(frozen=True)

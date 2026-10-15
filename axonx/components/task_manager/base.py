@@ -7,11 +7,10 @@ from collections.abc import AsyncIterator, Sequence
 from ...components.job.events import JobEvent
 from ...enums import ComponentEnum, TaskState
 from ...logs import LogChunk
-from ...task.contracts import TaskHandle
+from ...task.schemas.lifecycle import TaskHandle, TaskMetadata
 from ...task.query.graph import TaskGraph
 from ...task.query.summary import TaskSummary, summarize_status
 from ...task.storage.events import LOG_WINDOW_BYTES
-from ...task.storage.workspace import TaskMetadata
 from ..base import BaseComponent
 
 

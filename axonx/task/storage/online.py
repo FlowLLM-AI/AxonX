@@ -9,9 +9,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from ..contracts.online import OnlineCommit, OnlineHistory
-from ..contracts.windows import DeadlineBudget
-from ..protocol import PROTOCOL_VERSION
+from ..schemas.online import OnlineCommit, OnlineHistory
+from ..core.clock import DeadlineBudget
+from ..schemas.protocol import PROTOCOL_VERSION
 from .artifacts import artifact_path, artifact_record
 from .history import HISTORY_BLOCK_SIZE, HistoryNode, read_online_history
 from ...utils.fs import atomic_write, atomic_write_json, file_sha256, snapshot_file

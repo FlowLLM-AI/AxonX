@@ -12,8 +12,8 @@ from typing import Any, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from ..utils.fs import atomic_write_json, file_sha256
-from .artifact import ArtifactRecord
-from .clock import ReplayClock
+from .schemas.artifact import ArtifactRecord
+from .core.clock import ReplayClock
 
 
 class ReplayFile(ArtifactRecord):

@@ -8,7 +8,7 @@ from pydantic import field_validator
 
 from ....enums import TaskType
 from ...contracts import BaseETLOutputParams
-from ...protocol import task_protocol
+from ...schemas.protocol import task_protocol
 from .protocol import validate_feature_protocol
 
 

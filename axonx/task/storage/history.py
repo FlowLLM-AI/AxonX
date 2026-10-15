@@ -9,9 +9,9 @@ from typing import Literal
 from pydantic import ConfigDict, Field
 
 from ...enums import TaskType
-from ..artifact import ArtifactRecord
-from ..contracts.online import OnlineCommit, OnlineHistory
-from ..protocol import Protocol
+from ..schemas.artifact import ArtifactRecord
+from ..schemas.online import OnlineCommit, OnlineHistory
+from ..schemas.protocol import Protocol
 
 HISTORY_BLOCK_SIZE = 16
 

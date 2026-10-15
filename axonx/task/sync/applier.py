@@ -19,7 +19,7 @@ from ..storage.workspace import (
     read_entry,
 )
 from .index import verify_replica
-from ..storage.composition import current_children
+from ..schemas.lifecycle import current_children
 from .models import SyncTasksReport
 
 MAX_SYNC_DELETIONS = 200

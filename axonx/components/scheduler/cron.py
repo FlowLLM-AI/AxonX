@@ -13,7 +13,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from croniter import croniter
 
-from ...task.source import TASK_SOURCE, ScheduleTrigger, TaskSource
+from ...task.runtime.source import TASK_SOURCE
+from ...task.schemas.lifecycle import ScheduleTrigger, TaskSource
 from ..registry import provider
 from .base import BaseScheduler
 

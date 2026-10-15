@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ...enums import TaskType
-from ..artifact import ArtifactRecord
+from ..schemas.artifact import ArtifactRecord
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 

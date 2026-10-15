@@ -3,48 +3,12 @@
 from abc import ABC
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from ...enums import TaskType
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
-from ..protocol import validate_protocol
-
-
-class BacktestBenchmark(BaseModel):
-    """One benchmark series exposed by a backtest artifact."""
-
-    key: str
-    label: str
-
-
-class BacktestDimensions(BaseModel):
-    """Dimensions needed to render standard backtest artifacts."""
-
-    top_ns: list[int]
-    holding_detail_top_n: int
-    benchmarks: list[BacktestBenchmark]
-
-
-class BacktestUniverse(BaseModel):
-    """Plugin-owned selection definition; the framework owns result publication."""
-
-    model_config = ConfigDict(extra="forbid")
-    key: str = Field(pattern=r"^[A-Za-z0-9_-]+$")
-    label: str = Field(min_length=1)
-    parameters: dict[str, Any] = Field(default_factory=dict)
-
-
-class BacktestUniverseReport(BaseModel):
-    """One independent portfolio report; artifact names reference the Task registry."""
-
-    model_config = ConfigDict(extra="forbid")
-    label: str
-    parameters: dict[str, Any]
-    dimensions: BacktestDimensions
-    date_range: dict[str, str]
-    days: int
-    evaluation_status: str
-    artifacts: dict[str, str]
+from ..schemas.protocol import validate_protocol
+from ..schemas.reports import BacktestBenchmark, BacktestDimensions, BacktestUniverse, BacktestUniverseReport
 
 
 class BaseBacktestOutputParams(BaseOutputParams):
@@ -75,3 +39,13 @@ class BaseBacktestTask(BaseTask, ABC):
     task_type = TaskType.BACKTEST
     input_cls = BaseInputParams
     output_cls = BaseBacktestOutputParams
+
+
+__all__ = [
+    "BacktestBenchmark",
+    "BacktestDimensions",
+    "BacktestUniverse",
+    "BacktestUniverseReport",
+    "BaseBacktestOutputParams",
+    "BaseBacktestTask",
+]

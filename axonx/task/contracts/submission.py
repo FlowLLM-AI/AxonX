@@ -1,10 +1,5 @@
-"""Values returned when a Task is accepted for execution."""
+"""Compatibility exports for accepted Task invocations."""
 
-from dataclasses import dataclass
+from ..schemas.lifecycle import TaskHandle
 
-
-@dataclass(frozen=True, slots=True)
-class TaskHandle:
-    task_id: str
-    run_id: str
-    task: str
+__all__ = ["TaskHandle"]

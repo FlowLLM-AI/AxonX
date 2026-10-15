@@ -3,13 +3,8 @@
 from abc import abstractmethod
 
 from ...enums import TaskType
-from .windows import (
-    DeadlineBudget,
-    ExecutionWindow,
-    WindowInputParams,
-    WindowResult,
-    _WindowTask,
-)
+from ..core.clock import DeadlineBudget
+from .windows import ExecutionWindow, WindowInputParams, WindowResult, _WindowTask
 
 
 class BaseRealtimeApiTask(_WindowTask):

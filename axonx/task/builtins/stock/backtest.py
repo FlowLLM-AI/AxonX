@@ -9,17 +9,11 @@ from pydantic import Field, field_validator
 
 from ....enums import TaskType
 from ....utils.fs import atomic_write, file_sha256
-from ...contracts import (
-    BacktestBenchmark,
-    BacktestDimensions,
-    BacktestUniverse,
-    BacktestUniverseReport,
-    BaseBacktestOutputParams,
-    BaseBacktestTask,
-    BaseInputParams,
-)
+from ...schemas.reports import BacktestBenchmark, BacktestDimensions, BacktestUniverse, BacktestUniverseReport
+from ...contracts import BaseBacktestOutputParams, BaseBacktestTask, BaseInputParams
 from ...core import TaskStep, parse_source_tasks, task_type_from_id
-from ...protocol import STOCK_SIGNALS_FORMAT, PredictionProtocol, task_protocol
+from ...schemas.protocol import STOCK_SIGNALS_FORMAT, task_protocol
+from ...schemas.prediction import PredictionProtocol
 from ...storage import artifact_record, read_metadata
 from ...storage.inputs import pin_source_artifacts
 from .data import KEYS

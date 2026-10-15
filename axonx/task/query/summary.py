@@ -2,8 +2,7 @@
 
 from pydantic import BaseModel
 
-from ..status import TaskStatus
-from ..storage.workspace import TaskMetadata
+from ..schemas.lifecycle import TaskStatus, TaskMetadata
 
 
 class StepProgress(BaseModel):

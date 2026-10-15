@@ -1,25 +1,6 @@
-"""Framework-owned provenance for one Task execution."""
+"""Compatibility exports for Task provenance and dispatch context."""
 
-from contextvars import ContextVar
-from datetime import datetime
-from typing import Literal
+from .schemas.lifecycle import ScheduleTrigger, TaskSource
+from .runtime.source import TASK_SOURCE, TASK_SOURCE_ENV
 
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class ScheduleTrigger(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-    name: str = Field(min_length=1)
-    job: str = Field(min_length=1)
-    trigger_id: str = Field(min_length=1)
-    triggered_at: datetime
-
-
-class TaskSource(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-    kind: Literal["submit", "exec", "unknown"] = "unknown"
-    schedule: ScheduleTrigger | None = None
-
-
-TASK_SOURCE: ContextVar[TaskSource] = ContextVar("task_source", default=TaskSource(kind="submit"))
-TASK_SOURCE_ENV = "AXONX_TASK_SOURCE"
+__all__ = ["ScheduleTrigger", "TaskSource", "TASK_SOURCE", "TASK_SOURCE_ENV"]

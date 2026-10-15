@@ -17,16 +17,9 @@ from ...constants import (
 )
 from ...enums import ComponentEnum, TaskType
 from ...utils import get_log_path, get_logger
-from ..clock import WindowClock
-from ..source import TaskSource
-from ..storage.workspace import (
-    METADATA_FILE,
-    PERSISTENT_DIR,
-    TaskMetadata,
-    read_task_metadata,
-    task_id_from_path,
-    task_path,
-)
+from ..schemas.lifecycle import TaskMetadata, TaskSource
+from ..storage.workspace import METADATA_FILE, PERSISTENT_DIR, read_task_metadata, task_id_from_path, task_path
+from .clock import WindowClock
 from .context import TaskContext
 from .identity import (
     generated_task_name,

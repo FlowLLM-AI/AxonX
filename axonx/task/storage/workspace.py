@@ -8,15 +8,13 @@ import stat
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from ...constants import AXONX_DEFAULT_ENCODING
-from ...enums import TaskState, TaskType
+from ...enums import TaskType
 from ...utils.fs import atomic_write_json
 from ..core.identity import task_type_from_id
-from ..protocol import Protocol
-from ..status import TaskStatus
-from .replica import DisplayReplica
+from ..schemas.lifecycle import ChildTaskRecord, TaskMetadata, TaskStatus
+from ..schemas.protocol import Protocol
+from ..schemas.replica import DisplayReplica
 from ...progress import TaskStepStatus
 
 #: One workspace directory per task category holds that category's task directories.
@@ -27,31 +25,6 @@ METADATA_FILE = "metadata.json"
 #: The append-only log a worker writes its status transitions to, so a manager in
 #: another process can follow a running task event by event.
 EVENTS_FILE = "events.jsonl"
-
-
-class ChildTaskRecord(BaseModel):
-    """Snapshot of one child invocation; invalid inputs may have no Task ID."""
-
-    model_config = ConfigDict(extra="forbid")
-    node_name: str
-    attempt: int = Field(ge=1)
-    task: str
-    task_id: str | None = None
-    run_id: str
-    state: TaskState = TaskState.QUEUED
-    exit_code: int = Field(default=0, ge=0, le=255)
-    error: str = ""
-
-
-class TaskMetadata(Protocol, TaskStatus):
-    """The complete current lifecycle record, from queued to terminal."""
-
-    model_config = ConfigDict(extra="forbid")
-    input_params: dict[str, Any] = Field(default_factory=dict)
-    output_params: dict[str, Any] = Field(default_factory=dict)
-    children: list[ChildTaskRecord] = Field(default_factory=list)
-    steps: list[TaskStepStatus] = Field(default_factory=list)
-    replica: DisplayReplica | None = None
 
 
 def task_directory(task_id: str) -> str:
@@ -225,3 +198,30 @@ def task_record_id_from_path(root: Path, raw_path: str) -> str | None:
     elif len(parts) != 2:
         return None
     return task_id_from_path(root, raw_path)
+
+
+__all__ = [
+    "KINDS",
+    "PERSISTENT_DIR",
+    "METADATA_FILE",
+    "EVENTS_FILE",
+    "ChildTaskRecord",
+    "TaskMetadata",
+    "TaskStatus",
+    "Protocol",
+    "DisplayReplica",
+    "TaskStepStatus",
+    "task_directory",
+    "task_path",
+    "parse_task_directory",
+    "kind_directories",
+    "ensure_kind_directories",
+    "is_task_directory",
+    "reset_task_directory",
+    "read_entry",
+    "scan_entries",
+    "read_task_metadata",
+    "write_task_metadata",
+    "task_id_from_path",
+    "task_record_id_from_path",
+]
