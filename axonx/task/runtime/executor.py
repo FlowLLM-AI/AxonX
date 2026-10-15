@@ -39,12 +39,23 @@ class TaskCatalog:
     tasks: dict[str, type[BaseTask]]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class TaskExecution:
     """Completed task output together with its final status."""
 
-    output: dict
     status: TaskMetadata
+
+    def __init__(self, output: dict | None = None, status: TaskMetadata | None = None):
+        """Accept the former constructor while keeping one authoritative result."""
+        if status is None:
+            raise TypeError("TaskExecution requires status")
+        if output is not None and output != status.output_params:
+            raise ValueError("TaskExecution output differs from status")
+        object.__setattr__(self, "status", status)
+
+    @property
+    def output(self) -> dict:
+        return self.status.output_params
 
     @property
     def exit_code(self) -> int:
@@ -83,4 +94,4 @@ class TaskCommandExecutor:
             ),
         )
         status = TaskRunner().run(task)
-        return TaskExecution(task.output, status)
+        return TaskExecution(status=status)

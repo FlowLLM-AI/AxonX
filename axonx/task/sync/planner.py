@@ -83,10 +83,14 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None)
             for reference in references(json.loads(path.read_text(encoding="utf-8"))):
                 # Online records use Task-relative paths; model manifests use file-relative paths.
                 base = directory if (directory / reference).is_file() else path.parent
-                include(reference, base)
+                pending.append((reference, base))
 
-    for reference in references(metadata.output_params):
-        include(reference)
+    # Frozen online histories can span thousands of revisions. Traverse their
+    # manifest dependencies iteratively rather than using the Python call stack.
+    pending = [(reference, directory) for reference in references(metadata.output_params)]
+    while pending:
+        relative, parent = pending.pop()
+        include(relative, parent)
     files = tuple(task_file(directory / name, name) for name in sorted(paths))
     return TaskPlan(files, sum(item.archived_bytes for item in files))
 

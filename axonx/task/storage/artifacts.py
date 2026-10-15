@@ -7,6 +7,7 @@ from ...constants import AXONX_DEFAULT_ENCODING
 from ...enums import TaskState
 from ...utils.fs import file_sha256
 from ..protocol import validate_protocol
+from ..artifact import ArtifactRecord
 
 
 def read_metadata(path: Path) -> dict:
@@ -38,8 +39,8 @@ def artifact_path(task_dir: Path, metadata: dict, name: str) -> Path:
 
 
 def artifact_record(path: Path, root: Path) -> dict:
-    return {
-        "path": str(path.relative_to(root)),
-        "size": path.stat().st_size,
-        "sha256": file_sha256(path),
-    }
+    return ArtifactRecord(
+        path=path.relative_to(root).as_posix(),
+        size=path.stat().st_size,
+        sha256=file_sha256(path),
+    ).model_dump()

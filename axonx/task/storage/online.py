@@ -13,6 +13,7 @@ from ..contracts.online import OnlineCommit, OnlineHistory
 from ..contracts.windows import DeadlineBudget
 from ..protocol import PROTOCOL_VERSION
 from .artifacts import artifact_path, artifact_record
+from .history import HISTORY_BLOCK_SIZE, HistoryNode, read_online_history
 from ...utils.fs import atomic_write, atomic_write_json, file_sha256, snapshot_file
 
 
@@ -31,10 +32,6 @@ def publication_lock(path: Path, budget: DeadlineBudget):
             yield
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
-
-
-def read_online_history(path: Path) -> OnlineHistory:
-    return OnlineHistory.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
 
 def online_artifact(root: Path, commit: OnlineCommit, role: str) -> Path:
@@ -79,6 +76,20 @@ class OnlineStore:
                 raise ValueError("Online history changed before publication; retry with current history")
             if any(c.task_id != self.task.task_id for c in history.commits):
                 raise ValueError("Online history belongs to another Task")
+            previous = None
+            boundary = len(history.commits) // HISTORY_BLOCK_SIZE * HISTORY_BLOCK_SIZE
+            if boundary:
+                previous_path = self.root / "commits" / history.commits[boundary - 1].commit_id / "history.json"
+                if not previous_path.is_file():
+                    # Portable legacy histories may retain only their latest full snapshot.
+                    boundary = len(history.commits)
+                    previous_path = self.root / "commits" / history.commits[-1].commit_id / "history.json"
+                if previous_path.is_symlink():
+                    raise ValueError("Frozen history snapshot cannot be a symlink")
+                expected = history.model_copy(update={"commits": history.commits[:boundary]})
+                if read_online_history(previous_path) != expected:
+                    raise ValueError("Frozen history differs from the current manifest")
+                previous = artifact_record(previous_path, self.task.task_dir)
             commit_id = uuid4().hex
             folder = self.root / "commits" / commit_id
             folder.mkdir(parents=True)
@@ -94,8 +105,8 @@ class OnlineStore:
                     target = folder / f"{role}{source.suffix}"
                     digest = file_sha256(source)
                     if digest in existing:
-                        previous = online_artifact(self.task.task_dir, *existing[digest])
-                        snapshot_file(previous, target)
+                        previous_artifact = online_artifact(self.task.task_dir, *existing[digest])
+                        snapshot_file(previous_artifact, target)
                     else:
                         shutil.copyfile(source, target)
                     records[role] = artifact_record(target, self.task.task_dir)
@@ -120,13 +131,21 @@ class OnlineStore:
                     commits=[*history.commits, commit],
                 )
                 snapshot = folder / "history.json"
-                atomic_write_json(snapshot, updated.model_dump(mode="json"))
+                node = HistoryNode(
+                    version=PROTOCOL_VERSION,
+                    strategy_identity=history.strategy_identity,
+                    commits=updated.commits[boundary:],
+                    previous=previous,
+                )
+                atomic_write_json(snapshot, node.model_dump(mode="json"))
                 if prepare is not None:
                     prepare(commit, snapshot)
+                # Serialize once, keeping the public manifest self-contained.
+                content = json.dumps(updated.model_dump(mode="json"), ensure_ascii=False, indent=2, allow_nan=False)
 
                 # Check after serialization and immediately before the single publication point.
                 def publish(temporary):
-                    shutil.copyfile(snapshot, temporary)
+                    temporary.write_text(content, encoding="utf-8")
                     budget.check()
 
                 atomic_write(self.manifest, publish)
@@ -150,6 +169,7 @@ def pin_online_history(task, source_id: str, *, as_of: str | None = None) -> tup
         raise ValueError("Online history belongs to another Task")
     root = task.task_dir / "inputs" / "online"
     commits = []
+    pinned_files: dict[str, Path] = {}
     for commit in history.commits:
         if as_of is not None and commit.trade_date > as_of:
             continue
@@ -157,9 +177,18 @@ def pin_online_history(task, source_id: str, *, as_of: str | None = None) -> tup
         for role, record in commit.artifacts.items():
             path = online_artifact(upstream, commit, role)
             target = root / commit.commit_id / Path(record.path).name
-            atomic_write(target, lambda temporary, source=path: shutil.copyfile(source, temporary))
+            if record.sha256 in pinned_files:
+                snapshot_file(pinned_files[record.sha256], target)
+            else:
+                # Keep the first copy isolated from in-place upstream writes. Only
+                # consumer-owned immutable copies may share storage with one another.
+                atomic_write(
+                    target,
+                    lambda temporary, source=path: shutil.copyfile(source, temporary),
+                )
             if file_sha256(target) != record.sha256:
                 raise ValueError("Online source changed during snapshot")
+            pinned_files[record.sha256] = target
             records[role] = artifact_record(target, task.task_dir)
         commits.append(OnlineCommit.model_validate({**commit.model_dump(), "artifacts": records}))
     pinned = OnlineHistory(

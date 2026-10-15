@@ -142,6 +142,12 @@ The base class only specifies artifacts as a nested mapping. path, size, and sha
 
 Do not include the workspace root in artifact path. Consumers combine `<type>/<task_id>/<artifact.path>` and check the producing plugin's expected logical names, such as dataset, model, or daily.
 
+`axonx.task.artifact.ArtifactRecord` owns portable relative path, byte size and SHA256 validation. The existing `OnlineArtifact` import is an alias of that record. Public output mappings retain their JSON shape. `PortfolioSettings` in `axonx.task.builtins.stock` owns common portfolio fields and conversion to the execution engine; plugins override business defaults and selection rules.
+
+Online publication keeps `persistent/online/manifest.json` as a complete, self-contained v1 history. New frozen `commits/<commit_id>/history.json` files use `kind=online_history_node`: at most 16 commits plus a size/hash-verified Task-relative reference to the preceding completed group. Use `read_online_history()` to read either representation. Existing full snapshots remain readable and can precede new nodes; no old records are rewritten. Copying a frozen node requires its referenced predecessor files, which Task synchronization includes automatically. `pin_online_history()` exports a complete v1 history and all referenced artifacts for independent consumption.
+
+Frozen history metadata grows linearly for new revisions, while the current manifest remains a full-history document. Portfolio Parquet revisions remain complete audit reports. Consumer pinning makes an isolated copy of each distinct artifact digest and shares only consumer-owned copies, so in-place upstream writes cannot change a pinned input. Treat pinned inputs as immutable. `TaskExecution.output` reads the final status output directly rather than retaining a second serialized result.
+
 ## Workspace reads and events
 
 TaskMetadata requires run_id as the run identity.

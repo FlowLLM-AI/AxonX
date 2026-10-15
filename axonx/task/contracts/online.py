@@ -8,27 +8,15 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    field_validator,
     model_validator,
 )
 
 from ...enums import TaskType
 from ..protocol import STOCK_SIGNALS_FORMAT, Protocol, validate_protocol
+from ..artifact import ArtifactRecord
 from .backtest import BacktestDimensions
 
-
-class OnlineArtifact(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    path: str = Field(min_length=1)
-    size: int = Field(ge=0)
-    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-
-    @field_validator("path")
-    @classmethod
-    def validate_path(cls, value):
-        if value.startswith("/") or "\\" in value or any(part in {"", ".", ".."} for part in value.split("/")):
-            raise ValueError("Online artifact must be a relative task path")
-        return value
+OnlineArtifact = ArtifactRecord
 
 
 class OnlineCommit(BaseModel):
@@ -94,7 +82,10 @@ class OnlineHistory(Protocol):
         return [latest[key] for key in sorted(latest) if as_of is None or key[0] <= as_of]
 
     def report_is_current(self, commit: OnlineCommit) -> bool:
-        index = next((i for i, item in enumerate(self.commits) if item.commit_id == commit.commit_id), None)
+        index = next(
+            (i for i, item in enumerate(self.commits) if item.commit_id == commit.commit_id),
+            None,
+        )
         return index is not None and not any(
             (item.trade_date, item.trade_time) <= (commit.trade_date, commit.trade_time)
             for item in self.commits[index + 1 :]

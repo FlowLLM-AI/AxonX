@@ -142,6 +142,12 @@ TaskHandle 是 submit 返回的 immutable dataclass：
 
 不要把工作区根路径写进 artifact path。消费者组合 `<type>/<task_id>/<artifact.path>`，并核对生产插件约定的逻辑名称，例如 dataset、model 或 daily。
 
+`axonx.task.artifact.ArtifactRecord` 统一校验可移植相对路径、字节数和 SHA256；原有 `OnlineArtifact` 导入名是该类型的别名，公开输出映射的 JSON 形状不变。`axonx.task.builtins.stock` 中的 `PortfolioSettings` 统一维护投资组合公共字段及引擎配置转换，插件只覆盖业务默认值和选股规则。
+
+在线发布仍将 `persistent/online/manifest.json` 保存为完整、可独立读取的 v1 历史。新冻结的 `commits/<commit_id>/history.json` 使用 `kind=online_history_node`：仅保存最多 16 个 commit，以及前一个完整分组快照的 Task 相对路径、大小及哈希引用。使用 `read_online_history()` 读取两种表示；已有完整快照仍可读取并作为新节点的前序，不重写旧记录。单独复制冻结节点时必须一并复制其前序依赖，Task 同步会自动包含这些文件。`pin_online_history()` 导出完整 v1 历史及所有引用产物，供独立消费。
+
+新增修订的冻结历史元数据按线性规模增长，当前 manifest 仍包含完整历史。投资组合 Parquet 修订继续保留完整审计报表。消费端按内容摘要独立复制每个不同文件，只在消费任务拥有的副本之间共享存储，因此上游原地写入不会改变已固定的输入；固定输入必须保持不可变。`TaskExecution.output` 直接读取最终状态的输出，不再保留第二份序列化结果。
+
 ## 工作区读取与事件
 
 TaskMetadata 使用 run_id 标识一次运行，该字段为必填。
