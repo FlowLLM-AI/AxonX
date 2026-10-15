@@ -13,6 +13,8 @@ Alpha158 和增强 Alpha158 共用 `BaseStockBacktestTask` 和持仓账本。股
 
 ## 数据契约
 
+Studio 回测页优先展示股池选择器和报告，报告下方保留产物清单，每份发布文件仅在清单中列出一次。
+
 ETL 发布四份独立产物：
 
 | 产物       | 含义                                                     |
@@ -46,7 +48,6 @@ axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
 | `annual_risk_free_rate`         | `0.012`  | 年无风险收益率               |
 | `annualization_days`            | `252`    | 年交易日数                   |
 | `minimum_index_weight_coverage` | `0.98`   | 指数权重收益代理的覆盖率要求 |
-| `index_codes`                   | `[]`     | 可选的信号候选指数限制       |
 
 默认与 Qlib 参考配置一致： `--buy-cost-rate 0.0005 --sell-cost-rate 0.0015`，即买入 0.05%、卖出 0.15%。显式设为 `0` 表示该侧免费。费用按实际成交金额收取，归一化资金回测不设最低金额费用。
 
@@ -85,11 +86,11 @@ Turnover = executed buy and sell notional / previous equity
 
 ## 信号诊断与基准
 
-IC、RankIC、NDCG 与目标选股共用信号当天可买候选池，包括 `index_codes` 限制。IC 和 RankIC 对比预测分数与有效的固定次一市场日原始收益。NDCG 对比高分信号和相同可用收益样本的排序质量；缺标签不会补入低分候选。这些指标属于信号日期，持仓收益和估值属于组合日历日期。
+IC、RankIC、NDCG 与目标选股共用信号当天可买候选池，包括插件选择的股池限制。IC 和 RankIC 对比预测分数与有效的固定次一市场日原始收益。NDCG 对比高分信号和相同可用收益样本的排序质量；缺标签不会补入低分候选。这些指标属于信号日期，持仓收益和估值属于组合日历日期。
 
 `benchmark_universe_return` 是可用信号横截面的平均收益。`index_weight_*` 只有覆盖率达标时才生成加权收益代理，它们不是官方全收益指数。基准收益按标签目标日期排列，与组合估值周期对齐。
 
-Studio 读取 `daily`、`summary`、`dimensions`。净收益图复合每日净收益，累计毛收益图相加每日毛收益，因此后者不必等于汇总表中的复合毛收益。期间统计由任务生成，移动图表日期范围不会自动重新回测。
+Studio 读取选中 `universes[key]` 的报告，通过根级产物表解析 daily 和 summary 引用。净收益图复合每日净收益，累计毛收益图相加每日毛收益，因此后者不必等于汇总表中的复合毛收益。期间统计由任务生成，移动图表日期范围不会自动重新回测。
 
 Studio 根据 `dimensions.top_ns` 生成收益和 NDCG 曲线，将行情不完整的评价标为暂定结果，并展示全部组合产物。预测统计只描述信号时分数和选股资格；协议版本 2 的预测不嵌入未来收益或有效收益覆盖率。统计为空或标签缺失时显示不可用。
 

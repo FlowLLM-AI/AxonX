@@ -236,9 +236,11 @@ def test_task_persists_missing_market_assumption_and_applies_it(tmp_path, assume
     assert metadata["input_params"]["missing_market_as_suspension"] is assume_suspended
     result = metadata["output_params"]
     assert result["protocol"]["settings"]["missing_market_as_suspension"] is assume_suspended
-    assert result["evaluation_status"] == ("done" if assume_suspended else "incomplete_market_data")
+    assert result["universes"]["all"]["evaluation_status"] == ("done" if assume_suspended else "incomplete_market_data")
     assert ("assumed suspended" in result["protocol"]["valuation"]) is assume_suspended
-    orders = pl.read_parquet(result["orders_file"])
+    orders = pl.read_parquet(
+        task.task_dir / result["artifacts"][result["universes"]["all"]["artifacts"]["orders"]]["path"]
+    )
     blocked = orders.filter((pl.col("ts_code") == "A") & (pl.col("status") == "unfilled"))
     assert blocked["reason"].to_list() == ["suspended" if assume_suspended else "missing_data"]
     assert pl.read_parquet(paths["market_file"]).equals(market)
@@ -330,8 +332,9 @@ def test_index_diagnostics_ignore_outside_scores_and_returns():
             "label_return": [0.1, 0.05, 0.2],
         }
     )
-    config = BacktestConfig(top_ns=(1,), index_codes=("test",))
-    before = run_backtest(signals, market, calendar, labels, config, as_of_date="20260108")
+    config = BacktestConfig(top_ns=(1,))
+    universe_keys = signals.filter(pl.col("index_weight_test") > 0).select("trade_date", "trade_time", "ts_code")
+    before = run_backtest(signals, market, calendar, labels, config, as_of_date="20260108", universe_keys=universe_keys)
     after = run_backtest(
         signals.with_columns(pl.when(pl.col("ts_code") == "C").then(-10.0).otherwise(pl.col("pred")).alias("pred")),
         market,
@@ -341,6 +344,7 @@ def test_index_diagnostics_ignore_outside_scores_and_returns():
         ),
         config,
         as_of_date="20260108",
+        universe_keys=universe_keys,
     )
     merged = before.frames["signals"]
     assert merged["ts_code"].to_list() == ["A", "D", "C"]
@@ -569,3 +573,58 @@ def test_event_blocked_candidate_without_quotes_does_not_mark_replay_incomplete(
         "unfilled",
         "security_event",
     )
+
+
+@pytest.mark.parametrize("invalid", ["duplicate", "foreign"])
+def test_universe_keys_are_a_unique_subset_of_signals(invalid):
+    signals, market, calendar = inputs()
+    keys = signals.select("trade_date", "trade_time", "ts_code")
+    keys = (
+        pl.concat([keys, keys.head(1)])
+        if invalid == "duplicate"
+        else keys.with_columns(pl.lit("UNKNOWN").alias("ts_code"))
+    )
+    with pytest.raises(ValueError, match="[Dd]uplicate|[Uu]niverse"):
+        run_backtest(
+            signals, market, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108", universe_keys=keys
+        )
+
+
+def test_empty_universe_keeps_cash_and_does_not_erase_signal_dates():
+    signals, market, calendar = inputs()
+    keys = signals.select("trade_date", "trade_time", "ts_code").head(0)
+    result = run_backtest(
+        signals, market, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108", universe_keys=keys
+    )
+    assert result.frames["daily"]["top1_net_value"].to_list() == [1.0] * 4
+    assert result.frames["daily"]["candidate_count"].to_list() == [0] * 4
+    assert result.frames["orders"].is_empty()
+    assert not result.frames["signals"]["is_backtest_candidate"].any()
+
+
+def test_backtest_contract_requires_reports_and_resolves_every_artifact():
+    from axonx.task.contracts import BaseBacktestOutputParams
+    from axonx.task.protocol import task_protocol
+    from axonx.enums import TaskType
+
+    report = {
+        "label": "All",
+        "parameters": {},
+        "dimensions": {"top_ns": [1], "holding_detail_top_n": 30, "benchmarks": []},
+        "date_range": {},
+        "days": 0,
+        "evaluation_status": "done",
+        "artifacts": {"daily": "all_daily", "summary": "all_summary"},
+    }
+    shared = {"protocol": task_protocol(TaskType.BACKTEST), "artifacts": {"all_daily": {}, "all_summary": {}}}
+    assert BaseBacktestOutputParams(default_universe="all", universes={"all": report}, **shared)
+    with pytest.raises(ValueError, match="default_universe"):
+        BaseBacktestOutputParams(default_universe="missing", universes={"all": report}, **shared)
+    with pytest.raises(ValueError, match="unregistered"):
+        BaseBacktestOutputParams(
+            default_universe="all",
+            universes={"all": {**report, "artifacts": {"daily": "other", "summary": "all_summary"}}},
+            **shared,
+        )
+    with pytest.raises(ValueError):
+        BaseBacktestOutputParams(dimensions=report["dimensions"], days=0, date_range={}, **shared)

@@ -24,6 +24,20 @@ export interface TrainingCurveData {
   y_right: Record<string, number[]>;
 }
 
+export interface BacktestUniverseReport {
+  label: string;
+  parameters: Record<string, unknown>;
+  dimensions: {
+    top_ns: number[];
+    holding_detail_top_n: number;
+    benchmarks: { key: string; label: string }[];
+  };
+  date_range: { start: string; end: string };
+  days: number;
+  evaluation_status: string;
+  artifacts: Record<string, string>;
+}
+
 export interface ResearchArtifact {
   _path: string;
   replica?: DisplayReplica | null;
@@ -32,13 +46,13 @@ export interface ResearchArtifact {
   created_at: string;
   rows?: number;
   train_rows?: number;
-  days?: number;
+  default_universe?: string;
+  universes?: Record<string, BacktestUniverseReport>;
   model_name?: string;
   feature_columns?: string[];
   label_columns?: string[];
   target_columns?: string[];
   output_columns?: string[];
-  evaluation_status?: string;
   signals_format?: "stock-signals-v1";
   protocol?: {
     version?: number;
@@ -60,11 +74,6 @@ export interface ResearchArtifact {
   metrics?: Record<string, number>;
   parameters?: Record<string, unknown>;
   training_curve?: TrainingCurveData;
-  dimensions?: {
-    top_ns?: number[];
-    holding_detail_top_n?: number;
-    benchmarks?: { key: string; label: string }[];
-  };
   date_range?: { start?: string; end?: string };
   output_file?: string;
   result_file?: string;

@@ -6,6 +6,8 @@ from .analysis import (
     BaseAnalysisTask,
 )
 from .backtest import (
+    BacktestUniverse,
+    BacktestUniverseReport,
     BacktestBenchmark,
     BacktestDimensions,
     BaseBacktestInputParams,
@@ -42,6 +44,8 @@ from .compare import (
 )
 
 __all__ = [
+    "BacktestUniverse",
+    "BacktestUniverseReport",
     "BaseAnalysisInputParams",
     "BaseAnalysisOutputParams",
     "BaseAnalysisTask",

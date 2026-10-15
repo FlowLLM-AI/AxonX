@@ -614,7 +614,8 @@
       "parquetRequired": "回测产物必须是 Parquet 文件",
       "missingDailySummary": "回测 metadata 缺少 daily 或 summary 产物",
       "missingDaily": "回测 metadata 缺少 daily 产物",
-      "signalsFormat": "不支持旧版股票信号格式，请使用当前协议重新运行任务"
+      "signalsFormat": "不支持旧版股票信号格式，请使用当前协议重新运行任务",
+      "missingUniverse": "缺少股池报告，请重新回测"
     },
     "noSummaryData": "暂无汇总数据",
     "daily_mean_in_range": "区间日均",
@@ -662,7 +663,8 @@
     "reset_table_sorting": "重置表格排序",
     "overall_metrics_by_top_n": "各 Top N 总体指标",
     "top_n_period_metric_details": "Top N 分期指标明细",
-    "incomplete_market_data": "行情数据不完整，收益和估值为暂定结果。"
+    "incomplete_market_data": "行情数据不完整，收益和估值为暂定结果。",
+    "universe": "股池"
   },
   "agent": {
     "sessions": "会话",

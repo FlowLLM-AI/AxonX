@@ -3,7 +3,7 @@
 from abc import ABC
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ...enums import TaskType
 from ..protocol import validate_protocol
@@ -29,11 +29,43 @@ class BaseBacktestInputParams(BaseInputParams):
     pass
 
 
-class BaseBacktestOutputParams(BaseOutputParams):
+class BacktestUniverse(BaseModel):
+    """Plugin-owned selection definition; the framework owns result publication."""
+
+    model_config = ConfigDict(extra="forbid")
+    key: str = Field(pattern=r"^[A-Za-z0-9_-]+$")
+    label: str = Field(min_length=1)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class BacktestUniverseReport(BaseModel):
+    """One independent portfolio report; artifact names reference the Task registry."""
+
+    model_config = ConfigDict(extra="forbid")
+    label: str
+    parameters: dict[str, Any]
     dimensions: BacktestDimensions
-    protocol: dict[str, Any]
     date_range: dict[str, str]
     days: int
+    evaluation_status: str
+    artifacts: dict[str, str]
+
+
+class BaseBacktestOutputParams(BaseOutputParams):
+    default_universe: str
+    universes: dict[str, BacktestUniverseReport] = Field(min_length=1)
+    protocol: dict[str, Any]
+
+    @model_validator(mode="after")
+    def validate_universes(self):
+        if self.default_universe not in self.universes:
+            raise ValueError("default_universe must reference a published report")
+        for report in self.universes.values():
+            if not {"daily", "summary"} <= report.artifacts.keys():
+                raise ValueError("Every universe requires daily and summary artifacts")
+            if set(report.artifacts.values()) - self.artifacts.keys():
+                raise ValueError("Universe references an unregistered artifact")
+        return self
 
     @field_validator("protocol")
     @classmethod

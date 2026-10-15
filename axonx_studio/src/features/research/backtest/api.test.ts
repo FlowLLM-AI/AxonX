@@ -17,6 +17,18 @@ const meta: BacktestArtifact = {
     task_type: "backtest",
   },
   signals_format: "stock-signals-v1",
+  default_universe: "all",
+  universes: {
+    all: {
+      label: "All market",
+      parameters: {},
+      dimensions: { top_ns: [1], holding_detail_top_n: 30, benchmarks: [] },
+      date_range: { start: "20260105", end: "20260106" },
+      days: 2,
+      evaluation_status: "done",
+      artifacts: { daily: "daily", summary: "summary", signals: "signals" },
+    },
+  },
   artifacts: {
     daily: file,
     summary: { ...file, path: "summary.parquet" },
@@ -34,7 +46,7 @@ it("loads current signals metadata through both report readers with pagination a
     } as Awaited<ReturnType<typeof previewWorkspaceFile>>)
     .mockResolvedValueOnce(table([{ trade_date: "20260106" }]));
   expect(
-    await loadBacktestDaily(meta, "remote", controller.signal),
+    await loadBacktestDaily(meta, "all", "remote", controller.signal),
   ).toHaveLength(2);
   expect(previewWorkspaceFile).toHaveBeenLastCalledWith(
     "backtest/demo/daily.parquet",
@@ -45,7 +57,7 @@ it("loads current signals metadata through both report readers with pagination a
   );
   vi.mocked(previewWorkspaceFile).mockResolvedValue(table([]));
   await expect(
-    loadBacktest(meta, "remote", controller.signal),
+    loadBacktest(meta, "all", "remote", controller.signal),
   ).resolves.toEqual({ daily: [], summary: [] });
 });
 it.each([loadBacktest, loadBacktestDaily])(
@@ -53,12 +65,19 @@ it.each([loadBacktest, loadBacktestDaily])(
   async (load) => {
     for (const legacy of [
       { ...meta, signals_format: undefined },
-      { ...meta, artifacts: { ...meta.artifacts, targets: file } },
+      { ...meta, signals_format: undefined, universes: {} },
     ]) {
-      await expect(load(legacy)).rejects.toThrow(
+      await expect(load(legacy, "all")).rejects.toThrow(
         i18n.t("backtest.errors.signalsFormat"),
       );
     }
     expect(previewWorkspaceFile).not.toHaveBeenCalled();
   },
 );
+
+it("rejects a missing universe instead of loading top-level artifacts", async () => {
+  await expect(loadBacktest({ ...meta, universes: {} }, "all")).rejects.toThrow(
+    i18n.t("backtest.errors.missingUniverse"),
+  );
+  expect(previewWorkspaceFile).not.toHaveBeenCalled();
+});

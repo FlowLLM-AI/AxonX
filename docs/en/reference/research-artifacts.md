@@ -53,7 +53,7 @@ Required below means the model has no default; not every field is displayed sepa
 | Analysis | `result_file`, `rows`                                                 | `scores={}`                                                               |
 | Train    | `model_files`, `protocol`, `train_rows`                               | `model_name`, feature/target columns, metrics, parameters, training_curve |
 | Predict  | `predictions_file`, `score_columns`, `protocol`, `rows`, `date_range` | `output_columns=[]`, `statistics={}`                                      |
-| Backtest | `dimensions`, `protocol`, `date_range`, `days`                        | Shared `artifacts={}`                                                     |
+| Backtest | `default_universe`, `universes`, `protocol`                           | Shared `artifacts={}`                                                     |
 
 All types extend `BaseOutputParams`; output subclasses must declare extra fields or `extra=forbid` validation fails. `date_range` is a string mapping; pages read `start` and `end`, so producers should use these keys.
 
@@ -151,15 +151,15 @@ Stock backtesting uses the shared `axonx.task.builtins.stock` contract. Predicti
 | `signal_price`             | Non-null finite numeric value                                   | Signal reference quote, stored separately from its adjustment factor |
 | `signal_adjustment_factor` | Non-null finite numeric value                                   | Adjustment factor for the signal reference quote                     |
 
-The prediction table must be nonempty, and the composite key `(trade_date, trade_time, ts_code)` must be unique and non-null. Stock identifiers and signal times must use the same conventions as the market table. Reference prices and adjustment factors should be positive according to their price meaning. Both eligibility flags must be `true` to enter the selection candidate pool, followed by the `index_codes` restriction.
+The prediction table must be nonempty, and the composite key `(trade_date, trade_time, ts_code)` must be unique and non-null. Stock identifiers and signal times must use the same conventions as the market table. Reference prices and adjustment factors should be positive according to their price meaning. Both eligibility flags must be `true` to enter the selection candidate pool, intersected with the plugin-selected universe.
 
 These columns are optional for the base backtest:
 
-| Optional column        | Use                                                                                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `name`                 | Display name in details; defaults to `ts_code` when omitted                                                                                                                                            |
-| `rank`, `buyable_rank` | Prediction-side helper ranks; backtesting computes target ranks from `pred` descending and `ts_code` ascending                                                                                         |
-| `index_weight_<code>`  | Decimal index weights; `index_codes=["hs300"]` requires `index_weight_hs300`, with positive weights indicating membership in that candidate index; weight columns also supply benchmark return proxies |
+| Optional column        | Use                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                 | Display name in details; defaults to `ts_code` when omitted                                                                                                               |
+| `rank`, `buyable_rank` | Prediction-side helper ranks; backtesting computes target ranks from `pred` descending and `ts_code` ascending                                                            |
+| `index_weight_<code>`  | Decimal index weights; positive weights indicate index membership; plugins select index universes with these columns; weight columns also supply benchmark return proxies |
 
 Predictions need no feature columns, `actual_return`, future labels or future execution dates. `signal_price` and `signal_adjustment_factor` are signal reference information; execution and daily valuation use `price`, `adjustment_factor` and trading states from the independent `market` table.
 
@@ -171,24 +171,60 @@ When resolving a Predict Task ID, prediction metadata must publish an artifact r
 
 ```json
 {
-  "dimensions": {
-    "top_ns": [1, 5, 10, 30],
-    "holding_detail_top_n": 30,
-    "benchmarks": [{ "key": "universe", "label": "Universe" }]
+  "default_universe": "all",
+  "universes": {
+    "all": {
+      "label": "All market",
+      "parameters": {},
+      "dimensions": {
+        "top_ns": [1, 5, 10, 30],
+        "holding_detail_top_n": 30,
+        "benchmarks": [
+          {
+            "key": "universe",
+            "label": "Universe"
+          }
+        ]
+      },
+      "date_range": {
+        "start": "20230103",
+        "end": "20231229"
+      },
+      "days": 250,
+      "evaluation_status": "done",
+      "artifacts": {
+        "daily": "all_daily",
+        "summary": "all_summary"
+      }
+    }
   },
   "protocol": {
     "version": 1,
     "task_type": "backtest",
     "return_unit": "decimal"
   },
-  "date_range": { "start": "20230103", "end": "20231229" },
-  "days": 250
+  "artifacts": {
+    "all_daily": {
+      "path": "universes/all/daily.parquet",
+      "size": 1234,
+      "sha256": "<sha256>"
+    },
+    "all_summary": {
+      "path": "universes/all/summary.parquet",
+      "size": 1234,
+      "sha256": "<sha256>"
+    }
+  }
 }
 ```
 
 This illustrates a valid base-class structure. The shared stock Task publishes execution, valuation, allocation, fee, cutoff, and input-digest definitions in `protocol`, and `evaluation_status` identifies incomplete market data. The page is not a backtest engine that automatically validates protocol text; plugin authors must clearly state actual execution behavior and units.
 
-Studio loads two tables from `artifacts.daily.path` and `artifacts.summary.path`, requesting 5000 rows per page and continuing according to `has_more` until the complete tables are read. Satisfying the Backtest output model alone does not guarantee usable charts.
+Studio loads two tables from the selected report’s `artifacts.daily` and `artifacts.summary` references in the root artifact registry, requesting 5000 rows per page and continuing according to `has_more` until the complete tables are read. Satisfying the Backtest output model alone does not guarantee usable charts.
+
+Each universe is an independent report with its own dimensions, dates, status and artifact references. Studio selects `default_universe` initially and offers a dropdown; comparison selects a universe independently on each side. Top-level daily/summary aliases and flat backtest fields are removed. Regenerate old backtests.
+
+Plugins inherit `BaseStockBacktestTask`, implement `build_universes()` returning `BacktestUniverse` definitions and `select_universe(signals, universe)` returning unique `(trade_date, trade_time, ts_code)` keys. The selector receives signal-time data; labels and future prices are not selector inputs. The framework verifies keys, runs separate ledgers, and publishes each report under `universes/<key>/`. Optional `universe_events()` creates fresh event state per report. Shared predictions and labels are loaded once.
 
 ## Presentation fields in the daily table
 

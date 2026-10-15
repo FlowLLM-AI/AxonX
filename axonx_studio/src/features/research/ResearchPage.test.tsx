@@ -1,0 +1,103 @@
+// @vitest-environment jsdom
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { expect, it, vi } from "vitest";
+import { seed } from "../../playground/fixtures";
+import { listTaskRuns, previewWorkspaceFile } from "../workspace/api";
+import ResearchPage from "./ResearchPage";
+import i18n from "../../i18n";
+
+vi.mock("../workspace/api", () => ({
+  listTaskRuns: vi.fn(),
+  previewWorkspaceFile: vi.fn(),
+  deleteWorkspaceEntries: vi.fn(),
+}));
+vi.mock("./backtest/BacktestChart", () => ({ BacktestChart: () => null }));
+
+it.each(["en", "zh"])(
+  "loads universe metadata through the research index on the selected machine in %s",
+  async (language) => {
+    await i18n.changeLanguage(language);
+    const { files } = seed();
+    const path = "runs/backtest#demo";
+    vi.mocked(listTaskRuns).mockResolvedValue({
+      path: "backtest",
+      truncated: false,
+      entries: [
+        {
+          name: "demo",
+          path,
+          kind: "directory",
+          preview_kind: null,
+          supported: true,
+          size: null,
+          modified_at: 0,
+        },
+      ],
+    });
+    vi.mocked(previewWorkspaceFile).mockImplementation(async (key) => {
+      const preview = files.get(key);
+      if (!preview) throw new Error(`Missing fixture ${key}`);
+      return preview;
+    });
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(
+          <ResearchPage
+            kind="backtest"
+            target="remote"
+            initialSelectedId="backtest#demo"
+            onConnection={vi.fn()}
+            onNavigate={vi.fn()}
+          />,
+        ),
+      );
+      // React.lazy resolves the actual report component after index metadata is read.
+      await act(async () => {
+        await import("./backtest/BacktestView");
+      });
+      await vi.waitFor(async () => {
+        await act(async () => {});
+        expect(
+          container.querySelector(".backtest-universe-selector select"),
+        ).not.toBeNull();
+      });
+      const selector = container.querySelector<HTMLSelectElement>(
+        ".backtest-universe-selector select",
+      );
+      expect(selector?.value).toBe("all");
+      const report = container.querySelector(".backtest-universe-selector")!;
+      const files = container.querySelector(".base-files-card")!;
+      expect(
+        report.compareDocumentPosition(files) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(container.querySelectorAll(".base-files-card")).toHaveLength(1);
+      expect(container.textContent).not.toContain(
+        i18n.t("backtest.unable_to_load_backtest_artifacts"),
+      );
+      expect(
+        container.querySelector(".backtest-report-dates")?.textContent,
+      ).toContain("60");
+      await act(async () => {
+        selector!.value = "hs300";
+        selector!.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      expect(selector?.value).toBe("hs300");
+      for (const universe of ["all", "hs300"]) {
+        expect(previewWorkspaceFile).toHaveBeenCalledWith(
+          `${path}/universes/${universe}/daily.parquet`,
+          0,
+          5000,
+          "remote",
+          expect.any(AbortSignal),
+        );
+      }
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  },
+);

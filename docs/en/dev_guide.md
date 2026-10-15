@@ -105,6 +105,8 @@ the intended consumers.
 
 Tasks link upstream and downstream through Task IDs. The qlib_a158 example's main dependency chain is ETL → Train → Predict → Backtest; Analysis uses ETL data for factor analysis.
 
+Stock backtest plugins inherit `BaseStockBacktestTask` and declare universes with `build_universes()` and signal-key selection with `select_universe(signals, universe)`. One Task publishes independent accounts under `universes/<key>/`. Outputs require `default_universe`, `universes` and a root artifact registry; each report owns dimensions, dates, status and artifact-role references. Studio provides a universe dropdown. The bundled Qlib plugins publish all market and CSI 300. Flat backtest outputs are removed; regenerate old artifacts. Adding auxiliary signal-time selection fields to ETL/prediction does not require retraining when model features stay unchanged.
+
 ### Development Steps
 
 #### 1. Modify Code and Registration

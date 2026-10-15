@@ -35,9 +35,19 @@ const meta: BacktestArtifact = {
     task_type: "backtest",
     task_name: "demo",
   },
-  dimensions: { top_ns: [1, 3], holding_detail_top_n: 30, benchmarks: [] },
+  default_universe: "all",
+  universes: {
+    all: {
+      label: "All market",
+      parameters: {},
+      dimensions: { top_ns: [1, 3], holding_detail_top_n: 30, benchmarks: [] },
+      date_range: { start: "20260105", end: "20260105" },
+      days: 1,
+      evaluation_status: "incomplete_market_data",
+      artifacts: { daily: "all_daily", summary: "all_summary" },
+    },
+  },
   artifacts: {},
-  evaluation_status: "incomplete_market_data",
 };
 const daily: DailyRow[] = [
   {
@@ -90,6 +100,7 @@ describe("stock backtest report", () => {
       );
       expect(loadBacktest).toHaveBeenCalledWith(
         meta,
+        "all",
         "remote",
         expect.any(AbortSignal),
       );
@@ -144,12 +155,18 @@ describe("stock backtest report", () => {
           <BacktestView
             meta={{
               ...meta,
-              dimensions: {
-                ...meta.dimensions,
-                benchmarks: [
-                  { key: "universe", label: "universe" },
-                  { key: "custom", label: "Custom index" },
-                ],
+              universes: {
+                ...meta.universes,
+                all: {
+                  ...meta.universes.all,
+                  dimensions: {
+                    ...meta.universes.all.dimensions,
+                    benchmarks: [
+                      { key: "universe", label: "universe" },
+                      { key: "custom", label: "Custom index" },
+                    ],
+                  },
+                },
               },
             }}
           />,
@@ -190,4 +207,61 @@ describe("stock backtest report", () => {
     );
     expect(container.textContent).toContain("Service offline");
   });
+});
+
+it("switches complete universe reports and reuses cached data", async () => {
+  const multi = {
+    ...meta,
+    universes: {
+      ...meta.universes,
+      hs300: { ...meta.universes.all, label: "HS300" },
+    },
+  };
+  await act(async () =>
+    root.render(<BacktestView meta={multi} target="remote" />),
+  );
+  const select = container.querySelector("select")!;
+  const firstSignal = vi.mocked(loadBacktest).mock.calls[0][3]!;
+  await act(async () => {
+    select.value = "hs300";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(firstSignal.aborted).toBe(true);
+  expect(loadBacktest).toHaveBeenLastCalledWith(
+    multi,
+    "hs300",
+    "remote",
+    expect.any(AbortSignal),
+  );
+  await act(async () => {
+    select.value = "all";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(loadBacktest).toHaveBeenCalledTimes(2);
+});
+
+it("ignores a stale universe response after selection changes", async () => {
+  let finish!: (value: { daily: DailyRow[]; summary: [] }) => void;
+  vi.mocked(loadBacktest).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const multi = {
+    ...meta,
+    universes: {
+      ...meta.universes,
+      hs300: { ...meta.universes.all, label: "HS300" },
+    },
+  };
+  await act(async () => root.render(<BacktestView meta={multi} />));
+  const select = container.querySelector("select")!;
+  await act(async () => {
+    select.value = "hs300";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await act(async () => finish({ daily: [], summary: [] }));
+  expect(container.querySelector("select")?.value).toBe("hs300");
+  expect(container.querySelector(".backtest-report")).not.toBeNull();
 });

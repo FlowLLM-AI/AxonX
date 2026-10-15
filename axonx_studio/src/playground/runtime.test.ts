@@ -184,11 +184,11 @@ describe("static Playground", () => {
   it("keeps return summaries and graph lineage consistent with rendered data", async () => {
     const api = client();
     const daily = await api.invoke<WorkspacePreview>("preview_file", {
-      path: "runs/backtest#demo/daily.parquet",
+      path: "runs/backtest#demo/universes/all/daily.parquet",
       limit: 100,
     });
     const summary = await api.invoke<WorkspacePreview>("preview_file", {
-      path: "runs/backtest#demo/summary.parquet",
+      path: "runs/backtest#demo/universes/all/summary.parquet",
       limit: 100,
     });
     if (daily.kind !== "parquet" || summary.kind !== "parquet")
@@ -255,7 +255,7 @@ describe("static Playground", () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect((await status()).state).toBe("succeeded");
     await api.invoke("preview_file", {
-      path: `runs/${handle.task_id}/daily.parquet`,
+      path: `runs/${handle.task_id}/universes/all/daily.parquet`,
     });
     await expect(client().invoke("status", { ...handle })).rejects.toThrow(
       "Unknown demo task",

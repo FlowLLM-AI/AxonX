@@ -13,6 +13,8 @@ The shared implementation lives in `axonx.task.builtins.stock`; new plugins shou
 
 ## Data contracts
 
+The Studio backtest page places the universe selector and report before the artifact inventory. Each published file appears once in the inventory below the report.
+
 ETL publishes four independent artifacts:
 
 | Artifact   | Meaning                                                                                         |
@@ -46,7 +48,6 @@ Source tasks resolve market, calendar and label artifacts. Explicit files use `i
 | `annual_risk_free_rate`         | `0.012`  | Annual risk-free rate                            |
 | `annualization_days`            | `252`    | Trading dates per year                           |
 | `minimum_index_weight_coverage` | `0.98`   | Required coverage for weighted benchmark proxies |
-| `index_codes`                   | `[]`     | Optional signal candidate index restriction      |
 
 The defaults match the Qlib reference: `--buy-cost-rate 0.0005 --sell-cost-rate 0.0015` (0.05% on buys and 0.15% on sells). An explicit `0` makes that side free. Fees apply to executed notional; normalized-cash backtests do not impose a minimum monetary fee.
 
@@ -85,11 +86,11 @@ Adjusted-price units preserve value across corporate-action price changes. Marke
 
 ## Signal diagnostics and benchmarks
 
-IC, RankIC and NDCG use the same signal-day buyable candidate pool as target selection, including the `index_codes` restriction. IC and RankIC compare scores with valid fixed-one-market-day raw returns. NDCG measures top-ranked signal quality against the same available return sample; missing labels do not refill the selected ranking. These diagnostics belong to the signal date. Returns and valuation belong to the portfolio calendar date.
+IC, RankIC and NDCG use the same signal-day buyable candidate pool as target selection, including the selected plugin universe. IC and RankIC compare scores with valid fixed-one-market-day raw returns. NDCG measures top-ranked signal quality against the same available return sample; missing labels do not refill the selected ranking. These diagnostics belong to the signal date. Returns and valuation belong to the portfolio calendar date.
 
 `benchmark_universe_return` is an available-signal cross-section mean. `index_weight_*` produces weighted return proxies only when coverage meets the configured threshold. They are not official total-return index series. Benchmark returns use the label target date, so their period aligns with portfolio valuation.
 
-Studio reads `daily`, `summary` and `dimensions`. Net-return charts compound daily net returns, while the accumulated-gross chart sums daily gross returns; the latter need not equal compounded gross return in the summary. Period tables are task-generated and do not automatically rerun when the chart range changes.
+Studio reads the selected `universes[key]` report, resolving its daily and summary references through the root artifact registry. Net-return charts compound daily net returns, while the accumulated-gross chart sums daily gross returns; the latter need not equal compounded gross return in the summary. Period tables are task-generated and do not automatically rerun when the chart range changes.
 
 Studio derives return and NDCG series from `dimensions.top_ns`, displays incomplete market-data evaluations as provisional, and exposes all portfolio artifacts. Prediction statistics describe signal-time scores and eligibility; schema version 2 does not embed future returns or valid-return coverage in predictions. Empty statistics and missing labels display as unavailable.
 

@@ -53,7 +53,7 @@ AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可�
 | Analysis | `result_file`、`rows`                                     | `scores={}`                                                    |
 | Train    | `model_files`、`train_rows`                               | `model_name`、特征/目标列、metrics、parameters、training_curve |
 | Predict  | `predictions_file`、`score_columns`、`rows`、`date_range` | `output_columns=[]`、`protocol={}`、`statistics={}`            |
-| Backtest | `dimensions`、`protocol`、`date_range`、`days`            | 共享的 `artifacts={}`                                          |
+| Backtest | `default_universe`、`universes`、`protocol`               | 共享的 `artifacts={}`                                          |
 
 所有类型继承 `BaseOutputParams`；额外字段需通过输出子类声明，否则 `extra=forbid` 校验失败。`date_range` 是字符串映射，页面按 `start` 与 `end` 取值，生产者应采用这些 key。
 
@@ -151,15 +151,15 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
 | `signal_price`             | 非空、有限数值                                  | 信号时参考报价，与复权因子分开存储         |
 | `signal_adjustment_factor` | 非空、有限数值                                  | 信号时参考报价的复权因子                   |
 
-预测表不能为空，组合主键 `(trade_date, trade_time, ts_code)` 必须唯一且无空值。股票标识和时点需与行情表使用相同口径。参考报价和复权因子按其价格含义应为正值。两个资格标志都为 `true` 的行才进入选股候选池，再按 `index_codes` 筛选。
+预测表不能为空，组合主键 `(trade_date, trade_time, ts_code)` 必须唯一且无空值。股票标识和时点需与行情表使用相同口径。参考报价和复权因子按其价格含义应为正值。两个资格标志都为 `true` 的行才进入选股候选池，再与插件选择的股池取交集。
 
 以下列不是基础回测的必需列：
 
-| 可选列                 | 用途                                                                                                                                   |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`                 | 明细显示名称；省略时使用 `ts_code`                                                                                                     |
-| `rank`、`buyable_rank` | 预测侧辅助排名；回测自行按 `pred` 降序、`ts_code` 升序计算目标排名                                                                     |
-| `index_weight_<code>`  | 小数单位指数权重；配置 `index_codes=["hs300"]` 时必须提供 `index_weight_hs300`，权重大于零表示属于该候选指数；权重列也用于基准收益代理 |
+| 可选列                 | 用途                                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `name`                 | 明细显示名称；省略时使用 `ts_code`                                                                                         |
+| `rank`、`buyable_rank` | 预测侧辅助排名；回测自行按 `pred` 降序、`ts_code` 升序计算目标排名                                                         |
+| `index_weight_<code>`  | 小数单位指数权重；插件用 `index_weight_hs300` 等辅助列构造指数股池，权重大于零表示属于该候选指数；权重列也用于基准收益代理 |
 
 预测无需提供特征列、`actual_return`、未来标签或未来买卖日期。`signal_price` 和 `signal_adjustment_factor` 是信号参考信息；实际成交与逐日估值使用独立 `market` 表中的 `price`、`adjustment_factor` 和交易状态。
 
@@ -171,24 +171,60 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
 
 ```json
 {
-  "dimensions": {
-    "top_ns": [1, 5, 10, 30],
-    "holding_detail_top_n": 30,
-    "benchmarks": [{ "key": "universe", "label": "Universe" }]
+  "default_universe": "all",
+  "universes": {
+    "all": {
+      "label": "All market",
+      "parameters": {},
+      "dimensions": {
+        "top_ns": [1, 5, 10, 30],
+        "holding_detail_top_n": 30,
+        "benchmarks": [
+          {
+            "key": "universe",
+            "label": "Universe"
+          }
+        ]
+      },
+      "date_range": {
+        "start": "20230103",
+        "end": "20231229"
+      },
+      "days": 250,
+      "evaluation_status": "done",
+      "artifacts": {
+        "daily": "all_daily",
+        "summary": "all_summary"
+      }
+    }
   },
   "protocol": {
     "version": 1,
     "task_type": "backtest",
     "return_unit": "decimal"
   },
-  "date_range": { "start": "20230103", "end": "20231229" },
-  "days": 250
+  "artifacts": {
+    "all_daily": {
+      "path": "universes/all/daily.parquet",
+      "size": 1234,
+      "sha256": "<sha256>"
+    },
+    "all_summary": {
+      "path": "universes/all/summary.parquet",
+      "size": 1234,
+      "sha256": "<sha256>"
+    }
+  }
 }
 ```
 
 这是基类合法结构示例。统一股票 Task 在 `protocol` 中发布执行、估值、配置、费用、截止时间和输入摘要的定义，`evaluation_status` 标识行情不完整的结果。页面不是自动验证协议文字的回测引擎；插件作者需明确真实执行与单位。
 
-Studio 从 `artifacts.daily.path` 和 `artifacts.summary.path` 加载两个表，加载时每页请求 5000 行，根据 `has_more` 继续，直到读取完整表。仅满足 Backtest 输出模型不足以保证图表可用。
+Studio 从 选中股池报告的 `artifacts.daily`、`artifacts.summary` 引用所指向的根级产物记录 加载两个表，加载时每页请求 5000 行，根据 `has_more` 继续，直到读取完整表。仅满足 Backtest 输出模型不足以保证图表可用。
+
+每个股池拥有独立的 dimensions、日期、状态和产物引用。Studio 默认选择 `default_universe`，通过下拉框切换；比较页两侧可独立选择。删除顶层 daily/summary 别名和扁平回测字段，旧回测必须重新生成。
+
+插件继承 `BaseStockBacktestTask`，实现 `build_universes()` 返回 `BacktestUniverse` 定义，实现 `select_universe(signals, universe)` 返回唯一的 `(trade_date, trade_time, ts_code)` 主键。筛选器只接收信号时点数据，不接收标签和未来行情。框架验证主键，为各股池创建独立账户，将报告写入 `universes/<key>/`。可选的 `universe_events()` 为每个报告创建独立事件状态。预测和标签只加载一次。
 
 ## 日频表的展示字段
 

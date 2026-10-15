@@ -42,42 +42,50 @@ const loadParquetRows = async <T extends NumericRow>(
   }
 };
 
-const requireSignalsFormat = (meta: BacktestArtifact) => {
-  if (
-    meta.artifacts.targets ||
-    (meta.artifacts.signals && meta.signals_format !== "stock-signals-v1")
-  ) {
+function universeArtifact(
+  meta: BacktestArtifact,
+  universe: string,
+  role: "daily" | "summary",
+) {
+  if (meta.signals_format !== "stock-signals-v1")
     throw new Error(i18n.t("backtest.errors.signalsFormat"));
-  }
-};
+  const report = meta.universes?.[universe];
+  if (!report) throw new Error(i18n.t("backtest.errors.missingUniverse"));
+  const path = meta.artifacts[report.artifacts[role]]?.path;
+  if (!path) throw new Error(i18n.t("backtest.errors.missingDailySummary"));
+  return `${meta._path}/${path}`;
+}
 
 export async function loadBacktest(
   meta: BacktestArtifact,
+  universe: string,
   target?: string,
   signal?: AbortSignal,
 ) {
-  requireSignalsFormat(meta);
-  const daily = meta.artifacts?.daily?.path;
-  const summary = meta.artifacts?.summary?.path;
-  if (!daily || !summary)
-    throw new Error(i18n.t("backtest.errors.missingDailySummary"));
-  const [dailyPreview, summaryPreview] = await Promise.all([
-    loadParquetRows<DailyRow>(`${meta._path}/${daily}`, target, signal),
-    loadParquetRows<SummaryRow>(`${meta._path}/${summary}`, target, signal),
+  const [daily, summary] = await Promise.all([
+    loadParquetRows<DailyRow>(
+      universeArtifact(meta, universe, "daily"),
+      target,
+      signal,
+    ),
+    loadParquetRows<SummaryRow>(
+      universeArtifact(meta, universe, "summary"),
+      target,
+      signal,
+    ),
   ]);
-  return {
-    daily: dailyPreview,
-    summary: summaryPreview,
-  };
+  return { daily, summary };
 }
 
 export async function loadBacktestDaily(
   meta: BacktestArtifact,
+  universe: string,
   target?: string,
   signal?: AbortSignal,
 ) {
-  requireSignalsFormat(meta);
-  const daily = meta.artifacts?.daily?.path;
-  if (!daily) throw new Error(i18n.t("backtest.errors.missingDaily"));
-  return loadParquetRows<DailyRow>(`${meta._path}/${daily}`, target, signal);
+  return loadParquetRows<DailyRow>(
+    universeArtifact(meta, universe, "daily"),
+    target,
+    signal,
+  );
 }

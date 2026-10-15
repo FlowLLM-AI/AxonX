@@ -90,7 +90,7 @@ async function loadTasks(
           const input = raw.input_params;
           const output = raw.output_params;
           const artifacts = displayArtifacts(raw);
-          if (!artifacts.daily?.path) return null;
+          if (!output.universes || !output.default_universe) return null;
           return {
             _path: entry.path,
             task_key: raw.reg_name,
@@ -103,11 +103,9 @@ async function loadTasks(
             artifacts,
             signals_format:
               output.signals_format as BacktestArtifact["signals_format"],
-            dimensions: output.dimensions as BacktestArtifact["dimensions"],
-            evaluation_status: output.evaluation_status as string | undefined,
+            default_universe: output.default_universe as string,
+            universes: output.universes as BacktestArtifact["universes"],
             protocol: output.protocol as BacktestArtifact["protocol"],
-            date_range: output.date_range as BacktestArtifact["date_range"],
-            days: numeric(output.days),
             source: parseSourceTasks(input.source_tasks),
             settings: {
               ...executionCostRates(input),
@@ -271,8 +269,19 @@ export default function StrategyComparePage({
     return () => controller.abort();
   }, [target, reload, onConnection]);
 
+  const [universeA, setUniverseA] = useState("");
+  const [universeB, setUniverseB] = useState("");
   const taskA = tasks.find((task) => task.config.task_id === idA);
   const taskB = tasks.find((task) => task.config.task_id === idB);
+  const selectedA = taskA?.universes[universeA]
+    ? universeA
+    : taskA?.default_universe || "";
+  const selectedB = taskB?.universes[universeB]
+    ? universeB
+    : taskB?.default_universe || "";
+  const reportA = taskA?.universes[selectedA];
+  const reportB = taskB?.universes[selectedB];
+  const pair = `${idA}:${selectedA}\n${idB}:${selectedB}`;
   useEffect(() => {
     if (!taskA || !taskB || idA === idB) {
       setDailyA([]);
@@ -284,14 +293,14 @@ export default function StrategyComparePage({
     setDataLoading(true);
     setDataError("");
     Promise.all([
-      loadBacktestDaily(taskA, target, controller.signal),
-      loadBacktestDaily(taskB, target, controller.signal),
+      loadBacktestDaily(taskA, selectedA, target, controller.signal),
+      loadBacktestDaily(taskB, selectedB, target, controller.signal),
     ])
       .then(([a, b]) => {
         if (controller.signal.aborted) return;
         setDailyA(a);
         setDailyB(b);
-        setLoadedPair(`${idA}\n${idB}`);
+        setLoadedPair(pair);
         onConnection(true);
       })
       .catch((error) => {
@@ -304,14 +313,22 @@ export default function StrategyComparePage({
         if (!controller.signal.aborted) setDataLoading(false);
       });
     return () => controller.abort();
-  }, [taskA, taskB, idA, idB, target, onConnection]);
+  }, [
+    taskA,
+    taskB,
+    idA,
+    idB,
+    selectedA,
+    selectedB,
+    pair,
+    target,
+    onConnection,
+  ]);
 
   const commonTopNs =
     taskA && taskB
-      ? (taskA.dimensions?.top_ns || [1, 2, 3, 5, 10, 15, 20, 30]).filter((n) =>
-          (taskB.dimensions?.top_ns || [1, 2, 3, 5, 10, 15, 20, 30]).includes(
-            n,
-          ),
+      ? (reportA?.dimensions.top_ns || []).filter((n) =>
+          (reportB?.dimensions.top_ns || []).includes(n),
         )
       : [];
   const selectedTopN = commonTopNs.includes(topN)
@@ -368,8 +385,8 @@ export default function StrategyComparePage({
   const warnings: string[] = [];
   if (taskA && taskB) {
     if (
-      [taskA, taskB].some(
-        (task) => task.evaluation_status === "incomplete_market_data",
+      [reportA, reportB].some(
+        (report) => report?.evaluation_status === "incomplete_market_data",
       )
     )
       warnings.push(t("backtest.incomplete_market_data"));
@@ -563,6 +580,23 @@ export default function StrategyComparePage({
                   <strong title={task?.config.task_id}>
                     {task?.config.task_id || t("compare.choose_from_the_list")}
                   </strong>
+                  {task && (
+                    <select
+                      aria-label={`${t("backtest.universe")} ${index === 0 ? "A" : "B"}`}
+                      value={index === 0 ? selectedA : selectedB}
+                      onChange={(event) =>
+                        (index === 0 ? setUniverseA : setUniverseB)(
+                          event.target.value,
+                        )
+                      }
+                    >
+                      {Object.entries(task.universes).map(([key, report]) => (
+                        <option key={key} value={key}>
+                          {report.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
             ))}
@@ -573,6 +607,8 @@ export default function StrategyComparePage({
               onClick={() => {
                 setIdA(idB);
                 setIdB(idA);
+                setUniverseA(selectedB);
+                setUniverseB(selectedA);
               }}
               aria-label={t("compare.swap_a_and_b")}
             >
@@ -595,7 +631,7 @@ export default function StrategyComparePage({
               <strong>{t("compare.unable_to_load_backtests")}</strong>
               <span>{dataError}</span>
             </div>
-          ) : dataLoading || loadedPair !== `${idA}\n${idB}` ? (
+          ) : dataLoading || loadedPair !== pair ? (
             <div className="compare-empty">
               <LoaderCircle className="spin" />
               <strong>{t("compare.calculating_shared_window")}</strong>

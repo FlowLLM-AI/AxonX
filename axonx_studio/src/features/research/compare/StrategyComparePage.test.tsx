@@ -59,9 +59,25 @@ it.each(["en", "zh"])(
           input_params: { task_name: name },
           output_params: {
             signals_format: "stock-signals-v1",
-            dimensions: { top_ns: [1] },
+            default_universe: "all",
+            universes: {
+              all: {
+                label: "All",
+                parameters: {},
+                dimensions: {
+                  top_ns: [1],
+                  holding_detail_top_n: 1,
+                  benchmarks: [],
+                },
+                date_range: {},
+                days: 1,
+                evaluation_status: "done",
+                artifacts: { daily: "daily", summary: "summary" },
+              },
+            },
             artifacts: {
               daily: file,
+              summary: { ...file, path: "summary.parquet" },
               signals: { ...file, path: "signals.parquet" },
             },
           },

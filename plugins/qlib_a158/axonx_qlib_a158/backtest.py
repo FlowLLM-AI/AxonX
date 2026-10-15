@@ -1,7 +1,14 @@
 """Stock portfolio accounting is provided by AxonX."""
 
-from axonx.task.builtins.stock import BaseStockBacktestTask, StockBacktestInput as Alpha158BacktestInputParams
+import polars as pl
+
+from axonx.task.builtins.stock import (
+    BaseStockBacktestTask,
+    StockBacktestInput as Alpha158BacktestInputParams,
+)
 from axonx.task.builtins.stock.backtest import StockBacktestOutput
+from axonx.task.contracts import BacktestUniverse
+from axonx.task.builtins.stock.data import KEYS
 
 from .internal.reference import DEVIATIONS, QLIB_REFERENCE
 
@@ -15,6 +22,15 @@ class Alpha158BacktestTask(BaseStockBacktestTask):
     """
 
     input_cls = Alpha158BacktestInputParams
+
+    def build_universes(self):
+        yield BacktestUniverse(key="all", label="全市场")
+        yield BacktestUniverse(key="hs300", label="沪深300", parameters={"index": "hs300"})
+
+    def select_universe(self, signals, universe):
+        if universe.key == "hs300":
+            signals = signals.filter(pl.col("index_weight_hs300") > 0)
+        return signals.select(*KEYS)
 
     def build_output_params(self) -> StockBacktestOutput:
         # The shared ledger uses official price limits, configurable side fees

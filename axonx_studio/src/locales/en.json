@@ -614,7 +614,8 @@
       "parquetRequired": "Backtest artifacts must be Parquet files",
       "missingDailySummary": "Backtest metadata is missing daily or summary artifacts",
       "missingDaily": "Backtest metadata is missing the daily artifact",
-      "signalsFormat": "Unsupported stock signals format; rerun the task with the current protocol"
+      "signalsFormat": "Unsupported stock signals format; rerun the task with the current protocol",
+      "missingUniverse": "Missing universe report; regenerate backtest"
     },
     "noSummaryData": "NO SUMMARY DATA",
     "daily_mean_in_range": "Daily mean in range",
@@ -662,7 +663,8 @@
     "reset_table_sorting": "Reset table sorting",
     "overall_metrics_by_top_n": "Overall metrics by Top N",
     "top_n_period_metric_details": "Top N period metric details",
-    "incomplete_market_data": "Market data is incomplete. Returns and valuations are provisional."
+    "incomplete_market_data": "Market data is incomplete. Returns and valuations are provisional.",
+    "universe": "Stock universe"
   },
   "agent": {
     "sessions": "Sessions",

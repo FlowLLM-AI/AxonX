@@ -1,4 +1,4 @@
-import type { ResearchArtifact } from "../types";
+import type { ResearchArtifact, BacktestUniverseReport } from "../types";
 
 export type NumericRow = Record<string, unknown>;
 
@@ -37,12 +37,10 @@ export interface BenchmarkDefinition {
 }
 
 export interface BacktestArtifact extends ResearchArtifact {
-  dimensions?: {
-    top_ns?: number[];
-    holding_detail_top_n?: number;
-    benchmarks?: BenchmarkDefinition[];
-  };
+  default_universe: string;
+  universes: Record<string, BacktestUniverseReport>;
 }
+export type { BacktestUniverseReport } from "../types";
 
 export interface ChartRow extends NumericRow {
   date: string;

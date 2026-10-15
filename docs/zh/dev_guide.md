@@ -103,6 +103,8 @@ Task 通过 Task ID 关联上下游。qlib_a158 示例的主要依赖链为 ETL 
 
 ### 开发步骤
 
+股票回测插件继承 `BaseStockBacktestTask`，通过 `build_universes()` 声明股池，通过 `select_universe(signals, universe)` 返回信号主键。一次 Task 在 `universes/<key>/` 发布独立账户。输出必须使用 `default_universe`、`universes` 和根级产物表；每个报告独立声明 dimensions、日期、状态和产物角色引用。Studio 提供股池下拉框。内置 Qlib 插件同时发布全市场和沪深300。扁平回测格式已删除，旧产物需重新生成；仅增加 ETL/预测辅助筛选字段且模型特征不变时，无须重新训练。
+
 #### 1. 修改代码与注册
 
 以 ETL 为例，最小结构包含输入参数、输出参数、Task 实现和注册。下面是结构示例，`transform` 中的 `...` 需替换为实际 ETL

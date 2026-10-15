@@ -33,7 +33,6 @@ class BacktestConfig:
     annual_risk_free_rate: float = 0.012
     annualization_days: int = 252
     minimum_index_weight_coverage: float = 0.98
-    index_codes: tuple[str, ...] = ()
     buy_cost_rate: float = 0.0005
     sell_cost_rate: float = 0.0015
     missing_market_as_suspension: bool = False
@@ -66,6 +65,7 @@ def run_backtest(
     *,
     as_of_date: str,
     policy: PortfolioPolicy | None = None,
+    universe_keys: pl.DataFrame | None = None,
     events=None,
 ) -> BacktestResult:
     """Replay each Top N independently; optional events supply reset/apply/blocked hooks."""
@@ -114,7 +114,9 @@ def run_backtest(
     dates = [d for d in all_dates if signals["trade_date"].min() <= d <= as_of_date]
     if not dates:
         raise ValueError("No calendar dates within evaluation cutoff")
-    targets = _candidates(signals.filter(pl.col("trade_date") <= as_of_date), config)
+    targets = _candidates(
+        signals.filter(pl.col("trade_date") <= as_of_date), _validate_universe_keys(signals, universe_keys)
+    )
     market_days = {
         key[0]: frame
         for key, frame in market.filter(pl.col("trade_date").is_between(pl.lit(dates[0]), pl.lit(dates[-1])))
@@ -355,7 +357,12 @@ def run_backtest(
     # Keep exported records chronological across independent Top N runs.
     n_order = {n: index for index, n in enumerate(config.top_ns)}
     for rows in (orders, positions, trades):
-        rows.sort(key=lambda row: (row.get("trade_date", row.get("exit_date")), n_order[row["top_n"]]))
+        rows.sort(
+            key=lambda row: (
+                row.get("trade_date", row.get("exit_date")),
+                n_order[row["top_n"]],
+            )
+        )
     output, targets, benchmarks = _daily_output(dates, daily, signals, targets, labels, as_of_date, config)
     frames = {
         "daily": output,
@@ -486,13 +493,20 @@ def _frame(rows: list[dict[str, Any]], schema: dict[str, Any]) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=schema)
 
 
-def _candidates(signals: pl.DataFrame, config: BacktestConfig) -> pl.DataFrame:
+def _validate_universe_keys(signals, universe_keys):
+    if universe_keys is None:
+        return None
+    keys = normalize_keys(universe_keys.select(*KEYS))
+    validate_keys(keys)
+    if keys.join(signals.select(*KEYS), on=list(KEYS), how="anti").height:
+        raise ValueError("Universe keys must be a subset of prediction keys")
+    return keys
+
+
+def _candidates(signals: pl.DataFrame, universe_keys: pl.DataFrame | None) -> pl.DataFrame:
     candidates = signals.filter(pl.col("is_model_candidate") & pl.col("is_buyable_at_signal"))
-    if config.index_codes:
-        columns = [f"index_weight_{code}" for code in config.index_codes]
-        if set(columns) - set(candidates.columns):
-            raise ValueError("Missing requested index weights")
-        candidates = candidates.filter(pl.any_horizontal(*(pl.col(c) > 0 for c in columns)))
+    if universe_keys is not None:
+        candidates = candidates.join(universe_keys, on=list(KEYS), how="semi")
     return candidates.sort(["trade_date", "pred", "ts_code"], descending=[False, True, False]).with_columns(
         pl.int_range(1, pl.len() + 1).over("trade_date").alias("target_rank")
     )

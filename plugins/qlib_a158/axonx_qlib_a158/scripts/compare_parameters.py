@@ -73,15 +73,18 @@ def run_comparison(options: argparse.Namespace) -> dict:
                 key: value if value is not None and math.isfinite(value) else None
                 for key, value in train["validation_metrics"].items()
             },
-            "evaluation_status": backtest["evaluation_status"],
+            "evaluation_status": {key: report["evaluation_status"] for key, report in backtest["universes"].items()},
             "input_sha256": backtest["protocol"]["input_sha256"],
         }
-        summaries.append(
-            pl.read_parquet(backtest["summary_file"]).with_columns(
-                pl.lit(preset).alias("preset"),
-                pl.lit(label).alias("label"),
+        for universe, report in backtest["universes"].items():
+            record = backtest["artifacts"][report["artifacts"]["summary"]]
+            summaries.append(
+                pl.read_parquet(task_path(workspace, backtest_id) / record["path"]).with_columns(
+                    pl.lit(preset).alias("preset"),
+                    pl.lit(label).alias("label"),
+                    pl.lit(universe).alias("universe"),
+                )
             )
-        )
     result = {
         "etl_task": options.etl_task,
         "dataset_sha256": dataset["sha256"],

@@ -147,7 +147,7 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
         == predictions.filter(pl.col("is_buyable_at_signal") & pl.col("is_model_candidate")).height
     )
     assert "valid_return_rows" not in stats
-    _, result = run(
+    backtest, result = run(
         backtest_cls,
         "backtest",
         source_tasks=predict.task_id,
@@ -156,15 +156,28 @@ def test_complete_new_artifact_pipeline(tmp_path, layer, parameter_preset):
         sell_cost_rate=0.0015 if parameter_preset == "qlib" else 0.0,
         **({"minimum_holding_days": 0} if layer == "strategy" else {}),
     )
+    assert set(result["universes"]) == {"all", "hs300"}
     if parameter_preset == "qlib":
-        orders = pl.read_parquet(result["orders_file"]).filter(pl.col("status") == "filled")
+        orders = pl.read_parquet(
+            backtest.task_dir / result["artifacts"][result["universes"]["all"]["artifacts"]["orders"]]["path"]
+        ).filter(pl.col("status") == "filled")
         for row in orders.iter_rows(named=True):
             rate = 0.0005 if row["side"] == "buy" else 0.0015
             assert row["fee"] == pytest.approx(row["notional"] * rate)
         assert result["protocol"]["settings"]["buy_cost_rate"] == 0.0005
-    assert result["dimensions"]["top_ns"] == [1, 3]
-    assert result["days"] == 10 and result["evaluation_status"] == "done"
-    assert pl.read_parquet(result["positions_file"]).height > 0
-    assert pl.read_parquet(result["trades_file"]).height > 0
+    assert result["universes"]["all"]["dimensions"]["top_ns"] == [1, 3]
+    assert result["universes"]["all"]["days"] == 10 and result["universes"]["all"]["evaluation_status"] == "done"
+    assert (
+        pl.read_parquet(
+            backtest.task_dir / result["artifacts"][result["universes"]["all"]["artifacts"]["positions"]]["path"]
+        ).height
+        > 0
+    )
+    assert (
+        pl.read_parquet(
+            backtest.task_dir / result["artifacts"][result["universes"]["all"]["artifacts"]["trades"]]["path"]
+        ).height
+        > 0
+    )
     _, analysis = run(FactorAnalysisTask, "factor", source_tasks=etl.task_id, minimum_daily_samples=3, quantiles=3)
     assert Path(analysis["result_file"]).is_file()

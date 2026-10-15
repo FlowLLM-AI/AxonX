@@ -121,7 +121,6 @@ function useTasks(
               return {
                 rows: output.rows,
                 train_rows: output.train_rows,
-                days: output.days,
                 date_range: output.date_range,
                 output_file: output.output_file,
                 result_file: output.result_file,
@@ -133,8 +132,9 @@ function useTasks(
                 target_columns: output.target_columns,
                 output_columns: output.output_columns,
                 prediction_statistics: output.statistics,
-                evaluation_status: output.evaluation_status,
                 signals_format: output.signals_format,
+                default_universe: output.default_universe,
+                universes: output.universes,
                 protocol: output.protocol,
                 index_weight_columns: output.index_weight_columns,
                 scores: output.scores,
@@ -142,7 +142,6 @@ function useTasks(
                 metrics: output.metrics,
                 parameters: output.parameters,
                 training_curve: normalizeTrainingCurve(output.training_curve),
-                dimensions: output.dimensions,
                 artifacts: displayArtifacts(metadata),
                 replica: metadata.replica,
                 task_key: String(metadata.reg_name),
@@ -715,7 +714,6 @@ function ArtifactDetail({
           </div>
         </div>
       )}
-      <BaseOutputView meta={meta} kind={kind} />
       {kind === "backtest" && (
         <Suspense
           fallback={
@@ -724,9 +722,13 @@ function ArtifactDetail({
             </div>
           }
         >
-          <BacktestView meta={meta} target={target} />
+          <BacktestView
+            meta={meta as import("./backtest/types").BacktestArtifact}
+            target={target}
+          />
         </Suspense>
       )}
+      <BaseOutputView meta={meta} kind={kind} />
     </>
   );
 }
@@ -875,20 +877,13 @@ function AnalysisScores({
 
 function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
   const { t } = useTranslation();
-  const count =
-    kind === "train"
-      ? meta.train_rows
-      : kind === "backtest"
-        ? meta.days
-        : meta.rows;
+  const count = kind === "train" ? meta.train_rows : meta.rows;
   const countLabel =
     kind === "train"
       ? t("research.train_rows")
-      : kind === "backtest"
-        ? t("research.days_2")
-        : kind === "predict"
-          ? t("research.prediction_rows")
-          : t("research.rows");
+      : kind === "predict"
+        ? t("research.prediction_rows")
+        : t("research.rows");
   const members = Object.entries(
     (kind === "train" ? meta.model_files : meta.score_columns) || {},
   );
@@ -901,18 +896,7 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
           ? members
           : kind === "predict"
             ? [["predictions_file", meta.predictions_file]]
-            : [
-                [
-                  "daily_file",
-                  meta.artifacts.daily?.path &&
-                    `${meta._path}/${meta.artifacts.daily.path}`,
-                ],
-                [
-                  "summary_file",
-                  meta.artifacts.summary?.path &&
-                    `${meta._path}/${meta.artifacts.summary.path}`,
-                ],
-              ];
+            : [];
   const paths = [
     ...primaryPaths,
     ...Object.entries(meta.artifacts || {}).map(([name, artifact]) => [
@@ -957,7 +941,9 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
     <div className="artifact-content">
       <Kpis
         items={[
-          { label: countLabel, value: fmt(count, 0) },
+          ...(kind === "backtest"
+            ? []
+            : [{ label: countLabel, value: fmt(count, 0) }]),
           ...(kind === "train"
             ? [
                 {
@@ -974,7 +960,7 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
                 },
               ]
             : []),
-          ...(kind === "etl" || kind === "predict" || kind === "backtest"
+          ...(kind === "etl" || kind === "predict"
             ? [
                 {
                   label: t("research.start"),
@@ -1083,34 +1069,36 @@ function BaseOutputView({ meta, kind }: { meta: Meta; kind: Kind }) {
           )}
         </section>
       )}
-      <section className="viz-card base-files-card">
-        <header>
-          <div>
-            <small>OUTPUT</small>
-            <h3>{t("research.output_files")}</h3>
+      {kind !== "backtest" && (
+        <section className="viz-card base-files-card">
+          <header>
+            <div>
+              <small>OUTPUT</small>
+              <h3>{t("research.output_files")}</h3>
+            </div>
+          </header>
+          <div className="artifact-files">
+            {paths.map(
+              ([name, path]) =>
+                path && (
+                  <div key={name}>
+                    <FileSpreadsheet />
+                    <span>
+                      <strong>{name}</strong>
+                      <code>{path}</code>
+                    </span>
+                  </div>
+                ),
+            )}
           </div>
-        </header>
-        <div className="artifact-files">
-          {paths.map(
-            ([name, path]) =>
-              path && (
-                <div key={name}>
-                  <FileSpreadsheet />
-                  <span>
-                    <strong>{name}</strong>
-                    <code>{path}</code>
-                  </span>
-                </div>
-              ),
+          {kind === "etl" && meta.config.input_dir && (
+            <div className="artifact-input-dir">
+              <small>{t("research.input_directory")}</small>
+              <code>{meta.config.input_dir}</code>
+            </div>
           )}
-        </div>
-        {kind === "etl" && meta.config.input_dir && (
-          <div className="artifact-input-dir">
-            <small>{t("research.input_directory")}</small>
-            <code>{meta.config.input_dir}</code>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
       <section className="viz-card base-files-card">
         <header>
           <div>

@@ -283,7 +283,12 @@ export function addArtifacts(
         : "samples.parquet";
   const artifactFiles =
     task.task_type === "backtest"
-      ? { daily: "daily.parquet", summary: "summary.parquet" }
+      ? {
+          all_daily: "universes/all/daily.parquet",
+          all_summary: "universes/all/summary.parquet",
+          hs300_daily: "universes/hs300/daily.parquet",
+          hs300_summary: "universes/hs300/summary.parquet",
+        }
       : { output };
   const outputKey = {
     etl: "output_file",
@@ -292,8 +297,13 @@ export function addArtifacts(
     predict: "predictions_file",
   }[task.task_type];
   if (task.task_type === "backtest") {
-    files.set(`${path}/daily.parquet`, table(daily));
-    files.set(`${path}/summary.parquet`, table(periods));
+    for (const universe of ["all", "hs300"]) {
+      files.set(`${path}/universes/${universe}/daily.parquet`, table(daily));
+      files.set(
+        `${path}/universes/${universe}/summary.parquet`,
+        table(periods),
+      );
+    }
   } else
     files.set(
       `${path}/${output}`,
@@ -374,6 +384,31 @@ export function addArtifacts(
       artifacts,
     },
   };
+  if (task.task_type === "backtest") {
+    const { days, date_range, dimensions, evaluation_status, ...shared } =
+      metadata.output_params;
+    Object.assign(metadata, {
+      output_params: {
+        ...shared,
+        signals_format: "stock-signals-v1",
+        default_universe: "all",
+        universes: Object.fromEntries(
+          ["all", "hs300"].map((key) => [
+            key,
+            {
+              label: key === "all" ? "All stocks" : "CSI 300",
+              parameters: {},
+              days,
+              date_range,
+              dimensions,
+              evaluation_status,
+              artifacts: { daily: `${key}_daily`, summary: `${key}_summary` },
+            },
+          ]),
+        ),
+      },
+    });
+  }
   Object.assign(task, metadata);
   files.set(`${path}/metadata.json`, json(task));
   files.set(`${path}/task.log`, {

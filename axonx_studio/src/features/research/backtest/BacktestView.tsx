@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
@@ -15,6 +15,7 @@ import { BacktestChart } from "./BacktestChart";
 import { DateRangeSlider } from "./DateRangeSlider";
 import type {
   BacktestArtifact,
+  BacktestUniverseReport,
   BenchmarkDefinition,
   ChartRow,
   ChartSeries,
@@ -154,7 +155,28 @@ export function BacktestView({
   meta: BacktestArtifact;
   target?: string;
 }) {
+  return (
+    <UniverseBacktest
+      key={`${target || ""}:${meta._path}:${meta._modified || ""}`}
+      meta={meta}
+      target={target}
+    />
+  );
+}
+
+function UniverseBacktest({
+  meta,
+  target,
+}: {
+  meta: BacktestArtifact;
+  target?: string;
+}) {
   const { t } = useTranslation();
+  const [universe, setUniverse] = useState(meta.default_universe);
+  const cache = useRef(
+    new Map<string, { daily: DailyRow[]; summary: SummaryRow[] }>(),
+  );
+  const report = meta.universes?.[universe];
   const [daily, setDaily] = useState<DailyRow[]>([]);
   const [summary, setSummary] = useState<SummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,9 +185,19 @@ export function BacktestView({
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    loadBacktest(meta, target, controller.signal)
+    setDaily([]);
+    setSummary([]);
+    const cached = cache.current.get(universe);
+    if (cached) {
+      setDaily(cached.daily);
+      setSummary(cached.summary);
+      setLoading(false);
+      return () => controller.abort();
+    }
+    loadBacktest(meta, universe, target, controller.signal)
       .then((data) => {
         if (controller.signal.aborted) return;
+        cache.current.set(universe, data);
         setDaily(data.daily);
         setSummary(data.summary);
       })
@@ -175,29 +207,49 @@ export function BacktestView({
       })
       .finally(() => !controller.signal.aborted && setLoading(false));
     return () => controller.abort();
-  }, [meta, target]);
+  }, [meta, target, universe]);
 
-  if (loading)
-    return (
-      <div className="research-loading">
-        <LoaderCircle className="spin" />
-      </div>
-    );
-  if (error || !daily.length)
-    return (
-      <div className="data-gap">
-        <AlertTriangle />
-        <strong>{t("backtest.unable_to_load_backtest_artifacts")}</strong>
-        <span>{error || t("backtest.daily_parquet_is_empty")}</span>
-      </div>
-    );
   return (
-    <BacktestReport
-      key={`${target || ""}:${meta._path}`}
-      meta={meta}
-      daily={daily}
-      summary={summary}
-    />
+    <section>
+      <label className="backtest-universe-selector">
+        {t("backtest.universe")}
+        <select
+          aria-label={t("backtest.universe")}
+          value={universe || ""}
+          onChange={(event) => setUniverse(event.target.value)}
+        >
+          {Object.entries(meta.universes || {}).map(([key, value]) => (
+            <option key={key} value={key}>
+              {value.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {report && (
+        <div className="backtest-report-dates">
+          {report.date_range.start} – {report.date_range.end} · {report.days}{" "}
+          {t("backtest.days")}
+        </div>
+      )}
+      {loading ? (
+        <div className="research-loading">
+          <LoaderCircle className="spin" />
+        </div>
+      ) : error || !report || !daily.length ? (
+        <div className="data-gap">
+          <AlertTriangle />
+          <strong>{t("backtest.unable_to_load_backtest_artifacts")}</strong>
+          <span>{error || t("backtest.daily_parquet_is_empty")}</span>
+        </div>
+      ) : (
+        <BacktestReport
+          key={universe}
+          meta={report}
+          daily={daily}
+          summary={summary}
+        />
+      )}
+    </section>
   );
 }
 
@@ -206,15 +258,13 @@ function BacktestReport({
   daily,
   summary,
 }: {
-  meta: BacktestArtifact;
+  meta: BacktestUniverseReport;
   daily: DailyRow[];
   summary: SummaryRow[];
 }) {
   const { t } = useTranslation();
-  const topNs = meta.dimensions?.top_ns || [1, 2, 3, 5, 10, 15, 20, 30];
-  const benchmarks = meta.dimensions?.benchmarks || [
-    { key: "universe", label: t("backtest.marketAverage") },
-  ];
+  const topNs = meta.dimensions.top_ns;
+  const benchmarks = meta.dimensions.benchmarks;
   const [tab, setTab] = useState<
     "gross" | "net" | "quality" | "overall" | "year" | "quarter" | "month"
   >("gross");
