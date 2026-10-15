@@ -506,6 +506,12 @@
 .pipeline-model {
   margin: 16px 0;
 }
+.pipeline-model > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .pipeline-model > details {
   padding: 12px 16px;
   border: 1px solid var(--line);

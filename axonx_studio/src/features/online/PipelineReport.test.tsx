@@ -159,3 +159,127 @@ it("shows the business reason when a missed input window never started a child",
   );
   expect(model?.querySelector("details")).toBeNull();
 });
+
+it("shows nightly model plans, skipped comparisons and nested history task logs", async () => {
+  parent.report_kind = "compare_pipeline";
+  parent.input_params = {
+    models: [{ task_name: "demo", feature_provider: "a_stock" }],
+    trade_time: "1445",
+  };
+  parent.steps = [
+    {
+      ...child.steps[0],
+      name: "demo:etl",
+      group: "demo",
+      label: "etl",
+      state: "done",
+    },
+    {
+      ...child.steps[0],
+      name: "demo:comparison",
+      group: "demo",
+      label: "comparison",
+      state: "skipped",
+      error: "online_source_unavailable",
+    },
+  ];
+  parent.output_params = {
+    models: { demo: { status: "done", comparison: { status: "skipped" } } },
+  };
+  const history = structuredClone(child);
+  history.task_id = "composite#a_stock_history#demo-1445";
+  history.run_id = "history-run";
+  history.reg_name = "a_stock_history";
+  history.task_type = "composite";
+  history.report_kind = null;
+  history.input_params.task_name = "demo-1445";
+  const etl = structuredClone(child);
+  etl.task_id = "etl#a_stock_etl#demo";
+  etl.run_id = "etl-run";
+  etl.reg_name = "a_stock_etl";
+  etl.report_kind = null;
+  etl.task_type = "etl";
+  etl.children = [];
+  history.children = [
+    {
+      ...parent.children[0],
+      task: etl.reg_name,
+      task_id: etl.task_id,
+      run_id: etl.run_id,
+      node_name: "demo-a_stock_etl",
+    },
+  ];
+  parent.children = [
+    {
+      ...parent.children[0],
+      task: history.reg_name,
+      task_id: history.task_id,
+      run_id: history.run_id,
+      node_name: "demo-1445-a_stock_history",
+    },
+  ];
+  const tasks = new Map(
+    [parent, history, etl].map((task) => [task.task_id, task]),
+  );
+  vi.mocked(getTaskStatus).mockImplementation(async (id) => tasks.get(id)!);
+  await render();
+  expect(container.textContent).toContain(i18n.t("onlinePipeline.nightly"));
+  expect(container.textContent).toContain(
+    i18n.t("onlinePipeline.reasons.online_source_unavailable"),
+  );
+  expect(container.textContent).toContain("demo-a_stock_etl");
+  expect(
+    container.querySelector(".pipeline-log-source select")?.children,
+  ).toHaveLength(3);
+  const select = container.querySelector<HTMLSelectElement>(
+    ".pipeline-log-source select",
+  )!;
+  await act(async () => {
+    select.value = etl.task_id;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(
+    vi
+      .mocked(readTaskLog)
+      .mock.calls.some((call) => call[0] === etl.task_id && call[3] === target),
+  ).toBe(true);
+});
+
+it("keeps nightly stages visible when a comparison report is malformed", async () => {
+  parent.report_kind = "compare_pipeline";
+  parent.input_params = {
+    models: [{ task_name: "demo", feature_provider: "a_stock" }],
+    trade_time: "1445",
+  };
+  child.reg_name = "a_stock_prediction_compare";
+  child.report_kind = "online";
+  child.output_params = { comparisons: [{ key: "bad", status: "invalid" }] };
+  parent.children[0].task = child.reg_name;
+  parent.children[0].node_name = "demo-a_stock_prediction_compare";
+  await render();
+  expect(container.textContent).toContain(i18n.t("onlinePipeline.nightly"));
+  expect(container.textContent).toContain("Invalid online report");
+});
+
+it("settles unfinished nightly model summaries after download failure and cancellation", async () => {
+  parent.report_kind = "compare_pipeline";
+  parent.input_params = {
+    models: [{ task_name: "demo", feature_provider: "a_stock" }],
+    trade_time: "1445",
+  };
+  parent.output_params = { models: { demo: { status: "pending" } } };
+  parent.children = [];
+  parent.steps = [];
+  parent.state = "failed";
+  await render();
+  expect(
+    container.querySelector(".pipeline-model header")?.textContent,
+  ).toContain(i18n.t("onlinePipeline.status.skipped"));
+  parent.state = "cancelled";
+  // A new selection reloads the lifecycle snapshot.
+  parent.run_id = "cancelled-run";
+  await render();
+  expect(
+    container.querySelector(".pipeline-model header")?.textContent,
+  ).toContain(i18n.t("onlinePipeline.status.cancelled"));
+});

@@ -44,7 +44,7 @@ afterEach(async () => {
 
 describe("online pipeline", () => {
   it("shows root pipeline collection, model stages and logs; comparison remains accessible", async () => {
-    await render();
+    await render("composite#playground_online#demo");
     expect(container.textContent).toContain("onlinePipeline.collection");
     expect(container.textContent).toContain("99.8%");
     expect(container.textContent).toContain("5,100");
@@ -60,7 +60,10 @@ describe("online pipeline", () => {
     expect(onOpenTask).toHaveBeenCalledWith("composite#playground_online#demo");
     expect(container.querySelector(".online-filters")).toBeNull();
     expect(container.querySelector(".run-index-header")).not.toBeNull();
-    expect(container.querySelectorAll(".run-index article")).toHaveLength(1);
+    expect(container.querySelectorAll(".run-index article")).toHaveLength(2);
+    await render("composite#playground_compare#demo");
+    expect(container.textContent).toContain("onlinePipeline.nightly");
+    expect(container.textContent).toContain("nightly-a_stock_etl");
     await render("analysis#playground_online#demo");
     expect(container.textContent).toContain(
       "onlinePipeline.status.protocol_mismatch",
@@ -122,7 +125,7 @@ it("discovers scheduled pipelines even when the first list was empty", async () 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
-    expect(container.querySelectorAll(".run-index article")).toHaveLength(1);
+    expect(container.querySelectorAll(".run-index article")).toHaveLength(2);
     expect(container.querySelector(".online-filters")).toBeNull();
   } finally {
     vi.useRealTimers();

@@ -48,8 +48,8 @@ export default function OnlinePage({
     await reload();
   }, [reload]);
   usePolling(refresh, true);
-  const tasks = (data || []).filter(
-    (task) => task.report_kind === "online_pipeline",
+  const tasks = (data || []).filter((task) =>
+    ["online_pipeline", "compare_pipeline"].includes(task.report_kind || ""),
   );
   const visible = tasks.filter((task) =>
     `${task.task_id} ${task.display_name || task.reg_name}`

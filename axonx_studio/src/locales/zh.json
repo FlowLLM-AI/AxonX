@@ -176,7 +176,8 @@
       "predictions_file": "预测产物",
       "buyable_count": "可买候选",
       "feature_seconds": "特征耗时（秒）",
-      "prediction_seconds": "推理耗时（秒）"
+      "prediction_seconds": "推理耗时（秒）",
+      "max_abs_diff": "最大绝对差值"
     },
     "reasons": {
       "window_missed": "执行窗口已错过",
@@ -191,7 +192,12 @@
       "data_not_ready_before_deadline": "截止前数据未就绪",
       "incomplete_history": "历史分钟数据覆盖不足",
       "missing_snapshot": "该窗口到达时尚无开盘快照",
-      "missing_or_late_replay_window": "回放窗口缺失，或数据到达时已截止"
+      "missing_or_late_replay_window": "回放窗口缺失，或数据到达时已截止",
+      "download_disabled": "使用已有原始数据",
+      "evaluation_disabled": "未启用回测",
+      "online_source_unavailable": "没有匹配的成功在线结果；历史已更新",
+      "upstream_failed": "前置阶段失败，已跳过",
+      "source_data_revised": "源数据发生修订"
     },
     "collection": "数据采集",
     "models": "模型推理",
@@ -216,7 +222,15 @@
       "portfolio": "计算组合",
       "publication": "提交结果",
       "waiting_inputs": "等待数据及前序模型",
-      "snapshot": "开盘快照"
+      "snapshot": "开盘快照",
+      "history": "准备历史输入",
+      "rebuild": "重建历史",
+      "reused": "已复用有效历史",
+      "rebuilt": "已重建并校验",
+      "etl": "更新历史特征",
+      "online_source": "检查在线结果",
+      "comparison": "比对预测",
+      "backtest": "评估投资组合"
     },
     "units": {
       "requests": "证券请求",
@@ -227,7 +241,11 @@
     "currentAction": "当前进展",
     "nextSignal": "下个信号",
     "refreshHint": "每 5 秒刷新",
-    "changedSnapshot": "同步快照已更新，等待下一次刷新。"
+    "changedSnapshot": "同步快照已更新，等待下一次刷新。",
+    "history": "历史准备",
+    "download": "公共数据准备",
+    "nightly": "夜间复核",
+    "modelStages": "模型流程"
   },
   "offline": "离线",
   "cpuUsage": "CPU 使用率",

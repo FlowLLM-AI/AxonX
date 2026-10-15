@@ -1,16 +1,19 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getTaskStatus } from "../tasks/api";
+import { TaskChildren } from "../tasks/TaskChildren";
+import { readTaskChildren } from "../tasks/tree";
+import { ComparePipeline } from "./ComparePipeline";
 import type { TaskSummary } from "../tasks/types";
 import { TaskSteps } from "../tasks/TaskSteps";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { usePolling } from "../../shared/hooks/usePolling";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
-import { QualityReport, TaskQuality } from "./QualityReport";
+import { TaskQuality } from "./QualityReport";
 import { StockReport } from "./StockReport";
-import { parseOnlineReport, type OnlineOutcome } from "./types";
-import { parseQuality } from "./quality";
+import { parseOnlineReport } from "./types";
+import { Outcome } from "./Outcome";
 
 export function PipelineReport({
   task,
@@ -28,47 +31,23 @@ export function PipelineReport({
       const parent = await getTaskStatus(task.task_id, target, signal);
       if (parent.run_id !== task.run_id)
         throw new Error(t("onlinePipeline.replacedRun"));
-      const children = await Promise.all(
-        Array.from(
-          new Map(
-            parent.children
-              .filter((child) => child.task_id)
-              .map((child) => [child.task_id, child]),
-          ).values(),
-        ).map(async (child) => {
-          try {
-            const status = await getTaskStatus(child.task_id!, target, signal);
-            if (status.run_id !== child.run_id)
-              return {
-                status: null,
-                report: null,
-                error: t("onlinePipeline.replacedRun"),
-              };
-            if (
-              parent.replica?.snapshot &&
-              status.replica?.snapshot?.revision !==
-                parent.replica.snapshot.revision
-            )
-              return {
-                status: null,
-                report: null,
-                error: t("onlinePipeline.changedSnapshot"),
-              };
-            try {
-              return {
-                status,
-                report: parseOnlineReport(status.output_params).report,
-                error: "",
-              };
-            } catch (reason) {
-              return { status, report: null, error: String(reason) };
-            }
-          } catch (reason) {
-            signal.throwIfAborted();
-            return { status: null, report: null, error: String(reason) };
-          }
-        }),
-      );
+      const nodes = await readTaskChildren(parent, target, signal, {
+        replaced: t("onlinePipeline.replacedRun"),
+        snapshot: t("onlinePipeline.changedSnapshot"),
+      });
+      const children = nodes.map((node) => {
+        try {
+          return {
+            ...node,
+            report:
+              node.status?.report_kind === "online"
+                ? parseOnlineReport(node.status.output_params).report
+                : null,
+          };
+        } catch (reason) {
+          return { ...node, report: null, error: String(reason) };
+        }
+      });
       return {
         parent,
         children,
@@ -93,12 +72,13 @@ export function PipelineReport({
     );
   const { parent, children, output } = data;
   const pipeline = parent.report_kind === "online_pipeline";
+  const compare = parent.report_kind === "compare_pipeline";
   const collection = parent.steps.filter((step) => step.group === "collection");
   const current = parent.steps.filter(
     (step) => step.parent && step.state === "running",
   );
   const planned = Object.entries(
-    (parent.input_params.models || {}) as Record<
+    (pipeline ? parent.input_params.models || {} : {}) as Record<
       string,
       { task_name: string }[]
     >,
@@ -167,7 +147,9 @@ export function PipelineReport({
       <header>
         <div>
           <p className="eyebrow">
-            {t(`onlinePipeline.kinds.${parent.task_type}`, parent.task_type)}
+            {compare
+              ? t("onlinePipeline.nightly")
+              : t(`onlinePipeline.kinds.${parent.task_type}`, parent.task_type)}
           </p>
           <h2>
             {String(
@@ -194,63 +176,77 @@ export function PipelineReport({
           <button onClick={() => void reload()}>{t("retry")}</button>
         </div>
       )}
-      <div className="online-summary">
-        <div>
-          <span>{t("onlinePipeline.runState")}</span>
-          <strong>
-            {t(`onlinePipeline.status.${parent.state}`, parent.state)}
-          </strong>
-        </div>
-        <div>
-          <span>{t("onlinePipeline.collection")}</span>
-          <strong>
-            {collection.filter((item) => item.state === "done").length} /{" "}
-            {collection.length}
-          </strong>
-        </div>
-        <div>
-          <span>{t("onlinePipeline.models")}</span>
-          <strong>
-            {
-              models.filter((model) => model.record?.state === "succeeded")
-                .length
-            }{" "}
-            / {models.length}
-          </strong>
-        </div>
-      </div>
-      <div className="pipeline-now">
-        <div>
-          <span>{t("onlinePipeline.currentAction")}</span>
-          <strong>
-            {current.length
-              ? current
-                  .map((item) =>
-                    t(
-                      `onlinePipeline.phases.${item.phase || item.label || item.name}`,
-                      item.phase || item.label || item.name,
-                    ),
-                  )
-                  .join(" · ")
-              : t(`onlinePipeline.status.${parent.state}`, parent.state)}
-          </strong>
-        </div>
-        <div>
-          <span>{t("onlinePipeline.nextSignal")}</span>
-          <strong>
-            {upcoming ? `${upcoming.slice(0, 2)}:${upcoming.slice(2)}` : "—"}
-          </strong>
-        </div>
-        <small>{t("onlinePipeline.refreshHint")}</small>
-      </div>
-      {!collection.length && !models.length && (
-        <p>
-          {t(
-            parent.output_params.status === "market_closed"
-              ? "onlinePipeline.closed"
-              : "onlinePipeline.pending",
+      {!compare && (
+        <>
+          <div className="online-summary">
+            <div>
+              <span>{t("onlinePipeline.runState")}</span>
+              <strong>
+                {t(`onlinePipeline.status.${parent.state}`, parent.state)}
+              </strong>
+            </div>
+            <div>
+              <span>{t("onlinePipeline.collection")}</span>
+              <strong>
+                {collection.filter((item) => item.state === "done").length} /{" "}
+                {collection.length}
+              </strong>
+            </div>
+            <div>
+              <span>{t("onlinePipeline.models")}</span>
+              <strong>
+                {
+                  models.filter((model) => model.record?.state === "succeeded")
+                    .length
+                }{" "}
+                / {models.length}
+              </strong>
+            </div>
+          </div>
+          <div className="pipeline-now">
+            <div>
+              <span>{t("onlinePipeline.currentAction")}</span>
+              <strong>
+                {current.length
+                  ? current
+                      .map((item) =>
+                        t(
+                          `onlinePipeline.phases.${item.phase || item.label || item.name}`,
+                          item.phase || item.label || item.name,
+                        ),
+                      )
+                      .join(" · ")
+                  : t(`onlinePipeline.status.${parent.state}`, parent.state)}
+              </strong>
+            </div>
+            <div>
+              <span>{t("onlinePipeline.nextSignal")}</span>
+              <strong>
+                {upcoming
+                  ? `${upcoming.slice(0, 2)}:${upcoming.slice(2)}`
+                  : "—"}
+              </strong>
+            </div>
+            <small>{t("onlinePipeline.refreshHint")}</small>
+          </div>
+          {!collection.length && !models.length && (
+            <p>
+              {t(
+                parent.output_params.status === "market_closed"
+                  ? "onlinePipeline.closed"
+                  : "onlinePipeline.pending",
+              )}
+            </p>
           )}
-        </p>
+        </>
+      )}
+      {compare && (
+        <ComparePipeline
+          parent={parent}
+          nodes={children}
+          target={target}
+          onOpenTask={onOpenTask}
+        />
       )}
       {pipeline && (
         <>
@@ -261,6 +257,17 @@ export function PipelineReport({
             windows={parent.output_params.windows}
             taskId={parent.task_id}
             target={target}
+          />
+          <h3>{t("onlinePipeline.history")}</h3>
+          <TaskSteps
+            steps={parent.steps.filter((step) => step.group === "history")}
+          />
+          <TaskChildren
+            records={parent.children.filter(
+              (child) => child.task === "a_stock_history",
+            )}
+            nodes={children}
+            onOpenTask={onOpenTask}
           />
           <h3>{t("onlinePipeline.models")}</h3>
           {models.map((model) => {
@@ -335,7 +342,7 @@ export function PipelineReport({
       {output.report ? (
         <StockReport report={output.report} target={target} runtime={runtime} />
       ) : (
-        !pipeline && runtime
+        !pipeline && !compare && runtime
       )}
       {children
         .filter((child) => child.error)
@@ -354,7 +361,7 @@ export function PipelineReport({
           <option value="">{t("onlinePipeline.chainLog")}</option>
           {statuses.map((child) => (
             <option key={child.run_id} value={child.task_id}>
-              {child.input_params.task_name as string}
+              {child.reg_name} · {child.input_params.task_name as string}
             </option>
           ))}
         </select>
@@ -369,76 +376,5 @@ export function PipelineReport({
         <p>{t("onlinePipeline.replacedRun")}</p>
       )}
     </article>
-  );
-}
-
-function Outcome({
-  row,
-  taskId,
-  target,
-}: {
-  row: OnlineOutcome;
-  taskId: string;
-  target?: string;
-}) {
-  const { t } = useTranslation();
-  const coverage = "coverage" in row ? row.coverage : null;
-  const rows = "rows" in row ? row.rows : null;
-  const elapsed = "elapsed_seconds" in row ? row.elapsed_seconds : null;
-  return (
-    <section className="online-outcome">
-      <header>
-        <strong>{row.key}</strong>
-        <span className={`online-status status-${row.status}`}>
-          {t(`onlinePipeline.status.${row.status}`, row.status)}
-        </span>
-      </header>
-      <div className="online-metrics">
-        {coverage != null && (
-          <div>
-            <span>{t("onlinePipeline.coverage")}</span>
-            <strong>{(coverage * 100).toFixed(1)}%</strong>
-            <progress max={1} value={coverage} />
-          </div>
-        )}
-        {rows != null && (
-          <div>
-            <span>{t("onlinePipeline.rows")}</span>
-            <strong>{rows.toLocaleString()}</strong>
-          </div>
-        )}
-        {elapsed != null && (
-          <div>
-            <span>{t("onlinePipeline.elapsed")}</span>
-            <strong>{elapsed.toFixed(1)}s</strong>
-          </div>
-        )}
-        {Object.entries(row.metrics || {})
-          .filter(([key]) => key !== "quality")
-          .map(([key, value]) => (
-            <div key={key}>
-              <span>{t(`onlinePipeline.metrics.${key}`, key)}</span>
-              <strong>
-                {typeof value === "object"
-                  ? JSON.stringify(value)
-                  : String(value)}
-              </strong>
-            </div>
-          ))}
-      </div>
-      {row.metrics?.quality != null && (
-        <QualityReport
-          summary={parseQuality(row.metrics.quality)}
-          taskId={taskId}
-          target={target}
-          artifacts={row.artifacts}
-        />
-      )}
-      {row.reason && (
-        <p className="online-reason">
-          {t(`onlinePipeline.reasons.${row.reason}`, row.reason)}
-        </p>
-      )}
-    </section>
   );
 }

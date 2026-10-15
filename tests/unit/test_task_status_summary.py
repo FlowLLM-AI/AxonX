@@ -173,3 +173,10 @@ async def test_graph_projects_under_repository_lock_without_copying_outputs(tmp_
     assert graph.nodes[0].task_id == task.task_id
     graph.nodes[0].parent_ids.append("consumer mutation")
     assert (await manager.get_graph(task.task_id)).nodes[0].parent_ids == []
+
+
+def test_nightly_pipeline_is_discoverable_in_online_workbench():
+    task = status()
+    task.report_kind = "compare_pipeline"
+    summary = summarize_status(task)
+    assert summary.is_online and summary.report_kind == "compare_pipeline"

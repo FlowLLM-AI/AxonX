@@ -176,7 +176,8 @@
       "predictions_file": "Predictions",
       "buyable_count": "Buyable candidates",
       "feature_seconds": "Feature time (s)",
-      "prediction_seconds": "Prediction time (s)"
+      "prediction_seconds": "Prediction time (s)",
+      "max_abs_diff": "Maximum absolute difference"
     },
     "reasons": {
       "window_missed": "Window already elapsed",
@@ -191,7 +192,12 @@
       "data_not_ready_before_deadline": "Inputs were not ready before the deadline",
       "incomplete_history": "Historical bar coverage is insufficient",
       "missing_snapshot": "Opening snapshot was unavailable when this window arrived",
-      "missing_or_late_replay_window": "Replay window is missing or arrived at or after the cutoff"
+      "missing_or_late_replay_window": "Replay window is missing or arrived at or after the cutoff",
+      "download_disabled": "Using existing raw data",
+      "evaluation_disabled": "Portfolio evaluation disabled",
+      "online_source_unavailable": "No matching successful online result; history was updated",
+      "upstream_failed": "Skipped because a prerequisite failed",
+      "source_data_revised": "Source data was revised"
     },
     "collection": "Data collection",
     "models": "Model inference",
@@ -216,7 +222,15 @@
       "portfolio": "Calculating portfolio",
       "publication": "Publishing",
       "waiting_inputs": "Waiting for inputs and preceding models",
-      "snapshot": "Opening snapshot"
+      "snapshot": "Opening snapshot",
+      "history": "Preparing historical inputs",
+      "rebuild": "Rebuilding history",
+      "reused": "Reused verified history",
+      "rebuilt": "Rebuilt and verified",
+      "etl": "Refreshing features",
+      "online_source": "Checking online result",
+      "comparison": "Comparing predictions",
+      "backtest": "Evaluating portfolio"
     },
     "units": {
       "requests": "stock requests",
@@ -227,7 +241,11 @@
     "currentAction": "Current activity",
     "nextSignal": "Next signal",
     "refreshHint": "Refreshes every 5s",
-    "changedSnapshot": "Synchronization changed the snapshot. Refreshing shortly."
+    "changedSnapshot": "Synchronization changed the snapshot. Refreshing shortly.",
+    "history": "Historical inputs",
+    "download": "Shared data preparation",
+    "nightly": "Nightly comparison",
+    "modelStages": "Model stages"
   },
   "offline": "Offline",
   "cpuUsage": "CPU usage",
