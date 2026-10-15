@@ -189,7 +189,9 @@
       "portfolio_deadline": "组合计算超时",
       "publication_deadline": "提交超时",
       "data_not_ready_before_deadline": "截止前数据未就绪",
-      "incomplete_history": "历史分钟数据覆盖不足"
+      "incomplete_history": "历史分钟数据覆盖不足",
+      "missing_snapshot": "该窗口到达时尚无开盘快照",
+      "missing_or_late_replay_window": "回放窗口缺失，或数据到达时已截止"
     },
     "collection": "数据采集",
     "models": "模型推理",

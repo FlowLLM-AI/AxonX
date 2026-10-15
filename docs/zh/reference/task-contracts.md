@@ -175,3 +175,13 @@ Runner 将进度更新和 metadata 发布串行化；具名子步骤计数每秒
 Task 声明 `report_kind = "online_pipeline"` 接入 Studio 在线索引。`run_task(..., task_name="model-1445")` 显式命名子任务，默认节点名为 `<task_name>-<registration>`；省略 `task_name` 时继承父名称，默认节点名为注册名；生命周期、来源继承和资源回收由框架负责。移除 Activity metadata/事件及独立 live 索引响应，不提供兼容读取；使用这些未发布契约生成的记录需要重建，插件、源服务、接收服务和 Studio 须一起升级。
 
 按组同步的展示副本携带 `replica.snapshot`（来源、父 Task/Run、捕获时间及版本）和 `replica.log`（路径及原始字节范围），保留源状态、清空 PID 且只读。参见[展示同步](../guides/task-sync.md)。
+
+## 业务时钟与事件回放
+
+`BaseTask(..., clock=...)` 可接收 `WindowClock`，组合子任务继承同一个对象。原有 `axonx.task.contracts.WindowClock` 导入保持有效。时钟控制业务窗口与截止预算；Task 身份、生命周期时间戳、日志和运行性能计时仍使用真实时间。
+
+`axonx.task.clock.ReplayClock(start_at)` 是单驱动虚拟时钟，仅显式 sleep 或 `advance_to()` 推进时间，因此计算期间模拟时间暂停。时间必须带时区且不能倒退。工作线程可读取时钟，只有创建线程可以推进它。多线程插件需使用事件驱动或显式协调等待；仅替换时钟不会加速 `Event.wait`、`Condition.wait`。
+
+`axonx.task.replay` 提供 `ReplaySource`、`ReplayStream`、`ReplayCursor`。`ReplayStream.create(directory, events, context=..., attributes=...)` 复制数据文件到新目录，发布 `stream.json`，不覆盖已有数据集。事件包括 key、带时区的 `available_at`、文件记录（相对路径、大小、SHA256）和插件属性；context 文件固定运行级输入。打开数据流时校验事件顺序、路径和全部文件哈希。转移时需要整个目录，不能只复制 manifest。
+
+`ReplayCursor.wait(deadline, consume, ready)` 推进到事件可用时间，按顺序同步消费，`ready()` 满足后停止。截止时刻及之后的事件不会交付；事件耗尽则推进到截止时间并返回 false。插件负责数据格式、交易日历、校验发布、输入缺失策略和输出隔离。该契约不补造历史返回，也不允许回退到网络补数据；插件须区分还原的窗口快照与原始请求录制，并记录尚未固定的外部依赖。

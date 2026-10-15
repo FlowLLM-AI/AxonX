@@ -132,6 +132,7 @@ class BaseCompositeTask(BaseTask, ABC):
             run_id=record.run_id,
             source=self.context.source,
         )
+        child.clock = self.clock
         record.task_id = child.task_id
         record.state = TaskState.RUNNING
         try:

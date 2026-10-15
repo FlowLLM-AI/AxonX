@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import time
 from abc import abstractmethod
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from ..core import BaseInputParams, BaseTask
+from ..clock import WindowClock
 
 
 class ExecutionWindow(BaseModel):
@@ -59,19 +59,6 @@ class WindowInputParams(BaseInputParams):
         if self.windows != sorted(self.windows, key=lambda window: window.start_at):
             raise ValueError("windows must be ordered by start_at")
         return self
-
-
-class WindowClock:
-    """Override in tests; elapsed time and request budgets use a monotonic clock."""
-
-    def now(self) -> datetime:
-        return datetime.now(UTC)
-
-    def monotonic(self) -> float:
-        return time.monotonic()
-
-    def sleep(self, seconds: float) -> None:
-        time.sleep(seconds)
 
 
 class DeadlineBudget:

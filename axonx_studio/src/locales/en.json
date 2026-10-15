@@ -189,7 +189,9 @@
       "portfolio_deadline": "Portfolio calculation deadline",
       "publication_deadline": "Publication deadline",
       "data_not_ready_before_deadline": "Inputs were not ready before the deadline",
-      "incomplete_history": "Historical bar coverage is insufficient"
+      "incomplete_history": "Historical bar coverage is insufficient",
+      "missing_snapshot": "Opening snapshot was unavailable when this window arrived",
+      "missing_or_late_replay_window": "Replay window is missing or arrived at or after the cutoff"
     },
     "collection": "Data collection",
     "models": "Model inference",
