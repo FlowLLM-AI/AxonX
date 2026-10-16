@@ -15,7 +15,7 @@ from ...constants import (
     AXONX_DEFAULT_TIMEZONE,
     TASK_ID_SEPARATOR,
 )
-from ...enums import ComponentEnum, TaskType
+from ...enums import ComponentEnum, TaskCategory, TaskType
 from ...utils import get_log_path, get_logger
 from ..schemas.lifecycle import TaskMetadata, TaskSource
 from ..storage.workspace import METADATA_FILE, PERSISTENT_DIR, read_task_metadata, task_id_from_path, task_path
@@ -38,6 +38,7 @@ class BaseTask(ABC):
     task_type: ClassVar[TaskType] = TaskType.BASE
     input_cls: ClassVar[type[BaseInputParams]] = BaseInputParams
     output_cls: ClassVar[type[BaseOutputParams]] = BaseOutputParams
+    category: ClassVar[TaskCategory | None] = None
     report_kind: ClassVar[str | None] = None
 
     def __init__(
@@ -51,6 +52,7 @@ class BaseTask(ABC):
         run_id: str | None = None,
         created_at: datetime | None = None,
         source: TaskSource | None = None,
+        parent_run_id: str | None = None,
         clock: WindowClock | None = None,
     ):
         self.input_params = self.input_cls.model_validate(input_params)
@@ -82,6 +84,7 @@ class BaseTask(ABC):
             created_at=created_at,
             logger=get_logger(type(self).__name__),
             source=source or TaskSource(kind="exec"),
+            parent_run_id=parent_run_id,
         )
         self.state: dict[str, Any] = {}
         self.clock = clock if clock is not None else getattr(self, "clock", WindowClock())

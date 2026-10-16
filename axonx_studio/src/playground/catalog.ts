@@ -13,6 +13,7 @@ const schemas: Record<
 > = {
   machine_status: { output: "object" },
   list_machines: { output: "array" },
+  list_studio_pages: { output: "array" },
   list_schedules: { output: "array" },
   list_installed_task_definitions: { output: "array" },
   list_task_statuses: {

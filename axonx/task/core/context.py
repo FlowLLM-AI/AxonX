@@ -21,3 +21,4 @@ class TaskContext:
     created_at: datetime
     logger: Any
     source: TaskSource
+    parent_run_id: str | None = None

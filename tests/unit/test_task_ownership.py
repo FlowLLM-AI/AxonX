@@ -269,6 +269,7 @@ async def test_cancelled_queue_publication_does_not_leave_an_unmanaged_queued_ru
             task_type="base",
             is_generated_name=True,
             report_kind=None,
+            category=None,
             input_params=SimpleNamespace(model_dump=lambda **_: {}),
             created_at=datetime.now(UTC),
         )

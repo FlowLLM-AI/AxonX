@@ -37,6 +37,7 @@ function task(
   state: TaskSummary["state"] = "running",
 ): TaskSummary {
   return {
+    parent_run_id: null,
     managed_run_id: ["running", "queued"].includes(state)
       ? `run-${taskId}`
       : null,
@@ -44,6 +45,7 @@ function task(
     is_replica: false,
     is_online: false,
     step_progress: null,
+    category: null,
     report_kind: null,
     task_id: taskId,
     run_id: `run-${taskId}`,

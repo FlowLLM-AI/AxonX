@@ -7,7 +7,9 @@ const task = (
   state: TaskState = "succeeded",
   date = "2026-10-13T01:00:00Z",
 ): TaskSummary => ({
+  parent_run_id: null,
   managed_run_id: null,
+  category: null,
   report_kind: null,
   display_name: "test",
   is_replica: false,

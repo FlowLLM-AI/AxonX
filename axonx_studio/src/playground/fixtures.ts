@@ -1,3 +1,4 @@
+import type { StudioPage } from "../shared/api/contracts";
 import type { DailyRow, SummaryRow } from "../features/research/backtest/types";
 import { strategyStats } from "../features/research/compare/model";
 import type {
@@ -28,6 +29,8 @@ export const schedules: Schedule[] = [
       triggered_at: epoch,
       state: "succeeded",
       error: "",
+      finished_at: epoch,
+      result: null,
     },
   },
   {
@@ -45,6 +48,60 @@ export const schedules: Schedule[] = [
     last_trigger: null,
   },
 ];
+export const studioPages: StudioPage[] = [
+  {
+    id: "sync",
+    title: { en: "Synchronization", zh: "同步" },
+    view: "schedules",
+    schedules: ["workspace_sync"],
+    category: null,
+  },
+  {
+    id: "data",
+    title: { en: "Data updates", zh: "数据更新" },
+    view: "tasks",
+    schedules: ["data_update"],
+    category: "data_update",
+  },
+  {
+    id: "online",
+    title: { en: "Online prediction", zh: "在线预测" },
+    view: "pipeline",
+    schedules: [],
+    category: "online_prediction",
+  },
+  {
+    id: "nightly",
+    title: { en: "Evening comparison", zh: "晚间比对" },
+    view: "pipeline",
+    schedules: [],
+    category: "comparison",
+  },
+];
+schedules.push({
+  ...schedules[0],
+  name: "data_update",
+  scheduler_id: "demo-data",
+  arguments: { task: "playground.download" },
+  last_trigger: null,
+});
+schedules[1].description = "Display replica → http://example.test:1025";
+schedules[1].last_trigger = {
+  ...schedules[0].last_trigger!,
+  name: "workspace_sync",
+  job: "sync_flush",
+  trigger_id: "demo-sync",
+  scheduler_id: "demo-sync-instance",
+  result: {
+    uploaded: ["composite/demo"],
+    deferred: [],
+    rejected: [],
+    oversized: [],
+    archives: 1,
+  },
+};
+schedules[1].history = [schedules[1].last_trigger];
+
 export const kinds = [
   "etl",
   "analysis",
@@ -53,6 +110,7 @@ export const kinds = [
   "backtest",
 ] as const;
 export const definitions: TaskDefinition[] = kinds.map((kind) => ({
+  category: null,
   name: `playground.${kind}`,
   source: "plugin",
   plugin: "playground",
@@ -87,8 +145,10 @@ export function taskStatus(
   name: string,
 ): TaskMetadata {
   return {
+    parent_run_id: null,
     managed_run_id: null,
     version: 1,
+    category: null,
     report_kind: kind === "inference" ? "online" : null,
     task_id: id,
     run_id: id,
@@ -492,6 +552,49 @@ export function seed() {
   }
   seedOnline(tasks, files);
   seedNightly(tasks, files);
+  for (const task of tasks.values()) {
+    if (task.reg_name === "tushare_mins") task.category = "data_update";
+  }
+  for (const parent of tasks.values()) {
+    for (const record of parent.children) {
+      const child = record.task_id ? tasks.get(record.task_id) : undefined;
+      if (child?.run_id === record.run_id) child.parent_run_id = parent.run_id;
+    }
+  }
+  const download = taskStatus(
+    "api",
+    "api#playground_download#demo",
+    "Synthetic data update",
+  );
+  download.category = "data_update";
+  download.steps = [
+    {
+      parent: null,
+      percentage: 100,
+      group: "download",
+      phase: "",
+      label: "Download",
+      scheduled_at: null,
+      deadline: null,
+      updated_at: epoch,
+      files: {},
+      error: "",
+      metrics: {},
+      name: "download",
+      state: "done",
+      started_at: epoch,
+      finished_at: epoch,
+      completed: 5100,
+      total: 5100,
+      unit: "symbols",
+    },
+  ];
+  download.output_params = {
+    rows: 5100,
+    updated: "2026-01-05",
+    status: "succeeded",
+  };
+  tasks.set(download.task_id, download);
   files.set(
     "tushare/daily/sample.parquet",
     table(
@@ -673,6 +776,7 @@ function seedOnline(
   const id = "composite#playground_online#demo";
   const parent = taskStatus("composite", id, "Synthetic online pipeline");
   parent.report_kind = "online_pipeline";
+  parent.category = "online_prediction";
   parent.input_params = {
     task_name: "Synthetic online pipeline",
     trade_date: "2026-01-05",
@@ -732,7 +836,8 @@ function seedOnline(
   ];
   parent.steps.push(step);
   parent.input_params.models = { "1445": [{ task_name: "demo" }] };
-  parent.children[0].node_name = "demo-1445-a_stock_online_predict";
+  parent.children[0].task = child.task_id.split("#")[1];
+  parent.children[0].node_name = `demo-1445-${parent.children[0].task}`;
   tasks.set(id, parent);
   files.set(`${id.split("#")[0]}/${id}/metadata.json`, json(parent));
 }
@@ -747,6 +852,7 @@ function seedNightly(
     "Synthetic nightly comparison",
   );
   parent.report_kind = "compare_pipeline";
+  parent.category = "comparison";
   parent.input_params = {
     task_name: "Synthetic nightly comparison",
     trade_date: "2026-01-05",

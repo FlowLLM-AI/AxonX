@@ -160,3 +160,29 @@ describe("application routes", () => {
     });
   });
 });
+
+it("keeps configured operation page IDs distinct in routes and navigation", async () => {
+  const { configuredNavigation, navigationItemForRoute } =
+    await import("./navigation");
+  const { studioPages } = await import("../playground/fixtures");
+  const groups = configuredNavigation(studioPages, "zh");
+  expect(groups[0].id).toBe("operations");
+  expect(groups[0].items.map((item) => item.labelKey)).toEqual([
+    "同步",
+    "数据更新",
+    "在线预测",
+    "晚间比对",
+  ]);
+  const items = groups.flatMap((group) => group.items);
+  for (const page of studioPages) {
+    const route = {
+      section: "operations" as const,
+      view: page.id,
+      resource: "api#download#run",
+    };
+    expect(parseHash(routeHash("remote:1024", route)).route).toEqual(route);
+    expect(navigationItemForRoute(route, items).id).toBe(
+      `operation-${page.id}`,
+    );
+  }
+});

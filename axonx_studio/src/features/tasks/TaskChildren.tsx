@@ -9,11 +9,13 @@ export function TaskChildren({
   nodes,
   onOpenTask,
   ancestors = [],
+  showOutput = false,
 }: {
   records: ChildTaskRecord[];
   nodes: TaskNode[];
   onOpenTask: (id: string) => void;
   ancestors?: string[];
+  showOutput?: boolean;
 }) {
   const { t } = useTranslation();
   const latest = [
@@ -47,8 +49,15 @@ export function TaskChildren({
                     {t("onlinePipeline.openTask")}
                   </button>
                   <TaskSteps compact steps={status.steps} />
+                  {showOutput && (
+                    <details>
+                      <summary>{t("operations.result")}</summary>
+                      <pre>{JSON.stringify(status.output_params, null, 2)}</pre>
+                    </details>
+                  )}
                   <TaskChildren
                     records={status.children}
+                    showOutput={showOutput}
                     nodes={nodes}
                     onOpenTask={onOpenTask}
                     ancestors={[...ancestors, record.run_id]}

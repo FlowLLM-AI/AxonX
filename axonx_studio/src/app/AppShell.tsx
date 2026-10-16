@@ -18,8 +18,7 @@ import { formatMachineAddress } from "../shared/lib/format";
 import type { ContextOption, ThemePreference } from "./types";
 import type { MachineNode } from "../features/machines/types";
 import {
-  navigationGroups,
-  navigationItems,
+  configuredNavigation,
   navigationItemForRoute,
   researchSections,
 } from "./navigation";
@@ -28,7 +27,12 @@ import { EnvironmentSettingsModal } from "../features/runtime/EnvironmentSetting
 import type { AppRoute } from "./routes";
 import type { SidebarState } from "./useStudio";
 
+import type { StudioPage } from "../shared/api/contracts";
+
 interface AppShellProps {
+  operationPages: StudioPage[];
+  operationPagesError: string;
+  reloadOperationPages: () => unknown;
   children: ReactNode;
   route: AppRoute;
   theme: ThemePreference;
@@ -49,6 +53,9 @@ interface AppShellProps {
 export function AppShell(props: AppShellProps) {
   const {
     children,
+    operationPages,
+    operationPagesError,
+    reloadOperationPages,
     route,
     theme,
     setTheme,
@@ -71,11 +78,14 @@ export function AppShell(props: AppShellProps) {
     if (authRequired) setSettingsOpen(true);
   }, [authRequired]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    operations: true,
     run: true,
     submit: true,
     research: true,
   });
-  const section = navigationItemForRoute(route);
+  const navigationGroups = configuredNavigation(operationPages, language);
+  const navigationItems = navigationGroups.flatMap((group) => group.items);
+  const section = navigationItemForRoute(route, navigationItems);
   const machineLabel = selectedMachine.isLocal
     ? t(playground ? "playground.machine" : "shell.local")
     : formatMachineAddress(selectedMachine.address);
@@ -268,6 +278,15 @@ export function AppShell(props: AppShellProps) {
           className={`primary-rail ${sidebar.mobileOpen ? "mobile-open" : ""}`}
         >
           <nav>
+            {operationPagesError && (
+              <button
+                className="error-state"
+                onClick={() => void reloadOperationPages()}
+                title={operationPagesError}
+              >
+                {t("operations.loadError")} · {t("retry")}
+              </button>
+            )}
             {navigationGroups.map((group) => (
               <div
                 className={`primary-nav-group group-${group.id}`}

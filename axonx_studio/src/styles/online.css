@@ -599,3 +599,57 @@
     flex-wrap: wrap;
   }
 }
+
+.run-index .operation-schedule {
+  width: 100%;
+  grid-template-columns: 18px minmax(0, 1fr);
+  text-align: left;
+  padding: 12px;
+  gap: 10px;
+}
+.operation-schedule.active {
+  background: var(--accent-soft);
+}
+.operation-schedule > svg {
+  width: 18px;
+  flex-shrink: 0;
+}
+.operation-trigger {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.operation-trigger > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  cursor: pointer;
+}
+.operation-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.operation-metrics dt {
+  color: var(--muted);
+}
+.operation-metrics dd {
+  margin: 4px 0;
+  font-size: 20px;
+}
+.research-canvas > .schedule-card {
+  margin: 20px;
+  min-width: 0;
+}
+.research-canvas pre {
+  max-width: 100%;
+  overflow: auto;
+}
+.operation-trigger small {
+  overflow-wrap: anywhere;
+}
+.run-index .operation-all {
+  display: block;
+  width: 100%;
+  margin: 0 0 10px;
+}

@@ -2,7 +2,7 @@ import { TaskLogPanel } from "./TaskLogPanel";
 import { TaskSteps } from "./TaskSteps";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { TaskQuality } from "../online/QualityReport";
-import { isOnlineTask } from "../online/types";
+import { hasTaskReport } from "../online/types";
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
@@ -185,12 +185,12 @@ export function TaskDetailPage({
           </span>
         </div>
         <div className="task-detail-heading-actions">
-          {(hasResearch || isOnlineTask(task)) && (
+          {(hasResearch || hasTaskReport(task)) && (
             <button
               className="secondary-button"
               onClick={() =>
                 onOpenResearch(
-                  isOnlineTask(task) ? "online" : task.task_type,
+                  hasTaskReport(task) ? "report" : task.task_type,
                   task.task_id,
                 )
               }

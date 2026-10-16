@@ -395,6 +395,18 @@ export type ResultEvent = {
   kind: "result";
 };
 
+export type ScheduleRun = {
+  name: string;
+  job: string;
+  trigger_id: string;
+  triggered_at: string;
+  scheduler_id: string | null;
+  state: TaskState;
+  error: string;
+  finished_at: string | null;
+  result: unknown;
+};
+
 export type ScheduleTrigger = {
   name: string;
   job: string;
@@ -459,10 +471,21 @@ export type StructuredPreview = {
   truncated: boolean;
 };
 
+export type StudioPage = {
+  title: Record<string, string>;
+  view: "schedules" | "tasks" | "pipeline";
+  schedules: Array<string>;
+  category: TaskCategory | null;
+  id: string;
+};
+
+export type TaskCategory = "data_update" | "online_prediction" | "comparison";
+
 export type TaskDefinition = {
   name: string;
   source: "native" | "plugin";
   plugin: string | null;
+  category: TaskCategory | null;
   task_type: TaskType;
   description: string;
   input_schema: Record<string, unknown>;
@@ -504,6 +527,8 @@ export type TaskMetadata = {
   task_type: TaskType;
   reg_name: string;
   source: TaskSource;
+  parent_run_id: string | null;
+  category: TaskCategory | null;
   report_kind: string | null;
   state: TaskState;
   pid: number | null;
@@ -563,6 +588,8 @@ export type TaskSummary = {
   task_type: TaskType;
   reg_name: string;
   source: TaskSource;
+  parent_run_id: string | null;
+  category: TaskCategory | null;
   report_kind: string | null;
   state: TaskState;
   pid: number | null;
@@ -596,6 +623,8 @@ export type TaskView = {
   task_type: TaskType;
   reg_name: string;
   source: TaskSource;
+  parent_run_id: string | null;
+  category: TaskCategory | null;
   report_kind: string | null;
   state: TaskState;
   pid: number | null;

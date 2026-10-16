@@ -117,6 +117,7 @@ class LocalTaskManager(BaseTaskManager):
                             reg_name=registration_name,
                             source=TASK_SOURCE.get(),
                             report_kind=task.report_kind,
+                            category=task.category,
                             input_params=task.input_params.model_dump(mode="json"),
                             state=TaskState.QUEUED,
                             created_at=task.created_at,

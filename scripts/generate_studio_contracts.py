@@ -6,6 +6,8 @@ from pathlib import Path
 
 from pydantic import TypeAdapter
 
+from axonx.config.models import StudioPage
+from axonx.components.scheduler.history import ScheduleRun
 from axonx.components.agent.contracts import AgentHistoryBlock, AgentMutationResult, AgentSession, AgentSessionInfo
 from axonx.components.job.contracts import JobResponse, JobInfo, JobCatalog
 from axonx.components.job.events import (
@@ -59,6 +61,8 @@ from axonx.workspace.models import (
 )
 
 MODELS = [
+    StudioPage,
+    ScheduleRun,
     TaskSummary,
     TaskView,
     TaskGraph,

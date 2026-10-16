@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict
 
 from ...components.registry import ProviderRegistry
-from ...enums import ComponentEnum, TaskType
+from ...enums import ComponentEnum, TaskCategory, TaskType
 from ...plugin_kit import index_contributions, list_installed_plugins
 from ...plugin_kit.environment import serialized
 from ...plugin_kit.loading import load_symbol
@@ -20,6 +20,7 @@ class TaskDefinition(BaseModel):
     name: str
     source: Literal["native", "plugin"]
     plugin: str | None = None
+    category: TaskCategory | None = None
     task_type: TaskType
     description: str
     input_schema: dict[str, Any]
@@ -69,6 +70,7 @@ def _task_definition(name: str, task_class: type[BaseTask], plugin: str | None) 
         source="plugin" if plugin is not None else "native",
         plugin=plugin,
         task_type=task_type,
+        category=task_class.category,
         description=cleandoc(task_class.__doc__ or "").strip(),
         input_schema=task_class.input_cls.model_json_schema(),
         output_schema=task_class.output_cls.model_json_schema(),

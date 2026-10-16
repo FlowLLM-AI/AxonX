@@ -6,7 +6,7 @@ import i18n from "../../i18n";
 import { seed } from "../../playground/fixtures";
 import { createPlayground } from "../../playground/runtime";
 import { AxonXClient, configureClient } from "../../shared/api/client";
-import OnlinePage from "./OnlinePage";
+import ReportPage from "../operations/ReportPage";
 import { parseHistory, parseStockReport } from "./report";
 
 vi.mock("../research/backtest/BacktestChart", () => ({
@@ -53,14 +53,7 @@ it.each(
       value: 390,
     });
     await act(async () =>
-      root.render(
-        <OnlinePage
-          initialTaskId={taskId}
-          onSelected={vi.fn()}
-          onConnection={vi.fn()}
-          onOpenTask={vi.fn()}
-        />,
-      ),
+      root.render(<ReportPage taskId={taskId} onOpenTask={vi.fn()} />),
     );
     expect(container.textContent).toContain("Synthetic 1");
     expect(container.textContent).toContain(
@@ -140,14 +133,7 @@ it("uses the latest manifest commit when lifecycle metadata still points to an o
     }, false),
   );
   await act(async () =>
-    root.render(
-      <OnlinePage
-        initialTaskId={taskId}
-        onSelected={vi.fn()}
-        onConnection={vi.fn()}
-        onOpenTask={vi.fn()}
-      />,
-    ),
+    root.render(<ReportPage taskId={taskId} onOpenTask={vi.fn()} />),
   );
   expect(
     container.querySelector<HTMLSelectElement>(

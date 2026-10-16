@@ -18,12 +18,13 @@
     "closeNavigation": "关闭导航",
     "loading": "正在加载…",
     "groups": {
-      "run": "运行",
-      "submit": "提交",
-      "research": "研究"
+      "run": "运行管理",
+      "submit": "开发",
+      "research": "研究",
+      "operations": "日常运行"
     },
     "navigation": {
-      "tasks": "任务管理",
+      "tasks": "全部任务",
       "resources": "机器资源",
       "agent": "智能体",
       "taskDefs": "提交任务",
@@ -34,8 +35,7 @@
       "train": "模型训练",
       "predict": "离线预测",
       "backtest": "离线回测",
-      "compare": "策略对比",
-      "online": "在线链路"
+      "compare": "策略对比"
     },
     "switchLanguageLabel": "EN"
   },
@@ -1083,5 +1083,25 @@
   "taskOwnership": {
     "managed": "当前服务管理",
     "workspace": "工作区记录"
+  },
+  "operations": {
+    "loadError": "无法加载业务导航",
+    "unavailable": "此服务未配置该页面",
+    "search": "搜索调度或任务",
+    "history": "近期调度记录",
+    "noTriggers": "尚未触发",
+    "finished": "完成时间",
+    "result": "执行结果",
+    "allRuns": "全部运行（含手动）",
+    "empty": "暂无匹配的任务",
+    "dataProgress": "数据更新进度",
+    "children": "下载子任务",
+    "metrics": {
+      "uploaded": "已上传",
+      "rejected": "已拒绝",
+      "oversized": "超出大小限制",
+      "deferred": "待重试",
+      "archives": "传输包数"
+    }
   }
 }

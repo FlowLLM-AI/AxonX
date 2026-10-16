@@ -7,7 +7,7 @@ export type {
   ScheduleTrigger,
   TaskSource,
 } from "../../shared/api/contracts";
-import type { TaskState, ScheduleTrigger } from "../../shared/api/contracts";
+import type { ScheduleRun } from "../../shared/api/contracts";
 
 export interface Schedule {
   scheduler_id: string;
@@ -20,7 +20,8 @@ export interface Schedule {
   concurrency_policy: "allow" | "forbid" | "replace";
   next_run_at: string | null;
   running: number;
-  last_trigger: (ScheduleTrigger & { state: TaskState; error: string }) | null;
+  last_trigger: ScheduleRun | null;
+  history?: ScheduleRun[];
 }
 
 export type { TaskView as TaskMetadata } from "../../shared/api/contracts";
@@ -38,3 +39,10 @@ export type TaskDefinition = Omit<
 };
 
 export type { TaskHandle } from "../../shared/api/contracts";
+
+export interface TaskRunIdentity {
+  task_id: string;
+  run_id: string;
+  reg_name: string;
+  display_name?: string;
+}

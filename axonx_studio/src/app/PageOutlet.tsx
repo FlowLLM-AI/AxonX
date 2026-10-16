@@ -6,8 +6,12 @@ import type { MachineNode } from "../features/machines/types";
 import { researchSections } from "./navigation";
 import { defaultRoute } from "./routes";
 import type { AppRoute, SectionId } from "./routes";
+import type { StudioPage } from "../shared/api/contracts";
 
-const OnlinePage = lazy(() => import("../features/online/OnlinePage"));
+const OperationPage = lazy(
+  () => import("../features/operations/OperationPage"),
+);
+const ReportPage = lazy(() => import("../features/operations/ReportPage"));
 const HomePage = lazy(() => import("../features/HomePage"));
 const RuntimeWorkspace = lazy(
   () => import("../features/runtime/RuntimeWorkspace"),
@@ -24,6 +28,8 @@ const SubmitPage = lazy(() => import("../features/task-submit/SubmitPage"));
 const AgentWorkspace = lazy(() => import("../features/agent/AgentWorkspace"));
 
 interface PageOutletProps {
+  operationPages: StudioPage[];
+  operationPagesError: string;
   route: AppRoute;
   machine: MachineNode;
   target?: string;
@@ -34,6 +40,8 @@ interface PageOutletProps {
 }
 
 export function PageOutlet({
+  operationPages,
+  operationPagesError,
   route,
   machine,
   target,
@@ -42,6 +50,7 @@ export function PageOutlet({
   setResourceOptions,
   setServiceOnline,
 }: PageOutletProps) {
+  const { t } = useTranslation();
   let page: React.ReactNode = null;
 
   if (route.section === "home") {
@@ -122,16 +131,36 @@ export function PageOutlet({
         onOptionsChange={setResourceOptions}
       />
     );
-  } else if (route.section === "online") {
-    page = (
-      <OnlinePage
-        key={target || "local"}
+  } else if (route.section === "operations") {
+    const definition = operationPages.find((page) => page.id === route.view);
+    page = definition ? (
+      <OperationPage
+        key={`${target}:${definition.id}`}
+        page={definition}
         target={target}
-        initialTaskId={route.resource}
+        initialResource={route.resource}
         onSelected={(resource) =>
-          navigate({ section: "online", view: "runs", resource })
+          navigate({ ...route, resource: resource || undefined })
         }
+        onOptionsChange={setResourceOptions}
         onConnection={setServiceOnline}
+        onOpenTask={(resource) =>
+          navigate({ section: "runtime", view: "task", resource })
+        }
+      />
+    ) : (
+      <div className="empty-research">
+        <p role="status">
+          {operationPagesError || t("operations.unavailable")}
+        </p>
+      </div>
+    );
+  } else if (route.section === "report" && route.resource) {
+    page = (
+      <ReportPage
+        key={`${target}:${route.resource}`}
+        taskId={route.resource}
+        target={target}
         onOpenTask={(resource) =>
           navigate({ section: "runtime", view: "task", resource })
         }

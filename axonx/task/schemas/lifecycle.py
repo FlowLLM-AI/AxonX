@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ...enums import TaskState, TaskType
+from ...enums import TaskCategory, TaskState, TaskType
 from ...progress import TaskStepStatus
 from .protocol import Protocol
 from .replica import DisplayReplica
@@ -34,6 +34,8 @@ class TaskStatus(BaseModel):
     task_type: TaskType
     reg_name: str = ""
     source: TaskSource = Field(default_factory=TaskSource)
+    parent_run_id: str | None = None
+    category: TaskCategory | None = None
     report_kind: str | None = None
     state: TaskState = TaskState.QUEUED
     pid: int | None = None

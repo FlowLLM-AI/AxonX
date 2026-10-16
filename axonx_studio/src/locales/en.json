@@ -18,12 +18,13 @@
     "closeNavigation": "Close navigation",
     "loading": "Loading…",
     "groups": {
-      "run": "Run",
-      "submit": "Submit",
-      "research": "Research"
+      "run": "Runtime",
+      "submit": "Development",
+      "research": "Research",
+      "operations": "Daily operations"
     },
     "navigation": {
-      "tasks": "Task management",
+      "tasks": "All tasks",
       "resources": "Machine resources",
       "agent": "Agent",
       "taskDefs": "Submit task",
@@ -34,8 +35,7 @@
       "train": "Model training",
       "predict": "Offline prediction",
       "backtest": "Offline backtest",
-      "compare": "Strategy comparison",
-      "online": "Online pipeline"
+      "compare": "Strategy comparison"
     },
     "switchLanguageLabel": "中文"
   },
@@ -1083,5 +1083,25 @@
   "taskOwnership": {
     "managed": "Managed by this service",
     "workspace": "Workspace record"
+  },
+  "operations": {
+    "loadError": "Unable to load operations navigation",
+    "unavailable": "This page is not configured on this service",
+    "search": "Search schedules or tasks",
+    "history": "Recent triggers",
+    "noTriggers": "No triggers yet",
+    "finished": "Finished",
+    "result": "Execution result",
+    "allRuns": "All runs (including manual)",
+    "empty": "No matching tasks",
+    "dataProgress": "Data update progress",
+    "children": "Download tasks",
+    "metrics": {
+      "uploaded": "Uploaded",
+      "rejected": "Rejected",
+      "oversized": "Oversized",
+      "deferred": "Pending retry",
+      "archives": "Archives"
+    }
   }
 }

@@ -7,6 +7,9 @@ from .models import (
     PluginConfig,
     TargetConfig,
     ScheduleConfig,
+    StudioConfig,
+    StudioPageConfig,
+    StudioPage,
 )
 from .resolver import (
     ConfigResolver,
@@ -24,6 +27,9 @@ __all__ = [
     "PluginConfig",
     "TargetConfig",
     "ScheduleConfig",
+    "StudioConfig",
+    "StudioPageConfig",
+    "StudioPage",
     "convert_value",
     "deep_merge_config",
     "expand_env_vars",

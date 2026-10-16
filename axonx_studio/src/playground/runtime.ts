@@ -13,6 +13,7 @@ import {
   epoch,
   json,
   schedules,
+  studioPages,
   seed,
   taskStatus,
 } from "./fixtures";
@@ -221,6 +222,8 @@ export function createPlayground(): Transport {
           });
         case "list_installed_task_definitions":
           return response(definitions);
+        case "list_studio_pages":
+          return response(studioPages);
         case "list_schedules":
           return response(schedules);
         case "list_task_statuses":

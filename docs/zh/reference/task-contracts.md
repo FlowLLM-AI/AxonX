@@ -172,9 +172,11 @@ Runner 将进度更新和 metadata 发布串行化；具名子步骤计数每秒
 
 `children` 是子任务调用生命周期的唯一记录。模型计划来自校验后的输入，界面从子任务记录读取执行状态，从子任务 steps 读取内部阶段。同名子任务目录只保存最新调用，早先 attempt 保留在父记录中；展示同步只捕获每个目录的最新调用。遇到非预期替换 Run 时拒绝同步，不自动替换引用。
 
-Task 声明 `report_kind = "online_pipeline"` 或 `"compare_pipeline"` 接入 Studio 在线索引。在线计划按信号时点组织模型；夜间复核计划使用模型列表，展示公共准备和逐模型阶段。两者都使用 `metadata.steps` 表达进度，使用 `metadata.children` 关联精确 Run，包括嵌套复合任务。`run_task(..., task_name="model-1445")` 显式命名子任务，默认节点名为 `<task_name>-<registration>`；省略 `task_name` 时继承父名称，默认节点名为注册名；生命周期、来源继承和资源回收由框架负责。移除 Activity metadata/事件及独立 live 索引响应，不提供兼容读取；使用这些未发布契约生成的记录需要重建，插件、源服务、接收服务和 Studio 须一起升级。
+Task 声明 `report_kind = "online_pipeline"` 或 `"compare_pipeline"` 选择 Studio 报告；业务索引根据 TaskCategory 分类。在线计划按信号时点组织模型；夜间复核计划使用模型列表，展示公共准备和逐模型阶段。两者都使用 `metadata.steps` 表达进度，使用 `metadata.children` 关联精确 Run，包括嵌套复合任务。`run_task(..., task_name="model-1445")` 显式命名子任务，默认节点名为 `<task_name>-<registration>`；省略 `task_name` 时继承父名称，默认节点名为注册名；生命周期、来源继承和资源回收由框架负责。移除 Activity metadata/事件及独立 live 索引响应，不提供兼容读取；使用这些未发布契约生成的记录需要重建，插件、源服务、接收服务和 Studio 须一起升级。
 
 按组同步的展示副本携带 `replica.snapshot`（来源、父 Task/Run、捕获时间及版本）和 `replica.log`（路径及原始字节范围），保留源状态、清空 PID 且只读。参见[展示同步](../guides/task-sync.md)。
+
+Task 类可独立于 `task_type`、`report_kind` 声明 `category: TaskCategory | None`（`data_update`、`online_prediction`、`comparison`）。定义、排队记录、持久化 metadata 和列表摘要均暴露分类。进程内复合子任务同时记录 `parent_run_id`，业务索引据此隐藏嵌套运行，保留子任务本身的分类。缺失分类及父运行字段时默认 null，不根据 Task 名称猜测旧记录分类。
 
 ## 业务时钟与事件回放
 

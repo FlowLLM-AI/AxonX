@@ -133,6 +133,7 @@ class BaseCompositeTask(BaseTask, ABC):
             timezone=self._child_timezone,
             run_id=record.run_id,
             source=self.context.source,
+            parent_run_id=self.context.run_id,
         )
         child.clock = self.clock
         record.task_id = child.task_id

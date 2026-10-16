@@ -118,32 +118,26 @@ All requests, including streams, go through `AxonXClient.request`. The default t
 
 Refresh or use **Reset demo** to recreate initial state. There is no persisted execution state. Tests exercise data contracts, pagination, lifecycle, deletion, stream cleanup, scripted conversations and network isolation. Verify both normal and Playground builds; the website verifier checks the merged Playground entry and asset paths.
 
-## Online pipeline
+## Application operations pages
 
-The **Online pipeline** navigation opens `#local/online/runs` and lists composites declaring `report_kind=online_pipeline` or `compare_pipeline`. Details show the trading day, parent run, collection steps, signal-time model children, internal phases, deadlines, request counts, usable coverage, committed files and logs. Ordinary historical API downloads are excluded from realtime collection; the page uses the shared research task index, search and resizable detail layout without category tabs. Pipeline, collection, inference and comparison details use one report component. Child details must match both Task ID and the parent's recorded Run ID; replacement runs are never presented as the original invocation.
+`default.yaml` declares four generic pages (sync, data, online, comparison). Applications bind schedules and override labels through `studio.pages`; AxonX exposes them through the authenticated, target-aware `list_studio_pages` Job. The selected service owns navigation: AxonX does not hardcode plugin Task names or schedule names. Pages appear under **Daily operations** and use `#local/operations/<page-id>`. The old mixed `online/runs` route is removed. Standalone reports use `#local/report/task/<encoded-task-id>`.
 
-Nightly comparison shows shared downloads, historical preparation, source checks, prediction, comparison outcomes and evaluation. Skipped stages include their reason; terminal tasks never leave model summaries waiting. Historical preparation and download composites expand recursively, with one status request per Task ID and exact Run checks for every reference. Replaced Runs remain unavailable rather than borrowing a newer result or log. The Playground includes a synthetic nightly chain with nested ETL, revised-source differences and missing-online skips.
+```yaml
+studio:
+  pages:
+    downloads:
+      title: { en: Data updates, zh: 数据更新 }
+      view: tasks
+      schedules: [daily_download]
+      category: data_update
+```
 
-The page reuses same-origin Task Jobs and preserves the selected machine. Lists, details and followed logs use the shared five-second polling default while visible, including completed replicas; the index also polls while idle to discover scheduled runs. A bounded, cancellable incremental log panel is shared with Task details and switches between the whole pipeline and individual children. Artifact and quality reports reuse existing components; signal publication remains distinct from run status. Progress comes from metadata.steps and outcomes from output_params, without directory scanning or log parsing. Switching targets/pages cleans up obsolete requests and polling. Task details poll metadata and read bounded log ranges without also downloading logs through SSE.
+Use `view: schedules` for Job-only schedules (no category; an empty schedule list shows no configured sync jobs), `tasks` for Task progress and recursive child logs, or `pipeline` for online/comparison reports. Task pages require a `TaskCategory`: `data_update`, `online_prediction` or `comparison`. Plugin classes declare `category = TaskCategory.DATA_UPDATE`, for example. Category is independent of `TaskType`, storage identity and `report_kind`; the same composite execution type can belong to different operational pages. Categories are published in installed definitions, queued metadata, running metadata and summaries. Existing records without a category stay in **All tasks**; rerun to produce categorized records. Composite children retain their category and record `parent_run_id`; page indexes show only root invocations. Manual root runs appear alongside scheduled ones.
 
-For a preview without Python or credentials, run `npm run dev:playground` and open `http://localhost:4173/AxonX/playground/#local/online/runs`. Synthetic examples include complete/partial/skipped collection, successful inference and input timeout, identical predictions, revised source differences, protocol mismatch and missing inputs. They illustrate contracts only and do not run an a_stock model or prove migration equivalence.
+Schedules are listed separately even when two triggers submit the same registered Task. Selecting a schedule filters its Task runs by source name; **All runs** also includes manual runs. Unknown page IDs and unavailable services have explicit empty/error states. Navigation reloads on machine or credential changes and refreshes every minute; page data, child progress and logs poll every five seconds, including while idle.
 
-Stock inference adds Signals, Simulated portfolio, Forward performance, Signal history and Runtime tabs. Read `output_params.report` and the authoritative `persistent/online/manifest.json`, then load Parquet artifacts by role. Default to the latest commit, including publications made before a run failed to update its metadata. Tables support sorting, search, buyability filtering and pagination; date and revision selectors retain original publication provenance. Portfolio views show positions, simulated orders and closed trades; performance reuses backtest charts for net returns, drawdown, turnover and costs with date-range selection. Stale reports, missing dates and suspension assumptions remain visible. The Playground includes twelve signal dates and a retained replacement revision.
+Cron schedulers atomically persist trigger state and bounded results under `workspace/schedules/<sha256-name>.json`: all active triggers and the latest 50 finished triggers. Results exceeding 16 KiB are represented by a truncated summary. Finished records survive service restart; unfinished records are marked cancelled with an interruption reason. Scheduler IDs remain process-specific. The schedule page displays last result metrics, errors, completion time and recent trigger details; scheduled Job success means the Job finished, while a submitted Task has its own lifecycle. Task records and artifacts keep their existing persistence semantics: a same-name rerun replaces the current Run.
 
-### Online data quality
+Online reports show realtime collection, historical preparation and timed model inference. Comparison reports show shared downloads, per-model ETL, online-source checks, prediction differences and backtests. They share reporting components but have separate configured pages. Child details and selectable logs match both Task ID and exact Run ID; replaced runs cannot supply another invocation's results. Signal publication remains distinct from execution status.
 
-The stock report's **Data quality** tab reads versioned `quality_summary` and `quality_details` artifacts from the selected immutable commit. Runtime windows and Task details also display `windows[].metrics.quality`, including failed collection/inference windows. Tables show input, remaining, matched and removed counts, actions, coverage and thresholds. Reason counts may overlap. Warnings do not add filters. Samples are expandable; full security details load on demand with target/cancellation preserved, support search and can be exported as JSON. Old records show an empty state. A failed/current run's diagnostics remain separate from the previous successful signal's date/time. Playground includes synthetic diagnostics for visual verification.
-
-### Data ownership and loading
-
-Successful JSON/YAML previews carry parsed `data`; `content` is empty. A failed
-parse retains `content` for error inspection. Consumers must not depend on a
-second serialized representation of successfully parsed data.
-
-Online report tabs share a report-owned artifact table cache keyed by service,
-Task, path, and SHA256. It coalesces requests, retains at most 32 tables within a
-16 MiB serialized-text budget, and aborts pending work when the report is disposed.
-This budget estimates retained payload size, not JavaScript heap usage. Failed
-requests are retried, and oversized tables are not retained. Cancelling one tab
-must not cancel another tab's shared request. Async resources expose data only
-for the current loader identity, preventing cross-machine stale responses.
+Run `npm run dev:playground` and open `http://localhost:4173/AxonX/playground/#local/operations/online` for synthetic operations examples. The sync, data and nightly pages are independent examples; Playground resets on reload and does not demonstrate disk persistence or execute plugin algorithms.

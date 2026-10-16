@@ -12,8 +12,11 @@ import {
   Sparkles,
   Settings2,
   Workflow,
+  RefreshCw,
+  Database,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import type { StudioPage } from "../shared/api/contracts";
 import type { AppRoute, SectionId } from "./routes";
 
 export interface NavigationItem {
@@ -24,7 +27,7 @@ export interface NavigationItem {
 }
 
 export interface NavigationGroup {
-  id: "run" | "submit" | "research";
+  id: "operations" | "run" | "submit" | "research";
   labelKey: string;
   items: NavigationItem[];
 }
@@ -119,12 +122,6 @@ export const navigationGroups: NavigationGroup[] = [
         labelKey: "shell.navigation.backtest",
       },
       {
-        id: "online",
-        route: { section: "online", view: "runs" },
-        icon: Activity,
-        labelKey: "shell.navigation.online",
-      },
-      {
         id: "compare",
         route: { section: "compare", view: "strategies" },
         icon: GitCompareArrows,
@@ -136,12 +133,37 @@ export const navigationGroups: NavigationGroup[] = [
 
 export const navigationItems = navigationGroups.flatMap((group) => group.items);
 
-export function navigationItemForRoute(route: AppRoute): NavigationItem {
+export function configuredNavigation(
+  pages: StudioPage[],
+  language: "en" | "zh",
+): NavigationGroup[] {
+  const operations: NavigationGroup = {
+    id: "operations",
+    labelKey: "shell.groups.operations",
+    items: pages.map((page) => ({
+      id: `operation-${page.id}`,
+      route: { section: "operations", view: page.id },
+      icon:
+        page.view === "schedules"
+          ? RefreshCw
+          : page.view === "tasks"
+            ? Database
+            : Activity,
+      labelKey: page.title[language],
+    })),
+  };
+  return [...(pages.length ? [operations] : []), ...navigationGroups];
+}
+
+export function navigationItemForRoute(
+  route: AppRoute,
+  items = navigationItems,
+): NavigationItem {
   return (
-    navigationItems.find(
+    items.find(
       (item) =>
         item.route.section === route.section &&
-        (route.section !== "runtime" ||
+        ((route.section !== "runtime" && route.section !== "operations") ||
           item.route.view === route.view ||
           (item.id === "tasks" && route.view === "task")),
     ) || navigationItems[0]

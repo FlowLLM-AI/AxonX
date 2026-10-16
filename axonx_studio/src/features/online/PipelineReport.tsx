@@ -4,7 +4,7 @@ import { getTaskStatus } from "../tasks/api";
 import { TaskChildren } from "../tasks/TaskChildren";
 import { readTaskChildren } from "../tasks/tree";
 import { ComparePipeline } from "./ComparePipeline";
-import type { TaskSummary } from "../tasks/types";
+import type { TaskRunIdentity } from "../tasks/types";
 import { TaskSteps } from "../tasks/TaskSteps";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
@@ -20,7 +20,7 @@ export function PipelineReport({
   target,
   onOpenTask,
 }: {
-  task: TaskSummary;
+  task: TaskRunIdentity;
   target?: string;
   onOpenTask: (id: string) => void;
 }) {
@@ -85,14 +85,18 @@ export function PipelineReport({
   );
   const models = planned.flatMap(([slot, entries]) =>
     entries.map((model) => {
-      const id = `${model.task_name}-${slot}-a_stock_online_predict`;
+      const id = `${model.task_name}:${slot}`;
       return {
         slot,
         name: model.task_name,
         id,
         record: [...parent.children]
           .reverse()
-          .find((child) => child.node_name === id),
+          .find(
+            (child) =>
+              child.node_name === `${model.task_name}-${slot}-${child.task}` &&
+              child.task_id?.startsWith("inference#"),
+          ),
       };
     }),
   );
@@ -263,8 +267,8 @@ export function PipelineReport({
             steps={parent.steps.filter((step) => step.group === "history")}
           />
           <TaskChildren
-            records={parent.children.filter(
-              (child) => child.task === "a_stock_history",
+            records={parent.children.filter((child) =>
+              child.task_id?.startsWith("composite#"),
             )}
             nodes={children}
             onOpenTask={onOpenTask}

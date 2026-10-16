@@ -3,6 +3,7 @@ import { RefreshCw, Search } from "lucide-react";
 /** Shared task index heading, refresh and search used by research workbenches. */
 export function RunIndexControls({
   title,
+  eyebrow = "TASK VERSIONS",
   count,
   loading,
   query,
@@ -12,6 +13,7 @@ export function RunIndexControls({
   onQuery,
 }: {
   title: string;
+  eyebrow?: string;
   count: number;
   loading: boolean;
   query: string;
@@ -24,7 +26,7 @@ export function RunIndexControls({
     <>
       <header className="run-index-header rail-header">
         <div className="run-index-heading rail-heading">
-          <small>TASK VERSIONS</small>
+          <small>{eyebrow}</small>
           <strong>{title}</strong>
         </div>
         <div className="run-index-tools">

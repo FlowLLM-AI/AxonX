@@ -38,8 +38,12 @@ export function ComparePipeline({
         steps={parent.steps.filter((step) => step.group === "download")}
       />
       <TaskChildren
-        records={parent.children.filter(
-          (child) => child.task === "tushare_mins",
+        records={parent.children.filter((child) =>
+          nodes.some(
+            (node) =>
+              node.record.run_id === child.run_id &&
+              node.status?.category === "data_update",
+          ),
         )}
         nodes={nodes}
         onOpenTask={onOpenTask}
@@ -65,7 +69,7 @@ export function ComparePipeline({
           (child) =>
             child.node_name === `${model.task_name}-${child.task}` ||
             child.node_name ===
-              `${model.task_name}-${parent.input_params.trade_time}-a_stock_history`,
+              `${model.task_name}-${parent.input_params.trade_time}-${child.task}`,
         );
         return (
           <section className="pipeline-model" key={model.task_name}>
@@ -82,7 +86,8 @@ export function ComparePipeline({
             {nodes
               .filter(
                 (node) =>
-                  node.status?.reg_name === "a_stock_prediction_compare" &&
+                  node.status?.report_kind === "online" &&
+                  Array.isArray(node.status.output_params.comparisons) &&
                   records.some(
                     (record) => record.run_id === node.status?.run_id,
                   ),

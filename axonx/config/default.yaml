@@ -302,6 +302,14 @@ jobs:
     steps:
       - backend: wait_task
 
+  list_studio_pages:
+    description: List application-defined Studio operations pages.
+    parameters:
+      type: object
+      additionalProperties: false
+    steps:
+      - backend: list_studio_pages_step
+
   list_schedules:
     description: List configured schedules and their current trigger status.
     parameters:
@@ -732,6 +740,24 @@ jobs:
     steps:
       - backend: cancel_agent_turn_step
         agent: default
+
+studio:
+  pages:
+    sync:
+      title: { en: Synchronization, zh: 同步 }
+      view: schedules
+    data:
+      title: { en: Data updates, zh: 数据更新 }
+      view: tasks
+      category: data_update
+    online:
+      title: { en: Online prediction, zh: 在线预测 }
+      view: pipeline
+      category: online_prediction
+    comparison:
+      title: { en: Comparison, zh: 比对 }
+      view: pipeline
+      category: comparison
 
 schedules: {}
 # Replace schedules: {} with uncommented examples to enable.

@@ -21,9 +21,7 @@ export interface OnlineReport {
 export const isOnlineTask = (task: TaskMetadata | TaskSummary) =>
   !("output_params" in task)
     ? task.is_online === true
-    : ["online", "online_pipeline", "compare_pipeline"].includes(
-        task.report_kind || "",
-      );
+    : ["online", "online_pipeline"].includes(task.report_kind || "");
 
 export function parseOnlineReport(value: unknown): OnlineReport {
   if (!isRecord(value)) throw new Error("Invalid online report");
@@ -87,3 +85,8 @@ export function parseOnlineReport(value: unknown): OnlineReport {
   }
   return value as OnlineReport;
 }
+
+export const hasTaskReport = (task: TaskMetadata) =>
+  ["online", "online_pipeline", "compare_pipeline"].includes(
+    task.report_kind || "",
+  );

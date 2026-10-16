@@ -8,6 +8,9 @@ import { AppShell } from "./AppShell";
 import { defaultRoute } from "./routes";
 import { useStudio } from "./useStudio";
 
+vi.mock("../features/operations/api", () => ({
+  listStudioPages: vi.fn().mockResolvedValue([]),
+}));
 vi.mock("../features/machines/api", () => ({
   listMachineOptions: vi.fn(),
   machineStatus: vi.fn(),

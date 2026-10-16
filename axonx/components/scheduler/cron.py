@@ -17,6 +17,7 @@ from ...task.runtime.source import TASK_SOURCE
 from ...task.schemas.lifecycle import ScheduleTrigger, TaskSource
 from ..registry import provider
 from .base import BaseScheduler
+from .history import history_path, load_history, save_history, trigger_result
 
 ConcurrencyPolicy = Literal["forbid", "allow", "replace"]
 
@@ -54,6 +55,7 @@ class CronScheduler(BaseScheduler):
         self.cron = cron
         self.arguments = dict(arguments or {})
         self.concurrency_policy = concurrency_policy
+        self.history: list[dict] = []
         self.last_trigger: dict | None = None
         self.scheduler_id = uuid4().hex
         self._runner: asyncio.Task[None] | None = None
@@ -64,6 +66,9 @@ class CronScheduler(BaseScheduler):
         if job is None:
             raise ValueError(f"Unknown scheduled Job: {self.job_name!r}")
         job.validate_arguments(self.arguments)
+        self.history = load_history(history_path(self.workspace_path, self.name))
+        self.last_trigger = self.history[-1] if self.history else None
+        self._persist_history()
         self._runner = asyncio.create_task(
             self._run_forever(),
             name=f"axonx-scheduler:{self.name}",
@@ -82,7 +87,11 @@ class CronScheduler(BaseScheduler):
             "next_run_at": self._next_run().isoformat() if self.is_started else None,
             "running": sum(not task.done() for task in self._executions),
             "last_trigger": deepcopy(self.last_trigger),
+            "history": deepcopy(self.history),
         }
+
+    def _persist_history(self) -> None:
+        save_history(history_path(self.workspace_path, self.name), self.history)
 
     def _next_run(self, now: datetime | None = None) -> datetime:
         return croniter(self.cron, now or datetime.now(self.timezone)).get_next(datetime)
@@ -132,8 +141,16 @@ class CronScheduler(BaseScheduler):
             triggered_at=datetime.now(UTC),
             scheduler_id=self.scheduler_id,
         )
-        result = {**trigger.model_dump(mode="json"), "state": "running", "error": ""}
+        result = {
+            **trigger.model_dump(mode="json"),
+            "state": "running",
+            "error": "",
+            "finished_at": None,
+            "result": None,
+        }
+        self.history.append(result)
         self.last_trigger = result
+        self._persist_history()
         token = TASK_SOURCE.set(TaskSource(kind="submit", schedule=trigger))
         try:
             response = await self.app_context.dispatcher.run(self.job_name, self.arguments)
@@ -141,17 +158,20 @@ class CronScheduler(BaseScheduler):
             result["state"] = "cancelled"
             raise
         except Exception as exc:
-            result.update(state="failed", error=str(exc))
+            result.update(state="failed", error=str(exc)[:2000])
             self.logger.exception(f"Scheduled Job {self.job_name!r} raised")
         else:
             result.update(
                 state="succeeded" if response.success else "failed",
-                error="" if response.success else str(response.answer),
+                error="" if response.success else str(response.answer)[:2000],
+                result=trigger_result(response.answer),
             )
             if not response.success:
                 self.logger.warning(f"Scheduled Job {self.job_name!r} failed: {response.answer}")
         finally:
             TASK_SOURCE.reset(token)
+            result["finished_at"] = datetime.now(UTC).isoformat()
+            self._persist_history()
 
     async def _close(self) -> None:
         runner, self._runner = self._runner, None
