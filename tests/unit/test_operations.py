@@ -158,7 +158,7 @@ def test_composite_child_keeps_exact_parent_run(tmp_path, monkeypatch):
 
 def test_default_pages_are_generic_and_do_not_bind_plugin_schedule_names():
     config = ApplicationConfig.model_validate(resolve_app_config(log_config=False))
-    assert list(config.studio.pages) == ["sync", "data", "online", "comparison"]
+    assert list(config.studio.pages) == ["online", "comparison", "data", "sync"]
     assert all(not page.schedules for page in config.studio.pages.values())
     assert config.studio.pages["data"].category == TaskCategory.DATA_UPDATE
     assert config.studio.pages["comparison"].category == TaskCategory.COMPARISON

@@ -18,10 +18,10 @@
     "closeNavigation": "Close navigation",
     "loading": "Loading…",
     "groups": {
-      "run": "Runtime",
-      "submit": "Development",
       "research": "Research",
-      "operations": "Daily operations"
+      "operations": "Daily operations",
+      "system": "System management",
+      "development": "Development tools"
     },
     "navigation": {
       "tasks": "All tasks",

@@ -77,15 +77,41 @@ export function AppShell(props: AppShellProps) {
   useEffect(() => {
     if (authRequired) setSettingsOpen(true);
   }, [authRequired]);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    operations: true,
-    run: true,
-    submit: true,
-    research: true,
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved: unknown = JSON.parse(
+        localStorage.getItem("axonx-navigation-groups") || "{}",
+      );
+      if (saved && typeof saved === "object" && !Array.isArray(saved))
+        return Object.fromEntries(
+          Object.entries(saved).filter(
+            ([, value]) => typeof value === "boolean",
+          ),
+        );
+    } catch {
+      /* Ignore invalid local preferences. */
+    }
+    return {};
   });
   const navigationGroups = configuredNavigation(operationPages, language);
   const navigationItems = navigationGroups.flatMap((group) => group.items);
   const section = navigationItemForRoute(route, navigationItems);
+  const activeGroup = navigationGroups.find((group) =>
+    group.items.some(
+      (item) => item.id === section.id && item.route.section === route.section,
+    ),
+  )?.id;
+  useEffect(() => {
+    if (activeGroup)
+      setOpenGroups((current) =>
+        current[activeGroup] === true
+          ? current
+          : { ...current, [activeGroup]: true },
+      );
+  }, [activeGroup, route.section, route.view]);
+  useEffect(() => {
+    localStorage.setItem("axonx-navigation-groups", JSON.stringify(openGroups));
+  }, [openGroups]);
   const machineLabel = selectedMachine.isLocal
     ? t(playground ? "playground.machine" : "shell.local")
     : formatMachineAddress(selectedMachine.address);
@@ -294,20 +320,20 @@ export function AppShell(props: AppShellProps) {
               >
                 <button
                   className="primary-group-toggle"
-                  aria-expanded={openGroups[group.id]}
+                  aria-expanded={openGroups[group.id] ?? group.defaultOpen}
                   aria-controls={`nav-group-${group.id}`}
                   title={t(group.labelKey)}
                   onClick={() =>
                     setOpenGroups((current) => ({
                       ...current,
-                      [group.id]: !current[group.id],
+                      [group.id]: !(current[group.id] ?? group.defaultOpen),
                     }))
                   }
                 >
                   <span>{t(group.labelKey)}</span>
                   <ChevronDown />
                 </button>
-                {openGroups[group.id] && (
+                {(openGroups[group.id] ?? group.defaultOpen) && (
                   <div
                     className="primary-group-items"
                     id={`nav-group-${group.id}`}

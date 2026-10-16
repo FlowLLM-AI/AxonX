@@ -7,6 +7,8 @@ import type { MachineInfo } from "../features/machines/types";
 import { AppShell } from "./AppShell";
 import { defaultRoute } from "./routes";
 import { useStudio } from "./useStudio";
+import { listStudioPages } from "../features/operations/api";
+import { studioPages } from "../playground/fixtures";
 
 vi.mock("../features/operations/api", () => ({
   listStudioPages: vi.fn().mockResolvedValue([]),
@@ -57,6 +59,7 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.clearAllMocks();
   localStorage.clear();
+  vi.mocked(listStudioPages).mockResolvedValue([]);
   window.history.replaceState(null, "", "#local/home/overview");
   vi.stubGlobal(
     "matchMedia",
@@ -133,4 +136,58 @@ describe("Studio backend version", () => {
     await act(async () => remote.resolve(info("current")));
     expect(version()).toBe("vcurrent");
   });
+});
+
+const groupToggle = (id: string) =>
+  container.querySelector<HTMLButtonElement>(`.group-${id} > button`)!;
+
+it("remembers group choices and opens the group when entering a page", async () => {
+  vi.mocked(machineStatus).mockResolvedValue(info("1.0"));
+  vi.mocked(listStudioPages).mockResolvedValue(studioPages);
+  await act(async () => root.render(<Harness />));
+  expect(
+    [...container.querySelectorAll(".primary-nav-group")].map(
+      (el) => el.classList[1],
+    ),
+  ).toEqual([
+    "group-system",
+    "group-operations",
+    "group-research",
+    "group-development",
+  ]);
+  expect(groupToggle("system").getAttribute("aria-expanded")).toBe("true");
+  expect(groupToggle("operations").getAttribute("aria-expanded")).toBe("true");
+  expect(groupToggle("research").getAttribute("aria-expanded")).toBe("false");
+  expect(groupToggle("development").getAttribute("aria-expanded")).toBe(
+    "false",
+  );
+  await act(async () => {
+    groupToggle("system").click();
+    groupToggle("development").click();
+  });
+  expect(JSON.parse(localStorage.getItem("axonx-navigation-groups")!)).toEqual({
+    system: false,
+    development: true,
+  });
+  await act(async () => root.unmount());
+  root = createRoot(container);
+  await act(async () => root.render(<Harness />));
+  expect(groupToggle("system").getAttribute("aria-expanded")).toBe("false");
+  expect(groupToggle("development").getAttribute("aria-expanded")).toBe("true");
+  await act(async () => studio.navigate(defaultRoute("train")));
+  expect(groupToggle("research").getAttribute("aria-expanded")).toBe("true");
+  await act(async () => groupToggle("research").click());
+  expect(groupToggle("research").getAttribute("aria-expanded")).toBe("false");
+  await act(async () => studio.navigate(defaultRoute("predict")));
+  expect(groupToggle("research").getAttribute("aria-expanded")).toBe("true");
+});
+
+it("ignores malformed group preferences and expands direct-linked pages", async () => {
+  vi.mocked(machineStatus).mockResolvedValue(info("1.0"));
+  localStorage.setItem("axonx-navigation-groups", "invalid-json");
+  window.history.replaceState(null, "", "#local/apis/catalog");
+  await act(async () => root.render(<Harness />));
+  expect(groupToggle("system").getAttribute("aria-expanded")).toBe("true");
+  expect(groupToggle("development").getAttribute("aria-expanded")).toBe("true");
+  expect(container.querySelector(".nav-apis.active")).not.toBeNull();
 });

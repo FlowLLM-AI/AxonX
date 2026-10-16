@@ -50,20 +50,6 @@ export const schedules: Schedule[] = [
 ];
 export const studioPages: StudioPage[] = [
   {
-    id: "sync",
-    title: { en: "Synchronization", zh: "同步" },
-    view: "schedules",
-    schedules: ["workspace_sync"],
-    category: null,
-  },
-  {
-    id: "data",
-    title: { en: "Data updates", zh: "数据更新" },
-    view: "tasks",
-    schedules: ["data_update"],
-    category: "data_update",
-  },
-  {
     id: "online",
     title: { en: "Online prediction", zh: "在线预测" },
     view: "pipeline",
@@ -76,6 +62,20 @@ export const studioPages: StudioPage[] = [
     view: "pipeline",
     schedules: [],
     category: "comparison",
+  },
+  {
+    id: "data",
+    title: { en: "Data updates", zh: "数据更新" },
+    view: "tasks",
+    schedules: ["data_update"],
+    category: "data_update",
+  },
+  {
+    id: "sync",
+    title: { en: "Synchronization", zh: "同步" },
+    view: "schedules",
+    schedules: ["workspace_sync"],
+    category: null,
   },
 ];
 schedules.push({

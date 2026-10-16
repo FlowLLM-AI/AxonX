@@ -166,12 +166,22 @@ it("keeps configured operation page IDs distinct in routes and navigation", asyn
     await import("./navigation");
   const { studioPages } = await import("../playground/fixtures");
   const groups = configuredNavigation(studioPages, "zh");
-  expect(groups[0].id).toBe("operations");
-  expect(groups[0].items.map((item) => item.labelKey)).toEqual([
-    "同步",
-    "数据更新",
-    "在线预测",
-    "晚间比对",
+  expect(groups.map((group) => group.id)).toEqual([
+    "system",
+    "operations",
+    "research",
+    "development",
+  ]);
+  expect(groups.map((group) => group.items.map((item) => item.id))).toEqual([
+    ["tasks", "resources", "environment"],
+    [
+      "operation-online",
+      "operation-nightly",
+      "operation-data",
+      "operation-sync",
+    ],
+    ["agent", "etl", "factors", "train", "predict", "backtest", "compare"],
+    ["task-defs", "workspace", "apis"],
   ]);
   const items = groups.flatMap((group) => group.items);
   for (const page of studioPages) {

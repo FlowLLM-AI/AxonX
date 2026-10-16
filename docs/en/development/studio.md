@@ -120,6 +120,8 @@ Refresh or use **Reset demo** to recreate initial state. There is no persisted e
 
 ## Application operations pages
 
+The sidebar order is **System management → Daily operations → Research → Development tools**. System management contains all tasks, machine resources and environment; daily operations defaults to online prediction, comparison, data updates and synchronization. Research starts with Agent and follows ETL → factors → training → prediction → backtest → strategy comparison. Development tools contains task submission, workspace and API interfaces. System management and daily operations are expanded by default; the other groups start collapsed. Group preferences persist in browser local storage. Entering a page expands its group, including direct links; the current group can still be collapsed manually. Applications control operations item order through the insertion order of `studio.pages`.
+
 `default.yaml` declares four generic pages (sync, data, online, comparison). Applications bind schedules and override labels through `studio.pages`; AxonX exposes them through the authenticated, target-aware `list_studio_pages` Job. The selected service owns navigation: AxonX does not hardcode plugin Task names or schedule names. Pages appear under **Daily operations** and use `#local/operations/<page-id>`. The old mixed `online/runs` route is removed. Standalone reports use `#local/report/task/<encoded-task-id>`.
 
 ```yaml

@@ -33,6 +33,8 @@ Configure the [Service token](../guides/authentication.md) before starting, then
 
 For frontend development and proxy configuration, see [Studio development](../development/studio.md).
 
+The sidebar is ordered **System management → Daily operations → Research → Development tools**. Start with **All tasks** for overall status; daily operations places online prediction and comparison before data updates and synchronization. **Agent** belongs to Research, and **Submit task**, **Workspace** and **API interfaces** belong to Development tools. Group expansion choices survive refresh; direct links open their enclosing group.
+
 ## Configure the connection
 
 Open **Settings** in the upper-right corner and enter the token used by the local service in **Service token**. The browser saves the local token; use the same settings entry to clear it. The screenshot only shows “Token configured” and contains no credential value.
@@ -81,7 +83,7 @@ The dependency graph shows tasks and upstream relationships. Relationships come 
 | Offline backtest    | Daily curves, quality, and period summaries            | [Interpreting backtests](../research/backtest.md)         |
 | Strategy comparison | Comparison of two backtests over their shared interval | [Strategy comparison](../research/strategy-comparison.md) |
 
-**Workspace** browses the entire configured `workspace_dir`, loading folders on demand with directories first and names in ascending order. Large directories offer **Load more entries**. The root title returns to the workspace root. The entry is in the Run group; Tushare is an ordinary folder. The route is `#local/workspace/files`; old `raw` routes have been removed without redirects. The service connection indicator checks status every 15 seconds. Task-list and service-status polling pause while the browser tab is hidden and check immediately when it becomes visible again; pending requests are not duplicated. Switching machines clears task selections and confirmation dialogs; late cancellation or deletion responses cannot refresh the previous machine or change the current task list. Research and file pages refresh on demand. Copy-success feedback lasts 1.6 seconds and restarts after each copy.
+**Workspace** browses the entire configured `workspace_dir`, loading folders on demand with directories first and names in ascending order. Large directories offer **Load more entries**. The root title returns to the workspace root. The entry is in Development tools; Tushare is an ordinary folder. The route is `#local/workspace/files`; old `raw` routes have been removed without redirects. The service connection indicator checks status every 15 seconds. Task-list and service-status polling pause while the browser tab is hidden and check immediately when it becomes visible again; pending requests are not duplicated. Switching machines clears task selections and confirmation dialogs; late cancellation or deletion responses cannot refresh the previous machine or change the current task list. Research and file pages refresh on demand. Copy-success feedback lasts 1.6 seconds and restarts after each copy.
 
 Research pages read `metadata.json` and `output_params.artifacts`. A run record in the task list does not guarantee that displayable research metadata has been produced. For failed tasks, incomplete fields, or corrupt metadata, investigate details and logs first.
 

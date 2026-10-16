@@ -27,15 +27,17 @@ export interface NavigationItem {
 }
 
 export interface NavigationGroup {
-  id: "operations" | "run" | "submit" | "research";
+  id: "operations" | "system" | "development" | "research";
+  defaultOpen: boolean;
   labelKey: string;
   items: NavigationItem[];
 }
 
 export const navigationGroups: NavigationGroup[] = [
   {
-    id: "run",
-    labelKey: "shell.groups.run",
+    id: "system",
+    defaultOpen: true,
+    labelKey: "shell.groups.system",
     items: [
       {
         id: "tasks",
@@ -55,42 +57,25 @@ export const navigationGroups: NavigationGroup[] = [
         icon: Settings2,
         labelKey: "runtime.environment",
       },
+    ],
+  },
+  {
+    id: "operations",
+    defaultOpen: true,
+    labelKey: "shell.groups.operations",
+    items: [],
+  },
+  {
+    id: "research",
+    defaultOpen: false,
+    labelKey: "shell.groups.research",
+    items: [
       {
         id: "agent",
         route: { section: "agent", view: "new" },
         icon: Bot,
         labelKey: "shell.navigation.agent",
       },
-      {
-        id: "workspace",
-        route: { section: "workspace", view: "files" },
-        icon: Folder,
-        labelKey: "shell.navigation.workspace",
-      },
-    ],
-  },
-  {
-    id: "submit",
-    labelKey: "shell.groups.submit",
-    items: [
-      {
-        id: "task-defs",
-        route: { section: "task-defs", view: "catalog" },
-        icon: FileCode2,
-        labelKey: "shell.navigation.taskDefs",
-      },
-      {
-        id: "apis",
-        route: { section: "apis", view: "catalog" },
-        icon: Network,
-        labelKey: "shell.navigation.apis",
-      },
-    ],
-  },
-  {
-    id: "research",
-    labelKey: "shell.groups.research",
-    items: [
       {
         id: "etl",
         route: { section: "etl", view: "runs" },
@@ -129,6 +114,31 @@ export const navigationGroups: NavigationGroup[] = [
       },
     ],
   },
+  {
+    id: "development",
+    defaultOpen: false,
+    labelKey: "shell.groups.development",
+    items: [
+      {
+        id: "task-defs",
+        route: { section: "task-defs", view: "catalog" },
+        icon: FileCode2,
+        labelKey: "shell.navigation.taskDefs",
+      },
+      {
+        id: "workspace",
+        route: { section: "workspace", view: "files" },
+        icon: Folder,
+        labelKey: "shell.navigation.workspace",
+      },
+      {
+        id: "apis",
+        route: { section: "apis", view: "catalog" },
+        icon: Network,
+        labelKey: "shell.navigation.apis",
+      },
+    ],
+  },
 ];
 
 export const navigationItems = navigationGroups.flatMap((group) => group.items);
@@ -137,22 +147,22 @@ export function configuredNavigation(
   pages: StudioPage[],
   language: "en" | "zh",
 ): NavigationGroup[] {
-  const operations: NavigationGroup = {
-    id: "operations",
-    labelKey: "shell.groups.operations",
-    items: pages.map((page) => ({
-      id: `operation-${page.id}`,
-      route: { section: "operations", view: page.id },
-      icon:
-        page.view === "schedules"
-          ? RefreshCw
-          : page.view === "tasks"
-            ? Database
-            : Activity,
-      labelKey: page.title[language],
-    })),
-  };
-  return [...(pages.length ? [operations] : []), ...navigationGroups];
+  const operations: NavigationItem[] = pages.map((page) => ({
+    id: `operation-${page.id}`,
+    route: { section: "operations", view: page.id },
+    icon:
+      page.view === "schedules"
+        ? RefreshCw
+        : page.view === "tasks"
+          ? Database
+          : Activity,
+    labelKey: page.title[language],
+  }));
+  return navigationGroups
+    .map((group) =>
+      group.id === "operations" ? { ...group, items: operations } : group,
+    )
+    .filter((group) => group.items.length > 0);
 }
 
 export function navigationItemForRoute(

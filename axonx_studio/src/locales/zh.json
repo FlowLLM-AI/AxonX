@@ -18,10 +18,10 @@
     "closeNavigation": "关闭导航",
     "loading": "正在加载…",
     "groups": {
-      "run": "运行管理",
-      "submit": "开发",
-      "research": "研究",
-      "operations": "日常运行"
+      "research": "研究分析",
+      "operations": "日常运行",
+      "system": "系统管理",
+      "development": "开发工具"
     },
     "navigation": {
       "tasks": "全部任务",
