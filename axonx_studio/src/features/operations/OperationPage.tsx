@@ -112,11 +112,11 @@ export default function OperationPage({
     ]);
   }, [data, page.schedules, onOptionsChange]);
   return (
-    <section className="workspace-page research-page online-workbench">
+    <section className="workspace-page research-page online-workbench operations-workbench">
       <div className="research-layout">
         <aside className="run-index rail-panel">
           <RunIndexControls
-            eyebrow="RUN HISTORY"
+            eyebrow={t("operations.runHistory")}
             title={title}
             count={runs.length}
             loading={loading}

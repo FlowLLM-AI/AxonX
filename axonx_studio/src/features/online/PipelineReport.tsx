@@ -6,6 +6,7 @@ import { readTaskChildren } from "../tasks/tree";
 import { ComparePipeline } from "./ComparePipeline";
 import type { TaskRunIdentity } from "../tasks/types";
 import { TaskSteps } from "../tasks/TaskSteps";
+import { Status } from "../tasks/TaskRow";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { usePolling } from "../../shared/hooks/usePolling";
@@ -167,6 +168,7 @@ export function PipelineReport({
             <small>{parent.run_id}</small>
           </details>
         </div>
+        <Status state={parent.state} />
         <button
           className="secondary-button"
           onClick={() => onOpenTask(parent.task_id)}
@@ -302,7 +304,7 @@ export function PipelineReport({
                   <strong>
                     {model.slot} · {model.name}
                   </strong>
-                  <span>
+                  <span className={`online-status status-${modelState}`}>
                     {t(`onlinePipeline.status.${modelState}`, modelState)}
                   </span>
                   {active && (

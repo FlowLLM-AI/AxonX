@@ -1,0 +1,351 @@
+/* Daily operations: compact navigation and a consistent report surface. */
+.operations-workbench .research-canvas {
+  background: var(--surface-2);
+  padding: 28px;
+}
+.operations-workbench .research-canvas > .online-report,
+.operations-workbench .operation-detail {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.operations-workbench .online-report > header,
+.operation-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.operations-workbench .online-report > header > div,
+.operation-detail-header > div {
+  flex: 1;
+  min-width: 0;
+}
+.operations-workbench h2 {
+  margin: 4px 0 8px;
+  font-size: 24px;
+  letter-spacing: -0.6px;
+  overflow-wrap: anywhere;
+}
+.operation-detail-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.operation-job-name {
+  font-size: 12px;
+  color: var(--muted);
+}
+.operation-description {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.operation-config-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.operation-config-strip > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.operation-config-strip svg {
+  width: 15px;
+  height: 15px;
+}
+.operation-config-strip code {
+  color: var(--ink);
+}
+.operation-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  padding: 22px 0;
+  margin: 0;
+}
+.operation-facts dt,
+.operation-metrics dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.operation-facts dd {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.operation-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+  margin: 0 0 24px;
+}
+.operation-metrics > div {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.operation-metrics dd {
+  margin: 10px 0 0;
+  font-size: 26px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.operation-disclosure {
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+  font-size: 12px;
+}
+.operation-disclosure:last-child {
+  padding-bottom: 0;
+}
+.operation-disclosure > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.operations-workbench pre {
+  max-width: 100%;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.operation-index-label {
+  margin: 14px 8px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.operation-group {
+  min-width: 0;
+  margin-bottom: 16px;
+}
+.operation-group > summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  cursor: pointer;
+}
+.operation-group > summary::-webkit-details-marker {
+  display: none;
+}
+.operation-group > summary > svg {
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.operation-group[open] > summary > .operation-chevron {
+  transform: rotate(90deg);
+}
+.operation-group em {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: auto;
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+.operation-group .operation-schedule {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding: 10px;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.operation-group .operation-schedule:hover,
+.operation-runs > article:hover {
+  background: var(--surface-3);
+}
+.operation-group .operation-schedule.active,
+.operation-runs > article.active {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.operation-schedule > svg {
+  width: 17px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.operation-runs {
+  margin: 6px 0 0 16px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.operation-runs > article {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  margin-bottom: 4px;
+}
+.operations-workbench .operation-runs .run-main {
+  width: 100%;
+  grid-template-columns: 28px minmax(0, 1fr) 12px;
+  gap: 10px;
+  padding: 12px 10px;
+}
+.operations-workbench .operation-runs .rail-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: transparent;
+}
+.operations-workbench .rail-avatar svg {
+  width: 16px;
+  height: 16px;
+}
+.operation-run-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.operations-workbench .operation-run-footer .task-state {
+  margin: 0;
+  font-size: 10px;
+}
+.operation-index-empty {
+  margin: 12px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.operation-manual > summary {
+  padding: 10px 8px 10px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.operations-workbench .pipeline-now {
+  padding: 18px;
+  margin: 16px 0 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.operations-workbench .pipeline-model {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.operations-workbench .pipeline-model > header {
+  padding: 14px 16px;
+  background: var(--surface-2);
+  font-size: 12px;
+}
+.operations-workbench .pipeline-model > details {
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.operations-workbench .online-report h3 {
+  margin: 28px 0 14px;
+}
+@media (max-width: 900px) {
+  .operations-workbench .research-canvas {
+    padding: 16px;
+  }
+  .operation-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .operations-workbench .research-canvas > .online-report,
+  .operations-workbench .operation-detail {
+    padding: 18px;
+    border-radius: 12px;
+  }
+  .operation-detail-header {
+    flex-wrap: wrap;
+  }
+  .operations-workbench .online-report > header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .operations-workbench h2 {
+    font-size: 20px;
+  }
+  .operation-detail-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+  .operation-facts {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.operations-workbench .eyebrow {
+  letter-spacing: 1px;
+  font-size: 11px;
+}
+.operations-workbench .pipeline-model > .pipeline-stages {
+  margin: 12px;
+}
+.operations-workbench .log-panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.operations-workbench .pipeline-log-controls {
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 12px;
+}
+.operations-workbench .pipeline-log-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.operations-workbench .pipeline-log-controls small {
+  margin-left: auto;
+}
+.operations-workbench .pipeline-log-controls button {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.operations-workbench .log-content {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}

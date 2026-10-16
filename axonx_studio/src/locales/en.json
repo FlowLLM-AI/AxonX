@@ -1085,6 +1085,9 @@
     "workspace": "Workspace record"
   },
   "operations": {
+    "activeJobs": "Active Jobs",
+    "configuration": "Schedule configuration",
+    "runHistory": "OPERATIONS",
     "loadError": "Unable to load operations navigation",
     "unavailable": "This page is not configured on this service",
     "search": "Search schedules or tasks",

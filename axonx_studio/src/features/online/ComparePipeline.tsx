@@ -28,8 +28,6 @@ export function ComparePipeline({
     : {};
   return (
     <>
-      <h3>{t("onlinePipeline.nightly")}</h3>
-      <p>{t(`onlinePipeline.status.${parent.state}`, parent.state)}</p>
       {parent.output_params.status === "market_closed" && (
         <p>{t("onlinePipeline.closed")}</p>
       )}
@@ -77,7 +75,9 @@ export function ComparePipeline({
               <strong>
                 {model.task_name} · {model.feature_provider}
               </strong>
-              <span>{t(`onlinePipeline.status.${state}`, state)}</span>
+              <span className={`online-status status-${state}`}>
+                {t(`onlinePipeline.status.${state}`, state)}
+              </span>
             </header>
             {typeof outcome.error === "string" && (
               <p className="error-state">{outcome.error}</p>

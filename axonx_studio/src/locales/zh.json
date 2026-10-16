@@ -1085,6 +1085,9 @@
     "workspace": "工作区记录"
   },
   "operations": {
+    "activeJobs": "执行中的 Job",
+    "configuration": "调度配置",
+    "runHistory": "日常运行",
     "loadError": "无法加载业务导航",
     "unavailable": "此服务未配置该页面",
     "search": "搜索调度或任务",

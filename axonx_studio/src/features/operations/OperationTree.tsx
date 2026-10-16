@@ -56,18 +56,22 @@ function RunRow({
           <Play />
         </span>
         <span className="rail-item-copy">
-          <strong>{formatDate(runDate(run))}</strong>
-          <small>
+          <strong>
             {run.kind === "task"
               ? run.task.display_name || run.task.reg_name
               : run.run.job}
-          </small>
-          <small>
-            {t(
-              run.kind === "task" ? "operations.taskRun" : "operations.jobRun",
-            )}
-          </small>
-          <Status state={state} />
+          </strong>
+          <small>{formatDate(runDate(run))}</small>
+          <span className="operation-run-footer">
+            <span>
+              {t(
+                run.kind === "task"
+                  ? "operations.taskRun"
+                  : "operations.jobRun",
+              )}
+            </span>
+            <Status state={state} />
+          </span>
         </span>
         <ArrowRight />
       </button>

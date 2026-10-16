@@ -80,14 +80,14 @@ export function TaskRunReport({
         </p>
       )}
       <TaskSteps steps={parent.steps} />
-      <h3>{t("operations.children")}</h3>
+      {parent.children.length > 0 && <h3>{t("operations.children")}</h3>}
       <TaskChildren
         showOutput
         records={parent.children}
         nodes={nodes}
         onOpenTask={onOpenTask}
       />
-      <details>
+      <details className="operation-disclosure">
         <summary>{t("operations.result")}</summary>
         <pre>{JSON.stringify(parent.output_params, null, 2)}</pre>
       </details>
