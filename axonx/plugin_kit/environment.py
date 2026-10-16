@@ -136,3 +136,8 @@ def mark_restart_required(required: bool) -> bool:
     global _RESTART_REQUIRED
     _RESTART_REQUIRED |= required
     return _RESTART_REQUIRED
+
+
+def restart_required() -> bool:
+    """Report pending process restart without changing its state."""
+    return _RESTART_REQUIRED

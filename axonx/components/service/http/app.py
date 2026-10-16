@@ -77,9 +77,7 @@ class _UpdateResponseMiddleware:
 def create_http_app(app, service) -> FastAPI:
     """Assemble the AxonX HTTP protocol and optional Studio UI."""
     public_jobs = {
-        name: job
-        for name, job in app.context.jobs.items()
-        if job.is_servable and (service.token is not None or not job.requires_auth)
+        name: job for name, job in app.context.jobs.items() if job.is_public(authenticated=service.token is not None)
     }
 
     @asynccontextmanager

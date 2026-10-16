@@ -120,12 +120,15 @@ TARGET_ARGUMENT = "target"
 AGENT_DEPTH_ARGUMENT = "agent_depth"
 
 CLI_LOCAL_COMMANDS = frozenset(
-    {CLI_EXEC_COMMAND, CLI_HELP_COMMAND, CLI_PLUGIN_COMMAND, CLI_START_COMMAND},
+    {CLI_EXEC_COMMAND, CLI_PLUGIN_COMMAND, CLI_START_COMMAND},
 )
 
 CLI_PASSTHROUGH_COMMANDS = frozenset({CLI_PLUGIN_COMMAND})
 
 CLI_USAGE = f"""Usage:
+  axonx --help
+  axonx help [--job NAME] [--target HOST:PORT]
+  axonx diagnose [--target HOST:PORT]
   axonx JOB [--field value ...] [--client-timeout SECONDS] [--token TOKEN] [--stream true]
         [--stream-format blocks|json] [--target HOST:PORT]
   axonx wait_task --task-id ID --run-id ID [--client-timeout SECONDS]

@@ -1,19 +1,30 @@
 # CLI 参考
 
-AxonX 的命令格式是 `axonx ACTION --field value`。start、exec、plugin、help 在本地处理；其他 ACTION 是服务 Job 名。先配置连接 token，再根据 [公开目录](../api/overview.md) 选择 Job。
+AxonX 的命令格式是 `axonx ACTION --field value`。start、exec、plugin 在本地处理；其他 ACTION 是服务 Job 名。先配置连接 token，再根据 [公开目录](../api/overview.md) 选择 Job。
 
 ## 命令分工
 
-| 命令         | 执行位置              | 用途                          |
-| ------------ | --------------------- | ----------------------------- |
-| axonx start  | 当前进程              | 启动配置中的服务              |
-| axonx exec   | 当前进程              | 执行同步 Task；无参数时列目录 |
-| axonx submit | 所连服务的 worker     | 通过 submit Job 异步提交      |
-| axonx JOB    | 所连服务              | 普通或流式 Job 调用           |
-| axonx plugin | 当前环境或显式 target | 插件检查、构建、安装与卸载    |
-| axonx help   | 当前进程              | 语法速查                      |
+| 命令         | 执行位置              | 用途                                       |
+| ------------ | --------------------- | ------------------------------------------ |
+| axonx start  | 当前进程              | 启动配置中的服务                           |
+| axonx exec   | 当前进程              | 执行同步 Task；无参数时列目录              |
+| axonx submit | 所连服务的 worker     | 通过 submit Job 异步提交                   |
+| axonx JOB    | 所连服务              | 普通或流式 Job 调用                        |
+| axonx plugin | 当前环境或显式 target | 插件检查、构建、安装与卸载                 |
+| axonx help   | 所连服务              | 发现公开 Jobs；用 `--job NAME` 查询 schema |
 
 exec 不要求服务运行；submit 需要服务。进程隔离不构成安全沙箱。
+
+## 能力发现与环境诊断
+
+```bash
+axonx --help
+axonx help --target node-b:1024
+axonx help --job python --target node-b:1024
+axonx diagnose --target node-b:1024
+```
+
+`--help`、`-h` 和无参数调用只显示本地语法，不依赖服务。`help` 是普通服务 Job，返回公开 Job 名称与描述；传 `--job NAME` 返回一个 Job 的实际输入输出 schema。隐藏或不可用的 Job 无法查询。此变更有意替换原本地 `axonx help` 行为；离线请使用 `axonx --help`。`diagnose` 只读查询服务构建、解释器、workspace 磁盘、资源、已安装插件指纹、错误和待重启状态。支持的凭据变量只返回布尔值。详见[机器 API](../api/machines.md)。
 
 ## 启动与配置覆盖
 

@@ -10,7 +10,7 @@
 python -m venv .venv
 source .venv/bin/activate
 pip install axonx
-axonx help
+axonx --help
 ```
 
 创建 `server.yaml`：

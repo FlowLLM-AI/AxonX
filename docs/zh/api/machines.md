@@ -14,10 +14,40 @@
 
 | Job              | 用途                                             |
 | ---------------- | ------------------------------------------------ |
+| `help`           | 发现公开 Jobs 并查询实际 schema。                |
+| `diagnose`       | 诊断构建、Python、workspace、资源和已安装插件。  |
 | `version`        | 读取安装包的版本。                               |
 | `list_machines`  | 检查全部配置的 targets 健康。                    |
 | `machine_status` | 采样服务机器资源。                               |
 | `python`         | 使用所选服务的 Python 环境执行多行 Python 代码。 |
+
+## help
+
+用 `{"arguments":{}}` 列出选定服务公开的 Jobs；answer 包含 CLI 语法 `usage` 和名称/描述列表 `jobs`。用 `{"arguments":{"job":"python"}}` 查询一个 Job；answer 包含 `usage` 和 `job`，后者是包含 `name`、`description`、`input_schema` 和 `output_schema` 的 JobInfo。schema 来自运行时目录，包含配置和插件贡献的 Jobs。隐藏 Job，以及未启用认证服务上不可用的受保护 Job，不会列出；未知名称返回 `success=false`。
+
+```bash
+axonx help --target node-b:1024
+axonx help --job python --target node-b:1024
+```
+
+`help` 默认设置 `requires_auth=false`，因此服务未配置 token 时仍可发现；`diagnose` 保持默认的认证要求。服务配置 token 后，包含 help 在内的所有 HTTP/MCP 调用仍须提供该 token。它也是普通 HTTP/MCP Job。CLI `--target` 选择服务，不属于 help 的业务参数。离线语法说明使用 `axonx --help`。
+
+## diagnose
+
+无业务参数，使用 `{"arguments":{}}`。此只读 Job 返回：
+
+- `axonx`、`cpu`、`memory`、`gpus`：与 `machine_status` 相同的构建和资源信息。
+- `python`：解释器 `version` 和 `executable`；`platform` 和 `cwd`：服务操作系统与工作目录。
+- `workspace`：解析后的 `path`、`exists` 和 `disk`（`path`、`total_bytes`、`used_bytes`、`free_bytes`）。workspace 不存在时使用最近已存在的祖先目录统计磁盘，不创建目录。
+- `plugins`：已安装 distribution/version、插件名、可用时的内容与 wheel SHA-256、发现错误。这不保证所有代码都已加载。
+- `restart_required`：插件/依赖变更后是否需要重启；`service_auth_enabled`：服务是否配置 token。
+- `credentials_configured`：服务进程环境中 `AXONX_SERVICE_TOKEN`、`AXONX_TARGET_TOKEN`、`AXONX_TUSHARE_TOKEN` 是否配置的布尔值。不返回凭据值；已配置不代表凭据有效。
+
+插件发现错误保留在 `plugins` 中，不会将已完成的诊断查询变为 Task 失败。文件系统或资源检查失败时，Job 返回失败，不伪造测量结果。此 Job 不安装包或重启服务。
+
+```bash
+axonx diagnose --target node-b:1024
+```
 
 ## version
 

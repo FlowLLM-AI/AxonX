@@ -14,10 +14,40 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 | Job              | Purpose                                                                        |
 | ---------------- | ------------------------------------------------------------------------------ |
+| `help`           | Discover public Jobs and inspect live schemas.                                 |
+| `diagnose`       | Inspect build, Python, workspace, resources, and installed plugins.            |
 | `version`        | Read the installed package version.                                            |
 | `list_machines`  | Check the health of all configured targets.                                    |
 | `machine_status` | Sample service-machine resources.                                              |
 | `python`         | Execute multiline Python code using the selected service’s Python environment. |
+
+## help
+
+List public Jobs on the selected service with `{"arguments":{}}`. The answer contains `usage` (CLI syntax) and `jobs` (name/description summaries). Inspect one Job with `{"arguments":{"job":"python"}}`; the answer contains `usage` and `job`, a JobInfo with `name`, `description`, `input_schema`, and `output_schema`. Schemas come from the runtime Job catalog, including configured and plugin-contributed Jobs. Hidden Jobs and protected Jobs unavailable on a service without authentication are excluded; unknown names return `success=false`.
+
+```bash
+axonx help --target node-b:1024
+axonx help --job python --target node-b:1024
+```
+
+`help` defaults to `requires_auth=false`, so it remains discoverable on a service without a token; `diagnose` retains the protected default. A configured service token is still required for all HTTP/MCP calls, including help. This is also an ordinary HTTP/MCP Job. CLI `--target` selects its service; it is not a help business field. Offline syntax remains available through `axonx --help`.
+
+## diagnose
+
+No business parameters; use `{"arguments":{}}`. This read-only Job returns:
+
+- `axonx`, `cpu`, `memory`, `gpus`: the same build identity and resources as `machine_status`.
+- `python`: interpreter `version` and `executable`; `platform` and `cwd`: service operating system and working directory.
+- `workspace`: resolved `path`, `exists`, and `disk` (`path`, `total_bytes`, `used_bytes`, `free_bytes`). Disk statistics use the closest existing ancestor if the workspace does not exist; no directory is created.
+- `plugins`: installed distribution/version, plugin names, content and wheel SHA-256 when available, and discovery error. This does not assert all code is loaded.
+- `restart_required`: pending process restart after plugin/dependency changes; `service_auth_enabled`: whether the service has a token.
+- `credentials_configured`: presence booleans for `AXONX_SERVICE_TOKEN`, `AXONX_TARGET_TOKEN`, and `AXONX_TUSHARE_TOKEN` in the service process environment. Values are never returned; configuration presence does not establish credential validity.
+
+Plugin discovery errors remain visible in `plugins`; they do not turn a completed diagnostic query into a failed Task result. If filesystem or resource inspection fails, the Job returns a failure rather than fabricating measurements. It neither installs packages nor restarts the service.
+
+```bash
+axonx diagnose --target node-b:1024
+```
 
 ## version
 

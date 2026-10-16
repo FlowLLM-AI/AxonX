@@ -1,6 +1,6 @@
 # CLI reference
 
-AxonX commands use `axonx ACTION --field value`. start, exec, plugin, and help are handled locally; other ACTION values are service Job names. Configure the connection token first, then choose a Job from the [public catalog](../api/overview.md).
+AxonX commands use `axonx ACTION --field value`. start, exec, and plugin are handled locally; other ACTION values are service Job names. Configure the connection token first, then choose a Job from the [public catalog](../api/overview.md).
 
 ## Command responsibilities
 
@@ -11,9 +11,20 @@ AxonX commands use `axonx ACTION --field value`. start, exec, plugin, and help a
 | axonx submit | Connected service's worker             | Submit asynchronously through the submit Job                                |
 | axonx JOB    | Connected service                      | Ordinary or streaming Job invocation                                        |
 | axonx plugin | Current environment or explicit target | Plugin inspection, building, installation, and uninstallation               |
-| axonx help   | Current process                        | Syntax quick reference                                                      |
+| axonx help   | Connected service                      | Discover public Jobs; inspect schemas with `--job NAME`                     |
 
 exec does not require a running service; submit does. Process isolation does not constitute a security sandbox.
+
+## Capability discovery and environment diagnosis
+
+```bash
+axonx --help
+axonx help --target node-b:1024
+axonx help --job python --target node-b:1024
+axonx diagnose --target node-b:1024
+```
+
+`--help`, `-h`, and no arguments print local syntax without a service. `help` is a normal service Job returning the public Job names and descriptions; `--job NAME` returns one Job's live input/output schemas. Hidden or unavailable Jobs cannot be inspected. This intentionally replaces the former local `axonx help` behavior: use `axonx --help` offline. `diagnose` reads the service build, interpreter, workspace disk, resources, installed plugin fingerprints, errors, and restart requirement. Supported credential variables are reported as booleans only. See [Machine API](../api/machines.md).
 
 ## Startup and configuration overrides
 

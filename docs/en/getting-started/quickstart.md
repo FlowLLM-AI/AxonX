@@ -12,7 +12,7 @@ AxonX requires Python 3.12 or later. The local TaskManager supports macOS and Li
 python -m venv .venv
 source .venv/bin/activate
 pip install axonx
-axonx help
+axonx --help
 ```
 
 For the prebuilt browser UI, use `pip install "axonx[studio]"`. Development tools are available through `axonx[dev]`; `axonx[full]` includes both.

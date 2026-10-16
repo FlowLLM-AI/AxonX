@@ -107,6 +107,29 @@ service:
 
 jobs:
   # =========== System jobs ===========
+  help:
+    description: List public Jobs on this service, or inspect one Job's input and output schemas. CLI connection options such as --target are separate from Job parameters.
+    requires_auth: false
+    parameters:
+      type: object
+      properties:
+        job:
+          type: string
+          minLength: 1
+          description: Public Job name to inspect; omit to list available Jobs.
+      additionalProperties: false
+    steps:
+      - backend: help_step
+
+  diagnose:
+    description: Inspect this service's build, Python, workspace disk, resources, installed plugin fingerprints and restart requirement. Credential values are never returned.
+    parameters:
+      type: object
+      properties: {}
+      additionalProperties: false
+    steps:
+      - backend: diagnose_step
+
   version:
     description: Return the installed AxonX version.
     steps:

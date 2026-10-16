@@ -17,7 +17,6 @@ from ..constants import (
     AXONX_TASK_TIMEZONE,
     AXONX_TASK_WORKSPACE_DIR,
     CLI_EXEC_COMMAND,
-    CLI_HELP_COMMAND,
     CLI_LOCAL_COMMANDS,
     CLI_PLUGIN_COMMAND,
     CLI_RAW_ARGUMENTS,
@@ -135,14 +134,8 @@ def _run_plugin(command: Command, client_options: ClientOptions | None = None) -
     return plugin_cli(command.arguments.get(CLI_RAW_ARGUMENTS, ()), client_options)
 
 
-def _show_help(_command: Command) -> int:
-    print(CLI_USAGE)
-    return 0
-
-
 _LOCAL_HANDLERS = {
     CLI_EXEC_COMMAND: _run_exec,
-    CLI_HELP_COMMAND: _show_help,
     CLI_PLUGIN_COMMAND: _run_plugin,
     CLI_START_COMMAND: _run_server,
 }
@@ -153,6 +146,9 @@ assert _LOCAL_HANDLERS.keys() == CLI_LOCAL_COMMANDS
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one AxonX command and return its process exit status."""
     args = list(sys.argv[1:] if argv is None else argv)
+    if not args or args in (["-h"], ["--help"]):
+        print(CLI_USAGE)
+        return 0
     try:
         command, client_options = parse_command(args)
         if command.action == CLI_PLUGIN_COMMAND:

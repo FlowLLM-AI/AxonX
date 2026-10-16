@@ -10,7 +10,7 @@ Requires Python 3.12 or later. Create a virtual environment:
 python -m venv .venv
 source .venv/bin/activate
 pip install axonx
-axonx help
+axonx --help
 ```
 
 Create `server.yaml`:

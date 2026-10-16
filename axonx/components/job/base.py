@@ -85,6 +85,10 @@ class BaseJob(BaseComponent, ABC):
     def is_servable(self) -> bool:
         return self.enable_serve
 
+    def is_public(self, *, authenticated: bool) -> bool:
+        """Match the catalog and transport exposure policy for this service."""
+        return self.is_servable and (authenticated or not self.requires_auth)
+
     @property
     def is_streamable(self) -> bool:
         return self.enable_stream

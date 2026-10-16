@@ -16,7 +16,7 @@ Use Python 3.12+ on macOS or Linux for local Task execution. In your chosen work
 python3 -m venv .venv
 source .venv/bin/activate
 pip install axonx
-axonx help
+axonx --help
 ```
 
 For the prebuilt Studio UI, install `axonx[studio]` instead. Research plugins are installed separately. For source development, clone the project, enter its root, and install it in an activated virtual environment:
@@ -41,6 +41,28 @@ For MCP clients, connect to `http://127.0.0.1:1024/mcp` using Streamable HTTP an
 The built-in `demo` Task can verify submission and tracking without market-data or model credentials; the Alpha158 workflow requires its research plugin and prepared input data. Market-data downloads require `AXONX_TUSHARE_TOKEN`; model-backed Agents require separate model configuration. See [Quick start](https://flowllm-ai.github.io/AxonX/en/getting-started/quickstart), [Research workflow](https://flowllm-ai.github.io/AxonX/en/research/workflow), and [MCP integration](https://flowllm-ai.github.io/AxonX/en/agent/mcp-integration) for complete setup examples.
 
 When using this document as a skill, perform only the operations required by the user's request. Documentation examples do not authorize installation, task execution, deletion, or remote changes by themselves. For changes to the source checkout, follow its `AGENTS.md` and [contribution guide](https://github.com/FlowLLM-AI/AxonX/blob/main/CONTRIBUTING.md).
+
+## Discover Capabilities and Diagnose the Target
+
+`axonx --help` (or no arguments) prints local syntax without connecting to a service. `axonx help` is an ordinary Job: it requires a running service and lists that service's public Jobs. Use `axonx help --job <name>` for the actual input and output schemas, including required fields, types, defaults, and bounds. Both help and diagnosis support the same CLI, HTTP, and MCP transports as other Jobs. Help lists only exposed Jobs even on an unauthenticated service; diagnosis requires service authentication. A configured service token remains required to call help.
+
+```bash
+axonx help --target node-b:1024
+axonx help --job python --target node-b:1024
+axonx diagnose --target node-b:1024
+```
+
+Use the confirmed address and configured credentials for your target. Discover capabilities and inspect the selected Task's definition before reading framework internals or writing replacement tooling. If the local service is unavailable but the remote address is known, connect directly with `--target`; remote execution does not require starting a local service. An unavailable service cannot provide its live catalog; offline `--help` only describes CLI syntax. Installation, restart, and execution still require authorization from the user's task.
+
+`diagnose` is read-only and reports the running AxonX build, Python version and executable, working directory, resolved workspace, disk capacity, CPU/memory/GPU resources, installed plugin versions and fingerprints, plugin errors, and pending restart requirement. It reports only configured/not-configured booleans for the supported credential variables, never their values. Workspace disk statistics use the nearest existing ancestor when the workspace does not exist. Installed plugin metadata does not prove all changes are loaded; resolve `restart_required` and re-query the Task definition after installation. Keep the installation result's content/wheel hashes as execution evidence; a local Git SHA alone does not identify a wheel built with uncommitted changes.
+
+### Remote Python and long-running work
+
+Use `axonx python` for short environment probes, file processing, and diagnostics that existing Jobs do not cover. Source runs in a fresh process using the service's Python interpreter, working directory, and inherited environment. Print structured results; inspect `success`, `exit_code`, stderr, and output truncation flags. `--timeout` defaults to 30 seconds and is limited to 300 seconds; `--client-timeout` is a separate transport budget. Increasing the latter does not extend execution time.
+
+For long-running or multi-Task work, use submitted Tasks and synchronous composition with `BaseCompositeTask`, rather than detached `subprocess.Popen` controllers launched through `python`. Detached processes have no AxonX Task lifecycle, parent cancellation, or automatic recovery. Give repeated child registrations distinct `task_name` values when retaining each child's artifacts; `node_name` alone does not isolate directories. Resolve shared dates, input paths, and other batch parameters once, then pass those explicit values to every child.
+
+If a submission request fails before its handle is received, inspect existing runs before submitting again: the service may already have accepted it. If `wait_task` times out or disconnects, keep the original Task/Run IDs, query `status`, and verify the returned Run ID. Continue waiting on that run when it is still active; inspect terminal errors and logs when it has failed. A client error does not establish that the Task stopped. Avoid automatic resubmission. Composite Tasks record child runs but do not provide automatic checkpoint recovery.
 
 ## Background
 
@@ -249,7 +271,7 @@ Run Analysis only when factor diagnostics are needed. Select the following comma
 | --------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------- |
 | `wait_task`     | Wait for the specific run returned by submission and check final `answer.state`.        | `axonx wait_task --task-id '<etl_task_id>' --run-id '<etl_run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
 | `status`        | Query the submitted ETL Task's status to confirm success.                               | `axonx status --task-id '<etl_task_id>'`                                                   | `--target 192.168.1.10:1024` |
-| `read_task_log` | Read recent logs for this ETL Task to inspect output or investigate failures.           | `axonx read_task_log --task-id '<etl_task_id>'`                                            | `--target 192.168.1.10:1024` |
+| `read_task_log` | Read recent logs for this ETL Task to inspect output or investigate failures.           | `axonx read_task_log --task-id '<etl_task_id>' --run-id '<etl_run_id>'`                    | `--target 192.168.1.10:1024` |
 | `preview_file`  | Inspect successful ETL metadata to obtain the dataset artifact path for downstream use. | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'`                              | `--target 192.168.1.10:1024` |
 
 For other Tasks, use their actual Task IDs and workspace paths for the corresponding type. See the CLI API below for live tracking, dependency graph queries, and data preview commands.
@@ -265,7 +287,7 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 
 | Command name | Description                                                                                                                                                                 | Command                                                 | Remote arguments             |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------- |
-| `help`       | Show CLI usage, local commands, and how to call service Jobs.                                                                                                               | `axonx help`                                            | —                            |
+| `help`       | List the selected service's public Jobs; use `--job NAME` for its live input/output schemas.                                                                                | `axonx help`                                            | `--target 192.168.1.10:1024` |
 | `start`      | Load the registered `default` configuration when none is specified and start the local HTTP service.                                                                        | `axonx start`                                           | —                            |
 | `start`      | Start the service with an explicitly specified YAML file; the example path is relative to the AxonX repository root and can be replaced with the actual configuration file. | `axonx start --config axonx/config/default.yaml`        | —                            |
 | `exec`       | List executable registered Task names and entry classes in the current Python environment without running a Task.                                                           | `axonx exec`                                            | —                            |
@@ -299,6 +321,7 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 | Command name     | Description                                                                                                        | Command                                           | Remote arguments             |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- | ---------------------------- |
 | `list_machines`  | Query addresses and health status for machines in the connected service's `targets` to select an execution target. | `axonx list_machines`                             | `--target 192.168.1.10:1024` |
+| `diagnose`       | Inspect build, Python, workspace disk, resources, installed plugin fingerprints, and restart requirement.          | `axonx diagnose`                                  | `--target 192.168.1.10:1024` |
 | `machine_status` | Query CPU, memory, and GPU information for the machine hosting the connected service.                              | `axonx machine_status`                            | `--target 192.168.1.10:1024` |
 | `python`         | Execute multiline Python code in the service's Python environment.                                                 | `axonx python --code 'print(1 + 1)' --timeout 30` | `--target 192.168.1.10:1024` |
 

@@ -16,7 +16,7 @@ AxonX 在 `axonx.task.protocol` 中统一定义协议 v1，`task_type` 复用现
 python3 -m venv .venv
 source .venv/bin/activate
 pip install axonx
-axonx help
+axonx --help
 ```
 
 需要预构建 Studio 界面时，改为安装 `axonx[studio]`。研究插件需单独安装。源码开发时，克隆项目、进入仓库根目录，并在已激活的虚拟环境中安装：
@@ -41,6 +41,28 @@ MCP 客户端使用 Streamable HTTP 连接 `http://127.0.0.1:1024/mcp`，并配�
 内置 `demo` Task 可用于验证提交和跟踪，不需要行情或模型凭据；Alpha158 流程需要相应研究插件与准备好的输入数据。行情下载需要 `AXONX_TUSHARE_TOKEN`，使用模型的 Agent 需要单独配置模型。完整配置示例见 [快速开始](https://flowllm-ai.github.io/AxonX/zh/getting-started/quickstart)、[研究工作流](https://flowllm-ai.github.io/AxonX/zh/research/workflow) 和 [MCP 集成](https://flowllm-ai.github.io/AxonX/zh/agent/mcp-integration)。
 
 将本文作为 Skill 使用时，仅执行用户请求所需的操作。文档示例本身不构成安装、任务执行、删除或远程变更的授权。修改源码仓库时，遵循该仓库的 `AGENTS.md` 和 [贡献指南](https://github.com/FlowLLM-AI/AxonX/blob/main/CONTRIBUTING_ZH.md)。
+
+## 发现能力并诊断执行目标
+
+`axonx --help`（或不传参数）只显示本地语法，不连接服务。`axonx help` 是普通 Job，需要运行中的服务，列出该服务公开的 Jobs；`axonx help --job <名称>` 返回实际输入和输出 schema，包含必填字段、类型、默认值和限制。帮助和诊断与其他 Jobs 共用 CLI、HTTP 和 MCP 调用方式。未启用认证时，help 仍可用但只列出已公开的 Jobs；诊断要求服务认证。服务配置 token 后，调用 help 仍须提供该 token。
+
+```bash
+axonx help --target node-b:1024
+axonx help --job python --target node-b:1024
+axonx diagnose --target node-b:1024
+```
+
+替换为已确认的目标地址并配置凭据。先发现能力、查询选定 Task 的定义，再考虑阅读框架内部实现或编写替代工具。本地服务不可用但已知远程地址时，直接使用 `--target`，无需启动本地服务。离线 `--help` 只能解释 CLI 语法，无法提供不可达服务的实时目录。安装、重启和执行仍须处于用户任务授权范围内。
+
+`diagnose` 只读汇总运行中的 AxonX 构建信息、Python 版本和解释器路径、工作目录、解析后的 workspace、磁盘容量、CPU/内存/GPU、已安装插件版本与指纹、插件错误和待重启状态。支持的凭据变量只返回是否配置，不返回值。workspace 不存在时，磁盘统计使用最近的已存在祖先目录。已安装插件信息不代表变更已全部加载；安装后处理 `restart_required` 并重新查询 Task 定义。保存安装结果的内容和 wheel 哈希；本地 Git SHA 无法单独标识包含未提交修改的安装包。
+
+### 远程 Python 与长时间执行
+
+`axonx python` 用于现有 Jobs 无法覆盖的短时环境探测、文件处理和诊断。源码在新进程中执行，使用服务的解释器、工作目录和继承环境。输出结构化结果，并检查 `success`、`exit_code`、stderr 和输出截断标记。`--timeout` 默认 30 秒、最大 300 秒；`--client-timeout` 是独立的传输等待预算，增大它不会延长执行时限。
+
+长时间或多 Task 工作应提交为 Task，并使用 `BaseCompositeTask` 同步组合，不要通过 `python` 启动脱离管理的 `subprocess.Popen` 控制器。这类后台进程没有 AxonX Task 生命周期、父任务取消或自动恢复能力。重复调用同一子 Task 且需保留各自产物时，显式指定不同的 `task_name`；仅设置 `node_name` 不会隔离目录。批次开始时统一解析日期、输入路径等共享参数，再显式传给每个子任务。
+
+提交请求失败且尚未收到 handle 时，先检查已有运行再决定是否重提，服务可能已经受理。`wait_task` 超时或断线后保留原 Task/Run ID，查询 `status` 并核对返回的 Run ID；原运行仍活跃则继续等待，失败则检查终态错误和日志。客户端错误不表示 Task 已停止，不要自动重新提交。复合 Task 会记录子运行，但不提供自动断点恢复。
 
 ## 背景
 
@@ -245,7 +267,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 | --------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------- |
 | `wait_task`     | 等待提交返回的指定运行结束，检查最终 `answer.state`。   | `axonx wait_task --task-id '<etl_task_id>' --run-id '<etl_run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
 | `status`        | 查询已提交 ETL Task 的状态，确认是否成功。              | `axonx status --task-id '<etl_task_id>'`                                                   | `--target 192.168.1.10:1024` |
-| `read_task_log` | 读取该 ETL Task 的最近日志，检查输出或排查失败原因。    | `axonx read_task_log --task-id '<etl_task_id>'`                                            | `--target 192.168.1.10:1024` |
+| `read_task_log` | 读取该 ETL Task 的最近日志，检查输出或排查失败原因。    | `axonx read_task_log --task-id '<etl_task_id>' --run-id '<etl_run_id>'`                    | `--target 192.168.1.10:1024` |
 | `preview_file`  | 检查成功 ETL 的元数据，取得数据集产物路径，供下游使用。 | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'`                              | `--target 192.168.1.10:1024` |
 
 其他 Task 使用其实际 Task ID 和对应类型的工作区路径。实时跟踪、依赖图查询和数据预览等命令见下方 CLI API。
@@ -261,7 +283,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
 | 命令名称  | 具体描述                                                                                | 命令                                                    | 远程参数                     |
 | --------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------- |
-| `help`    | 查看 CLI 用法、本地命令和服务 Job 的调用方式。                                          | `axonx help`                                            | —                            |
+| `help`    | 列出目标服务公开的 Jobs；传 `--job NAME` 查询实际输入输出 schema。                      | `axonx help`                                            | `--target 192.168.1.10:1024` |
 | `start`   | 未指定配置时加载注册的 `default` 配置，启动本机 HTTP 服务。                             | `axonx start`                                           | —                            |
 | `start`   | 显式加载指定 YAML 文件启动服务；示例路径相对于 AxonX 仓库根目录，可替换为实际配置文件。 | `axonx start --config axonx/config/default.yaml`        | —                            |
 | `exec`    | 列出当前 Python 环境可执行的 Task 注册名及入口类，不执行 Task。                         | `axonx exec`                                            | —                            |
@@ -295,6 +317,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 | 命令名称         | 具体描述                                                            | 命令                                              | 远程参数                     |
 | ---------------- | ------------------------------------------------------------------- | ------------------------------------------------- | ---------------------------- |
 | `list_machines`  | 查询所连接服务 `targets` 中机器的地址和健康状态，用于选择执行目标。 | `axonx list_machines`                             | `--target 192.168.1.10:1024` |
+| `diagnose`       | 汇总构建、Python、workspace 磁盘、资源、插件指纹和待重启状态。      | `axonx diagnose`                                  | `--target 192.168.1.10:1024` |
 | `machine_status` | 查询所连接服务所在机器的 CPU、内存和 GPU 信息。                     | `axonx machine_status`                            | `--target 192.168.1.10:1024` |
 | `python`         | 在服务的 Python 环境执行多行代码。                                  | `axonx python --code 'print(1 + 1)' --timeout 30` | `--target 192.168.1.10:1024` |
 

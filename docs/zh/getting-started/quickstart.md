@@ -12,7 +12,7 @@ AxonX 要求 Python 3.12 或更高版本，本地 TaskManager 支持 macOS 与 L
 python -m venv .venv
 source .venv/bin/activate
 pip install axonx
-axonx help
+axonx --help
 ```
 
 需要预构建的浏览器界面时，使用 `pip install "axonx[studio]"`。开发工具通过 `axonx[dev]` 安装，`axonx[full]` 包含两者。
