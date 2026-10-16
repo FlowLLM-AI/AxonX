@@ -3,6 +3,7 @@ import { ScheduleCard } from "../tasks/ScheduleCard";
 import { Status } from "../tasks/TaskRow";
 import { formatDate } from "../tasks/format";
 import type { Schedule } from "../tasks/types";
+import type { ScheduleRun } from "../../shared/api/contracts";
 import { isRecord } from "../../shared/lib/values";
 
 function Result({ value }: { value: unknown }) {
@@ -38,32 +39,44 @@ export function ScheduleReport({
   schedule: Schedule | null;
 }) {
   const { t } = useTranslation();
-  const history =
-    schedule?.history ||
-    (schedule?.last_trigger ? [schedule.last_trigger] : []);
   return (
     <ScheduleCard name={name} schedule={schedule}>
-      <Result value={schedule?.last_trigger?.result} />
-      <h3>{t("operations.history")}</h3>
-      {!history.length && <p className="muted">{t("operations.noTriggers")}</p>}
-      {[...history].reverse().map((run) => (
-        <details className="operation-trigger" key={run.trigger_id}>
-          <summary>
-            <Status state={run.state} />
-            <time>{formatDate(run.triggered_at)}</time>
-          </summary>
-          <small>{run.trigger_id}</small>
-          <p>
-            {t("operations.finished")} · {formatDate(run.finished_at)}
-          </p>
-          {run.error && (
-            <p className="error-state" role="alert">
-              {run.error}
-            </p>
-          )}
-          <Result value={run.result} />
-        </details>
-      ))}
+      {schedule?.last_trigger ? (
+        <Result value={schedule.last_trigger.result} />
+      ) : (
+        schedule && <p className="muted">{t("operations.noTriggers")}</p>
+      )}
     </ScheduleCard>
+  );
+}
+
+export function ScheduleRunReport({ run }: { run: ScheduleRun }) {
+  const { t } = useTranslation();
+  return (
+    <article className="online-report operation-job-report">
+      <header>
+        <div>
+          <p className="eyebrow">{t("operations.jobRun")}</p>
+          <h2>{run.name}</h2>
+          <details className="pipeline-identity">
+            <summary>{run.trigger_id}</summary>
+            <small>{run.scheduler_id}</small>
+          </details>
+        </div>
+        <Status state={run.state} />
+      </header>
+      <p>
+        {t("operations.triggered")} · {formatDate(run.triggered_at)}
+      </p>
+      <p>
+        {t("operations.finished")} · {formatDate(run.finished_at)}
+      </p>
+      {run.error && (
+        <p className="error-state" role="alert">
+          {run.error}
+        </p>
+      )}
+      <Result value={run.result} />
+    </article>
   );
 }

@@ -1088,11 +1088,9 @@
     "loadError": "Unable to load operations navigation",
     "unavailable": "This page is not configured on this service",
     "search": "Search schedules or tasks",
-    "history": "Recent triggers",
     "noTriggers": "No triggers yet",
     "finished": "Finished",
     "result": "Execution result",
-    "allRuns": "All runs (including manual)",
     "empty": "No matching tasks",
     "dataProgress": "Data update progress",
     "children": "Download tasks",
@@ -1102,6 +1100,13 @@
       "oversized": "Oversized",
       "deferred": "Pending retry",
       "archives": "Archives"
-    }
+    },
+    "schedules": "Schedules",
+    "manual": "Manual runs",
+    "archived": "Historical schedule · configuration unavailable",
+    "noRuns": "No execution records",
+    "taskRun": "Task run",
+    "jobRun": "Job execution",
+    "triggered": "Triggered"
   }
 }

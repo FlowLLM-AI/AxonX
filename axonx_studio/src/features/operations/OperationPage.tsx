@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Activity, ArrowRight, Clock, LoaderCircle } from "lucide-react";
+import { Activity, LoaderCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { StudioPage } from "../../shared/api/contracts";
 import type { TaskSummary } from "../tasks/types";
 import { listSchedules, listTaskStatuses } from "../tasks/api";
-import { Status } from "../tasks/TaskRow";
 import { formatDate } from "../tasks/format";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { usePolling } from "../../shared/hooks/usePolling";
@@ -12,7 +11,9 @@ import { RailResizer } from "../../shared/ui/RailResizer";
 import { RunIndexControls } from "../../shared/ui/RunIndexControls";
 import { PipelineReport } from "../online/PipelineReport";
 import { TaskRunReport } from "./TaskRunReport";
-import { ScheduleReport } from "./ScheduleReport";
+import { ScheduleReport, ScheduleRunReport } from "./ScheduleReport";
+import { OperationTree } from "./OperationTree";
+import { buildOperationTree, searchOperationTree, runDate } from "./tree";
 import type { ContextOption } from "../../app/types";
 
 function matchesPage(task: TaskSummary, page: StudioPage) {
@@ -77,45 +78,47 @@ export default function OperationPage({
   usePolling(refresh, true);
   const tasks = data?.tasks || [];
   const schedules = data?.schedules || [];
-  const visible = tasks.filter((task) =>
-    `${task.task_id} ${task.display_name} ${task.source.schedule?.name || ""}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
-  );
-  const scheduleId = initialResource?.startsWith("schedule:")
-    ? initialResource.slice(9)
-    : undefined;
-  const selectedSchedule =
-    scheduleId || (page.view === "schedules" ? page.schedules[0] : undefined);
-  const schedule = schedules.find((item) => item.name === selectedSchedule);
-  const scheduleTasks = selectedSchedule
-    ? visible.filter((task) => task.source.schedule?.name === selectedSchedule)
-    : visible;
-  const selected =
-    initialResource && !scheduleId
-      ? tasks.find((task) => task.task_id === initialResource)
-      : scheduleTasks[0];
+  const tree = buildOperationTree(page.schedules, schedules, tasks);
+  const visible = searchOperationTree(tree, query);
+  const runs = [...tree.groups.flatMap((group) => group.runs), ...tree.manual];
+  const visibleRuns = [
+    ...visible.groups.flatMap((group) => group.runs),
+    ...visible.manual,
+  ];
+  const selected = initialResource
+    ? runs.find((run) => run.id === initialResource)
+    : page.view !== "schedules"
+      ? visibleRuns.find((run) => run.kind === "task") || visibleRuns[0]
+      : undefined;
+  const selectedGroup = initialResource
+    ? tree.groups.find((group) => group.id === initialResource)
+    : !selected
+      ? visible.groups[0]
+      : undefined;
+  const selectedTask = selected?.kind === "task" ? selected.task : undefined;
+  const selectedJob = selected?.kind === "job" ? selected.run : undefined;
   const title = page.title[i18n?.resolvedLanguage === "zh" ? "zh" : "en"];
   useEffect(() => {
+    const index = buildOperationTree(
+      page.schedules,
+      data?.schedules || [],
+      data?.tasks || [],
+    );
     onOptionsChange([
-      ...(data?.schedules || []).map((schedule) => ({
-        value: `schedule:${schedule.name}`,
-        label: schedule.name,
-      })),
-      ...(data?.tasks || []).map((task) => ({
-        value: task.task_id,
-        label: task.display_name || task.reg_name,
-      })),
+      ...index.groups.map((group) => ({ value: group.id, label: group.name })),
+      ...[...index.groups.flatMap((group) => group.runs), ...index.manual].map(
+        (run) => ({ value: run.id, label: formatDate(runDate(run)) }),
+      ),
     ]);
-  }, [data, onOptionsChange]);
+  }, [data, page.schedules, onOptionsChange]);
   return (
     <section className="workspace-page research-page online-workbench">
       <div className="research-layout">
         <aside className="run-index rail-panel">
           <RunIndexControls
-            eyebrow={page.view === "schedules" ? "JOB SCHEDULES" : "TASK RUNS"}
+            eyebrow="RUN HISTORY"
             title={title}
-            count={page.view === "schedules" ? schedules.length : tasks.length}
+            count={runs.length}
             loading={loading}
             query={query}
             onQuery={setQuery}
@@ -124,75 +127,27 @@ export default function OperationPage({
             onRefresh={() => void reload()}
           />
           <div className="rail-scroll">
-            {page.view !== "schedules" && (
-              <button
-                className="operation-all secondary-button"
-                onClick={() => onSelected("")}
-              >
-                {t("operations.allRuns")}
-              </button>
-            )}
-            {page.schedules
-              .filter((name) =>
-                name.toLowerCase().includes(query.toLowerCase()),
-              )
-              .map((name) => {
-                const item = schedules.find(
-                  (schedule) => schedule.name === name,
-                );
-                return (
-                  <button
-                    className={`operation-schedule rail-list-item${selectedSchedule === name ? " active" : ""}`}
-                    key={name}
-                    onClick={() => onSelected(`schedule:${name}`)}
-                    aria-pressed={selectedSchedule === name}
-                  >
-                    <Clock />
-                    <span className="rail-item-copy">
-                      <strong>{name}</strong>
-                      <small>{item ? item.cron : t("schedules.removed")}</small>
-                      {item?.last_trigger && (
-                        <Status state={item.last_trigger.state} />
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            {loading && !data && (
+            {loading && !data ? (
               <span className="run-loading">
                 <LoaderCircle className="spin" />
               </span>
+            ) : (
+              data && (
+                <OperationTree
+                  groups={visible.groups}
+                  manual={visible.manual}
+                  showManual={page.view !== "schedules"}
+                  selected={selected?.id || selectedGroup?.id}
+                  onSelected={onSelected}
+                />
+              )
             )}
-            {scheduleTasks.map((task) => (
-              <article
-                key={task.task_id}
-                className={selected?.task_id === task.task_id ? "active" : ""}
-              >
-                <button
-                  className="run-main rail-list-item"
-                  onClick={() => onSelected(task.task_id)}
-                  aria-pressed={selected?.task_id === task.task_id}
-                >
-                  <span className="run-item-avatar rail-avatar">
-                    <Activity />
-                  </span>
-                  <span className="rail-item-copy">
-                    <strong>{task.display_name || task.reg_name}</strong>
-                    <code>{task.task_id}</code>
-                    <small>{formatDate(task.created_at)}</small>
-                    <small>
-                      {task.source.schedule
-                        ? t("schedules.scheduledSource", {
-                            name: task.source.schedule.name,
-                          })
-                        : t(`schedules.sources.${task.source.kind}`)}
-                    </small>
-                    <Status state={task.state} />
-                  </span>
-                  <ArrowRight />
-                </button>
-              </article>
-            ))}
+            {data &&
+              query &&
+              !visible.groups.length &&
+              !visible.manual.length && (
+                <p className="operation-index-empty">{t("operations.empty")}</p>
+              )}
           </div>
         </aside>
         <RailResizer min={180} max={460} className="context-resizer" />
@@ -203,37 +158,36 @@ export default function OperationPage({
               <button onClick={() => void reload()}>{t("retry")}</button>
             </div>
           )}
-          {data && selectedSchedule && (
+          {data && selectedGroup && (
             <ScheduleReport
-              name={selectedSchedule}
-              schedule={schedule || null}
+              name={selectedGroup.name}
+              schedule={selectedGroup.schedule}
             />
           )}
-          {selected ? (
-            page.view === "pipeline" ? (
+          {selectedJob && <ScheduleRunReport run={selectedJob} />}
+          {selectedTask &&
+            (page.view === "pipeline" ? (
               <PipelineReport
-                key={`${target}:${selected.task_id}:${selected.run_id}`}
-                task={selected}
+                key={`${target}:${selectedTask.task_id}:${selectedTask.run_id}`}
+                task={selectedTask}
                 target={target}
                 onOpenTask={onOpenTask}
               />
             ) : (
               <TaskRunReport
-                key={`${target}:${selected.task_id}:${selected.run_id}`}
-                task={selected}
+                key={`${target}:${selectedTask.task_id}:${selectedTask.run_id}`}
+                task={selectedTask}
                 target={target}
                 onOpenTask={onOpenTask}
               />
-            )
-          ) : (
-            (page.view !== "schedules" || !selectedSchedule) && (
-              <div className="empty-research">
-                <Activity />
-                <strong>
-                  {loading ? t("shell.loading") : t("operations.empty")}
-                </strong>
-              </div>
-            )
+            ))}
+          {!selected && !selectedGroup && (
+            <div className="empty-research">
+              <Activity />
+              <strong>
+                {loading ? t("shell.loading") : t("operations.empty")}
+              </strong>
+            </div>
           )}
         </main>
       </div>

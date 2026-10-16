@@ -191,3 +191,18 @@ it("ignores malformed group preferences and expands direct-linked pages", async 
   expect(groupToggle("development").getAttribute("aria-expanded")).toBe("true");
   expect(container.querySelector(".nav-apis.active")).not.toBeNull();
 });
+
+it("retains breadcrumb options when selecting a resource and clears them on page changes", async () => {
+  vi.mocked(machineStatus).mockResolvedValue(info("1.0"));
+  await act(async () => root.render(<Harness />));
+  const route = { section: "operations" as const, view: "data" };
+  await act(async () => studio.navigate(route));
+  const options = [{ value: "schedule:data_update", label: "data_update" }];
+  await act(async () => studio.setResourceOptions(options));
+  await act(async () =>
+    studio.navigate({ ...route, resource: "schedule:data_update" }),
+  );
+  expect(studio.resourceOptions).toEqual(options);
+  await act(async () => studio.navigate(defaultRoute("runtime")));
+  expect(studio.resourceOptions).toEqual([]);
+});

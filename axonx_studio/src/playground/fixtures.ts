@@ -82,8 +82,19 @@ schedules.push({
   ...schedules[0],
   name: "data_update",
   scheduler_id: "demo-data",
+  description: "Refresh synthetic market data / 刷新合成行情数据",
   arguments: { task: "playground.download" },
-  last_trigger: null,
+  last_trigger: {
+    ...schedules[0].last_trigger!,
+    name: "data_update",
+    scheduler_id: "demo-data",
+    trigger_id: "demo-data-trigger",
+    result: {
+      task_id: "api#playground_download#scheduled",
+      run_id: "demo-data-run",
+      task: "playground.download",
+    },
+  },
 });
 schedules[1].description = "Display replica → http://example.test:1025";
 schedules[1].last_trigger = {
@@ -595,6 +606,14 @@ export function seed() {
     status: "succeeded",
   };
   tasks.set(download.task_id, download);
+  const scheduled = structuredClone(download);
+  scheduled.task_id = "api#playground_download#scheduled";
+  scheduled.run_id = "demo-data-run";
+  scheduled.input_params.task_name = "Scheduled data update";
+  scheduled.source.schedule = schedules.find(
+    (schedule) => schedule.name === "data_update",
+  )!.last_trigger;
+  tasks.set(scheduled.task_id, scheduled);
   files.set(
     "tushare/daily/sample.parquet",
     table(

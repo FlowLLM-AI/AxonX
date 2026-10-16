@@ -19,12 +19,13 @@ let container: HTMLDivElement;
 const onConnection = vi.fn();
 const onOpenTask = vi.fn();
 const onSelected = vi.fn();
+const onOptionsChange = vi.fn();
 const render = async (initialTaskId?: string, pageId = "online") => {
   await act(async () => {
     root.render(
       <OperationPage
         page={studioPages.find((page) => page.id === pageId)!}
-        onOptionsChange={onSelected}
+        onOptionsChange={onOptionsChange}
         initialResource={initialTaskId}
         onConnection={onConnection}
         onSelected={onSelected}
@@ -162,24 +163,81 @@ it("shows Job-only synchronization without querying Task records", async () => {
   );
   await render(undefined, "sync");
   expect(calls.some((url) => url.includes("list_task_statuses"))).toBe(false);
-  expect(container.textContent).toContain("operations.history");
+  expect(container.textContent).toContain("operations.schedules");
   expect(container.querySelector(".operation-metrics")?.textContent).toContain(
     "operations.metrics.uploaded",
   );
-  expect(container.querySelectorAll(".operation-trigger")).toHaveLength(1);
+  expect(
+    container.querySelectorAll('.run-index article[data-kind="job"]'),
+  ).toHaveLength(1);
 });
 
-it("shows manual data updates while keeping nested nightly downloads in their parent", async () => {
-  await render(undefined, "data");
-  expect(container.querySelectorAll(".run-index article")).toHaveLength(1);
+it("selects schedules without hiding manual or scheduled runs", async () => {
+  await render("api#playground_download#demo", "data");
+  expect(
+    container.querySelectorAll('.run-index article[data-kind="task"]'),
+  ).toHaveLength(2);
   expect(container.querySelector(".online-report")?.textContent).toContain(
     "Synthetic data update",
   );
   expect(container.textContent).not.toContain("Synthetic nightly download");
-  expect(container.querySelector(".log-content")?.textContent).toContain(
-    "[demo]",
+  const group =
+    container.querySelector<HTMLDetailsElement>(".operation-group")!;
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>(".operation-schedule")!.click(),
   );
+  expect(onSelected).toHaveBeenLastCalledWith("schedule:data_update");
+  expect(group.open).toBe(true);
   await render("schedule:data_update", "data");
-  expect(container.textContent).toContain("operations.noTriggers");
+  expect(container.querySelector(".schedule-card")?.textContent).toContain(
+    "data_update",
+  );
   expect(container.querySelector(".online-report")).toBeNull();
+  expect(
+    container.querySelectorAll('.run-index article[data-kind="task"]'),
+  ).toHaveLength(2);
+  expect(container.querySelector(".operation-manual")?.textContent).toContain(
+    "Synthetic data update",
+  );
+  expect(
+    container.querySelector(".operation-group:not(.operation-manual)")
+      ?.textContent,
+  ).toContain("Scheduled data update");
+});
+
+it("opens a persisted Job execution separately from its schedule configuration", async () => {
+  await render("trigger:demo-sync", "sync");
+  expect(
+    container.querySelector(".operation-job-report")?.textContent,
+  ).toContain("workspace_sync");
+  expect(container.querySelector(".operation-metrics")?.textContent).toContain(
+    "operations.metrics.uploaded",
+  );
+  expect(container.querySelector(".schedule-card")).toBeNull();
+  expect(container.querySelector(".operation-schedule")).not.toBeNull();
+});
+
+it("keeps breadcrumb resources populated when selecting another resource on the same page", async () => {
+  await render(undefined, "data");
+  expect(onOptionsChange).toHaveBeenLastCalledWith(
+    expect.arrayContaining([
+      { value: "schedule:data_update", label: "data_update" },
+      expect.objectContaining({ value: "api#playground_download#demo" }),
+    ]),
+  );
+});
+
+it("keeps schedule branches collapsed when the page refreshes", async () => {
+  await render("schedule:data_update", "data");
+  const branch =
+    container.querySelector<HTMLDetailsElement>(".operation-group")!;
+  await act(async () => {
+    branch.open = false;
+    branch.dispatchEvent(new Event("toggle"));
+  });
+  await render("api#playground_download#demo", "data");
+  expect(branch.open).toBe(false);
+  expect(
+    container.querySelector<HTMLDetailsElement>(".operation-manual")!.open,
+  ).toBe(true);
 });

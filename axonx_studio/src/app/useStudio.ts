@@ -198,7 +198,10 @@ export function useStudio() {
   const [sidebarWidth, setSidebarWidth] = useState(storedSidebarWidth);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => setResourceOptions([]), [machineId, route]);
+  useEffect(
+    () => setResourceOptions([]),
+    [machineId, route.section, route.view],
+  );
 
   const sidebar = {
     collapsed,

@@ -1088,11 +1088,9 @@
     "loadError": "无法加载业务导航",
     "unavailable": "此服务未配置该页面",
     "search": "搜索调度或任务",
-    "history": "近期调度记录",
     "noTriggers": "尚未触发",
     "finished": "完成时间",
     "result": "执行结果",
-    "allRuns": "全部运行（含手动）",
     "empty": "暂无匹配的任务",
     "dataProgress": "数据更新进度",
     "children": "下载子任务",
@@ -1102,6 +1100,13 @@
       "oversized": "超出大小限制",
       "deferred": "待重试",
       "archives": "传输包数"
-    }
+    },
+    "schedules": "定时调度",
+    "manual": "手动运行",
+    "archived": "历史调度 · 当前配置不可用",
+    "noRuns": "暂无执行记录",
+    "taskRun": "Task 运行",
+    "jobRun": "Job 执行",
+    "triggered": "触发时间"
   }
 }
