@@ -29,6 +29,7 @@ class WorkerExit:
     stderr_tail: str
     task_id: str
     run_id: str
+    cancelled: bool = False
 
 
 ExitHandler = Callable[[WorkerExit], Awaitable[None]]
@@ -46,7 +47,7 @@ class TaskProcessSupervisor:
         self.processes: dict[int, Any] = {}
         self.run_pids: dict[str, int] = {}
         self.monitors: set[asyncio.Task[None]] = set()
-        self._shutdown_pids: set[int] = set()
+        self._stop_reasons: dict[int, str] = {}
 
     def is_managed_run(self, run_id: str) -> bool:
         """Whether this supervisor still tracks the task run."""
@@ -98,7 +99,9 @@ class TaskProcessSupervisor:
         process = self.processes.get(pid)
         if process is None or process.returncode is not None:
             return False
+        self._stop_reasons[pid] = "cancel"
         if not self._signal(pid, signal.SIGTERM):
+            self._stop_reasons.pop(pid, None)
             raise RuntimeError(f"Could not terminate managed worker {pid}")
         try:
             await asyncio.wait_for(asyncio.shield(process.wait()), timeout=self.grace_seconds)
@@ -113,7 +116,7 @@ class TaskProcessSupervisor:
         processes = tuple(process for process in self.processes.values() if process.returncode is None)
         pids = {process.pid for process in processes}
         run_pids = {run_id: pid for run_id, pid in self.run_pids.items() if pid in pids}
-        self._shutdown_pids.update(process.pid for process in processes)
+        self._stop_reasons.update({process.pid: "shutdown" for process in processes})
         terminated = {process.pid for process in processes if self._signal(process.pid, signal.SIGTERM)}
         monitors = tuple(self.monitors)
         if monitors and self.grace_seconds > 0:
@@ -133,7 +136,7 @@ class TaskProcessSupervisor:
 
     async def _monitor(self, process: Any, task_id: str, task_name: str, run_id: str) -> None:
         stderr_tail = bytearray()
-        stopped_during_shutdown = False
+        stop_reason = None
         try:
             if process.stderr is not None:
                 while chunk := await process.stderr.read(8192):
@@ -147,15 +150,14 @@ class TaskProcessSupervisor:
             self.logger.exception(f"Failed to monitor task process {process.pid} ({task_name})")
             return
         finally:
-            stopped_during_shutdown = process.pid in self._shutdown_pids
-            self._shutdown_pids.discard(process.pid)
+            stop_reason = self._stop_reasons.pop(process.pid, None)
             # Keep workers tracked after a monitor failure so cancellation and
             # shutdown can still stop them. Uncertain liveness is not a failure.
-            if process.returncode is not None or stopped_during_shutdown:
+            if process.returncode is not None or stop_reason == "shutdown":
                 self.processes.pop(process.pid, None)
                 self.run_pids.pop(run_id, None)
 
-        if stopped_during_shutdown:
+        if stop_reason == "shutdown":
             self.logger.info(f"Task process {process.pid} ({task_name}) stopped during task-manager shutdown")
             return
 
@@ -164,7 +166,7 @@ class TaskProcessSupervisor:
             self.logger.error(f"Task process {process.pid} ({task_name}) exited with code {return_code}: {detail}")
         else:
             self.logger.info(f"Task process {process.pid} ({task_name}) completed successfully")
-        worker_exit = WorkerExit(return_code, detail, task_id, run_id)
+        worker_exit = WorkerExit(return_code, detail, task_id, run_id, cancelled=stop_reason == "cancel")
         while True:
             try:
                 await self.on_exit(worker_exit)

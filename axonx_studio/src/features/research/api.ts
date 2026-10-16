@@ -4,6 +4,7 @@ import { taskDirectory } from "../../shared/lib/tasks";
 import { isRecord } from "../../shared/lib/values";
 import { displayArtifacts } from "../../shared/lib/replica";
 import { getTaskStatus } from "../tasks/api";
+import type { TaskMetadata } from "../../shared/api/contracts";
 import type { TaskSummary } from "../tasks/types";
 import type { ResearchArtifact, ResearchKind } from "./types";
 
@@ -27,7 +28,7 @@ export async function getResearchTask<K extends ResearchKind>(
   target?: string,
   signal?: AbortSignal,
 ): Promise<ResearchArtifact<K>> {
-  const metadata = await getTaskStatus(taskId, target, signal);
+  const metadata: TaskMetadata = await getTaskStatus(taskId, target, signal);
   signal?.throwIfAborted();
   if (
     metadata.task_id !== taskId ||

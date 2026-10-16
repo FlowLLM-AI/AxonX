@@ -497,6 +497,7 @@ async def test_statuses_are_sorted_by_creation_time_not_task_id():
             return {older.task_id: older, newer.task_id: newer}
 
     manager = object.__new__(LocalTaskManager)
+    manager._supervisor = SimpleNamespace(run_pids={})
     manager.repository = Index()
     assert [item.task_id for item in await manager.list_statuses()] == [
         newer.task_id,
@@ -557,6 +558,7 @@ async def test_cancel_targets_the_managed_run_instead_of_the_persisted_pid(ident
 def exit_manager(tmp_path):
     context = SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
     manager = object.__new__(LocalTaskManager)
+    manager._supervisor = SimpleNamespace(run_pids={})
     manager.app_context = context
     manager._lock = asyncio.Lock()
     manager.repository = LocalTaskRepository(app_context=context)
@@ -578,7 +580,7 @@ async def test_worker_exit_without_final_status_fails_exact_run(tmp_path, exit_m
     finished = []
 
     async def finish(*args):
-        assert exit_manager._lock.locked()
+        assert not exit_manager._lock.locked()
         finished.append(args)
 
     exit_manager._finish = finish
@@ -605,7 +607,7 @@ async def test_worker_exit_preserves_final_status_on_disk(tmp_path, exit_manager
     before = (directory / "metadata.json").read_bytes()
     await exit_manager._handle_worker_exit(WorkerExit(7, "late exit", status.task_id, status.run_id))
     assert (directory / "metadata.json").read_bytes() == before
-    assert await exit_manager.get_status(status.task_id) == status
+    assert (await exit_manager.get_status(status.task_id)).model_dump(exclude={"managed_run_id"}) == status.model_dump()
 
 
 async def test_old_worker_exit_preserves_replacement_run(tmp_path, exit_manager):
@@ -623,7 +625,7 @@ async def test_old_worker_exit_preserves_replacement_run(tmp_path, exit_manager)
     before = (directory / "metadata.json").read_bytes()
     await exit_manager._handle_worker_exit(WorkerExit(7, "old worker", status.task_id, "old-run"))
     assert (directory / "metadata.json").read_bytes() == before
-    assert await exit_manager.get_status(status.task_id) == status
+    assert (await exit_manager.get_status(status.task_id)).model_dump(exclude={"managed_run_id"}) == status.model_dump()
 
 
 async def test_worker_exit_does_not_recreate_deleted_task(tmp_path, exit_manager):
@@ -827,7 +829,9 @@ async def test_shared_workspace_services_leave_unowned_active_runs_unchanged(tmp
         for service in (first, second):
             manager = service.context.components["task_manager"]["default"]
             for status in statuses:
-                assert await manager.get_status(status.task_id) == status
+                assert (await manager.get_status(status.task_id)).model_dump(
+                    exclude={"managed_run_id"}
+                ) == status.model_dump()
     # Startup and shutdown must not infer failure from a foreign or missing PID.
     for status in statuses:
         assert read_entry(tmp_path, status.task_id) == status

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 from contextvars import ContextVar
@@ -13,6 +14,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from ...enums import ComponentEnum
+from ...task.schemas.protocol import fingerprint
 from ...plugin_kit.environment import environment_operation, run_in_thread
 from ..base import BaseComponent
 from ..registry import provider
@@ -39,7 +41,16 @@ class UpdateManager(BaseComponent):
     @property
     def directory(self) -> Path:
         """Keep update state under the protected runtime workspace."""
-        return self.workspace_path.resolve() / "updates"
+        service = self.app_context.service
+        identity = fingerprint(
+            {
+                "host": socket.gethostname(),
+                "bind": getattr(service, "host", None),
+                "port": getattr(service, "port", None),
+                "cwd": str(getattr(service, "startup_directory", "")),
+            }
+        )
+        return self.workspace_path.resolve() / "updates" / identity
 
     async def _start(self) -> None:
         from .worker import RECORD_ENV
@@ -67,45 +78,50 @@ class UpdateManager(BaseComponent):
         if self.pending is not None:
             raise RuntimeError("An update is already pending")
         plan = await run_in_thread(self._plan, mode, service)
-        blockers = await self.restart_blockers()
-        if blockers:
-            names = ", ".join(item["task_id"] for item in blockers)
-            raise RuntimeError(f"Active scheduled Tasks prevent service update or restart: {names}")
-        for manager in self.app_context.components.get("task_manager", {}).values():
-            active = await manager.list_managed_run_ids()
-            if active and not force:
-                raise RuntimeError("Active Tasks prevent updating; force=true cancels managed Runs")
-            for run_id in active:
-                try:
-                    cancelled = await manager.cancel(run_id=run_id)
-                except RuntimeError:
-                    # A worker may exit before cancel resolves its workspace record.
-                    if run_id in await manager.list_managed_run_ids():
-                        raise
-                    continue
-                if not cancelled and run_id in await manager.list_managed_run_ids():
-                    raise RuntimeError(f"Cannot stop active Run: {run_id}")
-        update_id = uuid4().hex
-        folder = self.directory / update_id
-        folder.mkdir(parents=True, mode=0o700)
-        path = folder / "record.json"
-        record = {
-            "update_id": update_id,
-            "mode": mode,
-            "phase": "accepted",
-            "error": None,
-            "created_at": datetime.now(UTC).isoformat(),
-            "before": versions(),
-            "after": None,
-            "commit": None,
-        }
-        (folder / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
-        shutil.copyfile(Path(__file__).with_name("worker.py"), folder / "worker.py")
-        save(path, record)
-        self.pending = path
         self.app_context.metadata["maintenance"] = True
-        callbacks.append(service.request_shutdown)
-        return record
+        try:
+            blockers = await self.restart_blockers()
+            if blockers:
+                names = ", ".join(item.get("task_id", item["schedule"]) for item in blockers)
+                raise RuntimeError(f"Active scheduled Tasks or Jobs prevent service update or restart: {names}")
+            for manager in self.app_context.components.get("task_manager", {}).values():
+                active = await manager.list_managed_run_ids()
+                if active and not force:
+                    raise RuntimeError("Active Tasks prevent updating; force=true cancels managed Runs")
+                for run_id in active:
+                    try:
+                        cancelled = await manager.cancel(run_id=run_id)
+                    except RuntimeError:
+                        # A worker may exit before cancel resolves its workspace record.
+                        if run_id in await manager.list_managed_run_ids():
+                            raise
+                        continue
+                    if not cancelled and run_id in await manager.list_managed_run_ids():
+                        raise RuntimeError(f"Cannot stop active Run: {run_id}")
+            update_id = uuid4().hex
+            folder = self.directory / update_id
+            folder.mkdir(parents=True, mode=0o700)
+            path = folder / "record.json"
+            record = {
+                "update_id": update_id,
+                "mode": mode,
+                "phase": "accepted",
+                "error": None,
+                "created_at": datetime.now(UTC).isoformat(),
+                "before": versions(),
+                "after": None,
+                "commit": None,
+            }
+            (folder / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+            shutil.copyfile(Path(__file__).with_name("worker.py"), folder / "worker.py")
+            save(path, record)
+            self.pending = path
+            callbacks.append(service.request_shutdown)
+            return record
+        except BaseException:
+            if self.pending is None:
+                self.app_context.metadata.pop("maintenance", None)
+            raise
 
     def _plan(self, mode: str, service) -> dict:
         if mode not in {"git", "pip", "restart"}:
@@ -195,7 +211,11 @@ class UpdateManager(BaseComponent):
 
     async def restart_blockers(self) -> list[dict]:
         """Never allow forced maintenance to cancel scheduled Tasks."""
-        blockers = []
+        blockers = [
+            {"schedule": scheduler.name, "job": description["job"], "running": description["running"]}
+            for scheduler in self.app_context.schedulers.values()
+            if (description := scheduler.describe())["running"]
+        ]
         for manager in self.app_context.components.get("task_manager", {}).values():
             blockers.extend(await manager.list_restart_blockers())
         return blockers
@@ -211,6 +231,10 @@ class UpdateManager(BaseComponent):
             if len(update_id) != 32 or any(char not in "0123456789abcdef" for char in update_id):
                 raise ValueError("Invalid update_id")
             path = self.directory / update_id / "record.json"
+            if not path.exists():
+                # Legacy records have no reliable owner; keep explicit reads
+                # available without adopting or recovering them at startup.
+                path = self.workspace_path.resolve() / "updates" / update_id / "record.json"
         record = json.loads(path.read_text(encoding="utf-8"))
         log_path = path.with_name("update.log")
         log = ""

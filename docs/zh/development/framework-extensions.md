@@ -233,3 +233,15 @@ Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID�
 股票回测插件可向 `run_backtest` 传入可选 `events` 处理器，提供 `successors`、`reset(top_n)`、`apply(date, slot, book, cash, quotes) -> cash`、`blocked(code)` 和 `pending_cash`。引擎遍历 `top_ns`，每个 N 从初始资金、空持仓和重置的事件状态开始，完整重放所有日期。当次执行可修改报价，不影响其他 N。待收款必须有限且非负，计入净值，到账前不能用于买入。引擎在每日估值/交易前调用，并在买入前检查。事件事实及具体证券逻辑保留在插件中；不传处理器时维持原有执行和产物格式。
 
 Scheduler 后端实现 `describe()`，供 `list_schedules` 查询。TaskManager 提供 `list_restart_blockers()`，通过拥有的 Run ID 和轻量摘要筛选正在排队或运行的定时来源 Task；共享工作区记录本身不表示本服务拥有该 Run。`source` 属于框架执行元数据，必须在 Worker 移交及子 Task 执行中保留。
+
+### 共享工作区与执行归属
+
+工作区仓库列出所有有效 Task 记录，包括其他服务及直接 `exec` 进程写入的记录。读取记录不会接管 worker。`TaskView`（完整列表和详情响应）与 `TaskSummary` 增加仅用于查询的 `managed_run_id`：受管根 Run 指向自身，其精确匹配的进程内子任务指向该根 Run，未受管记录返回 `null`。该字段不写入 `TaskMetadata`。仅当前所选服务管理的活动根 Run 可取消；停止子任务应取消其根 Run。记录进入终态时，worker 仍可能处于清理阶段。
+
+每个 cron scheduler 有运行时 `scheduler_id`，并将其写入 Task 的 `source.schedule`。关联当前调度和 Task 历史时应匹配该 ID，不能只匹配名称。持久化记录中的该字段可选，旧记录仍可读取，并显示为未关联当前配置的工作区历史。拒绝未知来源字段的旧版 AxonX，需要先升级才能共享新写入的定时记录。scheduler 的 `running` 和 `last_trigger` 表示当前服务的 Job 调用，不表示已提交后台 Task 的生命周期或结果。`forbid`、`replace` 保持 Job 层语义，不提供跨服务调度去重，也不会取消已经接收的 Task。
+
+维护入口先禁止本实例新的 cron 触发，再检查活动定时 Job 和受管 Run；拒绝维护后恢复触发。当前服务的活动定时 Job 与定时根 Run 即使强制维护也会阻塞。其他服务的磁盘记录不会阻塞维护。正常关闭先停止本实例触发器和 Job，再仅终止受管 worker。启动不会根据持久化 PID 判定失败或接管 worker，因此异常中断后的未受管记录保留原状态，需显式修复。
+
+本地 runner 在最终状态发布和清理完成前持有 Task 目录建议锁。目录创建、重置、Task 删除、工作区删除和副本应用协调工作区修改；仍被 runner 占用的终态目录不能重置或删除。工作区删除还会保护活动 Task 的文件及其祖先目录。取消操作会等待已开始的队列记录发布及结果收尾完成，再释放对应的修改锁。锁文件位于 Task 目录之外的 `.locks/`，服务使用工作区期间不得移除。这些锁要求文件系统支持共享 POSIX 建议锁，不能替代业务数据锁，也无法约束未参与锁协议的旧版写入方。
+
+更新记录调整为 `updates/<service-key>/<update-id>/`，服务标识由主机名、监听地址、端口和启动目录确定。服务仅恢复自身中断的更新。旧 `updates/<update-id>/` 记录保留在磁盘，不再被修改，也不包含在新的服务级最新状态查询中；仍可按更新 ID 显式读取。

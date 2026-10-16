@@ -1,7 +1,7 @@
 import { Check, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
-import { ACTIVE } from "./groups";
+import { canDelete } from "./groups";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 import type { TaskState, TaskSummary } from "./types";
 
@@ -22,7 +22,7 @@ export function TaskRow({
 }) {
   const { t } = useTranslation();
   const progress = taskStepProgress(task);
-  const selectable = !ACTIVE.has(task.state);
+  const selectable = canDelete(task);
   const clipboard = useCopyFeedback();
   const copied = clipboard.copied === task.task_id;
   return (
@@ -58,6 +58,13 @@ export function TaskRow({
               {task.is_replica && (
                 <small className="replica-label">{t("replica.label")}</small>
               )}
+              <small className="replica-label">
+                {t(
+                  task.managed_run_id
+                    ? "taskOwnership.managed"
+                    : "taskOwnership.workspace",
+                )}
+              </small>
               <button
                 type="button"
                 className={copied ? "copied" : ""}

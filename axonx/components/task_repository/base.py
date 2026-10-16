@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ...enums import ComponentEnum
 from ...task.query.graph import TaskGraph
-from ...task.query.summary import TaskSummary
+from ...task.query.summary import TaskSummary, managed_runs
 from ...task.schemas.lifecycle import TaskMetadata
 from ...task.sync import SyncTasksReport
 from ..base import BaseComponent
@@ -35,6 +35,10 @@ class BaseTaskRepository(BaseComponent, ABC):
     @abstractmethod
     async def summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
         """Project isolated lightweight summaries directly from the index, newest first."""
+
+    async def managed_runs(self, owned: set[str]) -> dict[str, str]:
+        """Resolve owned roots and their exact in-process child Runs."""
+        return managed_runs(await self.entries(), owned)
 
     @abstractmethod
     async def graph(self, task_id: str) -> TaskGraph:

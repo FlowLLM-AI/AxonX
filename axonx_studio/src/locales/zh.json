@@ -833,7 +833,7 @@
       "succeeded": "重启完成",
       "failed": "重启失败"
     },
-    "scheduledBlocked": "定时来源 Task 正在排队或运行，无法更新或重启服务。勾选强制取消也不能绕过此限制。"
+    "scheduledBlocked": "当前服务的定时 Task 或 Job 正在执行，暂不能更新或重启。"
   },
   "onlineReport": {
     "tabsLabel": "在线报告",
@@ -983,11 +983,11 @@
       "unknown": "来源未知"
     },
     "scheduledSource": "定时：{{name}}",
-    "removed": "此服务已不再配置该定时任务",
+    "removed": "工作区任务 · 未关联当前调度实例",
     "nextRun": "下次触发",
-    "lastJob": "最近 Job 触发",
+    "lastJob": "最近一次 Job 结果",
     "policy": "Job 并发策略",
-    "runningJobs": "执行中的 Job：{{count}}",
+    "runningJobs": "当前服务执行中的 Job：{{count}}",
     "policies": {
       "allow": "允许重叠",
       "forbid": "跳过重叠",
@@ -1079,5 +1079,9 @@
       "daily_quality": "整日质量",
       "prediction": "预测"
     }
+  },
+  "taskOwnership": {
+    "managed": "当前服务管理",
+    "workspace": "工作区记录"
   }
 }

@@ -55,6 +55,7 @@ class CronScheduler(BaseScheduler):
         self.arguments = dict(arguments or {})
         self.concurrency_policy = concurrency_policy
         self.last_trigger: dict | None = None
+        self.scheduler_id = uuid4().hex
         self._runner: asyncio.Task[None] | None = None
         self._executions: set[asyncio.Task[None]] = set()
 
@@ -70,6 +71,7 @@ class CronScheduler(BaseScheduler):
 
     def describe(self) -> dict:
         return {
+            "scheduler_id": self.scheduler_id,
             "name": self.name,
             "job": self.job_name,
             "description": self.description or self.app_context.jobs[self.job_name].description,
@@ -101,6 +103,8 @@ class CronScheduler(BaseScheduler):
             await self._trigger()
 
     async def _trigger(self) -> None:
+        if self.app_context.metadata.get("maintenance") or self.app_context.metadata.get("stopping"):
+            return
         active = {task for task in self._executions if not task.done()}
         if active and self.concurrency_policy == "forbid":
             self.logger.warning(f"Skipping overlapping run of Job {self.job_name!r}")
@@ -109,6 +113,9 @@ class CronScheduler(BaseScheduler):
             for task in active:
                 task.cancel()
             await asyncio.gather(*active, return_exceptions=True)
+
+        if self.app_context.metadata.get("maintenance") or self.app_context.metadata.get("stopping"):
+            return
 
         task = asyncio.create_task(
             self._execute(),
@@ -119,7 +126,11 @@ class CronScheduler(BaseScheduler):
 
     async def _execute(self) -> None:
         trigger = ScheduleTrigger(
-            name=self.name, job=self.job_name, trigger_id=uuid4().hex, triggered_at=datetime.now(UTC)
+            name=self.name,
+            job=self.job_name,
+            trigger_id=uuid4().hex,
+            triggered_at=datetime.now(UTC),
+            scheduler_id=self.scheduler_id,
         )
         result = {**trigger.model_dump(mode="json"), "state": "running", "error": ""}
         self.last_trigger = result

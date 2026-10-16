@@ -73,6 +73,7 @@ async def test_local_summary_avoids_full_snapshot_copy(tmp_path, monkeypatch):
 
     monkeypatch.setattr(TaskMetadata, "model_copy", refuse_copy)
     manager = object.__new__(LocalTaskManager)
+    manager._supervisor = SimpleNamespace(run_pids={})
     manager.repository = repository
     manager.list_statuses = AsyncMock(side_effect=AssertionError("Full list must not be copied"))
     summaries = await manager.list_summaries()

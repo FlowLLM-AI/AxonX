@@ -46,6 +46,7 @@ export function createPlayground(): Transport {
       const task = requiredTask(id);
       const elapsed = Date.now() - started;
       task.state = elapsed < 600 ? "queued" : "running";
+      task.managed_run_id = task.run_id;
       task.started_at =
         elapsed < 600 ? null : new Date(started + 600).toISOString();
       task.steps = task.steps.map((step, i) => ({
@@ -65,6 +66,7 @@ export function createPlayground(): Transport {
         task.finished_at = new Date(started + 6000).toISOString();
         task.state =
           task.input_params.outcome === "failure" ? "failed" : "succeeded";
+        task.managed_run_id = null;
         if (task.state === "failed") {
           task.error = "Simulated missing input / 模拟输入缺失";
           task.exit_code = 1;
@@ -307,6 +309,7 @@ export function createPlayground(): Transport {
           task.started_at = null;
           task.finished_at = null;
           task.state = "queued";
+          task.managed_run_id = task.run_id;
           task.output_params = {};
           task.steps = task.steps.map((step) => ({
             ...step,
@@ -328,6 +331,7 @@ export function createPlayground(): Transport {
             return response(false);
           if (!running.delete(task.task_id)) return response(false);
           task.state = "cancelled";
+          task.managed_run_id = null;
           task.finished_at = new Date().toISOString();
           return response(true);
         }

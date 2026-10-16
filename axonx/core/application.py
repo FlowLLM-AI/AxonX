@@ -49,6 +49,7 @@ class Application:
             if self.is_started:
                 return
             self.workspace_path.mkdir(parents=True, exist_ok=True)
+            self.context.metadata.pop("stopping", None)
             try:
                 for component in self._startup_order:
                     await component.start()
@@ -83,6 +84,7 @@ class Application:
     async def close(self) -> None:
         """Close every started object in reverse order, without short-circuiting."""
         async with self._lifecycle_lock:
+            self.context.metadata["stopping"] = True
             errors: list[BaseException] = []
             if self._log_cleanup_task is not None:
                 self._log_cleanup_task.cancel()

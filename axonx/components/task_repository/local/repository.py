@@ -9,7 +9,8 @@ from contextlib import suppress
 from pathlib import Path
 
 from ....task.query.graph import TaskGraph, task_graph
-from ....task.query.summary import TaskSummary, summarize_status, task_sort_key
+from ....task.query.summary import TaskSummary, managed_runs, summarize_status, task_sort_key
+from ....task.storage.locking import workspace_lock, workspace_mutation
 from ....task.schemas.lifecycle import TaskMetadata
 from ....task.storage.workspace import (
     is_task_directory,
@@ -109,12 +110,16 @@ class LocalTaskRepository(BaseTaskRepository):
         async with self._lock:
             return task_graph(self._entries, task_id)
 
+    async def managed_runs(self, owned: set[str]) -> dict[str, str]:
+        async with self._lock:
+            return managed_runs(self._entries, owned)
+
     async def put_metadata(self, status: TaskMetadata) -> None:
         async with self._lock:
             directory = task_path(self.root, status.task_id)
             if not is_task_directory(directory, strict_io=True):
                 return
-            await asyncio.to_thread(write_task_metadata, directory, status)
+            await run_blocking(write_task_metadata, directory, status)
             self._entries[status.task_id] = status.model_copy(deep=True)
 
     async def forget(self, task_id: str) -> None:
@@ -132,15 +137,25 @@ class LocalTaskRepository(BaseTaskRepository):
             directory = task_path(self.root, task_id)
             if directory.is_symlink() or directory.parent.is_symlink():
                 return False
-            entry = await asyncio.to_thread(read_entry, self.root, task_id)
-            if entry is None or not entry.state.is_terminal:
-                return False
             try:
-                await asyncio.to_thread(reset_task_directory if reset else shutil.rmtree, directory)
+                cleared = await run_blocking(self._remove_terminal, task_id, reset)
+            except BlockingIOError:
+                return False
             except FileNotFoundError:
                 if directory.exists():
                     raise
+                cleared = True
+            if not cleared:
+                return False
             self._entries.pop(task_id, None)
+            return True
+
+    def _remove_terminal(self, task_id: str, reset: bool) -> bool:
+        with workspace_lock(self.root, task_id):
+            entry = read_entry(self.root, task_id)
+            if entry is None or not entry.state.is_terminal:
+                return False
+            (reset_task_directory if reset else shutil.rmtree)(task_path(self.root, task_id))
             return True
 
     async def _handle_changes(self, changes: TaskChanges) -> None:
@@ -162,20 +177,21 @@ class LocalTaskRepository(BaseTaskRepository):
         deletions: list[str],
         archive_name: str | None,
     ) -> SyncTasksReport:
-        async with self._lock:
-            report = await run_blocking(
-                TaskArchiveApplier(self.root, self.app_config.transfer_budget_bytes).apply,
-                archive_path,
-                deletions,
-                archive_name,
-            )
-            for relative_path in report.applied + report.deleted:
-                task_id = relative_path.split("/", 1)[1]
-                entry = await asyncio.to_thread(read_entry, self.root, task_id)
-                if entry is None:
-                    self._entries.pop(task_id, None)
-                else:
-                    self._entries[task_id] = entry
+        async with workspace_mutation(self.root):
+            async with self._lock:
+                report = await run_blocking(
+                    TaskArchiveApplier(self.root, self.app_config.transfer_budget_bytes).apply,
+                    archive_path,
+                    deletions,
+                    archive_name,
+                )
+                for relative_path in report.applied + report.deleted:
+                    task_id = relative_path.split("/", 1)[1]
+                    entry = await asyncio.to_thread(read_entry, self.root, task_id)
+                    if entry is None:
+                        self._entries.pop(task_id, None)
+                    else:
+                        self._entries[task_id] = entry
         changed = frozenset(path.split("/", 1)[1] for path in report.applied + report.deleted)
         self._publish(TaskChanges(changed))
         return report

@@ -24,12 +24,11 @@ import { useTranslation } from "react-i18next";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import type { TaskMetadata } from "./types";
 import { usePolling } from "../../shared/hooks/usePolling";
+import { canCancel } from "./groups";
 import { cancelTask, getTaskStatus } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 import { Status } from "./TaskRow";
 import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
-
-const ACTIVE = new Set(["queued", "running"]);
 
 export function TaskDetailPage({
   taskId,
@@ -207,7 +206,14 @@ export function TaskDetailPage({
             <Bot />
             {t("agent.interpretTask")}
           </button>
-          {ACTIVE.has(task.state) && !task.replica && (
+          <span className="muted">
+            {t(
+              task.managed_run_id
+                ? "taskOwnership.managed"
+                : "taskOwnership.workspace",
+            )}
+          </span>
+          {canCancel(task) && !task.replica && (
             <button
               className="danger-outline task-detail-cancel"
               onClick={() => void cancel()}

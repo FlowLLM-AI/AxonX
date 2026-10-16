@@ -1,4 +1,4 @@
-import type { TaskMetadata } from "../../features/tasks/types";
+import type { TaskMetadata } from "../api/contracts";
 import type { ArtifactRecord } from "../api/contracts";
 export type { ReplicaFile, DisplayReplica } from "../api/contracts";
 export function displayArtifacts(metadata: TaskMetadata) {

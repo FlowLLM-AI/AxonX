@@ -1,11 +1,17 @@
-"""Cancellation-safe ownership of blocking work and its temporary resources."""
+"""Cancellation-safe completion of owned async and blocking work."""
 
 import asyncio
+from collections.abc import Awaitable
 from contextlib import suppress
 
 
 async def run_blocking(function, *args):
-    operation = asyncio.create_task(asyncio.to_thread(function, *args))
+    return await complete_on_cancel(asyncio.to_thread(function, *args))
+
+
+async def complete_on_cancel[T](awaitable: Awaitable[T]) -> T:
+    """Finish owned work before propagating cancellation to its caller."""
+    operation = asyncio.ensure_future(awaitable)
     try:
         return await asyncio.shield(operation)
     except asyncio.CancelledError:

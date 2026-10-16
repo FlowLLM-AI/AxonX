@@ -23,6 +23,7 @@ from ....enums import TaskState
 from ....logs import LogChunk
 from ....plugin_kit.environment import environment_operation, run_in_thread, serialized
 from ....progress import settle_steps
+from ....utils.async_work import complete_on_cancel
 from ....task.catalog import resolve_task
 from ....task.schemas.lifecycle import TaskHandle, TaskMetadata
 from ....task.core import BaseTask
@@ -31,7 +32,8 @@ from ....task.query import (
     TaskGraph,
     stream_task,
 )
-from ....task.query.summary import task_sort_key, TaskSummary
+from ....task.query.summary import task_sort_key, TaskSummary, TaskView
+from ....task.storage.locking import workspace_mutation
 from ....task.runtime.arguments import build_task_argv, parse_task_argv
 from ....task.runtime.source import TASK_SOURCE, TASK_SOURCE_ENV
 from ....task.runtime.composition import settle_children
@@ -67,13 +69,20 @@ class LocalTaskManager(BaseTaskManager):
         self.depend("repository", task_repository, BaseTaskRepository)
         self._logs = TaskLogReader(Path(self.app_config.log_dir).expanduser().resolve())
         self._lock = asyncio.Lock()
+        self._accepting = False
         self._supervisor = TaskProcessSupervisor(terminate_grace_seconds, self.logger, self._handle_worker_exit)
 
     async def _start(self) -> None:
         if os.name != "posix":
             raise NotImplementedError("LocalTaskManager supports macOS and Linux")
+        self._accepting = True
 
     async def _close(self) -> None:
+        self._accepting = False
+        # Drain an in-flight launch, then let exit callbacks acquire the lock
+        # while shutdown reaps workers and their monitors.
+        async with self._lock:
+            pass
         terminated = await self._supervisor.shutdown()
         for status in (await self.repository.entries()).values():
             if status.run_id in terminated and not status.state.is_terminal:
@@ -90,51 +99,59 @@ class LocalTaskManager(BaseTaskManager):
             raise TypeError("Task arguments must be a sequence of strings")
         registration_name, config = parse_task_argv(argv)
         run_id = uuid4().hex
-        for _ in range(100):
-            task = await run_in_thread(self._prepare_task, registration_name, config, run_id)
-            async with self._lock:
-                if not await self._reserve(task, not task.is_generated_name):
-                    continue
-                status = TaskMetadata(
-                    version=PROTOCOL_VERSION,
-                    task_id=task.task_id,
-                    run_id=run_id,
-                    task_type=task.task_type,
-                    reg_name=registration_name,
-                    source=TASK_SOURCE.get(),
-                    report_kind=task.report_kind,
-                    input_params=task.input_params.model_dump(mode="json"),
-                    state=TaskState.QUEUED,
-                    created_at=task.created_at,
-                )
-                await self.repository.put_metadata(status)
-            break
-        else:
-            raise RuntimeError("Could not allocate a unique Task name")
-
-        worker_argv = build_task_argv(
-            registration_name,
-            task.input_params.model_dump(mode="json"),
-        )
-        handed_over = {
-            AXONX_TASK_WORKSPACE_DIR: str(self.workspace_path.resolve()),
-            AXONX_TASK_LOG_DIR: str(self._logs.directory),
-            AXONX_TASK_TIMEZONE: self.app_config.timezone,
-            AXONX_TASK_ID: task.task_id,
-            AXONX_TASK_RUN_ID: run_id,
-            TASK_SOURCE_ENV: status.source.model_dump_json(),
-            AXONX_TASK_CREATED_AT: task.created_at.isoformat(),
-        }
+        status = None
         try:
-            await self._supervisor.spawn(
-                worker_argv,
-                {**self.app_config.environment, **handed_over},
-                task.task_id,
+            for _ in range(100):
+                task = await run_in_thread(self._prepare_task, registration_name, config, run_id)
+                async with workspace_mutation(self.workspace_path):
+                    async with self._lock:
+                        if not self._accepting:
+                            raise RuntimeError("Task manager is stopping")
+                        if not await self._reserve(task, not task.is_generated_name):
+                            continue
+                        status = TaskMetadata(
+                            version=PROTOCOL_VERSION,
+                            task_id=task.task_id,
+                            run_id=run_id,
+                            task_type=task.task_type,
+                            reg_name=registration_name,
+                            source=TASK_SOURCE.get(),
+                            report_kind=task.report_kind,
+                            input_params=task.input_params.model_dump(mode="json"),
+                            state=TaskState.QUEUED,
+                            created_at=task.created_at,
+                        )
+                        await self.repository.put_metadata(status)
+                break
+            else:
+                raise RuntimeError("Could not allocate a unique Task name")
+
+            worker_argv = build_task_argv(
                 registration_name,
-                run_id,
+                task.input_params.model_dump(mode="json"),
             )
+            handed_over = {
+                AXONX_TASK_WORKSPACE_DIR: str(self.workspace_path.resolve()),
+                AXONX_TASK_LOG_DIR: str(self._logs.directory),
+                AXONX_TASK_TIMEZONE: self.app_config.timezone,
+                AXONX_TASK_ID: task.task_id,
+                AXONX_TASK_RUN_ID: run_id,
+                TASK_SOURCE_ENV: status.source.model_dump_json(),
+                AXONX_TASK_CREATED_AT: task.created_at.isoformat(),
+            }
+            async with self._lock:
+                if not self._accepting:
+                    raise RuntimeError("Task manager is stopping")
+                await self._supervisor.spawn(
+                    worker_argv,
+                    {**self.app_config.environment, **handed_over},
+                    task.task_id,
+                    registration_name,
+                    run_id,
+                )
         except BaseException as exc:
-            await self._finish(status, TaskState.FAILED, 1, f"Worker could not start: {exc}")
+            if status is not None:
+                await self._finish(status, TaskState.FAILED, 1, f"Worker could not start: {exc}")
             raise
         return TaskHandle(task.task_id, run_id, registration_name)
 
@@ -177,20 +194,33 @@ class LocalTaskManager(BaseTaskManager):
             await asyncio.to_thread(log_path.unlink, missing_ok=True)
         return True
 
+    async def _managed_runs(self) -> dict[str, str]:
+        owned = set(await self.list_managed_run_ids())
+        return await self.repository.managed_runs(owned) if owned else {}
+
     async def list_statuses(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskMetadata]:
-        return sorted(
-            (await self.repository.entries(task_type=task_type, state=state)).values(), key=task_sort_key, reverse=True
-        )
+        owned = await self._managed_runs()
+        entries = await self.repository.entries(task_type=task_type, state=state)
+        return [
+            TaskView.model_construct(**dict(status), managed_run_id=owned.get(status.run_id))
+            for status in sorted(entries.values(), key=task_sort_key, reverse=True)
+        ]
 
     async def list_managed_run_ids(self) -> list[str]:
         """Include tracked workers even when metadata has finished or been replaced."""
         return list(self._supervisor.run_pids)
 
     async def list_summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
-        return await self.repository.summaries(task_type=task_type, state=state)
+        owned = await self._managed_runs()
+        summaries = await self.repository.summaries(task_type=task_type, state=state)
+        for summary in summaries:
+            summary.managed_run_id = owned.get(summary.run_id)
+        return summaries
 
     async def get_status(self, task_id: str) -> TaskMetadata:
-        return await self._status_of(task_id)
+        status = await self._status_of(task_id)
+        owned = await self._managed_runs()
+        return TaskView.model_construct(**dict(status), managed_run_id=owned.get(status.run_id))
 
     async def get_graph(self, task_id: str) -> TaskGraph:
         return await self.repository.graph(task_id)
@@ -230,6 +260,9 @@ class LocalTaskManager(BaseTaskManager):
             yield event
 
     async def cancel(self, task_id: str | None = None, run_id: str | None = None) -> bool:
+        return await complete_on_cancel(self._cancel(task_id, run_id))
+
+    async def _cancel(self, task_id: str | None, run_id: str | None) -> bool:
         if task_id is None and run_id is None:
             raise ValueError("Cancellation requires task_id or run_id")
         for name, value in (("task_id", task_id), ("run_id", run_id)):
@@ -256,36 +289,40 @@ class LocalTaskManager(BaseTaskManager):
                 raise RuntimeError(f"Cannot confirm termination of unmanaged Run: {status.task_id} {run_id}")
             # Supervisor identity is immutable even if the named Task has been replaced.
             cancelled = await self._supervisor.cancel_run(run_id)
-            if cancelled and status is not None and not status.state.is_terminal:
-                await self._finish(status, TaskState.CANCELLED, 130, "Task cancelled")
-            return cancelled
+        if cancelled and status is not None and not status.state.is_terminal:
+            await self._finish(status, TaskState.CANCELLED, 130, "Task cancelled")
+        return cancelled
 
     async def delete(self, task_ids: Sequence[str]) -> list[str]:
         if isinstance(task_ids, (str, bytes)) or not all(isinstance(task_id, str) for task_id in task_ids):
             raise TypeError("task_ids must be a sequence of strings")
+        async with workspace_mutation(self.workspace_path):
+            async with self._lock:
+                return await self._delete(task_ids)
+
+    async def _delete(self, task_ids: Sequence[str]) -> list[str]:
         deleted = []
-        async with self._lock:
-            entries = await self.repository.entries()
-            # Count how many tasks still reference each log before anything is removed.
-            logs = Counter(self._logs.path(entry) for entry in entries.values())
-            for task_id in dict.fromkeys(task_ids):
-                try:
-                    directory = task_path(self.workspace_path, task_id)
-                except ValueError:
-                    continue
-                entry = entries.get(task_id)
-                if entry is None or directory.is_symlink() or directory.parent.is_symlink():
-                    continue
-                status = entry
-                if not status.state.is_terminal or self._supervisor.is_managed_run(status.run_id):
-                    continue
-                if not await self.repository.delete_terminal(task_id):
-                    continue
-                log_path = self._logs.path(status)
-                if logs[log_path] == 1 and self._logs.is_task_log(log_path):
-                    await asyncio.to_thread(log_path.unlink, missing_ok=True)
-                logs[log_path] -= 1
-                deleted.append(task_id)
+        entries = await self.repository.entries()
+        # Count how many tasks still reference each log before anything is removed.
+        logs = Counter(self._logs.path(entry) for entry in entries.values())
+        for task_id in dict.fromkeys(task_ids):
+            try:
+                directory = task_path(self.workspace_path, task_id)
+            except ValueError:
+                continue
+            entry = entries.get(task_id)
+            if entry is None or directory.is_symlink() or directory.parent.is_symlink():
+                continue
+            status = entry
+            if not status.state.is_terminal or self._supervisor.is_managed_run(status.run_id):
+                continue
+            if not await self.repository.delete_terminal(task_id):
+                continue
+            log_path = self._logs.path(status)
+            if logs[log_path] == 1 and self._logs.is_task_log(log_path):
+                await asyncio.to_thread(log_path.unlink, missing_ok=True)
+            logs[log_path] -= 1
+            deleted.append(task_id)
         return deleted
 
     async def _status_of(self, task_id: str) -> TaskMetadata:
@@ -301,41 +338,45 @@ class LocalTaskManager(BaseTaskManager):
         await self.repository.put_metadata(status)
 
     async def _finish(self, status: TaskMetadata, state: TaskState, code: int, error: str) -> None:
-        current = await asyncio.to_thread(
-            read_task_metadata,
-            task_path(self.workspace_path, status.task_id),
-            status.task_id,
-            strict_io=True,
-        )
-        if current is None or current.run_id != status.run_id:
-            await self.repository.reconcile()
-            return
-        status = current
-        if state in {TaskState.FAILED, TaskState.CANCELLED}:
-            children = await asyncio.to_thread(settle_children, self.workspace_path, status, state, code, error)
-            for child in children:
-                await asyncio.to_thread(
-                    append_progress_snapshots,
-                    task_path(self.workspace_path, child.task_id) / EVENTS_FILE,
-                    child.steps,
-                )
-                await self._write_task_metadata(child)
-        status.state = state
-        status.finished_at = datetime.now(UTC)
-        settle_steps(
-            status.steps,
-            failed=state != TaskState.SUCCEEDED,
-            error=error,
-            now=status.finished_at,
-        )
-        status.exit_code = code
-        status.error = error
-        await asyncio.to_thread(
-            append_progress_snapshots,
-            task_path(self.workspace_path, status.task_id) / EVENTS_FILE,
-            status.steps,
-        )
-        await self._write_task_metadata(status)
+        await complete_on_cancel(self._settle(status, state, code, error))
+
+    async def _settle(self, status: TaskMetadata, state: TaskState, code: int, error: str) -> None:
+        async with workspace_mutation(self.workspace_path):
+            current = await asyncio.to_thread(
+                read_task_metadata,
+                task_path(self.workspace_path, status.task_id),
+                status.task_id,
+                strict_io=True,
+            )
+            if current is None or current.run_id != status.run_id or current.state.is_terminal:
+                await self.repository.reconcile()
+                return
+            status = current
+            if state in {TaskState.FAILED, TaskState.CANCELLED}:
+                children = await asyncio.to_thread(settle_children, self.workspace_path, status, state, code, error)
+                for child in children:
+                    await asyncio.to_thread(
+                        append_progress_snapshots,
+                        task_path(self.workspace_path, child.task_id) / EVENTS_FILE,
+                        child.steps,
+                    )
+                    await self._write_task_metadata(child)
+            status.state = state
+            status.finished_at = datetime.now(UTC)
+            settle_steps(
+                status.steps,
+                failed=state != TaskState.SUCCEEDED,
+                error=error,
+                now=status.finished_at,
+            )
+            status.exit_code = code
+            status.error = error
+            await asyncio.to_thread(
+                append_progress_snapshots,
+                task_path(self.workspace_path, status.task_id) / EVENTS_FILE,
+                status.steps,
+            )
+            await self._write_task_metadata(status)
 
     async def _handle_worker_exit(self, worker_exit: WorkerExit) -> None:
         """Fail an owned Run only after observing its worker exit without a final status.
@@ -346,16 +387,18 @@ class LocalTaskManager(BaseTaskManager):
         error = f"Worker exited without final status (code {worker_exit.return_code})"
         if worker_exit.stderr_tail:
             error += f": {worker_exit.stderr_tail[-ERROR_TAIL_CHARS:]}"
-        code = min(255, abs(worker_exit.return_code)) or 1
-        async with self._lock:
-            status = await asyncio.to_thread(
-                read_task_metadata,
-                task_path(self.workspace_path, worker_exit.task_id),
-                worker_exit.task_id,
-                strict_io=True,
-            )
-            if status is not None and status.run_id == worker_exit.run_id and not status.state.is_terminal:
-                await self._finish(status, TaskState.FAILED, code, error)
-            else:
-                # Refresh the index without rewriting a worker's result or a replacement Run.
-                await self.repository.reconcile()
+        state = TaskState.CANCELLED if worker_exit.cancelled else TaskState.FAILED
+        code = 130 if worker_exit.cancelled else min(255, abs(worker_exit.return_code)) or 1
+        if worker_exit.cancelled:
+            error = "Task cancelled"
+        status = await asyncio.to_thread(
+            read_task_metadata,
+            task_path(self.workspace_path, worker_exit.task_id),
+            worker_exit.task_id,
+            strict_io=True,
+        )
+        if status is not None and status.run_id == worker_exit.run_id and not status.state.is_terminal:
+            await self._finish(status, state, code, error)
+        else:
+            # Refresh the index without rewriting a worker's result or a replacement Run.
+            await self.repository.reconcile()

@@ -3,7 +3,11 @@
 import heapq
 import shutil
 from collections.abc import Callable, Iterable
+from contextlib import ExitStack
 from pathlib import Path, PurePosixPath
+
+from ..task.storage.locking import workspace_lock
+from ..task.storage.workspace import KINDS, scan_entries, task_path
 
 from .models import DeletedEntry, WorkspaceEntry, WorkspaceListing
 from .paths import WorkspacePaths
@@ -46,19 +50,38 @@ def delete_workspace_entries(workspace_path: Path, requested_paths: list[str]) -
     if len(requested_paths) > MAX_DELETE_ENTRIES:
         raise ValueError(f"At most {MAX_DELETE_ENTRIES} workspace entries can be deleted at once")
 
-    paths = WorkspacePaths(workspace_path)
-    selected: list[str] = []
-    for relative_path in dict.fromkeys(requested_paths):
-        if not isinstance(relative_path, str) or not relative_path:
-            raise ValueError("Workspace paths must be non-empty strings")
-        target = paths.resolve_deletable(relative_path)
-        if not target.exists() or not (target.is_file() or target.is_dir()):
-            raise ValueError(f"Workspace entry does not exist: {relative_path}")
-        selected.append(paths.relative(target))
+    with workspace_lock(workspace_path, blocking=True):
+        paths = WorkspacePaths(workspace_path)
+        selected: list[str] = []
+        for relative_path in dict.fromkeys(requested_paths):
+            if not isinstance(relative_path, str) or not relative_path:
+                raise ValueError("Workspace paths must be non-empty strings")
+            target = paths.resolve_deletable(relative_path)
+            if not target.exists() or not (target.is_file() or target.is_dir()):
+                raise ValueError(f"Workspace entry does not exist: {relative_path}")
+            selected.append(paths.relative(target))
 
-    names = set(selected)
-    roots = [path for path in selected if not any(str(parent) in names for parent in PurePosixPath(path).parents)]
-    return [_delete_entry(paths, path) for path in roots]
+        names = set(selected)
+        roots = [path for path in selected if not any(str(parent) in names for parent in PurePosixPath(path).parents)]
+        with ExitStack() as leases:
+            for root in roots:
+                target = paths.resolve(root)
+                if target == paths.root / ".locks" or (paths.root / ".locks") in target.parents:
+                    raise ValueError("Workspace lock files cannot be deleted")
+            entries = scan_entries(paths.root) if any(root.split("/", 1)[0] in KINDS for root in roots) else {}
+            for task_id, status in entries.items():
+                directory = task_path(paths.root, task_id)
+                if not any(
+                    (target := paths.resolve(root)) == directory
+                    or target in directory.parents
+                    or directory in target.parents
+                    for root in roots
+                ):
+                    continue
+                if not status.state.is_terminal:
+                    raise ValueError(f"Cannot delete active Task files: {task_id}")
+                leases.enter_context(workspace_lock(paths.root, task_id))
+            return [_delete_entry(paths, path) for path in roots]
 
 
 def _iter_entries(

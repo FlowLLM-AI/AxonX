@@ -37,6 +37,9 @@ function task(
   state: TaskSummary["state"] = "running",
 ): TaskSummary {
   return {
+    managed_run_id: ["running", "queued"].includes(state)
+      ? `run-${taskId}`
+      : null,
     display_name: taskId,
     is_replica: false,
     is_online: false,
@@ -484,6 +487,7 @@ it("separates schedule Tasks and lists schedules without Tasks", async () => {
   scheduled.source.schedule = {
     name: "daily",
     job: "submit",
+    scheduler_id: "daily-instance",
     trigger_id: "trigger",
     triggered_at: "2026-10-13T01:00:00Z",
   };
@@ -492,6 +496,7 @@ it("separates schedule Tasks and lists schedules without Tasks", async () => {
     task("train#demo#manual", "succeeded"),
   ]);
   const schedule = (name: string, job: string) => ({
+    scheduler_id: "daily-instance",
     name,
     job,
     description: `Description for ${name}`,
@@ -531,6 +536,7 @@ it.each(["running", "succeeded"] as const)(
     scheduled.source.schedule = {
       name: "removed",
       job: "submit",
+      scheduler_id: "daily-instance",
       trigger_id: "trigger",
       triggered_at: "2026-10-13T01:00:00Z",
     };
@@ -555,6 +561,7 @@ it("keeps active tasks visible and isolates finished group actions within a sche
     item.source.schedule = {
       name: "daily",
       job: "submit",
+      scheduler_id: "daily-instance",
       trigger_id: "trigger",
       triggered_at: "2026-10-13T01:00:00Z",
     };
@@ -611,4 +618,66 @@ it("uses schedule-specific empty state and supports keyboard tab navigation", as
   expect(document.activeElement).toBe(scheduled);
   expect(container.textContent).toContain("schedules.emptyTitle");
   expect(container.textContent).toContain("schedules.emptyHint");
+});
+
+it("shows workspace records without offering cancellation of foreign or child Runs", async () => {
+  for (const managedRun of [null, "parent-run"]) {
+    const foreign = task("train#demo#foreign");
+    foreign.managed_run_id = managedRun;
+    vi.mocked(listTaskStatuses).mockResolvedValue([foreign]);
+    await render();
+    await click('[aria-label="refreshNow"]');
+    await openMenu();
+    expect(container.querySelector('[role="menuitem"].danger')).toBeNull();
+    expect(container.textContent).not.toContain("enableMultiSelect");
+    await act(async () =>
+      document.dispatchEvent(new MouseEvent("click", { bubbles: true })),
+    );
+  }
+  expect(cancelTask).not.toHaveBeenCalled();
+});
+
+it("keeps same-name schedules from other instances outside the local schedule card", async () => {
+  const local = task("train#demo#local");
+  const foreign = task("train#demo#foreign");
+  for (const [item, schedulerId] of [
+    [local, "local-id"],
+    [foreign, "foreign-id"],
+  ] as const) {
+    item.source.schedule = {
+      name: "daily",
+      job: "submit",
+      trigger_id: item.run_id,
+      triggered_at: "2026-10-13T01:00:00Z",
+      scheduler_id: schedulerId,
+    };
+  }
+  vi.mocked(listTaskStatuses).mockResolvedValue([local, foreign]);
+  vi.mocked(listSchedules).mockResolvedValue([
+    {
+      scheduler_id: "local-id",
+      name: "daily",
+      job: "submit",
+      description: "Local schedule",
+      cron: "0 9 * * *",
+      timezone: "UTC",
+      arguments: {},
+      concurrency_policy: "forbid",
+      next_run_at: null,
+      running: 0,
+      last_trigger: null,
+    },
+  ]);
+  await render();
+  await click('[role="tab"]');
+  const cards = [...container.querySelectorAll(".schedule-card")];
+  expect(cards).toHaveLength(2);
+  const localCard = cards.find((card) =>
+    card.textContent?.includes("Local schedule"),
+  )!;
+  expect(localCard.textContent).toContain("local");
+  expect(localCard.textContent).not.toContain("foreign");
+  expect(cards.find((card) => card !== localCard)?.textContent).toContain(
+    "schedules.removed",
+  );
 });

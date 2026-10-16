@@ -833,7 +833,7 @@
       "succeeded": "Restart completed",
       "failed": "Restart failed"
     },
-    "scheduledBlocked": "Active scheduled Tasks prevent service updates and restarts. Forced cancellation cannot override this."
+    "scheduledBlocked": "Active scheduled Tasks or Jobs on this service prevent maintenance."
   },
   "onlineReport": {
     "tabsLabel": "Online report",
@@ -983,11 +983,11 @@
       "unknown": "Unknown source"
     },
     "scheduledSource": "Schedule: {{name}}",
-    "removed": "Schedule no longer configured on this service",
+    "removed": "Workspace tasks · not linked to this schedule instance",
     "nextRun": "Next trigger",
-    "lastJob": "Latest Job trigger",
+    "lastJob": "Last Job result",
     "policy": "Job concurrency",
-    "runningJobs": "Running Jobs: {{count}}",
+    "runningJobs": "Active Jobs on this service: {{count}}",
     "policies": {
       "allow": "Allow overlap",
       "forbid": "Skip overlap",
@@ -1079,5 +1079,9 @@
       "daily_quality": "Daily quality",
       "prediction": "Prediction"
     }
+  },
+  "taskOwnership": {
+    "managed": "Managed by this service",
+    "workspace": "Workspace record"
   }
 }

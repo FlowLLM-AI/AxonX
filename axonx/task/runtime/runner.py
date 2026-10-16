@@ -20,6 +20,7 @@ from ...utils.logging import task_log_scope
 from ..schemas.protocol import PROTOCOL_VERSION
 from ..core.identity import task_type_from_id
 from ..storage.events import append_event, append_progress_snapshots
+from ..storage.locking import workspace_lock
 from ..storage.workspace import (
     EVENTS_FILE,
     TaskStepStatus,
@@ -173,6 +174,7 @@ class TaskRunner:
         """Own resource cleanup from entry, including rejected directory preparation."""
         with ExitStack() as stack:
             try:
+                stack.enter_context(workspace_lock(task.workspace_path, task.task_id))
                 log_path = stack.enter_context(task_log_scope(task.context.run_id))
             except BaseException:
                 self._close_after_error(task)
@@ -192,29 +194,30 @@ class TaskRunner:
         started = perf_counter()
         try:
             try:
-                self._prepare_directory(task)
-                self.status = TaskMetadata(
-                    version=PROTOCOL_VERSION,
-                    task_id=task.task_id,
-                    run_id=task.context.run_id,
-                    task_type=task.task_type,
-                    reg_name=task.reg_name,
-                    source=task.context.source,
-                    report_kind=task.report_kind,
-                    input_params=task.input_params.model_dump(mode="json"),
-                    pid=task.pid,
-                    created_at=task.created_at,
-                    log_path=task.log_path,
-                )
-                status = self.status
-                task._metadata = status
-                task._persist_metadata = self._publish
-                task._progress = self.progress
-                self._publish()
-                task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
-                status.state = TaskState.RUNNING
-                status.started_at = datetime.now(UTC)
-                self._publish()
+                with workspace_lock(task.workspace_path, blocking=True):
+                    self._prepare_directory(task)
+                    self.status = TaskMetadata(
+                        version=PROTOCOL_VERSION,
+                        task_id=task.task_id,
+                        run_id=task.context.run_id,
+                        task_type=task.task_type,
+                        reg_name=task.reg_name,
+                        source=task.context.source,
+                        report_kind=task.report_kind,
+                        input_params=task.input_params.model_dump(mode="json"),
+                        pid=task.pid,
+                        created_at=task.created_at,
+                        log_path=task.log_path,
+                    )
+                    status = self.status
+                    task._metadata = status
+                    task._persist_metadata = self._publish
+                    task._progress = self.progress
+                    self._publish()
+                    task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
+                    status.state = TaskState.RUNNING
+                    status.started_at = datetime.now(UTC)
+                    self._publish()
                 for step in task.build_task_steps():
                     self._run_step(step)
             except BaseException:

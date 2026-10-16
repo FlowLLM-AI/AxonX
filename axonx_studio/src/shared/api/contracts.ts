@@ -400,6 +400,7 @@ export type ScheduleTrigger = {
   job: string;
   trigger_id: string;
   triggered_at: string;
+  scheduler_id: string | null;
 };
 
 export type StagedFile = {
@@ -575,6 +576,7 @@ export type TaskSummary = {
   is_online: boolean;
   is_replica: boolean;
   step_progress: StepProgress | null;
+  managed_run_id: string | null;
 };
 
 export type TaskType =
@@ -587,6 +589,30 @@ export type TaskType =
   | "predict"
   | "inference"
   | "backtest";
+
+export type TaskView = {
+  task_id: string;
+  run_id: string;
+  task_type: TaskType;
+  reg_name: string;
+  source: TaskSource;
+  report_kind: string | null;
+  state: TaskState;
+  pid: number | null;
+  created_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  error: string;
+  exit_code: number;
+  log_path: string;
+  version: 1;
+  input_params: Record<string, unknown>;
+  output_params: Record<string, unknown>;
+  children: Array<ChildTaskRecord>;
+  steps: Array<TaskStepStatus>;
+  replica: DisplayReplica | null;
+  managed_run_id: string | null;
+};
 
 export type TextPreview = {
   kind: "text";

@@ -680,6 +680,7 @@ def test_documented_plugin_example_resolves_and_executes_through_command_entry(t
 def manager(tmp_path):
     context = SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
     instance = object.__new__(LocalTaskManager)
+    instance._supervisor = SimpleNamespace(run_pids={})
     instance.app_context = context
     instance._lock = asyncio.Lock()
     instance.repository = LocalTaskRepository(app_context=context)

@@ -18,6 +18,7 @@ class ScheduleTrigger(BaseModel):
     job: str = Field(min_length=1)
     trigger_id: str = Field(min_length=1)
     triggered_at: datetime
+    scheduler_id: str | None = None
 
 
 class TaskSource(BaseModel):

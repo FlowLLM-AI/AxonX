@@ -16,7 +16,7 @@ from axonx.components.job.events import (
     ArtifactEvent,
     ResultEvent,
 )
-from axonx.task.query.summary import TaskSummary
+from axonx.task.query.summary import TaskSummary, TaskView
 from axonx.task.query.graph import TaskGraph
 from axonx.task.contracts.compare import PredictionComparison, BasePredictionCompareOutputParams
 from axonx.task.contracts.windows import WindowOutputParams
@@ -60,6 +60,7 @@ from axonx.workspace.models import (
 
 MODELS = [
     TaskSummary,
+    TaskView,
     TaskGraph,
     JobResponse,
     JobInfo,

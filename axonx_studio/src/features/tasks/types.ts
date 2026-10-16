@@ -10,6 +10,7 @@ export type {
 import type { TaskState, ScheduleTrigger } from "../../shared/api/contracts";
 
 export interface Schedule {
+  scheduler_id: string;
   name: string;
   job: string;
   description: string;
@@ -22,7 +23,7 @@ export interface Schedule {
   last_trigger: (ScheduleTrigger & { state: TaskState; error: string }) | null;
 }
 
-export type { TaskMetadata } from "../../shared/api/contracts";
+export type { TaskView as TaskMetadata } from "../../shared/api/contracts";
 export type { TaskSummary } from "../../shared/api/contracts";
 
 export type { LogChunk } from "../../shared/api/contracts";

@@ -1,3 +1,4 @@
+import { canCancel, canDelete } from "./groups";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -100,9 +101,7 @@ export function TasksPage({
         setTasks(result);
         setSchedules(configuredSchedules);
         const selectable = new Set(
-          result
-            .filter((task) => !ACTIVE.has(task.state))
-            .map((task) => task.task_id),
+          result.filter(canDelete).map((task) => task.task_id),
         );
         setSelected(
           (previous) =>
@@ -184,32 +183,43 @@ export function TasksPage({
     [tasks, tab],
   );
   const scheduleGroups = useMemo(() => {
-    const entries = new Map<string, Schedule | null>(
-      schedules.map((schedule) => [schedule.name, schedule]),
+    const scheduleKey = (name: string, id?: string | null) =>
+      JSON.stringify([name, id ?? null]);
+    const entries = new Map(
+      schedules.map((schedule) => [
+        scheduleKey(schedule.name, schedule.scheduler_id),
+        { name: schedule.name, schedule: schedule as Schedule | null },
+      ]),
     );
     for (const task of visibleTasks) {
-      const name = task.source.schedule?.name;
-      if (name && !entries.has(name)) entries.set(name, null);
+      const source = task.source.schedule;
+      if (!source) continue;
+      const key = scheduleKey(source.name, source.scheduler_id);
+      if (!entries.has(key))
+        entries.set(key, { name: source.name, schedule: null });
     }
     const query = search.trim().toLowerCase();
     return [...entries]
-      .flatMap(([name, schedule]) => {
+      .flatMap(([key, { name, schedule }]) => {
         const matchesSchedule =
           `${name} ${schedule?.job ?? ""} ${schedule?.description ?? ""}`
             .toLowerCase()
             .includes(query);
-        const members = visibleTasks.filter(
-          (task) => task.source.schedule?.name === name,
-        );
+        const members = visibleTasks.filter((task) => {
+          const source = task.source.schedule;
+          return (
+            source && scheduleKey(source.name, source.scheduler_id) === key
+          );
+        });
         const filter = { search: matchesSchedule ? "" : search, state, type };
         const groups = groupTasks(members, filter).map((group) => ({
           ...group,
-          key: JSON.stringify([name, group.key]),
+          key: JSON.stringify([key, group.key]),
           label: group.key,
         }));
         const active = groups.some((group) => group.active > 0);
         return groups.length || matchesSchedule
-          ? [{ name, schedule, groups, active }]
+          ? [{ key, name, schedule, groups, active }]
           : [];
       })
       .sort((a, b) => Number(b.active) - Number(a.active));
@@ -232,12 +242,10 @@ export function TasksPage({
     active: visibleTasks.filter((item) => ACTIVE.has(item.state)).length,
     attention: visibleTasks.filter((item) => ATTENTION.has(item.state)).length,
   };
-  const selectableIds = filtered
-    .filter((task) => !ACTIVE.has(task.state))
-    .map((task) => task.task_id);
+  const selectableIds = filtered.filter(canDelete).map((task) => task.task_id);
   const selectedIds = [...selected];
   const terminalIds = new Set(
-    tasks.filter((task) => !ACTIVE.has(task.state)).map((task) => task.task_id),
+    tasks.filter(canDelete).map((task) => task.task_id),
   );
   const deleteIds = (deleteTarget?.ids || []).filter((id) =>
     terminalIds.has(id),
@@ -247,7 +255,7 @@ export function TasksPage({
       ? groups.find((group) => group.key === contextMenu.groupKey)
       : undefined;
   const groupIds = (menuGroup?.tasks || [])
-    .filter((task) => !ACTIVE.has(task.state))
+    .filter(canDelete)
     .map((task) => task.task_id);
   const openContextMenu = (
     item: MenuTarget,
@@ -269,7 +277,7 @@ export function TasksPage({
     });
 
   const beginSelection = (task: TaskSummary) => {
-    if (ACTIVE.has(task.state)) return;
+    if (!canDelete(task)) return;
     setSelectionMode(true);
     setSelected((previous) => new Set(previous).add(task.task_id));
     setContextMenu(null);
@@ -561,7 +569,7 @@ export function TasksPage({
           {tab === "scheduled"
             ? scheduleGroups.map((entry) => (
                 <ScheduleCard
-                  key={entry.name}
+                  key={entry.key}
                   name={entry.name}
                   schedule={entry.schedule}
                 >
@@ -671,7 +679,7 @@ export function TasksPage({
                 <Search />
                 {t("details")}
               </button>
-              {!ACTIVE.has(contextMenu.task.state) && (
+              {canDelete(contextMenu.task) && (
                 <button
                   role="menuitem"
                   onClick={() => beginSelection(contextMenu.task)}
@@ -680,20 +688,19 @@ export function TasksPage({
                   {t("enableMultiSelect")}
                 </button>
               )}
-              {ACTIVE.has(contextMenu.task.state) &&
-                !contextMenu.task.is_replica && (
-                  <button
-                    className="danger"
-                    role="menuitem"
-                    onClick={() => {
-                      setCancelTarget(contextMenu.task);
-                      setContextMenu(null);
-                    }}
-                  >
-                    <Ban />
-                    {t("cancel")}
-                  </button>
-                )}
+              {canCancel(contextMenu.task) && !contextMenu.task.is_replica && (
+                <button
+                  className="danger"
+                  role="menuitem"
+                  onClick={() => {
+                    setCancelTarget(contextMenu.task);
+                    setContextMenu(null);
+                  }}
+                >
+                  <Ban />
+                  {t("cancel")}
+                </button>
+              )}
             </>
           )}
         </div>

@@ -10,6 +10,7 @@ import type { WorkspacePreview } from "../features/workspace/types";
 export const epoch = "2026-01-05T09:00:00.000Z";
 export const schedules: Schedule[] = [
   {
+    scheduler_id: "demo-daily-instance",
     name: "daily_training",
     job: "submit",
     description: "Run the daily training example / 每日运行训练示例",
@@ -20,6 +21,7 @@ export const schedules: Schedule[] = [
     next_run_at: "2026-01-06T09:00:00.000Z",
     running: 0,
     last_trigger: {
+      scheduler_id: "demo-daily-instance",
       name: "daily_training",
       job: "submit",
       trigger_id: "demo-daily",
@@ -29,6 +31,7 @@ export const schedules: Schedule[] = [
     },
   },
   {
+    scheduler_id: "demo-sync-instance",
     name: "workspace_sync",
     job: "sync_flush",
     description:
@@ -84,6 +87,7 @@ export function taskStatus(
   name: string,
 ): TaskMetadata {
   return {
+    managed_run_id: null,
     version: 1,
     report_kind: kind === "inference" ? "online" : null,
     task_id: id,
@@ -516,6 +520,7 @@ export function seed() {
   failed.exit_code = 1;
   failed.output_params = {};
   failed.source.schedule = {
+    scheduler_id: null,
     name: "removed_training",
     job: "submit",
     trigger_id: "demo-removed",

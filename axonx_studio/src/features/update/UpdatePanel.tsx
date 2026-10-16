@@ -22,8 +22,9 @@ interface UpdateRecord {
   commit: string | null;
 }
 interface RestartBlocker {
-  task_id: string;
-  run_id: string;
+  task_id?: string;
+  run_id?: string;
+  job?: string;
   schedule: string;
 }
 interface UpdateStatus {
@@ -162,8 +163,8 @@ function UpdatePanelContent({ target }: { target?: string }) {
               <div>
                 <strong>{t("update.scheduledBlocked")}</strong>
                 {status.restart_blockers.map((task) => (
-                  <span key={task.run_id}>
-                    {task.schedule} · {task.task_id}
+                  <span key={task.run_id || `job:${task.schedule}`}>
+                    {task.schedule} · {task.task_id || task.job}
                   </span>
                 ))}
               </div>
