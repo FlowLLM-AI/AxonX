@@ -128,6 +128,8 @@ plugins:
 
 Application 使用局部 registry，发现后的贡献按所有权合并。两个插件相同 Task 注册名、Job 名或相同类别/backend 都拒绝；Task 与内置重名也拒绝。registry 冻结后不能随意新增 provider。
 
+远程安装时，即使相同 wheel 已安装，也会刷新接收服务的插件导入，无需重复运行 pip。这也适用于其他服务更新共享 site-packages、而本进程仍缓存旧模块的情况。已有 Task 对象保留原有类；提交前应重新查询 Task 定义。服务贡献仍遵循重启要求。
+
 ## wheel 与内容指纹
 
 | 字段             | 含义                     | 用途               |

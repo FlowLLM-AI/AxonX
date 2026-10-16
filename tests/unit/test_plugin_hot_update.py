@@ -135,7 +135,31 @@ def test_update_refreshes_classes_helpers_schema_and_registrations(plugin_enviro
     assert task.output["result"] == 25
     assert "minimum_fee" not in old.input_cls.model_fields
     assert install(plugin_environment.new, tmp_path).restart_required is False
-    assert resolve_task("hot_task") is new
+    assert "minimum_fee" in resolve_task("hot_task").input_cls.model_fields
+
+
+@pytest.mark.parametrize("configured_source", [False, True])
+def test_identical_wheel_refreshes_modules_after_peer_install(
+    plugin_environment, tmp_path, monkeypatch, configured_source
+):
+    old = resolve_task("hot_task")
+    assert resolve_task("consumer") is old
+    # Simulate a peer replacing shared site-packages without refreshing us.
+    plugin_environment.install_files(inspect_wheel(plugin_environment.new))
+
+    def unexpected_install(*_args, **_kwargs):
+        pytest.fail("An identical wheel must not run pip again")
+
+    monkeypatch.setattr(installer, "install_artifact", unexpected_install)
+    if configured_source:
+        installer.ensure_plugin_sources([str(plugin_environment.new)], tmp_path / "artifacts")
+    else:
+        assert install(plugin_environment.new, tmp_path).restart_required is False
+    new = resolve_task("hot_task")
+    assert new is not old
+    assert resolve_task("consumer") is new
+    assert "minimum_fee" in get_task_definition("hot_task").input_schema["properties"]
+    assert "minimum_fee" not in old.input_cls.model_fields
 
 
 def test_first_install_is_available_without_restart(plugin_environment, tmp_path):
@@ -416,7 +440,7 @@ def test_wheel_owned_helpers_outside_entry_package_are_refreshed(plugin_environm
     assert sys.modules["axonx"] is axonx_module
     assert sys.modules["yaml"] is yaml_module
     assert install(paths[1], tmp_path).restart_required is False
-    assert resolve_task("hot_task") is new
+    assert "minimum_fee" in resolve_task("hot_task").input_cls.model_fields
 
 
 @pytest.mark.parametrize("separate_loop", [False, True])

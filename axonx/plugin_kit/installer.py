@@ -121,6 +121,9 @@ def install_staged_plugin(
     )
     mark_restart_required(bool(previous is not None and (previous.components or previous.jobs)))
     if previous is not None and previous.sha256 == stored.sha256 and previous.content_sha256 == stored.content_sha256:
+        # Another service may have updated this shared environment while our
+        # process still holds the old plugin modules. Skip pip, not refresh.
+        refresh_plugin_imports(plugin_modules())
         installed = previous
     else:
         try:
@@ -152,6 +155,8 @@ def ensure_plugin_sources(sources: list[str], artifact_directory: Path) -> list[
             or installed.content_sha256 != artifact.content_sha256
         ):
             install_plugin(artifact)
+        else:
+            refresh_plugin_imports(plugin_modules())
     return list_installed_plugins()
 
 

@@ -130,6 +130,8 @@ This path resolves against the configuration file that declares it. For remote d
 
 Application uses a local registry and merges discovered contributions according to ownership. Two plugins with the same Task registration name, Job name, or category/backend are rejected; Task names colliding with built-ins are also rejected. Providers cannot be freely added after the registry is frozen.
 
+Remote installation refreshes the receiving service's plugin imports even when the identical wheel is already installed, without rerunning pip. This also handles a peer service updating shared site-packages while the receiving process still holds older modules. Existing Task objects keep their classes; re-query the Task definition before submission. Service contributions still follow the restart requirement.
+
 ## Wheels and content fingerprints
 
 | Field            | Meaning                                 | Purpose                                       |
