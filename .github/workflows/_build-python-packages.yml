@@ -54,7 +54,8 @@ jobs:
           "${RUNNER_TEMP}/axonx-package-smoke/bin/python" \
             "${GITHUB_WORKSPACE}/.github/scripts/verify-packages.py" --installed
           "${RUNNER_TEMP}/axonx-package-smoke/bin/python" -m pip check
-          "${RUNNER_TEMP}/axonx-package-smoke/bin/axonx" help
+          # Bare `help` queries a running service; package smoke checks must work offline.
+          "${RUNNER_TEMP}/axonx-package-smoke/bin/axonx" --help
       - name: Upload distributions
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
