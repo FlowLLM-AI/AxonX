@@ -42,3 +42,15 @@ export const deleteWorkspaceEntries = (paths: string[], target?: string) =>
     { paths },
     { target },
   );
+
+export const getWorkspaceRoot = async (
+  target?: string,
+  signal?: AbortSignal,
+) => {
+  const info = await axonx.invoke<{ workspace: { path: string } }>(
+    "diagnose",
+    {},
+    { target, signal },
+  );
+  return info.workspace.path;
+};

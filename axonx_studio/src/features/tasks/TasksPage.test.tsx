@@ -317,7 +317,7 @@ describe("grouped task list", () => {
     await click('[role="menuitem"].danger');
     vi.mocked(listTaskStatuses).mockResolvedValue([task("train#demo#done")]);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(60_000);
     });
     expect(
       container.querySelector<HTMLButtonElement>(
@@ -355,14 +355,14 @@ describe("grouped task list", () => {
       "run-050",
     );
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(60_000);
     });
     expect(container.querySelector("tbody strong")!.textContent).toBe(
       "run-050",
     );
     await click(".task-group-toggle");
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(60_000);
     });
     expect(container.querySelector("tbody")).toBeNull();
     await click(".task-group-toggle");
@@ -484,7 +484,7 @@ describe("grouped task list", () => {
   });
 });
 
-it("separates schedule Tasks and lists schedules without Tasks", async () => {
+it("groups scheduled and manual Tasks together without loading schedules", async () => {
   const scheduled = task("train#demo#scheduled");
   scheduled.source.schedule = {
     name: "daily",
@@ -493,96 +493,18 @@ it("separates schedule Tasks and lists schedules without Tasks", async () => {
     trigger_id: "trigger",
     triggered_at: "2026-10-13T01:00:00Z",
   };
-  vi.mocked(listTaskStatuses).mockResolvedValue([
-    scheduled,
-    task("train#demo#manual", "succeeded"),
-  ]);
-  const schedule = (name: string, job: string) => ({
-    scheduler_id: "daily-instance",
-    name,
-    job,
-    description: `Description for ${name}`,
-    cron: "0 9 * * *",
-    timezone: "Asia/Shanghai",
-    arguments: {},
-    concurrency_policy: "forbid" as const,
-    next_run_at: "2026-10-14T01:00:00Z",
-    running: 0,
-    last_trigger: null,
-  });
-  vi.mocked(listSchedules).mockResolvedValue([
-    schedule("daily", "submit"),
-    schedule("sync", "sync_flush"),
-  ]);
+  const finished = task("train#demo#manual", "succeeded");
+  vi.mocked(listTaskStatuses).mockResolvedValue([scheduled, finished]);
   await render();
-  expect(container.textContent).not.toContain("sync_flush");
-  await click('[role="tab"]');
-  expect(
-    container.querySelector('[role="tab"]')?.getAttribute("aria-selected"),
-  ).toBe("true");
-  expect(container.textContent).toContain("sync_flush");
-  expect(container.textContent).toContain("Asia/Shanghai");
-  expect(container.textContent).toContain("schedules.noActiveTasks");
-  expect(container.textContent).toContain("Description for daily");
-  expect(container.textContent).toContain("scheduled");
-  expect(container.textContent).not.toContain("manual");
-  await click("tbody tr");
-  expect(onOpenTask).toHaveBeenCalledWith(scheduled.task_id);
-  expect(vi.mocked(listSchedules).mock.calls[0][0]).toBe("machine-a");
-});
-
-it.each(["running", "succeeded"] as const)(
-  "retains %s schedule Tasks after configuration removal",
-  async (state) => {
-    const scheduled = task("train#demo#old", state);
-    scheduled.source.schedule = {
-      name: "removed",
-      job: "submit",
-      scheduler_id: "daily-instance",
-      trigger_id: "trigger",
-      triggered_at: "2026-10-13T01:00:00Z",
-    };
-    vi.mocked(listTaskStatuses).mockResolvedValue([scheduled]);
-    await render();
-    await click('[role="tab"]');
-    expect(container.textContent).toContain("schedules.removed");
-    expect(container.querySelectorAll(".schedule-card")).toHaveLength(1);
-    expect(container.querySelectorAll(".task-group")).toHaveLength(1);
-    if (state === "succeeded") {
-      await click(".task-group-toggle");
-      await click(".schedule-history > summary");
-    }
-    expect(container.querySelector("tbody tr")).not.toBeNull();
-  },
-);
-
-it("keeps active tasks visible and isolates finished group actions within a schedule", async () => {
-  const active = task("train#demo#active");
-  const finished = task("train#demo#finished", "succeeded");
-  for (const item of [active, finished]) {
-    item.source.schedule = {
-      name: "daily",
-      job: "submit",
-      scheduler_id: "daily-instance",
-      trigger_id: "trigger",
-      triggered_at: "2026-10-13T01:00:00Z",
-    };
-  }
-  vi.mocked(listTaskStatuses).mockResolvedValue([active, finished]);
-  await render();
-  await click('[role="tab"]');
+  expect(listSchedules).not.toHaveBeenCalled();
+  expect(container.querySelector('[role="tablist"]')).toBeNull();
   expect(container.querySelectorAll(".task-group")).toHaveLength(1);
-  expect(
-    container.querySelectorAll(".task-group > .task-group-members tbody tr"),
-  ).toHaveLength(1);
-  expect(container.querySelector("tbody")?.textContent).toContain("active");
-  expect(
-    container.querySelector<HTMLDetailsElement>(".schedule-history")?.open,
-  ).toBe(false);
-  await click(".schedule-history > summary");
+  expect(container.querySelectorAll("tbody tr")).toHaveLength(2);
+  expect(container.textContent).toContain("scheduled");
+  expect(container.textContent).toContain("manual");
   await act(async () =>
     container
-      .querySelector(".schedule-card .task-group-header")!
+      .querySelector(".task-group-header")!
       .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true })),
   );
   await click('[role="menuitem"].danger');
@@ -591,36 +513,25 @@ it("keeps active tasks visible and isolates finished group actions within a sche
   expect(deleteTasks).toHaveBeenCalledWith([finished.task_id], "machine-a");
 });
 
-it("reports schedule loading failures and never mixes records from another target", async () => {
-  vi.mocked(listSchedules).mockRejectedValueOnce(
-    new Error("Schedules unavailable"),
-  );
-  await render();
-  expect(container.textContent).toContain("Schedules unavailable");
-  expect(onConnection).toHaveBeenLastCalledWith(false);
-  await render("machine-b");
-  expect(container.textContent).not.toContain("Schedules unavailable");
-  expect(vi.mocked(listSchedules).mock.calls.at(-1)?.[0]).toBe("machine-b");
-});
-
-it("uses schedule-specific empty state and supports keyboard tab navigation", async () => {
-  vi.mocked(listTaskStatuses).mockResolvedValue([]);
-  await render();
-  const other = container.querySelector<HTMLButtonElement>("#tasks-tab-other")!;
-  expect(other.tabIndex).toBe(0);
-  await act(async () =>
-    other.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Home", bubbles: true }),
-    ),
-  );
-  const scheduled = container.querySelector<HTMLButtonElement>(
-    "#tasks-tab-scheduled",
-  )!;
-  expect(scheduled.tabIndex).toBe(0);
-  expect(document.activeElement).toBe(scheduled);
-  expect(container.textContent).toContain("schedules.emptyTitle");
-  expect(container.textContent).toContain("schedules.emptyHint");
-});
+it.each(["running", "succeeded"] as const)(
+  "shows %s Tasks from removed schedules in their ordinary group",
+  async (state) => {
+    const scheduled = task("train#demo#old", state);
+    scheduled.source.schedule = {
+      name: "removed",
+      job: "submit",
+      scheduler_id: "old-instance",
+      trigger_id: "trigger",
+      triggered_at: "2026-10-13T01:00:00Z",
+    };
+    vi.mocked(listTaskStatuses).mockResolvedValue([scheduled]);
+    await render();
+    expect(container.querySelectorAll(".task-group")).toHaveLength(1);
+    if (state === "succeeded") await click(".task-group-toggle");
+    await click("tbody tr");
+    expect(onOpenTask).toHaveBeenCalledWith(scheduled.task_id);
+  },
+);
 
 it("shows workspace records without offering cancellation of foreign or child Runs", async () => {
   for (const managedRun of [null, "parent-run"]) {
@@ -637,49 +548,4 @@ it("shows workspace records without offering cancellation of foreign or child Ru
     );
   }
   expect(cancelTask).not.toHaveBeenCalled();
-});
-
-it("keeps same-name schedules from other instances outside the local schedule card", async () => {
-  const local = task("train#demo#local");
-  const foreign = task("train#demo#foreign");
-  for (const [item, schedulerId] of [
-    [local, "local-id"],
-    [foreign, "foreign-id"],
-  ] as const) {
-    item.source.schedule = {
-      name: "daily",
-      job: "submit",
-      trigger_id: item.run_id,
-      triggered_at: "2026-10-13T01:00:00Z",
-      scheduler_id: schedulerId,
-    };
-  }
-  vi.mocked(listTaskStatuses).mockResolvedValue([local, foreign]);
-  vi.mocked(listSchedules).mockResolvedValue([
-    {
-      scheduler_id: "local-id",
-      name: "daily",
-      job: "submit",
-      description: "Local schedule",
-      cron: "0 9 * * *",
-      timezone: "UTC",
-      arguments: {},
-      concurrency_policy: "forbid",
-      next_run_at: null,
-      running: 0,
-      last_trigger: null,
-    },
-  ]);
-  await render();
-  await click('[role="tab"]');
-  const cards = [...container.querySelectorAll(".schedule-card")];
-  expect(cards).toHaveLength(2);
-  const localCard = cards.find((card) =>
-    card.textContent?.includes("Local schedule"),
-  )!;
-  expect(localCard.textContent).toContain("local");
-  expect(localCard.textContent).not.toContain("foreign");
-  expect(cards.find((card) => card !== localCard)?.textContent).toContain(
-    "schedules.removed",
-  );
 });

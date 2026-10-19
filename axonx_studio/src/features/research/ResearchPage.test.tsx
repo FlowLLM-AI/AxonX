@@ -30,6 +30,7 @@ it.each(["en", "zh"])(
     const path = "backtest/backtest#demo";
     vi.mocked(listTaskRuns).mockResolvedValue({
       path: "backtest",
+      workspace_root: null,
       truncated: false,
       entries: [
         {
@@ -76,13 +77,8 @@ it.each(["en", "zh"])(
         ".backtest-universe-selector select",
       );
       expect(selector?.value).toBe("all");
-      const report = container.querySelector(".backtest-universe-selector")!;
-      const files = container.querySelector(".base-files-card")!;
-      expect(
-        report.compareDocumentPosition(files) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-      expect(container.querySelectorAll(".base-files-card")).toHaveLength(1);
+      expect(container.querySelector(".base-files-card")).toBeNull();
+      expect(container.querySelector(".artifact-kpis")).toBeNull();
       expect(container.textContent).not.toContain(
         i18n.t("backtest.unable_to_load_backtest_artifacts"),
       );

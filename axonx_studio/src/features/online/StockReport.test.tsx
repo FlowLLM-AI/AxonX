@@ -7,6 +7,8 @@ import { seed } from "../../playground/fixtures";
 import { createPlayground } from "../../playground/runtime";
 import { AxonXClient, configureClient } from "../../shared/api/client";
 import ReportPage from "../operations/ReportPage";
+import { CommitReport } from "./CommitReport";
+import type { ArtifactTableCache } from "./artifactCache";
 import { parseHistory, parseStockReport } from "./report";
 
 vi.mock("../research/backtest/BacktestChart", () => ({
@@ -59,13 +61,13 @@ it.each(
     expect(container.textContent).toContain(
       i18n.t("onlineReport.columns.rank_change"),
     );
-    expect(container.querySelectorAll("tbody tr")).toHaveLength(30);
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(25);
     await act(async () =>
       container
         .querySelector<HTMLInputElement>('input[type="checkbox"]')!
         .click(),
     );
-    expect(container.querySelectorAll("tbody tr")).toHaveLength(25);
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(30);
     await click(i18n.t("onlineReport.tabs.portfolio"));
     expect(container.textContent).toContain(i18n.t("onlineReport.simulated"));
     expect(container.textContent).toContain(
@@ -140,10 +142,16 @@ it("uses the latest manifest commit when lifecycle metadata still points to an o
       ".online-report-toolbar select:nth-of-type(1)",
     )?.value,
   ).not.toBe("f".repeat(32));
-  const selects = container.querySelectorAll<HTMLSelectElement>(
-    ".online-report-toolbar select",
-  );
-  expect(selects[1].selectedOptions[0].textContent).toContain("r2");
+  expect(
+    container.querySelectorAll(".online-report-toolbar select"),
+  ).toHaveLength(1);
+  await click(i18n.t("onlineReport.tabs.history"));
+  expect(
+    container.querySelector(".online-revision.active")?.textContent,
+  ).toContain("r2");
+  expect(
+    container.querySelector(".online-revision.active")?.textContent,
+  ).not.toContain("f".repeat(32));
 });
 
 it("rejects conflicting report settings and invalid signal dates", () => {
@@ -168,4 +176,55 @@ it("rejects the former online signals protocol", () => {
   delete (invalid.commit as { protocol: { report: Record<string, unknown> } })
     .protocol.report.signals_format;
   expect(() => parseStockReport(invalid)).toThrow();
+});
+
+it("preserves signal pool and buyability filters when the same commit is refreshed", async () => {
+  const commit = parseStockReport(
+    seed().tasks.get(taskId)!.output_params.report,
+  ).commit;
+  const rows = [
+    {
+      rank: 1,
+      ts_code: "A",
+      pred: 1,
+      is_model_candidate: true,
+      is_buyable_at_signal: true,
+      index_weight_hs300: 1,
+    },
+  ];
+  const cache = {
+    load: vi.fn(async () => rows),
+  } as unknown as ArtifactTableCache;
+  await act(async () =>
+    root.render(<CommitReport commit={commit} cache={cache} tab="signal" />),
+  );
+  const select = container.querySelector<HTMLSelectElement>(
+    ".online-pool-picker select",
+  )!;
+  await act(async () => {
+    select.value = "hs300";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await act(async () =>
+    container
+      .querySelector<HTMLInputElement>('input[type="checkbox"]')!
+      .click(),
+  );
+  await act(async () =>
+    root.render(
+      <CommitReport
+        commit={structuredClone(commit)}
+        cache={cache}
+        tab="signal"
+      />,
+    ),
+  );
+  expect(
+    container.querySelector<HTMLSelectElement>(".online-pool-picker select")!
+      .value,
+  ).toBe("hs300");
+  expect(
+    container.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+      .checked,
+  ).toBe(false);
 });

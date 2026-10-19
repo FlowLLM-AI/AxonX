@@ -143,6 +143,7 @@ export function createPlayground(): Transport {
     );
     return {
       path,
+      workspace_root: "/demo/workspace",
       entries: sorted.slice(offset, offset + 5000),
       truncated: sorted.length > offset + 5000,
     };

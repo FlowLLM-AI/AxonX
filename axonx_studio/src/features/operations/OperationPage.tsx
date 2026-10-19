@@ -6,7 +6,7 @@ import type { TaskSummary } from "../tasks/types";
 import { listSchedules, listTaskStatuses } from "../tasks/api";
 import { formatDate } from "../tasks/format";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
-import { usePolling } from "../../shared/hooks/usePolling";
+import { useRefresh } from "../../shared/hooks/useRefresh";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import { RunIndexControls } from "../../shared/ui/RunIndexControls";
 import { PipelineReport } from "../online/PipelineReport";
@@ -72,10 +72,7 @@ export default function OperationPage({
     [target, page, onConnection],
   );
   const { data, loading, error, reload } = useAsyncResource(load);
-  const refresh = useCallback(async () => {
-    await reload();
-  }, [reload]);
-  usePolling(refresh, true);
+  const refreshAll = useRefresh(reload);
   const tasks = data?.tasks || [];
   const schedules = data?.schedules || [];
   const tree = buildOperationTree(page.schedules, schedules, tasks);
@@ -84,12 +81,12 @@ export default function OperationPage({
   const visibleRuns = [
     ...visible.groups.flatMap((group) => group.runs),
     ...visible.manual,
-  ];
+  ].sort((a, b) => runDate(b).localeCompare(runDate(a)));
   const selected = initialResource
     ? runs.find((run) => run.id === initialResource)
     : page.view !== "schedules"
       ? visibleRuns.find((run) => run.kind === "task") || visibleRuns[0]
-      : undefined;
+      : visibleRuns[0];
   const selectedGroup = initialResource
     ? tree.groups.find((group) => group.id === initialResource)
     : !selected
@@ -124,7 +121,7 @@ export default function OperationPage({
             onQuery={setQuery}
             searchLabel={t("operations.search")}
             refreshLabel={t("onlinePipeline.refresh")}
-            onRefresh={() => void reload()}
+            onRefresh={() => void refreshAll()}
           />
           <div className="rail-scroll">
             {loading && !data ? (
@@ -136,18 +133,14 @@ export default function OperationPage({
                 <OperationTree
                   groups={visible.groups}
                   manual={visible.manual}
-                  showManual={page.view !== "schedules"}
                   selected={selected?.id || selectedGroup?.id}
                   onSelected={onSelected}
                 />
               )
             )}
-            {data &&
-              query &&
-              !visible.groups.length &&
-              !visible.manual.length && (
-                <p className="operation-index-empty">{t("operations.empty")}</p>
-              )}
+            {data && !visible.groups.length && !visible.manual.length && (
+              <p className="operation-index-empty">{t("operations.empty")}</p>
+            )}
           </div>
         </aside>
         <RailResizer min={180} max={460} className="context-resizer" />

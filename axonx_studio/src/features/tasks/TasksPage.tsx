@@ -12,15 +12,10 @@ import {
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { usePolling } from "../../shared/hooks/usePolling";
+import { useRefresh } from "../../shared/hooks/useRefresh";
 import type { ContextOption } from "../../app/types";
-import type { Schedule, TaskSummary } from "./types";
-import {
-  cancelTask,
-  deleteTasks,
-  listTaskStatuses,
-  listSchedules,
-} from "./api";
+import type { TaskSummary } from "./types";
+import { cancelTask, deleteTasks, listTaskStatuses } from "./api";
 import {
   ACTIVE,
   ATTENTION,
@@ -35,8 +30,6 @@ import {
   TaskTableColumns,
   TaskTableHeading,
 } from "./TaskGroup";
-
-import { ScheduleCard } from "./ScheduleCard";
 
 type MenuTarget =
   { kind: "task"; task: TaskSummary } | { kind: "group"; groupKey: string };
@@ -55,8 +48,6 @@ export function TasksPage({
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [tab, setTab] = useState<"scheduled" | "other">("other");
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,13 +84,9 @@ export function TasksPage({
       if (quiet) setRefreshing(true);
       else setLoading(true);
       try {
-        const [result, configuredSchedules] = await Promise.all([
-          listTaskStatuses(target, controller.signal),
-          listSchedules(target, controller.signal),
-        ]);
+        const result = await listTaskStatuses(target, controller.signal);
         if (controller.signal.aborted) return;
         setTasks(result);
-        setSchedules(configuredSchedules);
         const selectable = new Set(
           result.filter(canDelete).map((task) => task.task_id),
         );
@@ -130,7 +117,6 @@ export function TasksPage({
     const controller = new AbortController();
     lifetime.current = controller;
     setTasks([]);
-    setSchedules([]);
     setSelected(new Set());
     setSelectionMode(false);
     setContextMenu(null);
@@ -173,74 +159,23 @@ export function TasksPage({
     };
   }, [contextMenu]);
   const poll = useCallback((signal: AbortSignal) => load(true, signal), [load]);
-  const seconds = usePolling(poll, autoRefresh);
+  const [seconds, setSeconds] = useState(60);
+  const refreshNow = useRefresh(poll, autoRefresh, false, setSeconds);
 
-  const visibleTasks = useMemo(
-    () =>
-      tasks.filter(
-        (task) => Boolean(task.source.schedule) === (tab === "scheduled"),
-      ),
-    [tasks, tab],
-  );
-  const scheduleGroups = useMemo(() => {
-    const scheduleKey = (name: string, id?: string | null) =>
-      JSON.stringify([name, id ?? null]);
-    const entries = new Map(
-      schedules.map((schedule) => [
-        scheduleKey(schedule.name, schedule.scheduler_id),
-        { name: schedule.name, schedule: schedule as Schedule | null },
-      ]),
-    );
-    for (const task of visibleTasks) {
-      const source = task.source.schedule;
-      if (!source) continue;
-      const key = scheduleKey(source.name, source.scheduler_id);
-      if (!entries.has(key))
-        entries.set(key, { name: source.name, schedule: null });
-    }
-    const query = search.trim().toLowerCase();
-    return [...entries]
-      .flatMap(([key, { name, schedule }]) => {
-        const matchesSchedule =
-          `${name} ${schedule?.job ?? ""} ${schedule?.description ?? ""}`
-            .toLowerCase()
-            .includes(query);
-        const members = visibleTasks.filter((task) => {
-          const source = task.source.schedule;
-          return (
-            source && scheduleKey(source.name, source.scheduler_id) === key
-          );
-        });
-        const filter = { search: matchesSchedule ? "" : search, state, type };
-        const groups = groupTasks(members, filter).map((group) => ({
-          ...group,
-          key: JSON.stringify([key, group.key]),
-          label: group.key,
-        }));
-        const active = groups.some((group) => group.active > 0);
-        return groups.length || matchesSchedule
-          ? [{ key, name, schedule, groups, active }]
-          : [];
-      })
-      .sort((a, b) => Number(b.active) - Number(a.active));
-  }, [schedules, visibleTasks, search, state, type]);
   const types = useMemo(
-    () => [...new Set(visibleTasks.map((task) => task.task_type))].sort(),
-    [visibleTasks],
+    () => [...new Set(tasks.map((task) => task.task_type))].sort(),
+    [tasks],
   );
   const groups = useMemo(
-    () =>
-      tab === "scheduled"
-        ? scheduleGroups.flatMap((entry) => entry.groups)
-        : groupTasks(visibleTasks, { search, state, type }),
-    [tab, scheduleGroups, visibleTasks, search, state, type],
+    () => groupTasks(tasks, { search, state, type }),
+    [tasks, search, state, type],
   );
   const filtered = groups.flatMap((group) => group.tasks);
   const filterKey = JSON.stringify([search.trim().toLowerCase(), state, type]);
   const stats = {
-    total: visibleTasks.length,
-    active: visibleTasks.filter((item) => ACTIVE.has(item.state)).length,
-    attention: visibleTasks.filter((item) => ATTENTION.has(item.state)).length,
+    total: tasks.length,
+    active: tasks.filter((item) => ACTIVE.has(item.state)).length,
+    attention: tasks.filter((item) => ATTENTION.has(item.state)).length,
   };
   const selectableIds = filtered.filter(canDelete).map((task) => task.task_id);
   const selectedIds = [...selected];
@@ -286,16 +221,6 @@ export function TasksPage({
   const finishSelection = () => {
     setSelectionMode(false);
     setSelected(new Set());
-  };
-
-  const changeTab = (value: "scheduled" | "other") => {
-    if (tab === value) return;
-    setTab(value);
-    finishSelection();
-    setContextMenu(null);
-    setSearch("");
-    setState("");
-    setType("");
   };
 
   const confirmCancel = async () => {
@@ -355,8 +280,6 @@ export function TasksPage({
     <TaskGroup
       key={group.key}
       group={group}
-      separateHistory={tab === "scheduled"}
-      showHistory={Boolean(search || state || type)}
       filterKey={filterKey}
       selectionMode={selectionMode}
       selected={selected}
@@ -409,7 +332,7 @@ export function TasksPage({
           </label>
           <button
             className="secondary-button"
-            onClick={() => void load(true)}
+            onClick={() => void refreshNow()}
             disabled={refreshing}
             title={t("refreshNow")}
             aria-label={t("refreshNow")}
@@ -432,47 +355,7 @@ export function TasksPage({
         </div>
       )}
 
-      <div
-        className="task-runtime-tabs"
-        role="tablist"
-        aria-label={t("taskTitle")}
-      >
-        {(["scheduled", "other"] as const).map((value) => (
-          <button
-            key={value}
-            role="tab"
-            id={`tasks-tab-${value}`}
-            aria-controls="tasks-panel"
-            aria-selected={tab === value}
-            tabIndex={tab === value ? 0 : -1}
-            onClick={() => changeTab(value)}
-            onKeyDown={(event) => {
-              const next =
-                event.key === "Home"
-                  ? "scheduled"
-                  : event.key === "End"
-                    ? "other"
-                    : event.key === "ArrowLeft" || event.key === "ArrowRight"
-                      ? value === "scheduled"
-                        ? "other"
-                        : "scheduled"
-                      : null;
-              if (!next) return;
-              event.preventDefault();
-              changeTab(next);
-              document.getElementById(`tasks-tab-${next}`)?.focus();
-            }}
-          >
-            {t(`schedules.tabs.${value}`)}
-          </button>
-        ))}
-      </div>
-      <div
-        id="tasks-panel"
-        role="tabpanel"
-        aria-labelledby={`tasks-tab-${tab}`}
-        className="data-panel task-groups-panel"
-      >
+      <div className="data-panel task-groups-panel">
         <div className="task-group-toolbar">
           {selectionMode ? (
             <GroupSelection
@@ -493,28 +376,21 @@ export function TasksPage({
           <label className="search-field">
             <Search size={16} />
             <input
-              aria-label={t(
-                tab === "scheduled" ? "schedules.search" : "search",
-              )}
+              aria-label={t("search")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={t(
-                tab === "scheduled" ? "schedules.search" : "search",
-              )}
+              placeholder={t("search")}
             />
           </label>
           <span className="task-group-total">
             {t(
-              tab === "scheduled"
-                ? "schedules.total"
-                : filtered.length === visibleTasks.length
-                  ? "taskGroups.total"
-                  : "taskGroups.matchingTotal",
+              filtered.length === tasks.length
+                ? "taskGroups.total"
+                : "taskGroups.matchingTotal",
               {
                 groups: groups.length,
-                schedules: scheduleGroups.length,
                 count: filtered.length,
-                total: visibleTasks.length,
+                total: tasks.length,
               },
             )}
           </span>
@@ -525,12 +401,12 @@ export function TasksPage({
             onChange={(event) => setType(event.target.value)}
           >
             <option value="">
-              {t("allTypes")} · {visibleTasks.length}
+              {t("allTypes")} · {tasks.length}
             </option>
             {types.map((value) => (
               <option key={value} value={value}>
                 {t(`types.${value}`, value)} ·{" "}
-                {visibleTasks.filter((task) => task.task_type === value).length}
+                {tasks.filter((task) => task.task_type === value).length}
               </option>
             ))}
           </select>
@@ -552,13 +428,13 @@ export function TasksPage({
             {STATES.map((value) => (
               <option key={value} value={value}>
                 {t(`states.${value}`)} ·{" "}
-                {visibleTasks.filter((task) => task.state === value).length}
+                {tasks.filter((task) => task.state === value).length}
               </option>
             ))}
           </select>
         </div>
         <div className="task-groups" key={target || "local"}>
-          {tab === "other" && groups.length > 0 && (
+          {groups.length > 0 && (
             <div className="task-list-heading table-wrap" aria-hidden="true">
               <table>
                 <TaskTableColumns selectionMode={selectionMode} />
@@ -566,51 +442,24 @@ export function TasksPage({
               </table>
             </div>
           )}
-          {tab === "scheduled"
-            ? scheduleGroups.map((entry) => (
-                <ScheduleCard
-                  key={entry.key}
-                  name={entry.name}
-                  schedule={entry.schedule}
-                >
-                  {!entry.active && (
-                    <p className="muted">{t("schedules.noActiveTasks")}</p>
-                  )}
-                  {entry.groups.map(renderGroup)}
-                </ScheduleCard>
-              ))
-            : groups.map(renderGroup)}
-          {!loading &&
-            filtered.length === 0 &&
-            (tab !== "scheduled" || !scheduleGroups.length) && (
-              <div className="empty-state">
-                <span className="empty-glyph">⌁</span>
-                <strong>
-                  {search || state || type
-                    ? t("noMatches")
-                    : t(
-                        tab === "scheduled"
-                          ? "schedules.emptyTitle"
-                          : "noTasks",
-                      )}
-                </strong>
-                <p>
-                  {search || state || type
-                    ? t("noMatches")
-                    : t(
-                        tab === "scheduled"
-                          ? "schedules.emptyHint"
-                          : "noTasksHint",
-                      )}
-                </p>
-                {!visibleTasks.length && tab === "other" && (
-                  <button className="primary-button" onClick={onSubmit}>
-                    <Plus size={17} />
-                    {t("pages.submit")}
-                  </button>
-                )}
-              </div>
-            )}
+          {groups.map(renderGroup)}
+          {!loading && filtered.length === 0 && (
+            <div className="empty-state">
+              <span className="empty-glyph">⌁</span>
+              <strong>
+                {search || state || type ? t("noMatches") : t("noTasks")}
+              </strong>
+              <p>
+                {search || state || type ? t("noMatches") : t("noTasksHint")}
+              </p>
+              {!tasks.length && (
+                <button className="primary-button" onClick={onSubmit}>
+                  <Plus size={17} />
+                  {t("pages.submit")}
+                </button>
+              )}
+            </div>
+          )}
           {loading && (
             <div className="loading-state">
               <LoaderCircle className="spin" /> {t("tasks.loadingRuntime")}

@@ -36,6 +36,7 @@ const render = async (initialTaskId?: string, pageId = "online") => {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -44,13 +45,19 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  vi.unstubAllGlobals();
   configureClient(new AxonXClient());
 });
 
 describe("online pipeline", () => {
   it("shows root pipeline collection, model stages and logs; comparison has its own page", async () => {
     await render("composite#playground_online#demo");
-    expect(container.textContent).toContain("onlinePipeline.collection");
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[role="tab"][id$="-logs-tab"]')!
+        .click(),
+    );
+    expect(container.textContent).toContain("onlineWorkbench.baseCollection");
     expect(container.textContent).toContain("99.8%");
     expect(container.textContent).toContain("5,100");
     expect(container.textContent).toContain("onlinePipeline.chainLog");
@@ -59,7 +66,9 @@ describe("online pipeline", () => {
     );
     await act(async () =>
       container
-        .querySelector<HTMLButtonElement>(".online-report > header button")!
+        .querySelector<HTMLButtonElement>(
+          ".online-daily-workbench > header button",
+        )!
         .click(),
     );
     expect(onOpenTask).toHaveBeenCalledWith("composite#playground_online#demo");
@@ -69,6 +78,11 @@ describe("online pipeline", () => {
     expect(container.textContent).not.toContain("Synthetic nightly comparison");
     await render("composite#playground_compare#demo", "nightly");
     expect(container.textContent).toContain("onlinePipeline.nightly");
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[role="tab"][id$="-etl-tab"]')!
+        .click(),
+    );
     expect(container.textContent).toContain("nightly-a_stock_etl");
     await act(async () =>
       root.render(
@@ -136,7 +150,9 @@ it("discovers scheduled pipelines even when the first list was empty", async () 
     expect(container.querySelectorAll(".run-index article")).toHaveLength(0);
     available = true;
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(59000);
+      expect(container.querySelectorAll(".run-index article")).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(1000);
     });
     expect(container.querySelectorAll(".run-index article")).toHaveLength(1);
     expect(container.querySelector(".online-filters")).toBeNull();
@@ -163,7 +179,7 @@ it("shows Job-only synchronization without querying Task records", async () => {
   );
   await render(undefined, "sync");
   expect(calls.some((url) => url.includes("list_task_statuses"))).toBe(false);
-  expect(container.textContent).toContain("operations.schedules");
+  expect(container.textContent).not.toContain("operations.schedules");
   expect(container.querySelector(".operation-metrics")?.textContent).toContain(
     "operations.metrics.uploaded",
   );
@@ -172,7 +188,7 @@ it("shows Job-only synchronization without querying Task records", async () => {
   ).toHaveLength(1);
 });
 
-it("selects schedules without hiding manual or scheduled runs", async () => {
+it("selects schedules without hiding grouped or ungrouped runs", async () => {
   await render("api#playground_download#demo", "data");
   expect(
     container.querySelectorAll('.run-index article[data-kind="task"]'),
@@ -196,13 +212,12 @@ it("selects schedules without hiding manual or scheduled runs", async () => {
   expect(
     container.querySelectorAll('.run-index article[data-kind="task"]'),
   ).toHaveLength(2);
-  expect(container.querySelector(".operation-manual")?.textContent).toContain(
-    "Synthetic data update",
-  );
   expect(
-    container.querySelector(".operation-group:not(.operation-manual)")
-      ?.textContent,
-  ).toContain("Scheduled data update");
+    container.querySelector(".operation-ungrouped")?.textContent,
+  ).toContain("Synthetic data update");
+  expect(container.querySelector(".operation-group")?.textContent).toContain(
+    "Scheduled data update",
+  );
 });
 
 it("opens a persisted Job execution separately from its schedule configuration", async () => {
@@ -238,6 +253,140 @@ it("keeps schedule branches collapsed when the page refreshes", async () => {
   await render("api#playground_download#demo", "data");
   expect(branch.open).toBe(false);
   expect(
-    container.querySelector<HTMLDetailsElement>(".operation-manual")!.open,
-  ).toBe(true);
+    container.querySelectorAll(".operation-ungrouped article"),
+  ).toHaveLength(1);
+});
+
+it.each(["online", "nightly", "data", "sync"])(
+  "refreshes %s only after 60 seconds and allows manual refresh",
+  async (pageId) => {
+    vi.useFakeTimers();
+    try {
+      const demo = createPlayground();
+      let calls = 0;
+      configureClient(
+        new AxonXClient(async (url, init) => {
+          calls += 1;
+          return demo(url, init);
+        }, false),
+      );
+      await render(undefined, pageId);
+      const initial = calls;
+      await act(async () => vi.advanceTimersByTimeAsync(59_000));
+      expect(calls).toBe(initial);
+      await act(async () => vi.advanceTimersByTimeAsync(1_000));
+      expect(calls).toBeGreaterThan(initial);
+      const beforeManual = calls;
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>(".rail-refresh")!.click(),
+      );
+      expect(calls).toBeGreaterThan(beforeManual);
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
+
+it("uses one page clock and refreshes the index, report and logs together", async () => {
+  vi.useFakeTimers();
+  const clocks = vi.spyOn(globalThis, "setInterval");
+  try {
+    const demo = createPlayground();
+    const calls: string[] = [];
+    configureClient(
+      new AxonXClient(async (url, init) => {
+        calls.push(String(url));
+        return demo(url, init);
+      }, false),
+    );
+    await render();
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[role="tab"][id$="-logs-tab"]')!
+        .click(),
+    );
+    expect(clocks).toHaveBeenCalledTimes(1);
+    const initial = calls.length;
+    await act(async () => vi.advanceTimersByTimeAsync(59_000));
+    expect(calls).toHaveLength(initial);
+    await act(async () => vi.advanceTimersByTimeAsync(1_000));
+    const batch = calls.slice(initial);
+    expect(batch.filter((url) => url.includes("list_schedules"))).toHaveLength(
+      1,
+    );
+    expect(
+      batch.filter((url) => url.includes("list_task_statuses")),
+    ).toHaveLength(1);
+    expect(batch.filter((url) => url.includes("read_task_log"))).toHaveLength(
+      1,
+    );
+    const beforeManual = calls.length;
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(".rail-refresh")!.click(),
+    );
+    const manual = calls.slice(beforeManual);
+    expect(manual.some((url) => url.includes("read_task_log"))).toBe(true);
+    expect(manual.some((url) => url.includes("list_task_statuses"))).toBe(true);
+    expect(clocks).toHaveBeenCalledTimes(1);
+  } finally {
+    clocks.mockRestore();
+    vi.useRealTimers();
+  }
+});
+
+it.each(["online", "nightly", "data", "sync"])(
+  "shows %s records without redundant source headings or empty groups",
+  async (pageId) => {
+    await render(undefined, pageId);
+    expect(container.textContent).not.toContain("operations.manual");
+    expect(container.textContent).not.toContain("operations.schedules");
+    expect(container.querySelector(".operation-manual")).toBeNull();
+    expect(container.querySelector(".operation-index-label")).toBeNull();
+    expect(
+      container.querySelectorAll(".run-index article").length,
+    ).toBeGreaterThan(0);
+    expect(container.querySelectorAll(".operation-ungrouped")).toHaveLength(
+      pageId === "sync" ? 0 : 1,
+    );
+    if (pageId === "online" || pageId === "nightly")
+      expect(container.querySelector(".operation-group")).toBeNull();
+  },
+);
+
+it("opens the latest sync execution and keeps configuration independently selectable", async () => {
+  await render(undefined, "sync");
+  expect(container.querySelector(".operation-job-report")).not.toBeNull();
+  expect(container.querySelector(".schedule-card")).toBeNull();
+  expect(
+    container.querySelector(
+      '.operation-job-report [role="tab"][aria-selected="true"]',
+    )?.id,
+  ).toContain("result-tab");
+  await render("schedule:workspace_sync", "sync");
+  expect(container.querySelector(".schedule-card")).not.toBeNull();
+  expect(container.querySelector(".operation-job-report")).toBeNull();
+});
+
+it("summarizes completed data updates before progress and keeps raw results collapsed", async () => {
+  await render("api#playground_download#demo", "data");
+  expect(
+    container.querySelector('.online-report [role="tab"][aria-selected="true"]')
+      ?.id,
+  ).toContain("result-tab");
+  const result = container.querySelector(
+    '.online-report [role="tabpanel"]:not([hidden])',
+  )!;
+  expect(result.querySelector(".operation-metrics")?.textContent).toContain(
+    "5,100",
+  );
+  expect(result.querySelector("pre")?.closest("details")?.open).toBe(false);
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>('.online-report [id$="-progress-tab"]')!
+      .click(),
+  );
+  const progress = container.querySelector(
+    '.online-report [role="tabpanel"]:not([hidden])',
+  )!;
+  expect(progress.querySelectorAll("table thead th")).toHaveLength(4);
 });

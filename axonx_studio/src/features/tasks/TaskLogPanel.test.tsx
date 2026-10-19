@@ -95,7 +95,7 @@ it("shows the error without mixing logs when the server rejects a replacement ru
   );
 });
 
-it("follows a completed replica every five seconds using its replicated log", async () => {
+it("follows a completed replica every 60 seconds using its replicated log", async () => {
   vi.useFakeTimers();
   Object.defineProperty(document, "hidden", {
     value: false,
@@ -117,7 +117,7 @@ it("follows a completed replica every five seconds using its replicated log", as
     await render();
     const calls = vi.mocked(readTaskLog).mock.calls.length;
     source += "FINAL-SYNC";
-    await act(async () => vi.advanceTimersByTimeAsync(4999));
+    await act(async () => vi.advanceTimersByTimeAsync(59_999));
     expect(vi.mocked(readTaskLog).mock.calls.length).toBe(calls);
     await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(container.querySelector("pre")?.textContent).toContain("FINAL-SYNC");

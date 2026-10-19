@@ -853,6 +853,45 @@ function seedOnline(
       metrics: {},
     })),
   ];
+  const collectionPath = "tushare/2026/20260105/rt/rt_k";
+  const quality = {
+    version: 1,
+    trade_date: "20260105",
+    trade_time: "0930",
+    checks: [],
+  };
+  files.set(`${collectionPath}/data.csv`, {
+    kind: "csv",
+    size: 64,
+    columns: ["ts_code", "price"],
+    rows: [["DEMO001", 10.5]],
+    offset: 0,
+    limit: 200,
+    has_more: false,
+  });
+  files.set(
+    `${collectionPath}/metadata.json`,
+    json({ trade_date: "20260105", trade_time: "0930" }),
+  );
+  files.set(`${collectionPath}/quality_summary.json`, json(quality));
+  files.set(
+    `${collectionPath}/quality_details.parquet`,
+    table([{ ts_code: "DEMO001", status: "valid" }]),
+  );
+  step.files = Object.fromEntries(
+    Object.entries({
+      data: "data.csv",
+      metadata: "metadata.json",
+      quality_summary: "quality_summary.json",
+      quality_details: "quality_details.parquet",
+    }).map(([role, name]) => [
+      role,
+      `/demo/workspace/${collectionPath}/${name}`,
+    ]),
+  );
+  parent.output_params.windows = [
+    { key: "snapshot", status: "done", metrics: { quality } },
+  ];
   parent.steps.push(step);
   parent.input_params.models = { "1445": [{ task_name: "demo" }] };
   parent.children[0].task = child.task_id.split("#")[1];
@@ -932,7 +971,34 @@ function seedNightly(
         key: "20260105/1445",
         status: "different",
         reason: "source_data_revised",
-        metrics: { max_abs_diff: 0.0012 },
+        metrics: {
+          max_abs_diff: 0.0012,
+          stages: Object.fromEntries(
+            [
+              "features",
+              "market",
+              "predictions",
+              "ranking",
+              "signals",
+              "orders",
+              "positions",
+              "trades",
+              "daily",
+            ].map((key) => [
+              key,
+              {
+                consistent: key !== "predictions",
+                schema_equal: true,
+                keys_equal: true,
+                offline_rows: 5100,
+                online_rows: 5100,
+                mismatches: key === "predictions" ? { pred: 2 } : {},
+                max_absolute_error:
+                  key === "predictions" ? { pred: 0.0012 } : {},
+              },
+            ]),
+          ),
+        },
       },
     ],
   };

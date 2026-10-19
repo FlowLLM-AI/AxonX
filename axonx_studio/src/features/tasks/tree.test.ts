@@ -42,6 +42,9 @@ it("retains the current nested Run when another branch references an older Run o
   expect(nodes.find((node) => node.record.run_id === "old-run")?.error).toBe(
     "replaced",
   );
+  expect(nodes.find((node) => node.record.run_id === "old-run")?.issue).toBe(
+    "replaced",
+  );
   expect(
     nodes.find((node) => node.status?.task_id === leaf.task_id)?.status?.run_id,
   ).toBe(leaf.run_id);

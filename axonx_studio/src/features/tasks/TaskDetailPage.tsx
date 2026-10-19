@@ -1,5 +1,7 @@
+import { ReportTabs } from "../../shared/ui/ReportTabs";
 import { TaskLogPanel } from "./TaskLogPanel";
 import { TaskSteps } from "./TaskSteps";
+import { ExecutionSteps } from "./ExecutionSteps";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { TaskQuality } from "../online/QualityReport";
 import { hasTaskReport } from "../online/types";
@@ -8,7 +10,6 @@ import {
   ArrowLeft,
   Ban,
   Check,
-  ChevronDown,
   Copy,
   FileJson,
   FileText,
@@ -18,12 +19,12 @@ import {
   LocateFixed,
   ArrowUpRight,
   Settings2,
-  X,
+  RefreshCw,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import type { TaskMetadata } from "./types";
-import { usePolling } from "../../shared/hooks/usePolling";
+import { useRefresh } from "../../shared/hooks/useRefresh";
 import { canCancel } from "./groups";
 import { cancelTask, getTaskStatus } from "./api";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
@@ -59,12 +60,6 @@ export function TaskDetailPage({
   const configClipboard = useCopyFeedback();
   const configCopied = configClipboard.copied === "config";
   const [locateRequest, setLocateRequest] = useState(0);
-  const [panels, setPanels] = useState({
-    config: false,
-    relations: false,
-    details: true,
-    logs: true,
-  });
 
   const hasResearch =
     task?.state === "succeeded" &&
@@ -89,19 +84,13 @@ export function TaskDetailPage({
         onConnection(false);
         return null;
       } finally {
-        setLoading(false);
+        if (!signal?.aborted) setLoading(false);
       }
     },
     [onConnection, target, taskId],
   );
 
-  const refreshStatus = useCallback(
-    async (signal: AbortSignal) => {
-      await loadStatus(signal);
-    },
-    [loadStatus],
-  );
-  usePolling(refreshStatus, true);
+  const refreshAll = useRefresh(loadStatus);
   useEffect(() => {
     const controller = new AbortController();
     void loadStatus(controller.signal);
@@ -145,6 +134,7 @@ export function TaskDetailPage({
         <div className="error-banner">
           <strong>{labels.taskMissing}</strong>
           <span>{error}</span>
+          <button onClick={() => void loadStatus()}>{t("retry")}</button>
         </div>
       </section>
     );
@@ -154,11 +144,7 @@ export function TaskDetailPage({
   const completedSteps = executionSteps.filter(
     (step) => step.percentage === 100,
   ).length;
-  const togglePanel = (panel: keyof typeof panels) => {
-    setPanels((current) => ({ ...current, [panel]: !current[panel] }));
-  };
   const locateCurrentTask = () => {
-    setPanels((current) => ({ ...current, relations: true }));
     setLocateRequest((current) => current + 1);
   };
 
@@ -184,46 +170,6 @@ export function TaskDetailPage({
               : t(`schedules.sources.${task.source.kind}`)}
           </span>
         </div>
-        <div className="task-detail-heading-actions">
-          {(hasResearch || hasTaskReport(task)) && (
-            <button
-              className="secondary-button"
-              onClick={() =>
-                onOpenResearch(
-                  hasTaskReport(task) ? "report" : task.task_type,
-                  task.task_id,
-                )
-              }
-            >
-              <ArrowUpRight />
-              {labels.openResearch}
-            </button>
-          )}
-          <button
-            className="secondary-button"
-            onClick={() => onInterpretTask(task.task_id)}
-          >
-            <Bot />
-            {t("agent.interpretTask")}
-          </button>
-          <span className="muted">
-            {t(
-              task.managed_run_id
-                ? "taskOwnership.managed"
-                : "taskOwnership.workspace",
-            )}
-          </span>
-          {canCancel(task) && !task.replica && (
-            <button
-              className="danger-outline task-detail-cancel"
-              onClick={() => void cancel()}
-              disabled={cancelling}
-            >
-              <Ban />
-              {cancelling ? t("cancelling") : t("cancel")}
-            </button>
-          )}
-        </div>
       </div>
       {error && (
         <div className="error-banner">
@@ -232,277 +178,270 @@ export function TaskDetailPage({
           <button onClick={() => void loadStatus()}>{t("retry")}</button>
         </div>
       )}
-      <div className="task-detail-dashboard">
-        <DetailCard
-          className="task-config-card"
-          title={labels.config}
-          summary={t("taskDetail.configSummary", {
-            count: configEntries.length,
-          })}
-          icon={<Settings2 />}
-          open={panels.config}
-          onToggle={() => togglePanel("config")}
+      <div className="task-detail-tabs">
+        <ReportTabs
+          key={`${target}:${taskId}`}
+          defaultTab="details"
+          ariaLabel={t("taskTitle")}
           actions={
-            <button
-              onClick={() => void copyConfig()}
-              title={configCopied ? labels.copied : labels.copyConfig}
-              aria-label={configCopied ? labels.copied : labels.copyConfig}
-            >
-              {configCopied ? <Check /> : <Copy />}
-            </button>
-          }
-        >
-          <div className="config-source">
-            <span>{labels.task}</span>
-            <code>{task.reg_name}</code>
-            <i>{labels.snapshot}</i>
-          </div>
-          {configEntries.length ? (
-            <dl className="task-config-list">
-              {configEntries.map(([key, value]) => (
-                <div key={key}>
-                  <dt>{key}</dt>
-                  <dd title={formatConfigValue(value)}>
-                    {formatConfigValue(value)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          ) : (
-            <div className="task-config-empty">
-              <FileJson />
-              {labels.noConfig}
-            </div>
-          )}
-        </DetailCard>
-
-        <DetailCard
-          className="task-relations-card"
-          title={labels.relations}
-          summary={labels.relationsSummary}
-          icon={<GitBranch />}
-          open={panels.relations}
-          onToggle={() => togglePanel("relations")}
-          actions={
-            <button
-              onClick={locateCurrentTask}
-              title={t("taskGraph.locate_current_task")}
-              aria-label={t("taskGraph.locate_current_task")}
-            >
-              <LocateFixed />
-            </button>
-          }
-        >
-          <TaskGraphPanel
-            taskId={taskId}
-            target={target}
-            locateRequest={locateRequest}
-            onOpenTask={onOpenTask}
-            onInterpretTask={onInterpretTask}
-            onConnection={onConnection}
-          />
-        </DetailCard>
-
-        <DetailCard
-          className="task-run-card"
-          title={labels.runDetails}
-          summary={`${completedSteps} ${labels.completedSteps}`}
-          icon={
-            <span className={`task-orb ${task.state}`}>
-              {task.task_type.slice(0, 1).toUpperCase()}
-            </span>
-          }
-          open={panels.details}
-          onToggle={() => togglePanel("details")}
-        >
-          <div className="task-run-meta">
-            <div>
-              <small>{t("started")}</small>
-              <strong>{formatDate(task.started_at)}</strong>
-            </div>
-            <div>
-              <small>{t("duration")}</small>
-              <strong>{formatDuration(task, t)}</strong>
-            </div>
-            <div>
-              <small>EXIT CODE</small>
-              <strong>{task.exit_code}</strong>
-            </div>
-          </div>
-          {progress && (
-            <div className="task-current-step">
-              <span>{t("progress")}</span>
-              <code title={progress.name}>{progress.name}</code>
-              <strong>{progress.percentage}%</strong>
-            </div>
-          )}
-          <DetailSection title={t("steps")}>
-            <div className="step-list">
-              {executionSteps.length ? (
-                executionSteps.map((step, index) => {
-                  const percentage = Math.max(
-                    0,
-                    Math.min(100, step.percentage ?? 0),
-                  );
-                  const failed =
-                    task.state === "failed" &&
-                    index === executionSteps.length - 1;
-                  const done = !failed && step.percentage === 100;
-                  return (
-                    <div
-                      className={`step-item ${failed ? "failed" : ""}`}
-                      key={`${step.name}-${index}`}
-                    >
-                      <span
-                        className={failed ? "failed" : done ? "done" : "active"}
-                        style={
-                          !failed && !done
-                            ? ({
-                                "--step-progress": `${percentage}%`,
-                              } as React.CSSProperties)
-                            : undefined
-                        }
-                      >
-                        {failed ? <X /> : done ? <Check /> : index + 1}
-                      </span>
-                      <div>
-                        <strong>{step.name}</strong>
-                        <small>
-                          {failed
-                            ? task.error || t("error")
-                            : step.finished_at
-                              ? formatDate(step.finished_at)
-                              : step.started_at
-                                ? `${Math.round(percentage)}%`
-                                : t("notStarted")}
-                        </small>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="muted">{t("notStarted")}</p>
+            <div className="task-detail-heading-actions">
+              <button
+                className="secondary-button"
+                onClick={() => void refreshAll()}
+                disabled={loading}
+              >
+                <RefreshCw className={loading ? "spin" : ""} />
+                {t("refresh")}
+              </button>
+              {(hasResearch || hasTaskReport(task)) && (
+                <button
+                  className="secondary-button"
+                  onClick={() =>
+                    onOpenResearch(
+                      hasTaskReport(task) ? "report" : task.task_type,
+                      task.task_id,
+                    )
+                  }
+                >
+                  <ArrowUpRight />
+                  {labels.openResearch}
+                </button>
+              )}
+              <button
+                className="secondary-button"
+                onClick={() => onInterpretTask(task.task_id)}
+              >
+                <Bot />
+                {t("agent.interpretTask")}
+              </button>
+              {canCancel(task) && !task.replica && (
+                <button
+                  className="danger-outline task-detail-cancel"
+                  onClick={() => void cancel()}
+                  disabled={cancelling}
+                >
+                  <Ban />
+                  {cancelling ? t("cancelling") : t("cancel")}
+                </button>
               )}
             </div>
-          </DetailSection>
-          {task.children.length > 0 && (
-            <DetailSection title={t("taskDetail.children")}>
-              <div className="step-list">
-                {task.children.map((child, index) => (
-                  <div className="step-item" key={child.run_id}>
-                    <span>{index + 1}</span>
-                    <div>
-                      <strong>
-                        {child.node_name} · {child.attempt}
-                      </strong>
-                      {child.task_id ? (
-                        <button
-                          className="child-task-link"
-                          onClick={() => onOpenTask(child.task_id!)}
-                        >
-                          {child.task_id}
-                        </button>
-                      ) : (
-                        <code>{child.task}</code>
-                      )}
-                      <small>{child.run_id}</small>
-                      {child.error && <small>{child.error}</small>}
-                    </div>
-                    <Status state={child.state} />
-                  </div>
-                ))}
-              </div>
-            </DetailSection>
-          )}
-          <TaskSteps steps={task.steps.filter((step) => step.parent)} />
-          <TaskQuality
-            windows={task.output_params.windows}
-            taskId={task.task_id}
-            target={target}
-          />
-          {Object.keys(task.output_params).length > 0 && (
-            <DetailSection title={t("result")}>
-              <pre>{JSON.stringify(task.output_params, null, 2)}</pre>
-            </DetailSection>
-          )}
-        </DetailCard>
-
-        <DetailCard
-          className="task-log-card"
-          title={labels.logs}
-          summary={
-            task.replica
-              ? t("replica.logUnavailable")
-              : task.log_path || labels.logUnavailable
           }
-          icon={<FileText />}
-          open={panels.logs}
-          onToggle={() => togglePanel("logs")}
-        >
-          <TaskLogPanel
-            key={`${target}:${task.task_id}:${task.run_id}`}
-            task={task}
-            target={target}
-          />
-        </DetailCard>
+          tabs={[
+            {
+              id: "config",
+              label: (
+                <>
+                  <Settings2 />
+                  {labels.config}
+                </>
+              ),
+              content: (
+                <section className="task-detail-card open task-config-card">
+                  <header className="task-detail-tab-summary">
+                    <span>
+                      {t("taskDetail.configSummary", {
+                        count: configEntries.length,
+                      })}
+                    </span>
+                    <div className="task-detail-card-actions">
+                      <button
+                        onClick={() => void copyConfig()}
+                        title={configCopied ? labels.copied : labels.copyConfig}
+                        aria-label={
+                          configCopied ? labels.copied : labels.copyConfig
+                        }
+                      >
+                        {configCopied ? <Check /> : <Copy />}
+                      </button>
+                    </div>
+                  </header>
+                  <div className="task-detail-card-body">
+                    <div className="config-source">
+                      <span>{labels.task}</span>
+                      <code>{task.reg_name}</code>
+                      <i>{labels.snapshot}</i>
+                    </div>
+                    {configEntries.length ? (
+                      <dl className="task-config-list">
+                        {configEntries.map(([key, value]) => (
+                          <div key={key}>
+                            <dt>{key}</dt>
+                            <dd title={formatConfigValue(value)}>
+                              {formatConfigValue(value)}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : (
+                      <div className="task-config-empty">
+                        <FileJson />
+                        {labels.noConfig}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ),
+            },
+            {
+              id: "relations",
+              label: (
+                <>
+                  <GitBranch />
+                  {labels.relations}
+                </>
+              ),
+              content: (
+                <section className="task-detail-card open task-relations-card">
+                  <header className="task-detail-tab-summary">
+                    <span>{labels.relationsSummary}</span>
+                    <div className="task-detail-card-actions">
+                      <button
+                        onClick={locateCurrentTask}
+                        title={t("taskGraph.locate_current_task")}
+                        aria-label={t("taskGraph.locate_current_task")}
+                      >
+                        <LocateFixed />
+                      </button>
+                    </div>
+                  </header>
+                  <div className="task-detail-card-body">
+                    <TaskGraphPanel
+                      taskId={taskId}
+                      target={target}
+                      locateRequest={locateRequest}
+                      onOpenTask={onOpenTask}
+                      onInterpretTask={onInterpretTask}
+                      onConnection={onConnection}
+                    />
+                  </div>
+                </section>
+              ),
+              lazy: true,
+            },
+            {
+              id: "details",
+              label: (
+                <>
+                  <span className={`task-orb ${task.state}`}>
+                    {task.task_type.slice(0, 1).toUpperCase()}
+                  </span>
+                  {labels.runDetails}
+                </>
+              ),
+              content: (
+                <section className="task-detail-card open task-run-card">
+                  <header className="task-detail-tab-summary">
+                    <span>{`${completedSteps} ${labels.completedSteps}`}</span>
+                  </header>
+                  <div className="task-detail-card-body">
+                    <div className="task-run-meta">
+                      <div>
+                        <small>{t("started")}</small>
+                        <strong>{formatDate(task.started_at)}</strong>
+                      </div>
+                      <div>
+                        <small>{t("duration")}</small>
+                        <strong>{formatDuration(task, t)}</strong>
+                      </div>
+                      <div>
+                        <small>EXIT CODE</small>
+                        <strong>{task.exit_code}</strong>
+                      </div>
+                    </div>
+                    {progress && (
+                      <div className="task-current-step">
+                        <span>{t("progress")}</span>
+                        <code title={progress.name}>{progress.name}</code>
+                        <strong>{progress.percentage}%</strong>
+                      </div>
+                    )}
+                    <DetailSection title={t("steps")}>
+                      <ExecutionSteps
+                        key={`${target}:${task.run_id}`}
+                        task={task}
+                      />
+                    </DetailSection>
+                    {task.children.length > 0 && (
+                      <DetailSection title={t("taskDetail.children")}>
+                        <div className="step-list">
+                          {task.children.map((child, index) => (
+                            <div className="step-item" key={child.run_id}>
+                              <span>{index + 1}</span>
+                              <div>
+                                <strong>
+                                  {child.node_name} · {child.attempt}
+                                </strong>
+                                {child.task_id ? (
+                                  <button
+                                    className="child-task-link"
+                                    onClick={() => onOpenTask(child.task_id!)}
+                                  >
+                                    {child.task_id}
+                                  </button>
+                                ) : (
+                                  <code>{child.task}</code>
+                                )}
+                                <small>{child.run_id}</small>
+                                {child.error && <small>{child.error}</small>}
+                              </div>
+                              <Status state={child.state} />
+                            </div>
+                          ))}
+                        </div>
+                      </DetailSection>
+                    )}
+                    <TaskSteps
+                      task={task}
+                      target={target}
+                      steps={task.steps.filter((step) => step.parent)}
+                    />
+                    <TaskQuality
+                      excludeKeys={task.steps
+                        .filter((step) => step.group === "collection")
+                        .map((step) => step.name.replace(/^collection:/, ""))}
+                      windows={task.output_params.windows}
+                      taskId={task.task_id}
+                      target={target}
+                    />
+                    {Object.keys(task.output_params).length > 0 && (
+                      <DetailSection title={t("result")}>
+                        <pre>{JSON.stringify(task.output_params, null, 2)}</pre>
+                      </DetailSection>
+                    )}
+                  </div>
+                </section>
+              ),
+            },
+            {
+              id: "logs",
+              label: (
+                <>
+                  <FileText />
+                  {labels.logs}
+                </>
+              ),
+              content: (
+                <section className="task-detail-card open task-log-card">
+                  <div className="task-detail-card-body">
+                    <TaskLogPanel
+                      key={`${target}:${task.task_id}:${task.run_id}`}
+                      task={task}
+                      target={target}
+                      toolbar={
+                        <span className="task-log-path" title={task.log_path}>
+                          {task.replica
+                            ? t("replica.logUnavailable")
+                            : task.log_path || labels.logUnavailable}
+                        </span>
+                      }
+                    />
+                  </div>
+                </section>
+              ),
+            },
+          ]}
+        />
       </div>
-    </section>
-  );
-}
-
-function DetailCard({
-  className,
-  title,
-  summary,
-  icon,
-  open,
-  onToggle,
-  actions,
-  children,
-}: {
-  className: string;
-  title: string;
-  summary: React.ReactNode;
-  icon: React.ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  actions?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  const contentId = `${className}-content`;
-  return (
-    <section
-      className={`task-detail-card ${className} ${open ? "open" : "collapsed"}`}
-    >
-      <header>
-        <button
-          className="task-detail-card-toggle"
-          onClick={onToggle}
-          aria-expanded={open}
-          aria-controls={contentId}
-        >
-          <span className="task-detail-card-icon">{icon}</span>
-          <span>
-            <strong>{title}</strong>
-            <small>{summary}</small>
-          </span>
-        </button>
-        {actions && <div className="task-detail-card-actions">{actions}</div>}
-        <button
-          className="task-detail-card-chevron"
-          onClick={onToggle}
-          aria-expanded={open}
-          aria-controls={contentId}
-          aria-label={title}
-        >
-          <ChevronDown />
-        </button>
-      </header>
-      {open && (
-        <div className="task-detail-card-body" id={contentId}>
-          {children}
-        </div>
-      )}
     </section>
   );
 }

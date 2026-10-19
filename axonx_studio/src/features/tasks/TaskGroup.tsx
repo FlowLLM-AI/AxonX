@@ -9,8 +9,6 @@ import type { TaskSummary } from "./types";
 interface GroupProps {
   group: TaskGroupData;
   filterKey: string;
-  separateHistory?: boolean;
-  showHistory?: boolean;
   selectionMode: boolean;
   selected: Set<string>;
   onToggle: (ids: string[]) => void;
@@ -113,7 +111,12 @@ export function TaskGroup(props: GroupProps) {
           </span>
         </button>
       </header>
-      <GroupMembers key={filterKey} {...props} expanded={expanded} />
+      <GroupTable
+        key={filterKey}
+        {...props}
+        tasks={group.tasks}
+        expanded={expanded}
+      />
     </section>
   );
 }
@@ -166,31 +169,6 @@ export function TaskTableHeading({
         </th>
       </tr>
     </thead>
-  );
-}
-
-function GroupMembers(props: GroupProps & { expanded: boolean }) {
-  const { t } = useTranslation();
-  if (!props.separateHistory)
-    return <GroupTable {...props} tasks={props.group.tasks} />;
-  const active = props.group.tasks.filter((task) => ACTIVE.has(task.state));
-  const finished = props.group.tasks.filter((task) => !ACTIVE.has(task.state));
-  return (
-    <>
-      {active.length > 0 && <GroupTable {...props} tasks={active} />}
-      {finished.length > 0 && (
-        <details
-          className="schedule-history"
-          hidden={!props.expanded}
-          open={props.showHistory}
-        >
-          <summary>
-            {t("schedules.history", { count: finished.length })}
-          </summary>
-          <GroupTable {...props} tasks={finished} />
-        </details>
-      )}
-    </>
   );
 }
 

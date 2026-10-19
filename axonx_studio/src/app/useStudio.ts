@@ -3,12 +3,11 @@ import { listMachineOptions, machineStatus } from "../features/machines/api";
 import type { MachineNode } from "../features/machines/types";
 import type { ContextOption, ThemePreference } from "./types";
 import { defaultRoute, parseHash, routeHash, type AppRoute } from "./routes";
-import { startPolling } from "../shared/lib/polling";
+import { useRefresh } from "../shared/hooks/useRefresh";
 import { AxonXError, axonx } from "../shared/api/client";
 
 import { listStudioPages } from "../features/operations/api";
 import { useAsyncResource } from "../shared/hooks/useAsyncResource";
-import { usePolling } from "../shared/hooks/usePolling";
 
 const LOCAL_MACHINE: MachineNode = {
   id: "local",
@@ -134,12 +133,8 @@ function useServiceStatus(target: string | undefined, authRevision: number) {
     target: string | undefined;
     version: string;
   } | null>(null);
-
-  useEffect(() => {
-    setServiceOnline(null);
-    setAuthRequired(false);
-    setBackend(null);
-    const check = async (signal: AbortSignal) => {
+  const check = useCallback(
+    async (signal: AbortSignal) => {
       try {
         const info = await machineStatus(target, signal);
         if (signal.aborted) return;
@@ -152,10 +147,18 @@ function useServiceStatus(target: string | undefined, authRevision: number) {
         setBackend(null);
         setAuthRequired(reason instanceof AxonXError && reason.status === 401);
       }
-    };
-    return startPolling(check, 15, () => {}, true);
-  }, [authRevision, target]);
-
+    },
+    [target],
+  );
+  useRefresh(check);
+  useEffect(() => {
+    setServiceOnline(null);
+    setAuthRequired(false);
+    setBackend(null);
+    const controller = new AbortController();
+    void check(controller.signal);
+    return () => controller.abort();
+  }, [authRevision, check]);
   return {
     serviceOnline,
     setServiceOnline,
@@ -184,10 +187,6 @@ export function useStudio() {
   );
   const pages = useAsyncResource(loadPages);
   const reloadPages = pages.reload;
-  const refreshPages = useCallback(async () => {
-    await reloadPages();
-  }, [reloadPages]);
-  usePolling(refreshPages, true, 60);
   useEffect(() => {
     if (authRevision) void reloadPages();
   }, [authRevision, reloadPages]);

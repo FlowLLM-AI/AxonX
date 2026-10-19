@@ -38,6 +38,7 @@ def list_workspace_entries(
     )
     return WorkspaceListing(
         path=paths.relative(directory),
+        workspace_root=str(paths.root),
         entries=selected[offset : offset + MAX_DIRECTORY_ENTRIES],
         truncated=len(selected) > offset + MAX_DIRECTORY_ENTRIES,
     )

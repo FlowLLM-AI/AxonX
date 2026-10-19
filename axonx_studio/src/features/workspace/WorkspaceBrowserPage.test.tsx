@@ -3,7 +3,11 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WorkspaceBrowserPage from "./WorkspaceBrowserPage";
-import { listWorkspaceEntries, previewWorkspaceFile } from "./api";
+import {
+  getWorkspaceRoot,
+  listWorkspaceEntries,
+  previewWorkspaceFile,
+} from "./api";
 import type {
   WorkspaceListing,
   WorkspaceEntry,
@@ -11,6 +15,7 @@ import type {
 } from "./types";
 
 vi.mock("./api", () => ({
+  getWorkspaceRoot: vi.fn(),
   listWorkspaceEntries: vi.fn(),
   previewWorkspaceFile: vi.fn(),
 }));
@@ -49,7 +54,7 @@ function directory(
   entries: WorkspaceEntry[] = [],
   truncated = false,
 ): WorkspaceListing {
-  return { path, entries, truncated };
+  return { path, entries, truncated, workspace_root: "/server/workspace" };
 }
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -250,4 +255,88 @@ describe("workspace browser", () => {
     await act(async () => pending.resolve(directory("", [entry("obsolete")])));
     expect(container.querySelector('[title="obsolete"]')).toBeNull();
   });
+});
+
+it("opens an absolute committed file inside the selected workspace", async () => {
+  vi.mocked(listWorkspaceEntries).mockImplementation(async (path) =>
+    path === "data"
+      ? directory("data", [entry("data/quote.csv", "file")])
+      : directory("", [entry("data")]),
+  );
+  await render("/server/workspace/data/quote.csv", "machine-b");
+  expect(previewWorkspaceFile).toHaveBeenCalledWith(
+    "data/quote.csv",
+    0,
+    200,
+    "machine-b",
+    expect.any(AbortSignal),
+  );
+  expect(container.querySelector("[data-preview]")).not.toBeNull();
+  expect(getWorkspaceRoot).not.toHaveBeenCalled();
+});
+
+it.each([
+  "data.csv",
+  "metadata.json",
+  "quality_summary.json",
+  "quality_details.parquet",
+])("opens committed %s on services without workspace_root", async (name) => {
+  const folder = "tushare/2026/20261019/rt/rt_k";
+  const path = `${folder}/${name}`;
+  vi.mocked(getWorkspaceRoot).mockResolvedValue("/nas/jinli.yl/data/axon");
+  vi.mocked(listWorkspaceEntries).mockImplementation(async (path = "") => {
+    const parts = folder.split("/");
+    const depth = path ? path.split("/").length : 0;
+    return {
+      ...directory(path, [
+        depth < parts.length
+          ? entry(parts.slice(0, depth + 1).join("/"))
+          : entry(`${folder}/${name}`, "file"),
+      ]),
+      workspace_root: null,
+    };
+  });
+  await render(`/nas/jinli.yl/data/axon/${path}`, "machine-b");
+  expect(getWorkspaceRoot).toHaveBeenCalledWith(
+    "machine-b",
+    expect.any(AbortSignal),
+  );
+  expect(previewWorkspaceFile).toHaveBeenCalledWith(
+    path,
+    0,
+    200,
+    "machine-b",
+    expect.any(AbortSignal),
+  );
+  expect(container.querySelector("[data-preview]")).not.toBeNull();
+});
+
+it("rejects paths outside a root resolved through diagnostics", async () => {
+  vi.mocked(listWorkspaceEntries).mockResolvedValue({
+    ...directory(""),
+    workspace_root: null,
+  });
+  vi.mocked(getWorkspaceRoot).mockResolvedValue("/server/workspace");
+  await render("/server/workspace-other/secret.csv");
+  expect(previewWorkspaceFile).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("workspace.pathUnavailable");
+});
+
+it("shows diagnostic failures without attempting a file preview", async () => {
+  vi.mocked(listWorkspaceEntries).mockResolvedValue({
+    ...directory(""),
+    workspace_root: null,
+  });
+  vi.mocked(getWorkspaceRoot).mockRejectedValue(
+    new Error("Service unavailable"),
+  );
+  await render("/server/workspace/data/quote.csv");
+  expect(previewWorkspaceFile).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("Service unavailable");
+});
+
+it("rejects absolute paths outside the selected workspace", async () => {
+  await render("/server/workspace-other/secret.csv");
+  expect(previewWorkspaceFile).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("workspace.pathUnavailable");
 });

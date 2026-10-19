@@ -30,7 +30,11 @@ import type {
   WorkspaceEntry,
   WorkspacePreview,
 } from "./types";
-import { listWorkspaceEntries, previewWorkspaceFile } from "./api";
+import {
+  getWorkspaceRoot,
+  listWorkspaceEntries,
+  previewWorkspaceFile,
+} from "./api";
 
 const FilePreview = lazy(() =>
   import("./FilePreview").then((module) => ({ default: module.FilePreview })),
@@ -131,7 +135,20 @@ export default function WorkspaceBrowserPage({
       let directory = await loadDirectory(ROOT, controller.signal);
       const open = new Set([ROOT]);
       let entry: WorkspaceEntry | undefined;
-      const parts = initialPath.split("/").filter(Boolean);
+      let relativePath = initialPath;
+      if (initialPath.startsWith("/")) {
+        const workspaceRoot =
+          directory.workspace_root ||
+          (await getWorkspaceRoot(target, controller.signal));
+        controller.signal.throwIfAborted();
+        const root = workspaceRoot?.replace(/\/+$/, "");
+        if (!root || !initialPath.startsWith(`${root}/`))
+          throw new Error(
+            t("workspace.pathUnavailable", { path: initialPath }),
+          );
+        relativePath = initialPath.slice(root.length + 1);
+      }
+      const parts = relativePath.split("/").filter(Boolean);
       for (const [index, part] of parts.entries()) {
         entry = directory.entries.find((item) => item.name === part);
         while (!entry && directory.truncated) {
@@ -171,7 +188,7 @@ export default function WorkspaceBrowserPage({
       controller.abort();
       pending.delete(controller);
     };
-  }, [initialPath, revision, loadDirectory, onConnection, t]);
+  }, [initialPath, revision, loadDirectory, onConnection, t, target]);
 
   useEffect(() => {
     const controller = new AbortController();

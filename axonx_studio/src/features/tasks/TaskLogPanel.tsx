@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { readTaskLog } from "./api";
-import { usePolling } from "../../shared/hooks/usePolling";
+import { useRefresh } from "../../shared/hooks/useRefresh";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { errorMessage } from "../../shared/lib/errors";
 import { formatBytes } from "../../shared/lib/format";
@@ -14,9 +20,11 @@ const MAX = 524_288;
 export function TaskLogPanel({
   task,
   target,
+  toolbar,
 }: {
   task: TaskMetadata;
   target?: string;
+  toolbar?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
@@ -101,7 +109,7 @@ export function TaskLogPanel({
       for (const controller of owned) controller.abort();
     };
   }, []);
-  usePolling(load, follow);
+  useRefresh(load, follow);
   useEffect(() => {
     if (follow && viewport.current)
       viewport.current.scrollTop = viewport.current.scrollHeight;
@@ -111,13 +119,7 @@ export function TaskLogPanel({
   return (
     <div className="log-panel">
       <div className="pipeline-log-controls">
-        <button
-          className="secondary-button"
-          disabled={busy || !path}
-          onClick={() => manual(-1)}
-        >
-          {t("taskDetail.refreshLog")}
-        </button>
+        {toolbar}
         <label>
           <input
             type="checkbox"

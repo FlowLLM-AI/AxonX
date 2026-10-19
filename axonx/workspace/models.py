@@ -35,6 +35,7 @@ class WorkspaceEntry(WorkspaceModel):
 
 class WorkspaceListing(WorkspaceModel):
     path: str
+    workspace_root: str | None = None
     entries: list[WorkspaceEntry] = Field(default_factory=list)
     truncated: bool = False
 

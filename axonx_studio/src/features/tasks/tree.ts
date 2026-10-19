@@ -5,6 +5,7 @@ export interface TaskNode {
   record: ChildTaskRecord;
   status: TaskMetadata | null;
   error: string;
+  issue?: "replaced" | "snapshot";
 }
 
 /** Follow exact owned Runs, including nested download and ETL chains. */
@@ -35,13 +36,27 @@ export async function readTaskChildren(
             );
           const status = await requests.get(record.task_id!)!;
           if (status.run_id !== record.run_id)
-            return [{ record, status: null, error: messages.replaced }];
+            return [
+              {
+                record,
+                status: null,
+                error: messages.replaced,
+                issue: "replaced",
+              },
+            ];
           if (
             parent.replica?.snapshot &&
             status.replica?.snapshot?.revision !==
               parent.replica.snapshot.revision
           )
-            return [{ record, status: null, error: messages.snapshot }];
+            return [
+              {
+                record,
+                status: null,
+                error: messages.snapshot,
+                issue: "snapshot",
+              },
+            ];
           return [{ record, status, error: "" }, ...(await visit(status))];
         } catch (reason) {
           signal.throwIfAborted();

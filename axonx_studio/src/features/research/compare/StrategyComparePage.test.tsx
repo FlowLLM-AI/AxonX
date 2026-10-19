@@ -32,6 +32,7 @@ it.each(["en", "zh"])(
     await i18n.changeLanguage(language);
     vi.mocked(listTaskRuns).mockResolvedValue({
       path: "backtest",
+      workspace_root: null,
       truncated: false,
       entries: ["a", "b"].map((name) => ({
         name,

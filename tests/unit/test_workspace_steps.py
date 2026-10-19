@@ -154,6 +154,7 @@ def test_workspace_functions_own_only_browse_preview_and_delete(tmp_path):
     preview = preview_workspace_file(tmp_path, "note.txt")
     deleted = delete_workspace_entries(tmp_path, ["note.txt"])
 
+    assert listing.workspace_root == str(tmp_path.resolve())
     assert [entry.name for entry in listing.entries] == ["note.txt"]
     assert preview.content == "hello"
     assert deleted[0].deleted == "note.txt"

@@ -1,7 +1,13 @@
 import { isRecord } from "../../shared/lib/values";
 import { isArtifactRecord } from "../../shared/api/artifacts";
 export type ReportTab =
-  "signal" | "portfolio" | "performance" | "history" | "runtime" | "quality";
+  | "signal"
+  | "portfolio"
+  | "performance"
+  | "history"
+  | "runtime"
+  | "quality"
+  | "provenance";
 
 import type {
   OnlineCommit as CommitContract,

@@ -4,6 +4,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listMachineOptions, machineStatus } from "../features/machines/api";
 import type { MachineInfo } from "../features/machines/types";
+import OperationPage from "../features/operations/OperationPage";
+import { AxonXClient, configureClient } from "../shared/api/client";
+import { createPlayground } from "../playground/runtime";
 import { AppShell } from "./AppShell";
 import { defaultRoute } from "./routes";
 import { useStudio } from "./useStudio";
@@ -17,10 +20,11 @@ vi.mock("../features/machines/api", () => ({
   listMachineOptions: vi.fn(),
   machineStatus: vi.fn(),
 }));
+const translate = (key: string) => key;
 vi.mock("react-i18next", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-i18next")>()),
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: translate,
     i18n: { resolvedLanguage: "en" },
   }),
 }));
@@ -48,10 +52,25 @@ function deferred<T>() {
 let root: Root;
 let container: HTMLDivElement;
 let studio: ReturnType<typeof useStudio>;
+const ignoreSelection = () => {};
 
-function Harness() {
+function Harness({ operations = false }: { operations?: boolean }) {
   studio = useStudio();
-  return <AppShell {...studio}>Page content</AppShell>;
+  return (
+    <AppShell {...studio}>
+      {operations && studio.operationPages[0] ? (
+        <OperationPage
+          page={studio.operationPages.find((page) => page.id === "online")!}
+          onOptionsChange={studio.setResourceOptions}
+          onSelected={ignoreSelection}
+          onConnection={studio.setServiceOnline}
+          onOpenTask={ignoreSelection}
+        />
+      ) : (
+        "Page content"
+      )}
+    </AppShell>
+  );
 }
 
 beforeEach(() => {
@@ -88,6 +107,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   expect(vi.getTimerCount()).toBe(0);
   container.remove();
+  configureClient(new AxonXClient());
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -114,7 +134,7 @@ describe("Studio backend version", () => {
       expect.any(AbortSignal),
     );
     vi.mocked(machineStatus).mockRejectedValue(new Error("Offline"));
-    await act(async () => vi.advanceTimersByTimeAsync(15_000));
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
     expect(version()).toBeUndefined();
   });
 
@@ -205,4 +225,44 @@ it("retains breadcrumb options when selecting a resource and clears them on page
   expect(studio.resourceOptions).toEqual(options);
   await act(async () => studio.navigate(defaultRoute("runtime")));
   expect(studio.resourceOptions).toEqual([]);
+});
+
+it("shares one clock across service health, operation reports and logs without reloading navigation", async () => {
+  const clocks = vi.spyOn(globalThis, "setInterval");
+  const demo = createPlayground();
+  const requests: string[] = [];
+  configureClient(
+    new AxonXClient(async (url, init) => {
+      requests.push(String(url));
+      return demo(url, init);
+    }, false),
+  );
+  vi.mocked(machineStatus).mockResolvedValue(info("1.0"));
+  vi.mocked(listStudioPages).mockResolvedValue(studioPages);
+  await act(async () => root.render(<Harness operations />));
+  expect(clocks).toHaveBeenCalledTimes(1);
+  const logTab = () =>
+    container.querySelector<HTMLButtonElement>(
+      '[role="tab"][id$="-logs-tab"]',
+    )!;
+  await act(async () => logTab().click());
+  const initial = requests.length;
+  await act(async () => vi.advanceTimersByTimeAsync(59_000));
+  expect(requests).toHaveLength(initial);
+  expect(machineStatus).toHaveBeenCalledTimes(1);
+  await act(async () => vi.advanceTimersByTimeAsync(1_000));
+  expect(machineStatus).toHaveBeenCalledTimes(2);
+  expect(listStudioPages).toHaveBeenCalledTimes(1);
+  expect(logTab().getAttribute("aria-selected")).toBe("true");
+  for (const job of ["list_schedules", "list_task_statuses", "read_task_log"])
+    expect(
+      requests.slice(initial).filter((url) => url.includes(job)),
+    ).toHaveLength(1);
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>(".rail-refresh")!.click(),
+  );
+  expect(machineStatus).toHaveBeenCalledTimes(3);
+  expect(listStudioPages).toHaveBeenCalledTimes(1);
+  expect(logTab().getAttribute("aria-selected")).toBe("true");
+  clocks.mockRestore();
 });

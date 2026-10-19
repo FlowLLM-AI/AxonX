@@ -644,7 +644,7 @@ function ArtifactDetail({
           </div>
         </div>
       )}
-      {meta.task_type === "backtest" && (
+      {meta.task_type === "backtest" ? (
         <Suspense
           fallback={
             <div className="research-loading">
@@ -654,8 +654,9 @@ function ArtifactDetail({
         >
           <BacktestView meta={meta} target={target} />
         </Suspense>
+      ) : (
+        <BaseOutputView meta={meta} target={target} />
       )}
-      <BaseOutputView meta={meta} target={target} />
     </>
   );
 }
@@ -819,7 +820,13 @@ function TrainingMemberCount({
   );
 }
 
-function BaseOutputView({ meta, target }: { meta: Meta; target?: string }) {
+function BaseOutputView({
+  meta,
+  target,
+}: {
+  meta: Exclude<Meta, { task_type: "backtest" }>;
+  target?: string;
+}) {
   const kind = meta.task_type;
   const { t } = useTranslation();
   const train = meta.task_type === "train" ? meta.output_params : null;
@@ -886,9 +893,7 @@ function BaseOutputView({ meta, target }: { meta: Meta; target?: string }) {
     <div className="artifact-content">
       <Kpis
         items={[
-          ...(kind === "backtest"
-            ? []
-            : [{ label: countLabel, value: fmt(count, 0) }]),
+          { label: countLabel, value: fmt(count, 0) },
           ...(kind === "train"
             ? [
                 {
@@ -1024,37 +1029,34 @@ function BaseOutputView({ meta, target }: { meta: Meta; target?: string }) {
           )}
         </section>
       )}
-      {kind !== "backtest" && (
-        <section className="viz-card base-files-card">
-          <header>
-            <div>
-              <small>OUTPUT</small>
-              <h3>{t("research.output_files")}</h3>
-            </div>
-          </header>
-          <div className="artifact-files">
-            {paths.map(
-              ([name, path]) =>
-                path && (
-                  <div key={name}>
-                    <FileSpreadsheet />
-                    <span>
-                      <strong>{name}</strong>
-                      <code>{path}</code>
-                    </span>
-                  </div>
-                ),
-            )}
+      <section className="viz-card base-files-card">
+        <header>
+          <div>
+            <small>OUTPUT</small>
+            <h3>{t("research.output_files")}</h3>
           </div>
-          {kind === "etl" &&
-            typeof meta.input_params.input_dir === "string" && (
-              <div className="artifact-input-dir">
-                <small>{t("research.input_directory")}</small>
-                <code>{String(meta.input_params.input_dir)}</code>
-              </div>
-            )}
-        </section>
-      )}
+        </header>
+        <div className="artifact-files">
+          {paths.map(
+            ([name, path]) =>
+              path && (
+                <div key={name}>
+                  <FileSpreadsheet />
+                  <span>
+                    <strong>{name}</strong>
+                    <code>{path}</code>
+                  </span>
+                </div>
+              ),
+          )}
+        </div>
+        {kind === "etl" && typeof meta.input_params.input_dir === "string" && (
+          <div className="artifact-input-dir">
+            <small>{t("research.input_directory")}</small>
+            <code>{String(meta.input_params.input_dir)}</code>
+          </div>
+        )}
+      </section>
       <section className="viz-card base-files-card">
         <header>
           <div>
@@ -1068,18 +1070,11 @@ function BaseOutputView({ meta, target }: { meta: Meta; target?: string }) {
   );
 }
 
-function ArtifactRecords({
-  meta,
-  exclude = [],
-}: {
-  meta: Meta;
-  exclude?: string[];
-}) {
+function ArtifactRecords({ meta }: { meta: Meta }) {
   return (
     <div className="artifact-files">
-      {Object.entries(meta.output_params.artifacts || {})
-        .filter(([name]) => !exclude.includes(name))
-        .map(([name, file]) => (
+      {Object.entries(meta.output_params.artifacts || {}).map(
+        ([name, file]) => (
           <div key={name}>
             <FileSpreadsheet />
             <span>
@@ -1088,7 +1083,8 @@ function ArtifactRecords({
             </span>
             <em>{formatBytes(file.size, false)}</em>
           </div>
-        ))}
+        ),
+      )}
     </div>
   );
 }

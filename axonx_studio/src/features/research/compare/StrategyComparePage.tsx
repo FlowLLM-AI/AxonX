@@ -533,29 +533,32 @@ export default function StrategyComparePage({
                 key={index}
               >
                 <span>{index === 0 ? "A" : "B"}</span>
-                <div>
+                <div className="compare-selected-copy">
                   <small>{t("compare.backtest_task")}</small>
                   <strong title={task?.task_id}>
                     {task?.task_id || t("compare.choose_from_the_list")}
                   </strong>
                   {task && (
-                    <select
-                      aria-label={`${t("backtest.universe")} ${index === 0 ? "A" : "B"}`}
-                      value={index === 0 ? selectedA : selectedB}
-                      onChange={(event) =>
-                        (index === 0 ? setUniverseA : setUniverseB)(
-                          event.target.value,
-                        )
-                      }
-                    >
-                      {Object.entries(task.output_params.universes).map(
-                        ([key, report]) => (
-                          <option key={key} value={key}>
-                            {report.label}
-                          </option>
-                        ),
-                      )}
-                    </select>
+                    <label className="compare-universe">
+                      <span>{t("backtest.universe")}</span>
+                      <select
+                        aria-label={`${t("backtest.universe")} ${index === 0 ? "A" : "B"}`}
+                        value={index === 0 ? selectedA : selectedB}
+                        onChange={(event) =>
+                          (index === 0 ? setUniverseA : setUniverseB)(
+                            event.target.value,
+                          )
+                        }
+                      >
+                        {Object.entries(task.output_params.universes).map(
+                          ([key, report]) => (
+                            <option key={key} value={key}>
+                              {report.label}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </label>
                   )}
                 </div>
               </div>

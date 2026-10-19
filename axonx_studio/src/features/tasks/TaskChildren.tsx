@@ -1,3 +1,4 @@
+import { ReportTabs } from "../../shared/ui/ReportTabs";
 import { useTranslation } from "react-i18next";
 import { TaskSteps } from "./TaskSteps";
 import { Status } from "./TaskRow";
@@ -5,12 +6,14 @@ import type { TaskNode } from "./tree";
 import type { ChildTaskRecord } from "./types";
 
 export function TaskChildren({
+  target,
   records,
   nodes,
   onOpenTask,
   ancestors = [],
   showOutput = false,
 }: {
+  target?: string;
   records: ChildTaskRecord[];
   nodes: TaskNode[];
   onOpenTask: (id: string) => void;
@@ -33,10 +36,10 @@ export function TaskChildren({
           );
           const status = node?.status;
           return (
-            <details key={record.run_id} open={record.state === "running"}>
-              <summary>
+            <section className="task-child" key={record.run_id}>
+              <header>
                 {record.node_name} · <Status state={record.state} />
-              </summary>
+              </header>
               {(record.error || node?.error) && (
                 <p className="error-state">{record.error || node?.error}</p>
               )}
@@ -48,14 +51,42 @@ export function TaskChildren({
                   >
                     {t("onlinePipeline.openTask")}
                   </button>
-                  <TaskSteps compact steps={status.steps} />
-                  {showOutput && (
-                    <details>
-                      <summary>{t("operations.result")}</summary>
-                      <pre>{JSON.stringify(status.output_params, null, 2)}</pre>
-                    </details>
+                  {showOutput ? (
+                    <ReportTabs
+                      tabs={[
+                        {
+                          id: "steps",
+                          label: t("onlinePipeline.stageDetails"),
+                          content: (
+                            <TaskSteps
+                              target={target}
+                              compact
+                              task={status}
+                              steps={status.steps}
+                            />
+                          ),
+                        },
+                        {
+                          id: "result",
+                          label: t("operations.result"),
+                          content: (
+                            <pre>
+                              {JSON.stringify(status.output_params, null, 2)}
+                            </pre>
+                          ),
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <TaskSteps
+                      target={target}
+                      compact
+                      task={status}
+                      steps={status.steps}
+                    />
                   )}
                   <TaskChildren
+                    target={target}
                     records={status.children}
                     showOutput={showOutput}
                     nodes={nodes}
@@ -64,7 +95,7 @@ export function TaskChildren({
                   />
                 </>
               )}
-            </details>
+            </section>
           );
         })}
     </>

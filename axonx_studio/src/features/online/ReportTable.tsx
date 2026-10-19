@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 export interface Column {
   key: string;
   label: string;
+  render?: (row: Record<string, unknown>) => ReactNode;
   format?: "percent" | "score" | "integer" | "boolean";
 }
 import { display } from "./format";
@@ -12,10 +13,14 @@ export function ReportTable({
   rows,
   columns,
   defaultSort,
+  actions,
+  renderExpanded,
 }: {
   rows: Record<string, unknown>[];
   columns: Column[];
   defaultSort?: string;
+  actions?: ReactNode;
+  renderExpanded?: (row: Record<string, unknown>) => ReactNode;
 }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
@@ -60,9 +65,12 @@ export function ReportTable({
             setPage(0);
           }}
         />
-        <span>
-          {selected.length.toLocaleString()} {t("onlinePipeline.rows")}
-        </span>
+        <div className="online-table-actions">
+          <span>
+            {selected.length.toLocaleString()} {t("onlinePipeline.rows")}
+          </span>
+          {actions}
+        </div>
       </div>
       {!selected.length ? (
         <div className="empty-state">{t("onlineReport.noRows")}</div>
@@ -100,48 +108,65 @@ export function ReportTable({
             <tbody>
               {selected
                 .slice(current * 50, (current + 1) * 50)
-                .map((row, index) => (
-                  <tr key={index}>
-                    {columns.map(({ key, format }) => (
-                      <td
-                        key={key}
-                        className={
-                          key === "rank_change" && Number(row[key]) > 0
-                            ? "online-positive"
-                            : ""
-                        }
-                      >
-                        {format === "boolean" &&
-                        typeof row[key] === "boolean" ? (
-                          <span
-                            className={`online-status status-${row[key] ? "done" : "incomplete"}`}
+                .map((row, index) => {
+                  const expanded = renderExpanded?.(row);
+                  return (
+                    <Fragment key={index}>
+                      <tr>
+                        {columns.map(({ key, format, render }) => (
+                          <td
+                            key={key}
+                            className={
+                              key === "rank_change" && Number(row[key]) > 0
+                                ? "online-positive"
+                                : ""
+                            }
                           >
-                            {t(
-                              row[key]
-                                ? "onlineReport.buyable"
-                                : "onlineReport.blocked",
+                            {render ? (
+                              render(row)
+                            ) : format === "boolean" &&
+                              typeof row[key] === "boolean" ? (
+                              <span
+                                className={`online-status status-${row[key] ? "done" : "incomplete"}`}
+                              >
+                                {t(
+                                  row[key]
+                                    ? "onlineReport.buyable"
+                                    : "onlineReport.blocked",
+                                )}
+                              </span>
+                            ) : typeof row[key] === "boolean" ? (
+                              t(
+                                row[key]
+                                  ? "onlineReport.yes"
+                                  : "onlineReport.no",
+                              )
+                            ) : [
+                                "side",
+                                "status",
+                                "reason",
+                                "period_type",
+                                "period",
+                              ].includes(key) &&
+                              typeof row[key] === "string" ? (
+                              t(
+                                `onlineReport.values.${String(row[key])}`,
+                                display(row[key], format),
+                              )
+                            ) : (
+                              display(row[key], format)
                             )}
-                          </span>
-                        ) : typeof row[key] === "boolean" ? (
-                          t(row[key] ? "onlineReport.yes" : "onlineReport.no")
-                        ) : [
-                            "side",
-                            "status",
-                            "reason",
-                            "period_type",
-                            "period",
-                          ].includes(key) && typeof row[key] === "string" ? (
-                          t(
-                            `onlineReport.values.${String(row[key])}`,
-                            display(row[key], format),
-                          )
-                        ) : (
-                          display(row[key], format)
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                          </td>
+                        ))}
+                      </tr>
+                      {expanded && (
+                        <tr className="online-expanded-row">
+                          <td colSpan={columns.length}>{expanded}</td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
             </tbody>
           </table>
         </div>

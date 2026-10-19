@@ -1,28 +1,15 @@
 import { useState, type ReactNode } from "react";
-import {
-  ArrowRight,
-  ChevronRight,
-  Clock,
-  Hand,
-  History,
-  Play,
-} from "lucide-react";
+import { ArrowRight, ChevronRight, Clock, History, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Status } from "../tasks/TaskRow";
 import { formatDate } from "../tasks/format";
 import { runDate, type OperationRun, type OperationGroup } from "./tree";
 
-function Branch({
-  className = "",
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
+function Branch({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
     <details
-      className={`operation-group ${className}`}
+      className="operation-group"
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
@@ -82,22 +69,17 @@ function RunRow({
 export function OperationTree({
   groups,
   manual,
-  showManual,
   selected,
   onSelected,
 }: {
   groups: OperationGroup[];
   manual: OperationRun[];
-  showManual: boolean;
   selected?: string;
   onSelected: (id: string) => void;
 }) {
   const { t } = useTranslation();
   return (
     <>
-      {groups.length > 0 && (
-        <h3 className="operation-index-label">{t("operations.schedules")}</h3>
-      )}
       {groups.map((group) => (
         <Branch key={group.id}>
           <summary>
@@ -137,28 +119,17 @@ export function OperationTree({
           </div>
         </Branch>
       ))}
-      {showManual && (
-        <Branch className="operation-manual">
-          <summary>
-            <ChevronRight className="operation-chevron" />
-            <Hand />
-            <strong>{t("operations.manual")}</strong>
-            <em>{manual.length}</em>
-          </summary>
-          <div className="operation-runs">
-            {manual.map((run) => (
-              <RunRow
-                key={run.id}
-                run={run}
-                selected={selected}
-                onSelected={onSelected}
-              />
-            ))}
-            {!manual.length && (
-              <p className="operation-index-empty">{t("operations.noRuns")}</p>
-            )}
-          </div>
-        </Branch>
+      {manual.length > 0 && (
+        <div className="operation-runs operation-ungrouped">
+          {manual.map((run) => (
+            <RunRow
+              key={run.id}
+              run={run}
+              selected={selected}
+              onSelected={onSelected}
+            />
+          ))}
+        </div>
       )}
     </>
   );

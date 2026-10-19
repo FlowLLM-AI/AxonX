@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
@@ -12,7 +13,7 @@ import type { ArtifactTableCache } from "./artifactCache";
 import { loadQuality } from "./api";
 import { ReportTable, type Column } from "./ReportTable";
 import { display } from "./format";
-import { SignalTable } from "./SignalTable";
+import { SignalTable, type SignalFilters } from "./SignalTable";
 import { Performance } from "./Performance";
 
 export function CommitReport({
@@ -29,6 +30,9 @@ export function CommitReport({
   target?: string;
 }) {
   const { t } = useTranslation();
+  const [signalFilters, setSignalFilters] = useState<SignalFilters>({
+    buyableOnly: true,
+  });
   const [topN, setTopN] = useState(commit.protocol.report.dimensions.top_ns[0]);
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -111,12 +115,9 @@ export function CommitReport({
     (tables[role] || []).filter((row) => row.top_n === topN);
   return (
     <>
-      {(settings.evaluation_status !== "done" ||
-        settings.portfolio.missing_market_as_suspension === true) && (
+      {settings.evaluation_status !== "done" && (
         <div className="online-warning" role="status">
-          {settings.evaluation_status !== "done"
-            ? t("onlineReport.incomplete")
-            : t("onlineReport.suspensionAssumption")}
+          {t("onlineReport.incomplete")}
           {settings.missing_dates.length > 0 && (
             <span>
               {t("onlineReport.missingDates")}:{" "}
@@ -141,6 +142,12 @@ export function CommitReport({
             </select>
           </label>
           <span>{t("onlineReport.simulated")}</span>
+          {settings.portfolio.missing_market_as_suspension === true && (
+            <span className="online-assumption">
+              <Info aria-hidden="true" />
+              {t("onlineReport.suspensionAssumption")}
+            </span>
+          )}
           <small>
             {settings.date_range.start} → {settings.date_range.end}
           </small>
@@ -148,34 +155,18 @@ export function CommitReport({
       )}
       {tab === "signal" ? (
         <>
-          <div className="online-summary online-kpis">
-            <Kpi
-              label={t("onlinePipeline.metrics.candidate_count")}
-              value={tables.signal.length}
-            />
-            <Kpi
-              label={t("onlineReport.buyableCount")}
-              value={
-                tables.signal.filter((row) => row.is_buyable_at_signal).length
-              }
-            />
-            <Kpi
-              label={t("onlineReport.selection")}
-              value={t(
-                `onlineReport.methods.${String(settings.score_selection.method)}`,
-                String(settings.score_selection.method || "—"),
-              )}
-            />
-            <Kpi
-              label={t("onlineReport.revision")}
-              value={`r${commit.revision}`}
-            />
-          </div>
-          <SignalTable rows={tables.signal} previous={data.previousRows} />
+          <SignalTable
+            filters={signalFilters}
+            onFiltersChange={setSignalFilters}
+            rows={tables.signal}
+            previous={data.previousRows}
+            scoreMethod={String(settings.score_selection.method)}
+            recordedUniverse={settings.portfolio.universe}
+          />
         </>
       ) : tab === "portfolio" ? (
         <>
-          <div className="online-summary online-kpis">
+          <div className="online-metrics">
             <Kpi
               label={t("onlineReport.netValue")}
               value={display(current?.[`top${topN}_net_value`], "score")}
@@ -247,30 +238,6 @@ export function CommitReport({
           benchmarks={settings.dimensions.benchmarks}
         />
       )}
-      <details className="online-provenance">
-        <summary>{t("onlineReport.provenance")}</summary>
-        <div className="online-model">
-          <span>
-            <small>{t("onlineReport.commitId")}</small>
-            <code>{commit.commit_id}</code>
-          </span>
-          <span>
-            <small>Run ID</small>
-            <code>{commit.run_id}</code>
-          </span>
-          {Object.entries(commit.model_identity).map(([key, value]) => (
-            <span key={key}>
-              <small>{key}</small>
-              <code>{value}</code>
-            </span>
-          ))}
-          <span>
-            <small>{t("onlineReport.strategyId")}</small>
-            <code>{settings.strategy_identity}</code>
-          </span>
-          <pre>{JSON.stringify(settings.portfolio, null, 2)}</pre>
-        </div>
-      </details>
     </>
   );
 }
@@ -280,5 +247,36 @@ function Kpi({ label, value }: { label: string; value: unknown }) {
       <span>{label}</span>
       <strong>{display(value)}</strong>
     </div>
+  );
+}
+
+export function CommitProvenance({ commit }: { commit: OnlineCommit }) {
+  const { t } = useTranslation();
+  const settings = commit.protocol.report;
+  return (
+    <section className="online-provenance">
+      <h3>{t("onlineReport.provenance")}</h3>
+      <div className="online-model">
+        <span>
+          <small>{t("onlineReport.commitId")}</small>
+          <code>{commit.commit_id}</code>
+        </span>
+        <span>
+          <small>Run ID</small>
+          <code>{commit.run_id}</code>
+        </span>
+        {Object.entries(commit.model_identity).map(([key, value]) => (
+          <span key={key}>
+            <small>{key}</small>
+            <code>{value}</code>
+          </span>
+        ))}
+        <span>
+          <small>{t("onlineReport.strategyId")}</small>
+          <code>{settings.strategy_identity}</code>
+        </span>
+        <pre>{JSON.stringify(settings.portfolio, null, 2)}</pre>
+      </div>
+    </section>
   );
 }

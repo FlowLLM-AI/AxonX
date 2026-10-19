@@ -107,3 +107,18 @@ describe("visible-page polling", () => {
     expect(seconds).toHaveBeenCalledTimes(updates);
   });
 });
+
+it("can resume without an extra refresh when focus changes", async () => {
+  const callback = vi.fn().mockResolvedValue(undefined);
+  dispose = startPolling(callback, 60, vi.fn(), false, false);
+  await vi.advanceTimersByTimeAsync(10_000);
+  page.setHidden(true);
+  page.setHidden(false);
+  page.setHidden(true);
+  page.setHidden(false);
+  expect(callback).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(59_000);
+  expect(callback).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(callback).toHaveBeenCalledTimes(1);
+});

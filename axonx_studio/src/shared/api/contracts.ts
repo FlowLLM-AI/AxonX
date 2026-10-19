@@ -691,6 +691,7 @@ export type WorkspaceEntry = {
 
 export type WorkspaceListing = {
   path: string;
+  workspace_root: string | null;
   entries: Array<WorkspaceEntry>;
   truncated: boolean;
 };

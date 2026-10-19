@@ -1,12 +1,21 @@
+import { parseHash, routeHash } from "../../app/routes";
+import { TaskQuality } from "../online/QualityReport";
+import { FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { TaskStepStatus } from "./types";
+import type { TaskMetadata, TaskStepStatus } from "./types";
 
 export function TaskSteps({
   steps,
   compact = false,
+  task,
+  target,
+  filesOnly = false,
 }: {
   steps: TaskStepStatus[];
   compact?: boolean;
+  task?: TaskMetadata;
+  target?: string;
+  filesOnly?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const stamp = (value: string | null | undefined) =>
@@ -95,20 +104,20 @@ export function TaskSteps({
               </small>
             )}
           </div>
-          {Object.keys(step.files || {}).length > 0 && (
-            <details>
-              <summary>
-                {t("onlinePipeline.files")} ·{" "}
-                {Object.keys(step.files || {}).length}
-              </summary>
-              <ul>
-                {Object.entries(step.files || {}).map(([role, path]) => (
-                  <li key={role}>
-                    <small>{role}</small> <code>{path}</code>
-                  </li>
-                ))}
-              </ul>
-            </details>
+          {task && step.group === "collection" && !filesOnly ? (
+            <TaskQuality
+              windows={task.output_params.windows}
+              windowKey={step.name.replace(/^collection:/, "")}
+              taskId={task.task_id}
+              target={target}
+              files={
+                Object.keys(step.files || {}).length ? (
+                  <StepFiles files={step.files} />
+                ) : undefined
+              }
+            />
+          ) : (
+            <StepFiles files={step.files} />
           )}
           {step.error && (
             <p className="online-reason">
@@ -117,6 +126,37 @@ export function TaskSteps({
           )}
         </section>
       ))}
+    </div>
+  );
+}
+
+function StepFiles({ files }: { files?: Record<string, string> | null }) {
+  const { t } = useTranslation();
+  if (!Object.keys(files || {}).length) return null;
+  return (
+    <div className="pipeline-step-files">
+      <div className="pipeline-files-heading">
+        {t("onlinePipeline.files")}
+        <span className="pipeline-file-count">
+          {Object.keys(files || {}).length}
+        </span>
+      </div>
+      <ul>
+        {Object.entries(files || {}).map(([role, path]) => (
+          <li key={role}>
+            <a
+              href={routeHash(parseHash(window.location.hash).machineId, {
+                section: "workspace",
+                view: "files",
+                resource: path,
+              })}
+            >
+              <FileText aria-hidden="true" />
+              <span>{path.split(/[\\/]/).pop()}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

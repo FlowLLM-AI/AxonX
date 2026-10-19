@@ -106,7 +106,7 @@ Source: [CronScheduler](../../../axonx/components/scheduler/cron.py), [ScheduleC
 
 ## Task center and execution provenance
 
-Studio's Task center has **Scheduled tasks** and **Other tasks** tabs. The scheduled tab lists every configured schedule on the selected service, including schedules that have not fired and Jobs such as synchronization that do not create Tasks. Each card shows the description, with queued and running Tasks directly underneath and finished records in a collapsed section. Set `schedules.<name>.description` for a specific explanation; otherwise the scheduled Job description is shown. Records from removed schedules retain their attribution and appear under a schedule marked as no longer configured.
+Studio’s Task center displays all Tasks in a single list grouped by Task identity, regardless of scheduled or manual origin. Search, status and type filters, and group actions apply to all Tasks. Schedule configuration and Job trigger history remain available on the corresponding daily operations pages.
 
 `list_schedules` returns each schedule's name, description, Job, Cron expression, timezone, arguments, Job concurrency policy, next trigger, executing Job count, and latest Job trigger result. The latest result describes the Job call: successful `submit` means admission succeeded, not that its background Task finished. This trigger snapshot lives in memory and resets on service startup; it is not an execution history.
 

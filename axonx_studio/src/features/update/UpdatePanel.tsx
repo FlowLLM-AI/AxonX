@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { axonx } from "../../shared/api/client";
-import { usePolling } from "../../shared/hooks/usePolling";
+import { useRefresh } from "../../shared/hooks/useRefresh";
 
 const operationJobs = {
   git: "update_from_git",
@@ -96,7 +96,7 @@ function UpdatePanelContent({ target }: { target?: string }) {
     [target, updateId, active, available],
   );
 
-  usePolling(read, !submitting, 5, true);
+  useRefresh(read, !submitting, true);
 
   const start = async (signal: AbortSignal) => {
     if (blocked) return;
