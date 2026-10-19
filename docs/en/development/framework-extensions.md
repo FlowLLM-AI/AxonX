@@ -234,6 +234,8 @@ Stock backtest plugins can pass an optional `events` handler to `run_backtest`. 
 
 Scheduler backends implement `describe()` for `list_schedules`. Task managers expose `list_restart_blockers()`, selecting queued/running schedule-origin Tasks from their owned Run IDs and lightweight summaries; shared workspace records alone do not establish ownership. `source` belongs to framework execution metadata and must survive worker handoff and child execution.
 
+Cron schedules accept `history_retention_days` (positive integer, default `7`). On startup and each history write, expired finished trigger records are removed from `schedules/<hash>.json`; running triggers are retained. Age is measured from `finished_at`, falling back to `triggered_at` for older records, with timezone-less values interpreted as UTC. This replaces the previous 50-finished-trigger limit and does not delete Task directories, artifacts or logs. Cleanup occurs on these writes, without a separate background timer.
+
 ### Shared workspaces and execution ownership
 
 A workspace repository lists all valid Task records, including records written by other services and direct `exec` processes. Reading a record never adopts its worker. `TaskView` (full list/detail responses) and `TaskSummary` add a query-only `managed_run_id`: a supervised root Run points to itself, its exact in-process children point to that root, and unowned records return `null`. These fields are never persisted in `TaskMetadata`. Cancellation is available only for an active root Run managed by the selected service; cancel its root to stop a child. Terminal records can still belong to a worker finishing cleanup.

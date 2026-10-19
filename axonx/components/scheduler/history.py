@@ -1,6 +1,6 @@
 """Bounded, atomic trigger history shared by Job and Task schedules."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -41,11 +41,22 @@ def load_history(path: Path) -> list[dict]:
     return records
 
 
-def save_history(path: Path, records: list[dict]) -> None:
-    # Keep every active trigger and the latest 50 finished triggers.
-    finished = [record for record in records if record["state"] != "running"][-50:]
-    keep = {record["trigger_id"] for record in finished}
-    records[:] = [record for record in records if record["state"] == "running" or record["trigger_id"] in keep]
+def save_history(path: Path, records: list[dict], retention_days: int = 7) -> None:
+    """Keep active triggers and outcomes finished within the retention window."""
+    if isinstance(retention_days, bool) or not isinstance(retention_days, int) or retention_days < 1:
+        raise ValueError("history_retention_days must be a positive integer")
+    cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+
+    def keep(record: dict) -> bool:
+        if record["state"] == "running":
+            return True
+        finished = datetime.fromisoformat(record.get("finished_at") or record["triggered_at"])
+        # Older records may omit the timezone; interpret them as UTC.
+        if finished.tzinfo is None:
+            finished = finished.replace(tzinfo=UTC)
+        return finished >= cutoff
+
+    records[:] = [record for record in records if keep(record)]
     atomic_write_json(path, {"runs": records})
 
 

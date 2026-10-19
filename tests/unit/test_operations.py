@@ -1,7 +1,7 @@
 """Operations navigation and durable schedule outcomes, including Job-only triggers."""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -17,13 +17,15 @@ from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.workspace import read_task_metadata
 
 
-def application(tmp_path):
+def application(tmp_path, history_retention_days=7):
     config = resolve_app_config(log_config=False)
     config.update(workspace_dir=str(tmp_path), log_to_console=False, log_to_file=False, enable_logo=False)
     config["components"] = {}
     config["service"] = None
     config["jobs"] = {name: config["jobs"][name] for name in ("version", "list_schedules", "list_studio_pages")}
-    config["schedules"] = {"sync": {"job": "version", "cron": "* * * * *"}}
+    config["schedules"] = {
+        "sync": {"job": "version", "cron": "* * * * *", "history_retention_days": history_retention_days}
+    }
     config["studio"] = {
         "pages": {"sync": {"title": {"en": "Sync", "zh": "同步"}, "view": "schedules", "schedules": ["sync"]}}
     }
@@ -66,15 +68,75 @@ def test_history_recovers_interruption_and_keeps_active_runs(tmp_path):
     assert path.parent == tmp_path / "schedules"
     records = [run_record(i) for i in range(55)] + [run_record(99, "running")]
     save_history(path, records)
-    assert len(records) == 51
+    assert len(records) == 56
     restored = load_history(path)
     assert restored[-1]["state"] == "cancelled"
     assert restored[-1]["finished_at"]
     assert "Service stopped" in restored[-1]["error"]
-    assert restored[0]["trigger_id"] == "5"
+    assert restored[0]["trigger_id"] == "0"
     assert trigger_result({"large": "x" * 20000})["truncated"]
     assert trigger_result(object())["truncated"]
     assert trigger_result({"value": float("nan")}) == {"value": None}
+
+
+@pytest.mark.parametrize("retention_days", [7, 14])
+@pytest.mark.parametrize("state", ["succeeded", "failed", "cancelled"])
+def test_history_retention_uses_completion_time_and_preserves_active_runs(tmp_path, monkeypatch, retention_days, state):
+    import axonx.components.scheduler.history as history_module
+
+    now = datetime(2026, 10, 19, tzinfo=UTC)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now.astimezone(tz)
+
+    monkeypatch.setattr(history_module, "datetime", Clock)
+    cutoff = now - timedelta(days=retention_days)
+    old = (cutoff - timedelta(seconds=1)).isoformat()
+    records = [
+        {**run_record("expired", state), "finished_at": old},
+        {**run_record("boundary", state), "finished_at": cutoff.isoformat()},
+        {**run_record("offset", state), "finished_at": "2026-10-19T08:00:00+08:00"},
+        {**run_record("long"), "triggered_at": old, "finished_at": now.isoformat()},
+        {**run_record("legacy"), "triggered_at": old},
+        {**run_record("naive"), "finished_at": now.replace(tzinfo=None).isoformat()},
+        {**run_record("active", "running"), "triggered_at": old},
+    ]
+    path = history_path(tmp_path, "sync")
+    save_history(path, records, retention_days)
+    expected = ["boundary", "offset", "long", "naive", "active"]
+    assert [row["trigger_id"] for row in records] == expected
+    assert [row["trigger_id"] for row in load_history(path)] == expected
+
+
+@pytest.mark.parametrize("days", [0, -1, True, 1.5, "7"])
+def test_schedule_rejects_invalid_history_retention(days):
+    from axonx.config.models import ScheduleConfig
+
+    with pytest.raises(ValidationError):
+        ScheduleConfig(job="version", cron="* * * * *", history_retention_days=days)
+
+
+@pytest.mark.asyncio
+async def test_scheduler_prunes_expired_history_on_startup_and_uses_config(tmp_path):
+    app = application(tmp_path, history_retention_days=14)
+    scheduler = app.context.schedulers["sync"]
+    assert scheduler.history_retention_days == 14
+    path = history_path(tmp_path, "sync")
+    records = [
+        {**run_record("expired"), "finished_at": (datetime.now(UTC) - timedelta(days=15)).isoformat()},
+        {**run_record("retained"), "finished_at": (datetime.now(UTC) - timedelta(days=10)).isoformat()},
+    ]
+    save_history(path, records, 30)
+    async with app:
+        assert [row["trigger_id"] for row in scheduler.history] == ["retained"]
+        assert scheduler.last_trigger["trigger_id"] == "retained"
+        assert [row["trigger_id"] for row in load_history(path)] == ["retained"]
+    scheduler.history_retention_days = 7
+    async with app:
+        assert scheduler.history == []
+        assert scheduler.last_trigger is None
 
 
 @pytest.mark.asyncio

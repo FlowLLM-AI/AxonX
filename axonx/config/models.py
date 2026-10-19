@@ -56,6 +56,7 @@ class ScheduleConfig(ComponentConfig):
     arguments: dict[str, Any] = Field(default_factory=dict)
     timezone: str | None = Field(default=None, min_length=1)
     concurrency_policy: Literal["forbid", "allow", "replace"] = "forbid"
+    history_retention_days: int = Field(default=7, ge=1, strict=True)
 
 
 class PluginConfig(BaseModel):

@@ -34,6 +34,7 @@ class CronScheduler(BaseScheduler):
         timezone: str | None = None,
         concurrency_policy: ConcurrencyPolicy = "forbid",
         description: str = "",
+        history_retention_days: int = 7,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -55,6 +56,7 @@ class CronScheduler(BaseScheduler):
         self.cron = cron
         self.arguments = dict(arguments or {})
         self.concurrency_policy = concurrency_policy
+        self.history_retention_days = history_retention_days
         self.history: list[dict] = []
         self.last_trigger: dict | None = None
         self.scheduler_id = uuid4().hex
@@ -67,7 +69,6 @@ class CronScheduler(BaseScheduler):
             raise ValueError(f"Unknown scheduled Job: {self.job_name!r}")
         job.validate_arguments(self.arguments)
         self.history = load_history(history_path(self.workspace_path, self.name))
-        self.last_trigger = self.history[-1] if self.history else None
         self._persist_history()
         self._runner = asyncio.create_task(
             self._run_forever(),
@@ -91,7 +92,8 @@ class CronScheduler(BaseScheduler):
         }
 
     def _persist_history(self) -> None:
-        save_history(history_path(self.workspace_path, self.name), self.history)
+        save_history(history_path(self.workspace_path, self.name), self.history, self.history_retention_days)
+        self.last_trigger = self.history[-1] if self.history else None
 
     def _next_run(self, now: datetime | None = None) -> datetime:
         return croniter(self.cron, now or datetime.now(self.timezone)).get_next(datetime)
@@ -149,7 +151,6 @@ class CronScheduler(BaseScheduler):
             "result": None,
         }
         self.history.append(result)
-        self.last_trigger = result
         self._persist_history()
         token = TASK_SOURCE.set(TaskSource(kind="submit", schedule=trigger))
         try:
