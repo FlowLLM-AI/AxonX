@@ -1283,6 +1283,7 @@
       "failed": "失败",
       "running": "进行中",
       "preparing": "准备中",
+      "missed": "已错过",
       "pending": "待开始",
       "incomplete": "未完成",
       "skipped": "已跳过",

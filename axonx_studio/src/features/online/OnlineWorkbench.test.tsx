@@ -497,6 +497,7 @@ it.each(["zh", "en"])(
       ["running", "done", "running", "running"],
       ["failed", "running", "pending", "failed"],
       ["running", "missed", "pending", "failed"],
+      ["failed", "missed", "missed", "missed"],
     ] as const) {
       parent.steps = [
         {

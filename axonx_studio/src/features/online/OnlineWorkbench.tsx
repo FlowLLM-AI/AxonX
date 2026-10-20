@@ -145,6 +145,8 @@ export function OnlineWorkbench({
         entries.every((model) => dailyCommit(model, histories, date))
         ? "done"
         : "unavailable";
+    if (entries.length && entries.every((model) => model.state === "missed"))
+      return "missed";
     const activityStates = [
       ...collection
         .filter((step) => collectionSlot(step.name) === slot)

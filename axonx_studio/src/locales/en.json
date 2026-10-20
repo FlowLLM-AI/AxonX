@@ -1283,6 +1283,7 @@
       "failed": "Failed",
       "running": "In progress",
       "preparing": "Preparing",
+      "missed": "Missed",
       "pending": "Pending",
       "incomplete": "Incomplete",
       "skipped": "Skipped",
