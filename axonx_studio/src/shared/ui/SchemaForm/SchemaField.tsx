@@ -1,3 +1,4 @@
+import { Select } from "../Select";
 import { useTranslation } from "react-i18next";
 import type { JsonSchema } from "../../schema/types";
 import { humanizeFieldName, schemaType } from "../../schema/values";
@@ -47,7 +48,7 @@ export function SchemaField({
       )}
       {schema.description && <small>{schema.description}</small>}
       {schema.enum ? (
-        <select
+        <Select
           id={id}
           value={String(value)}
           required={required}
@@ -59,7 +60,7 @@ export function SchemaField({
               {String(item)}
             </option>
           ))}
-        </select>
+        </Select>
       ) : type === "boolean" ? (
         <button
           id={id}

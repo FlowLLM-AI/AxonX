@@ -5,8 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AxonXClient, configureClient } from "../../shared/api/client";
 import { createPlayground } from "../../playground/runtime";
 import OperationPage from "./OperationPage";
+import { DataUpdateProgress } from "./DataUpdateProgress";
+import { getTaskStatus } from "../tasks/api";
 import ReportPage from "./ReportPage";
-import { studioPages } from "../../playground/fixtures";
+import { TaskRunReport } from "./TaskRunReport";
+import { taskStatus, studioPages } from "../../playground/fixtures";
 import { parseOnlineReport } from "../online/types";
 
 const translate = (key: string) => key;
@@ -83,7 +86,9 @@ describe("online pipeline", () => {
         .querySelector<HTMLButtonElement>('[role="tab"][id$="-etl-tab"]')!
         .click(),
     );
-    expect(container.textContent).toContain("nightly-a_stock_etl");
+    expect(container.querySelector("pre")?.textContent).toContain(
+      "a_stock_etl",
+    );
     await act(async () =>
       root.render(
         <ReportPage
@@ -180,9 +185,9 @@ it("shows Job-only synchronization without querying Task records", async () => {
   await render(undefined, "sync");
   expect(calls.some((url) => url.includes("list_task_statuses"))).toBe(false);
   expect(container.textContent).not.toContain("operations.schedules");
-  expect(container.querySelector(".operation-metrics")?.textContent).toContain(
-    "operations.metrics.uploaded",
-  );
+  expect(
+    container.querySelector(".operation-sync-totals")?.textContent,
+  ).toContain("operations.metrics.uploaded");
   expect(
     container.querySelectorAll('.run-index article[data-kind="job"]'),
   ).toHaveLength(1);
@@ -225,9 +230,9 @@ it("opens a persisted Job execution separately from its schedule configuration",
   expect(
     container.querySelector(".operation-job-report")?.textContent,
   ).toContain("workspace_sync");
-  expect(container.querySelector(".operation-metrics")?.textContent).toContain(
-    "operations.metrics.uploaded",
-  );
+  expect(
+    container.querySelector(".operation-sync-totals")?.textContent,
+  ).toContain("operations.metrics.uploaded");
   expect(container.querySelector(".schedule-card")).toBeNull();
   expect(container.querySelector(".operation-schedule")).not.toBeNull();
 });
@@ -358,35 +363,194 @@ it("opens the latest sync execution and keeps configuration independently select
   expect(container.querySelector(".operation-job-report")).not.toBeNull();
   expect(container.querySelector(".schedule-card")).toBeNull();
   expect(
-    container.querySelector(
-      '.operation-job-report [role="tab"][aria-selected="true"]',
-    )?.id,
-  ).toContain("result-tab");
+    container.querySelector('.operation-job-report [role="tab"]'),
+  ).toBeNull();
+  expect(container.querySelector(".operation-sync-totals")).not.toBeNull();
   await render("schedule:workspace_sync", "sync");
   expect(container.querySelector(".schedule-card")).not.toBeNull();
   expect(container.querySelector(".operation-job-report")).toBeNull();
 });
 
-it("summarizes completed data updates before progress and keeps raw results collapsed", async () => {
+it("combines data results and progress with a task picker and on-demand logs", async () => {
   await render("api#playground_download#demo", "data");
+  const report = container.querySelector(".online-report")!;
+  expect(report.querySelectorAll('[role="tab"]')).toHaveLength(3);
+  expect(report.querySelector('[role="combobox"]')).not.toBeNull();
   expect(
-    container.querySelector('.online-report [role="tab"][aria-selected="true"]')
-      ?.id,
-  ).toContain("result-tab");
-  const result = container.querySelector(
-    '.online-report [role="tabpanel"]:not([hidden])',
-  )!;
-  expect(result.querySelector(".operation-metrics")?.textContent).toContain(
-    "5,100",
+    report.querySelector('[id$="-result-panel"] pre')?.textContent,
+  ).toContain("5100");
+  expect(report.querySelectorAll("table thead th")).toHaveLength(4);
+  expect(report.querySelector("details")).toBeNull();
+  expect(report.textContent).not.toContain("operations.stageDetails");
+  expect(report.querySelector(".log-panel")).toBeNull();
+  await act(async () => {
+    report.querySelector<HTMLButtonElement>('[id$="-logs-tab"]')!.click();
+  });
+  expect(report.querySelector(".log-panel")).not.toBeNull();
+});
+
+it("omits internal bookkeeping steps but retains counts, coverage and errors", async () => {
+  const task = await getTaskStatus("api#playground_download#demo");
+  const step = task.steps[0];
+  const internal = {
+    ...step,
+    name: "download_lock",
+    label: "download_lock",
+    completed: null,
+    total: null,
+  };
+  task.steps = [internal];
+  await act(async () => root.render(<DataUpdateProgress task={task} />));
+  expect(container.textContent).toBe("");
+  task.steps = [
+    internal,
+    step,
+    {
+      ...internal,
+      name: "coverage",
+      label: "coverage",
+      metrics: { coverage: 0.98 },
+    },
+    {
+      ...internal,
+      name: "partial",
+      label: "partial",
+      state: "failed",
+      error: "Download timeout",
+    },
+  ];
+  await act(async () => root.render(<DataUpdateProgress task={task} />));
+  expect(container.textContent).not.toContain("download_lock");
+  expect(container.textContent).toContain("5,100 / 5,100");
+  expect(container.textContent).toContain("98.00%");
+  expect(container.textContent).toContain("Download timeout");
+  expect(container.querySelectorAll("tbody tr")).toHaveLength(3);
+});
+
+it("switches download results and logs together and refuses a replaced child Run", async () => {
+  const parent = await getTaskStatus("api#playground_download#demo");
+  const child = taskStatus(
+    "api",
+    "api#static#demo",
+    "DownloadTushareStaticTask",
   );
-  expect(result.querySelector("pre")?.closest("details")?.open).toBe(false);
+  child.output_params = {
+    rows: 1234,
+    selected_apis: ["stock_basic", "trade_cal", "stock_basic"],
+    flow: "DownloadTushareStaticTask",
+  };
+  parent.children = [
+    {
+      node_name: "download_tushare_static",
+      task: "static",
+      task_id: child.task_id,
+      run_id: child.run_id,
+      attempt: 1,
+      state: child.state,
+      exit_code: 0,
+      error: "",
+    },
+  ];
+  const daily = taskStatus("api", "api#daily#demo", "DownloadTushareDailyTask");
+  daily.output_params = { selected_apis: ["daily"], attempted_count: 182 };
+  parent.children.push({
+    ...parent.children[0],
+    node_name: "download_tushare_daily",
+    task_id: daily.task_id,
+    run_id: daily.run_id,
+  });
+  parent.output_params = { artifacts: {} };
+  const logRuns: string[] = [];
+  configureClient(
+    new AxonXClient(async (url, init) => {
+      const args = JSON.parse(String(init?.body)).arguments;
+      if (String(url).includes("read_task_log")) {
+        logRuns.push(args.run_id);
+        return Response.json({
+          success: true,
+          answer: {
+            content: "static task log",
+            start_offset: 0,
+            next_offset: 15,
+            file_size: 15,
+            has_more_before: false,
+            has_more_after: false,
+            reset: false,
+          },
+        });
+      }
+      return Response.json({
+        success: true,
+        answer:
+          args.task_id === parent.task_id
+            ? parent
+            : args.task_id === daily.task_id
+              ? daily
+              : child,
+      });
+    }, false),
+  );
+  await act(async () =>
+    root.render(<TaskRunReport task={parent} onOpenTask={onOpenTask} />),
+  );
+  // A composite's own output contains no API summary; overview must use both owned children.
+  expect(
+    JSON.parse(
+      container.querySelector('[id$="-interfaces-panel"] pre')!.textContent!,
+    ),
+  ).toEqual(["stock_basic", "trade_cal", "daily"]);
+  expect(
+    container.querySelector('[id$="-result-panel"]')?.textContent,
+  ).toContain("182");
+  expect(
+    container.querySelector('[id$="-result-panel"]')?.textContent,
+  ).not.toContain("operations.noResult");
+  expect(
+    container.querySelector('[id$="-result-panel"]')?.textContent,
+  ).toContain("1234");
+  const chooseStatic = async () => {
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[role="combobox"]')!.click(),
+    );
+    const option = [
+      ...document.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+    ].find((option) => option.textContent === "download_tushare_static")!;
+    await act(async () => option.click());
+  };
+  await chooseStatic();
+  expect(
+    container.querySelector('[id$="-result-panel"] pre')?.textContent,
+  ).toContain("1234");
+  expect(
+    container.querySelector('[id$="-result-panel"] pre')?.textContent,
+  ).not.toContain("5,100");
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('[id$="-logs-tab"]')!.click(),
+  );
+  expect(logRuns).toEqual([child.run_id]);
   await act(async () =>
     container
-      .querySelector<HTMLButtonElement>('.online-report [id$="-progress-tab"]')!
+      .querySelector<HTMLButtonElement>('[id$="-interfaces-tab"]')!
       .click(),
   );
-  const progress = container.querySelector(
-    '.online-report [role="tabpanel"]:not([hidden])',
-  )!;
-  expect(progress.querySelectorAll("table thead th")).toHaveLength(4);
+  expect(
+    JSON.parse(
+      container.querySelector('[id$="-interfaces-panel"] pre')!.textContent!,
+    ),
+  ).toEqual(["stock_basic", "trade_cal"]);
+  const resultPanel = container.querySelector('[id$="-result-panel"]')!;
+  expect(resultPanel.textContent).not.toContain("stock_basic");
+  expect(resultPanel.querySelector("details")).toBeNull();
+
+  child.run_id = "replacement";
+  await act(async () =>
+    root.render(
+      <TaskRunReport key="refresh" task={parent} onOpenTask={onOpenTask} />,
+    ),
+  );
+  await chooseStatic();
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    "onlinePipeline.replacedChildRun",
+  );
+  expect(container.querySelector('[id$="-result-panel"] pre')).toBeNull();
 });

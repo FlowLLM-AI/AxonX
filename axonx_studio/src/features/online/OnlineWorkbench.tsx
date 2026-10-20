@@ -1,3 +1,4 @@
+import { Select } from "../../shared/ui/Select";
 import { ModelPicker } from "./ModelPicker";
 import { useCallback, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -144,17 +145,20 @@ export function OnlineWorkbench({
         entries.every((model) => dailyCommit(model, histories, date))
         ? "done"
         : "unavailable";
-    const state = aggregateState([
+    const activityStates = [
       ...collection
         .filter((step) => collectionSlot(step.name) === slot)
         .map((step) => step.state),
       ...entries.map((model) => (model.error ? "failed" : model.state)),
-      ...parent.steps
-        .filter(
-          (step) => step.group === "history" && step.name.endsWith(`-${slot}`),
-        )
-        .map((step) => step.state),
-    ]);
+    ];
+    const historyStates = parent.steps
+      .filter(
+        (step) => step.group === "history" && step.name.endsWith(`-${slot}`),
+      )
+      .map((step) => step.state);
+    const state = aggregateState([...activityStates, ...historyStates]);
+    if (state === "running" && !activityStates.includes("running"))
+      return "preparing";
     if (
       state === "done" &&
       entries.length &&
@@ -665,7 +669,7 @@ function DailyLogs({
       {tasks.length > 1 ? (
         <label className="pipeline-log-source">
           {t("onlinePipeline.logSource")}
-          <select
+          <Select
             value={current?.run_id || ""}
             onChange={(event) => setSelected(event.target.value)}
           >
@@ -678,7 +682,7 @@ function DailyLogs({
                 ) && ` · ${task.reg_name} · ${task.run_id}`}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       ) : (
         current && (

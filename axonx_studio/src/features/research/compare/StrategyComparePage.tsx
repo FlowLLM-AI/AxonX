@@ -1,3 +1,4 @@
+import { Select } from "../../../shared/ui/Select";
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -541,7 +542,7 @@ export default function StrategyComparePage({
                   {task && (
                     <label className="compare-universe">
                       <span>{t("backtest.universe")}</span>
-                      <select
+                      <Select
                         aria-label={`${t("backtest.universe")} ${index === 0 ? "A" : "B"}`}
                         value={index === 0 ? selectedA : selectedB}
                         onChange={(event) =>
@@ -557,7 +558,7 @@ export default function StrategyComparePage({
                             </option>
                           ),
                         )}
-                      </select>
+                      </Select>
                     </label>
                   )}
                 </div>
@@ -625,7 +626,7 @@ export default function StrategyComparePage({
                 </div>
                 <label>
                   Top N
-                  <select
+                  <Select
                     value={selectedTopN}
                     onChange={(event) => setTopN(Number(event.target.value))}
                   >
@@ -634,7 +635,7 @@ export default function StrategyComparePage({
                         Top {n}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   {t("compare.from")}
@@ -832,7 +833,7 @@ export default function StrategyComparePage({
                     <div className="compare-content">
                       <div className="compare-toolbar">
                         <span>{t("compare.signal_trend")}</span>
-                        <select
+                        <Select
                           value={qualityKey}
                           onChange={(event) =>
                             setQualityKey(event.target.value)
@@ -843,7 +844,7 @@ export default function StrategyComparePage({
                               {metric.label}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       </div>
                       <ComparisonChart
                         title={`${qualityMetrics.find((metric) => metric.key === qualityKey)?.label || qualityKey} · MA20`}
@@ -919,7 +920,7 @@ export default function StrategyComparePage({
                           </div>
                           <label>
                             {t("compare.trading_day")}
-                            <select
+                            <Select
                               value={activeDay?.date || ""}
                               onChange={(event) =>
                                 setHoldingDate(event.target.value)
@@ -930,7 +931,7 @@ export default function StrategyComparePage({
                                   {point.date}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
                           </label>
                         </header>
                         <div className="compare-overlap">

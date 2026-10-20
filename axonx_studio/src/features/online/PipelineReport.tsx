@@ -1,3 +1,4 @@
+import { Select } from "../../shared/ui/Select";
 import { Activity } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -117,7 +118,7 @@ export function PipelineReport({
     <>
       <label className="pipeline-log-source">
         {t("onlinePipeline.logSource")}
-        <select
+        <Select
           value={logId}
           onChange={(event) => setLogId(event.target.value)}
         >
@@ -127,7 +128,7 @@ export function PipelineReport({
               {child.reg_name} · {child.input_params.task_name as string}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       {logs ? (
         <TaskLogPanel

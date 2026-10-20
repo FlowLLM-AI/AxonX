@@ -1,3 +1,4 @@
+import { Select } from "../../shared/ui/Select";
 import { canCancel, canDelete } from "./groups";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -394,7 +395,7 @@ export function TasksPage({
               },
             )}
           </span>
-          <select
+          <Select
             className="table-filter-select"
             aria-label={t("type")}
             value={type}
@@ -409,8 +410,8 @@ export function TasksPage({
                 {tasks.filter((task) => task.task_type === value).length}
               </option>
             ))}
-          </select>
-          <select
+          </Select>
+          <Select
             className="table-filter-select"
             aria-label={t("state")}
             value={state}
@@ -431,7 +432,7 @@ export function TasksPage({
                 {tasks.filter((task) => task.state === value).length}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="task-groups" key={target || "local"}>
           {groups.length > 0 && (

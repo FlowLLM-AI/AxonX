@@ -89,7 +89,9 @@ it("targets the selected machine and reconnects without treating a disconnect as
   await act(async () =>
     root.render(<UpdatePanel target="http://remote:1024" />),
   );
-  const button = container.querySelector("button")!;
+  const button = container.querySelector<HTMLButtonElement>(
+    "button:not([role=combobox])",
+  )!;
   expect(container.querySelector("select")!.value).toBe("git");
   expect(button.disabled).toBe(true);
   const checkboxes = container.querySelectorAll<HTMLInputElement>(
@@ -127,7 +129,9 @@ it("hides controls when update Jobs are unavailable", async () => {
     root.render(<UpdatePanel target="http://remote:1024" />),
   );
   expect(container.textContent).toContain("update.unavailable");
-  expect(container.querySelector("button")).toBeNull();
+  expect(
+    container.querySelector<HTMLButtonElement>("button:not([role=combobox])"),
+  ).toBeNull();
 });
 
 it("retries discovery after opening during a restart or before supplying a token", async () => {
@@ -150,7 +154,9 @@ it("restarts the selected service without submitting an update and reports resta
   const checkboxes = container.querySelectorAll<HTMLInputElement>(
     'input[type="checkbox"]',
   );
-  const button = container.querySelector("button")!;
+  const button = container.querySelector<HTMLButtonElement>(
+    "button:not([role=combobox])",
+  )!;
   await act(async () => checkboxes[1].click());
   await act(async () => {
     select.value = "restart";
@@ -187,7 +193,9 @@ it("shows only operations configured on the selected service", async () => {
     "git",
     "pip",
   ]);
-  expect(container.querySelector("button")).not.toBeNull();
+  expect(
+    container.querySelector<HTMLButtonElement>("button:not([role=combobox])"),
+  ).not.toBeNull();
 });
 
 it("allows restarting services with no update Jobs", async () => {
@@ -203,7 +211,11 @@ it("allows restarting services with no update Jobs", async () => {
       .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[1]
       .click(),
   );
-  await act(async () => container.querySelector("button")!.click());
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>("button:not([role=combobox])")!
+      .click(),
+  );
   expect(calls.some((call) => call.url === "/jobs/restart_service")).toBe(true);
   offline = true;
   await act(async () => vi.advanceTimersByTimeAsync(60000));
@@ -219,7 +231,9 @@ it("requires status reporting before offering any operation", async () => {
   jobNames = ["restart_service"];
   await act(async () => root.render(<UpdatePanel />));
   expect(container.querySelector("select")).toBeNull();
-  expect(container.querySelector("button")).toBeNull();
+  expect(
+    container.querySelector<HTMLButtonElement>("button:not([role=combobox])"),
+  ).toBeNull();
 });
 
 it("reports rejected restart requests and keeps controls available for retry", async () => {
@@ -231,11 +245,18 @@ it("reports rejected restart requests and keeps controls available for retry", a
       .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[1]
       .click(),
   );
-  await act(async () => container.querySelector("button")!.click());
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>("button:not([role=combobox])")!
+      .click(),
+  );
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
     submissionError,
   );
-  expect(container.querySelector("button")!.disabled).toBe(false);
+  expect(
+    container.querySelector<HTMLButtonElement>("button:not([role=combobox])")!
+      .disabled,
+  ).toBe(false);
   expect(container.textContent).not.toContain("update.restartPhases.accepted");
 });
 
@@ -246,7 +267,9 @@ it("blocks updates and restarts for scheduled Tasks even with force", async () =
   await act(async () =>
     root.render(<UpdatePanel target="http://remote:1024" />),
   );
-  const button = container.querySelector("button")!;
+  const button = container.querySelector<HTMLButtonElement>(
+    "button:not([role=combobox])",
+  )!;
   const checkboxes = container.querySelectorAll<HTMLInputElement>(
     'input[type="checkbox"]',
   );
@@ -291,6 +314,9 @@ it("resets state and consent when switching machines", async () => {
   );
   expect(container.querySelector("select")!.value).toBe("restart");
   expect(container.textContent).not.toContain("update.scheduledBlocked");
-  expect(container.querySelector("button")!.disabled).toBe(true);
+  expect(
+    container.querySelector<HTMLButtonElement>("button:not([role=combobox])")!
+      .disabled,
+  ).toBe(true);
   expect(calls.at(-1)?.body.target).toBe("http://remote:1025");
 });

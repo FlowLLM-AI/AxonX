@@ -1,3 +1,4 @@
+import { Select } from "../../shared/ui/Select";
 import { taskDirectory } from "../../shared/lib/tasks";
 import {
   AlertTriangle,
@@ -737,7 +738,7 @@ function AnalysisScores({
         <div className="analysis-score-controls">
           <label>
             <span>{t("research.metric")}</span>
-            <select
+            <Select
               value={metric}
               onChange={(event) => setChosenMetric(event.target.value)}
             >
@@ -746,11 +747,11 @@ function AnalysisScores({
                   {option}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             <span>{t("research.label")}</span>
-            <select
+            <Select
               value={label}
               onChange={(event) => setChosenLabel(event.target.value)}
             >
@@ -759,7 +760,7 @@ function AnalysisScores({
                   {option}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <span className="analysis-score-count">{rows.length}</span>
         </div>

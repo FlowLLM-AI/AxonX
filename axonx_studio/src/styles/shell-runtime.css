@@ -1043,7 +1043,7 @@
   margin: 16px 0;
   flex-wrap: wrap;
 }
-.update-panel select {
+.update-panel .select-trigger {
   max-width: 100%;
   padding: 8px;
   background: var(--surface-2);

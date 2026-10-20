@@ -11,6 +11,7 @@ import { Status } from "../tasks/TaskRow";
 import { formatDate } from "../tasks/format";
 import type { Schedule } from "../tasks/types";
 import type { ScheduleRun } from "../../shared/api/contracts";
+import { SyncResult } from "./SyncResult";
 import { OperationResult } from "./OperationResult";
 
 export function ScheduleReport({
@@ -127,6 +128,9 @@ export function ScheduleReport({
 
 export function ScheduleRunReport({ run }: { run: ScheduleRun }) {
   const { t } = useTranslation();
+  const elapsed = run.finished_at
+    ? (Date.parse(run.finished_at) - Date.parse(run.triggered_at)) / 1000
+    : NaN;
   return (
     <article className="online-report operation-job-report operation-detail">
       <header>
@@ -134,7 +138,6 @@ export function ScheduleRunReport({ run }: { run: ScheduleRun }) {
           <RefreshCw aria-hidden="true" />
         </span>
         <div>
-          <p className="eyebrow">{t("operations.jobRun")}</p>
           <h2>{run.name}</h2>
           <p className="operation-run-time">{formatDate(run.triggered_at)}</p>
         </div>
@@ -145,52 +148,33 @@ export function ScheduleRunReport({ run }: { run: ScheduleRun }) {
           {run.error}
         </p>
       )}
-      <ReportTabs
-        defaultTab="result"
-        tabs={[
-          {
-            id: "execution",
-            label: t("operations.jobRun"),
-            content: (
-              <>
-                {" "}
-                <dl className="operation-facts">
-                  <div>
-                    <dt>{t("operations.triggered")}</dt>
-                    <dd>{formatDate(run.triggered_at)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("operations.finished")}</dt>
-                    <dd>{formatDate(run.finished_at)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("operations.jobRun")}</dt>
-                    <dd>{run.job}</dd>
-                  </div>
-                </dl>
-                <details className="operation-result-details">
-                  <summary>{t("operations.technicalDetails")}</summary>
-                  <dl className="operation-facts">
-                    <div>
-                      <dt>Trigger ID</dt>
-                      <dd>{run.trigger_id}</dd>
-                    </div>
-                    <div>
-                      <dt>Scheduler ID</dt>
-                      <dd>{run.scheduler_id}</dd>
-                    </div>
-                  </dl>
-                </details>
-              </>
-            ),
-          },
-          {
-            id: "result",
-            label: t("operations.result"),
-            content: <OperationResult value={run.result} />,
-          },
-        ]}
-      />
+      <dl className="operation-execution-facts">
+        <div>
+          <dt>{t("operations.finished")}</dt>
+          <dd>{formatDate(run.finished_at)}</dd>
+        </div>
+        <div>
+          <dt>{t("duration")}</dt>
+          <dd>
+            {Number.isFinite(elapsed) && elapsed >= 0
+              ? t("formats.duration.seconds", { seconds: Math.round(elapsed) })
+              : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt>{t("operations.jobName")}</dt>
+          <dd>{run.job}</dd>
+        </div>
+        <div>
+          <dt>{t("operations.triggerId")}</dt>
+          <dd>{run.trigger_id}</dd>
+        </div>
+        <div>
+          <dt>{t("operations.schedulerId")}</dt>
+          <dd>{run.scheduler_id || "—"}</dd>
+        </div>
+      </dl>
+      <SyncResult value={run.result} />
     </article>
   );
 }

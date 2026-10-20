@@ -634,3 +634,46 @@ def test_backtest_contract_requires_reports_and_resolves_every_artifact():
         )
     with pytest.raises(ValueError):
         BaseBacktestOutputParams(dimensions=report["dimensions"], days=0, date_range={}, **shared)
+
+
+def test_relative_drawdown_subtracts_daily_returns_and_resets_each_period():
+    from axonx.task.builtins.stock.reporting import summarize
+
+    daily = pl.DataFrame(
+        {
+            "trade_date": ["20251230", "20251231", "20260105", "20260106"],
+            "ic": [0.0] * 4,
+            "rank_ic": [0.0] * 4,
+            "benchmark_universe_return": [0.2, 0.0, 0.0, 0.0],
+            "benchmark_equal_return": [0.1, 0.1, -0.1, 0.05],
+            "benchmark_partial_return": [None, 0.2, float("nan"), 0.0],
+            "benchmark_missing_return": [None] * 4,
+            **{
+                f"top{n}_{key}": values
+                for n in (1, 3)
+                for key, values in {
+                    "net_return": [0.1, 0.1, -0.1, 0.05],
+                    "gross_return": [0.3, 0.3, 0.1, 0.25],
+                    "turnover": [0.0] * 4,
+                    "delayed_exits": [0] * 4,
+                    "unsettled_positions": [0] * 4,
+                }.items()
+            },
+        },
+        schema_overrides={"benchmark_missing_return": pl.Float64},
+    )
+    summary = summarize(daily.reverse(), ("universe", "equal", "partial", "missing"), 0.0, 252, (1, 3))
+    overall = summary.filter(pl.col("period_type") == "overall").row(0, named=True)
+    for n in (1, 3):
+        # .9 * 1.1 * .9 = .891, with initial equity 1 included in the peak.
+        assert overall[f"top{n}_net_relative_max_drawdown_universe"] == pytest.approx(-0.109)
+        assert overall[f"top{n}_net_relative_max_drawdown_equal"] == pytest.approx(0.0)
+        assert overall[f"top{n}_net_relative_max_drawdown_partial"] == pytest.approx(-0.1)
+        assert overall[f"top{n}_net_relative_max_drawdown_missing"] is None
+        assert overall[f"top{n}_net_max_drawdown"] == pytest.approx(-0.1)
+    for period_type in ("year", "quarter", "month"):
+        rows = summary.filter(pl.col("period_type") == period_type)
+        assert rows.height == 2
+        assert rows["top1_net_relative_max_drawdown_universe"].to_list() == pytest.approx([-0.1, -0.1])
+    no_benchmarks = summarize(daily, (), 0.0, 252, (1,))
+    assert not any("relative_max_drawdown" in c for c in no_benchmarks.columns)

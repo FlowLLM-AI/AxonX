@@ -1,3 +1,4 @@
+import { Select } from "../../shared/ui/Select";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DataBar } from "../../shared/ui/DataBar";
@@ -143,7 +144,7 @@ export function SignalTable({
           <div className="online-signal-toolbar">
             <label className="online-pool-picker">
               {t("backtest.universe")}
-              <select
+              <Select
                 aria-label={t("backtest.universe")}
                 value={pool.key}
                 onChange={(e) =>
@@ -162,7 +163,7 @@ export function SignalTable({
                       : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             {recorded && pool.key !== recorded.key && (
               <small>

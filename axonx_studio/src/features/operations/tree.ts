@@ -97,7 +97,10 @@ export function buildOperationTree(
   }
   for (const group of groups) {
     for (const run of group.schedule ? scheduleHistory(group.schedule) : []) {
-      if (!taskTriggers.has(triggerKey(run)))
+      if (
+        (run.job !== "submit" || run.state !== "succeeded") &&
+        !taskTriggers.has(triggerKey(run))
+      )
         group.runs.push({ kind: "job", id: `trigger:${run.trigger_id}`, run });
     }
     group.runs.sort((a, b) => runDate(b).localeCompare(runDate(a)));

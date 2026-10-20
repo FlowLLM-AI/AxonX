@@ -122,6 +122,19 @@ def _diagnostics(
     )
 
 
+def active_return(top_n: int, benchmark: str, kind: str = "net") -> pl.Expr:
+    """Finite, date-aligned excess returns shared by IR and relative drawdown."""
+    strategy = pl.col(f"top{top_n}_{kind}_return")
+    reference = pl.col(f"benchmark_{benchmark}_return")
+    return pl.when(strategy.is_finite() & reference.is_finite()).then(strategy - reference)
+
+
+def maximum_drawdown(equity: pl.Expr) -> pl.Expr:
+    """Drawdown from a period's running peak, including initial equity of one."""
+    peak = pl.max_horizontal(pl.lit(1.0), equity.cum_max())
+    return (equity / peak - 1).min()
+
+
 def _ratio(column: str) -> pl.Expr:
     values = pl.col(column).drop_nulls()
     std = values.std(ddof=1)
@@ -186,8 +199,9 @@ def _summarize_period(
                 ),
             ),
         )
+        derived.extend(active_return(top_n, key, "gross").alias(f"_{prefix}_{key}_active") for key in benchmark_keys)
         derived.extend(
-            (pl.col(f"{prefix}_gross_return") - pl.col(f"benchmark_{key}_return")).alias(f"_{prefix}_{key}_active")
+            (1 + active_return(top_n, key)).cum_prod().over("_period").alias(f"_{prefix}_{key}_active_equity")
             for key in benchmark_keys
         )
     frame = frame.with_columns(*derived)
@@ -206,7 +220,6 @@ def _summarize_period(
         net = f"{prefix}_net_return"
         equity = f"_{prefix}_equity"
         cumulative = (pl.col(net) + 1).product()
-        peak = pl.max_horizontal(pl.lit(1.0), pl.col(equity).cum_max().over("_period"))
         metrics.extend(
             (
                 (cumulative - 1).alias(f"{prefix}_net_cumulative_return"),
@@ -217,7 +230,7 @@ def _summarize_period(
                 (pl.col(net).std(ddof=1) * annual_scale).alias(
                     f"{prefix}_net_annualized_volatility",
                 ),
-                (pl.col(equity) / peak - 1).min().alias(f"{prefix}_net_max_drawdown"),
+                maximum_drawdown(pl.col(equity)).alias(f"{prefix}_net_max_drawdown"),
                 (pl.col(net) > 0).mean().alias(f"{prefix}_net_win_rate"),
                 pl.col(f"{prefix}_turnover").mean().alias(f"{prefix}_average_turnover"),
                 pl.col(f"{prefix}_delayed_exits").sum().alias(f"{prefix}_delayed_exits"),
@@ -233,6 +246,12 @@ def _summarize_period(
         metrics.extend(
             (_ratio(f"_{prefix}_{key}_active") * annual_scale).alias(
                 f"{prefix}_information_ratio_{key}",
+            )
+            for key in benchmark_keys
+        )
+        metrics.extend(
+            maximum_drawdown(pl.col(f"_{prefix}_{key}_active_equity")).alias(
+                f"{prefix}_net_relative_max_drawdown_{key}"
             )
             for key in benchmark_keys
         )

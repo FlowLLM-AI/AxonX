@@ -650,6 +650,7 @@
     "accounting_protocols_differ": "Accounting protocols differ between these backtests."
   },
   "backtest": {
+    "net_relative_max_drawdown": "Net relative max drawdown",
     "dateRange": {
       "start": "Start date",
       "end": "End date"
@@ -844,9 +845,7 @@
     "featureUpdate": "Feature update",
     "offlinePrediction": "Offline prediction",
     "signalComparison": "Signal comparison",
-    "backtestAnalysis": "Backtest analysis",
     "noStageRun": "No task log is available for this stage",
-
     "public": "Preparation",
     "scope": "Preparation and models",
     "data": "Data preparation",
@@ -1180,6 +1179,13 @@
     "workspace": "Workspace record"
   },
   "operations": {
+    "unsyncedItems": "Items not synced this round",
+    "jobName": "Job name",
+    "triggerId": "Execution ID",
+    "schedulerId": "Scheduler ID",
+    "dataInterfaces": "Data interfaces",
+    "dataResults": "Data results",
+    "noInterfaces": "No interface records",
     "activeJobs": "Active Jobs",
     "configuration": "Schedule configuration",
     "runHistory": "OPERATIONS",
@@ -1190,13 +1196,11 @@
     "finished": "Finished",
     "result": "Execution result",
     "empty": "No matching tasks",
-    "dataProgress": "Data update progress",
-    "children": "Download tasks",
     "metrics": {
       "uploaded": "Uploaded",
       "rejected": "Rejected",
       "oversized": "Oversized",
-      "deferred": "Pending retry",
+      "deferred": "Not synced this round",
       "archives": "Archives",
       "rows": "Rows",
       "elapsed_seconds": "Elapsed seconds",
@@ -1221,9 +1225,6 @@
     "technicalDetails": "Technical details",
     "step": "Task / step",
     "progress": "Progress",
-    "noProgress": "No detailed progress yet. Check the result or logs.",
-    "unavailableRecord": "Record unavailable",
-    "details": "Details",
     "fields": {
       "flow": "Update flow",
       "start_date": "Start date",
@@ -1234,7 +1235,6 @@
       "task": "Task type"
     },
     "lastExecution": "Latest execution",
-    "stageDetails": "Full execution details",
     "dataUpdate": "Data updates"
   },
   "onlineWorkbench": {
@@ -1246,6 +1246,7 @@
     "timezone": "Shanghai time",
     "overview": "Slot overview",
     "results": "Signals & portfolio",
+    "fields": "Field details",
     "diagnostics": "Diagnostics",
     "slot": "Signal time",
     "model": "Model",
@@ -1281,6 +1282,7 @@
       "done": "Completed",
       "failed": "Failed",
       "running": "In progress",
+      "preparing": "Preparing",
       "pending": "Pending",
       "incomplete": "Incomplete",
       "skipped": "Skipped",
@@ -1296,5 +1298,44 @@
     "modelPreparation": "Model preparation",
     "predictionResults": "Predictions",
     "historyInputs": "Historical inputs"
+  },
+  "topComparison": {
+    "topN": "Top N",
+    "invalid": "Invalid Top N comparison artifact",
+    "unavailable": "This archived comparison has no Top N details. Rerun comparison to generate them.",
+    "scope": "Stock pool",
+    "buyable": "Strategy buyable pool",
+    "allMarket": "All market",
+    "all": "All model predictions",
+    "onlyDifferences": "Differences only",
+    "counts": "Online {{online}} / Offline {{offline}} stocks",
+    "order": "Values: online / offline",
+    "stdHint": "STD: raw scores across all seeds (ddof=0)",
+    "mock": "Mock online input",
+    "stock": "Code / name",
+    "membership": "Top N membership",
+    "both": "Both",
+    "onlineOnly": "Online only",
+    "offlineOnly": "Offline only",
+    "rank": "Rank",
+    "score": "Score",
+    "delta": "Online − offline",
+    "std": "Seed STD",
+    "names": "Names (online / offline)",
+    "selection": "Scoring:",
+    "universe": "Strategy pool:",
+    "estimated_total_market_cap": "Market cap",
+    "amount_to_signal": "Turnover",
+    "fields": "Field details",
+    "diagnostics": "Difference diagnostics",
+    "field": "Field",
+    "differences": "Mismatch count",
+    "code": "Code",
+    "name": "Name",
+    "overlap": "Overlap {{count}}/{{n}}",
+    "checkSummary": "{{count}} checks · {{differences}} with differences",
+    "fieldCount": "{{count}} differing fields",
+    "noFieldDifferences": "No numeric or discrete field differences. Check schema and sample coverage above.",
+    "rowsPair": "Online {{online}} / offline {{offline}} rows"
   }
 }

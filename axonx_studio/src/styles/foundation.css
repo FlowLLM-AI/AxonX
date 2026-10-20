@@ -1394,7 +1394,7 @@
   line-height: 1.4;
 }
 .schema-field input,
-.schema-field select,
+.schema-field .select-trigger,
 .schema-field textarea {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -1408,7 +1408,7 @@
     transform 0.18s;
 }
 .schema-field input,
-.schema-field select {
+.schema-field .select-trigger {
   width: 100%;
   height: 46px;
   padding: 0 13px;
@@ -1424,13 +1424,13 @@
   resize: vertical;
 }
 .schema-field input:hover,
-.schema-field select:hover,
+.schema-field .select-trigger:hover,
 .schema-field textarea:hover {
   border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
   background: var(--surface);
 }
 .schema-field input:focus,
-.schema-field select:focus,
+.schema-field .select-trigger:focus,
 .schema-field textarea:focus {
   border-color: var(--accent);
   background: var(--surface);

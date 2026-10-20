@@ -650,6 +650,7 @@
     "accounting_protocols_differ": "这两份回测使用不同的记账协议。"
   },
   "backtest": {
+    "net_relative_max_drawdown": "净相对最大回撤",
     "dateRange": {
       "start": "开始日期",
       "end": "结束日期"
@@ -844,9 +845,7 @@
     "featureUpdate": "特征更新",
     "offlinePrediction": "离线预测",
     "signalComparison": "预测比对",
-    "backtestAnalysis": "回测分析",
     "noStageRun": "该环节尚无可用任务日志",
-
     "public": "公共准备",
     "scope": "公共准备与模型",
     "data": "数据准备",
@@ -1180,6 +1179,13 @@
     "workspace": "工作区记录"
   },
   "operations": {
+    "unsyncedItems": "本轮未同步项目",
+    "jobName": "Job 名称",
+    "triggerId": "执行 ID",
+    "schedulerId": "调度器 ID",
+    "dataInterfaces": "数据接口",
+    "dataResults": "数据结果",
+    "noInterfaces": "暂无接口记录",
     "activeJobs": "执行中的 Job",
     "configuration": "调度配置",
     "runHistory": "日常运行",
@@ -1190,13 +1196,11 @@
     "finished": "完成时间",
     "result": "执行结果",
     "empty": "暂无匹配的任务",
-    "dataProgress": "数据更新进度",
-    "children": "下载子任务",
     "metrics": {
       "uploaded": "已上传",
       "rejected": "已拒绝",
       "oversized": "超出大小限制",
-      "deferred": "待重试",
+      "deferred": "暂未同步",
       "archives": "传输包数",
       "rows": "数据行数",
       "elapsed_seconds": "耗时（秒）",
@@ -1221,9 +1225,6 @@
     "technicalDetails": "技术信息",
     "step": "任务 / 步骤",
     "progress": "完成进度",
-    "noProgress": "暂无明细进度，请查看执行结果或日志。",
-    "unavailableRecord": "记录不可用",
-    "details": "详情",
     "fields": {
       "flow": "更新流程",
       "start_date": "起始日期",
@@ -1234,7 +1235,6 @@
       "task": "任务类型"
     },
     "lastExecution": "最近执行",
-    "stageDetails": "完整执行明细",
     "dataUpdate": "数据更新"
   },
   "onlineWorkbench": {
@@ -1246,6 +1246,7 @@
     "timezone": "上海时间",
     "overview": "时点总览",
     "results": "信号与组合",
+    "fields": "展开字段明细",
     "diagnostics": "运行诊断",
     "slot": "时间点",
     "model": "模型",
@@ -1281,6 +1282,7 @@
       "done": "已完成",
       "failed": "失败",
       "running": "进行中",
+      "preparing": "准备中",
       "pending": "待开始",
       "incomplete": "未完成",
       "skipped": "已跳过",
@@ -1296,5 +1298,44 @@
     "modelPreparation": "模型准备",
     "predictionResults": "预测结果",
     "historyInputs": "历史输入"
+  },
+  "topComparison": {
+    "topN": "Top N",
+    "invalid": "Top N 比对产物无效",
+    "unavailable": "这份历史比对没有 Top N 明细，重新运行预测比对后生成。",
+    "scope": "股池",
+    "buyable": "策略可买股票池",
+    "allMarket": "全市场",
+    "all": "全市场模型预测",
+    "onlyDifferences": "只看差异",
+    "counts": "在线 {{online}} / 离线 {{offline}} 只",
+    "order": "数值顺序：在线 / 离线",
+    "stdHint": "STD：全部 seed 原始分数标准差（ddof=0）",
+    "mock": "Mock 在线输入",
+    "stock": "代码 / 名称",
+    "membership": "Top N 入选",
+    "both": "两边入选",
+    "onlineOnly": "仅在线",
+    "offlineOnly": "仅离线",
+    "rank": "排名",
+    "score": "分数",
+    "delta": "在线 − 离线",
+    "std": "Seed STD",
+    "names": "名称（在线 / 离线）",
+    "selection": "选股分数：",
+    "universe": "策略股票池：",
+    "estimated_total_market_cap": "市值",
+    "amount_to_signal": "成交额",
+    "fields": "展开字段明细",
+    "diagnostics": "差异诊断",
+    "field": "字段",
+    "differences": "差异数量",
+    "code": "代码",
+    "name": "名称",
+    "overlap": "重合 {{count}}/{{n}}",
+    "checkSummary": "{{count}} 项检查 · {{differences}} 项存在差异",
+    "fieldCount": "{{count}} 个字段有差异",
+    "noFieldDifferences": "数值及离散字段没有差异，可查看上方结构与样本覆盖情况。",
+    "rowsPair": "在线 {{online}} / 离线 {{offline}} 行"
   }
 }

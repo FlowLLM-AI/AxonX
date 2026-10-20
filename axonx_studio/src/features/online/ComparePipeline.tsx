@@ -1,4 +1,5 @@
-import { lazy, Suspense, useId, useState } from "react";
+import { Select } from "../../shared/ui/Select";
+import { useId, useState } from "react";
 import { ArrowUpRight, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { parseHash, routeHash } from "../../app/routes";
@@ -9,12 +10,6 @@ import type { TaskNode } from "../tasks/tree";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
 import { ComparisonResults } from "./ComparisonResults";
 import { ModelPicker } from "./ModelPicker";
-import type { BacktestArtifact } from "../research/backtest/types";
-const BacktestView = lazy(() =>
-  import("../research/backtest/BacktestView").then((module) => ({
-    default: module.BacktestView,
-  })),
-);
 import {
   compareModels,
   compareStageState,
@@ -77,12 +72,24 @@ export function ComparePipeline({
           if (currentStage === "prediction") return kind === "predict";
           if (currentStage === "results")
             return /compare/.test(node.record.task);
-          return kind === "backtest";
+          return false;
         });
+  const featureLog =
+    stageNodes.find(
+      (node) =>
+        node.status?.state === "failed" || node.record.state === "failed",
+    ) ||
+    stageNodes
+      .filter((node) => node.record.task_id?.startsWith("etl#"))
+      .at(-1) ||
+    stageNodes[0];
   const scope = preparation ? currentStage : `${model?.name}:${currentStage}`;
-  const source = logIds[scope]
-    ? stageNodes.find((node) => identity(node) === logIds[scope])
-    : stageNodes[0];
+  const source =
+    currentStage === "etl"
+      ? featureLog
+      : logIds[scope]
+        ? stageNodes.find((node) => identity(node) === logIds[scope])
+        : stageNodes[0];
   const logs = currentStage === "logs" ? parent : source?.status;
   const badge = (state: string) => (
     <span className={`online-status status-${state}`}>
@@ -91,27 +98,14 @@ export function ComparePipeline({
         : t(`onlinePipeline.status.${state}`, state)}
     </span>
   );
-  const stageNode = (step: TaskStepStatus) => {
-    const phase = step.name.split(":").at(-1);
-    return currentNodes.find((node) => {
-      const task = node.status?.task_type || node.record.task_id?.split("#")[0];
-      return phase === "etl"
-        ? /history/.test(node.record.task) || task === "etl"
-        : phase === "prediction"
-          ? task === "predict"
-          : phase === "comparison"
-            ? /compare/.test(node.record.task)
-            : phase === "backtest"
-              ? task === "backtest"
-              : preparation;
-    });
-  };
   const stageRows = (selected: TaskStepStatus[]) =>
     selected.length ? (
       <div className="compare-stage-list">
         {selected.map((step) => {
           const state = compareStageState(step, parent);
-          const node = stageNode(step);
+          const node = step.name.endsWith(":online_source")
+            ? undefined
+            : source;
           const failedChild = node?.status?.error || node?.record.error;
           const rawError =
             state === "failed"
@@ -127,7 +121,7 @@ export function ComparePipeline({
               .map((s) => s.phase) || [];
           return (
             <section
-              className={`compare-stage-row state-${state}`}
+              className={`compare-stage-row state-${state}${!preparation ? " compare-stage-compact" : ""}`}
               key={step.name}
             >
               <div className="compare-stage-main">
@@ -185,25 +179,17 @@ export function ComparePipeline({
         })}
       </div>
     ) : null;
-  const ledger =
-    model?.children.filter(
-      (node) =>
-        node.record.task_id?.startsWith("backtest#") &&
-        !!node.status?.output_params.universes,
-    ) || [];
   const stageTabs = [
     { id: "logs", label: t("nightly.workflowLog") },
     { id: "download", label: t("nightly.dataCompletion") },
     { id: "etl", label: t("nightly.featureUpdate") },
     { id: "prediction", label: t("nightly.offlinePrediction") },
     { id: "results", label: t("nightly.signalComparison") },
-    { id: "portfolio", label: t("nightly.backtestAnalysis") },
   ];
   const phase = {
     etl: "etl",
     prediction: "prediction",
     results: "comparison",
-    portfolio: "backtest",
   }[currentStage];
   const selectedSteps = preparation
     ? currentStage === "download"
@@ -212,14 +198,16 @@ export function ComparePipeline({
     : steps.filter(
         (step) =>
           step.name.endsWith(`:${phase}`) ||
-          (currentStage === "results" && step.name.endsWith(":online_source")),
+          (currentStage === "results" &&
+            step.name.endsWith(":online_source") &&
+            step.state === "failed"),
       );
   const logToolbar = (
     <div className="daily-log-source">
-      {stageNodes.length > 1 ? (
+      {!preparation ? null : stageNodes.length > 1 ? (
         <label className="pipeline-log-source">
           {t("onlinePipeline.logSource")}
-          <select
+          <Select
             value={source ? identity(source) : ""}
             onChange={(event) =>
               setLogIds((value) => ({
@@ -238,14 +226,14 @@ export function ComparePipeline({
                 {node.record.node_name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       ) : (
         <span className="daily-log-caption">
           {stageTabs.find((tab) => tab.id === currentStage)?.label}
         </span>
       )}
-      {logs && (
+      {logs && preparation && (
         <button
           className="compare-text-action"
           onClick={() => onOpenTask(logs.task_id)}
@@ -272,7 +260,7 @@ export function ComparePipeline({
         <p className="online-warning" role="alert">
           {source?.error || t("onlinePipeline.replacedRun")}
         </p>
-      ) : (
+      ) : selectedSteps.some((step) => step.state === "skipped") ? null : (
         <p className="empty-state">{t("nightly.noStageRun")}</p>
       )}
     </>
@@ -353,14 +341,16 @@ export function ComparePipeline({
             role="tabpanel"
             aria-label={stageTabs.find((tab) => tab.id === currentStage)?.label}
           >
-            {!preparation && model && (
+            {!preparation && !selectedSteps.length && model && (
               <div className="compare-active-model">
                 <strong>{model.name}</strong>
                 <small>{model.provider}</small>
                 {badge(model.state)}
               </div>
             )}
-            {!preparation && stageRows(selectedSteps)}
+            {(currentStage !== "results" ||
+              selectedSteps.some((step) => step.state === "failed")) &&
+              stageRows(selectedSteps)}
             {stageNodes
               .filter((node) => node.error && node.status)
               .map((node) => (
@@ -376,25 +366,9 @@ export function ComparePipeline({
                 </p>
               )}
             {currentStage === "results" && model && (
-              <ComparisonResults model={model} />
+              <ComparisonResults model={model} target={target} />
             )}
-            {currentStage === "portfolio" && model && (
-              <>
-                {ledger.map((node) => (
-                  <Suspense
-                    key={identity(node)}
-                    fallback={<p>{t("shell.loading")}</p>}
-                  >
-                    <BacktestView
-                      meta={node.status as unknown as BacktestArtifact}
-                      target={target}
-                    />
-                  </Suspense>
-                ))}
-                <ComparisonResults model={model} portfolio />
-              </>
-            )}
-            {logPanel}
+            {currentStage !== "results" && logPanel}
           </section>
         </>
       )}

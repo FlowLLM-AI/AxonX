@@ -62,6 +62,21 @@ function task(
     log_path: "",
   };
 }
+async function selectState(value: string) {
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>(
+        '[role="combobox"][aria-label="state"]',
+      )!
+      .click(),
+  );
+  const option = [
+    ...document.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+  ].find((option) =>
+    option.textContent?.startsWith(value ? `states.${value}` : "allStates"),
+  )!;
+  await act(async () => option.click());
+}
 let root: Root;
 let container: HTMLDivElement;
 const onConnection = vi.fn();
@@ -261,13 +276,7 @@ describe("grouped task list", () => {
     await render();
     await openGroupMenu("train#other");
     await click('[role="menuitem"]:not(.danger)');
-    await act(async () => {
-      const select = container.querySelector<HTMLSelectElement>(
-        '[aria-label="state"]',
-      )!;
-      select.value = "failed";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    await selectState("failed");
     await openGroupMenu();
     await click('[role="menuitem"].danger');
     expect(deleteTasks).not.toHaveBeenCalled();
@@ -276,13 +285,7 @@ describe("grouped task list", () => {
     await click('[role="dialog"] .danger-button');
     expect(deleteTasks).toHaveBeenCalledWith(["train#demo#bad"], "machine-a");
     expect(container.querySelector(".task-selection-actions")).not.toBeNull();
-    await act(async () => {
-      const select = container.querySelector<HTMLSelectElement>(
-        '[aria-label="state"]',
-      )!;
-      select.value = "";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    await selectState("");
     expect(
       container
         .querySelector<HTMLInputElement>('[aria-label="train#other"]')!
@@ -369,13 +372,7 @@ describe("grouped task list", () => {
     expect(container.querySelector("tbody strong")!.textContent).toBe(
       "run-050",
     );
-    await act(async () => {
-      const select = container.querySelector<HTMLSelectElement>(
-        '[aria-label="state"]',
-      )!;
-      select.value = "running";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    await selectState("running");
     expect(container.querySelector("tbody strong")!.textContent).toBe(
       "run-000",
     );
@@ -416,13 +413,7 @@ describe("grouped task list", () => {
       task("train#demo#active"),
     ]);
     await render();
-    await act(async () => {
-      const select = container.querySelector<HTMLSelectElement>(
-        '[aria-label="state"]',
-      )!;
-      select.value = "failed";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    await selectState("failed");
     expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
     await click('[aria-label="enableMultiSelect"]');
     await click(".task-group-header input");

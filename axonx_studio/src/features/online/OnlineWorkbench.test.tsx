@@ -79,7 +79,7 @@ const selectModel = async (value: string) => {
     container.querySelector<HTMLButtonElement>(".online-model-picker")!.click();
   });
   await act(async () => {
-    [...container.querySelectorAll<HTMLButtonElement>('[role="option"]')]
+    [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')]
       .find((option) => option.textContent === value)!
       .click();
   });
@@ -386,13 +386,13 @@ it("opens the model menu below the control and supports keyboard selection and d
     );
   await key("ArrowDown");
   expect(trigger().getAttribute("aria-expanded")).toBe("true");
-  expect(container.querySelector('[role="listbox"]')?.id).toBe(
+  expect(document.querySelector('[role="listbox"]')?.id).toBe(
     trigger().getAttribute("aria-controls"),
   );
   await key("ArrowDown");
   await key("Enter");
   expect(trigger().textContent).toContain("other");
-  expect(container.querySelector('[role="listbox"]')).toBeNull();
+  expect(document.querySelector('[role="listbox"]')).toBeNull();
   await act(async () => trigger().click());
   await key("Escape");
   expect(trigger().getAttribute("aria-expanded")).toBe("false");
@@ -400,7 +400,7 @@ it("opens the model menu below the control and supports keyboard selection and d
   await act(async () =>
     document.body.dispatchEvent(new Event("pointerdown", { bubbles: true })),
   );
-  expect(container.querySelector('[role="listbox"]')).toBeNull();
+  expect(document.querySelector('[role="listbox"]')).toBeNull();
 });
 
 it("consolidates the slot navigation and removes completed status-only prediction cards", async () => {
@@ -475,3 +475,53 @@ it("shows only the selected inference log even when nested tasks share its name"
     toolbar.querySelector(".daily-log-caption")?.getAttribute("title"),
   ).toBe(inference.status!.task_id);
 });
+
+it.each(["zh", "en"])(
+  "distinguishes advance preparation from collection and prediction in %s",
+  async (language) => {
+    await i18n.changeLanguage(language);
+    parent.state = "running";
+    parent.children = [];
+    nodes = [];
+    parent.input_params.models = {
+      "0945": [{ task_name: "default-0945" }],
+      "1000": [{ task_name: "default-1000" }],
+    };
+    const template = parent.steps[0];
+    const slot = () => container.querySelector('[id$="-1000-tab"]')!;
+    for (const [history, collection, prediction, expected] of [
+      ["waiting", "waiting", "pending", "pending"],
+      ["running", "waiting", "pending", "preparing"],
+      ["done", "waiting", "pending", "pending"],
+      ["running", "running", "pending", "running"],
+      ["running", "done", "running", "running"],
+      ["failed", "running", "pending", "failed"],
+      ["running", "missed", "pending", "failed"],
+    ] as const) {
+      parent.steps = [
+        {
+          ...template,
+          name: "history:default-1000-1000",
+          group: "history",
+          state: history,
+        },
+        {
+          ...template,
+          name: "collection:1000_before",
+          group: "collection",
+          state: collection,
+        },
+      ];
+      parent.output_params.models = {
+        "1000": { "default-1000": { status: prediction } },
+      };
+      await render();
+      expect(slot().querySelector(`.status-${expected}`)?.textContent).toBe(
+        i18n.t(`onlineWorkbench.states.${expected}`),
+      );
+      expect(
+        container.querySelector('[id$="-0945-tab"] .status-pending'),
+      ).not.toBeNull();
+    }
+  },
+);

@@ -1,22 +1,13 @@
 import { useTranslation } from "react-i18next";
-import { ReportTable } from "../online/ReportTable";
-import { TaskSteps } from "../tasks/TaskSteps";
 import type { TaskMetadata } from "../tasks/types";
 
-export function DataUpdateProgress({
-  task,
-  target,
-}: {
-  task: TaskMetadata;
-  target?: string;
-}) {
+export function DataUpdateProgress({ task }: { task: TaskMetadata }) {
   const { t } = useTranslation();
   const steps = task.steps.filter(
     (step) =>
-      step.state !== "done" ||
       step.completed != null ||
       step.error ||
-      Object.keys(step.files || {}).length > 0,
+      typeof step.metrics?.coverage === "number",
   );
   const rows = steps.map((step) => ({
     name: t(
@@ -46,35 +37,35 @@ export function DataUpdateProgress({
       ].join(" · ") ||
       "—",
   }));
+  if (!rows.length) return null;
   return (
-    <>
-      {rows.length ? (
-        <ReportTable
-          rows={rows}
-          columns={[
-            { key: "name", label: t("operations.step") },
-            {
-              key: "result",
-              label: t("quality.columns.result"),
-              render: (row) => (
-                <span className={`online-status status-${row.state}`}>
-                  {String(row.result)}
-                </span>
-              ),
-            },
-            { key: "progress", label: t("operations.progress") },
-            { key: "description", label: t("quality.columns.description") },
-          ]}
-        />
-      ) : (
-        <p className="operation-index-empty">{t("operations.noProgress")}</p>
-      )}
-      {task.steps.length > 0 && (
-        <details className="operation-result-details">
-          <summary>{t("operations.stageDetails")}</summary>
-          <TaskSteps task={task} target={target} steps={task.steps} />
-        </details>
-      )}
-    </>
+    <div className="online-table-card">
+      <div className="online-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>{t("operations.step")}</th>
+              <th>{t("quality.columns.result")}</th>
+              <th>{t("operations.progress")}</th>
+              <th>{t("quality.columns.description")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={index}>
+                <td>{row.name}</td>
+                <td>
+                  <span className={`online-status status-${row.state}`}>
+                    {row.result}
+                  </span>
+                </td>
+                <td>{row.progress}</td>
+                <td>{row.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

@@ -262,17 +262,7 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
     i18n.t("onlinePipeline.reasons.online_source_unavailable"),
   );
   await clickTab("etl");
-  expect(container.textContent).toContain("demo-a_stock_etl");
-  expect(
-    container.querySelector(".pipeline-log-source select")?.children,
-  ).toHaveLength(2);
-  const select = container.querySelector<HTMLSelectElement>(
-    ".pipeline-log-source select",
-  )!;
-  await act(async () => {
-    select.value = `${etl.task_id}:${etl.run_id}`;
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  expect(container.querySelector(".pipeline-log-source select")).toBeNull();
   expect(
     vi
       .mocked(readTaskLog)

@@ -124,7 +124,7 @@
   line-height: 1.45;
 }
 .api-fields input,
-.api-fields select,
+.api-fields .select-trigger,
 .api-fields textarea {
   width: 100%;
   min-height: 44px;
@@ -142,7 +142,7 @@
   resize: vertical;
 }
 .api-fields input:focus,
-.api-fields select:focus,
+.api-fields .select-trigger:focus,
 .api-fields textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);

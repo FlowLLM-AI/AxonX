@@ -27,22 +27,12 @@ vi.mock("../tasks/TaskLogPanel", () => ({
     </div>
   ),
 }));
-vi.mock("../research/backtest/BacktestView", () => ({
-  BacktestView: ({ meta, target }: { meta: TaskMetadata; target?: string }) => (
-    <div
-      className="embedded-backtest"
-      data-task={meta.task_id}
-      data-run={meta.run_id}
-      data-target={target}
-    />
-  ),
-}));
 const chooseModel = async (name: string) => {
   await act(async () =>
     container.querySelector<HTMLButtonElement>(".online-model-picker")!.click(),
   );
   await act(async () =>
-    [...container.querySelectorAll<HTMLButtonElement>('[role="option"]')]
+    [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')]
       .find((button) => button.textContent === name)!
       .click(),
   );
@@ -107,23 +97,22 @@ it.each(["en", "zh"])(
     await i18n.changeLanguage(language);
     await render();
     expect(container.querySelectorAll('[role="tablist"]')).toHaveLength(1);
-    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(6);
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(5);
     expect(container.querySelector("pre")?.dataset.run).toBe(parent.run_id);
     await click("results");
     expect(container.querySelectorAll(".operation-tab-connector")).toHaveLength(
       0,
     );
-    const rows = container.querySelectorAll("tbody tr");
-    expect(rows).toHaveLength(4);
-    expect(rows[0].textContent).toContain(i18n.t("nightly.checks.predictions"));
-    expect(rows[0].textContent).toContain("pred: 2");
-    expect(rows[0].textContent).toContain("1.200e-3");
-    expect(container.textContent).not.toContain("[object Object]");
-    await click("portfolio");
-    expect(container.querySelectorAll("tbody tr")).toHaveLength(5);
-    expect(container.querySelector("tbody")?.textContent).toContain(
-      i18n.t("nightly.checks.positions"),
+    const checks = container.querySelectorAll(".comparison-check");
+    expect(checks).toHaveLength(4);
+    expect(checks[0].textContent).toContain(
+      i18n.t("nightly.checks.predictions"),
     );
+    expect(
+      container.querySelector(".compare-diagnostics")?.hasAttribute("open"),
+    ).toBe(true);
+    expect(container.querySelector("pre")).toBeNull();
+    expect(container.textContent).not.toContain("[object Object]");
     await chooseModel("missing");
     expect(container.querySelectorAll("tbody tr")).toHaveLength(0);
     expect(container.textContent).not.toContain("pred: 2");
@@ -174,14 +163,9 @@ it("shows a failure once, retains skipped stages and opens its exact child log",
 it("keeps model logs isolated and refuses to substitute a replaced Run", async () => {
   await render();
   await click("etl");
-  const select = container.querySelector<HTMLSelectElement>(
-    ".pipeline-log-source select",
-  )!;
+  expect(container.querySelector(".pipeline-log-source select")).toBeNull();
+  expect(container.querySelector(".compare-active-model")).toBeNull();
   const nested = nodes.find((n) => n.record.task_id?.startsWith("etl#"))!;
-  await act(async () => {
-    select.value = `${nested.record.task_id}:${nested.record.run_id}`;
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
   expect(container.querySelector("pre")?.dataset.run).toBe(
     nested.record.run_id,
   );
@@ -191,17 +175,6 @@ it("keeps model logs isolated and refuses to substitute a replaced Run", async (
   expect(container.querySelector("pre")).toBeNull();
   expect(container.querySelector('[role="alert"]')?.textContent).toBe(
     "Run was replaced",
-  );
-  const history = nodes.find((node) => node.record.task.includes("history"))!;
-  await act(async () => {
-    const available = container.querySelector<HTMLSelectElement>(
-      ".pipeline-log-source select",
-    )!;
-    available.value = `${history.record.task_id}:${history.record.run_id}`;
-    available.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-  expect(container.querySelector("pre")?.dataset.run).toBe(
-    history.record.run_id,
   );
   await chooseModel("missing");
   expect(container.querySelector("pre")).toBeNull();
@@ -238,7 +211,8 @@ it("resolves owned descendants and ignores an earlier attempt and similarly name
   expect(ownedCompareNodes([], nodes)).toHaveLength(0);
 });
 
-it("embeds the existing backtest report from the exact owned Run", async () => {
+it("omits backtests even when an older compare Run contains one", async () => {
+  window.location.hash = "#selected-machine/operations/comparison";
   const template = nodes[0];
   const task = structuredClone(template.status!);
   task.task_id = "backtest#nightly#report";
@@ -255,11 +229,10 @@ it("embeds the existing backtest report from the exact owned Run", async () => {
   parent.children.push(record);
   nodes.push({ record, status: task, error: "" });
   await render();
-  await click("portfolio");
-  const report = container.querySelector<HTMLElement>(".embedded-backtest")!;
-  expect(report.dataset.task).toBe(task.task_id);
-  expect(report.dataset.run).toBe(task.run_id);
-  expect(report.dataset.target).toBe("http://selected-machine");
+  expect(
+    container.querySelector('[role="tab"][id$="-portfolio-tab"]'),
+  ).toBeNull();
+  expect(container.querySelector(".embedded-backtest")).toBeNull();
 });
 
 it("keeps shared download logs outside model stages", async () => {

@@ -1,3 +1,4 @@
+import { Select } from "../../shared/ui/Select";
 import {
   useCallback,
   useEffect,
@@ -99,7 +100,7 @@ export function StockReport({
           </label>
           <label>
             {t("onlineWorkbench.slot")}
-            <select
+            <Select
               aria-label={t("onlineWorkbench.slot")}
               value={selectedSlot || ""}
               onChange={(event) => {
@@ -112,7 +113,7 @@ export function StockReport({
                   {c.trade_time.slice(0, 2)}:{c.trade_time.slice(2)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
       )}

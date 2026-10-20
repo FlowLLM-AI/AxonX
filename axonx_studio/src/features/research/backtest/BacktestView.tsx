@@ -1,3 +1,4 @@
+import { Select } from "../../../shared/ui/Select";
 import { DataBar } from "../../../shared/ui/DataBar";
 import { taskDirectory } from "../../../shared/lib/tasks";
 import {
@@ -215,7 +216,7 @@ function UniverseBacktest({
     <section>
       <label className="backtest-universe-selector">
         {t("backtest.universe")}
-        <select
+        <Select
           aria-label={t("backtest.universe")}
           value={universe || ""}
           onChange={(event) => setUniverse(event.target.value)}
@@ -227,7 +228,7 @@ function UniverseBacktest({
               </option>
             ),
           )}
-        </select>
+        </Select>
       </label>
       {report && (
         <div className="backtest-report-dates">
@@ -858,12 +859,20 @@ function SummaryView({
   const periods = [...rows].sort((a, b) => a.period.localeCompare(b.period));
   const metrics: SummaryMetric[] = [
     ...performanceMetrics,
-    ...benchmarks.map(({ key, label }) => ({
-      key: `information_ratio_${key}`,
-      label: `IR · ${label}`,
-      format: fixed,
-      percent: false,
-    })),
+    ...benchmarks.flatMap(({ key, label }) => [
+      {
+        key: `information_ratio_${key}`,
+        label: `IR · ${label}`,
+        format: fixed,
+        percent: false,
+      },
+      {
+        key: `net_relative_max_drawdown_${key}`,
+        label: `${t("backtest.net_relative_max_drawdown")} · ${label}`,
+        format: percent,
+        percent: true,
+      },
+    ]),
   ];
   const periodName = (row: SummaryRow) =>
     overall ? `${row.period_start}—${row.period_end}` : row.period;
@@ -967,7 +976,7 @@ function SummaryView({
   const topNControl = (
     <label className="summary-select-label">
       <span>Top N</span>
-      <select
+      <Select
         aria-label={t("backtest.select_top_n")}
         value={topN}
         onChange={(event) => setTopN(Number(event.target.value))}
@@ -977,7 +986,7 @@ function SummaryView({
             Top {n}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
   return (

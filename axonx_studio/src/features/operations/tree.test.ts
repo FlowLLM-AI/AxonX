@@ -74,8 +74,10 @@ it("does not attach an old service's run to a new same-name scheduler without ev
   ).toHaveLength(1);
 });
 
-it("deduplicates current and persisted triggers, while keeping submission failures visible", () => {
+it("deduplicates current and persisted Job triggers", () => {
   const current = schedule();
+  current.job = "sync_flush";
+  current.last_trigger = { ...current.last_trigger!, job: current.job };
   const failed = {
     ...current.last_trigger!,
     trigger_id: "failed-submit",
@@ -98,6 +100,42 @@ it("deduplicates current and persisted triggers, while keeping submission failur
   expect(
     buildOperationTree([current.name], [current], []).groups[0].runs,
   ).toHaveLength(2);
+});
+
+it("hides successful submission history after a same-name Task is replaced", () => {
+  const current = schedule();
+  current.history = [
+    { ...current.last_trigger!, trigger_id: "previous-submit" },
+  ];
+  const task = scheduledTask(current.last_trigger);
+  task.state = "failed";
+  const tree = buildOperationTree([current.name], [current], [task]);
+  expect(tree.groups[0].runs.map((run) => run.id)).toEqual([task.task_id]);
+  expect(current.history).toHaveLength(1);
+});
+
+it.each(["running", "succeeded", "failed", "cancelled"] as const)(
+  "retains %s submission diagnostics until a Task exists, except successful old submissions",
+  (state) => {
+    const current = schedule();
+    current.last_trigger = { ...current.last_trigger!, state };
+    const runs = buildOperationTree([current.name], [current], []).groups[0]
+      .runs;
+    expect(runs.map((run) => run.id)).toEqual(
+      state === "succeeded"
+        ? []
+        : [`trigger:${current.last_trigger.trigger_id}`],
+    );
+  },
+);
+
+it("keeps successful Jobs that perform work rather than submit Tasks", () => {
+  const current = schedule();
+  current.job = "sync_flush";
+  current.last_trigger = { ...current.last_trigger!, job: current.job };
+  expect(
+    buildOperationTree([current.name], [current], []).groups[0].runs,
+  ).toHaveLength(1);
 });
 
 it("searches run names within their groups without mutating the full tree", () => {

@@ -330,6 +330,20 @@ export function addArtifacts(
               gross_sharpe: annualRatio(
                 rows.map((row) => Number(row[`top${n}_gross_return`])),
               ),
+              net_relative_max_drawdown_demo: strategyStats(
+                rows.map((row) => ({
+                  date: row.trade_date,
+                  a: {
+                    ...row,
+                    [`top${n}_net_return`]:
+                      Number(row[`top${n}_net_return`]) -
+                      Number(row.benchmark_demo_return),
+                  },
+                  b: row,
+                })),
+                "a",
+                n,
+              ).maxDrawdown,
               information_ratio_demo: annualRatio(
                 rows.map(
                   (row) =>

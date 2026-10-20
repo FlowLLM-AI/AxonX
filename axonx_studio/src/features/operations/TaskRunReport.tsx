@@ -1,12 +1,8 @@
 import { Database } from "lucide-react";
-import { ReportTabs } from "../../shared/ui/ReportTabs";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getTaskStatus } from "../tasks/api";
 import { DataUpdateProgress } from "./DataUpdateProgress";
-import { OperationResult } from "./OperationResult";
-import { TaskChildren } from "../tasks/TaskChildren";
-import { ReportTable } from "../online/ReportTable";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
 import { Status } from "../tasks/TaskRow";
 import { formatDate } from "../tasks/format";
@@ -14,6 +10,8 @@ import { readTaskChildren } from "../tasks/tree";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { useRefresh } from "../../shared/hooks/useRefresh";
+import { ReportTabs } from "../../shared/ui/ReportTabs";
+import { ModelPicker } from "../online/ModelPicker";
 
 import type { TaskRunIdentity } from "../tasks/types";
 
@@ -27,7 +25,7 @@ export function TaskRunReport({
   onOpenTask: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const [logId, setLogId] = useState("");
+  const [selectedRun, setSelectedRun] = useState("");
   const load = useCallback(
     async (signal: AbortSignal) => {
       const parent = await getTaskStatus(task.task_id, target, signal);
@@ -53,11 +51,60 @@ export function TaskRunReport({
       </div>
     );
   const { parent, nodes } = data;
-  const logs = logId
-    ? nodes.find((node) => node.status?.task_id === logId)?.status
-    : parent;
+  const selected = nodes.find(
+    (node) => `${node.record.task_id}:${node.record.run_id}` === selectedRun,
+  );
+  const active = selectedRun ? selected?.status : parent;
+  const activeError = selectedRun
+    ? selected?.error || selected?.record.error || active?.error
+    : "";
+  const reportError = [
+    error,
+    parent.error,
+    ...(selectedRun
+      ? active
+        ? [activeError]
+        : []
+      : nodes.map(
+          (node) => node.error || node.record.error || node.status?.error,
+        )),
+  ]
+    .filter(Boolean)
+    .filter((message, index, all) => all.indexOf(message) === index)
+    .join(" · ");
+  const reports = (
+    selectedRun
+      ? active
+        ? [active]
+        : []
+      : [parent, ...nodes.flatMap((node) => (node.status ? [node.status] : []))]
+  ).filter(
+    (report) =>
+      selectedRun ||
+      report.task_id !== parent.task_id ||
+      !nodes.length ||
+      Object.keys(report.output_params).some(
+        (key) =>
+          !["artifacts", "run_id", "task_id", "status", "flow"].includes(key),
+      ),
+  );
+  const interfaces = [
+    ...new Set(
+      reports.flatMap((report) => {
+        const apis = report.output_params.selected_apis;
+        return Array.isArray(apis)
+          ? apis.filter((api): api is string => typeof api === "string")
+          : [];
+      }),
+    ),
+  ];
+  const unavailable = (
+    <p className="error-state" role="alert">
+      {activeError || t("onlinePipeline.replacedChildRun")}
+    </p>
+  );
   return (
-    <article className="online-report">
+    <article className="online-report data-update-report">
       <ReplicaNotice replica={parent.replica} state={parent.state} />
       <header>
         <span className="operation-detail-icon">
@@ -74,137 +121,118 @@ export function TaskRunReport({
         <Status state={parent.state} />
         <button
           className="secondary-button"
-          onClick={() => onOpenTask(parent.task_id)}
+          disabled={!active}
+          onClick={() => active && onOpenTask(active.task_id)}
         >
           {t("onlinePipeline.openTask")}
         </button>
       </header>
-      {(error || parent.error) && (
+      {reportError && (
         <p className="error-state" role="alert">
-          {error || parent.error}
+          {reportError}
         </p>
       )}
       <ReportTabs
-        defaultTab={
-          ["running", "pending", "queued"].includes(parent.state)
-            ? "progress"
-            : "result"
+        defaultTab="result"
+        actions={
+          <ModelPicker
+            label={t("taskDetail.task")}
+            models={[
+              "",
+              ...nodes.map(
+                ({ record }) => `${record.task_id}:${record.run_id}`,
+              ),
+              ...(selectedRun && !selected ? [selectedRun] : []),
+            ]}
+            labels={{
+              "": t("onlinePipeline.chainLog"),
+              ...Object.fromEntries(
+                nodes.map(({ record }) => [
+                  `${record.task_id}:${record.run_id}`,
+                  record.node_name,
+                ]),
+              ),
+              ...(selectedRun && !selected
+                ? { [selectedRun]: t("onlinePipeline.replacedChildRun") }
+                : {}),
+            }}
+            value={selectedRun}
+            onChange={setSelectedRun}
+          />
         }
         tabs={[
           {
-            id: "progress",
-            label: t("operations.dataProgress"),
-            content: (
+            id: "interfaces",
+            label: t("operations.dataInterfaces"),
+            content: active ? (
               <>
-                <DataUpdateProgress task={parent} target={target} />
+                {interfaces.length > 0 ? (
+                  <pre className="data-update-json">
+                    {JSON.stringify(interfaces, null, 2)}
+                  </pre>
+                ) : (
+                  <p className="operation-index-empty">
+                    {t("operations.noInterfaces")}
+                  </p>
+                )}
+                {reports.map((report) => (
+                  <DataUpdateProgress
+                    key={`${report.task_id}:${report.run_id}`}
+                    task={report}
+                  />
+                ))}
               </>
+            ) : (
+              unavailable
             ),
           },
-          ...(parent.children.length
-            ? [
-                {
-                  id: "children",
-                  label: t("operations.children"),
-                  content: (
-                    <>
-                      <ReportTable
-                        rows={nodes.map((node) => ({
-                          name: String(
-                            node.status?.input_params.task_name ||
-                              node.record.node_name,
-                          ),
-                          result: node.error
-                            ? t("operations.unavailableRecord")
-                            : t(
-                                `states.${node.record.state}`,
-                                node.record.state,
-                              ),
-                          description: node.error || node.record.error || "—",
-                          taskId: node.status?.task_id,
-                        }))}
-                        columns={[
-                          { key: "name", label: t("operations.step") },
-                          { key: "result", label: t("quality.columns.result") },
-                          {
-                            key: "description",
-                            label: t("quality.columns.description"),
-                          },
-                          {
-                            key: "taskId",
-                            label: t("operations.details"),
-                            render: (row) =>
-                              row.taskId ? (
-                                <button
-                                  className="secondary-button"
-                                  onClick={() => onOpenTask(String(row.taskId))}
-                                >
-                                  {t("onlinePipeline.openTask")}
-                                </button>
-                              ) : (
-                                "—"
-                              ),
-                          },
-                        ]}
-                      />
-                      <details className="operation-result-details">
-                        <summary>{t("operations.stageDetails")}</summary>
-                        <TaskChildren
-                          target={target}
-                          records={parent.children}
-                          nodes={nodes}
-                          onOpenTask={onOpenTask}
-                        />
-                      </details>
-                    </>
-                  ),
-                },
-              ]
-            : []),
           {
             id: "result",
-            label: t("operations.result"),
-            content: (
-              <>
-                <OperationResult value={parent.output_params} />
-              </>
+            label: t("operations.dataResults"),
+            content: active ? (
+              <div className="operation-download-results">
+                {reports.length ? (
+                  reports.map((report) => (
+                    <section
+                      className="operation-download-result"
+                      key={`${report.task_id}:${report.run_id}`}
+                    >
+                      {reports.length > 1 && <h3>{report.reg_name}</h3>}
+                      <pre className="data-update-json">
+                        {JSON.stringify(
+                          Object.fromEntries(
+                            Object.entries(report.output_params).filter(
+                              ([key]) => key !== "selected_apis",
+                            ),
+                          ),
+                          null,
+                          2,
+                        )}
+                      </pre>
+                    </section>
+                  ))
+                ) : (
+                  <p className="operation-index-empty">
+                    {t("operations.noResult")}
+                  </p>
+                )}
+              </div>
+            ) : (
+              unavailable
             ),
           },
           {
             id: "logs",
             label: t("taskDetail.logs"),
-            content: (
-              <>
-                <label className="pipeline-log-source">
-                  {t("onlinePipeline.logSource")}
-                  <select
-                    value={logId}
-                    onChange={(event) => setLogId(event.target.value)}
-                  >
-                    <option value="">{t("onlinePipeline.chainLog")}</option>
-                    {nodes.flatMap((node) =>
-                      node.status
-                        ? [
-                            <option
-                              value={node.status.task_id}
-                              key={node.status.run_id}
-                            >
-                              {node.status.reg_name}
-                            </option>,
-                          ]
-                        : [],
-                    )}
-                  </select>
-                </label>
-                {logs ? (
-                  <TaskLogPanel
-                    key={`${logs.task_id}:${logs.run_id}`}
-                    task={logs}
-                    target={target}
-                  />
-                ) : (
-                  <p>{t("onlinePipeline.replacedRun")}</p>
-                )}
-              </>
+            lazy: true,
+            content: active ? (
+              <TaskLogPanel
+                key={`${target}:${active.task_id}:${active.run_id}`}
+                task={active}
+                target={target}
+              />
+            ) : (
+              unavailable
             ),
           },
         ]}

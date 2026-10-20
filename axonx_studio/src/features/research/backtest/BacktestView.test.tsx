@@ -134,7 +134,7 @@ describe("stock backtest report", () => {
   );
 
   it.each(["en", "zh"])(
-    "labels every benchmark IR in summary tables in %s",
+    "labels and sorts every benchmark IR and relative drawdown in %s",
     async (language) => {
       await i18n.changeLanguage(language);
       vi.mocked(loadBacktest).mockResolvedValue({
@@ -152,6 +152,8 @@ describe("stock backtest report", () => {
             rank_icir: 0,
             top1_information_ratio_universe: 1.4,
             top3_information_ratio_custom: 2.3,
+            top1_net_relative_max_drawdown_universe: -0.125,
+            top3_net_relative_max_drawdown_custom: -0.2345,
           },
         ],
       });
@@ -190,7 +192,14 @@ describe("stock backtest report", () => {
           .click(),
       );
       expect(container.textContent).not.toContain("backtest.metrics.");
-      for (const label of ["IR · universe", "IR · Custom index"]) {
+      expect(container.textContent).toContain("-12.50%");
+      expect(container.textContent).toContain("-23.45%");
+      for (const label of [
+        "IR · universe",
+        "IR · Custom index",
+        `${i18n.t("backtest.net_relative_max_drawdown")} · universe`,
+        `${i18n.t("backtest.net_relative_max_drawdown")} · Custom index`,
+      ]) {
         const button = Array.from(
           container.querySelectorAll<HTMLButtonElement>(".summary-sort-button"),
         ).find((button) => button.textContent === label)!;

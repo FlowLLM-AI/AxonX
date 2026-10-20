@@ -1,0 +1,140 @@
+.select-trigger {
+  width: 100%;
+  max-width: 100%;
+  height: 40px;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms,
+    background-color 150ms;
+}
+.select-trigger > span {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.select-trigger > svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.select-control {
+  position: relative;
+}
+.select-trigger strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.select-trigger:hover {
+  border-color: var(--accent);
+}
+.select-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.select-options {
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: 280px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 10 7 / 12%);
+}
+.select-options [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.select-options [role="option"].highlighted {
+  background: var(--surface-2);
+}
+.select-options [role="option"][aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.select-check {
+  display: flex;
+  width: 16px;
+  flex-shrink: 0;
+}
+.select-check svg {
+  width: 16px;
+  height: 16px;
+}
+
+.select-field,
+.select-control {
+  min-width: 0;
+  max-width: 100%;
+}
+.select-field {
+  display: inline-block;
+  vertical-align: middle;
+}
+.select-native {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.select-trigger:disabled,
+.select-options [role="option"]:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.select-options [role="option"]:disabled {
+  background: transparent;
+}
+.select-trigger > .select-label {
+  color: var(--muted);
+}
+.online-model-picker {
+  width: 210px;
+}
+
+.schema-field .select-field,
+.api-fields .select-field {
+  display: block;
+  width: 100%;
+}
+.compare-universe .select-field {
+  flex: 1;
+}
+.task-group-toolbar .select-trigger {
+  width: 100%;
+}

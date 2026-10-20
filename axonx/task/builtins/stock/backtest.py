@@ -194,6 +194,8 @@ class BaseStockBacktestTask(BaseBacktestTask):
                 "top30_holdings": "signal targets, not actual position book; positions artifact contains live holdings",
                 "ic": "fixed-next-market-day raw labels on selected-universe candidates",
                 "benchmark_date": "label target date",
+                "relative_drawdown": "drawdown of compounded daily net strategy return minus benchmark return; "
+                "finite aligned observations only; initial equity 1; reset each summary period",
             },
             artifacts=self.state["artifacts"],
         )

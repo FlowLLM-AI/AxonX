@@ -1,3 +1,4 @@
+import { Select } from "../../shared/ui/Select";
 import { Info } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -130,7 +131,7 @@ export function CommitReport({
         <div className="online-report-toolbar">
           <label>
             {t("onlineReport.strategy")}
-            <select
+            <Select
               value={topN}
               onChange={(e) => setTopN(Number(e.target.value))}
             >
@@ -139,7 +140,7 @@ export function CommitReport({
                   Top {n}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <span>{t("onlineReport.simulated")}</span>
           {settings.portfolio.missing_market_as_suspension === true && (

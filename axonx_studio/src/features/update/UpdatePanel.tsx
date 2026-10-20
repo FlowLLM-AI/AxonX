@@ -1,3 +1,4 @@
+import { Select } from "../../shared/ui/Select";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -142,7 +143,7 @@ function UpdatePanelContent({ target }: { target?: string }) {
         <>
           <label>
             {t("update.method")}
-            <select
+            <Select
               value={mode}
               disabled={active || submitting}
               onChange={(event) => {
@@ -155,7 +156,7 @@ function UpdatePanelContent({ target }: { target?: string }) {
                   {t(`update.${mode}`)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <p>{t(`update.${mode}Hint`)}</p>
           {blocked && (
