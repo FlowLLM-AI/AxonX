@@ -12,6 +12,7 @@ from ..components.base import BaseComponent
 from ..components.job.contracts import JobResponse
 from ..components.job.events import JobEvent
 from ..components.registry import ProviderRegistry
+from ..components.task_manager.base import BaseTaskManager
 from ..config import ApplicationConfig
 from ..utils.async_work import run_blocking
 from ..utils.log_retention import LOG_CLEANUP_INTERVAL, cleanup_log_files
@@ -84,8 +85,11 @@ class Application:
     async def close(self) -> None:
         """Close every started object in reverse order, without short-circuiting."""
         async with self._lifecycle_lock:
-            self.context.metadata["stopping"] = True
             errors: list[BaseException] = []
+            try:
+                self.request_shutdown()
+            except BaseException as exc:  # noqa: BLE001 - cleanup must continue.
+                errors.append(exc)
             if self._log_cleanup_task is not None:
                 self._log_cleanup_task.cancel()
                 try:
@@ -99,6 +103,20 @@ class Application:
             self.is_started = False
             if errors:
                 raise BaseExceptionGroup("Application cleanup failed", errors)
+
+    def request_shutdown(self, *, force: bool = False) -> None:
+        """Quiesce execution before waiting for schedulers, Jobs or file operations."""
+        self.context.metadata["stopping"] = True
+        errors: list[BaseException] = []
+        for group in self.context.components.values():
+            for component in group.values():
+                if isinstance(component, BaseTaskManager) and (component.is_started or force):
+                    try:
+                        component.request_shutdown(force=force)
+                    except BaseException as exc:  # noqa: BLE001 - signal other managers too.
+                        errors.append(exc)
+        if errors:
+            raise BaseExceptionGroup("Task manager shutdown requests failed", errors)
 
     async def _close_started(self) -> list[BaseException]:
         errors: list[BaseException] = []

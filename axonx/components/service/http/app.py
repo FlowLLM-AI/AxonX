@@ -106,6 +106,7 @@ def create_http_app(app, service) -> FastAPI:
             try:
                 yield
             finally:
+                service.request_shutdown()
                 readiness.cancel()
                 await asyncio.gather(readiness, return_exceptions=True)
                 if previous_target is None:

@@ -25,6 +25,7 @@ service:
   port: 1024
   token: ${AXONX_SERVICE_TOKEN}
   shutdown_timeout: 1
+  cleanup_timeout: 15
   web_enabled: true
 ```
 
@@ -97,6 +98,8 @@ service.env 保存所需环境变量，应限制读取权限。macOS 可使用�
 配置、Job 和插件贡献在应用装配时加载。修改后应重启服务，核对 version、插件列表、Task Schema 与 Studio assets 是否同一版本。
 
 服务正常关闭会停止管理的 worker，并把相应运行记为 cancelled。重启不自动续跑这些研究任务。长训练升级前应先等待结束，或确认插件有可用的恢复方式。
+
+首次 Ctrl+C 或 SIGTERM 会阻止新 Task 提交，并在等待应用清理前向本服务跟踪的 worker 进程组发送 SIGTERM。正常清理保留资源关闭顺序并记录取消状态。`service.cleanup_timeout`（默认 15 秒）限制整个关闭过程，包括应用清理及 Python 线程池收尾；`shutdown_timeout` 仅限制 Uvicorn 请求收尾。再次 Ctrl+C 或总时限到期时，会向剩余受管 worker 进程组发送 SIGKILL，并以退出码 130 结束服务。强制退出可能留下未完成的生命周期记录，重启后需检查对应 Run。共享工作区的其他服务不会被终止。嵌入式 `Application.close()` 仍保留正常等待清理的语义。
 
 迁移时先停止写入，复制工作区、日志与配置，恢复匹配插件环境，再核对历史记录与产物。不要只复制 Python 包而忽略实验文件。
 

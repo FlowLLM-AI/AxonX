@@ -19,6 +19,13 @@ class BaseTaskManager(BaseComponent, ABC):
 
     component_type = ComponentEnum.TASK_MANAGER
 
+    def request_shutdown(self, *, force: bool = False) -> None:
+        """Stop accepting work and signal owned workers without waiting for cleanup.
+
+        Backends with local subprocesses override this hook. Shared workspace
+        records alone must never be used to select processes to terminate.
+        """
+
     @abstractmethod
     async def submit(self, argv: Sequence[str]) -> TaskHandle:
         """Create a queued Task, start its worker, and return its stable handle."""

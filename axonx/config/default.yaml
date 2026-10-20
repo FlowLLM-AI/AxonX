@@ -101,6 +101,7 @@ service:
   host: 0.0.0.0
   port: 1024
   shutdown_timeout: ${AXONX_SERVICE_SHUTDOWN_TIMEOUT:-1}
+  cleanup_timeout: ${AXONX_SERVICE_CLEANUP_TIMEOUT:-15}
   web_enabled: ${AXONX_SERVICE_WEB_ENABLED:-true}
   # Proxy routes use upstream authentication rather than this token.
   token: ${AXONX_SERVICE_TOKEN:-null}

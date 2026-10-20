@@ -77,6 +77,10 @@ class LocalTaskManager(BaseTaskManager):
             raise NotImplementedError("LocalTaskManager supports macOS and Linux")
         self._accepting = True
 
+    def request_shutdown(self, *, force: bool = False) -> None:
+        self._accepting = False
+        self._supervisor.request_shutdown(force=force)
+
     async def _close(self) -> None:
         self._accepting = False
         # Drain an in-flight launch, then let exit callbacks acquire the lock
@@ -92,6 +96,8 @@ class LocalTaskManager(BaseTaskManager):
     async def submit(self, argv: Sequence[str]) -> TaskHandle:
         if not self.is_started:
             raise RuntimeError("Task manager is not running")
+        if not self._accepting:
+            raise RuntimeError("Task manager is stopping")
         if isinstance(argv, (str, bytes)):
             raise TypeError("Task arguments must be a sequence of strings")
         argv = tuple(argv)
@@ -150,6 +156,8 @@ class LocalTaskManager(BaseTaskManager):
                     registration_name,
                     run_id,
                 )
+                if not self._accepting:
+                    self._supervisor.request_shutdown()
         except BaseException as exc:
             if status is not None:
                 await self._finish(status, TaskState.FAILED, 1, f"Worker could not start: {exc}")

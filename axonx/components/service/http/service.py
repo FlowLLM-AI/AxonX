@@ -1,5 +1,6 @@
 """HTTP service component backed by FastAPI and Uvicorn."""
 
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,15 +26,20 @@ class HttpService(BaseService):
         shutdown_timeout: int = 1,
         web_enabled: bool = True,
         token: str | None = None,
+        cleanup_timeout: float = 15,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         if shutdown_timeout < 0:
             raise ValueError("shutdown_timeout must be non-negative")
+        if not math.isfinite(cleanup_timeout) or cleanup_timeout <= 0:
+            raise ValueError("cleanup_timeout must be finite and positive")
         if token is not None and (not isinstance(token, str) or not token):
             raise ValueError("token must be a non-empty string")
         self.host, self.port = host, port
         self.shutdown_timeout = shutdown_timeout
+        self.cleanup_timeout = cleanup_timeout
+        self._shutdown_deadline = None
         self.web_enabled = web_enabled
         self.token = token
         self.staged_files: StagedFiles | None = None
@@ -54,19 +60,30 @@ class HttpService(BaseService):
         """Serve the application with Uvicorn until shutdown."""
         import uvicorn
 
-        self.server = uvicorn.Server(
-            uvicorn.Config(
-                self.build_service(app),
-                host=self.host,
-                port=self.port,
-                timeout_graceful_shutdown=self.shutdown_timeout,
+        from .shutdown import ShutdownDeadline, ShutdownServer
+
+        deadline = ShutdownDeadline(app, self.cleanup_timeout)
+        self._shutdown_deadline = deadline
+        try:
+            self.server = ShutdownServer(
+                uvicorn.Config(
+                    self.build_service(app),
+                    host=self.host,
+                    port=self.port,
+                    timeout_graceful_shutdown=self.shutdown_timeout,
+                ),
+                self.request_shutdown,
             )
-        )
-        self.server.run()
+            self.server.run()
+        finally:
+            deadline.close()
+            self._shutdown_deadline = None
         if not self.server.started:
             raise RuntimeError("HTTP service failed to start")
 
-    def request_shutdown(self) -> None:
+    def request_shutdown(self, *, force: bool = False) -> None:
         """Stop accepting requests after the update response has been delivered."""
         if self.server is not None:
             self.server.should_exit = True
+        if self._shutdown_deadline is not None:
+            self._shutdown_deadline.request(force=force)

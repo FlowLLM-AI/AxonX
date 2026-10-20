@@ -87,6 +87,7 @@ service:
   token: ${AXONX_SERVICE_TOKEN:-null}
   web_enabled: ${AXONX_SERVICE_WEB_ENABLED:-true}
   shutdown_timeout: ${AXONX_SERVICE_SHUTDOWN_TIMEOUT:-1}
+  cleanup_timeout: ${AXONX_SERVICE_CLEANUP_TIMEOUT:-15}
 ```
 
 The built-in `default` configuration (and configurations that inherit it, including `remote`) reads `AXONX_WORKSPACE_DIR` for `workspace_dir`, falling back to `.axonx` when the variable is absent. Set it in the shell or `.env`, for example `AXONX_WORKSPACE_DIR=/srv/axonx/workspace`. A child configuration’s explicit `workspace_dir` overrides this value; `--workspace-dir` or a Python resolver override takes precedence over both. Constructing `ApplicationConfig` directly keeps the model default `.axonx` and does not read this variable.
@@ -164,9 +165,12 @@ TargetConfig strictly prohibits extra fields: address is required and nonempty; 
 | backend          | Required: http | HTTP service implementation                                            |
 | host             | 0.0.0.0        | Bind address                                                           |
 | port             | 1024           | Listening port                                                         |
-| shutdown_timeout | 1              | Uvicorn graceful-shutdown seconds; nonnegative                         |
+| shutdown_timeout | 1              | Request-drain seconds; nonnegative; excludes application cleanup       |
+| cleanup_timeout  | 15             | Total service shutdown deadline in seconds; finite and positive        |
 | web_enabled      | true           | Whether to mount the Studio static build                               |
 | token            | null           | Nonempty Bearer token; null filters the catalog according to Job rules |
+
+The built-in `default` and inherited `remote` configurations read `AXONX_SERVICE_CLEANUP_TIMEOUT` (default `15`); an explicit `service.cleanup_timeout` overrides it. The deadline starts at the first shutdown signal or service shutdown request and includes request draining, application cleanup, and thread-executor draining. Set it above the worker termination grace plus expected cleanup time. A second Ctrl+C or deadline expiry forces exit with code `130`; lifecycle records may be incomplete. The deadline applies to `HttpService.run_app()`, while embedded ASGI lifespans and `Application.close()` await normal cleanup. See [Deployment](../guides/deployment.md#updates-and-shutdown).
 
 The service has no TLS configuration by default. A missing Studio build is logged as unavailable; the API can still run. Configuration updates do not recompose the application live; restart and verify the catalog again.
 

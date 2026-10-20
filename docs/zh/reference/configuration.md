@@ -87,6 +87,7 @@ service:
   token: ${AXONX_SERVICE_TOKEN:-null}
   web_enabled: ${AXONX_SERVICE_WEB_ENABLED:-true}
   shutdown_timeout: ${AXONX_SERVICE_SHUTDOWN_TIMEOUT:-1}
+  cleanup_timeout: ${AXONX_SERVICE_CLEANUP_TIMEOUT:-15}
 ```
 
 内置 `default` 配置及继承它的配置（包括 `remote`）从 `AXONX_WORKSPACE_DIR` 读取 `workspace_dir`；变量未设置时仍使用 `.axonx`。可在 shell 或 `.env` 中设置，例如 `AXONX_WORKSPACE_DIR=/srv/axonx/workspace`。子配置显式指定的 `workspace_dir` 会覆盖该值；`--workspace-dir` 或 Python resolver 的显式覆盖优先于两者。直接构造 `ApplicationConfig` 时仍使用模型默认值 `.axonx`，不会读取此变量。
@@ -164,9 +165,12 @@ TargetConfig 严格禁止额外字段：address 必填非空，token 默认 null
 | backend          | 必填 http | HTTP 服务实现                                 |
 | host             | 0.0.0.0   | 绑定地址                                      |
 | port             | 1024      | 监听端口                                      |
-| shutdown_timeout | 1         | Uvicorn 优雅退出秒数，非负                    |
+| shutdown_timeout | 1         | 请求收尾秒数，非负，不包含应用清理            |
+| cleanup_timeout  | 15        | 服务关闭总时限（秒），必须为正有限数          |
 | web_enabled      | true      | 是否挂载 Studio 静态构建                      |
 | token            | null      | 非空 Bearer token；null 时按 Job 规则筛选目录 |
+
+内置 `default` 及继承它的 `remote` 配置读取 `AXONX_SERVICE_CLEANUP_TIMEOUT`（默认 `15`），显式 `service.cleanup_timeout` 配置优先。总时限从首次关闭信号或服务关闭请求开始，包含请求收尾、应用清理和线程池收尾，建议大于 worker 停止宽限与预计清理时间之和。再次 Ctrl+C 或超时会以退出码 `130` 强制退出，生命周期记录可能尚未写完。该时限适用于 `HttpService.run_app()`；嵌入式 ASGI lifespan 与 `Application.close()` 仍等待正常清理。参见[部署](../guides/deployment.md#更新与关闭)。
 
 服务默认没有 TLS 配置。Studio 构建缺失时记录不可用日志，API 仍可运行。配置更新不会热装配；重启后重新核对目录。
 

@@ -48,6 +48,7 @@ class TaskProcessSupervisor:
         self.run_pids: dict[str, int] = {}
         self.monitors: set[asyncio.Task[None]] = set()
         self._stop_reasons: dict[int, str] = {}
+        self._shutdown_runs: dict[str, int] = {}
 
     def is_managed_run(self, run_id: str) -> bool:
         """Whether this supervisor still tracks the task run."""
@@ -113,17 +114,12 @@ class TaskProcessSupervisor:
 
     async def shutdown(self) -> set[str]:
         """Terminate and reap all workers, escalating to SIGKILL after grace."""
-        processes = tuple(process for process in self.processes.values() if process.returncode is None)
-        pids = {process.pid for process in processes}
-        run_pids = {run_id: pid for run_id, pid in self.run_pids.items() if pid in pids}
-        self._stop_reasons.update({process.pid: "shutdown" for process in processes})
-        terminated = {process.pid for process in processes if self._signal(process.pid, signal.SIGTERM)}
+        self.request_shutdown()
         monitors = tuple(self.monitors)
         if monitors and self.grace_seconds > 0:
             await asyncio.wait(monitors, timeout=self.grace_seconds)
 
-        survivors = tuple(process for process in processes if process.returncode is None)
-        terminated.update(process.pid for process in survivors if self._signal(process.pid, signal.SIGKILL))
+        self.request_shutdown(force=True)
 
         if monitors:
             # A killed worker only has to drain its pipe, so this is a short drain, not a second grace period.
@@ -132,7 +128,27 @@ class TaskProcessSupervisor:
                 monitor.cancel()
             if pending:
                 await asyncio.gather(*pending, return_exceptions=True)
-        return {run_id for run_id, pid in run_pids.items() if pid in terminated}
+        stopped = set(self._shutdown_runs)
+        self._shutdown_runs.clear()
+        return stopped
+
+    def request_shutdown(self, *, force: bool = False) -> None:
+        """Signal tracked process groups even while earlier component cleanup waits."""
+        for run_id, pid in {**self._shutdown_runs, **self.run_pids}.items():
+            process = self.processes.get(pid)
+            if run_id not in self._shutdown_runs and (process is None or process.returncode is not None):
+                continue
+            previous = self._stop_reasons.get(pid)
+            if process is not None:
+                self._stop_reasons[pid] = "shutdown"
+            if self._signal(pid, signal.SIGKILL if force else signal.SIGTERM):
+                # Keep the group even after its leader is reaped: descendants
+                # may ignore SIGTERM, and its exact Run still needs settlement.
+                self._shutdown_runs[run_id] = pid
+            elif previous is None:
+                self._stop_reasons.pop(pid, None)
+            else:
+                self._stop_reasons[pid] = previous
 
     async def _monitor(self, process: Any, task_id: str, task_name: str, run_id: str) -> None:
         stderr_tail = bytearray()

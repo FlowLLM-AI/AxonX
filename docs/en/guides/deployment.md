@@ -25,6 +25,7 @@ service:
   port: 1024
   token: ${AXONX_SERVICE_TOKEN}
   shutdown_timeout: 1
+  cleanup_timeout: 15
   web_enabled: true
 ```
 
@@ -97,6 +98,8 @@ External entry timeouts, built-in shutdown_timeout, TaskManager terminate_grace_
 Configuration, Jobs, and plugin contributions load during application assembly. Restart the service after changes and check that version, plugin list, Task Schemas, and Studio assets have matching versions.
 
 Normal service shutdown stops managed workers and records the corresponding runs as cancelled. Restarting does not automatically resume these research tasks. Before upgrades during long training, wait for completion or confirm that the plugin provides usable recovery.
+
+On the first Ctrl+C or SIGTERM, the service stops admitting Tasks and sends SIGTERM to its tracked worker process groups before waiting for application cleanup. Normal cleanup preserves resource ordering and records cancelled Tasks. `service.cleanup_timeout` (default 15 seconds) bounds the entire shutdown, including application cleanup and Python thread-executor draining; `shutdown_timeout` only bounds Uvicorn request draining. A second Ctrl+C, or expiration of the total deadline, sends SIGKILL to remaining tracked worker groups and exits the service with code 130. Forced exit can leave incomplete lifecycle records; inspect the exact Runs after restarting. Other services sharing the workspace are not terminated. Embedded `Application.close()` retains its normal awaited cleanup semantics.
 
 For migration, stop writes first, copy the workspace, logs, and configuration, restore a matching plugin environment, then check historical records and artifacts. Do not copy only Python packages while overlooking experiment files.
 
