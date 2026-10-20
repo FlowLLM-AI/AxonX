@@ -8,8 +8,13 @@ import polars as pl
 from pydantic import Field, field_validator
 
 from ....enums import TaskType
-from ....utils.fs import atomic_write, file_sha256
-from ...schemas.reports import BacktestBenchmark, BacktestDimensions, BacktestUniverse, BacktestUniverseReport
+from ....utils.fs import atomic_write, file_revision
+from ...schemas.reports import (
+    BacktestBenchmark,
+    BacktestDimensions,
+    BacktestUniverse,
+    BacktestUniverseReport,
+)
 from ...contracts import BaseBacktestOutputParams, BaseBacktestTask, BaseInputParams
 from ...core import TaskStep, parse_source_tasks, task_type_from_id
 from ...schemas.protocol import STOCK_SIGNALS_FORMAT, task_protocol
@@ -76,7 +81,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
             raise ValueError("Backtest requires independent market and calendar artifacts")
         paths = {key: self.resolve_workspace_path(value) for key, value in paths.items() if value is not None}
         self.state["input_paths"] = paths
-        self.state["input_digests"] = {key: file_sha256(value) for key, value in paths.items()}
+        self.state["input_revisions"] = {key: file_revision(value) for key, value in paths.items()}
         self.state["signals"] = pl.read_parquet(paths["input"])
 
     def fixed_holding_days(self) -> int | None:
@@ -169,8 +174,8 @@ class BaseStockBacktestTask(BaseBacktestTask):
         )
 
     def write_outputs(self) -> None:
-        for key, digest in self.state["input_digests"].items():
-            if file_sha256(self.state["input_paths"][key]) != digest:
+        for key, digest in self.state["input_revisions"].items():
+            if file_revision(self.state["input_paths"][key]) != digest:
                 raise ValueError(f"Backtest input changed while evaluating: {key}")
 
     def build_output_params(self) -> StockBacktestOutput:
@@ -189,7 +194,7 @@ class BaseStockBacktestTask(BaseBacktestTask):
                 "fees": "buy_cost_rate/sell_cost_rate on executed notional",
                 "cutoff": self.state["cutoff"],
                 "settings": self.input_params.model_dump(mode="json", exclude={"task_name", "source_tasks"}),
-                "input_sha256": self.state["input_digests"],
+                "input_revisions": self.state["input_revisions"],
                 "allocation": "each target has at most 1/N equity; locked capacity and unfilled slots retain cash",
                 "top30_holdings": "signal targets, not actual position book; positions artifact contains live holdings",
                 "ic": "fixed-next-market-day raw labels on selected-universe candidates",

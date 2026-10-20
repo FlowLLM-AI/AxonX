@@ -5,7 +5,7 @@ from pathlib import Path
 from ...enums import TaskState
 from .artifacts import artifact_path, artifact_record
 from .workspace import read_task_metadata
-from ...utils.fs import file_sha256, snapshot_file
+from ...utils.fs import file_revision, snapshot_file
 
 from .models import snapshot_model_collection
 
@@ -45,9 +45,9 @@ def source_artifact(task, task_id: str, name: str, *, registration: str | None =
     path = artifact_path(root, metadata, name)
     if not path.is_file():
         raise FileNotFoundError(path)
-    expected = metadata["output_params"]["artifacts"][name]["sha256"]
-    if file_sha256(path) != expected:
-        raise ValueError(f"Artifact SHA256 mismatch: {path}")
+    expected = metadata["output_params"]["artifacts"][name]["revision"]
+    if file_revision(path) != expected:
+        raise ValueError(f"Artifact revision mismatch: {path}")
     return path, metadata
 
 
@@ -63,8 +63,8 @@ def pin_source_artifacts(task, task_id: str, *names: str, metadata: dict | None 
         target = task.task_dir / "inputs" / f"{name}{source.suffix}"
 
         snapshot_file(source, target)
-        expected = metadata["output_params"]["artifacts"][name]["sha256"]
-        if file_sha256(target) != expected:
+        expected = metadata["output_params"]["artifacts"][name]["revision"]
+        if file_revision(target) != expected:
             raise ValueError("Source Task refreshed during input snapshot; retry the completed run")
         return target
 
@@ -76,7 +76,11 @@ def pin_models(task, source_id=None, manifest_file=None):
     expected = None
     if source_id:
         manifest_file, metadata = source_artifact(task, source_id, "model_manifest")
-        expected = metadata["output_params"]["artifacts"]["model_manifest"]["sha256"]
+        expected = metadata["output_params"]["artifacts"]["model_manifest"]["revision"]
     else:
         manifest_file = task.resolve_workspace_path(manifest_file)
-    return snapshot_model_collection(Path(manifest_file), task.task_dir / "model_snapshot", expected_sha256=expected)
+    return snapshot_model_collection(
+        Path(manifest_file),
+        task.task_dir / "model_snapshot",
+        expected_revision=expected,
+    )

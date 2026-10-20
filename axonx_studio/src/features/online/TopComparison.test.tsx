@@ -92,7 +92,7 @@ it.each(["en", "zh"])(
     const artifact = {
       path: "top_comparisons/20240102_1445.json",
       size: 1000,
-      sha256: "a".repeat(64),
+      revision: "1:1",
     };
     try {
       await act(async () =>
@@ -187,7 +187,7 @@ it.each([true, false])(
             taskId="analysis#compare#test"
             runId="run-a"
             windowKey="20240102/1445"
-            artifact={{ path: "top.json", size: 100, sha256: "a".repeat(64) }}
+            artifact={{ path: "top.json", size: 100, revision: "1:1" }}
           />,
         ),
       );

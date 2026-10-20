@@ -173,7 +173,14 @@ def test_missing_market_can_be_assumed_suspended_without_changing_accounting(abs
             pl.when(target).then(pl.lit("missing_data")).otherwise(pl.col("market_status")).alias("market_status")
         )
     )
-    expected = run_backtest(signals, suspended, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108")
+    expected = run_backtest(
+        signals,
+        suspended,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1,)),
+        as_of_date="20260108",
+    )
     actual = run_backtest(
         signals,
         missing,
@@ -222,11 +229,21 @@ def test_task_persists_missing_market_assumption_and_applies_it(tmp_path, assume
     )
     labels = fixed_labels(signals, market, calendar)
     paths = {}
-    for name, frame in (("input", signals), ("market", market), ("calendar", calendar), ("labels", labels)):
+    for name, frame in (
+        ("input", signals),
+        ("market", market),
+        ("calendar", calendar),
+        ("labels", labels),
+    ):
         paths[name + "_file"] = tmp_path / (name + ".parquet")
         frame.write_parquet(paths[name + "_file"])
     task = BaseStockBacktestTask(
-        {**paths, "top_ns": [1], "as_of_date": "20260108", "missing_market_as_suspension": assume_suspended},
+        {
+            **paths,
+            "top_ns": [1],
+            "as_of_date": "20260108",
+            "missing_market_as_suspension": assume_suspended,
+        },
         workspace_path=tmp_path / "workspace",
         reg_name="backtest",
     )
@@ -267,7 +284,12 @@ def test_confirmed_suspension_with_stale_entry_price_is_not_a_training_label():
 
     signals, market, calendar = inputs()
     status = pl.DataFrame(
-        {"trade_date": ["20260106"], "trade_time": ["1445"], "ts_code": ["B"], "market_status": ["suspended"]}
+        {
+            "trade_date": ["20260106"],
+            "trade_time": ["1445"],
+            "ts_code": ["B"],
+            "market_status": ["suspended"],
+        }
     )
     market = apply_market_status(market, status)
     labels = fixed_labels(signals, market, calendar)
@@ -303,11 +325,23 @@ def test_adjusted_units_preserve_value_across_split():
 @pytest.mark.parametrize("bad_date", ["20260105x", "20260230", "2026015", None, "20260105"])
 def test_invalid_calendar_is_rejected_by_labels_and_backtest(bad_date):
     signals, market, calendar = inputs()
-    calendar = pl.concat([calendar, pl.DataFrame({"trade_date": [bad_date]}, schema={"trade_date": pl.String})])
+    calendar = pl.concat(
+        [
+            calendar,
+            pl.DataFrame({"trade_date": [bad_date]}, schema={"trade_date": pl.String}),
+        ]
+    )
     with pytest.raises(ValueError):
         fixed_labels(signals, market, calendar)
     with pytest.raises(ValueError):
-        run_backtest(signals, market, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108")
+        run_backtest(
+            signals,
+            market,
+            calendar,
+            None,
+            BacktestConfig(top_ns=(1,)),
+            as_of_date="20260108",
+        )
 
 
 def test_index_diagnostics_ignore_outside_scores_and_returns():
@@ -318,7 +352,9 @@ def test_index_diagnostics_ignore_outside_scores_and_returns():
             first,
             first.with_columns(pl.lit("D").alias("ts_code"), pl.lit(1.0).alias("pred")),
             first.with_columns(
-                pl.lit("C").alias("ts_code"), pl.lit(10.0).alias("pred"), pl.lit(0.0).alias("index_weight_test")
+                pl.lit("C").alias("ts_code"),
+                pl.lit(10.0).alias("pred"),
+                pl.lit(0.0).alias("index_weight_test"),
             ),
         ]
     )
@@ -334,7 +370,15 @@ def test_index_diagnostics_ignore_outside_scores_and_returns():
     )
     config = BacktestConfig(top_ns=(1,))
     universe_keys = signals.filter(pl.col("index_weight_test") > 0).select("trade_date", "trade_time", "ts_code")
-    before = run_backtest(signals, market, calendar, labels, config, as_of_date="20260108", universe_keys=universe_keys)
+    before = run_backtest(
+        signals,
+        market,
+        calendar,
+        labels,
+        config,
+        as_of_date="20260108",
+        universe_keys=universe_keys,
+    )
     after = run_backtest(
         signals.with_columns(pl.when(pl.col("ts_code") == "C").then(-10.0).otherwise(pl.col("pred")).alias("pred")),
         market,
@@ -348,7 +392,10 @@ def test_index_diagnostics_ignore_outside_scores_and_returns():
     )
     merged = before.frames["signals"]
     assert merged["ts_code"].to_list() == ["A", "D", "C"]
-    assert merged.filter(pl.col("is_backtest_candidate"))["ts_code"].to_list() == ["A", "D"]
+    assert merged.filter(pl.col("is_backtest_candidate"))["ts_code"].to_list() == [
+        "A",
+        "D",
+    ]
     excluded = merged.filter(~pl.col("is_backtest_candidate"))
     assert excluded["target_rank"].to_list() == [None]
     assert excluded["label_return"].to_list() == [None]
@@ -360,7 +407,12 @@ def test_index_diagnostics_ignore_outside_scores_and_returns():
 def test_unfilled_top_target_is_not_replaced():
     signals, market, calendar = inputs()
     first = signals.head(1)
-    signals = pl.concat([first, first.with_columns(pl.lit("B").alias("ts_code"), pl.lit(1.0).alias("pred"))])
+    signals = pl.concat(
+        [
+            first,
+            first.with_columns(pl.lit("B").alias("ts_code"), pl.lit(1.0).alias("pred")),
+        ]
+    )
     first_quote = market.filter((pl.col("trade_date") == "20260105") & (pl.col("ts_code") == "A"))
     market = pl.concat(
         [
@@ -407,7 +459,14 @@ def test_invalid_signal_time_is_rejected(bad_time):
     with pytest.raises(ValueError):
         fixed_labels(signals, market, calendar)
     with pytest.raises(ValueError):
-        run_backtest(signals, market, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108")
+        run_backtest(
+            signals,
+            market,
+            calendar,
+            None,
+            BacktestConfig(top_ns=(1,)),
+            as_of_date="20260108",
+        )
 
 
 @pytest.mark.parametrize("buy,sell", [(0.0005, 0.0015), (0.0, 0.0015)])
@@ -480,8 +539,18 @@ def test_top_ns_replay_matches_separate_runs():
     config = BacktestConfig(top_ns=(2, 1))
     combined = run_backtest(signals, market, calendar, None, config, as_of_date="20260108")
     for n in config.top_ns:
-        separate = run_backtest(signals, market, calendar, None, BacktestConfig(top_ns=(n,)), as_of_date="20260108")
-        columns = ["trade_date", *[c for c in separate.frames["daily"].columns if c.startswith(f"top{n}_")]]
+        separate = run_backtest(
+            signals,
+            market,
+            calendar,
+            None,
+            BacktestConfig(top_ns=(n,)),
+            as_of_date="20260108",
+        )
+        columns = [
+            "trade_date",
+            *[c for c in separate.frames["daily"].columns if c.startswith(f"top{n}_")],
+        ]
         assert combined.frames["daily"].select(columns).equals(separate.frames["daily"].select(columns))
         for name in ("orders", "positions", "trades"):
             assert combined.frames[name].filter(pl.col("top_n") == n).equals(separate.frames[name])
@@ -586,7 +655,13 @@ def test_universe_keys_are_a_unique_subset_of_signals(invalid):
     )
     with pytest.raises(ValueError, match="[Dd]uplicate|[Uu]niverse"):
         run_backtest(
-            signals, market, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108", universe_keys=keys
+            signals,
+            market,
+            calendar,
+            None,
+            BacktestConfig(top_ns=(1,)),
+            as_of_date="20260108",
+            universe_keys=keys,
         )
 
 
@@ -594,7 +669,13 @@ def test_empty_universe_keeps_cash_and_does_not_erase_signal_dates():
     signals, market, calendar = inputs()
     keys = signals.select("trade_date", "trade_time", "ts_code").head(0)
     result = run_backtest(
-        signals, market, calendar, None, BacktestConfig(top_ns=(1,)), as_of_date="20260108", universe_keys=keys
+        signals,
+        market,
+        calendar,
+        None,
+        BacktestConfig(top_ns=(1,)),
+        as_of_date="20260108",
+        universe_keys=keys,
     )
     assert result.frames["daily"]["top1_net_value"].to_list() == [1.0] * 4
     assert result.frames["daily"]["candidate_count"].to_list() == [0] * 4
@@ -619,8 +700,8 @@ def test_backtest_contract_requires_reports_and_resolves_every_artifact():
     shared = {
         "protocol": task_protocol(TaskType.BACKTEST),
         "artifacts": {
-            "all_daily": {"path": "daily.parquet", "size": 1, "sha256": "0" * 64},
-            "all_summary": {"path": "summary.parquet", "size": 1, "sha256": "0" * 64},
+            "all_daily": {"path": "daily.parquet", "size": 1, "revision": "0:0"},
+            "all_summary": {"path": "summary.parquet", "size": 1, "revision": "0:0"},
         },
     }
     assert BaseBacktestOutputParams(default_universe="all", universes={"all": report}, **shared)
@@ -629,7 +710,12 @@ def test_backtest_contract_requires_reports_and_resolves_every_artifact():
     with pytest.raises(ValueError, match="unregistered"):
         BaseBacktestOutputParams(
             default_universe="all",
-            universes={"all": {**report, "artifacts": {"daily": "other", "summary": "all_summary"}}},
+            universes={
+                "all": {
+                    **report,
+                    "artifacts": {"daily": "other", "summary": "all_summary"},
+                }
+            },
             **shared,
         )
     with pytest.raises(ValueError):

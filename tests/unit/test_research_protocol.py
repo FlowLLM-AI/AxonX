@@ -16,7 +16,7 @@ from axonx.task.protocol import (
 from axonx.task.storage import artifact_record
 from axonx.task.storage.models import snapshot_model_collection
 from axonx.task.storage.workspace import TaskMetadata
-from axonx.utils.fs import atomic_write, file_sha256
+from axonx.utils.fs import atomic_write, file_revision
 
 
 @pytest.mark.parametrize("version", [None, 2, 3, "1", True, 1.0])
@@ -85,10 +85,10 @@ def test_collection_snapshot_survives_source_replacement_and_rejects_corruption(
 def test_manifest_refresh_is_rejected_before_snapshot(tmp_path):
     manifest = tmp_path / "models.json"
     manifest.write_bytes(b"original manifest")
-    expected = file_sha256(manifest)
+    expected = file_revision(manifest)
     atomic_write(manifest, lambda path: path.write_bytes(b"refreshed manifest"))
     with pytest.raises(ValueError, match="manifest changed"):
-        snapshot_model_collection(manifest, tmp_path / "snapshot", expected_sha256=expected)
+        snapshot_model_collection(manifest, tmp_path / "snapshot", expected_revision=expected)
     assert not (tmp_path / "snapshot").exists()
 
 
@@ -121,7 +121,7 @@ def test_prediction_protocol_rejects_ambiguous_scope(changes):
         "model_identity": {"model": "test"},
         "dates": ["20240102"],
         "score_columns": {"a": "score"},
-        "predictions_sha256": "0" * 64,
+        "predictions_revision": "0:0",
         **changes,
     }
     with pytest.raises(ValidationError):

@@ -89,7 +89,7 @@ class LgbmPredictTask(BasePredictTask):
         manifest_path = snapshot_model_collection(
             manifest_path,
             self.task_dir / "model_snapshot",
-            expected_sha256=train_metadata["output_params"]["artifacts"]["model_manifest"]["sha256"],
+            expected_revision=train_metadata["output_params"]["artifacts"]["model_manifest"]["revision"],
         )
         collection = ModelCollection.model_validate_json(manifest_path.read_text()).model_dump(mode="json")
         self.state["model_collection"] = collection
@@ -295,7 +295,7 @@ class LgbmPredictTask(BasePredictTask):
                 {
                     "models_sha256": fingerprint(
                         {
-                            key: self.state["model_collection"]["artifacts"][value["model_artifact"]]["sha256"]
+                            key: self.state["model_collection"]["artifacts"][value["model_artifact"]]["revision"]
                             for key, value in self.state["model_collection"]["members"].items()
                         }
                     ),

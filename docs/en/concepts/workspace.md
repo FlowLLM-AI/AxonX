@@ -57,7 +57,7 @@ A research Task's `output_params.artifacts` can record artifacts:
     "dataset": {
       "path": "data/dataset.parquet",
       "size": 10240,
-      "sha256": "<file SHA-256>"
+      "revision": "<size>:<mtime_ns>"
     }
   }
 }
@@ -69,7 +69,7 @@ Here, path is relative to the Task directory. The workspace preview path is ther
 etl/etl#my-etl#dataset-01/data/dataset.parquet
 ```
 
-Do not treat an artifact's path as relative to the workspace root, or use absolute paths or `../` to escape the task directory. Production plugins should record size and sha256 after writing the file.
+Do not treat an artifact's path as relative to the workspace root, or use absolute paths or `../` to escape the task directory. Production plugins should record size and revision after writing the file.
 
 ## Where Logs Are Stored
 

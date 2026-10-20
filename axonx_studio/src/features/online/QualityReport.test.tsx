@@ -40,7 +40,7 @@ const summary = parseQuality({
 });
 const artifact = {
   path: "diagnostics/1445/quality_details.parquet",
-  sha256: "a".repeat(64),
+  revision: "1:1",
   size: 100,
 };
 let root: Root;

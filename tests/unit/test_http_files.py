@@ -1,7 +1,6 @@
 """Regression coverage for raw binary and multipart staging uploads."""
 
 import asyncio
-import hashlib
 from types import SimpleNamespace
 
 import httpx
@@ -51,7 +50,9 @@ async def test_multipart_and_binary_store_identical_file_bytes(endpoint, tmp_pat
     server, _staged = endpoint
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         multipart = await client.post(
-            "/files", files={"file": ("script.py", payload)}, data={"directory": "tmp/scripts"}
+            "/files",
+            files={"file": ("script.py", payload)},
+            data={"directory": "tmp/scripts"},
         )
         binary = await client.post(
             "/files",
@@ -59,14 +60,15 @@ async def test_multipart_and_binary_store_identical_file_bytes(endpoint, tmp_pat
             headers={"x-file-name": "script.py", "x-file-directory": "tmp/scripts"},
         )
         assert multipart.status_code == binary.status_code == 200
-        assert multipart.json() == binary.json()
-        copied = multipart.json()["answer"]
-        digest = hashlib.sha256(payload).hexdigest()
-        assert copied == {"path": f"tmp/scripts/{digest}/script.py", "sha256": digest, "size": len(payload)}
-        assert (tmp_path / copied["path"]).read_bytes() == payload
-        response = await client.delete("/files", params={"path": copied["path"]})
-        assert response.status_code == 200
-        assert not (tmp_path / copied["path"]).exists()
+        paths = [response.json()["answer"]["path"] for response in (multipart, binary)]
+        assert paths[0] != paths[1]
+        for response, path in zip((multipart, binary), paths):
+            assert response.json()["answer"] == {"path": path, "size": len(payload)}
+            assert path.startswith("tmp/scripts/") and path.endswith("/script.py")
+            assert (tmp_path / path).read_bytes() == payload
+            response = await client.delete("/files", params={"path": path})
+            assert response.status_code == 200
+            assert not (tmp_path / path).exists()
 
 
 async def test_multipart_headers_override_form_metadata_and_close_spool(endpoint, monkeypatch):
@@ -87,7 +89,8 @@ async def test_multipart_headers_override_form_metadata_and_close_spool(endpoint
             headers={"x-file-name": "renamed.py", "x-file-directory": "tmp/header"},
         )
     assert response.status_code == 200
-    assert response.json()["answer"]["path"] == f"tmp/header/{hashlib.sha256(b'hello').hexdigest()}/renamed.py"
+    path = response.json()["answer"]["path"]
+    assert path.startswith("tmp/header/") and path.endswith("/renamed.py")
     assert len(uploads) == 1
     assert uploads[0].file.closed
 
@@ -133,7 +136,9 @@ async def test_multipart_rejects_oversized_part_headers(endpoint, tmp_path):
     )
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         response = await client.post(
-            "/files", content=body, headers={"content-type": "multipart/form-data; boundary=test"}
+            "/files",
+            content=body,
+            headers={"content-type": "multipart/form-data; boundary=test"},
         )
     assert response.status_code == 400
     assert not list(tmp_path.rglob("*"))
@@ -162,7 +167,12 @@ async def test_duplicate_multipart_field_is_rejected(endpoint, tmp_path):
         ({"file": ("script.py", b"x")}, {"directory": "tmp", "extra": "x"}, {}, 400),
         ({"file": ("script.py", b"x")}, {}, {"content-length": "invalid"}, 400),
         ({"file": ("script.py", b"x")}, {}, {"content-length": "-1"}, 400),
-        ({"file": ("script.py", b"x")}, {}, {"content-length": str(MULTIPART_OVERHEAD_BYTES + 33)}, 413),
+        (
+            {"file": ("script.py", b"x")},
+            {},
+            {"content-length": str(MULTIPART_OVERHEAD_BYTES + 33)},
+            413,
+        ),
     ],
 )
 async def test_invalid_multipart_never_stages_files(endpoint, tmp_path, files, data, headers, status):
@@ -231,7 +241,13 @@ async def test_multipart_parser_closes_partial_spool_on_interrupted_request(fail
             return {"type": "http.request", "body": prefix, "more_body": True}
         raise failure()
 
-    request = Request({"type": "http", "headers": [(b"content-type", b"multipart/form-data; boundary=test")]}, receive)
+    request = Request(
+        {
+            "type": "http",
+            "headers": [(b"content-type", b"multipart/form-data; boundary=test")],
+        },
+        receive,
+    )
     parser = _UploadParser(request, 32)
     with pytest.raises(failure):
         await parser.parse()
@@ -247,20 +263,24 @@ async def test_multipart_request_framing_is_bounded(endpoint, tmp_path):
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         response = await client.post(
-            "/files", content=chunks(), headers={"content-type": "multipart/form-data; boundary=test"}
+            "/files",
+            content=chunks(),
+            headers={"content-type": "multipart/form-data; boundary=test"},
         )
     assert response.status_code == 413
     assert not list(tmp_path.rglob("*"))
 
 
-async def test_multipart_preserves_conflict_response_and_openapi(endpoint, tmp_path):
+async def test_multipart_isolates_repeated_uploads_and_preserves_openapi(endpoint, tmp_path):
     server, staged = endpoint
     copied = staged.store(b"x", "script.py")
     (tmp_path / copied.path).write_bytes(b"tampered")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         response = await client.post("/files", files={"file": ("script.py", b"x")})
         schema = (await client.get("/openapi.json")).json()
-    assert response.status_code == 409
+    assert response.status_code == 200
+    assert response.json()["answer"]["path"] != copied.path
+    assert (tmp_path / copied.path).read_bytes() == b"tampered"
     content = schema["paths"]["/files"]["post"]["requestBody"]["content"]
     assert set(content) == {"application/octet-stream", "multipart/form-data"}
     assert content["multipart/form-data"]["schema"]["required"] == ["file"]

@@ -6,7 +6,7 @@ import { loadBacktest, loadBacktestDaily } from "./api";
 import type { BacktestArtifact } from "./types";
 
 vi.mock("../../workspace/api", () => ({ previewWorkspaceFile: vi.fn() }));
-const file = { path: "daily.parquet", size: 1, sha256: "digest" };
+const file = { path: "daily.parquet", size: 1, revision: "1:1" };
 const meta: BacktestArtifact = {
   ...taskStatus("backtest", "backtest#demo", "demo"),
   created_at: "",

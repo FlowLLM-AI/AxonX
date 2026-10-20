@@ -22,8 +22,8 @@ from axonx.task.sync import (
     plan_task,
 )
 from axonx.task.sync.index import (
-    policy_digest,
-    snapshot_digest,
+    policy_revision,
+    source_revision,
     snapshot_index,
     verify_replica,
 )
@@ -127,11 +127,17 @@ def test_missing_outputs_sync_status_logs_and_available_files_then_recover(tmp_p
     log.write_text("output unavailable\n")
     metadata.log_path = str(log)
     write_task_metadata(directory, metadata)
-    before = snapshot_digest(source, TASK_ID)
+    before = source_revision(source, TASK_ID)
     apply = TaskArchiveApplier(remote)
     for attempt in range(2):
         staged = tmp_path / str(attempt)
-        plan = prepare_replica(source, TASK_ID, task_path(staged, TASK_ID), 128 * 1024, TaskLogReader(log_dir))
+        plan = prepare_replica(
+            source,
+            TASK_ID,
+            task_path(staged, TASK_ID),
+            128 * 1024,
+            TaskLogReader(log_dir),
+        )
         archive = tmp_path / f"{attempt}.tar.gz"
         build_archive({TASK_ID: plan}, [TASK_ID], archive)
         apply.apply(archive, [])
@@ -143,7 +149,7 @@ def test_missing_outputs_sync_status_logs_and_available_files_then_recover(tmp_p
         if attempt == 0:
             assert actual.replica.omitted == {"missing.txt": "published artifact is missing"}
             missing.write_text("restored")
-            assert snapshot_digest(source, TASK_ID) != before
+            assert source_revision(source, TASK_ID) != before
         else:
             assert not actual.replica.omitted
             assert (task_path(remote, TASK_ID) / "missing.txt").read_text() == "restored"
@@ -181,7 +187,7 @@ def test_samples_recent_complete_days_and_keeps_source_unchanged(tmp_path):
         labels=directory / "labels.parquet",
         calendar=directory / "calendar.parquet",
     )
-    identity = snapshot_digest(source, TASK_ID)
+    identity = source_revision(source, TASK_ID)
     budget = 96 * 1024
     plan = prepare_replica(source, TASK_ID, task_path(staged, TASK_ID), budget)
     replica = read_entry(staged, TASK_ID)
@@ -199,7 +205,7 @@ def test_samples_recent_complete_days_and_keeps_source_unchanged(tmp_path):
     assert replica.log_path == ""
     assert replica.replica.source_log_path == metadata.log_path
     assert replica.output_params == metadata.output_params
-    assert snapshot_digest(source, TASK_ID) == identity
+    assert source_revision(source, TASK_ID) == identity
     assert pl.read_parquet(directory / "dataset.parquet").equals(original)
     verify_replica(staged, TASK_ID)
     with pytest.raises(ValueError, match="research inputs"):
@@ -265,11 +271,11 @@ def test_replica_roundtrip_and_policy_change(tmp_path):
     build_archive({TASK_ID: plan}, [TASK_ID], archive)
     TaskArchiveApplier(remote, budget).apply(archive, [])
     expected = {
-        "source_digest": snapshot_digest(tmp_path / "source", TASK_ID),
-        "policy_digest": policy_digest(budget),
+        "source_revision": source_revision(tmp_path / "source", TASK_ID),
+        "policy_revision": policy_revision(budget),
     }
     assert all(snapshot_index(remote, frozenset())[TASK_ID][key] == value for key, value in expected.items())
-    assert policy_digest(budget + 1) != expected["policy_digest"]
+    assert policy_revision(budget + 1) != expected["policy_revision"]
     assert not snapshot_index(tmp_path / "source", frozenset())
     (task_path(remote, TASK_ID) / "report.txt").write_text("tampered")
     assert not snapshot_index(remote, frozenset())
@@ -316,3 +322,22 @@ def test_display_sync_does_not_validate_research_signal_formats(tmp_path, role):
     path.write_bytes(b"old output")
     publish(directory, metadata, **{role: path})
     assert f"{role}.parquet" in {item.relative for item in plan_task(tmp_path, metadata.task_id).files}
+
+
+def test_reconciliation_and_replica_index_never_read_payloads(tmp_path, monkeypatch):
+    directory, metadata = source_task(tmp_path / "source")
+    payload = directory / "report.txt"
+    payload.write_text("published payload")
+    publish(directory, metadata, report=payload)
+    staged = tmp_path / "staged"
+    prepare_replica(tmp_path / "source", TASK_ID, task_path(staged, TASK_ID), 64 * 1024)
+    original = Path.open
+
+    def metadata_only(path, *args, **kwargs):
+        if path.name == "report.txt":
+            pytest.fail("Reconciliation read a payload")
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", metadata_only)
+    assert len(source_revision(tmp_path / "source", TASK_ID)) <= 128
+    assert TASK_ID in snapshot_index(staged, frozenset())

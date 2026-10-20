@@ -107,17 +107,15 @@ components:
   task_repository:
     default:
       backend: local
-      recursive: true
-      force_polling: true
-      debounce: 3000
-      step: 3000
-      poll_delay_ms: 1000
+      poll_interval: 1
   task_manager:
     default:
       backend: local
       task_repository: default
       terminate_grace_seconds: 5
 ```
+
+The local repository reads Task metadata once during startup, then polls only category directories, Task directories, and their `metadata.json` files in a worker thread. It rereads records only when file attributes change; it never recursively watches artifacts or logs. `poll_interval` is the delay in seconds between completed polls (default `1`, finite and positive). Failed scans retain the previous index and retry; invalid records retain their last valid value until repaired or deleted. Closing the repository waits for an in-flight scan. The former `recursive`, `force_polling`, `debounce`, `step`, and `poll_delay_ms` options are removed; replace them with `poll_interval`.
 
 task_repository is the category, default is the instance name, and local is the implementation backend. TaskManager declares a dependency on the repository. Composition checks instance existence and type; dependencies start first and close last. See [Framework extensions](../development/framework-extensions.md).
 

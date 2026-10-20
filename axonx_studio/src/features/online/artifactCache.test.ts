@@ -3,7 +3,7 @@ import { loadArtifactRows } from "./api";
 import { ArtifactTableCache } from "./artifactCache";
 
 vi.mock("./api", () => ({ loadArtifactRows: vi.fn() }));
-const artifact = { path: "signal.parquet", size: 10, sha256: "a".repeat(64) };
+const artifact = { path: "signal.parquet", size: 10, revision: "1:1" };
 beforeEach(() => vi.resetAllMocks());
 
 it("shares in-flight and completed tables, isolating content and service identity", async () => {
@@ -24,7 +24,7 @@ it("shares in-flight and completed tables, isolating content and service identit
   expect(await second).toBe(rows);
   expect(await cache.load(artifact)).toBe(rows);
   vi.mocked(loadArtifactRows).mockResolvedValue(rows);
-  await cache.load({ ...artifact, sha256: "b".repeat(64) });
+  await cache.load({ ...artifact, revision: "1:2" });
   await new ArtifactTableCache("inference#test#one", "other").load(artifact);
   expect(loadArtifactRows).toHaveBeenCalledTimes(3);
 });

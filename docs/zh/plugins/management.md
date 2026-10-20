@@ -90,7 +90,7 @@ axonx plugin install ./plugins/qlib_factor --target 'http://research.example:102
 axonx plugin install ./plugins/qlib_strategy --target 'http://research.example:1024'
 ```
 
-CLI 在本机把源码构建为 wheel，上传到远程 `/files`，核对返回 sha256，再调用远程 install_plugin，并在结束后清理暂存文件。安装 Job 在目标服务的 Python 环境运行。手动通过 HTTP 或 MCP 安装时，先用二进制或 multipart `POST /files` 上传 wheel，再将返回的 path 与 sha256 传给同一服务的 `install_plugin`；见[文件上传与清理](../api/workspace.md#文件上传与清理)。
+CLI 在本机把源码构建为 wheel，上传到远程 `/files`，再用返回的 path 和本地构建 wheel 的 SHA256 调用远程 install_plugin，并在结束后清理暂存文件。安装 Job 在目标服务的 Python 环境运行。手动通过 HTTP 或 MCP 安装时，先用二进制或 multipart `POST /files` 上传 wheel，再将返回的 path 与本地 wheel 的 SHA256 传给同一服务的 `install_plugin`；见[文件上传与清理](../api/workspace.md#文件上传与清理)。
 
 `plugin build` 只在本机执行，不支持 `--target`。远程 inspect 用于查询目标已安装插件，而不是把本机源码目录传到目标后检查。
 
@@ -102,7 +102,7 @@ CLI 在本机把源码构建为 wheel，上传到远程 `/files`，核对返回 
 | sha256           | 具体 wheel 文件的校验和，用于传输与安装核验       |
 | restart_required | 运行中的 Component/Job 或被替换的依赖是否要求重启 |
 
-两个 sha256 字段并不保证相同：wheel 的压缩与包内容封装会改变具体文件字节。安装接口应传上传回执的 wheel sha256，不传源码指纹。
+两个 sha256 字段并不保证相同：wheel 的压缩与包内容封装会改变具体文件字节。安装接口应传本地构建 wheel 的 SHA256，不传源码指纹。
 
 通过 `install_plugin` 安装或更新仅贡献 Task 的 wheel，会刷新运行中服务的插件包导入。后续定义查询和提交使用更新后的 Task 类、参数模型与辅助模块，包括同一 wheel 内额外的包或独立模块，无需重启。卸载仅贡献 Task 的插件后，后续查询和提交不再包含其注册信息。相同 wheel 跳过安装，并保留缓存中的类。
 
@@ -128,13 +128,13 @@ axonx plugin uninstall '<distribution 或插件名>' \
 
 卸载影响后续加载代码，不自动删除历史研究产物。已有 metadata 仍可读，但重跑可能需要恢复原插件版本。
 
-| 问题                 | 检查                                  |
-| -------------------- | ------------------------------------- |
-| 注册名冲突           | 插件贡献是否与内置或其他插件同名      |
-| manifest 无效        | 类型、module:Class 与类基类           |
-| 安装成功但 UI 没更新 | restart_required、目标机器、运行环境  |
-| wheel 校验失败       | 使用上传回执 sha256，重新传输正确文件 |
-| 缺模型依赖           | 检查 requirements 与目标环境的设备库  |
+| 问题                 | 检查                                       |
+| -------------------- | ------------------------------------------ |
+| 注册名冲突           | 插件贡献是否与内置或其他插件同名           |
+| manifest 无效        | 类型、module:Class 与类基类                |
+| 安装成功但 UI 没更新 | restart_required、目标机器、运行环境       |
+| wheel 校验失败       | 使用本地 wheel 的 SHA256，重新传输正确文件 |
+| 缺模型依赖           | 检查 requirements 与目标环境的设备库       |
 
 [插件 manifest](../reference/plugin-manifest.md) · [远程机器](../guides/remote-machines.md) · [已有开发指南](../dev_guide.md)
 

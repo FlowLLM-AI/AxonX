@@ -291,7 +291,7 @@ def test_remote_install_discards_upload_when_job_fails(monkeypatch, tmp_path):
             return None
 
         async def copy_file(self, _path):
-            return FileCopy(path="copies/demo.whl", sha256=artifact.sha256, size=5)
+            return FileCopy(path="copies/demo.whl", size=5)
 
         async def run_job(self, _name, _arguments):
             return JobResponse(answer="pip failed", success=False)

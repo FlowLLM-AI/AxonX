@@ -99,14 +99,14 @@ answer 为单个 PluginInfo，与 list_plugins 每项同形。
 
 ## install_plugin
 
-先在安装服务上通过二进制或 multipart `POST /files` 暂存 wheel，将返回的 `answer.path` 与 `answer.sha256` 用于以下参数。见[文件上传与清理](workspace.md#文件上传与清理)。
+先在安装服务上通过二进制或 multipart `POST /files` 暂存 wheel，将返回的 `answer.path` 与原始 wheel 的 SHA-256 用于以下参数。见[文件上传与清理](workspace.md#文件上传与清理)。
 
 安装已上传且校验通过的 wheel。
 
-| 参数     | 类型   | 必填 | 默认值      | 约束与含义                                   |
-| -------- | ------ | ---- | ----------- | -------------------------------------------- |
-| `path`   | string | 是   | `—（省略）` | 服务工作区相对路径；minLength=1              |
-| `sha256` | string | 是   | `—（省略）` | 上传返回的 SHA-256；正则 `^[0-9a-fA-F]{64}$` |
+| 参数     | 类型   | 必填 | 默认值      | 约束与含义                                      |
+| -------- | ------ | ---- | ----------- | ----------------------------------------------- |
+| `path`   | string | 是   | `—（省略）` | 服务工作区相对路径；minLength=1                 |
+| `sha256` | string | 是   | `—（省略）` | 原始 wheel 的 SHA-256；正则 `^[0-9a-fA-F]{64}$` |
 
 只接受表中业务字段。
 
@@ -244,7 +244,7 @@ sync_tasks 对暂存路径/归档的 OSError、TypeError、ValueError 直接返�
 
 ## task_sync_index
 
-接收可选 `task_names`、`live_task_ids`，返回 `answer.transfer_budget_bytes`、统一的摘要及 Run/文件哈希映射 `answer.tasks`。`sync_tasks` 接收终态副本或完整在线父子任务组，须保留完整清单并校验差量基底。未标记的源任务归档直接拒绝。本机活跃任务不能被覆盖；在线副本接收同一来源的更新版本。发送端启动时对账普通任务，每次 flush 捕获在线任务组，不自动传播删除。参见[结果展示同步](../guides/task-sync.md)。
+接收可选 `task_names`、`live_task_ids`，返回 `answer.transfer_budget_bytes`、统一的版本及 Run/文件记录映射 `answer.tasks`。`sync_tasks` 接收终态副本或完整在线父子任务组，须保留完整清单并校验差量基底。未标记的源任务归档直接拒绝。本机活跃任务不能被覆盖；在线副本接收同一来源的更新版本。发送端首次 flush 时对账普通任务，每次 flush 捕获在线任务组，不自动传播删除。参见[结果展示同步](../guides/task-sync.md)。
 
 ## sync_flush 的可见性
 

@@ -107,17 +107,15 @@ components:
   task_repository:
     default:
       backend: local
-      recursive: true
-      force_polling: true
-      debounce: 3000
-      step: 3000
-      poll_delay_ms: 1000
+      poll_interval: 1
   task_manager:
     default:
       backend: local
       task_repository: default
       terminate_grace_seconds: 5
 ```
+
+本地仓库在启动时读取一次任务元数据，随后在线程中仅轮询分类目录、任务目录及其 `metadata.json`。只有文件属性变化时才重读记录，不递归监听产物或日志。`poll_interval` 是每轮完成后的等待秒数，默认 `1`，必须为有限正数。扫描失败时保留旧索引并重试；无效记录保留最后一次有效值，直到修复或删除。仓库关闭时会等待正在执行的扫描结束。原有 `recursive`、`force_polling`、`debounce`、`step`、`poll_delay_ms` 配置已移除，请替换为 `poll_interval`。
 
 task_repository 是类别，default 是实例名，local 是实现后端。TaskManager 声明对 repository 的依赖，装配时检查实例存在和类型，依赖先启动、后关闭。框架扩展见 [扩展开发](../development/framework-extensions.md)。
 

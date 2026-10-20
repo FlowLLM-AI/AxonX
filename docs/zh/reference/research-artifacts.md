@@ -3,6 +3,8 @@ title: 研究产物与 Studio 展示协议
 description: 标准研究输出、文件摘要、训练曲线及回测表的生产和读取契约。
 ---
 
+研究文件记录统一使用 `revision="<size>:<mtime_ns>"`，不计算文件内容摘要。产物发布、输入快照、在线历史和回放仅检查文件属性，复制时保留纳秒修改时间；已发布文件必须保持不可变，通过原子替换更新。大小与修改时间都未变化的内容修改无法被检测。模型身份对成员版本计算指纹，配置和源码仍保留 SHA-256。这是破坏式格式更新：旧研究产物和回放数据需要重新生成，不迁移历史记录。
+
 # 研究产物与 Studio 展示协议
 
 研究 Task 使用类型化 `output_params` 发布结果，Studio 从成功任务的 `metadata.json` 提取展示字段，再通过文件预览读取产物。本页区分三层要求：Python 基类必填字段、Studio 实际读取字段、具体插件的扩展协议。
@@ -13,9 +15,9 @@ description: 标准研究输出、文件摘要、训练曲线及回测表的生�
 
 AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可独立使用的研究元数据必须包含 `version=1`，并在 `task_type` 中复用现有 `TaskType`；不新增产物 kind 枚举，不保留插件自己的版本计数器。读取时拒绝缺少协议头和其他版本的数据。旧工作区和模型需要重新生成，不提供迁移或回退读取。
 
-训练通过 `artifacts.model_manifest` 注册唯一的 `models.json`，保存特征契约、训练上下文、成员配置和产物引用。成员只引用产物名称，哈希只保存在产物记录中。任务输出保留训练摘要和曲线，不再重复保存完整集合和模型路径。
+训练通过 `artifacts.model_manifest` 注册唯一的 `models.json`，保存特征契约、训练上下文、成员配置和产物引用。成员只引用产物名称，文件版本只保存在产物记录中。任务输出保留训练摘要和曲线，不再重复保存完整集合和模型路径。
 
-离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份字符串值的 `model_identity`、覆盖日期 `dates`、分数列 `score_columns` 和文件哈希 `predictions_sha256`。模型身份使用 `models_sha256` 和 `features_sha256`，不包含日期、路径，也不按日期重复复制身份。股票特征契约与指纹由 `axonx.task.builtins.stock.protocol` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.models` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
+离线与在线预测使用同一个 `PredictionProtocol`，产出任务类型分别是 `predict` 和 `inference`。结果包含一份字符串值的 `model_identity`、覆盖日期 `dates`、分数列 `score_columns` 和文件版本 `predictions_revision`。模型身份使用 `models_sha256` 和 `features_sha256`，不包含日期、路径，也不按日期重复复制身份。股票特征契约与指纹由 `axonx.task.builtins.stock.protocol` 提供；语义指纹覆盖计算规则与有序特征，排除路径、日期覆盖和质量计数。`axonx.task.storage.models` 的 `snapshot_model_collection` 统一校验模型集合快照。Task 的产物映射只保存在 `output_params.artifacts`；软件包发布版本独立管理。
 
 ## metadata 与产物映射
 
@@ -30,18 +32,18 @@ AxonX 在 `axonx.task.protocol` 中统一定义研究协议。Task 记录和可�
       "dataset": {
         "path": "alpha158.parquet",
         "size": 1024,
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        "revision": "1024:1700000000000000000"
       }
     }
   }
 }
 ```
 
-示例 size 和摘要只是说明字段；实际必须从生成文件计算。`artifact_record(path, task_dir)` 会生成相对路径、字节大小与 SHA-256。`artifact_path(task_dir, metadata, name)` 解析记录并拒绝绝对路径或越出任务目录的路径。
+示例 size 和版本只是说明字段；实际必须从生成文件计算。`artifact_record(path, task_dir)` 会生成相对路径、字节大小与文件版本。`artifact_path(task_dir, metadata, name)` 解析记录并拒绝绝对路径或越出任务目录的路径。
 
-`BaseOutputParams.artifacts` 使用 `dict[str, ArtifactRecord]`，统一校验任务内相对路径、非负文件大小和 SHA-256。通过 `task.artifact_path(name)` 解析产物，无需额外绝对路径字段。
+`BaseOutputParams.artifacts` 使用 `dict[str, ArtifactRecord]`，统一校验任务内相对路径、非负文件大小和文件版本。通过 `task.artifact_path(name)` 解析产物，无需额外绝对路径字段。
 
-下游 helper 解析路径本身并不自动核验所有摘要。qlib_a158 预测另行校验模型摘要，不能据此宣称所有上游数据均经过完整校验。
+下游 helper 解析路径本身并不自动核验所有版本。qlib_a158 预测另行校验模型版本，不能据此宣称所有上游数据均经过完整校验。
 
 ## 五类基础输出
 
@@ -165,7 +167,7 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
 
 回测输入还需独立的 `market` 和 `calendar` 产物；可选 `labels` 用于 IC、RankIC、NDCG、目标标签收益和基准收益，无标签时仍可运行组合账本。指定文件时分别传 `input_file`、`market_file`、`calendar_file` 和可选 `labels_file`，上述 `input_file` 为预测 Parquet。
 
-通过 Predict Task ID 解析时，预测 metadata 的 `output_params.artifacts.predictions` 必须提供产物记录（相对 `path`、`size`、`sha256`），并声明 `output_params.protocol.version=1`。`protocol.market_source_task` 指向提供行情、日历和标签的 ETL Task；也可在 `source_tasks` 显式指定 ETL 来源或传入对应文件路径。任务解析会校验来源产物摘要。`statistics` 是展示信息，不是回测选股输入。
+通过 Predict Task ID 解析时，预测 metadata 的 `output_params.artifacts.predictions` 必须提供产物记录（相对 `path`、`size`、`revision`），并声明 `output_params.protocol.version=1`。`protocol.market_source_task` 指向提供行情、日历和标签的 ETL Task；也可在 `source_tasks` 显式指定 ETL 来源或传入对应文件路径。任务解析会校验来源产物大小和修改时间。`statistics` 是展示信息，不是回测选股输入。
 
 ## 回测 dimensions 与 protocol
 
@@ -207,12 +209,12 @@ statistics.indices.<column>.constituents / days_with_weights / null_rows
     "all_daily": {
       "path": "universes/all/daily.parquet",
       "size": 1234,
-      "sha256": "<sha256>"
+      "revision": "<size>:<mtime_ns>"
     },
     "all_summary": {
       "path": "universes/all/summary.parquet",
       "size": 1234,
-      "sha256": "<sha256>"
+      "revision": "<size>:<mtime_ns>"
     }
   }
 }

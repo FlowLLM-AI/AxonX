@@ -1,5 +1,6 @@
 """Live display snapshots preserve Run identity, bounded logs and atomic groups."""
 
+import socket
 import tarfile
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -15,6 +16,7 @@ from axonx.config import ApplicationConfig
 from axonx.core import Application
 from axonx.enums import TaskState, TaskType
 from axonx.task.runtime.runner import TaskRunner
+from axonx.task.schemas.protocol import fingerprint
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.logs import TaskLogReader
 from axonx.task.storage.workspace import (
@@ -28,6 +30,7 @@ from axonx.task.sync import TaskArchiveApplier, build_archive
 from axonx.task.sync.errors import ReplicaBudgetError, SnapshotChangedError
 from axonx.task.sync.index import snapshot_index, verify_replica
 from axonx.task.sync.replica import prepare_group
+from axonx.utils.fs import atomic_write_json, file_sha256
 
 PARENT = "composite#a_stock_online#axon2-core"
 CHILD = "inference#a_stock_online_predict#axon-v1-1445"
@@ -196,7 +199,11 @@ def test_budget_and_missing_child_fail_without_partial_snapshot(tmp_path):
 
 
 def test_group_budget_keeps_status_logs_and_marks_omitted_data(tmp_path):
-    root, remote, staging = tmp_path / "source", tmp_path / "remote", tmp_path / "staging"
+    root, remote, staging = (
+        tmp_path / "source",
+        tmp_path / "remote",
+        tmp_path / "staging",
+    )
     remote.mkdir()
     logs = source(root)
     for identity in (PARENT, CHILD):
@@ -465,7 +472,11 @@ def test_completed_unchanged_group_does_not_resend(tmp_path):
 def test_completed_replica_can_join_group_using_verified_delta_files(tmp_path):
     from axonx.task.sync.replica import prepare_replica
 
-    root, remote, staging = tmp_path / "source", tmp_path / "remote", tmp_path / "terminal"
+    root, remote, staging = (
+        tmp_path / "source",
+        tmp_path / "remote",
+        tmp_path / "terminal",
+    )
     remote.mkdir()
     logs = source(root)
     for identity in (PARENT, CHILD):
@@ -506,4 +517,49 @@ def test_completed_group_log_offset_change_is_not_skipped_for_identical_tail(tmp
     assert plans
     status = read_entry(tmp_path / "next", PARENT)
     assert status.replica.log.end == previous.replica.log.end + 1
-    assert status.replica.source_digest != previous.replica.source_digest
+    assert status.replica.source_revision != previous.replica.source_revision
+
+
+def test_legacy_live_replica_keeps_workspace_identity_during_upgrade(tmp_path):
+    root, remote = tmp_path / "source", tmp_path / "remote"
+    remote.mkdir()
+    logs = source(root)
+    apply = TaskArchiveApplier(remote, BUDGET)
+    apply.apply(capture(root, tmp_path / "first", logs), [])
+    old_source_id = fingerprint({"host": socket.gethostname(), "workspace": str(root.resolve())})
+    for identity in (PARENT, CHILD):
+        directory = task_path(remote, identity)
+        value = read_entry(remote, identity).model_dump(mode="json")
+        replica = value["replica"]
+        replica["snapshot"]["source_id"] = old_source_id
+        replica["source_digest"] = replica.pop("source_revision")
+        replica["policy_digest"] = fingerprint(replica.pop("policy_revision"))
+        for name, record in replica["files"].items():
+            record.pop("revision")
+            record["sha256"] = file_sha256(directory / name)
+        atomic_write_json(directory / "metadata.json", value)
+    index = snapshot_index(remote, frozenset(), frozenset({PARENT}))
+    assert index[CHILD]["source_revision"].startswith("legacy:")
+    apply.apply(capture(root, tmp_path / "upgrade", logs, index), [])
+    for identity in (PARENT, CHILD):
+        status = read_entry(remote, identity)
+        assert status.replica.snapshot.source_id == old_source_id
+        assert not status.replica.source_revision.startswith("legacy:")
+        verify_replica(remote, identity)
+
+
+def test_idle_live_snapshot_reuses_manifest_without_preparing_files(tmp_path, monkeypatch):
+    root, remote = tmp_path / "source", tmp_path / "remote"
+    remote.mkdir()
+    logs = source(root)
+    TaskArchiveApplier(remote, BUDGET).apply(capture(root, tmp_path / "first", logs), [])
+    index = snapshot_index(remote, frozenset(), frozenset({PARENT}))
+
+    def unexpected(*_args, **_kwargs):
+        pytest.fail("Unchanged snapshot prepared or sampled files")
+
+    monkeypatch.setattr("axonx.task.sync.replica.snapshot_file", unexpected)
+    monkeypatch.setattr("axonx.task.sync.replica.write_sample", unexpected)
+    plans = prepare_group(root, PARENT, tmp_path / "idle", BUDGET, logs, index)
+    assert plans
+    assert all([item.relative for item in plan.files] == ["metadata.json"] for plan in plans.values())

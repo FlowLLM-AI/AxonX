@@ -442,7 +442,7 @@ export function addArtifacts(
           model: {
             path: "model.json",
             size: files.get(`${path}/model.json`)!.size,
-            sha256: "0".repeat(64),
+            revision: "1:1",
           },
         },
       }),
@@ -453,7 +453,7 @@ export function addArtifacts(
       {
         path: file,
         size: files.get(`${path}/${file}`)!.size,
-        sha256: "0".repeat(64),
+        revision: "1:1",
       },
     ]),
   );
@@ -504,7 +504,7 @@ export function addArtifacts(
               score_columns: { model: "pred" },
               model_identity: { model: "synthetic" },
               dates,
-              predictions_sha256: "0".repeat(64),
+              predictions_revision: "1:1",
             }
           : {}),
       },
@@ -1200,11 +1200,11 @@ function seedStockOnline(
     };
     const artifacts: Record<
       string,
-      { path: string; size: number; sha256: string }
+      { path: string; size: number; revision: string }
     > = {};
     const put = (role: string, preview: WorkspacePreview, suffix: string) => {
       const path = `persistent/online/commits/${commitId}/${role}.${suffix}`;
-      artifacts[role] = { path, size: preview.size, sha256: "b".repeat(64) };
+      artifacts[role] = { path, size: preview.size, revision: "1:1" };
       files.set(`inference/${task.task_id}/${path}`, preview);
     };
     for (const [role, rows] of Object.entries(tables))
@@ -1271,7 +1271,7 @@ function seedStockOnline(
       model_identity: identity,
       dates: [date],
       score_columns: { seed_0: "pred_seed_0" },
-      predictions_sha256: "b".repeat(64),
+      predictions_revision: "1:1",
       portfolio,
       report: settings,
     };
@@ -1318,7 +1318,7 @@ function seedStockOnline(
     report: { kind: "stock_online", commit },
     artifacts: {
       ...commit.artifacts,
-      signal_history: { path: historyPath, size: 1, sha256: "e".repeat(64) },
+      signal_history: { path: historyPath, size: 1, revision: "1:1" },
     },
   };
 }

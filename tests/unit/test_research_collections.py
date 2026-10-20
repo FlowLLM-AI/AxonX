@@ -10,7 +10,7 @@ from axonx.task.protocol import ModelCollection, task_protocol
 
 
 def artifact(path):
-    return {"path": path, "size": 1, "sha256": "0" * 64}
+    return {"path": path, "size": 1, "revision": "0:0"}
 
 
 @pytest.mark.parametrize("members", [["model"], ["seed_0", "seed_42"]])
@@ -29,7 +29,7 @@ def test_collection_contracts_preserve_members(members):
     assert "model_sha256" not in collection.model_dump()["members"][members[0]]
 
 
-@pytest.mark.parametrize("record", [{}, {"path": "../outside", "size": 1, "sha256": "0" * 64}])
+@pytest.mark.parametrize("record", [{}, {"path": "../outside", "size": 1, "revision": "0:0"}])
 def test_every_output_validates_artifact_records(record):
     with pytest.raises(ValidationError):
         BaseOutputParams(artifacts={"data": record})
@@ -46,9 +46,13 @@ def test_prediction_score_mapping_has_one_source():
         "model_identity": {"models_sha256": "0" * 64},
         "dates": ["20240102"],
         "score_columns": {"model": "score"},
-        "predictions_sha256": "0" * 64,
+        "predictions_revision": "0:0",
     }
-    values = {"rows": 10, "date_range": {"start": "20240102", "end": "20240102"}, "protocol": protocol}
+    values = {
+        "rows": 10,
+        "date_range": {"start": "20240102", "end": "20240102"},
+        "protocol": protocol,
+    }
     output = BasePredictOutputParams(**values)
     assert output.protocol["score_columns"] == {"model": "score"}
     assert "score_columns" not in output.model_dump()

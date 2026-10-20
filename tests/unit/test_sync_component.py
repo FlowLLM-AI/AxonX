@@ -15,7 +15,7 @@ from axonx.config import ApplicationConfig
 from axonx.core import Application
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.workspace import TaskMetadata, task_path, write_task_metadata
-from axonx.task.sync.index import snapshot_digest, snapshot_index
+from axonx.task.sync.index import source_revision, snapshot_index
 
 
 class Repository:
@@ -100,6 +100,9 @@ async def test_reconciliation_recovers_after_remote_startup_failure(tmp_path, mo
     ]
     sync._send = AsyncMock()
     async with sync:
+        client.run_job.assert_not_awaited()
+        assert sync._needs_reconcile
+        assert not (await sync.flush()).uploaded
         assert sync._needs_reconcile
         assert (await sync.flush()).uploaded == ["etl/etl#demo#research-core"]
         assert not sync._needs_reconcile
@@ -198,14 +201,14 @@ async def test_authenticated_roundtrip_reconciles_reruns_and_skips_replicas(tmp_
         assert set(report.uploaded) == {f"{task_id.split('#', maxsplit=1)[0]}/{task_id}" for task_id in ids}
         assert all(not (task_path(remote, task_id) / "inputs").exists() for task_id in ids)
         remote_index = snapshot_index(remote, frozenset())
-        assert all(remote_index[task_id]["source_digest"] == snapshot_digest(source, task_id) for task_id in ids)
+        assert all(remote_index[task_id]["source_revision"] == source_revision(source, task_id) for task_id in ids)
         await sync._reconcile()
         assert not sync._pending
         task(source, ids[0], run_id="second")
         await sync._reconcile()
         assert sync._pending == {ids[0]}
         await sync.flush()
-        assert snapshot_index(remote, frozenset())[ids[0]]["source_digest"] == snapshot_digest(source, ids[0])
+        assert snapshot_index(remote, frozenset())[ids[0]]["source_revision"] == source_revision(source, ids[0])
         reverse, _ = sync_component(remote, monkeypatch)
         await reverse._reconcile()
         assert not reverse._pending
@@ -265,3 +268,40 @@ async def test_resync_requested_during_reconciliation_is_preserved(tmp_path, mon
     monkeypatch.setattr(sync, "_missing", changed)
     await sync._reconcile()
     assert sync._needs_reconcile
+
+
+@pytest.mark.asyncio
+async def test_live_flush_refreshes_remote_without_rescanning_terminal_sources(tmp_path, monkeypatch):
+    sync, client = sync_component(tmp_path, monkeypatch)
+    sync.live_task_ids = frozenset({"composite#demo#research-core"})
+    sync._missing = lambda _: pytest.fail("Unchanged terminal sources were rescanned")
+    sync._transfer = AsyncMock()
+    await sync.flush()
+    client.run_job.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_archive_quota_bounds_preparation_work(tmp_path, monkeypatch):
+    from axonx.components.sync import local
+
+    identities = [f"etl#demo{i}#research-core" for i in range(10)]
+    for identity in identities:
+        directory = task(tmp_path, identity)
+        (directory / "result.txt").write_text("x" * 5000)
+    sync, _ = sync_component(tmp_path, monkeypatch, budget=17 * 1024)
+    sync.max_archives_per_flush = 1
+    sync._pending.update(identities)
+    sync._send = AsyncMock()
+    prepared = []
+    original = local.prepare_replica
+
+    def prepare(*args, **kwargs):
+        prepared.append(args[1])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(local, "prepare_replica", prepare)
+    report = await sync.flush()
+    assert len(prepared) < len(identities)
+    assert report.archives == 1
+    assert set(report.uploaded + report.deferred) == {f"etl/{identity}" for identity in identities}
+    assert set(identities) - set(prepared) <= sync._pending

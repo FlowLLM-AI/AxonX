@@ -1,6 +1,5 @@
 """Linear-size frozen history snapshots; portable exports retain the full protocol."""
 
-import hashlib
 import json
 import re
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import Literal
 from pydantic import ConfigDict, Field
 
 from ...enums import TaskType
+from ...utils.fs import file_revision
 from ..schemas.artifact import ArtifactRecord
 from ..schemas.online import OnlineCommit, OnlineHistory
 from ..schemas.protocol import Protocol
@@ -67,9 +67,10 @@ def read_online_history(path: Path) -> OnlineHistory:
             parent.is_symlink() for parent in (path, *path.parents) if parent.is_relative_to(task_dir)
         ):
             raise ValueError("Frozen history reference escapes its Task")
+        revision = file_revision(path)
         content = path.read_bytes()
-        if len(content) != reference.size or hashlib.sha256(content).hexdigest() != reference.sha256:
-            raise ValueError("Frozen history SHA256 mismatch")
+        if len(content) != reference.size or revision != reference.revision or file_revision(path) != revision:
+            raise ValueError("Frozen history revision mismatch")
         value = json.loads(content)
     base = OnlineHistory.model_validate(value)
     if base.strategy_identity != header.strategy_identity:
@@ -77,5 +78,8 @@ def read_online_history(path: Path) -> OnlineHistory:
     return OnlineHistory(
         version=header.version,
         strategy_identity=header.strategy_identity,
-        commits=[*base.commits, *(commit for block in reversed(commits) for commit in block)],
+        commits=[
+            *base.commits,
+            *(commit for block in reversed(commits) for commit in block),
+        ],
     )

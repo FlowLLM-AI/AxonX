@@ -885,7 +885,7 @@ async def test_real_worker_stop_settles_active_nested_children(tmp_path, monkeyp
         log_to_console=False,
         log_to_file=False,
         components={
-            "task_repository": {"default": {"backend": "local", "force_polling": True}},
+            "task_repository": {"default": {"backend": "local"}},
             "task_manager": {"default": {"backend": "local", "terminate_grace_seconds": 0.1}},
         },
     )

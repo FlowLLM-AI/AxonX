@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ...constants import AXONX_DEFAULT_ENCODING
 from ...enums import TaskState, TaskType
-from ...utils.fs import file_sha256
+from ...utils.fs import file_revision
 from ..schemas.protocol import task_protocol, validate_protocol
 from ..schemas.prediction import PredictionProtocol
 from ..schemas.artifact import ArtifactRecord
@@ -44,7 +44,7 @@ def artifact_record(path: Path, root: Path) -> dict:
     return ArtifactRecord(
         path=path.relative_to(root).as_posix(),
         size=path.stat().st_size,
-        sha256=file_sha256(path),
+        revision=file_revision(path),
     ).model_dump()
 
 
@@ -61,6 +61,6 @@ def prediction_protocol(
         model_identity=identity,
         dates=sorted({str(day) for day in dates}),
         score_columns=score_columns,
-        predictions_sha256=file_sha256(path),
+        predictions_revision=file_revision(path),
         **payload,
     ).model_dump(mode="json")

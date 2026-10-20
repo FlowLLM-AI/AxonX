@@ -1,7 +1,9 @@
 ---
 title: Research artifacts and Studio presentation contracts
-description: Production and consumption contracts for standard research outputs, file digests, training curves, and backtest tables.
+description: Production and consumption contracts for standard research outputs, file revisions, training curves, and backtest tables.
 ---
+
+Research file records use `revision="<size>:<mtime_ns>"`, not content checksums. Publication, input snapshots, online history and replay validate file metadata without reading payload bytes. Copies preserve nanosecond mtime; published files must be immutable and replaced atomically. Metadata checks cannot detect edits preserving both size and mtime. Model identity fingerprints member revisions; configuration and source-code fingerprints remain SHA-256. This is a breaking format change: regenerate old research artifacts and replay datasets; historical records are not migrated.
 
 # Research artifacts and Studio presentation contracts
 
@@ -13,9 +15,9 @@ Research Tasks publish results through typed `output_params`. Studio extracts pr
 
 AxonX owns the shared research protocol in `axonx.task.protocol`. Task records and portable research metadata require `version=1` and the existing `TaskType` in `task_type`; there is no separate artifact-kind enum or plugin version counter. Readers reject missing headers and other versions. Regenerate old workspaces and models; no migration or fallback reader is provided.
 
-Training uses `ModelCollection`: the registered `artifacts.model_manifest` points to one `models.json` containing the feature contract, training context, named members, model configurations and verified artifact references. Each member references an artifact by name; its hash lives only in that artifact record. Task outputs retain training summaries and curves, without duplicating the collection or model paths.
+Training uses `ModelCollection`: the registered `artifacts.model_manifest` points to one `models.json` containing the feature contract, training context, named members, model configurations and verified artifact references. Each member references an artifact by name; its revision lives only in that artifact record. Task outputs retain training summaries and curves, without duplicating the collection or model paths.
 
-Offline and online prediction use `PredictionProtocol`, with producer type `predict` or `inference`. It stores one string-valued `model_identity`, covered `dates`, `score_columns` and `predictions_sha256`. Model identity uses `models_sha256` and `features_sha256`; dates and paths are not model identity. Predictions do not duplicate identities for each date. Stock feature contracts and fingerprints come from `axonx.task.builtins.stock.protocol`; fingerprints include semantic rules and ordered features, excluding locations, date coverage and quality counters. `snapshot_model_collection` in `axonx.task.storage.models` verifies portable model snapshots. Artifacts remain exclusively in `output_params.artifacts` on Task records; package release versions are independent.
+Offline and online prediction use `PredictionProtocol`, with producer type `predict` or `inference`. It stores one string-valued `model_identity`, covered `dates`, `score_columns` and `predictions_revision`. Model identity uses `models_sha256` and `features_sha256`; dates and paths are not model identity. Predictions do not duplicate identities for each date. Stock feature contracts and fingerprints come from `axonx.task.builtins.stock.protocol`; fingerprints include semantic rules and ordered features, excluding locations, date coverage and quality counters. `snapshot_model_collection` in `axonx.task.storage.models` verifies portable model snapshots. Artifacts remain exclusively in `output_params.artifacts` on Task records; package release versions are independent.
 
 ## Mapping metadata to artifacts
 
@@ -30,18 +32,18 @@ The following is a structural excerpt, rather than complete TaskMetadata:
       "dataset": {
         "path": "alpha158.parquet",
         "size": 1024,
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        "revision": "1024:1700000000000000000"
       }
     }
   }
 }
 ```
 
-The example size and digest only illustrate fields; calculate actual values from generated files. `artifact_record(path, task_dir)` generates a relative path, byte size, and SHA-256. `artifact_path(task_dir, metadata, name)` resolves a record and rejects absolute paths or paths escaping the task directory.
+The example size and revision only illustrate fields; calculate actual values from generated files. `artifact_record(path, task_dir)` generates a relative path, byte size, and revision. `artifact_path(task_dir, metadata, name)` resolves a record and rejects absolute paths or paths escaping the task directory.
 
-`BaseOutputParams.artifacts` is `dict[str, ArtifactRecord]`. Every output validates each relative path, nonnegative byte size and SHA-256 digest. `task.artifact_path(name)` resolves a published output without a separate absolute-path field.
+`BaseOutputParams.artifacts` is `dict[str, ArtifactRecord]`. Every output validates each relative path, nonnegative byte size and file revision. `task.artifact_path(name)` resolves a published output without a separate absolute-path field.
 
-Resolving paths through downstream helpers does not itself automatically verify every digest. qlib_a158 prediction separately verifies the model digest; this does not establish complete verification of all upstream data.
+Resolving paths through downstream helpers does not itself automatically verify every revision. qlib_a158 prediction separately verifies the model revision; this does not establish complete verification of all upstream data.
 
 ## Five base output types
 
@@ -165,7 +167,7 @@ Predictions need no feature columns, `actual_return`, future labels or future ex
 
 Backtesting also requires independent `market` and `calendar` artifacts. Optional `labels` supplies IC, RankIC, NDCG, target label returns and benchmark returns; the portfolio ledger can run without labels. For explicit files, pass `input_file`, `market_file`, `calendar_file` and optional `labels_file`, where `input_file` is prediction Parquet.
 
-When resolving a Predict Task ID, prediction metadata must publish an artifact record (relative `path`, `size`, `sha256`) under `output_params.artifacts.predictions` and declare `output_params.protocol.version=1`. `protocol.market_source_task` identifies the ETL Task supplying market, calendar and labels; an ETL source can also be supplied explicitly in `source_tasks`, or the corresponding file paths can be provided. Task resolution verifies source artifact digests. `statistics` is presentation information, not a selection input.
+When resolving a Predict Task ID, prediction metadata must publish an artifact record (relative `path`, `size`, `revision`) under `output_params.artifacts.predictions` and declare `output_params.protocol.version=1`. `protocol.market_source_task` identifies the ETL Task supplying market, calendar and labels; an ETL source can also be supplied explicitly in `source_tasks`, or the corresponding file paths can be provided. Task resolution verifies source artifact sizes and modification times. `statistics` is presentation information, not a selection input.
 
 ## Backtest dimensions and protocol
 
@@ -207,12 +209,12 @@ When resolving a Predict Task ID, prediction metadata must publish an artifact r
     "all_daily": {
       "path": "universes/all/daily.parquet",
       "size": 1234,
-      "sha256": "<sha256>"
+      "revision": "<size>:<mtime_ns>"
     },
     "all_summary": {
       "path": "universes/all/summary.parquet",
       "size": 1234,
-      "sha256": "<sha256>"
+      "revision": "<size>:<mtime_ns>"
     }
   }
 }

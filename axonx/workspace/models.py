@@ -13,7 +13,6 @@ class FileCopy(WorkspaceModel):
     """Public description of a file staged through the HTTP protocol."""
 
     path: str = Field(min_length=1)
-    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     size: int = Field(ge=0)
 
 

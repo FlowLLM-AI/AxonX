@@ -1,17 +1,15 @@
 """Source identities and verified replica indexes use the same transfer policy."""
 
-import hashlib
 import re
 from collections.abc import Sequence
 from pathlib import Path
 
 from ...constants import TASK_NAME_PATTERN
 from ...utils import get_logger
-from ...utils.fs import file_sha256
 from ..schemas.protocol import fingerprint
 from ..storage.workspace import read_entry, scan_entries, task_path
-from .errors import SnapshotChangedError
 from .planner import plan_task
+from .errors import SnapshotChangedError
 
 
 def validate_task_names(values: Sequence[str] | None) -> frozenset[str]:
@@ -26,25 +24,22 @@ def matches_task_name(task_id: str, task_names: frozenset[str]) -> bool:
     return not task_names or task_id.rsplit("#", 1)[-1] in task_names
 
 
-def policy_digest(budget: int) -> str:
-    return fingerprint(
-        {
-            "format": "display-replica-2",
-            "budget": budget,
-            "sampling": "latest-whole-days",
-        }
-    )
+def policy_revision(budget: int) -> str:
+    return f"display-replica-3:{budget}:latest-whole-days"
 
 
-def snapshot_digest(root: Path, task_id: str) -> str:
-    plan = plan_task(root, task_id)
-    digest = hashlib.sha256()
-    for item in plan.files:
-        digest.update(item.relative.encode("utf-8") + b"\0")
-        digest.update(bytes.fromhex(file_sha256(item.path)))
-    if plan != plan_task(root, task_id):
-        raise SnapshotChangedError(f"Task changed during reconciliation: {task_id}")
-    return digest.hexdigest()
+def source_revision(root: Path, task_id: str, *, snapshot=None, logs=None) -> str:
+    """Identify publications from Run and file metadata without reading payloads."""
+    plan = plan_task(root, task_id, snapshot=snapshot)
+    metadata = snapshot or read_entry(root, task_id)
+    if metadata is None:
+        raise SnapshotChangedError(f"Task disappeared during reconciliation: {task_id}")
+    files = [(item.relative, item.size, item.modified_ns) for item in plan.files]
+    log = logs.path(metadata) if logs is not None else None
+    if log is not None and logs.is_task_log(log) and log.is_file():
+        stat = log.stat()
+        files.append(("display/log.log", stat.st_size, stat.st_mtime_ns))
+    return fingerprint([metadata.run_id, files])
 
 
 def verify_replica(root: Path, task_id: str) -> None:
@@ -73,8 +68,8 @@ def verify_replica(root: Path, task_id: str) -> None:
             or any(p.is_symlink() for p in (path, *path.parents) if p != directory.parent)
         ):
             raise ValueError(f"Invalid replica path: {name}")
-        if path.stat().st_size != record.size or file_sha256(path) != record.sha256:
-            raise ValueError(f"Replica artifact checksum mismatch: {task_id}/{name}")
+        if path.stat().st_size != record.size:
+            raise ValueError(f"Replica artifact size mismatch: {task_id}/{name}")
 
 
 def snapshot_index(root: Path, task_names: frozenset[str], roots: frozenset[str] = frozenset()) -> dict:
@@ -90,10 +85,8 @@ def snapshot_index(root: Path, task_names: frozenset[str], roots: frozenset[str]
         try:
             verify_replica(root, identity)
             result[identity] = {
-                "source_digest": replica.source_digest,
-                "policy_digest": replica.policy_digest,
                 "run_id": metadata.run_id,
-                "files": {name: item.sha256 for name, item in replica.files.items()},
+                **replica.model_dump(mode="json"),
             }
         except (OSError, ValueError) as exc:
             get_logger("task-sync-index").warning(f"Skipping invalid display replica {identity}: {exc}")

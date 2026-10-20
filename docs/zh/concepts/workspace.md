@@ -57,7 +57,7 @@ logs/                            # 独立日志目录，不一定在工作区内
     "dataset": {
       "path": "data/dataset.parquet",
       "size": 10240,
-      "sha256": "<文件 SHA-256>"
+      "revision": "<size>:<mtime_ns>"
     }
   }
 }
@@ -69,7 +69,7 @@ logs/                            # 独立日志目录，不一定在工作区内
 etl/etl#my-etl#dataset-01/data/dataset.parquet
 ```
 
-不能把 artifact 的 path 直接当工作区根路径，也不能用绝对路径或 `../` 逃离任务目录。生产插件应在文件写完后记录 size 和 sha256。
+不能把 artifact 的 path 直接当工作区根路径，也不能用绝对路径或 `../` 逃离任务目录。生产插件应在文件写完后记录 size 和 revision。
 
 ## 日志在哪里
 

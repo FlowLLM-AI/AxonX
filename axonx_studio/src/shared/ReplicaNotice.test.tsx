@@ -10,12 +10,12 @@ const replica: DisplayReplica = {
   purpose: "display",
   snapshot: null,
   log: null,
-  source_digest: "a".repeat(64),
-  policy_digest: "b".repeat(64),
+  source_revision: "a".repeat(64),
+  policy_revision: "b".repeat(64),
   files: {
     "dataset.parquet": {
       size: 100,
-      sha256: "c".repeat(64),
+      revision: "file-v1",
       sampled: true,
       rows: 100,
       source_rows: 500,

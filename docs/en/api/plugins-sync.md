@@ -99,14 +99,14 @@ Unknown or ambiguous plugin names return failure. Distinguish distribution names
 
 ## install_plugin
 
-First stage the wheel through binary or multipart `POST /files` on the installation service; use the returned `answer.path` and `answer.sha256` below. See [File upload and cleanup](workspace.md#file-upload-and-cleanup).
+First stage the wheel through binary or multipart `POST /files` on the installation service; use the returned `answer.path` and the SHA-256 of the original wheel below. See [File upload and cleanup](workspace.md#file-upload-and-cleanup).
 
 Install an uploaded and verified wheel.
 
-| Parameter | Type   | Required | Default       | Constraints and meaning                               |
-| --------- | ------ | -------- | ------------- | ----------------------------------------------------- |
-| `path`    | string | Yes      | `— (omitted)` | Path relative to the service workspace; minLength=1   |
-| `sha256`  | string | Yes      | `— (omitted)` | SHA-256 returned by upload; regex `^[0-9a-fA-F]{64}$` |
+| Parameter | Type   | Required | Default       | Constraints and meaning                                  |
+| --------- | ------ | -------- | ------------- | -------------------------------------------------------- |
+| `path`    | string | Yes      | `— (omitted)` | Path relative to the service workspace; minLength=1      |
+| `sha256`  | string | Yes      | `— (omitted)` | SHA-256 of the original wheel; regex `^[0-9a-fA-F]{64}$` |
 
 Only the business fields listed in the table are accepted.
 
@@ -244,7 +244,7 @@ The receiver validates directory identity and archive paths, retaining rollback 
 
 ## task_sync_index
 
-Accepts optional `task_names` and `live_task_ids`. Returns `answer.transfer_budget_bytes`, one `answer.tasks` index (source/policy digests, verified Run IDs and file hashes). `sync_tasks` accepts terminal replicas or complete live groups with a full manifest and verified delta bases. Unmarked source archives are rejected. Native active Tasks cannot be overwritten; live replicas accept newer snapshots from the same source. The sender reconciles ordinary Tasks on startup and captures live groups on each flush. Deletions are not propagated automatically. See [Result display synchronization](../guides/task-sync.md).
+Accepts optional `task_names` and `live_task_ids`. Returns `answer.transfer_budget_bytes`, one `answer.tasks` index (source/policy revisions, Run IDs and replica file records). `sync_tasks` accepts terminal replicas or complete live groups with a full manifest and verified delta bases. Unmarked source archives are rejected. Native active Tasks cannot be overwritten; live replicas accept newer snapshots from the same source. The sender reconciles ordinary Tasks on its first flush and captures live groups on each flush. Deletions are not propagated automatically. See [Result display synchronization](../guides/task-sync.md).
 
 ## Visibility of sync_flush
 

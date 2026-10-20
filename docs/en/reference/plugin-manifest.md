@@ -134,14 +134,14 @@ Remote installation refreshes the receiving service's plugin imports even when t
 
 ## Wheels and content fingerprints
 
-| Field            | Meaning                                 | Purpose                                       |
-| ---------------- | --------------------------------------- | --------------------------------------------- |
-| sha256           | SHA-256 of wheel file bytes             | Upload and installation artifact verification |
-| content_sha256   | Plugin content fingerprint              | Build caching and content identity            |
-| requirements     | Wheel dependency metadata               | Installation environment requirements         |
-| restart_required | Installation/uninstallation result hint | Recompose service contributions               |
+| Field            | Meaning                                 | Purpose                               |
+| ---------------- | --------------------------------------- | ------------------------------------- |
+| sha256           | SHA-256 of wheel file bytes             | Installation artifact verification    |
+| content_sha256   | Plugin content fingerprint              | Build caching and content identity    |
+| requirements     | Wheel dependency metadata               | Installation environment requirements |
+| restart_required | Installation/uninstallation result hint | Recompose service contributions       |
 
-Identical source content and caching do not guarantee identical wheel bytes; do not substitute content_sha256 for the sha256 returned by upload. Remote install must receive the path and sha256 returned by POST /files. Editable installation applies only to local source environments and cannot be deployed remotely.
+Identical source content and caching do not guarantee identical wheel bytes; do not substitute content_sha256 for the wheel SHA256 calculated by the local builder. Remote install must receive the path returned by POST /files and that local wheel SHA256. Editable installation applies only to local source environments and cannot be deployed remotely.
 
 ```bash
 axonx plugin inspect ./plugins/example

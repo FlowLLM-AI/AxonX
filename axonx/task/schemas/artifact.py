@@ -7,7 +7,7 @@ class ArtifactRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     path: str = Field(min_length=1)
     size: int = Field(ge=0)
-    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    revision: str = Field(pattern=r"^\d+:\d+$")
 
     @field_validator("path")
     @classmethod

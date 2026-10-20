@@ -1,16 +1,16 @@
 """Portable, verified snapshots of model collections."""
 
-import hashlib
 from pathlib import Path
 
-from ...utils.fs import atomic_write_json, file_sha256, snapshot_file
+from ...utils.fs import atomic_write_json, file_revision, snapshot_file
 from ..schemas.model import ModelCollection
 from .artifacts import artifact_record
 
 
-def snapshot_model_collection(manifest_file: Path, destination: Path, *, expected_sha256: str | None = None) -> Path:
+def snapshot_model_collection(manifest_file: Path, destination: Path, *, expected_revision: str | None = None) -> Path:
+    revision = file_revision(manifest_file)
     content = manifest_file.read_bytes()
-    if expected_sha256 is not None and hashlib.sha256(content).hexdigest() != expected_sha256:
+    if file_revision(manifest_file) != revision or (expected_revision is not None and revision != expected_revision):
         raise ValueError("Model manifest changed during snapshot")
     manifest = ModelCollection.model_validate_json(content).model_dump(mode="json")
     records = {}
@@ -21,7 +21,7 @@ def snapshot_model_collection(manifest_file: Path, destination: Path, *, expecte
         if not target.resolve().is_relative_to(destination.resolve()):
             raise ValueError("Model member path escapes snapshot directory")
         snapshot_file(source, target)
-        if file_sha256(target) != manifest["artifacts"][name]["sha256"]:
+        if file_revision(target) != manifest["artifacts"][name]["revision"]:
             raise ValueError("Model collection changed during snapshot")
         records[name] = artifact_record(target, destination)
     path = destination / "models.json"

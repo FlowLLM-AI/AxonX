@@ -104,9 +104,9 @@ The default training target is cross-sectional return rank. `pred` is a score, n
 
 ## Artifacts and traceability
 
-Click artifacts on a result page to preview or locate files. Paths in standard `artifacts` are relative to the current Task directory. `size` is in bytes, and `sha256` is the digest of file contents at generation time.
+Click artifacts on a result page to preview or locate files. Paths in standard `artifacts` are relative to the current Task directory. `size` is in bytes, and `revision` is `size:mtime_ns` recorded at generation time.
 
-Do not directly modify model or data files of successful tasks; doing so separates metadata verification information from actual contents. qlib_a158 prediction verifies the training model digest and checks model feature names and ordering.
+Do not directly modify model or data files of successful tasks; doing so separates metadata verification information from actual contents. qlib_a158 prediction verifies the training model revision and checks model feature names and ordering.
 
 For abnormal results, retain Task ID, run_id, inputs, upstream IDs, metadata, and logs. Use [task lineage](../concepts/task-lineage.md) to verify dependencies, then inspect file contents.
 

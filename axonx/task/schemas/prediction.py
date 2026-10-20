@@ -13,7 +13,7 @@ class PredictionProtocol(Protocol):
     model_identity: dict[str, str] = Field(min_length=1)
     dates: list[str] = Field(min_length=1)
     score_columns: dict[str, str] = Field(min_length=1)
-    predictions_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    predictions_revision: str = Field(pattern=r"^\d+:\d+$")
 
     @model_validator(mode="after")
     def validate_scope(self):

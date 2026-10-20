@@ -82,11 +82,9 @@ async def _run_remote(args, options: ClientOptions):
             artifact = _artifact(args.plugin, args.output)
             copied = await client.copy_file(artifact.wheel)
             try:
-                if copied.sha256 != artifact.sha256:
-                    raise RuntimeError("Remote workspace copy does not match the plugin wheel")
                 response = await client.run_job(
                     "install_plugin",
-                    {"path": copied.path, "sha256": copied.sha256},
+                    {"path": copied.path, "sha256": artifact.sha256},
                 )
                 if not response.success:
                     raise RuntimeError(str(response.answer))

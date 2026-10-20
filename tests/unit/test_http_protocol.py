@@ -1,7 +1,6 @@
 """Contract tests for the three AxonX HTTP protocol surfaces."""
 
 import asyncio
-import hashlib
 import socket
 
 import httpx
@@ -76,7 +75,7 @@ async def test_http_protocol_uses_one_token_for_jobs_events_and_files(tmp_path):
             source = tmp_path / "payload.bin"
             source.write_bytes(b"axonx-http-protocol")
             copied = await client.copy_file(source)
-            assert copied.sha256 == hashlib.sha256(source.read_bytes()).hexdigest()
+            assert copied.size == source.stat().st_size
             assert copied.size == source.stat().st_size
             assert (tmp_path / "workspace" / copied.path).read_bytes() == source.read_bytes()
             assert await client.discard_file(copied.path) == copied.path

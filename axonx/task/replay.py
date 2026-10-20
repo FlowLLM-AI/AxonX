@@ -1,17 +1,16 @@
-"""Portable, hash-verified event files and a synchronous replay driver."""
+"""Portable, revision-checked event files and a synchronous replay driver."""
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 import hashlib
 from pathlib import Path
-import shutil
 import tempfile
 from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from ..utils.fs import atomic_write_json, file_sha256
+from ..utils.fs import atomic_write_json, file_revision, snapshot_file
 from .schemas.artifact import ArtifactRecord
 from .core.clock import ReplayClock
 
@@ -72,7 +71,7 @@ class ReplayStream:
         path = (self.root / record.path).resolve(strict=True)
         if Path(record.path).is_absolute() or not path.is_relative_to(self.root):
             raise ValueError("Replay file escapes stream directory")
-        if not path.is_file() or path.stat().st_size != record.size or file_sha256(path) != record.sha256:
+        if not path.is_file() or path.stat().st_size != record.size or file_revision(path) != record.revision:
             raise ValueError(f"Replay file changed: {record.path}")
         return path
 
@@ -99,10 +98,10 @@ class ReplayStream:
                 nonlocal counter
                 counter += 1
                 target = root / "files" / f"{counter:06d}{Path(source).suffix}"
-                shutil.copyfile(source, target)
+                snapshot_file(source, target, isolated=True)
                 return ReplayFile(
                     path=target.relative_to(root).as_posix(),
-                    sha256=file_sha256(target),
+                    revision=file_revision(target),
                     size=target.stat().st_size,
                 )
 

@@ -17,11 +17,7 @@ components:
   task_repository:
     default:
       backend: local
-      recursive: true
-      force_polling: true
-      debounce: 3000
-      step: 3000
-      poll_delay_ms: 1000
+      poll_interval: 1
 
   task_manager:
     default:

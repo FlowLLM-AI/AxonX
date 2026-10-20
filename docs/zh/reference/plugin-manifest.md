@@ -134,12 +134,12 @@ Application 使用局部 registry，发现后的贡献按所有权合并。两�
 
 | 字段             | 含义                     | 用途               |
 | ---------------- | ------------------------ | ------------------ |
-| sha256           | wheel 文件字节的 SHA-256 | 上传与安装制品校验 |
+| sha256           | wheel 文件字节的 SHA-256 | 安装制品校验       |
 | content_sha256   | 插件内容指纹             | 构建缓存与内容身份 |
 | requirements     | wheel 的依赖元数据       | 安装环境需求       |
 | restart_required | 安装/卸载结果提示        | 服务贡献重新装配   |
 
-相同源内容与缓存不代表 wheel 字节必然相同；不要拿 content_sha256 替代上传返回的 sha256。远程 install 必须接收 POST /files 返回的 path 与 sha256。editable 只适用于本地源码环境，不能远程部署。
+相同源内容与缓存不代表 wheel 字节必然相同；不要拿 content_sha256 替代本地构建 wheel 的 SHA256。远程 install 必须接收 POST /files 返回的 path 与该本地 wheel 的 SHA256。editable 只适用于本地源码环境，不能远程部署。
 
 ```bash
 axonx plugin inspect ./plugins/example

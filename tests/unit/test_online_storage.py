@@ -35,7 +35,13 @@ def store(tmp_path):
     return OnlineStore(task)
 
 
-def publish(store, day="20261012", trade_time="1445", artifact_data=b"synthetic artifact", **kwargs):
+def publish(
+    store,
+    day="20261012",
+    trade_time="1445",
+    artifact_data=b"synthetic artifact",
+    **kwargs,
+):
     source = store.task.task_dir / "signal.parquet"
     source.write_bytes(artifact_data)
     clock = Clock()
@@ -81,10 +87,10 @@ def test_failures_keep_previous_manifest_and_remove_abandoned_files(store, monke
     original = module.shutil.copyfile
     original_replace = atomic.os.replace
 
-    def copy(source, target):
+    def copy(source, target, **kwargs):
         if failure == "copy":
             raise OSError("synthetic copy failure")
-        return original(source, target)
+        return original(source, target, **kwargs)
 
     def replace(source, target):
         if failure == "swap" and target == store.manifest:
@@ -112,7 +118,7 @@ def test_changed_strategy_and_tampered_artifacts_are_rejected(store):
         store.history("1" * 64)
     path = store.task.task_dir / commit.artifacts["signal"].path
     path.write_bytes(b"tampered")
-    with pytest.raises(ValueError, match="SHA256 mismatch"):
+    with pytest.raises(ValueError, match="revision mismatch"):
         online_artifact(store.task.task_dir, commit, "signal")
 
 
@@ -184,7 +190,7 @@ def test_artifact_paths_must_be_portable_and_confined(path):
     from axonx.task.artifact import ArtifactRecord
 
     with pytest.raises(ValidationError, match="relative task path"):
-        ArtifactRecord(path=path, size=0, sha256="0" * 64)
+        ArtifactRecord(path=path, size=0, revision="0:0")
 
 
 def test_publication_lock_wait_is_bounded(store):
@@ -243,7 +249,7 @@ def test_frozen_snapshots_store_bounded_groups_and_verify_the_previous_snapshot(
     assert json.loads(store.manifest.read_text())["kind"] == "online_history"
     assert not list(store.root.rglob("*.tmp"))
     first_path.write_bytes(first_path.read_bytes() + b" ")
-    with pytest.raises(ValueError, match="SHA256 mismatch"):
+    with pytest.raises(ValueError, match="revision mismatch"):
         read_online_history(second_path)
 
 
@@ -287,7 +293,7 @@ def test_frozen_history_rejects_cross_task_references(store):
     publish(store)
     _, snapshot = publish(store, "20261013")
     value = json.loads(snapshot.read_text())
-    value["previous"] = {"path": "other/history.json", "size": 0, "sha256": "0" * 64}
+    value["previous"] = {"path": "other/history.json", "size": 0, "revision": "0:0"}
     snapshot.write_text(json.dumps(value))
     with pytest.raises(ValueError, match="Invalid frozen history reference"):
         read_online_history(snapshot)
@@ -341,3 +347,25 @@ def test_history_chain_export_includes_predecessors_without_recursive_planning(
     )
     plan = plan_task(tmp_path, task_id)
     assert sum(item.relative.endswith("history.json") for item in plan.files) == 1050
+
+
+def test_equal_metadata_does_not_deduplicate_different_contents(store):
+    import os
+
+    sources = [store.task.task_dir / name for name in ("first.bin", "second.bin")]
+    for source, content in zip(sources, [b"first!", b"other!"], strict=True):
+        source.write_bytes(content)
+        os.utime(source, ns=(1700000000000000000, 1700000000000000000))
+    clock = Clock()
+    commit, _ = store.commit(
+        history=store.history("0" * 64),
+        trade_date="20261012",
+        trade_time="1445",
+        model_identity={"fingerprint": "fixed"},
+        protocol={"version": 1, "task_type": "inference"},
+        files=dict(zip(["first", "second"], sources, strict=True)),
+        budget=DeadlineBudget(clock, clock.now() + timedelta(seconds=5)),
+    )
+    assert commit.artifacts["first"].revision == commit.artifacts["second"].revision
+    assert online_artifact(store.task.task_dir, commit, "first").read_bytes() == b"first!"
+    assert online_artifact(store.task.task_dir, commit, "second").read_bytes() == b"other!"

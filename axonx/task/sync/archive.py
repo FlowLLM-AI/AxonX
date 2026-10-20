@@ -20,7 +20,7 @@ def build_archive(plans: dict[str, TaskPlan], task_ids: Sequence[str], target: P
     included: list[str] = []
     with (
         target.open("wb") as raw,
-        gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as zipped,
+        gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0, compresslevel=1) as zipped,
         tarfile.open(fileobj=zipped, mode="w") as archive,
     ):
         for task_id in task_ids:

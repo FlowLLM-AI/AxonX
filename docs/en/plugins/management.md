@@ -90,7 +90,7 @@ axonx plugin install ./plugins/qlib_factor --target 'http://research.example:102
 axonx plugin install ./plugins/qlib_strategy --target 'http://research.example:1024'
 ```
 
-The CLI builds local source into a wheel, uploads it to remote `/files`, checks the returned sha256, then calls remote install_plugin and cleans up staging files at the end. The installation Job runs in the target service's Python environment. For manual HTTP or MCP installation workflows, first upload the wheel using binary or multipart `POST /files`, then pass the returned path and sha256 to `install_plugin` on the same service; see [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
+The CLI builds local source into a wheel, uploads it to remote `/files`, then calls remote install_plugin with the returned path and the locally built wheel SHA256 and cleans up staging files at the end. The installation Job runs in the target service's Python environment. For manual HTTP or MCP installation workflows, first upload the wheel using binary or multipart `POST /files`, then pass the returned path and the local wheel SHA256 to `install_plugin` on the same service; see [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
 
 `plugin build` only runs locally and does not support `--target`. Remote inspect queries installed plugins on the target; it does not send a local source directory to the target for inspection.
 
@@ -102,7 +102,7 @@ The CLI builds local source into a wheel, uploads it to remote `/files`, checks 
 | sha256           | Specific wheel file checksum for transfer and installation verification |
 | restart_required | Whether live Components/Jobs or replaced dependencies require a restart |
 
-The two sha256 fields are not guaranteed to match: wheel compression and packaging change the specific file bytes. Pass the wheel sha256 from the upload receipt to the installation interface, not the source fingerprint.
+The two sha256 fields are not guaranteed to match: wheel compression and packaging change the specific file bytes. Pass the wheel SHA256 calculated by the local builder to the installation interface, not the source fingerprint.
 
 Task-only wheel installation and updates through `install_plugin` refresh plugin package imports in the running service. Subsequent definition queries and submissions use updated Task classes, parameter models, and helpers without restarting, including additional packages or standalone modules shipped in the same wheel. Uninstalling a Task-only plugin removes its registrations from subsequent queries and submissions. Identical wheels skip installation and preserve cached classes.
 
@@ -133,7 +133,7 @@ Uninstallation affects future code loading but does not automatically delete his
 | Registered name conflict                      | Whether plugin contributions share names with built-ins or other plugins |
 | Invalid manifest                              | Types, module:Class, and class base classes                              |
 | Installation succeeded but UI has not updated | restart_required, target machine, and runtime environment                |
-| Wheel checksum failed                         | Use the upload receipt sha256 and transfer the correct file again        |
+| Wheel checksum failed                         | Use the local wheel SHA256 and transfer the correct file again           |
 | Missing model dependencies                    | requirements and device libraries in the target environment              |
 
 [Plugin manifest](../reference/plugin-manifest.md) · [Remote machines](../guides/remote-machines.md) · [Existing development guide](../dev_guide.md)

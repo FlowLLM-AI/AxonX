@@ -14,7 +14,7 @@ from axonx.enums import TaskState
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage import read_metadata
 from axonx.task.storage.workspace import task_path
-from axonx.utils.fs import atomic_write, file_sha256
+from axonx.utils.fs import atomic_write, file_revision
 
 
 def run_comparison(options: argparse.Namespace) -> dict:
@@ -66,7 +66,11 @@ def run_comparison(options: argparse.Namespace) -> dict:
             "label": label,
             "parameter_preset": preset,
             "backtest_settings": backtest["protocol"]["settings"],
-            "tasks": {"train": train_id, "predict": predict_id, "backtest": backtest_id},
+            "tasks": {
+                "train": train_id,
+                "predict": predict_id,
+                "backtest": backtest_id,
+            },
             "parameters": train["parameters"],
             "best_iteration": train["best_iteration"],
             "validation_metrics": {
@@ -74,7 +78,7 @@ def run_comparison(options: argparse.Namespace) -> dict:
                 for key, value in train["validation_metrics"].items()
             },
             "evaluation_status": {key: report["evaluation_status"] for key, report in backtest["universes"].items()},
-            "input_sha256": backtest["protocol"]["input_sha256"],
+            "input_revisions": backtest["protocol"]["input_revisions"],
         }
         for universe, report in backtest["universes"].items():
             record = backtest["artifacts"][report["artifacts"]["summary"]]
@@ -87,24 +91,25 @@ def run_comparison(options: argparse.Namespace) -> dict:
             )
     result = {
         "etl_task": options.etl_task,
-        "dataset_sha256": dataset["sha256"],
+        "dataset_revision": dataset["revision"],
         "settings": {key: str(value) if isinstance(value, Path) else value for key, value in vars(options).items()},
         "presets": records,
         "selection": "Validation metrics, yearly summaries, transaction costs and evaluation status.",
     }
     # Models and predictions differ, but market/calendar/labels must be identical.
     for key in ("market", "calendar", "labels"):
-        digests = {record["input_sha256"].get(key) for record in records.values()}
+        digests = {record["input_revisions"].get(key) for record in records.values()}
         if len(digests) != 1:
             raise ValueError(f"Comparison inputs differ: {key}")
     source = task_path(workspace, options.etl_task) / dataset["path"]
-    if file_sha256(source) != dataset["sha256"]:
+    if file_revision(source) != dataset["revision"]:
         raise ValueError("ETL dataset changed during parameter comparison")
     output = workspace / "qlib_a158_comparison" / train_id.split("#")[-1]
     output.mkdir(parents=True, exist_ok=True)
     atomic_write(output / "summary.csv", pl.concat(summaries).write_csv)
     atomic_write(
-        output / "comparison.json", lambda path: path.write_text(json.dumps(result, indent=2, allow_nan=False))
+        output / "comparison.json",
+        lambda path: path.write_text(json.dumps(result, indent=2, allow_nan=False)),
     )
     return {"output_dir": str(output), **result}
 

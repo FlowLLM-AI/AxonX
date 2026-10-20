@@ -2,22 +2,22 @@ import { expect, it } from "vitest";
 import { displayArtifacts } from "./replica";
 import { taskStatus } from "../../playground/fixtures";
 
-it("uses actual sampled hashes and excludes omitted artifact links", () => {
+it("uses actual sampled revisions and excludes omitted artifact links", () => {
   const metadata = taskStatus("etl", "etl#demo#test", "test");
   metadata.output_params.artifacts = {
-    dataset: { path: "dataset.parquet", size: 1000, sha256: "original" },
-    omitted: { path: "missing.parquet", size: 1000, sha256: "original" },
+    dataset: { path: "dataset.parquet", size: 1000, revision: "1000:1" },
+    omitted: { path: "missing.parquet", size: 1000, revision: "1000:1" },
   };
   metadata.replica = {
     purpose: "display",
     snapshot: null,
     log: null,
-    source_digest: "a".repeat(64),
-    policy_digest: "b".repeat(64),
+    source_revision: "1:1",
+    policy_revision: "1:1",
     files: {
       "dataset.parquet": {
         size: 100,
-        sha256: "actual",
+        revision: "actual",
         sampled: true,
         rows: 10,
         source_rows: 100,
@@ -28,7 +28,11 @@ it("uses actual sampled hashes and excludes omitted artifact links", () => {
     source_log_path: "",
   };
   expect(displayArtifacts(metadata)).toEqual({
-    dataset: { path: "dataset.parquet", size: 100, sha256: "actual" },
+    dataset: {
+      path: "dataset.parquet",
+      size: 100,
+      revision: "actual",
+    },
   });
   expect(metadata.output_params.artifacts).toHaveProperty("omitted");
 });

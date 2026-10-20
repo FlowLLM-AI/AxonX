@@ -63,7 +63,7 @@ export type ArtifactEvent = {
 export type ArtifactRecord = {
   path: string;
   size: number;
-  sha256: string;
+  revision: string;
 };
 
 export type BacktestBenchmark = {
@@ -179,8 +179,8 @@ export type DeletedEntry = {
 
 export type DisplayReplica = {
   purpose: "display";
-  source_digest: string;
-  policy_digest: string;
+  source_revision: string;
+  policy_revision: string;
   files: Record<string, ReplicaFile>;
   omitted: Record<string, string>;
   source_log_path: string;
@@ -190,7 +190,6 @@ export type DisplayReplica = {
 
 export type FileCopy = {
   path: string;
-  sha256: string;
   size: number;
 };
 
@@ -375,7 +374,7 @@ export type ProgressEvent = {
 
 export type ReplicaFile = {
   size: number;
-  sha256: string;
+  revision: string;
   sampled: boolean;
   rows: number | null;
   source_rows: number | null;
@@ -417,7 +416,6 @@ export type ScheduleTrigger = {
 
 export type StagedFile = {
   path: string;
-  sha256: string;
   size: number;
   location: string;
 };

@@ -28,16 +28,16 @@ from ...task.sync import (
 from ...task.sync.errors import ReplicaBudgetError
 from ...task.sync.index import (
     matches_task_name,
-    policy_digest,
-    snapshot_digest,
+    policy_revision,
+    source_revision,
     validate_task_names,
 )
 from ...task.sync.replica import prepare_replica, prepare_group
 from ...task.sync.index import validate_live_task_ids
 from ...task.sync.models import TaskPlan
 from ...task.storage.logs import TaskLogReader
+from ...task.schemas.replica import DisplayReplica
 from ...utils.async_work import run_blocking
-from ...utils.fs import file_sha256
 from ..client import HttpClient
 from ..client.base import RemoteServiceError
 from ..registry import provider
@@ -100,7 +100,7 @@ class LocalSyncComponent(BaseSyncComponent):
         return HttpClient(target=configured.address, timeout=self.timeout, token=configured.token)
 
     def _missing(self, remote: dict) -> set[str]:
-        policy = policy_digest(self.budget)
+        policy = policy_revision(self.budget)
         missing = set()
         members = self._group_members()
         for task_id, metadata in scan_entries(self.root).items():
@@ -113,8 +113,8 @@ class LocalSyncComponent(BaseSyncComponent):
                 continue
             try:
                 expected = {
-                    "source_digest": snapshot_digest(self.root, task_id),
-                    "policy_digest": policy,
+                    "source_revision": source_revision(self.root, task_id),
+                    "policy_revision": policy,
                 }
                 if any(remote.get(task_id, {}).get(key) != value for key, value in expected.items()):
                     missing.add(task_id)
@@ -123,8 +123,9 @@ class LocalSyncComponent(BaseSyncComponent):
                 missing.add(task_id)
         return missing
 
-    async def _reconcile(self) -> None:
-        self._needs_reconcile = False
+    async def _reconcile(self, *, sources: bool = True) -> None:
+        if sources:
+            self._needs_reconcile = False
         try:
             async with self._client() as client:
                 response = await client.run_job(
@@ -140,22 +141,25 @@ class LocalSyncComponent(BaseSyncComponent):
             budget, remote = payload.get("transfer_budget_bytes"), payload.get("tasks")
             if not isinstance(budget, int) or isinstance(budget, bool) or budget <= 0 or not isinstance(remote, dict):
                 raise ValueError("Remote index must provide transfer_budget_bytes and tasks")
-            if any(
-                not isinstance(key, str)
-                or not isinstance(value, dict)
-                or set(value) != {"source_digest", "policy_digest", "run_id", "files"}
-                or not isinstance(value["run_id"], str)
-                or not isinstance(value["files"], dict)
-                or any(
-                    not isinstance(value[key], str) or len(value[key]) != 64
-                    for key in ("source_digest", "policy_digest")
-                )
-                for key, value in remote.items()
-            ):
-                raise ValueError("Invalid remote replica identities")
+            index = {}
+            for identity, value in remote.items():
+                if (
+                    not isinstance(identity, str)
+                    or not isinstance(value, dict)
+                    or not isinstance(value.get("run_id"), str)
+                ):
+                    raise ValueError("Invalid remote replica identity")
+                replica = DisplayReplica.model_validate({key: item for key, item in value.items() if key != "run_id"})
+                index[identity] = {
+                    "run_id": value["run_id"],
+                    **replica.model_dump(mode="json"),
+                }
+            remote = index
+            sources |= self._remote_budget is not None and self._remote_budget != budget
             self._remote_budget = budget
             self._remote_index = remote
-            self._pending.update(await run_blocking(self._missing, remote))
+            if sources:
+                self._pending.update(await run_blocking(self._missing, remote))
             self.logger.info(
                 f"Display sync reconciled target={self.target}: queued={len(self._pending)} budget={self.budget}"
             )
@@ -170,7 +174,7 @@ class LocalSyncComponent(BaseSyncComponent):
         self.configured_target = self.app_config.resolve_target(self.target)
         self._pending.clear()
         self._changes = self.repository.subscribe()
-        await self._reconcile()
+        self._needs_reconcile = True
         self._change_consumer = asyncio.create_task(self._consume_changes(), name=f"axonx-sync:{self.name}")
 
     async def _close(self) -> None:
@@ -227,12 +231,10 @@ class LocalSyncComponent(BaseSyncComponent):
     async def _send(self, client: HttpClient, archive: Path) -> None:
         staged = None
         try:
-            digest = await run_blocking(file_sha256, archive)
-            staged = f"tmp/{digest}/{SYNC_ARCHIVE_NAME}"
             copied = await client.copy_file(archive, filename=SYNC_ARCHIVE_NAME)
             staged = copied.path
-            if copied.sha256 != digest:
-                raise ValueError("Uploaded archive checksum mismatch")
+            if copied.size != archive.stat().st_size:
+                raise ValueError("Uploaded archive size mismatch")
             response = await client.run_job("sync_tasks", {"path": staged})
             if not response.success:
                 raise ValueError(f"Remote replica commit failed: {response.answer}")
@@ -241,6 +243,21 @@ class LocalSyncComponent(BaseSyncComponent):
                 with suppress(Exception):
                     await client.discard_file(staged)
 
+    def _pack(self, groups):
+        sizes = {
+            identity: TaskPlan(
+                tuple(f for plan in members.values() for f in plan.files),
+                sum(plan.size for plan in members.values()),
+            )
+            for identity, members in groups.items()
+        }
+        return pack_batches(
+            sizes,
+            archive_budget(self.budget),
+            self.max_archives_per_flush,
+            members={identity: set(members) for identity, members in groups.items()},
+        )
+
     async def _transfer(self, pending: Sequence[str]) -> SyncReport:
         report = SyncReport()
         ordered = sorted(pending)
@@ -248,7 +265,7 @@ class LocalSyncComponent(BaseSyncComponent):
         with tempfile.TemporaryDirectory(prefix="axonx-display-", dir=self.root) as temporary:
             staging = Path(temporary)
             groups = {}
-            for task_id in ordered:
+            for position, task_id in enumerate(ordered):
                 try:
                     group_root = staging / task_id
                     if task_id in self.live_task_ids:
@@ -273,6 +290,12 @@ class LocalSyncComponent(BaseSyncComponent):
                         plans = {task_id: plan}
                     if plans:
                         groups[task_id] = plans
+                        _, _, deferred = self._pack(groups)
+                        if deferred:
+                            remaining = ordered[position + 1 :]
+                            self._pending.update(remaining)
+                            report.deferred.extend(task_directory(identity) for identity in remaining)
+                            break
                 except ReplicaBudgetError as exc:
                     report.rejected.append(task_directory(task_id))
                     self.logger.warning(f"Display sync rejected {task_id}: {exc}")
@@ -280,19 +303,7 @@ class LocalSyncComponent(BaseSyncComponent):
                     self._pending.add(task_id)
                     report.deferred.append(task_directory(task_id))
                     self.logger.warning(f"Display source will retry {task_id}: {exc}")
-            sizes = {
-                identity: TaskPlan(
-                    tuple(f for p in plans.values() for f in p.files),
-                    sum(p.size for p in plans.values()),
-                )
-                for identity, plans in groups.items()
-            }
-            batches, oversized, deferred = pack_batches(
-                sizes,
-                archive_budget(self.budget),
-                self.max_archives_per_flush,
-                members={identity: set(plans) for identity, plans in groups.items()},
-            )
+            batches, oversized, deferred = self._pack(groups)
             self._pending.update(deferred)
             report.oversized = [task_directory(identity) for identity in oversized]
             report.deferred.extend(task_directory(identity) for identity in deferred)
@@ -324,7 +335,7 @@ class LocalSyncComponent(BaseSyncComponent):
         async with self._flush_lock:
             # Active and completed replicas share one index, queue, budget and sender.
             if self._needs_reconcile or self.live_task_ids:
-                await self._reconcile()
+                await self._reconcile(sources=self._needs_reconcile)
                 if self._needs_reconcile:
                     return SyncReport(deferred=[task_directory(i) for i in sorted(self.live_task_ids)])
             queued, self._pending = self._pending | self.live_task_ids, set()

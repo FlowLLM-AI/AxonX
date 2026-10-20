@@ -22,7 +22,7 @@ export class ArtifactTableCache {
       this.target,
       this.taskId,
       artifact.path,
-      artifact.sha256,
+      artifact.revision,
     ]);
     const cached = this.entries.get(key);
     if (cached) {

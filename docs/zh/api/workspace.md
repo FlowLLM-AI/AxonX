@@ -222,13 +222,12 @@ curl -s -X POST http://127.0.0.1:1024/files \
 
 运行依赖 `python-multipart` 已在 `pyproject.toml` 中声明，无需额外的服务配置开关即可使用两种格式。
 
-FileCopy 的响应形状如下，哈希和字节大小必须以真实返回为准：
+FileCopy 的响应形状如下，路径和字节大小必须以真实返回为准：
 
 ```json
 {
   "answer": {
-    "path": "tmp/plugins/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/axonx_example-0.1.0-py3-none-any.whl",
-    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "path": "tmp/plugins/0123456789abcdef0123456789abcdef/axonx_example-0.1.0-py3-none-any.whl",
     "size": 4096
   },
   "success": true,
@@ -236,12 +235,12 @@ FileCopy 的响应形状如下，哈希和字节大小必须以真实返回为�
 }
 ```
 
-文件暂存目录按内容 SHA-256 命名，相同内容与文件名上传是幂等的。默认单文件上限为 512 MiB；服务同时检查 Content-Length 和实际流入字节数。multipart 请求允许额外 64 KiB 的请求封装开销，文件本身仍受单文件上限约束。multipart 临时文件在存储结束或失败时关闭，包括请求取消。非法 Content-Length、损坏的 multipart 请求体或过多的表单部分为 400，超限为 413；缺失/非法文件名、缺少 `file` 文件、未知字段、目录逃逸等为 422，符号链接或不同内容占据目的位置为 409。
+每次上传使用独立暂存目录，不计算内容哈希，也不按内容去重。默认单文件上限为 512 MiB；服务同时检查 Content-Length 和实际流入字节数。multipart 请求允许额外 64 KiB 的请求封装开销，文件本身仍受单文件上限约束。multipart 临时文件在存储结束或失败时关闭，包括请求取消。非法 Content-Length、损坏的 multipart 请求体或过多的表单部分为 400，超限为 413；缺失/非法文件名、缺少 `file` 文件、未知字段、目录逃逸等为 422，拒绝符号链接及目录逃逸。
 
-消费者 install_plugin、sync_tasks 使用返回的 path。安装还要传 sha256。上传完成不代表插件已安装，也不代表任务快照已应用。消费者会清理暂存制品；未消费时可主动清理：
+消费者 install_plugin、sync_tasks 使用返回的 path。安装调用方还需提供原始 wheel 的 SHA-256，由插件消费者校验。上传完成不代表插件已安装，也不代表任务快照已应用。消费者会清理暂存制品；未消费时可主动清理：
 
 ```bash
-curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fyour-digest%2Fyour-wheel.whl' \
+curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fupload-id%2Fyour-wheel.whl' \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
 ```
 

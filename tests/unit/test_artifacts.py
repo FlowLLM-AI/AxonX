@@ -10,4 +10,4 @@ def test_artifact_record_uses_the_shared_file_size_field(tmp_path):
     assert record["path"] == "result.bin"
     assert record["size"] == len(b"artifact")
     assert "bytes" not in record
-    assert len(record["sha256"]) == 64
+    assert record["revision"] == f"{artifact.stat().st_size}:{artifact.stat().st_mtime_ns}"

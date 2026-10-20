@@ -37,13 +37,12 @@ async def test_streamed_upload_rejects_declared_size_mismatch(tmp_path):
         await StagedFiles(tmp_path).store_stream(chunks(), "file.bin", size=1)
 
 
-def test_staged_file_is_verified_before_consumption(tmp_path):
+def test_staged_file_resolves_without_reading_contents(tmp_path):
     staged_files = StagedFiles(tmp_path)
     staged = staged_files.store(b"original", "file.bin")
     Path(staged.location).write_bytes(b"tampered")
 
-    with pytest.raises(ValueError, match="does not match its path"):
-        staged_files.file(staged.path)
+    assert staged_files.file(staged.path) == Path(staged.location)
 
 
 def _archive(files: dict[str, bytes]) -> bytes:

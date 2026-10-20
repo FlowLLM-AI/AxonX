@@ -12,7 +12,7 @@ from pathlib import Path, PurePosixPath
 
 from ...constants import DEFAULT_TRANSFER_BUDGET_BYTES
 from ...workspace.paths import WorkspacePaths
-from ...utils.fs import file_sha256, snapshot_file
+from ...utils.fs import snapshot_file
 from ..storage.workspace import (
     parse_task_directory,
     read_task_metadata,
@@ -120,7 +120,7 @@ class TaskArchiveApplier:
         return unique
 
     def _hydrate(self, root: Path, tasks: set[str]) -> None:
-        """Reuse only explicitly checksummed files from the same existing Run."""
+        """Reuse only explicitly versioned files from the same existing Run."""
         expanded = 10240 + sum(512 + ((p.stat().st_size + 511) // 512) * 512 for p in root.rglob("*") if p.is_file())
         for relative_path in tasks:
             directory = root / relative_path
@@ -145,7 +145,7 @@ class TaskArchiveApplier:
                 source = self.paths.root / relative_path / name
                 if old.files.get(name) != record or any(p.is_symlink() for p in (source, *source.parents)):
                     raise ValueError(f"Replica delta base differs: {task_id}/{name}")
-                if source.stat().st_size != record.size or file_sha256(source) != record.sha256:
+                if source.stat().st_size != record.size:
                     raise ValueError(f"Replica delta base is corrupt: {task_id}/{name}")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 snapshot_file(source, target)

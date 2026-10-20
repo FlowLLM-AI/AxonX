@@ -123,7 +123,7 @@ def test_parameter_comparison_runs_both_presets_with_one_etl(tmp_path, labels):
         assert entry["backtest_settings"]["sell_cost_rate"] == 0.0015
         assert entry["backtest_settings"]["as_of_date"] == dates[-2]
     saved = json.loads((Path(report["output_dir"]) / "comparison.json").read_text())
-    assert saved["dataset_sha256"] == report["dataset_sha256"]
+    assert saved["dataset_revision"] == report["dataset_revision"]
     summary = pl.read_csv(Path(report["output_dir"]) / "summary.csv")
     assert set(summary["preset"]) == {"axonx", "qlib"}
     assert set(summary["label"]) == set(labels)

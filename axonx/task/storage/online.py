@@ -14,7 +14,7 @@ from ..core.clock import DeadlineBudget
 from ..schemas.protocol import PROTOCOL_VERSION
 from .artifacts import artifact_path, artifact_record
 from .history import HISTORY_BLOCK_SIZE, HistoryNode, read_online_history
-from ...utils.fs import atomic_write, atomic_write_json, file_sha256, snapshot_file
+from ...utils.fs import atomic_write, atomic_write_json, file_revision, snapshot_file
 
 
 @contextmanager
@@ -37,8 +37,8 @@ def publication_lock(path: Path, budget: DeadlineBudget):
 def online_artifact(root: Path, commit: OnlineCommit, role: str) -> Path:
     record = commit.artifacts[role].model_dump()
     path = artifact_path(root, {"output_params": {"artifacts": {role: record}}}, role)
-    if path.stat().st_size != record["size"] or file_sha256(path) != record["sha256"]:
-        raise ValueError(f"Online artifact SHA256 mismatch: {role}")
+    if path.stat().st_size != record["size"] or file_revision(path) != record["revision"]:
+        raise ValueError(f"Online artifact revision mismatch: {role}")
     return path
 
 
@@ -96,21 +96,16 @@ class OnlineStore:
             published = False
             try:
                 records = {}
-                existing = {a.sha256: (c, role) for c in history.commits for role, a in c.artifacts.items()}
                 for role, source in files.items():
                     if re.fullmatch(r"[A-Za-z0-9_-]+", role) is None:
                         raise ValueError("Invalid online artifact role")
                     budget.check()
                     # Roles are logical names; source basenames cannot collide across roles.
                     target = folder / f"{role}{source.suffix}"
-                    digest = file_sha256(source)
-                    if digest in existing:
-                        previous_artifact = online_artifact(self.task.task_dir, *existing[digest])
-                        snapshot_file(previous_artifact, target)
-                    else:
-                        shutil.copyfile(source, target)
+                    revision = file_revision(source)
+                    snapshot_file(source, target, isolated=True)
                     records[role] = artifact_record(target, self.task.task_dir)
-                    if records[role]["sha256"] != digest:
+                    if records[role]["revision"] != revision:
                         raise ValueError("Online input changed during publication")
                 budget.check()
                 commit = OnlineCommit(
@@ -141,7 +136,12 @@ class OnlineStore:
                 if prepare is not None:
                     prepare(commit, snapshot)
                 # Serialize once, keeping the public manifest self-contained.
-                content = json.dumps(updated.model_dump(mode="json"), ensure_ascii=False, indent=2, allow_nan=False)
+                content = json.dumps(
+                    updated.model_dump(mode="json"),
+                    ensure_ascii=False,
+                    indent=2,
+                    allow_nan=False,
+                )
 
                 # Check after serialization and immediately before the single publication point.
                 def publish(temporary):
@@ -177,18 +177,15 @@ def pin_online_history(task, source_id: str, *, as_of: str | None = None) -> tup
         for role, record in commit.artifacts.items():
             path = online_artifact(upstream, commit, role)
             target = root / commit.commit_id / Path(record.path).name
-            if record.sha256 in pinned_files:
-                snapshot_file(pinned_files[record.sha256], target)
+            if record.path in pinned_files:
+                snapshot_file(pinned_files[record.path], target)
             else:
                 # Keep the first copy isolated from in-place upstream writes. Only
                 # consumer-owned immutable copies may share storage with one another.
-                atomic_write(
-                    target,
-                    lambda temporary, source=path: shutil.copyfile(source, temporary),
-                )
-            if file_sha256(target) != record.sha256:
+                snapshot_file(path, target, isolated=True)
+            if file_revision(target) != record.revision:
                 raise ValueError("Online source changed during snapshot")
-            pinned_files[record.sha256] = target
+            pinned_files[record.path] = target
             records[role] = artifact_record(target, task.task_dir)
         commits.append(OnlineCommit.model_validate({**commit.model_dump(), "artifacts": records}))
     pinned = OnlineHistory(

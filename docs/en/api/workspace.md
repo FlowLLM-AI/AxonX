@@ -222,13 +222,12 @@ curl -s -X POST http://127.0.0.1:1024/files \
 
 The runtime dependency `python-multipart` is declared in `pyproject.toml`; no service configuration switch is needed to enable either format.
 
-FileCopy has the response structure below; use the actual returned hash and byte size:
+FileCopy has the response structure below; use the actual returned path and byte size:
 
 ```json
 {
   "answer": {
-    "path": "tmp/plugins/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/axonx_example-0.1.0-py3-none-any.whl",
-    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "path": "tmp/plugins/0123456789abcdef0123456789abcdef/axonx_example-0.1.0-py3-none-any.whl",
     "size": 4096
   },
   "success": true,
@@ -236,12 +235,12 @@ FileCopy has the response structure below; use the actual returned hash and byte
 }
 ```
 
-Staging directories are named after the content's SHA-256; uploading identical content with the same filename is idempotent. The default per-file limit is 512 MiB. The service checks both Content-Length and actual streamed bytes. Multipart requests allow an additional 64 KiB of request framing; the file itself must still fit the per-file limit. Multipart temporary files are closed after storage or on failure, including request cancellation. An invalid Content-Length or malformed multipart body (including too many parts) returns 400; exceeding the limit returns 413. Missing/invalid filenames, missing `file` uploads, unsupported fields, directory escapes, and similar errors return 422; symbolic links or a destination occupied by different content return 409.
+Each upload receives a unique staging directory; uploads do not calculate content hashes or deduplicate identical content. The default per-file limit is 512 MiB. The service checks both Content-Length and actual streamed bytes. Multipart requests allow an additional 64 KiB of request framing; the file itself must still fit the per-file limit. Multipart temporary files are closed after storage or on failure, including request cancellation. An invalid Content-Length or malformed multipart body (including too many parts) returns 400; exceeding the limit returns 413. Missing/invalid filenames, missing `file` uploads, unsupported fields, directory escapes, and similar errors return 422; symbolic links and escaping paths are rejected.
 
-Consumers install_plugin and sync_tasks use the returned path. Installation also requires sha256. Completing an upload does not mean the plugin has been installed or the task snapshot applied. Consumers clean up staged artifacts; unconsumed uploads can be cleaned up explicitly:
+Consumers install_plugin and sync_tasks use the returned path. Installation also requires the SHA-256 of the original wheel, supplied by the installation caller and verified by the plugin consumer. Completing an upload does not mean the plugin has been installed or the task snapshot applied. Consumers clean up staged artifacts; unconsumed uploads can be cleaned up explicitly:
 
 ```bash
-curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fyour-digest%2Fyour-wheel.whl' \
+curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fupload-id%2Fyour-wheel.whl' \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
 ```
 

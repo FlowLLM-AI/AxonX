@@ -40,7 +40,10 @@ def create_files_router(service, staged_files) -> APIRouter:
                             "required": ["file"],
                             "properties": {
                                 "file": {"type": "string", "format": "binary"},
-                                "directory": {"type": "string", "description": "Staging directory under tmp."},
+                                "directory": {
+                                    "type": "string",
+                                    "description": "Staging directory under tmp.",
+                                },
                             },
                             "additionalProperties": False,
                         },
@@ -74,7 +77,7 @@ def create_files_router(service, staged_files) -> APIRouter:
             raise HTTPException(409, str(exc)) from exc
         except (TypeError, ValueError) as exc:
             raise HTTPException(422, str(exc)) from exc
-        return JobResponse(answer=FileCopy(path=copied.path, sha256=copied.sha256, size=copied.size))
+        return JobResponse(answer=FileCopy(path=copied.path, size=copied.size))
 
     @router.delete(PROTOCOL_ROUTE_FILES)
     async def discard_file(path: str):
@@ -132,7 +135,10 @@ class _UploadParser(MultiPartParser):
         if self._current_part.file is not None:
             self.file_bytes += end - start
             if self.file_bytes > self.file_limit:
-                raise HTTPException(413, f"Upload exceeds the configured limit of {self.file_limit} bytes")
+                raise HTTPException(
+                    413,
+                    f"Upload exceeds the configured limit of {self.file_limit} bytes",
+                )
         super().on_part_data(data, start, end)
 
     def on_end(self) -> None:
@@ -173,7 +179,9 @@ async def _copy_multipart(staged_files, request: Request, filename: str, directo
                 yield chunk
 
         return await staged_files.store_stream(
-            chunks(), filename or upload.filename or "", directory or form_directory.strip() or None
+            chunks(),
+            filename or upload.filename or "",
+            directory or form_directory.strip() or None,
         )
     finally:
         # Rolled spools close in a worker thread, so cleanup must survive cancellation.

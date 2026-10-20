@@ -48,7 +48,7 @@ it.each(["en", "zh"])(
       if (!path.endsWith("metadata.json"))
         return table([{ trade_date: "20260105", top1_net_return: 0.01 }]);
       const name = path.split("/")[1];
-      const file = { path: "daily.parquet", size: 1, sha256: "digest" };
+      const file = { path: "daily.parquet", size: 1, revision: "1:1" };
       return {
         kind: "json",
         size: 1,
@@ -89,7 +89,7 @@ it.each(["en", "zh"])(
             name === "b"
               ? {
                   purpose: "display",
-                  files: { "daily.parquet": { size: 2, sha256: "replica" } },
+                  files: { "daily.parquet": { size: 2, revision: "replica" } },
                   omitted: { "signals.parquet": "budget" },
                 }
               : null,

@@ -312,7 +312,9 @@ async def test_remote_install_with_real_pip_refreshes_definition_and_submission(
         server.router.lifespan_context(server),
         HttpClient(token="secret", transport=httpx.ASGITransport(app=server)) as client,
     ):
-        response = await client.run_job("install_plugin", {"path": copied.path, "sha256": copied.sha256})
+        response = await client.run_job(
+            "install_plugin", {"path": copied.path, "sha256": inspect_wheel(plugin_environment.new).sha256}
+        )
         assert response.success is True, response.answer
         assert response.answer["restart_required"] is False
         definition = await client.run_job("get_task_definition", {"task": "hot_task"})
@@ -365,7 +367,9 @@ async def test_remote_install_waiters_do_not_block_service(plugin_environment, t
         HttpClient(token="secret", transport=httpx.ASGITransport(app=server)) as client,
     ):
         installing = asyncio.create_task(
-            client.run_job("install_plugin", {"path": copied.path, "sha256": copied.sha256})
+            client.run_job(
+                "install_plugin", {"path": copied.path, "sha256": inspect_wheel(plugin_environment.new).sha256}
+            )
         )
         querying = submitting = None
         try:
@@ -468,7 +472,9 @@ async def test_remote_install_waits_for_other_application_worker_launch(
 
     async def run_install():
         async with installing_app:
-            return await installing_app.run_job("install_plugin", {"path": copied.path, "sha256": copied.sha256})
+            return await installing_app.run_job(
+                "install_plugin", {"path": copied.path, "sha256": inspect_wheel(plugin_environment.new).sha256}
+            )
 
     async with submitting_app:
         submission = asyncio.create_task(manager.submit(["--task", "hot_task", "--x", "2", "--y", "3"]))
@@ -520,7 +526,9 @@ async def test_cancelled_install_drains_thread_before_cleanup_and_next_submissio
     copied = staged.store(plugin_environment.new.read_bytes(), plugin_environment.new.name)
     path = staged.file(copied.path)
     async with app:
-        mutation = asyncio.create_task(app.run_job("install_plugin", {"path": copied.path, "sha256": copied.sha256}))
+        mutation = asyncio.create_task(
+            app.run_job("install_plugin", {"path": copied.path, "sha256": inspect_wheel(plugin_environment.new).sha256})
+        )
         submission = abandoned = None
         try:
             assert await asyncio.wait_for(asyncio.to_thread(started.wait, 5), 6)
@@ -589,7 +597,9 @@ async def test_application_close_drains_uninstall_before_other_application_insta
             with pytest.raises(TimeoutError):
                 await asyncio.wait_for(asyncio.shield(closing), 0.05)
             mutation = asyncio.create_task(
-                other.run_job("install_plugin", {"path": copied.path, "sha256": copied.sha256})
+                other.run_job(
+                    "install_plugin", {"path": copied.path, "sha256": inspect_wheel(plugin_environment.new).sha256}
+                )
             )
             with pytest.raises(TimeoutError):
                 await asyncio.wait_for(asyncio.shield(mutation), 0.05)

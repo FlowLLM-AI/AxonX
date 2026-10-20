@@ -4,7 +4,7 @@
 
 `plugins/qlib_a158/...` 等源码路径相对于 AxonX 源码仓库根目录，不是本文所在目录或 Agent 工作区。源码开发与插件构建命令应从该仓库根目录执行。`preview_file` 等 Job 的工作区路径相对于所选服务的工作区。仅安装 Python 包不会提供示例插件源码。
 
-AxonX 在 `axonx.task.protocol` 中统一定义协议 v1，`task_type` 复用现有 `TaskType`。训练通过 `output_params.protocol` 和一个 `models.json` 发布集合，不再生成成员或 checkpoint 的 metadata 文件。离线与在线预测共享一份 `model_identity`（`models_sha256`、`features_sha256`）、`dates`、`score_columns` 和文件哈希。特征契约、语义指纹与模型快照校验均使用 AxonX 公共工具。缺少协议头和旧格式直接拒绝，产物需要重新生成；包发布版本独立管理。
+AxonX 在 `axonx.task.protocol` 中统一定义协议 v1，`task_type` 复用现有 `TaskType`。训练通过 `output_params.protocol` 和一个 `models.json` 发布集合，不再生成成员或 checkpoint 的 metadata 文件。离线与在线预测共享一份 `model_identity`（`models_sha256`、`features_sha256`）、`dates`、`score_columns` 和文件版本（`size:mtime_ns`）。特征契约、语义指纹与模型快照校验均使用 AxonX 公共工具。缺少协议头和旧格式直接拒绝，产物需要重新生成；包发布版本独立管理。
 
 在线推理通过 `OnlineStore` 和按角色引用产物的 `OnlineCommit` 发布结果。最终信号和模拟组合账本以不可变 Parquet 修订保存在 `persistent/online/commits/`，单一原子 manifest 选择有效历史；其固定快照发布为 `signal_history`。历史修订保留审计证据，并使后续组合报告过期，直到重放。消费者通过 `pin_online_history` 校验并固定文件。JSONL 信号日志和推理 ready 标记已移除，不提供兼容读取；旧在线 Task 使用新名称重新生成。采集 ready 标记保持不变。
 
@@ -366,7 +366,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 | `delete_entries`        | 删除指定工作区文件或目录；单个路径也须用 JSON 数组传入。                               | `axonx delete_entries --paths '["etl/<etl_task_id>/old.csv"]'`                                                                      | `--target 192.168.1.10:1024` |
 | `delete_entries`        | 一次删除多个工作区文件或目录，路径均相对于工作区。                                     | `axonx delete_entries --paths '["<workspace_path_1>","<workspace_path_2>"]'`                                                        | `--target 192.168.1.10:1024` |
 | `sync_tasks`            | 使用目标服务返回的暂存归档路径，替换归档携带的 Task 目录；该命令本身不上传文件。       | `axonx sync_tasks --path '<staged_archive_path>'`                                                                                   | `--target 192.168.1.10:1024` |
-| `POST /files`（HTTP）   | 上传一个文件到暂存区，返回 path、sha256、size。                                        | `curl -sS '<service-url>/files' -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" -F 'file=@<local_file>'`                            | 替换服务 URL 与 token        |
+| `POST /files`（HTTP）   | 上传一个文件到暂存区，返回 path 和 size。                                              | `curl -sS '<service-url>/files' -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" -F 'file=@<local_file>'`                            | 替换服务 URL 与 token        |
 | `DELETE /files`（HTTP） | 清理返回路径对应的暂存文件。                                                           | `curl -sS -X DELETE '<service-url>/files' -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" -G --data-urlencode 'path=<staged_path>'` | 替换服务 URL 与 token        |
 
 - 产物路径：执行期间持续将元数据写入 `工作区/<task_type>/<task_id>/metadata.json`；`preview_file` 使用工作区相对路径。
@@ -374,4 +374,4 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
 `/files` 是 HTTP 接口，须使用后续操作的同一服务 URL 与 token。multipart 接受恰好一个 `file` 文件与可选文本 `directory`（位于 `tmp` 下），由 curl 自动设置 Content-Type。原始二进制须提供 `x-file-name`，可选 `x-file-directory`；请求头优先于 multipart 元数据。默认单文件上限 512 MiB，multipart 请求额外允许 64 KiB 封装开销。
 
-检查 `success`，保留 `answer.path`、`answer.sha256` 和 `answer.size`；path 相对于接收服务的工作区。经过校验的展示副本归档的 path 用于 `sync_tasks`，插件 wheel 的 path 与 sha256 用于 `install_plugin`；上传只暂存字节。消费者会清理暂存文件，未消费的上传使用表中的 DELETE 请求清理；重复清理无害。
+检查 `success`，保留 `answer.path` 和 `answer.size`；path 相对于接收服务的工作区。经过校验的展示副本归档的 path 用于 `sync_tasks`，插件 wheel 的返回 path 与本地构建 wheel 的 SHA256 用于 `install_plugin`；上传只暂存字节。消费者会清理暂存文件，未消费的上传使用表中的 DELETE 请求清理；重复清理无害。

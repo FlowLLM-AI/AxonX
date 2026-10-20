@@ -239,7 +239,7 @@ export function QualityReport({
       )}
       {view === "details" && artifacts?.quality_details && (
         <QualityDetails
-          key={`${target}:${taskId}:${artifacts.quality_details.sha256}`}
+          key={`${target}:${taskId}:${artifacts.quality_details.revision}`}
           taskId={taskId}
           artifact={artifacts.quality_details}
           target={target}
@@ -290,7 +290,7 @@ export function QualityReport({
           <summary>{t("quality.details")}</summary>
           {detailsOpen && (
             <QualityDetails
-              key={`${target}:${taskId}:${artifacts.quality_details.sha256}`}
+              key={`${target}:${taskId}:${artifacts.quality_details.revision}`}
               taskId={taskId}
               artifact={artifacts.quality_details}
               target={target}

@@ -106,8 +106,8 @@ it("follows a completed replica every 60 seconds using its replicated log", asyn
   task.replica = {
     purpose: "display",
     snapshot: null,
-    source_digest: "a".repeat(64),
-    policy_digest: "b".repeat(64),
+    source_revision: "a".repeat(64),
+    policy_revision: "b".repeat(64),
     files: {},
     omitted: {},
     source_log_path: "",

@@ -40,7 +40,7 @@ async def test_workers_stop_before_cancellation_resistant_component_cleanup(tmp_
         log_to_console=False,
         log_to_file=False,
         components={
-            "task_repository": {"default": {"backend": "local", "force_polling": True}},
+            "task_repository": {"default": {"backend": "local"}},
             "task_manager": {"default": {"backend": "local", "terminate_grace_seconds": 0.1}},
         },
     )
@@ -91,7 +91,7 @@ async def test_shutdown_request_error_does_not_skip_other_managers_or_cleanup(tm
         log_to_console=False,
         log_to_file=False,
         components={
-            "task_repository": {"default": {"backend": "local", "force_polling": True}},
+            "task_repository": {"default": {"backend": "local"}},
             "task_manager": {name: {"backend": "local"} for name in ("first", "second")},
         },
     )
@@ -192,7 +192,7 @@ app = Application(
     providers=[BlockedCleanup], workspace_dir=str(root), enable_logo=False,
     log_to_console=False, log_to_file=False,
     components={
-        "task_repository": {"default": {"backend": "local", "force_polling": True}},
+        "task_repository": {"default": {"backend": "local"}},
         "task_manager": {"default": {"backend": "local", "terminate_grace_seconds": 0.1}},
         "sync": {"blocked": {"backend": "blocked_cleanup"}},
     },

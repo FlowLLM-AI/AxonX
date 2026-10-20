@@ -1,7 +1,5 @@
 import { isRecord } from "../lib/values";
 import type { ArtifactRecord } from "./contracts";
-const digest = (value: unknown) =>
-  typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 export function isArtifactRecord(value: unknown): value is ArtifactRecord {
   return (
     isRecord(value) &&
@@ -13,6 +11,7 @@ export function isArtifactRecord(value: unknown): value is ArtifactRecord {
     typeof value.size === "number" &&
     Number.isInteger(value.size) &&
     value.size >= 0 &&
-    digest(value.sha256)
+    typeof value.revision === "string" &&
+    !!value.revision
   );
 }

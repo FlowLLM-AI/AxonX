@@ -10,14 +10,20 @@ from pathlib import Path
 import polars as pl
 import pyarrow.parquet as pq
 
-from ...utils.fs import file_sha256, snapshot_file
+from ...utils.fs import snapshot_file
 from ..schemas.lifecycle import TaskMetadata, current_children
 from ..schemas.protocol import fingerprint
 from ..schemas.replica import DisplayReplica, LiveSnapshot, ReplicaFile, ReplicaLog
 from ..storage.logs import TaskLogReader
-from ..storage.workspace import METADATA_FILE, EVENTS_FILE, read_entry, task_path, write_task_metadata
+from ..storage.workspace import (
+    METADATA_FILE,
+    EVENTS_FILE,
+    read_entry,
+    task_path,
+    write_task_metadata,
+)
 from .errors import ReplicaBudgetError, SnapshotChangedError
-from .index import policy_digest, snapshot_digest
+from .index import policy_revision, source_revision
 from .models import TaskPlan
 from .planner import archive_budget, plan_task, task_file
 from .sampling import trade_day, write_sample
@@ -31,6 +37,21 @@ COMPLETE_FILES = {
     "trades.parquet",
     "calendar.parquet",
 }
+
+
+def _refresh_snapshot(metadata, snapshot, remote, destination):
+    """Refresh only metadata when the complete remote publication is unchanged."""
+    metadata.pid = None
+    metadata.log_path = ""
+    metadata.replica = DisplayReplica.model_validate({key: value for key, value in remote.items() if key != "run_id"})
+    metadata.replica.snapshot = snapshot
+    write_task_metadata(destination, metadata)
+    item = task_file(destination / METADATA_FILE, METADATA_FILE)
+    return TaskPlan(
+        (item,),
+        item.archived_bytes
+        + sum(512 + ((record.size + 511) // 512) * 512 for record in metadata.replica.files.values()),
+    )
 
 
 def prepare_replica(
@@ -49,9 +70,23 @@ def prepare_replica(
     metadata = metadata or read_entry(root, task_id)
     if metadata is None:
         raise SnapshotChangedError(f"Task disappeared: {task_id}")
-    source_metadata = metadata.model_dump(mode="json")
-    identity = snapshot_digest(root, task_id) if snapshot is None else fingerprint(source_metadata)
+    source_log_path = metadata.log_path
+    log_path = logs.path(metadata) if logs else None
+    identity = source_revision(
+        root,
+        task_id,
+        snapshot=metadata if snapshot else None,
+        logs=logs if snapshot else None,
+    )
     destination.mkdir(parents=True, exist_ok=True)
+    if (
+        snapshot
+        and remote
+        and remote.get("run_id") == metadata.run_id
+        and remote.get("source_revision") == identity
+        and remote.get("policy_revision") == policy_revision(budget)
+    ):
+        return _refresh_snapshot(metadata, snapshot, remote, destination)
     originals = {
         item.relative: item
         for item in before.files
@@ -69,8 +104,9 @@ def prepare_replica(
     metadata.log_path = ""
     metadata.pid = None
     log = None
+    log_revision = ""
     if logs:
-        path = logs.path(TaskMetadata.model_validate(source_metadata))
+        path = log_path
         if path is not None and logs.is_task_log(path) and path.is_file():
             with path.open("rb") as stream:
                 end = stream.seek(0, 2)
@@ -84,6 +120,7 @@ def prepare_replica(
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(content)
             originals[name] = task_file(target, name)
+            log_revision = f"{start}:{end}:{path.stat().st_mtime_ns}"
             log = ReplicaLog(path=name, start=start, end=end)
 
     def materialize(dates: list[str] | None, omit_data: bool = False) -> TaskPlan | None:
@@ -114,18 +151,22 @@ def prepare_replica(
                 retained = sorted(set(sampleable[name]) & set(dates))
             files[name] = ReplicaFile(
                 size=target.stat().st_size,
-                sha256="0" * 64,
+                revision=(
+                    log_revision
+                    if log is not None and name == log.path
+                    else f"{item.size}:{item.modified_ns}:{dates if sampled else None}"
+                ),
                 sampled=sampled,
                 rows=rows,
                 source_rows=source_rows,
                 dates=retained,
             )
         metadata.replica = DisplayReplica(
-            source_digest=identity,
-            policy_digest=policy_digest(budget),
+            source_revision=identity,
+            policy_revision=policy_revision(budget),
             files=files,
             omitted=dict(omitted),
-            source_log_path=source_metadata["log_path"],
+            source_log_path=source_log_path,
             snapshot=snapshot,
             log=log,
         )
@@ -174,7 +215,10 @@ def prepare_replica(
             prepared = materialize([], omit_data=True)
         # Metadata and bounded logs remain useful even when data cannot fit.
         # Never truncate a non-sampleable file: omit it explicitly instead.
-        for name in sorted(originals, key=lambda name: (name == "display/log.log", -originals[name].size)):
+        for name in sorted(
+            originals,
+            key=lambda name: (name == "display/log.log", -originals[name].size),
+        ):
             if prepared is not None and prepared.size <= limit:
                 break
             originals.pop(name)
@@ -197,17 +241,6 @@ def prepare_replica(
                 raise SnapshotChangedError(f"Published artifact changed during capture: {item.path}")
 
     check_source()
-    for name, record in metadata.replica.files.items():
-        record.sha256 = file_sha256(destination / name)
-    check_source()
-    if snapshot:
-        metadata.replica.source_digest = fingerprint(
-            {
-                "metadata": source_metadata,
-                "files": {name: record.sha256 for name, record in metadata.replica.files.items()},
-                "log": log.model_dump(mode="json") if log else None,
-            }
-        )
     write_task_metadata(destination, metadata)
     items = tuple(task_file(destination / item.relative, item.relative) for item in prepared.files)
     prepared = TaskPlan(items, sum(item.archived_bytes for item in items))
@@ -215,7 +248,7 @@ def prepare_replica(
         raise ReplicaBudgetError(f"Replica manifest exceeds the transfer budget: {task_id}")
     if snapshot and remote and remote.get("run_id") == metadata.run_id:
         for name, record in metadata.replica.files.items():
-            if remote.get("files", {}).get(name) == record.sha256:
+            if remote.get("files", {}).get(name) == record.model_dump(mode="json"):
                 (destination / name).unlink()
         items = tuple(
             task_file(path, path.relative_to(destination).as_posix())
@@ -258,6 +291,15 @@ def prepare_group(
     remote: dict,
 ) -> dict[str, TaskPlan]:
     group = task_group(root, task_id)
+    policy = policy_revision(archive_budget(budget) // len(group))
+    if all(
+        status.state.is_terminal
+        and remote.get(identity, {}).get("source_revision")
+        == source_revision(root, identity, snapshot=status, logs=logs)
+        and remote.get(identity, {}).get("policy_revision") == policy
+        for identity, status in group.items()
+    ):
+        return {}
     snapshot = LiveSnapshot(
         source_id=fingerprint({"host": socket.gethostname(), "workspace": str(root.resolve())}),
         root_task_id=task_id,
@@ -266,7 +308,6 @@ def prepare_group(
         revision=time.time_ns(),
     )
     plans = {}
-    unchanged = True
     member_budget = archive_budget(budget) // len(group)
     for identity, status in group.items():
         destination = task_path(staging, identity)
@@ -280,15 +321,10 @@ def prepare_group(
             logs=logs,
             remote=remote.get(identity),
         )
-        record = read_entry(staging, identity)
-        unchanged &= status.state.is_terminal and all(
-            remote.get(identity, {}).get(key) == getattr(record.replica, key)
-            for key in ("source_digest", "policy_digest")
-        )
     if sum(plan.size for plan in plans.values()) > archive_budget(budget):
         raise ReplicaBudgetError(f"Task group exceeds the transfer budget: {task_id}")
     for identity, status in group.items():
         current = read_entry(root, identity)
         if current is None or current.run_id != status.run_id:
             raise SnapshotChangedError(f"Task Run changed during capture: {identity}")
-    return {} if unchanged else plans
+    return plans

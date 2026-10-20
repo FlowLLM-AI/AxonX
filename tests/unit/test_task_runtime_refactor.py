@@ -875,10 +875,7 @@ async def test_submission_returns_queryable_task_handle(tmp_path):
             "task_repository": {
                 "default": {
                     "backend": "local",
-                    "force_polling": True,
-                    "debounce": 20,
-                    "step": 20,
-                    "poll_delay_ms": 20,
+                    "poll_interval": 0.02,
                 }
             },
             "task_manager": {
@@ -1189,7 +1186,7 @@ async def test_cancel_job_terminates_its_worker_with_either_identifier(tmp_path,
         log_to_console=False,
         log_to_file=False,
         components={
-            "task_repository": {"default": {"backend": "local", "force_polling": True}},
+            "task_repository": {"default": {"backend": "local"}},
             "task_manager": {"default": {"backend": "local", "terminate_grace_seconds": 0.1}},
         },
         jobs={"cancel": config["jobs"]["cancel"]},
