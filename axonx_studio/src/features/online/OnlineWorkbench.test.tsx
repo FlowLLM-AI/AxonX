@@ -36,7 +36,7 @@ const date = async (value: string) =>
     input.dispatchEvent(new Event("change", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
-const render = async (error = "") =>
+const render = async (error = "", target?: string) =>
   act(async () =>
     root.render(
       <OnlineWorkbench
@@ -44,6 +44,7 @@ const render = async (error = "") =>
         nodes={nodes}
         refreshedAt="2026-01-05T06:46:00Z"
         error={error}
+        target={target}
         onOpenTask={vi.fn()}
       />,
     ),
@@ -71,6 +72,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   configureClient(new AxonXClient());
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -285,6 +287,144 @@ it("opens archived signals without attaching today's diagnostics and retains the
     vi.useRealTimers();
   }
 });
+
+it("loads archived and same-day signals without current inference children", async () => {
+  vi.useFakeTimers();
+  const playground = createPlayground();
+  const taskId = nodes[0].record.task_id;
+  let unavailable = false;
+  let target = "46:1024";
+  configureClient(
+    new AxonXClient(async (url, init) => {
+      expect(JSON.parse(String(init?.body)).target).toBe(target);
+      if (unavailable && url === "/jobs/list_task_statuses")
+        return new Response("unavailable", { status: 503 });
+      const invocation = JSON.parse(String(init?.body));
+      const response = await playground(url, {
+        ...init,
+        body: JSON.stringify({ ...invocation, target: undefined }),
+      });
+      if (url === "/jobs/list_task_statuses") {
+        const body = await response.json();
+        body.answer = body.answer.map((task: { task_id: string }) =>
+          task.task_id === taskId
+            ? { ...task, display_name: "demo-1445" }
+            : task,
+        );
+        return Response.json(body);
+      }
+      return response;
+    }, false),
+  );
+  parent.children = [];
+  parent.state = "running";
+  parent.output_params.models = {
+    "1445": { status: "missed", reason: "data_not_ready_before_deadline" },
+  };
+  nodes = [];
+  await render("", "46:1024");
+  const available = [
+    ...container.querySelectorAll<HTMLOptionElement>("datalist option"),
+  ].map((option) => option.value);
+  expect(available).toContain("2026-01-05");
+  expect(available.length).toBeGreaterThan(1);
+  await clickTab("1445");
+  await clickTab("results");
+  expect(panel().textContent).toContain("Synthetic 1");
+  expect(
+    container.querySelector(".online-day-summary strong")?.textContent,
+  ).toMatch(/^1\s*\/ 1$/);
+  expect(
+    container.querySelector('[id$="-1445-tab"] .status-missed'),
+  ).not.toBeNull();
+  await date(available.find((value) => value !== "2026-01-05")!);
+  expect(panel().textContent).toContain("Synthetic 1");
+  try {
+    unavailable = true;
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(container.textContent).toContain(
+      i18n.t("onlineWorkbench.historyError"),
+    );
+    expect(panel().textContent).toContain("Synthetic 1");
+  } finally {
+    vi.useRealTimers();
+  }
+  await clickTab("logs");
+  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noRun"));
+  await date("2026-01-05");
+  expect(panel().querySelector(".log-content")).toBeNull();
+  target = "45:1024";
+  await render("", target);
+  await clickTab("results");
+  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
+  expect(panel().textContent).not.toContain("Synthetic 1");
+});
+
+it("still reads known histories when discovery for another model fails", async () => {
+  const playground = createPlayground();
+  // Remove the report fallback so this can pass only by reading the manifest.
+  nodes[0].report = null;
+  parent.input_params.models = {
+    "1445": [{ task_name: "demo" }, { task_name: "other" }],
+  };
+  configureClient(
+    new AxonXClient(async (url, init) => {
+      if (url === "/jobs/list_task_statuses")
+        return new Response("unavailable", { status: 503 });
+      return playground(url, init);
+    }, false),
+  );
+  await render();
+  expect(container.textContent).toContain(
+    i18n.t("onlineWorkbench.historyError"),
+  );
+  await clickTab("1445");
+  await clickTab("results");
+  expect(panel().textContent).toContain("Synthetic 1");
+  await selectModel("other");
+  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
+});
+
+it.each(["ambiguous", "unavailable", "missing"])(
+  "does not substitute another model's history when discovery is %s",
+  async (mode) => {
+    const playground = createPlayground();
+    const template = nodes[0].status!;
+    configureClient(
+      new AxonXClient(async (url, init) => {
+        if (url === "/jobs/list_task_statuses") {
+          if (mode === "unavailable")
+            return new Response("unavailable", { status: 503 });
+          return Response.json({
+            success: true,
+            answer:
+              mode === "missing"
+                ? []
+                : [
+                    { ...template, display_name: "demo-1445" },
+                    {
+                      ...template,
+                      task_id: "inference#another#demo-1445",
+                      display_name: "demo-1445",
+                    },
+                  ],
+          });
+        }
+        return playground(url, init);
+      }, false),
+    );
+    parent.children = [];
+    nodes = [];
+    await render();
+    await clickTab("1445");
+    await clickTab("results");
+    expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
+    expect(panel().textContent).not.toContain("Synthetic 1");
+    expect(Boolean(container.querySelector(".online-warning"))).toBe(
+      mode !== "missing",
+    );
+  },
+);
 
 it("keeps quality sources within the selected scope and displays checks directly", async () => {
   const quality = (reason: string) => ({

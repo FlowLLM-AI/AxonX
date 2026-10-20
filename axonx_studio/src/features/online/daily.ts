@@ -8,6 +8,7 @@ import {
 
 export type ReportNode = TaskNode & { report?: StockOnlineReport | null };
 export type SignalHistory = {
+  modelId: string;
   taskId: string;
   history: OnlineHistory | null;
   error: string;
@@ -63,7 +64,7 @@ export function dailyModels(parent: TaskMetadata, nodes: ReportNode[]) {
 export type DailyModel = ReturnType<typeof dailyModels>[number];
 
 export function modelHistory(model: DailyModel, histories: SignalHistory[]) {
-  return histories.find((item) => item.taskId === model.record?.task_id);
+  return histories.find((item) => item.modelId === model.id);
 }
 
 export function dailyCommit(

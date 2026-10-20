@@ -4,7 +4,7 @@ import { useCallback, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { ReportTabs } from "../../shared/ui/ReportTabs";
-import type { OnlineHistory } from "./report";
+import { listTaskStatuses } from "../tasks/api";
 import { useRefresh } from "../../shared/hooks/useRefresh";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { TaskSteps } from "../tasks/TaskSteps";
@@ -48,34 +48,66 @@ export function OnlineWorkbench({
   const { t, i18n } = useTranslation();
   const prefix = useId();
   const planned = dailyModels(parent, nodes);
-  const sourceIds = JSON.stringify([
-    ...new Set(
-      planned.flatMap((model) =>
-        model.record?.task_id ? [model.record.task_id] : [],
-      ),
-    ),
-  ]);
-  const retained = useRef(new Map<string, OnlineHistory>());
+  const sources = JSON.stringify(
+    planned.map((model) => ({
+      modelId: model.id,
+      name: `${model.name}-${model.slot}`,
+      taskId: model.record?.task_id || "",
+    })),
+  );
+  const retained = useRef(new Map<string, SignalHistory>());
   const load = useCallback(
-    async (signal: AbortSignal): Promise<SignalHistory[]> =>
-      Promise.all(
-        (JSON.parse(sourceIds) as string[]).map(async (taskId) => {
+    async (signal: AbortSignal): Promise<SignalHistory[]> => {
+      const models = JSON.parse(sources) as {
+        modelId: string;
+        name: string;
+        taskId: string;
+      }[];
+      const [discovery] = await Promise.allSettled([
+        models.some((model) => !model.taskId)
+          ? listTaskStatuses(target, signal)
+          : Promise.resolve([]),
+      ]);
+      return Promise.all(
+        models.map(async ({ modelId, name, taskId }) => {
+          const key = `${target}:${modelId}`;
           try {
-            const history = await loadHistory(taskId, target, signal);
+            if (!taskId) {
+              if (discovery.status === "rejected") throw discovery.reason;
+              const candidates = discovery.value.filter(
+                (task) =>
+                  task.task_type === "inference" &&
+                  task.report_kind === "online" &&
+                  task.display_name === name,
+              );
+              if (candidates.length > 1)
+                throw new Error(`Ambiguous online history: ${name}`);
+              taskId = candidates[0]?.task_id || "";
+            }
+            const history = taskId
+              ? await loadHistory(taskId, target, signal)
+              : null;
             signal.throwIfAborted();
-            retained.current.set(`${target}:${taskId}`, history);
-            return { taskId, history, error: "" };
+            const result = { modelId, taskId, history, error: "" };
+            retained.current.set(key, result);
+            return result;
           } catch (reason) {
             signal.throwIfAborted();
+            const previous = retained.current.get(key);
             return {
-              taskId,
-              history: retained.current.get(`${target}:${taskId}`) || null,
+              modelId,
+              taskId: taskId || previous?.taskId || "",
+              history:
+                !taskId || taskId === previous?.taskId
+                  ? previous?.history || null
+                  : null,
               error: String(reason),
             };
           }
         }),
-      ),
-    [sourceIds, target],
+      );
+    },
+    [sources, target],
   );
   const { data, loading, reload } = useAsyncResource(load);
   const refreshAll = useRefresh(reload);
