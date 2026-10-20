@@ -38,10 +38,10 @@ def prepare_replica(
     task_id: str,
     destination: Path,
     budget: int,
+    logs: TaskLogReader | None = None,
     *,
     snapshot: LiveSnapshot | None = None,
     metadata: TaskMetadata | None = None,
-    logs: TaskLogReader | None = None,
     remote: dict | None = None,
 ) -> TaskPlan:
     source = task_path(root, task_id)
@@ -57,24 +57,24 @@ def prepare_replica(
         for item in before.files
         if item.relative != METADATA_FILE and not (snapshot and item.relative == EVENTS_FILE)
     }
-    omitted = {
-        name + "/": "upstream input snapshot" for name in ("inputs", "model_snapshot") if (source / name).is_dir()
-    }
+    omitted = dict(before.omitted)
+    omitted.update(
+        {name + "/": "upstream input snapshot" for name in ("inputs", "model_snapshot") if (source / name).is_dir()}
+    )
     sampleable: dict[str, dict[str, int]] = {}
     for name, item in originals.items():
         target = destination / name
         target.parent.mkdir(parents=True, exist_ok=True)
         snapshot_file(item.path, target)
-    source_log = metadata.log_path
     metadata.log_path = ""
     metadata.pid = None
     log = None
-    if snapshot and logs:
+    if logs:
         path = logs.path(TaskMetadata.model_validate(source_metadata))
         if path is not None and logs.is_task_log(path) and path.is_file():
             with path.open("rb") as stream:
                 end = stream.seek(0, 2)
-                start = max(0, end - 1024 * 1024)
+                start = max(0, end - min(1024 * 1024, archive_budget(budget) // 2))
                 stream.seek(start)
                 content = stream.read(end - start)
             if len(content) != end - start:
@@ -125,7 +125,7 @@ def prepare_replica(
             policy_digest=policy_digest(budget),
             files=files,
             omitted=dict(omitted),
-            source_log_path=source_log,
+            source_log_path=source_metadata["log_path"],
             snapshot=snapshot,
             log=log,
         )
@@ -149,10 +149,7 @@ def prepare_replica(
             days = dict(counts.iter_rows())
             if days and all(isinstance(day, str) and len(day) == 8 and day.isdigit() for day in days):
                 sampleable[name] = days
-        if not sampleable:
-            raise ReplicaBudgetError(f"Non-sampleable outputs exceed the transfer budget: {task_id}")
-        primary = max(sampleable, key=lambda name: originals[name].size)
-        latest = max(sampleable[primary])
+        latest = max(sampleable[max(sampleable, key=lambda name: originals[name].size)]) if sampleable else ""
         estimates: dict[str, float] = {}
         for name, counts in sampleable.items():
             bytes_per_row = originals[name].size / sum(counts.values())
@@ -175,8 +172,19 @@ def prepare_replica(
             dates = dates[len(dates) // 2 :] if len(dates) > 1 else []
         if not dates:
             prepared = materialize([], omit_data=True)
+        # Metadata and bounded logs remain useful even when data cannot fit.
+        # Never truncate a non-sampleable file: omit it explicitly instead.
+        for name in sorted(originals, key=lambda name: (name == "display/log.log", -originals[name].size)):
+            if prepared is not None and prepared.size <= limit:
+                break
+            originals.pop(name)
+            if log is not None and name == log.path:
+                log = None
+            (destination / name).unlink(missing_ok=True)
+            omitted[name] = "transfer budget"
+            prepared = materialize([], omit_data=True)
         if prepared is None or prepared.size > limit:
-            raise ReplicaBudgetError(f"Required records and non-sampleable outputs exceed the budget: {task_id}")
+            raise ReplicaBudgetError(f"Task metadata exceeds the transfer budget: {task_id}")
 
     def check_source():
         current = read_entry(root, task_id)
@@ -259,13 +267,14 @@ def prepare_group(
     )
     plans = {}
     unchanged = True
+    member_budget = archive_budget(budget) // len(group)
     for identity, status in group.items():
         destination = task_path(staging, identity)
         plans[identity] = prepare_replica(
             root,
             identity,
             destination,
-            budget,
+            member_budget,
             snapshot=snapshot,
             metadata=status,
             logs=logs,

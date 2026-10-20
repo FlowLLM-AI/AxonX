@@ -250,12 +250,13 @@ class LocalSyncComponent(BaseSyncComponent):
             groups = {}
             for task_id in ordered:
                 try:
+                    group_root = staging / task_id
                     if task_id in self.live_task_ids:
                         plans = await run_blocking(
                             prepare_group,
                             self.root,
                             task_id,
-                            staging,
+                            group_root,
                             self.budget,
                             TaskLogReader(Path(self.app_config.log_dir)),
                             self._remote_index,
@@ -265,8 +266,9 @@ class LocalSyncComponent(BaseSyncComponent):
                             prepare_replica,
                             self.root,
                             task_id,
-                            task_path(staging, task_id),
+                            task_path(group_root, task_id),
                             self.budget,
+                            TaskLogReader(Path(self.app_config.log_dir)),
                         )
                         plans = {task_id: plan}
                     if plans:
@@ -285,7 +287,12 @@ class LocalSyncComponent(BaseSyncComponent):
                 )
                 for identity, plans in groups.items()
             }
-            batches, oversized, deferred = pack_batches(sizes, archive_budget(self.budget), self.max_archives_per_flush)
+            batches, oversized, deferred = pack_batches(
+                sizes,
+                archive_budget(self.budget),
+                self.max_archives_per_flush,
+                members={identity: set(plans) for identity, plans in groups.items()},
+            )
             self._pending.update(deferred)
             report.oversized = [task_directory(identity) for identity in oversized]
             report.deferred.extend(task_directory(identity) for identity in deferred)

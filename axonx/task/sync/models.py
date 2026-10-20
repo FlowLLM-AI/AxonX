@@ -26,6 +26,7 @@ class TaskPlan:
 
     files: tuple[TaskFile, ...]
     size: int
+    omitted: dict[str, str] = field(default_factory=dict)
 
     @property
     def empty(self) -> bool:

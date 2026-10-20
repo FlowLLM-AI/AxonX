@@ -29,7 +29,7 @@ def matches_task_name(task_id: str, task_names: frozenset[str]) -> bool:
 def policy_digest(budget: int) -> str:
     return fingerprint(
         {
-            "format": "display-replica-1",
+            "format": "display-replica-2",
             "budget": budget,
             "sampling": "latest-whole-days",
         }

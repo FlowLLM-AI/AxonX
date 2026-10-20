@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ..schemas.protocol import STOCK_SIGNALS_FORMAT
 from ..storage.workspace import EVENTS_FILE, METADATA_FILE, read_entry, task_path
 from ..schemas.lifecycle import TaskMetadata
 from .errors import SnapshotChangedError
@@ -24,22 +23,16 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None)
     if metadata is None or (snapshot is None and not metadata.state.is_terminal) or metadata.replica is not None:
         raise SnapshotChangedError(f"Task is not a terminal source snapshot: {task_id}")
     paths = {METADATA_FILE}
-    artifacts = metadata.output_params.get("artifacts", {})
-    if metadata.task_type.value == "backtest" and (
-        "targets" in artifacts
-        or "signals" in artifacts
-        and metadata.output_params.get("signals_format") != STOCK_SIGNALS_FORMAT
-    ):
-        raise ValueError("Unsupported stock signals format; regenerate backtest outputs")
     if (directory / EVENTS_FILE).is_file():
         paths.add(EVENTS_FILE)
     visited: set[str] = set()
+    omitted = {}
 
     def references(value):
         if isinstance(value, dict):
-            if isinstance(value.get("path"), str) and "sha256" in value:
-                yield value["path"]
-            for role, nested in value.items():
+            # Only publication containers own files. Protocol provenance and
+            # composite summaries may contain paths belonging to other Tasks.
+            for role, record in value.get("artifacts", {}).items():
                 if snapshot is not None and (
                     role
                     in {
@@ -51,18 +44,18 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None)
                     or role.startswith(("model_", "source_", "debug_"))
                 ):
                     continue
-                yield from references(nested)
-        elif isinstance(value, list):
-            for nested in value:
-                yield from references(nested)
+                yield record["path"]
+            if value.get("previous"):
+                yield value["previous"]["path"]
+            for key in ("commits", "comparisons"):
+                for item in value.get(key, []):
+                    yield from references(item)
 
     def include(relative: str, parent: Path = directory):
         candidate = Path(relative)
         if candidate.is_absolute() or ".." in candidate.parts:
             raise ValueError(f"Artifact path must stay inside its Task: {relative}")
         path = parent / candidate
-        if not path.is_file() and parent != directory:
-            path = directory / candidate
         if not path.resolve().is_relative_to(directory.resolve()) or any(
             p.is_symlink() for p in (path, *path.parents) if p != directory.parent
         ):
@@ -71,13 +64,15 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None)
         if name.split("/", 1)[0] in {"inputs", "model_snapshot"}:
             return
         if not path.is_file():
-            raise SnapshotChangedError(f"Published artifact is missing: {path}")
+            omitted[name] = "published artifact is missing"
+            return
         paths.add(name)
         if path.suffix == ".json" and name not in visited:
             visited.add(name)
-            for reference in references(json.loads(path.read_text(encoding="utf-8"))):
-                # Online records use Task-relative paths; model manifests use file-relative paths.
-                base = directory if (directory / reference).is_file() else path.parent
+            publication = json.loads(path.read_text(encoding="utf-8"))
+            # Model collections are file-relative; online publications are Task-relative.
+            base = path.parent if isinstance(publication, dict) and "members" in publication else directory
+            for reference in references(publication):
                 pending.append((reference, base))
 
     # Frozen online histories can span thousands of revisions. Traverse their
@@ -87,7 +82,7 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None)
         relative, parent = pending.pop()
         include(relative, parent)
     files = tuple(task_file(directory / name, name) for name in sorted(paths))
-    return TaskPlan(files, sum(item.archived_bytes for item in files))
+    return TaskPlan(files, sum(item.archived_bytes for item in files), omitted)
 
 
 def archive_budget(transfer_budget_bytes: int) -> int:
@@ -95,10 +90,13 @@ def archive_budget(transfer_budget_bytes: int) -> int:
     return max(0, transfer_budget_bytes - 10240 - max(4096, transfer_budget_bytes // 1024))
 
 
-def pack_batches(plans: dict[str, TaskPlan], budget: int, max_batches: int):
+def pack_batches(
+    plans: dict[str, TaskPlan], budget: int, max_batches: int, *, members: dict[str, set[str]] | None = None
+):
     batches: list[list[str]] = []
     rejected: list[str] = []
     current: list[str] = []
+    included: set[str] = set()
     used = 0
     for task_id, plan in plans.items():
         if plan.empty:
@@ -106,10 +104,13 @@ def pack_batches(plans: dict[str, TaskPlan], budget: int, max_batches: int):
         if plan.size > budget:
             rejected.append(task_id)
             continue
-        if current and used + plan.size > budget:
+        identities = members[task_id] if members is not None else {task_id}
+        if current and (used + plan.size > budget or included & identities):
             batches.append(current)
             current, used = [], 0
+            included.clear()
         current.append(task_id)
+        included.update(identities)
         used += plan.size
     if current:
         batches.append(current)

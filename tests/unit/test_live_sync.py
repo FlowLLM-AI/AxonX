@@ -195,6 +195,80 @@ def test_budget_and_missing_child_fail_without_partial_snapshot(tmp_path):
         prepare_group(root, PARENT, tmp_path / "bad", BUDGET, logs, {})
 
 
+def test_group_budget_keeps_status_logs_and_marks_omitted_data(tmp_path):
+    root, remote, staging = tmp_path / "source", tmp_path / "remote", tmp_path / "staging"
+    remote.mkdir()
+    logs = source(root)
+    for identity in (PARENT, CHILD):
+        directory = task_path(root, identity)
+        large = directory / "large.bin"
+        large.write_bytes(b"x" * 120_000)
+        status = read_entry(root, identity)
+        status.output_params["artifacts"]["large"] = artifact_record(large, directory)
+        write_task_metadata(directory, status)
+    (task_path(root, CHILD) / "result.txt").unlink()
+    budget = 180_000
+    plans = prepare_group(root, PARENT, staging, budget, logs, {})
+    archive = staging / "group.tar.gz"
+    build_archive(plans, sorted(plans), archive)
+    TaskArchiveApplier(remote, budget).apply(archive, [])
+    for identity in (PARENT, CHILD):
+        status = read_entry(remote, identity)
+        assert status.state == "running"
+        assert status.replica.omitted["large.bin"] == "transfer budget"
+        assert logs.read_status(remote, status).content == "下载中\n"
+        verify_replica(remote, identity)
+    assert read_entry(remote, CHILD).replica.omitted["result.txt"] == "published artifact is missing"
+
+
+def test_completed_shared_child_can_sync_independently_without_blocking_batch(tmp_path):
+    from axonx.task.sync.replica import prepare_replica
+
+    root, remote = tmp_path / "source", tmp_path / "remote"
+    remote.mkdir()
+    logs = source(root)
+    for identity in (PARENT, CHILD):
+        update(root, identity, state="succeeded")
+    apply = TaskArchiveApplier(remote, BUDGET)
+    apply.apply(capture(root, tmp_path / "group", logs), [])
+    staging = tmp_path / "independent"
+    plans = {
+        identity: prepare_replica(root, identity, task_path(staging, identity), BUDGET) for identity in (CHILD, PARENT)
+    }
+    archive = staging / "batch.tar.gz"
+    build_archive(plans, sorted(plans), archive)
+    apply.apply(archive, [])
+    for identity in (PARENT, CHILD):
+        assert read_entry(remote, identity).replica.snapshot is None
+        verify_replica(remote, identity)
+    # An active snapshot must not regress the completed independent replica.
+    update(root, CHILD, state="running")
+    with pytest.raises(ValueError, match="regress"):
+        apply.apply(capture(root, tmp_path / "regress", logs), [])
+
+
+def test_shared_child_can_move_between_live_parents_but_not_sources(tmp_path):
+    root, remote = tmp_path / "source", tmp_path / "remote"
+    remote.mkdir()
+    logs = source(root)
+    apply = TaskArchiveApplier(remote, BUDGET)
+    apply.apply(capture(root, tmp_path / "first", logs), [])
+    second = "composite#a_stock_compare#axon2-core"
+    parent = read_entry(root, PARENT).model_copy(deep=True, update={"task_id": second, "run_id": "second-parent"})
+    write_task_metadata(task_path(root, second), parent)
+    staging = tmp_path / "second"
+    plans = prepare_group(root, second, staging, BUDGET, logs, {})
+    archive = staging / "second.tar.gz"
+    build_archive(plans, sorted(plans), archive)
+    apply.apply(archive, [])
+    assert read_entry(remote, CHILD).replica.snapshot.root_task_id == second
+    # A different workspace still cannot overwrite a live replica.
+    other = tmp_path / "other"
+    other_logs = source(other)
+    with pytest.raises(ValueError, match="conflicting"):
+        apply.apply(capture(other, tmp_path / "other-packet", other_logs), [])
+
+
 @pytest.mark.asyncio
 async def test_live_http_flush_follows_children_outside_terminal_filter_and_retries(tmp_path, monkeypatch):
     root, remote = tmp_path / "source", tmp_path / "remote"
@@ -298,6 +372,38 @@ def test_repeated_named_children_sync_latest_run_and_keep_attempt_history(tmp_pa
         "second-attempt",
     ]
     assert read_entry(remote, CHILD).run_id == "second-attempt"
+
+
+@pytest.mark.asyncio
+async def test_live_groups_with_shared_child_use_separate_snapshots_and_archives(tmp_path, monkeypatch):
+    root, remote = tmp_path / "source", tmp_path / "remote"
+    remote.mkdir()
+    source(root)
+    second = "composite#a_stock_compare#axon2-core"
+    parent = read_entry(root, PARENT).model_copy(deep=True, update={"task_id": second, "run_id": "second-parent"})
+    write_task_metadata(task_path(root, second), parent)
+    sync = LocalSyncComponent(target="remote:1024", live_task_ids=[PARENT, second])
+    sync.root = root
+    sync.app_context = SimpleNamespace(
+        app_config=ApplicationConfig(transfer_budget_bytes=BUDGET, log_dir=str(root / "logs"))
+    )
+    client = AsyncMock()
+    client.__aenter__.return_value = client
+    client.run_job.return_value = SimpleNamespace(success=True, answer={"transfer_budget_bytes": BUDGET, "tasks": {}})
+    monkeypatch.setattr(sync, "_client", lambda: client)
+    applied = []
+
+    async def send(_client, archive):
+        applied.append(TaskArchiveApplier(remote, BUDGET).apply(archive, []).applied)
+
+    monkeypatch.setattr(sync, "_send", send)
+    report = await sync.flush()
+    assert not report.deferred and not report.rejected
+    assert report.archives == 2
+    assert len(applied) == 2
+    assert all(f"inference/{CHILD}" in batch and len(batch) == 2 for batch in applied)
+    for identity in (PARENT, second, CHILD):
+        verify_replica(remote, identity)
 
 
 @pytest.mark.asyncio

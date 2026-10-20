@@ -1,5 +1,6 @@
 """Display replicas preserve source semantics, whole days and atomic application."""
 
+import json
 import os
 from pathlib import Path
 
@@ -7,6 +8,7 @@ import polars as pl
 import pytest
 
 from axonx.task.storage.artifacts import artifact_record, read_metadata
+from axonx.task.storage.logs import TaskLogReader
 from axonx.task.storage.workspace import (
     TaskMetadata,
     read_entry,
@@ -19,7 +21,6 @@ from axonx.task.sync import (
     build_archive,
     plan_task,
 )
-from axonx.task.sync.errors import ReplicaBudgetError
 from axonx.task.sync.index import (
     policy_digest,
     snapshot_digest,
@@ -70,8 +71,6 @@ def test_only_published_outputs_and_manifest_dependencies_are_selected(tmp_path)
     (directory / "inputs/dataset.parquet").write_bytes(b"large input")
     (directory / "scratch.bin").write_bytes(b"temporary")
     (directory / "model.pt").write_bytes(b"weights")
-    import json
-
     manifest = directory / "models.json"
     manifest.write_text(json.dumps({"artifacts": {"weights": artifact_record(directory / "model.pt", directory)}}))
     publish(directory, metadata, models=manifest)
@@ -80,6 +79,82 @@ def test_only_published_outputs_and_manifest_dependencies_are_selected(tmp_path)
         "models.json",
         "model.pt",
     }
+
+
+def test_provenance_and_child_task_paths_are_not_local_dependencies(tmp_path):
+    directory, metadata = source_task(tmp_path)
+    protocol = directory / "protocol.json"
+    protocol.write_text(json.dumps({"realtime_inputs": {"files": {"data": {"path": "data.csv", "sha256": "0" * 64}}}}))
+    publish(directory, metadata, protocol=protocol)
+    metadata.output_params["models"] = {
+        "child": {"comparison": {"artifacts": {"diff": {"path": "../child.csv", "sha256": "0" * 64}}}}
+    }
+    write_task_metadata(directory, metadata)
+    plan = plan_task(tmp_path, TASK_ID)
+    assert {item.relative for item in plan.files} == {"metadata.json", "protocol.json"}
+    assert not plan.omitted
+
+
+def test_model_dependencies_keep_file_relative_paths_even_when_missing(tmp_path):
+    directory, metadata = source_task(tmp_path)
+    folder = directory / "models"
+    folder.mkdir()
+    weights = folder / "weights.pt"
+    weights.write_bytes(b"weights")
+    record = artifact_record(weights, folder)
+    manifest = folder / "models.json"
+    manifest.write_text(json.dumps({"members": {}, "artifacts": {"weights": record}}))
+    publish(directory, metadata, models=manifest)
+    assert "models/weights.pt" in {item.relative for item in plan_task(tmp_path, TASK_ID).files}
+    weights.unlink()
+    assert plan_task(tmp_path, TASK_ID).omitted == {"models/weights.pt": "published artifact is missing"}
+
+
+def test_missing_outputs_sync_status_logs_and_available_files_then_recover(tmp_path):
+    source, remote = tmp_path / "source", tmp_path / "remote"
+    remote.mkdir()
+    directory, metadata = source_task(source)
+    present, missing = directory / "present.txt", directory / "missing.txt"
+    present.write_text("available")
+    missing.write_text("restored")
+    manifest = directory / "manifest.json"
+    manifest.write_text(json.dumps({"artifacts": {"missing": artifact_record(missing, directory)}}))
+    publish(directory, metadata, present=present, manifest=manifest)
+    missing.unlink()
+    log_dir = source / "logs"
+    log_dir.mkdir()
+    log = log_dir / "run.log"
+    log.write_text("output unavailable\n")
+    metadata.log_path = str(log)
+    write_task_metadata(directory, metadata)
+    before = snapshot_digest(source, TASK_ID)
+    apply = TaskArchiveApplier(remote)
+    for attempt in range(2):
+        staged = tmp_path / str(attempt)
+        plan = prepare_replica(source, TASK_ID, task_path(staged, TASK_ID), 128 * 1024, TaskLogReader(log_dir))
+        archive = tmp_path / f"{attempt}.tar.gz"
+        build_archive({TASK_ID: plan}, [TASK_ID], archive)
+        apply.apply(archive, [])
+        actual = read_entry(remote, TASK_ID)
+        assert actual.state == metadata.state and actual.output_params == metadata.output_params
+        assert (task_path(remote, TASK_ID) / "present.txt").read_text() == "available"
+        assert TaskLogReader(log_dir).read_status(remote, actual).content == "output unavailable\n"
+        verify_replica(remote, TASK_ID)
+        if attempt == 0:
+            assert actual.replica.omitted == {"missing.txt": "published artifact is missing"}
+            missing.write_text("restored")
+            assert snapshot_digest(source, TASK_ID) != before
+        else:
+            assert not actual.replica.omitted
+            assert (task_path(remote, TASK_ID) / "missing.txt").read_text() == "restored"
+
+
+def test_declared_artifact_cannot_escape_task_even_when_missing(tmp_path):
+    directory, metadata = source_task(tmp_path)
+    metadata.output_params = {"artifacts": {"bad": {"path": "../missing.txt", "sha256": "0" * 64}}}
+    write_task_metadata(directory, metadata)
+    with pytest.raises(ValueError, match="stay inside"):
+        plan_task(tmp_path, TASK_ID)
 
 
 def test_samples_recent_complete_days_and_keeps_source_unchanged(tmp_path):
@@ -170,8 +245,12 @@ def test_weights_and_full_report_ledgers_are_never_sampled(tmp_path, name):
     else:
         path.write_bytes(os.urandom(64 * 1024))
     publish(directory, metadata, output=path)
-    with pytest.raises(ReplicaBudgetError, match="Non-sampleable"):
-        prepare_replica(tmp_path / "source", TASK_ID, tmp_path / "staged", 32 * 1024)
+    original = path.read_bytes()
+    prepare_replica(tmp_path / "source", TASK_ID, tmp_path / "staged", 32 * 1024)
+    replica = json.loads((tmp_path / "staged/metadata.json").read_text())
+    assert replica["replica"]["omitted"][name] == "transfer budget"
+    assert not (tmp_path / "staged" / name).exists()
+    assert path.read_bytes() == original
 
 
 def test_replica_roundtrip_and_policy_change(tmp_path):
@@ -231,10 +310,9 @@ def test_receiver_refuses_a_replica_over_its_total_budget(tmp_path):
 
 
 @pytest.mark.parametrize("role", ["targets", "signals"])
-def test_old_stock_signal_outputs_are_rejected(tmp_path, role):
+def test_display_sync_does_not_validate_research_signal_formats(tmp_path, role):
     directory, metadata = source_task(tmp_path, "backtest#demo#research-core")
     path = directory / f"{role}.parquet"
     path.write_bytes(b"old output")
     publish(directory, metadata, **{role: path})
-    with pytest.raises(ValueError, match="Unsupported stock signals format"):
-        plan_task(tmp_path, metadata.task_id)
+    assert f"{role}.parquet" in {item.relative for item in plan_task(tmp_path, metadata.task_id).files}

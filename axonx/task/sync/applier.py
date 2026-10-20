@@ -212,13 +212,19 @@ class TaskArchiveApplier:
                     old = status.replica.snapshot if status is not None and status.replica is not None else None
                     new = incoming.replica.snapshot if incoming is not None and incoming.replica is not None else None
                     if old is not None and incoming is not None:
-                        if (
-                            new is None
-                            or new.source_id != old.source_id
-                            or new.root_task_id != old.root_task_id
-                            or new.revision <= old.revision
-                        ):
+                        # Completed shared children can later sync independently.
+                        # A new live parent may also reference the same child Run.
+                        if new is None:
+                            conflict = not (
+                                status.run_id == incoming.run_id
+                                and status.state.is_terminal
+                                and incoming.state.is_terminal
+                            )
+                        else:
+                            conflict = new.source_id != old.source_id or new.revision <= old.revision
+                        if conflict:
                             raise ValueError(f"Stale or conflicting live snapshot: {relative_path}")
+                    if status is not None and status.replica is not None and incoming is not None:
                         if (
                             status.run_id == incoming.run_id
                             and status.state.is_terminal
