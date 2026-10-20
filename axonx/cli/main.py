@@ -30,6 +30,16 @@ from ..utils.env import find_env_file
 from .parser import Command, parse_command
 from .rendering import print_event_blocks, print_json, print_logo
 
+# Defaults affect CLI queries only; callers can explicitly request complete records.
+_QUERY_DEFAULTS = {
+    "status": {"detail": "summary"},
+    "wait_task": {"detail": "summary"},
+    "preview_file": {"limit": 20, "max_bytes": 8192},
+    "list_agent_sessions": {"limit": 20},
+    "get_agent_session": {"limit": 20},
+    "list_installed_task_definitions": {"include_schemas": False},
+}
+
 
 def _run_server(command: Command, startup_arguments: list[str] | None = None) -> int:
     environment = load_env()
@@ -73,6 +83,8 @@ def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
     options = client_options.model_dump(exclude={"stream", "stream_format"})
     arguments = dict(command.arguments)
     arguments.pop(CLI_RAW_ARGUMENTS, None)
+    for key, value in _QUERY_DEFAULTS.get(command.action, {}).items():
+        arguments.setdefault(key, value)
 
     if client_options.stream:
 

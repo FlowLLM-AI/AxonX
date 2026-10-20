@@ -22,6 +22,8 @@ export interface Schedule {
   running: number;
   last_trigger: ScheduleRun | null;
   history?: ScheduleRun[];
+  history_total?: number;
+  history_scheduler_ids?: string[];
 }
 
 export type { TaskView as TaskMetadata } from "../../shared/api/contracts";

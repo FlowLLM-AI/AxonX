@@ -317,7 +317,7 @@ it("uses one page clock and refreshes the index, report and logs together", asyn
     await act(async () => vi.advanceTimersByTimeAsync(1_000));
     const batch = calls.slice(initial);
     expect(batch.filter((url) => url.includes("list_schedules"))).toHaveLength(
-      1,
+      0,
     );
     expect(
       batch.filter((url) => url.includes("list_task_statuses")),
@@ -553,4 +553,29 @@ it("switches download results and logs together and refuses a replaced child Run
     "onlinePipeline.replacedChildRun",
   );
   expect(container.querySelector('[id$="-result-panel"] pre')).toBeNull();
+});
+
+it("marks bounded schedule history and only requests schedules on the selected page", async () => {
+  const demo = createPlayground();
+  const requested: unknown[] = [];
+  configureClient(
+    new AxonXClient(async (url, init) => {
+      const response = await demo(url, init);
+      if (!String(url).includes("list_schedules")) return response;
+      requested.push(JSON.parse(String(init?.body)).arguments);
+      const payload = await response.json();
+      payload.answer = payload.answer.map(
+        (schedule: Record<string, unknown>) => ({
+          ...schedule,
+          history_total: 1000,
+        }),
+      );
+      return Response.json(payload);
+    }, false),
+  );
+  await render(undefined, "sync");
+  expect(requested).toEqual([
+    { name: "workspace_sync", include_history: true, history_limit: 200 },
+  ]);
+  expect(container.textContent).toContain("operations.historyLimited");
 });

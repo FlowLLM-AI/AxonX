@@ -907,6 +907,18 @@ async def test_submission_returns_queryable_task_handle(tmp_path):
             {"task_id": failed_handle.task_id, "run_id": failed_handle.run_id},
         )
         wrong_run = await app.run_job("wait_task", {"task_id": handle.task_id, "run_id": "wrong"})
+        for expected_handle, expected_success in ((handle, True), (failed_handle, False)):
+            summary = await app.run_job(
+                "wait_task",
+                {
+                    "task_id": expected_handle.task_id,
+                    "run_id": expected_handle.run_id,
+                    "detail": "summary",
+                },
+            )
+            assert summary.success is expected_success
+            assert summary.answer.run_id == expected_handle.run_id
+            assert not hasattr(summary.answer, "output_params")
 
     assert response.success is True
     assert waited.success is True

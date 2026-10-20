@@ -14,11 +14,21 @@ const schemas: Record<
   machine_status: { output: "object" },
   list_machines: { output: "array" },
   list_studio_pages: { output: "array" },
-  list_schedules: { output: "array" },
-  list_installed_task_definitions: { output: "array" },
+  list_schedules: {
+    input: {
+      name: { type: "string" },
+      include_history: { type: "boolean", default: false },
+      history_limit: { type: "integer", minimum: 1, maximum: 200, default: 20 },
+    },
+    output: "array",
+  },
+  list_installed_task_definitions: {
+    input: { include_schemas: { type: "boolean", default: true } },
+    output: "array",
+  },
   list_task_statuses: {
     input: {
-      detail: { type: "string", enum: ["summary", "full"], default: "full" },
+      detail: { type: "string", enum: ["summary", "full"], default: "summary" },
       task_type: { type: "string" },
       state: {
         type: "string",
@@ -27,7 +37,13 @@ const schemas: Record<
     },
     output: "array",
   },
-  status: { input: task, output: "object" },
+  status: {
+    input: {
+      ...task,
+      detail: { type: "string", enum: ["summary", "full"], default: "full" },
+    },
+    output: "object",
+  },
   cancel: {
     input: { run_id: text("backtest#demo") },
     output: "boolean",
@@ -36,7 +52,7 @@ const schemas: Record<
     input: {
       ...task,
       offset: { type: "integer", default: -1 },
-      limit: { type: "integer", default: 65536 },
+      limit: { type: "integer", default: 8192 },
     },
     output: "object",
   },
@@ -78,6 +94,7 @@ const schemas: Record<
   preview_file: {
     input: {
       path: text("backtest/backtest#demo/metadata.json"),
+      max_bytes: { type: "integer", minimum: 1, maximum: 33554432 },
       offset: { type: "integer", default: 0 },
       limit: { type: "integer", default: 200 },
     },

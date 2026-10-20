@@ -102,11 +102,12 @@ All lifecycle states have metadata; inspect `state` rather than file existence t
 
 Preview supported file types.
 
-| Parameter | Type    | Required | Default       | Constraints and meaning                                                                     |
-| --------- | ------- | -------- | ------------- | ------------------------------------------------------------------------------------------- |
-| `path`    | string  | Yes      | `— (omitted)` | Path relative to the service workspace                                                      |
-| `offset`  | integer | No       | `0`           | Number of data rows to skip in CSV/JSONL/Parquet previews; minimum=0                        |
-| `limit`   | integer | No       | `200`         | Maximum number of data rows returned in CSV/JSONL/Parquet previews; minimum=1, maximum=5000 |
+| Parameter   | Type    | Required | Default       | Constraints and meaning                                                                     |
+| ----------- | ------- | -------- | ------------- | ------------------------------------------------------------------------------------------- |
+| `path`      | string  | Yes      | `— (omitted)` | Path relative to the service workspace                                                      |
+| `offset`    | integer | No       | `0`           | Number of data rows to skip in CSV/JSONL/Parquet previews; minimum=0                        |
+| `limit`     | integer | No       | `200`         | Maximum number of data rows returned in CSV/JSONL/Parquet previews; minimum=1, maximum=5000 |
+| `max_bytes` | integer | No       | Omitted       | Text/Markdown/JSON/YAML byte budget, 1–33554432; CLI defaults to 8192.                      |
 
 Only the business fields listed in the table are accepted.
 
@@ -142,6 +143,8 @@ answer is discriminated by kind: text/markdown/json/jsonl/yaml/csv/parquet/unsup
 **Behavior and failure cases**
 
 offset/limit apply only to CSV, JSONL, and Parquet data rows, default to 0/200, and have a maximum limit of 5000. text/markdown reads at most 512 KiB; JSON/YAML larger than 32 MiB returns parse_error. Parsing failure can still have success=true; always inspect parse_error.
+
+`preview_file` accepts optional `max_bytes` (1–33554432) for text, Markdown, JSON and YAML. When the file exceeds it, the response contains a UTF-8 prefix with `truncated=true`; structured previews have `data=null` and an explanatory `parse_error`. CSV/JSONL/Parquet remain row-limited. CLI defaults to `limit=20` and `max_bytes=8192`; HTTP/MCP retain existing limits unless explicitly overridden.
 
 ## delete_entries
 

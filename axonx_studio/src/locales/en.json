@@ -1179,6 +1179,7 @@
     "workspace": "Workspace record"
   },
   "operations": {
+    "historyLimited": "Showing up to {{limit}} recent triggers per schedule; older retained records are omitted.",
     "unsyncedItems": "Items not synced this round",
     "jobName": "Job name",
     "triggerId": "Execution ID",

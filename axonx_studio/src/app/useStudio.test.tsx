@@ -254,10 +254,13 @@ it("shares one clock across service health, operation reports and logs without r
   expect(machineStatus).toHaveBeenCalledTimes(2);
   expect(listStudioPages).toHaveBeenCalledTimes(1);
   expect(logTab().getAttribute("aria-selected")).toBe("true");
-  for (const job of ["list_schedules", "list_task_statuses", "read_task_log"])
+  for (const job of ["list_task_statuses", "read_task_log"])
     expect(
       requests.slice(initial).filter((url) => url.includes(job)),
     ).toHaveLength(1);
+  expect(
+    requests.slice(initial).some((url) => url.includes("list_schedules")),
+  ).toBe(false);
   await act(async () =>
     container.querySelector<HTMLButtonElement>(".rail-refresh")!.click(),
   );

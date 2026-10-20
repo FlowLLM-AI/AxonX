@@ -13,7 +13,7 @@ from axonx.components.service import HttpService
 from axonx.components.task_manager.local.manager import LocalTaskManager
 from axonx.components.task_repository import LocalTaskRepository
 from axonx.core import Application
-from axonx.task.query.summary import summarize_status
+from axonx.task.query.summary import TaskView, summarize_status
 from axonx.task.storage.workspace import TaskMetadata, TaskStepStatus
 
 
@@ -82,7 +82,7 @@ async def test_local_summary_avoids_full_snapshot_copy(tmp_path, monkeypatch):
     assert (await manager.list_summaries())[0].step_progress.name == "active"
 
 
-async def test_job_defaults_to_full_and_validates_detail(tmp_path):
+async def test_job_defaults_to_summary_and_validates_detail(tmp_path):
     app = Application(
         workspace_dir=str(tmp_path),
         enable_logo=False,
@@ -93,9 +93,8 @@ async def test_job_defaults_to_full_and_validates_detail(tmp_path):
             "task_manager": {"default": {"backend": "local"}},
         },
         jobs={
-            "list_task_statuses": yaml.safe_load(files("axonx.config").joinpath("default.yaml").read_text())["jobs"][
-                "list_task_statuses"
-            ]
+            name: yaml.safe_load(files("axonx.config").joinpath("default.yaml").read_text())["jobs"][name]
+            for name in ("list_task_statuses", "status")
         },
     )
     async with app:
@@ -103,11 +102,16 @@ async def test_job_defaults_to_full_and_validates_detail(tmp_path):
         task = status()
         manager.list_statuses = AsyncMock(return_value=[task])
         manager.list_summaries = AsyncMock(return_value=[summarize_status(task)])
-        full = await app.run_job("list_task_statuses")
-        assert full.success
-        assert full.answer == [task]
+        manager.get_status = AsyncMock(return_value=task)
+        detail = await app.run_job("status", {"task_id": task.task_id})
+        assert detail.answer == task
+        compact = await app.run_job("status", {"task_id": task.task_id, "detail": "summary"})
+        assert compact.answer == summarize_status(task)
+        default = await app.run_job("list_task_statuses")
+        assert default.success
+        assert default.answer == [summarize_status(task)]
         explicit = await app.run_job("list_task_statuses", {"detail": "full"})
-        assert explicit.answer == full.answer
+        assert explicit.answer == [task]
         summary = await app.run_job("list_task_statuses", {"detail": "summary"})
         assert summary.success
         assert summary.answer == [summarize_status(task)]
@@ -123,7 +127,7 @@ async def test_job_defaults_to_full_and_validates_detail(tmp_path):
             assert item["task_type"] == "analysis"
             assert item["step_progress"]["current"] == 2
             assert "output_params" not in item
-            full_response = await client.post("/jobs/list_task_statuses", json={"arguments": {}})
+            full_response = await client.post("/jobs/list_task_statuses", json={"arguments": {"detail": "full"}})
             assert full_response.json()["answer"][0]["output_params"] == task.output_params
             invalid = await client.post("/jobs/list_task_statuses", json={"arguments": {"detail": "invalid"}})
             assert invalid.status_code == 422
@@ -181,3 +185,8 @@ def test_comparison_keeps_its_report_without_being_classified_as_online():
     task.report_kind = "compare_pipeline"
     summary = summarize_status(task)
     assert not summary.is_online and summary.report_kind == "compare_pipeline"
+
+
+def test_single_status_summary_preserves_manager_ownership():
+    task = TaskView(**status().model_dump(), managed_run_id="root-run")
+    assert summarize_status(task).managed_run_id == "root-run"

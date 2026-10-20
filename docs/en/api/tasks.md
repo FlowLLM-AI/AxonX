@@ -32,7 +32,7 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 Enumerate built-in and plugin Tasks in the current Python environment.
 
-No public business parameters; use `{"arguments":{}}`.
+Optional `include_schemas` (boolean, HTTP/MCP default `true`) controls whether input/output schemas are generated. The CLI defaults to `--include-schemas false`; use `get_task_definition` for one selected Task, or explicitly request `--include-schemas true` for the complete catalog.
 
 **Request**
 
@@ -44,7 +44,7 @@ No public business parameters; use `{"arguments":{}}`.
 
 **Response**
 
-answer is an array of TaskDefinition. Each item contains name, source (native/plugin), plugin, task_type, description, input_schema, and output_schema.
+`answer` is sorted by name. Each item contains `name`, `source` (`native`/`plugin`), `plugin`, `category`, `task_type`, and `description`. `input_schema` and `output_schema` are present only with `include_schemas=true`; lightweight discovery does not generate either schema.
 
 ```json
 {
@@ -165,11 +165,12 @@ Use get_task_definition for a plugin Task's research parameters; do not apply de
 
 Wait for the specific execution returned by submission to finish.
 
-| Parameter       | Type   | Required | Default       | Constraints and meaning                          |
-| --------------- | ------ | -------- | ------------- | ------------------------------------------------ |
-| `task_id`       | string | Yes      | `— (omitted)` | Full Task ID; minLength=1                        |
-| `run_id`        | string | Yes      | `— (omitted)` | Execution ID returned by submission; minLength=1 |
-| `poll_interval` | number | No       | `1`           | Polling interval in seconds; exclusiveMinimum=0  |
+| Parameter       | Type   | Required | Default       | Constraints and meaning                             |
+| --------------- | ------ | -------- | ------------- | --------------------------------------------------- |
+| `task_id`       | string | Yes      | `— (omitted)` | Full Task ID; minLength=1                           |
+| `run_id`        | string | Yes      | `— (omitted)` | Execution ID returned by submission; minLength=1    |
+| `poll_interval` | number | No       | `1`           | Polling interval in seconds; exclusiveMinimum=0     |
+| `detail`        | string | No       | `full`        | `summary` or `full`; the CLI defaults to `summary`. |
 
 Only the business fields listed in the table are accepted.
 
@@ -186,7 +187,9 @@ Only the business fields listed in the table are accepted.
 
 **Response**
 
-answer is a terminal TaskMetadata; success=true only when state=succeeded.
+With `detail=summary`, the response uses the same bounded projection as `list_task_statuses`, preserving Task/Run IDs, lifecycle state and manager ownership. Inputs, outputs, children and full errors require `detail=full`. `wait_task.success` still reflects the terminal Task state when returning a summary.
+
+With `detail=full`, `answer` is a terminal TaskMetadata; success=true only when state=succeeded.
 
 ```json
 {
@@ -257,7 +260,7 @@ Only valid unified metadata records are indexed; the list is not a full executio
 
 List full status snapshots or lightweight summaries.
 
-Optional `detail`: `full` (default, preserves the existing response) or `summary`. Studio uses `summary` for lists.
+Optional `detail`: `summary` (default) or `full` (explicit complete snapshots). Studio uses `summary` for lists.
 
 ```json
 { "arguments": { "detail": "summary" } }
@@ -287,15 +290,16 @@ Summaries omit `input_params`, `output_params`, `children`, and `steps`. They ad
 
 **Behavior and failure cases**
 
-No server-side pagination or filtering parameters are provided. Clients can filter by type and state; filtering by configuration requires `full`. Invalid `detail` values are rejected by argument validation.
+Server-side `task_type` and `state` filters are applied before projection. Filtering by configuration requires `full`; pagination is not provided. Invalid `detail` values are rejected by argument validation.
 
 ## status
 
 Read a task's current status.
 
-| Parameter | Type   | Required | Default       | Constraints and meaning |
-| --------- | ------ | -------- | ------------- | ----------------------- |
-| `task_id` | string | Yes      | `— (omitted)` | Full Task ID            |
+| Parameter | Type   | Required | Default       | Constraints and meaning                             |
+| --------- | ------ | -------- | ------------- | --------------------------------------------------- |
+| `task_id` | string | Yes      | `— (omitted)` | Full Task ID                                        |
+| `detail`  | string | No       | `full`        | `summary` or `full`; the CLI defaults to `summary`. |
 
 The Schema does not prohibit extra fields; this does not mean those fields will be used.
 
@@ -310,6 +314,8 @@ The Schema does not prohibit extra fields; this does not mean those fields will 
 ```
 
 **Response**
+
+With `detail=summary`, the response uses the same bounded projection as `list_task_statuses`, preserving Task/Run IDs, lifecycle state and manager ownership. Inputs, outputs, children and full errors require `detail=full`. Query success and Task success remain distinct.
 
 answer is TaskMetadata: identity, input_params, output_params, children, state, timestamps, pid, exit_code, error, steps, and log_path.
 
@@ -357,7 +363,7 @@ Read logs within a bounded byte window.
 | `task_id` | string  | Yes      | `— (omitted)` | Full Task ID                                                        |
 | `run_id`  | string  | No       | —             | Optional exact Run ID; reject replacement runs before reading.      |
 | `offset`  | integer | No       | `-1`          | Starting byte offset for log reading; -1 reads the tail; minimum=-1 |
-| `limit`   | integer | No       | `65536`       | Maximum number of bytes to read; minimum=1, maximum=262144          |
+| `limit`   | integer | No       | `8192`        | Maximum number of bytes to read; minimum=1, maximum=262144          |
 
 The Schema does not prohibit extra fields; this does not mean those fields will be used.
 

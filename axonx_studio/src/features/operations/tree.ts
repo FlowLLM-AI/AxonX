@@ -36,6 +36,8 @@ function ownsTrigger(schedule: Schedule, source: ScheduleTrigger) {
     source.name === schedule.name &&
     source.job === schedule.job &&
     (source.scheduler_id === schedule.scheduler_id ||
+      (source.scheduler_id !== null &&
+        schedule.history_scheduler_ids?.includes(source.scheduler_id)) ||
       scheduleHistory(schedule).some(
         (run) => triggerKey(run) === triggerKey(source),
       ))

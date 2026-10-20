@@ -12,6 +12,6 @@ class BaseScheduler(BaseComponent, ABC):
     component_type = ComponentEnum.SCHEDULER
 
     @abstractmethod
-    def describe(self) -> dict:
-        """Return the schedule configuration and current trigger status."""
+    def describe(self, *, include_history: bool = False, history_limit: int = 20) -> dict:
+        """Return configuration/status, optionally including bounded recent history."""
         raise NotImplementedError

@@ -13,8 +13,8 @@ from ...plugin_kit.loading import load_symbol
 from ..core.task import BaseTask
 
 
-class TaskDefinition(BaseModel):
-    """Describe an installed Task and its input and output schemas."""
+class TaskInfo(BaseModel):
+    """Describe an installed Task without generating parameter schemas."""
 
     model_config = ConfigDict(frozen=True)
     name: str
@@ -23,6 +23,11 @@ class TaskDefinition(BaseModel):
     category: TaskCategory | None = None
     task_type: TaskType
     description: str
+
+
+class TaskDefinition(TaskInfo):
+    """An installed Task with its complete input and output schemas."""
+
     input_schema: dict[str, Any]
     output_schema: dict[str, Any]
 
@@ -56,22 +61,29 @@ def installed_tasks() -> dict[str, type[BaseTask]]:
     return {name: task for name, (task, _) in _task_catalog().items()}
 
 
-def list_installed_task_definitions() -> list[TaskDefinition]:
-    """Return sorted definitions for every installed Task."""
-    return [_task_definition(name, task, plugin) for name, (task, plugin) in _task_catalog().items()]
+def list_installed_task_definitions(*, include_schemas: bool = True) -> list[TaskInfo]:
+    """Return sorted definitions, generating schemas only when requested."""
+    describe = _task_definition if include_schemas else _task_info
+    return [describe(name, task, plugin) for name, (task, plugin) in _task_catalog().items()]
 
 
-def _task_definition(name: str, task_class: type[BaseTask], plugin: str | None) -> TaskDefinition:
+def _task_info(name: str, task_class: type[BaseTask], plugin: str | None) -> TaskInfo:
     task_type = task_class.task_type
     if not isinstance(task_type, TaskType):
         raise TypeError(f"Task {name!r} must declare a fixed TaskType")
-    return TaskDefinition(
+    return TaskInfo(
         name=name,
         source="plugin" if plugin is not None else "native",
         plugin=plugin,
         task_type=task_type,
         category=task_class.category,
         description=cleandoc(task_class.__doc__ or "").strip(),
+    )
+
+
+def _task_definition(name: str, task_class: type[BaseTask], plugin: str | None) -> TaskDefinition:
+    return TaskDefinition(
+        **_task_info(name, task_class, plugin).model_dump(),
         input_schema=task_class.input_cls.model_json_schema(),
         output_schema=task_class.output_cls.model_json_schema(),
     )

@@ -281,7 +281,12 @@ jobs:
 
   # =========== Task jobs ===========
   list_installed_task_definitions:
-    description: List all installed Task definitions.
+    description: List installed Tasks; schemas can be omitted for lightweight discovery.
+    parameters:
+      type: object
+      properties:
+        include_schemas: { type: boolean, default: true }
+      additionalProperties: false
     steps:
       - backend: list_installed_task_definitions
 
@@ -321,6 +326,7 @@ jobs:
         task_id: { type: string, minLength: 1 }
         run_id: { type: string, minLength: 1 }
         poll_interval: { type: number, exclusiveMinimum: 0, default: 1 }
+        detail: { type: string, enum: [summary, full], default: full }
       required: [task_id, run_id]
       additionalProperties: false
     steps:
@@ -335,9 +341,24 @@ jobs:
       - backend: list_studio_pages_step
 
   list_schedules:
-    description: List configured schedules and their current trigger status.
+    description: List schedule configuration and current status; history is opt-in.
     parameters:
       type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Exact schedule name; omit to list all schedules.
+        include_history:
+          type: boolean
+          default: false
+          description: Include recent trigger history and the latest Job result.
+        history_limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 20
+          description: Maximum recent triggers per schedule, oldest first within the selected window.
       additionalProperties: false
     steps:
       - backend: list_schedules_step
@@ -355,7 +376,7 @@ jobs:
         detail:
           type: string
           enum: [summary, full]
-          default: full
+          default: summary
           description: Return lightweight list metadata or complete TaskMetadata snapshots.
         task_type:
           type: string
@@ -372,6 +393,7 @@ jobs:
     parameters:
       type: object
       properties:
+        detail: { type: string, enum: [summary, full], default: full }
         task_id:
           type: string
           description: ID of the task whose status is requested.
@@ -400,7 +422,7 @@ jobs:
           type: integer
           minimum: 1
           maximum: 262144
-          default: 65536
+          default: 8192
           description: Maximum number of bytes to return.
       required:
         - task_id
@@ -531,6 +553,11 @@ jobs:
     parameters:
       type: object
       properties:
+        max_bytes:
+          type: integer
+          minimum: 1
+          maximum: 33554432
+          description: Optional byte limit for text, Markdown, JSON and YAML previews; larger files return a marked prefix.
         path:
           type: string
           description: Workspace-relative path of the file to preview.

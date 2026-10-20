@@ -32,7 +32,7 @@
 
 枚举当前 Python 环境中的内置与插件 Task。
 
-无公开业务参数；使用 `{"arguments":{}}`。
+可选 `include_schemas`（布尔值，HTTP/MCP 默认 `true`）控制是否生成输入/输出 schema。CLI 默认 `--include-schemas false`；选定 Task 后通过 `get_task_definition` 获取单个定义，或显式传 `--include-schemas true` 获取完整目录。
 
 **请求**
 
@@ -44,7 +44,7 @@
 
 **响应**
 
-answer 是 TaskDefinition 数组。每项含 name、source（native/plugin）、plugin、task_type、description、input_schema、output_schema。
+`answer` 按名称排序，每项包含 `name`、`source`（`native`/`plugin`）、`plugin`、`category`、`task_type` 和 `description`。仅 `include_schemas=true` 时返回 `input_schema`、`output_schema`；轻量查询不会生成 schema。
 
 ```json
 {
@@ -165,11 +165,12 @@ answer 是 TaskHandle：task_id、run_id、task。success=true 表示提交成�
 
 等待提交返回的特定执行结束。
 
-| 参数            | 类型   | 必填 | 默认值      | 约束与含义                           |
-| --------------- | ------ | ---- | ----------- | ------------------------------------ |
-| `task_id`       | string | 是   | `—（省略）` | 完整 Task ID；minLength=1            |
-| `run_id`        | string | 是   | `—（省略）` | 提交返回的本次执行 ID；minLength=1   |
-| `poll_interval` | number | 否   | `1`         | 轮询间隔，单位秒；exclusiveMinimum=0 |
+| 参数            | 类型   | 必填 | 默认值      | 约束与含义                                    |
+| --------------- | ------ | ---- | ----------- | --------------------------------------------- |
+| `task_id`       | string | 是   | `—（省略）` | 完整 Task ID；minLength=1                     |
+| `run_id`        | string | 是   | `—（省略）` | 提交返回的本次执行 ID；minLength=1            |
+| `poll_interval` | number | 否   | `1`         | 轮询间隔，单位秒；exclusiveMinimum=0          |
+| `detail`        | string | 否   | `full`      | `summary` 或 `full`；CLI 默认请求 `summary`。 |
 
 只接受表中业务字段。
 
@@ -186,7 +187,9 @@ answer 是 TaskHandle：task_id、run_id、task。success=true 表示提交成�
 
 **响应**
 
-answer 是终态 TaskMetadata；只有 state=succeeded 时 success=true。
+`detail=summary` 使用与 `list_task_statuses` 相同的有界摘要，保留 Task/Run ID、生命周期状态和管理器归属；输入、输出、子任务和完整错误需 `detail=full`。返回摘要时，`wait_task.success` 仍由 Task 的终态决定。
+
+`detail=full` 时，`answer` 是终态 TaskMetadata；只有 state=succeeded 时 success=true。
 
 ```json
 {
@@ -257,7 +260,7 @@ answer 是字符串 Task ID 数组。
 
 列出完整状态快照或轻量摘要。
 
-可选参数 `detail`：`full`（默认，保持现有响应）或 `summary`。Studio 列表使用 `summary`。
+可选参数 `detail`：`summary`（默认）或 `full`（显式获取完整快照）。Studio 列表使用 `summary`。
 
 ```json
 { "arguments": { "detail": "summary" } }
@@ -293,9 +296,10 @@ answer 是字符串 Task ID 数组。
 
 读取一个任务的当前状态。
 
-| 参数      | 类型   | 必填 | 默认值      | 约束与含义   |
-| --------- | ------ | ---- | ----------- | ------------ |
-| `task_id` | string | 是   | `—（省略）` | 完整 Task ID |
+| 参数      | 类型   | 必填 | 默认值      | 约束与含义                                    |
+| --------- | ------ | ---- | ----------- | --------------------------------------------- |
+| `task_id` | string | 是   | `—（省略）` | 完整 Task ID                                  |
+| `detail`  | string | 否   | `full`      | `summary` 或 `full`；CLI 默认请求 `summary`。 |
 
 Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 
@@ -310,6 +314,8 @@ Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 ```
 
 **响应**
+
+`detail=summary` 使用与 `list_task_statuses` 相同的有界摘要，保留 Task/Run ID、生命周期状态和管理器归属；输入、输出、子任务和完整错误需 `detail=full`。查询成功与 Task 成功仍是不同概念。
 
 answer 是 TaskMetadata：身份、input_params、output_params、children、state、时间、pid、exit_code、error、steps、log_path。
 
@@ -357,7 +363,7 @@ answer 是 TaskMetadata：身份、input_params、output_params、children、sta
 | `task_id` | string  | 是   | `—（省略）` | 完整 Task ID                                  |
 | `run_id`  | string  | 否   | —           | 可选的准确 Run ID；读取前拒绝已替换的运行。   |
 | `offset`  | integer | 否   | `-1`        | 日志读取起始字节偏移；-1 读取尾部；minimum=-1 |
-| `limit`   | integer | 否   | `65536`     | 最多读取的字节数；minimum=1, maximum=262144   |
+| `limit`   | integer | 否   | `8192`      | 最多读取的字节数；minimum=1, maximum=262144   |
 
 Schema 未禁止额外字段；不要据此假定额外字段会被使用。
 

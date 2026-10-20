@@ -158,3 +158,22 @@ it("keeps empty schedules searchable by description and cron", () => {
   expect(searchOperationTree(tree, "synthetic").groups).toHaveLength(1);
   expect(searchOperationTree(tree, "0 17").groups).toHaveLength(1);
 });
+
+it("keeps old service runs in their schedule when recent history is sliced", () => {
+  const current = schedule();
+  const old = {
+    ...current.last_trigger!,
+    scheduler_id: "old-service",
+    trigger_id: "before-window",
+  };
+  current.history = [];
+  current.history_scheduler_ids = [old.scheduler_id];
+  const tree = buildOperationTree(
+    [current.name],
+    [current],
+    [scheduledTask(old)],
+  );
+  expect(tree.groups).toHaveLength(1);
+  expect(tree.groups[0].runs.some((run) => run.kind === "task")).toBe(true);
+  expect(tree.groups[0].archived).toBe(false);
+});

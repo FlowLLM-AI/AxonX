@@ -75,8 +75,10 @@ class CronScheduler(BaseScheduler):
             name=f"axonx-scheduler:{self.name}",
         )
 
-    def describe(self) -> dict:
-        return {
+    def describe(self, *, include_history: bool = False, history_limit: int = 20) -> dict:
+        if isinstance(history_limit, bool) or not isinstance(history_limit, int) or not 1 <= history_limit <= 200:
+            raise ValueError("history_limit must be an integer between 1 and 200")
+        result = {
             "scheduler_id": self.scheduler_id,
             "name": self.name,
             "job": self.job_name,
@@ -87,12 +89,32 @@ class CronScheduler(BaseScheduler):
             "concurrency_policy": self.concurrency_policy,
             "next_run_at": self._next_run().isoformat() if self.is_started else None,
             "running": sum(not task.done() for task in self._executions),
-            "last_trigger": deepcopy(self.last_trigger),
-            "history": deepcopy(self.history),
+            "last_trigger": deepcopy(
+                self.last_trigger
+                if include_history or self.last_trigger is None
+                else {key: value for key, value in self.last_trigger.items() if key != "result"}
+            ),
         }
 
+        if include_history:
+            result["history"] = deepcopy(self.history[-history_limit:])
+            result["history_total"] = len(self.history)
+            # Identity is independent of the visible history window (including runs before a restart).
+            result["history_scheduler_ids"] = sorted(
+                {
+                    record["scheduler_id"]
+                    for record in self.history
+                    if record["job"] == self.job_name and record.get("scheduler_id")
+                }
+            )
+        return result
+
     def _persist_history(self) -> None:
-        save_history(history_path(self.workspace_path, self.name), self.history, self.history_retention_days)
+        save_history(
+            history_path(self.workspace_path, self.name),
+            self.history,
+            self.history_retention_days,
+        )
         self.last_trigger = self.history[-1] if self.history else None
 
     def _next_run(self, now: datetime | None = None) -> datetime:

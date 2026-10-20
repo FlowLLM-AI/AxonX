@@ -3,6 +3,7 @@
 from ...components.job.events import ProgressEvent
 from ...components.registry import provider
 from ...enums import TaskState
+from ...task.query.summary import summarize_status
 from ...task.runtime.arguments import build_task_argv, split_task_arguments
 from .base import TaskManagerStep
 
@@ -29,7 +30,7 @@ class WaitTaskStep(TaskManagerStep):
             self.context["run_id"],
             self.context.get("poll_interval", 1.0),
         )
-        self.response.answer = status
+        self.response.answer = summarize_status(status) if self.context.get("detail") == "summary" else status
         self.response.success = status.state == TaskState.SUCCEEDED
 
 

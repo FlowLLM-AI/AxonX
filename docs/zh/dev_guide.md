@@ -64,6 +64,18 @@ axonx diagnose --target node-b:1024
 
 提交请求失败且尚未收到 handle 时，先检查已有运行再决定是否重提，服务可能已经受理。`wait_task` 超时或断线后保留原 Task/Run ID，查询 `status` 并核对返回的 Run ID；原运行仍活跃则继续等待，失败则检查终态错误和日志。客户端错误不表示 Task 已停止，不要自动重新提交。复合 Task 会记录子运行，但不提供自动断点恢复。
 
+### 按需查询详情
+
+确认启动时轮询 `status`，核对返回的 Run ID、`queued`/`running` 状态与最近日志。`wait_task` 只用于等待终态，配置合适的客户端超时；短超时既不能确认启动，也不会取消 Task。超时后保留提交句柄，先查同一次运行再决定是否再次提交。
+
+CLI 的 `status`、`wait_task` 默认 `--detail summary`；查看输入、输出、子任务、产物和完整错误时传 `--detail full`。`list_task_statuses` 也默认摘要，可用 `--task-type`、`--state` 过滤，只在必要时请求 `--detail full`。`read_task_log` 默认读取末尾 8,192 字节，绑定 `--run-id` 并用返回的偏移继续读取。CLI 文件预览及 Agent 会话查询默认 `--limit 20`。
+
+CLI 的 `list_installed_task_definitions` 默认省略输入/输出 schema，可用 `--include-schemas true` 或查询单个 `get_task_definition`。CLI 的 `preview_file` 对文本、Markdown、JSON、YAML 还默认使用 `--max-bytes 8192`，大文件返回标记为截断的前缀，不解析不完整的结构化数据；完整检查时显式增大 `--max-bytes`（上限 33554432）。
+
+`list_schedules` 默认返回配置及当前状态，不含 `history` 和最近触发记录的 `result`。`--name NAME` 精确筛选调度名称；排查触发历史时才传 `--include-history true --history-limit 10`（范围 1–200，默认 20）。`submit` 触发成功不代表 Task 完成。复用调度参数前，核对目标、Task 定义、固定名称覆盖行为及旧运行已停止。
+
+脚本使用 `subprocess.run(..., check=True, capture_output=True, text=True)`，解析 JSON 后继续检查 `success` 与业务状态。后续 shell 命令可能掩盖前一条 CLI 的失败。需要时将完整响应保存到文件，终端只打印必要字段，避免把完整状态或历史倾倒进对话。提交是否被接受不明确时，不要自动重提。
+
 ## 背景
 
 AxonX 是面向 Agent 的量化研究 Harness，为量化代码开发、实验执行和结果分析提供工具与运行环境。将用户的研究 Prompt 与本指南结合，通过外部或内置 Agent 开发新插件或优化已有插件。提供源码访问与文件／命令工具，实现并验证量化代码，安装到选定执行服务，运行 Task，再根据证据迭代。数据获取与 ETL、因子分析、训练、预测和回测遵循统一 Task 输入输出契约。
@@ -256,7 +268,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 #### 6. 跟踪运行与检查产物
 
 - 使用提交响应中的实际 Task ID 和 Run ID，在同一服务上等待运行、查询状态、读取日志和检查产物。
-- 完整检查 `status`、`wait_task` 或 `stream_task` 的 `answer`：核对 `task_id`、`run_id` 和 `state`，并查看
+- 需要完整详情时，为 CLI `status`、`wait_task` 指定 `--detail full` 并检查 `answer`：核对 `task_id`、`run_id` 和 `state`，并查看
   `output_params`、`error`、`exit_code`、`log_path` 及步骤进度等字段。`status` 的 `success` 表示查询成功，不能据此判断 Task 成功。
 - `state` 为 `queued` 或 `running` 时继续等待；仅在 `succeeded` 时提交下游。`failed` 或 `cancelled` 时先检查错误和日志。
 - `wait_task` 必须传入提交返回的 `task_id`、`run_id`，等待指定运行结束；同一 Task ID 被重新提交后，Run ID 会变化， 不匹配时会报错。可用
@@ -323,24 +335,24 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
 ### Task 提交与运行
 
-| 命令名称              | 具体描述                                                                                 | 命令                                                                               | 远程参数                     |
-| --------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------- |
-| `get_task_definition` | 查询一个 Task 的完整定义；`--task` 填注册名，不是 Task ID 或实例名称。                   | `axonx get_task_definition --task qlib_a158_etl`                                   | `--target 192.168.1.10:1024` |
-| `submit`              | 提交 ETL Task，由框架生成名称；记录 `answer.task_id`、`answer.run_id` 和 `answer.task`。 | `axonx submit --task qlib_a158_etl --start-date 20150101`                          | `--target 192.168.1.10:1024` |
-| `submit`              | 使用显式名称生成固定 Task ID；重复使用该名称会在前次完成后替换其产物。                   | `axonx submit --task qlib_a158_etl --task-name default --start-date 20150101`      | `--target 192.168.1.10:1024` |
-| `submit`              | 使用成功 ETL 的实际 Task ID 作为数据来源，提交训练 Task。                                | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`               | `--target 192.168.1.10:1024` |
-| `wait_task`           | 等待指定 Run ID 结束，返回完整状态；仅 `succeeded` 时响应成功。                          | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
-| `stream_task`         | 持续输出指定 Task 的进度与日志，直到结束并返回最终状态。                                 | `axonx stream_task --task-id '<task_id>' --stream true`                            | `--target 192.168.1.10:1024` |
-| `list_task_ids`       | 列出具有生命周期元数据记录的 Task ID，供后续查询使用。                                   | `axonx list_task_ids`                                                              | `--target 192.168.1.10:1024` |
-| `list_task_statuses`  | 获取 Task 状态快照列表，便于检查多个 Task 的运行情况。                                   | `axonx list_task_statuses`                                                         | `--target 192.168.1.10:1024` |
-| `status`              | 获取指定 Task 当前的状态快照，不持续跟踪日志。                                           | `axonx status --task-id '<task_id>'`                                               | `--target 192.168.1.10:1024` |
-| `read_task_log`       | 单次读取指定 Task 的日志尾部，默认最多 65536 字节，用于查看最近输出。                    | `axonx read_task_log --task-id '<task_id>'`                                        | `--target 192.168.1.10:1024` |
-| `read_task_log`       | 从指定字节偏移读取日志；示例从头读取，后续可用响应的 `next_offset` 继续读取。            | `axonx read_task_log --task-id '<task_id>' --offset 0 --limit 65536`               | `--target 192.168.1.10:1024` |
-| `get_task_context`    | 汇总状态、元数据与日志路径、依赖图及上下游关系，供排查或后续研究使用。                   | `axonx get_task_context --task-id '<task_id>'`                                     | `--target 192.168.1.10:1024` |
-| `get_task_graph`      | 查询包含指定 Task 的依赖图，检查节点、连线和上下游关联。                                 | `axonx get_task_graph --task-id '<task_id>'`                                       | `--target 192.168.1.10:1024` |
-| `cancel`              | 取消正在排队或运行的 Task。                                                              | `axonx cancel --task-id '<task_id>'`                                               | `--target 192.168.1.10:1024` |
-| `delete_tasks`        | 删除已结束的 Task 及其文件；单个 ID 也须用 JSON 数组传入。                               | `axonx delete_tasks --task-ids '["<task_id>"]'`                                    | `--target 192.168.1.10:1024` |
-| `delete_tasks`        | 一次删除多个已结束的 Task 及其文件。                                                     | `axonx delete_tasks --task-ids '["<task_id_1>","<task_id_2>"]'`                    | `--target 192.168.1.10:1024` |
+| 命令名称              | 具体描述                                                                                 | 命令                                                                                     | 远程参数                     |
+| --------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------- |
+| `get_task_definition` | 查询一个 Task 的完整定义；`--task` 填注册名，不是 Task ID 或实例名称。                   | `axonx get_task_definition --task qlib_a158_etl`                                         | `--target 192.168.1.10:1024` |
+| `submit`              | 提交 ETL Task，由框架生成名称；记录 `answer.task_id`、`answer.run_id` 和 `answer.task`。 | `axonx submit --task qlib_a158_etl --start-date 20150101`                                | `--target 192.168.1.10:1024` |
+| `submit`              | 使用显式名称生成固定 Task ID；重复使用该名称会在前次完成后替换其产物。                   | `axonx submit --task qlib_a158_etl --task-name default --start-date 20150101`            | `--target 192.168.1.10:1024` |
+| `submit`              | 使用成功 ETL 的实际 Task ID 作为数据来源，提交训练 Task。                                | `axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>'`                     | `--target 192.168.1.10:1024` |
+| `wait_task`           | 等待指定 Run ID 结束，返回完整状态；仅 `succeeded` 时响应成功。                          | `axonx wait_task --task-id '<task_id>' --run-id '<run_id>' --client-timeout 86400`       | `--target 192.168.1.10:1024` |
+| `stream_task`         | 持续输出指定 Task 的进度与日志，直到结束并返回最终状态。                                 | `axonx stream_task --task-id '<task_id>' --stream true`                                  | `--target 192.168.1.10:1024` |
+| `list_task_ids`       | 列出具有生命周期元数据记录的 Task ID，供后续查询使用。                                   | `axonx list_task_ids`                                                                    | `--target 192.168.1.10:1024` |
+| `list_task_statuses`  | 获取 Task 状态快照列表，便于检查多个 Task 的运行情况。                                   | `axonx list_task_statuses`                                                               | `--target 192.168.1.10:1024` |
+| `status`              | 获取指定 Task 当前的状态快照，不持续跟踪日志。                                           | `axonx status --task-id '<task_id>'`                                                     | `--target 192.168.1.10:1024` |
+| `read_task_log`       | 单次读取指定 Task 的日志尾部，默认最多 8192 字节，用于查看最近输出。                     | `axonx read_task_log --task-id '<task_id>' --run-id '<run_id>'`                          | `--target 192.168.1.10:1024` |
+| `read_task_log`       | 从指定字节偏移读取日志；示例从头读取，后续可用响应的 `next_offset` 继续读取。            | `axonx read_task_log --task-id '<task_id>' --run-id '<run_id>' --offset 0 --limit 65536` | `--target 192.168.1.10:1024` |
+| `get_task_context`    | 汇总状态、元数据与日志路径、依赖图及上下游关系，供排查或后续研究使用。                   | `axonx get_task_context --task-id '<task_id>'`                                           | `--target 192.168.1.10:1024` |
+| `get_task_graph`      | 查询包含指定 Task 的依赖图，检查节点、连线和上下游关联。                                 | `axonx get_task_graph --task-id '<task_id>'`                                             | `--target 192.168.1.10:1024` |
+| `cancel`              | 取消正在排队或运行的 Task。                                                              | `axonx cancel --task-id '<task_id>'`                                                     | `--target 192.168.1.10:1024` |
+| `delete_tasks`        | 删除已结束的 Task 及其文件；单个 ID 也须用 JSON 数组传入。                               | `axonx delete_tasks --task-ids '["<task_id>"]'`                                          | `--target 192.168.1.10:1024` |
+| `delete_tasks`        | 一次删除多个已结束的 Task 及其文件。                                                     | `axonx delete_tasks --task-ids '["<task_id_1>","<task_id_2>"]'`                          | `--target 192.168.1.10:1024` |
 
 ### 工作区与同步
 

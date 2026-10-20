@@ -171,3 +171,37 @@ def test_remote_token_does_not_fall_back_to_local_token(monkeypatch, tmp_path):
     (tmp_path / ".env").write_text("")
     options = _load_client_options(ClientOptions(target="192.0.2.10:1024"))
     assert options.token is None
+
+
+@pytest.mark.parametrize(
+    ("action", "defaults"),
+    [
+        ("status", {"detail": "summary"}),
+        ("wait_task", {"detail": "summary"}),
+        ("preview_file", {"limit": 20, "max_bytes": 8192}),
+        ("list_installed_task_definitions", {"include_schemas": False}),
+        ("list_agent_sessions", {"limit": 20}),
+        ("get_agent_session", {"limit": 20}),
+    ],
+)
+@pytest.mark.parametrize("explicit", [False, True])
+def test_cli_query_defaults_are_lightweight_and_overridable(monkeypatch, action, defaults, explicit):
+    received = {}
+
+    async def run_remote_job(_name, arguments, **_options):
+        received.update(arguments)
+        return JobResponse()
+
+    monkeypatch.setattr(importlib.import_module("axonx.cli.main"), "run_remote_job", run_remote_job)
+    options = {"detail": "full"} if "detail" in defaults else {"limit": 100}
+    if action == "preview_file":
+        options["max_bytes"] = 65536
+    if action == "list_installed_task_definitions":
+        options = {"include_schemas": True}
+    argv = [action]
+    if explicit:
+        for name, value in options.items():
+            argv.extend(["--" + name.replace("_", "-"), str(value)])
+    command, client = parse_command(argv)
+    assert _run_remote_job(command, client) == 0
+    assert received == (options if explicit else defaults)

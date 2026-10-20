@@ -290,3 +290,53 @@ def test_structured_preview_has_one_successful_representation(tmp_path, suffix, 
     assert preview.data == {"value": [1, 2]}
     assert preview.content == ""
     assert preview.parse_error is None
+
+
+def test_cli_byte_budget_returns_marked_prefix_without_loading_full_json(tmp_path):
+    (tmp_path / "large.json").write_text('{"large":"' + "x" * 10000 + '"}')
+    preview = preview_workspace_file(tmp_path, "large.json", max_bytes=32)
+    assert preview.truncated is True
+    assert preview.data is None
+    assert len(preview.content.encode()) == 32
+    assert preview.size > 10000
+    assert preview_workspace_file(tmp_path, "large.json", max_bytes=20000).data["large"] == "x" * 10000
+    (tmp_path / "unicode.txt").write_text("中" * 10)
+    prefix = preview_workspace_file(tmp_path, "unicode.txt", max_bytes=4)
+    assert prefix.content == "中"
+    assert prefix.truncated
+
+
+@pytest.mark.parametrize("filename", ["unicode.txt", "unicode.md", "unicode.json", "unicode.yaml"])
+def test_byte_budget_preserves_utf8_and_rejects_invalid_data(tmp_path, filename):
+    path = tmp_path / filename
+    path.write_bytes("中中".encode())
+    prefix = preview_workspace_file(tmp_path, filename, max_bytes=4)
+    assert prefix.content == "中"
+    assert prefix.truncated
+    for invalid in (b"\xffinvalid text", b"\xe4\xb8", b"\xef", b"\xef\xbb"):
+        path.write_bytes(invalid)
+        with pytest.raises(ValueError, match="UTF-8"):
+            preview_workspace_file(tmp_path, filename, max_bytes=4)
+
+
+def test_text_budget_can_exceed_default_and_markdown_keeps_frontmatter(tmp_path):
+    from axonx.workspace.preview import TEXT_PREVIEW_BYTES
+
+    content = "x" * (TEXT_PREVIEW_BYTES + 1)
+    (tmp_path / "large.txt").write_text(content)
+    default = preview_workspace_file(tmp_path, "large.txt")
+    assert default.truncated
+    complete = preview_workspace_file(tmp_path, "large.txt", max_bytes=len(content))
+    assert complete.content == content
+    assert not complete.truncated
+    (tmp_path / "note.md").write_text("---\ntitle: note\n---\n" + "x" * 100)
+    preview = preview_workspace_file(tmp_path, "note.md", max_bytes=24)
+    assert preview.frontmatter == {"title": "note"}
+    assert preview.content == "x" * 4
+    assert preview.truncated
+
+
+@pytest.mark.parametrize("budget", [True, False, 0, -1, 1.5, 33554433])
+def test_preview_rejects_invalid_byte_budget_before_reading_files(tmp_path, budget):
+    with pytest.raises(ValueError, match="max_bytes"):
+        preview_workspace_file(tmp_path, "missing.json", max_bytes=budget)

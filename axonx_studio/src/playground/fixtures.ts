@@ -261,9 +261,9 @@ export function json(data: unknown): WorkspacePreview {
   const content = JSON.stringify(data, null, 2);
   return {
     kind: "json",
-    content,
+    content: "",
     data,
-    size: content.length,
+    size: new TextEncoder().encode(content).length,
     parse_error: null,
     truncated: false,
   };

@@ -102,11 +102,12 @@ answer 与 WorkspaceListing 相同，只保留任务结果目录。
 
 预览支持类型的文件。
 
-| 参数     | 类型    | 必填 | 默认值      | 约束与含义                                                        |
-| -------- | ------- | ---- | ----------- | ----------------------------------------------------------------- |
-| `path`   | string  | 是   | `—（省略）` | 服务工作区相对路径                                                |
-| `offset` | integer | 否   | `0`         | CSV/JSONL/Parquet 预览跳过的数据行数；minimum=0                   |
-| `limit`  | integer | 否   | `200`       | CSV/JSONL/Parquet 预览最多返回的数据行数；minimum=1, maximum=5000 |
+| 参数        | 类型    | 必填 | 默认值      | 约束与含义                                                        |
+| ----------- | ------- | ---- | ----------- | ----------------------------------------------------------------- |
+| `path`      | string  | 是   | `—（省略）` | 服务工作区相对路径                                                |
+| `offset`    | integer | 否   | `0`         | CSV/JSONL/Parquet 预览跳过的数据行数；minimum=0                   |
+| `limit`     | integer | 否   | `200`       | CSV/JSONL/Parquet 预览最多返回的数据行数；minimum=1, maximum=5000 |
+| `max_bytes` | integer | 否   | 省略        | 文本/Markdown/JSON/YAML 字节预算，1–33554432；CLI 默认 8192。     |
 
 只接受表中业务字段。
 
@@ -142,6 +143,8 @@ answer 按 kind 判别：text/markdown/json/jsonl/yaml/csv/parquet/unsupported�
 **行为与失败情况**
 
 offset/limit 仅对 CSV、JSONL、Parquet 的数据行有效，默认 0/200，上限 5000。text/markdown 最多读取 512 KiB；JSON/YAML 超过 32 MiB 返回 parse_error。解析失败可仍是 success=true，必须查看 parse_error。
+
+`preview_file` 对文本、Markdown、JSON、YAML 支持可选 `max_bytes`（1–33554432）。超出时返回 UTF-8 前缀并标明 `truncated=true`；结构化预览的 `data=null`，`parse_error` 说明仅返回部分内容。CSV/JSONL/Parquet 仍按行数限制。CLI 默认 `limit=20`、`max_bytes=8192`；HTTP/MCP 未显式覆盖时保留原有限制。
 
 ## delete_entries
 

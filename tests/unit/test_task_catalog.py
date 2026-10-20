@@ -137,9 +137,27 @@ async def test_definition_jobs_over_http(tmp_path, plugins):
         listed = await client.run_job("list_installed_task_definitions")
         assert listed.success is True
         assert response.answer in listed.answer
+        compact = await client.run_job("list_installed_task_definitions", {"include_schemas": False})
+        assert compact.success
+        assert {item["name"] for item in compact.answer} == {item["name"] for item in listed.answer}
+        assert all("input_schema" not in item and "output_schema" not in item for item in compact.answer)
         for arguments in ({}, {"task": ""}, {"task": "demo", "extra": True}):
             with pytest.raises(RemoteServiceError, match="Invalid arguments"):
                 await client.run_job("get_task_definition", arguments)
         invalid = await client.run_job("get_task_definition", {"task": "missing"})
         assert invalid.success is False
         assert "Unknown Task: missing" in str(invalid.answer)
+
+
+def test_lightweight_catalog_does_not_generate_any_schema(plugins, monkeypatch):
+    full = list_installed_task_definitions()
+
+    def unexpected_schema(*_args, **_kwargs):
+        raise AssertionError("Schema generation must be opt-in for lightweight discovery")
+
+    monkeypatch.setattr(DemoTask.input_cls, "model_json_schema", unexpected_schema)
+    monkeypatch.setattr(DemoTask.output_cls, "model_json_schema", unexpected_schema)
+    summaries = list_installed_task_definitions(include_schemas=False)
+    assert [item.model_dump() for item in summaries] == [
+        item.model_dump(exclude={"input_schema", "output_schema"}) for item in full
+    ]

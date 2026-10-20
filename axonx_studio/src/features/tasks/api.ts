@@ -9,8 +9,16 @@ import type {
   TaskSummary,
 } from "./types";
 
-export const listSchedules = (target?: string, signal?: AbortSignal) =>
-  axonx.invoke<Schedule[]>("list_schedules", {}, { target, signal });
+export const listSchedules = (
+  target?: string,
+  signal?: AbortSignal,
+  name?: string,
+) =>
+  axonx.invoke<Schedule[]>(
+    "list_schedules",
+    { include_history: true, history_limit: 200, ...(name ? { name } : {}) },
+    { target, signal },
+  );
 
 export const listTaskStatuses = (target?: string, signal?: AbortSignal) =>
   axonx.invoke<TaskSummary[]>(

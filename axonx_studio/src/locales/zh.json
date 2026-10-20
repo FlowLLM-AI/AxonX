@@ -1179,6 +1179,7 @@
     "workspace": "工作区记录"
   },
   "operations": {
+    "historyLimited": "每个调度最多显示最近 {{limit}} 条触发记录，较早的保留记录未列出。",
     "unsyncedItems": "本轮未同步项目",
     "jobName": "Job 名称",
     "triggerId": "执行 ID",

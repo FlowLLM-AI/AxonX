@@ -25,12 +25,49 @@ const submit = (api: AxonXClient, extra = {}) =>
   api.invoke<TaskHandle>("submit", { task: "playground.backtest", ...extra });
 
 describe("static Playground", () => {
-  it("returns summaries while preserving default full status and selected task details", async () => {
+  it("keeps discovery and structured file previews bounded on explicit requests", async () => {
     const api = client();
-    const full = await api.invoke<TaskMetadata[]>("list_task_statuses");
-    const summaries = await api.invoke<
-      import("../features/tasks/types").TaskSummary[]
-    >("list_task_statuses", { detail: "summary" });
+    const schedules =
+      await api.invoke<import("../features/tasks/types").Schedule[]>(
+        "list_schedules",
+      );
+    expect(schedules.length).toBeGreaterThan(0);
+    expect(schedules[0]).not.toHaveProperty("history");
+    const history = await api.invoke<
+      import("../features/tasks/types").Schedule[]
+    >("list_schedules", {
+      name: schedules[0].name,
+      include_history: true,
+      history_limit: 1,
+    });
+    expect(history).toHaveLength(1);
+    expect(history[0].history!.length).toBeLessThanOrEqual(1);
+    const catalog = await api.invoke<Record<string, unknown>[]>(
+      "list_installed_task_definitions",
+      { include_schemas: false },
+    );
+    expect(catalog.length).toBeGreaterThan(0);
+    expect(catalog[0]).not.toHaveProperty("input_schema");
+    const handle = await submit(api);
+    const preview = await api.invoke<WorkspacePreview>("preview_file", {
+      path: `${handle.task_id.split("#")[0]}/${handle.task_id}/metadata.json`,
+      max_bytes: 32,
+    });
+    expect(preview).toMatchObject({ truncated: true, data: null });
+    expect(
+      "content" in preview && new TextEncoder().encode(preview.content).length,
+    ).toBeLessThanOrEqual(32);
+  });
+
+  it("defaults to summaries while preserving explicit full status and selected task details", async () => {
+    const api = client();
+    const full = await api.invoke<TaskMetadata[]>("list_task_statuses", {
+      detail: "full",
+    });
+    const summaries =
+      await api.invoke<import("../features/tasks/types").TaskSummary[]>(
+        "list_task_statuses",
+      );
     expect(summaries.map((task) => task.task_id)).toEqual(
       full.map((task) => task.task_id),
     );
@@ -42,6 +79,17 @@ describe("static Playground", () => {
         task_id: summary.task_id,
       });
       expect(detail).toHaveProperty("output_params");
+      const compact = await api.invoke("status", {
+        task_id: summary.task_id,
+        detail: "summary",
+      });
+      expect(compact).toEqual(summary);
+      await expect(
+        api.invoke("read_task_log", {
+          task_id: summary.task_id,
+          run_id: "replaced-run",
+        }),
+      ).rejects.toThrow("Task run changed");
       expect(summary.step_progress?.current ?? null).toBe(
         taskStepProgress(detail)?.current ?? null,
       );

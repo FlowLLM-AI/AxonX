@@ -12,7 +12,9 @@ class ListInstalledTaskDefinitionsStep(BaseStep):
     """Return definitions for every installed Task."""
 
     async def execute(self):
-        self.response.answer = await asyncio.to_thread(list_installed_task_definitions)
+        self.response.answer = await asyncio.to_thread(
+            list_installed_task_definitions, include_schemas=self.context.get("include_schemas", True)
+        )
 
 
 @provider("get_task_definition")

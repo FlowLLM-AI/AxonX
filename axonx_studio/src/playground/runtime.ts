@@ -1,4 +1,4 @@
-import type { TaskMetadata } from "../features/tasks/types";
+import type { TaskMetadata, TaskSummary } from "../features/tasks/types";
 import { isOnlineTask } from "../features/online/types";
 import { taskStepProgress } from "../features/tasks/format";
 import type { WorkspaceListing } from "../features/workspace/types";
@@ -31,6 +31,44 @@ const terminal = (answer: unknown, metadata = {}): JobEvent => ({
   kind: "result",
   ...envelope(answer, true, metadata),
 });
+
+function taskView(
+  task: TaskMetadata,
+  detail: unknown = "full",
+): TaskMetadata | TaskSummary {
+  if (detail === "full") return task;
+  if (detail !== "summary") throw new Error("detail must be summary or full");
+  const {
+    input_params,
+    output_params,
+    steps,
+    children,
+    replica,
+    version,
+    ...summary
+  } = task;
+  void output_params;
+  void children;
+  void version;
+  const roots = steps.filter((step) => !step.parent);
+  const progress = taskStepProgress(task);
+  const step = progress ? roots[progress.current - 1] : undefined;
+  return {
+    ...summary,
+    error: task.error.slice(0, 1000),
+    display_name: String(input_params.task_name || task.reg_name).slice(0, 256),
+    is_online: isOnlineTask(task),
+    is_replica: replica !== null,
+    step_progress: progress
+      ? {
+          ...progress,
+          total: roots.length,
+          name: step!.name.slice(0, 256),
+          percentage: step!.percentage,
+        }
+      : null,
+  };
+}
 
 export function createPlayground(): Transport {
   const { tasks, files } = seed();
@@ -222,11 +260,46 @@ export function createPlayground(): Transport {
             gpus: [],
           });
         case "list_installed_task_definitions":
-          return response(definitions);
+          return response(
+            args.include_schemas === false
+              ? definitions.map(({ input_schema, output_schema, ...info }) => {
+                  void input_schema;
+                  void output_schema;
+                  return info;
+                })
+              : definitions,
+          );
         case "list_studio_pages":
           return response(studioPages);
         case "list_schedules":
-          return response(schedules);
+          return response(
+            schedules
+              .filter((schedule) => !args.name || schedule.name === args.name)
+              .map((schedule) => {
+                const { history, last_trigger, ...config } = schedule;
+                if (args.include_history)
+                  return {
+                    ...config,
+                    last_trigger,
+                    history_total: (history || []).length,
+                    history_scheduler_ids: [
+                      ...new Set(
+                        (history || [])
+                          .filter((run) => run.job === schedule.job)
+                          .map((run) => run.scheduler_id)
+                          .filter((id): id is string => id !== null),
+                      ),
+                    ],
+                    history: (history || []).slice(
+                      -Number(args.history_limit ?? 20),
+                    ),
+                  };
+                if (!last_trigger) return { ...config, last_trigger };
+                const { result, ...trigger } = last_trigger;
+                void result;
+                return { ...config, last_trigger: trigger };
+              }),
+          );
         case "list_task_statuses":
           return response(
             [...tasks.values()]
@@ -236,43 +309,15 @@ export function createPlayground(): Transport {
                   (!args.state || task.state === args.state),
               )
               .reverse()
-              .map((task) => {
-                if (args.detail !== "summary") return task;
-                const {
-                  input_params,
-                  output_params,
-                  steps,
-                  children,
-                  replica,
-                  version,
-                  ...summary
-                } = task;
-                void output_params;
-                void children;
-                void version;
-                return {
-                  ...summary,
-                  error: task.error.slice(0, 1000),
-                  display_name: String(
-                    input_params.task_name || task.reg_name,
-                  ).slice(0, 256),
-                  is_online: isOnlineTask(task),
-                  is_replica: replica !== null,
-                  step_progress: steps.length
-                    ? { ...taskStepProgress(task), total: steps.length }
-                    : null,
-                };
-              }),
+              .map((task) => taskView(task, args.detail ?? "summary")),
           );
         case "status":
-          return response(requiredTask(id));
+          return response(taskView(requiredTask(id), args.detail));
         case "read_task_log":
+          if (args.run_id && requiredTask(id).run_id !== args.run_id)
+            throw new Error(`Task run changed: ${id}`);
           return response(
-            logChunk(
-              id,
-              Number(args.offset ?? -1),
-              Number(args.limit ?? 65536),
-            ),
+            logChunk(id, Number(args.offset ?? -1), Number(args.limit ?? 8192)),
           );
         case "submit": {
           const definition = definitions.find(
@@ -365,6 +410,13 @@ export function createPlayground(): Transport {
         case "preview_file": {
           const file = files.get(String(args.path));
           if (!file) throw new Error(`Demo file not found: ${args.path}`);
+          const maxBytes =
+            args.max_bytes === undefined ? undefined : Number(args.max_bytes);
+          if (
+            maxBytes !== undefined &&
+            (!Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > 33554432)
+          )
+            throw new Error("Invalid max_bytes");
           if (
             file.kind === "parquet" ||
             file.kind === "csv" ||
@@ -386,6 +438,31 @@ export function createPlayground(): Transport {
               rows: file.rows.slice(offset, offset + limit),
               has_more: offset + limit < file.rows.length,
             });
+          }
+          if (maxBytes !== undefined) {
+            const structured = file.kind === "json" || file.kind === "yaml";
+            const content = structured
+              ? JSON.stringify(file.data, null, 2)
+              : "content" in file
+                ? file.content
+                : "";
+            const bytes = new TextEncoder().encode(content);
+            if (bytes.length > maxBytes)
+              return response({
+                ...file,
+                content: new TextDecoder("utf-8", { fatal: true }).decode(
+                  bytes.slice(0, maxBytes),
+                  { stream: true },
+                ),
+                truncated: true,
+                ...(structured
+                  ? {
+                      data: null,
+                      parse_error:
+                        "Partial preview; increase max_bytes to parse the complete file",
+                    }
+                  : {}),
+              });
           }
           return response(file);
         }

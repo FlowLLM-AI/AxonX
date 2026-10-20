@@ -6,7 +6,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from axonx.components.scheduler.history import history_path, load_history, save_history, trigger_result
+from axonx.components.scheduler.history import (
+    history_path,
+    load_history,
+    save_history,
+    trigger_result,
+)
 from axonx.config import ApplicationConfig, resolve_app_config
 from axonx.core import Application
 from axonx.enums import TaskCategory
@@ -19,15 +24,30 @@ from axonx.task.storage.workspace import read_task_metadata
 
 def application(tmp_path, history_retention_days=7):
     config = resolve_app_config(log_config=False)
-    config.update(workspace_dir=str(tmp_path), log_to_console=False, log_to_file=False, enable_logo=False)
+    config.update(
+        workspace_dir=str(tmp_path),
+        log_to_console=False,
+        log_to_file=False,
+        enable_logo=False,
+    )
     config["components"] = {}
     config["service"] = None
     config["jobs"] = {name: config["jobs"][name] for name in ("version", "list_schedules", "list_studio_pages")}
     config["schedules"] = {
-        "sync": {"job": "version", "cron": "* * * * *", "history_retention_days": history_retention_days}
+        "sync": {
+            "job": "version",
+            "cron": "* * * * *",
+            "history_retention_days": history_retention_days,
+        }
     }
     config["studio"] = {
-        "pages": {"sync": {"title": {"en": "Sync", "zh": "同步"}, "view": "schedules", "schedules": ["sync"]}}
+        "pages": {
+            "sync": {
+                "title": {"en": "Sync", "zh": "同步"},
+                "view": "schedules",
+                "schedules": ["sync"],
+            }
+        }
     }
     return Application(**config)
 
@@ -38,7 +58,7 @@ async def test_job_result_survives_restart_and_navigation_is_service_defined(tmp
     async with app:
         scheduler = app.context.schedulers["sync"]
         await scheduler._execute()
-        record = scheduler.describe()["last_trigger"]
+        record = scheduler.describe(include_history=True, history_limit=200)["last_trigger"]
         assert record["state"] == "succeeded"
         assert record["result"] and record["finished_at"]
         pages = await app.context.dispatcher.run("list_studio_pages", {})
@@ -46,9 +66,9 @@ async def test_job_result_survives_restart_and_navigation_is_service_defined(tmp
         assert pages.answer[0]["category"] is None
     async with application(tmp_path) as restarted:
         scheduler = restarted.context.schedulers["sync"]
-        assert scheduler.describe()["last_trigger"] == record
-        assert scheduler.describe()["history"] == [record]
-        assert scheduler.describe()["running"] == 0
+        assert scheduler.describe(include_history=True, history_limit=200)["last_trigger"] == record
+        assert scheduler.describe(include_history=True, history_limit=200)["history"] == [record]
+        assert scheduler.describe(include_history=True, history_limit=200)["running"] == 0
 
 
 def run_record(index, state="succeeded"):
@@ -125,8 +145,14 @@ async def test_scheduler_prunes_expired_history_on_startup_and_uses_config(tmp_p
     assert scheduler.history_retention_days == 14
     path = history_path(tmp_path, "sync")
     records = [
-        {**run_record("expired"), "finished_at": (datetime.now(UTC) - timedelta(days=15)).isoformat()},
-        {**run_record("retained"), "finished_at": (datetime.now(UTC) - timedelta(days=10)).isoformat()},
+        {
+            **run_record("expired"),
+            "finished_at": (datetime.now(UTC) - timedelta(days=15)).isoformat(),
+        },
+        {
+            **run_record("retained"),
+            "finished_at": (datetime.now(UTC) - timedelta(days=10)).isoformat(),
+        },
     ]
     save_history(path, records, 30)
     async with app:
@@ -187,7 +213,12 @@ def test_category_is_persisted_and_exposed_without_changing_task_identity(tmp_pa
     [
         {"title": {"en": "Only English"}, "view": "schedules", "schedules": ["sync"]},
         {"title": {"en": "Task", "zh": "任务"}, "view": "tasks"},
-        {"title": {"en": "Sync", "zh": "同步"}, "view": "schedules", "schedules": ["sync"], "category": "comparison"},
+        {
+            "title": {"en": "Sync", "zh": "同步"},
+            "view": "schedules",
+            "schedules": ["sync"],
+            "category": "comparison",
+        },
     ],
 )
 def test_invalid_pages_fail_at_configuration_boundary(page):
@@ -224,3 +255,47 @@ def test_default_pages_are_generic_and_do_not_bind_plugin_schedule_names():
     assert all(not page.schedules for page in config.studio.pages.values())
     assert config.studio.pages["data"].category == TaskCategory.DATA_UPDATE
     assert config.studio.pages["comparison"].category == TaskCategory.COMPARISON
+
+
+@pytest.mark.asyncio
+async def test_schedule_discovery_omits_history_and_bounds_explicit_history(tmp_path):
+    app = application(tmp_path)
+    async with app:
+        scheduler = app.context.schedulers["sync"]
+        scheduler.history = [{**run_record(i), "result": {"large": "x" * 10000}} for i in range(250)]
+        scheduler.history[0]["scheduler_id"] = None  # Legacy trigger without service identity.
+        scheduler.last_trigger = scheduler.history[-1]
+        default = (await app.run_job("list_schedules")).answer
+        assert len(default) == 1
+        assert "history" not in default[0]
+        assert "result" not in default[0]["last_trigger"]
+        assert default[0]["last_trigger"]["trigger_id"] == "249"
+        assert len(scheduler.history) == 250
+        assert "result" in scheduler.last_trigger
+        recent = (await app.run_job("list_schedules", {"name": "sync", "include_history": True})).answer[0]
+        assert len(recent["history"]) == 20
+        assert recent["history_total"] == 250
+        assert recent["history_scheduler_ids"] == ["old"]
+        assert recent["history"][0]["trigger_id"] == "230"
+        selected = (
+            await app.run_job(
+                "list_schedules",
+                {
+                    "name": "sync",
+                    "include_history": True,
+                    "history_limit": 2,
+                },
+            )
+        ).answer[0]
+        assert [record["trigger_id"] for record in selected["history"]] == [
+            "248",
+            "249",
+        ]
+        selected["history"][0]["result"].clear()
+        assert scheduler.history[-2]["result"]
+        assert (await app.run_job("list_schedules", {"name": "missing"})).answer == []
+        for limit in (0, -1, 201):
+            with pytest.raises(ValueError):
+                scheduler.describe(include_history=True, history_limit=limit)
+            with pytest.raises(ValueError):
+                await app.run_job("list_schedules", {"history_limit": limit})

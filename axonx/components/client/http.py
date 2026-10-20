@@ -78,11 +78,19 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
     async def _disconnect(self, client: httpx.AsyncClient) -> None:
         await client.aclose()
 
+    def _transport_error(self, operation: str, endpoint: str, exc: httpx.HTTPError) -> RemoteServiceError:
+        # Exception messages can be empty (notably ReadTimeout). Never include headers or arguments.
+        detail = str(exc) or "no additional detail"
+        return RemoteServiceError(
+            f"Remote {operation} failed: {type(exc).__name__} "
+            f"(target={self.target}, endpoint={endpoint}, timeout={self.timeout:g}s): {detail}"
+        )
+
     async def _response(self, method: str, endpoint: str, **request) -> JobResponse:
         try:
             response = await self._require_client().request(method, endpoint, **request)
         except httpx.HTTPError as exc:
-            raise RemoteServiceError(f"Remote request failed: {exc}") from exc
+            raise self._transport_error("request", endpoint, exc) from exc
         if not response.is_success:
             raise RemoteServiceError(
                 f"Remote request was rejected: {_error_detail(response)}",
@@ -140,7 +148,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
                             return
                 raise RemoteServiceError("Remote event stream ended without a terminal result")
         except httpx.HTTPError as exc:
-            raise RemoteServiceError(f"Remote stream failed: {exc}") from exc
+            raise self._transport_error("stream", endpoint, exc) from exc
 
     async def list_jobs(self) -> list[JobInfo]:
         response = await self._response("GET", PROTOCOL_ROUTE_JOBS)

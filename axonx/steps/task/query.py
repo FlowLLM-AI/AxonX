@@ -2,7 +2,7 @@
 
 from ...components.job.events import LogEvent
 from ...components.registry import provider
-from ...task.storage.events import LOG_WINDOW_BYTES
+from ...task.query.summary import summarize_status
 from .base import TaskManagerStep
 
 
@@ -15,7 +15,7 @@ class ListTaskIdsStep(TaskManagerStep):
 @provider("list_statuses")
 class ListTaskStatusesStep(TaskManagerStep):
     async def execute(self):
-        detail = self.context.get("detail", "full")
+        detail = self.context.get("detail", "summary")
         if detail not in {"summary", "full"}:
             raise ValueError("detail must be summary or full")
         filters = {key: self.context[key] for key in ("task_type", "state") if self.context.get(key) is not None}
@@ -26,7 +26,8 @@ class ListTaskStatusesStep(TaskManagerStep):
 @provider("get_status")
 class GetTaskStatusStep(TaskManagerStep):
     async def execute(self):
-        self.response.answer = await self.task_manager.get_status(self.context["task_id"])
+        status = await self.task_manager.get_status(self.context["task_id"])
+        self.response.answer = summarize_status(status) if self.context.get("detail") == "summary" else status
 
 
 @provider("read_log")
@@ -35,7 +36,7 @@ class ReadTaskLogStep(TaskManagerStep):
         chunk = await self.task_manager.read_log(
             self.context["task_id"],
             self.context.get("offset", -1),
-            self.context.get("limit", LOG_WINDOW_BYTES),
+            self.context.get("limit", 8192),
             run_id=self.context.get("run_id"),
         )
         # The same shape serves the query and the stream, so a reader can seek

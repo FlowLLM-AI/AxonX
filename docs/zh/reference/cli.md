@@ -60,6 +60,28 @@ axonx read_task_log --task-id 'base#demo#cli-demo' --offset -1 --limit 65536
 
 wait_task 的最终 success 取决于任务是否 succeeded。submit 成功只表示接受并启动，不能立即假定 output_params 已准备或任务已成功。固定名称重跑会替换终态目录，活跃任务不能覆盖。
 
+## 轻量查询默认值
+
+| 查询                                       | CLI 默认返回                                  | 显式查询详情                                                              |
+| ------------------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------- |
+| `list_schedules`                           | 配置与状态，不含历史和最近 Job 结果           | `--name NAME --include-history true --history-limit 10`（1–200，默认 20） |
+| `list_task_statuses`                       | 所有传输方式默认摘要                          | `--detail full`；支持 `--task-type`、`--state` 过滤                       |
+| `status`、`wait_task`                      | Task/Run ID、状态、进度及管理归属摘要         | `--detail full` 查询输入、输出、子任务、产物及完整错误                    |
+| `list_installed_task_definitions`          | 注册信息，不生成 schema                       | `--include-schemas true`，或查询单个 `get_task_definition`                |
+| `read_task_log`                            | 末尾 8,192 字节                               | 显式 `--limit`（最多 262144）；绑定 `--run-id`                            |
+| `preview_file`                             | 20 行；文本/Markdown/JSON/YAML 字节预算 8,192 | `--limit`（最多 5000）、`--max-bytes`（最多 33554432）                    |
+| `list_agent_sessions`、`get_agent_session` | 20 条记录                                     | 显式 `--limit` 和 `--offset`                                              |
+
+这些有意调整的查询默认值不改变任务执行和持久化记录。HTTP/MCP 的 `status`、`wait_task` 默认仍为完整快照，Task 目录默认仍生成 schema。结构化文件被截断时只返回标记为部分内容的 UTF-8 前缀，不解析不完整的 JSON/YAML；检查 `truncated` 与 `parse_error`。CSV/JSONL/Parquet 使用行分页，与 `max_bytes` 独立。
+
+```bash
+axonx list_schedules --name daily --include-history true --history-limit 10
+axonx status --task-id 'base#demo#cli-demo' --detail full
+axonx list_task_statuses --detail full --state failed
+```
+
+确认启动时轮询 `status`，核对返回的 Run ID、`queued`/`running` 状态与日志。`wait_task` 等待终态，短客户端超时不用于确认启动，也不会取消 Task。传输失败后保留原 ID，先查询再决定是否重新提交。HTTP 传输错误会标明异常类型、目标、接口和超时配置；HTTP 超时是各操作或无数据等待的限制，不是整个 Task 的截止时间。
+
 ## 参数与值转换
 
 参数必须成对传递；布尔值也必须有值。连字符转下划线，点号建立嵌套字典。

@@ -26,3 +26,23 @@ describe("task list requests", () => {
     }
   });
 });
+
+it("explicitly requests bounded schedule history for operation pages", async () => {
+  const transport = vi.fn(async () =>
+    Response.json({ success: true, answer: [] }),
+  );
+  configureClient(new AxonXClient(transport, false));
+  const { listSchedules } = await import("./api");
+  const signal = new AbortController().signal;
+  await listSchedules("remote:1024", signal, "daily");
+  const [url, init] = transport.mock.calls[0] as unknown as [
+    string,
+    RequestInit,
+  ];
+  expect(url).toBe("/jobs/list_schedules");
+  expect(init.signal).toBe(signal);
+  expect(JSON.parse(init.body as string)).toEqual({
+    target: "remote:1024",
+    arguments: { name: "daily", include_history: true, history_limit: 200 },
+  });
+});

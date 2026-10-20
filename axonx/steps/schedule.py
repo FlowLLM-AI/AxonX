@@ -7,7 +7,15 @@ from .base import BaseStep
 @provider("list_schedules_step")
 class ListSchedulesStep(BaseStep):
     async def execute(self):
-        self.response.answer = [scheduler.describe() for scheduler in self.app_context.schedulers.values()]
+        name = self.context.get("name")
+        self.response.answer = [
+            scheduler.describe(
+                include_history=self.context.get("include_history", False),
+                history_limit=self.context.get("history_limit", 20),
+            )
+            for scheduler in self.app_context.schedulers.values()
+            if name is None or scheduler.name == name
+        ]
 
 
 @provider("list_studio_pages_step")

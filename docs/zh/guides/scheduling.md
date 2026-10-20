@@ -108,10 +108,25 @@ schedules:
 
 Studio 任务中心统一按任务标识分组展示所有 Task，不区分定时或手动来源。搜索、状态和类型筛选及分组操作适用于所有 Task。定时配置和 Job 触发历史可在对应的日常运行页面查看。
 
-`list_schedules` 返回每个定时任务的名称、描述、Job、Cron、时区、参数、Job 并发策略、下次触发时间、执行中的 Job 数量及最近 Job 触发结果。最近结果表示 Job 调用结果：`submit` 成功表示提交成功，不表示后台 Task 已完成。该触发快照保存在内存中，服务启动后重置，不是执行历史。
+`list_schedules` 返回调度配置和当前触发状态。`submit` Job 触发成功仅表示 Task 已被接受，不表示 Task 已完成。触发历史会持久化并在重启后恢复，被中断的运行中触发记录会标为取消。
+
+| 参数              | 默认值  | 含义                                          |
+| ----------------- | ------- | --------------------------------------------- |
+| `name`            | 省略    | 精确匹配调度名称，省略时列出全部配置的调度    |
+| `include_history` | `false` | 返回最近触发历史及最近 Job 结果               |
+| `history_limit`   | `20`    | 每个调度选取最近 1–200 条记录，按时间正序返回 |
+
+默认响应省略 `history` 和最近触发记录的 `result`。显式查询历史时，`history_total` 给出截取前的保留记录总数；`history_scheduler_ids` 列出当前 Job 在保留历史中的服务标识，Task 归组不依赖触发记录是否落在显示窗口内。存储保留天数与查询数量限制相互独立。
+
+Studio 只查询当前页面的调度，每个调度最多请求 200 条记录，并标明历史未全部显示。窗口外的较早保留触发记录不列出，其 Task 来源归组仍然有效。
 
 Task 元数据和列表摘要包含框架管理的 `source`：`kind` 区分 `submit`、直接 `exec` 和未知来源；可选 `schedule` 包含定时任务名称、Job、触发 ID 和触发时间。Worker 和组合子 Task 保留同一触发归属。来源信息不进入插件输入参数或 Task 身份。用户、API 和 Agent 主动提交均标记为 `submit`，不通过 Task 名称推断调用方。
 
 固定名称 Task 仍仅保留当前 Run。按定时任务分组不会增加历史 Run。展示副本保留生产方来源，但不因此成为本机管理的 Worker。
 
 所选服务拥有的定时来源 Task 正在排队或运行时，禁止**服务更新与重启**，`force=true` 也不能绕过。已结束的 Task、尚未触发的定时配置和其他服务拥有的 Worker 不受此限制。Task 取消、删除和提交保持原有行为。参见[服务自更新](self-update.md)。
+
+```bash
+axonx list_schedules --target node-b:1024
+axonx list_schedules --name daily --include-history true --history-limit 10 --target node-b:1024
+```

@@ -208,7 +208,10 @@ async def test_local_backend_forwards_jobs_catalog_and_events_with_target_token(
         ],
     )
     server = HttpService(token="local-secret", web_enabled=False).build_service(local)
-    async with remote_server.router.lifespan_context(remote_server), server.router.lifespan_context(server):
+    async with (
+        remote_server.router.lifespan_context(remote_server),
+        server.router.lifespan_context(server),
+    ):
         async with httpx.AsyncClient(base_url="http://local", transport=httpx.ASGITransport(app=server)) as client:
             invocation = {"target": "remote.test:1024", "arguments": {}}
             assert (await client.post("/jobs/remote_only", json=invocation)).status_code == 401
@@ -242,3 +245,32 @@ async def test_local_backend_forwards_jobs_catalog_and_events_with_target_token(
             assert '"kind": "result"' in events.text
             assert '"success": false' in events.text
             assert "Invalid bearer token" in events.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stream", [False, True])
+async def test_empty_transport_timeout_identifies_target_job_and_budget(stream):
+    from axonx.components.client import RemoteServiceError
+
+    def timeout(request):
+        raise httpx.ReadTimeout("", request=request)
+
+    async with HttpClient(
+        target="node-b:1024",
+        timeout=10,
+        token="private-token",
+        transport=httpx.MockTransport(timeout),
+    ) as client:
+        with pytest.raises(RemoteServiceError) as raised:
+            if stream:
+                async for _ in client.stream_job("wait_task", {"private_argument": "private-value"}):
+                    pass
+            else:
+                await client.run_job("wait_task", {"private_argument": "private-value"})
+        message = str(raised.value)
+        assert "ReadTimeout" in message
+        assert "http://node-b:1024" in message
+        assert "wait_task" in message
+        assert "timeout=10s" in message
+        assert "private-token" not in message
+        assert "private-value" not in message

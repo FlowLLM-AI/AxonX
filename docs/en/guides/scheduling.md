@@ -108,10 +108,25 @@ Source: [CronScheduler](../../../axonx/components/scheduler/cron.py), [ScheduleC
 
 Studio’s Task center displays all Tasks in a single list grouped by Task identity, regardless of scheduled or manual origin. Search, status and type filters, and group actions apply to all Tasks. Schedule configuration and Job trigger history remain available on the corresponding daily operations pages.
 
-`list_schedules` returns each schedule's name, description, Job, Cron expression, timezone, arguments, Job concurrency policy, next trigger, executing Job count, and latest Job trigger result. The latest result describes the Job call: successful `submit` means admission succeeded, not that its background Task finished. This trigger snapshot lives in memory and resets on service startup; it is not an execution history.
+`list_schedules` returns schedule configuration and current trigger status. A successful `submit` Job trigger means the Task was accepted, not completed. Trigger history is persisted and restored on restart; interrupted running triggers become cancelled.
+
+| Option            | Default | Meaning                                                              |
+| ----------------- | ------- | -------------------------------------------------------------------- |
+| `name`            | Omitted | Exact schedule name; omitted means all configured schedules          |
+| `include_history` | `false` | Include recent trigger history and the latest Job result             |
+| `history_limit`   | `20`    | Return the newest 1–200 records per schedule, in chronological order |
+
+The default response omits `history` and the latest trigger's `result`. When history is requested, `history_total` reports the retained count before slicing. `history_scheduler_ids` lists service identities in retained records for the current Job; Task grouping does not depend on which triggers fit in the visible window. Storage retention is independent of the query limit.
+
+Studio queries only schedules on the current page, requests up to 200 records per schedule, and marks a partial history window. Older retained triggers outside that window are not listed; their Task provenance remains valid.
 
 Task metadata and list summaries include framework-owned `source`: `kind` identifies `submit`, direct `exec`, or unknown provenance; optional `schedule` contains the schedule name, Job, trigger ID, and trigger time. Workers and composite children retain the same trigger attribution. This metadata does not enter plugin inputs or Task identity. Explicit user, API, and Agent submissions share the `submit` source; those callers are not inferred from Task names.
 
 A fixed-name Task still retains only its current Run. Grouping by schedule does not add historical Runs. Display replicas retain the producer's provenance, but do not become locally managed workers.
 
 Queued or running schedule-origin Tasks owned by the selected service block **service updates and restarts**, including requests with `force=true`. Finished Tasks, untriggered schedules, and foreign workers do not impose this restriction. Task cancellation, deletion, and submission retain their existing behavior. See [Service self-update](self-update.md).
+
+```bash
+axonx list_schedules --target node-b:1024
+axonx list_schedules --name daily --include-history true --history-limit 10 --target node-b:1024
+```

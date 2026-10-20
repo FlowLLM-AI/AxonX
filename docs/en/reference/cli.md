@@ -60,6 +60,28 @@ axonx read_task_log --task-id 'base#demo#cli-demo' --offset -1 --limit 65536
 
 The final success of wait_task depends on whether the task succeeded. Successful submit means only that the task was accepted and started; it does not establish that output_params has been prepared or the task succeeded. Rerunning with a fixed name replaces a terminal directory; active tasks cannot be overwritten.
 
+## Lightweight query defaults
+
+| Query                                      | CLI default                                             | Explicit detail                                                              |
+| ------------------------------------------ | ------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `list_schedules`                           | Configuration/status; no history or latest Job result   | `--name NAME --include-history true --history-limit 10` (1–200, default 20)  |
+| `list_task_statuses`                       | Summaries, across all transports                        | `--detail full`; filter with `--task-type` and `--state`                     |
+| `status`, `wait_task`                      | Summary with Task/Run ID, state, progress and ownership | `--detail full` for inputs, outputs, children, artifacts and complete errors |
+| `list_installed_task_definitions`          | Registration metadata, without generating schemas       | `--include-schemas true`, or one `get_task_definition`                       |
+| `read_task_log`                            | Last 8,192 bytes                                        | Explicit `--limit` (at most 262144); bind `--run-id`                         |
+| `preview_file`                             | 20 rows; text/Markdown/JSON/YAML byte budget 8,192      | `--limit` (at most 5000), `--max-bytes` (at most 33554432)                   |
+| `list_agent_sessions`, `get_agent_session` | 20 records                                              | Explicit `--limit` and `--offset`                                            |
+
+These intentional query-default changes do not alter task execution or persisted records. HTTP/MCP `status`/`wait_task` still default to full snapshots; Task catalog schemas remain enabled for those transports. A truncated structured preview returns a marked UTF-8 prefix without parsing incomplete JSON/YAML; inspect `truncated` and `parse_error`. CSV/JSONL/Parquet use row pagination, independently of `max_bytes`.
+
+```bash
+axonx list_schedules --name daily --include-history true --history-limit 10
+axonx status --task-id 'base#demo#cli-demo' --detail full
+axonx list_task_statuses --detail full --state failed
+```
+
+To confirm startup, poll `status`, match the returned Run ID and check `queued`/`running` plus logs. `wait_task` waits for a terminal state; a short client timeout is not a startup check and does not cancel the Task. On transport errors, keep the original IDs and query before retrying submission. HTTP errors identify the exception type, target, endpoint and configured timeout; the HTTP timeout is a per-operation/inactivity limit, not a total Task deadline.
+
 ## Parameter and value conversion
 
 Parameters must be supplied as pairs; booleans also require values. Hyphens become underscores, and dots create nested dictionaries.

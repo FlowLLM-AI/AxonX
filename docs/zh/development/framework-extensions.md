@@ -232,7 +232,7 @@ Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID�
 
 股票回测插件可向 `run_backtest` 传入可选 `events` 处理器，提供 `successors`、`reset(top_n)`、`apply(date, slot, book, cash, quotes) -> cash`、`blocked(code)` 和 `pending_cash`。引擎遍历 `top_ns`，每个 N 从初始资金、空持仓和重置的事件状态开始，完整重放所有日期。当次执行可修改报价，不影响其他 N。待收款必须有限且非负，计入净值，到账前不能用于买入。引擎在每日估值/交易前调用，并在买入前检查。事件事实及具体证券逻辑保留在插件中；不传处理器时维持原有执行和产物格式。
 
-Scheduler 后端实现 `describe()`，供 `list_schedules` 查询。TaskManager 提供 `list_restart_blockers()`，通过拥有的 Run ID 和轻量摘要筛选正在排队或运行的定时来源 Task；共享工作区记录本身不表示本服务拥有该 Run。`source` 属于框架执行元数据，必须在 Worker 移交及子 Task 执行中保留。
+Scheduler 后端实现 `describe(*, include_history=False, history_limit=20)`，供 `list_schedules` 查询：默认省略历史及最近结果，显式查询时先截取最近历史再复制。TaskManager 提供 `list_restart_blockers()`，通过拥有的 Run ID 和轻量摘要筛选正在排队或运行的定时来源 Task；共享工作区记录本身不表示本服务拥有该 Run。`source` 属于框架执行元数据，必须在 Worker 移交及子 Task 执行中保留。
 
 ### 共享工作区与执行归属
 

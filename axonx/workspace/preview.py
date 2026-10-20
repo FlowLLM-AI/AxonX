@@ -1,5 +1,6 @@
 """Bounded renderers for supported workspace file formats."""
 
+import codecs
 import csv
 import json
 import math
@@ -52,6 +53,8 @@ def preview_workspace_file(
     relative_path: str,
     offset: int = 0,
     limit: int = PREVIEW_ROWS,
+    *,
+    max_bytes: int | None = None,
 ) -> FilePreview:
     if isinstance(offset, bool) or not isinstance(offset, int):
         raise TypeError("Preview offset must be an integer")
@@ -61,6 +64,10 @@ def preview_workspace_file(
         raise TypeError("Preview limit must be an integer")
     if limit < 1 or limit > MAX_PREVIEW_ROWS:
         raise ValueError(f"Preview limit must be between 1 and {MAX_PREVIEW_ROWS}")
+    if max_bytes is not None and (
+        isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or not 1 <= max_bytes <= MAX_STRUCTURED_BYTES
+    ):
+        raise ValueError(f"max_bytes must be an integer between 1 and {MAX_STRUCTURED_BYTES}")
     path = WorkspacePaths(workspace_path).resolve_file(relative_path)
     size = path.stat().st_size
     kind = preview_kind(path)
@@ -73,8 +80,8 @@ def preview_workspace_file(
     if kind == "csv":
         return _preview_csv(path, size, offset, limit)
     if kind in {"json", "yaml"}:
-        return _preview_structured(path, size, kind)
-    return _preview_text(path, size, kind)
+        return _preview_structured(path, size, kind, max_bytes=max_bytes)
+    return _preview_text(path, size, kind, max_bytes=max_bytes or TEXT_PREVIEW_BYTES)
 
 
 def _json_compatible(value: Any) -> Any:
@@ -91,18 +98,24 @@ def _json_compatible(value: Any) -> Any:
     return str(value)
 
 
-def _read_prefix(path: Path) -> tuple[bytes, bool]:
+def _read_text_prefix(path: Path, max_bytes: int) -> tuple[str, bool]:
     with path.open("rb") as handle:
-        data = handle.read(TEXT_PREVIEW_BYTES + 1)
-    return data[:TEXT_PREVIEW_BYTES], len(data) > TEXT_PREVIEW_BYTES
-
-
-def _preview_text(path: Path, size: int, kind: str) -> FilePreview:
-    data, truncated = _read_prefix(path)
+        data = handle.read(max_bytes + 1)
+    truncated = len(data) > max_bytes
     try:
-        content = data.decode("utf-8-sig")
+        # Buffer only an incomplete trailing code point; reject invalid bytes inside the prefix.
+        content = (
+            codecs.getincrementaldecoder("utf-8-sig")().decode(data[:max_bytes], final=False)
+            if truncated
+            else data.decode("utf-8-sig")
+        )
     except UnicodeDecodeError as exc:
         raise ValueError("File is not valid UTF-8 text") from exc
+    return content, truncated
+
+
+def _preview_text(path: Path, size: int, kind: str, *, max_bytes: int = TEXT_PREVIEW_BYTES) -> FilePreview:
+    content, truncated = _read_text_prefix(path, max_bytes)
     if kind == "text":
         return TextPreview(size=size, content=content, truncated=truncated)
     frontmatter, body, frontmatter_error = _split_frontmatter(content)
@@ -133,18 +146,23 @@ def _split_frontmatter(content: str) -> tuple[Any, str, str | None]:
     return metadata, "".join(lines[closing + 1 :]), None
 
 
-def _preview_structured(path: Path, size: int, kind: str) -> StructuredPreview:
-    if size > MAX_STRUCTURED_BYTES:
+def _preview_structured(path: Path, size: int, kind: str, *, max_bytes: int | None = None) -> StructuredPreview:
+    if max_bytes is None and size > MAX_STRUCTURED_BYTES:
         return StructuredPreview(
             kind=kind,
             size=size,
             truncated=True,
             parse_error=f"File exceeds the {MAX_STRUCTURED_BYTES} byte preview limit",
         )
-    try:
-        content = path.read_text(encoding="utf-8-sig")
-    except UnicodeDecodeError as exc:
-        raise ValueError("File is not valid UTF-8 text") from exc
+    content, truncated = _read_text_prefix(path, max_bytes or MAX_STRUCTURED_BYTES)
+    if truncated:
+        return StructuredPreview(
+            kind=kind,
+            size=size,
+            content=content,
+            truncated=True,
+            parse_error="Partial preview; increase max_bytes to parse the complete file",
+        )
     return _preview_json(content, size) if kind == "json" else _preview_yaml(content, size)
 
 

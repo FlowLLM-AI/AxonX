@@ -47,7 +47,9 @@ export default function OperationPage({
     async (signal: AbortSignal) => {
       try {
         const [schedules, tasks] = await Promise.all([
-          listSchedules(target, signal),
+          Promise.all(
+            page.schedules.map((name) => listSchedules(target, signal, name)),
+          ).then((groups) => groups.flat()),
           page.view === "schedules"
             ? Promise.resolve([])
             : listTaskStatuses(target, signal),
@@ -124,6 +126,14 @@ export default function OperationPage({
             onRefresh={() => void refreshAll()}
           />
           <div className="rail-scroll">
+            {schedules.some(
+              (schedule) =>
+                (schedule.history_total ?? 0) > (schedule.history?.length ?? 0),
+            ) && (
+              <p className="muted" role="status">
+                {t("operations.historyLimited", { limit: 200 })}
+              </p>
+            )}
             {loading && !data ? (
               <span className="run-loading">
                 <LoaderCircle className="spin" />
