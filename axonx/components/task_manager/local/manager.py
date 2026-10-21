@@ -53,6 +53,24 @@ from .supervisor import TaskProcessSupervisor, WorkerExit
 # The stderr tail one failure message carries: enough for a traceback's last
 # frames, bounded so a chatty worker cannot bloat the lifecycle record a UI reads.
 ERROR_TAIL_CHARS = 2_048
+# Old launchers did not publish machine identity before handing over to a worker.
+LEGACY_HANDOFF_GRACE_SECONDS = 300
+
+
+def _interrupted(status: TaskMetadata, local_machine: str) -> bool:
+    """Check recovery eligibility after acquiring the exact Task's execution lock."""
+    if status.replica is not None or status.machine_id not in {None, local_machine}:
+        return False
+    if status.machine_id is not None:
+        return not process_is_alive(status.pid, status.process_started_at)
+    if status.state == TaskState.QUEUED and status.created_at is not None:
+        created_at = status.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=UTC)
+        # Allow bounded clock skew without keeping invalid future dates active forever.
+        if abs((datetime.now(UTC) - created_at).total_seconds()) < LEGACY_HANDOFF_GRACE_SECONDS:
+            return False
+    return True
 
 
 @provider("local")
@@ -77,19 +95,24 @@ class LocalTaskManager(BaseTaskManager):
     async def _start(self) -> None:
         if os.name != "posix":
             raise NotImplementedError("LocalTaskManager supports macOS and Linux")
-        local_machine = await asyncio.to_thread(machine_id)
+        await asyncio.to_thread(machine_id)
         for status in (await self.repository.entries()).values():
-            if status.machine_id == local_machine and status.replica is None and not status.state.is_terminal:
-                await complete_on_cancel(
-                    self._settle(
-                        status,
-                        TaskState.FAILED,
-                        1,
-                        "Task process interrupted before publishing final status",
-                        recovery_machine_id=local_machine,
-                    )
-                )
+            await self._recover_interrupted(status)
         self._accepting = True
+
+    async def _recover_interrupted(self, status: TaskMetadata) -> None:
+        local_machine = machine_id()
+        if status.state.is_terminal or status.replica is not None or status.machine_id not in {None, local_machine}:
+            return
+        await complete_on_cancel(
+            self._settle(
+                status,
+                TaskState.FAILED,
+                1,
+                "Task process interrupted before publishing final status",
+                recovery_machine_id=local_machine,
+            )
+        )
 
     def request_shutdown(self, *, force: bool = False) -> None:
         self._accepting = False
@@ -123,6 +146,10 @@ class LocalTaskManager(BaseTaskManager):
         try:
             for _ in range(100):
                 task = await run_in_thread(self._prepare_task, registration_name, config, run_id)
+                if not task.is_generated_name:
+                    previous = await asyncio.to_thread(read_entry, self.workspace_path, task.task_id)
+                    if previous is not None:
+                        await self._recover_interrupted(previous)
                 async with workspace_mutation(self.workspace_path):
                     async with self._lock:
                         if not self._accepting:
@@ -392,14 +419,21 @@ class LocalTaskManager(BaseTaskManager):
                     await self.repository.reconcile()
                     return
                 status = current
-                if recovery_machine_id is not None and (
-                    status.machine_id != recovery_machine_id
-                    or status.replica is not None
-                    or await asyncio.to_thread(process_is_alive, status.pid, status.process_started_at)
-                ):
-                    return
+                if recovery_machine_id is not None:
+                    if not await asyncio.to_thread(_interrupted, status, recovery_machine_id):
+                        return
+                    if status.machine_id is None:
+                        error = "Legacy Task interrupted: no machine identity or active execution lock"
                 if state in {TaskState.FAILED, TaskState.CANCELLED}:
-                    children = await asyncio.to_thread(settle_children, self.workspace_path, status, state, code, error)
+                    children = await asyncio.to_thread(
+                        settle_children,
+                        self.workspace_path,
+                        status,
+                        state,
+                        code,
+                        error,
+                        recovery_locks=locks if recovery_machine_id is not None else None,
+                    )
                     for child in children:
                         await asyncio.to_thread(
                             append_progress_snapshots,

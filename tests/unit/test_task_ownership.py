@@ -11,6 +11,7 @@ import pytest
 from axonx.components.updater.manager import RESPONSE_CALLBACKS
 from axonx.core import Application
 from axonx.task.query.summary import managed_runs
+from axonx.task.runtime.process import machine_id
 from axonx.task.schemas.lifecycle import ChildTaskRecord, ScheduleTrigger, TaskMetadata, TaskSource
 from axonx.task.storage.locking import workspace_lock, workspace_mutation
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
@@ -36,6 +37,7 @@ def application(root, port=1024):
 
 
 def record(root, name, **kwargs):
+    kwargs.setdefault("machine_id", machine_id())
     status = TaskMetadata(version=1, task_id=f"base#demo#{name}", run_id=name, task_type="base", **kwargs)
     directory = task_path(root, status.task_id)
     directory.mkdir(parents=True)
@@ -250,7 +252,7 @@ async def test_foreign_workspace_mutation_does_not_block_manager_shutdown(tmp_pa
                 yield
 
         monkeypatch.setattr("axonx.components.task_manager.local.manager.workspace_mutation", mutation)
-        monkeypatch.setattr(manager, "_prepare_task", lambda *_: SimpleNamespace())
+        monkeypatch.setattr(manager, "_prepare_task", lambda *_: SimpleNamespace(is_generated_name=True))
         with workspace_lock(tmp_path):
             submission = asyncio.create_task(manager.submit(["--task", "demo"]))
             try:

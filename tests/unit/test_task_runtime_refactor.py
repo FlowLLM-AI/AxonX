@@ -795,7 +795,7 @@ async def test_shutdown_cancels_exit_retries_after_worker_is_reaped():
     assert not supervisor.monitors
 
 
-async def test_shared_workspace_services_leave_unowned_active_runs_unchanged(tmp_path):
+async def test_shared_workspace_services_leave_foreign_active_runs_unchanged(tmp_path):
     statuses = [
         TaskMetadata(
             version=1,
@@ -804,6 +804,7 @@ async def test_shared_workspace_services_leave_unowned_active_runs_unchanged(tmp
             task_type=TaskType.BASE,
             state=state,
             pid=2**30,
+            machine_id="another-machine",
         )
         for state in (TaskState.QUEUED, TaskState.RUNNING)
     ]
@@ -832,7 +833,7 @@ async def test_shared_workspace_services_leave_unowned_active_runs_unchanged(tmp
                 assert (await manager.get_status(status.task_id)).model_dump(
                     exclude={"managed_run_id"}
                 ) == status.model_dump()
-    # Startup and shutdown must not infer failure from a foreign or missing PID.
+    # Startup and shutdown must not infer failure from a foreign machine's PID.
     for status in statuses:
         assert read_entry(tmp_path, status.task_id) == status
 

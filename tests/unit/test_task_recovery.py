@@ -14,6 +14,7 @@ import psutil
 import pytest
 
 from axonx.core import Application
+from axonx.components.task_manager.local.manager import LEGACY_HANDOFF_GRACE_SECONDS
 from axonx.enums import TaskState
 from axonx.task.builtins import DemoTask
 from axonx.task.query.summary import managed_runs
@@ -113,7 +114,7 @@ def test_process_check_distinguishes_dead_reused_and_unknown_processes(monkeypat
 async def test_startup_recovers_only_dead_local_process_instances(tmp_path, monkeypatch, state):
     local = record(tmp_path, "local", state=state)
     foreign = record(tmp_path, "foreign", machine_id="another-machine")
-    legacy = record(tmp_path, "legacy", machine_id=None, process_started_at=None)
+    legacy = record(tmp_path, "legacy", machine_id=None, process_started_at=None, pid=os.getpid(), state=state)
     live = record(tmp_path, "live", pid=os.getpid(), process_started_at=process.process_started_at())
     reused = record(
         tmp_path,
@@ -132,28 +133,30 @@ async def test_startup_recovers_only_dead_local_process_instances(tmp_path, monk
     monkeypatch.setattr("axonx.components.task_manager.local.manager.process_is_alive", probe)
     async with application(tmp_path) as app:
         manager = app.context.components["task_manager"]["default"]
-        for status in (local, reused):
+        for status in (local, reused, legacy):
             recovered = await manager.get_status(status.task_id)
             assert recovered.state == "failed"
             assert recovered.finished_at is not None
             assert "interrupted" in recovered.error
             assert recovered.managed_run_id is None
-        for status in (foreign, legacy, live, unknown, finished, replica):
+        for status in (foreign, live, unknown, finished, replica):
             assert read_entry(tmp_path, status.task_id) == status
-    # Foreign/legacy/terminal records are filtered before any PID inspection.
+    # Legacy records use execution locks, never a PID that could belong to another host.
     assert probe.call_count == 4
 
 
-async def test_runner_lock_prevents_recovery_even_when_pid_looks_dead(tmp_path):
-    status = record(tmp_path, "locked")
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_runner_lock_prevents_recovery_even_when_pid_looks_dead(tmp_path, legacy):
+    status = record(tmp_path, "locked", machine_id=None if legacy else process.machine_id())
     with workspace_lock(tmp_path, status.task_id):
         async with application(tmp_path):
             assert read_entry(tmp_path, status.task_id) == status
 
 
+@pytest.mark.parametrize("legacy", [False, True])
 @pytest.mark.parametrize("changed", [{"run_id": "replacement"}, {"machine_id": "another-machine"}])
-async def test_startup_rechecks_run_and_machine_before_settlement(tmp_path, monkeypatch, changed):
-    original = record(tmp_path, "changed")
+async def test_startup_rechecks_run_and_machine_before_settlement(tmp_path, monkeypatch, changed, legacy):
+    original = record(tmp_path, "changed", machine_id=None if legacy else process.machine_id())
     replacement = original.model_copy(update=changed)
     app = application(tmp_path)
     manager = app.context.components["task_manager"]["default"]
@@ -168,11 +171,15 @@ async def test_startup_rechecks_run_and_machine_before_settlement(tmp_path, monk
         assert read_entry(tmp_path, original.task_id) == replacement
 
 
-async def test_recovery_settles_exact_local_children_and_preserves_results(tmp_path):
-    parent = record(tmp_path, "parent")
-    child = record(tmp_path, "child", process_started_at=parent.process_started_at, parent_run_id=parent.run_id)
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_recovery_settles_exact_local_children_and_preserves_results(tmp_path, legacy):
+    identity = {"machine_id": None, "process_started_at": None} if legacy else {}
+    parent = record(tmp_path, "parent", **identity)
+    identity = {"machine_id": parent.machine_id, "process_started_at": parent.process_started_at}
+    child = record(tmp_path, "child", parent_run_id=parent.run_id, **identity)
+    locked = record(tmp_path, "locked", **identity)
     foreign = record(tmp_path, "foreign", machine_id="another-machine")
-    succeeded = record(tmp_path, "succeeded", state="succeeded", process_started_at=parent.process_started_at)
+    succeeded = record(tmp_path, "succeeded", state="succeeded", **identity)
     replaced = record(tmp_path, "replaced", machine_id="another-machine")
     replica = record(
         tmp_path,
@@ -180,7 +187,7 @@ async def test_recovery_settles_exact_local_children_and_preserves_results(tmp_p
         process_started_at=parent.process_started_at,
         replica=DisplayReplica(source_revision="source", policy_revision="policy", files={}),
     )
-    for status in (child, foreign, succeeded, replaced, replica):
+    for status in (child, foreign, succeeded, replaced, replica, locked):
         parent.children.append(
             ChildTaskRecord(
                 node_name=status.run_id,
@@ -195,14 +202,52 @@ async def test_recovery_settles_exact_local_children_and_preserves_results(tmp_p
     retained = task_path(tmp_path, parent.task_id) / "persistent" / "history.txt"
     retained.parent.mkdir()
     retained.write_text("retained")
+    with workspace_lock(tmp_path, locked.task_id):
+        async with application(tmp_path):
+            recovered = read_entry(tmp_path, parent.task_id)
+            assert recovered.state == "failed"
+            assert recovered.children[0].state == "failed"
+            assert read_entry(tmp_path, child.task_id).state == "failed"
+            for status in (foreign, succeeded, replaced, replica, locked):
+                assert read_entry(tmp_path, status.task_id) == status
+            assert recovered.children[-1].state == "running"
+            assert retained.read_text() == "retained"
+
+
+@pytest.mark.parametrize("naive", [False, True])
+async def test_legacy_queued_handoff_has_bounded_grace_and_named_retry_recovers(tmp_path, naive):
+    created_at = datetime.now(UTC)
+    if naive:
+        created_at = created_at.replace(tzinfo=None)
+    old = record(tmp_path, "queued", machine_id=None, process_started_at=None, state="queued", created_at=created_at)
+    async with application(tmp_path) as app:
+        manager = app.context.components["task_manager"]["default"]
+        assert read_entry(tmp_path, old.task_id) == old
+        argv = ["--task", "demo", "--task-name", "queued", "--x", "1", "--y", "2"]
+        with pytest.raises(FileExistsError, match="Active Task already exists"):
+            await manager.submit(argv)
+        old.created_at -= timedelta(seconds=LEGACY_HANDOFF_GRACE_SECONDS + 1)
+        write_task_metadata(task_path(tmp_path, old.task_id), old)
+        handle = await manager.submit(argv)
+        assert handle.run_id != old.run_id
+        result = await asyncio.wait_for(manager.wait(handle.task_id, handle.run_id, 0.01), 15)
+        assert result.state == "succeeded"
+        assert result.machine_id == process.machine_id()
+
+
+@pytest.mark.parametrize("offset_days", [-1, 1])
+async def test_old_or_invalid_future_legacy_queued_records_do_not_block_startup(tmp_path, offset_days):
+    old = record(
+        tmp_path,
+        "queued",
+        machine_id=None,
+        state="queued",
+        created_at=datetime.now(UTC) + timedelta(days=offset_days),
+    )
     async with application(tmp_path):
-        recovered = read_entry(tmp_path, parent.task_id)
+        recovered = read_entry(tmp_path, old.task_id)
         assert recovered.state == "failed"
-        assert recovered.children[0].state == "failed"
-        assert read_entry(tmp_path, child.task_id).state == "failed"
-        for status in (foreign, succeeded, replaced, replica):
-            assert read_entry(tmp_path, status.task_id) == status
-        assert retained.read_text() == "retained"
+        assert recovered.machine_id is None
 
 
 def test_machine_and_process_identity_prevent_false_child_ownership(tmp_path):
@@ -272,7 +317,8 @@ TaskRunner().run(BlockingDemo({'x': 1, 'y': 2, 'task_name': 'killed'},
 """
 
 
-async def test_sigkill_then_restart_recovers_run_and_allows_same_name_submission(tmp_path):
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_sigkill_then_restart_recovers_run_and_allows_same_name_submission(tmp_path, legacy):
     worker = await asyncio.create_subprocess_exec(
         sys.executable,
         "-c",
@@ -287,6 +333,10 @@ async def test_sigkill_then_restart_recovers_run_and_allows_same_name_submission
         old = read_entry(tmp_path, task_id)
         assert old.machine_id == process.machine_id()
         assert old.state == "running"
+        if legacy:
+            old.machine_id = None
+            old.process_started_at = None
+            write_task_metadata(task_path(tmp_path, task_id), old)
         async with application(tmp_path):
             assert read_entry(tmp_path, task_id) == old
         worker.kill()
@@ -301,7 +351,7 @@ async def test_sigkill_then_restart_recovers_run_and_allows_same_name_submission
             assert handle.run_id != old.run_id
             result = await asyncio.wait_for(manager.wait(task_id, handle.run_id, 0.01), 15)
             assert result.state == TaskState.SUCCEEDED
-            assert result.machine_id == old.machine_id
+            assert result.machine_id == process.machine_id()
             assert result.pid != os.getpid()
     finally:
         if worker.returncode is None:

@@ -15,7 +15,7 @@ Task ID 标识工作区中的一个任务目录，`run_id` 标识一轮执行。
 
 `task_name` 允许 1–32 个英文字母、数字或连字符。省略或传空字符串时，框架使用包含小时级时间前缀和随机后缀的名称。Task ID 中的 `#` 必须保留，shell 中应使用引号。
 
-统一记录使用 `metadata.reg_name` 保存定义注册名，使用 `metadata.input_params.task_name` 保存解析后的实例名。新记录还持久化执行机器的稳定 `machine_id` 和进程实例启动时间 `process_started_at`；queued 阶段保存启动者身份，worker 接手后更新。服务启动时，仅将确认已中断的本机 Run 收尾为 failed；其他机器及缺少机器标识的旧记录保持原样。恢复边界见[日志排障与备份恢复](../guides/operations.md)。
+统一记录使用 `metadata.reg_name` 保存定义注册名，使用 `metadata.input_params.task_name` 保存解析后的实例名。新记录还持久化执行机器的稳定 `machine_id` 和进程实例启动时间 `process_started_at`；queued 阶段保存启动者身份，worker 接手后更新。服务启动及同名提交前，将确认已中断的本机 Run 收尾为 failed。缺少机器标识的旧记录在执行锁空闲时自动判失败，刚创建的 queued 记录保留 5 分钟交接宽限。其他机器记录保持原样。恢复边界见[日志排障与备份恢复](../guides/operations.md)。
 
 ## 状态含义
 
