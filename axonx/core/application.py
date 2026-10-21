@@ -76,11 +76,11 @@ class Application:
     async def _maintain_logs(self) -> None:
         directory = Path(self.app_config.log_dir).expanduser().resolve()
         while True:
-            await asyncio.sleep(LOG_CLEANUP_INTERVAL)
             try:
                 await run_blocking(cleanup_log_files, directory)
             except Exception:
                 get_logger("Application").exception("Log cleanup failed; retrying at the next interval")
+            await asyncio.sleep(LOG_CLEANUP_INTERVAL)
 
     async def close(self) -> None:
         """Close every started object in reverse order, without short-circuiting."""

@@ -173,7 +173,8 @@ async def test_application_waits_for_inflight_log_cleanup_on_close(tmp_path, mon
         release.wait(timeout=5)
 
     monkeypatch.setattr("axonx.core.application.cleanup_log_files", cleanup)
-    monkeypatch.setattr("axonx.core.application.LOG_CLEANUP_INTERVAL", 0.01)
+    # Initial cleanup must start immediately, independently of the hourly interval.
+    monkeypatch.setattr("axonx.core.application.LOG_CLEANUP_INTERVAL", 3600)
     app = Application(**_config(tmp_path / "workspace", log_dir=str(tmp_path / "logs"), log_to_file=True))
     closing = None
     try:

@@ -23,7 +23,6 @@ from ..constants import (
     AXONX_DEFAULT_TIMEZONE,
     LOG_ARGUMENT_MAX_LENGTH,
 )
-from .log_retention import cleanup_log_files
 
 _LOG_FORMAT = (
     "{time:%Y-%m-%d %H:%M:%S} {extra[utc_offset]} | {level:<8} | "
@@ -103,7 +102,6 @@ def configure_logging(config: LoggingConfig) -> None:
                 compression="zip",
                 encoding=AXONX_DEFAULT_ENCODING,
             )
-            cleanup_log_files(log_dir)
 
 
 def get_logger(name: str = "axonx") -> Any:

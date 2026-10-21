@@ -10,6 +10,7 @@ from importlib import import_module
 from datetime import datetime, timezone
 from textwrap import dedent
 from types import SimpleNamespace
+from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
@@ -245,13 +246,18 @@ def test_log_retention_cleans_only_expired_axonx_logs(tmp_path, monkeypatch):
     assert nested.exists()
 
 
-def test_logging_configuration_cleans_expired_logs_at_startup(tmp_path):
+def test_worker_logging_does_not_scan_or_clean_shared_logs(tmp_path, monkeypatch):
     path = tmp_path / f"2026-01-01_00-00-00_123_{'a' * 64}.log"
     path.write_text("expired", encoding="utf-8")
     os.utime(path, (0, 0))
+
+    def scan(*_args, **_kwargs):
+        pytest.fail("Configuring a worker must not scan the shared log directory")
+
+    monkeypatch.setattr(Path, "glob", scan)
     configure_logging(LoggingConfig(log_dir=tmp_path, log_to_console=False))
     try:
-        assert not path.exists()
+        assert path.exists()
         assert get_log_path().exists()
     finally:
         configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
