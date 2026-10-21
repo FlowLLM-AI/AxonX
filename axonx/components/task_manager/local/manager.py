@@ -6,6 +6,7 @@ import asyncio
 import os
 from collections import Counter
 from collections.abc import AsyncIterator, Sequence
+from contextlib import ExitStack
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -33,10 +34,11 @@ from ....task.query import (
     stream_task,
 )
 from ....task.query.summary import task_sort_key, TaskSummary, TaskView
-from ....task.storage.locking import workspace_mutation
+from ....task.storage.locking import workspace_lock, workspace_mutation
 from ....task.runtime.arguments import build_task_argv, parse_task_argv
 from ....task.runtime.source import TASK_SOURCE, TASK_SOURCE_ENV
 from ....task.runtime.composition import settle_children
+from ....task.runtime.process import machine_id, process_is_alive, process_started_at
 from ....task.storage.events import (
     LOG_WINDOW_BYTES,
     append_progress_snapshots,
@@ -75,6 +77,18 @@ class LocalTaskManager(BaseTaskManager):
     async def _start(self) -> None:
         if os.name != "posix":
             raise NotImplementedError("LocalTaskManager supports macOS and Linux")
+        local_machine = await asyncio.to_thread(machine_id)
+        for status in (await self.repository.entries()).values():
+            if status.machine_id == local_machine and status.replica is None and not status.state.is_terminal:
+                await complete_on_cancel(
+                    self._settle(
+                        status,
+                        TaskState.FAILED,
+                        1,
+                        "Task process interrupted before publishing final status",
+                        recovery_machine_id=local_machine,
+                    )
+                )
         self._accepting = True
 
     def request_shutdown(self, *, force: bool = False) -> None:
@@ -126,6 +140,9 @@ class LocalTaskManager(BaseTaskManager):
                             category=task.category,
                             input_params=task.input_params.model_dump(mode="json"),
                             state=TaskState.QUEUED,
+                            pid=os.getpid(),
+                            machine_id=machine_id(),
+                            process_started_at=process_started_at(),
                             created_at=task.created_at,
                         )
                         await self.repository.put_metadata(status)
@@ -349,43 +366,65 @@ class LocalTaskManager(BaseTaskManager):
     async def _finish(self, status: TaskMetadata, state: TaskState, code: int, error: str) -> None:
         await complete_on_cancel(self._settle(status, state, code, error))
 
-    async def _settle(self, status: TaskMetadata, state: TaskState, code: int, error: str) -> None:
-        async with workspace_mutation(self.workspace_path):
-            current = await asyncio.to_thread(
-                read_task_metadata,
-                task_path(self.workspace_path, status.task_id),
-                status.task_id,
-                strict_io=True,
-            )
-            if current is None or current.run_id != status.run_id or current.state.is_terminal:
-                await self.repository.reconcile()
-                return
-            status = current
-            if state in {TaskState.FAILED, TaskState.CANCELLED}:
-                children = await asyncio.to_thread(settle_children, self.workspace_path, status, state, code, error)
-                for child in children:
-                    await asyncio.to_thread(
-                        append_progress_snapshots,
-                        task_path(self.workspace_path, child.task_id) / EVENTS_FILE,
-                        child.steps,
-                    )
-                    await self._write_task_metadata(child)
-            status.state = state
-            status.finished_at = datetime.now(UTC)
-            settle_steps(
-                status.steps,
-                failed=state != TaskState.SUCCEEDED,
-                error=error,
-                now=status.finished_at,
-            )
-            status.exit_code = code
-            status.error = error
-            await asyncio.to_thread(
-                append_progress_snapshots,
-                task_path(self.workspace_path, status.task_id) / EVENTS_FILE,
-                status.steps,
-            )
-            await self._write_task_metadata(status)
+    async def _settle(
+        self,
+        status: TaskMetadata,
+        state: TaskState,
+        code: int,
+        error: str,
+        *,
+        recovery_machine_id: str | None = None,
+    ) -> None:
+        with ExitStack() as locks:
+            if recovery_machine_id is not None:
+                try:
+                    locks.enter_context(workspace_lock(self.workspace_path, status.task_id))
+                except BlockingIOError:
+                    return
+            async with workspace_mutation(self.workspace_path):
+                current = await asyncio.to_thread(
+                    read_task_metadata,
+                    task_path(self.workspace_path, status.task_id),
+                    status.task_id,
+                    strict_io=True,
+                )
+                if current is None or current.run_id != status.run_id or current.state.is_terminal:
+                    await self.repository.reconcile()
+                    return
+                status = current
+                if recovery_machine_id is not None and (
+                    status.machine_id != recovery_machine_id
+                    or status.replica is not None
+                    or await asyncio.to_thread(process_is_alive, status.pid, status.process_started_at)
+                ):
+                    return
+                if state in {TaskState.FAILED, TaskState.CANCELLED}:
+                    children = await asyncio.to_thread(settle_children, self.workspace_path, status, state, code, error)
+                    for child in children:
+                        await asyncio.to_thread(
+                            append_progress_snapshots,
+                            task_path(self.workspace_path, child.task_id) / EVENTS_FILE,
+                            child.steps,
+                        )
+                        await self._write_task_metadata(child)
+                status.state = state
+                status.finished_at = datetime.now(UTC)
+                settle_steps(
+                    status.steps,
+                    failed=state != TaskState.SUCCEEDED,
+                    error=error,
+                    now=status.finished_at,
+                )
+                status.exit_code = code
+                status.error = error
+                await asyncio.to_thread(
+                    append_progress_snapshots,
+                    task_path(self.workspace_path, status.task_id) / EVENTS_FILE,
+                    status.steps,
+                )
+                await self._write_task_metadata(status)
+                if recovery_machine_id is not None:
+                    self.logger.warning(f"Recovered interrupted Task task_id={status.task_id} run_id={status.run_id}")
 
     async def _handle_worker_exit(self, worker_exit: WorkerExit) -> None:
         """Fail an owned Run only after observing its worker exit without a final status.

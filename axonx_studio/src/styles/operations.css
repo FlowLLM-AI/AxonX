@@ -400,21 +400,6 @@
 .pipeline-model-content {
   padding: 14px 16px;
 }
-.task-child {
-  padding: 16px;
-  margin: 12px 0;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  min-width: 0;
-}
-.task-child > header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  font-size: 13px;
-  font-weight: 600;
-}
 
 .history-preparation-actions {
   display: flex;

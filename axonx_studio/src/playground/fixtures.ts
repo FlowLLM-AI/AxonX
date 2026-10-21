@@ -169,6 +169,8 @@ export function taskStatus(
     input_params: { task_name: name },
     state: "succeeded",
     pid: null,
+    machine_id: null,
+    process_started_at: null,
     created_at: epoch,
     started_at: epoch,
     finished_at: epoch,

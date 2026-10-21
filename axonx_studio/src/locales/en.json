@@ -319,7 +319,7 @@
     "copyConfig": "Copy config",
     "runDetails": "Run details",
     "repeatedSteps": "{{count}} repetitions · completed",
-    "completedSteps": "steps completed",
+    "noChildren": "No child tasks yet",
     "logs": "Logs",
     "relations": "Relationships",
     "relationsSummary": "Inspect upstream and downstream lineage",

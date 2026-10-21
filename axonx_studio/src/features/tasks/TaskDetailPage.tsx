@@ -1,11 +1,10 @@
 import { ReportTabs } from "../../shared/ui/ReportTabs";
 import { TaskLogPanel } from "./TaskLogPanel";
-import { TaskSteps } from "./TaskSteps";
+import { TaskChildren } from "./TaskChildren";
 import { ExecutionSteps } from "./ExecutionSteps";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
-import { TaskQuality } from "../online/QualityReport";
 import { hasTaskReport } from "../online/types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Ban,
@@ -23,11 +22,10 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
-import type { TaskMetadata } from "./types";
 import { useRefresh } from "../../shared/hooks/useRefresh";
+import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { canCancel } from "./groups";
 import { cancelTask, getTaskStatus } from "./api";
-import { formatDate, formatDuration, taskStepProgress } from "./format";
 import { Status } from "./TaskRow";
 import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
 
@@ -53,49 +51,48 @@ export function TaskDetailPage({
     string,
     string
   >;
-  const [task, setTask] = useState<TaskMetadata | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [cancelling, setCancelling] = useState(false);
-  const [error, setError] = useState("");
+  const cancellation = useRef<AbortController | null>(null);
   const configClipboard = useCopyFeedback();
   const configCopied = configClipboard.copied === "config";
   const [locateRequest, setLocateRequest] = useState(0);
 
+  const load = useCallback(
+    async (signal: AbortSignal) => {
+      try {
+        const result = await getTaskStatus(taskId, target, signal);
+        signal.throwIfAborted();
+        onConnection(true);
+        return result;
+      } catch (reason) {
+        if (!signal.aborted) onConnection(false);
+        throw reason;
+      }
+    },
+    [onConnection, target, taskId],
+  );
+
+  const {
+    data: task,
+    loading,
+    error: requestError,
+    reload: loadStatus,
+  } = useAsyncResource(load);
+  const [action, setAction] = useState<{
+    resource: typeof load;
+    busy: boolean;
+    error: string;
+  } | null>(null);
+  const refreshAll = useRefresh(loadStatus);
+  useEffect(() => () => cancellation.current?.abort(), [load]);
+  const currentAction = action?.resource === load ? action : null;
+  const cancelling = currentAction?.busy ?? false;
+  const error = requestError || currentAction?.error || "";
   const hasResearch =
     task?.state === "succeeded" &&
     ["etl", "analysis", "train", "predict", "backtest"].includes(
       task.task_type,
     ) &&
     Object.keys(task.output_params).length > 0;
-
-  const loadStatus = useCallback(
-    async (signal?: AbortSignal) => {
-      setLoading(true);
-      try {
-        const result = await getTaskStatus(taskId, target, signal);
-        signal?.throwIfAborted();
-        setTask(result);
-        setError("");
-        onConnection(true);
-        return result;
-      } catch (reason) {
-        if (signal?.aborted) return null;
-        setError(reason instanceof Error ? reason.message : String(reason));
-        onConnection(false);
-        return null;
-      } finally {
-        if (!signal?.aborted) setLoading(false);
-      }
-    },
-    [onConnection, target, taskId],
-  );
-
-  const refreshAll = useRefresh(loadStatus);
-  useEffect(() => {
-    const controller = new AbortController();
-    void loadStatus(controller.signal);
-    return () => controller.abort();
-  }, [loadStatus]);
   const copyConfig = async () => {
     if (!task) return;
     await configClipboard.copy(
@@ -105,15 +102,25 @@ export function TaskDetailPage({
   };
   const cancel = async () => {
     if (!task || !window.confirm(t("cancelConfirm"))) return;
-    setCancelling(true);
+    cancellation.current?.abort();
+    const controller = new AbortController();
+    cancellation.current = controller;
+    setAction({ resource: load, busy: true, error: "" });
     try {
       const cancelled = await cancelTask(task.run_id, target);
+      if (controller.signal.aborted) return;
       if (!cancelled) throw new Error(t("cancelFailed"));
       await loadStatus();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (!controller.signal.aborted)
+        setAction({
+          resource: load,
+          busy: false,
+          error: reason instanceof Error ? reason.message : String(reason),
+        });
     } finally {
-      setCancelling(false);
+      if (!controller.signal.aborted)
+        setAction((current) => current && { ...current, busy: false });
     }
   };
 
@@ -138,12 +145,8 @@ export function TaskDetailPage({
         </div>
       </section>
     );
-  const progress = taskStepProgress(task);
   const configEntries = Object.entries(task.input_params || {});
-  const executionSteps = task.steps.filter((step) => !step.parent);
-  const completedSteps = executionSteps.filter(
-    (step) => step.percentage === 100,
-  ).length;
+  const composite = task.task_type === "composite";
   const locateCurrentTask = () => {
     setLocateRequest((current) => current + 1);
   };
@@ -330,83 +333,23 @@ export function TaskDetailPage({
               ),
               content: (
                 <section className="task-detail-card open task-run-card">
-                  <header className="task-detail-tab-summary">
-                    <span>{`${completedSteps} ${labels.completedSteps}`}</span>
-                  </header>
                   <div className="task-detail-card-body">
-                    <div className="task-run-meta">
-                      <div>
-                        <small>{t("started")}</small>
-                        <strong>{formatDate(task.started_at)}</strong>
-                      </div>
-                      <div>
-                        <small>{t("duration")}</small>
-                        <strong>{formatDuration(task, t)}</strong>
-                      </div>
-                      <div>
-                        <small>EXIT CODE</small>
-                        <strong>{task.exit_code}</strong>
-                      </div>
-                    </div>
-                    {progress && (
-                      <div className="task-current-step">
-                        <span>{t("progress")}</span>
-                        <code title={progress.name}>{progress.name}</code>
-                        <strong>{progress.percentage}%</strong>
-                      </div>
+                    {task.error && (
+                      <p className="error-state" role="alert">
+                        {task.error}
+                      </p>
                     )}
-                    <DetailSection title={t("steps")}>
+                    <h3>{composite ? labels.children : t("steps")}</h3>
+                    {composite ? (
+                      <TaskChildren
+                        records={task.children}
+                        onOpenTask={onOpenTask}
+                      />
+                    ) : (
                       <ExecutionSteps
                         key={`${target}:${task.run_id}`}
                         task={task}
                       />
-                    </DetailSection>
-                    {task.children.length > 0 && (
-                      <DetailSection title={t("taskDetail.children")}>
-                        <div className="step-list">
-                          {task.children.map((child, index) => (
-                            <div className="step-item" key={child.run_id}>
-                              <span>{index + 1}</span>
-                              <div>
-                                <strong>
-                                  {child.node_name} · {child.attempt}
-                                </strong>
-                                {child.task_id ? (
-                                  <button
-                                    className="child-task-link"
-                                    onClick={() => onOpenTask(child.task_id!)}
-                                  >
-                                    {child.task_id}
-                                  </button>
-                                ) : (
-                                  <code>{child.task}</code>
-                                )}
-                                <small>{child.run_id}</small>
-                                {child.error && <small>{child.error}</small>}
-                              </div>
-                              <Status state={child.state} />
-                            </div>
-                          ))}
-                        </div>
-                      </DetailSection>
-                    )}
-                    <TaskSteps
-                      task={task}
-                      target={target}
-                      steps={task.steps.filter((step) => step.parent)}
-                    />
-                    <TaskQuality
-                      excludeKeys={task.steps
-                        .filter((step) => step.group === "collection")
-                        .map((step) => step.name.replace(/^collection:/, ""))}
-                      windows={task.output_params.windows}
-                      taskId={task.task_id}
-                      target={target}
-                    />
-                    {Object.keys(task.output_params).length > 0 && (
-                      <DetailSection title={t("result")}>
-                        <pre>{JSON.stringify(task.output_params, null, 2)}</pre>
-                      </DetailSection>
                     )}
                   </div>
                 </section>
@@ -446,20 +389,6 @@ export function TaskDetailPage({
   );
 }
 
-function DetailSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="detail-section">
-      <h3>{title}</h3>
-      {children}
-    </section>
-  );
-}
 function formatConfigValue(value: unknown) {
   if (typeof value === "string") return value || '""';
   return JSON.stringify(value);

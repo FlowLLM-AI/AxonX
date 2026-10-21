@@ -85,5 +85,5 @@ class TaskCommandExecutor:
                 TaskSource.model_validate_json(os.environ[TASK_SOURCE_ENV]) if TASK_SOURCE_ENV in os.environ else None
             ),
         )
-        status = TaskRunner().run(task)
+        status = TaskRunner(require_handoff=AXONX_TASK_RUN_ID in os.environ).run(task)
         return TaskExecution(status=status)

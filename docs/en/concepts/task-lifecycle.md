@@ -15,7 +15,7 @@ A Task ID identifies a task directory in the workspace; `run_id` identifies one 
 
 `task_name` allows 1–32 English letters, digits, or hyphens. If omitted or passed as an empty string, the framework uses a name with an hourly timestamp prefix and random suffix. Keep the `#` characters in Task IDs and quote them in the shell.
 
-The unified record stores the definition registration in `metadata.reg_name`, and the resolved instance name in `metadata.input_params.task_name`.
+The unified record stores the definition registration in `metadata.reg_name`, and the resolved instance name in `metadata.input_params.task_name`. New records also persist the execution machine's stable `machine_id` and the process instance's `process_started_at`; queued records identify the launcher until the worker takes over. At service startup, only this machine's confirmed interrupted Runs are settled as failed. Other-machine and legacy records without machine identity are left unchanged. See [Logs and recovery](../guides/operations.md) for recovery boundaries.
 
 ## State Meanings
 

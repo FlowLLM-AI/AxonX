@@ -6,6 +6,46 @@ import i18n from "../../i18n";
 import { taskStatus } from "../../playground/fixtures";
 import { ExecutionSteps } from "./ExecutionSteps";
 
+it("uses lifecycle state rather than percentage to identify completion", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const task = taskStatus("base", "base#demo#progress", "progress");
+  const step = task.steps[0];
+  task.steps = [
+    {
+      ...step,
+      name: "execute",
+      state: "running",
+      percentage: 100,
+      finished_at: null,
+    },
+    {
+      ...step,
+      name: "waiting",
+      state: "waiting",
+      percentage: null,
+      finished_at: null,
+    },
+    { ...step, name: "skipped", state: "skipped", percentage: 100 },
+    { ...step, name: "done", state: "done", percentage: 70 },
+  ];
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<ExecutionSteps task={task} />));
+    expect(container.querySelectorAll(".active")).toHaveLength(1);
+    expect(container.querySelectorAll(".done")).toHaveLength(1);
+    expect(
+      container.querySelectorAll(".step-item")[0].querySelector(".active"),
+    ).not.toBeNull();
+    expect(
+      container.querySelectorAll(".step-item")[3].querySelector(".done"),
+    ).not.toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    vi.unstubAllGlobals();
+  }
+});
+
 it.each(["running", "failed"] as const)(
   "folds consecutive completed repetitions while keeping the %s step visible",
   async (state) => {
@@ -56,3 +96,41 @@ it.each(["running", "failed"] as const)(
     }
   },
 );
+
+it("uses each substep's own failure and skipped state instead of failing the last row", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  await i18n.changeLanguage("en");
+  const task = taskStatus("base", "base#failed", "failed");
+  task.state = "failed";
+  task.error = "parent error";
+  const step = task.steps[0];
+  task.steps = [
+    { ...step, name: "execute", state: "failed", percentage: null },
+    {
+      ...step,
+      name: "download",
+      parent: "execute",
+      state: "missed",
+      error: "deadline missed",
+      percentage: null,
+    },
+    { ...step, name: "publish", parent: "execute", state: "skipped" },
+  ];
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<ExecutionSteps task={task} />));
+    expect(container.querySelectorAll(".step-item.failed")).toHaveLength(2);
+    expect(container.querySelectorAll(".step-substep")).toHaveLength(2);
+    expect(container.querySelectorAll(".step-item")[1].textContent).toContain(
+      "deadline missed",
+    );
+    const last = container.querySelectorAll(".step-item")[2];
+    expect(last.classList.contains("failed")).toBe(false);
+    expect(last.querySelector(".done")).toBeNull();
+    expect(last.textContent).toContain("Skipped");
+  } finally {
+    await act(async () => root.unmount());
+    vi.unstubAllGlobals();
+  }
+});

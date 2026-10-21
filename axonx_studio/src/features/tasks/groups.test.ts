@@ -22,6 +22,8 @@ const task = (
   source: { kind: "submit", schedule: null },
   state,
   pid: 1234,
+  machine_id: null,
+  process_started_at: null,
   created_at: date,
   started_at: date,
   finished_at: null,

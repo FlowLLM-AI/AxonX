@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from pydantic import BaseModel
 
-from ..schemas.lifecycle import TaskStatus, TaskMetadata
+from ..schemas.lifecycle import TaskStatus, TaskMetadata, same_worker
 
 
 class TaskView(TaskMetadata):
@@ -40,12 +40,7 @@ def managed_runs(entries: Mapping[str, TaskMetadata], owned: set[str]) -> dict[s
             entry = entries.get(child.task_id)
             if entry is None or entry.replica is not None:
                 continue
-            if (
-                entry.run_id == child.run_id
-                and entry.run_id not in result
-                and parent.pid is not None
-                and entry.pid == parent.pid
-            ):
+            if entry.run_id == child.run_id and entry.run_id not in result and same_worker(parent, entry):
                 result[entry.run_id] = result[parent.run_id]
                 pending.append(entry)
     return result

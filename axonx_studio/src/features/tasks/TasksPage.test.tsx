@@ -54,6 +54,8 @@ function task(
     source: { kind: "submit", schedule: null },
     state,
     pid: null,
+    machine_id: null,
+    process_started_at: null,
     created_at: null,
     started_at: null,
     finished_at: null,

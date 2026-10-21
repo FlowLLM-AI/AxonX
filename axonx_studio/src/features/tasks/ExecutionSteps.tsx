@@ -7,12 +7,10 @@ import { formatDate } from "./format";
 export function ExecutionSteps({ task }: { task: TaskMetadata }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const steps = task.steps.filter((step) => !step.parent);
+  const steps = task.steps;
   const failed = (index: number) =>
-    steps[index].state === "failed" ||
-    (task.state === "failed" && index === steps.length - 1);
-  const done = (index: number) =>
-    steps[index].percentage === 100 && !failed(index);
+    steps[index].state === "failed" || steps[index].state === "missed";
+  const done = (index: number) => steps[index].state === "done";
   const groups: number[][] = [];
   steps.forEach((step, index) => {
     const previous = groups.at(-1);
@@ -20,7 +18,8 @@ export function ExecutionSteps({ task }: { task: TaskMetadata }) {
       previous &&
       done(index) &&
       done(index - 1) &&
-      step.name === steps[index - 1].name
+      step.name === steps[index - 1].name &&
+      step.parent === steps[index - 1].parent
     )
       previous.push(index);
     else groups.push([index]);
@@ -28,12 +27,24 @@ export function ExecutionSteps({ task }: { task: TaskMetadata }) {
   const row = (index: number) => {
     const step = steps[index];
     const percentage = Math.max(0, Math.min(100, step.percentage ?? 0));
+    const active = step.state === "running";
     return (
-      <div className={`step-item ${failed(index) ? "failed" : ""}`} key={index}>
+      <div
+        className={`step-item ${step.parent ? "step-substep" : ""} ${failed(index) ? "failed" : ""}`}
+        key={index}
+      >
         <span
-          className={failed(index) ? "failed" : done(index) ? "done" : "active"}
+          className={
+            failed(index)
+              ? "failed"
+              : done(index)
+                ? "done"
+                : active
+                  ? "active"
+                  : undefined
+          }
           style={
-            !failed(index) && !done(index)
+            active
               ? ({ "--step-progress": `${percentage}%` } as React.CSSProperties)
               : undefined
           }
@@ -41,15 +52,17 @@ export function ExecutionSteps({ task }: { task: TaskMetadata }) {
           {failed(index) ? <X /> : done(index) ? <Check /> : index + 1}
         </span>
         <div>
-          <strong>{step.name}</strong>
+          <strong>{step.label || step.name}</strong>
           <small>
             {failed(index)
-              ? task.error || t("error")
-              : step.finished_at
-                ? formatDate(step.finished_at)
-                : step.started_at
-                  ? `${Math.round(percentage)}%`
-                  : t("notStarted")}
+              ? step.error || task.error || t("error")
+              : step.state === "skipped"
+                ? t("onlinePipeline.status.skipped")
+                : step.finished_at
+                  ? formatDate(step.finished_at)
+                  : step.started_at
+                    ? `${Math.round(percentage)}%`
+                    : t("notStarted")}
           </small>
         </div>
       </div>
@@ -63,7 +76,10 @@ export function ExecutionSteps({ task }: { task: TaskMetadata }) {
           if (indices.length === 1) return row(start);
           const open = expanded.has(start);
           return (
-            <div className="repeated-steps" key={start}>
+            <div
+              className={`repeated-steps ${steps[start].parent ? "step-substep" : ""}`}
+              key={start}
+            >
               <button
                 className="step-item repeated-steps-toggle"
                 aria-expanded={open}
@@ -80,7 +96,7 @@ export function ExecutionSteps({ task }: { task: TaskMetadata }) {
                   <Check />
                 </span>
                 <div>
-                  <strong>{steps[start].name}</strong>
+                  <strong>{steps[start].label || steps[start].name}</strong>
                   <small>
                     {t("taskDetail.repeatedSteps", { count: indices.length })}
                   </small>

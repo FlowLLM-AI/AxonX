@@ -28,6 +28,7 @@ from ..storage.workspace import (
     reset_task_directory,
     write_task_metadata,
 )
+from .process import machine_id, process_started_at
 from ..schemas.lifecycle import TaskMetadata
 
 if TYPE_CHECKING:
@@ -35,8 +36,9 @@ if TYPE_CHECKING:
 
 
 class TaskRunner:
-    def __init__(self, emit: Callable[[TaskMetadata], None] | None = None) -> None:
+    def __init__(self, emit: Callable[[TaskMetadata], None] | None = None, *, require_handoff: bool = False) -> None:
         self.emit = emit
+        self.require_handoff = require_handoff
         self.task: BaseTask | None = None
         self.status: TaskMetadata | None = None
         self.step: TaskStepStatus | None = None
@@ -147,8 +149,7 @@ class TaskRunner:
         self.step = None
         task.logger.info(f"Task step completed step={name} elapsed_seconds={perf_counter() - started:.3f}")
 
-    @staticmethod
-    def _prepare_directory(task: BaseTask) -> None:
+    def _prepare_directory(self, task: BaseTask) -> None:
         if task_type_from_id(task.task_id) != task.task_type:
             raise ValueError(f"Task type does not match its ID: {task.task_id}")
         if task.task_dir.parent.is_symlink():
@@ -162,12 +163,16 @@ class TaskRunner:
             handed_over = (
                 queued is not None and queued.state == TaskState.QUEUED and queued.run_id == task.context.run_id
             )
+            if self.require_handoff and not handed_over:
+                raise FileExistsError(f"Submitted Task no longer owns its queued Run: {task.task_id}")
             replaceable = not task.is_generated_name and queued is not None and queued.state.is_terminal
             if replaceable:
                 reset_task_directory(task.task_dir)
             elif not handed_over:
                 raise FileExistsError(f"Task directory already exists: {task.task_dir}")
         else:
+            if self.require_handoff:
+                raise FileNotFoundError(f"Submitted Task has no queued Run: {task.task_id}")
             task.task_dir.mkdir(parents=True)
 
     def run(self, task: BaseTask) -> TaskMetadata:
@@ -208,6 +213,8 @@ class TaskRunner:
                         category=task.category,
                         input_params=task.input_params.model_dump(mode="json"),
                         pid=task.pid,
+                        machine_id=machine_id(),
+                        process_started_at=process_started_at(task.pid),
                         created_at=task.created_at,
                         log_path=task.log_path,
                     )

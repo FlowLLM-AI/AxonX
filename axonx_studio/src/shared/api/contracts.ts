@@ -530,6 +530,8 @@ export type TaskMetadata = {
   report_kind: string | null;
   state: TaskState;
   pid: number | null;
+  machine_id: string | null;
+  process_started_at: string | null;
   created_at: string | null;
   started_at: string | null;
   finished_at: string | null;
@@ -591,6 +593,8 @@ export type TaskSummary = {
   report_kind: string | null;
   state: TaskState;
   pid: number | null;
+  machine_id: string | null;
+  process_started_at: string | null;
   created_at: string | null;
   started_at: string | null;
   finished_at: string | null;
@@ -626,6 +630,8 @@ export type TaskView = {
   report_kind: string | null;
   state: TaskState;
   pid: number | null;
+  machine_id: string | null;
+  process_started_at: string | null;
   created_at: string | null;
   started_at: string | null;
   finished_at: string | null;

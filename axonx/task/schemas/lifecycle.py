@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from ...enums import TaskCategory, TaskState, TaskType
 from ...progress import TaskStepStatus
@@ -39,6 +39,8 @@ class TaskStatus(BaseModel):
     report_kind: str | None = None
     state: TaskState = TaskState.QUEUED
     pid: int | None = None
+    machine_id: str | None = Field(default=None, min_length=1)
+    process_started_at: AwareDatetime | None = None
     created_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -82,3 +84,13 @@ class TaskHandle:
 def current_children(status: TaskMetadata):
     """Named directories contain the latest invocation; earlier attempts stay in metadata."""
     return {child.task_id: child for child in status.children if child.task_id}.values()
+
+
+def same_worker(parent: TaskStatus, child: TaskStatus) -> bool:
+    """Match a worker instance across exact child Runs, including legacy records."""
+    return (
+        parent.pid is not None
+        and parent.pid == child.pid
+        and parent.machine_id == child.machine_id
+        and parent.process_started_at == child.process_started_at
+    )

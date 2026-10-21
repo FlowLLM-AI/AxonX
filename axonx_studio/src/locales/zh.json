@@ -319,7 +319,7 @@
     "copyConfig": "复制配置",
     "runDetails": "运行详情",
     "repeatedSteps": "重复 {{count}} 次 · 已完成",
-    "completedSteps": "个步骤已完成",
+    "noChildren": "暂无子任务",
     "logs": "日志",
     "relations": "关系",
     "relationsSummary": "查看上下游任务血缘",

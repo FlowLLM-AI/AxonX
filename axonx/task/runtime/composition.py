@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ...enums import TaskState
 from ...progress import settle_steps
-from ..schemas.lifecycle import TaskMetadata
+from ..schemas.lifecycle import TaskMetadata, same_worker
 from ..storage.workspace import read_task_metadata, task_path
 
 
@@ -35,7 +35,7 @@ def settle_children(
                     child.state, child.exit_code, child.error = state, code, error
                     changed = True
                 continue
-            if owner.pid is None or status.pid != owner.pid:
+            if status.replica is not None or not same_worker(owner, status):
                 continue
             nested_changed = visit(status)
             if not status.state.is_terminal:
