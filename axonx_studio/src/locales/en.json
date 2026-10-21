@@ -1282,13 +1282,14 @@
     "states": {
       "done": "Completed",
       "failed": "Failed",
-      "running": "In progress",
-      "preparing": "Preparing",
+      "running": "Running",
+      "preparing": "Preparing data",
       "missed": "Missed",
-      "pending": "Pending",
+      "pending": "Awaiting preparation",
       "incomplete": "Incomplete",
       "skipped": "Skipped",
-      "unavailable": "No records"
+      "unavailable": "No records",
+      "ready": "Ready to run"
     },
     "stockDetails": "Stock details",
     "qualitySources": {
@@ -1299,7 +1300,12 @@
     },
     "modelPreparation": "Model preparation",
     "predictionResults": "Predictions",
-    "historyInputs": "Historical inputs"
+    "historyInputs": "Historical inputs",
+    "stateHints": {
+      "pending": "Data preparation has not started, or its status is not yet confirmed.",
+      "preparing": "Historical inputs are being prepared; no collection or prediction is currently running for this time.",
+      "ready": "Historical inputs for all planned models are ready; waiting for the next collection or prediction step."
+    }
   },
   "topComparison": {
     "topN": "Top N",

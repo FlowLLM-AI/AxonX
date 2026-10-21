@@ -185,12 +185,15 @@ export function OnlineWorkbench({
         .map((step) => step.state),
       ...entries.map((model) => (model.error ? "failed" : model.state)),
     ];
-    const historyStates = parent.steps
-      .filter(
-        (step) => step.group === "history" && step.name.endsWith(`-${slot}`),
-      )
-      .map((step) => step.state);
-    const state = aggregateState([...activityStates, ...historyStates]);
+    const historySteps = parent.steps.filter(
+      (step) => step.group === "history" && step.name.endsWith(`-${slot}`),
+    );
+    const state = aggregateState([
+      ...activityStates,
+      ...historySteps.map((step) => step.state),
+    ]);
+    if (state === "pending" && !["queued", "running"].includes(parent.state))
+      return "incomplete";
     if (state === "running" && !activityStates.includes("running"))
       return "preparing";
     if (
@@ -199,6 +202,18 @@ export function OnlineWorkbench({
       !entries.every((model) => dailyCommit(model, histories, date))
     )
       return "incomplete";
+    if (
+      state === "pending" &&
+      entries.length &&
+      entries.every((model) =>
+        historySteps.some(
+          (step) =>
+            step.name === `history:${model.name}-${slot}` &&
+            step.state === "done",
+        ),
+      )
+    )
+      return "ready";
     return state;
   };
   const dataState = live
@@ -222,7 +237,10 @@ export function OnlineWorkbench({
     </span>
   );
   const scopeStatus = (state: string) => (
-    <span className={`online-status status-${state}`}>
+    <span
+      className={`online-status status-${state}`}
+      title={t(`onlineWorkbench.stateHints.${state}`, "") || undefined}
+    >
       {t(
         `onlineWorkbench.states.${state}`,
         t(`onlinePipeline.status.${state}`, state),

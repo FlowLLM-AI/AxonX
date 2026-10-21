@@ -632,7 +632,8 @@ it.each(["zh", "en"])(
     for (const [history, collection, prediction, expected] of [
       ["waiting", "waiting", "pending", "pending"],
       ["running", "waiting", "pending", "preparing"],
-      ["done", "waiting", "pending", "pending"],
+      ["done", "waiting", "pending", "ready"],
+      ["skipped", "waiting", "pending", "pending"],
       ["running", "running", "pending", "running"],
       ["running", "done", "running", "running"],
       ["failed", "running", "pending", "failed"],
@@ -660,9 +661,68 @@ it.each(["zh", "en"])(
       expect(slot().querySelector(`.status-${expected}`)?.textContent).toBe(
         i18n.t(`onlineWorkbench.states.${expected}`),
       );
+      if (["pending", "preparing", "ready"].includes(expected))
+        expect(
+          slot().querySelector(`.status-${expected}`)?.getAttribute("title"),
+        ).toBe(i18n.t(`onlineWorkbench.stateHints.${expected}`));
       expect(
         container.querySelector('[id$="-0945-tab"] .status-pending'),
       ).not.toBeNull();
+    }
+  },
+);
+
+it.each(["zh", "en"])(
+  "requires completed history for every planned model before showing readiness in %s",
+  async (language) => {
+    await i18n.changeLanguage(language);
+    parent.state = "running";
+    parent.children = [];
+    nodes = [];
+    parent.input_params.models = {
+      "1000": [{ task_name: "first" }, { task_name: "second" }],
+    };
+    const template = parent.steps[0];
+    parent.steps = [
+      {
+        ...template,
+        name: "history:first-1000",
+        group: "history",
+        state: "done",
+      },
+    ];
+    const state = () =>
+      container.querySelector('[id$="-1000-tab"] .online-status')!;
+    await render();
+    expect(state().textContent).toBe(i18n.t("onlineWorkbench.states.pending"));
+    parent.steps.push({
+      ...template,
+      name: "history:unrelated-1000",
+      group: "history",
+      state: "done",
+    });
+    await render();
+    expect(state().textContent).toBe(i18n.t("onlineWorkbench.states.pending"));
+    parent.steps.push({
+      ...template,
+      name: "history:second-1000",
+      group: "history",
+      state: "done",
+    });
+    await render();
+    expect(state().textContent).toBe(i18n.t("onlineWorkbench.states.ready"));
+    parent.output_params.models = {
+      "1000": {
+        first: { status: "pending" },
+        second: { status: "pending" },
+      },
+    };
+    for (const terminal of ["succeeded", "failed", "cancelled"] as const) {
+      parent.state = terminal;
+      await render();
+      expect(state().textContent).toBe(
+        i18n.t("onlineWorkbench.states.incomplete"),
+      );
     }
   },
 );

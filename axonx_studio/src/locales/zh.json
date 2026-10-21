@@ -1282,13 +1282,14 @@
     "states": {
       "done": "已完成",
       "failed": "失败",
-      "running": "进行中",
-      "preparing": "准备中",
+      "running": "执行中",
+      "preparing": "准备数据",
       "missed": "已错过",
-      "pending": "待开始",
+      "pending": "待准备",
       "incomplete": "未完成",
       "skipped": "已跳过",
-      "unavailable": "暂无记录"
+      "unavailable": "暂无记录",
+      "ready": "等待执行"
     },
     "stockDetails": "股票明细",
     "qualitySources": {
@@ -1299,7 +1300,12 @@
     },
     "modelPreparation": "模型准备",
     "predictionResults": "预测结果",
-    "historyInputs": "历史输入"
+    "historyInputs": "历史输入",
+    "stateHints": {
+      "pending": "数据准备尚未开始，或尚未确认准备状态。",
+      "preparing": "正在准备该时点的历史输入，当前没有采集或预测在执行。",
+      "ready": "全部计划模型的历史输入已就绪，当前等待后续采集或预测执行。"
+    }
   },
   "topComparison": {
     "topN": "Top N",
