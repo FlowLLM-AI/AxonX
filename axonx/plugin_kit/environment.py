@@ -20,6 +20,7 @@ _ENVIRONMENT_LOCK = RLock()
 _OPERATION_QUEUE_LOCK = Lock()
 _OPERATION_QUEUE: deque[Future[None]] = deque()
 _RESTART_REQUIRED = False
+_ENVIRONMENT_WAIT_SECONDS = 30
 
 
 def serialized[T, **P](function: Callable[P, T]) -> Callable[P, T]:
@@ -27,13 +28,20 @@ def serialized[T, **P](function: Callable[P, T]) -> Callable[P, T]:
 
     @wraps(function)
     def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
-        with _ENVIRONMENT_LOCK:
+        # The built-in context manager has no acquisition timeout.
+        if not _ENVIRONMENT_LOCK.acquire(timeout=_ENVIRONMENT_WAIT_SECONDS):  # pylint: disable=consider-using-with
+            raise TimeoutError("Plugin environment is busy; retry after the current mutation")
+        try:
             return function(*args, **kwargs)
+        finally:
+            _ENVIRONMENT_LOCK.release()
 
     return wrapped
 
 
-def environment_operation[T, **P](function: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+def environment_operation[T, **P](
+    function: Callable[P, Awaitable[T]],
+) -> Callable[P, Awaitable[T]]:
     """Serialize remote mutations and worker launch across applications and loops."""
 
     @wraps(function)
@@ -44,7 +52,13 @@ def environment_operation[T, **P](function: Callable[P, Awaitable[T]]) -> Callab
             if len(_OPERATION_QUEUE) == 1:
                 ticket.set_result(None)
         try:
-            await asyncio.shield(asyncio.wrap_future(ticket))
+            try:
+                await asyncio.wait_for(
+                    asyncio.shield(asyncio.wrap_future(ticket)),
+                    timeout=_ENVIRONMENT_WAIT_SECONDS,
+                )
+            except TimeoutError:
+                raise TimeoutError("Plugin environment operation is busy; retry after the current operation") from None
             context = getattr(args[0], "app_context", None) if args else None
             if context is not None and context.metadata.get("maintenance"):
                 raise RuntimeError("Service is in maintenance for self-update")
@@ -53,6 +67,8 @@ def environment_operation[T, **P](function: Callable[P, Awaitable[T]]) -> Callab
             with _OPERATION_QUEUE_LOCK:
                 was_owner = _OPERATION_QUEUE[0] is ticket
                 _OPERATION_QUEUE.remove(ticket)
+                if not ticket.done():
+                    ticket.cancel()
                 if was_owner and _OPERATION_QUEUE:
                     _OPERATION_QUEUE[0].set_result(None)
 

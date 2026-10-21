@@ -183,7 +183,7 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 ### 不可变在线提交
 
-通过 `axonx.task.storage.online` 的 `OnlineStore` 发布在线数据。先在临时执行目录准备产物并校验报告，再携带 `DeadlineBudget` 调用 `commit`。新内容复制到 `persistent/online/commits/<commit_id>/`，相同的不可变内容在修订间共享；写入固定的 `history.json` 后，原子替换 `persistent/online/manifest.json`。manifest 替换是唯一提交点。异常或超时保留之前的历史。提交锁的等待受截止时间约束；历史已变化时拒绝覆盖较新的提交。不应在 Task 生命周期之外修改存储。通过 `prepare(commit, history_path)` 回调在发布前构造报告并校验产物。
+通过 `axonx.task.storage.online` 的 `OnlineStore` 发布在线数据。先在临时执行目录准备产物并校验报告，再携带 `DeadlineBudget` 调用 `commit`。新内容复制到 `persistent/online/commits/<commit_id>/`，相同的不可变内容在修订间共享；写入固定的 `history.json` 后，原子替换 `persistent/online/manifest.json`。manifest 替换是唯一提交点。异常或超时保留之前的历史。发布保护只覆盖最终历史检查与 manifest 原子替换，竞争时立即失败；文件准备和报告构建在保护外执行，拒绝覆盖期间产生的新提交。不应在 Task 生命周期之外修改存储。通过 `prepare(commit, history_path)` 回调在发布前构造报告并校验产物。
 
 `OnlineCommit` 记录 Task/Run ID、信号日期/时点、连续修订号、提交时间、固定模型身份、预测协议以及带 SHA256 的产物角色。`OnlineHistory.active(as_of)` 选择信号日期截止范围内的有效修订。历史替换保留原始预测和决策，并使后续组合报告过期，直到重新重放；通过 `report_is_current` 判断。特征和分数选择语义一致时允许模型升级沿用同一策略；组合或特征语义变化需要新的 Task 名称。
 
@@ -216,7 +216,7 @@ schedules:
     cron: "0 16 * * *"
 ```
 
-共享数据锁及业务重叠策略由业务 Task 负责；复合 Task 不提供分布式锁。调度并发策略只覆盖 Job 调用，提交 Job 在后台 Task 完成前已经返回。TaskManager 监督已受理 worker，并负责停机和取消。取消父 Run 会停止同进程子任务；关闭提交 Job 不会取消已受理的 Task。
+共享数据一致性及业务重叠策略由业务 Task 负责；优先使用不可变输入视图，避免在下载和计算期间持锁，共享写入方只保留立即失败的独占保护。复合 Task 不提供分布式锁。调度并发策略只覆盖 Job 调用，提交 Job 在后台 Task 完成前已经返回。TaskManager 监督已受理 worker，并负责停机和取消。取消父 Run 会停止同进程子任务；关闭提交 Job 不会取消已受理的 Task。
 
 维护操作通过 `list_managed_run_ids()` 选择本服务拥有的 worker Run，包括 metadata 已终态或具名 Task 已被替换但进程仍受管理的 worker。暴露共享工作区记录的后端必须覆盖默认的私有后端实现。返回实际进程管理归属，不应根据持久化 metadata 的 PID 推断。
 
@@ -247,3 +247,7 @@ Cron 调度支持 `history_retention_days`（正整数，默认 `7`）。启动�
 本地 runner 在最终状态发布和清理完成前持有 Task 目录建议锁。目录创建、重置、Task 删除、工作区删除和副本应用协调工作区修改；仍被 runner 占用的终态目录不能重置或删除。工作区删除还会保护活动 Task 的文件及其祖先目录。取消操作会等待已开始的队列记录发布及结果收尾完成，再释放对应的修改锁。锁文件位于 Task 目录之外的 `.locks/`，服务使用工作区期间不得移除。这些锁要求文件系统支持共享 POSIX 建议锁，不能替代业务数据锁，也无法约束未参与锁协议的旧版写入方。
 
 更新记录调整为 `updates/<service-key>/<update-id>/`，服务标识由主机名、监听地址、端口和启动目录确定。服务仅恢复自身中断的更新。旧 `updates/<update-id>/` 记录保留在磁盘，不再被修改，也不包含在新的服务级最新状态查询中；仍可按更新 ID 显式读取。
+
+必要的工作区目录变更最多等待 30 秒。`axonx.utils.fs.file_lock` 默认在竞争时立即失败，可选等待必须有限。插件在读取前和成功前比较修订，输入变化时明确失败；生产方必须原子替换文件。
+
+插件环境操作的准入，以及导入与安装协调，最多等待 30 秒；超时只拒绝等待方，不中断当前持有方。

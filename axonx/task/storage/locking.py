@@ -1,10 +1,12 @@
 """Cooperative locks for shared workspace mutations and live Task directories."""
 
 import asyncio
-import fcntl
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from hashlib import sha256
 from pathlib import Path
+from time import monotonic
+
+from ...utils.fs import file_lock
 
 
 @contextmanager
@@ -17,25 +19,25 @@ def workspace_lock(root: Path, task_id: str | None = None, *, blocking: bool = F
     directory = root / ".locks"
     directory.mkdir(parents=True, exist_ok=True)
     name = sha256(task_id.encode()).hexdigest() if task_id is not None else "workspace"
-    with (directory / name).open("a+b") as handle:
+    with ExitStack() as stack:
         try:
-            fcntl.flock(handle, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+            stack.enter_context(file_lock(directory / name, timeout=30 if blocking else 0))
         except BlockingIOError as exc:
             raise BlockingIOError(f"Workspace is busy: {task_id or root}; retry the operation") from exc
-        try:
-            yield
-        finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+        yield
 
 
 @asynccontextmanager
 async def workspace_mutation(root: Path):
     """Wait for a directory mutation without blocking the event loop."""
     with ExitStack() as stack:
+        deadline = monotonic() + 30
         while True:
             try:
                 stack.enter_context(workspace_lock(root))
                 break
             except BlockingIOError:
+                if monotonic() >= deadline:
+                    raise TimeoutError(f"Workspace mutation wait exceeded 30s: {root}") from None
                 await asyncio.sleep(0.01)
         yield

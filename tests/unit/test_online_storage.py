@@ -193,15 +193,28 @@ def test_artifact_paths_must_be_portable_and_confined(path):
         ArtifactRecord(path=path, size=0, revision="0:0")
 
 
-def test_publication_lock_wait_is_bounded(store):
+def test_publication_contention_fails_immediately(store):
     import fcntl
 
     store.root.mkdir(parents=True)
     with (store.root / "publication.lock").open("a+b") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        with pytest.raises(TimeoutError, match="Window deadline"):
+        with pytest.raises(BlockingIOError, match="Resource is busy"):
             publish(store)
     assert not store.manifest.exists()
+
+
+def test_final_publication_check_preserves_an_intervening_commit(store):
+    publish(store)
+
+    def intervening(_commit, _snapshot):
+        publish(store, trade_time="1500")
+
+    with pytest.raises(ValueError, match="history changed before publication"):
+        publish(store, trade_time="1445", prepare=intervening)
+    history = store.history("0" * 64)
+    assert [commit.trade_time for commit in history.commits] == ["1445", "1500"]
+    assert len(list((store.root / "commits").iterdir())) == 2
 
 
 def test_later_signal_times_do_not_invalidate_earlier_reports(store):

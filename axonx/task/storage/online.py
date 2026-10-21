@@ -1,11 +1,9 @@
 """One atomic manifest publishes immutable online artifacts and revision history."""
 
-import fcntl
 import json
 import shutil
 import re
 from collections.abc import Callable
-from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,24 +12,7 @@ from ..core.clock import DeadlineBudget
 from ..schemas.protocol import PROTOCOL_VERSION
 from .artifacts import artifact_path, artifact_record
 from .history import HISTORY_BLOCK_SIZE, HistoryNode, read_online_history
-from ...utils.fs import atomic_write, atomic_write_json, file_revision, snapshot_file
-
-
-@contextmanager
-def publication_lock(path: Path, budget: DeadlineBudget):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+b") as lock:
-        while True:
-            budget.check()
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                budget.sleep(0.1)
-        try:
-            yield
-        finally:
-            fcntl.flock(lock, fcntl.LOCK_UN)
+from ...utils.fs import atomic_write, atomic_write_json, file_lock, file_revision, snapshot_file
 
 
 def online_artifact(root: Path, commit: OnlineCommit, role: str) -> Path:
@@ -70,90 +51,93 @@ class OnlineStore:
         budget: DeadlineBudget,
         prepare: Callable[[OnlineCommit, Path], object] | None = None,
     ) -> tuple[OnlineCommit, Path]:
-        """All fallible work precedes the manifest swap; never undo a committed result."""
-        with publication_lock(self.root / "publication.lock", budget):
-            if history != self.history(history.strategy_identity):
-                raise ValueError("Online history changed before publication; retry with current history")
-            if any(c.task_id != self.task.task_id for c in history.commits):
-                raise ValueError("Online history belongs to another Task")
-            previous = None
-            boundary = len(history.commits) // HISTORY_BLOCK_SIZE * HISTORY_BLOCK_SIZE
-            if boundary:
-                previous_path = self.root / "commits" / history.commits[boundary - 1].commit_id / "history.json"
-                if not previous_path.is_file():
-                    # Portable legacy histories may retain only their latest full snapshot.
-                    boundary = len(history.commits)
-                    previous_path = self.root / "commits" / history.commits[-1].commit_id / "history.json"
-                if previous_path.is_symlink():
-                    raise ValueError("Frozen history snapshot cannot be a symlink")
-                expected = history.model_copy(update={"commits": history.commits[:boundary]})
-                if read_online_history(previous_path) != expected:
-                    raise ValueError("Frozen history differs from the current manifest")
-                previous = artifact_record(previous_path, self.task.task_dir)
-            commit_id = uuid4().hex
-            folder = self.root / "commits" / commit_id
-            folder.mkdir(parents=True)
-            published = False
-            try:
-                records = {}
-                for role, source in files.items():
-                    if re.fullmatch(r"[A-Za-z0-9_-]+", role) is None:
-                        raise ValueError("Invalid online artifact role")
-                    budget.check()
-                    # Roles are logical names; source basenames cannot collide across roles.
-                    target = folder / f"{role}{source.suffix}"
-                    revision = file_revision(source)
-                    snapshot_file(source, target, isolated=True)
-                    records[role] = artifact_record(target, self.task.task_dir)
-                    if records[role]["revision"] != revision:
-                        raise ValueError("Online input changed during publication")
+        """Prepare outside the lease; only the final history check and swap exclude other writers."""
+        if history != self.history(history.strategy_identity):
+            raise ValueError("Online history changed before publication; retry with current history")
+        if any(c.task_id != self.task.task_id for c in history.commits):
+            raise ValueError("Online history belongs to another Task")
+        previous = None
+        boundary = len(history.commits) // HISTORY_BLOCK_SIZE * HISTORY_BLOCK_SIZE
+        if boundary:
+            previous_path = self.root / "commits" / history.commits[boundary - 1].commit_id / "history.json"
+            if not previous_path.is_file():
+                # Portable legacy histories may retain only their latest full snapshot.
+                boundary = len(history.commits)
+                previous_path = self.root / "commits" / history.commits[-1].commit_id / "history.json"
+            if previous_path.is_symlink():
+                raise ValueError("Frozen history snapshot cannot be a symlink")
+            expected = history.model_copy(update={"commits": history.commits[:boundary]})
+            if read_online_history(previous_path) != expected:
+                raise ValueError("Frozen history differs from the current manifest")
+            previous = artifact_record(previous_path, self.task.task_dir)
+        commit_id = uuid4().hex
+        folder = self.root / "commits" / commit_id
+        folder.mkdir(parents=True)
+        published = False
+        try:
+            records = {}
+            for role, source in files.items():
+                if re.fullmatch(r"[A-Za-z0-9_-]+", role) is None:
+                    raise ValueError("Invalid online artifact role")
                 budget.check()
-                commit = OnlineCommit(
-                    commit_id=commit_id,
-                    task_id=self.task.task_id,
-                    run_id=self.task.context.run_id,
-                    trade_date=trade_date,
-                    trade_time=trade_time,
-                    revision=1 + sum((c.trade_date, c.trade_time) == (trade_date, trade_time) for c in history.commits),
-                    committed_at=budget.clock.now(),
-                    model_identity=model_identity,
-                    protocol=protocol,
-                    artifacts=records,
-                )
-                updated = OnlineHistory(
-                    version=PROTOCOL_VERSION,
-                    strategy_identity=history.strategy_identity,
-                    commits=[*history.commits, commit],
-                )
-                snapshot = folder / "history.json"
-                node = HistoryNode(
-                    version=PROTOCOL_VERSION,
-                    strategy_identity=history.strategy_identity,
-                    commits=updated.commits[boundary:],
-                    previous=previous,
-                )
-                atomic_write_json(snapshot, node.model_dump(mode="json"))
-                if prepare is not None:
-                    prepare(commit, snapshot)
-                # Serialize once, keeping the public manifest self-contained.
-                content = json.dumps(
-                    updated.model_dump(mode="json"),
-                    ensure_ascii=False,
-                    indent=2,
-                    allow_nan=False,
-                )
+                # Roles are logical names; source basenames cannot collide across roles.
+                target = folder / f"{role}{source.suffix}"
+                revision = file_revision(source)
+                snapshot_file(source, target, isolated=True)
+                records[role] = artifact_record(target, self.task.task_dir)
+                if records[role]["revision"] != revision:
+                    raise ValueError("Online input changed during publication")
+            budget.check()
+            commit = OnlineCommit(
+                commit_id=commit_id,
+                task_id=self.task.task_id,
+                run_id=self.task.context.run_id,
+                trade_date=trade_date,
+                trade_time=trade_time,
+                revision=1 + sum((c.trade_date, c.trade_time) == (trade_date, trade_time) for c in history.commits),
+                committed_at=budget.clock.now(),
+                model_identity=model_identity,
+                protocol=protocol,
+                artifacts=records,
+            )
+            updated = OnlineHistory(
+                version=PROTOCOL_VERSION,
+                strategy_identity=history.strategy_identity,
+                commits=[*history.commits, commit],
+            )
+            snapshot = folder / "history.json"
+            node = HistoryNode(
+                version=PROTOCOL_VERSION,
+                strategy_identity=history.strategy_identity,
+                commits=updated.commits[boundary:],
+                previous=previous,
+            )
+            atomic_write_json(snapshot, node.model_dump(mode="json"))
+            if prepare is not None:
+                prepare(commit, snapshot)
+            # Serialize once, keeping the public manifest self-contained.
+            content = json.dumps(
+                updated.model_dump(mode="json"),
+                ensure_ascii=False,
+                indent=2,
+                allow_nan=False,
+            )
 
-                # Check after serialization and immediately before the single publication point.
-                def publish(temporary):
-                    temporary.write_text(content, encoding="utf-8")
-                    budget.check()
+            # Check after serialization and immediately before the single publication point.
+            def publish(temporary):
+                temporary.write_text(content, encoding="utf-8")
+                budget.check()
 
+            with file_lock(self.root / "publication.lock"):
+                if history != self.history(history.strategy_identity):
+                    raise ValueError("Online history changed before publication; retry with current history")
+                budget.check()
                 atomic_write(self.manifest, publish)
-                published = True
-                return commit, snapshot
-            finally:
-                if not published:
-                    shutil.rmtree(folder, ignore_errors=True)
+            published = True
+            return commit, snapshot
+        finally:
+            if not published:
+                shutil.rmtree(folder, ignore_errors=True)
 
 
 def pin_online_history(task, source_id: str, *, as_of: str | None = None) -> tuple[OnlineHistory, Path]:

@@ -88,32 +88,27 @@ class LocalTaskRepository(BaseTaskRepository):
         return TaskChanges(changed)
 
     async def entries(self, *, task_type: str | None = None, state: str | None = None) -> Mapping[str, TaskMetadata]:
-        async with self._lock:
-            return {
-                task_id: metadata.model_copy(deep=True)
-                for task_id, metadata in self._entries.items()
-                if (task_type is None or metadata.task_type == task_type) and (state is None or metadata.state == state)
-            }
+        return {
+            task_id: metadata.model_copy(deep=True)
+            for task_id, metadata in self._entries.items()
+            if (task_type is None or metadata.task_type == task_type) and (state is None or metadata.state == state)
+        }
 
     async def entry(self, task_id: str) -> TaskMetadata:
-        async with self._lock:
-            return self._entries[task_id].model_copy(deep=True)
+        return self._entries[task_id].model_copy(deep=True)
 
     async def summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
-        async with self._lock:
-            return [
-                summarize_status(metadata)
-                for metadata in sorted(self._entries.values(), key=task_sort_key, reverse=True)
-                if (task_type is None or metadata.task_type == task_type) and (state is None or metadata.state == state)
-            ]
+        return [
+            summarize_status(metadata)
+            for metadata in sorted(self._entries.values(), key=task_sort_key, reverse=True)
+            if (task_type is None or metadata.task_type == task_type) and (state is None or metadata.state == state)
+        ]
 
     async def graph(self, task_id: str) -> TaskGraph:
-        async with self._lock:
-            return task_graph(self._entries, task_id)
+        return task_graph(self._entries, task_id)
 
     async def managed_runs(self, owned: set[str]) -> dict[str, str]:
-        async with self._lock:
-            return managed_runs(self._entries, owned)
+        return managed_runs(self._entries, owned)
 
     async def put_metadata(self, status: TaskMetadata) -> None:
         async with self._lock:
