@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, LoaderCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { StudioPage } from "../../shared/api/contracts";
@@ -11,9 +11,19 @@ import { RailResizer } from "../../shared/ui/RailResizer";
 import { RunIndexControls } from "../../shared/ui/RunIndexControls";
 import { PipelineReport } from "../online/PipelineReport";
 import { TaskRunReport } from "./TaskRunReport";
-import { ScheduleReport, ScheduleRunReport } from "./ScheduleReport";
-import { OperationTree } from "./OperationTree";
-import { buildOperationTree, searchOperationTree, runDate } from "./tree";
+import {
+  ScheduleDetails,
+  ScheduleReport,
+  ScheduleRunReport,
+} from "./ScheduleReport";
+import { OperationIndex } from "./OperationIndex";
+import {
+  buildOperationIndex,
+  searchOperationIndex,
+  findOperationEntry,
+  entryDate,
+  entryLabel,
+} from "./model";
 import type { ContextOption } from "../../app/types";
 
 function matchesPage(task: TaskSummary, page: StudioPage) {
@@ -75,41 +85,40 @@ export default function OperationPage({
   );
   const { data, loading, error, reload } = useAsyncResource(load);
   const refreshAll = useRefresh(reload);
-  const tasks = data?.tasks || [];
   const schedules = data?.schedules || [];
-  const tree = buildOperationTree(page.schedules, schedules, tasks);
-  const visible = searchOperationTree(tree, query);
-  const runs = [...tree.groups.flatMap((group) => group.runs), ...tree.manual];
-  const visibleRuns = [
-    ...visible.groups.flatMap((group) => group.runs),
-    ...visible.manual,
-  ].sort((a, b) => runDate(b).localeCompare(runDate(a)));
+  const entries = useMemo(
+    () =>
+      data
+        ? buildOperationIndex(page.schedules, data.schedules, data.tasks)
+        : [],
+    [data, page.schedules],
+  );
+  const visible = searchOperationIndex(entries, query);
   const selected = initialResource
-    ? runs.find((run) => run.id === initialResource)
+    ? findOperationEntry(entries, schedules, initialResource)
     : page.view !== "schedules"
-      ? visibleRuns.find((run) => run.kind === "task") || visibleRuns[0]
-      : visibleRuns[0];
-  const selectedGroup = initialResource
-    ? tree.groups.find((group) => group.id === initialResource)
-    : !selected
-      ? visible.groups[0]
-      : undefined;
+      ? visible.find((entry) => entry.kind === "task") || visible[0]
+      : visible[0];
   const selectedTask = selected?.kind === "task" ? selected.task : undefined;
   const selectedJob = selected?.kind === "job" ? selected.run : undefined;
+  const embeddedSchedule =
+    selectedTask?.report_kind === "online_pipeline" && page.view === "pipeline";
+  const scheduleResource =
+    initialResource && selected && initialResource !== selected.id
+      ? initialResource
+      : undefined;
   const title = page.title[i18n?.resolvedLanguage === "zh" ? "zh" : "en"];
   useEffect(() => {
-    const index = buildOperationTree(
-      page.schedules,
-      data?.schedules || [],
-      data?.tasks || [],
+    onOptionsChange(
+      entries.map((entry) => ({
+        value: entry.id,
+        label:
+          entry.kind === "schedule"
+            ? entryLabel(entry)
+            : formatDate(entryDate(entry)),
+      })),
     );
-    onOptionsChange([
-      ...index.groups.map((group) => ({ value: group.id, label: group.name })),
-      ...[...index.groups.flatMap((group) => group.runs), ...index.manual].map(
-        (run) => ({ value: run.id, label: formatDate(runDate(run)) }),
-      ),
-    ]);
-  }, [data, page.schedules, onOptionsChange]);
+  }, [entries, onOptionsChange]);
   return (
     <section className="workspace-page research-page online-workbench operations-workbench">
       <div className="research-layout">
@@ -117,7 +126,7 @@ export default function OperationPage({
           <RunIndexControls
             eyebrow={t("operations.runHistory")}
             title={title}
-            count={runs.length}
+            count={entries.length}
             loading={loading}
             query={query}
             onQuery={setQuery}
@@ -128,6 +137,7 @@ export default function OperationPage({
           <div className="rail-scroll">
             {schedules.some(
               (schedule) =>
+                schedule.job !== "submit" &&
                 (schedule.history_total ?? 0) > (schedule.history?.length ?? 0),
             ) && (
               <p className="muted" role="status">
@@ -140,15 +150,14 @@ export default function OperationPage({
               </span>
             ) : (
               data && (
-                <OperationTree
-                  groups={visible.groups}
-                  manual={visible.manual}
-                  selected={selected?.id || selectedGroup?.id}
+                <OperationIndex
+                  entries={visible}
+                  selected={selected?.id}
                   onSelected={onSelected}
                 />
               )
             )}
-            {data && !visible.groups.length && !visible.manual.length && (
+            {data && !visible.length && (
               <p className="operation-index-empty">{t("operations.empty")}</p>
             )}
           </div>
@@ -161,12 +170,22 @@ export default function OperationPage({
               <button onClick={() => void reload()}>{t("retry")}</button>
             </div>
           )}
-          {data && selectedGroup && (
+          {selected?.kind === "schedule" && (
             <ScheduleReport
-              name={selectedGroup.name}
-              schedule={selectedGroup.schedule}
+              name={selected.name}
+              schedule={selected.schedules[0] || null}
             />
           )}
+          {selected &&
+            selected.kind !== "schedule" &&
+            !embeddedSchedule &&
+            selected.schedules.length > 0 && (
+              <ScheduleDetails
+                key={`${target}:${selected.id}:${scheduleResource || ""}`}
+                schedules={selected.schedules}
+                defaultOpen={!!scheduleResource}
+              />
+            )}
           {selectedJob && <ScheduleRunReport run={selectedJob} />}
           {selectedTask &&
             (page.view === "pipeline" ? (
@@ -175,6 +194,8 @@ export default function OperationPage({
                 task={selectedTask}
                 target={target}
                 onOpenTask={onOpenTask}
+                schedules={selected?.schedules}
+                scheduleResource={scheduleResource}
               />
             ) : (
               <TaskRunReport
@@ -184,7 +205,7 @@ export default function OperationPage({
                 onOpenTask={onOpenTask}
               />
             ))}
-          {!selected && !selectedGroup && (
+          {!selected && (
             <div className="empty-research">
               <Activity />
               <strong>

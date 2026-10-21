@@ -11,7 +11,8 @@ import { TaskSteps } from "../tasks/TaskSteps";
 import { TaskRunIssues } from "../tasks/TaskRunIssues";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
 import { Status } from "../tasks/TaskRow";
-import type { TaskMetadata } from "../tasks/types";
+import type { Schedule, TaskMetadata } from "../tasks/types";
+import { SchedulePlan, SchedulePlanButton } from "../operations/SchedulePlan";
 import { HistoryPreparation } from "./HistoryPreparation";
 import { ScopeQuality, type QualitySource } from "./ScopeQuality";
 import { CommitProvenance } from "./CommitReport";
@@ -37,6 +38,8 @@ export function OnlineWorkbench({
   nodes,
   target,
   onOpenTask,
+  schedules = [],
+  scheduleResource,
 }: {
   parent: TaskMetadata;
   refreshedAt: string;
@@ -44,9 +47,18 @@ export function OnlineWorkbench({
   nodes: ReportNode[];
   target?: string;
   onOpenTask: (id: string) => void;
+  schedules?: Schedule[];
+  scheduleResource?: string;
 }) {
   const { t, i18n } = useTranslation();
   const prefix = useId();
+  const [schedulePlan, setSchedulePlan] = useState({
+    resource: scheduleResource,
+    open: !!scheduleResource,
+  });
+  // A new schedule link opens the plan without remounting the report or its stage controls.
+  if (schedulePlan.resource !== scheduleResource)
+    setSchedulePlan({ resource: scheduleResource, open: !!scheduleResource });
   const planned = dailyModels(parent, nodes);
   const sources = JSON.stringify(
     planned.map((model) => ({
@@ -560,6 +572,17 @@ export function OnlineWorkbench({
             <option key={value} value={dateInput(value)} />
           ))}
         </datalist>
+        {schedules.length > 0 && (
+          <SchedulePlanButton
+            schedules={schedules}
+            task={parent}
+            open={schedulePlan.open}
+            onToggle={() =>
+              setSchedulePlan((plan) => ({ ...plan, open: !plan.open }))
+            }
+            panelId={`${prefix}-schedule-plan`}
+          />
+        )}
         <button
           type="button"
           className="secondary-button"
@@ -574,6 +597,13 @@ export function OnlineWorkbench({
         </div>
       )}
       {live && <TaskRunIssues nodes={nodes} />}
+      {schedulePlan.open && schedules.length > 0 && (
+        <SchedulePlan
+          schedules={schedules}
+          task={parent}
+          id={`${prefix}-schedule-plan`}
+        />
+      )}
       <div className="online-day-summary">
         <span>
           {t("onlineWorkbench.submitted")}{" "}

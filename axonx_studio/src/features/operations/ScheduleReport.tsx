@@ -1,4 +1,5 @@
 import { ReportTabs } from "../../shared/ui/ReportTabs";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CalendarClock,
@@ -13,6 +14,46 @@ import type { Schedule } from "../tasks/types";
 import type { ScheduleRun } from "../../shared/api/contracts";
 import { SyncResult } from "./SyncResult";
 import { OperationResult } from "./OperationResult";
+import { SchedulePlan } from "./SchedulePlan";
+
+export function ScheduleDetails({
+  schedules,
+  defaultOpen,
+}: {
+  schedules: Schedule[];
+  defaultOpen: boolean;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(defaultOpen);
+  const failed = schedules.some(
+    (schedule) =>
+      schedule.job === "submit" && schedule.last_trigger?.state === "failed",
+  );
+  return (
+    <details
+      className="operation-schedules"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>
+        {t("operations.configuration")}
+        {failed && (
+          <span className="operation-schedule-warning">
+            {t("operations.lastSubmissionFailed")}
+          </span>
+        )}
+      </summary>
+      {open &&
+        schedules.map((schedule) => (
+          <ScheduleReport
+            key={schedule.name}
+            name={schedule.name}
+            schedule={schedule}
+          />
+        ))}
+    </details>
+  );
+}
 
 export function ScheduleReport({
   name,
@@ -22,6 +63,13 @@ export function ScheduleReport({
   schedule: Schedule | null;
 }) {
   const { t } = useTranslation();
+  if (schedule?.job === "submit")
+    return (
+      <article className="schedule-card operation-detail">
+        <h2>{name}</h2>
+        <SchedulePlan schedules={[schedule]} />
+      </article>
+    );
   return (
     <article className="schedule-card operation-detail">
       <header className="operation-detail-header">
@@ -108,7 +156,6 @@ export function ScheduleReport({
               label: t("operations.result"),
               content: (
                 <>
-                  {" "}
                   {schedule.last_trigger ? (
                     <OperationResult value={schedule.last_trigger.result} />
                   ) : (

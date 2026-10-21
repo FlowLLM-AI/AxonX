@@ -1189,6 +1189,27 @@
     "noInterfaces": "No interface records",
     "activeJobs": "Active Jobs",
     "configuration": "Schedule configuration",
+    "configurationShort": "Configuration",
+    "plan": {
+      "triggerFailed": "Last trigger failed",
+      "title": "Schedule plan",
+      "time": "Runs",
+      "weekdays": "Weekdays at {{time}}",
+      "daily": "Daily at {{time}}",
+      "custom": "Custom schedule",
+      "submissionHistory": "Scheduled submission history",
+      "conflict": "Submission rejected: a same-name active Task record existed at that time.",
+      "newerTask": "The current Task was created afterward.",
+      "states": {
+        "queued": "Submission queued",
+        "running": "Submitting",
+        "succeeded": "Submitted",
+        "failed": "Submission failed; see technical details",
+        "cancelled": "Submission cancelled"
+      }
+    },
+    "lastSubmission": "Last submission",
+    "lastSubmissionFailed": "Last submission failed",
     "runHistory": "OPERATIONS",
     "loadError": "Unable to load operations navigation",
     "unavailable": "This page is not configured on this service",
@@ -1213,8 +1234,6 @@
       "empty_count": "Empty data",
       "selected_apis": "Data APIs"
     },
-    "archived": "Historical schedule · configuration unavailable",
-    "noRuns": "No execution records",
     "taskRun": "Task run",
     "jobRun": "Job execution",
     "triggered": "Triggered",

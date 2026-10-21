@@ -1189,6 +1189,27 @@
     "noInterfaces": "暂无接口记录",
     "activeJobs": "执行中的 Job",
     "configuration": "调度配置",
+    "configurationShort": "配置",
+    "plan": {
+      "triggerFailed": "最近触发失败",
+      "title": "定时计划",
+      "time": "执行时间",
+      "weekdays": "工作日 {{time}}",
+      "daily": "每天 {{time}}",
+      "custom": "自定义时间",
+      "submissionHistory": "定时提交历史",
+      "conflict": "提交被拒绝：当时发现同名活动任务记录。",
+      "newerTask": "此后已创建当前任务。",
+      "states": {
+        "queued": "等待提交",
+        "running": "提交中",
+        "succeeded": "已提交",
+        "failed": "提交未成功，详见技术详情",
+        "cancelled": "提交已取消"
+      }
+    },
+    "lastSubmission": "最近提交",
+    "lastSubmissionFailed": "最近提交失败",
     "runHistory": "日常运行",
     "loadError": "无法加载业务导航",
     "unavailable": "此服务未配置该页面",
@@ -1213,8 +1234,6 @@
       "empty_count": "空数据",
       "selected_apis": "数据接口"
     },
-    "archived": "历史调度 · 当前配置不可用",
-    "noRuns": "暂无执行记录",
     "taskRun": "Task 运行",
     "jobRun": "Job 执行",
     "triggered": "触发时间",
