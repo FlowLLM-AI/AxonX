@@ -4,6 +4,23 @@ AxonX 将能力调用、研究执行和结果存储分开。CLI、Studio 与外�
 
 ![AxonX 架构分层](../../figures/concepts/architecture.svg)
 
+## Python 模块边界
+
+Python 包有八个一级模块，`app`、`task` 内已有且有意义的子目录继续保留。
+
+| 模块     | 职责                                                                           |
+| -------- | ------------------------------------------------------------------------------ |
+| `app`    | 应用装配、Component、Job/Step、HTTP/MCP、Agent、服务侧 Repository 与工作区操作 |
+| `cli`    | 可执行入口、命令路由、本地命令与输出                                           |
+| `daemon` | 独立守护、本地控制、所属更新子进程                                             |
+| `cron`   | crontab 代码与配置，通过注入回调启动命令                                       |
+| `config` | Provider、运行和连接数据、dotenv、文件定位与合并                               |
+| `task`   | 独立 Task 执行、记录、研究契约、产物与副本处理                                 |
+| `plugin` | Provider 注册、插件声明、发现、打包、安装与符号加载                            |
+| `common` | 通用参数转换、日志数据、取消安全的异步操作、文件与基础日志机制                 |
+
+依赖从调用者指向能力所有者：`app` 使用 `task`、`plugin`，`task` 使用 `plugin` 和运行配置，`plugin` 使用声明式 `config` 模型；`common` 不导入这些子系统。CLI 按命令导入服务代码，cron 不导入 daemon，daemon worker 保持为仅使用标准库的独立程序。参见[重构计划与验证](../development/module-refactor.md)。
+
 ## 各层职责
 
 HTTP 的普通调用与 SSE 事件调用经过相同 Job 能力层。MCP 把公开 Job 映射为工具，返回普通响应。SSE 是另一个 HTTP 入口，提供实时事件；两者不应作为同一种传输理解。
@@ -12,15 +29,19 @@ HTTP 的普通调用与 SSE 事件调用经过相同 Job 能力层。MCP 把公�
 
 以 `status` 为例：
 
+CLI 或 Studio → Job → 查询 Step → Repository → 已发布的 `metadata.json`。
+
 查询不会重新执行 Task。Repository 监听工作区记录变化，向调用者提供当前索引；观察文件变化和执行 worker 是不同职责。
 
 ## 研究能力的执行链
 
-以 `submit --task demo` 为例：
+以 `axonx exec --task demo` 为例：
+
+CLI → `TaskExecutor` → `TaskRunner` → 同步 Task 步骤 → 原子发布生命周期记录和产物。Task 进度事件由 Task schema 拥有，Job 层复用它们作为传输数据。
 
 ## Application 装配
 
-Application 根据配置与注册表创建 Component、Job 和 Scheduler。组件通过 `depend` 声明依赖，由应用按拓扑顺序启动；正常退出按依赖反序关闭，启动中失败会回滚已启动对象。
+Application 根据配置与注册表创建 Component 和 Job。组件通过 `depend` 声明依赖，由应用按拓扑顺序启动；正常退出按依赖反序关闭，启动中失败会回滚已启动对象。daemon 分别启动服务和 cron worker，cron 通过启动回调请求独立的 exec 进程。
 
 ## 插件与 Agent 的位置
 
@@ -44,4 +65,4 @@ AxonX 提供量化研究 Harness：Task 契约、执行、记录和产物查询�
 - [远程机器](../guides/remote-machines.md)：两条远程调用路径。
 - [框架扩展](../development/framework-extensions.md)：组件与编排扩展。
 
-实现入口：[Application](../../../axonx/core/application.py)、[TaskRunner](../../../axonx/task/runtime/runner.py)、[HTTP 装配](../../../axonx/components/service/http/app.py)。
+实现入口：[Application](../../../axonx/app/core/application.py)、[TaskRunner](../../../axonx/task/runtime/runner.py)、[HTTP 装配](../../../axonx/app/components/service/http/app.py)。

@@ -5,11 +5,11 @@ from typing import ClassVar
 
 import pytest
 
-from axonx.components.job import ArtifactEvent, PipelineJob
-from axonx.components.registry import provider
-from axonx.constants import AGENT_DEPTH_ARGUMENT
-from axonx.core import Application
-from axonx.steps.base import BaseStep
+from axonx.app.components.job import ArtifactEvent, PipelineJob
+from axonx.plugin.registry import provider
+from axonx.app.protocol import AGENT_DEPTH_ARGUMENT
+from axonx.app.core import Application
+from axonx.app.steps.base import BaseStep
 
 
 def _config(tmp_path, *, jobs):
@@ -128,7 +128,7 @@ async def test_closing_stream_cancels_only_its_step(tmp_path):
 
 
 def test_nested_job_defaults_allow_partial_task_parameter_overrides():
-    from axonx.components.job.context import RuntimeContext
+    from axonx.app.components.job.context import RuntimeContext
 
     defaults = {
         "task": "research",

@@ -3,20 +3,17 @@
 import pytest
 from pydantic import ValidationError
 
-from axonx.enums import TaskType
 from axonx.task.builtins.stock import StockBacktestInput
 from axonx.task.builtins.stock.settings import PortfolioSettings
-from axonx.task.runtime.executor import TaskExecution
-from axonx.task.storage.workspace import TaskMetadata
+from axonx.task.runtime.executor import TaskExecutor
+from axonx.task.storage.workspace import read_task_metadata, task_path
 
 
-def test_execution_output_is_the_status_output():
-    status = TaskMetadata(version=1, task_id="base#demo#fixed", run_id="run", task_type=TaskType.BASE)
-    status.output_params = {"answer": [42]}
-    result = TaskExecution(status=status)
-    assert result.output is status.output_params
-    status.output_params = {"answer": [43]}
-    assert result.output == {"answer": [43]}
+def test_executor_returns_persisted_metadata_without_cli_protocol(tmp_path):
+    status = TaskExecutor(tmp_path).execute("demo", {"x": 2, "y": 3, "task_name": "fixed"})
+    assert status == read_task_metadata(task_path(tmp_path, status.task_id), status.task_id)
+    assert status.output_params["result"] == 5
+    assert status.state == "succeeded"
 
 
 def test_framework_portfolio_defaults_and_engine_conversion():

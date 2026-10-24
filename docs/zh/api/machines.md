@@ -235,6 +235,6 @@ Python 的非零退出与超时都是正常协议返回的业务失败。请求 
 - [CLI 参考](../reference/cli.md)
 - [事件协议](events.md)
 
-实现依据：`axonx/config/default.yaml`、`axonx/steps/machine/` 与 `axonx/components/service/http/jobs.py`。
+实现依据：`axonx/config/default.yaml`、`axonx/app/steps/machine/` 与 `axonx/app/components/service/http/jobs.py`。
 
 带 `--target` 的 CLI 调用使用经过认证的远端 `cli` Job。安装不刷新服务已加载对象，诊断也不追踪待重启状态。

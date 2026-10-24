@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import axonx_studio
-from axonx.components.service.http.studio import mount_studio, resolve_studio_dir
+from axonx.app.components.service.http.studio import mount_studio, resolve_studio_dir
 
 
 @pytest.mark.parametrize("resource", ["index", "assets_before_request", "assets_after_request", "dist"])

@@ -172,5 +172,5 @@ jobs:
 
 - [Agent 使用](usage.md)、[鉴权](../guides/authentication.md)
 - [`默认配置`](../../../axonx/config/default.yaml)
-- [`Claude backend`](../../../axonx/components/agent/claude/backend.py)
-- [`Job 工具桥接`](../../../axonx/components/agent/claude/tools.py)
+- [`Claude backend`](../../../axonx/app/components/agent/claude/backend.py)
+- [`Job 工具桥接`](../../../axonx/app/components/agent/claude/tools.py)

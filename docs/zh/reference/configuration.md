@@ -90,7 +90,7 @@ service:
   cleanup_timeout: ${AXONX_SERVICE_CLEANUP_TIMEOUT:-15}
 ```
 
-内置 `default` 配置及继承它的配置（包括 `remote`）从 `AXONX_WORKSPACE_DIR` 读取 `workspace_dir`；变量未设置时仍使用 `.axonx`。可在 shell 或 `.env` 中设置，例如 `AXONX_WORKSPACE_DIR=/srv/axonx/workspace`。子配置显式指定的 `workspace_dir` 会覆盖该值；`--workspace-dir` 或 Python resolver 的显式覆盖优先于两者。直接构造 `ApplicationConfig` 时仍使用模型默认值 `.axonx`，不会读取此变量。
+内置 `default` 配置及继承它的配置（包括 `remote`）从 `AXONX_WORKSPACE_DIR` 读取 `workspace_dir`；变量未设置时仍使用 `.axonx`。可在 shell 或 `.env` 中设置，例如 `AXONX_WORKSPACE_DIR=/srv/axonx/app/workspace`。子配置显式指定的 `workspace_dir` 会覆盖该值；`--workspace-dir` 或 Python resolver 的显式覆盖优先于两者。直接构造 `ApplicationConfig` 时仍使用模型默认值 `.axonx`，不会读取此变量。
 
 CLI start 先加载 .env，并合并到 environment；普通客户端与 exec 以 override=false 读取环境。Python 的 ConfigResolver 本身不负责加载 .env，调用者需要自己建立环境。
 

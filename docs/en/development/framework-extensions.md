@@ -33,7 +33,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 from axonx import Application, BaseComponent, BaseStep, provider
-from axonx.components.job import ProgressEvent
+from axonx.app.components.job import ProgressEvent
 
 @provider("prefix_formatter")
 class PrefixFormatter(BaseComponent):
@@ -161,7 +161,7 @@ Extension verification should cover actual risks: Provider conflicts, missing de
 
 After adding a backend, first verify it with a minimal Application(providers=...), then integrate the real service, plugin environment, and Studio form. A UI that can generate a form does not establish correctness of Task research logic.
 
-Implementation references: `axonx/components/base.py`, `axonx/components/registry.py`, `axonx/core/graph.py`, `axonx/core/composition.py`, `axonx/steps/base.py`, `axonx/components/job/pipeline.py`, and `axonx/components/job/context.py`.
+Implementation references: `axonx/app/components/base.py`, `axonx/plugin/registry.py`, `axonx/app/core/graph.py`, `axonx/app/core/composition.py`, `axonx/app/steps/base.py`, `axonx/app/components/job/pipeline.py`, and `axonx/app/components/job/context.py`.
 
 ## Realtime collection, inference and reconciliation
 

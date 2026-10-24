@@ -139,4 +139,4 @@ MCP 使用无状态 Streamable HTTP 和 JSON 响应，不跨调用保留服务�
 - [鉴权规则](../guides/authentication.md)
 - [Python 调用](../reference/python.md)
 
-实现依据：`axonx/constants.py`、`components/service/http/app.py`、`jobs.py`、`files.py`、`components/job/contracts.py`。
+实现依据：`axonx/app/protocol.py`、`components/service/http/app.py`、`jobs.py`、`files.py`、`components/job/contracts.py`。

@@ -8,27 +8,22 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from axonx.components.client import HttpClient
-from axonx.components.service import HttpService
-from axonx.components.sync import LocalSyncComponent
-from axonx.config import ApplicationConfig
-from axonx.core import Application
-from axonx.enums import TaskState, TaskType
+from axonx.app.components.client import HttpClient
+from axonx.app.components.service import HttpService
+from axonx.app.components.sync import LocalSyncComponent
+from axonx.app.config import ApplicationConfig
+from axonx.app.core import Application
+from axonx.task.enums import TaskState, TaskType
 from axonx.task.schemas.protocol import fingerprint
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import (
-    ChildTaskRecord,
-    TaskMetadata,
-    read_entry,
-    task_path,
-    write_task_metadata,
-)
+from axonx.task.schemas.lifecycle import ChildTaskRecord, TaskMetadata
+from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
 from axonx.task.sync import TaskArchiveApplier, build_archive
 from axonx.task.sync.errors import ReplicaBudgetError, SnapshotChangedError
 from axonx.task.sync.index import snapshot_index, verify_replica
 from axonx.task.sync.replica import prepare_group
-from axonx.utils.fs import atomic_write_json, file_sha256
+from axonx.common.fs import atomic_write_json, file_sha256
 
 PARENT = "composite#a_stock_online#axon2-core"
 CHILD = "inference#a_stock_online_predict#axon-v1-1445"

@@ -5,8 +5,8 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from ...enums import TaskCategory, TaskState, TaskType
-from ...progress import TaskStepStatus
+from ..enums import TaskCategory, TaskState, TaskType
+from .progress import TaskStepStatus
 from .protocol import Protocol
 from .replica import DisplayReplica
 

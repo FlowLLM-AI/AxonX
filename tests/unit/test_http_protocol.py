@@ -7,10 +7,10 @@ import httpx
 import pytest
 import uvicorn
 
-from axonx.components.client import HttpClient, McpClient
-from axonx.components.job import ArtifactEvent, ResultEvent
-from axonx.components.service import HttpService
-from axonx.core import Application
+from axonx.app.components.client import HttpClient, McpClient
+from axonx.app.components.job import ArtifactEvent, ResultEvent
+from axonx.app.components.service import HttpService
+from axonx.app.core import Application
 
 
 def _application(tmp_path, **extra):
@@ -197,8 +197,8 @@ async def test_local_backend_forwards_jobs_catalog_and_events_with_target_token(
     def remote_client(**options):
         return HttpClient(transport=remote_transport, **options)
 
-    monkeypatch.setattr("axonx.components.client.remote.HttpClient", remote_client)
-    monkeypatch.setattr("axonx.components.service.http.jobs.HttpClient", remote_client)
+    monkeypatch.setattr("axonx.app.components.client.remote.HttpClient", remote_client)
+    monkeypatch.setattr("axonx.app.components.service.http.jobs.HttpClient", remote_client)
     local = _application(
         tmp_path / "local",
         targets=[
@@ -249,7 +249,7 @@ async def test_local_backend_forwards_jobs_catalog_and_events_with_target_token(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("stream", [False, True])
 async def test_empty_transport_timeout_identifies_target_job_and_budget(stream):
-    from axonx.components.client import RemoteServiceError
+    from axonx.app.components.client import RemoteServiceError
 
     def timeout(request):
         raise httpx.ReadTimeout("", request=request)

@@ -12,8 +12,8 @@ from zipfile import ZipFile
 import pytest
 import yaml
 
-from axonx.plugin_kit import installer
-from axonx.plugin_kit.wheel import inspect_wheel
+from axonx.plugin import installer
+from axonx.plugin.wheel import inspect_wheel
 from axonx.task.catalog import resolve_task
 
 PACKAGE = "axonx_hot_update_test"

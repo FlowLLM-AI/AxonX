@@ -90,7 +90,7 @@ service:
   cleanup_timeout: ${AXONX_SERVICE_CLEANUP_TIMEOUT:-15}
 ```
 
-The built-in `default` configuration (and configurations that inherit it, including `remote`) reads `AXONX_WORKSPACE_DIR` for `workspace_dir`, falling back to `.axonx` when the variable is absent. Set it in the shell or `.env`, for example `AXONX_WORKSPACE_DIR=/srv/axonx/workspace`. A child configuration’s explicit `workspace_dir` overrides this value; `--workspace-dir` or a Python resolver override takes precedence over both. Constructing `ApplicationConfig` directly keeps the model default `.axonx` and does not read this variable.
+The built-in `default` configuration (and configurations that inherit it, including `remote`) reads `AXONX_WORKSPACE_DIR` for `workspace_dir`, falling back to `.axonx` when the variable is absent. Set it in the shell or `.env`, for example `AXONX_WORKSPACE_DIR=/srv/axonx/app/workspace`. A child configuration’s explicit `workspace_dir` overrides this value; `--workspace-dir` or a Python resolver override takes precedence over both. Constructing `ApplicationConfig` directly keeps the model default `.axonx` and does not read this variable.
 
 CLI start first loads .env and merges it into environment. Ordinary clients and exec read the environment with override=false. Python's ConfigResolver does not itself load .env; callers must establish the environment themselves.
 

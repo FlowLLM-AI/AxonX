@@ -7,7 +7,7 @@ import sys
 import httpx
 
 from axonx.config import resolve_app_config
-from axonx.core import Application
+from axonx.app.core import Application
 from axonx.task.storage.workspace import read_entry, task_path
 
 

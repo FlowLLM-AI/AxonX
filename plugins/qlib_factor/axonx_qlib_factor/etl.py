@@ -3,22 +3,16 @@
 from collections.abc import Callable, Iterable
 
 import polars as pl
-from axonx_qlib_a158.etl import (
-    Alpha158InputParams,
-)
-from axonx_qlib_a158.etl import (
-    Alpha158OutputParams as BaseOutputParams,
-)
-from axonx_qlib_a158.etl import (
-    Alpha158Task as BaseTask,
-)
+from axonx_qlib_a158.etl import Alpha158InputParams
+from axonx_qlib_a158.etl import Alpha158OutputParams as BaseOutputParams
+from axonx_qlib_a158.etl import Alpha158Task as BaseTask
 from axonx_qlib_a158.internal.etl_pipeline import FEATURES
 from axonx_qlib_a158.internal.features import dataset_statistics
 
-from axonx.task.artifact import ArtifactRecord
+from axonx.task.schemas.artifact import ArtifactRecord
 from axonx.task.core import TaskStep
 from axonx.task.storage import artifact_record
-from axonx.utils.fs import atomic_write
+from axonx.common.fs import atomic_write
 
 from .internal.cross_section import (
     CONTEXT_FEATURES,

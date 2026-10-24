@@ -255,4 +255,4 @@ sync_flush 在 default.yaml 中默认被注释；启用示例中的 enable_serve
 - [CLI 参考](../reference/cli.md)
 - [事件协议](events.md)
 
-实现依据：`axonx/config/default.yaml`、`axonx/steps/plugin/` 与 `axonx/components/service/http/jobs.py`。
+实现依据：`axonx/config/default.yaml`、`axonx/app/steps/plugin/` 与 `axonx/app/components/service/http/jobs.py`。

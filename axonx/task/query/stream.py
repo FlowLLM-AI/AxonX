@@ -7,7 +7,8 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from ...components.job.events import JOB_EVENT_ADAPTER, JobEvent, LogEvent
+from ..schemas.progress import TASK_EVENT_ADAPTER, TaskEvent
+from ...common.logs import LogEvent
 from ..storage.events import LOG_WINDOW_BYTES, read_event_lines
 from ..storage.logs import TaskLogReader
 from ..storage.workspace import EVENTS_FILE, task_path
@@ -23,7 +24,7 @@ async def stream_task(
     logger: Any,
     task_id: str,
     poll_interval: float,
-) -> AsyncIterator[JobEvent]:
+) -> AsyncIterator[TaskEvent]:
     """Merge one Task's journal and text log until it becomes terminal."""
     if poll_interval <= 0:
         raise ValueError("poll_interval must be positive")
@@ -58,7 +59,7 @@ async def stream_task(
         events_offset, lines = await asyncio.to_thread(read_event_lines, events_path, events_offset)
         for line in lines:
             try:
-                yield JOB_EVENT_ADAPTER.validate_json(line)
+                yield TASK_EVENT_ADAPTER.validate_json(line)
             except ValueError as exc:
                 logger.warning(f"Ignoring malformed Task event: task_id={task_id} error={exc}")
         try:

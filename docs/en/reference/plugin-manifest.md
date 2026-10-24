@@ -10,7 +10,7 @@ A plugin is a Python distribution with an `axonx.plugins` entry point and a pack
 | ---------------------- | ------------- | -------------------------------------------------------- |
 | distribution           | axonx-example | pip metadata, installation, and uninstallation           |
 | plugin entry point     | example       | Plugin discovery and the package containing the manifest |
-| Task registration name | example_task  | submit.task, get_task_definition.task                    |
+| Task registration name | example_task  | exec --task, get_task_definition.task                    |
 
 These names need not match. A Task ID is separately composed of task type, registration name, and instance name; a distribution name cannot substitute for a registration name when executing a task.
 

@@ -6,14 +6,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from axonx.components.agent import ClaudeAgentComponent
-from axonx.components.base import BaseComponent
-from axonx.components.registry import ProviderRegistry, provider
-from axonx.constants import CLI_RAW_ARGUMENTS
-from axonx.core import Application
-from axonx.core.graph import ComponentGraph
-from axonx.enums import ComponentEnum
-from axonx.steps.base import BaseStep
+from axonx.app.components.agent import ClaudeAgentComponent
+from axonx.app.components.base import BaseComponent
+from axonx.plugin.registry import ProviderRegistry, provider
+from axonx.app.core import Application
+from axonx.app.core.graph import ComponentGraph
+from axonx.app.components.types import ComponentEnum
+from axonx.app.steps.base import BaseStep
 
 
 def _config(tmp_path, **values):
@@ -123,15 +122,6 @@ def test_application_local_provider_does_not_leak(tmp_path):
         )
 
 
-@pytest.mark.asyncio
-async def test_public_arguments_cannot_enter_the_system_channel(tmp_path):
-    app = Application(**_config(tmp_path, jobs={"empty": {}}))
-
-    async with app:
-        with pytest.raises(ValueError, match="Reserved Job argument"):
-            await app.run_job("empty", {CLI_RAW_ARGUMENTS: ["--task", "demo"]})
-
-
 async def test_application_owns_periodic_log_cleanup_across_restarts(tmp_path, monkeypatch):
     loop = asyncio.get_running_loop()
     cleaned = asyncio.Event()
@@ -143,8 +133,8 @@ async def test_application_owns_periodic_log_cleanup_across_restarts(tmp_path, m
             raise OSError("temporary cleanup failure")
         loop.call_soon_threadsafe(cleaned.set)
 
-    monkeypatch.setattr("axonx.core.application.cleanup_log_files", cleanup)
-    monkeypatch.setattr("axonx.core.application.LOG_CLEANUP_INTERVAL", 0.01)
+    monkeypatch.setattr("axonx.app.core.application.cleanup_log_files", cleanup)
+    monkeypatch.setattr("axonx.app.core.application.LOG_CLEANUP_INTERVAL", 0.01)
     app = Application(**_config(tmp_path / "workspace", log_dir=str(tmp_path / "logs"), log_to_file=True))
     try:
         for _ in range(2):
@@ -159,7 +149,7 @@ async def test_application_owns_periodic_log_cleanup_across_restarts(tmp_path, m
         assert directories and all(directory == tmp_path / "logs" for directory in directories)
     finally:
         await app.close()
-        from axonx.utils.logging import LoggingConfig, configure_logging
+        from axonx.common.logging import LoggingConfig, configure_logging
 
         configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
 
@@ -172,9 +162,9 @@ async def test_application_waits_for_inflight_log_cleanup_on_close(tmp_path, mon
         entered.set()
         release.wait(timeout=5)
 
-    monkeypatch.setattr("axonx.core.application.cleanup_log_files", cleanup)
+    monkeypatch.setattr("axonx.app.core.application.cleanup_log_files", cleanup)
     # Initial cleanup must start immediately, independently of the hourly interval.
-    monkeypatch.setattr("axonx.core.application.LOG_CLEANUP_INTERVAL", 3600)
+    monkeypatch.setattr("axonx.app.core.application.LOG_CLEANUP_INTERVAL", 3600)
     app = Application(**_config(tmp_path / "workspace", log_dir=str(tmp_path / "logs"), log_to_file=True))
     closing = None
     try:
@@ -191,7 +181,7 @@ async def test_application_waits_for_inflight_log_cleanup_on_close(tmp_path, mon
         if closing is not None:
             await closing
         await app.close()
-        from axonx.utils.logging import LoggingConfig, configure_logging
+        from axonx.common.logging import LoggingConfig, configure_logging
 
         configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
 

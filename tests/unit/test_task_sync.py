@@ -9,24 +9,10 @@ import pytest
 
 from axonx.task.storage.artifacts import artifact_record, read_metadata
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import (
-    TaskMetadata,
-    read_entry,
-    task_path,
-    write_task_metadata,
-)
-from axonx.task.sync import (
-    SnapshotChangedError,
-    TaskArchiveApplier,
-    build_archive,
-    plan_task,
-)
-from axonx.task.sync.index import (
-    policy_revision,
-    source_revision,
-    snapshot_index,
-    verify_replica,
-)
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
+from axonx.task.sync import SnapshotChangedError, TaskArchiveApplier, build_archive, plan_task
+from axonx.task.sync.index import policy_revision, source_revision, snapshot_index, verify_replica
 from axonx.task.sync.planner import archive_budget
 from axonx.task.sync.replica import prepare_replica
 

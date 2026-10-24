@@ -9,15 +9,10 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from ...constants import DEFAULT_TRANSFER_BUDGET_BYTES
-from ...workspace.paths import WorkspacePaths
-from ...utils.fs import snapshot_file
-from ..storage.workspace import (
-    parse_task_directory,
-    read_task_metadata,
-    task_directory,
-    read_entry,
-)
+from ...config.defaults import DEFAULT_TRANSFER_BUDGET_BYTES
+from ...common.fs.paths import ConfinedPaths
+from ...common.fs import snapshot_file
+from ..storage.workspace import parse_task_directory, read_task_metadata, task_directory, read_entry
 from .index import verify_replica
 from ..schemas.lifecycle import current_children
 from .models import SyncTasksReport
@@ -34,7 +29,7 @@ class TaskArchiveApplier:
         workspace_path: Path,
         transfer_budget_bytes: int = DEFAULT_TRANSFER_BUDGET_BYTES,
     ) -> None:
-        self.paths = WorkspacePaths(workspace_path)
+        self.paths = ConfinedPaths(workspace_path)
         self.transfer_budget_bytes = transfer_budget_bytes
 
     def apply(

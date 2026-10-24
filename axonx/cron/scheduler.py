@@ -2,15 +2,19 @@
 
 import asyncio
 import os
+from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from ..common.logging import get_logger
+from ..config.execution import (
+    AXONX_TASK_LOG_DIR,
+    AXONX_TASK_TIMEZONE,
+    AXONX_TASK_WORKSPACE_DIR,
+)
 from ..config.locator import locate_file
-from ..daemon.client import request
-from ..constants import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
-from ..utils.logging import get_logger
 from .parser import CronEntry, parse_crontab
 
 
@@ -25,6 +29,7 @@ class CronScheduler:
         log_dir: str,
         timezone: str,
         environment: dict[str, str],
+        launch: Callable[[CronEntry], None],
     ) -> None:
         self.path = locate_file(
             source, directory=Path(__file__).parent, extensions=(".cron",), group="axonx.crons", label="Cron"
@@ -41,6 +46,7 @@ class CronScheduler:
             AXONX_TASK_TIMEZONE: timezone,
         }
         self.logger = get_logger("CronScheduler")
+        self._launch = launch
         self._next: dict[int, datetime] = {}
         self._runner: asyncio.Task | None = None
         self._stopping = False
@@ -82,6 +88,3 @@ class CronScheduler:
                 self._launch(entry)
             except (OSError, RuntimeError):
                 self.logger.exception(f"Cron launch failed: {self.path}:{entry.line}")
-
-    def _launch(self, entry: CronEntry) -> None:
-        request("exec", arguments=list(entry.arguments), line=entry.line)

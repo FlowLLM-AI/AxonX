@@ -12,20 +12,15 @@ from datetime import UTC, datetime
 from time import perf_counter
 from typing import TYPE_CHECKING
 
-from ...components.job.events import ProgressEvent
-from ...progress import settle_steps
-from ...enums import TaskState
-from ...utils.logging import task_log_scope
+from ..schemas.progress import ProgressEvent
+from ..schemas.progress import settle_steps
+from ..enums import TaskState
+from .logging import task_log_scope
 from ..schemas.protocol import PROTOCOL_VERSION
 from ..core.identity import task_type_from_id
 from ..storage.events import append_event, append_progress_snapshots
-from ..storage.workspace import (
-    EVENTS_FILE,
-    TaskStepStatus,
-    read_task_metadata,
-    reset_task_directory,
-    write_task_metadata,
-)
+from ..storage.workspace import EVENTS_FILE, read_task_metadata, reset_task_directory, write_task_metadata
+from ..schemas.progress import TaskStepStatus
 from .process import machine_id, process_started_at
 from ..schemas.lifecycle import TaskMetadata
 

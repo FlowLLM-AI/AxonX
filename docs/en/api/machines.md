@@ -235,6 +235,6 @@ On timeout, exit_code=null and stderr includes `Command timed out after ... seco
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/machine/` and `axonx/components/service/http/jobs.py`.
+Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/machine/` and `axonx/app/components/service/http/jobs.py`.
 
 CLI calls with `--target` use the authenticated remote `cli` Job. Installation does not refresh loaded service objects, and diagnostics do not track restart requirements.

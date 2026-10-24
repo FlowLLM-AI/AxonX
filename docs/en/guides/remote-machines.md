@@ -115,4 +115,4 @@ To reuse local upstream artifacts, first transfer the required task snapshots or
 
 [Authentication](authentication.md) · [Plugin management](../plugins/management.md) · [Task synchronization](task-sync.md) · [Machine API](../api/machines.md)
 
-Source: [targets model](../../../axonx/config/models.py), [Remote client](../../../axonx/components/client/base.py), [Job routing](../../../axonx/components/service/http/jobs.py).
+Source: [targets model](../../../axonx/config/models.py), [Remote client](../../../axonx/app/components/client/base.py), [Job routing](../../../axonx/app/components/service/http/jobs.py).

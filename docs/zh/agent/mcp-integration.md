@@ -36,7 +36,7 @@ Header:    Authorization: Bearer <AxonX 服务 token>
 ```python
 import asyncio
 import os
-from axonx.components.client.mcp import McpClient
+from axonx.app.components.client.mcp import McpClient
 
 async def main():
     async with McpClient(
@@ -112,6 +112,6 @@ Studio 在浏览器支持 `document.modelContext.registerTool` 时注册：
 ## 相关文档与实现
 
 - [API 总览](../api/overview.md)、[Python 调用](../reference/python.md)
-- [`MCP 客户端`](../../../axonx/components/client/mcp.py)
-- [`HTTP/MCP Job 路由`](../../../axonx/components/service/http/jobs.py)
+- [`MCP 客户端`](../../../axonx/app/components/client/mcp.py)
+- [`HTTP/MCP Job 路由`](../../../axonx/app/components/service/http/jobs.py)
 - [`浏览器工具注册`](../../../axonx_studio/src/webmcp.ts)

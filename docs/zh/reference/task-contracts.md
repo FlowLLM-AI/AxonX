@@ -116,7 +116,7 @@ metadata.json 是 Task 自行发布的生命周期记录，包含参数、进度
   ],
   "error": "",
   "exit_code": 0,
-  "log_path": ".axonx/logs/task.log"
+  "log_path": ".axonx/common/logs/task.log"
 }
 ```
 
@@ -138,11 +138,11 @@ metadata.json 是 Task 自行发布的生命周期记录，包含参数、进度
 
 不要把工作区根路径写进 artifact path。消费者组合 `<type>/<task_id>/<artifact.path>`，并核对生产插件约定的逻辑名称，例如 dataset、model 或 daily。
 
-`axonx.task.artifact.ArtifactRecord` 统一校验可移植相对路径、字节数和 SHA256；原有 `ArtifactRecord` 导入名是该类型的别名，公开输出映射的 JSON 形状不变。`axonx.task.builtins.stock` 中的 `PortfolioSettings` 统一维护投资组合公共字段及引擎配置转换，插件只覆盖业务默认值和选股规则。
+`axonx.task.schemas.artifact.ArtifactRecord` 统一校验可移植相对路径、字节数和 SHA256；原有 `ArtifactRecord` 导入名是该类型的别名，公开输出映射的 JSON 形状不变。`axonx.task.builtins.stock` 中的 `PortfolioSettings` 统一维护投资组合公共字段及引擎配置转换，插件只覆盖业务默认值和选股规则。
 
 在线发布仍将 `persistent/online/manifest.json` 保存为完整、可独立读取的 v1 历史。新冻结的 `commits/<commit_id>/history.json` 使用 `kind=online_history_node`：仅保存最多 16 个 commit，以及前一个完整分组快照的 Task 相对路径、大小及版本引用。使用 `read_online_history()` 读取两种表示；已有完整快照仍可读取并作为新节点的前序，不重写旧记录。单独复制冻结节点时必须一并复制其前序依赖，Task 同步会自动包含这些文件。`pin_online_history()` 导出完整 v1 历史及所有引用产物，供独立消费。
 
-新增修订的冻结历史元数据按线性规模增长，当前 manifest 仍包含完整历史。投资组合 Parquet 修订继续保留完整审计报表。消费端按发布路径独立复制每个不同文件，只在消费任务拥有的副本之间共享存储，因此上游原地写入不会改变已固定的输入；固定输入必须保持不可变。`TaskExecution.output` 直接读取最终状态的输出，不再保留第二份序列化结果。
+新增修订的冻结历史元数据按线性规模增长，当前 manifest 仍包含完整历史。投资组合 Parquet 修订继续保留完整审计报表。消费端按发布路径独立复制每个不同文件，只在消费任务拥有的副本之间共享存储，因此上游原地写入不会改变已固定的输入；固定输入必须保持不可变。`TaskExecutor.execute()` 返回最终 `TaskMetadata`，通过其 `output_params` 读取输出，不保留第二份序列化结果。
 
 ## 工作区读取与事件
 
@@ -178,7 +178,7 @@ Task 类可独立于 `task_type`、`report_kind` 声明 `category: TaskCategory 
 
 `BaseTask(..., clock=...)` 可接收 `WindowClock`，组合子任务继承同一个对象。原有 `axonx.task.contracts.WindowClock` 导入保持有效。时钟控制业务窗口与截止预算；Task 身份、生命周期时间戳、日志和运行性能计时仍使用真实时间。
 
-`axonx.task.clock.ReplayClock(start_at)` 是单驱动虚拟时钟，仅显式 sleep 或 `advance_to()` 推进时间，因此计算期间模拟时间暂停。时间必须带时区且不能倒退。工作线程可读取时钟，只有创建线程可以推进它。多线程插件需使用事件驱动或显式协调等待；仅替换时钟不会加速 `Event.wait`、`Condition.wait`。
+`axonx.task.core.clock.ReplayClock(start_at)` 是单驱动虚拟时钟，仅显式 sleep 或 `advance_to()` 推进时间，因此计算期间模拟时间暂停。时间必须带时区且不能倒退。工作线程可读取时钟，只有创建线程可以推进它。多线程插件需使用事件驱动或显式协调等待；仅替换时钟不会加速 `Event.wait`、`Condition.wait`。
 
 `axonx.task.replay` 提供 `ReplaySource`、`ReplayStream`、`ReplayCursor`。`ReplayStream.create(directory, events, context=..., attributes=...)` 复制数据文件到新目录，发布 `stream.json`，不覆盖已有数据集。事件包括 key、带时区的 `available_at`、文件记录（相对路径、大小、SHA256）和插件属性；context 文件固定运行级输入。打开数据流时校验事件顺序、路径和全部文件版本。转移时需要整个目录，不能只复制 manifest。
 

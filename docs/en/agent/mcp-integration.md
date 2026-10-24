@@ -36,7 +36,7 @@ The project provides an MCP client for ordinary JobResponse results:
 ```python
 import asyncio
 import os
-from axonx.components.client.mcp import McpClient
+from axonx.app.components.client.mcp import McpClient
 
 async def main():
     async with McpClient(
@@ -112,6 +112,6 @@ If the browser lacks this API, registration is simply skipped; other Studio feat
 ## Related documentation and implementation
 
 - [API overview](../api/overview.md), [Python calls](../reference/python.md)
-- [MCP client](../../../axonx/components/client/mcp.py)
-- [HTTP/MCP Job routes](../../../axonx/components/service/http/jobs.py)
+- [MCP client](../../../axonx/app/components/client/mcp.py)
+- [HTTP/MCP Job routes](../../../axonx/app/components/service/http/jobs.py)
 - [Browser tool registration](../../../axonx_studio/src/webmcp.ts)

@@ -12,10 +12,10 @@ from typing import Any
 import pandas as pd
 from pydantic import field_validator
 
-from ....components.registry import provider
-from ....constants import TUSHARE_TIMEOUT_SECONDS
-from ....enums import TaskType
-from ....utils.fs import atomic_write
+from ....plugin.registry import provider
+from ...constants import TUSHARE_TIMEOUT_SECONDS
+from ...enums import TaskType
+from ....common.fs import atomic_write
 from ...core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
 from .client import TushareClient
 

@@ -3,9 +3,9 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from axonx.enums import TaskType
+from axonx.task.enums import TaskType
 from axonx.task.core import BaseInputParams
-from axonx.task.runtime.arguments import build_task_argv, parse_task_argv
+from axonx.cli.parser import parse_command
 
 ETL = "etl#native#prices"
 TRAIN = "train#native#model"
@@ -53,14 +53,9 @@ def test_source_type_requires_exactly_one_match():
 
 def test_cli_and_structured_arguments_use_the_same_string():
     sources = f"{ETL},{TRAIN}"
-    assert parse_task_argv(["--task", "demo", "--source-tasks", sources]) == (
-        "demo",
-        {"source_tasks": sources},
-    )
-    assert parse_task_argv(build_task_argv("demo", {"source_tasks": sources})) == (
-        "demo",
-        {"source_tasks": sources},
-    )
+    command, _ = parse_command(["exec", "--task", "demo", "--source-tasks", sources])
+    params = BaseInputParams(**{key: value for key, value in command.arguments.items() if key != "task"})
+    assert params.source_tasks == sources
 
 
 def test_prediction_resolves_dataset_from_string_metadata(tmp_path):

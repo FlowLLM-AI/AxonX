@@ -255,4 +255,4 @@ sync_flush is commented out by default in default.yaml; enable_serve=false in th
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/plugin/` and `axonx/components/service/http/jobs.py`.
+Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/plugin/` and `axonx/app/components/service/http/jobs.py`.

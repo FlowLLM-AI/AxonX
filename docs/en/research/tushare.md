@@ -33,9 +33,7 @@ Access scope, quotas, and authorization are determined upstream; this page only 
 
 ## Parameters and dates
 
-![Tushare download definition browser](../../figures/studio/tushare-submit.png)
-
-Select `download_tushare_task` in **Submit task**. The form displays dates, calendar-day lookback, request timeout, and dataset groups according to the task Schema. The screenshot shows unsubmitted defaults; confirm data credentials on the execution machine before filling it in.
+Select `download_tushare_task` in Studio’s Task definitions browser to inspect its input/output schemas. Execute it with CLI exec in an environment containing the data credentials.
 
 | Field        | Default         | Purpose                                                               |
 | ------------ | --------------- | --------------------------------------------------------------------- |

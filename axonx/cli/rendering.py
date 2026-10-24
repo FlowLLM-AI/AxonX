@@ -1,5 +1,7 @@
 """Startup banner with AxonX runtime metadata."""
 
+from __future__ import annotations
+
 import colorsys
 import json
 import random
@@ -12,23 +14,23 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..components.job.events import AgentMessageEvent, JobEvent
-from ..constants import (
+from ..config.defaults import (
     AXONX_DEFAULT_BIND_HOST,
     AXONX_DEFAULT_CONNECT_HOST,
     AXONX_DEFAULT_PORT,
     AXONX_DEFAULT_SCHEME,
-    PROTOCOL_ROUTE_MCP,
 )
-from ..utils.build_info import get_build_info, package_version
 
 if TYPE_CHECKING:
-    from ..components.service import BaseService
-    from ..config import ApplicationConfig
+    from ..app.components.job.events import JobEvent
+    from ..app.components.service import BaseService
+    from ..app.config import ApplicationConfig
 
 
 def _version(package_name: str) -> str:
     """Return one dependency's version for the banner, blank when it is absent."""
+    from ..app.core.build_info import package_version
+
     return package_version(package_name) or ""
 
 
@@ -39,6 +41,9 @@ def _rgb(hue: float) -> tuple[int, int, int]:
 
 def print_logo(app_config: "ApplicationConfig", service: "BaseService") -> None:
     """Print the AxonX logo and effective service endpoints."""
+    from ..app.core.build_info import get_build_info
+    from ..app.protocol import PROTOCOL_ROUTE_MCP
+
     ascii_art = (
         r" █████╗ ██╗  ██╗ ██████╗ ███╗   ██╗██╗  ██╗",
         r"██╔══██╗╚██╗██╔╝██╔═══██╗████╗  ██║╚██╗██╔╝",
@@ -97,6 +102,8 @@ def print_json(value: object) -> None:
 
 def _event_blocks(event: JobEvent) -> list[tuple[str, object]]:
     """Split one event into labelled blocks without dropping message fields."""
+    from ..app.components.job.events import AgentMessageEvent
+
     if not isinstance(event, AgentMessageEvent):
         return [(type(event).__name__, event.model_dump(mode="json"))]
     if event.presentation:

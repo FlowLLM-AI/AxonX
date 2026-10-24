@@ -6,26 +6,21 @@ import re
 import shutil
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
-from axonx.enums import TaskState, TaskType
-from axonx.plugin_kit.models import PluginInfo
+from axonx.task.enums import TaskState, TaskType
+from axonx.plugin.models import PluginInfo
 from axonx.task import BaseCompositeTask, BaseOutputParams, BaseTask, ChildTaskError
 from axonx.task.builtins.demo import DemoTask, DemoTaskOutputParams
 from axonx.task.catalog import get_task_definition
-from axonx.task.runtime.executor import TaskCommandExecutor
+from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.artifacts import artifact_path, artifact_record, read_metadata
 
-from axonx.task.storage.workspace import (
-    TaskMetadata,
-    read_task_metadata,
-    task_path,
-    write_task_metadata,
-)
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.storage.workspace import read_task_metadata, task_path, write_task_metadata
 
 
 class Composite(BaseCompositeTask):
@@ -52,7 +47,7 @@ def composition(task):
 
 
 def test_child_logs_are_isolated_and_parent_keeps_complete_chain(tmp_path, monkeypatch):
-    from axonx.utils.logging import LoggingConfig, configure_logging
+    from axonx.common.logging import LoggingConfig, configure_logging
 
     class LoggedTask(DemoTask):
         def finish(self):
@@ -644,15 +639,10 @@ def test_documented_plugin_example_resolves_and_executes_through_command_entry(t
     definition = get_task_definition("demo_chain")
     assert definition.source == "plugin"
     assert "children" not in definition.output_schema["properties"]
-    execution = TaskCommandExecutor(tmp_path).execute(
-        SimpleNamespace(
-            action="exec",
-            arguments={"task": "demo_chain", "x": 2, "y": 3, "doubles": 2},
-        )
-    )
-    assert execution.status.state == TaskState.SUCCEEDED
-    assert execution.output["total"] == 20
-    assert len(execution.status.children) == 3
+    execution = TaskExecutor(tmp_path).execute("demo_chain", {"x": 2, "y": 3, "doubles": 2})
+    assert execution.state == TaskState.SUCCEEDED
+    assert execution.output_params["total"] == 20
+    assert len(execution.children) == 3
 
 
 @pytest.mark.parametrize("kind", ["file", "symlink"])

@@ -8,14 +8,14 @@ import stat
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from ...constants import AXONX_DEFAULT_ENCODING
-from ...enums import TaskType
-from ...utils.fs import atomic_write_json
+from ...common.constants import AXONX_DEFAULT_ENCODING
+from ..enums import TaskType
+from ...common.fs import atomic_write_json
 from ..core.identity import task_type_from_id
 from ..schemas.lifecycle import ChildTaskRecord, TaskMetadata, TaskStatus
 from ..schemas.protocol import Protocol
 from ..schemas.replica import DisplayReplica
-from ...progress import TaskStepStatus
+from ..schemas.progress import TaskStepStatus
 
 #: One workspace directory per task category holds that category's task directories.
 KINDS = tuple(kind.value for kind in TaskType)

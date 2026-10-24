@@ -176,3 +176,5 @@ Implementation references: `axonx/cli/parser.py`, `main.py`, `constants.py`, `pl
 ## Service self-update
 
 [Service self-update](../guides/self-update.md)
+
+The `help` Job returns only public Job names/descriptions or one Job schema. CLI usage text is owned by the local executable and is printed by running `axonx` without arguments. Remote CLI subprocesses reject service startup and nested targets at the command entry point.

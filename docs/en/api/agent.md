@@ -362,4 +362,4 @@ Model connectivity, SDK permissions, and session restoration failures may produc
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/agent/` and `axonx/components/service/http/jobs.py`.
+Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/agent/` and `axonx/app/components/service/http/jobs.py`.

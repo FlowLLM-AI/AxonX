@@ -4,14 +4,41 @@ Python can embed an Application in-process or connect to a running HTTP/MCP serv
 
 ![Local application and remote clients](../../figures/reference/python-paths.svg)
 
+## Internal import migration
+
+Internal module paths changed without compatibility packages. Public top-level class imports remain available and are lazy. Use the canonical paths below; Task metadata and wire schemas are unchanged.
+
+| Previous path                                   | Canonical path                                            |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| `axonx.components / axonx.steps / axonx.core`   | `axonx.app.components / axonx.app.steps / axonx.app.core` |
+| `axonx.plugin_kit / axonx.common.registry`      | `axonx.plugin / axonx.plugin.registry`                    |
+| `axonx.enums / axonx.common.enums`              | `axonx.task.enums / axonx.app.components.types`           |
+| `axonx.common.command`                          | `axonx.cli.parser / axonx.config.target`                  |
+| `axonx.config.ApplicationConfig / StudioPage`   | `axonx.app.config`                                        |
+| `axonx.common.utils.env / target`               | `axonx.config.env / target`                               |
+| `axonx.common.utils.build_info / log_retention` | `axonx.app.core.build_info / logging`                     |
+| `axonx.common.utils.logging.task_log_scope`     | `axonx.task.runtime.logging`                              |
+| `axonx.common.utils / fs / async_work`          | `axonx.common.logging / fs / async_work`                  |
+| `axonx.task.artifact / status / source`         | `axonx.task.schemas.artifact / lifecycle`                 |
+| `axonx.task.protocol`                           | `axonx.task.schemas.protocol / model / prediction`        |
+
+Task execution accepts a Task name and input mapping directly; it does not accept a CLI Command or return an output wrapper:
+
+```python
+from axonx.task.runtime import TaskExecutor
+
+status = TaskExecutor(".axonx").execute("demo", {"x": 2, "y": 3})
+print(status.output_params)
+```
+
 ## Import entry points
 
 ```python
 from axonx import Application, BaseStep, provider
 from axonx.config import resolve_app_config
-from axonx.components.client import HttpClient, McpClient, RemoteServiceError
-from axonx.core import run_remote_job, stream_remote_job
-from axonx.components.job import ResultEvent
+from axonx.app.components.client import HttpClient, McpClient, RemoteServiceError
+from axonx.app.core import run_remote_job, stream_remote_job
+from axonx.app.components.job import ResultEvent
 ```
 
 Application is exported at the top level; HTTP/MCP clients and event types are exported from their respective subpackages. The project uses Python 3.12 syntax and cannot be imported directly with older interpreters.
@@ -54,7 +81,7 @@ run_job and stream_job both require a started application. A nonempty target mus
 ```python
 import asyncio
 import os
-from axonx.components.client import HttpClient
+from axonx.app.components.client import HttpClient
 
 async def main():
     async with HttpClient(
@@ -65,15 +92,13 @@ async def main():
         definitions = await client.run_job("get_task_definition", {"task": "demo"})
         if not definitions.success:
             raise RuntimeError(str(definitions.answer))
-        submitted = await client.run_job("submit", {"task": "demo", "x": 1, "y": 2})
-        if not submitted.success:
-            raise RuntimeError(str(submitted.answer))
-        handle = submitted.answer
-        completed = await client.run_job("wait_task", {
-            "task_id": handle["task_id"],
-            "run_id": handle["run_id"],
+        completed = await client.run_job("cli", {
+            "argv": ["exec", "--task", "demo", "--x", "1", "--y", "2",
+                     "--task-name", "python-demo"],
         })
-        print(completed.success, completed.answer)
+        if not completed.success:
+            raise RuntimeError(str(completed.answer))
+        print(completed.answer["exit_code"], completed.answer["stdout"])
 
 asyncio.run(main())
 ```

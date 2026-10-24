@@ -17,8 +17,8 @@ axonx
 
 ```yaml
 extends: default
-workspace_dir: /srv/axonx/workspace
-log_dir: /srv/axonx/logs
+workspace_dir: /srv/axonx/app/workspace
+log_dir: /srv/axonx/common/logs
 service:
   backend: http
   host: 127.0.0.1

@@ -4,6 +4,23 @@ AxonX separates capability calls, research execution, and result storage. The CL
 
 ![AxonX architecture layers](../../figures/concepts/architecture.svg)
 
+## Python module boundaries
+
+The package has eight subsystem roots. Existing useful subdirectories under `app` and `task` are retained.
+
+| Module   | Responsibility                                                                                                   |
+| -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `app`    | Application composition, Components, Jobs/Steps, HTTP/MCP, Agents, service repositories and workspace operations |
+| `cli`    | Executable entry point, command routing, local commands and presentation                                         |
+| `daemon` | Standalone supervision, local control and owned update subprocesses                                              |
+| `cron`   | Crontab code and configuration; a supplied callback launches commands                                            |
+| `config` | Provider/runtime/connection data, dotenv, file lookup and merging                                                |
+| `task`   | Independent Task execution, records, research contracts, artifacts and replica processing                        |
+| `plugin` | Provider registration, plugin declarations, discovery, packaging, installation and symbol loading                |
+| `common` | Generic argument conversion, log data, cancellation-safe work and filesystem/logging primitives                  |
+
+Dependencies point from callers to capability owners: `app` uses `task` and `plugin`; `task` uses `plugin` and runtime configuration; `plugin` uses declarative `config` schemas. `common` imports none of these subsystems. CLI dispatch imports application code only for service commands. Cron does not import the daemon. Daemon workers remain standalone standard-library programs. See the [refactor plan and verification](../development/module-refactor.md).
+
 ## Responsibilities by Layer
 
 Regular HTTP calls and SSE event calls pass through the same Job capability layer. MCP maps public Jobs to tools and returns regular responses. SSE is a separate HTTP endpoint for live events; these are different transports.
@@ -12,15 +29,19 @@ Regular HTTP calls and SSE event calls pass through the same Job capability laye
 
 Using `status` as an example:
 
+CLI or Studio → Job → query Step → Repository → published `metadata.json`.
+
 A query does not execute the Task again. Repository watches workspace records and provides the current index to callers; observing file changes and executing workers are separate responsibilities.
 
 ## Execution Chain for Research
 
-Using `submit --task demo` as an example:
+Using `axonx exec --task demo` as an example:
+
+CLI → `TaskExecutor` → `TaskRunner` → synchronous Task steps → atomic lifecycle record and artifacts. Task progress events belong to Task schemas; the Job layer reuses them for transport.
 
 ## Application Assembly
 
-Application creates Components, Jobs, and Scheduler from configuration and registries. Components declare dependencies through `depend`; the application starts them in topological order. Normal shutdown closes them in reverse dependency order, while startup failures roll back objects already started.
+Application creates Components and Jobs from configuration and registries. Components declare dependencies through `depend`; the application starts them in topological order. Normal shutdown closes them in reverse dependency order, while startup failures roll back objects already started. The daemon starts the separate service and cron workers; cron requests independent exec processes through its launch callback.
 
 ## Plugins and Agents
 
@@ -44,4 +65,4 @@ A remote service is another complete Application with its own plugin environment
 - [Remote Machines](../guides/remote-machines.md): the two remote call paths.
 - [Framework Extensions](../development/framework-extensions.md): component and orchestration extensions.
 
-Implementation entry points: [Application](../../../axonx/core/application.py), [TaskRunner](../../../axonx/task/runtime/runner.py), [HTTP assembly](../../../axonx/components/service/http/app.py).
+Implementation entry points: [Application](../../../axonx/app/core/application.py), [TaskRunner](../../../axonx/task/runtime/runner.py), [HTTP assembly](../../../axonx/app/components/service/http/app.py).

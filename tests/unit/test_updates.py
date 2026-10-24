@@ -9,11 +9,11 @@ import time
 import httpx
 import pytest
 
-from axonx.components.updater import worker
-from axonx.components.updater.manager import RESPONSE_CALLBACKS
+from axonx.daemon import update_worker as worker
+from axonx.app.components.updater.manager import RESPONSE_CALLBACKS
 from axonx.config import resolve_app_config
-from axonx.core import Application
-from axonx.components.service.http.app import _UpdateResponseMiddleware
+from axonx.app.core import Application
+from axonx.app.components.service.http.app import _UpdateResponseMiddleware
 from axonx.daemon import client as daemon
 
 

@@ -6,11 +6,11 @@
 
 ## 三种名称
 
-| 名称         | 用途                     | 来源                           |
-| ------------ | ------------------------ | ------------------------------ |
-| distribution | Python 包安装与卸载      | pyproject.toml 的 project.name |
-| plugin name  | 发现与区分插件入口       | axonx.plugins entry point      |
-| Task 注册名  | submit / exec / 定义查询 | plugin.yaml 的 tasks           |
+| 名称         | 用途                | 来源                           |
+| ------------ | ------------------- | ------------------------------ |
+| distribution | Python 包安装与卸载 | pyproject.toml 的 project.name |
+| plugin name  | 发现与区分插件入口  | axonx.plugins entry point      |
+| Task 注册名  | exec / 定义查询     | plugin.yaml 的 tasks           |
 
 这三个名字可能不同。不要把 distribution 名直接传给 `--task`，先查看插件贡献中的 Task 注册名。
 
@@ -123,7 +123,7 @@ axonx plugin uninstall '<distribution 或插件名>' \
 
 [插件 manifest](../reference/plugin-manifest.md) · [远程机器](../guides/remote-machines.md) · [已有开发指南](../dev_guide.md)
 
-源码：[插件 CLI](../../../axonx/plugin_kit/cli.py)、[wheel 构建](../../../axonx/plugin_kit/wheel.py)、[安装器](../../../axonx/plugin_kit/installer.py)。
+源码：[插件 CLI](../../../axonx/cli/plugin.py)、[wheel 构建](../../../axonx/plugin/wheel.py)、[安装器](../../../axonx/plugin/installer.py)。
 
 ## 研究插件
 

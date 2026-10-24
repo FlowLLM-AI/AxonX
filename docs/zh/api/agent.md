@@ -362,4 +362,4 @@ session_id 不满足 UUID 正则时返回 HTTP 422。符合 UUID 但本轮未运
 - [CLI 参考](../reference/cli.md)
 - [事件协议](events.md)
 
-实现依据：`axonx/config/default.yaml`、`axonx/steps/agent/` 与 `axonx/components/service/http/jobs.py`。
+实现依据：`axonx/config/default.yaml`、`axonx/app/steps/agent/` 与 `axonx/app/components/service/http/jobs.py`。

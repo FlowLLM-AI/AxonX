@@ -92,6 +92,6 @@ Uploads are not general directory mirroring. Clean up staging files after succes
 
 [Workspace concepts](../concepts/workspace.md) · [Research artifact protocol](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)
 
-Source: [Directory operations](../../../axonx/workspace/browser.py), [Preview implementation](../../../axonx/workspace/preview.py), [Path constraints](../../../axonx/workspace/paths.py).
+Source: [Directory operations](../../../axonx/app/workspace/browser.py), [Preview implementation](../../../axonx/app/workspace/preview.py), [Path constraints](../../../axonx/common/fs/paths.py).
 
 JSONL preview preserves malformed or incomplete lines with `parse_error` and raw `content`, while valid rows include parsed `data`. Studio displays each row independently, supports previous/next pages, and marks byte-limited pages as truncated.

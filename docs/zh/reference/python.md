@@ -4,14 +4,41 @@ Python 可以在进程内嵌入 Application，或连接已经运行的 HTTP/MCP 
 
 ![本地应用与远程客户端](../../figures/reference/python-paths.svg)
 
+## 内部导入路径迁移
+
+内部模块路径已调整，不保留旧兼容包。顶层公开类仍可导入，并按需加载。请使用以下规范路径；Task 元数据和网络数据模型保持一致。
+
+| 原路径                                          | 规范路径                                                  |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| `axonx.components / axonx.steps / axonx.core`   | `axonx.app.components / axonx.app.steps / axonx.app.core` |
+| `axonx.plugin_kit / axonx.common.registry`      | `axonx.plugin / axonx.plugin.registry`                    |
+| `axonx.enums / axonx.common.enums`              | `axonx.task.enums / axonx.app.components.types`           |
+| `axonx.common.command`                          | `axonx.cli.parser / axonx.config.target`                  |
+| `axonx.config.ApplicationConfig / StudioPage`   | `axonx.app.config`                                        |
+| `axonx.common.utils.env / target`               | `axonx.config.env / target`                               |
+| `axonx.common.utils.build_info / log_retention` | `axonx.app.core.build_info / logging`                     |
+| `axonx.common.utils.logging.task_log_scope`     | `axonx.task.runtime.logging`                              |
+| `axonx.common.utils / fs / async_work`          | `axonx.common.logging / fs / async_work`                  |
+| `axonx.task.artifact / status / source`         | `axonx.task.schemas.artifact / lifecycle`                 |
+| `axonx.task.protocol`                           | `axonx.task.schemas.protocol / model / prediction`        |
+
+Task 执行器直接接收任务名和输入参数，不接收 CLI Command，也不再套一层输出包装：
+
+```python
+from axonx.task.runtime import TaskExecutor
+
+status = TaskExecutor(".axonx").execute("demo", {"x": 2, "y": 3})
+print(status.output_params)
+```
+
 ## 导入入口
 
 ```python
 from axonx import Application, BaseStep, provider
 from axonx.config import resolve_app_config
-from axonx.components.client import HttpClient, McpClient, RemoteServiceError
-from axonx.core import run_remote_job, stream_remote_job
-from axonx.components.job import ResultEvent
+from axonx.app.components.client import HttpClient, McpClient, RemoteServiceError
+from axonx.app.core import run_remote_job, stream_remote_job
+from axonx.app.components.job import ResultEvent
 ```
 
 Application 从顶层导出；HTTP/MCP 客户端与事件类型从各自子包导出。项目使用 Python 3.12 语法，不能用较旧解释器直接导入。
@@ -54,7 +81,7 @@ run_job 与 stream_job 均要求应用已启动。target 非空时必须在 Appl
 ```python
 import asyncio
 import os
-from axonx.components.client import HttpClient
+from axonx.app.components.client import HttpClient
 
 async def main():
     async with HttpClient(
@@ -65,15 +92,13 @@ async def main():
         definitions = await client.run_job("get_task_definition", {"task": "demo"})
         if not definitions.success:
             raise RuntimeError(str(definitions.answer))
-        submitted = await client.run_job("submit", {"task": "demo", "x": 1, "y": 2})
-        if not submitted.success:
-            raise RuntimeError(str(submitted.answer))
-        handle = submitted.answer
-        completed = await client.run_job("wait_task", {
-            "task_id": handle["task_id"],
-            "run_id": handle["run_id"],
+        completed = await client.run_job("cli", {
+            "argv": ["exec", "--task", "demo", "--x", "1", "--y", "2",
+                     "--task-name", "python-demo"],
         })
-        print(completed.success, completed.answer)
+        if not completed.success:
+            raise RuntimeError(str(completed.answer))
+        print(completed.answer["exit_code"], completed.answer["stdout"])
 
 asyncio.run(main())
 ```

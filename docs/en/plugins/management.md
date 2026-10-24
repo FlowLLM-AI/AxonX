@@ -123,7 +123,7 @@ Uninstallation affects future code loading but does not automatically delete his
 
 [Plugin manifest](../reference/plugin-manifest.md) · [Remote machines](../guides/remote-machines.md) · [Existing development guide](../dev_guide.md)
 
-Source: [Plugin CLI](../../../axonx/plugin_kit/cli.py), [Wheel building](../../../axonx/plugin_kit/wheel.py), [Installer](../../../axonx/plugin_kit/installer.py).
+Source: [Plugin CLI](../../../axonx/cli/plugin.py), [Wheel building](../../../axonx/plugin/wheel.py), [Installer](../../../axonx/plugin/installer.py).
 
 ## Research plugins
 

@@ -8,10 +8,10 @@ import pytest
 import yaml
 from fastmcp import Client
 
-from axonx.components.service.http.jobs import create_mcp_server
-from axonx.components.client import HttpClient
-from axonx.core import Application
-from axonx.plugin_kit.models import PluginInfo
+from axonx.app.components.service.http.jobs import create_mcp_server
+from axonx.app.components.client import HttpClient
+from axonx.app.core import Application
+from axonx.plugin.models import PluginInfo
 
 
 def make_app(tmp_path, *, token="service-secret"):
@@ -83,7 +83,7 @@ async def test_diagnose_reports_fingerprints_and_never_returns_credentials(tmp_p
     monkeypatch.setenv("AXONX_TUSHARE_TOKEN", "market-secret")
     monkeypatch.delenv("AXONX_TARGET_TOKEN", raising=False)
     monkeypatch.setattr(
-        "axonx.steps.machine.diagnostics.list_installed_plugins",
+        "axonx.app.steps.machine.diagnostics.list_installed_plugins",
         lambda: [PluginInfo(distribution="example", version="1", content_sha256="a" * 64, error="broken plugin")],
     )
     app = make_app(tmp_path)
@@ -118,7 +118,7 @@ def test_cli_help_uses_remote_cli_and_only_empty_usage_is_offline(monkeypatch, c
     assert cli.main(["help", "--job", "python", "--target", "node-b:1024"]) == 0
     command, options = calls.pop()
     assert command.action == "help"
-    assert command.arguments["_axonx_argv"] == ["--job", "python"]
+    assert list(command.raw_arguments) == ["--job", "python"]
     assert options.target == "http://node-b:1024"
     assert cli.main([]) == 0
     assert "Usage:" in capsys.readouterr().out

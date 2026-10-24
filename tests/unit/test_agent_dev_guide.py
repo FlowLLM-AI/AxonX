@@ -7,10 +7,11 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from axonx.components.agent.claude.backend import ClaudeAgentComponent
-from axonx.components.registry import ProviderRegistry
-from axonx.config import ApplicationConfig, resolve_app_config
-from axonx.core.context import ApplicationContext
+from axonx.app.components.agent.claude.backend import ClaudeAgentComponent
+from axonx.plugin.registry import ProviderRegistry
+from axonx.app.config import ApplicationConfig
+from axonx.config import resolve_app_config
+from axonx.app.core.context import ApplicationContext
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ async def test_disabled_guide_does_not_read_resources(context, monkeypatch):
     def unexpected_read(*args):
         pytest.fail("Disabled guide must not read package resources")
 
-    monkeypatch.setattr("axonx.components.agent.base.files", unexpected_read)
+    monkeypatch.setattr("axonx.app.components.agent.base.files", unexpected_read)
     prompt = {"type": "preset", "preset": "claude_code", "append": "Identity"}
     async with ClaudeAgentComponent(app_context=context, load_dev_guide=False, system_prompt=prompt) as agent:
         assert agent.dev_guide == ""
@@ -107,7 +108,7 @@ async def test_enabled_guide_missing_resource_fails_startup(context, monkeypatch
     def missing_resource(*args):
         raise FileNotFoundError("Missing guide")
 
-    monkeypatch.setattr("axonx.components.agent.base.files", missing_resource)
+    monkeypatch.setattr("axonx.app.components.agent.base.files", missing_resource)
     agent = ClaudeAgentComponent(app_context=context, load_dev_guide=True)
     with pytest.raises(FileNotFoundError, match="Missing guide"):
         await agent.start()
@@ -119,4 +120,6 @@ async def test_enabled_guide_missing_resource_fails_startup(context, monkeypatch
 async def test_standalone_agent_uses_english(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     async with ClaudeAgentComponent() as agent:
-        assert agent.dev_guide == files("axonx.components.agent").joinpath("guides/en.md").read_text(encoding="utf-8")
+        assert agent.dev_guide == files("axonx.app.components.agent").joinpath("guides/en.md").read_text(
+            encoding="utf-8"
+        )

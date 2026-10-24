@@ -12,12 +12,8 @@ from starlette import formparsers
 from starlette.datastructures import UploadFile
 from starlette.requests import ClientDisconnect, Request
 
-from axonx.components.service.http.files import (
-    MULTIPART_OVERHEAD_BYTES,
-    _UploadParser,
-    create_files_router,
-)
-from axonx.workspace.staging import StagedFiles
+from axonx.app.components.service.http.files import MULTIPART_OVERHEAD_BYTES, _UploadParser, create_files_router
+from axonx.app.workspace.staging import StagedFiles
 
 
 @pytest.fixture(autouse=True)

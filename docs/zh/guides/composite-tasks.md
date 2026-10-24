@@ -18,11 +18,7 @@ description: 用同步 Python 步骤组合已注册的 Task，显式传递输入
 ```python
 from pydantic import Field
 
-from axonx.task import (
-    BaseOutputParams,
-    BaseCompositeTask,
-    BaseInputParams,
-)
+from axonx.task import BaseOutputParams, BaseCompositeTask, BaseInputParams
 
 class ChainInput(BaseInputParams):
     x: int
@@ -66,14 +62,12 @@ tasks:
   demo_chain: example_plugin.chain:DemoChainTask
 ```
 
-按[插件开发指南](../dev_guide.md)打包、安装插件，并重启执行服务。以下命令假设执行环境已经安装 `demo_chain`：
+按[插件开发指南](../dev_guide.md)在执行环境中打包、安装插件，新的 exec 进程会加载安装后的代码。以下命令假设执行环境已经安装 `demo_chain`：
 
 ```bash
 # 本机执行，total 为 20
 axonx exec --task demo_chain --x 2 --y 3 --doubles 2
 
-# 或提交给常驻服务，用父 Task 的 handle 等待和取消
-axonx exec --task demo_chain --x 2 --y 3 --doubles 2
 ```
 
 `run_task()` 必须在父 Task 由 `TaskRunner` 执行期间调用。`task` 是已安装的注册名。`node_name` 默认使用注册名，允许字母、数字、下划线和连字符。重复使用节点名会记录新的编号尝试，同一个节点名不能改为另一个 Task 定义。节点名和调用序号只标识调用记录，不影响 Task ID 或目录。
@@ -114,16 +108,21 @@ Runner 在执行期间持续写入 `metadata.json`。父 Task 在每个子任务
 
 包含关系不会自动生成数据血缘边。实际读取不同 Task ID 的上游数据时应显式传入 `source_tasks`。每个子 Task（包括嵌套复合 Task）默认继承父 Task 解析后的 `task_name`，`run_task(..., task_name="instance")` 可显式指定独立实例。运行时不会在名称中追加摘要、节点名或调用序号。重复调用同一注册名会复用 Task ID，通过 `TaskRunner` 覆盖终态产物；活动或无法识别的目录会被拒绝。每次调用生成新的 Run ID。Task 不能将自身 ID 作为上游，构造阶段会在提交或执行覆盖文件前拒绝这种调用。调用记录保留状态和错误，但覆盖后旧 Run 的状态与产物不再可用。即使父 Task 注册名不同，同名父 Task 仍共享子目录。共享固定名称的流程需要串行执行；覆盖不保留旧 Run，也不提供失败回滚。
 
-状态收敛只读取与父子 Run ID 匹配的有效普通 metadata 文件。缺失、损坏、过期、符号链接和其他非普通记录会被忽略。临时 I/O 错误向 worker 退出监控传播以便重试；收敛不会覆盖其他 Run。
+Runner 负责正常完成和中断清理。强制终止 exec 进程可能留下非终态父子记录；只读 Repository 不会收尾这些记录。
 
-在同一执行目标上检查已提交的运行：
+在同一目标上检查执行记录：
 
-用保存的父 handle 和 `metadata.json.children` 中的子 ID 替换占位符。纯复合 Task 默认类型为 `composite`，目录如 `composite/composite#demo_chain#<name>/`；子类可使用专用类型。父步骤不包含子 Task 的步骤进度，应查询各子 Task 的状态或事件流。
+```bash
+axonx status --task-id 'composite#demo_chain#<name>'
+axonx read_task_log --task-id 'composite#demo_chain#<name>' --offset -1
+```
+
+从 `metadata.json.children` 读取子 Task ID。纯复合 Task 默认类型为 `composite`，目录如 `composite/composite#demo_chain#<name>/`；子类可使用专用类型。父步骤不包含子 Task 的步骤进度，应查询各子 Task 的状态或事件流。
 
 固定名称重跑父 Task 会替换旧父目录；各阶段执行时覆盖对应子目录；新运行跳过的子实例仍留在磁盘，但不会出现在新组合记录中。已有子目录及此前位于 `base` 的父目录不会自动迁移。需要完整组合历史时，应使用不同父实例名称。删除父 Task 不会级联删除子 Task；删除子 Task 也不会更新父记录。
 
-复合 Task 不增加资源锁，也不改变 cron 的重叠策略。共享数据写入仍应显式加锁，当前 Scheduler 的 `forbid` 只覆盖 Job 调用，不覆盖已提交的后台 Task 全生命周期。参见[定时运行](scheduling.md)。
+复合 Task 不增加资源锁。定时 exec 进程可以重叠执行；调用者必须串行处理共享 Task 目录与数据写入。参见[定时运行](scheduling.md)。
 
-源码：[复合 Task 编写接口](../../../axonx/task/composite.py)、[组合记录](../../../axonx/task/storage/composition.py)、[TaskRunner](../../../axonx/task/runtime/runner.py)。
+源码：[复合 Task 编写接口](../../../axonx/task/core/composite.py)、[组合记录](../../../axonx/task/schemas/lifecycle.py)、[TaskRunner](../../../axonx/task/runtime/runner.py)。
 
 子任务默认继承父 task_name；需要独立模型实例时，使用 `run_task("predict", task_name="model-1445", ...)` 显式指定。节点名称只标识调用记录，不能替代实例名称。

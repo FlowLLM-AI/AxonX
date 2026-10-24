@@ -6,8 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from pydantic import ValidationError
 
-from axonx.components.job.events import JOB_EVENT_ADAPTER
-from axonx.enums import TaskState
+from axonx.app.components.job.events import JOB_EVENT_ADAPTER
+from axonx.task.enums import TaskState
 from axonx.task import BaseTask, BaseOutputParams
 from axonx.task.query.summary import summarize_status
 from axonx.task.runtime.runner import TaskRunner

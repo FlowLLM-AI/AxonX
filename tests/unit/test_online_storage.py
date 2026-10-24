@@ -79,7 +79,7 @@ def test_revisions_are_immutable_and_history_cutoffs_are_explicit(store):
 @pytest.mark.parametrize("failure", ["copy", "validate", "swap", "deadline"])
 def test_failures_keep_previous_manifest_and_remove_abandoned_files(store, monkeypatch, failure):
     import axonx.task.storage.online as module
-    from axonx.utils.fs import atomic
+    from axonx.common.fs import atomic
 
     publish(store)
     before = store.manifest.read_bytes()
@@ -187,7 +187,7 @@ def test_preparation_cannot_publish_after_the_deadline(store):
 
 @pytest.mark.parametrize("path", ["../outside", "/absolute", "a/../b", "a\\\\b", "a//b", "./b"])
 def test_artifact_paths_must_be_portable_and_confined(path):
-    from axonx.task.artifact import ArtifactRecord
+    from axonx.task.schemas.artifact import ArtifactRecord
 
     with pytest.raises(ValidationError, match="relative task path"):
         ArtifactRecord(path=path, size=0, revision="0:0")
@@ -268,7 +268,7 @@ def test_frozen_snapshots_store_bounded_groups_and_verify_the_previous_snapshot(
 
 def test_frozen_chain_can_extend_a_legacy_full_snapshot(store):
     from axonx.task.storage.history import HISTORY_BLOCK_SIZE
-    from axonx.utils.fs import atomic_write_json
+    from axonx.common.fs import atomic_write_json
 
     for _ in range(HISTORY_BLOCK_SIZE):
         first, snapshot = publish(store)
@@ -284,7 +284,7 @@ def test_frozen_chain_can_extend_a_legacy_full_snapshot(store):
 
 def test_legacy_portable_history_needs_only_its_latest_full_snapshot(store):
     from axonx.task.storage.history import HISTORY_BLOCK_SIZE
-    from axonx.utils.fs import atomic_write_json
+    from axonx.common.fs import atomic_write_json
 
     for _ in range(HISTORY_BLOCK_SIZE + 1):
         _, snapshot = publish(store)
@@ -315,16 +315,13 @@ def test_frozen_history_rejects_cross_task_references(store):
 def test_history_chain_export_includes_predecessors_without_recursive_planning(
     tmp_path,
 ):
-    from axonx.enums import TaskState, TaskType
+    from axonx.task.enums import TaskState, TaskType
     from axonx.task.storage.artifacts import artifact_record
     from axonx.task.storage.history import HistoryNode
-    from axonx.task.storage.workspace import (
-        TaskMetadata,
-        task_path,
-        write_task_metadata,
-    )
+    from axonx.task.schemas.lifecycle import TaskMetadata
+    from axonx.task.storage.workspace import task_path, write_task_metadata
     from axonx.task.sync.planner import plan_task
-    from axonx.utils.fs import atomic_write_json
+    from axonx.common.fs import atomic_write_json
 
     task_id = "inference#test#fixed"
     directory = task_path(tmp_path, task_id)

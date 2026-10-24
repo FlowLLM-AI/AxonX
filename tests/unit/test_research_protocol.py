@@ -5,18 +5,15 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from axonx.enums import TaskType
-from axonx.task.protocol import (
-    ModelCollection,
-    PredictionProtocol,
-    prediction_protocol,
-    task_protocol,
-    validate_protocol,
-)
+from axonx.task.enums import TaskType
+from axonx.task.schemas.model import ModelCollection
+from axonx.task.schemas.prediction import PredictionProtocol
+from axonx.task.storage.artifacts import prediction_protocol
+from axonx.task.schemas.protocol import task_protocol, validate_protocol
 from axonx.task.storage import artifact_record
 from axonx.task.storage.models import snapshot_model_collection
-from axonx.task.storage.workspace import TaskMetadata
-from axonx.utils.fs import atomic_write, file_revision
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.common.fs import atomic_write, file_revision
 
 
 @pytest.mark.parametrize("version", [None, 2, 3, "1", True, 1.0])
@@ -93,7 +90,7 @@ def test_manifest_refresh_is_rejected_before_snapshot(tmp_path):
 
 
 def test_snapshot_resolves_relative_symlinks(tmp_path):
-    from axonx.utils.fs import snapshot_file
+    from axonx.common.fs import snapshot_file
 
     source = tmp_path / "model.pt"
     source.write_bytes(b"original")

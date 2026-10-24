@@ -12,7 +12,7 @@
 | BaseStep      | 调用组件、组合结果、发送事件   | async execute，每次 Job 新实例     |
 | PipelineJob   | 顺序组合多个 Step              | 公共 Schema、defaults、最终结果    |
 | BaseJob       | 需要自定义事件执行契约         | 自己实现 stream(arguments, system) |
-| BaseTask      | 研究数据计算与产物发布         | 同步步骤；submit 可启动 worker     |
+| BaseTask      | 研究数据计算与产物发布         | 同步步骤，通过 CLI exec 执行       |
 
 Job 是 Application 内的异步编排；Task 的步骤是同步函数。两者的 Step 名称相似，基类与执行边界不同。
 
@@ -33,7 +33,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 from axonx import Application, BaseComponent, BaseStep, provider
-from axonx.components.job import ProgressEvent
+from axonx.app.components.job import ProgressEvent
 
 @provider("prefix_formatter")
 class PrefixFormatter(BaseComponent):
@@ -161,7 +161,7 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 新增 backend 后先用最小 Application(providers=...) 验证，再接真实服务、插件环境和 Studio 表单；不要把 UI 能生成表单等同于 Task 研究逻辑已经正确。
 
-实现依据：`axonx/components/base.py`、`axonx/components/registry.py`、`axonx/core/graph.py`、`axonx/core/composition.py`、`axonx/steps/base.py`、`axonx/components/job/pipeline.py` 与 `axonx/components/job/context.py`。
+实现依据：`axonx/app/components/base.py`、`axonx/plugin/registry.py`、`axonx/app/core/graph.py`、`axonx/app/core/composition.py`、`axonx/app/steps/base.py`、`axonx/app/components/job/pipeline.py` 与 `axonx/app/components/job/context.py`。
 
 ## 实时采集、在线推理与预测比对
 
@@ -223,6 +223,6 @@ Task 执行、metadata 发布、仓库刷新、删除和副本应用不再获取
 
 更新记录位于 `daemon/<instance>/updates/<update-id>/`。daemon 负责中断恢复与 worker 替换，服务 Job 只请求操作并读取记录。
 
-工作区目录变更不再等待框架 Task 锁。`axonx.utils.fs.file_lock` 仍供业务数据写入使用，默认竞争时立即失败；插件在读取前和成功前比较修订，输入变化时明确失败，生产方必须原子替换文件。
+工作区目录变更不再等待框架 Task 锁。`axonx.common.fs.file_lock` 仍供业务数据写入使用，默认竞争时立即失败；插件在读取前和成功前比较修订，输入变化时明确失败，生产方必须原子替换文件。
 
 插件安装与 Task 启动不再使用环境准入锁或等待队列。

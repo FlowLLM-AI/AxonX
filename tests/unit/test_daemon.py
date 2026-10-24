@@ -118,9 +118,9 @@ class Slow(DemoTask):
     # Exercise real cron -> IPC -> daemon Popen without waiting for a wall-clock minute.
     (site / "sitecustomize.py").write_text("""import os
 if os.environ.get("AXONX_DAEMON_ROLE") == "service":
-    from axonx.components.updater import manager
+    from axonx.app.components.updater import manager
     manager.UpdateManager._plan = lambda self, mode, service: {"cwd": str(service.startup_directory)}
-    manager.__file__ = os.environ["TEST_UPDATE_SOURCE"]
+    manager.update_worker.__file__ = os.environ["TEST_UPDATE_SOURCE"]
 if os.environ.get("AXONX_DAEMON_ROLE") == "cron":
     import asyncio
     from pathlib import Path
@@ -175,7 +175,7 @@ path.write_text(json.dumps(record))
     environment.update(
         PYTHONPATH=os.pathsep.join([str(site), str(source)]),
         TEST_FINISH_TASK=str(release),
-        TEST_UPDATE_SOURCE=str(updater_source / "manager.py"),
+        TEST_UPDATE_SOURCE=str(updater_source / "worker.py"),
         TEST_UPDATE_RAN=str(tmp_path / "updated"),
         TEST_CRON_TRIGGERED=str(tmp_path / "triggered"),
     )

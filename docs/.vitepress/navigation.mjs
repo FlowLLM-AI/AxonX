@@ -169,6 +169,7 @@ export const groups = [
           "development/overview",
           "development/contributing",
           "development/framework-extensions",
+          "development/module-refactor",
           "development/studio",
         ],
       ],

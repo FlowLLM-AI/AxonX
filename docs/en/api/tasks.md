@@ -568,7 +568,7 @@ The Available list is generated from the actual installed environment. When wait
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/task/` and `axonx/components/service/http/jobs.py`.
+Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/task/` and `axonx/app/components/service/http/jobs.py`.
 
 ## Studio query projections
 

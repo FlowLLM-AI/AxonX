@@ -82,7 +82,7 @@ def test_parameter_comparison_runs_both_presets_with_one_etl(tmp_path, labels):
     import json
 
     from test_stock_pipeline import raw_data
-    from axonx.enums import TaskState
+    from axonx.task.enums import TaskState
     from axonx.task.runtime.runner import TaskRunner
     from axonx_qlib_a158.etl import Alpha158Task
     from axonx_qlib_a158.scripts.compare_parameters import run_comparison

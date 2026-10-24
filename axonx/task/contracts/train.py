@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
-from ...enums import TaskType
+from ..enums import TaskType
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 

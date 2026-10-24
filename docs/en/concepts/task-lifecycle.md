@@ -1,6 +1,6 @@
 # Task lifecycle
 
-`axonx exec` resolves and validates an installed Task, then runs it in the current process through `TaskCommandExecutor` and `TaskRunner`. The service does not create queued records or start Task workers.
+`axonx exec` resolves and validates an installed Task, then runs it in the current process through `TaskExecutor` and `TaskRunner`. The service does not create queued records or start Task workers.
 
 ```text
 exec → validate → queued → running → succeeded / failed

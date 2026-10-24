@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from ...enums import TaskType
+from ..enums import TaskType
 from .artifact import ArtifactRecord
 from .protocol import STOCK_SIGNALS_FORMAT, Protocol, validate_protocol
 

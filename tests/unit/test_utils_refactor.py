@@ -17,20 +17,15 @@ import pytest
 from loguru import _logger
 
 from axonx.cli.parser import Command
-from axonx.components.registry import ProviderRegistry
-from axonx.constants import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
-from axonx.core.composition import compose_application
-from axonx.plugin_kit.loading import load_symbol
-from axonx.utils.env import find_env_file, load_env
-from axonx.utils.fs import directory_sha256
-from axonx.utils.logging import (
-    LoggingConfig,
-    configure_logging,
-    get_log_path,
-    get_logger,
-    task_log_scope,
-)
-from axonx.utils.log_retention import LOG_RETENTION_SECONDS, cleanup_log_files
+from axonx.plugin.registry import ProviderRegistry
+from axonx.config.execution import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
+from axonx.app.core.composition import compose_application
+from axonx.plugin.loading import load_symbol
+from axonx.config.env import find_env_file, load_env
+from axonx.common.fs import directory_sha256
+from axonx.common.logging import LoggingConfig, configure_logging, get_log_path, get_logger
+from axonx.task.runtime.logging import task_log_scope
+from axonx.app.core.logging import LOG_RETENTION_SECONDS, cleanup_log_files
 
 
 def test_dotenv_does_not_override_process_environment(tmp_path, monkeypatch):
@@ -122,7 +117,7 @@ def test_logging_timezone_is_independent_of_host(tmp_path, host_timezone, log_ti
         import sys
         from datetime import datetime
         from zoneinfo import ZoneInfo
-        from axonx.utils import LoggingConfig, configure_logging, get_log_path, get_logger
+        from axonx.common.logging import LoggingConfig, configure_logging, get_log_path, get_logger
 
         options = json.loads(sys.argv[2])
         zone = ZoneInfo(options.get("timezone", "Asia/Shanghai"))
@@ -211,8 +206,8 @@ def test_logging_rotates_at_configured_midnight(tmp_path, monkeypatch):
 def test_log_retention_cleans_only_expired_axonx_logs(tmp_path, monkeypatch):
     now = datetime.now(timezone.utc).timestamp()
     old = now - LOG_RETENTION_SECONDS - 1
-    monkeypatch.setattr("axonx.utils.log_retention.time", lambda: now)
-    monkeypatch.setattr("axonx.utils.log_retention.psutil.pid_exists", lambda pid: pid == os.getpid())
+    monkeypatch.setattr("axonx.app.core.logging.time", lambda: now)
+    monkeypatch.setattr("axonx.app.core.logging.psutil.pid_exists", lambda pid: pid == os.getpid())
     expired = [
         tmp_path / "2026-01-01_00-00-00_123.log",
         tmp_path / f"2026-01-01_00-00-00_123_{'a' * 64}.log",
@@ -275,7 +270,8 @@ def test_retention_preserves_quiet_active_runs_and_releases_their_locks(tmp_path
                     sys.executable,
                     "-c",
                     "from pathlib import Path; import sys; "
-                    "from axonx.utils.log_retention import cleanup_log_files; cleanup_log_files(Path(sys.argv[1]))",
+                    "from axonx.app.core.logging import cleanup_log_files; "
+                    "cleanup_log_files(Path(sys.argv[1]))",
                     str(tmp_path),
                 ],
                 check=True,
@@ -333,13 +329,13 @@ def test_exec_worker_uses_same_timezone_for_tasks_and_logs(tmp_path, monkeypatch
             assert workspace_dir == config["workspace_dir"]
             assert timezone == config["timezone"]
 
-        def execute(self, command):
+        def execute(self, name, inputs):
             get_logger().info("worker probe")
-            return SimpleNamespace(output={}, exit_code=0)
+            return SimpleNamespace(output_params={}, exit_code=0)
 
-    monkeypatch.setattr(cli, "TaskCommandExecutor", Executor)
+    monkeypatch.setattr("axonx.task.runtime.TaskExecutor", Executor)
     try:
-        assert cli._run_exec(Command("probe")) == 0
+        assert cli._run_exec(Command("exec", {"task": "demo"})) == 0
         content = get_log_path().read_text(encoding="utf-8")
         assert "2026-10-12 07:47:25 +00:00 |" in content
         assert "worker probe" in content

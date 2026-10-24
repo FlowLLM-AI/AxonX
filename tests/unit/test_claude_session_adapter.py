@@ -12,8 +12,8 @@ from claude_agent_sdk import (
 )
 from claude_agent_sdk.testing import run_session_store_conformance
 
-from axonx.components.agent.claude.session_store import ClaudeSessionStoreAdapter
-from axonx.components.agent.local_session_store import LocalAgentSessionStore
+from axonx.app.components.agent.claude.session_store import ClaudeSessionStoreAdapter
+from axonx.app.components.agent.local_session_store import LocalAgentSessionStore
 
 
 @pytest.mark.asyncio

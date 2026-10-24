@@ -10,11 +10,11 @@ from axonx_qlib_a158.backtest import Alpha158BacktestTask
 from axonx_qlib_a158.predict import LgbmPredictTask
 from axonx_qlib_a158.train import LgbmTrainTask
 
-from axonx.enums import TaskState
+from axonx.task.enums import TaskState
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage import read_metadata
 from axonx.task.storage.workspace import task_path
-from axonx.utils.fs import atomic_write, file_revision
+from axonx.common.fs import atomic_write, file_revision
 
 
 def run_comparison(options: argparse.Namespace) -> dict:

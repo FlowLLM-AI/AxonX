@@ -133,5 +133,5 @@ However, the Claude SDK's own tools, project settings, plugins, and `permission_
 ## Related documentation and implementation
 
 - [Agent configuration](configuration.md), [MCP integration](mcp-integration.md)
-- [Claude session implementation](../../../axonx/components/agent/claude/backend.py)
-- [Streaming turn Step](../../../axonx/steps/agent/run.py)
+- [Claude session implementation](../../../axonx/app/components/agent/claude/backend.py)
+- [Streaming turn Step](../../../axonx/app/steps/agent/run.py)

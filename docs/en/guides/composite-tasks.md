@@ -18,11 +18,7 @@ This complete example first adds two values, then repeatedly doubles the result 
 ```python
 from pydantic import Field
 
-from axonx.task import (
-    BaseOutputParams,
-    BaseCompositeTask,
-    BaseInputParams,
-)
+from axonx.task import BaseOutputParams, BaseCompositeTask, BaseInputParams
 
 class ChainInput(BaseInputParams):
     x: int
@@ -66,11 +62,12 @@ tasks:
   demo_chain: example_plugin.chain:DemoChainTask
 ```
 
-Follow [plugin development](../dev_guide.md) to package/install the plugin, then restart the executing service. The following commands assume that `demo_chain` has been installed in the execution environment:
+Follow [plugin development](../dev_guide.md) to package/install the plugin in the execution environment. A new exec process loads the installed code. The following commands assume that `demo_chain` has been installed in the execution environment:
 
-````bash
+```bash
 # Run locally; total is 20
 axonx exec --task demo_chain --x 2 --y 3 --doubles 2
+```
 
 `run_task()` must be called while the parent is executing through `TaskRunner`. `task` is an installed registration name. `node_name` defaults to that name and accepts letters, digits, underscores, and hyphens. Repeating a node name records another numbered attempt; a node name cannot switch to a different Task definition. Node names and attempt numbers label invocation records and do not affect Task IDs or directories.
 
@@ -94,7 +91,7 @@ for dataset in datasets:
     )
     if not result.success:
         self.logger.warning(result.record.error)
-````
+```
 
 Here `download_dataset` represents a plugin Task with a matching input schema. Continued failures are recorded and the parent still finishes as failed. Validation and lookup failures also follow this policy. `KeyboardInterrupt` and `SystemExit` always propagate. Repeated calls do not implement automatic retries or erase earlier failures. Preserve the inherited `exit_code()` when extending a composite so this aggregation remains in effect.
 
@@ -110,16 +107,21 @@ The default composite output is `BaseOutputParams`. Custom outputs extend it wit
 
 Containment does not create data-lineage edges. Pass `source_tasks` explicitly for actual upstream data dependencies between different Task IDs. Every child, including nested composites, inherits the parent’s resolved `task_name` by default; pass `task_name` to `run_task()` for an explicitly named child instance. The runtime adds no hash, node name, or attempt number to the name. Repeated calls of the same registration use the same Task ID and replace terminal outputs through `TaskRunner`; active and unrecognized directories are rejected. Each invocation gets a new Run ID. A Task cannot use its own Task ID as an upstream source; construction rejects this before either submission or execution can replace any files. Invocation records retain states and errors, while old Run status and artifacts become unavailable after replacement. Parents with the same name share child directories even when their registrations differ. Shared fixed-name pipelines must serialize execution. Replacement does not preserve old Runs or provide failure rollback.
 
-Settlement reads only valid regular metadata matching the parent and child Run IDs. Missing, malformed, stale, symlink, and non-regular records are ignored. Transient I/O errors propagate to the worker-exit monitor for retry; settlement never replaces a foreign Run.
+Runner owns normal completion and interrupt cleanup. A forcibly killed exec process may leave nonterminal parent and child records; the read-only Repository does not settle them.
 
-Inspect a submitted run on the same execution target:
+Inspect execution records on the same target:
 
-Replace the placeholders with the parent handle and child IDs from `metadata.json.children`. Pure composites default to Task type `composite`, with directories such as `composite/composite#demo_chain#<name>/`; subclasses can use specialized types. Parent steps do not contain child step progress; query each child’s status or stream for that detail.
+```bash
+axonx status --task-id 'composite#demo_chain#<name>'
+axonx read_task_log --task-id 'composite#demo_chain#<name>' --offset -1
+```
+
+Read child IDs from `metadata.json.children`. Pure composites default to Task type `composite`, with directories such as `composite/composite#demo_chain#<name>/`; subclasses can use specialized types. Parent steps do not contain child step progress; query each child’s status or stream for that detail.
 
 Fixed-name parent reruns replace the previous parent directory. Child outputs are replaced in the same named directories when their stages execute; children skipped by the new run remain on disk but are absent from its composition. Existing child directories and parents previously stored under `base` are not migrated automatically. Use distinct parent names when preserving the full composition history matters. Deletion of a parent does not cascade to its children, and deleting a child does not update the parent's record.
 
-Composition does not add resource locking or change cron overlap behavior. Protect shared data writes explicitly; the current Scheduler's `forbid` covers the Job invocation, not the lifetime of a submitted background Task. See [scheduling](scheduling.md).
+Composition does not add resource locking. Scheduled exec processes can overlap; callers must serialize shared Task directories and data writes. See [scheduling](scheduling.md).
 
-Source: [composite authoring](../../../axonx/task/composite.py), [composition records](../../../axonx/task/storage/composition.py), [TaskRunner](../../../axonx/task/runtime/runner.py).
+Source: [composite authoring](../../../axonx/task/core/composite.py), [composition records](../../../axonx/task/schemas/lifecycle.py), [TaskRunner](../../../axonx/task/runtime/runner.py).
 
 Children inherit the parent task_name by default. Use `run_task("predict", task_name="model-1445", ...)` for an explicitly named model instance. Node names identify invocation records and do not replace instance names.

@@ -139,4 +139,4 @@ File uploads do not pass bytes directly through Job arguments or MCP tools; firs
 - [Authentication rules](../guides/authentication.md)
 - [Python usage](../reference/python.md)
 
-Implementation references: `axonx/constants.py`, `components/service/http/app.py`, `jobs.py`, `files.py`, `components/job/contracts.py`.
+Implementation references: `axonx/app/protocol.py`, `components/service/http/app.py`, `jobs.py`, `files.py`, `components/job/contracts.py`.

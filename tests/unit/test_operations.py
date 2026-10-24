@@ -3,8 +3,9 @@
 import pytest
 from pydantic import ValidationError
 
-from axonx.config import ApplicationConfig, resolve_app_config
-from axonx.enums import TaskCategory
+from axonx.app.config import ApplicationConfig
+from axonx.config import resolve_app_config
+from axonx.task.enums import TaskCategory
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.catalog.resolver import _task_definition
 from axonx.task.query.summary import summarize_status

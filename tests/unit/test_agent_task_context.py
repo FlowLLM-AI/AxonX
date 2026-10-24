@@ -2,13 +2,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from axonx.core import Application
-from axonx.enums import TaskState, TaskType
-from axonx.task.storage.workspace import (
-    TaskMetadata,
-    task_path,
-    write_task_metadata,
-)
+from axonx.app.core import Application
+from axonx.task.enums import TaskState, TaskType
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.storage.workspace import task_path, write_task_metadata
 
 
 def _status(task_id: str, task_type: TaskType, sources=(), *, log_path=""):

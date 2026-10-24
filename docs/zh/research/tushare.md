@@ -33,9 +33,7 @@ export AXONX_TUSHARE_BASE_URL='http://<AxonX 代理机器>:1024/proxy/tushare'
 
 ## 参数与日期
 
-![Tushare download definition browser](../../figures/studio/tushare-submit.png)
-
-在 **Submit task** 选择 `download_tushare_task`，表单根据任务 Schema 展示日期、自然日回溯、请求超时与数据组。图中为未提交的默认配置；填写前先确认执行机器的数据凭据。
+在 Studio 的 Task 定义页面选择 `download_tushare_task` 查看输入输出 Schema；在已配置数据凭据的环境中通过 CLI exec 执行。
 
 | 字段         | 默认值   | 用途                                         |
 | ------------ | -------- | -------------------------------------------- |

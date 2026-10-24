@@ -5,8 +5,8 @@ from __future__ import annotations
 import codecs
 from pathlib import Path
 
-from ...constants import AXONX_DEFAULT_ENCODING
-from ...logs import LogChunk
+from ...common.constants import AXONX_DEFAULT_ENCODING
+from ...common.logs import LogChunk
 from .events import LOG_WINDOW_BYTES
 from ..schemas.lifecycle import TaskMetadata
 from .workspace import read_entry, task_path

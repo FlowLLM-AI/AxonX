@@ -1,6 +1,6 @@
 # Task 生命周期
 
-`axonx exec` 解析并校验已安装的 Task，通过 `TaskCommandExecutor` 和 `TaskRunner` 在当前进程执行。服务不再创建排队记录，也不启动 Task worker。
+`axonx exec` 解析并校验已安装的 Task，通过 `TaskExecutor` 和 `TaskRunner` 在当前进程执行。服务不再创建排队记录，也不启动 Task worker。
 
 ```text
 exec → 校验 → queued → running → succeeded / failed

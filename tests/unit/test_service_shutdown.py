@@ -1,6 +1,6 @@
 import pytest
 
-from axonx.components.service import HttpService
+from axonx.app.components.service import HttpService
 from axonx.config import ConfigResolver
 
 

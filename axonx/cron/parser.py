@@ -7,10 +7,10 @@ from datetime import datetime
 
 from croniter import croniter
 
-from ..constants import CLI_CLIENT_OPTIONS
+from ..config.target import CLIENT_OPTION_NAMES
+from ..common.arguments import parse_arguments
 
 _FIELD = re.compile(r"^[0-9*,/\-]+$")
-_OPTION = re.compile(r"^--[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)*$")
 
 
 @dataclass(frozen=True)
@@ -41,19 +41,12 @@ def parse_crontab(text: str) -> tuple[CronEntry, ...]:
             if argv[:2] != ["axonx", "exec"]:
                 raise ValueError("Only axonx exec --task NAME is supported")
             arguments = argv[2:]
-            if len(arguments) % 2:
-                raise ValueError("Task options must be pairs like --field value")
-            options = set()
-            for option, value in zip(arguments[::2], arguments[1::2], strict=True):
-                if not _OPTION.fullmatch(option) or value.startswith("--"):
-                    raise ValueError(f"Invalid Task option: {option}")
+            options = parse_arguments(arguments)
+            for option in arguments[::2]:
                 name = option[2:].replace("-", "_")
-                if name in CLI_CLIENT_OPTIONS:
+                if name in CLIENT_OPTION_NAMES:
                     raise ValueError(f"Client option is not supported in cron: {option}")
-                if name in options:
-                    raise ValueError(f"Duplicate Task option: {option}")
-                options.add(name)
-            if "task" not in options or not arguments[arguments.index("--task") + 1]:
+            if not isinstance(options.get("task"), str) or not options["task"]:
                 raise ValueError("A cron command requires --task NAME")
             entries.append(CronEntry(number, expression, tuple(arguments)))
         except ValueError as exc:

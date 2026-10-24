@@ -194,7 +194,7 @@ Control local exec processes through their execution environment. The service ex
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/workspace/` and `axonx/components/service/http/jobs.py`.
+Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/workspace/` and `axonx/app/components/service/http/jobs.py`.
 
 ## File upload and cleanup
 

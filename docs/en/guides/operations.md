@@ -32,27 +32,21 @@ axonx read_task_log --task-id '<Task ID>' --offset -1 --limit 65536
 
 Log windows use byte offsets. Read the tail first to find the exception, then expand or specify a window as needed. If status.log_path points to an external log directory, migrating the workspace may also require restoring logs.
 
-## Submission succeeds but the Task fails
+## Execution fails
 
-1. Check run_id in the handle to rule out a fixed-name rerun.
-2. Inspect the final state, error, and exit_code.
+1. Check `run_id` in metadata to rule out a fixed-name rerun.
+2. Inspect the final `state`, `error` and `exit_code`.
 3. Inspect the last failed step and Task logs.
-4. Check plugin inputs, upstream files, external data permissions, and model dependencies.
-5. Rerun with a new task_name, retaining the failure record for comparison.
+4. Check plugin inputs, upstream files, external data permissions and model dependencies.
+5. Rerun with a new `task_name`, retaining the failure record for comparison.
 
-`submit.success=true` only means acceptance succeeded. The success from `wait_task` corresponds to the final succeeded state; HTTP 200 alone should not establish research success.
+`axonx exec` waits for completion and returns the Task exit code. Remote CLI execution waits for its child too; inspect its `exit_code`, stdout/stderr and persisted Task metadata. `wait_task` observes an exact Task/Run pair; HTTP 200 alone does not establish research success.
 
-## Worker failures and status reconciliation
+## Process identity and interrupted records
 
-Each new Task record includes a stable `machine_id` derived from the OS machine identity and a `process_started_at` timestamp. The ID survives service and machine restarts; it does not depend on the service port, workspace, IP address, or hostname. Queued records identify the submitting service process until the worker publishes its own identity. In-process children record the same machine and process instance as their parent.
+Each new Task record includes a stable `machine_id` derived from the OS machine identity and a `process_started_at` timestamp. The ID does not depend on service ports, workspace paths or IP addresses. The executing process publishes its own identity; in-process children share that process instance.
 
-If running persists for a long time, first check whether the process is still running, whether the current service manages this run, whether logs continue growing, and whether the disk is writable. Do not determine process liveness across machines solely from a pid in a file.
-
-While the owning service is running, its supervisor detects a forcibly killed worker. At startup and before named submission, recovery rereads the exact Run and only settles an identified local process instance that has exited. Matching child records retain Run ID and worker-identity checks; successful results remain unchanged. Records without machine identity, foreign records, replicas, and unverifiable process instances are left unchanged. Recovery does not adopt or signal surviving workers, resume Python execution, reexecute Tasks, or replay cron triggers.
-
-Legacy records without `machine_id` remain unchanged regardless of their creation time; there is no lock-based recovery or handoff grace period. Use a distinct Task name when the previous record cannot be attributed to this machine.
-
-Recovery replaces stale lifecycle state; it does not resume Python execution, automatically reexecute Tasks, or replay missed cron triggers. After reviewing interrupted outputs, submit a new Run if needed. The former reaper_interval_seconds setting remains removed, and there is no periodic process scan. New fields are optional when reading legacy records; older readers that reject unknown fields must be upgraded before sharing newly written records.
+If a record remains `running`, check the execution machine, exact process identity, growing logs and disk access. A PID from another machine cannot establish liveness. Repository and query interfaces observe files; they do not supervise processes or rewrite interrupted Task states. An abruptly killed exec process can leave nonterminal metadata. Review incomplete outputs and use a distinct Task name for a fresh execution. Restoring records does not resume Python execution or replay cron triggers.
 
 ## Files exist but the page has not updated
 

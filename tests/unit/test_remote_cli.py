@@ -13,10 +13,10 @@ import pytest
 import uvicorn
 from test_plugin_hot_update import wheel
 
-from axonx.components.client import HttpClient
-from axonx.components.job import LogEvent
+from axonx.app.components.client import HttpClient
+from axonx.common.logs import LogEvent
 from axonx.config import resolve_app_config
-from axonx.core import Application
+from axonx.app.core import Application
 
 cli = importlib.import_module("axonx.cli.main")
 
@@ -105,7 +105,7 @@ async def test_closing_cli_stream_reaps_owned_process(remote, monkeypatch):
     async def spawn(*_args, **kwargs):
         return await create(sys.executable, "-u", "-c", "import time; print('ready'); time.sleep(60)", **kwargs)
 
-    monkeypatch.setattr("axonx.steps.common.cli.asyncio.create_subprocess_exec", spawn)
+    monkeypatch.setattr("axonx.app.steps.common.cli.asyncio.create_subprocess_exec", spawn)
     events = app.stream_job("cli", {"argv": ["version"]})
     async with asyncio.timeout(10):
         event = await anext(events)
@@ -131,7 +131,7 @@ async def test_cancellation_during_spawn_reaps_the_created_process(remote, monke
         await release.wait()
         return process
 
-    monkeypatch.setattr("axonx.steps.common.cli.asyncio.create_subprocess_exec", spawn)
+    monkeypatch.setattr("axonx.app.steps.common.cli.asyncio.create_subprocess_exec", spawn)
     task = asyncio.create_task(app.run_job("cli", {"argv": ["version"]}))
     async with asyncio.timeout(10):
         await created.wait()
@@ -152,7 +152,7 @@ async def test_json_cli_response_bounds_output_and_preserves_exit_code(remote, m
         source = "import sys; print('x' * (1024 * 1024 + 1)); print('failed', file=sys.stderr); sys.exit(7)"
         return await create(sys.executable, "-u", "-c", source, **kwargs)
 
-    monkeypatch.setattr("axonx.steps.common.cli.asyncio.create_subprocess_exec", spawn)
+    monkeypatch.setattr("axonx.app.steps.common.cli.asyncio.create_subprocess_exec", spawn)
     response = await app.run_job("cli", {"argv": ["version"]})
     assert not response.success
     assert response.answer["exit_code"] == 7

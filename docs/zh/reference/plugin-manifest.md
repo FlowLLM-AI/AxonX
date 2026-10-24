@@ -10,7 +10,7 @@
 | ------------------ | ------------- | ------------------------------------- |
 | distribution       | axonx-example | pip 元数据、安装与卸载                |
 | plugin entry point | example       | 插件发现与 manifest 所属包            |
-| Task 注册名        | example_task  | submit.task、get_task_definition.task |
+| Task 注册名        | example_task  | exec --task、get_task_definition.task |
 
 这些名字不要求相同。Task ID 另由任务类型、注册名与实例名称组成，不能用 distribution 代替注册名执行任务。
 

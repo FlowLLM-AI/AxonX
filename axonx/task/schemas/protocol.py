@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from ...enums import TaskType
+from ..enums import TaskType
 
 PROTOCOL_VERSION = 1
 STOCK_SIGNALS_FORMAT = "stock-signals-v1"

@@ -1,34 +1,17 @@
-"""Application configuration parsing and resolution."""
+"""Configuration loading, provider declarations and runtime settings."""
 
-from .models import (
-    ApplicationConfig,
-    ComponentConfig,
-    JobConfig,
-    PluginConfig,
-    TargetConfig,
-    StudioConfig,
-    StudioPageConfig,
-    StudioPage,
-)
-from .resolver import (
-    ConfigResolver,
-    convert_value,
-    deep_merge_config,
-    expand_env_vars,
-    resolve_app_config,
-)
+from .models import ComponentConfig, JobConfig, PluginConfig, RuntimeConfig
+from .target import ClientOptions, TargetConfig
+from .resolver import ConfigResolver, deep_merge_config, expand_env_vars, resolve_app_config
 
 __all__ = [
-    "ApplicationConfig",
     "ComponentConfig",
-    "ConfigResolver",
     "JobConfig",
     "PluginConfig",
+    "RuntimeConfig",
+    "ClientOptions",
     "TargetConfig",
-    "StudioConfig",
-    "StudioPageConfig",
-    "StudioPage",
-    "convert_value",
+    "ConfigResolver",
     "deep_merge_config",
     "expand_env_vars",
     "resolve_app_config",

@@ -104,4 +104,4 @@ Proxy routes pass upstream request credentials and serve a different purpose fro
 
 [Remote machines](remote-machines.md) · [API overview](../api/overview.md) · [Agent configuration](../agent/configuration.md) · [HTTP proxy](http-proxy.md)
 
-Source: [Authentication and public filtering](../../../axonx/components/service/http/app.py), [Job configuration](../../../axonx/config/models.py), [CLI token loading](../../../axonx/cli/main.py).
+Source: [Authentication and public filtering](../../../axonx/app/components/service/http/app.py), [Job configuration](../../../axonx/config/models.py), [CLI token loading](../../../axonx/cli/main.py).

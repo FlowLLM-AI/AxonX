@@ -1,20 +1,19 @@
-"""Validated models for one AxonX application configuration."""
+"""Declarative provider and runtime configuration, independent of application code."""
 
-from __future__ import annotations
+from typing import Any
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from ..common.constants import AXONX_DEFAULT_LOG_DIR, AXONX_DEFAULT_TIMEZONE
 
-import re
-from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+class RuntimeConfig(BaseModel):
+    """Settings shared by execution and scheduler processes, without service models."""
 
-from ..constants import (
-    AXONX_DEFAULT_LOG_DIR,
-    AXONX_DEFAULT_TIMEZONE,
-    AXONX_NAME,
-    DEFAULT_TRANSFER_BUDGET_BYTES,
-)
-from ..enums import TaskCategory
-from ..utils.target import normalize_target
+    model_config = ConfigDict(extra="ignore")
+    workspace_dir: str = ".axonx"
+    log_dir: str = AXONX_DEFAULT_LOG_DIR
+    timezone: str = AXONX_DEFAULT_TIMEZONE
+    environment: dict[str, str] = Field(default_factory=dict)
+    cron: str | None = Field(default=None, min_length=1)
 
 
 class ComponentConfig(BaseModel):
@@ -58,98 +57,3 @@ class PluginConfig(BaseModel):
         if any(not value.strip() for value in values):
             raise ValueError("Plugin source paths must be non-empty strings")
         return values
-
-
-class TargetConfig(BaseModel):
-    """A configured AxonX service target and its credential."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-    address: str = Field(min_length=1)
-    token: str | None = Field(default=None, min_length=1, repr=False)
-
-    @field_validator("address")
-    @classmethod
-    def validate_address(cls, value: str) -> str:
-        return normalize_target(value)
-
-
-class StudioPageConfig(BaseModel):
-    """One service-defined page, grouping root Task runs by category."""
-
-    model_config = ConfigDict(extra="forbid")
-    title: dict[Literal["en", "zh"], str]
-    view: Literal["tasks", "pipeline"]
-    category: TaskCategory
-
-    @model_validator(mode="after")
-    def validate_page(self) -> Self:
-        if set(self.title) != {"en", "zh"} or any(not title.strip() for title in self.title.values()):
-            raise ValueError("Studio page titles require non-empty en and zh translations")
-        return self
-
-
-class StudioPage(StudioPageConfig):
-    id: str
-
-
-class StudioConfig(BaseModel):
-    """Business navigation supplied by the application, independent of the framework."""
-
-    model_config = ConfigDict(extra="forbid")
-    pages: dict[str, StudioPageConfig] = Field(default_factory=dict)
-
-    @field_validator("pages")
-    @classmethod
-    def validate_page_ids(cls, pages: dict[str, StudioPageConfig]) -> dict[str, StudioPageConfig]:
-        if any(not re.fullmatch(r"[a-z][a-z0-9_-]*", name) for name in pages):
-            raise ValueError("Studio page IDs must be lowercase URL slugs")
-        return pages
-
-
-class ApplicationConfig(BaseModel):
-    """Describe one complete AxonX application instance."""
-
-    model_config = ConfigDict(extra="forbid")
-    app_name: str = AXONX_NAME
-    workspace_dir: str = ".axonx"
-    transfer_budget_bytes: int = Field(default=DEFAULT_TRANSFER_BUDGET_BYTES, gt=0, strict=True)
-    log_dir: str = AXONX_DEFAULT_LOG_DIR
-    timezone: str = AXONX_DEFAULT_TIMEZONE
-    language: Literal["en", "zh"] = "en"
-    enable_logo: bool = True
-    log_to_console: bool = True
-    log_to_file: bool = True
-    plugins: PluginConfig = Field(default_factory=PluginConfig)
-    targets: list[TargetConfig] = Field(default_factory=list)
-    environment: dict[str, str] = Field(default_factory=dict)
-    components: dict[str, dict[str, ComponentConfig]] = Field(default_factory=dict)
-    jobs: dict[str, JobConfig] = Field(default_factory=dict)
-    cron: str | None = Field(default=None, min_length=1)
-    studio: StudioConfig = Field(default_factory=StudioConfig)
-    service: ComponentConfig | None = None
-
-    @model_validator(mode="after")
-    def validate_targets(self) -> Self:
-        addresses = [target.address for target in self.targets]
-        if len(addresses) != len(set(addresses)):
-            raise ValueError("Target addresses must be unique")
-        return self
-
-    def resolve_target(self, address: str) -> TargetConfig:
-        normalized = normalize_target(address)
-        for target in self.targets:
-            if target.address == normalized:
-                return target
-        raise ValueError(f"AxonX target is not configured: {normalized!r}")
-
-
-__all__ = [
-    "ApplicationConfig",
-    "ComponentConfig",
-    "JobConfig",
-    "PluginConfig",
-    "StudioConfig",
-    "StudioPageConfig",
-    "StudioPage",
-    "TargetConfig",
-]

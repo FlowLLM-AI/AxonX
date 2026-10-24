@@ -61,7 +61,7 @@ axonx stream_task --task-id 'base#demo#example' \
 ```python
 import asyncio
 import os
-from axonx.components.client import HttpClient
+from axonx.app.components.client import HttpClient
 
 async def main():
     async with HttpClient(

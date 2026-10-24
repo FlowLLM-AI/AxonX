@@ -9,45 +9,14 @@ from typing import Any
 
 import yaml
 
-from ..constants import (
-    AXONX_DEFAULT_ENCODING,
-    CONFIG_ENTRY_POINT_GROUP,
-)
+from ..common.arguments import convert_value
+from ..common.constants import AXONX_DEFAULT_ENCODING
+from .defaults import CONFIG_ENTRY_POINT_GROUP
 from .locator import discover_files, locate_file
-from .models import (
-    ApplicationConfig,
-    ComponentConfig,
-    JobConfig,
-    PluginConfig,
-    TargetConfig,
-)
 
 _CONFIG_DIR = Path(__file__).parent
 _SUPPORTED_EXTENSIONS = (".yaml", ".yml", ".json")
 _ENV_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?}")
-_LEADING_ZERO_RE = re.compile(r"^-?0\d")
-
-
-def convert_value(value: str) -> Any:
-    """Convert a textual configuration value to its natural Python value."""
-    value = value.strip()
-    lower = value.lower()
-    if lower in {"none", "null"}:
-        return None
-    if lower in {"true", "false"}:
-        return lower == "true"
-
-    if not _LEADING_ZERO_RE.match(value):
-        for converter in (int, float):
-            try:
-                return converter(value)
-            except ValueError:
-                pass
-
-    try:
-        return json.loads(value)
-    except ValueError:
-        return value
 
 
 def expand_env_vars(value: Any, env: Mapping[str, str] | None = None) -> Any:
@@ -161,7 +130,7 @@ class ConfigResolver:
 
     def resolve(self, *, log_config: bool = True, **overrides) -> dict:
         """Resolve a selected/default configuration and apply explicit overrides."""
-        from ..utils import get_logger
+        from ..common.logging import get_logger
 
         source = overrides.get("config")
         base: dict = {}
@@ -182,19 +151,3 @@ class ConfigResolver:
 def resolve_app_config(*, log_config: bool = True, **kwargs) -> dict:
     """Resolve application configuration using the built-in config directory."""
     return ConfigResolver().resolve(log_config=log_config, **kwargs)
-
-
-# Keep direct imports from ``axonx.config.resolver`` compatible while the canonical
-# home of the validated models is ``axonx.config.models``.
-__all__ = [
-    "ApplicationConfig",
-    "ComponentConfig",
-    "ConfigResolver",
-    "JobConfig",
-    "PluginConfig",
-    "TargetConfig",
-    "convert_value",
-    "deep_merge_config",
-    "expand_env_vars",
-    "resolve_app_config",
-]

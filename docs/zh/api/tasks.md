@@ -568,7 +568,7 @@ Available 列表由实际安装环境生成。wait_task 返回失败任务状态
 - [CLI 参考](../reference/cli.md)
 - [事件协议](events.md)
 
-实现依据：`axonx/config/default.yaml`、`axonx/steps/task/` 与 `axonx/components/service/http/jobs.py`。
+实现依据：`axonx/config/default.yaml`、`axonx/app/steps/task/` 与 `axonx/app/components/service/http/jobs.py`。
 
 ## Studio 查询投影
 

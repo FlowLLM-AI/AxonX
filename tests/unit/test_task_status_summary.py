@@ -9,11 +9,12 @@ import httpx
 import pytest
 import yaml
 
-from axonx.components.service import HttpService
-from axonx.components.task_repository import LocalTaskRepository
-from axonx.core import Application
+from axonx.app.components.service import HttpService
+from axonx.app.components.task_repository import LocalTaskRepository
+from axonx.app.core import Application
 from axonx.task.query.summary import summarize_status
-from axonx.task.storage.workspace import TaskMetadata, TaskStepStatus
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.schemas.progress import TaskStepStatus
 
 
 def status():

@@ -60,7 +60,7 @@ When investigating backtest anomalies, usually work upstream from Backtest to Pr
 ## Reading Upstream Tasks in Plugins
 
 ```python
-from axonx.enums import TaskType
+from axonx.task.enums import TaskType
 
 train_id = self.input_params.source_task(TaskType.TRAIN)
 train_dir = self.source_task_dir(train_id)

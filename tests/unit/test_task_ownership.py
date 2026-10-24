@@ -2,11 +2,11 @@
 
 import pytest
 
-from axonx.core import Application
+from axonx.app.core import Application
 from axonx.task.runtime.process import machine_id
 from axonx.task.schemas.lifecycle import TaskMetadata
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
-from axonx.workspace.browser import delete_workspace_entries
+from axonx.app.workspace.browser import delete_workspace_entries
 
 
 def application(root, port=1024):
@@ -54,7 +54,7 @@ async def test_shared_workspace_update_records_are_isolated(tmp_path):
     first, second = application(tmp_path), application(tmp_path, 1025)
     owner = first.context.components["updater"]["default"]
     observer = second.context.components["updater"]["default"]
-    from axonx.components.updater.worker import save
+    from axonx.daemon.update_worker import save
 
     folder = owner.directory / ("a" * 32)
     folder.mkdir(parents=True)
@@ -68,7 +68,7 @@ async def test_shared_workspace_update_records_are_isolated(tmp_path):
 
 
 async def test_update_status_does_not_adopt_old_unscoped_records(tmp_path):
-    from axonx.components.updater.worker import save
+    from axonx.daemon.update_worker import save
 
     update_id = "a" * 32
     folder = tmp_path / "updates" / update_id

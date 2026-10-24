@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from ..utils.fs import atomic_write_json, file_revision, snapshot_file
+from ..common.fs import atomic_write_json, file_revision, snapshot_file
 from .schemas.artifact import ArtifactRecord
 from .core.clock import ReplayClock
 

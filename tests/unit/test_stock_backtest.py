@@ -3,7 +3,7 @@
 import polars as pl
 import pytest
 
-from axonx.enums import TaskState
+from axonx.task.enums import TaskState
 from axonx.task.builtins.stock.backtest import BaseStockBacktestTask
 from axonx.task.builtins.stock.data import fixed_labels, transform_labels
 from axonx.task.builtins.stock.engine import BacktestConfig, run_backtest
@@ -684,9 +684,9 @@ def test_empty_universe_keeps_cash_and_does_not_erase_signal_dates():
 
 
 def test_backtest_contract_requires_reports_and_resolves_every_artifact():
-    from axonx.enums import TaskType
+    from axonx.task.enums import TaskType
     from axonx.task.contracts import BaseBacktestOutputParams
-    from axonx.task.protocol import task_protocol
+    from axonx.task.schemas.protocol import task_protocol
 
     report = {
         "label": "All",

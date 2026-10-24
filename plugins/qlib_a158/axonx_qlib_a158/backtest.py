@@ -2,10 +2,7 @@
 
 import polars as pl
 
-from axonx.task.builtins.stock import (
-    BaseStockBacktestTask,
-    StockBacktestInput as Alpha158BacktestInputParams,
-)
+from axonx.task.builtins.stock import BaseStockBacktestTask, StockBacktestInput as Alpha158BacktestInputParams
 from axonx.task.builtins.stock.backtest import StockBacktestOutput
 from axonx.task.contracts import BacktestUniverse
 from axonx.task.builtins.stock.data import KEYS

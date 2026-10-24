@@ -96,8 +96,8 @@ result is JobResponse plus `kind="result"`, containing answer, success, and meta
 ```python
 import asyncio
 import os
-from axonx.components.client import HttpClient
-from axonx.components.job import ResultEvent
+from axonx.app.components.client import HttpClient
+from axonx.app.components.job import ResultEvent
 
 async def main():
     async with HttpClient(

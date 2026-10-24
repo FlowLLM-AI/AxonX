@@ -7,14 +7,15 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from axonx.components.client import HttpClient
-from axonx.components.service import HttpService
-from axonx.components.sync import LocalSyncComponent
-from axonx.components.task_repository import TaskChanges, TaskChangeSubscription
-from axonx.config import ApplicationConfig
-from axonx.core import Application
+from axonx.app.components.client import HttpClient
+from axonx.app.components.service import HttpService
+from axonx.app.components.sync import LocalSyncComponent
+from axonx.app.components.task_repository import TaskChanges, TaskChangeSubscription
+from axonx.app.config import ApplicationConfig
+from axonx.app.core import Application
 from axonx.task.storage.artifacts import artifact_record
-from axonx.task.storage.workspace import TaskMetadata, task_path, write_task_metadata
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.storage.workspace import task_path, write_task_metadata
 from axonx.task.sync.index import source_revision, snapshot_index
 
 
@@ -220,7 +221,7 @@ async def test_authenticated_roundtrip_reconciles_reruns_and_skips_replicas(tmp_
 async def test_cancelled_blocking_work_finishes_before_resource_cleanup(cancellations):
     import threading
 
-    from axonx.utils.async_work import run_blocking
+    from axonx.common.async_work import run_blocking
 
     entered, release, finished = threading.Event(), threading.Event(), threading.Event()
 
@@ -282,7 +283,7 @@ async def test_live_flush_refreshes_remote_without_rescanning_terminal_sources(t
 
 @pytest.mark.asyncio
 async def test_archive_quota_bounds_preparation_work(tmp_path, monkeypatch):
-    from axonx.components.sync import local
+    from axonx.app.components.sync import local
 
     identities = [f"etl#demo{i}#research-core" for i in range(10)]
     for identity in identities:

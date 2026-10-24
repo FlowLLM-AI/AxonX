@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ...enums import TaskType
+from ..enums import TaskType
 from .artifact import ArtifactRecord
 from .protocol import Protocol, validate_protocol
 

@@ -12,7 +12,7 @@
 | axonx plugin | 当前环境或显式 target | 插件检查、构建、安装与卸载                 |
 | axonx help   | 所连服务              | 发现公开 Jobs；用 `--job NAME` 查询 schema |
 
-本地 exec 不要求服务运行；远程 CLI 和 submit 需要服务。进程隔离不构成安全沙箱。
+本地 exec 不要求服务运行；远程 CLI 需要服务。进程隔离不构成安全沙箱。
 
 ## 能力发现与环境诊断
 
@@ -176,3 +176,5 @@ Task 执行与进程控制由 CLI 执行环境负责。服务通过 TaskReposito
 ## 服务自更新
 
 [服务自更新](../guides/self-update.md)
+
+`help` Job 仅返回公开 Job 名称、描述或单个 Job schema；CLI 使用说明由本地可执行入口拥有，运行不带参数的 `axonx` 查看。远程 CLI 子进程在命令入口拒绝启动服务和嵌套 target 转发。

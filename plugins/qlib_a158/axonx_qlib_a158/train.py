@@ -11,19 +11,16 @@ import numpy as np
 import polars as pl
 from pydantic import Field, field_validator, model_validator
 
-from axonx.enums import TaskType
+from axonx.task.enums import TaskType
 from axonx.task.builtins.stock.data import transform_labels
 from axonx.task.builtins.stock.protocol import feature_contract
-from axonx.task.contracts import (
-    BaseInputParams,
-    BaseTrainOutputParams,
-    BaseTrainTask,
-)
+from axonx.task.contracts import BaseInputParams, BaseTrainOutputParams, BaseTrainTask
 from axonx.task.core import TaskStep
-from axonx.task.protocol import ModelCollection, task_protocol, validate_protocol
+from axonx.task.schemas.model import ModelCollection
+from axonx.task.schemas.protocol import task_protocol, validate_protocol
 from axonx.task.storage import artifact_record, read_metadata
 from axonx.task.storage.inputs import pin_source_artifacts
-from axonx.utils.fs import atomic_write, atomic_write_json
+from axonx.common.fs import atomic_write, atomic_write_json
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix

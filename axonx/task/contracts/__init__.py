@@ -12,10 +12,7 @@ from ..schemas.reports import (
     StockOnlineReport,
     StockReportSettings,
 )
-from .analysis import (
-    BaseAnalysisOutputParams,
-    BaseAnalysisTask,
-)
+from .analysis import BaseAnalysisOutputParams, BaseAnalysisTask
 from .backtest import BaseBacktestOutputParams, BaseBacktestTask
 from .compare import (
     BasePredictionCompareInputParams,
@@ -24,17 +21,10 @@ from .compare import (
     PredictionComparison,
 )
 from .etl import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
-from .inference import (
-    BaseInferenceOutputParams,
-    BaseInferenceTask,
-)
+from .inference import BaseInferenceOutputParams, BaseInferenceTask
 from .predict import BasePredictOutputParams, BasePredictTask
 from .realtime import BaseRealtimeApiTask
-from .train import (
-    BaseTrainOutputParams,
-    BaseTrainTask,
-    TrainingCurve,
-)
+from .train import BaseTrainOutputParams, BaseTrainTask, TrainingCurve
 from .windows import ExecutionWindow, WindowInputParams, WindowOutputParams, WindowResult
 
 __all__ = [

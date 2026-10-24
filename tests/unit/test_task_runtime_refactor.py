@@ -8,23 +8,18 @@ from unittest.mock import Mock
 
 import pytest
 
-from axonx.components.job import LogEvent
-from axonx.components.job.events import ProgressEvent
-from axonx.enums import TaskState, TaskType
+from axonx.common.logs import LogEvent
+from axonx.task.schemas.progress import ProgressEvent
+from axonx.task.enums import TaskState, TaskType
 from axonx.task.builtins import DemoTask
 from axonx.task.core import task_type_from_id
 from axonx.task.query.stream import stream_task
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.events import LOG_WINDOW_BYTES, append_event, read_event_lines
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import (
-    EVENTS_FILE,
-    TaskMetadata,
-    read_task_metadata,
-    task_path,
-    write_task_metadata,
-)
-from axonx.utils.logging import LoggingConfig, configure_logging
+from axonx.task.storage.workspace import EVENTS_FILE, read_task_metadata, task_path, write_task_metadata
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.common.logging import LoggingConfig, configure_logging
 
 
 def test_success_is_published_with_matching_persisted_output(tmp_path):

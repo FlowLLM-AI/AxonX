@@ -1,13 +1,11 @@
 """CLI connection options must route to the client, not to Jobs."""
 
-import importlib
-
 import pytest
 
 from axonx.cli.main import _load_client_options, _run_plugin, _run_remote_job
 from axonx.cli.parser import parse_command
-from axonx.components.client import ClientOptions
-from axonx.components.job import JobResponse
+from axonx.config.target import ClientOptions
+from axonx.app.components.job import JobResponse
 
 
 def test_wait_task_accepts_client_timeout():
@@ -42,7 +40,7 @@ def test_remote_job_accepts_trailing_connection_options():
         ],
     )
     assert (client.target, client.token) == ("http://192.0.2.10:1024", "secret")
-    assert command.arguments["_axonx_argv"] == ["--task-id", "etl#qlib_a158_etl#demo"]
+    assert list(command.raw_arguments) == ["--task-id", "etl#qlib_a158_etl#demo"]
 
 
 def test_plugin_accepts_trailing_connection_options():
@@ -50,7 +48,7 @@ def test_plugin_accepts_trailing_connection_options():
     command, client = parse_command(
         ["plugin", "install", "plugins/qlib_a158", "--target", "192.0.2.10:1024"],
     )
-    assert command.arguments["_axonx_argv"] == ["install", "plugins/qlib_a158"]
+    assert list(command.raw_arguments) == ["install", "plugins/qlib_a158"]
     assert client.target == "http://192.0.2.10:1024"
 
 
@@ -100,7 +98,8 @@ def test_rejects_repeated_client_option():
 
 def test_target_preserves_local_command_arguments():
     command, options = parse_command(["exec", "--task", "demo", "--target", "node-b:1024"])
-    assert command.arguments == {"_axonx_argv": ["--task", "demo"]}
+    assert command.arguments == {}
+    assert command.raw_arguments == ("--task", "demo")
     assert options.target == "http://node-b:1024"
 
 
@@ -118,8 +117,7 @@ def test_job_defaults_to_token_for_target(monkeypatch, target, expected_token):
         received.update(options)
         return JobResponse()
 
-    cli_main = importlib.import_module("axonx.cli.main")
-    monkeypatch.setattr(cli_main, "run_remote_job", run_remote_job)
+    monkeypatch.setattr("axonx.app.components.client.remote.run_remote_job", run_remote_job)
     command, client = parse_command(
         ["status", *(["--target", target] if target else [])],
     )
@@ -129,10 +127,10 @@ def test_job_defaults_to_token_for_target(monkeypatch, target, expected_token):
 
 def test_plugin_cli_receives_only_local_arguments(monkeypatch):
     received = []
-    monkeypatch.setattr("axonx.plugin_kit.cli.plugin_cli", lambda argv: received.append(argv) or 0)
+    monkeypatch.setattr("axonx.cli.plugin.plugin_cli", lambda argv: received.append(argv) or 0)
     command, _ = parse_command(["plugin", "list"])
     assert _run_plugin(command) == 0
-    assert received == [["list"]]
+    assert received == [("list",)]
 
 
 @pytest.mark.parametrize("target", [None, "192.0.2.10:1024"])
@@ -180,7 +178,7 @@ def test_cli_query_defaults_are_lightweight_and_overridable(monkeypatch, action,
         received.update(arguments)
         return JobResponse()
 
-    monkeypatch.setattr(importlib.import_module("axonx.cli.main"), "run_remote_job", run_remote_job)
+    monkeypatch.setattr("axonx.app.components.client.remote.run_remote_job", run_remote_job)
     options = {"detail": "full"} if "detail" in defaults else {"limit": 100}
     if action == "preview_file":
         options["max_bytes"] = 65536

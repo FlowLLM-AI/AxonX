@@ -115,4 +115,4 @@ axonx plugin install /srv/axonx/./plugins/qlib_a158 --target 'http://research.ex
 
 [鉴权](authentication.md) · [插件管理](../plugins/management.md) · [Task 同步](task-sync.md) · [机器 API](../api/machines.md)
 
-源码：[targets 模型](../../../axonx/config/models.py)、[远程客户端](../../../axonx/components/client/base.py)、[Job 路由](../../../axonx/components/service/http/jobs.py)。
+源码：[targets 模型](../../../axonx/config/models.py)、[远程客户端](../../../axonx/app/components/client/base.py)、[Job 路由](../../../axonx/app/components/service/http/jobs.py)。

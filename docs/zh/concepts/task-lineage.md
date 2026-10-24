@@ -60,7 +60,7 @@ Relationships 区域因此显示 `docs-demo` → `docs-child`。这是用户分�
 ## 在插件中读取上游
 
 ```python
-from axonx.enums import TaskType
+from axonx.task.enums import TaskType
 
 train_id = self.input_params.source_task(TaskType.TRAIN)
 train_dir = self.source_task_dir(train_id)

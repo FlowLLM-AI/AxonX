@@ -10,14 +10,11 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from axonx.core import Application
+from axonx.app.core import Application
 from axonx.task.sync import TaskArchiveApplier
-from axonx.workspace.browser import (
-    delete_workspace_entries,
-    list_workspace_entries,
-)
-from axonx.workspace.preview import preview_workspace_file
-from axonx.workspace.staging import StagedFiles
+from axonx.app.workspace.browser import delete_workspace_entries, list_workspace_entries
+from axonx.app.workspace.preview import preview_workspace_file
+from axonx.app.workspace.staging import StagedFiles
 
 TASK_ID = "etl#demo#run1234567890"
 TASK_DIRECTORY = f"etl/{TASK_ID}"
@@ -161,7 +158,7 @@ def test_workspace_functions_own_only_browse_preview_and_delete(tmp_path):
 
 
 def test_workspace_listing_applies_filter_and_directory_order_before_limit(tmp_path, monkeypatch):
-    monkeypatch.setattr("axonx.workspace.browser.MAX_DIRECTORY_ENTRIES", 2)
+    monkeypatch.setattr("axonx.app.workspace.browser.MAX_DIRECTORY_ENTRIES", 2)
     (tmp_path / "a-file.txt").write_text("a", encoding="utf-8")
     for name in ("z-task", "y-task", "x-invalid"):
         (tmp_path / name).mkdir()
@@ -203,7 +200,7 @@ def test_workspace_operations_do_not_traverse_symlinks(tmp_path):
 
 
 def test_workspace_directory_pages_cover_all_entries(tmp_path, monkeypatch):
-    monkeypatch.setattr("axonx.workspace.browser.MAX_DIRECTORY_ENTRIES", 2)
+    monkeypatch.setattr("axonx.app.workspace.browser.MAX_DIRECTORY_ENTRIES", 2)
     for name in ("2026", "2025", "Agent"):
         (tmp_path / name).mkdir()
     for name in ("a.json", "z.txt"):
@@ -222,7 +219,7 @@ def test_workspace_directory_pages_cover_all_entries(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_workspace_job_passes_directory_offset(tmp_path, monkeypatch):
-    monkeypatch.setattr("axonx.workspace.browser.MAX_DIRECTORY_ENTRIES", 2)
+    monkeypatch.setattr("axonx.app.workspace.browser.MAX_DIRECTORY_ENTRIES", 2)
     for name in ("a", "b", "c"):
         (tmp_path / name).mkdir()
     app = Application(
@@ -255,7 +252,7 @@ def test_jsonl_preview_paginates_and_keeps_malformed_rows(tmp_path, extension):
 
 
 def test_jsonl_preview_bounds_large_lines_and_preserves_next_record(tmp_path):
-    from axonx.workspace.preview import TEXT_PREVIEW_BYTES
+    from axonx.app.workspace.preview import TEXT_PREVIEW_BYTES
 
     path = tmp_path / "large.jsonl"
     path.write_bytes(b'"' + b"x" * (TEXT_PREVIEW_BYTES * 2) + b'"\n{"next":true}\n')
@@ -319,7 +316,7 @@ def test_byte_budget_preserves_utf8_and_rejects_invalid_data(tmp_path, filename)
 
 
 def test_text_budget_can_exceed_default_and_markdown_keeps_frontmatter(tmp_path):
-    from axonx.workspace.preview import TEXT_PREVIEW_BYTES
+    from axonx.app.workspace.preview import TEXT_PREVIEW_BYTES
 
     content = "x" * (TEXT_PREVIEW_BYTES + 1)
     (tmp_path / "large.txt").write_text(content)

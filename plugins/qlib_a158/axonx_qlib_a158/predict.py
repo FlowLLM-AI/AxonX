@@ -10,25 +10,18 @@ import numpy as np
 import polars as pl
 from pydantic import Field, field_validator, model_validator
 
-from axonx.enums import TaskType
+from axonx.task.enums import TaskType
 from axonx.task.builtins.stock.data import KEYS, validate_keys
 from axonx.task.builtins.stock.protocol import feature_identity
-from axonx.task.contracts import (
-    BaseInputParams,
-    BasePredictOutputParams,
-    BasePredictTask,
-)
+from axonx.task.contracts import BaseInputParams, BasePredictOutputParams, BasePredictTask
 from axonx.task.core import TaskStep, parse_source_tasks, task_type_from_id
-from axonx.task.protocol import (
-    ModelCollection,
-    fingerprint,
-    prediction_protocol,
-    validate_protocol,
-)
+from axonx.task.schemas.model import ModelCollection
+from axonx.task.schemas.protocol import fingerprint, validate_protocol
+from axonx.task.storage.artifacts import prediction_protocol
 from axonx.task.storage import artifact_record
 from axonx.task.storage.inputs import pin_source_artifacts, source_artifact
 from axonx.task.storage.models import snapshot_model_collection
-from axonx.utils.fs import atomic_write
+from axonx.common.fs import atomic_write
 
 from .internal.modeling import feature_matrix
 

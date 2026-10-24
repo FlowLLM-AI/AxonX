@@ -7,8 +7,8 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field
 
-from ...enums import TaskType
-from ...utils.fs import file_revision
+from ..enums import TaskType
+from ...common.fs import file_revision
 from ..schemas.artifact import ArtifactRecord
 from ..schemas.online import OnlineCommit, OnlineHistory
 from ..schemas.protocol import Protocol

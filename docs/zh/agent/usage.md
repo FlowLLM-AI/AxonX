@@ -133,5 +133,5 @@ axonx cancel_agent_turn --session-id '<正在运行的 UUID>'
 ## 相关文档与实现
 
 - [Agent 配置](configuration.md)、[MCP 接入](mcp-integration.md)
-- [`Claude 会话实现`](../../../axonx/components/agent/claude/backend.py)
-- [`流式轮次 Step`](../../../axonx/steps/agent/run.py)
+- [`Claude 会话实现`](../../../axonx/app/components/agent/claude/backend.py)
+- [`流式轮次 Step`](../../../axonx/app/steps/agent/run.py)

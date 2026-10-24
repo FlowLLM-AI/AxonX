@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from axonx.enums import TaskState, TaskType
+from axonx.task.enums import TaskState, TaskType
 from axonx.task import BaseOutputParams, BaseTask
 from axonx.task.builtins.stock.backtest import BaseStockBacktestTask
 from axonx.task.runtime.runner import TaskRunner

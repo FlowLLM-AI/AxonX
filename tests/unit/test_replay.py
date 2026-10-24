@@ -7,10 +7,10 @@ from time import sleep
 
 import pytest
 
-from axonx.enums import TaskState
+from axonx.task.enums import TaskState
 from axonx.task import BaseCompositeTask
 from axonx.task.builtins.demo import DemoTask
-from axonx.task.clock import ReplayClock
+from axonx.task.core.clock import ReplayClock
 from axonx.task.contracts import DeadlineBudget
 from axonx.task.replay import ReplayCursor, ReplaySource, ReplayStream
 from axonx.task.runtime.runner import TaskRunner

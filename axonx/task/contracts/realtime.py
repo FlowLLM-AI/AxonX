@@ -2,7 +2,7 @@
 
 from abc import abstractmethod
 
-from ...enums import TaskType
+from ..enums import TaskType
 from ..core.clock import DeadlineBudget
 from .windows import ExecutionWindow, WindowInputParams, WindowResult, _WindowTask
 

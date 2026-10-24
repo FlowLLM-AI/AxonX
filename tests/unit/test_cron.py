@@ -8,7 +8,7 @@ import pytest
 
 from axonx.config import ConfigResolver
 from axonx.config.locator import locate_file
-from axonx.core import Application
+from axonx.app.core import Application
 from axonx.cron.parser import parse_crontab
 from axonx.cron.scheduler import CronScheduler
 
@@ -22,6 +22,7 @@ def scheduler(tmp_path, text="* * * * * axonx exec --task demo --task-name cron-
         log_dir=str(tmp_path / "logs"),
         timezone="Asia/Shanghai",
         environment={"CRON_TEST_ENV": "present"},
+        launch=lambda entry: None,
     )
 
 
