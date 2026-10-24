@@ -8,12 +8,8 @@ import string
 from datetime import datetime
 from pathlib import Path
 
-from ...constants import (
-    GENERATED_TASK_NAME_TIME_FORMAT,
-    TASK_ID_SEPARATOR,
-    TASK_NAME_PATTERN,
-)
-from ...enums import TaskType
+from ..constants import GENERATED_TASK_NAME_TIME_FORMAT, TASK_ID_SEPARATOR, TASK_NAME_PATTERN
+from ..enums import TaskType
 
 _REG_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 _TASK_NAME = re.compile(TASK_NAME_PATTERN)

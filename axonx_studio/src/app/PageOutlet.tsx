@@ -24,7 +24,9 @@ const StrategyComparePage = lazy(
   () => import("../features/research/compare/StrategyComparePage"),
 );
 const ApiWorkspace = lazy(() => import("../features/api-catalog/ApiWorkspace"));
-const SubmitPage = lazy(() => import("../features/task-submit/SubmitPage"));
+const TaskDefinitionsPage = lazy(
+  () => import("../features/task-definitions/TaskDefinitionsPage"),
+);
 const AgentWorkspace = lazy(() => import("../features/agent/AgentWorkspace"));
 
 interface PageOutletProps {
@@ -58,7 +60,7 @@ export function PageOutlet({
       <HomePage
         onNavigate={(target) =>
           navigate(
-            target === "submit"
+            target === "task-defs"
               ? defaultRoute("task-defs")
               : target === "tasks"
                 ? { section: "runtime", view: "tasks" }
@@ -98,7 +100,6 @@ export function PageOutlet({
         onNavigate={(nextView, resource) =>
           navigate({ section: "runtime", view: nextView, resource })
         }
-        onSubmit={() => navigate(defaultRoute("task-defs"))}
         onInterpretTask={(taskId) =>
           navigate({ section: "agent", view: "task", resource: taskId })
         }
@@ -215,14 +216,13 @@ export function PageOutlet({
     );
   } else if (route.section === "task-defs") {
     page = (
-      <SubmitPage
+      <TaskDefinitionsPage
         target={target}
         initialName={route.resource}
         onSelected={(resource) =>
           navigate({ section: "task-defs", view: "catalog", resource })
         }
         onOptionsChange={setResourceOptions}
-        onViewTasks={() => navigate({ section: "runtime", view: "tasks" })}
         onConnection={setServiceOnline}
       />
     );

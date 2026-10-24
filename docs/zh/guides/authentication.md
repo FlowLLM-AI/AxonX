@@ -25,14 +25,14 @@ service:
 
 ## 协议保护范围
 
-| 路由              | 配置服务 token 后                 |
-| ----------------- | --------------------------------- |
-| /health           | 需要 Bearer                       |
-| /jobs 及其子路径  | 需要 Bearer，包括 SSE             |
-| /files 及其子路径 | 需要 Bearer                       |
-| /mcp 及其子路径   | 需要 Bearer                       |
-| Studio 静态页面   | 不由协议 token 拦截，API 仍需凭据 |
-| /proxy/{name}     | 使用上游鉴权，不检查服务 token    |
+| 路由               | 配置服务 token 后                 |
+| ------------------ | --------------------------------- |
+| /health            | 需要 Bearer                       |
+| /jobs 及其子路径   | 需要 Bearer，包括 SSE             |
+| /upload 及其子路径 | 需要 Bearer                       |
+| /mcp 及其子路径    | 需要 Bearer                       |
+| Studio 静态页面    | 不由协议 token 拦截，API 仍需凭据 |
+| /proxy/{name}      | 使用上游鉴权，不检查服务 token    |
 
 预检 OPTIONS 不执行这份 Bearer 校验。允许跨源请求不是允许无凭据执行 Job，真实协议调用仍需鉴权。
 
@@ -104,4 +104,4 @@ Agent 的默认 Job 工具列表为空，可选查询名单保留为注释示例
 
 [远程机器](remote-machines.md) · [API 总览](../api/overview.md) · [Agent 配置](../agent/configuration.md) · [HTTP 代理](http-proxy.md)
 
-源码：[鉴权与公开筛选](../../../axonx/components/service/http/app.py)、[Job 配置](../../../axonx/config/models.py)、[CLI token 加载](../../../axonx/cli/main.py)。
+源码：[鉴权与公开筛选](../../../axonx/app/components/service/http/app.py)、[Job 配置](../../../axonx/config/models.py)、[CLI token 加载](../../../axonx/cli/main.py)。

@@ -4,7 +4,7 @@ from abc import abstractmethod
 
 from pydantic import TypeAdapter
 
-from ...enums import TaskType
+from ..enums import TaskType
 from ..core.clock import DeadlineBudget
 from .windows import ExecutionWindow, WindowInputParams, WindowOutputParams, WindowResult, _WindowTask
 

@@ -4,14 +4,41 @@ Python 可以在进程内嵌入 Application，或连接已经运行的 HTTP/MCP 
 
 ![本地应用与远程客户端](../../figures/reference/python-paths.svg)
 
+## 内部导入路径迁移
+
+内部模块路径已调整，不保留旧兼容包。顶层公开类仍可导入，并按需加载。请使用以下规范路径；Task 元数据和网络数据模型保持一致。
+
+| 原路径                                          | 规范路径                                                  |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| `axonx.components / axonx.steps / axonx.core`   | `axonx.app.components / axonx.app.steps / axonx.app.core` |
+| `axonx.plugin_kit / axonx.common.registry`      | `axonx.plugin / axonx.plugin.registry`                    |
+| `axonx.enums / axonx.common.enums`              | `axonx.task.enums / axonx.app.components.types`           |
+| `axonx.common.command`                          | `axonx.cli.parser / axonx.config.target`                  |
+| `axonx.config.ApplicationConfig / StudioPage`   | `axonx.app.config`                                        |
+| `axonx.common.utils.env / target`               | `axonx.config.env / target`                               |
+| `axonx.common.utils.build_info / log_retention` | `axonx.app.core.build_info / logging`                     |
+| `axonx.common.utils.logging.task_log_scope`     | `axonx.task.runtime.logging`                              |
+| `axonx.common.utils / fs / async_work`          | `axonx.common.logging / fs / async_work`                  |
+| `axonx.task.artifact / status / source`         | `axonx.task.schemas.artifact / lifecycle`                 |
+| `axonx.task.protocol`                           | `axonx.task.schemas.protocol / model / prediction`        |
+
+Task 执行器直接接收任务名和输入参数，不接收 CLI Command，也不再套一层输出包装：
+
+```python
+from axonx.task.runtime import TaskExecutor
+
+status = TaskExecutor(".axonx").execute("demo", {"x": 2, "y": 3})
+print(status.output_params)
+```
+
 ## 导入入口
 
 ```python
 from axonx import Application, BaseStep, provider
 from axonx.config import resolve_app_config
-from axonx.components.client import HttpClient, McpClient, RemoteServiceError
-from axonx.core import run_remote_job, stream_remote_job
-from axonx.components.job import ResultEvent
+from axonx.app.components.client import HttpClient, McpClient, RemoteServiceError
+from axonx.app.core import run_remote_job, stream_remote_job
+from axonx.app.components.job import ResultEvent
 ```
 
 Application 从顶层导出；HTTP/MCP 客户端与事件类型从各自子包导出。项目使用 Python 3.12 语法，不能用较旧解释器直接导入。
@@ -34,7 +61,7 @@ async def main():
 asyncio.run(main())
 ```
 
-async with 按依赖顺序启动组件、Job、调度器，退出时反序关闭。这个例子不启动 HTTP 监听；service 的 run_app 由 CLI start 调用。加载 default 会装配其中组件，调用者需要当前环境可导入对应依赖；最小应用可只保留需要的 Job。
+async with 按依赖顺序启动组件和 Job，退出时反序关闭；嵌入式 Application 不启动 daemon 或 cron worker，这些进程由 CLI start 管理。这个例子不启动 HTTP 监听；service 的 run_app 由 CLI start 调用。加载 default 会装配其中组件，调用者需要当前环境可导入对应依赖；最小应用可只保留需要的 Job。
 
 Application 不自动读取 .env；resolve_app_config 只展开已存在的环境变量。若需要 .env 先用应用自己的环境加载方式。
 
@@ -54,7 +81,7 @@ run_job 与 stream_job 均要求应用已启动。target 非空时必须在 Appl
 ```python
 import asyncio
 import os
-from axonx.components.client import HttpClient
+from axonx.app.components.client import HttpClient
 
 async def main():
     async with HttpClient(
@@ -65,15 +92,13 @@ async def main():
         definitions = await client.run_job("get_task_definition", {"task": "demo"})
         if not definitions.success:
             raise RuntimeError(str(definitions.answer))
-        submitted = await client.run_job("submit", {"task": "demo", "x": 1, "y": 2})
-        if not submitted.success:
-            raise RuntimeError(str(submitted.answer))
-        handle = submitted.answer
-        completed = await client.run_job("wait_task", {
-            "task_id": handle["task_id"],
-            "run_id": handle["run_id"],
+        completed = await client.run_job("cli", {
+            "argv": ["exec", "--task", "demo", "--x", "1", "--y", "2",
+                     "--task-name", "python-demo"],
         })
-        print(completed.success, completed.answer)
+        if not completed.success:
+            raise RuntimeError(str(completed.answer))
+        print(completed.answer["exit_code"], completed.answer["stdout"])
 
 asyncio.run(main())
 ```
@@ -86,7 +111,7 @@ asyncio.run(main())
 | stream_job      | name, arguments=None                | AsyncIterator[JobEvent] |
 | list_jobs       | 无                                  | list[JobInfo]           |
 | health          | 无                                  | bool，失败折叠 false    |
-| copy_file       | Path，filename=None，directory=None | FileCopy                |
+| copy_file       | Path，filename=None，directory=None | StagedFile              |
 | discard_file    | path: str                           | 清理的路径字符串        |
 
 构造参数 target=None、timeout=60.0、token=None；可选 transport 用于注入 HTTP 传输（例如测试）。进入 async with 后才可调用。target 不含 `/mcp` 或 Job 子路径。
@@ -103,11 +128,11 @@ async with HttpClient(target="127.0.0.1:1024", token=token, timeout=600.0) as cl
             print(event.content, end="")
 ```
 
-这是异步函数内的片段，token/task_id 来自配置与提交结果。详细 framing 与断线规则见 [SSE](../api/events.md)。对提前停止消费的异步生成器，使用 contextlib.aclosing 保证关闭事件源。
+这是异步函数内的片段，token/task_id 来自配置与 Task metadata。详细 framing 与断线规则见 [SSE](../api/events.md)。对提前停止消费的异步生成器，使用 contextlib.aclosing 保证关闭事件源。
 
 ## 文件上传
 
-`HttpClient.copy_file` 以原始二进制流上传到 `/files`，通过请求头提供文件名与可选暂存目录。直接 HTTP 调用也可使用 multipart，两种格式返回相同的 FileCopy。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
+`HttpClient.copy_file` 以原始二进制流上传到 `/upload`，通过请求头提供文件名与可选暂存目录。直接 HTTP 调用也可使用 multipart，两种格式返回相同的 StagedFile。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
 
 ```python
 from pathlib import Path
@@ -115,9 +140,8 @@ from pathlib import Path
 async with HttpClient(target=target, token=token) as client:
     copied = await client.copy_file(Path("dist/axonx_example-0.1.0-py3-none-any.whl"))
     try:
-        installed = await client.run_job("install_plugin", {
-            "path": copied.path,
-            "sha256": copied.sha256,
+        installed = await client.run_job("cli", {
+            "argv": ["plugin", "install", copied.location],
         })
         print(installed.model_dump(mode="json"))
     finally:
@@ -166,7 +190,7 @@ else:
         print("业务失败", response.answer)
 ```
 
-连接失败、HTTP 拒绝、无效 envelope/事件触发 RemoteServiceError；HTTP 200 内 success=false 要单独判断。本机参数错误可直接抛 ValueError，Step 内异常通常被 Job 折叠。关闭 Application 会关闭任务管理器，其管理 worker 可能被取消，不适合用短生命周期嵌入应用提交任务后立即退出。
+Task 执行与进程控制由 CLI 执行环境负责。服务通过 TaskRepository 读取已发布 metadata，不取消、恢复或接管 Task 进程。
 
 ## 相关文档
 

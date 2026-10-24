@@ -43,7 +43,7 @@ The table lists model defaults, which differ from the expanded built-in default.
 | environment           | dict[string,string]                       | {}            | Application environment injected into workers and Agents            |
 | components            | dict[category,dict[name,ComponentConfig]] | {}            | Named component groups                                              |
 | jobs                  | dict[public_name,JobConfig]               | {}            | Job definitions                                                     |
-| schedules             | dict[name,ScheduleConfig]                 | {}            | Schedulers                                                          |
+| cron                  | string/null                               | null          | Named crontab or explicit .cron file                                |
 | service               | ComponentConfig/null                      | null          | Service component; CLI start requires service                       |
 
 The model prohibits unknown top-level fields. Normalized target addresses must not be duplicated. environment values must be strings, rather than numbers or nested objects.
@@ -90,11 +90,9 @@ service:
   cleanup_timeout: ${AXONX_SERVICE_CLEANUP_TIMEOUT:-15}
 ```
 
-The built-in `default` configuration (and configurations that inherit it, including `remote`) reads `AXONX_WORKSPACE_DIR` for `workspace_dir`, falling back to `.axonx` when the variable is absent. Set it in the shell or `.env`, for example `AXONX_WORKSPACE_DIR=/srv/axonx/workspace`. A child configuration’s explicit `workspace_dir` overrides this value; `--workspace-dir` or a Python resolver override takes precedence over both. Constructing `ApplicationConfig` directly keeps the model default `.axonx` and does not read this variable.
+The built-in `default` configuration (and configurations that inherit it, including `remote`) reads `AXONX_WORKSPACE_DIR` for `workspace_dir`, falling back to `.axonx` when the variable is absent. Set it in the shell or `.env`, for example `AXONX_WORKSPACE_DIR=/srv/axonx/app/workspace`. A child configuration’s explicit `workspace_dir` overrides this value; `--workspace-dir` or a Python resolver override takes precedence over both. Constructing `ApplicationConfig` directly keeps the model default `.axonx` and does not read this variable.
 
 CLI start first loads .env and merges it into environment. Ordinary clients and exec read the environment with override=false. Python's ConfigResolver does not itself load .env; callers must establish the environment themselves.
-
-Local Task workers inherit `PATH`, `HOME`, and `LD_LIBRARY_PATH` from the AxonX process when present. `LD_LIBRARY_PATH` is now inherited automatically so Linux workers can find native shared libraries configured in the startup environment. Application `environment` values override inherited values; framework-injected Task variables take precedence over both. Other parent-process variables require explicit configuration in `environment`.
 
 Relative plugins.sources paths resolve to absolute paths against the configuration file that declares them. Ordinary paths such as workspace_dir/log_dir do not receive this special conversion; at runtime, they are usually relative to the process working directory and support user-directory expansion. The configuration file's directory is not the base for all paths.
 
@@ -102,22 +100,7 @@ Relative plugins.sources paths resolve to absolute paths against the configurati
 
 ComponentConfig requires a nonempty backend and allows extra fields, interpreted or validated by the corresponding implementation constructor.
 
-```yaml
-components:
-  task_repository:
-    default:
-      backend: local
-      poll_interval: 1
-  task_manager:
-    default:
-      backend: local
-      task_repository: default
-      terminate_grace_seconds: 5
-```
-
 The local repository reads Task metadata once during startup, then polls only category directories, Task directories, and their `metadata.json` files in a worker thread. It rereads records only when file attributes change; it never recursively watches artifacts or logs. `poll_interval` is the delay in seconds between completed polls (default `1`, finite and positive). Failed scans retain the previous index and retry; invalid records retain their last valid value until repaired or deleted. Closing the repository waits for an in-flight scan. The former `recursive`, `force_polling`, `debounce`, `step`, and `poll_delay_ms` options are removed; replace them with `poll_interval`.
-
-task_repository is the category, default is the instance name, and local is the implementation backend. TaskManager declares a dependency on the repository. Composition checks instance existence and type; dependencies start first and close last. See [Framework extensions](../development/framework-extensions.md).
 
 ## JobConfig
 
@@ -136,19 +119,9 @@ PipelineJob also supports event_buffer_size (default 64, a positive integer) as 
 
 PipelineJob recursively merges `defaults` → caller arguments → system and deep-copies the result per invocation. Nested objects retain unspecified fields, including when an override is empty; lists and scalar values are replaced. Public arguments are validated before merging. See [framework extensions](../development/framework-extensions.md#parameters-defaults-and-system).
 
-## ScheduleConfig
+## Cron configuration
 
-| Field              | Type                 | Default  | Meaning                                              |
-| ------------------ | -------------------- | -------- | ---------------------------------------------------- |
-| backend            | Nonempty string      | cron     | Scheduler implementation                             |
-| description        | string               | ""       | Schedule description; empty uses the Job description |
-| job                | Nonempty string      | Required | Job name to invoke                                   |
-| cron               | Nonempty string      | Required | Cron expression                                      |
-| arguments          | object               | {}       | Job arguments                                        |
-| timezone           | Nonempty string/null | null     | null uses the application timezone                   |
-| concurrency_policy | forbid/allow/replace | forbid   | Overlap policy for the same scheduled Job            |
-
-The default is schedules={}. Policies apply to execution of the scheduled Job; after submit returns, the background Task may still be running. See [Scheduling](../guides/scheduling.md) for an enabling example.
+`cron` selects a named crontab or explicit `.cron` path; `null` disables scheduling. `axonx start --config default --cron research` uses the same file locator as configuration, with the separate `axonx.crons` entry-point group. Cron parses five-field entries and starts only local `axonx exec --task` commands. It reads once at startup, uses the application timezone and leaves started Tasks running on shutdown. See [Scheduling](../guides/scheduling.md).
 
 ## PluginConfig and TargetConfig
 
@@ -175,7 +148,7 @@ The service has no TLS configuration by default. A missing Studio build is logge
 ## Topic-specific configuration and validation
 
 - [Claude Agent](../agent/configuration.md): models, permissions, tools, and session state.
-- [Task synchronization](../guides/task-sync.md): sync components and schedules disabled by default.
+- [Task synchronization](../guides/task-sync.md): sync components and manual flush.
 - [HTTP proxy](../guides/http-proxy.md): named fixed upstreams.
 - [Service deployment](../guides/deployment.md): process supervision and static resources.
 

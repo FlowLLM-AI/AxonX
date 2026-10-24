@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 
-from axonx.enums import TaskState, TaskType
+from axonx.task.enums import TaskState, TaskType
 from axonx.task.query.graph import task_graph
-from axonx.task.storage.workspace import TaskMetadata
+from axonx.task.schemas.lifecycle import TaskMetadata
 
 
 def status(task_id: str, task_type: TaskType, **config) -> TaskMetadata:

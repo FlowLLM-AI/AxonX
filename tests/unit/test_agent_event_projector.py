@@ -7,10 +7,7 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
-from axonx.components.agent.claude.projector import (
-    ClaudeMessageProjector,
-    history_blocks,
-)
+from axonx.app.components.agent.claude.projector import ClaudeMessageProjector, history_blocks
 
 
 def test_projector_coalesces_text_delta_with_complete_message():

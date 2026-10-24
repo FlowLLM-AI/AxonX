@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from ...utils.fs import atomic_write_json, file_revision, snapshot_file
+from ...common.fs import atomic_write_json, file_revision, snapshot_file
 from ..schemas.model import ModelCollection
 from .artifacts import artifact_record
 

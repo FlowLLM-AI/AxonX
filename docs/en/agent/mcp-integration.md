@@ -25,7 +25,7 @@ When the service enables a token, MCP also requires Bearer authentication. Witho
 
 ## Discover before calling
 
-The tool catalog comes from the running service configuration and may include queries, submission, cancellation, file deletion, Python execution, or plugin installation. External MCP exposure and the built-in Agent's `job_tools` list are separate configuration layers.
+The tool catalog comes from the running service configuration and may include queries, Task observation, file deletion, Python execution, or plugin installation. External MCP exposure and the built-in Agent's `job_tools` list are separate configuration layers.
 
 Call MCP `tools/list` first, read the tool Schema, then use `tools/call`. Do not assume that a deployment exposes a tool because its name appears in the documentation. Provide callers only with capabilities needed for the current user task.
 
@@ -36,7 +36,7 @@ The project provides an MCP client for ordinary JobResponse results:
 ```python
 import asyncio
 import os
-from axonx.components.client.mcp import McpClient
+from axonx.app.components.client.mcp import McpClient
 
 async def main():
     async with McpClient(
@@ -73,7 +73,7 @@ Parquet previews return limited paginated data, which may not represent the enti
 
 ## File uploads
 
-File bytes are transferred through HTTP `POST /files`, separately from MCP tool calls. Use a binary or multipart upload, or `HttpClient.copy_file`, against the same service as the MCP connection. Pass the returned staging path (and the local wheel SHA256 for plugin installation) to the consuming Job tool. Uploading does not invoke that tool. See [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
+File bytes are transferred through HTTP `POST /upload`, separately from MCP tool calls. Use a binary or multipart upload, or `HttpClient.copy_file`, against the same service as the MCP connection. Pass the returned staging path (and the local wheel SHA256 for plugin installation) to the consuming Job tool. Uploading does not invoke that tool. See [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
 
 ## MCP and real-time events
 
@@ -96,11 +96,8 @@ Studio registers these tools when the browser supports `document.modelContext.re
 | Browser tool           | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |
 | `list_axonx_task_runs` | Query task status on the local service hosting the current Studio page |
-| `submit_axonx_task`    | Submit a registered task and a config object                           |
 
 If the browser lacks this API, registration is simply skipped; other Studio features continue to work. These tools call existing frontend APIs and are not the same protocol entry point as the service `/mcp`. The current implementation does not pass `target`, so it always operates on the local service hosting the page and does not follow Studio's remote machine selection. When unsupported by the browser, they cannot replace an ordinary MCP connection.
-
-The config for `submit_axonx_task` must satisfy the installed task Schema. It returns a submission handle; query final status separately. When the page lifecycle ends, AbortSignal ends the tool registration lifecycle.
 
 ## Connection troubleshooting
 
@@ -115,6 +112,6 @@ The config for `submit_axonx_task` must satisfy the installed task Schema. It re
 ## Related documentation and implementation
 
 - [API overview](../api/overview.md), [Python calls](../reference/python.md)
-- [MCP client](../../../axonx/components/client/mcp.py)
-- [HTTP/MCP Job routes](../../../axonx/components/service/http/jobs.py)
+- [MCP client](../../../axonx/app/components/client/mcp.py)
+- [HTTP/MCP Job routes](../../../axonx/app/components/service/http/jobs.py)
 - [Browser tool registration](../../../axonx_studio/src/webmcp.ts)

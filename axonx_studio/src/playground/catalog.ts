@@ -14,14 +14,6 @@ const schemas: Record<
   machine_status: { output: "object" },
   list_machines: { output: "array" },
   list_studio_pages: { output: "array" },
-  list_schedules: {
-    input: {
-      name: { type: "string" },
-      include_history: { type: "boolean", default: false },
-      history_limit: { type: "integer", minimum: 1, maximum: 200, default: 20 },
-    },
-    output: "array",
-  },
   list_installed_task_definitions: {
     input: { include_schemas: { type: "boolean", default: true } },
     output: "array",
@@ -44,10 +36,6 @@ const schemas: Record<
     },
     output: "object",
   },
-  cancel: {
-    input: { run_id: text("backtest#demo") },
-    output: "boolean",
-  },
   read_task_log: {
     input: {
       ...task,
@@ -57,32 +45,6 @@ const schemas: Record<
     output: "object",
   },
   get_task_graph: { input: task, output: "object" },
-  submit: {
-    input: {
-      task: text("playground.backtest"),
-      strategy: {
-        type: "string",
-        enum: ["steady", "volatile"],
-        default: "steady",
-      },
-      outcome: {
-        type: "string",
-        enum: ["success", "failure"],
-        default: "success",
-      },
-    },
-    output: "object",
-  },
-  delete_tasks: {
-    input: {
-      task_ids: {
-        type: "array",
-        items: { type: "string" },
-        default: ["train#failed"],
-      },
-    },
-    output: "array",
-  },
   list_task_runs: { input: { task_type: text("backtest") }, output: "object" },
   list_entries: {
     input: {

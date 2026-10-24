@@ -5,11 +5,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from ...components.registry import ProviderRegistry
-from ...enums import ComponentEnum, TaskCategory, TaskType
-from ...plugin_kit import index_contributions, list_installed_plugins
-from ...plugin_kit.environment import serialized
-from ...plugin_kit.loading import load_symbol
+from ...plugin.registry import ProviderRegistry
+from ..enums import TaskCategory, TaskType
+from ...plugin import index_contributions, list_installed_plugins
+from ...plugin.loading import load_symbol
 from ..core.task import BaseTask
 
 
@@ -32,12 +31,11 @@ class TaskDefinition(TaskInfo):
     output_schema: dict[str, Any]
 
 
-@serialized
 def _task_catalog(
     name: str | None = None,
 ) -> dict[str, tuple[type[BaseTask], str | None]]:
     """Discover registrations, then load all Tasks or only the requested one."""
-    native = ProviderRegistry.from_builtins().get_all(ComponentEnum.TASK, BaseTask)
+    native = ProviderRegistry.from_builtins().get_all("task", BaseTask)
     plugins = index_contributions(list_installed_plugins())
     duplicates = native.keys() & plugins.tasks.keys()
     if duplicates:

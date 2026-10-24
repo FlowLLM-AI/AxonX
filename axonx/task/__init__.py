@@ -3,7 +3,7 @@
 from .core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
 from .core.composite import BaseCompositeTask, ChildTaskError, ChildTaskResult
 from .schemas.lifecycle import TaskMetadata
-from ..progress import TaskStepStatus
+from .schemas.progress import TaskStepStatus
 from . import builtins
 
 __all__ = [

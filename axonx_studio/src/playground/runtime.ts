@@ -12,10 +12,8 @@ import {
   definitions,
   epoch,
   json,
-  schedules,
   studioPages,
   seed,
-  taskStatus,
 } from "./fixtures";
 import { sse } from "./stream";
 
@@ -73,7 +71,6 @@ function taskView(
 export function createPlayground(): Transport {
   const { tasks, files } = seed();
   const agent = createAgent();
-  let serial = 0;
   const running = new Map<string, number>();
   const requiredTask = (id: string) => {
     const task = tasks.get(id);
@@ -85,7 +82,6 @@ export function createPlayground(): Transport {
       const task = requiredTask(id);
       const elapsed = Date.now() - started;
       task.state = elapsed < 600 ? "queued" : "running";
-      task.managed_run_id = task.run_id;
       task.started_at =
         elapsed < 600 ? null : new Date(started + 600).toISOString();
       task.steps = task.steps.map((step, i) => ({
@@ -105,7 +101,6 @@ export function createPlayground(): Transport {
         task.finished_at = new Date(started + 6000).toISOString();
         task.state =
           task.input_params.outcome === "failure" ? "failed" : "succeeded";
-        task.managed_run_id = null;
         if (task.state === "failed") {
           task.error = "Simulated missing input / 模拟输入缺失";
           task.exit_code = 1;
@@ -271,35 +266,6 @@ export function createPlayground(): Transport {
           );
         case "list_studio_pages":
           return response(studioPages);
-        case "list_schedules":
-          return response(
-            schedules
-              .filter((schedule) => !args.name || schedule.name === args.name)
-              .map((schedule) => {
-                const { history, last_trigger, ...config } = schedule;
-                if (args.include_history)
-                  return {
-                    ...config,
-                    last_trigger,
-                    history_total: (history || []).length,
-                    history_scheduler_ids: [
-                      ...new Set(
-                        (history || [])
-                          .filter((run) => run.job === schedule.job)
-                          .map((run) => run.scheduler_id)
-                          .filter((id): id is string => id !== null),
-                      ),
-                    ],
-                    history: (history || []).slice(
-                      -Number(args.history_limit ?? 20),
-                    ),
-                  };
-                if (!last_trigger) return { ...config, last_trigger };
-                const { result, ...trigger } = last_trigger;
-                void result;
-                return { ...config, last_trigger: trigger };
-              }),
-          );
         case "list_task_statuses":
           return response(
             [...tasks.values()]
@@ -319,83 +285,6 @@ export function createPlayground(): Transport {
           return response(
             logChunk(id, Number(args.offset ?? -1), Number(args.limit ?? 8192)),
           );
-        case "submit": {
-          const definition = definitions.find(
-            (definition) => definition.name === args.task,
-          );
-          if (!definition)
-            throw new Error("Select a playground task definition");
-          if (
-            args.strategy &&
-            !["steady", "volatile"].includes(String(args.strategy))
-          )
-            throw new Error("Unknown demo strategy");
-          if (
-            args.outcome &&
-            !["success", "failure"].includes(String(args.outcome))
-          )
-            throw new Error("Unknown demo outcome");
-          const id = `${definition.task_type}#submitted-${++serial}`;
-          const task = taskStatus(
-            definition.task_type as TaskMetadata["task_type"],
-            id,
-            String(args.task_name || `Demo ${definition.task_type}`),
-          );
-          const upstream = (
-            {
-              analysis: "etl#demo",
-              train: "etl#demo",
-              predict: "train#demo",
-              backtest: "predict#demo",
-            } as Partial<Record<TaskMetadata["task_type"], string>>
-          )[definition.task_type];
-          task.input_params = {
-            ...args,
-            strategy: args.strategy || "steady",
-            source_tasks: upstream && tasks.has(upstream) ? upstream : "",
-          };
-          task.created_at = new Date().toISOString();
-          task.started_at = null;
-          task.finished_at = null;
-          task.state = "queued";
-          task.managed_run_id = task.run_id;
-          task.output_params = {};
-          task.steps = task.steps.map((step) => ({
-            ...step,
-            percentage: 0,
-            started_at: null,
-            finished_at: null,
-          }));
-          tasks.set(id, task);
-          running.set(id, Date.now());
-          return response({ task_id: id, run_id: id, task: definition.name });
-        }
-        case "cancel": {
-          if (!args.task_id && !args.run_id)
-            throw new Error("Cancellation requires task_id or run_id");
-          const task = args.task_id
-            ? tasks.get(String(args.task_id))
-            : [...tasks.values()].find((task) => task.run_id === args.run_id);
-          if (!task || (args.run_id && args.run_id !== task.run_id))
-            return response(false);
-          if (!running.delete(task.task_id)) return response(false);
-          task.state = "cancelled";
-          task.managed_run_id = null;
-          task.finished_at = new Date().toISOString();
-          return response(true);
-        }
-        case "delete_tasks": {
-          const ids = args.task_ids as string[];
-          for (const id of ids) requiredTask(id);
-          for (const id of ids) {
-            running.delete(id);
-            tasks.delete(id);
-            for (const path of files.keys())
-              if (path.startsWith(`${id.split("#")[0]}/${id}/`))
-                files.delete(path);
-          }
-          return response(ids);
-        }
         case "list_entries":
           return response(
             directory(String(args.path || ""), Number(args.offset || 0)),

@@ -13,7 +13,7 @@ Research Tasks publish results through typed `output_params`. Studio extracts pr
 
 ## Shared protocol v1
 
-AxonX owns the shared research protocol in `axonx.task.protocol`. Task records and portable research metadata require `version=1` and the existing `TaskType` in `task_type`; there is no separate artifact-kind enum or plugin version counter. Readers reject missing headers and other versions. Regenerate old workspaces and models; no migration or fallback reader is provided.
+AxonX owns the shared research protocol in `axonx.task.schemas.protocol`. Task records and portable research metadata require `version=1` and the existing `TaskType` in `task_type`; there is no separate artifact-kind enum or plugin version counter. Readers reject missing headers and other versions. Regenerate old workspaces and models; no migration or fallback reader is provided.
 
 Training uses `ModelCollection`: the registered `artifacts.model_manifest` points to one `models.json` containing the feature contract, training context, named members, model configurations and verified artifact references. Each member references an artifact by name; its revision lives only in that artifact record. Task outputs retain training summaries and curves, without duplicating the collection or model paths.
 

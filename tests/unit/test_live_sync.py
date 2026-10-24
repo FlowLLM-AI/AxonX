@@ -8,29 +8,22 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from axonx.components.client import HttpClient
-from axonx.components.service import HttpService
-from axonx.components.sync import LocalSyncComponent
-from axonx.components.task_manager.local.manager import LocalTaskManager
-from axonx.config import ApplicationConfig
-from axonx.core import Application
-from axonx.enums import TaskState, TaskType
-from axonx.task.runtime.runner import TaskRunner
+from axonx.app.components.client import HttpClient
+from axonx.app.components.service import HttpService
+from axonx.app.components.sync import LocalSyncComponent
+from axonx.app.config import ApplicationConfig
+from axonx.app.core import Application
+from axonx.task.enums import TaskState, TaskType
 from axonx.task.schemas.protocol import fingerprint
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import (
-    ChildTaskRecord,
-    TaskMetadata,
-    read_entry,
-    task_path,
-    write_task_metadata,
-)
+from axonx.task.schemas.lifecycle import ChildTaskRecord, TaskMetadata
+from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
 from axonx.task.sync import TaskArchiveApplier, build_archive
 from axonx.task.sync.errors import ReplicaBudgetError, SnapshotChangedError
 from axonx.task.sync.index import snapshot_index, verify_replica
 from axonx.task.sync.replica import prepare_group
-from axonx.utils.fs import atomic_write_json, file_sha256
+from axonx.common.fs import atomic_write_json, file_sha256
 
 PARENT = "composite#a_stock_online#axon2-core"
 CHILD = "inference#a_stock_online_predict#axon-v1-1445"
@@ -320,29 +313,6 @@ async def test_live_http_flush_follows_children_outside_terminal_filter_and_retr
         assert len((await sync.flush()).uploaded) == 2
         # Native tasks still wait for terminal state under the same component.
         assert sync._settled([PARENT, CHILD]) == [PARENT]
-
-
-@pytest.mark.asyncio
-async def test_replica_cannot_be_cancelled(tmp_path):
-    root, remote = tmp_path / "source", tmp_path / "remote"
-    remote.mkdir()
-    logs = source(root)
-    TaskArchiveApplier(remote, BUDGET).apply(capture(root, tmp_path / "one", logs), [])
-    manager = LocalTaskManager(app_context=SimpleNamespace(app_config=ApplicationConfig(workspace_dir=str(remote))))
-    manager.repository = SimpleNamespace(entry=AsyncMock(return_value=read_entry(remote, PARENT)))
-    with pytest.raises(ValueError, match="read-only"):
-        await manager.cancel(task_id=PARENT)
-    with pytest.raises(ValueError, match="read-only"):
-        await manager._reserve(SimpleNamespace(task_id=PARENT), True)
-    status = read_entry(remote, PARENT)
-    with pytest.raises(ValueError, match="read-only"):
-        TaskRunner()._prepare_directory(
-            SimpleNamespace(
-                task_id=PARENT,
-                task_type=status.task_type,
-                task_dir=task_path(remote, PARENT),
-            )
-        )
 
 
 @pytest.mark.asyncio

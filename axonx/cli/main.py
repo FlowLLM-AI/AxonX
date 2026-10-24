@@ -4,31 +4,25 @@ from __future__ import annotations
 
 import asyncio
 import os
+import signal
 import sys
 from pathlib import Path
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
-from ..components.client import ClientOptions
-from ..components.job import ResultEvent
-from ..components.updater.worker import finish_startup
-from ..config import ApplicationConfig, ConfigResolver, resolve_app_config
-from ..constants import (
-    AXONX_TASK_LOG_DIR,
-    AXONX_TASK_TIMEZONE,
-    AXONX_TASK_WORKSPACE_DIR,
-    CLI_EXEC_COMMAND,
-    CLI_LOCAL_COMMANDS,
-    CLI_PLUGIN_COMMAND,
-    CLI_RAW_ARGUMENTS,
-    CLI_START_COMMAND,
-    CLI_USAGE,
-)
-from ..core import Application, run_remote_job, stream_remote_job
-from ..task.runtime import TaskCatalog, TaskCommandExecutor
-from ..utils import LoggingConfig, configure_logging, load_env
-from ..utils.env import find_env_file
+from ..config.target import ClientOptions
 from .parser import Command, parse_command
+from ..common.logs import LogEvent
+from ..config import RuntimeConfig, ConfigResolver, resolve_app_config
+from ..config.execution import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR, AXONX_CLI_REQUEST_ID
+from .usage import CLI_USAGE
+from ..common.logging import LoggingConfig, configure_logging
+from ..config.env import load_env
+from ..daemon import client as daemon
 from .rendering import print_event_blocks, print_json, print_logo
+
+if TYPE_CHECKING:
+    from ..cron import CronScheduler
 
 # Defaults affect CLI queries only; callers can explicitly request complete records.
 _QUERY_DEFAULTS = {
@@ -42,32 +36,85 @@ _QUERY_DEFAULTS = {
 
 
 def _run_server(command: Command, startup_arguments: list[str] | None = None) -> int:
+    inherited = dict(os.environ)
     environment = load_env()
-    arguments = {key: value for key, value in command.arguments.items() if key != CLI_RAW_ARGUMENTS}
-    resolver = ConfigResolver()
-    config = resolver.resolve(**arguments)
+    arguments = dict(command.arguments)
+    config = ConfigResolver().resolve(**arguments)
     config["environment"] = {**environment, **config.get("environment", {})}
-    app = Application(**config)
-    service = app.context.service
-    if service is None:
-        raise ValueError("Application configuration does not define a service")
-    if app.app_config.enable_logo:
-        print_logo(app.app_config, service)
-    service.restart_arguments = startup_arguments
-    service.startup_directory = Path.cwd().resolve()
-    service.configuration_paths = resolver.loaded_paths
-    service.environment_file = find_env_file()
-    updaters = app.context.components.get("updater", {}).values()
-    try:
+    role = os.environ.get(daemon.ROLE)
+    if role == "cron":
+        asyncio.run(_run_cron(RuntimeConfig.model_validate(config)))
+        return 0
+    from ..app.config import ApplicationConfig
+
+    app_config = ApplicationConfig.model_validate(config)
+    if role == "service":
+        from ..app import Application
+
+        app = Application(**config)
+        service = app.context.service
+        if app.app_config.enable_logo:
+            print_logo(app.app_config, service)
         service.run_app(app)
-    except BaseException as exc:
-        finish_startup(str(exc))
-        for updater in updaters:
-            updater.fail(f"Service shutdown failed: {exc}")
-        raise
-    for updater in updaters:
-        updater.handoff()
+        return 0
+    if role is not None:
+        raise ValueError(f"Unknown daemon worker role: {role}")
+    if app_config.service is None:
+        raise ValueError("Application configuration does not define a service")
+    if app_config.cron is not None:
+        _cron(app_config)  # Validate the complete file before replacing this launcher.
+    cwd = Path.cwd().resolve()
+    service = app_config.service.model_dump()
+    directory = daemon.runtime_directory(
+        app_config.workspace_dir, service.get("host", "0.0.0.0"), service.get("port", 1024), cwd
+    )
+    plan = {
+        "python": sys.executable,
+        "cwd": str(cwd),
+        "environment": inherited,
+        "command": [sys.executable, "-m", "axonx.cli", *(startup_arguments or ["start"])],
+        "stop_timeout": service.get("cleanup_timeout", 15) + 1,
+    }
+    print(f"Starting AxonX daemon; worker logs: {directory}", flush=True)
+    daemon.launch(plan, directory)
     return 0
+
+
+def _cron(config: RuntimeConfig) -> CronScheduler:
+    from ..cron import CronScheduler
+
+    return CronScheduler(
+        config.cron,
+        workspace_dir=config.workspace_dir,
+        log_dir=config.log_dir,
+        timezone=config.timezone,
+        environment=config.environment,
+        launch=lambda entry: daemon.request("exec", arguments=list(entry.arguments), line=entry.line),
+    )
+
+
+async def _run_cron(config: RuntimeConfig) -> None:
+    scheduler = _cron(config)
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(signum, stop.set)
+    try:
+        await scheduler.start()
+        await asyncio.to_thread(
+            daemon.request,
+            "ready",
+            execution={
+                "cwd": str(scheduler.cwd),
+                "environment": scheduler.environment,
+                "log_dir": scheduler.log_dir,
+            },
+        )
+        await stop.wait()
+    finally:
+        await scheduler.close()
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            loop.remove_signal_handler(signum)
 
 
 def _load_client_options(options: ClientOptions) -> ClientOptions:
@@ -79,10 +126,12 @@ def _load_client_options(options: ClientOptions) -> ClientOptions:
 
 
 def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
+    from ..app.components.client.remote import run_remote_job, stream_remote_job
+    from ..app.components.job.events import ResultEvent
+
     client_options = _load_client_options(client_options)
     options = client_options.model_dump(exclude={"stream", "stream_format"})
     arguments = dict(command.arguments)
-    arguments.pop(CLI_RAW_ARGUMENTS, None)
     for key, value in _QUERY_DEFAULTS.get(command.action, {}).items():
         arguments.setdefault(key, value)
 
@@ -118,62 +167,99 @@ def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
 
 
 def _run_exec(command: Command) -> int:
+    from ..task.runtime import TaskExecutor
+    from ..task.catalog.resolver import installed_tasks
+
     load_env(override=False)
     workspace_dir = os.environ.get(AXONX_TASK_WORKSPACE_DIR)
     log_dir = os.environ.get(AXONX_TASK_LOG_DIR)
     timezone = os.environ.get(AXONX_TASK_TIMEZONE)
     if workspace_dir is None or log_dir is None or timezone is None:
-        app_config = ApplicationConfig.model_validate(
+        app_config = RuntimeConfig.model_validate(
             resolve_app_config(log_config=False),
         )
         workspace_dir = workspace_dir or app_config.workspace_dir
         log_dir = log_dir or app_config.log_dir
         timezone = timezone or app_config.timezone
     configure_logging(LoggingConfig(log_dir=log_dir, timezone=timezone))
-    result = TaskCommandExecutor(workspace_dir, timezone=timezone).execute(command)
-    if isinstance(result, TaskCatalog):
-        for name, task_class in sorted(result.tasks.items()):
+    if not command.arguments:
+        for name, task_class in sorted(installed_tasks().items()):
             print(f"{name}\t{task_class.__module__}.{task_class.__name__}")
         return 0
-    print_json(result.output)
-    return result.exit_code
+    inputs = dict(command.arguments)
+    try:
+        name = inputs.pop("task")
+    except KeyError:
+        raise ValueError("Missing required option: --task") from None
+    status = TaskExecutor(workspace_dir, timezone=timezone).execute(name, inputs)
+    print_json(status.output_params)
+    return status.exit_code
 
 
-def _run_plugin(command: Command, client_options: ClientOptions | None = None) -> int:
-    from ..plugin_kit.cli import plugin_cli
+def _run_plugin(command: Command) -> int:
+    from .plugin import plugin_cli
 
-    client_options = _load_client_options(client_options or ClientOptions())
-    return plugin_cli(command.arguments.get(CLI_RAW_ARGUMENTS, ()), client_options)
+    load_env(override=False)
+    return plugin_cli(command.raw_arguments)
+
+
+def _run_remote_cli(command: Command, options: ClientOptions) -> int:
+    from ..app.components.client.remote import stream_remote_job
+    from ..app.components.job.events import ResultEvent
+
+    options = _load_client_options(options)
+    argv = [command.action, *command.raw_arguments]
+    if command.action not in _LOCAL_HANDLERS:
+        argv.extend(["--client-timeout", str(options.timeout)])
+        if options.stream:
+            argv.extend(["--stream", "true", "--stream-format", options.stream_format])
+
+    async def run() -> int:
+        async for event in stream_remote_job(
+            "cli", {"argv": argv}, **options.model_dump(exclude={"stream", "stream_format"})
+        ):
+            if isinstance(event, LogEvent):
+                output = sys.stderr if event.channel == "stderr" else sys.stdout
+                print(event.content, end="", file=output, flush=True)
+            elif isinstance(event, ResultEvent):
+                if isinstance(event.answer, dict) and "exit_code" in event.answer:
+                    code = event.answer["exit_code"]
+                    return code if code >= 0 else 128 - code
+                print(event.answer, file=sys.stderr)
+                return 1
+        return 1
+
+    return asyncio.run(run())
 
 
 _LOCAL_HANDLERS = {
-    CLI_EXEC_COMMAND: _run_exec,
-    CLI_PLUGIN_COMMAND: _run_plugin,
-    CLI_START_COMMAND: _run_server,
+    "exec": _run_exec,
+    "plugin": _run_plugin,
+    "start": _run_server,
 }
-
-assert _LOCAL_HANDLERS.keys() == CLI_LOCAL_COMMANDS
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one AxonX command and return its process exit status."""
     args = list(sys.argv[1:] if argv is None else argv)
-    if not args or args in (["-h"], ["--help"]):
+    if not args:
         print(CLI_USAGE)
         return 0
     try:
         command, client_options = parse_command(args)
-        if command.action == CLI_PLUGIN_COMMAND:
-            return _run_plugin(command, client_options)
-        if command.action == CLI_START_COMMAND:
+        if os.environ.get(AXONX_CLI_REQUEST_ID) and (
+            command.action in {"start", "cli"} or client_options.target is not None
+        ):
+            raise ValueError("Remote CLI cannot start a service or forward to another target")
+        if client_options.target is not None:
+            return _run_remote_cli(command, client_options)
+        if command.action == "start":
             return _run_server(command, args)
         handler = _LOCAL_HANDLERS.get(command.action)
         if handler is not None:
             return handler(command)
         return _run_remote_job(command, client_options)
     except Exception as exc:  # noqa: BLE001 - CLI boundary converts failures to exit codes.
-        if args and args[0] == CLI_START_COMMAND:
-            finish_startup(str(exc))
         print(f"Error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2 if isinstance(exc, (FileNotFoundError, KeyError, TypeError, ValueError)) else 1
 

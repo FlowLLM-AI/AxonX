@@ -4,10 +4,10 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { taskStatus } from "../../playground/fixtures";
-import { cancelTask, getTaskStatus } from "./api";
+import { getTaskStatus } from "./api";
 import { TaskDetailPage } from "./TaskDetailPage";
 
-vi.mock("./api", () => ({ getTaskStatus: vi.fn(), cancelTask: vi.fn() }));
+vi.mock("./api", () => ({ getTaskStatus: vi.fn() }));
 vi.mock("./TaskLogPanel", () => ({
   TaskLogPanel: () => <div>log viewer</div>,
 }));
@@ -20,7 +20,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it.each(["task", "machine", "cancellation"] as const)(
+it.each(["task", "machine"] as const)(
   "discards the previous selection and late %s responses",
   async (change) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -32,7 +32,6 @@ it.each(["task", "machine", "cancellation"] as const)(
       "previous-machine",
     );
     previous.state = "running";
-    previous.managed_run_id = previous.run_id;
     const next = {
       ...previous,
       task_id: change === "task" ? "base#demo#next" : previous.task_id,
@@ -40,22 +39,15 @@ it.each(["task", "machine", "cancellation"] as const)(
     };
     let finishPrevious!: (value: typeof previous) => void;
     let finishNext!: (value: typeof next) => void;
-    let finishCancel!: (value: boolean) => void;
     vi.mocked(getTaskStatus).mockResolvedValueOnce(previous);
-    if (change !== "cancellation")
-      vi.mocked(getTaskStatus).mockReturnValueOnce(
-        new Promise((resolve) => {
-          finishPrevious = resolve;
-        }),
-      );
+    vi.mocked(getTaskStatus).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishPrevious = resolve;
+      }),
+    );
     vi.mocked(getTaskStatus).mockReturnValueOnce(
       new Promise((resolve) => {
         finishNext = resolve;
-      }),
-    );
-    vi.mocked(cancelTask).mockReturnValue(
-      new Promise((resolve) => {
-        finishCancel = resolve;
       }),
     );
     const callbacks = {
@@ -80,9 +72,7 @@ it.each(["task", "machine", "cancellation"] as const)(
       await act(async () =>
         container
           .querySelector<HTMLButtonElement>(
-            change === "cancellation"
-              ? ".task-detail-cancel"
-              : ".task-detail-heading-actions button",
+            ".task-detail-heading-actions button",
           )!
           .click(),
       );
@@ -97,23 +87,16 @@ it.each(["task", "machine", "cancellation"] as const)(
       );
       expect(container.querySelector(".task-detail-heading")).toBeNull();
       expect(container.querySelector(".task-detail-loading")).not.toBeNull();
-      if (change !== "cancellation")
-        expect(vi.mocked(getTaskStatus).mock.calls[1][2]?.aborted).toBe(true);
+      expect(vi.mocked(getTaskStatus).mock.calls[1][2]?.aborted).toBe(true);
       await act(async () => finishNext(next));
       await act(async () => {
-        if (change === "cancellation") finishCancel(true);
-        else finishPrevious(previous);
+        finishPrevious(previous);
       });
       expect(container.querySelector(".config-source code")?.textContent).toBe(
         "next-machine",
       );
-      expect(
-        container.querySelector<HTMLButtonElement>(".task-detail-cancel")
-          ?.disabled,
-      ).toBe(false);
-      expect(getTaskStatus).toHaveBeenCalledTimes(
-        change === "cancellation" ? 2 : 3,
-      );
+      expect(container.querySelector(".task-detail-cancel")).toBeNull();
+      expect(getTaskStatus).toHaveBeenCalledTimes(3);
       expect(callbacks.onConnection).toHaveBeenCalledTimes(2);
     } finally {
       await act(async () => root.unmount());

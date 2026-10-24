@@ -7,21 +7,16 @@ from zipfile import ZipFile
 import pytest
 
 from axonx import Application
-from axonx.components.client import ClientOptions
-from axonx.components.client.remote import stream_remote_job
-from axonx.components.job import JobResponse, ResultEvent
+from axonx.app.components.client.remote import stream_remote_job
+from axonx.app.components.job import ResultEvent
 from axonx.config import ConfigResolver
-from axonx.plugin_kit import PluginArtifact, PluginInfo, index_contributions
-from axonx.plugin_kit.cli import plugin_cli
-from axonx.plugin_kit.discovery import _package_path
-from axonx.plugin_kit.identity import (
-    content_sha256_from_directories,
-    content_sha256_from_wheel,
-)
-from axonx.plugin_kit.installer import install_staged_plugin
-from axonx.plugin_kit.wheel import source_sha256
-from axonx.workspace.models import FileCopy
-from axonx.workspace.staging import StagedFiles
+from axonx.plugin import PluginArtifact, PluginInfo, index_contributions
+from axonx.cli.plugin import plugin_cli
+from axonx.plugin.discovery import _package_path
+from axonx.plugin.identity import content_sha256_from_directories, content_sha256_from_wheel
+from axonx.plugin.installer import install_staged_plugin
+from axonx.plugin.wheel import source_sha256
+from axonx.app.workspace.staging import StagedFiles
 
 
 def _artifact(path: Path, sha256: str) -> PluginArtifact:
@@ -161,7 +156,7 @@ def test_editable_plugin_package_uses_import_location(monkeypatch, tmp_path):
     package.mkdir(parents=True)
     distribution = SimpleNamespace(locate_file=lambda relative: tmp_path / "site-packages" / relative)
     specification = SimpleNamespace(submodule_search_locations=[str(package)])
-    monkeypatch.setattr("axonx.plugin_kit.discovery.util.find_spec", lambda _package: specification)
+    monkeypatch.setattr("axonx.plugin.discovery.util.find_spec", lambda _package: specification)
 
     assert _package_path(distribution, "demo_plugin") == package.resolve()
 
@@ -175,7 +170,7 @@ def test_existing_artifact_cache_is_verified_before_install(monkeypatch, tmp_pat
     destination.write_bytes(b"tampered")
 
     monkeypatch.setattr(
-        "axonx.plugin_kit.installer.inspect_wheel",
+        "axonx.plugin.installer.inspect_wheel",
         lambda path: _artifact(Path(path), expected if Path(path) == staged else "b" * 64),
     )
 
@@ -191,7 +186,7 @@ async def test_install_job_discards_staged_wheel_when_installation_fails(monkeyp
     def fail(*_args):
         raise RuntimeError("pip failed")
 
-    monkeypatch.setattr("axonx.steps.plugin.install_plugin.install_staged_plugin", fail)
+    monkeypatch.setattr("axonx.app.steps.plugin.install_plugin.install_staged_plugin", fail)
     app = Application(
         workspace_dir=str(tmp_path),
         enable_logo=False,
@@ -245,67 +240,21 @@ def test_plugin_config_resolves_source_paths_relative_to_config(tmp_path):
 
 def test_plugin_cli_lists_local_environment_by_default(monkeypatch, capsys):
     plugin = PluginInfo(distribution="local-demo", version="1")
-    monkeypatch.setattr("axonx.plugin_kit.cli.list_installed_plugins", lambda: [plugin])
-    assert plugin_cli(["list"], ClientOptions()) == 0
+    monkeypatch.setattr("axonx.cli.plugin.list_installed_plugins", lambda: [plugin])
+    assert plugin_cli(["list"]) == 0
     assert '"distribution": "local-demo"' in capsys.readouterr().out
 
 
 def test_plugin_cli_installs_locally_by_default(monkeypatch, capsys):
     plugin = PluginInfo(distribution="local-demo", version="1")
     artifact = object()
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
+    monkeypatch.setattr("axonx.cli.plugin.prepare_artifact", lambda *_args, **_kwargs: artifact)
     monkeypatch.setattr(
-        "axonx.plugin_kit.cli.install_plugin",
+        "axonx.cli.plugin.install_plugin",
         lambda received, **_options: plugin if received is artifact else None,
     )
-    assert plugin_cli(["install", "source"], ClientOptions()) == 0
+    assert plugin_cli(["install", "source"]) == 0
     assert '"distribution": "local-demo"' in capsys.readouterr().out
-
-
-def test_plugin_cli_uses_jobs_when_client_address_is_supplied(monkeypatch, capsys):
-    plugin = PluginInfo(distribution="remote-demo", version="1")
-
-    async def remote(args, options):
-        assert args.command == "list"
-        assert options.target == "http://127.0.0.1:1024"
-        return [plugin]
-
-    monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", remote)
-
-    options = ClientOptions(target="127.0.0.1:1024")
-    assert plugin_cli(["list"], options) == 0
-    assert '"distribution": "remote-demo"' in capsys.readouterr().out
-
-
-def test_remote_install_discards_upload_when_job_fails(monkeypatch, tmp_path):
-    wheel = tmp_path / "demo.whl"
-    wheel.write_bytes(b"wheel")
-    artifact = _artifact(wheel, "a" * 64)
-    discarded: list[str] = []
-
-    class Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_args):
-            return None
-
-        async def copy_file(self, _path):
-            return FileCopy(path="copies/demo.whl", size=5)
-
-        async def run_job(self, _name, _arguments):
-            return JobResponse(answer="pip failed", success=False)
-
-        async def discard_file(self, path):
-            discarded.append(path)
-            return path
-
-    monkeypatch.setattr("axonx.plugin_kit.cli.HttpClient", lambda **_options: Client())
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
-
-    options = ClientOptions(target="127.0.0.1:1024")
-    assert plugin_cli(["install", str(wheel)], options) == 1
-    assert discarded == ["copies/demo.whl"]
 
 
 @pytest.mark.asyncio
@@ -323,7 +272,7 @@ async def test_streamed_submit_calls_selected_service(monkeypatch):
             yield ResultEvent(answer="ok")
 
     monkeypatch.setattr(
-        "axonx.components.client.remote.HttpClient",
+        "axonx.app.components.client.remote.HttpClient",
         lambda **options: Client(),
     )
 
@@ -336,50 +285,30 @@ async def test_streamed_submit_calls_selected_service(monkeypatch):
 def test_plugin_cli_installs_editable_locally(monkeypatch, tmp_path, flag):
     plugin = PluginInfo(distribution="editable-demo", version="1")
     artifact = object()
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
+    monkeypatch.setattr("axonx.cli.plugin.prepare_artifact", lambda *_args, **_kwargs: artifact)
 
     def install(received, *, editable_source):
         assert received is artifact
         assert editable_source == tmp_path.resolve()
         return plugin
 
-    monkeypatch.setattr("axonx.plugin_kit.cli.install_plugin", install)
+    monkeypatch.setattr("axonx.cli.plugin.install_plugin", install)
     assert plugin_cli(["install", flag, str(tmp_path)]) == 0
 
 
-@pytest.mark.parametrize(
-    ("extra", "options", "message"),
-    [
-        ([], ClientOptions(target="127.0.0.1:1024"), "--target"),
-        (["--output", "dist"], ClientOptions(), "--output"),
-    ],
-)
-def test_editable_rejects_incompatible_options(extra, options, message, monkeypatch, capsys):
+def test_editable_rejects_output(monkeypatch, capsys):
     def unexpected(*_args):
         pytest.fail("Invalid editable options must fail before building or installing")
 
-    monkeypatch.setattr("axonx.plugin_kit.cli.install_plugin", unexpected)
-    monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", unexpected)
-    assert plugin_cli(["install", "-e", "plugins/demo", *extra], options) == 1
-    assert message in capsys.readouterr().err
-
-
-def test_editable_rejects_wheel_before_build(monkeypatch, tmp_path, capsys):
-    wheel = tmp_path / "demo.whl"
-    wheel.write_bytes(b"wheel")
-
-    def unexpected(*_args):
-        pytest.fail("Editable wheels must fail before building or installing")
-
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", unexpected)
-    assert plugin_cli(["install", "-e", str(wheel)]) == 1
-    assert "project directory" in capsys.readouterr().err
+    monkeypatch.setattr("axonx.cli.plugin.install_plugin", unexpected)
+    assert plugin_cli(["install", "-e", "plugins/demo", "--output", "dist"]) == 1
+    assert "--output" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("editable", [False, True])
 def test_plugin_install_preserves_axonx_and_installs_dependencies(monkeypatch, tmp_path, editable):
     from dataclasses import replace
-    from axonx.plugin_kit.wheel import install_artifact
+    from axonx.plugin.wheel import install_artifact
 
     artifact = replace(
         _artifact(tmp_path / "demo.whl", "digest"),
@@ -391,7 +320,7 @@ def test_plugin_install_preserves_axonx_and_installs_dependencies(monkeypatch, t
         commands.append(command)
         return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr("axonx.plugin_kit.wheel.subprocess.run", run)
+    monkeypatch.setattr("axonx.plugin.wheel.subprocess.run", run)
     source = tmp_path / "source" if editable else None
     install_artifact(artifact, editable_source=source)
     assert commands[0][3:] == ["install", "example-dependency>=1"]
@@ -405,7 +334,7 @@ def test_plugin_install_preserves_axonx_and_installs_dependencies(monkeypatch, t
 
 @pytest.mark.parametrize("failure", [None, "discovery", "invalid"])
 def test_editable_install_checks_plugin_in_new_interpreter(monkeypatch, tmp_path, failure):
-    from axonx.plugin_kit.installer import install_plugin
+    from axonx.plugin.installer import install_plugin
 
     artifact = _artifact(tmp_path / "demo.whl", "digest")
     plugin = PluginInfo(
@@ -413,7 +342,7 @@ def test_editable_install_checks_plugin_in_new_interpreter(monkeypatch, tmp_path
         version="1",
         error="invalid" if failure == "invalid" else None,
     )
-    monkeypatch.setattr("axonx.plugin_kit.installer.install_artifact", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("axonx.plugin.installer.install_artifact", lambda *_args, **_kwargs: None)
 
     def run(command, **_kwargs):
         assert command[-1] == artifact.distribution
@@ -424,7 +353,7 @@ def test_editable_install_checks_plugin_in_new_interpreter(monkeypatch, tmp_path
             stderr="failed",
         )
 
-    monkeypatch.setattr("axonx.plugin_kit.installer.subprocess.run", run)
+    monkeypatch.setattr("axonx.plugin.installer.subprocess.run", run)
     if failure:
         with pytest.raises(
             RuntimeError,

@@ -73,13 +73,11 @@ axonx delete_entries --paths '["temporary/report.txt"]'
 
 这是删除示例，先确认路径存在且不再需要。接口一次接受 1–200 个路径，先验证选择，再删除最上层根；同时选择父目录和子文件时，不会重复删除子项。
 
-`delete_entries` 是通用文件能力，不具备 TaskManager 的活跃任务保护。清理整个 Task 应优先使用 `delete_tasks`，避免直接删除正在写入的目录。
-
 工作区根不允许删除，目录删除是递归删除。路径限制防止离开工作区，不等于撤销或回收站；需要保留的产物先备份。
 
 ## 上传与后续消费
 
-插件安装和同步使用 `/files` 以原始二进制或 multipart 格式暂存制品，返回 FileCopy 中的 path、size、sha256。接收方消费的是返回的工作区相对路径，而非客户端源路径。
+插件安装和同步使用 `/upload` 以原始二进制或 multipart 格式暂存制品，返回 StagedFile 中的 path、size、sha256。接收方消费的是返回的工作区相对路径，而非客户端源路径。
 
 上传不是通用目录镜像。消费成功后应清理暂存文件，具体过程见[文件传输 API](../api/workspace.md)。
 
@@ -94,6 +92,6 @@ axonx delete_entries --paths '["temporary/report.txt"]'
 
 [工作区概念](../concepts/workspace.md) · [研究产物协议](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)
 
-源码：[目录操作](../../../axonx/workspace/browser.py)、[预览实现](../../../axonx/workspace/preview.py)、[路径约束](../../../axonx/workspace/paths.py)。
+源码：[目录操作](../../../axonx/app/workspace/browser.py)、[预览实现](../../../axonx/app/workspace/preview.py)、[路径约束](../../../axonx/common/fs/paths.py)。
 
 JSONL 预览保留损坏或未写完的行，通过 `parse_error` 和原始 `content` 展示；有效行提供解析后的 `data`。Studio 独立展示每一行，支持上一页／下一页，并标记受到字节预算限制的页面。

@@ -4,7 +4,7 @@ from abc import ABC
 
 from pydantic import Field
 
-from ...enums import TaskType
+from ..enums import TaskType
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
 
 

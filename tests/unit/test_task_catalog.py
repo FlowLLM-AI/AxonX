@@ -6,10 +6,10 @@ import httpx
 import pytest
 import yaml
 
-from axonx.components.client import HttpClient, RemoteServiceError
-from axonx.components.service import HttpService
-from axonx.core import Application
-from axonx.plugin_kit.models import PluginInfo
+from axonx.app.components.client import HttpClient, RemoteServiceError
+from axonx.app.components.service import HttpService
+from axonx.app.core import Application
+from axonx.plugin.models import PluginInfo
 from axonx.task.builtins import DemoTask
 from axonx.task.catalog import (
     get_task_definition,

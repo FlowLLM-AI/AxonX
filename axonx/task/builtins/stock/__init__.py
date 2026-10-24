@@ -2,12 +2,7 @@
 
 from .data import StockETLOutput, fixed_labels, stock_protocol, transform_labels
 from .settings import PortfolioSettings
-from .backtest import (
-    BaseStockBacktestTask,
-    StockPortfolioInput,
-    StockBacktestInput,
-    StockBacktestOutput,
-)
+from .backtest import BaseStockBacktestTask, StockPortfolioInput, StockBacktestInput, StockBacktestOutput
 
 __all__ = [
     "PortfolioSettings",

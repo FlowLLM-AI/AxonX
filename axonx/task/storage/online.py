@@ -12,7 +12,7 @@ from ..core.clock import DeadlineBudget
 from ..schemas.protocol import PROTOCOL_VERSION
 from .artifacts import artifact_path, artifact_record
 from .history import HISTORY_BLOCK_SIZE, HistoryNode, read_online_history
-from ...utils.fs import atomic_write, atomic_write_json, file_lock, file_revision, snapshot_file
+from ...common.fs import atomic_write, atomic_write_json, file_lock, file_revision, snapshot_file
 
 
 def online_artifact(root: Path, commit: OnlineCommit, role: str) -> Path:

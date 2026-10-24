@@ -1,6 +1,6 @@
 # Task API
 
-Task submission, status, logs, and lineage queries share the Job protocol. Query a registered definition before submitting inputs; use task_id and run_id to wait for a particular execution.
+Tasks execute through `axonx exec`. This API observes existing Task metadata, logs and relationships. Use Task ID and the Run ID from metadata to wait for an exact execution.
 
 ![Task API call flow](../../figures/api/task-call.svg)
 
@@ -16,8 +16,7 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 | --------------------------------- | ---------------------------------------------------------------------- |
 | `list_installed_task_definitions` | Enumerate built-in and plugin Tasks in the current Python environment. |
 | `get_task_definition`             | Query a registered definition and its input/output Schemas.            |
-| `submit`                          | Start a separate subprocess to run a Task.                             |
-| `wait_task`                       | Wait for the specific execution returned by submission to finish.      |
+| `wait_task`                       | Wait for the specific execution identified by metadata to finish.      |
 | `list_task_ids`                   | List task identities with lifecycle metadata records.                  |
 | `list_task_statuses`              | List status snapshots.                                                 |
 | `status`                          | Read a task's current status.                                          |
@@ -25,8 +24,6 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 | `stream_task`                     | Follow progress and logs until the task stops.                         |
 | `get_task_graph`                  | Read the dependency graph containing the selected Task.                |
 | `get_task_context`                | Provide the Agent with task paths, status, and relationship context.   |
-| `cancel`                          | Request cancellation of an active worker managed by this service.      |
-| `delete_tasks`                    | Delete terminal or Tasks and associated files.                         |
 
 ## list_installed_task_definitions
 
@@ -107,68 +104,14 @@ answer is a TaskDefinition; the Schemas are JSON Schemas, rather than task execu
 
 The Schema above is an excerpt; the complete Schema is authoritative as returned by the endpoint. An unknown registration name returns a business failure.
 
-## submit
-
-Start a separate subprocess to run a Task.
-
-| Parameter | Type   | Required | Default       | Constraints and meaning                       |
-| --------- | ------ | -------- | ------------- | --------------------------------------------- |
-| `task`    | string | Yes      | `— (omitted)` | Task registration name, rather than a Task ID |
-
-The submit Schema allows extra fields. Fields other than task are passed as Task inputs and validated by the corresponding input_cls; unknown input fields fail.
-
-**Request**
-
-```json
-{
-  "arguments": {
-    "task": "demo",
-    "task_name": "api-demo",
-    "x": 1,
-    "y": 2
-  }
-}
-```
-
-**Response**
-
-answer is TaskHandle: task_id, run_id, and task. success=true means submission succeeded.
-
-```json
-{
-  "answer": {
-    "task_id": "base#demo#api-demo",
-    "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
-    "task": "demo"
-  },
-  "success": true,
-  "metadata": {}
-}
-```
-
-**Behavior and failure cases**
-
-Pass all Task input fields at the same level as task. For demo, x and y are required and fail=false.
-
-Shared Task inputs are published alongside the specific Task's input_schema:
-
-| Input           | Type        | Default      | Rules                                                                                                                 |
-| --------------- | ----------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
-| task_name       | string/null | null         | Omission or an empty string generates an anonymous name; fixed names contain 1–32 English letters, digits, or hyphens |
-| source_tasks    | string      | Empty string | Full upstream Task IDs separated by ASCII commas; not an array of strings                                             |
-| demo.x / demo.y | integer     | Required     | Two calculation inputs; submit as x/y without the demo prefix                                                         |
-| demo.fail       | boolean     | false        | Built-in failure-demonstration switch; not a shared parameter for all Tasks                                           |
-
-Use get_task_definition for a plugin Task's research parameters; do not apply demo fields to other registration names. The shared task_name is optional and source_tasks defaults to an empty string. Fixed names may replace only finished tasks; an active directory produces FileExistsError. Retain run_id.
-
 ## wait_task
 
-Wait for the specific execution returned by submission to finish.
+Wait for the specific execution identified by metadata to finish.
 
 | Parameter       | Type   | Required | Default       | Constraints and meaning                             |
 | --------------- | ------ | -------- | ------------- | --------------------------------------------------- |
 | `task_id`       | string | Yes      | `— (omitted)` | Full Task ID; minLength=1                           |
-| `run_id`        | string | Yes      | `— (omitted)` | Execution ID returned by submission; minLength=1    |
+| `run_id`        | string | Yes      | `— (omitted)` | Execution ID identified by metadata; minLength=1    |
 | `poll_interval` | number | No       | `1`           | Polling interval in seconds; exclusiveMinimum=0     |
 | `detail`        | string | No       | `full`        | `summary` or `full`; the CLI defaults to `summary`. |
 
@@ -604,78 +547,6 @@ answer contains task_id, status, metadata_exists, metadata_path, log_path, graph
 
 metadata_exists indicates whether the current valid lifecycle record exists; check state and artifacts separately to establish research success.
 
-## cancel
-
-Request cancellation of an active worker managed by this service.
-
-| Parameter | Type   | Required | Default       | Constraints and meaning |
-| --------- | ------ | -------- | ------------- | ----------------------- |
-| `task_id` | string | Yes      | `— (omitted)` | Full Task ID            |
-
-The Schema does not prohibit extra fields; this does not mean those fields will be used.
-
-**Request**
-
-```json
-{
-  "arguments": {
-    "task_id": "base#demo#api-demo"
-  }
-}
-```
-
-**Response**
-
-answer is a boolean: true means cancellation occurred in this invocation; false means no cancellation occurred.
-
-```json
-{
-  "answer": false,
-  "success": true,
-  "metadata": {}
-}
-```
-
-**Behavior and failure cases**
-
-Tasks already in a terminal state, or without a cancellable managed process, return false; success=true and answer=false may occur together. Cancelling a research task does not cancel an Agent turn.
-
-## delete_tasks
-
-Delete terminal or Tasks and associated files.
-
-| Parameter  | Type  | Required | Default       | Constraints and meaning                                       |
-| ---------- | ----- | -------- | ------------- | ------------------------------------------------------------- |
-| `task_ids` | array | Yes      | `— (omitted)` | List of full Task IDs to delete; minItems=1, uniqueItems=True |
-
-The Schema does not prohibit extra fields; this does not mean those fields will be used.
-
-**Request**
-
-```json
-{
-  "arguments": {
-    "task_ids": ["base#demo#api-demo"]
-  }
-}
-```
-
-**Response**
-
-answer is the list of Task IDs actually deleted successfully.
-
-```json
-{
-  "answer": ["base#demo#api-demo"],
-  "success": true,
-  "metadata": {}
-}
-```
-
-**Behavior and failure cases**
-
-Active tasks, invalid IDs, nonexistent tasks, and managed executions are skipped. Compare the requested and returned lists; success=true does not mean everything was deleted.
-
 ## Failure response examples
 
 Schema failures return HTTP 422 before execution, for example when wait_task lacks run_id. Exceptions during Task execution or queries usually return HTTP 200 with success=false. Example of an unknown Task registration name:
@@ -688,9 +559,7 @@ Schema failures return HTTP 422 before execution, for example when wait_task lac
 }
 ```
 
-The Available list is generated from the actual installed environment. When wait_task returns a failed task status, answer remains TaskMetadata with state=failed/cancelled, retaining error and exit_code; do not assume that a failure answer is always a string.
-
-Deletion and cancellation can return a valid request with no changes: delete_tasks may return answer=[], and cancel may return answer=false, alongside success=true. Clients should display the actual number of changes.
+The Available list is generated from the actual installed environment. When wait_task returns a failed task status, answer remains TaskMetadata with state=failed, retaining error and exit_code; do not assume that a failure answer is always a string.
 
 ## Related documentation
 
@@ -699,7 +568,7 @@ Deletion and cancellation can return a valid request with no changes: delete_tas
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/task/` and `axonx/components/service/http/jobs.py`.
+Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/task/` and `axonx/app/components/service/http/jobs.py`.
 
 ## Studio query projections
 
@@ -707,7 +576,7 @@ Implementation references: `axonx/config/default.yaml`, `axonx/steps/task/` and 
 query projection, never a second persisted Task record. Research and comparison
 lists request summaries; only selected Tasks are loaded through `status`. Full
 outputs, training curves, and artifact registries belong to the detail response.
-Task graphs are built under the repository lock without cloning Task outputs.
+Task graphs are built from indexed snapshots without cloning Task outputs.
 
 Studio wire contracts are generated from Python, including summaries, graphs,
 Job events, and Agent session presentation. Research outputs are discriminated by

@@ -2,8 +2,8 @@
 
 import pytest
 
-from axonx.config import ApplicationConfig
-from axonx.utils.target import normalize_target
+from axonx.app.config import ApplicationConfig
+from axonx.config.target import normalize_target
 
 
 @pytest.mark.parametrize(

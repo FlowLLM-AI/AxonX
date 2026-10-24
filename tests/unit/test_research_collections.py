@@ -3,10 +3,11 @@
 import pytest
 from pydantic import ValidationError
 
-from axonx.enums import TaskType
+from axonx.task.enums import TaskType
 from axonx.task.contracts import BasePredictOutputParams, BaseTrainOutputParams
 from axonx.task.core import BaseOutputParams
-from axonx.task.protocol import ModelCollection, task_protocol
+from axonx.task.schemas.model import ModelCollection
+from axonx.task.schemas.protocol import task_protocol
 
 
 def artifact(path):

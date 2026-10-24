@@ -33,9 +33,7 @@ export AXONX_TUSHARE_BASE_URL='http://<AxonX 代理机器>:1024/proxy/tushare'
 
 ## 参数与日期
 
-![Tushare download submission form](../../figures/studio/tushare-submit.png)
-
-在 **Submit task** 选择 `download_tushare_task`，表单根据任务 Schema 展示日期、自然日回溯、请求超时与数据组。图中为未提交的默认配置；填写前先确认执行机器的数据凭据。
+在 Studio 的 Task 定义页面选择 `download_tushare_task` 查看输入输出 Schema；在已配置数据凭据的环境中通过 CLI exec 执行。
 
 | 字段         | 默认值   | 用途                                         |
 | ------------ | -------- | -------------------------------------------- |
@@ -48,13 +46,11 @@ export AXONX_TUSHARE_BASE_URL='http://<AxonX 代理机器>:1024/proxy/tushare'
 日期接受 `YYYYMMDD` 和 ISO 日期；CLI 的八位整数日期会转换回字符串。日期范围按自然日枚举，节假日接口返回空数据时不会写文件。`days_back` 是自然日数，不是交易日数。
 
 ```bash
-axonx submit --task download_tushare_task --days-back 7
-axonx submit --task download_tushare_task \
+axonx exec --task download_tushare_task --days-back 7
+axonx exec --task download_tushare_task \
   --start-date 20230101 --end-date 20231231 \
   --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 ```
-
-提交后保留 TaskHandle，调用 `wait_task` 确认执行完成。长区间可能包含大量请求，客户端等待超时与单次接口 timeout 应分别设置，见[研究流程](workflow.md)。
 
 ## 数据组
 
@@ -73,7 +69,7 @@ axonx submit --task download_tushare_task \
 仅更新行情可使用：
 
 ```bash
-axonx submit --task download_tushare_task \
+axonx exec --task download_tushare_task \
   --start-date 20240101 --end-date 20240131 \
   --datasets 'daily,adj_factor'
 ```

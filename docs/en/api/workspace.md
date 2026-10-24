@@ -185,7 +185,7 @@ answer is an array of DeletedEntry; deleted is a relative path and kind is file/
 
 **Behavior and failure cases**
 
-At most 200 paths are allowed; the root directory and paths escaping the workspace cannot be deleted. Prefer delete_tasks for task directories to preserve task-status and log-management constraints.
+Control local exec processes through their execution environment. The service exposes no Task cancellation or deletion interface. Disconnecting read-only observation does not change an independent Task execution.
 
 ## Related documentation
 
@@ -194,16 +194,16 @@ At most 200 paths are allowed; the root directory and paths escaping the workspa
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/workspace/` and `axonx/components/service/http/jobs.py`.
+Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/workspace/` and `axonx/app/components/service/http/jobs.py`.
 
 ## File upload and cleanup
 
-`POST /files` accepts a raw binary request body or `multipart/form-data`. Both formats return the same FileCopy and stage only the file bytes; uploading a Python script does not execute it.
+`POST /upload` accepts a raw binary request body or `multipart/form-data`. Both formats return the same StagedFile and stage only the file bytes; uploading a Python script does not execute it.
 
 For raw binary uploads, `x-file-name` is required. Optional `x-file-directory` specifies a workspace-relative subdirectory beginning with tmp; it cannot target an arbitrary workspace location. Existing clients can continue using this format:
 
 ```bash
-curl -s -X POST http://127.0.0.1:1024/files \
+curl -s -X POST http://127.0.0.1:1024/upload \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
   -H 'Content-Type: application/octet-stream' \
   -H 'x-file-name: axonx_example-0.1.0-py3-none-any.whl' \
@@ -214,7 +214,7 @@ curl -s -X POST http://127.0.0.1:1024/files \
 For multipart uploads, send exactly one file in the `file` field and optionally a text `directory` field. The file part supplies the filename. If supplied, `x-file-name` and a nonempty `x-file-directory` override the filename and directory. Other fields and multiple files are rejected. Omit the Content-Type header when using `curl -F`; curl supplies the multipart boundary automatically.
 
 ```bash
-curl -s -X POST http://127.0.0.1:1024/files \
+curl -s -X POST http://127.0.0.1:1024/upload \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
   -F 'file=@dist/axonx_example-0.1.0-py3-none-any.whl' \
   -F 'directory=tmp/plugins'
@@ -222,12 +222,13 @@ curl -s -X POST http://127.0.0.1:1024/files \
 
 The runtime dependency `python-multipart` is declared in `pyproject.toml`; no service configuration switch is needed to enable either format.
 
-FileCopy has the response structure below; use the actual returned path and byte size:
+StagedFile has the response structure below; use the actual returned path and byte size:
 
 ```json
 {
   "answer": {
     "path": "tmp/plugins/0123456789abcdef0123456789abcdef/axonx_example-0.1.0-py3-none-any.whl",
+    "location": "/srv/axonx/.axonx/tmp/plugins/0123456789abcdef0123456789abcdef/axonx_example-0.1.0-py3-none-any.whl",
     "size": 4096
   },
   "success": true,
@@ -235,12 +236,14 @@ FileCopy has the response structure below; use the actual returned path and byte
 }
 ```
 
+`path` is workspace-relative and is used for synchronization and cleanup. `location` is the absolute server-local filename for `plugin install <location> --target HOST:PORT`. This command does not delete the upload. `/upload` replaces `/files`; the old route is removed.
+
 Each upload receives a unique staging directory; uploads do not calculate content hashes or deduplicate identical content. The default per-file limit is 512 MiB. The service checks both Content-Length and actual streamed bytes. Multipart requests allow an additional 64 KiB of request framing; the file itself must still fit the per-file limit. Multipart temporary files are closed after storage or on failure, including request cancellation. An invalid Content-Length or malformed multipart body (including too many parts) returns 400; exceeding the limit returns 413. Missing/invalid filenames, missing `file` uploads, unsupported fields, directory escapes, and similar errors return 422; symbolic links and escaping paths are rejected.
 
 Consumers install_plugin and sync_tasks use the returned path. Installation also requires the SHA-256 of the original wheel, supplied by the installation caller and verified by the plugin consumer. Completing an upload does not mean the plugin has been installed or the task snapshot applied. Consumers clean up staged artifacts; unconsumed uploads can be cleaned up explicitly:
 
 ```bash
-curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fupload-id%2Fyour-wheel.whl' \
+curl -s -X DELETE 'http://127.0.0.1:1024/upload?path=tmp%2Fplugins%2Fupload-id%2Fyour-wheel.whl' \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
 ```
 

@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from ...enums import TaskType
+from ..enums import TaskType
 from .protocol import Protocol
 
 

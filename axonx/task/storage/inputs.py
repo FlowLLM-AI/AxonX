@@ -2,10 +2,10 @@
 
 from pathlib import Path
 
-from ...enums import TaskState
+from ..enums import TaskState
 from .artifacts import artifact_path, artifact_record
 from .workspace import read_task_metadata
-from ...utils.fs import file_revision, snapshot_file
+from ...common.fs import file_revision, snapshot_file
 
 from .models import snapshot_model_collection
 

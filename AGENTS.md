@@ -10,6 +10,16 @@ Setup and contribution details: [CONTRIBUTING.md](CONTRIBUTING.md).
 - `axonx/`: framework and runtime; `plugins/`: research Tasks and algorithms;
   `axonx_studio/`: React/TypeScript UI; `tests/`: framework tests;
   `docs/`: bilingual guides; `github-pages/`: site tooling.
+- Python subsystem roots are `app`, `cli`, `daemon`, `cron`, `config`, `task`,
+  `plugin`, and `common`. Keep service implementation in `app`; `task` must not
+  import it. `common` must not import another subsystem. Cron receives a launch
+  callback; standalone daemon workers use only the standard library.
+- `common` contains mechanisms and primitive data only. Task enums/log scopes live
+  in `task`, component types and Studio schemas in `app`, provider registration
+  in `plugin`, runtime/connection/env settings in `config`, and CLI parsing/help
+  in `cli`. Cross-module usage does not change domain ownership.
+- Retain useful internal package structure. New imports use canonical module paths;
+  obsolete pre-refactor module paths and compatibility-only facades are removed.
 - Keep research algorithms in plugins; reuse framework extension points.
 - Preserve public CLI/API/configuration contracts, persisted task records,
   task identity, lifecycle behavior, and artifact formats unless changing them

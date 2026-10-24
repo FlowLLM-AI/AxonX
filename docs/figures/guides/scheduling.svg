@@ -1,45 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1096" height="704" viewBox="0 0 1096 704" role="img" aria-labelledby="title desc">
-  <title id="title">Cron concurrency boundaries</title>
-  <desc id="desc">Policies constrain Job calls; background Tasks can continue after a Job returns.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
-      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
-    </marker>
-  </defs>
-  <rect x="8" y="8" width="1080.0" height="688.0" rx="30" fill="#f8fafc" stroke="#143252" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
-  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
-    <path d="M 385 450 H 310" fill="none" stroke="#247baf" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <path d="M 730 450 H 655" fill="none" stroke="#247baf" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <path d="M 865 300 V 370" fill="none" stroke="#247baf" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <path d="M 655 220 H 730" fill="none" stroke="#247baf" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <path d="M 310 220 H 385" fill="none" stroke="#247baf" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
-    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#143252">
-      <text x="44" y="55" font-size="32" font-weight="700" text-anchor="start">Cron concurrency boundaries</text>
-      <rect x="40" y="140" width="270" height="160" rx="20" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="64.0" y="178" text-anchor="start" font-size="23.0" font-weight="600">Cron trigger</text>
-      <rect x="385" y="140" width="270" height="160" rx="20" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="409.0" y="178" text-anchor="start" font-size="23.0" font-weight="600">Concurrency policy</text>
-      <text x="409.0" y="220" text-anchor="start" font-size="18">forbid / allow / replace</text>
-      <rect x="730" y="140" width="270" height="160" rx="20" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="754.0" y="245" text-anchor="start" font-size="18">Validate arguments</text>
-      <rect x="730.0" y="370" width="270" height="160" rx="20" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="754.0" y="408" text-anchor="start" font-size="23.0" font-weight="600">submit Job returns</text>
-      <rect x="385.0" y="370" width="270" height="160" rx="20" fill="#e9f1fc" stroke="#739bcc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="409.0" y="408" text-anchor="start" font-size="23.0" font-weight="600">Worker continues</text>
-      <rect x="40.0" y="370" width="270" height="160" rx="20" fill="#e8f5f0" stroke="#5aab8c" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="64.0" y="408" text-anchor="start" font-size="23.0" font-weight="600">Next Cron trigger</text>
-      <text x="64.0" y="450" text-anchor="start" font-size="18">May submit another Task</text>
-      <text x="520.0" y="580.0" font-size="19" fill="#52677e" text-anchor="middle">To prevent Task overlap, query active Tasks or create a Job that waits for terminal status.</text>
-      <text x="44" y="92.0" font-size="18" fill="#143252" text-anchor="start">Policies constrain Job calls; background Tasks can continue after a Job returns.</text>
-      <text x="64.0" y="220" text-anchor="start" font-size="18">Compute in configured</text>
-      <text x="64.0" y="248" text-anchor="start" font-size="18">timezone</text>
-      <text x="754.0" y="176" text-anchor="start" font-size="23.0" font-weight="600">Dispatcher invokes</text>
-      <text x="754.0" y="211" text-anchor="start" font-size="23.0" font-weight="600">Job</text>
-      <text x="754.0" y="450" text-anchor="start" font-size="18">TaskHandle for background</text>
-      <text x="754.0" y="478" text-anchor="start" font-size="18">work</text>
-      <text x="409.0" y="450" text-anchor="start" font-size="18">Training or backtest</text>
-      <text x="409.0" y="478" text-anchor="start" font-size="18">still active</text>
-    </g>
-    <path d="M 44 552 H 996" fill="none" stroke="#143252" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="300" viewBox="0 0 1120 300" role="img" aria-labelledby="title desc">
+<title id="title">Task execution and observation</title>
+<desc id="desc">CLI exec owns Task execution and writes metadata. The service reads published records for Studio and API queries.</desc>
+<rect width="1120" height="300" rx="18" fill="#f4f7fb"/>
+<g font-family="Arial,sans-serif" fill="#18324b">
+<text x="36" y="48" font-size="26" font-weight="700">Task execution and observation</text>
+<text x="36" y="80" font-size="17">The execution process owns lifecycle publication and resource cleanup.</text>
+<g fill="#fff" stroke="#b9cede" stroke-width="2"><rect x="36" y="120" width="230" height="100" rx="12"/><rect x="308" y="120" width="230" height="100" rx="12"/><rect x="580" y="120" width="230" height="100" rx="12"/><rect x="852" y="120" width="230" height="100" rx="12"/></g>
+<g font-size="21" font-weight="700" text-anchor="middle"><text x="151" y="158">axonx exec</text><text x="423" y="158">Task files</text><text x="695" y="158">TaskRepository</text><text x="967" y="158">API / Studio</text></g>
+<g font-size="16" text-anchor="middle"><text x="151" y="190">TaskRunner executes</text><text x="423" y="190">metadata, logs, artifacts</text><text x="695" y="190">Poll published metadata</text><text x="967" y="190">Inspect existing records</text></g>
+<g stroke="#52738f" stroke-width="3"><path d="M274 170h24m-7-7 7 7-7 7"/><path d="M546 170h24m-7-7 7 7-7 7"/><path d="M818 170h24m-7-7 7 7-7 7"/></g>
+<text x="36" y="264" font-size="17">Independent local exec continues across observation-service restarts.</text></g></svg>

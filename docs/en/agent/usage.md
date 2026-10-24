@@ -109,11 +109,7 @@ Stopping in the Agent UI, or calling `cancel_agent_turn`, interrupts the current
 axonx cancel_agent_turn --session-id '<running UUID>'
 ```
 
-This does not automatically cancel independent research Tasks submitted through other tools or operations. Use the `cancel` Job to cancel a research task:
-
-```bash
-axonx cancel --task-id '<research Task ID to cancel>'
-```
+Control local exec processes through their execution environment. The service exposes no Task cancellation or deletion interface. Disconnecting read-only observation does not change an independent Task execution.
 
 Session history remains usable after a turn is cancelled. Cancelling a task changes that Task's execution status. These operations are not interchangeable.
 
@@ -137,5 +133,5 @@ However, the Claude SDK's own tools, project settings, plugins, and `permission_
 ## Related documentation and implementation
 
 - [Agent configuration](configuration.md), [MCP integration](mcp-integration.md)
-- [Claude session implementation](../../../axonx/components/agent/claude/backend.py)
-- [Streaming turn Step](../../../axonx/steps/agent/run.py)
+- [Claude session implementation](../../../axonx/app/components/agent/claude/backend.py)
+- [Streaming turn Step](../../../axonx/app/steps/agent/run.py)

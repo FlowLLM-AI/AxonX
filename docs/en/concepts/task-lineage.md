@@ -21,7 +21,7 @@ The following only illustrates parameter combinations. `my-predict` is an exampl
 
 ```bash
 axonx get_task_definition --task '<registered name of an installed prediction Task>'
-axonx submit --task '<registered name of an installed prediction Task>' \
+axonx exec --task '<registered name of an installed prediction Task>' \
   --task-name prediction-01 \
   --source-tasks 'etl#my-etl#dataset-01,train#my-train#model-01'
 ```
@@ -60,7 +60,7 @@ When investigating backtest anomalies, usually work upstream from Backtest to Pr
 ## Reading Upstream Tasks in Plugins
 
 ```python
-from axonx.enums import TaskType
+from axonx.task.enums import TaskType
 
 train_id = self.input_params.source_task(TaskType.TRAIN)
 train_dir = self.source_task_dir(train_id)

@@ -1,7 +1,5 @@
 # Client and connection configuration
 
-Client configuration determines which service to connect to, how to authenticate, and how long to wait. It is separate from [ApplicationConfig](configuration.md): clients do not install plugins, start TaskManager, or read server-side environments. The same target also follows different paths in CLI direct connections and Studio forwarding.
-
 ![Local and remote Python calls](../../figures/reference/python-paths.svg)
 
 ## ClientOptions
@@ -56,14 +54,14 @@ axonx stream_task --task-id 'base#demo#example' \
   --stream true --stream-format json --client-timeout 600
 ```
 
-timeout is a client timeout; wait_task has no corresponding task-timeout field. A client timeout or exit does not cancel the background Task; call cancel explicitly when needed.
+Control local exec processes through their execution environment. The service exposes no Task cancellation or deletion interface. Disconnecting read-only observation does not change an independent Task execution.
 
 ## Explicit Python connections
 
 ```python
 import asyncio
 import os
-from axonx.components.client import HttpClient
+from axonx.app.components.client import HttpClient
 
 async def main():
     async with HttpClient(
@@ -102,9 +100,7 @@ This example is for the local `/jobs/machine_status`. Local and remote 401 respo
 
 ## Worker handoff variables
 
-TaskManager writes AXONX_TASK_WORKSPACE_DIR, AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_ID, AXONX_TASK_RUN_ID, and AXONX_TASK_CREATED_AT into subprocess environments so workers and submitters share identity and paths.
-
-These are internal framework execution-handoff fields. Ordinary users should control tasks through workspace_dir/log_dir/timezone configuration and submit inputs, rather than manually fabricating run_id or created_at to create executions. Migrating a workspace does not restore its original worker.
+Execute Tasks through CLI exec. The observing service does not create Tasks. Confirm the plugin, inputs and execution environment first.
 
 ## Handling connection failures
 

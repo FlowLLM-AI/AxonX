@@ -1,41 +1,26 @@
 """Composite Tasks preserve child contracts, ownership, and failure semantics."""
 
-import asyncio
 import json
 import os
 import re
 import shutil
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
-from axonx.components.task_manager.local.manager import LocalTaskManager
-from axonx.components.task_manager.local.supervisor import (
-    TaskProcessSupervisor,
-    WorkerExit,
-)
-from axonx.components.task_repository import LocalTaskRepository
-from axonx.core import Application
-from axonx.enums import TaskState, TaskType
-from axonx.plugin_kit.models import PluginInfo
+from axonx.task.enums import TaskState, TaskType
+from axonx.plugin.models import PluginInfo
 from axonx.task import BaseCompositeTask, BaseOutputParams, BaseTask, ChildTaskError
 from axonx.task.builtins.demo import DemoTask, DemoTaskOutputParams
 from axonx.task.catalog import get_task_definition
-from axonx.task.runtime.executor import TaskCommandExecutor
+from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.artifacts import artifact_path, artifact_record, read_metadata
 
-from axonx.task.storage.workspace import (
-    METADATA_FILE,
-    ChildTaskRecord,
-    TaskMetadata,
-    read_task_metadata,
-    task_path,
-    write_task_metadata,
-)
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.storage.workspace import read_task_metadata, task_path, write_task_metadata
 
 
 class Composite(BaseCompositeTask):
@@ -62,7 +47,7 @@ def composition(task):
 
 
 def test_child_logs_are_isolated_and_parent_keeps_complete_chain(tmp_path, monkeypatch):
-    from axonx.utils.logging import LoggingConfig, configure_logging
+    from axonx.common.logging import LoggingConfig, configure_logging
 
     class LoggedTask(DemoTask):
         def finish(self):
@@ -443,17 +428,6 @@ def test_reused_child_name_cannot_replace_active_run(tmp_path, state):
     assert (directory / "metadata.json").read_bytes() == before
 
 
-def test_child_environment_never_borrows_parent_worker_identity(tmp_path, monkeypatch):
-    monkeypatch.setenv("AXONX_TASK_ID", "base#composite#worker")
-    monkeypatch.setenv("AXONX_TASK_RUN_ID", "worker-run")
-    monkeypatch.setenv("AXONX_TASK_CREATED_AT", "invalid-parent-timestamp")
-    results = []
-    task = parent(tmp_path, lambda owner: results.append(owner.run_task("demo", x=1, y=2)))
-    TaskRunner().run(task)
-    assert results[0].task_id != "base#composite#worker"
-    assert results[0].run_id != "worker-run"
-
-
 @pytest.mark.parametrize("failure_point", ["composition", "initial_status", "persistent_status"])
 @pytest.mark.parametrize("on_error", ["stop", "continue"])
 def test_child_startup_failure_settles_owned_status_and_closes_resources(
@@ -665,256 +639,10 @@ def test_documented_plugin_example_resolves_and_executes_through_command_entry(t
     definition = get_task_definition("demo_chain")
     assert definition.source == "plugin"
     assert "children" not in definition.output_schema["properties"]
-    execution = TaskCommandExecutor(tmp_path).execute(
-        SimpleNamespace(
-            action="exec",
-            arguments={"task": "demo_chain", "x": 2, "y": 3, "doubles": 2},
-        )
-    )
-    assert execution.status.state == TaskState.SUCCEEDED
-    assert execution.output["total"] == 20
-    assert len(execution.status.children) == 3
-
-
-@pytest.fixture
-def manager(tmp_path):
-    context = SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
-    instance = object.__new__(LocalTaskManager)
-    instance._supervisor = SimpleNamespace(run_pids={})
-    instance.app_context = context
-    instance._lock = asyncio.Lock()
-    instance.repository = LocalTaskRepository(app_context=context)
-    return instance
-
-
-def save_status(tmp_path, name, *, state=TaskState.RUNNING, run_id="run", pid=123):
-    status = TaskMetadata(
-        version=1,
-        task_id=f"base#{name}#test",
-        run_id=run_id,
-        task_type=TaskType.BASE,
-        state=state,
-        pid=pid,
-    )
-    directory = task_path(tmp_path, status.task_id)
-    directory.mkdir(parents=True)
-    write_task_metadata(directory, status)
-    return status
-
-
-def link_children(tmp_path, owner, *children):
-    owner.children = [
-        ChildTaskRecord(
-            node_name=str(index),
-            attempt=1,
-            task=child.reg_name or "demo",
-            task_id=child.task_id,
-            run_id=child.run_id,
-            state=child.state,
-        )
-        for index, child in enumerate(children)
-    ]
-    write_task_metadata(task_path(tmp_path, owner.task_id), owner)
-
-
-@pytest.mark.parametrize("state,code", [(TaskState.CANCELLED, 130), (TaskState.FAILED, 9)])
-async def test_settlement_updates_nested_children_preserving_success_and_foreign_runs(tmp_path, manager, state, code):
-    root = save_status(tmp_path, "root")
-    nested = save_status(tmp_path, "nested")
-    leaf = save_status(tmp_path, "leaf")
-    success = save_status(tmp_path, "success", state=TaskState.SUCCEEDED)
-    foreign = save_status(tmp_path, "foreign", pid=456)
-    replaced = save_status(tmp_path, "replaced", run_id="old")
-    link_children(tmp_path, nested, leaf)
-    link_children(tmp_path, root, nested, success, foreign, replaced)
-    write_task_metadata(
-        task_path(tmp_path, replaced.task_id),
-        replaced.model_copy(update={"run_id": "new"}),
-    )
-
-    await manager._finish(root, state, code, "worker stopped")
-
-    for status in (root, nested, leaf):
-        current = await manager.get_status(status.task_id)
-        assert current.state == state
-        assert current.exit_code == code
-    assert read_task_metadata(task_path(tmp_path, success.task_id), success.task_id).state == TaskState.SUCCEEDED
-    assert read_task_metadata(task_path(tmp_path, foreign.task_id), foreign.task_id).state == TaskState.RUNNING
-    replacement = read_task_metadata(task_path(tmp_path, replaced.task_id), replaced.task_id)
-    assert replacement.run_id == "new" and replacement.state == TaskState.RUNNING
-    assert read_task_metadata(task_path(tmp_path, root.task_id), root.task_id).children[0].state == state
-
-
-async def test_worker_exit_fails_children_without_touching_replacement_parent(tmp_path, manager):
-    root = save_status(tmp_path, "root")
-    child = save_status(tmp_path, "child")
-    link_children(tmp_path, root, child)
-    await manager._handle_worker_exit(WorkerExit(-9, "", root.task_id, "stale"))
-    assert read_task_metadata(task_path(tmp_path, child.task_id), child.task_id).state == TaskState.RUNNING
-    await manager._handle_worker_exit(WorkerExit(-9, "", root.task_id, root.run_id))
-    assert (await manager.get_status(child.task_id)).state == TaskState.FAILED
-
-
-@pytest.mark.parametrize("bad_record", ["corrupt", "stale", "symlink", "directory", "fifo"])
-async def test_worker_exit_ignores_invalid_or_stale_metadata(tmp_path, manager, monkeypatch, bad_record):
-    root = save_status(tmp_path, "root")
-    child = save_status(tmp_path, "child")
-    link_children(tmp_path, root, child)
-    path = task_path(tmp_path, root.task_id) / METADATA_FILE
-    if bad_record == "corrupt":
-        path.write_text("{")
-    elif bad_record == "stale":
-        data = json.loads(path.read_text())
-        data["run_id"] = "stale"
-        path.write_text(json.dumps(data))
-    elif bad_record == "symlink":
-        target = tmp_path / "external.json"
-        path.rename(target)
-        path.symlink_to(target)
-    else:
-        path.unlink()
-        if bad_record == "directory":
-            path.mkdir()
-        else:
-            os.mkfifo(path)
-            read_text = Mock(wraps=Path.read_text)
-
-            def refuse_fifo_read(current, *args, **kwargs):
-                assert current != path, "Reading a composition FIFO would block settlement"
-                return read_text(current, *args, **kwargs)
-
-            monkeypatch.setattr(Path, "read_text", refuse_fifo_read)
-    await manager._handle_worker_exit(WorkerExit(-9, "", root.task_id, root.run_id))
-    assert read_task_metadata(task_path(tmp_path, root.task_id), root.task_id) is None or bad_record == "stale"
-    assert read_task_metadata(task_path(tmp_path, child.task_id), child.task_id).state == TaskState.RUNNING
-
-
-@pytest.mark.parametrize("operation", ["lstat", "read_text"])
-async def test_worker_exit_retries_transient_metadata_io_failure(tmp_path, manager, monkeypatch, operation):
-    root = save_status(tmp_path, "root")
-    child = save_status(tmp_path, "child")
-    link_children(tmp_path, root, child)
-    target = task_path(tmp_path, root.task_id) / METADATA_FILE
-    original = getattr(Path, operation)
-    attempts = 0
-
-    def flaky_read(path, *args, **kwargs):
-        nonlocal attempts
-        if path == target:
-            attempts += 1
-            if attempts == 1:
-                raise OSError("temporary composition I/O failure")
-        return original(path, *args, **kwargs)
-
-    async def wait():
-        return 9
-
-    monkeypatch.setattr(Path, operation, flaky_read)
-    monkeypatch.setattr("axonx.components.task_manager.local.supervisor.EXIT_RETRY_SECONDS", 0)
-    supervisor = TaskProcessSupervisor(0, Mock(), manager._handle_worker_exit)
-    process = SimpleNamespace(pid=root.pid, stderr=None, returncode=9, wait=wait)
-    await supervisor._monitor(process, root.task_id, "root", root.run_id)
-
-    assert attempts >= 2
-    supervisor.logger.exception.assert_called_once()
-    for status in (root, child):
-        current = await manager.get_status(status.task_id)
-        assert current.state == TaskState.FAILED
-        assert current.exit_code == 9
-
-
-WORKER_SCRIPT = """
-import os
-import time
-from pathlib import Path
-import axonx.task.catalog.resolver as resolver
-from axonx.task import BaseCompositeTask, BaseOutputParams, BaseTask
-from axonx.task.builtins.demo import DemoTaskInputParams
-from axonx.enums import TaskType
-from axonx.task.runtime.runner import TaskRunner
-
-class Hold(BaseTask):
-    def build_task_steps(self):
-        yield self.hold
-    def hold(self):
-        (self.workspace_path / "ready").write_text(self.task_id)
-        while True:
-            time.sleep(1)
-    def build_output_params(self):
-        return BaseOutputParams()
-
-class Inner(BaseCompositeTask):
-    def build_task_steps(self):
-        yield self.child
-    def child(self):
-        self.run_task("hold")
-
-class Outer(BaseCompositeTask):
-    # The manager submits the native base/demo definition in this fixture.
-    task_type = TaskType.BASE
-    input_cls = DemoTaskInputParams
-    def build_task_steps(self):
-        yield self.child
-    def child(self):
-        self.run_task("inner")
-
-resolver.resolve_task = lambda name: {"hold": Hold, "inner": Inner}[name]
-task = Outer(
-    {"task_name": os.environ["AXONX_TASK_ID"].split("#")[-1], "x": 1, "y": 2},
-    workspace_path=os.environ["AXONX_TASK_WORKSPACE_DIR"],
-    reg_name="demo", run_id=os.environ["AXONX_TASK_RUN_ID"],
-)
-TaskRunner().run(task)
-"""
-
-
-@pytest.mark.parametrize("stop", ["cancel", "shutdown", "crash"])
-async def test_real_worker_stop_settles_active_nested_children(tmp_path, monkeypatch, stop):
-    script = tmp_path / "worker.py"
-    script.write_text(WORKER_SCRIPT)
-    create_process = asyncio.create_subprocess_exec
-
-    async def spawn(*_args, **kwargs):
-        return await create_process(sys.executable, str(script), **kwargs)
-
-    monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
-    app = Application(
-        workspace_dir=str(tmp_path),
-        log_dir=str(tmp_path / "logs"),
-        enable_logo=False,
-        log_to_console=False,
-        log_to_file=False,
-        components={
-            "task_repository": {"default": {"backend": "local"}},
-            "task_manager": {"default": {"backend": "local", "terminate_grace_seconds": 0.1}},
-        },
-    )
-    await app.start()
-    try:
-        instance = app.context.components["task_manager"]["default"]
-        handle = await instance.submit(["--task", "demo", "--task-name", "parent", "--x", "1", "--y", "2"])
-        async with asyncio.timeout(15):
-            while not (tmp_path / "ready").is_file():
-                await asyncio.sleep(0.02)
-        root_record = read_task_metadata(task_path(tmp_path, handle.task_id), handle.task_id)
-        nested = root_record.children[0]
-        leaf_id = (tmp_path / "ready").read_text()
-        if stop == "cancel":
-            assert await instance.cancel(handle.task_id, handle.run_id)
-        elif stop == "shutdown":
-            await app.close()
-        else:
-            pid = instance._supervisor.run_pids[handle.run_id]
-            os.kill(pid, 9)
-            async with asyncio.timeout(10):
-                while not read_task_metadata(task_path(tmp_path, handle.task_id), handle.task_id).state.is_terminal:
-                    await asyncio.sleep(0.02)
-        expected = TaskState.FAILED if stop == "crash" else TaskState.CANCELLED
-        for task_id in (handle.task_id, nested.task_id, leaf_id):
-            assert read_task_metadata(task_path(tmp_path, task_id), task_id).state == expected
-        assert read_task_metadata(task_path(tmp_path, handle.task_id), handle.task_id).children[0].state == expected
-    finally:
-        await app.close()
+    execution = TaskExecutor(tmp_path).execute("demo_chain", {"x": 2, "y": 3, "doubles": 2})
+    assert execution.state == TaskState.SUCCEEDED
+    assert execution.output_params["total"] == 20
+    assert len(execution.children) == 3
 
 
 @pytest.mark.parametrize("kind", ["file", "symlink"])

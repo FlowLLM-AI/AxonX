@@ -8,10 +8,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from axonx.components.task_repository import LocalTaskRepository, TaskChanges, TaskChangeSubscription
-from axonx.components.task_repository.local import index
-from axonx.core import Application
-from axonx.enums import TaskState, TaskType
+from axonx.app.components.task_repository import LocalTaskRepository, TaskChanges, TaskChangeSubscription
+from axonx.app.components.task_repository.local import index
+from axonx.app.core import Application
+from axonx.task.enums import TaskState, TaskType
 from axonx.task.schemas.lifecycle import TaskMetadata
 from axonx.task.storage.workspace import task_path, write_task_metadata
 

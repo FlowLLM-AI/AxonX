@@ -90,4 +90,4 @@ download_tushare_task 的客户端读取环境变量 `AXONX_TUSHARE_BASE_URL`。
 
 [鉴权](authentication.md) · [远程机器](remote-machines.md) · [部署](deployment.md)
 
-源码：[HTTP proxy](../../../axonx/components/proxy/http.py)、[proxy 路由](../../../axonx/components/service/http/proxy.py)、[proxy 错误](../../../axonx/components/proxy/base.py)。
+源码：[HTTP proxy](../../../axonx/app/components/proxy/http.py)、[proxy 路由](../../../axonx/app/components/service/http/proxy.py)、[proxy 错误](../../../axonx/app/components/proxy/base.py)。

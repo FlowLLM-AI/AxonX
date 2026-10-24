@@ -24,7 +24,7 @@ axonx plugin install ./plugins/qlib_a158
 
 本机 Agent 修改插件时使用 `axonx plugin install -e ./plugins/qlib_a158`。远程执行时使用普通安装并追加 `--target <host:port>`；源码准备、依赖顺序和安装方式见[插件管理](../plugins/management.md)。
 
-本机安装或 editable 源码变更后需重启常驻服务；远程 `axonx plugin install` 会刷新 Task 定义，仅在 `restart_required=true` 时重启。运行 `axonx list_installed_task_definitions` 查询任务目录。预期找到 `qlib_a158_etl`、`qlib_a158_factor`、`qlib_a158_train`、`qlib_a158_predict` 和 `qlib_a158_backtest`。
+安装只修改选定 Python 环境，不刷新服务已加载模块，也不追踪待重启状态。新的 CLI 进程加载已安装环境；需要重新加载 Task schema、Component 或 Job 时重启常驻服务。已有进程不提供版本隔离，插件环境修改不再串行协调。
 
 ## 研究链中每一步产生什么
 
@@ -44,10 +44,8 @@ axonx plugin install ./plugins/qlib_a158
 下面命令中的 Task ID 必须替换为上一阶段实际返回的值；不能使用注册名代替 Task ID。
 
 ```bash
-axonx submit --task qlib_a158_etl --start-date 20150101
+axonx exec --task qlib_a158_etl --start-date 20150101
 ```
-
-返回的 `answer` 是 TaskHandle，保存其中 `task_id` 和 `run_id`。提交接受只表示 worker 已创建，随后等待该次执行：
 
 ```bash
 axonx --client-timeout 86400 wait_task \
@@ -60,19 +58,19 @@ axonx --client-timeout 86400 wait_task \
 
 ```bash
 # ETL 成功后，可独立做因子分析
-axonx submit --task qlib_a158_factor --source-tasks '<ETL Task ID>'
+axonx exec --task qlib_a158_factor --source-tasks '<ETL Task ID>'
 
 # 训练结束日期不包含在训练区间内
-axonx submit --task qlib_a158_train --source-tasks '<ETL Task ID>' \
+axonx exec --task qlib_a158_train --source-tasks '<ETL Task ID>' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank
 
 # 训练成功后，预测开始日期必须不早于 train_end
-axonx submit --task qlib_a158_predict --source-tasks '<Train Task ID>' \
+axonx exec --task qlib_a158_predict --source-tasks '<Train Task ID>' \
   --pred-start 20230101 --pred-end 20231231
 
 # 预测成功后，生成回测产物
-axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
+axonx exec --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 

@@ -1,24 +1,11 @@
 import { axonx } from "../../shared/api/client";
 import { streamJob, type JobEvent } from "../../shared/api/event";
 import type {
-  Schedule,
   TaskDefinition,
-  TaskHandle,
   LogChunk,
   TaskMetadata,
   TaskSummary,
 } from "./types";
-
-export const listSchedules = (
-  target?: string,
-  signal?: AbortSignal,
-  name?: string,
-) =>
-  axonx.invoke<Schedule[]>(
-    "list_schedules",
-    { include_history: true, history_limit: 200, ...(name ? { name } : {}) },
-    { target, signal },
-  );
 
 export const listTaskStatuses = (target?: string, signal?: AbortSignal) =>
   axonx.invoke<TaskSummary[]>(
@@ -60,16 +47,6 @@ export const listInstalledTaskDefinitions = (
     {},
     { target, signal },
   );
-export const cancelTask = (runId: string, target?: string) =>
-  axonx.invoke<boolean>("cancel", { run_id: runId }, { target });
-export const deleteTasks = (taskIds: string[], target?: string) =>
-  axonx.invoke<string[]>("delete_tasks", { task_ids: taskIds }, { target });
-export const submitTask = (
-  task: string,
-  values: Record<string, unknown>,
-  target?: string,
-) => axonx.invoke<TaskHandle>("submit", { task, ...values }, { target });
-
 export const streamTask = (
   taskId: string,
   target: string | undefined,

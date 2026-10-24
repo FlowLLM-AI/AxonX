@@ -10,9 +10,10 @@ import sys
 import psutil
 import pytest
 
-from axonx.config import ApplicationConfig, ConfigResolver
-from axonx.core import Application
-from axonx.steps.machine.python import run_python
+from axonx.app.config import ApplicationConfig
+from axonx.config import ConfigResolver
+from axonx.app.core import Application
+from axonx.app.steps.machine.python import run_python
 
 
 @pytest.mark.asyncio
@@ -38,7 +39,7 @@ async def test_python_errors_return_stderr_and_exit_status(code, expected):
 
 @pytest.mark.asyncio
 async def test_python_output_is_bounded_and_both_streams_drained(monkeypatch):
-    monkeypatch.setattr("axonx.steps.machine.python.MAX_OUTPUT_BYTES", 8)
+    monkeypatch.setattr("axonx.app.steps.machine.python.MAX_OUTPUT_BYTES", 8)
     success, output = await run_python("import sys\nprint('x' * 100000)\nprint('y' * 100000, file=sys.stderr)", 5)
     assert success is True
     assert output.stdout == "x" * 8

@@ -6,13 +6,13 @@ Framework extensions suit scenarios requiring new long-lived dependencies, async
 
 ## Choosing an extension point
 
-| Extension point | Typical responsibilities                                      | Execution and state                          |
-| --------------- | ------------------------------------------------------------- | -------------------------------------------- |
-| BaseComponent   | Connections, caches, external resources, managed dependencies | _start/_close, application lifecycle         |
-| BaseStep        | Call components, combine results, emit events                 | async execute, a new instance for each Job   |
-| PipelineJob     | Compose multiple Steps sequentially                           | Public Schema, defaults, final result        |
-| BaseJob         | Custom event execution contracts                              | Implements stream(arguments, system) itself  |
-| BaseTask        | Research data computation and artifact publication            | Synchronous steps; submit can start a worker |
+| Extension point | Typical responsibilities                                      | Execution and state                         |
+| --------------- | ------------------------------------------------------------- | ------------------------------------------- |
+| BaseComponent   | Connections, caches, external resources, managed dependencies | _start/_close, application lifecycle        |
+| BaseStep        | Call components, combine results, emit events                 | async execute, a new instance for each Job  |
+| PipelineJob     | Compose multiple Steps sequentially                           | Public Schema, defaults, final result       |
+| BaseJob         | Custom event execution contracts                              | Implements stream(arguments, system) itself |
+| BaseTask        | Research data computation and artifact publication            | Synchronous steps executed through CLI exec |
 
 A Job is asynchronous orchestration inside an Application; Task steps are synchronous functions. Both use similarly named Steps, but their base classes and execution boundaries differ.
 
@@ -33,7 +33,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 from axonx import Application, BaseComponent, BaseStep, provider
-from axonx.components.job import ProgressEvent
+from axonx.app.components.job import ProgressEvent
 
 @provider("prefix_formatter")
 class PrefixFormatter(BaseComponent):
@@ -161,7 +161,7 @@ Extension verification should cover actual risks: Provider conflicts, missing de
 
 After adding a backend, first verify it with a minimal Application(providers=...), then integrate the real service, plugin environment, and Studio form. A UI that can generate a form does not establish correctness of Task research logic.
 
-Implementation references: `axonx/components/base.py`, `axonx/components/registry.py`, `axonx/core/graph.py`, `axonx/core/composition.py`, `axonx/steps/base.py`, `axonx/components/job/pipeline.py`, and `axonx/components/job/context.py`.
+Implementation references: `axonx/app/components/base.py`, `axonx/plugin/registry.py`, `axonx/app/core/graph.py`, `axonx/app/core/composition.py`, `axonx/app/steps/base.py`, `axonx/app/components/job/pipeline.py`, and `axonx/app/components/job/context.py`.
 
 ## Realtime collection, inference and reconciliation
 
@@ -175,7 +175,7 @@ Window inputs contain ordered, uniquely keyed `ExecutionWindow` objects with tim
 
 Plugins can implement `window_skip_reason(window)` to skip a business-inapplicable window before waiting (for example, a closed market), while keeping its original schedule in the audit record.
 
-`initialize_run` acquires owned resources, and `close_run` releases them after success, initialization failure or execution failure. Cleanup errors do not replace the primary exception. Process cancellation remains owned by the existing worker/task manager; plugins must not introduce another process scheduler.
+Task execution and process control belong to the CLI execution environment. The service reads published metadata through TaskRepository and does not cancel, recover or adopt Task processes.
 
 Window outcomes, fixed model identity, and comparison results are published incrementally in `metadata.json.output_params`, including on failure. The Runner atomically publishes this single record; Studio reads it directly without a separate report file. The former `manifest.json`, `comparison.json`, `manifest_file`, and `report_file` contracts are removed without compatibility readers. Business datasets stay in explicit plugin directories; publish their data and metadata before a ready marker. Online publication uses the immutable store described below; quality checks, model normalization, market calendars and notification semantics belong to plugins. AxonX introduces no Tushare or model dependency.
 
@@ -197,30 +197,15 @@ This replaces the JSONL signal journal, slot-prefixed artifact keys and inferenc
 
 ## Composite Tasks and cleanup
 
-Use `BaseCompositeTask` for synchronous business sequencing, conditions and loops. Submit only the parent through the built-in `submit` Job. Children run in the parent's worker, inherit its instance name, and retain invocation records. Repeated calls of the same registration replace terminal outputs; consume file artifacts before replacement. Pass `source_tasks` explicitly for dependencies on other Task IDs. See [Composite Tasks](../guides/composite-tasks.md).
+Use `BaseCompositeTask` for synchronous business sequencing, conditions and loops. Run only the parent through `axonx exec --task NAME`. Children run in the parent's worker, inherit its instance name, and retain invocation records. Repeated calls of the same registration replace terminal outputs; consume file artifacts before replacement. Pass `source_tasks` explicitly for dependencies on other Task IDs. See [Composite Tasks](../guides/composite-tasks.md).
 
-The plugin manifest registers Tasks. Deployment configuration can define thin `pipeline` Jobs and schedules:
+The plugin manifest registers Tasks. Schedule them in a `.cron` file and start with `axonx start --config default --cron ./research.cron`:
 
-```yaml
-extends: default
-jobs:
-  refresh:
-    backend: pipeline
-    defaults:
-      task: refresh_data
-    steps:
-      - backend: submit_task
-schedules:
-  refresh:
-    job: refresh
-    cron: "0 16 * * *"
+```text
+0 16 * * * axonx exec --task refresh_data
 ```
 
-Business Tasks own shared-data consistency and business overlap policies. Prefer immutable input snapshots to locks held during network requests or computation; use fail-fast ownership only for shared writers. Composition does not supply distributed locking. Scheduler concurrency covers the Job invocation; a submission Job returns before the background Task completes. TaskManager supervises the accepted worker and owns shutdown and cancellation. Cancel the parent Run to stop its in-process children. Closing a submission Job does not cancel an already accepted Task.
-
-Maintenance uses `list_managed_run_ids()` to select worker Runs owned by this service, including workers whose metadata is terminal or whose named Task was replaced. Backends that expose records from a shared workspace must override the default private-backend implementation. Return process ownership, not PIDs inferred from persisted metadata.
-
-Task managers implement `cancel(task_id=None, run_id=None)`. At least one ID is required: `task_id` selects the current execution under the manager lock, while `run_id` selects an exact Run. Supplying both checks the current pair and returns false for a mismatch. To cancel an owned execution, pass its exact `run_id`.
+Cron is an ordinary module under `axonx/cron/`, with no component backend or Job scheduler. It shares file lookup with `config/`, starts independent exec processes and stops only future triggers on shutdown. See [Scheduling](../guides/scheduling.md).
 
 Synchronous `BaseTask.close()` releases owned resources after step execution, including step and initialization failures. Cleanup failures preserve a primary step exception. `on_failure(error)` can persist business summaries when steps, output construction or cleanup fail; the runner still owns failed status. These callbacks cannot guarantee cleanup after forced process termination.
 
@@ -232,20 +217,10 @@ The built-in Tushare client owns and closes sessions it creates. `retry_rate_lim
 
 Stock backtest plugins can pass an optional `events` handler to `run_backtest`. It exposes `successors`, `reset(top_n)`, `apply(date, slot, book, cash, quotes) -> cash`, `blocked(code)`, and `pending_cash`. The engine loops over `top_ns`, resetting cash, holdings and event state before replaying all dates for each N. Quotes can be modified within that replay without affecting another N. Receivables must be finite and nonnegative; they count toward equity but are unavailable for purchases until settlement. The engine calls it before daily valuation/trading and checks it before purchases. Event facts and security-specific logic remain in the plugin. No handler preserves existing execution and artifact formats.
 
-Scheduler backends implement `describe(*, include_history=False, history_limit=20)` for `list_schedules`: omit history/latest result by default and slice recent history before copying when requested. Task managers expose `list_restart_blockers()`, selecting queued/running schedule-origin Tasks from their owned Run IDs and lightweight summaries; shared workspace records alone do not establish ownership. `source` belongs to framework execution metadata and must survive worker handoff and child execution.
-
-Cron schedules accept `history_retention_days` (positive integer, default `7`). On startup and each history write, expired finished trigger records are removed from `schedules/<hash>.json`; running triggers are retained. Age is measured from `finished_at`, falling back to `triggered_at` for older records, with timezone-less values interpreted as UTC. This replaces the previous 50-finished-trigger limit and does not delete Task directories, artifacts or logs. Cleanup occurs on these writes, without a separate background timer.
-
 ### Shared workspaces and execution ownership
 
-A workspace repository lists all valid Task records, including records written by other services and direct `exec` processes. Reading a record never adopts its worker. `TaskView` (full list/detail responses) and `TaskSummary` add a query-only `managed_run_id`: a supervised root Run points to itself, its exact in-process children point to that root, and unowned records return `null`. These fields are never persisted in `TaskMetadata`. Cancellation is available only for an active root Run managed by the selected service; cancel its root to stop a child. Terminal records can still belong to a worker finishing cleanup.
+Task execution, metadata publication, repository refresh, deletion, and replica application do not acquire framework Task or workspace locks. Metadata files are still written by atomic replacement. Run ID, process ownership, and observed lifecycle checks remain, but checking and writing are not a transaction. Callers must sequence changes to the same Task directory; concurrent same-name execution, reset, deletion, and synchronization are not coordinated.
 
-Each cron scheduler has a runtime `scheduler_id`, also included in its Task `source.schedule`. Match this ID when linking Task history to a current schedule, rather than matching its name. The field is optional in persisted records, so existing records remain readable and are shown as unlinked workspace history. Older AxonX readers that reject unknown source fields must be upgraded before sharing newly written scheduled records. Scheduler `running` and `last_trigger` describe Job invocations on that service, not the lifetime or outcome of submitted background Tasks. `forbid` and `replace` retain their Job-level semantics; they do not provide cross-service schedule deduplication or cancellation of already accepted Tasks.
+Update records live under `daemon/<instance>/updates/<update-id>/`. The daemon owns update recovery and worker replacement; service Jobs only request operations and read records.
 
-Maintenance closes admission to new local cron triggers before checking active scheduled Jobs and managed Runs; rejection restores admission. Active local scheduled Jobs and scheduled root Runs block even forced maintenance. Other services' records do not block maintenance. Shutdown first stops admission and signals only managed worker process groups, then awaits component cleanup in reverse dependency order. Task managers owning local subprocesses can override the synchronous `request_shutdown(force=False)` hook to stop admission and signal workers without waiting for Jobs or filesystem cleanup; `force=True` must target only tracked worker groups, including descendants whose leader has exited. The hook must be nonblocking and safe to call from a signal handler or the shutdown watchdog thread. A failed hook does not prevent other managers from being signalled or remaining resources from being closed. HTTP service shutdown has a total `cleanup_timeout` deadline; another Ctrl+C or deadline expiry forces process exit, which may leave lifecycle records incomplete. At startup and before named submission, recovery checks non-replica records with the current stable OS-derived `machine_id` or no machine identity. After obtaining the Task execution lock and rereading the exact Run, the local manager marks a local Run failed only when its recorded PID and `process_started_at` identify an exited process instance. Legacy records without machine identity use the execution lock alone, with a five-minute handoff grace period for recently created queued records. Queued records carry the launcher identity until worker handoff; a delayed submitted worker must still match its queued Run. Recovery checks matching children's execution locks, preserves successful results, and never adopts or signals surviving workers. Other-machine records and unverifiable local process instances remain unchanged. New identity fields are optional for old records; older readers rejecting unknown fields must be upgraded before sharing new records. Recovery does not resubmit Tasks or replay cron triggers.
-
-Local runners hold a fail-fast advisory Task-directory lock through final publication and cleanup. Required workspace-directory mutation waits are bounded to 30 seconds. `axonx.utils.fs.file_lock` defaults to immediate contention errors; optional waits must have finite limits. Plugins compare revisions before reading and before success; changed inputs fail explicitly. Shared writers must atomically replace files. Directory creation/reset, Task deletion, workspace deletion and replica application coordinate workspace mutations; terminal directories still leased by a runner cannot be reset or deleted. Workspace deletion also protects active Task files and their ancestors. Accepted queue publication and outcome settlement finish before cancellation releases their mutation locks. Locks live in `.locks/` outside Task directories and must not be removed while services are using the workspace. These locks require a filesystem implementing shared POSIX advisory locks, and do not replace business-data locks or coordinate older writers that do not participate.
-
-Update records now live under `updates/<service-key>/<update-id>/`, where the service key uses the hostname, bind address, port and startup directory. A service only recovers its own interrupted updates. Legacy `updates/<update-id>/` records are retained on disk and are not modified or included in the latest service-scoped status query; explicit reads by update ID remain available.
-
-Plugin environment admission and import/mutation coordination have a 30-second maximum wait. Timeout rejects the waiting operation without interrupting the current owner.
+Plugin installation and Task launch do not use environment admission locks or wait queues.

@@ -1,7 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from axonx.config import ApplicationConfig, ConfigResolver
+from axonx.app.config import ApplicationConfig
+from axonx.config import ConfigResolver
 
 
 def test_remote_config_uses_separate_target_token(monkeypatch):

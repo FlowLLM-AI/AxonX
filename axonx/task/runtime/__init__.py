@@ -1,5 +1,5 @@
-"""Task command translation and synchronous execution runtime."""
+"""Independent synchronous Task execution."""
 
-from .executor import TaskCatalog, TaskCommandExecutor, TaskExecution
+from .executor import TaskExecutor
 
-__all__ = ["TaskCatalog", "TaskCommandExecutor", "TaskExecution"]
+__all__ = ["TaskExecutor"]

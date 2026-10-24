@@ -99,7 +99,7 @@ Unknown or ambiguous plugin names return failure. Distinguish distribution names
 
 ## install_plugin
 
-First stage the wheel through binary or multipart `POST /files` on the installation service; use the returned `answer.path` and the SHA-256 of the original wheel below. See [File upload and cleanup](workspace.md#file-upload-and-cleanup).
+First stage the wheel through binary or multipart `POST /upload` on the installation service; use the returned `answer.path` and the SHA-256 of the original wheel below. See [File upload and cleanup](workspace.md#file-upload-and-cleanup).
 
 Install an uploaded and verified wheel.
 
@@ -123,7 +123,7 @@ Only the business fields listed in the table are accepted.
 
 **Response**
 
-answer is PluginInstallResult, which adds restart_required to PluginInfo.
+answer is PluginInstallResult with the PluginInfo fields.
 
 ```json
 {
@@ -137,8 +137,7 @@ answer is PluginInstallResult, which adds restart_required to PluginInfo.
     "requirements": [],
     "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "error": null,
-    "restart_required": true
+    "error": null
   },
   "success": true,
   "metadata": {}
@@ -147,7 +146,7 @@ answer is PluginInstallResult, which adds restart_required to PluginInfo.
 
 **Behavior and failure cases**
 
-The example hash and path only illustrate their formats; replace them with values returned by POST /files. Verification applies to the staged wheel; a local source directory cannot be passed. Cleanup of the staged file is attempted on both success and failure. If the request is cancelled after installation starts, the environment operation finishes before staged-file cleanup; cancellation does not roll back installation. Task-only wheel updates refresh plugin imports for subsequent Task definitions and submissions without restarting. Components/Jobs and replaced dependency versions still require a restart when `restart_required` is true. Running Tasks are not migrated or version-isolated.
+Installation changes the selected Python environment without refreshing loaded service modules or tracking restart requirements. New CLI processes load the installed environment. Restart a persistent service when it must reload Task schemas, Components, or Jobs; existing processes are not version-isolated. Plugin environment mutations are not serialized.
 
 ## uninstall_plugin
 
@@ -171,13 +170,12 @@ Only the business fields listed in the table are accepted.
 
 **Response**
 
-answer is PluginUninstallResult: distribution and restart_required.
+answer is PluginUninstallResult containing distribution.
 
 ```json
 {
   "answer": {
-    "distribution": "axonx-example",
-    "restart_required": true
+    "distribution": "axonx-example"
   },
   "success": true,
   "metadata": {}
@@ -186,7 +184,7 @@ answer is PluginUninstallResult: distribution and restart_required.
 
 **Behavior and failure cases**
 
-Uninstalling removes Task registrations from subsequent queries and submissions and clears cached plugin imports. Already assembled Components/Jobs remain in the running Application; restart when `restart_required` is true. Cancelling the request waits for an already-started uninstallation to finish; it does not roll back environment changes.
+Installation changes the selected Python environment without refreshing loaded service modules or tracking restart requirements. New CLI processes load the installed environment. Restart a persistent service when it must reload Task schemas, Components, or Jobs; existing processes are not version-isolated. Plugin environment mutations are not serialized.
 
 ## sync_tasks
 
@@ -257,4 +255,4 @@ sync_flush is commented out by default in default.yaml; enable_serve=false in th
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/steps/plugin/` and `axonx/components/service/http/jobs.py`.
+Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/plugin/` and `axonx/app/components/service/http/jobs.py`.

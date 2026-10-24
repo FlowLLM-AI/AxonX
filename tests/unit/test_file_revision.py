@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from axonx.task.storage.artifacts import artifact_record, prediction_protocol
-from axonx.enums import TaskType
-from axonx.utils.fs import file_revision, snapshot_file
+from axonx.task.enums import TaskType
+from axonx.common.fs import file_revision, snapshot_file
 
 
 def test_large_artifact_registration_does_not_read_payload(tmp_path, monkeypatch):

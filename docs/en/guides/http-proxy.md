@@ -90,4 +90,4 @@ The source service handles the fixed upstream connection; the data Task remains 
 
 [Authentication](authentication.md) · [Remote machines](remote-machines.md) · [Deployment](deployment.md)
 
-Source: [HTTP proxy](../../../axonx/components/proxy/http.py), [Proxy routes](../../../axonx/components/service/http/proxy.py), [Proxy errors](../../../axonx/components/proxy/base.py).
+Source: [HTTP proxy](../../../axonx/app/components/proxy/http.py), [Proxy routes](../../../axonx/app/components/service/http/proxy.py), [Proxy errors](../../../axonx/app/components/proxy/base.py).

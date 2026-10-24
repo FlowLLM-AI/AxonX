@@ -124,12 +124,12 @@ def verify_installation() -> None:
             assert files.joinpath("config/default.yaml").is_file()
             assert files.joinpath("config/remote.yaml").is_file()
             for language in ("en", "zh"):
-                guide = files.joinpath("components/agent/guides", f"{language}.md")
+                guide = files.joinpath("app/components/agent/guides", f"{language}.md")
                 assert guide.read_bytes() == (source / "docs" / language / "dev_guide.md").read_bytes()
         print(f"Verified installation: {project['name']} {distribution.version}")
 
     from axonx.config import ConfigResolver  # pylint: disable=import-outside-toplevel
-    from axonx.plugin_kit.discovery import get_installed_plugin  # pylint: disable=import-outside-toplevel
+    from axonx.plugin.discovery import get_installed_plugin  # pylint: disable=import-outside-toplevel
 
     for _, source, _, plugin in PACKAGES[1:]:
         info = get_installed_plugin(plugin)

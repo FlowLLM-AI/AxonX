@@ -174,12 +174,7 @@ it("keeps configured operation page IDs distinct in routes and navigation", asyn
   ]);
   expect(groups.map((group) => group.items.map((item) => item.id))).toEqual([
     ["tasks", "resources", "environment"],
-    [
-      "operation-online",
-      "operation-nightly",
-      "operation-data",
-      "operation-sync",
-    ],
+    ["operation-online", "operation-nightly", "operation-data"],
     ["agent", "etl", "factors", "train", "predict", "backtest", "compare"],
     ["task-defs", "workspace", "apis"],
   ]);

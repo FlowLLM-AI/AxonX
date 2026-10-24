@@ -4,10 +4,9 @@ import { TaskChildren } from "./TaskChildren";
 import { ExecutionSteps } from "./ExecutionSteps";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { hasTaskReport } from "../online/types";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ArrowLeft,
-  Ban,
   Check,
   Copy,
   FileJson,
@@ -24,8 +23,7 @@ import { useTranslation } from "react-i18next";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { useRefresh } from "../../shared/hooks/useRefresh";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
-import { canCancel } from "./groups";
-import { cancelTask, getTaskStatus } from "./api";
+import { getTaskStatus } from "./api";
 import { Status } from "./TaskRow";
 import { TaskGraphPanel } from "../task-graph/TaskGraphPage";
 
@@ -51,7 +49,6 @@ export function TaskDetailPage({
     string,
     string
   >;
-  const cancellation = useRef<AbortController | null>(null);
   const configClipboard = useCopyFeedback();
   const configCopied = configClipboard.copied === "config";
   const [locateRequest, setLocateRequest] = useState(0);
@@ -77,16 +74,8 @@ export function TaskDetailPage({
     error: requestError,
     reload: loadStatus,
   } = useAsyncResource(load);
-  const [action, setAction] = useState<{
-    resource: typeof load;
-    busy: boolean;
-    error: string;
-  } | null>(null);
   const refreshAll = useRefresh(loadStatus);
-  useEffect(() => () => cancellation.current?.abort(), [load]);
-  const currentAction = action?.resource === load ? action : null;
-  const cancelling = currentAction?.busy ?? false;
-  const error = requestError || currentAction?.error || "";
+  const error = requestError;
   const hasResearch =
     task?.state === "succeeded" &&
     ["etl", "analysis", "train", "predict", "backtest"].includes(
@@ -100,30 +89,6 @@ export function TaskDetailPage({
       "config",
     );
   };
-  const cancel = async () => {
-    if (!task || !window.confirm(t("cancelConfirm"))) return;
-    cancellation.current?.abort();
-    const controller = new AbortController();
-    cancellation.current = controller;
-    setAction({ resource: load, busy: true, error: "" });
-    try {
-      const cancelled = await cancelTask(task.run_id, target);
-      if (controller.signal.aborted) return;
-      if (!cancelled) throw new Error(t("cancelFailed"));
-      await loadStatus();
-    } catch (reason) {
-      if (!controller.signal.aborted)
-        setAction({
-          resource: load,
-          busy: false,
-          error: reason instanceof Error ? reason.message : String(reason),
-        });
-    } finally {
-      if (!controller.signal.aborted)
-        setAction((current) => current && { ...current, busy: false });
-    }
-  };
-
   if (loading && !task)
     return (
       <section className="workspace-page task-detail-loading">
@@ -165,12 +130,7 @@ export function TaskDetailPage({
           <span className="task-detail-subtitle">
             <Status state={task.state} />
             {t(`types.${task.task_type}`, task.task_type)} · PID{" "}
-            {task.pid || "—"} ·{" "}
-            {task.source.schedule
-              ? t("schedules.scheduledSource", {
-                  name: task.source.schedule.name,
-                })
-              : t(`schedules.sources.${task.source.kind}`)}
+            {task.pid || "—"} · {t(`taskSources.${task.source.kind}`)}
           </span>
         </div>
       </div>
@@ -217,16 +177,6 @@ export function TaskDetailPage({
                 <Bot />
                 {t("agent.interpretTask")}
               </button>
-              {canCancel(task) && !task.replica && (
-                <button
-                  className="danger-outline task-detail-cancel"
-                  onClick={() => void cancel()}
-                  disabled={cancelling}
-                >
-                  <Ban />
-                  {cancelling ? t("cancelling") : t("cancel")}
-                </button>
-              )}
             </div>
           }
           tabs={[

@@ -7,8 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ...constants import TASK_NAME_PATTERN
-from ...enums import TaskType
+from ..constants import TASK_NAME_PATTERN
+from ..enums import TaskType
 from ..schemas.artifact import ArtifactRecord
 from .identity import parse_source_tasks, task_type_from_id
 

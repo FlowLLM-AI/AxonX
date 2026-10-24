@@ -10,15 +10,15 @@ Requires Python 3.12 or later. Create a virtual environment:
 python -m venv .venv
 source .venv/bin/activate
 pip install axonx
-axonx --help
+axonx
 ```
 
 Create `server.yaml`:
 
 ```yaml
 extends: default
-workspace_dir: /srv/axonx/workspace
-log_dir: /srv/axonx/logs
+workspace_dir: /srv/axonx/app/workspace
+log_dir: /srv/axonx/common/logs
 service:
   backend: http
   host: 127.0.0.1
@@ -89,20 +89,14 @@ service.env stores required environment variables and should have restricted rea
 
 The built-in Uvicorn service has no TLS configuration. Terminate HTTPS at an external entry such as Caddy or Nginx, then proxy to the loopback HTTP address; clients should explicitly use the public HTTPS URL.
 
-The proxy should preserve Authorization, request bodies, and correct paths; SSE entry points should allow long-lived connections and avoid response buffering. MCP and `/files` must also reach the same backend, and upload entry limits should match actual artifact sizes.
-
-External entry timeouts, built-in shutdown_timeout, TaskManager terminate_grace_seconds, and client timeout serve different purposes: proxy waiting, service request shutdown, worker termination grace, and call waiting, respectively.
+The proxy should preserve Authorization, request bodies, and correct paths; SSE entry points should allow long-lived connections and avoid response buffering. MCP and `/upload` must also reach the same backend, and upload entry limits should match actual artifact sizes.
 
 ## Updates and shutdown
 
 Configuration, Jobs, and plugin contributions load during application assembly. Restart the service after changes and check that version, plugin list, Task Schemas, and Studio assets have matching versions.
 
-Normal service shutdown stops managed workers and records the corresponding runs as cancelled. Restarting does not automatically resume these research tasks. Before upgrades during long training, wait for completion or confirm that the plugin provides usable recovery.
-
-On the first Ctrl+C or SIGTERM, the service stops admitting Tasks and sends SIGTERM to its tracked worker process groups before waiting for application cleanup. Normal cleanup preserves resource ordering and records cancelled Tasks. `service.cleanup_timeout` (default 15 seconds) bounds the entire shutdown, including application cleanup and Python thread-executor draining; `shutdown_timeout` only bounds Uvicorn request draining. A second Ctrl+C, or expiration of the total deadline, sends SIGKILL to remaining tracked worker groups and exits the service with code 130. Forced exit can leave incomplete lifecycle records; inspect the exact Runs after restarting. Other services sharing the workspace are not terminated. Embedded `Application.close()` retains its normal awaited cleanup semantics.
+CLI start runs a stable daemon with separate HTTP and cron workers. Updates pause cron, update the existing source/environment, then replace those workers. Existing cron exec children continue under the daemon and are not retried. Service cleanup only stops its own request-bound CLI children and application resources; it does not own scheduled Tasks. `service.cleanup_timeout` bounds HTTP application cleanup and executor draining. Embedded `Application.close()` retains normal awaited cleanup. See [Service updates](self-update.md) for daemon shutdown and OS supervision boundaries.
 
 For migration, stop writes first, copy the workspace, logs, and configuration, restore a matching plugin environment, then check historical records and artifacts. Do not copy only Python packages while overlooking experiment files.
 
 [Authentication](authentication.md) · [Operations and recovery](operations.md) · [Configuration reference](../reference/configuration.md) · [Plugin management](../plugins/management.md)
-
-Source: [HTTP service](../../../axonx/components/service/http/service.py), [Studio directory discovery](../../../axonx/components/service/http/studio.py), [TaskManager shutdown](../../../axonx/components/task_manager/local/manager.py).

@@ -7,21 +7,11 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from axonx.steps.machine.contracts import CpuInfo, GpuInfo, MemoryInfo
-from axonx.steps.machine.gpu import (
-    MIB_BYTES,
-    GpuCollection,
-    collect_gpus,
-    parse_nvidia_output,
-    parse_rocm_output,
-)
-from axonx.steps.machine.metrics import (
-    collect_cpu,
-    collect_machine_info,
-    collect_memory,
-)
-from axonx.steps.machine.steps import MachineStatusStep
-from axonx.utils.build_info import BuildInfo
+from axonx.app.steps.machine.contracts import CpuInfo, GpuInfo, MemoryInfo
+from axonx.app.steps.machine.gpu import MIB_BYTES, GpuCollection, collect_gpus, parse_nvidia_output, parse_rocm_output
+from axonx.app.steps.machine.metrics import collect_cpu, collect_machine_info, collect_memory
+from axonx.app.steps.machine.steps import MachineStatusStep
+from axonx.app.core.build_info import BuildInfo
 
 
 def test_parse_nvidia_output():
@@ -99,9 +89,9 @@ def test_rocm_parser_rejects_invalid_document(output):
 
 
 def test_collection_uses_discovered_path_and_preserves_failures(monkeypatch):
-    monkeypatch.setattr("axonx.steps.machine.gpu.platform.system", lambda: "Linux")
+    monkeypatch.setattr("axonx.app.steps.machine.gpu.platform.system", lambda: "Linux")
     monkeypatch.setattr(
-        "axonx.steps.machine.gpu.shutil.which",
+        "axonx.app.steps.machine.gpu.shutil.which",
         lambda command: f"/vendor/{command}",
     )
 
@@ -111,7 +101,7 @@ def test_collection_uses_discovered_path_and_preserves_failures(monkeypatch):
             raise subprocess.TimeoutExpired(command, 5)
         return SimpleNamespace(stdout="{}")
 
-    monkeypatch.setattr("axonx.steps.machine.gpu.subprocess.run", run)
+    monkeypatch.setattr("axonx.app.steps.machine.gpu.subprocess.run", run)
 
     result = collect_gpus()
 
@@ -123,12 +113,12 @@ def test_collection_uses_discovered_path_and_preserves_failures(monkeypatch):
 
 def test_collect_cpu_and_memory(monkeypatch):
     monkeypatch.setattr(
-        "axonx.steps.machine.metrics.psutil.cpu_count",
+        "axonx.app.steps.machine.metrics.psutil.cpu_count",
         lambda logical: 8 if logical else 4,
     )
-    monkeypatch.setattr("axonx.steps.machine.metrics.psutil.cpu_percent", lambda interval: 25.0)
+    monkeypatch.setattr("axonx.app.steps.machine.metrics.psutil.cpu_percent", lambda interval: 25.0)
     monkeypatch.setattr(
-        "axonx.steps.machine.metrics.psutil.virtual_memory",
+        "axonx.app.steps.machine.metrics.psutil.virtual_memory",
         lambda: SimpleNamespace(total=1_000, used=400, available=550, percent=45.0),
     )
 
@@ -161,17 +151,17 @@ def test_gpu_schema_rejects_invalid_metrics():
 def test_no_gpu_is_an_empty_list(monkeypatch):
     step = MachineStatusStep(cpu_sample_interval=0)
     monkeypatch.setattr(
-        "axonx.steps.machine.metrics.get_build_info",
+        "axonx.app.steps.machine.metrics.get_build_info",
         lambda: BuildInfo(version="1.2.3"),
     )
     monkeypatch.setattr(
-        "axonx.steps.machine.metrics.collect_cpu",
+        "axonx.app.steps.machine.metrics.collect_cpu",
         lambda _: CpuInfo(total_cores=1, physical_cores=1, usage_percent=0),
     )
     monkeypatch.setattr(
-        "axonx.steps.machine.metrics.collect_memory",
+        "axonx.app.steps.machine.metrics.collect_memory",
         lambda: MemoryInfo(total_bytes=1, used_bytes=0, available_bytes=1, usage_percent=0),
     )
-    monkeypatch.setattr("axonx.steps.machine.metrics.collect_gpus", GpuCollection)
+    monkeypatch.setattr("axonx.app.steps.machine.metrics.collect_gpus", GpuCollection)
 
     assert collect_machine_info(step.cpu_sample_interval, step.logger).gpus == []

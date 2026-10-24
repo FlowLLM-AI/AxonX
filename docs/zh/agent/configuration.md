@@ -140,7 +140,7 @@ AxonX 把名单中的 Job 映射为 `mcp__axonx__<job-name>`，追加到 SDK `al
 
 可选的八个 Job 示例用于任务和文件查询。`job_tools` 为空时不会注册进程内 AxonX MCP server。`allowed_tools` 的桥接名单不等于 SDK 整体安全策略。SDK 自身文件、命令工具及 project/plugins 可能具备其他能力，尤其默认 `bypassPermissions` 不会把所有动作变成只读。
 
-如果增加 `submit` 或 `cancel`，会改变 Agent 可调用的工作区操作。配置名单是能力授权，需要结合服务账号权限、cwd、SDK 工具和项目设置一起审查实际效果。
+为 Agent 配置只读 Task Job，例如 status、read_task_log 和 get_task_context。独立 Task 执行使用 CLI exec。
 
 ## 会话字段由框架管理
 
@@ -172,5 +172,5 @@ jobs:
 
 - [Agent 使用](usage.md)、[鉴权](../guides/authentication.md)
 - [`默认配置`](../../../axonx/config/default.yaml)
-- [`Claude backend`](../../../axonx/components/agent/claude/backend.py)
-- [`Job 工具桥接`](../../../axonx/components/agent/claude/tools.py)
+- [`Claude backend`](../../../axonx/app/components/agent/claude/backend.py)
+- [`Job 工具桥接`](../../../axonx/app/components/agent/claude/tools.py)

@@ -1,7 +1,5 @@
 # 客户端与连接配置
 
-客户端配置确定“连接哪台服务、如何鉴权、等待多久”。它与 [ApplicationConfig](configuration.md) 是两个对象：客户端不会安装插件、启动 TaskManager 或读取服务端环境；同一个 target 在 CLI 直连与 Studio 转发中也具有不同路径。
-
 ![Python 的本地与远程调用](../../figures/reference/python-paths.svg)
 
 ## ClientOptions
@@ -56,14 +54,14 @@ axonx stream_task --task-id 'base#demo#example' \
   --stream true --stream-format json --client-timeout 600
 ```
 
-timeout 是客户端超时，wait_task 没有对应任务超时字段。客户端超时或退出不等于后台 Task 被取消；需要时显式调用 cancel。
+本地 exec 的进程控制由执行环境负责，服务不提供 Task 取消或删除接口。断开只读观察请求不会改变独立任务的执行状态。
 
 ## Python 显式连接
 
 ```python
 import asyncio
 import os
-from axonx.components.client import HttpClient
+from axonx.app.components.client import HttpClient
 
 async def main():
     async with HttpClient(
@@ -102,9 +100,7 @@ targets:
 
 ## worker 交接变量
 
-AXONX_TASK_WORKSPACE_DIR、AXONX_TASK_LOG_DIR、AXONX_TASK_TIMEZONE、AXONX_TASK_ID、AXONX_TASK_RUN_ID、AXONX_TASK_CREATED_AT 由 TaskManager 写入子进程环境，确保 worker 与提交端共享身份和路径。
-
-这些是框架内部执行交接字段。普通用户应通过配置 workspace_dir/log_dir/timezone 与 submit 输入控制任务，不应手工伪造 run_id 或 created_at 来创建执行。迁移工作区也不等于恢复原 worker。
+通过 CLI exec 执行 Task；观察服务不创建任务。执行前确认插件、输入和执行环境。
 
 ## 连接失败处理
 

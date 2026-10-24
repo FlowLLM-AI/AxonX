@@ -3,11 +3,11 @@
 import httpx
 import pytest
 
-from axonx.components.proxy import HttpProxyComponent
-from axonx.components.service import HttpService
+from axonx.app.components.proxy import HttpProxyComponent
+from axonx.app.components.service import HttpService
 from axonx.config import ConfigResolver
-from axonx.core import Application
-from axonx.enums import ComponentEnum
+from axonx.app.core import Application
+from axonx.app.components.types import ComponentEnum
 
 
 @pytest.mark.asyncio

@@ -140,7 +140,7 @@ AxonX maps listed Jobs to `mcp__axonx__<job-name>` and appends them to the SDK's
 
 The optional eight-Job example queries tasks and files. With an empty `job_tools` list, no in-process AxonX MCP server is registered. The bridge list in `allowed_tools` is not the SDK's overall security policy. The SDK's own file and command tools, along with project/plugins, may provide other capabilities. In particular, the default `bypassPermissions` does not make all actions read-only.
 
-Adding `submit` or `cancel` changes the workspace operations the Agent can call. The configured list grants capabilities; review its actual effect together with service account permissions, cwd, SDK tools, and project settings.
+Configure read-only Task Jobs for Agents, such as status, read_task_log and get_task_context. Execute independent Tasks through CLI exec.
 
 ## Session fields are framework-managed
 
@@ -172,5 +172,5 @@ This page is based on the repository's default configuration and adapter layer; 
 
 - [Agent usage](usage.md), [Authentication](../guides/authentication.md)
 - [Default configuration](../../../axonx/config/default.yaml)
-- [Claude backend](../../../axonx/components/agent/claude/backend.py)
-- [Job tool bridge](../../../axonx/components/agent/claude/tools.py)
+- [Claude backend](../../../axonx/app/components/agent/claude/backend.py)
+- [Job tool bridge](../../../axonx/app/components/agent/claude/tools.py)

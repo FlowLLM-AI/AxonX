@@ -51,11 +51,7 @@ TaskContext is a frozen dataclass attached to a Task, providing runtime-owned va
 
 Plugins should read these values without changing execution identity. `task.task_dir` is `<workspace>/<type>/<task_id>`; `source_task_dir(id)` locates an upstream directory in the same workspace.
 
-## TaskDefinition and TaskHandle
-
 TaskDefinition describes an executable definition with name, source (native/plugin), plugin (nullable), task_type, description, input_schema, and output_schema. description comes from the Task class docstring; missing or whitespace-only docstrings produce an empty string without blocking the Task or catalog.
-
-TaskHandle is the immutable dataclass returned by submit:
 
 ```json
 {
@@ -69,7 +65,7 @@ The `task` field is the registration name. There is no `task_name` field or addr
 
 ## TaskMetadata
 
-`metadata.json` is the authoritative lifecycle record from acceptance through completion, failure, or cancellation. Status queries return this same schema. The Runner updates one in-memory record and atomically replaces the file; Composite Tasks publish child snapshots through that Runner. After a worker stops, the manager reads its latest record and settles only matching Run IDs and PIDs. Ordinary text logs remain separate.
+metadata.json is the lifecycle record published by the Task, containing parameters, progress, children and output. The Runner replaces it atomically; the observing service never writes lifecycle state. Text logs are stored separately.
 
 | Field                                     | Meaning                                                                |
 | ----------------------------------------- | ---------------------------------------------------------------------- |
@@ -120,7 +116,7 @@ Non-finite floating-point values become `null` when persisted. A failed nonzero 
   ],
   "error": "",
   "exit_code": 0,
-  "log_path": ".axonx/logs/task.log"
+  "log_path": ".axonx/common/logs/task.log"
 }
 ```
 
@@ -142,11 +138,11 @@ The base class only specifies artifacts as a nested mapping. path, size, and rev
 
 Do not include the workspace root in artifact path. Consumers combine `<type>/<task_id>/<artifact.path>` and check the producing plugin's expected logical names, such as dataset, model, or daily.
 
-`axonx.task.artifact.ArtifactRecord` owns portable relative path, byte size and SHA256 validation. The existing `ArtifactRecord` import is an alias of that record. Public output mappings retain their JSON shape. `PortfolioSettings` in `axonx.task.builtins.stock` owns common portfolio fields and conversion to the execution engine; plugins override business defaults and selection rules.
+`axonx.task.schemas.artifact.ArtifactRecord` owns portable relative path, byte size and SHA256 validation. The existing `ArtifactRecord` import is an alias of that record. Public output mappings retain their JSON shape. `PortfolioSettings` in `axonx.task.builtins.stock` owns common portfolio fields and conversion to the execution engine; plugins override business defaults and selection rules.
 
 Online publication keeps `persistent/online/manifest.json` as a complete, self-contained v1 history. New frozen `commits/<commit_id>/history.json` files use `kind=online_history_node`: at most 16 commits plus a size/revision-checked Task-relative reference to the preceding completed group. Use `read_online_history()` to read either representation. Existing full snapshots remain readable and can precede new nodes; no old records are rewritten. Copying a frozen node requires its referenced predecessor files, which Task synchronization includes automatically. `pin_online_history()` exports a complete v1 history and all referenced artifacts for independent consumption.
 
-Frozen history metadata grows linearly for new revisions, while the current manifest remains a full-history document. Portfolio Parquet revisions remain complete audit reports. Consumer pinning makes an isolated copy of each distinct artifact reference and shares only consumer-owned copies, so in-place upstream writes cannot change a pinned input. Treat pinned inputs as immutable. `TaskExecution.output` reads the final status output directly rather than retaining a second serialized result.
+Frozen history metadata grows linearly for new revisions, while the current manifest remains a full-history document. Portfolio Parquet revisions remain complete audit reports. Consumer pinning makes an isolated copy of each distinct artifact reference and shares only consumer-owned copies, so in-place upstream writes cannot change a pinned input. Treat pinned inputs as immutable. `TaskExecutor.execute()` returns final `TaskMetadata`; read `output_params` from it without retaining a second serialized result.
 
 ## Workspace reads and events
 
@@ -158,7 +154,7 @@ events.jsonl is an append-only progress record; ordinary logs are stored at log_
 
 [Jobs and Tasks](../concepts/jobs-and-tasks.md) · [Task API](../api/tasks.md) · [Research artifact contracts](research-artifacts.md)
 
-Source: [Input/output](../../../axonx/task/core/params.py), [Context](../../../axonx/task/core/context.py), [Definitions](../../../axonx/task/catalog/resolver.py), [Handle](../../../axonx/task/contracts/submission.py), [Status](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/workspace.py).
+Source: [Input/output](../../../axonx/task/core/params.py), [Context](../../../axonx/task/core/context.py), [Definitions](../../../axonx/task/catalog/resolver.py), [Status](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/workspace.py).
 
 ## Display replicas
 
@@ -182,7 +178,7 @@ Task classes may declare `category: TaskCategory | None` (`data_update`, `online
 
 `BaseTask(..., clock=...)` accepts an optional `WindowClock`; composite children inherit the same object. The existing `axonx.task.contracts.WindowClock` import remains valid. The clock controls business windows and deadline budgets; task identity, lifecycle timestamps, logs and runtime performance measurements remain based on real time.
 
-`axonx.task.clock.ReplayClock(start_at)` is a single-driver virtual clock. Only explicit sleeps or `advance_to()` advance time, so computation pauses simulated time. Times must be timezone-aware and cannot move backwards. Workers may read the clock, but only the creating thread may advance it. Threaded plugins must use an event driver or coordinate their waits explicitly; replacing a wall clock alone does not accelerate `Event.wait` or `Condition.wait`.
+`axonx.task.core.clock.ReplayClock(start_at)` is a single-driver virtual clock. Only explicit sleeps or `advance_to()` advance time, so computation pauses simulated time. Times must be timezone-aware and cannot move backwards. Workers may read the clock, but only the creating thread may advance it. Threaded plugins must use an event driver or coordinate their waits explicitly; replacing a wall clock alone does not accelerate `Event.wait` or `Condition.wait`.
 
 `axonx.task.replay` provides `ReplaySource`, `ReplayStream` and `ReplayCursor`. `ReplayStream.create(directory, events, context=..., attributes=...)` copies payloads into a new directory and publishes `stream.json`; existing datasets are not overwritten. Each event has a key, timezone-aware `available_at`, file records (relative path, size, SHA256) and plugin attributes. Context files pin run-level inputs. Opening a stream validates ordering, paths and every file revision. Transfer the whole directory, not only its manifest.
 

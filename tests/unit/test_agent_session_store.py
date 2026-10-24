@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from axonx.components.agent.local_session_store import LocalAgentSessionStore
+from axonx.app.components.agent.local_session_store import LocalAgentSessionStore
 
 
 @pytest.mark.asyncio

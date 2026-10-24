@@ -33,7 +33,7 @@ Keys are `trade_date` (YYYYMMDD string), `trade_time` (HHMM string), and `ts_cod
 For required prediction columns, optional columns and metadata requirements, see [Prediction inputs for stock backtesting](../reference/research-artifacts.md#prediction-inputs-for-stock-backtesting).
 
 ```bash
-axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
+axonx exec --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
   --top-ns '[1,5,10,30]' --holding-days 1 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```

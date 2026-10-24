@@ -185,7 +185,7 @@ answer 是 DeletedEntry 数组，每项 deleted 为相对路径，kind 为 file/
 
 **行为与失败情况**
 
-最多 200 路径；根目录与逃逸路径不可删除。任务目录应优先使用 delete_tasks，保留任务状态和日志管理约束。
+本地 exec 的进程控制由执行环境负责，服务不提供 Task 取消或删除接口。断开只读观察请求不会改变独立任务的执行状态。
 
 ## 相关文档
 
@@ -194,16 +194,16 @@ answer 是 DeletedEntry 数组，每项 deleted 为相对路径，kind 为 file/
 - [CLI 参考](../reference/cli.md)
 - [事件协议](events.md)
 
-实现依据：`axonx/config/default.yaml`、`axonx/steps/workspace/` 与 `axonx/components/service/http/jobs.py`。
+实现依据：`axonx/config/default.yaml`、`axonx/app/steps/workspace/` 与 `axonx/app/components/service/http/jobs.py`。
 
 ## 文件上传与清理
 
-`POST /files` 支持原始二进制请求体和 `multipart/form-data`。两种格式返回相同的 FileCopy，只暂存文件本身的字节；上传 Python 脚本不会执行脚本。
+`POST /upload` 支持原始二进制请求体和 `multipart/form-data`。两种格式返回相同的 StagedFile，只暂存文件本身的字节；上传 Python 脚本不会执行脚本。
 
 原始二进制上传中，`x-file-name` 为必填文件名 header；`x-file-directory` 可选，指定以 tmp 开头的工作区相对子目录，不能指定工作区任意位置。现有客户端可继续使用此格式：
 
 ```bash
-curl -s -X POST http://127.0.0.1:1024/files \
+curl -s -X POST http://127.0.0.1:1024/upload \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
   -H 'Content-Type: application/octet-stream' \
   -H 'x-file-name: axonx_example-0.1.0-py3-none-any.whl' \
@@ -214,7 +214,7 @@ curl -s -X POST http://127.0.0.1:1024/files \
 multipart 上传须通过 `file` 字段传入一个文件，可选的文本字段 `directory` 指定暂存子目录。文件名来自文件部分；提供 `x-file-name` 或非空的 `x-file-directory` 时，请求头优先于文件名和表单目录。不接受其他字段或多个文件。使用 `curl -F` 时不要手动设置 Content-Type，curl 会自动生成含 boundary 的 multipart 请求头。
 
 ```bash
-curl -s -X POST http://127.0.0.1:1024/files \
+curl -s -X POST http://127.0.0.1:1024/upload \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN" \
   -F 'file=@dist/axonx_example-0.1.0-py3-none-any.whl' \
   -F 'directory=tmp/plugins'
@@ -222,12 +222,13 @@ curl -s -X POST http://127.0.0.1:1024/files \
 
 运行依赖 `python-multipart` 已在 `pyproject.toml` 中声明，无需额外的服务配置开关即可使用两种格式。
 
-FileCopy 的响应形状如下，路径和字节大小必须以真实返回为准：
+StagedFile 的响应形状如下，路径和字节大小必须以真实返回为准：
 
 ```json
 {
   "answer": {
     "path": "tmp/plugins/0123456789abcdef0123456789abcdef/axonx_example-0.1.0-py3-none-any.whl",
+    "location": "/srv/axonx/.axonx/tmp/plugins/0123456789abcdef0123456789abcdef/axonx_example-0.1.0-py3-none-any.whl",
     "size": 4096
   },
   "success": true,
@@ -235,12 +236,14 @@ FileCopy 的响应形状如下，路径和字节大小必须以真实返回为�
 }
 ```
 
+`path` 是 workspace 相对路径，用于同步和清理；`location` 是服务端绝对文件路径，可直接用于 `plugin install <location> --target HOST:PORT`，该命令不删除上传文件。`/upload` 替换 `/files`，旧路由已删除。
+
 每次上传使用独立暂存目录，不计算内容哈希，也不按内容去重。默认单文件上限为 512 MiB；服务同时检查 Content-Length 和实际流入字节数。multipart 请求允许额外 64 KiB 的请求封装开销，文件本身仍受单文件上限约束。multipart 临时文件在存储结束或失败时关闭，包括请求取消。非法 Content-Length、损坏的 multipart 请求体或过多的表单部分为 400，超限为 413；缺失/非法文件名、缺少 `file` 文件、未知字段、目录逃逸等为 422，拒绝符号链接及目录逃逸。
 
 消费者 install_plugin、sync_tasks 使用返回的 path。安装调用方还需提供原始 wheel 的 SHA-256，由插件消费者校验。上传完成不代表插件已安装，也不代表任务快照已应用。消费者会清理暂存制品；未消费时可主动清理：
 
 ```bash
-curl -s -X DELETE 'http://127.0.0.1:1024/files?path=tmp%2Fplugins%2Fupload-id%2Fyour-wheel.whl' \
+curl -s -X DELETE 'http://127.0.0.1:1024/upload?path=tmp%2Fplugins%2Fupload-id%2Fyour-wheel.whl' \
   -H "Authorization: Bearer $AXONX_SERVICE_TOKEN"
 ```
 

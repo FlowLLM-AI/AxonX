@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
-from ....constants import TUSHARE_TIMEOUT_SECONDS
+from ...constants import TUSHARE_TIMEOUT_SECONDS
 from ...core.clock import DeadlineBudget
 
 if TYPE_CHECKING:

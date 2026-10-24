@@ -12,7 +12,6 @@ import {
   Sparkles,
   Settings2,
   Workflow,
-  RefreshCw,
   Database,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -150,12 +149,7 @@ export function configuredNavigation(
   const operations: NavigationItem[] = pages.map((page) => ({
     id: `operation-${page.id}`,
     route: { section: "operations", view: page.id },
-    icon:
-      page.view === "schedules"
-        ? RefreshCw
-        : page.view === "tasks"
-          ? Database
-          : Activity,
+    icon: page.view === "tasks" ? Database : Activity,
     labelKey: page.title[language],
   }));
   return navigationGroups

@@ -1,16 +1,8 @@
 """Project task status snapshots into bounded list responses."""
 
-from collections.abc import Mapping
-
 from pydantic import BaseModel
 
-from ..schemas.lifecycle import TaskStatus, TaskMetadata, same_worker
-
-
-class TaskView(TaskMetadata):
-    """A persisted record with ownership relative to the queried manager."""
-
-    managed_run_id: str | None = None
+from ..schemas.lifecycle import TaskStatus, TaskMetadata
 
 
 class StepProgress(BaseModel):
@@ -27,23 +19,6 @@ class TaskSummary(TaskStatus):
     is_online: bool
     is_replica: bool
     step_progress: StepProgress | None
-    managed_run_id: str | None = None
-
-
-def managed_runs(entries: Mapping[str, TaskMetadata], owned: set[str]) -> dict[str, str]:
-    """Map exact root and in-process child Runs to their supervised root Run."""
-    result = {run_id: run_id for run_id in owned}
-    pending = [entry for entry in entries.values() if entry.run_id in owned]
-    while pending:
-        parent = pending.pop()
-        for child in parent.children:
-            entry = entries.get(child.task_id)
-            if entry is None or entry.replica is not None:
-                continue
-            if entry.run_id == child.run_id and entry.run_id not in result and same_worker(parent, entry):
-                result[entry.run_id] = result[parent.run_id]
-                pending.append(entry)
-    return result
 
 
 def task_sort_key(metadata: TaskMetadata) -> tuple[float, str]:
@@ -57,7 +32,6 @@ def task_sort_key(metadata: TaskMetadata) -> tuple[float, str]:
 def summarize_status(status: TaskMetadata) -> TaskSummary:
     """Keep list metadata and one progress summary, without copying task outputs."""
     summary = {name: getattr(status, name) for name in TaskStatus.model_fields}
-    summary["managed_run_id"] = getattr(status, "managed_run_id", None)
     summary["error"] = status.error[:1000]
     summary["display_name"] = str(status.input_params.get("task_name") or status.reg_name)[:256]
     summary["is_online"] = status.report_kind in {"online", "online_pipeline"}

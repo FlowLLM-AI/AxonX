@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.identity import parse_source_tasks, task_type_from_id
-from ...enums import TaskState, TaskType
+from ..enums import TaskState, TaskType
 from ..storage.workspace import KINDS
 from ..schemas.lifecycle import TaskMetadata
 

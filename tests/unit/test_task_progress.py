@@ -6,8 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from pydantic import ValidationError
 
-from axonx.components.job.events import JOB_EVENT_ADAPTER
-from axonx.enums import TaskState
+from axonx.app.components.job.events import JOB_EVENT_ADAPTER
+from axonx.task.enums import TaskState
 from axonx.task import BaseTask, BaseOutputParams
 from axonx.task.query.summary import summarize_status
 from axonx.task.runtime.runner import TaskRunner
@@ -78,29 +78,3 @@ def test_failure_settles_active_progress_and_keeps_completed_work(tmp_path):
     assert next(s for s in status.steps if s.parent and s.name == "download").state == "failed"
     assert "API failed" in next(s for s in status.steps if s.parent and s.name == "download").error
     assert json.loads(task.metadata_path.read_text())["steps"][2]["finished_at"]
-
-
-async def test_log_reads_are_bound_to_the_requested_run(tmp_path):
-    from unittest.mock import AsyncMock
-    from axonx.components.task_manager.local.manager import LocalTaskManager
-    from axonx.task.storage.logs import TaskLogReader
-    from axonx.task.storage.workspace import TaskMetadata
-
-    log = tmp_path / "replacement.log"
-    log.write_text("replacement-only")
-    manager = object.__new__(LocalTaskManager)
-    manager.app_context = None
-    manager._logs = TaskLogReader(tmp_path)
-    manager._status_of = AsyncMock(
-        return_value=TaskMetadata(
-            version=1,
-            task_id="base#test#instance",
-            run_id="replacement",
-            task_type="base",
-            log_path=str(log),
-        )
-    )
-    with pytest.raises(ValueError, match="Task run changed"):
-        await manager.read_log("base#test#instance", run_id="original")
-    chunk = await manager.read_log("base#test#instance", run_id="replacement")
-    assert chunk.content == "replacement-only"

@@ -5,14 +5,14 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
-from ...components.job.events import JobEvent, ProgressEvent
-from ...constants import AXONX_DEFAULT_ENCODING
-from ...progress import TaskStepStatus
+from ..schemas.progress import ProgressEvent
+from ...common.constants import AXONX_DEFAULT_ENCODING
+from ..schemas.progress import TaskStepStatus
 
 LOG_WINDOW_BYTES = 65_536
 
 
-def append_event(path: Path, event: JobEvent) -> None:
+def append_event(path: Path, event: ProgressEvent) -> None:
     """Append one complete JSON event line."""
     with path.open("a", encoding=AXONX_DEFAULT_ENCODING) as handle:
         handle.write(event.model_dump_json() + "\n")

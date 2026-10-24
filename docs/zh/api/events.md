@@ -10,14 +10,14 @@
 
 ```text
 event: progress
-data: {"kind":"progress","name":"submitted","started_at":null,"finished_at":null,"percentage":100.0}
+data: {"kind":"progress","name":"progress","started_at":null,"finished_at":null,"percentage":100.0}
 
 event: result
 data: {"kind":"result","answer":{"task_id":"base#demo#example","run_id":"f5caee3a7b3c40849d0fb3bdc0f0cd23","task":"demo"},"success":true,"metadata":{}}
 
 ```
 
-上例是 submit Job 的接受结果；不是 demo 已成功完成。跟踪后台 Task 时调用 stream_task，其最终 result.answer 为终态状态。
+Job 流以其结果结束。对于已有 Task，stream_task 跟踪任务事件和日志，并以记录的终态 metadata 结束。
 
 ```bash
 curl -N -X POST http://127.0.0.1:1024/jobs/stream_task/events \
@@ -96,8 +96,8 @@ result 是 JobResponse 加 `kind="result"`，包含 answer、success、metadata�
 ```python
 import asyncio
 import os
-from axonx.components.client import HttpClient
-from axonx.components.job import ResultEvent
+from axonx.app.components.client import HttpClient
+from axonx.app.components.job import ResultEvent
 
 async def main():
     async with HttpClient(
@@ -168,7 +168,7 @@ async function follow(token: string, taskId: string) {
 
 ## 断连、取消与重试
 
-关闭流会取消本次 Job 的执行或消费，不承诺取消 submit 已启动的独立 Task。明确取消 Task 用 cancel；Agent 停止轮次用 cancel_agent_turn。断线后重新请求可能重放日志或重新运行 Job，不能自动重试会写入、安装或发送消息的 Job。
+关闭流会停止本次 Job 调用或消费；观察请求不控制独立 Task。Agent 停止轮次仍使用 cancel_agent_turn。远程 CLI 的进程仍随其请求或服务关闭而终止。
 
 协议没有 Last-Event-ID、全局事件 ID、exactly-once 或通用重放保证。read_task_log 的 next_offset 可以用于日志窗口续读，但不等于所有事件可续传。
 

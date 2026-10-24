@@ -7,10 +7,10 @@ import httpx
 import pytest
 import uvicorn
 
-from axonx.components.client import HttpClient, McpClient
-from axonx.components.job import ArtifactEvent, ResultEvent
-from axonx.components.service import HttpService
-from axonx.core import Application
+from axonx.app.components.client import HttpClient, McpClient
+from axonx.app.components.job import ArtifactEvent, ResultEvent
+from axonx.app.components.service import HttpService
+from axonx.app.core import Application
 
 
 def _application(tmp_path, **extra):
@@ -42,7 +42,7 @@ async def test_http_protocol_uses_one_token_for_jobs_events_and_files(tmp_path):
         async with httpx.AsyncClient(base_url="http://test", transport=transport) as raw:
             assert (await raw.get("/health")).status_code == 401
             assert (await raw.post("/mcp")).status_code == 401
-            assert (await raw.post("/files", files={"file": ("script.py", b"print(1)")})).status_code == 401
+            assert (await raw.post("/upload", files={"file": ("script.py", b"print(1)")})).status_code == 401
             assert (await raw.get("/docs")).status_code == 200
             assert (await raw.get("/redoc")).status_code == 200
             openapi = await raw.get("/openapi.json")
@@ -50,14 +50,14 @@ async def test_http_protocol_uses_one_token_for_jobs_events_and_files(tmp_path):
             assert openapi.json()["openapi"]
 
             multipart = await raw.post(
-                "/files",
+                "/upload",
                 files={"file": ("script.py", b"print(1)")},
                 headers={"authorization": "Bearer secret"},
             )
             assert multipart.status_code == 200
             assert multipart.json()["success"] is True
             await raw.delete(
-                "/files",
+                "/upload",
                 params={"path": multipart.json()["answer"]["path"]},
                 headers={"authorization": "Bearer secret"},
             )
@@ -197,8 +197,8 @@ async def test_local_backend_forwards_jobs_catalog_and_events_with_target_token(
     def remote_client(**options):
         return HttpClient(transport=remote_transport, **options)
 
-    monkeypatch.setattr("axonx.components.client.remote.HttpClient", remote_client)
-    monkeypatch.setattr("axonx.components.service.http.jobs.HttpClient", remote_client)
+    monkeypatch.setattr("axonx.app.components.client.remote.HttpClient", remote_client)
+    monkeypatch.setattr("axonx.app.components.service.http.jobs.HttpClient", remote_client)
     local = _application(
         tmp_path / "local",
         targets=[
@@ -249,7 +249,7 @@ async def test_local_backend_forwards_jobs_catalog_and_events_with_target_token(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("stream", [False, True])
 async def test_empty_transport_timeout_identifies_target_job_and_budget(stream):
-    from axonx.components.client import RemoteServiceError
+    from axonx.app.components.client import RemoteServiceError
 
     def timeout(request):
         raise httpx.ReadTimeout("", request=request)

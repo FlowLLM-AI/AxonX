@@ -9,16 +9,11 @@ import polars as pl
 from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from axonx.task.builtins.stock.data import (
-    StockETLOutput,
-    apply_market_status,
-    fixed_labels,
-    stock_protocol,
-)
+from axonx.task.builtins.stock.data import StockETLOutput, apply_market_status, fixed_labels, stock_protocol
 from axonx.task.contracts import BaseETLInputParams, BaseETLTask
 from axonx.task.core import TaskStep
 from axonx.task.storage import artifact_record
-from axonx.utils.fs import atomic_write
+from axonx.common.fs import atomic_write
 
 from .internal.etl_pipeline import (
     FEATURES,

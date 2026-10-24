@@ -82,7 +82,7 @@ def test_parameter_comparison_runs_both_presets_with_one_etl(tmp_path, labels):
     import json
 
     from test_stock_pipeline import raw_data
-    from axonx.enums import TaskState
+    from axonx.task.enums import TaskState
     from axonx.task.runtime.runner import TaskRunner
     from axonx_qlib_a158.etl import Alpha158Task
     from axonx_qlib_a158.scripts.compare_parameters import run_comparison
@@ -138,8 +138,8 @@ def test_etl_date_boundaries_reject_invalid_calendar_dates(value):
         Alpha158InputParams(start_date=value)
 
 
-@pytest.mark.parametrize("failed_wait", [False, True])
-def test_pipeline_checks_selected_service_and_stops_on_failed_wait(tmp_path, failed_wait):
+@pytest.mark.parametrize("failed_exec", [False, True])
+def test_pipeline_executes_locally_and_stops_on_failure(tmp_path, failed_exec):
     import json
     import os
     import subprocess
@@ -152,14 +152,8 @@ def test_pipeline_checks_selected_service_and_stops_on_failed_wait(tmp_path, fai
         "args = sys.argv[1:]\n"
         "assert os.getcwd() == os.environ['PIPELINE_CWD']\n"
         "with open(os.environ['PIPELINE_CALLS'], 'a') as output: output.write(json.dumps(args) + '\\n')\n"
-        "if args[0] == 'get_task_definition': result = {'success': True, 'answer': {}}\n"
-        "elif args[0] == 'submit':\n"
-        "    result = {'success': True, 'answer': {'task_id': args[args.index('--task')+1], 'run_id': 'run'}}\n"
-        "elif 'wait_task' in args:\n"
-        "    state = 'failed' if os.environ.get('PIPELINE_FAIL') else 'succeeded'\n"
-        "    result = {'success': True, 'answer': {'state': state}}\n"
-        "else: raise SystemExit('Unexpected command')\n"
-        "print(json.dumps(result))\n"
+        "assert args[0] == 'exec'\n"
+        "raise SystemExit(1 if os.environ.get('PIPELINE_FAIL') else 0)\n"
     )
     command.chmod(0o755)
     (tmp_path / "python3").symlink_to(sys.executable)
@@ -170,7 +164,7 @@ def test_pipeline_checks_selected_service_and_stops_on_failed_wait(tmp_path, fai
         "PIPELINE_CALLS": str(log),
         "PIPELINE_CWD": str(tmp_path),
     }
-    if failed_wait:
+    if failed_exec:
         env["PIPELINE_FAIL"] = "1"
     else:
         env.pop("PIPELINE_FAIL", None)
@@ -184,12 +178,11 @@ def test_pipeline_checks_selected_service_and_stops_on_failed_wait(tmp_path, fai
         check=False,
     )
     calls = [json.loads(line) for line in log.read_text().splitlines()]
-    assert len([args for args in calls if args[0] == "get_task_definition"]) == 6
-    submissions = [args for args in calls if args[0] == "submit"]
-    assert result.returncode == (1 if failed_wait else 0)
-    assert len(submissions) == (1 if failed_wait else 6)
-    if not failed_wait:
-        assert submissions[-1][-4:] == ["--buy-cost-rate", "0.0005", "--sell-cost-rate", "0.0015"]
+    executions = [args for args in calls if args[0] == "exec"]
+    assert result.returncode == (1 if failed_exec else 0)
+    assert len(executions) == (1 if failed_exec else 6)
+    if not failed_exec:
+        assert executions[-1][-4:] == ["--buy-cost-rate", "0.0005", "--sell-cost-rate", "0.0015"]
 
 
 @pytest.mark.parametrize("plugin", ["qlib_factor", "qlib_strategy"])

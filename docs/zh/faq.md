@@ -14,9 +14,9 @@
 
 公开清单来自配置的 Job，而不是所有 Python 方法。需要鉴权的 Job 在未配置服务 token 时可能被过滤；可选组件没有启用时相应功能也可能不可用。以 `/jobs` 和 [配置参考](reference/configuration.md) 为准。
 
-## submit 返回后为什么没有结果？
+## 如何确认 Task 执行结果？
 
-`submit` 返回 `task_id`、`run_id`、`task`，表示提交已受理。随后调用 `wait_task`、`status` 或查看运行中心。等待时绑定本次 run_id，避免固定名称重跑后读取另一次执行。见 [提交与观察](guides/task-management.md)。
+`exec` 返回 `task_id`、`run_id`、`task`，表示提交已受理。随后调用 `wait_task`、`status` 或查看运行中心。等待时绑定本次 run_id，避免固定名称重跑后读取另一次执行。见 [提交与观察](guides/task-management.md)。
 
 ## Task ID 和 run_id 有什么区别？
 

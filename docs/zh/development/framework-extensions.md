@@ -12,7 +12,7 @@
 | BaseStep      | 调用组件、组合结果、发送事件   | async execute，每次 Job 新实例     |
 | PipelineJob   | 顺序组合多个 Step              | 公共 Schema、defaults、最终结果    |
 | BaseJob       | 需要自定义事件执行契约         | 自己实现 stream(arguments, system) |
-| BaseTask      | 研究数据计算与产物发布         | 同步步骤；submit 可启动 worker     |
+| BaseTask      | 研究数据计算与产物发布         | 同步步骤，通过 CLI exec 执行       |
 
 Job 是 Application 内的异步编排；Task 的步骤是同步函数。两者的 Step 名称相似，基类与执行边界不同。
 
@@ -33,7 +33,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 from axonx import Application, BaseComponent, BaseStep, provider
-from axonx.components.job import ProgressEvent
+from axonx.app.components.job import ProgressEvent
 
 @provider("prefix_formatter")
 class PrefixFormatter(BaseComponent):
@@ -161,7 +161,7 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 新增 backend 后先用最小 Application(providers=...) 验证，再接真实服务、插件环境和 Studio 表单；不要把 UI 能生成表单等同于 Task 研究逻辑已经正确。
 
-实现依据：`axonx/components/base.py`、`axonx/components/registry.py`、`axonx/core/graph.py`、`axonx/core/composition.py`、`axonx/steps/base.py`、`axonx/components/job/pipeline.py` 与 `axonx/components/job/context.py`。
+实现依据：`axonx/app/components/base.py`、`axonx/plugin/registry.py`、`axonx/app/core/graph.py`、`axonx/app/core/composition.py`、`axonx/app/steps/base.py`、`axonx/app/components/job/pipeline.py` 与 `axonx/app/components/job/context.py`。
 
 ## 实时采集、在线推理与预测比对
 
@@ -175,7 +175,7 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 插件可实现 `window_skip_reason(window)`，在等待前跳过不适用的业务窗口（例如休市），并在审计记录中保留原始时间安排。
 
-`initialize_run` 获取任务拥有的资源；成功、初始化失败或执行失败后都会调用 `close_run`。清理异常不替代主异常。进程取消仍由现有 worker/task manager 管理，插件不新增进程调度器。
+Task 执行与进程控制由 CLI 执行环境负责。服务通过 TaskRepository 读取已发布 metadata，不取消、恢复或接管 Task 进程。
 
 窗口结果、固定模型身份和比对结果直接增量写入 `metadata.json.output_params`，失败时也保留。Runner 原子发布这一份记录，Studio 直接读取它。原有 `manifest.json`、`comparison.json`、`manifest_file` 和 `report_file` 契约已移除，不保留兼容读取。业务数据保存在插件显式目录，先发布数据与元数据，再发布 ready 标记。在线数据发布使用下述不可变存储；质量检查、归一化、交易日历与通知语义由插件负责；AxonX 不新增 Tushare 或模型依赖。
 
@@ -197,30 +197,15 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 ## 复合 Task 与清理
 
-同步业务顺序、条件和循环使用 `BaseCompositeTask`，通过内置 `submit` Job 只提交父任务。子任务在父任务 worker 内执行，继承父实例名称并保留调用记录。重复调用同一注册名会覆盖终态产物，文件产物应在覆盖前消费。依赖其他 Task ID 的数据时显式传入 `source_tasks`。详见 [复合 Task](../guides/composite-tasks.md)。
+同步业务顺序、条件和循环使用 `BaseCompositeTask`，通过 `axonx exec --task NAME` 只执行父任务。子任务在父任务 worker 内执行，继承父实例名称并保留调用记录。重复调用同一注册名会覆盖终态产物，文件产物应在覆盖前消费。依赖其他 Task ID 的数据时显式传入 `source_tasks`。详见 [复合 Task](../guides/composite-tasks.md)。
 
-插件清单注册 Task；部署配置可以定义轻量 `pipeline` Job 和定时任务：
+插件清单注册 Task。在 `.cron` 文件中配置时间，通过 `axonx start --config default --cron ./research.cron` 启用：
 
-```yaml
-extends: default
-jobs:
-  refresh:
-    backend: pipeline
-    defaults:
-      task: refresh_data
-    steps:
-      - backend: submit_task
-schedules:
-  refresh:
-    job: refresh
-    cron: "0 16 * * *"
+```text
+0 16 * * * axonx exec --task refresh_data
 ```
 
-共享数据一致性及业务重叠策略由业务 Task 负责；优先使用不可变输入视图，避免在下载和计算期间持锁，共享写入方只保留立即失败的独占保护。复合 Task 不提供分布式锁。调度并发策略只覆盖 Job 调用，提交 Job 在后台 Task 完成前已经返回。TaskManager 监督已受理 worker，并负责停机和取消。取消父 Run 会停止同进程子任务；关闭提交 Job 不会取消已受理的 Task。
-
-维护操作通过 `list_managed_run_ids()` 选择本服务拥有的 worker Run，包括 metadata 已终态或具名 Task 已被替换但进程仍受管理的 worker。暴露共享工作区记录的后端必须覆盖默认的私有后端实现。返回实际进程管理归属，不应根据持久化 metadata 的 PID 推断。
-
-Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID：`task_id` 在 manager 锁内选定当前执行，`run_id` 精确指定某个 Run。同时提供两个 ID 时会校验当前身份，不匹配则返回 false。需要精确清理某次执行时传 `run_id`。
+cron 是 `axonx/cron/` 下的普通模块，不注册组件后端，也不调度 Job。它复用 `config/` 的文件定位，启动独立 exec 进程，关闭时只停止后续触发。详见 [定时调度](../guides/scheduling.md)。
 
 同步 `BaseTask.close()` 在步骤执行后释放资源，包括步骤和初始化失败。清理失败不会覆盖原步骤异常。`on_failure(error)` 可在步骤、输出构造或清理失败时保存业务摘要，失败状态仍由 runner 管理。强制终止进程时不能保证回调执行。
 
@@ -232,22 +217,12 @@ Task manager 实现 `cancel(task_id=None, run_id=None)`，至少提供一个 ID�
 
 股票回测插件可向 `run_backtest` 传入可选 `events` 处理器，提供 `successors`、`reset(top_n)`、`apply(date, slot, book, cash, quotes) -> cash`、`blocked(code)` 和 `pending_cash`。引擎遍历 `top_ns`，每个 N 从初始资金、空持仓和重置的事件状态开始，完整重放所有日期。当次执行可修改报价，不影响其他 N。待收款必须有限且非负，计入净值，到账前不能用于买入。引擎在每日估值/交易前调用，并在买入前检查。事件事实及具体证券逻辑保留在插件中；不传处理器时维持原有执行和产物格式。
 
-Scheduler 后端实现 `describe(*, include_history=False, history_limit=20)`，供 `list_schedules` 查询：默认省略历史及最近结果，显式查询时先截取最近历史再复制。TaskManager 提供 `list_restart_blockers()`，通过拥有的 Run ID 和轻量摘要筛选正在排队或运行的定时来源 Task；共享工作区记录本身不表示本服务拥有该 Run。`source` 属于框架执行元数据，必须在 Worker 移交及子 Task 执行中保留。
-
 ### 共享工作区与执行归属
 
-工作区仓库列出所有有效 Task 记录，包括其他服务及直接 `exec` 进程写入的记录。读取记录不会接管 worker。`TaskView`（完整列表和详情响应）与 `TaskSummary` 增加仅用于查询的 `managed_run_id`：受管根 Run 指向自身，其精确匹配的进程内子任务指向该根 Run，未受管记录返回 `null`。该字段不写入 `TaskMetadata`。仅当前所选服务管理的活动根 Run 可取消；停止子任务应取消其根 Run。记录进入终态时，worker 仍可能处于清理阶段。
+Task 执行、metadata 发布、仓库刷新、删除和副本应用不再获取框架 Task 或工作区锁。metadata 文件仍通过原子替换写入。保留 Run ID、进程归属及已观察生命周期检查，但检查与写入不构成事务。调用方需顺序修改同一 Task 目录；并发同名执行、重置、删除和同步不再协调。
 
-Cron 调度支持 `history_retention_days`（正整数，默认 `7`）。启动及每次写入历史时，从 `schedules/<hash>.json` 移除过期的已结束触发记录，保留运行中的记录。按 `finished_at` 计算时间，旧记录缺少该值时使用 `triggered_at`，无时区的时间按 UTC 解释。该规则替代原先最近 50 次已结束触发的限制，不删除 Task 目录、产物或日志。清理随上述写入执行，不增加独立后台定时器。
+更新记录位于 `daemon/<instance>/updates/<update-id>/`。daemon 负责中断恢复与 worker 替换，服务 Job 只请求操作并读取记录。
 
-每个 cron scheduler 有运行时 `scheduler_id`，并将其写入 Task 的 `source.schedule`。关联当前调度和 Task 历史时应匹配该 ID，不能只匹配名称。持久化记录中的该字段可选，旧记录仍可读取，并显示为未关联当前配置的工作区历史。拒绝未知来源字段的旧版 AxonX，需要先升级才能共享新写入的定时记录。scheduler 的 `running` 和 `last_trigger` 表示当前服务的 Job 调用，不表示已提交后台 Task 的生命周期或结果。`forbid`、`replace` 保持 Job 层语义，不提供跨服务调度去重，也不会取消已经接收的 Task。
+工作区目录变更不再等待框架 Task 锁。`axonx.common.fs.file_lock` 仍供业务数据写入使用，默认竞争时立即失败；插件在读取前和成功前比较修订，输入变化时明确失败，生产方必须原子替换文件。
 
-维护入口先禁止本实例新的 cron 触发，再检查活动定时 Job 和受管 Run；拒绝维护后恢复触发。当前服务的活动定时 Job 与定时根 Run 即使强制维护也会阻塞。其他服务的磁盘记录不会阻塞维护。服务关闭时，先停止接收新任务并向本服务管理的 worker 进程组发送停止信号，再按依赖逆序等待组件清理。拥有本地子进程的 Task Manager 可以覆盖同步 `request_shutdown(force=False)` 钩子，在等待 Job 或文件清理前阻止提交并发送信号；`force=True` 只能操作已跟踪的 worker 进程组，包括主进程退出后仍存活的后代。该钩子必须非阻塞，并能从信号处理器或关闭 watchdog 线程安全调用。钩子失败不会阻止其他管理器接收停止信号，也不会跳过剩余资源清理。HTTP 服务的 `cleanup_timeout` 限制关闭总时长，再次 Ctrl+C 或超时会强制退出，生命周期记录可能尚未写完。启动及同名提交前，恢复检查稳定的操作系统来源 `machine_id` 与本机匹配或缺少机器标识的非展示副本记录。获取 Task 执行锁并重新核对同一 Run 后，本地管理器仅在记录的 PID 和 `process_started_at` 对应的本机进程实例已退出时，将其标为 failed。缺少机器标识的旧记录只根据执行锁判断，刚创建的 queued 记录保留 5 分钟交接宽限。queued 记录在 worker 交接前保存启动者身份，延迟启动的受理 worker 仍必须匹配其 queued Run。恢复时检查对应子任务的执行锁，保留成功结果，不接管或发送信号给仍存活的 worker。其他机器记录及无法确认的本机进程实例不改动。新身份字段对旧记录可缺省；拒绝未知字段的旧版本需要先升级，才能共享新记录。恢复不重提 Task，也不补放 cron 触发。
-
-本地 runner 在最终状态发布和清理完成前持有 Task 目录建议锁。目录创建、重置、Task 删除、工作区删除和副本应用协调工作区修改；仍被 runner 占用的终态目录不能重置或删除。工作区删除还会保护活动 Task 的文件及其祖先目录。取消操作会等待已开始的队列记录发布及结果收尾完成，再释放对应的修改锁。锁文件位于 Task 目录之外的 `.locks/`，服务使用工作区期间不得移除。这些锁要求文件系统支持共享 POSIX 建议锁，不能替代业务数据锁，也无法约束未参与锁协议的旧版写入方。
-
-更新记录调整为 `updates/<service-key>/<update-id>/`，服务标识由主机名、监听地址、端口和启动目录确定。服务仅恢复自身中断的更新。旧 `updates/<update-id>/` 记录保留在磁盘，不再被修改，也不包含在新的服务级最新状态查询中；仍可按更新 ID 显式读取。
-
-必要的工作区目录变更最多等待 30 秒。`axonx.utils.fs.file_lock` 默认在竞争时立即失败，可选等待必须有限。插件在读取前和成功前比较修订，输入变化时明确失败；生产方必须原子替换文件。
-
-插件环境操作的准入，以及导入与安装协调，最多等待 30 秒；超时只拒绝等待方，不中断当前持有方。
+插件安装与 Task 启动不再使用环境准入锁或等待队列。

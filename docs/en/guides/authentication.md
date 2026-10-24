@@ -25,14 +25,14 @@ Only a nonempty token is a valid credential; restart the service after changing 
 
 ## Protocol protection scope
 
-| Route               | With a configured service token                                   |
-| ------------------- | ----------------------------------------------------------------- |
-| /health             | Requires Bearer                                                   |
-| /jobs and subpaths  | Requires Bearer, including SSE                                    |
-| /files and subpaths | Requires Bearer                                                   |
-| /mcp and subpaths   | Requires Bearer                                                   |
-| Studio static pages | Not blocked by the protocol token; APIs still require credentials |
-| /proxy/{name}       | Uses upstream authentication, without checking the service token  |
+| Route                | With a configured service token                                   |
+| -------------------- | ----------------------------------------------------------------- |
+| /health              | Requires Bearer                                                   |
+| /jobs and subpaths   | Requires Bearer, including SSE                                    |
+| /upload and subpaths | Requires Bearer                                                   |
+| /mcp and subpaths    | Requires Bearer                                                   |
+| Studio static pages  | Not blocked by the protocol token; APIs still require credentials |
+| /proxy/{name}        | Uses upstream authentication, without checking the service token  |
 
 Preflight OPTIONS requests do not perform this Bearer check. Allowing cross-origin requests does not allow executing Jobs without credentials; actual protocol calls still require authentication.
 
@@ -104,4 +104,4 @@ Proxy routes pass upstream request credentials and serve a different purpose fro
 
 [Remote machines](remote-machines.md) · [API overview](../api/overview.md) · [Agent configuration](../agent/configuration.md) · [HTTP proxy](http-proxy.md)
 
-Source: [Authentication and public filtering](../../../axonx/components/service/http/app.py), [Job configuration](../../../axonx/config/models.py), [CLI token loading](../../../axonx/cli/main.py).
+Source: [Authentication and public filtering](../../../axonx/app/components/service/http/app.py), [Job configuration](../../../axonx/config/models.py), [CLI token loading](../../../axonx/cli/main.py).

@@ -1,49 +1,34 @@
-"""AxonX: asynchronous orchestration with isolated synchronous tasks."""
+"""AxonX public API, loaded only when a capability is requested."""
 
-from . import components, config, enums, plugin_kit, steps, task
+from importlib import import_module
 from ._version import VERSION as __version__
-from .components.agent.base import BaseAgentComponent
-from .components.base import BaseComponent
-from .components.client import BaseClient
-from .components.job.base import BaseJob
-from .components.job.pipeline import PipelineJob
-from .components.proxy.base import BaseProxyComponent
-from .components.registry import provider
-from .components.scheduler.base import BaseScheduler
-from .components.service.base import BaseService
-from .components.sync.base import BaseSyncComponent
-from .components.task_manager.base import BaseTaskManager
-from .components.task_repository.base import BaseTaskRepository
-from .core import Application
-from .steps.base import BaseStep
-from .task.core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
-from .task.schemas.lifecycle import TaskMetadata
 
-__all__ = [
-    "Application",
-    "BaseAgentComponent",
-    "BaseClient",
-    "BaseComponent",
-    "BaseInputParams",
-    "BaseJob",
-    "BaseOutputParams",
-    "BaseProxyComponent",
-    "BaseScheduler",
-    "BaseService",
-    "BaseStep",
-    "BaseSyncComponent",
-    "BaseTask",
-    "BaseTaskManager",
-    "BaseTaskRepository",
-    "PipelineJob",
-    "TaskMetadata",
-    "TaskStep",
-    "__version__",
-    "components",
-    "config",
-    "enums",
-    "plugin_kit",
-    "provider",
-    "steps",
-    "task",
-]
+_EXPORTS = {
+    "Application": ("app.core", "Application"),
+    "BaseAgentComponent": ("app.components.agent.base", "BaseAgentComponent"),
+    "BaseClient": ("app.components.client", "BaseClient"),
+    "BaseComponent": ("app.components.base", "BaseComponent"),
+    "BaseJob": ("app.components.job.base", "BaseJob"),
+    "BaseProxyComponent": ("app.components.proxy.base", "BaseProxyComponent"),
+    "BaseService": ("app.components.service.base", "BaseService"),
+    "BaseStep": ("app.steps.base", "BaseStep"),
+    "BaseSyncComponent": ("app.components.sync.base", "BaseSyncComponent"),
+    "BaseTaskRepository": ("app.components.task_repository.base", "BaseTaskRepository"),
+    "PipelineJob": ("app.components.job.pipeline", "PipelineJob"),
+    "provider": ("plugin.registry", "provider"),
+    "BaseTask": ("task.core", "BaseTask"),
+    "BaseInputParams": ("task.core", "BaseInputParams"),
+    "BaseOutputParams": ("task.core", "BaseOutputParams"),
+    "TaskStep": ("task.core", "TaskStep"),
+    "TaskMetadata": ("task.schemas.lifecycle", "TaskMetadata"),
+}
+__all__ = [*_EXPORTS, "__version__"]
+
+
+def __getattr__(name: str):
+    if name not in _EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module, symbol = _EXPORTS[name]
+    value = getattr(import_module(f".{module}", __name__), symbol)
+    globals()[name] = value
+    return value

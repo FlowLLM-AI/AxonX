@@ -32,29 +32,21 @@ axonx read_task_log --task-id '<Task ID>' --offset -1 --limit 65536
 
 日志窗口使用字节偏移。先读尾部找到异常，再根据需要扩大或指定窗口。若 status.log_path 指向外部日志目录，迁移工作区后可能需要同时恢复日志。
 
-## 提交成功但 Task 失败
+## 执行失败
 
-1. 核对 handle 中的 run_id，排除固定名称重跑。
-2. 查看最终 state、error、exit_code。
+1. 核对 metadata 中的 `run_id`，排除固定名称重跑。
+2. 查看最终 `state`、`error`、`exit_code`。
 3. 查看最后失败步骤及 Task 日志。
 4. 检查插件输入、上游文件、外部数据权限与模型依赖。
-5. 使用新 task_name 重跑，保留失败记录用于对照。
+5. 使用新 `task_name` 重跑，保留失败记录用于对照。
 
-`submit.success=true` 只表示受理成功。`wait_task` 的 success 对应最终 succeeded；不应仅根据 HTTP 200 判断研究成功。
+`axonx exec` 等待执行完成并返回 Task 退出码。远程 CLI 同样等待子进程，应检查其 `exit_code`、stdout/stderr 与持久化 Task 记录。`wait_task` 观察指定 Task/Run，不应仅根据 HTTP 200 判断研究成功。
 
-## worker 异常与状态对账
+## 进程身份与中断记录
 
-正常 worker 自己写状态。所属 TaskManager 的 supervisor 确认自己启动的 worker 已退出、且磁盘上同一 run_id 没有终态时，补写 failed 并记录退出码及错误。退出回调保留已有终态和同名 Task 的新运行，只读刷新 Repository 索引；服务运行期间遇到临时 I/O 读取或写入失败时会重试。
+新 Task 记录包含根据操作系统机器标识生成的稳定 `machine_id`，以及进程启动时间 `process_started_at`。机器 ID 不依赖服务端口、工作区或 IP 地址。执行进程发布自身身份，进程内子任务共享同一进程实例。
 
-新 Task 记录包含根据操作系统机器标识生成的稳定 `machine_id`，以及进程启动时间 `process_started_at`。机器 ID 在服务和机器重启后保持不变，不依赖服务端口、工作区、IP 地址或主机名。queued 阶段记录提交服务的进程身份，worker 启动后发布自身身份；进程内子任务记录与父任务相同的机器及进程实例。
-
-如果长时间显示 running，先确认进程是否仍在运行、当前服务是否管理这轮运行、日志是否持续增长，以及磁盘是否可写。不要只根据文件中的 pid 跨机器判断进程生死。
-
-所属服务仍运行时，强制 kill worker 会由 supervisor 检测退出。启动时及同名 Task 重提前，本地 TaskManager 检查尚未终态且不是展示副本的记录。对于 `machine_id` 与本机一致的记录，只有获取执行锁、重新读取并核对同一 Run、确认记录的进程实例已退出后，才将其标为 failed；进程启动时间用于识别 PID 复用。对应的未完成子任务也检查执行锁后收尾，成功子任务和已有文件保留。仍存活或无法确认的本机进程、其他机器记录和展示副本保持不变；恢复不会接管或终止仍存活的 worker。
-
-没有 `machine_id` 的旧记录复用已有执行锁判断，不依赖无法确定所属机器的 PID。旧 Run 未持有锁时自动标为 failed。创建时间与当前时间相差不到 5 分钟的旧 queued 记录保留交接宽限，后续同名提交会再次检查；缺失或远期异常的创建时间不会让旧 Run 一直保持活动。Runner 持锁直至清理结束，进程退出后由操作系统释放锁。
-
-恢复修正遗留生命周期状态，不恢复 Python 内存执行、不自动重提 Task，也不补放错过的 cron 触发。检查中断产物后，可按需提交新 Run。原有 reaper_interval_seconds 配置保持移除，不执行周期性进程扫描。读取旧记录时新字段可缺省；拒绝未知字段的旧版本需要先升级，才能共享新写入的记录。
+若记录一直显示 `running`，检查执行机器、确切进程身份、日志增长和磁盘访问。其他机器的 PID 无法证明本机进程存活。Repository 和查询接口只观察文件，不监督进程，也不改写中断 Task 的状态。exec 进程被强制终止后可能留下非终态 metadata；应检查未完成产物，并使用不同 Task 名称重新执行。恢复记录不会恢复 Python 执行，也不会补放 cron 触发。
 
 ## 文件存在但页面未更新
 
@@ -104,5 +96,3 @@ cp -a ./logs ./backup/logs
 需要可撤销恢复时，应单独保存版本化备份。具体同步预算、回滚和重试见[任务同步](task-sync.md)。
 
 [部署](deployment.md) · [工作区](../concepts/workspace.md) · [任务生命周期](../concepts/task-lifecycle.md)
-
-源码：[管理器](../../../axonx/components/task_manager/local/manager.py)、[worker supervisor](../../../axonx/components/task_manager/local/supervisor.py)、[记录读取](../../../axonx/task/storage/workspace.py)。

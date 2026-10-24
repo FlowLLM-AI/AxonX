@@ -5,7 +5,7 @@ from time import monotonic
 
 import pytest
 
-from axonx.utils.fs import file_lock
+from axonx.common.fs import file_lock
 
 
 def test_default_contention_fails_and_unrelated_writers_proceed(tmp_path):

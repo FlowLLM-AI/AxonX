@@ -1,19 +1,27 @@
 # 架构概述
 
-AxonX 将能力调用、研究执行和结果存储分开。CLI、Studio 与外部 Agent 调用 Job；Job 的异步 Step 访问组件；耗时研究工作由同步 Task 在 worker 进程中执行。结果落到工作区后，任务查询和 Studio 使用同一批记录。
+AxonX 将能力调用、研究执行和结果存储分开。CLI、Studio 与外部 Agent 调用 Job；Job 的异步 Step 访问组件；研究工作由同步 Task 在独立 CLI 进程中执行。结果落到工作区后，任务查询和 Studio 使用同一批记录。
 
 ![AxonX 架构分层](../../figures/concepts/architecture.svg)
 
-## 各层职责
+## Python 模块边界
 
-| 层     | 负责什么                                 | 典型对象                                  |
-| ------ | ---------------------------------------- | ----------------------------------------- |
-| 客户端 | 组织参数、凭据，消费 JSON 或事件         | CLI、Studio、HttpClient、McpClient        |
-| 协议   | HTTP、MCP、SSE、上传与 Bearer 鉴权       | HttpService                               |
-| 编排   | 参数校验、执行异步步骤、形成 JobResponse | Dispatcher、Job、BaseStep                 |
-| 组件   | 管理可复用能力和生命周期                 | TaskManager、TaskRepository、Agent、Proxy |
-| 任务   | 执行具体研究步骤，生成校验后的结果       | BaseTask 和插件 Task                      |
-| 存储   | 保存生命周期元数据、进度与研究产物       | 工作区和独立日志目录                      |
+Python 包有八个一级模块，`app`、`task` 内已有且有意义的子目录继续保留。
+
+| 模块     | 职责                                                                           |
+| -------- | ------------------------------------------------------------------------------ |
+| `app`    | 应用装配、Component、Job/Step、HTTP/MCP、Agent、服务侧 Repository 与工作区操作 |
+| `cli`    | 可执行入口、命令路由、本地命令与输出                                           |
+| `daemon` | 独立守护、本地控制、所属更新子进程                                             |
+| `cron`   | crontab 代码与配置，通过注入回调启动命令                                       |
+| `config` | Provider、运行和连接数据、dotenv、文件定位与合并                               |
+| `task`   | 独立 Task 执行、记录、研究契约、产物与副本处理                                 |
+| `plugin` | Provider 注册、插件声明、发现、打包、安装与符号加载                            |
+| `common` | 通用参数转换、日志数据、取消安全的异步操作、文件与基础日志机制                 |
+
+依赖从调用者指向能力所有者：`app` 使用 `task`、`plugin`，`task` 使用 `plugin` 和运行配置，`plugin` 使用声明式 `config` 模型；`common` 不导入这些子系统。CLI 按命令导入服务代码，cron 不导入 daemon，daemon worker 保持为仅使用标准库的独立程序。参见[重构计划与验证](../development/module-refactor.md)。
+
+## 各层职责
 
 HTTP 的普通调用与 SSE 事件调用经过相同 Job 能力层。MCP 把公开 Job 映射为工具，返回普通响应。SSE 是另一个 HTTP 入口，提供实时事件；两者不应作为同一种传输理解。
 
@@ -21,38 +29,23 @@ HTTP 的普通调用与 SSE 事件调用经过相同 Job 能力层。MCP 把公�
 
 以 `status` 为例：
 
-1. 客户端提交 `task_id` 到 `/jobs/status`。
-2. 协议校验服务凭据，Dispatcher 找到 Job 并验证参数。
-3. Job 执行 `get_status` Step。
-4. Step 从 TaskManager / Repository 查询记录。
-5. 返回包含状态的 `JobResponse.answer`。
+CLI 或 Studio → Job → 查询 Step → Repository → 已发布的 `metadata.json`。
 
 查询不会重新执行 Task。Repository 监听工作区记录变化，向调用者提供当前索引；观察文件变化和执行 worker 是不同职责。
 
 ## 研究能力的执行链
 
-以 `submit --task demo` 为例：
+以 `axonx exec --task demo` 为例：
 
-1. `submit_task` Step 将结构化参数编码成 Task 命令参数。
-2. 本机 TaskManager 校验任务定义与身份，创建 queued 记录，启动独立子进程。
-3. Job 返回含 `task_id`、`run_id`、注册名的 TaskHandle。
-4. worker 解析 typed input，顺序执行同步步骤并写进度、状态和日志。
-5. 在 `metadata.json` 中原子发布 typed output 与终态。
-6. 客户端通过 `wait_task` 确认终态，通过文件或研究页面读取结果。
-
-`axonx exec` 直接在当前 CLI 进程运行同一种 Task，不走 HTTP 或常驻 TaskManager。进程隔离方便取消和异常对账，并不等于代码安全沙箱。
+CLI → `TaskExecutor` → `TaskRunner` → 同步 Task 步骤 → 原子发布生命周期记录和产物。Task 进度事件由 Task schema 拥有，Job 层复用它们作为传输数据。
 
 ## Application 装配
 
-Application 根据配置与注册表创建 Component、Job 和 Scheduler。组件通过 `depend` 声明依赖，由应用按拓扑顺序启动；正常退出按依赖反序关闭，启动中失败会回滚已启动对象。
-
-这意味着配置中的组件名称具有实际引用意义。例如 TaskManager 的 `task_repository: default` 绑定同名 Repository；同步组件也可依赖这份 Repository。把组件删掉却保留引用会导致启动失败，而不是自动采用其他后端。
-
-常驻服务在 ASGI lifespan 中管理 Application。服务退出会进入关闭流程，TaskManager 停止它管理的 worker；文件保存了状态，但没有通用的断点续跑机制。
+Application 根据配置与注册表创建 Component 和 Job。组件通过 `depend` 声明依赖，由应用按拓扑顺序启动；正常退出按依赖反序关闭，启动中失败会回滚已启动对象。daemon 分别启动服务和 cron worker，cron 通过启动回调请求独立的 exec 进程。
 
 ## 插件与 Agent 的位置
 
-插件通过已安装 Python distribution 的入口点和 `plugin.yaml` 提供 Task、Component 和 Job。Task 类型及其输入输出 Schema 来自插件类，具体量化算法由插件实现。Component 和 Job 在应用装配时加载；通过安装 Job 更新仅含 Task 的 wheel 可刷新实际定义与后续提交，直接 pip／源码改动及标记 `restart_required` 的变更需重启服务。
+安装只修改选定 Python 环境，不刷新服务已加载模块，也不追踪待重启状态。新的 CLI 进程加载已安装环境；需要重新加载 Task schema、Component 或 Job 时重启常驻服务。已有进程不提供版本隔离，插件环境修改不再串行协调。
 
 AxonX 提供量化研究 Harness：Task 契约、执行、记录和产物查询。模型／工具循环与会话上下文由外部 Agent 宿主或内置 Claude Agent SDK 后端管理。具备 Skill 或开发指南、源码访问及代码工具时，两条 Agent 路径均可开发插件，并以 Task 证据驱动迭代。内置 Agent 是组件能力之一，实际能力取决于 Job 工具、SDK 工具、运行目录和权限模式。研究任务可独立于 Agent 执行。
 
@@ -72,4 +65,4 @@ AxonX 提供量化研究 Harness：Task 契约、执行、记录和产物查询�
 - [远程机器](../guides/remote-machines.md)：两条远程调用路径。
 - [框架扩展](../development/framework-extensions.md)：组件与编排扩展。
 
-实现入口：[Application](../../../axonx/core/application.py)、[TaskRunner](../../../axonx/task/runtime/runner.py)、[HTTP 装配](../../../axonx/components/service/http/app.py)。
+实现入口：[Application](../../../axonx/app/core/application.py)、[TaskRunner](../../../axonx/task/runtime/runner.py)、[HTTP 装配](../../../axonx/app/components/service/http/app.py)。

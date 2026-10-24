@@ -1,117 +1,30 @@
 import type { StudioPage } from "../shared/api/contracts";
 import type { DailyRow, SummaryRow } from "../features/research/backtest/types";
 import { strategyStats } from "../features/research/compare/model";
-import type {
-  Schedule,
-  TaskDefinition,
-  TaskMetadata,
-} from "../features/tasks/types";
+import type { TaskDefinition, TaskMetadata } from "../features/tasks/types";
 import type { WorkspacePreview } from "../features/workspace/types";
 
 export const epoch = "2026-01-05T09:00:00.000Z";
-export const schedules: Schedule[] = [
-  {
-    scheduler_id: "demo-daily-instance",
-    name: "daily_training",
-    job: "submit",
-    description: "Run the daily training example / 每日运行训练示例",
-    cron: "0 17 * * 1-5",
-    timezone: "Asia/Shanghai",
-    arguments: { task: "playground.train" },
-    concurrency_policy: "forbid",
-    next_run_at: "2026-01-06T09:00:00.000Z",
-    running: 0,
-    last_trigger: {
-      scheduler_id: "demo-daily-instance",
-      name: "daily_training",
-      job: "submit",
-      trigger_id: "demo-daily",
-      triggered_at: epoch,
-      state: "succeeded",
-      error: "",
-      finished_at: epoch,
-      result: null,
-    },
-  },
-  {
-    scheduler_id: "demo-sync-instance",
-    name: "workspace_sync",
-    job: "sync_flush",
-    description:
-      "Synchronize display artifacts every ten minutes / 每十分钟同步展示产物",
-    cron: "*/10 * * * *",
-    timezone: "UTC",
-    arguments: {},
-    concurrency_policy: "forbid",
-    next_run_at: "2026-01-05T09:10:00.000Z",
-    running: 0,
-    last_trigger: null,
-  },
-];
 export const studioPages: StudioPage[] = [
   {
     id: "online",
     title: { en: "Online prediction", zh: "在线预测" },
     view: "pipeline",
-    schedules: [],
     category: "online_prediction",
   },
   {
     id: "nightly",
     title: { en: "Evening comparison", zh: "晚间比对" },
     view: "pipeline",
-    schedules: [],
     category: "comparison",
   },
   {
     id: "data",
     title: { en: "Data updates", zh: "数据更新" },
     view: "tasks",
-    schedules: ["data_update"],
     category: "data_update",
   },
-  {
-    id: "sync",
-    title: { en: "Synchronization", zh: "同步" },
-    view: "schedules",
-    schedules: ["workspace_sync"],
-    category: null,
-  },
 ];
-schedules.push({
-  ...schedules[0],
-  name: "data_update",
-  scheduler_id: "demo-data",
-  description: "Refresh synthetic market data / 刷新合成行情数据",
-  arguments: { task: "playground.download" },
-  last_trigger: {
-    ...schedules[0].last_trigger!,
-    name: "data_update",
-    scheduler_id: "demo-data",
-    trigger_id: "demo-data-trigger",
-    result: {
-      task_id: "api#playground_download#scheduled",
-      run_id: "demo-data-run",
-      task: "playground.download",
-    },
-  },
-});
-schedules[1].description = "Display replica → http://example.test:1025";
-schedules[1].last_trigger = {
-  ...schedules[0].last_trigger!,
-  name: "workspace_sync",
-  job: "sync_flush",
-  trigger_id: "demo-sync",
-  scheduler_id: "demo-sync-instance",
-  result: {
-    uploaded: ["composite/demo"],
-    deferred: [],
-    rejected: [],
-    oversized: [],
-    archives: 1,
-  },
-};
-schedules[1].history = [schedules[1].last_trigger];
 
 export const kinds = [
   "etl",
@@ -157,7 +70,6 @@ export function taskStatus(
 ): TaskMetadata {
   return {
     parent_run_id: null,
-    managed_run_id: null,
     version: 1,
     category: null,
     report_kind: kind === "inference" ? "online" : null,
@@ -165,7 +77,7 @@ export function taskStatus(
     run_id: id,
     task_type: kind,
     reg_name: name,
-    source: { kind: "submit", schedule: null },
+    source: { kind: "exec" },
     input_params: { task_name: name },
     state: "succeeded",
     pid: null,
@@ -464,7 +376,7 @@ export function addArtifacts(
     task_id: task.task_id,
     task_type: task.task_type,
     reg_name: `playground.${task.task_type}`,
-    source: { kind: "submit", schedule: null },
+    source: { kind: "exec" },
     created_at: task.created_at,
     input_params: {
       ...task.input_params,
@@ -574,7 +486,6 @@ export function seed() {
     task.input_params.source_tasks = source.join(",");
     tasks.set(id, task);
     addArtifacts(files, task, variant, source);
-    if (kind === "train") task.source.schedule = schedules[0].last_trigger;
     if (variant === "steady") source = [id];
   }
   seedOnline(tasks, files);
@@ -626,9 +537,6 @@ export function seed() {
   scheduled.task_id = "api#playground_download#scheduled";
   scheduled.run_id = "demo-data-run";
   scheduled.input_params.task_name = "Scheduled data update";
-  scheduled.source.schedule = schedules.find(
-    (schedule) => schedule.name === "data_update",
-  )!.last_trigger;
   tasks.set(scheduled.task_id, scheduled);
   files.set(
     "tushare/daily/sample.parquet",
@@ -657,13 +565,6 @@ export function seed() {
   failed.error = "Simulated missing input";
   failed.exit_code = 1;
   failed.output_params = {};
-  failed.source.schedule = {
-    scheduler_id: null,
-    name: "removed_training",
-    job: "submit",
-    trigger_id: "demo-removed",
-    triggered_at: epoch,
-  };
   tasks.set(failed.task_id, failed);
   for (const task of tasks.values()) {
     const path = `${task.task_type}/${task.task_id}`;

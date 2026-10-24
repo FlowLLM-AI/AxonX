@@ -9,12 +9,12 @@ import httpx
 import pytest
 import yaml
 
-from axonx.components.service import HttpService
-from axonx.components.task_manager.local.manager import LocalTaskManager
-from axonx.components.task_repository import LocalTaskRepository
-from axonx.core import Application
-from axonx.task.query.summary import TaskView, summarize_status
-from axonx.task.storage.workspace import TaskMetadata, TaskStepStatus
+from axonx.app.components.service import HttpService
+from axonx.app.components.task_repository import LocalTaskRepository
+from axonx.app.core import Application
+from axonx.task.query.summary import summarize_status
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.schemas.progress import TaskStepStatus
 
 
 def status():
@@ -72,14 +72,10 @@ async def test_local_summary_avoids_full_snapshot_copy(tmp_path, monkeypatch):
         raise AssertionError("Summary projection must not deep-copy full metadata")
 
     monkeypatch.setattr(TaskMetadata, "model_copy", refuse_copy)
-    manager = object.__new__(LocalTaskManager)
-    manager._supervisor = SimpleNamespace(run_pids={})
-    manager.repository = repository
-    manager.list_statuses = AsyncMock(side_effect=AssertionError("Full list must not be copied"))
-    summaries = await manager.list_summaries()
+    summaries = await repository.summaries()
     assert summaries == [summarize_status(task), summarize_status(older)]
     summaries[0].step_progress.name = "changed"
-    assert (await manager.list_summaries())[0].step_progress.name == "active"
+    assert (await repository.summaries())[0].step_progress.name == "active"
 
 
 async def test_job_defaults_to_summary_and_validates_detail(tmp_path):
@@ -90,7 +86,6 @@ async def test_job_defaults_to_summary_and_validates_detail(tmp_path):
         log_to_file=False,
         components={
             "task_repository": {"default": {"backend": "local"}},
-            "task_manager": {"default": {"backend": "local"}},
         },
         jobs={
             name: yaml.safe_load(files("axonx.config").joinpath("default.yaml").read_text())["jobs"][name]
@@ -98,11 +93,11 @@ async def test_job_defaults_to_summary_and_validates_detail(tmp_path):
         },
     )
     async with app:
-        manager = next(iter(app.context.components["task_manager"].values()))
+        repository = next(iter(app.context.components["task_repository"].values()))
         task = status()
-        manager.list_statuses = AsyncMock(return_value=[task])
-        manager.list_summaries = AsyncMock(return_value=[summarize_status(task)])
-        manager.get_status = AsyncMock(return_value=task)
+        repository.entries = AsyncMock(return_value={task.task_id: task})
+        repository.summaries = AsyncMock(return_value=[summarize_status(task)])
+        repository.entry = AsyncMock(return_value=task)
         detail = await app.run_job("status", {"task_id": task.task_id})
         assert detail.answer == task
         compact = await app.run_job("status", {"task_id": task.task_id, "detail": "summary"})
@@ -161,7 +156,7 @@ async def test_filtered_index_copies_only_matching_results(tmp_path, monkeypatch
     ]
 
 
-async def test_graph_projects_under_repository_lock_without_copying_outputs(tmp_path, monkeypatch):
+async def test_graph_projects_indexed_records_without_copying_outputs(tmp_path, monkeypatch):
     task = status()
     repository = LocalTaskRepository(
         app_context=SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
@@ -172,12 +167,10 @@ async def test_graph_projects_under_repository_lock_without_copying_outputs(tmp_
         raise AssertionError("Graph queries must not copy complete task records")
 
     monkeypatch.setattr(TaskMetadata, "model_copy", refuse_copy)
-    manager = object.__new__(LocalTaskManager)
-    manager.repository = repository
-    graph = await manager.get_graph(task.task_id)
+    graph = await repository.graph(task.task_id)
     assert graph.nodes[0].task_id == task.task_id
     graph.nodes[0].parent_ids.append("consumer mutation")
-    assert (await manager.get_graph(task.task_id)).nodes[0].parent_ids == []
+    assert (await repository.graph(task.task_id)).nodes[0].parent_ids == []
 
 
 def test_comparison_keeps_its_report_without_being_classified_as_online():
@@ -185,8 +178,3 @@ def test_comparison_keeps_its_report_without_being_classified_as_online():
     task.report_kind = "compare_pipeline"
     summary = summarize_status(task)
     assert not summary.is_online and summary.report_kind == "compare_pipeline"
-
-
-def test_single_status_summary_preserves_manager_ownership():
-    task = TaskView(**status().model_dump(), managed_run_id="root-run")
-    assert summarize_status(task).managed_run_id == "root-run"

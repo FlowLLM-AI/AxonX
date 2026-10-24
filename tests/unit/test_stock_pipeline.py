@@ -7,7 +7,7 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from axonx.enums import TaskState
+from axonx.task.enums import TaskState
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage import artifact_path, read_metadata
 

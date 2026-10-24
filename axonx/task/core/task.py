@@ -11,21 +11,15 @@ from typing import Any, ClassVar, TypeAlias
 from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from ...constants import (
-    AXONX_DEFAULT_TIMEZONE,
-    TASK_ID_SEPARATOR,
-)
-from ...enums import ComponentEnum, TaskCategory, TaskType
-from ...utils import get_log_path, get_logger
+from ...common.constants import AXONX_DEFAULT_TIMEZONE
+from ..constants import TASK_ID_SEPARATOR
+from ..enums import TaskCategory, TaskType
+from ...common.logging import get_log_path, get_logger
 from ..schemas.lifecycle import TaskMetadata, TaskSource
 from ..storage.workspace import METADATA_FILE, PERSISTENT_DIR, read_task_metadata, task_id_from_path, task_path
 from .clock import WindowClock
 from .context import TaskContext
-from .identity import (
-    generated_task_name,
-    parse_source_tasks,
-    validate_registration_name,
-)
+from .identity import generated_task_name, parse_source_tasks, validate_registration_name
 from .params import BaseInputParams, BaseOutputParams
 
 TaskStep: TypeAlias = Callable[[], None]
@@ -34,7 +28,7 @@ TaskStep: TypeAlias = Callable[[], None]
 class BaseTask(ABC):
     """Execute ordered synchronous steps with typed input and output."""
 
-    component_type = ComponentEnum.TASK
+    component_type = "task"
     task_type: ClassVar[TaskType] = TaskType.BASE
     input_cls: ClassVar[type[BaseInputParams]] = BaseInputParams
     output_cls: ClassVar[type[BaseOutputParams]] = BaseOutputParams

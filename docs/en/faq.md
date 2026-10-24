@@ -14,9 +14,9 @@ After a service token is configured, these protocol endpoints also require a Bea
 
 The public catalog comes from configured Jobs, rather than all Python methods. Jobs requiring authentication may be filtered out when no service token is configured; functionality may also be unavailable if an optional component is disabled. Consult `/jobs` and the [Configuration Reference](reference/configuration.md).
 
-## Why Are There No Results After submit Returns?
+## How Do I Verify Task Results?
 
-`submit` returns `task_id`, `run_id`, and `task`, indicating that submission was accepted. Then call `wait_task`, `status`, or check the runtime center. Bind waiting to this run_id to avoid reading another execution after a fixed-name rerun. See [Submission and Observation](guides/task-management.md).
+`exec` runs synchronously, prints Task output and returns its exit code. Read Task and Run IDs from metadata; the service only observes those records.
 
 ## What Is the Difference Between Task ID and run_id?
 
@@ -56,7 +56,7 @@ Check the Agent component, SDK, model environment, and available tools. Agent se
 
 ## What Is the Difference Between Cancellation and Deletion?
 
-Cancellation stops a task that is executing; deletion removes task records and artifacts. Use task_id to cancel the current execution, or run_id to cancel one exact execution. Run-based cancellation never targets a newer execution. Supplying both IDs checks that they match; a mismatched pair returns false. Do not delete directories as a substitute for runtime cancellation. See [Submission and Observation](guides/task-management.md).
+Control local exec processes through their execution environment. The service exposes no Task cancellation or deletion interface. Disconnecting read-only observation does not change an independent Task execution.
 
 ## Next Steps
 

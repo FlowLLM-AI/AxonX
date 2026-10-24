@@ -8,7 +8,6 @@ const task = (
   date = "2026-10-13T01:00:00Z",
 ): TaskSummary => ({
   parent_run_id: null,
-  managed_run_id: null,
   category: null,
   report_kind: null,
   display_name: "test",
@@ -19,7 +18,7 @@ const task = (
   run_id: id,
   task_type: id.split("#")[0] as TaskSummary["task_type"],
   reg_name: id.split("#")[1],
-  source: { kind: "submit", schedule: null },
+  source: { kind: "exec" },
   state,
   pid: 1234,
   machine_id: null,

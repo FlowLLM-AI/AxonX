@@ -4,9 +4,9 @@ import json
 from collections.abc import Iterable
 from pathlib import Path
 
-from ...constants import AXONX_DEFAULT_ENCODING
-from ...enums import TaskState, TaskType
-from ...utils.fs import file_revision
+from ...common.constants import AXONX_DEFAULT_ENCODING
+from ..enums import TaskState, TaskType
+from ...common.fs import file_revision
 from ..schemas.protocol import task_protocol, validate_protocol
 from ..schemas.prediction import PredictionProtocol
 from ..schemas.artifact import ArtifactRecord

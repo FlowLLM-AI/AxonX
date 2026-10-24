@@ -1,81 +1,72 @@
-"""Task module moves preserve public objects and keep schemas independent."""
+"""Guard independent subsystem imports and schema-only data contracts."""
 
 import ast
-import importlib
 import importlib.util
-from pathlib import Path
+import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
 from axonx.task import schemas
 
+ROOT = Path(__file__).resolve().parents[2]
+ALLOWED = {
+    "common": set(),
+    "config": {"common"},
+    "plugin": {"config", "common"},
+    "task": {"plugin", "config", "common"},
+    "daemon": set(),
+    "cron": {"config", "common"},
+    "app": {"config", "plugin", "task", "common", "daemon"},
+    "cli": {"app", "config", "plugin", "task", "common", "daemon", "cron"},
+}
 
-@pytest.mark.parametrize(
-    ("legacy", "canonical", "names"),
-    [
-        ("artifact", "schemas.artifact", ["ArtifactRecord"]),
-        ("status", "schemas.lifecycle", ["TaskStatus"]),
-        ("source", "schemas.lifecycle", ["ScheduleTrigger", "TaskSource"]),
-        ("source", "runtime.source", ["TASK_SOURCE", "TASK_SOURCE_ENV"]),
-        ("clock", "core.clock", ["WindowClock", "ReplayClock"]),
-        ("composite", "core.composite", ["BaseCompositeTask", "ChildTaskError", "ChildTaskResult"]),
-        (
-            "protocol",
-            "schemas.protocol",
-            [
-                "PROTOCOL_VERSION",
-                "STOCK_SIGNALS_FORMAT",
-                "Protocol",
-                "fingerprint",
-                "task_protocol",
-                "validate_protocol",
-            ],
-        ),
-        ("protocol", "schemas.model", ["ModelCollection", "ModelMember"]),
-        ("protocol", "schemas.prediction", ["PredictionProtocol"]),
-        ("protocol", "storage.artifacts", ["prediction_protocol"]),
-        ("storage.workspace", "schemas.lifecycle", ["TaskMetadata", "ChildTaskRecord"]),
-        ("storage.replica", "schemas.replica", ["DisplayReplica", "LiveSnapshot", "ReplicaFile", "ReplicaLog"]),
-        ("storage.composition", "runtime.composition", ["settle_children"]),
-        ("storage.composition", "schemas.lifecycle", ["current_children"]),
-        ("contracts.submission", "schemas.lifecycle", ["TaskHandle"]),
-        ("contracts.online", "schemas.online", ["OnlineCommit", "OnlineHistory"]),
-        ("contracts.online", "schemas.reports", ["StockOnlineReport", "StockReportSettings", "STOCK_REPORT_ARTIFACTS"]),
-        (
-            "contracts.backtest",
-            "schemas.reports",
-            ["BacktestBenchmark", "BacktestDimensions", "BacktestUniverse", "BacktestUniverseReport"],
-        ),
-        ("contracts.windows", "core.clock", ["DeadlineBudget", "WindowClock"]),
-        ("contracts", "schemas.lifecycle", ["TaskHandle"]),
-        ("contracts", "schemas.online", ["OnlineCommit", "OnlineHistory"]),
-        ("", "core.composite", ["BaseCompositeTask", "ChildTaskError", "ChildTaskResult"]),
-        ("", "schemas.lifecycle", ["TaskMetadata"]),
-    ],
-)
-def test_legacy_imports_share_canonical_objects(legacy, canonical, names):
-    old = importlib.import_module("axonx.task" + ("." + legacy if legacy else ""))
-    new = importlib.import_module("axonx.task." + canonical)
-    for name in names:
-        assert getattr(old, name) is getattr(new, name), name
+
+def imports(path, package):
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.ImportFrom):
+            name = "." * node.level + (node.module or "")
+            yield importlib.util.resolve_name(name, package) if node.level else name
+        elif isinstance(node, ast.Import):
+            yield from (item.name for item in node.names)
+
+
+def test_eight_modules_have_no_reverse_dependencies():
+    for path in (ROOT / "axonx").rglob("*.py"):
+        relative = path.relative_to(ROOT)
+        if len(relative.parts) < 3 or "__pycache__" in relative.parts:
+            continue
+        owner = relative.parts[1]
+        assert owner in ALLOWED, relative
+        module = ".".join(relative.with_suffix("").parts)
+        package = module.rpartition(".")[0]
+        for target in imports(path, package):
+            assert target != "axonx", (relative, "Use a canonical subsystem import, not the root facade")
+            parts = target.split(".")
+            if len(parts) > 1 and parts[0] == "axonx" and parts[1] in ALLOWED:
+                assert parts[1] == owner or parts[1] in ALLOWED[owner], (relative, target)
+
+
+@pytest.mark.parametrize("module", ["common.arguments", "config", "plugin", "task", "cron", "daemon", "cli"])
+def test_fresh_import_does_not_load_the_application(module):
+    code = f"import importlib, sys; importlib.import_module('axonx.{module}'); " + (
+        "assert not any(name == 'axonx.app' or name.startswith('axonx.app.') for name in sys.modules); "
+        "assert 'fastapi' not in sys.modules; assert 'claude_agent_sdk' not in sys.modules"
+    )
+    if module != "task":
+        code += "; assert not any(name == 'axonx.task' or name.startswith('axonx.task.') for name in sys.modules)"
+    subprocess.run([sys.executable, "-c", code], cwd=ROOT, check=True, timeout=20)
 
 
 def test_schemas_do_not_import_execution_storage_or_task_authoring():
     directory = Path(schemas.__file__).parent
     for path in directory.glob("*.py"):
-        for node in ast.walk(ast.parse(path.read_text())):
-            if isinstance(node, ast.ImportFrom):
-                module = "." * node.level + (node.module or "")
-                modules = [importlib.util.resolve_name(module, schemas.__name__)] if node.level else [module]
-            elif isinstance(node, ast.Import):
-                modules = [item.name for item in node.names]
-            else:
-                continue
-            for module in modules:
-                assert (
-                    module.split(".")[0] in sys.stdlib_module_names
-                    or module.split(".")[0] in {"__future__", "pydantic"}
-                    or module in {"axonx.enums", "axonx.progress"}
-                    or module.startswith("axonx.task.schemas.")
-                ), (path.name, module)
+        for target in imports(path, schemas.__name__):
+            assert (
+                target.split(".")[0] in sys.stdlib_module_names
+                or target.split(".")[0] in {"__future__", "pydantic"}
+                or target.startswith("axonx.common.")
+                or target == "axonx.task.enums"
+                or target.startswith("axonx.task.schemas.")
+            ), (path.name, target)

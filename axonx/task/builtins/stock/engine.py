@@ -6,14 +6,7 @@ from typing import Any, Protocol
 
 import polars as pl
 
-from .data import (
-    KEYS,
-    MARKET_COLUMNS,
-    SIGNAL_COLUMNS,
-    normalize_calendar,
-    normalize_keys,
-    validate_keys,
-)
+from .data import KEYS, MARKET_COLUMNS, SIGNAL_COLUMNS, normalize_calendar, normalize_keys, validate_keys
 
 from .reporting import daily_output, summarize
 

@@ -24,7 +24,7 @@ axonx plugin install ./plugins/qlib_a158
 
 For local Agent development, use `axonx plugin install -e ./plugins/qlib_a158`. For remote execution, use ordinary installation with `--target <host:port>`; see [plugin management](../plugins/management.md) for source setup, dependency order, and installation modes.
 
-Local installation or editable source changes require a persistent service restart. Remote `axonx plugin install` refreshes Task definitions; restart only when `restart_required=true`. Query the task catalog with `axonx list_installed_task_definitions`. Expect `qlib_a158_etl`, `qlib_a158_factor`, `qlib_a158_train`, `qlib_a158_predict`, and `qlib_a158_backtest`.
+Installation changes the selected Python environment without refreshing loaded service modules or tracking restart requirements. New CLI processes load the installed environment. Restart a persistent service when it must reload Task schemas, Components, or Jobs; existing processes are not version-isolated. Plugin environment mutations are not serialized.
 
 ## What each research stage produces
 
@@ -44,10 +44,8 @@ Factor analysis is an independent downstream stage of ETL; training does not dep
 Replace Task IDs in the following commands with actual values returned by the previous stage. Registered names cannot replace Task IDs.
 
 ```bash
-axonx submit --task qlib_a158_etl --start-date 20150101
+axonx exec --task qlib_a158_etl --start-date 20150101
 ```
-
-The returned `answer` is a TaskHandle. Save its `task_id` and `run_id`. Accepted submission only means a worker was created; then wait for that execution:
 
 ```bash
 axonx --client-timeout 86400 wait_task \
@@ -60,19 +58,19 @@ Pass it downstream only after confirming final success. See [task management](..
 
 ```bash
 # After ETL succeeds, factor analysis can run independently
-axonx submit --task qlib_a158_factor --source-tasks '<ETL Task ID>'
+axonx exec --task qlib_a158_factor --source-tasks '<ETL Task ID>'
 
 # The training end date is excluded from the training interval
-axonx submit --task qlib_a158_train --source-tasks '<ETL Task ID>' \
+axonx exec --task qlib_a158_train --source-tasks '<ETL Task ID>' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank
 
 # After training succeeds, prediction must start no earlier than train_end
-axonx submit --task qlib_a158_predict --source-tasks '<Train Task ID>' \
+axonx exec --task qlib_a158_predict --source-tasks '<Train Task ID>' \
   --pred-start 20230101 --pred-end 20231231
 
 # After prediction succeeds, generate backtest artifacts
-axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
+axonx exec --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 
@@ -102,7 +100,7 @@ A completed execution provides parameters and artifacts. Evaluating improvements
 
 ## Using the repository script
 
-[`run_pipeline.sh`](../../../plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh) implements submission, handle reading, stage-by-stage waiting, and failure exits. Use it as a reference for connecting commands:
+[`run_pipeline.sh`](../../../plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh) runs each stage synchronously through exec, assigns explicit Task names, links upstream Task IDs and stops on failure. Use it as a reference for connecting commands:
 
 ```bash
 bash plugins/qlib_a158/axonx_qlib_a158/scripts/run_pipeline.sh
