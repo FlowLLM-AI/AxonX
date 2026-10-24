@@ -45,11 +45,7 @@ CLI、HTTP、MCP 和 **AxonX Studio** 通过共享的 Job 提交、查询 Task�
 
 ## ✨ 为什么使用 AxonX？
 
-- **把研究问题落实为量化代码。** Skill 说明插件开发、Task 契约、执行与证据检查方法；用户的 Prompt 决定 Agent 探索什么。→ [AxonX Skill](skills/axonx/SKILL.md)
-- **在 Qlib 的 Alpha158 基线上扩展。** 在插件中增加特征、调整训练逻辑或开发持仓策略，同时复用兼容的实现与产物。→ [Alpha158](plugins/qlib_a158/README_ZH.md) · [因子](plugins/qlib_factor/README_ZH.md) · [策略](plugins/qlib_strategy/README_ZH.md)
-- **通过统一契约执行实验。** 查询带类型的输入输出，提交工作进程 Task，跟踪进度与日志，等待完成或取消运行。→ [任务管理](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)
-- **把代码改动与研究证据关联起来。** 检查配置、Task/Run ID、依赖、模型、预测和回测产物，用于排查失败与比较候选方案。→ [任务血缘](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lineage) · [实验设计](docs/zh/research/experiments.md)
-- **选择 Agent 与执行环境。** 使用外部 Agent 或 Studio 内置 Agent，可视化检查结果，并在选定的本机或远程服务中运行 Task。→ [Agent 接入](https://flowllm-ai.github.io/AxonX/zh/agent/external) · [远程机器](https://flowllm-ai.github.io/AxonX/zh/guides/remote-machines)
+- **通过统一契约执行实验。** 查询输入输出定义，使用 `axonx exec` 执行，观察 metadata、进度、日志与产物。→ [执行与观察](https://flowllm-ai.github.io/AxonX/zh/guides/task-management)
 
 ## 📰 最新更新
 
@@ -90,16 +86,17 @@ CLI 从当前目录或父目录加载 `.env`，已有环境变量优先。保持
 模型、行情与远程配置见 [example.env](example.env)；源码开发与 Studio 构建见[贡献指南](CONTRIBUTING_ZH.md)。
 直接 pip 安装或 editable 源码改动后需重启服务。
 
-远程提交前先部署本机插件改动；Git push 或相同的包版本号不会更新执行服务。检查 `error` 和 `restart_required`，在已授权的服务管理范围内完成所需重启，提交前核验目标 Task 定义与资源。安装或核验失败时停止并报告；记录提交返回的 Task/Run ID。完整流程见[开发指南](docs/zh/dev_guide.md#_2-安装插件)。
+安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task/Run ID，安装或核验失败时停止并报告。[开发指南](docs/zh/dev_guide.md#_2-安装插件)
 
 远程执行时，将 `<host:port>` 替换为所选服务地址并配置 `AXONX_TARGET_TOKEN`。下方插件与 Task 仅为示例，使用实际源码路径和注册任务名。
 
 ```bash
 axonx list_machines
-axonx plugin install ./plugins/qlib_a158 --target <host:port>
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target <host:port>
 axonx get_task_definition --task qlib_a158_etl --target <host:port>
 axonx machine_status --target <host:port>
-axonx submit --task qlib_a158_etl --start-date 20150101 --target <host:port>
+axonx exec --task qlib_a158_etl --start-date 20150101 --target <host:port>
 ```
 
 <a id="快速演示"></a>
@@ -109,12 +106,12 @@ axonx submit --task qlib_a158_etl --start-date 20150101 --target <host:port>
 内置 demo 无需行情或模型凭据：
 
 ```bash
-axonx submit --task demo --x 2 --y 3
+axonx exec --task demo --x 2 --y 3
 axonx wait_task --task-id '<returned_task_id>' --run-id '<returned_run_id>' --client-timeout 120
 axonx get_task_context --task-id '<returned_task_id>'
 ```
 
-使用 `submit` 返回的 `answer.task_id` 与 `answer.run_id`，等待 `succeeded` 后再读取输出或提交下游 Task。
+使用 `exec` 返回的 `answer.task_id` 与 `answer.run_id`，等待 `succeeded` 后再读取输出或提交下游 Task。
 `source_tasks` 记录血缘，不会自动执行整张 DAG。
 
 访问 `http://127.0.0.1:1024/`，在 **设置 → 本机服务 token** 中填写 `AXONX_SERVICE_TOKEN`。
@@ -242,8 +239,10 @@ axonx start --language zh
 配置目标服务的 `AXONX_TARGET_TOKEN`，在安装、提交、等待与查询中使用相同的 `--target`：
 
 ```bash
-axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
-axonx plugin install ./plugins/qlib_factor --target 'http://<host>:1024'
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 axonx get_task_definition --task qlib_factor_train --target 'http://<host>:1024'
 ```
 

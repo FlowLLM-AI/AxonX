@@ -1,79 +1,59 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowRight,
   Braces,
-  Check,
   ChevronDown,
   ChevronRight,
-  CircleDot,
   LoaderCircle,
   RefreshCw,
   Search,
-  Send,
   Sparkles,
 } from "lucide-react";
-import { listInstalledTaskDefinitions, submitTask } from "../tasks/api";
+import { listInstalledTaskDefinitions } from "../tasks/api";
 import { useTranslation } from "react-i18next";
+import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { RailResizer } from "../../shared/ui/RailResizer";
-import {
-  initialSchemaValues,
-  parseSchemaValues,
-} from "../../shared/schema/values";
-import type { SchemaFormValues } from "../../shared/schema/values";
-import { SchemaField } from "../../shared/ui/SchemaForm/SchemaField";
 import type { ContextOption } from "../../app/types";
 import type { TaskDefinition } from "../tasks/types";
 
-export default function SubmitPage({
+const EMPTY_TASKS: TaskDefinition[] = [];
+
+export default function TaskDefinitionsPage({
   target,
   initialName,
   onSelected,
   onOptionsChange,
-  onViewTasks,
   onConnection,
 }: {
   target?: string;
   initialName?: string;
   onSelected?: (name: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
-  onViewTasks: () => void;
   onConnection: (online: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [tasks, setTasks] = useState<TaskDefinition[]>([]);
   const [selectedName, setSelectedName] = useState("");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [values, setValues] = useState<SchemaFormValues>({});
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     new Set(),
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const result = await listInstalledTaskDefinitions(target);
-      setTasks(result);
-      setSelectedName((current) =>
-        result.some((task) => task.name === current) ? current : "",
-      );
-      onConnection(true);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-      onConnection(false);
-    } finally {
-      setLoading(false);
-    }
-  }, [onConnection, target]);
+  const load = useCallback(
+    async (signal: AbortSignal) => {
+      try {
+        const result = await listInstalledTaskDefinitions(target, signal);
+        signal.throwIfAborted();
+        onConnection(true);
+        return result;
+      } catch (reason) {
+        if (!signal.aborted) onConnection(false);
+        throw reason;
+      }
+    },
+    [onConnection, target],
+  );
+  const { data, loading, error, reload } = useAsyncResource(load);
+  const tasks = data || EMPTY_TASKS;
 
-  useEffect(() => {
-    void load();
-  }, [load]);
   useEffect(() => {
     if (initialName && tasks.some((task) => task.name === initialName))
       setSelectedName(initialName);
@@ -120,16 +100,8 @@ export default function SubmitPage({
     ];
   }, [filtered, t]);
 
-  useEffect(() => {
-    if (!selected) return;
-    setValues(initialSchemaValues(selected.input_schema));
-    setFieldErrors({});
-    setSubmitted(false);
-  }, [selectedName, selected]);
-
   const chooseTask = (name: string) => {
     setSelectedName(name);
-    setSubmitted(false);
     onSelected?.(name);
   };
   const toggleGroup = (id: string) =>
@@ -139,43 +111,16 @@ export default function SubmitPage({
       else next.add(id);
       return next;
     });
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!selected) return;
-    const { data: parsed, errors } = parseSchemaValues(
-      selected.input_schema,
-      values,
-      {
-        required: t("required"),
-        invalidJson: t("jsonHint"),
-      },
-    );
-    setFieldErrors(errors);
-    if (Object.keys(errors).length) return;
-    setSubmitting(true);
-    setError("");
-    try {
-      await submitTask(selected.name, parsed, target);
-      setSubmitted(true);
-      onConnection(true);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-      onConnection(false);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
-    <section className="workspace-page submit-workspace">
+    <section className="workspace-page task-definitions-workspace">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">TASK LAUNCHER / 02</p>
-          <h1>{t("submitTitle")}</h1>
-          <span>{t("submitLead")}</span>
+          <p className="eyebrow">TASK DEFINITIONS / 02</p>
+          <h1>{t("taskDefinitionsTitle")}</h1>
+          <span>{t("taskDefinitionsLead")}</span>
         </div>
       </div>
-      <div className="submit-layout">
+      <div className="task-definitions-layout">
         <aside className="catalog-panel rail-panel">
           <header className="catalog-header rail-header">
             <div className="catalog-heading rail-heading">
@@ -184,7 +129,7 @@ export default function SubmitPage({
             </div>
             <button
               className="catalog-refresh rail-refresh"
-              onClick={() => void load()}
+              onClick={() => void reload()}
               aria-label={t("refresh")}
             >
               <RefreshCw className={loading ? "spin" : ""} />
@@ -252,7 +197,8 @@ export default function SubmitPage({
         <div className="form-panel">
           {loading && !selected && (
             <div className="loading-state tall">
-              <LoaderCircle className="spin" /> {t("submitPage.loadingCatalog")}
+              <LoaderCircle className="spin" />{" "}
+              {t("taskDefinitions.loadingCatalog")}
             </div>
           )}
           {error && !selected && (
@@ -260,7 +206,10 @@ export default function SubmitPage({
               <Braces />
               <h2>{t("catalogFailed")}</h2>
               <p>{error}</p>
-              <button className="secondary-button" onClick={() => void load()}>
+              <button
+                className="secondary-button"
+                onClick={() => void reload()}
+              >
                 {t("retry")}
               </button>
             </div>
@@ -268,12 +217,12 @@ export default function SubmitPage({
           {!loading && !error && !selected && (
             <div className="empty-workspace">
               <Sparkles />
-              <strong>{t("submitPage.selectTask")}</strong>
-              <span>{t("submitPage.selectTaskHint")}</span>
+              <strong>{t("taskDefinitions.selectTask")}</strong>
+              <span>{t("taskDefinitions.selectTaskHint")}</span>
             </div>
           )}
-          {selected && !submitted && (
-            <form onSubmit={(event) => void submit(event)}>
+          {selected && (
+            <article>
               <header className={`task-form-header type-${selected.task_type}`}>
                 <div className="large-task-icon">
                   <Sparkles />
@@ -287,93 +236,18 @@ export default function SubmitPage({
                 </div>
               </header>
               <section className="configuration-card">
-                <div className="form-section-heading">
-                  <div>
-                    <span className="section-heading-icon">
-                      <CircleDot />
-                    </span>
-                    <span>{t("configure")}</span>
-                  </div>
-                  <small>
-                    {Object.keys(selected.input_schema.properties || {}).length}{" "}
-                    fields
-                  </small>
-                </div>
-                <div className="dynamic-form">
-                  {Object.entries(selected.input_schema.properties || {}).map(
-                    ([name, schema]) => (
-                      <SchemaField
-                        key={name}
-                        name={name}
-                        schema={schema}
-                        required={(
-                          selected.input_schema.required || []
-                        ).includes(name)}
-                        value={values[name] ?? ""}
-                        error={fieldErrors[name]}
-                        onChange={(value) =>
-                          setValues((current) => ({
-                            ...current,
-                            [name]: value,
-                          }))
-                        }
-                      />
-                    ),
-                  )}
-                </div>
+                <h3>{t("input")}</h3>
+                <pre className="task-definition-schema">
+                  {JSON.stringify(selected.input_schema, null, 2)}
+                </pre>
               </section>
-              {!!Object.keys(selected.output_schema.properties || {})
-                .length && (
-                <div className="output-preview">
-                  <span>
-                    <Braces />
-                    {t("output")}
-                  </span>
-                  <div>
-                    {Object.keys(selected.output_schema.properties || {}).map(
-                      (key) => (
-                        <code key={key}>{key}</code>
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
-              {error && <div className="inline-error">{error}</div>}
-              <footer className="form-footer">
-                <span>POST /jobs/submit</span>
-                <button
-                  className="primary-button submit-button"
-                  disabled={submitting}
-                >
-                  {submitting ? <LoaderCircle className="spin" /> : <Send />}{" "}
-                  {submitting ? t("submitting") : t("submit")}
-                  <ArrowRight />
-                </button>
-              </footer>
-            </form>
-          )}
-          {selected && submitted && (
-            <div className="success-state">
-              <span className="success-rings">
-                <i />
-                <i />
-                <Check />
-              </span>
-              <p>SUBMITTED</p>
-              <h2>{t("submitted")}</h2>
-              <span>{t("submittedHint")}</span>
-              <code>{selected.name}</code>
-              <button className="primary-button" onClick={onViewTasks}>
-                {t("viewTasks")}
-                <ArrowRight />
-              </button>
-              <button
-                className="link-button"
-                onClick={() => setSubmitted(false)}
-              >
-                {t("submitPage.submitAnother")}
-              </button>
-            </div>
+              <section className="configuration-card">
+                <h3>{t("output")}</h3>
+                <pre className="task-definition-schema">
+                  {JSON.stringify(selected.output_schema, null, 2)}
+                </pre>
+              </section>
+            </article>
           )}
         </div>
       </div>

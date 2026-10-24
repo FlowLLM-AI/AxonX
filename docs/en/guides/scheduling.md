@@ -1,132 +1,49 @@
-# Scheduled Job execution
+# Scheduled Task execution
 
-Scheduler triggers configured Jobs according to Cron and time zones, passing fixed arguments. The default `schedules` is empty, so no scheduled research runs in the background. Scheduling concurrency policies constrain the called Job's lifecycle; Tasks that continue running after submission require separate control.
+Start the service with a named crontab or an explicit `.cron` file:
 
-For scheduled Tasks, use `job: submit` and set `arguments.task` to the registered Task name. Put fixed Task parameters in `arguments`; a dedicated submission Job is unnecessary.
+```bash
+axonx start --config default --cron research
+axonx start --config default --cron ./research.cron
+```
 
-![Boundary between Cron and background Tasks](../../figures/guides/scheduling.svg)
+`research` resolves to `axonx/cron/research.cron`, a commented template. Copy it to your own file and enable the entries you need. Omitting `--cron` leaves scheduling disabled unless `cron` is set in the application configuration.
 
-## Minimal configuration
+## Crontab format
 
-The following calls the version Job hourly, making it suitable for checking scheduling configuration without external side effects:
+```text
+# minute hour day-of-month month day-of-week command
+0 16 * * 1-5 axonx exec --task download_tushare_task --days-back 7
+*/10 * * * * axonx exec --task demo --task-name cron-demo --x 1 --y 2
+```
+
+Each entry has five numeric cron fields followed by `axonx exec --task NAME` and paired Task options. Numeric values, `*`, lists, ranges and steps are supported. Blank lines and whole-line `#` comments are ignored. Quote values containing spaces or Task IDs such as `'etl#data#daily'`; `#` inside a command is preserved. Inline comments, environment assignments, user columns, macros, seconds fields and named months/weekdays are unsupported.
+
+Commands run locally under the daemon with its Python interpreter, startup working directory, configured environment, absolute workspace/log paths and application timezone. Plugins must be installed in that environment. There is no shell: pipes, redirects, chained commands and client options such as `--target` are rejected. Shell variables, command substitutions and `~` in argument values remain literal; cron does not expand them.
+
+The complete file is validated and read once during startup. Edit it and restart the service to apply changes. Scheduled commands may overlap. Failed launches are logged without retry; downtime does not replay missed slots. Service shutdown stops future triggers while already started exec processes continue. Same-name Task executions are not serialized; use schedules and Task names that avoid concurrent writes to the same Task directory.
+
+## Lookup and configuration
 
 ```yaml
 extends: default
-schedules:
-  hourly_version:
-    backend: cron
-    description: Check the service version every hour.
-    job: version
-    cron: "0 * * * *"
-    timezone: Asia/Shanghai
-    arguments: {}
-    concurrency_policy: forbid
+cron: ./research.cron
+timezone: Asia/Shanghai
 ```
 
-```bash
-axonx start --config scheduled.yaml
+`--cron` overrides `cron` in YAML. Config and cron share name/path discovery, while their parsing stays separate. Built-in names come from `axonx/cron/`; installed packages can contribute names through `axonx.crons` entry points. Name collisions are rejected. Relative `.cron` paths are tried against the startup directory, then `axonx/cron/`. Cron files do not support YAML inheritance, merging or inline content.
+
+Package contribution example:
+
+```toml
+[project.entry-points."axonx.crons"]
+research_team = "my_plugin.crons:research"
 ```
 
-Save the configuration as scheduled.yaml before running the command. Scheduler starts in the same Application as the service; no separate scheduler process deployment is required.
+Include `research.cron` as package data in `my_plugin/crons/`. Alternatively, the entry point may expose an attribute or callable returning a `.cron` path.
 
-Startup checks that the Job exists and validates arguments against its Schema. Invalid Cron, unknown time zones, unknown Jobs, or incorrect parameters prevent normal startup; waiting until the trigger time cannot resolve them.
+## Observation
 
-## Cron and time zones
+Inspect execution state, logs and outputs in the ordinary Task list using Task/Run IDs. Cron has no query Job or Studio page.
 
-| Example        | Intent                 |
-| -------------- | ---------------------- |
-| `* * * * *`    | Every minute           |
-| `0 * * * *`    | Every hour on the hour |
-| `0 18 * * 1-5` | Weekdays at 18:00      |
-| `30 2 * * *`   | Daily at 02:30         |
-
-The default scheduling time zone uses the Application's timezone, which defaults to Asia/Shanghai; each schedule can override it.
-
-The implementation uses croniter to calculate the next time. This is not a trading calendar, and weekday expressions cannot exclude holidays or market closures. Data download, training, and backtesting must independently verify the required trading-day ranges.
-
-The service must remain running until the trigger time. The current loop calculates the next execution; it has no persistent queue to replay historical missed triggers and does not guarantee automatic compensation for schedules missed during downtime.
-
-## Pass Job arguments
-
-```yaml
-schedules:
-  daily_demo:
-    backend: cron
-    job: submit
-    cron: "0 18 * * 1-5"
-    arguments:
-      task: demo
-      x: 1
-      y: 2
-    concurrency_policy: forbid
-```
-
-Omitting task_name generates a distinct Task ID each time, retaining multiple results. A fixed name replaces the same-name directory after a terminal state; if the task is still active, the next submission fails.
-
-The outer Schema of `submit` permits passthrough parameters, but specific Task fields are still validated by input_cls; successful scheduler startup does not mean every plugin's runtime prerequisites are satisfied.
-
-## Concurrency policies
-
-| Policy  | When the previous Job is still running                                  |
-| ------- | ----------------------------------------------------------------------- |
-| forbid  | Skip the new trigger and log it; default                                |
-| allow   | Execute the new Job concurrently                                        |
-| replace | Cancel the old Job call, wait for cancellation, then trigger a new call |
-
-For example, submit returns a TaskHandle almost immediately, while a training worker can continue for hours. In this case, forbid sees the submit Job has ended, and the next trigger still submits a new training Task.
-
-replace cancels the asyncio Job call; it should not be interpreted as cancelling all workers that call previously started. To constrain overlapping research, write a custom Job that queries target task status, retains run_id, and waits for a terminal state, or explicitly rejects overlapping research before submission.
-
-## Schedule internal Jobs
-
-Task synchronization commonly sets sync_flush to `enable_serve: false` so it is called only by scheduling through the internal Dispatcher:
-
-```yaml
-schedules:
-  workspace_sync:
-    backend: cron
-    job: sync_flush
-    cron: "* * * * *"
-    concurrency_policy: forbid
-```
-
-This fragment requires the sync component and sync_flush Job to be configured first as described in [Task synchronization](task-sync.md); it is not a complete standalone configuration. Scheduling targets do not need exposure as public HTTP Jobs.
-
-## Run checks and shutdown
-
-Inspect service logs for skipped triggers, exceptions, and Job failures. Scheduler checks response.success and logs a warning for business failures; failure does not automatically create a compensating rerun.
-
-For submit schedules, separately check Task status and logs to confirm research completion. External notification Jobs also need consideration of duplicate sends and failure retry semantics; simply applying a daily Cron does not establish a reliable notification workflow.
-
-Closing Application stops the scheduling loop and cancels Jobs still executing. TaskManager handles worker shutdown through its own lifecycle; see [Deployment](deployment.md).
-
-[Task management](task-management.md) · [Task synchronization](task-sync.md) · [Configuration reference](../reference/configuration.md) · [Jobs and Tasks](../concepts/jobs-and-tasks.md)
-
-Source: [CronScheduler](../../../axonx/components/scheduler/cron.py), [ScheduleConfig](../../../axonx/config/models.py).
-
-## Task center and execution provenance
-
-Studio’s Task center displays all Tasks in a single list grouped by Task identity, regardless of scheduled or manual origin. Search, status and type filters, and group actions apply to all Tasks. Schedule configuration and Job trigger history remain available on the corresponding daily operations pages.
-
-`list_schedules` returns schedule configuration and current trigger status. A successful `submit` Job trigger means the Task was accepted, not completed. Trigger history is persisted and restored on restart; interrupted running triggers become cancelled.
-
-| Option            | Default | Meaning                                                              |
-| ----------------- | ------- | -------------------------------------------------------------------- |
-| `name`            | Omitted | Exact schedule name; omitted means all configured schedules          |
-| `include_history` | `false` | Include recent trigger history and the latest Job result             |
-| `history_limit`   | `20`    | Return the newest 1–200 records per schedule, in chronological order |
-
-The default response omits `history` and the latest trigger's `result`. When history is requested, `history_total` reports the retained count before slicing. `history_scheduler_ids` lists service identities in retained records for the current Job; Task grouping does not depend on which triggers fit in the visible window. Storage retention is independent of the query limit.
-
-Studio queries only schedules on the current page, requests up to 200 records per schedule, and marks a partial history window. Older retained triggers outside that window are not listed; their Task provenance remains valid.
-
-Task metadata and list summaries include framework-owned `source`: `kind` identifies `submit`, direct `exec`, or unknown provenance; optional `schedule` contains the schedule name, Job, trigger ID, and trigger time. Workers and composite children retain the same trigger attribution. This metadata does not enter plugin inputs or Task identity. Explicit user, API, and Agent submissions share the `submit` source; those callers are not inferred from Task names.
-
-A fixed-name Task still retains only its current Run. Grouping by schedule does not add historical Runs. Display replicas retain the producer's provenance, but do not become locally managed workers.
-
-Queued or running schedule-origin Tasks owned by the selected service block **service updates and restarts**, including requests with `force=true`. Finished Tasks, untriggered schedules, and foreign workers do not impose this restriction. Task cancellation, deletion, and submission retain their existing behavior. See [Service self-update](self-update.md).
-
-```bash
-axonx list_schedules --target node-b:1024
-axonx list_schedules --name daily --include-history true --history-limit 10 --target node-b:1024
-```
+The cron worker only sends trigger requests; the daemon creates and reaps exec children. Each cron line appends command stdout/stderr to `<log_dir>/cron/line-N.log`. Task metadata and normal Run logs are written by exec. Cron does not persist a second execution history or manage Task processes. The old `schedules` mapping, scheduler component backends and Job scheduling are removed without compatibility.

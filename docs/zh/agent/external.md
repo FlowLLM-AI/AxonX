@@ -47,7 +47,7 @@ axonx get_task_definition --task demo --target 192.0.2.10:1024
 ## 完成一次执行与证据检查
 
 ```bash
-axonx submit --task demo --x 2 --y 3 --target 192.0.2.10:1024
+axonx exec --task demo --x 2 --y 3 --target 192.0.2.10:1024
 ```
 
 保存响应中的实际 `answer.task_id` 与 `answer.run_id`，检查 `success`，再等待本次运行：

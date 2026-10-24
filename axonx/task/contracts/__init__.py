@@ -3,7 +3,6 @@
 from ..core import BaseInputParams
 from ..core.clock import DeadlineBudget, WindowClock
 from ..schemas.artifact import ArtifactRecord
-from ..schemas.lifecycle import TaskHandle
 from ..schemas.online import OnlineCommit, OnlineHistory
 from ..schemas.reports import (
     BacktestBenchmark,
@@ -56,7 +55,6 @@ __all__ = [
     "BaseTrainTask",
     "BaseInputParams",
     "WindowInputParams",
-    "TaskHandle",
     "TrainingCurve",
     "DeadlineBudget",
     "ExecutionWindow",

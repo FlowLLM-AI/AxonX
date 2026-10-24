@@ -59,24 +59,25 @@ axonx plugin install -e ./plugins/qlib_a158
 axonx plugin inspect ./plugins/qlib_a158
 ```
 
-Editable installation is for local source development in the current Python environment and cannot use `--target` or `--output`. Restart persistent services after Python source changes; reinstall after dependency or entry-point metadata changes.
+Editable installation requires source in the selected Python environment and cannot use `--output`; with `--target`, the source directory belongs to that machine. Restart persistent services after Python source changes; reinstall after dependency or entry-point metadata changes.
 
 The local CLI environment may differ from the remote service environment. For remote deployment, configure the target service token and specify the target explicitly:
 
 ```bash
 export AXONX_TARGET_TOKEN='<service token>'
-axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-Task-only wheel updates through the remote installation Job refresh subsequent Task queries and submissions without restarting. Restart when `restart_required` is true, then query Task definitions to verify the fields. Direct `pip install` and editable source changes require a service restart. Use compatible AxonX core and plugin versions, following the plugin package requirements. See [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management).
+Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task/Run IDs and stop on installation or verification failures. [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management)
 
 ## Prepare data
 
 Configure `AXONX_TUSHARE_TOKEN` in the execution service environment and use the built-in `download_tushare_task` to prepare Tushare Parquet data. The default ETL input is `tushare/` inside the workspace, rather than the current shell directory.
 
 ```bash
-axonx submit --task download_tushare_task \
+axonx exec --task download_tushare_task \
   --start-date 20140101 --end-date 20261008 \
   --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 ```
@@ -114,19 +115,19 @@ ETL reads the preceding market dates required by its longest rolling window. Ear
 Factor analysis branches from ETL and is not a prerequisite for training. Submit in the following order, use the actual returned Task IDs, and wait for each stage to succeed before submitting its downstream stage.
 
 ```bash
-axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20261008
+axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 
 # After ETL succeeds
-axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'
-axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>' \
+axonx exec --task qlib_a158_factor --source-tasks '<etl_task_id>'
+axonx exec --task qlib_a158_train --source-tasks '<etl_task_id>' \
   --train-start 20150101 --train-end 20230101
 
 # After training succeeds
-axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>' \
+axonx exec --task qlib_a158_predict --source-tasks '<train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
 # After prediction succeeds
-axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
   --top-ns '[5,10,20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 

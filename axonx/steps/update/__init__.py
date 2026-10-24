@@ -12,7 +12,7 @@ class UpdateStep(BaseStep):
     mode: str
 
     async def execute(self):
-        self.response.answer = await self.updater.request(self.mode, self.context.get("force", False))
+        self.response.answer = await self.updater.request(self.mode)
 
     @property
     def updater(self):
@@ -21,7 +21,7 @@ class UpdateStep(BaseStep):
 
 @provider("update_from_git_step")
 class UpdateFromGitStep(UpdateStep):
-    """Discard source changes and update to origin/main."""
+    """Fast-forward the current source branch and rebuild the application."""
 
     mode = "git"
 
@@ -35,7 +35,7 @@ class UpdateFromPipStep(UpdateStep):
 
 @provider("restart_service_step")
 class RestartServiceStep(UpdateStep):
-    """Restart using the original arguments without changing installed files."""
+    """Replace HTTP and cron workers without interrupting scheduled Tasks."""
 
     mode = "restart"
 
@@ -47,5 +47,4 @@ class GetUpdateStatusStep(UpdateStep):
     async def execute(self):
         self.response.answer = {
             **self.updater.status(self.context.get("update_id")),
-            "restart_blockers": await self.updater.restart_blockers(),
         }

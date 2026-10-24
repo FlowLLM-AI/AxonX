@@ -394,26 +394,6 @@ export type ResultEvent = {
   kind: "result";
 };
 
-export type ScheduleRun = {
-  name: string;
-  job: string;
-  trigger_id: string;
-  triggered_at: string;
-  scheduler_id: string | null;
-  state: TaskState;
-  error: string;
-  finished_at: string | null;
-  result: unknown;
-};
-
-export type ScheduleTrigger = {
-  name: string;
-  job: string;
-  trigger_id: string;
-  triggered_at: string;
-  scheduler_id: string | null;
-};
-
 export type StagedFile = {
   path: string;
   size: number;
@@ -471,9 +451,8 @@ export type StructuredPreview = {
 
 export type StudioPage = {
   title: Record<string, string>;
-  view: "schedules" | "tasks" | "pipeline";
-  schedules: Array<string>;
-  category: TaskCategory | null;
+  view: "tasks" | "pipeline";
+  category: TaskCategory;
   id: string;
 };
 
@@ -513,12 +492,6 @@ export type TaskGraphNode = {
   provisional: boolean;
 };
 
-export type TaskHandle = {
-  task_id: string;
-  run_id: string;
-  task: string;
-};
-
 export type TaskMetadata = {
   task_id: string;
   run_id: string;
@@ -547,8 +520,7 @@ export type TaskMetadata = {
 };
 
 export type TaskSource = {
-  kind: "submit" | "exec" | "unknown";
-  schedule: ScheduleTrigger | null;
+  kind: "exec" | "unknown";
 };
 
 export type TaskState =
@@ -605,7 +577,6 @@ export type TaskSummary = {
   is_online: boolean;
   is_replica: boolean;
   step_progress: StepProgress | null;
-  managed_run_id: string | null;
 };
 
 export type TaskType =
@@ -618,34 +589,6 @@ export type TaskType =
   | "predict"
   | "inference"
   | "backtest";
-
-export type TaskView = {
-  task_id: string;
-  run_id: string;
-  task_type: TaskType;
-  reg_name: string;
-  source: TaskSource;
-  parent_run_id: string | null;
-  category: TaskCategory | null;
-  report_kind: string | null;
-  state: TaskState;
-  pid: number | null;
-  machine_id: string | null;
-  process_started_at: string | null;
-  created_at: string | null;
-  started_at: string | null;
-  finished_at: string | null;
-  error: string;
-  exit_code: number;
-  log_path: string;
-  version: 1;
-  input_params: Record<string, unknown>;
-  output_params: Record<string, unknown>;
-  children: Array<ChildTaskRecord>;
-  steps: Array<TaskStepStatus>;
-  replica: DisplayReplica | null;
-  managed_run_id: string | null;
-};
 
 export type TextPreview = {
   kind: "text";

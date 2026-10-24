@@ -37,7 +37,7 @@
       <text x="754.0" y="441" text-anchor="start" font-size="23.0" font-weight="600">environment</text>
       <text x="754.0" y="475" text-anchor="start" font-size="18">Distribution and</text>
       <text x="754.0" y="503" text-anchor="start" font-size="18">dependencies</text>
-      <text x="409.0" y="450" text-anchor="start" font-size="18">Check restart_required</text>
+      <text x="409.0" y="450" text-anchor="start" font-size="18">Reload when needed</text>
       <text x="409.0" y="478" text-anchor="start" font-size="18">Verify live definitions</text>
     </g>
     <path d="M 44 552 H 996" fill="none" stroke="#143252" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />

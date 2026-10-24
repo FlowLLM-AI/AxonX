@@ -28,8 +28,12 @@ class JobDispatcher:
         arguments: Mapping[str, Any] | None,
         system: Mapping[str, Any] | None,
     ) -> tuple[BaseJob, dict[str, Any], dict[str, Any]]:
-        if self._context.metadata.get("maintenance") and name not in {"get_update_status", "version"}:
-            raise ValueError("Service is in maintenance for self-update")
+        if self._context.metadata.get("maintenance"):
+            allowed = {"get_update_status", "version"}
+            argv = (arguments or {}).get("argv")
+            cli_query = name == "cli" and isinstance(argv, list) and argv and argv[0] in allowed
+            if name not in allowed and not cli_query:
+                raise ValueError("Service is in maintenance for self-update")
         job = self._context.jobs.get(name)
         if job is None:
             raise ValueError(f"Unknown job: {name!r}")

@@ -21,14 +21,12 @@ axonx start --service.host 0.0.0.0 --service.port 1024
 export AXONX_TARGET_TOKEN='<目标服务 token>'
 axonx version --target 'http://research.example:1024'
 axonx get_task_definition --task demo --target 'http://research.example:1024'
-axonx submit --task demo --x 1 --y 2 --target 'http://research.example:1024'
+axonx exec --task demo --x 1 --y 2 --target 'http://research.example:1024'
 ```
 
 这里的域名为占位示例，需要替换。CLI 直接连接目标，不要求先启动本机 AxonX 服务，也不要求将它加入本机 targets。
 
 当显式指定 `--target` 时，CLI 默认从 `AXONX_TARGET_TOKEN` 读取凭据；未指定时默认连接本机服务，读取 `AXONX_SERVICE_TOKEN`。`--token` 可覆盖环境来源。
-
-等待、查状态和读日志时必须继续选择同一目标。TaskHandle 没有把远程地址变成自动路由信息，应在脚本或实验记录里同时保留目标地址。
 
 ## Studio 后端转发
 
@@ -97,10 +95,10 @@ Studio 的 Machine resources 页面把同一类返回值展示为 CPU、内存�
 
 ```bash
 axonx plugin list --target 'http://research.example:1024'
-axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
+axonx plugin install /srv/axonx/./plugins/qlib_a158 --target 'http://research.example:1024'
 ```
 
-仅贡献 Task 的 wheel 更新后，后续 Task 查询与提交无需重启。仅在返回 restart_required=true 时重启目标服务，再核对 Task 定义。远程 worker 运行该环境中的代码，source_tasks 也只定位目标工作区内目录。
+安装只修改选定 Python 环境，不刷新服务已加载模块，也不追踪待重启状态。新的 CLI 进程加载已安装环境；需要重新加载 Task schema、Component 或 Job 时重启常驻服务。已有进程不提供版本隔离，插件环境修改不再串行协调。
 
 需要复用本机上游产物时，应先传输需要的任务快照或按部署方式复制数据。原始数据、Agent 会话和模型环境不随远程调用迁移。
 

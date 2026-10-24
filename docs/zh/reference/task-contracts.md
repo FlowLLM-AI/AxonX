@@ -51,11 +51,7 @@ TaskContext 是 frozen dataclass，附着在 Task 上，提供运行时拥有的
 
 插件应读取这些值，不修改运行身份。`task.task_dir` 是 `<workspace>/<type>/<task_id>`；`source_task_dir(id)` 定位同工作区的上游目录。
 
-## TaskDefinition 与 TaskHandle
-
 TaskDefinition 描述可执行定义，字段为 name、source（native/plugin）、plugin（可空）、task_type、description、input_schema、output_schema。description 来自 Task 类的 docstring；缺少或仅含空白时返回空字符串，不阻塞当前 Task 或任务列表。
-
-TaskHandle 是 submit 返回的 immutable dataclass：
 
 ```json
 {
@@ -69,7 +65,7 @@ TaskHandle 是 submit 返回的 immutable dataclass：
 
 ## TaskMetadata
 
-`metadata.json` 是从受理到成功、失败或取消的唯一生命周期记录，状态查询返回相同结构。Runner 更新同一个内存记录并原子替换文件；复合 Task 通过该 Runner 发布子调用快照。worker 停止后，管理器读取最新记录，只收敛 Run ID 与 PID 匹配的执行。普通文本日志仍独立保存。
+metadata.json 是 Task 自行发布的生命周期记录，包含参数、进度、子任务与结果。Runner 原子替换文件；观察服务不回写状态。普通文本日志独立保存。
 
 | 字段                                      | 含义                                                      |
 | ----------------------------------------- | --------------------------------------------------------- |
@@ -158,7 +154,7 @@ events.jsonl 是追加进度记录；普通日志在 log_path。写入端先记�
 
 [Job 与 Task](../concepts/jobs-and-tasks.md) · [Task API](../api/tasks.md) · [研究产物协议](research-artifacts.md)
 
-源码：[输入输出](../../../axonx/task/core/params.py)、[Context](../../../axonx/task/core/context.py)、[定义](../../../axonx/task/catalog/resolver.py)、[Handle](../../../axonx/task/contracts/submission.py)、[状态](../../../axonx/task/storage/workspace.py)、[Metadata](../../../axonx/task/storage/workspace.py)。
+源码：[输入输出](../../../axonx/task/core/params.py)、[Context](../../../axonx/task/core/context.py)、[定义](../../../axonx/task/catalog/resolver.py)、[状态](../../../axonx/task/storage/workspace.py)、[Metadata](../../../axonx/task/storage/workspace.py)。
 
 ## 展示副本
 

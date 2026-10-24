@@ -21,7 +21,7 @@ AxonX 用 `source_tasks` 记录某个任务引用了哪些上游 Task。血缘�
 
 ```bash
 axonx get_task_definition --task '<已安装的预测 Task 注册名>'
-axonx submit --task '<已安装的预测 Task 注册名>' \
+axonx exec --task '<已安装的预测 Task 注册名>' \
   --task-name prediction-01 \
   --source-tasks 'etl#my-etl#dataset-01,train#my-train#model-01'
 ```

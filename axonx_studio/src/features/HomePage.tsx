@@ -38,7 +38,7 @@ const harnessFeatures = [
 export default function HomePage({
   onNavigate,
 }: {
-  onNavigate: (page: "submit" | "tasks" | SectionId) => void;
+  onNavigate: (page: "task-defs" | "tasks" | SectionId) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -105,9 +105,9 @@ export default function HomePage({
                 <ArrowRight aria-hidden="true" />
               </button>
               <div className="hero-task-actions">
-                <button onClick={() => onNavigate("submit")}>
+                <button onClick={() => onNavigate("task-defs")}>
                   <Send aria-hidden="true" />
-                  {t("home.submitTask")}
+                  {t("home.browseTasks")}
                 </button>
                 <button onClick={() => onNavigate("tasks")}>
                   <Activity aria-hidden="true" />

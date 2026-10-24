@@ -30,7 +30,7 @@ axonx help --target node-b:1024
 axonx help --job python --target node-b:1024
 ```
 
-`help` 默认设置 `requires_auth=false`，因此服务未配置 token 时仍可发现；`diagnose` 保持默认的认证要求。服务配置 token 后，包含 help 在内的所有 HTTP/MCP 调用仍须提供该 token。它也是普通 HTTP/MCP Job。CLI `--target` 选择服务，不属于 help 的业务参数。离线语法说明使用 `axonx --help`。
+`help` 默认设置 `requires_auth=false`，因此服务未配置 token 时仍可发现；`diagnose` 保持默认的认证要求。服务配置 token 后，包含 help 在内的所有 HTTP/MCP 调用仍须提供该 token。它也是普通 HTTP/MCP Job。CLI `--target` 选择服务，不属于 help 的业务参数。离线语法说明使用 `axonx`。
 
 ## diagnose
 
@@ -40,7 +40,7 @@ axonx help --job python --target node-b:1024
 - `python`：解释器 `version` 和 `executable`；`platform` 和 `cwd`：服务操作系统与工作目录。
 - `workspace`：解析后的 `path`、`exists` 和 `disk`（`path`、`total_bytes`、`used_bytes`、`free_bytes`）。workspace 不存在时使用最近已存在的祖先目录统计磁盘，不创建目录。
 - `plugins`：已安装 distribution/version、插件名、可用时的内容与 wheel SHA-256、发现错误。这不保证所有代码都已加载。
-- `restart_required`：插件/依赖变更后是否需要重启；`service_auth_enabled`：服务是否配置 token。
+- `service_auth_enabled`：服务是否配置 token。
 - `credentials_configured`：服务进程环境中 `AXONX_SERVICE_TOKEN`、`AXONX_TARGET_TOKEN`、`AXONX_TUSHARE_TOKEN` 是否配置的布尔值。不返回凭据值；已配置不代表凭据有效。
 
 插件发现错误保留在 `plugins` 中，不会将已完成的诊断查询变为 Task 失败。文件系统或资源检查失败时，Job 返回失败，不伪造测量结果。此 Job 不安装包或重启服务。
@@ -236,3 +236,5 @@ Python 的非零退出与超时都是正常协议返回的业务失败。请求 
 - [事件协议](events.md)
 
 实现依据：`axonx/config/default.yaml`、`axonx/steps/machine/` 与 `axonx/components/service/http/jobs.py`。
+
+带 `--target` 的 CLI 调用使用经过认证的远端 `cli` Job。安装不刷新服务已加载对象，诊断也不追踪待重启状态。

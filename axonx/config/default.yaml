@@ -19,12 +19,6 @@ components:
       backend: local
       poll_interval: 1
 
-  task_manager:
-    default:
-      backend: local
-      task_repository: default
-      terminate_grace_seconds: 5
-
   # =========== Agent components ===========
   agent:
     default:
@@ -103,6 +97,20 @@ service:
   token: ${AXONX_SERVICE_TOKEN:-null}
 
 jobs:
+  cli:
+    description: Run an AxonX CLI command in a child process on this service machine. Paths belong to this machine; start and nested remote forwarding are not supported.
+    parameters:
+      type: object
+      properties:
+        argv:
+          type: array
+          minItems: 1
+          items: { type: string }
+      required: [argv]
+      additionalProperties: false
+    steps:
+      - backend: cli_step
+
   # =========== System jobs ===========
   help:
     description: List public Jobs on this service, or inspect one Job's input and output schemas. CLI connection options such as --target are separate from Job parameters.
@@ -133,17 +141,11 @@ jobs:
       - backend: version_step
 
   update_from_git:
-    description: Discard source changes, update the startup repository to origin/main, build and restart.
+    description: Fast-forward the current source branch, build Studio and restart HTTP/cron workers.
     requires_auth: true
     parameters:
       type: object
-      properties:
-        force:
-          {
-            type: boolean,
-            default: false,
-            description: Cancel active managed Runs before updating.,
-          }
+      properties: {}
       additionalProperties: false
     steps:
       - backend: update_from_git_step
@@ -153,29 +155,17 @@ jobs:
     requires_auth: true
     parameters:
       type: object
-      properties:
-        force:
-          {
-            type: boolean,
-            default: false,
-            description: Cancel active managed Runs before updating.,
-          }
+      properties: {}
       additionalProperties: false
     steps:
       - backend: update_from_pip_step
 
   restart_service:
-    description: Restart from disk with the original startup arguments, without updating, building or installing.
+    description: Restart HTTP and cron workers with the original arguments; existing scheduled Tasks continue.
     requires_auth: true
     parameters:
       type: object
-      properties:
-        force:
-          {
-            type: boolean,
-            default: false,
-            description: Cancel active managed Runs before restarting.,
-          }
+      properties: {}
       additionalProperties: false
     steps:
       - backend: restart_service_step
@@ -218,11 +208,11 @@ jobs:
         path:
           type: string
           minLength: 1
-          description: Workspace-relative path returned by POST /files.
+          description: Workspace-relative path returned by POST /upload.
         sha256:
           type: string
           pattern: "^[0-9a-fA-F]{64}$"
-          description: SHA-256 returned by POST /files.
+          description: SHA-256 returned by POST /upload.
       required: [path, sha256]
       additionalProperties: false
     steps:
@@ -300,22 +290,8 @@ jobs:
     steps:
       - backend: get_task_definition
 
-  submit:
-    description: Submit a task for asynchronous execution.
-    parameters:
-      type: object
-      properties:
-        task:
-          type: string
-          description: Registered task name.
-      required:
-        - task
-      additionalProperties: true
-    steps:
-      - backend: submit_task
-
   wait_task:
-    description: Wait for one submitted Task run to finish.
+    description: Wait for one exact Task run to finish.
     parameters:
       type: object
       properties:
@@ -335,29 +311,6 @@ jobs:
       additionalProperties: false
     steps:
       - backend: list_studio_pages_step
-
-  list_schedules:
-    description: List schedule configuration and current status; history is opt-in.
-    parameters:
-      type: object
-      properties:
-        name:
-          type: string
-          minLength: 1
-          description: Exact schedule name; omit to list all schedules.
-        include_history:
-          type: boolean
-          default: false
-          description: Include recent trigger history and the latest Job result.
-        history_limit:
-          type: integer
-          minimum: 1
-          maximum: 200
-          default: 20
-          description: Maximum recent triggers per schedule, oldest first within the selected window.
-      additionalProperties: false
-    steps:
-      - backend: list_schedules_step
 
   list_task_ids:
     description: List Task IDs with a status file.
@@ -438,7 +391,7 @@ jobs:
       additionalProperties: false
     steps:
       - backend: get_task_context_step
-        task_manager: default
+        task_repository: default
 
   stream_task:
     description: Follow one Task, streaming its progress and log until it stops.
@@ -474,43 +427,6 @@ jobs:
     steps:
       - backend: get_task_graph_step
 
-  cancel:
-    description: Cancel an exact Run or a Task's current execution.
-    parameters:
-      type: object
-      properties:
-        task_id:
-          type: string
-          minLength: 1
-          description: Task whose current execution should be cancelled.
-        run_id:
-          type: string
-          minLength: 1
-          description: Exact Run ID returned by submission or status.
-      anyOf:
-        - required: [task_id]
-        - required: [run_id]
-    steps:
-      - backend: cancel
-
-  delete_tasks:
-    description: Delete terminal Tasks and their files.
-    parameters:
-      type: object
-      properties:
-        task_ids:
-          type: array
-          description: IDs of terminal tasks to delete.
-          items:
-            type: string
-          minItems: 1
-          uniqueItems: true
-      required:
-        - task_ids
-    steps:
-      - backend: delete
-
-  # =========== Workspace jobs ===========
   list_entries:
     description: List one directory inside the configured workspace.
     parameters:
@@ -802,40 +718,3 @@ studio:
       title: { en: Data updates, zh: 数据更新 }
       view: tasks
       category: data_update
-    sync:
-      title: { en: Synchronization, zh: 同步 }
-      view: schedules
-
-schedules: {}
-# Replace schedules: {} with uncommented examples to enable.
-# Weekdays include market holidays; forbid covers Job calls, not background Tasks.
-# schedules:
-#   workspace_sync:
-#     backend: cron
-#     description: Synchronize display artifacts with the configured destination.
-#     job: sync_flush
-#     cron: "* * * * *"
-#
-#   # Download at 16:00 on weekdays; requires AXONX_TUSHARE_TOKEN.
-#   download_tushare_at_1600:
-#     backend: cron
-#     description: Download recent Tushare market data after the weekday close.
-#     job: submit
-#     cron: "0 16 * * 1-5"
-#     arguments:
-#       task: download_tushare_task
-#       days_back: 7
-#       datasets: "static,stk_limit,daily,adj_factor,index_weight"
-#
-#   # Remind at 17:00 on weekdays; does not check download status.
-#   # Requires DINGTALK_CLIENT_ID, DINGTALK_CLIENT_SECRET and DINGTALK_CONVERSATIONS.
-#   send_dingtalk_at_1700:
-#     backend: cron
-#     description: Send the daily research reminder to DingTalk.
-#     job: submit
-#     cron: "0 17 * * 1-5"
-#     arguments:
-#       task: send_dingtalk_task
-#       title: "AxonX Daily Reminder"
-#       text: "Check today's Tushare download status and results."
-#       message_type: markdown

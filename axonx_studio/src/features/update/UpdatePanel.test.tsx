@@ -17,7 +17,6 @@ let catalog = true;
 let jobNames: string[];
 let submissionError = "";
 let acceptedMode: string | null;
-let restartBlockers: { task_id: string; run_id: string; schedule: string }[];
 const record = () => ({
   update_id: "a".repeat(32),
   phase,
@@ -36,7 +35,6 @@ beforeEach(() => {
   catalog = true;
   submissionError = "";
   acceptedMode = null;
-  restartBlockers = [];
   jobNames = [
     "update_from_git",
     "update_from_pip",
@@ -71,7 +69,6 @@ beforeEach(() => {
             ? {
                 record: acceptedMode ? record() : null,
                 log: "",
-                restart_blockers: restartBlockers,
               }
             : record();
       return new Response(JSON.stringify({ success: true, answer }));
@@ -98,13 +95,12 @@ it("targets the selected machine and reconnects without treating a disconnect as
     'input[type="checkbox"]',
   );
   await act(async () => checkboxes[0].click());
-  await act(async () => checkboxes[1].click());
   await act(async () => button.click());
   const submission = calls.find(
     (call) => call.url === "/jobs/update_from_git",
   )!;
   expect(submission.body).toEqual({
-    arguments: { force: true },
+    arguments: {},
     target: "http://remote:1024",
   });
   expect(container.textContent).toContain("update.phases.accepted");
@@ -157,22 +153,21 @@ it("restarts the selected service without submitting an update and reports resta
   const button = container.querySelector<HTMLButtonElement>(
     "button:not([role=combobox])",
   )!;
-  await act(async () => checkboxes[1].click());
   await act(async () => {
     select.value = "restart";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
   expect(button.disabled).toBe(true);
-  expect(checkboxes[1].checked).toBe(false);
+  expect(checkboxes[0].checked).toBe(false);
   expect(container.textContent).toContain("update.restartHint");
   expect(container.textContent).toContain("update.restartConfirm");
   expect(button.textContent).toContain("update.startRestart");
-  await act(async () => checkboxes[1].click());
+  await act(async () => checkboxes[0].click());
   await act(async () => button.click());
   expect(
     calls.find((call) => call.url === "/jobs/restart_service")!.body,
   ).toEqual({
-    arguments: { force: false },
+    arguments: {},
     target: "http://remote:1025",
   });
   expect(calls.some((call) => call.url.startsWith("/jobs/update_from_"))).toBe(
@@ -208,7 +203,7 @@ it("allows restarting services with no update Jobs", async () => {
   expect(select.value).toBe("restart");
   await act(async () =>
     container
-      .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[1]
+      .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]
       .click(),
   );
   await act(async () =>
@@ -242,7 +237,7 @@ it("reports rejected restart requests and keeps controls available for retry", a
   await act(async () => root.render(<UpdatePanel />));
   await act(async () =>
     container
-      .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[1]
+      .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]
       .click(),
   );
   await act(async () =>
@@ -260,60 +255,20 @@ it("reports rejected restart requests and keeps controls available for retry", a
   expect(container.textContent).not.toContain("update.restartPhases.accepted");
 });
 
-it("blocks updates and restarts for scheduled Tasks even with force", async () => {
-  restartBlockers = [
-    { task_id: "base#demo#daily", run_id: "run", schedule: "daily" },
-  ];
-  await act(async () =>
-    root.render(<UpdatePanel target="http://remote:1024" />),
-  );
-  const button = container.querySelector<HTMLButtonElement>(
-    "button:not([role=combobox])",
-  )!;
-  const checkboxes = container.querySelectorAll<HTMLInputElement>(
-    'input[type="checkbox"]',
-  );
-  await act(async () => checkboxes[0].click());
-  await act(async () => checkboxes[1].click());
-  expect(button.disabled).toBe(true);
-  expect(container.textContent).toContain("update.scheduledBlocked");
-  expect(container.textContent).toContain("base#demo#daily");
-  const select = container.querySelector("select")!;
-  await act(async () => {
-    select.value = "restart";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-  await act(async () => checkboxes[1].click());
-  expect(button.disabled).toBe(true);
-  await act(async () => button.click());
-  expect(calls.some((call) => call.url === "/jobs/restart_service")).toBe(
-    false,
-  );
-  restartBlockers = [];
-  await act(async () => vi.advanceTimersByTimeAsync(60000));
-  expect(container.textContent).not.toContain("update.scheduledBlocked");
-  expect(button.disabled).toBe(false);
-});
-
 it("resets state and consent when switching machines", async () => {
-  restartBlockers = [
-    { task_id: "base#demo#daily", run_id: "run", schedule: "daily" },
-  ];
   await act(async () =>
     root.render(<UpdatePanel target="http://remote:1024" />),
   );
   await act(async () =>
     container
-      .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[1]
+      .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]
       .click(),
   );
-  restartBlockers = [];
   jobNames = ["restart_service", "get_update_status"];
   await act(async () =>
     root.render(<UpdatePanel target="http://remote:1025" />),
   );
   expect(container.querySelector("select")!.value).toBe("restart");
-  expect(container.textContent).not.toContain("update.scheduledBlocked");
   expect(
     container.querySelector<HTMLButtonElement>("button:not([role=combobox])")!
       .disabled,

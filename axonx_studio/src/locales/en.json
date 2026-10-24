@@ -9,7 +9,6 @@
     "filePreview": "File preview",
     "dataPreview": "Data preview",
     "apiCall": "API call",
-    "configureSubmit": "Configure & submit",
     "openSettings": "Open settings",
     "settings": "Settings",
     "expandNavigation": "Expand navigation",
@@ -27,7 +26,7 @@
       "tasks": "All tasks",
       "resources": "Machine resources",
       "agent": "Agent",
-      "taskDefs": "Submit task",
+      "taskDefs": "Task definitions",
       "apis": "API interfaces",
       "workspace": "Workspace",
       "etl": "ETL",
@@ -37,13 +36,12 @@
       "backtest": "Offline backtest",
       "compare": "Strategy comparison"
     },
-    "switchLanguageLabel": "中文"
+    "switchLanguageLabel": "中文",
+    "taskDefinitions": "Task definitions"
   },
-  "pages": {
-    "submit": "Submit Task"
-  },
+  "pages": {},
   "taskTitle": "Task operations",
-  "taskLead": "Follow every compute run from queue to output.",
+  "taskLead": "Inspect Task records, status, progress, and logs.",
   "refresh": "Refresh",
   "refreshNow": "Refresh now",
   "autoRefresh": "Auto refresh",
@@ -70,11 +68,9 @@
   },
   "details": "Details",
   "cancel": "Terminate Task",
-  "cancelling": "Terminating",
   "copyTaskId": "Copy Task ID",
   "copied": "Copied",
   "selectAll": "Select all deletable tasks",
-  "selectTask": "Select task {{taskId}}",
   "enableMultiSelect": "Select multiple",
   "finishSelection": "Done",
   "selectedCount": "{{count}} selected",
@@ -82,9 +78,8 @@
   "deleteHint": "Task directories, status, artifacts, and dedicated logs will be removed.",
   "confirmDelete": "Delete",
   "deleting": "Deleting",
-  "deletePartial": "Deleted {{deleted}}/{{total}} records; the rest may still be running or no longer exist",
   "noTasks": "No task runs yet",
-  "noTasksHint": "Submit a Task and its status will appear here automatically.",
+  "noTasksHint": "Run a Task with axonx exec to see its record here.",
   "noMatches": "No tasks match these filters",
   "requestFailed": "Unable to load task status",
   "staleHint": "Showing the last successfully loaded data.",
@@ -95,11 +90,7 @@
   "result": "Output",
   "error": "Error",
   "notStarted": "Not started",
-  "cancelConfirm": "Terminate this running Task?",
   "confirmCancel": "Terminate Task",
-  "cancelFailed": "Task termination failed: the process may have exited or is no longer managed by this service",
-  "submitTitle": "Launch a new task",
-  "submitLead": "Choose an installed Task, configure its inputs, and hand it to AxonX for isolated execution.",
   "taskCatalog": "INSTALLED TASKS",
   "tasksAvailable": "{{count}} available",
   "findTask": "Search installed Tasks",
@@ -111,10 +102,6 @@
   "optional": "Optional",
   "choose": "Choose an option",
   "jsonHint": "Enter valid JSON",
-  "submit": "Submit run",
-  "submitting": "Submitting",
-  "submitted": "Task handed to AxonX",
-  "submittedHint": "Its runtime status will appear in Task management after the worker starts.",
   "viewTasks": "View task status",
   "catalogFailed": "Unable to load installed Tasks",
   "noInstalled": "No installed Tasks found",
@@ -281,12 +268,6 @@
     "inference": "Inference",
     "backtest": "Backtest"
   },
-  "submitPage": {
-    "selectTask": "Select a Task",
-    "selectTaskHint": "Review its inputs and submit a run",
-    "submitAnother": "Submit another",
-    "loadingCatalog": "Loading Task catalog…"
-  },
   "schemaForm": {
     "sourceTasksPlaceholder": "Task IDs separated by commas (optional)"
   },
@@ -374,7 +355,6 @@
     "brandAria": "AxonX agent-native quantitative research harness",
     "brandTitle": "Turn research prompts into quantitative code and traceable experiments",
     "brandLead": "Unified tools and a runtime for Agents to develop plugins, execute experiments, and analyze results.",
-    "submitTask": "Submit",
     "manageTasks": "Manage Tasks",
     "capabilitiesAria": "Harness framework capabilities",
     "capabilitiesTitle": "Harness capabilities",
@@ -394,7 +374,7 @@
       },
       "experiment": {
         "title": "Run experiments",
-        "detail": "Install on the target service, submit and track Tasks"
+        "detail": "Install in the execution environment, run with exec and inspect Tasks"
       },
       "evidence": {
         "title": "Inspect the evidence",
@@ -416,7 +396,7 @@
       },
       "task": {
         "title": "Experiment task management",
-        "detail": "Inspect definitions, submit runs, follow logs, and cancel"
+        "detail": "Inspect Task definitions, records, progress and logs"
       },
       "machine": {
         "title": "Local and remote execution",
@@ -433,7 +413,8 @@
     },
     "openAgent": "Open Agent",
     "journey": "You define the question · Agent implements · Harness manages execution and evidence",
-    "agentNote": "Use an external Agent or Studio’s built-in Agent"
+    "agentNote": "Use an external Agent or Studio’s built-in Agent",
+    "browseTasks": "Browse Task definitions"
   },
   "workspace": {
     "folder": "Folder",
@@ -806,12 +787,11 @@
     "description": "Update AxonX and Studio, or restart the selected service from disk. The service will be temporarily unavailable.",
     "unavailable": "Update and restart are unavailable. The service needs operation/status Jobs and token authentication.",
     "method": "Operation",
-    "git": "Source repository · origin/main",
+    "git": "Source repository · current upstream",
     "pip": "Published packages · stable releases",
-    "gitHint": "Requires a source installation started inside its AxonX repository, Git and Node.js. Source changes and untracked source files will be discarded. Ignored files and runtime directories are retained.",
+    "gitHint": "Fast-forward the current branch with git pull --ff-only, build Studio and update the backend. Conflicting local changes are retained and cause failure.",
     "pipHint": "Upgrade axonx and axonx-studio in the service’s Python environment. Editable installations must use source updates.",
-    "force": "Cancel active managed Runs before updating or restarting",
-    "gitConfirm": "I agree to discard local source changes and restart this machine’s service.",
+    "gitConfirm": "I agree to update the source and restart this machine’s service and cron workers.",
     "pipConfirm": "I agree to update packages and restart this machine’s service.",
     "start": "Update and restart",
     "reconnecting": "Updating / restarting. Waiting for the service to reconnect…",
@@ -819,7 +799,6 @@
     "phases": {
       "accepted": "Update accepted",
       "fetching": "Fetching main",
-      "cleaning": "Replacing source",
       "building": "Building Studio",
       "installing": "Installing packages",
       "verifying": "Verifying installation",
@@ -836,8 +815,7 @@
       "starting": "Starting service",
       "succeeded": "Restart completed",
       "failed": "Restart failed"
-    },
-    "scheduledBlocked": "Active scheduled Tasks or Jobs on this service prevent maintenance."
+    }
   },
   "nightly": {
     "workflowLog": "Workflow log",
@@ -1022,46 +1000,12 @@
     "members": "{{count}} tasks",
     "latest": "Latest run",
     "name": "Task name",
-    "selectFiltered": "Select all filtered terminal tasks",
-    "selectGroup": "Select filtered terminal tasks in {{group}}",
     "range": "{{start}}–{{end}} of {{count}} tasks",
     "previous": "Previous task page",
     "next": "Next task page",
     "matching": "{{count}} / {{total}} tasks",
     "matchingTotal": "{{groups}} groups · {{count}} / {{total}} tasks",
-    "terminalCount": "{{count}} matching terminal tasks",
-    "selectMembers": "Select terminal tasks in this group",
-    "deleteMembers": "Delete terminal tasks in this group",
     "deleteConfirm": "Delete {{count}} terminal tasks in this group?"
-  },
-  "schedules": {
-    "tabs": {
-      "scheduled": "Scheduled tasks",
-      "other": "Other tasks"
-    },
-    "sources": {
-      "submit": "Submitted",
-      "exec": "Direct execution",
-      "unknown": "Unknown source"
-    },
-    "scheduledSource": "Schedule: {{name}}",
-    "removed": "Workspace tasks · not linked to this schedule instance",
-    "nextRun": "Next trigger",
-    "lastJob": "Last Job result",
-    "policy": "Job concurrency",
-    "runningJobs": "Active Jobs on this service: {{count}}",
-    "policies": {
-      "allow": "Allow overlap",
-      "forbid": "Skip overlap",
-      "replace": "Replace previous Job"
-    },
-    "noActiveTasks": "No queued or running Tasks.",
-    "history": "Finished Tasks · {{count}}",
-    "arguments": "Job arguments",
-    "emptyTitle": "No configured schedules",
-    "emptyHint": "Add schedules to the selected service configuration and restart it to load them.",
-    "total": "{{schedules}} schedules · {{count}} Tasks",
-    "search": "Search schedule, description, Task ID, type, or PID"
   },
   "quality": {
     "filesTab": "Files",
@@ -1174,87 +1118,20 @@
       "bar": "At {{time}}"
     }
   },
-  "taskOwnership": {
-    "managed": "Managed by this service",
-    "workspace": "Workspace record"
-  },
   "operations": {
-    "historyLimited": "Showing up to {{limit}} recent triggers per schedule; older retained records are omitted.",
-    "unsyncedItems": "Items not synced this round",
-    "jobName": "Job name",
-    "triggerId": "Execution ID",
-    "schedulerId": "Scheduler ID",
     "dataInterfaces": "Data interfaces",
     "dataResults": "Data results",
     "noInterfaces": "No interface records",
-    "activeJobs": "Active Jobs",
-    "configuration": "Schedule configuration",
-    "configurationShort": "Configuration",
-    "plan": {
-      "triggerFailed": "Last trigger failed",
-      "title": "Schedule plan",
-      "time": "Runs",
-      "weekdays": "Weekdays at {{time}}",
-      "daily": "Daily at {{time}}",
-      "custom": "Custom schedule",
-      "submissionHistory": "Scheduled submission history",
-      "conflict": "Submission rejected: a same-name active Task record existed at that time.",
-      "newerTask": "The current Task was created afterward.",
-      "states": {
-        "queued": "Submission queued",
-        "running": "Submitting",
-        "succeeded": "Submitted",
-        "failed": "Submission failed; see technical details",
-        "cancelled": "Submission cancelled"
-      }
-    },
-    "lastSubmission": "Last submission",
-    "lastSubmissionFailed": "Last submission failed",
     "runHistory": "OPERATIONS",
     "loadError": "Unable to load operations navigation",
     "unavailable": "This page is not configured on this service",
-    "search": "Search schedules or tasks",
-    "noTriggers": "No triggers yet",
-    "finished": "Finished",
-    "result": "Execution result",
-    "empty": "No matching tasks",
-    "metrics": {
-      "uploaded": "Uploaded",
-      "rejected": "Rejected",
-      "oversized": "Oversized",
-      "deferred": "Not synced this round",
-      "archives": "Archives",
-      "rows": "Rows",
-      "elapsed_seconds": "Elapsed seconds",
-      "attempted_count": "Total processed",
-      "created_count": "Created",
-      "changed_count": "Updated",
-      "unchanged_count": "Unchanged",
-      "rejected_count": "Failed",
-      "empty_count": "Empty data",
-      "selected_apis": "Data APIs"
-    },
+    "search": "Search tasks",
+    "empty": "No matching entries",
     "taskRun": "Task run",
-    "jobRun": "Job execution",
     "triggered": "Triggered",
     "noResult": "No execution result yet",
-    "nothingToSync": "Nothing to synchronize in this round",
-    "incompleteResult": "Some items remain incomplete or were rejected. Review the results below.",
-    "rawResult": "View raw result",
-    "items": "Items",
-    "technicalDetails": "Technical details",
     "step": "Task / step",
     "progress": "Progress",
-    "fields": {
-      "flow": "Update flow",
-      "start_date": "Start date",
-      "end_date": "End date",
-      "updated": "Updated date",
-      "error": "Error",
-      "error_type": "Error type",
-      "task": "Task type"
-    },
-    "lastExecution": "Latest execution",
     "dataUpdate": "Data updates"
   },
   "onlineWorkbench": {
@@ -1364,5 +1241,17 @@
     "fieldCount": "{{count}} differing fields",
     "noFieldDifferences": "No numeric or discrete field differences. Check schema and sample coverage above.",
     "rowsPair": "Online {{online}} / offline {{offline}} rows"
+  },
+  "taskDefinitionsTitle": "Task definitions",
+  "taskDefinitionsLead": "Browse installed Tasks and their input and output schemas.",
+  "taskDefinitions": {
+    "selectTask": "Select a Task",
+    "selectTaskHint": "Review its description and input and output schemas",
+    "loadingCatalog": "Loading Task catalog…"
+  },
+  "input": "Input",
+  "taskSources": {
+    "exec": "Direct execution",
+    "unknown": "Unknown source"
   }
 }

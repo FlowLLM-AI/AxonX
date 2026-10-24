@@ -10,7 +10,7 @@
 python -m venv .venv
 source .venv/bin/activate
 pip install axonx
-axonx --help
+axonx
 ```
 
 创建 `server.yaml`：
@@ -89,20 +89,14 @@ service.env 保存所需环境变量，应限制读取权限。macOS 可使用�
 
 内置 Uvicorn 服务没有 TLS 配置。可在 Caddy、Nginx 等外部入口终止 HTTPS，再代理到回环 HTTP 地址；客户端显式使用公开 HTTPS URL。
 
-代理应保留 Authorization、请求体和正确的路径；SSE 入口应允许长连接，并避免响应缓冲。MCP 与 `/files` 也需要到达同一后端，上传入口限制应符合实际制品大小需求。
-
-外部入口的超时、内置 shutdown_timeout、TaskManager 的 terminate_grace_seconds 和客户端 timeout 作用不同：分别控制代理等待、服务请求关闭、worker 停止宽限与调用等待。
+代理应保留 Authorization、请求体和正确的路径；SSE 入口应允许长连接，并避免响应缓冲。MCP 与 `/upload` 也需要到达同一后端，上传入口限制应符合实际制品大小需求。
 
 ## 更新与关闭
 
 配置、Job 和插件贡献在应用装配时加载。修改后应重启服务，核对 version、插件列表、Task Schema 与 Studio assets 是否同一版本。
 
-服务正常关闭会停止管理的 worker，并把相应运行记为 cancelled。重启不自动续跑这些研究任务。长训练升级前应先等待结束，或确认插件有可用的恢复方式。
-
-首次 Ctrl+C 或 SIGTERM 会阻止新 Task 提交，并在等待应用清理前向本服务跟踪的 worker 进程组发送 SIGTERM。正常清理保留资源关闭顺序并记录取消状态。`service.cleanup_timeout`（默认 15 秒）限制整个关闭过程，包括应用清理及 Python 线程池收尾；`shutdown_timeout` 仅限制 Uvicorn 请求收尾。再次 Ctrl+C 或总时限到期时，会向剩余受管 worker 进程组发送 SIGKILL，并以退出码 130 结束服务。强制退出可能留下未完成的生命周期记录，重启后需检查对应 Run。共享工作区的其他服务不会被终止。嵌入式 `Application.close()` 仍保留正常等待清理的语义。
+CLI start 启动稳定 daemon，以及独立的 HTTP、cron worker。更新暂停 cron，原地更新源码和环境，再替换两个 worker；已有 cron exec 子进程由 daemon 持有并继续运行，不自动重试。服务清理只停止请求绑定的 CLI 子进程及应用资源，不持有定时 Task。`service.cleanup_timeout` 限制 HTTP 应用清理及线程池收尾，嵌入式 `Application.close()` 保持正常等待清理。daemon 关闭与 OS 托管边界见 [服务更新](self-update.md)。
 
 迁移时先停止写入，复制工作区、日志与配置，恢复匹配插件环境，再核对历史记录与产物。不要只复制 Python 包而忽略实验文件。
 
 [鉴权](authentication.md) · [运维与恢复](operations.md) · [配置参考](../reference/configuration.md) · [插件管理](../plugins/management.md)
-
-源码：[HTTP 服务](../../../axonx/components/service/http/service.py)、[Studio 目录发现](../../../axonx/components/service/http/studio.py)、[TaskManager 关闭](../../../axonx/components/task_manager/local/manager.py)。

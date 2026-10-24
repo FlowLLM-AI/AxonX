@@ -37,15 +37,10 @@ components:
       timeout_seconds: 300
 jobs:
   sync_flush:
-    enable_serve: false
+    requires_auth: true
     steps:
       - backend: sync_flush_step
         sync: default
-schedules:
-  workspace_sync:
-    job: sync_flush
-    cron: "* * * * *"
-    concurrency_policy: forbid
 ```
 
 ## Reconciliation, retries and cleanup
@@ -58,7 +53,7 @@ A Task replica fits entirely in one archive. The receiver verifies the exact fil
 
 ## Continuous parent snapshots
 
-`live_task_ids` defaults to `[]`. Each flush captures parent metadata, step progress, current child Runs and published display artifacts as one group in one archive. No new timer or watcher is introduced: the existing flush schedule controls synchronization. Ordinary Tasks retain terminal-only behavior. Run identity changes or missing children defer the whole group until the next flush; unpublished working files are never copied.
+`live_task_ids` defaults to `[]`. Each flush captures parent metadata, step progress, current child Runs and published display artifacts as one group in one archive. Each `sync_flush` call controls synchronization; invoke it manually or from an external scheduler. Ordinary Tasks retain terminal-only behavior. Run identity changes or missing children defer the whole group until the next flush; unpublished working files are never copied.
 
 Live replicas omit input features, model weights, source/debug snapshots and mutable event journals. Activities and steps are already present in captured metadata. Both ordinary and live replicas include at most the latest 1 MiB of their own log, confined to the configured source log directory and reduced for small budgets. `replica.log` records retained start/end byte offsets; `read_task_log` uses original source offsets and resets when the requested bytes have expired. A changed log tail is resent as a bounded file; unchanged logs and output files are reused by file revision. This is file-level delta synchronization, not a byte-level append protocol. Full logs remain on the source under the normal retention policy.
 

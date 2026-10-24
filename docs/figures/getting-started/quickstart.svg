@@ -1,44 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1136" height="536" viewBox="0 0 1136 536" role="img" aria-labelledby="title desc">
-  <title id="title">Your First Task</title>
-  <desc id="desc">Submit a built-in Demo and verify its durable result.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
-    </marker>
-  </defs>
-  <rect x="8" y="8" width="1120.0" height="520.0" rx="30" fill="#f7f9fc" stroke="#172c49" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
-  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
-    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#172c49">
-      <text x="44" y="54" font-size="32" font-weight="700" text-anchor="start">Your First Task</text>
-      <text x="44" y="86" font-size="18" fill="#172c49" text-anchor="start">Submit a built-in Demo and verify its durable result.</text>
-      <path d="M260 199H294" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M518 199H552" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M776 199H810" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M410 257V269" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M668 257V269" fill="none" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <rect x="44" y="145" width="216" height="108" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="62" y="178" font-size="23" font-weight="700">1. Connect</text>
-      <text x="62" y="207" font-size="18">Start service + token</text>
-      <rect x="302" y="145" width="216" height="108" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="320" y="178" font-size="23" font-weight="700">2. Submit</text>
-      <text x="320" y="207" font-size="18">Demo: x = 2, y = 3</text>
-      <rect x="560" y="145" width="216" height="108" rx="20" fill="#e6f1ff" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="578" y="178" font-size="23" font-weight="700">3. Wait</text>
-      <text x="578" y="207" font-size="18">Task ID + Run ID</text>
-      <rect x="818" y="145" width="216" height="108" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="836" y="178" font-size="23" font-weight="700">4. Inspect</text>
-      <text x="836" y="207" font-size="18">Unified metadata</text>
-      <rect x="302" y="277" width="216" height="108" rx="20" fill="#eef2fa" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="320" y="310" font-size="23" font-weight="700">Task handle</text>
-      <text x="320" y="339" font-size="18">
-        <tspan x="320" dy="0">Accepted, not</tspan>
-        <tspan x="320" dy="28">completed</tspan>
-      </text>
-      <rect x="560" y="277" width="216" height="108" rx="20" fill="#e2f4f0" stroke="#b8c8df" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="578" y="310" font-size="23" font-weight="700">Final result</text>
-      <text x="578" y="339" font-size="18">succeeded; result = 5</text>
-      <rect x="44" y="391" width="992" height="48" rx="12" fill="#e9eff8" />
-      <text x="64" y="422" font-size="18" text-anchor="start">Use the returned Run ID when waiting. Preserve each experiment with a distinct Task name.</text>
-    </g>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="300" viewBox="0 0 1120 300" role="img" aria-labelledby="title desc">
+<title id="title">Task execution and observation</title>
+<desc id="desc">CLI exec owns Task execution and writes metadata. The service reads published records for Studio and API queries.</desc>
+<rect width="1120" height="300" rx="18" fill="#f4f7fb"/>
+<g font-family="Arial,sans-serif" fill="#18324b">
+<text x="36" y="48" font-size="26" font-weight="700">Task execution and observation</text>
+<text x="36" y="80" font-size="17">The execution process owns lifecycle publication and resource cleanup.</text>
+<g fill="#fff" stroke="#b9cede" stroke-width="2"><rect x="36" y="120" width="230" height="100" rx="12"/><rect x="308" y="120" width="230" height="100" rx="12"/><rect x="580" y="120" width="230" height="100" rx="12"/><rect x="852" y="120" width="230" height="100" rx="12"/></g>
+<g font-size="21" font-weight="700" text-anchor="middle"><text x="151" y="158">axonx exec</text><text x="423" y="158">Task files</text><text x="695" y="158">TaskRepository</text><text x="967" y="158">API / Studio</text></g>
+<g font-size="16" text-anchor="middle"><text x="151" y="190">TaskRunner executes</text><text x="423" y="190">metadata, logs, artifacts</text><text x="695" y="190">Poll published metadata</text><text x="967" y="190">Inspect existing records</text></g>
+<g stroke="#52738f" stroke-width="3"><path d="M274 170h24m-7-7 7 7-7 7"/><path d="M546 170h24m-7-7 7 7-7 7"/><path d="M818 170h24m-7-7 7 7-7 7"/></g>
+<text x="36" y="264" font-size="17">Independent local exec continues across observation-service restarts.</text></g></svg>

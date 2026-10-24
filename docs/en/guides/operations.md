@@ -44,17 +44,15 @@ Log windows use byte offsets. Read the tail first to find the exception, then ex
 
 ## Worker failures and status reconciliation
 
-A normal worker writes its own status. When the owning TaskManager's supervisor observes its worker exit without a terminal status on disk for the same run_id, it writes failed with the exit code and error. Exit callbacks preserve existing terminal states and replacement runs of named Tasks, refresh the Repository index without rewriting those files, and retry status reads and writes after transient I/O failures while the service is running.
-
 Each new Task record includes a stable `machine_id` derived from the OS machine identity and a `process_started_at` timestamp. The ID survives service and machine restarts; it does not depend on the service port, workspace, IP address, or hostname. Queued records identify the submitting service process until the worker publishes its own identity. In-process children record the same machine and process instance as their parent.
 
 If running persists for a long time, first check whether the process is still running, whether the current service manages this run, whether logs continue growing, and whether the disk is writable. Do not determine process liveness across machines solely from a pid in a file.
 
-While the owning service is running, its supervisor detects a forcibly killed worker. At startup and before replacing a named Task, the local TaskManager checks nonterminal, non-replica records. For records whose `machine_id` matches this machine, it marks a Run failed only after acquiring its execution lock, rereading the exact Run, and confirming that its recorded process instance has exited. The process start timestamp distinguishes a reused PID. Matching unfinished children are settled after checking their execution locks; successful children and existing files are preserved. Live or unverifiable local processes, other-machine records, and display replicas remain unchanged. Recovery does not adopt or terminate surviving workers.
+While the owning service is running, its supervisor detects a forcibly killed worker. At startup and before named submission, recovery rereads the exact Run and only settles an identified local process instance that has exited. Matching child records retain Run ID and worker-identity checks; successful results remain unchanged. Records without machine identity, foreign records, replicas, and unverifiable process instances are left unchanged. Recovery does not adopt or signal surviving workers, resume Python execution, reexecute Tasks, or replay cron triggers.
 
-Legacy records without `machine_id` use the existing execution lock instead of a host-ambiguous PID. An unlocked legacy Run is marked failed. Queued legacy records with a creation time within five minutes of the current time retain a handoff grace period; a later named submission rechecks them. Missing or far-future creation times do not keep a legacy Run active indefinitely. An executing runner keeps its lock until cleanup finishes, and the OS releases the lock when the process exits.
+Legacy records without `machine_id` remain unchanged regardless of their creation time; there is no lock-based recovery or handoff grace period. Use a distinct Task name when the previous record cannot be attributed to this machine.
 
-Recovery replaces stale lifecycle state; it does not resume Python execution, automatically resubmit Tasks, or replay missed cron triggers. After reviewing interrupted outputs, submit a new Run if needed. The former reaper_interval_seconds setting remains removed, and there is no periodic process scan. New fields are optional when reading legacy records; older readers that reject unknown fields must be upgraded before sharing newly written records.
+Recovery replaces stale lifecycle state; it does not resume Python execution, automatically reexecute Tasks, or replay missed cron triggers. After reviewing interrupted outputs, submit a new Run if needed. The former reaper_interval_seconds setting remains removed, and there is no periodic process scan. New fields are optional when reading legacy records; older readers that reject unknown fields must be upgraded before sharing newly written records.
 
 ## Files exist but the page has not updated
 
@@ -104,5 +102,3 @@ Task synchronization operates on terminal directories and may replace same-name 
 For recovery that can undo changes, maintain separate versioned backups. See [Task synchronization](task-sync.md) for synchronization budgets, rollback, and retries.
 
 [Deployment](deployment.md) · [Workspace](../concepts/workspace.md) · [Task lifecycle](../concepts/task-lifecycle.md)
-
-Source: [Manager](../../../axonx/components/task_manager/local/manager.py), [Worker supervisor](../../../axonx/components/task_manager/local/supervisor.py), [Record reading](../../../axonx/task/storage/workspace.py).

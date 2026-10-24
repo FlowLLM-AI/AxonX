@@ -6,7 +6,7 @@ import { getTaskStatus } from "../tasks/api";
 import { OnlineWorkbench } from "./OnlineWorkbench";
 import { readTaskChildren } from "../tasks/tree";
 import { ComparePipeline } from "./ComparePipeline";
-import type { Schedule, TaskRunIdentity } from "../tasks/types";
+import type { TaskRunIdentity } from "../tasks/types";
 import { TaskSteps } from "../tasks/TaskSteps";
 import { Status } from "../tasks/TaskRow";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
@@ -21,14 +21,10 @@ export function PipelineReport({
   task,
   target,
   onOpenTask,
-  schedules,
-  scheduleResource,
 }: {
   task: TaskRunIdentity;
   target?: string;
   onOpenTask: (id: string) => void;
-  schedules?: Schedule[];
-  scheduleResource?: string;
 }) {
   const { t } = useTranslation();
   const [logId, setLogId] = useState("");
@@ -165,8 +161,6 @@ export function PipelineReport({
         nodes={children}
         target={target}
         onOpenTask={onOpenTask}
-        schedules={schedules}
-        scheduleResource={scheduleResource}
       />
     );
   return (

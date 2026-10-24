@@ -19,6 +19,7 @@ from ....constants import (
     PROTOCOL_AUTH_HEADER,
     PROTOCOL_AUTH_ROOTS,
     PROTOCOL_AUTH_SCHEME,
+    PROTOCOL_CLI_REQUEST_HEADER,
     PROTOCOL_ROUTE_MCP,
 )
 from ....utils.target import normalize_target
@@ -28,7 +29,8 @@ from .jobs import create_jobs_router, create_mcp_server
 from .proxy import create_proxy_router
 from .studio import mount_studio, resolve_studio_dir
 from ...updater.manager import RESPONSE_CALLBACKS
-from ...updater.worker import finish_startup
+from ...updater.worker import versions
+from ....daemon import client as daemon
 
 
 class _ProtocolAuthMiddleware:
@@ -58,20 +60,32 @@ class _ProtocolAuthMiddleware:
 class _UpdateResponseMiddleware:
     """Handoff only when the invoking HTTP/MCP response has finished sending."""
 
-    def __init__(self, app) -> None:
+    def __init__(self, app, service) -> None:
         self.app = app
+        self.service = service
 
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
-        callbacks = []
+        request_id = Headers(scope=scope).get(PROTOCOL_CLI_REQUEST_HEADER)
+        parent_callbacks = self.service.cli_callbacks.get(request_id)
+        callbacks = parent_callbacks if parent_callbacks is not None else []
         token = RESPONSE_CALLBACKS.set(callbacks)
+        completed = False
+
+        async def send_response(message):
+            nonlocal completed
+            await send(message)
+            if message["type"] == "http.response.body" and not message.get("more_body", False):
+                completed = True
+
         try:
-            await self.app(scope, receive, send)
+            await self.app(scope, receive, send_response)
         finally:
             RESPONSE_CALLBACKS.reset(token)
-            for callback in callbacks:
-                callback()
+            if parent_callbacks is None and completed:
+                for callback in callbacks:
+                    callback()
 
 
 def create_http_app(app, service) -> FastAPI:
@@ -96,11 +110,17 @@ def create_http_app(app, service) -> FastAPI:
                 )
 
             async def ready():
-                if service.server is None:
+                if service.server is None or not os.environ.get(daemon.SOCKET):
                     return
                 while not service.server.started:
                     await asyncio.sleep(0.05)
-                finish_startup()
+                await asyncio.to_thread(
+                    daemon.request,
+                    "ready",
+                    cron=app.app_config.cron is not None,
+                    stop_timeout=service.cleanup_timeout + 1,
+                    versions=versions(),
+                )
 
             readiness = asyncio.create_task(ready())
             try:
@@ -136,7 +156,7 @@ def create_http_app(app, service) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    server.add_middleware(_UpdateResponseMiddleware)
+    server.add_middleware(_UpdateResponseMiddleware, service=service)
     server.add_middleware(_ProtocolAuthMiddleware, token=service.token)
     server.router.routes.extend(mcp_app.routes)
     server.include_router(create_jobs_router(app, public_jobs))

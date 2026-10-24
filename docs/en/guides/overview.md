@@ -4,19 +4,19 @@ Manage the service, execution target, and persistent research records as separat
 
 ## Choose an operation
 
-| Goal                                               | Guide                                         |
-| -------------------------------------------------- | --------------------------------------------- |
-| Submit, wait, follow logs, cancel, or delete Tasks | [Task management](task-management.md)         |
-| Combine installed Tasks into a synchronous flow    | [Composite Tasks](composite-tasks.md)         |
-| Browse and inspect workspace artifacts             | [Workspace files](workspace-files.md)         |
-| Copy completed Task snapshots                      | [Task synchronization](task-sync.md)          |
-| Configure service access and tokens                | [Authentication](authentication.md)           |
-| Host a service with or without Studio              | [Deployment](deployment.md)                   |
-| Use CLI direct access or Studio forwarding         | [Remote machines](remote-machines.md)         |
-| Forward configured HTTP requests                   | [HTTP proxy](http-proxy.md)                   |
-| Schedule recurring Jobs                            | [Scheduling](scheduling.md)                   |
-| Send task notifications through DingTalk           | [Notifications](../research/notifications.md) |
-| Diagnose failures, back up, and recover records    | [Troubleshooting and recovery](operations.md) |
+| Goal                                                 | Guide                                         |
+| ---------------------------------------------------- | --------------------------------------------- |
+| Execute Tasks and observe status, logs and artifacts | [Task management](task-management.md)         |
+| Combine installed Tasks into a synchronous flow      | [Composite Tasks](composite-tasks.md)         |
+| Browse and inspect workspace artifacts               | [Workspace files](workspace-files.md)         |
+| Copy completed Task snapshots                        | [Task synchronization](task-sync.md)          |
+| Configure service access and tokens                  | [Authentication](authentication.md)           |
+| Host a service with or without Studio                | [Deployment](deployment.md)                   |
+| Use CLI direct access or Studio forwarding           | [Remote machines](remote-machines.md)         |
+| Forward configured HTTP requests                     | [HTTP proxy](http-proxy.md)                   |
+| Schedule recurring Jobs                              | [Scheduling](scheduling.md)                   |
+| Send task notifications through DingTalk             | [Notifications](../research/notifications.md) |
+| Diagnose failures, back up, and recover records      | [Troubleshooting and recovery](operations.md) |
 
 ## Establish the execution environment
 

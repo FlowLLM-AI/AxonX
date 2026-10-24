@@ -1,50 +1,22 @@
 import { Check, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
-import { canDelete } from "./groups";
 import { formatDate, formatDuration, taskStepProgress } from "./format";
 import type { TaskState, TaskSummary } from "./types";
 
 export function TaskRow({
   task,
-  selectionMode,
-  selected,
-  onSelect,
   onOpen,
-  onContextMenu,
 }: {
   task: TaskSummary;
-  selectionMode: boolean;
-  selected: boolean;
-  onSelect: () => void;
   onOpen: () => void;
-  onContextMenu: (event: React.MouseEvent<HTMLTableRowElement>) => void;
 }) {
   const { t } = useTranslation();
   const progress = taskStepProgress(task);
-  const selectable = canDelete(task);
   const clipboard = useCopyFeedback();
   const copied = clipboard.copied === task.task_id;
   return (
-    <tr
-      className={selected ? "selected" : ""}
-      onClick={selectionMode ? (selectable ? onSelect : undefined) : onOpen}
-      onContextMenu={onContextMenu}
-    >
-      {selectionMode && (
-        <td
-          className="select-column"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <input
-            type="checkbox"
-            aria-label={t("selectTask", { taskId: task.task_id })}
-            checked={selected}
-            disabled={!selectable}
-            onChange={onSelect}
-          />
-        </td>
-      )}
+    <tr onClick={onOpen}>
       <td className="task-id-column">
         <div className="task-identity">
           <span className={`task-orb ${task.state}`}>
@@ -58,13 +30,6 @@ export function TaskRow({
               {task.is_replica && (
                 <small className="replica-label">{t("replica.label")}</small>
               )}
-              <small className="replica-label">
-                {t(
-                  task.managed_run_id
-                    ? "taskOwnership.managed"
-                    : "taskOwnership.workspace",
-                )}
-              </small>
               <button
                 type="button"
                 className={copied ? "copied" : ""}
@@ -86,12 +51,7 @@ export function TaskRow({
               </button>
             </span>
             <small>
-              PID {task.pid || "—"} ·{" "}
-              {task.source.schedule
-                ? t("schedules.scheduledSource", {
-                    name: task.source.schedule.name,
-                  })
-                : t(`schedules.sources.${task.source.kind}`)}
+              PID {task.pid || "—"} · {t(`taskSources.${task.source.kind}`)}
             </small>
           </div>
         </div>

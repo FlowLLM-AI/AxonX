@@ -16,8 +16,7 @@ from axonx.task import schemas
     [
         ("artifact", "schemas.artifact", ["ArtifactRecord"]),
         ("status", "schemas.lifecycle", ["TaskStatus"]),
-        ("source", "schemas.lifecycle", ["ScheduleTrigger", "TaskSource"]),
-        ("source", "runtime.source", ["TASK_SOURCE", "TASK_SOURCE_ENV"]),
+        ("source", "schemas.lifecycle", ["TaskSource"]),
         ("clock", "core.clock", ["WindowClock", "ReplayClock"]),
         ("composite", "core.composite", ["BaseCompositeTask", "ChildTaskError", "ChildTaskResult"]),
         (
@@ -37,9 +36,7 @@ from axonx.task import schemas
         ("protocol", "storage.artifacts", ["prediction_protocol"]),
         ("storage.workspace", "schemas.lifecycle", ["TaskMetadata", "ChildTaskRecord"]),
         ("storage.replica", "schemas.replica", ["DisplayReplica", "LiveSnapshot", "ReplicaFile", "ReplicaLog"]),
-        ("storage.composition", "runtime.composition", ["settle_children"]),
         ("storage.composition", "schemas.lifecycle", ["current_children"]),
-        ("contracts.submission", "schemas.lifecycle", ["TaskHandle"]),
         ("contracts.online", "schemas.online", ["OnlineCommit", "OnlineHistory"]),
         ("contracts.online", "schemas.reports", ["StockOnlineReport", "StockReportSettings", "STOCK_REPORT_ARTIFACTS"]),
         (
@@ -48,7 +45,6 @@ from axonx.task import schemas
             ["BacktestBenchmark", "BacktestDimensions", "BacktestUniverse", "BacktestUniverseReport"],
         ),
         ("contracts.windows", "core.clock", ["DeadlineBudget", "WindowClock"]),
-        ("contracts", "schemas.lifecycle", ["TaskHandle"]),
         ("contracts", "schemas.online", ["OnlineCommit", "OnlineHistory"]),
         ("", "core.composite", ["BaseCompositeTask", "ChildTaskError", "ChildTaskResult"]),
         ("", "schemas.lifecycle", ["TaskMetadata"]),

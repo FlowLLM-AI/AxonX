@@ -99,7 +99,7 @@ answer 为单个 PluginInfo，与 list_plugins 每项同形。
 
 ## install_plugin
 
-先在安装服务上通过二进制或 multipart `POST /files` 暂存 wheel，将返回的 `answer.path` 与原始 wheel 的 SHA-256 用于以下参数。见[文件上传与清理](workspace.md#文件上传与清理)。
+先在安装服务上通过二进制或 multipart `POST /upload` 暂存 wheel，将返回的 `answer.path` 与原始 wheel 的 SHA-256 用于以下参数。见[文件上传与清理](workspace.md#文件上传与清理)。
 
 安装已上传且校验通过的 wheel。
 
@@ -123,7 +123,7 @@ answer 为单个 PluginInfo，与 list_plugins 每项同形。
 
 **响应**
 
-answer 为 PluginInstallResult，在 PluginInfo 基础上增加 restart_required。
+answer 为 PluginInstallResult，字段与 PluginInfo 一致。
 
 ```json
 {
@@ -137,8 +137,7 @@ answer 为 PluginInstallResult，在 PluginInfo 基础上增加 restart_required
     "requirements": [],
     "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "error": null,
-    "restart_required": true
+    "error": null
   },
   "success": true,
   "metadata": {}
@@ -147,7 +146,7 @@ answer 为 PluginInstallResult，在 PluginInfo 基础上增加 restart_required
 
 **行为与失败情况**
 
-示例哈希和路径仅说明格式，必须替换 POST /files 返回值。校验的是暂存 wheel，不能传本机 source 目录；成功或失败均尝试清理暂存文件。安装开始后取消请求，会等待环境操作结束再清理暂存文件；取消不会回滚安装。仅贡献 Task 的 wheel 更新会刷新插件导入，后续 Task 定义查询与提交无需重启。Component/Job 或已有依赖版本被替换时，仍按 `restart_required=true` 重启。不迁移运行中的 Task，也不隔离其版本。
+安装只修改选定 Python 环境，不刷新服务已加载模块，也不追踪待重启状态。新的 CLI 进程加载已安装环境；需要重新加载 Task schema、Component 或 Job 时重启常驻服务。已有进程不提供版本隔离，插件环境修改不再串行协调。
 
 ## uninstall_plugin
 
@@ -171,13 +170,12 @@ answer 为 PluginInstallResult，在 PluginInfo 基础上增加 restart_required
 
 **响应**
 
-answer 为 PluginUninstallResult：distribution、restart_required。
+answer 为 PluginUninstallResult，包含 distribution。
 
 ```json
 {
   "answer": {
-    "distribution": "axonx-example",
-    "restart_required": true
+    "distribution": "axonx-example"
   },
   "success": true,
   "metadata": {}
@@ -186,7 +184,7 @@ answer 为 PluginUninstallResult：distribution、restart_required。
 
 **行为与失败情况**
 
-卸载会从后续查询与提交中移除 Task 注册信息，并清理缓存中的插件导入。已装配的 Component/Job 仍保留在运行中的 Application 内；按 `restart_required=true` 重启。取消请求时会等待已开始的卸载结束，不会回滚环境变更。
+安装只修改选定 Python 环境，不刷新服务已加载模块，也不追踪待重启状态。新的 CLI 进程加载已安装环境；需要重新加载 Task schema、Component 或 Job 时重启常驻服务。已有进程不提供版本隔离，插件环境修改不再串行协调。
 
 ## sync_tasks
 

@@ -21,14 +21,12 @@ export DINGTALK_CONVERSATIONS='{"research":"<open conversation id>"}'
 
 ## 发送 Markdown
 
-![DingTalk notification submission form](../../figures/studio/notification-submit.png)
-
-Studio 中选择 `send_dingtalk_task`，填写 Title、Text 和 Message Type 后再提交。截图为空白表单，不包含接收群或凭据；提交会向执行机器配置的群实际发送消息。
+通过 CLI exec 执行 Task；观察服务不创建任务。执行前确认插件、输入和执行环境。
 
 下面是会实际发送外部消息的使用示例，按自己的接收配置执行：
 
 ```bash
-axonx submit --task send_dingtalk_task \
+axonx exec --task send_dingtalk_task \
   --title 'AxonX 研究完成' \
   --text '### 回测已完成\n请在 Studio 查看对应 Task 的净收益、成本和执行协议。' \
   --message-type markdown
@@ -42,15 +40,13 @@ message=$(cat <<'MESSAGE'
 请查看对应 Task 的 metadata 与标准产物。
 MESSAGE
 )
-axonx submit --task send_dingtalk_task \
+axonx exec --task send_dingtalk_task \
   --title 'AxonX 研究完成' --text "$message" --message-type markdown
 ```
 
 文本模式可设 `--message-type text`。`title` 与 `text` 分别至少包含一个字符；`timeout` 默认 10 秒且必须大于零。
 
 ## 等待并核对返回
-
-保存提交返回的 TaskHandle，并等待对应 `task_id` 与 `run_id`。成功输出包含：
 
 | 字段                 | 含义                           |
 | -------------------- | ------------------------------ |

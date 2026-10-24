@@ -86,7 +86,6 @@ async def test_diagnose_reports_fingerprints_and_never_returns_credentials(tmp_p
         "axonx.steps.machine.diagnostics.list_installed_plugins",
         lambda: [PluginInfo(distribution="example", version="1", content_sha256="a" * 64, error="broken plugin")],
     )
-    monkeypatch.setattr("axonx.steps.machine.diagnostics.restart_required", lambda: True)
     app = make_app(tmp_path)
     async with app.context.jobs["diagnose"]:
         response = await app.context.dispatcher.run("diagnose")
@@ -95,7 +94,7 @@ async def test_diagnose_reports_fingerprints_and_never_returns_credentials(tmp_p
     assert answer["python"]["executable"]
     assert answer["axonx"]["version"]
     assert answer["service_auth_enabled"] is True
-    assert answer["restart_required"] is True
+    assert "restart_required" not in answer
     assert answer["plugins"][0]["content_sha256"] == "a" * 64
     assert answer["plugins"][0]["error"] == "broken plugin"
     assert answer["credentials_configured"] == {
@@ -112,16 +111,17 @@ async def test_diagnose_reports_fingerprints_and_never_returns_credentials(tmp_p
         assert secret not in serialized
 
 
-def test_cli_help_is_remote_but_usage_is_offline(monkeypatch, capsys):
+def test_cli_help_uses_remote_cli_and_only_empty_usage_is_offline(monkeypatch, capsys):
     cli = importlib.import_module("axonx.cli.main")
     calls = []
-    monkeypatch.setattr(cli, "_run_remote_job", lambda command, options: calls.append((command, options)) or 0)
+    monkeypatch.setattr(cli, "_run_remote_cli", lambda command, options: calls.append((command, options)) or 0)
     assert cli.main(["help", "--job", "python", "--target", "node-b:1024"]) == 0
     command, options = calls.pop()
     assert command.action == "help"
-    assert command.arguments["job"] == "python"
+    assert command.arguments["_axonx_argv"] == ["--job", "python"]
     assert options.target == "http://node-b:1024"
-    for arguments in ([], ["--help"], ["-h"]):
-        assert cli.main(arguments) == 0
-    assert not calls
+    assert cli.main([]) == 0
     assert "Usage:" in capsys.readouterr().out
+    for arguments in (["--help"], ["-h"]):
+        assert cli.main(arguments) == 2
+    assert not calls

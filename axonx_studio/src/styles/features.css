@@ -1617,12 +1617,7 @@
   align-items: center;
   gap: 8px;
 }
-.task-detail-cancel {
-  align-self: end;
-}
-.task-detail-cancel svg {
-  width: 15px;
-}
+
 .task-relations-panel {
   min-height: 0;
   height: min(42vh, 460px);

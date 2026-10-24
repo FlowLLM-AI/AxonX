@@ -9,10 +9,8 @@ from .components.job.base import BaseJob
 from .components.job.pipeline import PipelineJob
 from .components.proxy.base import BaseProxyComponent
 from .components.registry import provider
-from .components.scheduler.base import BaseScheduler
 from .components.service.base import BaseService
 from .components.sync.base import BaseSyncComponent
-from .components.task_manager.base import BaseTaskManager
 from .components.task_repository.base import BaseTaskRepository
 from .core import Application
 from .steps.base import BaseStep
@@ -28,12 +26,10 @@ __all__ = [
     "BaseJob",
     "BaseOutputParams",
     "BaseProxyComponent",
-    "BaseScheduler",
     "BaseService",
     "BaseStep",
     "BaseSyncComponent",
     "BaseTask",
-    "BaseTaskManager",
     "BaseTaskRepository",
     "PipelineJob",
     "TaskMetadata",

@@ -12,7 +12,6 @@ from ..components.base import BaseComponent
 from ..components.job.contracts import JobResponse
 from ..components.job.events import JobEvent
 from ..components.registry import ProviderRegistry
-from ..components.task_manager.base import BaseTaskManager
 from ..config import ApplicationConfig
 from ..utils.async_work import run_blocking
 from ..utils.log_retention import LOG_CLEANUP_INTERVAL, cleanup_log_files
@@ -58,9 +57,6 @@ class Application:
                 for job in self.context.jobs.values():
                     await job.start()
                     self._started.append(job)
-                for scheduler in self.context.schedulers.values():
-                    await scheduler.start()
-                    self._started.append(scheduler)
             except BaseException as start_error:
                 cleanup_errors = await self._close_started()
                 if cleanup_errors:
@@ -104,19 +100,9 @@ class Application:
             if errors:
                 raise BaseExceptionGroup("Application cleanup failed", errors)
 
-    def request_shutdown(self, *, force: bool = False) -> None:
-        """Quiesce execution before waiting for schedulers, Jobs or file operations."""
+    def request_shutdown(self) -> None:
+        """Mark the application as stopping before resource cleanup."""
         self.context.metadata["stopping"] = True
-        errors: list[BaseException] = []
-        for group in self.context.components.values():
-            for component in group.values():
-                if isinstance(component, BaseTaskManager) and (component.is_started or force):
-                    try:
-                        component.request_shutdown(force=force)
-                    except BaseException as exc:  # noqa: BLE001 - signal other managers too.
-                        errors.append(exc)
-        if errors:
-            raise BaseExceptionGroup("Task manager shutdown requests failed", errors)
 
     async def _close_started(self) -> list[BaseException]:
         errors: list[BaseException] = []

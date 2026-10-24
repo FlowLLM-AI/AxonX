@@ -51,8 +51,6 @@ class PluginInfo(BaseModel):
 class PluginInstallResult(PluginInfo):
     """Result returned after installing a plugin wheel."""
 
-    restart_required: bool = False
-
 
 class PluginUninstallResult(BaseModel):
     """Result returned after uninstalling a plugin distribution."""
@@ -60,4 +58,3 @@ class PluginUninstallResult(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     distribution: str
-    restart_required: bool = False

@@ -1,6 +1,5 @@
-"""Compatibility exports for Task provenance and dispatch context."""
+"""Task execution provenance."""
 
-from .schemas.lifecycle import ScheduleTrigger, TaskSource
-from .runtime.source import TASK_SOURCE, TASK_SOURCE_ENV
+from .schemas.lifecycle import TaskSource
 
-__all__ = ["ScheduleTrigger", "TaskSource", "TASK_SOURCE", "TASK_SOURCE_ENV"]
+__all__ = ["TaskSource"]

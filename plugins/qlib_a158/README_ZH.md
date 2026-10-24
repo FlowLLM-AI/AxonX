@@ -59,24 +59,25 @@ axonx plugin install -e ./plugins/qlib_a158
 axonx plugin inspect ./plugins/qlib_a158
 ```
 
-editable 仅适用于当前 Python 环境的本机源码开发，不能与 `--target` 或 `--output` 同用。修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。
+editable 需要选定 Python 环境中的源码目录，不能与 `--output` 同用；指定 `--target` 时源码目录属于目标机器。修改 Python 源码后重启常驻服务；依赖或入口点等安装元数据变化后重新安装。
 
 本机 CLI 的环境不一定是远程服务的环境。远程部署先配置目标服务 token，再明确指定目标：
 
 ```bash
 export AXONX_TARGET_TOKEN='<service token>'
-axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
+# 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
+axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-通过远程安装 Job 更新仅贡献 Task 的 wheel，会刷新后续 Task 查询和提交，无需重启。仅在 `restart_required=true` 时重启，再查询 Task 定义核对字段。直接 `pip install` 和 editable 源码变更仍要求重启服务。核心与插件版本应满足插件包声明的兼容要求。完整的构建、卸载和部署说明见[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)。
+安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task/Run ID，安装或核验失败时停止并报告。[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)
 
 ## 数据准备
 
 在执行服务环境配置 `AXONX_TUSHARE_TOKEN`，使用内置 `download_tushare_task` 准备工作区下的 Tushare Parquet 数据。默认 ETL 输入目录是工作区中的 `tushare/`，不是当前 shell 目录。
 
 ```bash
-axonx submit --task download_tushare_task \
+axonx exec --task download_tushare_task \
   --start-date 20140101 --end-date 20261008 \
   --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 ```
@@ -114,19 +115,19 @@ ETL 从输出起始日前读取最长滚动窗口所需的市场日；更早且�
 因子分析从 ETL 分支执行，不是训练的前置任务。按以下顺序提交；每一步都使用实际返回的 Task ID，等待任务成功后再提交下游。
 
 ```bash
-axonx submit --task qlib_a158_etl --start-date 20150101 --end-date 20261008
+axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 
 # ETL 成功后
-axonx submit --task qlib_a158_factor --source-tasks '<etl_task_id>'
-axonx submit --task qlib_a158_train --source-tasks '<etl_task_id>' \
+axonx exec --task qlib_a158_factor --source-tasks '<etl_task_id>'
+axonx exec --task qlib_a158_train --source-tasks '<etl_task_id>' \
   --train-start 20150101 --train-end 20230101
 
 # 训练成功后
-axonx submit --task qlib_a158_predict --source-tasks '<train_task_id>' \
+axonx exec --task qlib_a158_predict --source-tasks '<train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
 # 预测成功后
-axonx submit --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
   --top-ns '[5,10,20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 

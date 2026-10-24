@@ -128,18 +128,17 @@ plugins:
 
 Application 使用局部 registry，发现后的贡献按所有权合并。两个插件相同 Task 注册名、Job 名或相同类别/backend 都拒绝；Task 与内置重名也拒绝。registry 冻结后不能随意新增 provider。
 
-远程安装时，即使相同 wheel 已安装，也会刷新接收服务的插件导入，无需重复运行 pip。这也适用于其他服务更新共享 site-packages、而本进程仍缓存旧模块的情况。已有 Task 对象保留原有类；提交前应重新查询 Task 定义。服务贡献仍遵循重启要求。
+安装只修改选定 Python 环境，不刷新服务已加载模块，也不追踪待重启状态。新的 CLI 进程加载已安装环境；需要重新加载 Task schema、Component 或 Job 时重启常驻服务。已有进程不提供版本隔离，插件环境修改不再串行协调。
 
 ## wheel 与内容指纹
 
-| 字段             | 含义                     | 用途               |
-| ---------------- | ------------------------ | ------------------ |
-| sha256           | wheel 文件字节的 SHA-256 | 安装制品校验       |
-| content_sha256   | 插件内容指纹             | 构建缓存与内容身份 |
-| requirements     | wheel 的依赖元数据       | 安装环境需求       |
-| restart_required | 安装/卸载结果提示        | 服务贡献重新装配   |
+| 字段           | 含义                     | 用途               |
+| -------------- | ------------------------ | ------------------ |
+| sha256         | wheel 文件字节的 SHA-256 | 安装制品校验       |
+| content_sha256 | 插件内容指纹             | 构建缓存与内容身份 |
+| requirements   | wheel 的依赖元数据       | 安装环境需求       |
 
-相同源内容与缓存不代表 wheel 字节必然相同；不要拿 content_sha256 替代本地构建 wheel 的 SHA256。远程 install 必须接收 POST /files 返回的 path 与该本地 wheel 的 SHA256。editable 只适用于本地源码环境，不能远程部署。
+相同源内容与缓存不代表 wheel 字节必然相同；不要拿 content_sha256 替代本地构建 wheel 的 SHA256。远程 install 必须接收 POST /upload 返回的 path 与该本地 wheel 的 SHA256。editable 只适用于本地源码环境，不能远程部署。
 
 ```bash
 axonx plugin inspect ./plugins/example
@@ -148,7 +147,7 @@ axonx plugin install ./plugins/example
 axonx plugin list
 ```
 
-这些命令执行检查、构建或安装，需在实际插件目录使用。安装结果要求重启时，重启后查询 get_task_definition 与 /jobs 验证贡献；通过服务安装仅贡献 Task 的 wheel 后，后续 Task 查询与提交无需重启；已装配的 Component/Job 仍需重启。详见[插件管理](../plugins/management.md#校验和与重启)。
+这些命令使用选定环境中的路径执行检查、构建或安装。安装不刷新服务已加载对象；需要重新加载 schema 或贡献时重启服务。详见[插件管理](../plugins/management.md#校验和与服务状态)。
 
 ## 命名配置贡献
 

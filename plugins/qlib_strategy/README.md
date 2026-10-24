@@ -26,16 +26,19 @@ axonx plugin install -e plugins/qlib_strategy
 Restart persistent services after Python source changes; reinstall after dependency or entry-point metadata changes. Omit `-e` for fixed-version experiments. Deploy remotely with ordinary installation, installing upstream plugins in order on the same target service; configure `AXONX_TARGET_TOKEN` first and replace the example address below:
 
 ```bash
-axonx plugin install plugins/qlib_a158 --target http://research.example:1024
-axonx plugin install plugins/qlib_factor --target http://research.example:1024
-axonx plugin install plugins/qlib_strategy --target http://research.example:1024
-axonx submit --task qlib_strategy_backtest --source-tasks '<predict_task_id>' \
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
+axonx exec --task qlib_strategy_backtest --source-tasks '<predict_task_id>' \
   --top-ns '[20,30]' --as-of-date 20261008 \
   --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-Reuse successful base or factor predictions. Record returned Task / Run IDs and wait for success before reading results. Upstream `qlib_strategy_etl`, `qlib_strategy_analysis`, `qlib_strategy_train` and `qlib_strategy_predict` register factor-layer implementations; policy comparisons reuse predictions. Task-only wheel updates through the remote installation Job apply without restarting; restart when `restart_required` is true and verify Task definitions. Direct pip/source changes require restart. Use compatible AxonX core and plugin versions, following the plugin package requirements.
+Reuse successful base or factor predictions. Record returned Task / Run IDs and wait for success before reading results. Upstream `qlib_strategy_etl`, `qlib_strategy_analysis`, `qlib_strategy_train` and `qlib_strategy_predict` register factor-layer implementations; policy comparisons reuse predictions. Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task/Run IDs and stop on installation or verification failures.
 
 ## Experiments
 

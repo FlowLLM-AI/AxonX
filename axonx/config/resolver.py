@@ -4,8 +4,6 @@ import json
 import os
 import re
 from collections.abc import Mapping
-from importlib import import_module
-from importlib.metadata import EntryPoint
 from pathlib import Path
 from typing import Any
 
@@ -15,18 +13,13 @@ from ..constants import (
     AXONX_DEFAULT_ENCODING,
     CONFIG_ENTRY_POINT_GROUP,
 )
-from .entry_points import (
-    find_entry_points,
-    load_entry_point,
-    unique_entry_point,
-)
+from .locator import discover_files, locate_file
 from .models import (
     ApplicationConfig,
     ComponentConfig,
     JobConfig,
     PluginConfig,
     TargetConfig,
-    ScheduleConfig,
 )
 
 _CONFIG_DIR = Path(__file__).parent
@@ -104,73 +97,8 @@ class ConfigResolver:
     ) -> None:
         self.config_dir = Path(config_dir)
         self.encoding = encoding
-        self.registry = self._discover_configs()
+        self.registry = discover_files(self.config_dir, _SUPPORTED_EXTENSIONS)
         self.loaded_paths: set[Path] = set()
-
-    def _discover_configs(self) -> dict[str, Path]:
-        if not self.config_dir.is_dir():
-            return {}
-        files = sorted(
-            (path for path in self.config_dir.iterdir() if path.is_file() and path.suffix in _SUPPORTED_EXTENSIONS),
-            key=lambda path: (_SUPPORTED_EXTENSIONS.index(path.suffix), path.name),
-        )
-        return {path.stem: path for path in reversed(files)}
-
-    def _external_config_path(self, name: str, entry: EntryPoint | None) -> Path | None:
-        if entry is None:
-            return None
-        module = import_module(entry.module)
-        if entry.attr and hasattr(module, entry.attr):
-            path = Path(load_entry_point(entry, invoke=True))
-        else:
-            locations = list(getattr(module, "__path__", ()))
-            if len(locations) != 1:
-                raise ValueError(
-                    f"Config entry point '{name}' must target one package directory",
-                )
-            directory = Path(locations[0])
-            stem = entry.attr or name
-            path = next(
-                (
-                    candidate
-                    for extension in _SUPPORTED_EXTENSIONS
-                    if (candidate := directory / f"{stem}{extension}").is_file()
-                ),
-                directory / f"{stem}.yaml",
-            )
-        if path.suffix not in _SUPPORTED_EXTENSIONS or not path.is_file():
-            raise ValueError(
-                f"Config entry point '{name}' did not resolve to a YAML or JSON file",
-            )
-        return path
-
-    def _locate(self, name_or_path: str) -> Path:
-        built_in = self.registry.get(name_or_path)
-        external_entries = find_entry_points(CONFIG_ENTRY_POINT_GROUP, name_or_path)
-        if built_in is not None and external_entries:
-            raise ValueError(
-                f"Config '{name_or_path}' is provided by both AxonX and an installed distribution",
-            )
-        if built_in is not None:
-            return built_in
-
-        entry = unique_entry_point(external_entries, name_or_path, "Config")
-        external = self._external_config_path(name_or_path, entry)
-        if external is not None:
-            return external
-
-        path = Path(name_or_path)
-        if path.suffix in _SUPPORTED_EXTENSIONS:
-            candidates = (path,) if path.is_absolute() else (path, self.config_dir / path)
-            for candidate in candidates:
-                if candidate.is_file():
-                    return candidate
-            raise FileNotFoundError(f"Config file not found: {path}")
-
-        known = ", ".join(sorted(self.registry)) or "none"
-        raise FileNotFoundError(
-            f"Config file not found: {name_or_path}. Available: {known}",
-        )
 
     def _read(self, path: Path) -> dict:
         with path.open(encoding=self.encoding) as file:
@@ -197,7 +125,13 @@ class ConfigResolver:
         name_or_path: str,
         stack: tuple[tuple[str, str], ...],
     ) -> dict:
-        path = self._locate(name_or_path)
+        path = locate_file(
+            name_or_path,
+            directory=self.config_dir,
+            extensions=_SUPPORTED_EXTENSIONS,
+            group=CONFIG_ENTRY_POINT_GROUP,
+            label="Config",
+        )
         identity = str(path.resolve())
         if identity in {item[0] for item in stack}:
             chain = " -> ".join((*[item[1] for item in stack], name_or_path))
@@ -259,7 +193,6 @@ __all__ = [
     "JobConfig",
     "PluginConfig",
     "TargetConfig",
-    "ScheduleConfig",
     "convert_value",
     "deep_merge_config",
     "expand_env_vars",

@@ -2,27 +2,21 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol
 
 from ...constants import (
     AXONX_DEFAULT_TIMEZONE,
-    AXONX_TASK_CREATED_AT,
-    AXONX_TASK_ID,
-    AXONX_TASK_RUN_ID,
     CLI_EXEC_COMMAND,
     CLI_RAW_ARGUMENTS,
 )
 from ..catalog.resolver import installed_tasks, resolve_task
 from ..core.task import BaseTask
-from ..schemas.lifecycle import TaskMetadata, TaskSource
+from ..schemas.lifecycle import TaskMetadata
 from .arguments import split_task_arguments
 from .runner import TaskRunner
-from .source import TASK_SOURCE_ENV
 
 
 class TaskCommand(Protocol):
@@ -72,18 +66,11 @@ class TaskCommandExecutor:
             return TaskCatalog(installed_tasks())
 
         name, config = split_task_arguments(arguments)
-        created_at = os.environ.get(AXONX_TASK_CREATED_AT)
         task = resolve_task(name)(
             config,
             workspace_path=self.workspace_path,
             reg_name=name,
             timezone=self.timezone,
-            task_id=os.environ.get(AXONX_TASK_ID),
-            run_id=os.environ.get(AXONX_TASK_RUN_ID),
-            created_at=datetime.fromisoformat(created_at) if created_at else None,
-            source=(
-                TaskSource.model_validate_json(os.environ[TASK_SOURCE_ENV]) if TASK_SOURCE_ENV in os.environ else None
-            ),
         )
-        status = TaskRunner(require_handoff=AXONX_TASK_RUN_ID in os.environ).run(task)
+        status = TaskRunner().run(task)
         return TaskExecution(status=status)

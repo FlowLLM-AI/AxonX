@@ -62,7 +62,7 @@ def test_graph_injects_dependencies_after_validating_order():
         component_type = ComponentEnum.TASK_REPOSITORY
 
     class Manager(BaseComponent):
-        component_type = ComponentEnum.TASK_MANAGER
+        component_type = ComponentEnum.SYNC
         repository: Repository
 
         def __init__(self):
@@ -73,7 +73,7 @@ def test_graph_injects_dependencies_after_validating_order():
     manager = Manager()
     graph = ComponentGraph(
         {
-            "task_manager": {"main": manager},
+            "sync": {"main": manager},
             "task_repository": {"main": repository},
         }
     )

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ...enums import ComponentEnum
 from ...task.query.graph import TaskGraph
-from ...task.query.summary import TaskSummary, managed_runs
+from ...task.query.summary import TaskSummary
 from ...task.schemas.lifecycle import TaskMetadata
 from ...task.sync import SyncTasksReport
 from ..base import BaseComponent
@@ -36,29 +36,9 @@ class BaseTaskRepository(BaseComponent, ABC):
     async def summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
         """Project isolated lightweight summaries directly from the index, newest first."""
 
-    async def managed_runs(self, owned: set[str]) -> dict[str, str]:
-        """Resolve owned roots and their exact in-process child Runs."""
-        return managed_runs(await self.entries(), owned)
-
     @abstractmethod
     async def graph(self, task_id: str) -> TaskGraph:
-        """Build a graph under the index lock without copying task outputs."""
-
-    @abstractmethod
-    async def put_metadata(self, status: TaskMetadata) -> None:
-        """Persist and index a status owned by this application."""
-
-    @abstractmethod
-    async def forget(self, task_id: str) -> None:
-        """Remove an entry from the index after its directory is gone."""
-
-    @abstractmethod
-    async def delete_terminal(self, task_id: str) -> bool:
-        """Delete one terminal Task directory under the repository mutation lock."""
-
-    @abstractmethod
-    async def reset_terminal(self, task_id: str) -> bool:
-        """Clear a terminal Run under the mutation lock, retaining persistent data."""
+        """Build a graph from indexed snapshots without copying task outputs."""
 
     @abstractmethod
     async def reconcile(self) -> None:
@@ -71,4 +51,4 @@ class BaseTaskRepository(BaseComponent, ABC):
         deletions: list[str],
         archive_name: str | None,
     ) -> SyncTasksReport:
-        """Atomically apply remote snapshots while excluding local mutations."""
+        """Apply remote snapshots and update the local index."""

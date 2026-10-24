@@ -48,7 +48,8 @@ class ShutdownDeadline:
         # may be the reason graceful shutdown cannot finish. Only owned workers
         # are signalled; workspace records never select processes to kill.
         try:
-            self.app.request_shutdown(force=True)
+            self.app.context.service.stop_cli_processes(force=True)
+            self.app.request_shutdown()
         finally:
             try:
                 blocking = os.get_blocking(2)

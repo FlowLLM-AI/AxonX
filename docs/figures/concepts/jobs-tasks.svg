@@ -1,44 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="706" viewBox="0 0 1256 706" role="img" aria-labelledby="title desc">
-  <title id="title">Job acceptance and background Task completion</title>
-  <desc id="desc">A successful submit response is an execution handle, not the final research outcome.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#52738f" />
-    </marker>
-  </defs>
-  <rect x="8" y="8" width="1240.0" height="690.0" rx="30" fill="#f5f8fc" stroke="#18324b" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
-  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
-    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#18324b">
-      <text x="44" y="48" font-size="32" font-weight="700" text-anchor="start">Job acceptance and background Task completion</text>
-      <text x="44" y="82" font-size="18" font-weight="400" text-anchor="start" fill="#18324b">A successful submit response is an execution handle, not the final research outcome.</text>
-      <rect x="40" y="146" width="250" height="140" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="64.0" y="178" font-size="23" font-weight="700" text-anchor="start">submit Job</text>
-      <text x="64.0" y="210" font-size="18" font-weight="400" text-anchor="start">Task definition + input</text>
-      <text x="64.0" y="237" font-size="18" font-weight="400" text-anchor="start">Validate and accept</text>
-      <rect x="420" y="126" width="300" height="140" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="444.0" y="158" font-size="23" font-weight="700" text-anchor="start">Return TaskHandle</text>
-      <text x="444.0" y="190" font-size="18" font-weight="400" text-anchor="start">task_id + run_id</text>
-      <text x="444.0" y="217" font-size="18" font-weight="400" text-anchor="start">Client preserves identity</text>
-      <rect x="850" y="126" width="310" height="140" rx="20" fill="#e8f1ff" stroke="#a9c5e8" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="874.0" y="158" font-size="23" font-weight="700" text-anchor="start">wait_task / status</text>
-      <text x="874.0" y="190" font-size="18" font-weight="400" text-anchor="start">Observe this execution</text>
-      <text x="874.0" y="217" font-size="18" font-weight="400" text-anchor="start">Check terminal state</text>
-      <path d="M 290 196 H 420" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M 720 196 H 850" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <rect x="420" y="368" width="300" height="140" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="444.0" y="400" font-size="23" font-weight="700" text-anchor="start">Background worker</text>
-      <text x="444.0" y="432" font-size="18" font-weight="400" text-anchor="start">Synchronous Task steps</text>
-      <text x="444.0" y="459" font-size="18" font-weight="400" text-anchor="start">Progress / logs / artifacts</text>
-      <rect x="850" y="368" width="310" height="140" rx="20" fill="#e7f5f1" stroke="#a9d7ca" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="874.0" y="400" font-size="23" font-weight="700" text-anchor="start">Publish final state</text>
-      <text x="874.0" y="432" font-size="18" font-weight="400" text-anchor="start">succeeded / failed / cancelled</text>
-      <text x="874.0" y="459" font-size="18" font-weight="400" text-anchor="start">Metadata in every state</text>
-      <path d="M 290 246 H 350 V 438 H 420" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M 720 438 H 850" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M 1005 368 V 266" fill="none" stroke="#52738f" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" />
-      <text x="600.0" y="602" font-size="17" font-weight="400" text-anchor="middle">The Job response and worker execution proceed independently after acceptance.</text>
-      <text x="600.0" y="628" font-size="17" font-weight="400" text-anchor="middle">Verify success and declared artifacts before using the result in downstream research.</text>
-    </g>
-    <path d="M 44 574 H 1156" fill="none" stroke="#18324b" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="300" viewBox="0 0 1120 300" role="img" aria-labelledby="title desc">
+<title id="title">Task execution and observation</title>
+<desc id="desc">CLI exec owns Task execution and writes metadata. The service reads published records for Studio and API queries.</desc>
+<rect width="1120" height="300" rx="18" fill="#f4f7fb"/>
+<g font-family="Arial,sans-serif" fill="#18324b">
+<text x="36" y="48" font-size="26" font-weight="700">Task execution and observation</text>
+<text x="36" y="80" font-size="17">The execution process owns lifecycle publication and resource cleanup.</text>
+<g fill="#fff" stroke="#b9cede" stroke-width="2"><rect x="36" y="120" width="230" height="100" rx="12"/><rect x="308" y="120" width="230" height="100" rx="12"/><rect x="580" y="120" width="230" height="100" rx="12"/><rect x="852" y="120" width="230" height="100" rx="12"/></g>
+<g font-size="21" font-weight="700" text-anchor="middle"><text x="151" y="158">axonx exec</text><text x="423" y="158">Task files</text><text x="695" y="158">TaskRepository</text><text x="967" y="158">API / Studio</text></g>
+<g font-size="16" text-anchor="middle"><text x="151" y="190">TaskRunner executes</text><text x="423" y="190">metadata, logs, artifacts</text><text x="695" y="190">Poll published metadata</text><text x="967" y="190">Inspect existing records</text></g>
+<g stroke="#52738f" stroke-width="3"><path d="M274 170h24m-7-7 7 7-7 7"/><path d="M546 170h24m-7-7 7 7-7 7"/><path d="M818 170h24m-7-7 7 7-7 7"/></g>
+<text x="36" y="264" font-size="17">Independent local exec continues across observation-service restarts.</text></g></svg>

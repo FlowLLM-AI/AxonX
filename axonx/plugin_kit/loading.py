@@ -5,10 +5,7 @@ from importlib import import_module, invalidate_caches
 from types import ModuleType
 from typing import Any, cast
 
-from .environment import serialized
 
-
-@serialized
 def load_symbol[T](
     target: str,
     expected_base: type[T],

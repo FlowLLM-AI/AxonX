@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 
 from ...plugin_kit import list_installed_plugins
-from ...plugin_kit.environment import restart_required
 from .metrics import collect_machine_info
 
 CREDENTIAL_NAMES = ("AXONX_SERVICE_TOKEN", "AXONX_TARGET_TOKEN", "AXONX_TUSHARE_TOKEN")
@@ -40,6 +39,5 @@ def collect_diagnostics(workspace: Path, logger) -> dict:
             plugin.model_dump(include={"distribution", "version", "plugins", "content_sha256", "sha256", "error"})
             for plugin in plugins
         ],
-        "restart_required": restart_required(),
         "credentials_configured": {name: bool(os.environ.get(name)) for name in CREDENTIAL_NAMES},
     }

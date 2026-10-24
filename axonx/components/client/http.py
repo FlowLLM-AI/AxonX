@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import TypeVar
@@ -12,11 +13,13 @@ from pydantic import BaseModel, ValidationError
 
 from ...constants import (
     AXONX_DEFAULT_REQUEST_TIMEOUT,
+    AXONX_CLI_REQUEST_ID,
+    PROTOCOL_CLI_REQUEST_HEADER,
     PROTOCOL_AUTH_HEADER,
     PROTOCOL_AUTH_SCHEME,
     PROTOCOL_FILE_DIRECTORY_HEADER,
     PROTOCOL_FILE_NAME_HEADER,
-    PROTOCOL_ROUTE_FILES,
+    PROTOCOL_ROUTE_UPLOAD,
     PROTOCOL_ROUTE_HEALTH,
     PROTOCOL_ROUTE_JOB,
     PROTOCOL_ROUTE_JOB_EVENTS,
@@ -24,7 +27,7 @@ from ...constants import (
     PROTOCOL_SSE_DATA_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
-from ...workspace.models import FileCopy
+from ...workspace.models import StagedFile
 from ..job.contracts import JobCatalog, JobInfo, JobResponse
 from ..job.events import JOB_EVENT_ADAPTER, JobEvent, ResultEvent
 from .base import BaseClient, RemoteServiceError
@@ -67,7 +70,9 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         self._transport = transport
 
     async def _connect(self) -> httpx.AsyncClient:
-        headers = {PROTOCOL_AUTH_HEADER: f"{PROTOCOL_AUTH_SCHEME} {self.token}"} if self.token else None
+        headers = {PROTOCOL_AUTH_HEADER: f"{PROTOCOL_AUTH_SCHEME} {self.token}"} if self.token else {}
+        if request_id := os.environ.get(AXONX_CLI_REQUEST_ID):
+            headers[PROTOCOL_CLI_REQUEST_HEADER] = request_id
         return httpx.AsyncClient(
             base_url=self.url,
             timeout=self.timeout,
@@ -167,7 +172,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         *,
         filename: str | None = None,
         directory: str | None = None,
-    ) -> FileCopy:
+    ) -> StagedFile:
         """Copy one local file into the remote workspace."""
         size = path.stat().st_size
         headers = {
@@ -177,12 +182,12 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         }
         if directory:
             headers[PROTOCOL_FILE_DIRECTORY_HEADER] = directory
-        response = await self._response("POST", PROTOCOL_ROUTE_FILES, content=_file_chunks(path), headers=headers)
-        return self._payload(response, FileCopy)
+        response = await self._response("POST", PROTOCOL_ROUTE_UPLOAD, content=_file_chunks(path), headers=headers)
+        return self._payload(response, StagedFile)
 
     async def discard_file(self, path: str) -> str:
         """Discard one staged remote file, including an already-consumed one."""
-        response = await self._response("DELETE", PROTOCOL_ROUTE_FILES, params={"path": path})
+        response = await self._response("DELETE", PROTOCOL_ROUTE_UPLOAD, params={"path": path})
         answer = response.answer
         if not isinstance(answer, dict) or not isinstance(answer.get("path"), str):
             raise RemoteServiceError("Remote service returned an invalid file cleanup payload")

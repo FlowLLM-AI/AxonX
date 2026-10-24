@@ -25,7 +25,7 @@ Header:    Authorization: Bearer <AxonX 服务 token>
 
 ## 先发现，再调用
 
-工具目录来自当前运行的服务配置，可能包含查询、提交、取消、文件删除、Python 执行或插件安装等操作。外部 MCP 公开范围与内置 Agent 的 `job_tools` 名单不是同一层配置。
+工具目录来自当前运行的服务配置，可能包含查询、文件删除、Python 执行或插件安装等操作。外部 MCP 公开范围与内置 Agent 的 `job_tools` 名单不是同一层配置。
 
 先调用 MCP `tools/list`，读取工具 Schema，再发起 `tools/call`。不要根据文档中的名称假定部署环境已经公开它。只把当前用户任务需要的能力提供给调用方。
 
@@ -73,7 +73,7 @@ asyncio.run(main())
 
 ## 文件上传
 
-文件字节通过 HTTP `POST /files` 传输，独立于 MCP 工具调用。使用二进制或 multipart 上传，或 `HttpClient.copy_file`，请求同一 MCP 连接所使用的服务。将返回的暂存路径（插件安装还须本地 wheel 的 SHA256）传给消费文件的 Job 工具。上传不会自动调用该工具。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
+文件字节通过 HTTP `POST /upload` 传输，独立于 MCP 工具调用。使用二进制或 multipart 上传，或 `HttpClient.copy_file`，请求同一 MCP 连接所使用的服务。将返回的暂存路径（插件安装还须本地 wheel 的 SHA256）传给消费文件的 Job 工具。上传不会自动调用该工具。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
 
 ## MCP 与实时事件
 
@@ -96,11 +96,8 @@ Studio 在浏览器支持 `document.modelContext.registerTool` 时注册：
 | 浏览器工具             | 用途                                       |
 | ---------------------- | ------------------------------------------ |
 | `list_axonx_task_runs` | 查询托管当前 Studio 页面的本地服务任务状态 |
-| `submit_axonx_task`    | 提交注册任务与 config 对象                 |
 
 浏览器不提供该 API 时直接跳过注册，Studio 其他功能不因此失效。这两个工具调用前端现有 API，与服务 `/mcp` 不是同一个协议入口。当前实现不传递 `target`，因此始终操作托管页面的本地服务，不跟随 Studio 的远程机器选择。浏览器环境不支持时不能用它替代普通 MCP 连接。
-
-`submit_axonx_task` 的 config 需满足安装任务 Schema，返回提交 handle；仍需独立查询最终状态。页面生命周期结束时，通过 AbortSignal 结束工具注册生命周期。
 
 ## 连接排查
 

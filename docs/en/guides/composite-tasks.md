@@ -5,7 +5,7 @@ description: Combine registered Tasks with synchronous Python steps, explicit in
 
 # Composite Tasks
 
-`BaseCompositeTask` is a thin authoring layer over `BaseTask`. A composite is submitted, queried, and cancelled through the existing Task interfaces. Its children run sequentially in the parent's worker through `TaskRunner`, with a separate Run ID for each invocation. Each installed registration defaults to the parent’s resolved `task_name` for its Task ID, unified metadata, and artifact directory. Repeated calls of the same registration replace that directory’s terminal outputs. Children share the worker PID but have separate Run log files; a parent's log also includes its nested children. They are not independently supervised workers. A completed Task's stream drains a bounded log snapshot and ends even if a legacy shared process log keeps growing. Run logs follow the shared 7-day retention policy; active Run logs are protected from cleanup.
+`BaseCompositeTask` is a thin authoring layer over `BaseTask`. A composite executes through CLI exec and is observed through the read-only Task interfaces. Its children run sequentially in the parent's worker through `TaskRunner`, with a separate Run ID for each invocation. Each installed registration defaults to the parent’s resolved `task_name` for its Task ID, unified metadata, and artifact directory. Repeated calls of the same registration replace that directory’s terminal outputs. Children share the worker PID but have separate Run log files; a parent's log also includes its nested children. They are not independently supervised workers. A completed Task's stream drains a bounded log snapshot and ends even if a legacy shared process log keeps growing. Run logs follow the shared 7-day retention policy; active Run logs are protected from cleanup.
 
 Use ordinary Python to express sequences, loops, and conditions. No Workflow service or configuration language is required. This first version supports local synchronous composition; it does not implement parallel execution, automatic retries, crash-resume, or distributed scheduling.
 
@@ -24,16 +24,13 @@ from axonx.task import (
     BaseInputParams,
 )
 
-
 class ChainInput(BaseInputParams):
     x: int
     y: int
     doubles: int = Field(default=2, ge=0)
 
-
 class ChainOutput(BaseOutputParams):
     total: int
-
 
 class DemoChainTask(BaseCompositeTask):
     """Add two values, then double the sum a configurable number of times."""
@@ -71,13 +68,9 @@ tasks:
 
 Follow [plugin development](../dev_guide.md) to package/install the plugin, then restart the executing service. The following commands assume that `demo_chain` has been installed in the execution environment:
 
-```bash
+````bash
 # Run locally; total is 20
 axonx exec --task demo_chain --x 2 --y 3 --doubles 2
-
-# Or submit to the running service, then wait/cancel using the parent's handle
-axonx submit --task demo_chain --x 2 --y 3 --doubles 2
-```
 
 `run_task()` must be called while the parent is executing through `TaskRunner`. `task` is an installed registration name. `node_name` defaults to that name and accepts letters, digits, underscores, and hyphens. Repeating a node name records another numbered attempt; a node name cannot switch to a different Task definition. Node names and attempt numbers label invocation records and do not affect Task IDs or directories.
 
@@ -101,7 +94,7 @@ for dataset in datasets:
     )
     if not result.success:
         self.logger.warning(result.record.error)
-```
+````
 
 Here `download_dataset` represents a plugin Task with a matching input schema. Continued failures are recorded and the parent still finishes as failed. Validation and lookup failures also follow this policy. `KeyboardInterrupt` and `SystemExit` always propagate. Repeated calls do not implement automatic retries or erase earlier failures. Preserve the inherited `exit_code()` when extending a composite so this aggregation remains in effect.
 
@@ -117,18 +110,9 @@ The default composite output is `BaseOutputParams`. Custom outputs extend it wit
 
 Containment does not create data-lineage edges. Pass `source_tasks` explicitly for actual upstream data dependencies between different Task IDs. Every child, including nested composites, inherits the parent’s resolved `task_name` by default; pass `task_name` to `run_task()` for an explicitly named child instance. The runtime adds no hash, node name, or attempt number to the name. Repeated calls of the same registration use the same Task ID and replace terminal outputs through `TaskRunner`; active and unrecognized directories are rejected. Each invocation gets a new Run ID. A Task cannot use its own Task ID as an upstream source; construction rejects this before either submission or execution can replace any files. Invocation records retain states and errors, while old Run status and artifacts become unavailable after replacement. Parents with the same name share child directories even when their registrations differ. Shared fixed-name pipelines must serialize execution. Replacement does not preserve old Runs or provide failure rollback.
 
-Cancel the **parent** through TaskManager. The shared worker stops, then the manager settles active children, including nested composites, as cancelled. Unexpected worker exits settle them as failed. Already terminal children and replacement/foreign executions remain unchanged. A child is queryable through existing interfaces but cannot be cancelled independently through TaskManager because it has no separately managed worker. For `exec`, cancellation/termination is owned by the calling process; a separate service cannot settle that process's children.
-
 Settlement reads only valid regular metadata matching the parent and child Run IDs. Missing, malformed, stale, symlink, and non-regular records are ignored. Transient I/O errors propagate to the worker-exit monitor for retry; settlement never replaces a foreign Run.
 
 Inspect a submitted run on the same execution target:
-
-```bash
-axonx status --task-id '<parent Task ID>'
-axonx preview_file --path '<parent Task type>/<parent Task ID>/metadata.json'
-axonx status --task-id '<child Task ID from metadata.json>'
-axonx cancel --run-id '<parent run_id>'
-```
 
 Replace the placeholders with the parent handle and child IDs from `metadata.json.children`. Pure composites default to Task type `composite`, with directories such as `composite/composite#demo_chain#<name>/`; subclasses can use specialized types. Parent steps do not contain child step progress; query each child’s status or stream for that detail.
 

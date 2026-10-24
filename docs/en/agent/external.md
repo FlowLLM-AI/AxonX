@@ -47,7 +47,7 @@ Replace the example address. Direct access does not require a local service. An 
 ## Complete an execution and inspect evidence
 
 ```bash
-axonx submit --task demo --x 2 --y 3 --target 192.0.2.10:1024
+axonx exec --task demo --x 2 --y 3 --target 192.0.2.10:1024
 ```
 
 Keep the actual `answer.task_id` and `answer.run_id`, check `success`, and wait for that execution:
@@ -60,7 +60,7 @@ axonx read_task_log --task-id '<task_id>' --target 192.0.2.10:1024
 axonx get_task_context --task-id '<task_id>' --target 192.0.2.10:1024
 ```
 
-Confirm the terminal state is `succeeded`, then inspect metadata and its declared artifacts. A successful query means the query worked; a successful submission means it was accepted. Neither replaces Task success. Use [workspace-relative paths](../guides/workspace-files.md) for files; paginated previews do not represent the complete dataset.
+Confirm the terminal state is `succeeded`, then inspect metadata and its declared artifacts. A successful query only confirms that the query worked; verify the Task terminal state and exit code separately. Use [workspace-relative paths](../guides/workspace-files.md) for files; paginated previews do not represent the complete dataset.
 
 Omit `task_name` by default so the framework generates an instance name. Reusing an explicit name replaces a finished task's records and artifacts; see [task lifecycle](../concepts/task-lifecycle.md).
 

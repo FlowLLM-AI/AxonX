@@ -1,70 +1,64 @@
 # CLI reference
 
-AxonX commands use `axonx ACTION --field value`. start, exec, and plugin are handled locally; other ACTION values are service Job names. Configure the connection token first, then choose a Job from the [public catalog](../api/overview.md).
+Without `--target`, start, exec, and plugin run locally, while other actions call the local service. An explicit `--target` sends the original command arguments to the remote `cli` Job, which starts `python -m axonx.cli` without a shell and forwards stdout, stderr, and the exit code. Remote paths belong to that machine; its CLI working directory is the service workspace. Remote start and nested forwarding are rejected.
 
 ## Command responsibilities
 
 | Command      | Execution location                     | Purpose                                                                     |
 | ------------ | -------------------------------------- | --------------------------------------------------------------------------- |
-| axonx start  | Current process                        | Start the services in the configuration                                     |
-| axonx exec   | Current process                        | Execute a synchronous Task; list the catalog when no arguments are supplied |
-| axonx submit | Connected service's worker             | Submit asynchronously through the submit Job                                |
+| axonx start  | Current process                        | Start the daemon and its service/cron workers                               |
+| axonx exec   | Current process or explicit target     | Execute a synchronous Task; list the catalog when no arguments are supplied |
 | axonx JOB    | Connected service                      | Ordinary or streaming Job invocation                                        |
 | axonx plugin | Current environment or explicit target | Plugin inspection, building, installation, and uninstallation               |
 | axonx help   | Connected service                      | Discover public Jobs; inspect schemas with `--job NAME`                     |
 
-exec does not require a running service; submit does. Process isolation does not constitute a security sandbox.
+Local exec does not require a running service; remote CLI does. Process isolation does not constitute a security sandbox.
 
 ## Capability discovery and environment diagnosis
 
 ```bash
-axonx --help
+axonx
 axonx help --target node-b:1024
 axonx help --job python --target node-b:1024
 axonx diagnose --target node-b:1024
 ```
 
-`--help`, `-h`, and no arguments print local syntax without a service. `help` is a normal service Job returning the public Job names and descriptions; `--job NAME` returns one Job's live input/output schemas. Hidden or unavailable Jobs cannot be inspected. This intentionally replaces the former local `axonx help` behavior: use `axonx --help` offline. `diagnose` reads the service build, interpreter, workspace disk, resources, installed plugin fingerprints, errors, and restart requirement. Supported credential variables are reported as booleans only. See [Machine API](../api/machines.md).
+No arguments print local usage without a service. Top-level `--help` and `-h` have been removed. `help` remains a service Job; `--job NAME` returns a public Job schema. Remote CLI forwarding requires the target service to expose the authenticated `cli` Job. `diagnose` reports build, Python, workspace, resources, installed plugins, and credential-presence booleans.
 
 ## Startup and configuration overrides
 
 ```bash
 axonx start
 axonx start --config app.yaml
+axonx start --config default --cron research
 axonx start --config app.yaml --service.port 2024 --service.web-enabled false
 axonx start --workspace-dir .axonx --log-dir logs
 ```
 
-Without --config, the resolver reads default. See [Server configuration](configuration.md) for configuration inheritance, environment expansion, and merging. Client --target/--client-timeout options cannot be used with start or exec.
+Without --config, the resolver reads default. See [Server configuration](configuration.md) for configuration inheritance, environment expansion, and merging. Remote `start` is not supported; `exec --target HOST:PORT` runs synchronously on that service machine.
 
-## Task execution and submission
+`--cron` accepts a built-in/installed name or an explicit `.cron` file, sharing configuration lookup with its own `axonx.crons` entry-point group. It enables local five-field `axonx exec --task` scheduling. See [Scheduling](../guides/scheduling.md).
+
+## Task execution
 
 ```bash
 axonx exec
-axonx exec --task demo --x 1 --y 2
-axonx exec --task demo --x 1 --y 2 --task-name local-demo
-
-axonx list_installed_task_definitions
-axonx get_task_definition --task demo
-axonx submit --task demo --x 1 --y 2 --task-name cli-demo
+axonx exec --task demo --task-name cli-demo --x 1 --y 2
 ```
 
-submit outputs a standard JobResponse. Save answer.task_id and answer.run_id and replace the placeholder below:
+Local exec runs synchronously without an HTTP service, prints Task output and returns its exit code. The Task writes metadata under the configured workspace. The observer service must read that same workspace. Use terminal or process-manager facilities for background execution.
 
 ```bash
-axonx wait_task --task-id 'base#demo#cli-demo' \
-  --run-id YOUR_RETURNED_RUN_ID --client-timeout 600
-axonx status --task-id 'base#demo#cli-demo'
-axonx read_task_log --task-id 'base#demo#cli-demo' --offset -1 --limit 65536
+axonx status --task-id 'base#demo#cli-demo' --detail full
+axonx wait_task --task-id 'base#demo#cli-demo' --run-id '<run_id from metadata>'
 ```
 
-The final success of wait_task depends on whether the task succeeded. Successful submit means only that the task was accepted and started; it does not establish that output_params has been prepared or the task succeeded. Rerunning with a fixed name replaces a terminal directory; active tasks cannot be overwritten.
+The service exposes Task observation without dedicated submit, cancel or delete Tasks Jobs. Remote `exec --target HOST:PORT` remains a synchronous remote CLI command: disconnecting its request or stopping that service terminates its process.
 
 ## Lightweight query defaults
 
 | Query                                      | CLI default                                             | Explicit detail                                                              |
 | ------------------------------------------ | ------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `list_schedules`                           | Configuration/status; no history or latest Job result   | `--name NAME --include-history true --history-limit 10` (1–200, default 20)  |
 | `list_task_statuses`                       | Summaries, across all transports                        | `--detail full`; filter with `--task-type` and `--state`                     |
 | `status`, `wait_task`                      | Summary with Task/Run ID, state, progress and ownership | `--detail full` for inputs, outputs, children, artifacts and complete errors |
 | `list_installed_task_definitions`          | Registration metadata, without generating schemas       | `--include-schemas true`, or one `get_task_definition`                       |
@@ -75,7 +69,6 @@ The final success of wait_task depends on whether the task succeeded. Successful
 These intentional query-default changes do not alter task execution or persisted records. HTTP/MCP `status`/`wait_task` still default to full snapshots; Task catalog schemas remain enabled for those transports. A truncated structured preview returns a marked UTF-8 prefix without parsing incomplete JSON/YAML; inspect `truncated` and `parse_error`. CSV/JSONL/Parquet use row pagination, independently of `max_bytes`.
 
 ```bash
-axonx list_schedules --name daily --include-history true --history-limit 10
 axonx status --task-id 'base#demo#cli-demo' --detail full
 axonx list_task_statuses --detail full --state failed
 ```
@@ -85,13 +78,6 @@ To confirm startup, poll `status`, match the returned Run ID and check `queued`/
 ## Parameter and value conversion
 
 Parameters must be supplied as pairs; booleans also require values. Hyphens become underscores, and dots create nested dictionaries.
-
-```bash
-axonx submit --task demo --x 1 --y 2 --fail false
-axonx start --service.port 2024
-axonx delete_tasks --task-ids '["base#demo#cli-demo"]'
-axonx delete_entries --paths '["tmp/example.txt"]'
-```
 
 CLI natural-value conversion recognizes null/none, booleans, integers/floats, and JSON in that order, then retains strings. Numbers beginning with zero avoid direct numeric conversion; for example, 000001 remains a string. Wrap valid JSON objects and arrays in single quotes, using double quotes inside JSON.
 
@@ -131,12 +117,7 @@ axonx agent_chat --message 'Check the task statuses in the current workspace' \
   --stream true --stream-format json --client-timeout 600
 ```
 
-blocks is suitable for terminal reading; json emits one event-model JSON value per line for programmatic processing. The final result's success determines the exit code. Interrupting the consumer does not cancel a background research Task; cancel explicitly:
-
-```bash
-axonx cancel --task-id 'base#demo#cli-demo'
-axonx cancel --run-id '<run_id>'
-```
+Control local exec processes through their execution environment. The service exposes no Task cancellation or deletion interface. Disconnecting read-only observation does not change an independent Task execution.
 
 Use `--task-id` for the current execution, or `--run-id` for one exact execution. At least one ID is required; when both are supplied, a mismatched pair returns false.
 
@@ -155,14 +136,17 @@ axonx plugin install -e ./plugins/example
 axonx plugin uninstall axonx-example
 ```
 
-Without an explicit target, plugin operations address the current Python environment and do not connect to the local HTTP service by default. With an explicit target, list, show, inspect, install, and uninstall address the service environment. For remote install, the client first builds/inspects the source directory or wheel, then uploads it.
+Without a target, plugin operations address the current Python environment. With a target, all plugin subcommands run on that machine, including build and editable install. Paths and `--output` refer to that machine. `-e` cannot be combined with `--output`.
+
+Build local source first, upload the wheel with `POST /upload`, then install the returned absolute `location`:
 
 ```bash
 axonx plugin list --target node-b:1024
-axonx plugin install ./plugins/example --target node-b:1024
+axonx plugin install /srv/axonx/.axonx/tmp/upload-id/example.whl \
+  --target node-b:1024 --client-timeout 300
 ```
 
-build is local only and cannot use a remote target. Editable installation supports only local source directories and cannot use target or output; an existing wheel cannot use output. The remote installation client timeout is at least 300 seconds. Task-only wheel updates through the remote installation Job apply to subsequent Task queries and submissions without restarting. Check restart_required: Components/Jobs and replaced dependencies can still require a service restart.
+Upload and installation are separate; installation does not remove the input file. It changes site-packages without refreshing loaded service objects or tracking restart requirements. Concurrent environment mutations are not coordinated. See [Plugin management](../plugins/management.md).
 
 ## Output and exit codes
 
@@ -173,6 +157,12 @@ build is local only and cannot use a remote target. Editable installation suppor
 | 2         | FileNotFoundError, KeyError, TypeError, or ValueError in the main CLI; parameter errors  |
 
 Ordinary Jobs print complete JSON; exec prints Task output rather than JobResponse. On failure, stderr may contain `Error: Type: message`. Scripts should check exit codes and retain the full response to distinguish submission failure from a subsequent task failure.
+
+## Remote CLI protocol
+
+`POST /jobs/cli/events` accepts `{"arguments":{"argv":["exec","--task","demo","--x","1","--y","2"]}}`. Output arrives as `log` events with `channel=stdout` or `stderr`; the final result contains `stdout`, `stderr`, `exit_code`, and truncation flags. The ordinary JSON endpoint keeps at most 1 MiB per captured channel; streaming forwards all output. The CLI replays the output and returns the child's exit code without wrapping its JSON again. Set `--client-timeout` for long operations; output is not a keepalive.
+
+Task execution and process control belong to the CLI execution environment. The service reads published metadata through TaskRepository and does not cancel, recover or adopt Task processes.
 
 ## Related documentation
 

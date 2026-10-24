@@ -20,13 +20,10 @@ PLUGIN_MANIFEST = "plugin.yaml"
 # Address advertised to clients created in the service process.
 AXONX_SERVICE_TARGET = "AXONX_SERVICE_TARGET"
 
-# Internal handoff from an application task manager to its Task subprocess.
+# Execution settings shared by local and remote CLI commands.
 AXONX_TASK_WORKSPACE_DIR = "AXONX_TASK_WORKSPACE_DIR"
 AXONX_TASK_LOG_DIR = "AXONX_TASK_LOG_DIR"
 AXONX_TASK_TIMEZONE = "AXONX_TASK_TIMEZONE"
-AXONX_TASK_ID = "AXONX_TASK_ID"
-AXONX_TASK_RUN_ID = "AXONX_TASK_RUN_ID"
-AXONX_TASK_CREATED_AT = "AXONX_TASK_CREATED_AT"
 
 # Wildcard address used by servers to listen on every IPv4 interface.
 AXONX_DEFAULT_BIND_HOST = "0.0.0.0"
@@ -46,7 +43,9 @@ AXONX_DEFAULT_REQUEST_TIMEOUT = 60.0
 # once here because each one has a producer and a consumer in different
 # subsystems: a router answers what the client asks for, and the auth middleware
 # guards the same paths the routers register.
-PROTOCOL_ROUTE_FILES = "/files"
+PROTOCOL_ROUTE_UPLOAD = "/upload"
+PROTOCOL_CLI_REQUEST_HEADER = "X-AxonX-Cli-Request"
+AXONX_CLI_REQUEST_ID = "AXONX_CLI_REQUEST_ID"
 PROTOCOL_ROUTE_HEALTH = "/health"
 PROTOCOL_ROUTE_JOBS = "/jobs"
 PROTOCOL_ROUTE_MCP = "/mcp"
@@ -63,7 +62,7 @@ PROTOCOL_ROUTE_JOB_EVENTS = "/jobs/{name}/events"
 # them without the service token.
 PROTOCOL_AUTH_ROOTS = frozenset(
     {
-        PROTOCOL_ROUTE_FILES,
+        PROTOCOL_ROUTE_UPLOAD,
         PROTOCOL_ROUTE_HEALTH,
         PROTOCOL_ROUTE_JOBS,
         PROTOCOL_ROUTE_MCP,
@@ -126,17 +125,16 @@ CLI_LOCAL_COMMANDS = frozenset(
 CLI_PASSTHROUGH_COMMANDS = frozenset({CLI_PLUGIN_COMMAND})
 
 CLI_USAGE = f"""Usage:
-  axonx --help
+  axonx
   axonx help [--job NAME] [--target HOST:PORT]
   axonx diagnose [--target HOST:PORT]
   axonx JOB [--field value ...] [--client-timeout SECONDS] [--token TOKEN] [--stream true]
         [--stream-format blocks|json] [--target HOST:PORT]
   axonx wait_task --task-id ID --run-id ID [--client-timeout SECONDS]
   axonx exec [--task TASK] [--field value ...]
-  axonx submit --task TASK [--field value ...]
-  axonx start [--config app.yaml]
+  axonx start [--config NAME_OR_PATH] [--cron NAME_OR_PATH]
   axonx plugin list|show|inspect|install|uninstall ... [--target HOST:PORT]
-  axonx plugin build SOURCE [--output DIRECTORY]
+  axonx plugin build SOURCE [--output DIRECTORY] [--target HOST:PORT]
   axonx plugin install -e SOURCE
 
 Service options: target={AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}

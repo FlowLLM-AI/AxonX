@@ -22,14 +22,7 @@ interface UpdateRecord {
   after: Record<string, string | null> | null;
   commit: string | null;
 }
-interface RestartBlocker {
-  task_id?: string;
-  run_id?: string;
-  job?: string;
-  schedule: string;
-}
 interface UpdateStatus {
-  restart_blockers: RestartBlocker[];
   record: UpdateRecord | null;
   log: string;
 }
@@ -43,7 +36,6 @@ function UpdatePanelContent({ target }: { target?: string }) {
   const [status, setStatus] = useState<UpdateStatus>({
     record: null,
     log: "",
-    restart_blockers: [],
   });
   const [error, setError] = useState("");
   const [submissionError, setSubmissionError] = useState("");
@@ -51,13 +43,11 @@ function UpdatePanelContent({ target }: { target?: string }) {
   const [availableModes, setAvailableModes] = useState<UpdateMode[]>([]);
   const available = availableModes.length > 0;
   const [submitting, setSubmitting] = useState(false);
-  const [force, setForce] = useState(false);
   const [selectedMode, setSelectedMode] = useState<UpdateMode>("git");
   const mode = availableModes.includes(selectedMode)
     ? selectedMode
     : (availableModes[0] ?? "git");
   const [confirmed, setConfirmed] = useState(false);
-  const blocked = status.restart_blockers.length > 0;
   const updateId = status.record?.update_id;
   const active = Boolean(
     status.record && !["failed", "succeeded"].includes(status.record.phase),
@@ -100,7 +90,6 @@ function UpdatePanelContent({ target }: { target?: string }) {
   useRefresh(read, !submitting, true);
 
   const start = async (signal: AbortSignal) => {
-    if (blocked) return;
     requestVersion.current += 1;
     setSubmissionError("");
     setSubmitting(true);
@@ -108,11 +97,11 @@ function UpdatePanelContent({ target }: { target?: string }) {
     try {
       const record = await axonx.invoke<UpdateRecord>(
         operationJobs[mode],
-        { force },
+        {},
         { target, signal },
       );
       if (signal.aborted) return;
-      setStatus({ record, log: "", restart_blockers: [] });
+      setStatus({ record, log: "" });
       setConfirmed(false);
     } catch (cause) {
       if (!signal.aborted) setSubmissionError(String(cause));
@@ -159,27 +148,6 @@ function UpdatePanelContent({ target }: { target?: string }) {
             </Select>
           </label>
           <p>{t(`update.${mode}Hint`)}</p>
-          {blocked && (
-            <div className="error-banner" role="alert">
-              <div>
-                <strong>{t("update.scheduledBlocked")}</strong>
-                {status.restart_blockers.map((task) => (
-                  <span key={task.run_id || `job:${task.schedule}`}>
-                    {task.schedule} · {task.task_id || task.job}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          <label className="update-checkbox">
-            <input
-              type="checkbox"
-              checked={force}
-              disabled={active || submitting}
-              onChange={(event) => setForce(event.target.checked)}
-            />
-            {t("update.force")}
-          </label>
           <label className="update-checkbox">
             <input
               type="checkbox"
@@ -191,9 +159,7 @@ function UpdatePanelContent({ target }: { target?: string }) {
           </label>
           <button
             className="secondary-button"
-            disabled={
-              !confirmed || active || submitting || blocked || Boolean(error)
-            }
+            disabled={!confirmed || active || submitting || Boolean(error)}
             onClick={() => {
               if (submissionController.current)
                 void start(submissionController.current.signal);

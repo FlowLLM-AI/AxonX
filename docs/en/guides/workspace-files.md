@@ -73,13 +73,11 @@ axonx delete_entries --paths '["temporary/report.txt"]'
 
 This is a deletion example; first confirm the path exists and is no longer needed. The interface accepts 1–200 paths at once, validates the selection first, then deletes the highest-level roots; selecting both a parent directory and child file does not delete the child twice.
 
-`delete_entries` is a general file capability and lacks TaskManager's active-task protection. Prefer `delete_tasks` when cleaning up an entire Task to avoid directly deleting a directory being written.
-
 The workspace root cannot be deleted, and directory deletion is recursive. Path restrictions prevent leaving the workspace but provide neither undo nor a recycle bin; back up artifacts you need to retain first.
 
 ## Upload and subsequent consumption
 
-Plugin installation and synchronization use `/files` with raw binary or multipart uploads to stage artifacts, returning path, size, and sha256 in FileCopy. Receivers consume the returned workspace-relative path rather than the client's source path.
+Plugin installation and synchronization use `/upload` with raw binary or multipart uploads to stage artifacts, returning path, size, and sha256 in StagedFile. Receivers consume the returned workspace-relative path rather than the client's source path.
 
 Uploads are not general directory mirroring. Clean up staging files after successful consumption; see [File transfer API](../api/workspace.md) for the specific process.
 

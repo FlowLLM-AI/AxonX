@@ -130,18 +130,17 @@ This path resolves against the configuration file that declares it. For remote d
 
 Application uses a local registry and merges discovered contributions according to ownership. Two plugins with the same Task registration name, Job name, or category/backend are rejected; Task names colliding with built-ins are also rejected. Providers cannot be freely added after the registry is frozen.
 
-Remote installation refreshes the receiving service's plugin imports even when the identical wheel is already installed, without rerunning pip. This also handles a peer service updating shared site-packages while the receiving process still holds older modules. Existing Task objects keep their classes; re-query the Task definition before submission. Service contributions still follow the restart requirement.
+Installation changes the selected Python environment without refreshing loaded service modules or tracking restart requirements. New CLI processes load the installed environment. Restart a persistent service when it must reload Task schemas, Components, or Jobs; existing processes are not version-isolated. Plugin environment mutations are not serialized.
 
 ## Wheels and content fingerprints
 
-| Field            | Meaning                                 | Purpose                               |
-| ---------------- | --------------------------------------- | ------------------------------------- |
-| sha256           | SHA-256 of wheel file bytes             | Installation artifact verification    |
-| content_sha256   | Plugin content fingerprint              | Build caching and content identity    |
-| requirements     | Wheel dependency metadata               | Installation environment requirements |
-| restart_required | Installation/uninstallation result hint | Recompose service contributions       |
+| Field          | Meaning                     | Purpose                               |
+| -------------- | --------------------------- | ------------------------------------- |
+| sha256         | SHA-256 of wheel file bytes | Installation artifact verification    |
+| content_sha256 | Plugin content fingerprint  | Build caching and content identity    |
+| requirements   | Wheel dependency metadata   | Installation environment requirements |
 
-Identical source content and caching do not guarantee identical wheel bytes; do not substitute content_sha256 for the wheel SHA256 calculated by the local builder. Remote install must receive the path returned by POST /files and that local wheel SHA256. Editable installation applies only to local source environments and cannot be deployed remotely.
+Identical source content and caching do not guarantee identical wheel bytes; do not substitute content_sha256 for the wheel SHA256 calculated by the local builder. Remote install must receive the path returned by POST /upload and that local wheel SHA256. Editable installation applies only to local source environments and cannot be deployed remotely.
 
 ```bash
 axonx plugin inspect ./plugins/example
@@ -150,7 +149,7 @@ axonx plugin install ./plugins/example
 axonx plugin list
 ```
 
-These commands inspect, build, or install and must be used with an actual plugin directory. When an installation result requires a restart, query get_task_definition and /jobs after restarting to verify contributions. Task-only wheel installation through the service refreshes subsequent Task queries and submissions without restarting; already assembled Components/Jobs still require restart. See [Plugin management](../plugins/management.md#checksums-and-restart).
+These commands inspect, build, or install using paths in the selected environment. Installation does not refresh loaded service objects. Restart the service when it must reload schemas or contributions. See [Plugin management](../plugins/management.md#checksums-and-service-state).
 
 ## Named configuration contributions
 

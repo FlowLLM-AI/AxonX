@@ -8,12 +8,12 @@ from ..base import BaseStep
 
 @provider("get_task_context_step")
 class GetTaskContextStep(BaseStep):
-    component_domains = (ComponentEnum.TASK_MANAGER,)
+    component_domains = (ComponentEnum.TASK_REPOSITORY,)
 
     async def execute(self):
         task_id = self.context["task_id"]
-        status = await self.task_manager.get_status(task_id)
-        graph = await self.task_manager.get_graph(task_id)
+        status = await self.task_repository.entry(task_id)
+        graph = await self.task_repository.graph(task_id)
         nodes = {node.task_id: node for node in graph.nodes}
         parents = {node.task_id: set(node.parent_ids) for node in graph.nodes}
 

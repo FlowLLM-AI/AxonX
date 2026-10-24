@@ -1,24 +1,17 @@
-"""Plugin CLI for the current environment or an explicit target service."""
+"""Plugin CLI for the current Python environment."""
 
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from pydantic import TypeAdapter
-
-from ..components.client import ClientOptions, HttpClient
 from .discovery import get_installed_plugin, list_installed_plugins
 from .installer import install_plugin, uninstall_plugin
-from .models import PluginInfo, PluginInstallResult, PluginUninstallResult
 from .wheel import build_wheel, inspect_wheel, source_sha256
-
-_DEPLOY_TIMEOUT = 300.0
 
 
 def _artifact(source: str, output: str | None = None):
@@ -58,42 +51,6 @@ def _print(value: Any) -> None:
     print(json.dumps(_json_value(value), ensure_ascii=False, indent=2))
 
 
-async def _run_remote(args, options: ClientOptions):
-    client_values = options.model_dump(exclude={"stream", "stream_format"}, exclude_none=True)
-    if args.command == "install":
-        client_values["timeout"] = max(float(client_values.get("timeout", 0)), _DEPLOY_TIMEOUT)
-    async with HttpClient(**client_values) as client:
-        if args.command == "list":
-            response = await client.run_job("list_plugins")
-            if not response.success:
-                raise RuntimeError(str(response.answer))
-            return TypeAdapter(list[PluginInfo]).validate_python(response.answer)
-        if args.command in {"show", "inspect"}:
-            response = await client.run_job("inspect_plugin", {"plugin": args.plugin})
-            if not response.success:
-                raise RuntimeError(str(response.answer))
-            return PluginInfo.model_validate(response.answer)
-        if args.command == "uninstall":
-            response = await client.run_job("uninstall_plugin", {"plugin": args.plugin})
-            if not response.success:
-                raise RuntimeError(str(response.answer))
-            return PluginUninstallResult.model_validate(response.answer)
-        if args.command == "install":
-            artifact = _artifact(args.plugin, args.output)
-            copied = await client.copy_file(artifact.wheel)
-            try:
-                response = await client.run_job(
-                    "install_plugin",
-                    {"path": copied.path, "sha256": artifact.sha256},
-                )
-                if not response.success:
-                    raise RuntimeError(str(response.answer))
-                return PluginInstallResult.model_validate(response.answer)
-            finally:
-                await client.discard_file(copied.path)
-    raise ValueError(f"Command {args.command!r} cannot run remotely")
-
-
 def _run_local(args):
     if args.command == "list":
         return list_installed_plugins()
@@ -115,7 +72,7 @@ def _run_local(args):
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="axonx plugin",
-        description="Manage plugins locally or on an explicit target service.",
+        description="Manage plugins in the current Python environment.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="List installed plugins.")
@@ -140,19 +97,14 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def plugin_cli(argv: Sequence[str], client_options: ClientOptions | None = None) -> int:
+def plugin_cli(argv: Sequence[str]) -> int:
     """Run one plugin command and return its process exit status."""
     args = _parser().parse_args(list(argv))
-    options = client_options or ClientOptions()
     try:
-        if args.command == "install" and args.editable and (options.target is not None or args.output is not None):
-            raise ValueError("--editable cannot be combined with --target or --output")
-        if args.command == "build" and options.target is not None:
-            raise ValueError("plugin build does not accept --target")
+        if args.command == "install" and args.editable and args.output is not None:
+            raise ValueError("--editable cannot be combined with --output")
         if args.command == "build":
             result = _artifact(args.plugin, args.output)
-        elif options.target is not None:
-            result = asyncio.run(_run_remote(args, options))
         else:
             result = _run_local(args)
         _print(result)

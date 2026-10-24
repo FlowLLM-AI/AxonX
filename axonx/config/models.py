@@ -46,19 +46,6 @@ class JobConfig(ComponentConfig):
         return schema
 
 
-class ScheduleConfig(ComponentConfig):
-    """Configure one trigger that invokes a named Job."""
-
-    backend: str = Field(default="cron", min_length=1)
-    description: str = ""
-    job: str = Field(min_length=1)
-    cron: str = Field(min_length=1)
-    arguments: dict[str, Any] = Field(default_factory=dict)
-    timezone: str | None = Field(default=None, min_length=1)
-    concurrency_policy: Literal["forbid", "allow", "replace"] = "forbid"
-    history_retention_days: int = Field(default=7, ge=1, strict=True)
-
-
 class PluginConfig(BaseModel):
     """Configure startup plugin sources."""
 
@@ -87,22 +74,17 @@ class TargetConfig(BaseModel):
 
 
 class StudioPageConfig(BaseModel):
-    """One service-defined page, grouping scheduled and manual root runs by category."""
+    """One service-defined page, grouping root Task runs by category."""
 
     model_config = ConfigDict(extra="forbid")
     title: dict[Literal["en", "zh"], str]
-    view: Literal["schedules", "tasks", "pipeline"]
-    schedules: list[str] = Field(default_factory=list)
-    category: TaskCategory | None = None
+    view: Literal["tasks", "pipeline"]
+    category: TaskCategory
 
     @model_validator(mode="after")
     def validate_page(self) -> Self:
         if set(self.title) != {"en", "zh"} or any(not title.strip() for title in self.title.values()):
             raise ValueError("Studio page titles require non-empty en and zh translations")
-        if self.view == "schedules" and self.category is not None:
-            raise ValueError("Schedule pages cannot select Tasks")
-        if self.view != "schedules" and self.category is None:
-            raise ValueError("Task pages require a TaskCategory")
         return self
 
 
@@ -142,7 +124,7 @@ class ApplicationConfig(BaseModel):
     environment: dict[str, str] = Field(default_factory=dict)
     components: dict[str, dict[str, ComponentConfig]] = Field(default_factory=dict)
     jobs: dict[str, JobConfig] = Field(default_factory=dict)
-    schedules: dict[str, ScheduleConfig] = Field(default_factory=dict)
+    cron: str | None = Field(default=None, min_length=1)
     studio: StudioConfig = Field(default_factory=StudioConfig)
     service: ComponentConfig | None = None
 
@@ -166,7 +148,6 @@ __all__ = [
     "ComponentConfig",
     "JobConfig",
     "PluginConfig",
-    "ScheduleConfig",
     "StudioConfig",
     "StudioPageConfig",
     "StudioPage",

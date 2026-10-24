@@ -51,11 +51,7 @@ TaskContext is a frozen dataclass attached to a Task, providing runtime-owned va
 
 Plugins should read these values without changing execution identity. `task.task_dir` is `<workspace>/<type>/<task_id>`; `source_task_dir(id)` locates an upstream directory in the same workspace.
 
-## TaskDefinition and TaskHandle
-
 TaskDefinition describes an executable definition with name, source (native/plugin), plugin (nullable), task_type, description, input_schema, and output_schema. description comes from the Task class docstring; missing or whitespace-only docstrings produce an empty string without blocking the Task or catalog.
-
-TaskHandle is the immutable dataclass returned by submit:
 
 ```json
 {
@@ -69,7 +65,7 @@ The `task` field is the registration name. There is no `task_name` field or addr
 
 ## TaskMetadata
 
-`metadata.json` is the authoritative lifecycle record from acceptance through completion, failure, or cancellation. Status queries return this same schema. The Runner updates one in-memory record and atomically replaces the file; Composite Tasks publish child snapshots through that Runner. After a worker stops, the manager reads its latest record and settles only matching Run IDs and PIDs. Ordinary text logs remain separate.
+metadata.json is the lifecycle record published by the Task, containing parameters, progress, children and output. The Runner replaces it atomically; the observing service never writes lifecycle state. Text logs are stored separately.
 
 | Field                                     | Meaning                                                                |
 | ----------------------------------------- | ---------------------------------------------------------------------- |
@@ -158,7 +154,7 @@ events.jsonl is an append-only progress record; ordinary logs are stored at log_
 
 [Jobs and Tasks](../concepts/jobs-and-tasks.md) · [Task API](../api/tasks.md) · [Research artifact contracts](research-artifacts.md)
 
-Source: [Input/output](../../../axonx/task/core/params.py), [Context](../../../axonx/task/core/context.py), [Definitions](../../../axonx/task/catalog/resolver.py), [Handle](../../../axonx/task/contracts/submission.py), [Status](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/workspace.py).
+Source: [Input/output](../../../axonx/task/core/params.py), [Context](../../../axonx/task/core/context.py), [Definitions](../../../axonx/task/catalog/resolver.py), [Status](../../../axonx/task/storage/workspace.py), [Metadata](../../../axonx/task/storage/workspace.py).
 
 ## Display replicas
 

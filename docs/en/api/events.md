@@ -10,14 +10,14 @@ The request envelope and authentication match [ordinary HTTP](overview.md). A su
 
 ```text
 event: progress
-data: {"kind":"progress","name":"submitted","started_at":null,"finished_at":null,"percentage":100.0}
+data: {"kind":"progress","name":"progress","started_at":null,"finished_at":null,"percentage":100.0}
 
 event: result
 data: {"kind":"result","answer":{"task_id":"base#demo#example","run_id":"f5caee3a7b3c40849d0fb3bdc0f0cd23","task":"demo"},"success":true,"metadata":{}}
 
 ```
 
-The example above acknowledges acceptance by the submit Job; it does not indicate that demo has completed successfully. Use stream_task to follow a background Task; its final result.answer is the terminal status.
+A streamed Job ends with its result. For an existing Task, stream_task follows the Task journal and log, ending with its recorded terminal metadata.
 
 ```bash
 curl -N -X POST http://127.0.0.1:1024/jobs/stream_task/events \
@@ -168,7 +168,7 @@ async function follow(token: string, taskId: string) {
 
 ## Disconnection, cancellation, and retries
 
-Closing the stream cancels execution or consumption of this Job invocation; it does not guarantee cancellation of an independent Task already started by submit. Use cancel to explicitly cancel a Task, and cancel_agent_turn to stop an Agent turn. Reissuing a request after disconnection may replay logs or rerun a Job; do not automatically retry Jobs that write data, install packages, or send messages.
+Closing a stream stops that Job invocation or consumption; an observation request does not control an independent Task. Stop Agent turns with cancel_agent_turn. Remote CLI processes still terminate when their request or service closes.
 
 The protocol provides no Last-Event-ID, global event ID, exactly-once guarantee, or general replay guarantee. next_offset from read_task_log supports continuing log-window reads; this does not mean every event can be resumed.
 

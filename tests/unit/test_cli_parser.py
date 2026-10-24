@@ -42,7 +42,7 @@ def test_remote_job_accepts_trailing_connection_options():
         ],
     )
     assert (client.target, client.token) == ("http://192.0.2.10:1024", "secret")
-    assert "target" not in command.arguments
+    assert command.arguments["_axonx_argv"] == ["--task-id", "etl#qlib_a158_etl#demo"]
 
 
 def test_plugin_accepts_trailing_connection_options():
@@ -98,10 +98,10 @@ def test_rejects_repeated_client_option():
         )
 
 
-def test_rejects_target_for_local_command():
-    """Reject remote targets for local-only commands."""
-    with pytest.raises(ValueError, match="local command"):
-        parse_command(["start", "--target", "127.0.0.1:1024"])
+def test_target_preserves_local_command_arguments():
+    command, options = parse_command(["exec", "--task", "demo", "--target", "node-b:1024"])
+    assert command.arguments == {"_axonx_argv": ["--task", "demo"]}
+    assert options.target == "http://node-b:1024"
 
 
 @pytest.mark.parametrize(
@@ -127,24 +127,12 @@ def test_job_defaults_to_token_for_target(monkeypatch, target, expected_token):
     assert received["token"] == expected_token
 
 
-@pytest.mark.parametrize(
-    ("target", "expected_token"),
-    [(None, "local-secret"), ("192.0.2.10:1024", "remote-secret")],
-)
-def test_plugin_defaults_to_token_for_target(monkeypatch, target, expected_token):
-    """Choose the environment token for the plugin destination."""
-    monkeypatch.setenv("AXONX_SERVICE_TOKEN", "local-secret")
-    monkeypatch.setenv("AXONX_TARGET_TOKEN", "remote-secret")
-    received = {}
-
-    def plugin_cli(_argv, options):
-        received["token"] = options.token
-        return 0
-
-    monkeypatch.setattr("axonx.plugin_kit.cli.plugin_cli", plugin_cli)
+def test_plugin_cli_receives_only_local_arguments(monkeypatch):
+    received = []
+    monkeypatch.setattr("axonx.plugin_kit.cli.plugin_cli", lambda argv: received.append(argv) or 0)
     command, _ = parse_command(["plugin", "list"])
-    assert _run_plugin(command, ClientOptions(target=target)) == 0
-    assert received["token"] == expected_token
+    assert _run_plugin(command) == 0
+    assert received == [["list"]]
 
 
 @pytest.mark.parametrize("target", [None, "192.0.2.10:1024"])

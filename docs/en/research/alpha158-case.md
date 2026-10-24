@@ -89,31 +89,31 @@ Fix one data snapshot; retain Task/Run IDs and wait for success before downstrea
 
 ```bash
 # Base model: 158 features
-axonx submit --task qlib_a158_etl --input-dir '<same_data_snapshot>' --start-date 20150101 --end-date 20261008
-axonx submit --task qlib_a158_train --source-tasks '<base_etl_task_id>' \
+axonx exec --task qlib_a158_etl --input-dir '<same_data_snapshot>' --start-date 20150101 --end-date 20261008
+axonx exec --task qlib_a158_train --source-tasks '<base_etl_task_id>' \
   --train-start 20150101 --train-end 20230101 --label-column label_return_rank \
   --parameter-preset axonx --feature-fraction 0.9 --random-seed 42 --num-threads 8
-axonx submit --task qlib_a158_predict --source-tasks '<base_train_task_id>' \
+axonx exec --task qlib_a158_predict --source-tasks '<base_train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
 # Final factor model: 158 base + 2 risk features
-axonx submit --task qlib_factor_etl --input-dir '<same_data_snapshot>' --start-date 20150101 --end-date 20261008
-axonx submit --task qlib_factor_train --source-tasks '<factor_etl_task_id>' \
+axonx exec --task qlib_factor_etl --input-dir '<same_data_snapshot>' --start-date 20150101 --end-date 20261008
+axonx exec --task qlib_factor_train --source-tasks '<factor_etl_task_id>' \
   --train-start 20150101 --train-end 20230101 --label-column label_return_rank \
   --parameter-preset axonx --context-groups risk --context-windows '[10]' \
   --feature-fraction 1.0 --random-seed 42 --num-threads 8
-axonx submit --task qlib_factor_predict --source-tasks '<factor_train_task_id>' \
+axonx exec --task qlib_factor_predict --source-tasks '<factor_train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
 # Fixed holding: run once for base and once for factor predictions
-axonx submit --task qlib_factor_backtest --source-tasks '<factor_predict_task_id>' \
+axonx exec --task qlib_factor_backtest --source-tasks '<factor_predict_task_id>' \
   --top-ns '[20,30]' --holding-days 1 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \
   --market-file '<base_etl_market_path>' --calendar-file '<base_etl_calendar_path>' \
   --labels-file '<base_etl_labels_path>'
 
 # Strategy version: reuse factor predictions with the selected 3-day policy
-axonx submit --task qlib_strategy_backtest --source-tasks '<factor_predict_task_id>' \
+axonx exec --task qlib_strategy_backtest --source-tasks '<factor_predict_task_id>' \
   --top-ns '[20,30]' --minimum-holding-days 3 \
   --replacement-fraction 0.2 --rank-buffer 1 --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 \
   --as-of-date 20261008 --annualization-days 252 --annual-risk-free-rate 0.012 \

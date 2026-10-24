@@ -44,15 +44,13 @@ axonx read_task_log --task-id '<Task ID>' --offset -1 --limit 65536
 
 ## worker 异常与状态对账
 
-正常 worker 自己写状态。所属 TaskManager 的 supervisor 确认自己启动的 worker 已退出、且磁盘上同一 run_id 没有终态时，补写 failed 并记录退出码及错误。退出回调保留已有终态和同名 Task 的新运行，只读刷新 Repository 索引；服务运行期间遇到临时 I/O 读取或写入失败时会重试。
-
 新 Task 记录包含根据操作系统机器标识生成的稳定 `machine_id`，以及进程启动时间 `process_started_at`。机器 ID 在服务和机器重启后保持不变，不依赖服务端口、工作区、IP 地址或主机名。queued 阶段记录提交服务的进程身份，worker 启动后发布自身身份；进程内子任务记录与父任务相同的机器及进程实例。
 
 如果长时间显示 running，先确认进程是否仍在运行、当前服务是否管理这轮运行、日志是否持续增长，以及磁盘是否可写。不要只根据文件中的 pid 跨机器判断进程生死。
 
-所属服务仍运行时，强制 kill worker 会由 supervisor 检测退出。启动时及同名 Task 重提前，本地 TaskManager 检查尚未终态且不是展示副本的记录。对于 `machine_id` 与本机一致的记录，只有获取执行锁、重新读取并核对同一 Run、确认记录的进程实例已退出后，才将其标为 failed；进程启动时间用于识别 PID 复用。对应的未完成子任务也检查执行锁后收尾，成功子任务和已有文件保留。仍存活或无法确认的本机进程、其他机器记录和展示副本保持不变；恢复不会接管或终止仍存活的 worker。
+所属服务仍运行时，强制 kill worker 会由 supervisor 检测退出。启动及同名提交前，恢复会重新读取并核对同一 Run，只收尾能确认属于本机且进程已退出的记录。子任务保留 Run ID 与 worker 身份检查，成功结果保持不变。缺少机器身份的记录、其他机器记录、展示副本及无法确认的进程实例保持原样。恢复不会接管或发送信号给仍存活的 worker，也不恢复 Python 执行、不重提 Task、不补放 cron 触发。
 
-没有 `machine_id` 的旧记录复用已有执行锁判断，不依赖无法确定所属机器的 PID。旧 Run 未持有锁时自动标为 failed。创建时间与当前时间相差不到 5 分钟的旧 queued 记录保留交接宽限，后续同名提交会再次检查；缺失或远期异常的创建时间不会让旧 Run 一直保持活动。Runner 持锁直至清理结束，进程退出后由操作系统释放锁。
+缺少 `machine_id` 的旧记录无论创建时间如何都保持原样，不再根据锁恢复，也不保留交接宽限逻辑。无法确认旧记录属于本机时，使用不同 Task 名称。
 
 恢复修正遗留生命周期状态，不恢复 Python 内存执行、不自动重提 Task，也不补放错过的 cron 触发。检查中断产物后，可按需提交新 Run。原有 reaper_interval_seconds 配置保持移除，不执行周期性进程扫描。读取旧记录时新字段可缺省；拒绝未知字段的旧版本需要先升级，才能共享新写入的记录。
 
@@ -104,5 +102,3 @@ cp -a ./logs ./backup/logs
 需要可撤销恢复时，应单独保存版本化备份。具体同步预算、回滚和重试见[任务同步](task-sync.md)。
 
 [部署](deployment.md) · [工作区](../concepts/workspace.md) · [任务生命周期](../concepts/task-lifecycle.md)
-
-源码：[管理器](../../../axonx/components/task_manager/local/manager.py)、[worker supervisor](../../../axonx/components/task_manager/local/supervisor.py)、[记录读取](../../../axonx/task/storage/workspace.py)。

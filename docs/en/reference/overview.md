@@ -22,8 +22,6 @@ External agents discover service tools through [MCP integration](../agent/mcp-in
 
 ## Read responses at the right layer
 
-HTTP transport status, JobResponse `success`, and Task terminal state answer different questions. A successful `submit` returns a TaskHandle; use its `task_id` and `run_id` to wait for that execution and inspect its final state. Discover schemas on the connected service because installed plugins and configured Jobs determine available capabilities.
-
 ## Extension contracts
 
 | Implementation                                | Reference                                            |

@@ -1,6 +1,8 @@
 """HTTP service component backed by FastAPI and Uvicorn."""
 
 import math
+import os
+import signal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -44,10 +46,9 @@ class HttpService(BaseService):
         self.token = token
         self.staged_files: StagedFiles | None = None
         self.server = None
-        self.restart_arguments: list[str] | None = None
         self.startup_directory = Path.cwd().resolve()
-        self.configuration_paths: set[Path] = set()
-        self.environment_file: Path | None = None
+        self.cli_processes: set[int] = set()
+        self.cli_callbacks: dict[str, list | None] = {}
 
     def build_service(self, app: "Application") -> "FastAPI":
         """Build the ASGI application without starting a server."""
@@ -85,5 +86,14 @@ class HttpService(BaseService):
         """Stop accepting requests after the update response has been delivered."""
         if self.server is not None:
             self.server.should_exit = True
+        self.stop_cli_processes(force=force)
         if self._shutdown_deadline is not None:
             self._shutdown_deadline.request(force=force)
+
+    def stop_cli_processes(self, *, force: bool = False) -> None:
+        """Signal only process groups created by this service's CLI Job."""
+        for pid in tuple(self.cli_processes):
+            try:
+                os.killpg(pid, signal.SIGKILL if force else signal.SIGTERM)
+            except ProcessLookupError:
+                pass

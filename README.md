@@ -47,11 +47,7 @@ Agents can inspect the same evidence.
 
 ## ✨ Why AxonX?
 
-- **Turn research questions into quantitative code.** The Skill teaches plugin authoring, Task contracts, execution, and evidence inspection; your prompt defines what the Agent explores. → [AxonX Skill](skills/axonx/SKILL.md)
-- **Build on Qlib’s Alpha158 baseline.** Add features, change training logic, or develop portfolio policies in plugins while reusing compatible implementations and artifacts. → [Alpha158](plugins/qlib_a158/README.md) · [Factor](plugins/qlib_factor/README.md) · [Strategy](plugins/qlib_strategy/README.md)
-- **Execute experiments with consistent contracts.** Discover typed inputs and outputs, submit worker-process Tasks, follow progress and logs, wait for completion, or cancel a run. → [Task management](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
-- **Connect code changes to evidence.** Inspect configurations, Task/Run IDs, dependencies, models, predictions, and backtest artifacts to investigate failures and compare candidates. → [Task lineage](https://flowllm-ai.github.io/AxonX/en/concepts/task-lineage) · [Experiment design](docs/en/research/experiments.md)
-- **Use your preferred Agent and execution target.** Work through an external Agent or Studio's built-in Agent, inspect results visually, and run Tasks on a selected local or remote service. → [Agent integration](https://flowllm-ai.github.io/AxonX/en/agent/external) · [Remote machines](https://flowllm-ai.github.io/AxonX/en/guides/remote-machines)
+- **Execute experiments with consistent contracts.** Inspect typed definitions, run `axonx exec`, and observe metadata, progress, logs and artifacts. → [Execution and observation](https://flowllm-ai.github.io/AxonX/en/guides/task-management)
 
 ## 📰 Latest Updates
 
@@ -93,16 +89,17 @@ Keep the service running and use another terminal for subsequent commands. See [
 market-data, and remote settings; see [CONTRIBUTING.md](CONTRIBUTING.md) for source development and Studio builds.
 Restart the service after direct pip installation or editable source changes.
 
-Deploy local plugin changes before remote submission; a Git push or matching package version does not update the execution service. Check `error` and `restart_required`, complete any required restart within the authorized service-management scope, and verify the target Task definition and resources before submitting. Stop and report installation or verification failures; record returned Task/Run IDs. See the [development guide](docs/en/dev_guide.md#_2-install-the-plugin) for the full workflow.
+Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task/Run IDs and stop on installation or verification failures. [development guide](docs/en/dev_guide.md#_2-install-the-plugin)
 
 For remote execution, replace `<host:port>` with the selected service address and configure `AXONX_TARGET_TOKEN`. The plugin and Task below are examples; use the actual source path and registered Task.
 
 ```bash
 axonx list_machines
-axonx plugin install ./plugins/qlib_a158 --target <host:port>
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target <host:port>
 axonx get_task_definition --task qlib_a158_etl --target <host:port>
 axonx machine_status --target <host:port>
-axonx submit --task qlib_a158_etl --start-date 20150101 --target <host:port>
+axonx exec --task qlib_a158_etl --start-date 20150101 --target <host:port>
 ```
 
 <a id="quick-demo"></a>
@@ -112,12 +109,12 @@ axonx submit --task qlib_a158_etl --start-date 20150101 --target <host:port>
 The built-in demo requires no market-data or model credentials:
 
 ```bash
-axonx submit --task demo --x 2 --y 3
+axonx exec --task demo --x 2 --y 3
 axonx wait_task --task-id '<returned_task_id>' --run-id '<returned_run_id>' --client-timeout 120
 axonx get_task_context --task-id '<returned_task_id>'
 ```
 
-Use `answer.task_id` and `answer.run_id` returned by `submit`, and wait for `succeeded` before reading outputs or
+Use `answer.task_id` and `answer.run_id` returned by `exec`, and wait for `succeeded` before reading outputs or
 submitting downstream Tasks. `source_tasks` records lineage; it does not automatically run the DAG.
 
 Visit `http://127.0.0.1:1024/` and enter `AXONX_SERVICE_TOKEN` in **Settings → Local service token**.
@@ -254,8 +251,10 @@ See the [CLI reference](docs/en/reference/cli.md) for definitions, progress, and
 Set the target service's `AXONX_TARGET_TOKEN` and use the same `--target` for installation, submission, waiting, and queries:
 
 ```bash
-axonx plugin install ./plugins/qlib_a158 --target 'http://<host>:1024'
-axonx plugin install ./plugins/qlib_factor --target 'http://<host>:1024'
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
+# Build the wheel and POST /upload first; use its returned absolute location.
+axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 axonx get_task_definition --task qlib_factor_train --target 'http://<host>:1024'
 ```
 

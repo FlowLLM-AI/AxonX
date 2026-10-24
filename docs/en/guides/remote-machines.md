@@ -21,14 +21,12 @@ The target's HTTP(S) address must be reachable by clients. The built-in Uvicorn 
 export AXONX_TARGET_TOKEN='<target service token>'
 axonx version --target 'http://research.example:1024'
 axonx get_task_definition --task demo --target 'http://research.example:1024'
-axonx submit --task demo --x 1 --y 2 --target 'http://research.example:1024'
+axonx exec --task demo --x 1 --y 2 --target 'http://research.example:1024'
 ```
 
 The domain here is a placeholder and must be replaced. The CLI connects directly to the target; it requires neither a running local AxonX service nor adding the target to local targets.
 
 With an explicit `--target`, the CLI reads credentials from `AXONX_TARGET_TOKEN` by default; without one, it connects to the local service and reads `AXONX_SERVICE_TOKEN`. `--token` overrides the environment source.
-
-Continue selecting the same target when waiting, checking status, and reading logs. TaskHandle does not turn the remote address into automatic routing information; retain the target address alongside it in scripts or experiment records.
 
 ## Studio backend forwarding
 
@@ -97,10 +95,10 @@ Locally installed plugins do not automatically appear remotely. To install on th
 
 ```bash
 axonx plugin list --target 'http://research.example:1024'
-axonx plugin install ./plugins/qlib_a158 --target 'http://research.example:1024'
+axonx plugin install /srv/axonx/./plugins/qlib_a158 --target 'http://research.example:1024'
 ```
 
-Task-only wheel updates apply to subsequent Task queries and submissions without restarting. Restart the target service only when restart_required is true, then verify Task definitions. Remote workers run code in that environment, and source_tasks only locates directories in the target workspace.
+Installation changes the selected Python environment without refreshing loaded service modules or tracking restart requirements. New CLI processes load the installed environment. Restart a persistent service when it must reload Task schemas, Components, or Jobs; existing processes are not version-isolated. Plugin environment mutations are not serialized.
 
 To reuse local upstream artifacts, first transfer the required task snapshots or copy data according to your deployment method. Raw data, Agent sessions, and model environments do not migrate with remote calls.
 

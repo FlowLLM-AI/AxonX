@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { listFullTaskStatuses, submitTask } from "./features/tasks/api";
+import { listFullTaskStatuses } from "./features/tasks/api";
 
 interface ModelContext {
   registerTool(
@@ -43,48 +43,6 @@ export function useAxonXWebMcp() {
           },
           annotations: { readOnlyHint: true, untrustedContentHint: false },
           execute: async () => ({ tasks: await listFullTaskStatuses() }),
-        },
-        { signal: lifecycle.signal },
-      ),
-    ).catch(report);
-
-    void Promise.resolve(
-      context.registerTool(
-        {
-          name: "submit_axonx_task",
-          title: "Submit an AxonX Task",
-          description:
-            "Submit one installed Task with its validated configuration to the AxonX worker manager.",
-          inputSchema: {
-            type: "object",
-            properties: {
-              task: { type: "string" },
-              config: { type: "object" },
-            },
-            required: ["task", "config"],
-            additionalProperties: false,
-          },
-          annotations: { readOnlyHint: false, untrustedContentHint: false },
-          execute: async (input) => {
-            if (!input || typeof input !== "object")
-              throw new Error("Expected a task and config object");
-            const { task, config } = input as {
-              task?: unknown;
-              config?: unknown;
-            };
-            if (
-              typeof task !== "string" ||
-              !task ||
-              !config ||
-              typeof config !== "object" ||
-              Array.isArray(config)
-            ) {
-              throw new Error(
-                "Expected a non-empty task name and config object",
-              );
-            }
-            return submitTask(task, config as Record<string, unknown>);
-          },
         },
         { signal: lifecycle.signal },
       ),

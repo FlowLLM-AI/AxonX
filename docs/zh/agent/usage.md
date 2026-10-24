@@ -109,13 +109,9 @@ curl -N 'http://127.0.0.1:1024/jobs/agent_chat/events' \
 axonx cancel_agent_turn --session-id '<正在运行的 UUID>'
 ```
 
-这不会自动取消已由其他工具或操作提交的独立研究 Task。取消研究任务要使用 `cancel` Job：
+本地 exec 的进程控制由执行环境负责，服务不提供 Task 取消或删除接口。断开只读观察请求不会改变独立任务的执行状态。
 
-```bash
-axonx cancel --task-id '<要取消的研究 Task ID>'
-```
-
-取消轮次后会话历史可继续使用；取消任务则改变对应 Task 的执行状态。两者不能互相替代。
+本地 exec 的进程控制由执行环境负责，服务不提供 Task 取消或删除接口。断开只读观察请求不会改变独立任务的执行状态。
 
 ## 默认工具与权限边界
 

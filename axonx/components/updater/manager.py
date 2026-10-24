@@ -1,26 +1,21 @@
-"""Service-owned update admission, durable status and process handoff."""
-
-from __future__ import annotations
+"""HTTP update admission and read-only status for the process daemon."""
 
 import json
 import os
 import shutil
-import socket
 import subprocess
-import sys
 from contextvars import ContextVar
-from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
-from uuid import uuid4
 
+from ...daemon import client as daemon
 from ...enums import ComponentEnum
-from ...task.schemas.protocol import fingerprint
-from ...plugin_kit.environment import environment_operation, run_in_thread
+from ...utils.async_work import run_blocking
 from ..base import BaseComponent
 from ..registry import provider
-from .worker import check_protected_paths, save, versions
+from .worker import versions
 
-# Each HTTP/MCP request owns its shutdown callbacks, including child Job tasks.
+# Nested CLI requests share their outer HTTP response's completion boundary.
 RESPONSE_CALLBACKS: ContextVar[list | None] = ContextVar("update_response_callbacks", default=None)
 VERIFICATION = (
     "from axonx.cli import main; from axonx_studio import static_dir; "
@@ -30,122 +25,66 @@ VERIFICATION = (
 
 @provider("local")
 class UpdateManager(BaseComponent):
-    """Accept one update and run it only after application resources have closed."""
+    """Delegate process ownership to the daemon; never stop the service directly."""
 
     component_type = ComponentEnum.UPDATER
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.pending: Path | None = None
-
     @property
     def directory(self) -> Path:
-        """Keep update state under the protected runtime workspace."""
+        if value := os.environ.get(daemon.DIRECTORY):
+            return Path(value) / "updates"
         service = self.app_context.service
-        identity = fingerprint(
-            {
-                "host": socket.gethostname(),
-                "bind": getattr(service, "host", None),
-                "port": getattr(service, "port", None),
-                "cwd": str(getattr(service, "startup_directory", "")),
-            }
+        return (
+            daemon.runtime_directory(
+                self.app_config.workspace_dir, service.host, service.port, service.startup_directory
+            )
+            / "updates"
         )
-        return self.workspace_path.resolve() / "updates" / identity
 
-    async def _start(self) -> None:
-        from .worker import RECORD_ENV
-
-        current = os.environ.get(RECORD_ENV)
-        for path in self.directory.glob("*/record.json"):
-            if str(path) == current:
-                continue
-            record = json.loads(path.read_text(encoding="utf-8"))
-            if record["phase"] not in {"succeeded", "failed"}:
-                record.update(phase="failed", error="Update interrupted before service startup")
-                save(path, record)
-
-    @environment_operation
-    async def request(self, mode: str, force: bool = False) -> dict:
-        """Preflight before entering maintenance; return an acceptance record."""
-        service = self.app_context.service
+    async def request(self, mode: str) -> dict:
         callbacks = RESPONSE_CALLBACKS.get()
-        if (
-            callbacks is None
-            or not getattr(service, "restart_arguments", None)
-            or getattr(service, "server", None) is None
-        ):
-            raise RuntimeError("Self-update requires a resident service started with axonx start")
-        if self.pending is not None:
+        if callbacks is None or not os.environ.get(daemon.SOCKET):
+            raise RuntimeError("Self-update requires a daemon started with axonx start")
+        if self.app_context.metadata.get("maintenance"):
             raise RuntimeError("An update is already pending")
-        plan = await run_in_thread(self._plan, mode, service)
         self.app_context.metadata["maintenance"] = True
         try:
-            blockers = await self.restart_blockers()
-            if blockers:
-                names = ", ".join(item.get("task_id", item["schedule"]) for item in blockers)
-                raise RuntimeError(f"Active scheduled Tasks or Jobs prevent service update or restart: {names}")
-            for manager in self.app_context.components.get("task_manager", {}).values():
-                active = await manager.list_managed_run_ids()
-                if active and not force:
-                    raise RuntimeError("Active Tasks prevent updating; force=true cancels managed Runs")
-                for run_id in active:
-                    try:
-                        cancelled = await manager.cancel(run_id=run_id)
-                    except RuntimeError:
-                        # A worker may exit before cancel resolves its workspace record.
-                        if run_id in await manager.list_managed_run_ids():
-                            raise
-                        continue
-                    if not cancelled and run_id in await manager.list_managed_run_ids():
-                        raise RuntimeError(f"Cannot stop active Run: {run_id}")
-            update_id = uuid4().hex
-            folder = self.directory / update_id
-            folder.mkdir(parents=True, mode=0o700)
-            path = folder / "record.json"
-            record = {
-                "update_id": update_id,
-                "mode": mode,
-                "phase": "accepted",
-                "error": None,
-                "created_at": datetime.now(UTC).isoformat(),
-                "before": versions(),
-                "after": None,
-                "commit": None,
-            }
-            (folder / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
-            shutil.copyfile(Path(__file__).with_name("worker.py"), folder / "worker.py")
-            save(path, record)
-            self.pending = path
-            callbacks.append(service.request_shutdown)
+            plan = await run_blocking(self._plan, mode, self.app_context.service)
+            record = await run_blocking(
+                partial(
+                    daemon.request,
+                    "prepare_update",
+                    mode=mode,
+                    plan=plan,
+                    worker=str(Path(__file__).with_name("worker.py")),
+                    versions=versions(),
+                )
+            )
+            callbacks.append(partial(daemon.request, "commit_update", update_id=record["update_id"]))
             return record
         except BaseException:
-            if self.pending is None:
-                self.app_context.metadata.pop("maintenance", None)
+            self.app_context.metadata.pop("maintenance", None)
             raise
 
     def _plan(self, mode: str, service) -> dict:
         if mode not in {"git", "pip", "restart"}:
             raise ValueError("Unknown update mode")
         cwd = service.startup_directory
-        plan = {"cwd": str(cwd), "arguments": service.restart_arguments}
+        plan = {"cwd": str(cwd), "verification": VERIFICATION}
         if mode == "restart":
             return plan
-        plan["verification"] = VERIFICATION
-        source_file = Path(__file__).resolve().parents[2] / "__init__.py"
+        source = Path(__file__).resolve().parents[2]
         if mode == "pip":
-            if Path(source_file).resolve().parent == (cwd / "axonx").resolve():
-                raise ValueError("Startup directory shadows the installed package; use Git update or start elsewhere")
             from importlib import metadata
             from importlib.util import find_spec
 
             for name in ("axonx", "axonx-studio"):
-                spec = find_spec(name.replace("-", "_"))
-                module_file = source_file if name == "axonx" else (spec.origin if spec else None)
+                specification = find_spec(name.replace("-", "_"))
                 try:
                     distribution = metadata.distribution(name)
                 except metadata.PackageNotFoundError:
-                    if module_file is not None:
-                        raise ValueError(f"Uninstalled source package shadows {name}; use Git update") from None
+                    if specification is not None:
+                        raise ValueError(f"Uninstalled source shadows {name}; use Git update") from None
                     continue
                 direct = distribution.read_text("direct_url.json")
                 if not distribution.read_text("WHEEL") or (
@@ -153,75 +92,24 @@ class UpdateManager(BaseComponent):
                 ):
                     raise ValueError("Source installations require Git update")
                 installed = distribution.locate_file(name.replace("-", "_") + "/__init__.py")
-                if module_file and Path(module_file).resolve() != Path(installed).resolve():
+                if specification and Path(specification.origin).resolve() != Path(installed).resolve():
                     raise ValueError(f"Source imports shadow installed {name}; use Git update")
+            if source == (cwd / "axonx").resolve():
+                raise ValueError("Startup directory shadows installed AxonX; use Git update")
             return plan
         if not shutil.which("git") or not shutil.which("npm"):
             raise ValueError("Git update requires git and npm")
         repository = Path(
-            subprocess.check_output(
-                ["git", "rev-parse", "--show-toplevel"],
-                cwd=cwd,
-                text=True,
-            ).strip()
+            subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=cwd, text=True, timeout=10).strip()
         ).resolve()
-        if not Path(source_file).resolve().is_relative_to(repository / "axonx"):
+        if not source.is_relative_to(repository / "axonx"):
             raise ValueError("The running AxonX package does not belong to the startup repository")
         if not (repository / "axonx_studio" / "package.json").is_file():
             raise ValueError("The startup repository does not contain AxonX Studio")
-        protected = [
-            Path(os.path.abspath(self.workspace_path)),
-            self.workspace_path.resolve(),
-            Path(os.path.abspath(Path(self.app_config.log_dir).expanduser())),
-            Path(self.app_config.log_dir).expanduser().resolve(),
-            Path(os.path.abspath(sys.prefix)),
-            Path(sys.prefix).resolve(),
-            Path(sys.executable).absolute(),
-        ]
-        tracked = subprocess.check_output(["git", "ls-files", "-z"], cwd=repository, text=True, timeout=10)
-        committed = subprocess.check_output(
-            ["git", "ls-tree", "-r", "--name-only", "-z", "HEAD"],
-            cwd=repository,
-            text=True,
-            timeout=10,
-        )
-        paths = set()
-        for item in protected:
-            if item == repository:
-                raise ValueError("Runtime and Python directories must be separate from the repository root")
-            if item.is_relative_to(repository):
-                paths.add(item.relative_to(repository).parts[0])
-        for item in service.configuration_paths:
-            if item.is_relative_to(repository):
-                relative = item.relative_to(repository).as_posix()
-                # Tracked configuration is source; local configuration must survive cleaning.
-                if relative not in {*tracked.split("\0"), *committed.split("\0")}:
-                    paths.add(relative)
-        if service.environment_file is not None and service.environment_file.is_relative_to(repository):
-            paths.add(service.environment_file.relative_to(repository).as_posix())
-        protected_paths = sorted(paths)
-        check_protected_paths(tracked, protected_paths)
-        check_protected_paths(committed, protected_paths)
-        excludes = []
-        for path in protected_paths:
-            pattern = "".join("\\" + char if char in "\\*?[]" else char for char in path)
-            excludes.extend(["-e", "/" + pattern])
-        plan.update(repository=str(repository), protected=protected_paths, excludes=excludes)
+        plan["repository"] = str(repository)
         return plan
 
-    async def restart_blockers(self) -> list[dict]:
-        """Never allow forced maintenance to cancel scheduled Tasks."""
-        blockers = [
-            {"schedule": scheduler.name, "job": description["job"], "running": description["running"]}
-            for scheduler in self.app_context.schedulers.values()
-            if (description := scheduler.describe())["running"]
-        ]
-        for manager in self.app_context.components.get("task_manager", {}).values():
-            blockers.extend(await manager.list_restart_blockers())
-        return blockers
-
     def status(self, update_id: str | None = None) -> dict:
-        """Read one update or the latest record, plus a bounded log tail."""
         if update_id is None:
             paths = sorted(self.directory.glob("*/record.json"), key=lambda item: item.stat().st_mtime_ns)
             if not paths:
@@ -231,10 +119,6 @@ class UpdateManager(BaseComponent):
             if len(update_id) != 32 or any(char not in "0123456789abcdef" for char in update_id):
                 raise ValueError("Invalid update_id")
             path = self.directory / update_id / "record.json"
-            if not path.exists():
-                # Legacy records have no reliable owner; keep explicit reads
-                # available without adopting or recovering them at startup.
-                path = self.workspace_path.resolve() / "updates" / update_id / "record.json"
         record = json.loads(path.read_text(encoding="utf-8"))
         log_path = path.with_name("update.log")
         log = ""
@@ -243,19 +127,3 @@ class UpdateManager(BaseComponent):
                 stream.seek(max(0, log_path.stat().st_size - 65536))
                 log = stream.read(65536).decode("utf-8", errors="replace")
         return {"record": record, "log": log}
-
-    def fail(self, error: str) -> None:
-        """Settle a handoff that could not complete normal shutdown."""
-        if self.pending is not None:
-            record = json.loads(self.pending.read_text(encoding="utf-8"))
-            record.update(phase="failed", error=error)
-            save(self.pending, record)
-
-    def handoff(self) -> None:
-        """Replace the closed service with its snapshotted, independent updater."""
-        if self.pending is not None:
-            try:
-                os.execv(sys.executable, [sys.executable, str(self.pending.with_name("worker.py")), str(self.pending)])
-            except OSError as exc:
-                self.fail(f"Updater handoff failed: {exc}")
-                raise

@@ -34,7 +34,7 @@ async def main():
 asyncio.run(main())
 ```
 
-async with starts components, Jobs, and schedulers in dependency order and closes them in reverse order on exit. This example does not start an HTTP listener; CLI start calls the service's run_app. Loading default composes its components, so their dependencies must be importable in the current environment. A minimal application can retain only the Jobs it needs.
+async with starts components and Jobs in dependency order, then closes them in reverse order. Embedded Applications do not start a daemon or cron worker; CLI start owns those processes. This example does not start an HTTP listener; CLI start calls the service's run_app. Loading default composes its components, so their dependencies must be importable in the current environment. A minimal application can retain only the Jobs it needs.
 
 Application does not automatically read .env; resolve_app_config expands only existing environment variables. If .env is needed, load it first using the application's own environment-loading approach.
 
@@ -86,7 +86,7 @@ Remote answer values are decoded dictionaries/lists; a local Application.answer 
 | stream_job        | name, arguments=None                | AsyncIterator[JobEvent]     |
 | list_jobs         | None                                | list[JobInfo]               |
 | health            | None                                | bool; failures map to false |
-| copy_file         | Path, filename=None, directory=None | FileCopy                    |
+| copy_file         | Path, filename=None, directory=None | StagedFile                  |
 | discard_file      | path: str                           | Cleaned-up path string      |
 
 Constructor parameters are target=None, timeout=60.0, and token=None; optional transport injects an HTTP transport, for example in tests. Calls are available only after entering async with. target must not contain `/mcp` or a Job subpath.
@@ -103,11 +103,11 @@ async with HttpClient(target="127.0.0.1:1024", token=token, timeout=600.0) as cl
             print(event.content, end="")
 ```
 
-This snippet belongs inside an asynchronous function; token/task_id come from configuration and submission results. See [SSE](../api/events.md) for detailed framing and disconnection rules. Use contextlib.aclosing for asynchronous generators whose consumption ends early to ensure the event source is closed.
+This snippet belongs inside an asynchronous function; token/task_id come from configuration and Task metadata. See [SSE](../api/events.md) for detailed framing and disconnection rules. Use contextlib.aclosing for asynchronous generators whose consumption ends early to ensure the event source is closed.
 
 ## File upload
 
-`HttpClient.copy_file` streams a raw binary request to `/files` and supplies the filename and optional staging directory through headers. Direct HTTP callers can also use multipart; both formats return the same FileCopy. See [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
+`HttpClient.copy_file` streams a raw binary request to `/upload` and supplies the filename and optional staging directory through headers. Direct HTTP callers can also use multipart; both formats return the same StagedFile. See [File upload and cleanup](../api/workspace.md#file-upload-and-cleanup).
 
 ```python
 from pathlib import Path
@@ -115,9 +115,8 @@ from pathlib import Path
 async with HttpClient(target=target, token=token) as client:
     copied = await client.copy_file(Path("dist/axonx_example-0.1.0-py3-none-any.whl"))
     try:
-        installed = await client.run_job("install_plugin", {
-            "path": copied.path,
-            "sha256": copied.sha256,
+        installed = await client.run_job("cli", {
+            "argv": ["plugin", "install", copied.location],
         })
         print(installed.model_dump(mode="json"))
     finally:
@@ -166,7 +165,7 @@ else:
         print("Business failure", response.answer)
 ```
 
-Connection failures, HTTP rejection, and invalid envelopes/events raise RemoteServiceError; success=false within HTTP 200 must be checked separately. Local parameter errors may directly raise ValueError; exceptions within Steps are usually handled by the Job. Closing Application closes its task manager and may cancel managed workers, so a short-lived embedded application is unsuitable for submitting a task and exiting immediately.
+Task execution and process control belong to the CLI execution environment. The service reads published metadata through TaskRepository and does not cancel, recover or adopt Task processes.
 
 ## Related documentation
 

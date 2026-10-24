@@ -25,7 +25,7 @@ Prepare source and code tools, then use [Skill and research prompt](research-pro
 | Session records     | Managed by the external host                                           | Managed by AxonX session storage                                        |
 | Reading path        | [External agents](external.md) → [MCP integration](mcp-integration.md) | [Built-in configuration](configuration.md) → [Built-in usage](usage.md) |
 
-External integration does not require `CLAUDE_CODE_*` settings or built-in guide loading. The built-in Agent loads the development guide by default and uses its CLI instructions; the in-process `job_tools` bridge is optional. The public external MCP catalog may include queries, submission, cancellation, and installation. Actual capabilities depend on the selected path's configuration and schemas.
+External integration does not require `CLAUDE_CODE_*` settings or built-in guide loading. The built-in Agent loads the development guide by default and uses its CLI instructions; the in-process `job_tools` bridge is optional. The public external MCP catalog may include queries, Task observation, and installation. Actual capabilities depend on the selected path's configuration and schemas.
 
 ## The shared research loop
 

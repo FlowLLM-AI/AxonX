@@ -33,7 +33,7 @@ def _write_task_metadata(root, status):
 
 
 @pytest.mark.asyncio
-async def test_get_task_context_job_uses_task_manager_queries(tmp_path):
+async def test_get_task_context_job_uses_repository_queries(tmp_path):
     grandparent = "base#native#prices"
     parent = "etl#native#clean"
     selected = "analysis#native#factor"
@@ -56,14 +56,13 @@ async def test_get_task_context_job_uses_task_manager_queries(tmp_path):
         log_to_file=False,
         components={
             "task_repository": {"default": {"backend": "local"}},
-            "task_manager": {"default": {"backend": "local", "task_repository": "default"}},
         },
         jobs={
             "get_task_context": {
                 "steps": [
                     {
                         "backend": "get_task_context_step",
-                        "task_manager": "default",
+                        "task_repository": "default",
                     }
                 ]
             }

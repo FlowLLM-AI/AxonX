@@ -5,10 +5,8 @@ from . import (
     client,
     job,
     proxy,
-    scheduler,
     service,
     sync,
-    task_manager,
     task_repository,
     updater,
 )
@@ -18,10 +16,8 @@ __all__ = [
     "client",
     "job",
     "proxy",
-    "scheduler",
     "service",
     "sync",
-    "task_manager",
     "task_repository",
     "updater",
 ]

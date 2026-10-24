@@ -1,4 +1,4 @@
-"""Standalone, standard-library-only updater copied outside the source tree before shutdown."""
+"""Standalone in-place updater. The daemon owns worker replacement."""
 
 from __future__ import annotations
 
@@ -11,8 +11,6 @@ from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 from typing import TextIO
-
-RECORD_ENV = "AXONX_UPDATE_RECORD"
 
 
 def versions() -> dict[str, str | None]:
@@ -32,26 +30,6 @@ def save(path: Path, record: dict) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(path)
-
-
-def finish_startup(error: str | None = None) -> None:
-    """Settle the update only after the replacement server is ready."""
-    value = os.environ.pop(RECORD_ENV, None)
-    if not value:
-        return
-    path = Path(value)
-    record = json.loads(path.read_text(encoding="utf-8"))
-    if record["phase"] == "starting":
-        record.update(phase="failed" if error else "succeeded", error=error, after=versions())
-        save(path, record)
-
-
-def check_protected_paths(tracked: str, protected: list[str]) -> None:
-    """Reject tracked files at, below or above runtime/configuration paths."""
-    for file in filter(None, tracked.split("\0")):
-        for path in protected:
-            if file == path or file.startswith(path + "/") or path.startswith(file + "/"):
-                raise ValueError(f"Protected runtime path overlaps tracked source: {path}")
 
 
 def kill_command_group(pid: int) -> None:
@@ -92,7 +70,7 @@ def interrupted(signum: int, _frame) -> None:
 
 
 def execute(path: Path) -> None:
-    """Update the stopped service, then replace this process with its original command."""
+    """Update source/packages, recording success or failure without replacing this process."""
     record = json.loads(path.read_text(encoding="utf-8"))
     plan = json.loads(path.with_name("plan.json").read_text(encoding="utf-8"))
     log_path = path.with_name("update.log")
@@ -113,17 +91,8 @@ def execute(path: Path) -> None:
             packages = ["--upgrade", "axonx", "axonx-studio"]
             if record["mode"] == "git":
                 cwd = plan["repository"]
-                run("fetching", ["git", "fetch", "origin", "+refs/heads/main:refs/remotes/origin/main"], cwd)
-                commit = run("fetching", ["git", "rev-parse", "origin/main"], cwd).strip()
-                record["commit"] = commit
-                tracked = run("fetching", ["git", "ls-tree", "-r", "--name-only", "-z", commit], cwd)
-                check_protected_paths(tracked, plan["protected"])
-                startup = Path(plan["cwd"]).relative_to(cwd)
-                if startup != Path("."):
-                    run("fetching", ["git", "cat-file", "-e", f"{commit}:{startup.as_posix()}"], cwd)
-                run("cleaning", ["git", "reset", "--hard", "HEAD"], cwd)
-                run("cleaning", ["git", "clean", "-fd", *plan["excludes"]], cwd)
-                run("cleaning", ["git", "checkout", "-B", "main", commit], cwd)
+                run("fetching", ["git", "pull", "--ff-only"], cwd)
+                record["commit"] = run("fetching", ["git", "rev-parse", "HEAD"], cwd).strip()
                 studio = str(Path(cwd) / "axonx_studio")
                 run("building", ["npm", "ci"], studio)
                 run("building", ["npm", "run", "build"], studio)
@@ -136,15 +105,6 @@ def execute(path: Path) -> None:
             save(path, record)
         except BaseException as exc:
             record.update(phase="failed", error=str(exc) or type(exc).__name__, after=versions())
-            save(path, record)
-            if not isinstance(exc, Exception):
-                raise
-        os.environ[RECORD_ENV] = str(path)
-        try:
-            os.chdir(plan["cwd"])
-            os.execv(sys.executable, [sys.executable, "-m", "axonx.cli", *plan["arguments"]])
-        except OSError as exc:
-            record.update(phase="failed", error=f"Restart failed: {exc}")
             save(path, record)
             raise
 

@@ -1,8 +1,8 @@
 """Install a plugin wheel already copied into the local workspace."""
 
 from ...components.registry import provider
+from ...utils.async_work import run_blocking
 from ...plugin_kit import install_staged_plugin
-from ...plugin_kit.environment import environment_operation, run_in_thread
 from ...workspace.staging import StagedFiles
 from ..base import BaseStep
 
@@ -11,7 +11,6 @@ from ..base import BaseStep
 class InstallPluginStep(BaseStep):
     """Validate and install one staged wheel on this service machine."""
 
-    @environment_operation
     async def execute(self):
         path = self.context["path"]
         sha256 = self.context["sha256"]
@@ -22,11 +21,11 @@ class InstallPluginStep(BaseStep):
         staged = staged_files.file(path)
         try:
             artifact_directory = self.workspace_path / "plugins" / "artifacts"
-            self.response.answer = await run_in_thread(
+            self.response.answer = await run_blocking(
                 install_staged_plugin,
                 staged,
                 sha256,
                 artifact_directory,
             )
         finally:
-            await run_in_thread(staged_files.discard, path)
+            await run_blocking(staged_files.discard, path)

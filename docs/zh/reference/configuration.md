@@ -43,7 +43,7 @@ extends 不是 ApplicationConfig 的持久字段，由解析器先消除。Pytho
 | environment           | dict[string,string]                   | {}            | 注入 worker、Agent 的应用环境               |
 | components            | dict[类别,dict[名称,ComponentConfig]] | {}            | 命名组件组                                  |
 | jobs                  | dict[公开名,JobConfig]                | {}            | Job 定义                                    |
-| schedules             | dict[名称,ScheduleConfig]             | {}            | 调度器                                      |
+| cron                  | string/null                           | null          | 命名 crontab 或明确的 .cron 文件路径        |
 | service               | ComponentConfig/null                  | null          | 服务组件；CLI start 必须有 service          |
 
 模型禁止未知顶层字段。目标地址规范化后不得重复。environment 值必须是字符串，不应放数字或嵌套对象。
@@ -94,30 +94,13 @@ service:
 
 CLI start 先加载 .env，并合并到 environment；普通客户端与 exec 以 override=false 读取环境。Python 的 ConfigResolver 本身不负责加载 .env，调用者需要自己建立环境。
 
-本地 Task worker 会继承 AxonX 进程中已设置的 `PATH`、`HOME` 和 `LD_LIBRARY_PATH`。现在会自动继承 `LD_LIBRARY_PATH`，让 Linux worker 能找到启动环境中配置的原生共享库。应用 `environment` 的值覆盖继承值，框架注入的 Task 变量优先于两者。其他父进程变量需要在 `environment` 中显式配置。
-
 plugins.sources 的相对路径按声明它的配置文件目录解析成绝对路径。workspace_dir/log_dir 等普通路径没有该特殊转换，运行时通常相对进程工作目录，并支持用户目录展开。不要将 config 文件所在目录误当成全部路径的基准。
 
 ## ComponentConfig 与命名组件
 
 ComponentConfig 要求非空 backend，允许额外字段，由对应实现构造函数解释或校验。
 
-```yaml
-components:
-  task_repository:
-    default:
-      backend: local
-      poll_interval: 1
-  task_manager:
-    default:
-      backend: local
-      task_repository: default
-      terminate_grace_seconds: 5
-```
-
 本地仓库在启动时读取一次任务元数据，随后在线程中仅轮询分类目录、任务目录及其 `metadata.json`。只有文件属性变化时才重读记录，不递归监听产物或日志。`poll_interval` 是每轮完成后的等待秒数，默认 `1`，必须为有限正数。扫描失败时保留旧索引并重试；无效记录保留最后一次有效值，直到修复或删除。仓库关闭时会等待正在执行的扫描结束。原有 `recursive`、`force_polling`、`debounce`、`step`、`poll_delay_ms` 配置已移除，请替换为 `poll_interval`。
-
-task_repository 是类别，default 是实例名，local 是实现后端。TaskManager 声明对 repository 的依赖，装配时检查实例存在和类型，依赖先启动、后关闭。框架扩展见 [扩展开发](../development/framework-extensions.md)。
 
 ## JobConfig
 
@@ -136,19 +119,9 @@ PipelineJob 还支持 event_buffer_size（默认 64，正整数），作为 back
 
 PipelineJob 按 `defaults` → caller arguments → system 递归合并，并在每次调用时深拷贝结果。嵌套对象保留未指定的字段，空对象覆盖也遵循此规则；列表和标量整体替换。公共参数在合并前校验。详见 [框架扩展](../development/framework-extensions.md#参数、默认值与-system)。
 
-## ScheduleConfig
+## Cron 配置
 
-| 字段               | 类型                 | 默认值 | 含义                              |
-| ------------------ | -------------------- | ------ | --------------------------------- |
-| backend            | 非空 string          | cron   | 调度实现                          |
-| description        | string               | ""     | 定时计划描述；为空时使用 Job 描述 |
-| job                | 非空 string          | 必填   | 调用的 Job 名                     |
-| cron               | 非空 string          | 必填   | Cron 表达式                       |
-| arguments          | object               | {}     | Job 参数                          |
-| timezone           | 非空 string/null     | null   | null 使用应用时区                 |
-| concurrency_policy | forbid/allow/replace | forbid | 同一调度 Job 的重叠策略           |
-
-默认 schedules={}。策略作用于被调度 Job 的执行；submit 返回后，后台 Task 可仍在运行。启用示例见 [定时调度](../guides/scheduling.md)。
+`cron` 指定命名 crontab 或明确的 `.cron` 路径；`null` 禁用调度。`axonx start --config default --cron research` 复用配置文件定位逻辑，使用独立的 `axonx.crons` entry-point 分组。cron 解析五字段条目，只启动本地 `axonx exec --task`，在启动时读取一次并使用应用时区，服务关闭后已启动 Task 继续运行。详见 [定时调度](../guides/scheduling.md)。
 
 ## PluginConfig 与 TargetConfig
 

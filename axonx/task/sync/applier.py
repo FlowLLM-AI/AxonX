@@ -7,7 +7,6 @@ import shutil
 import tarfile
 import tempfile
 from collections.abc import Sequence
-from contextlib import ExitStack
 from pathlib import Path, PurePosixPath
 
 from ...constants import DEFAULT_TRANSFER_BUDGET_BYTES
@@ -19,7 +18,6 @@ from ..storage.workspace import (
     task_directory,
     read_entry,
 )
-from ..storage.locking import workspace_lock
 from .index import verify_replica
 from ..schemas.lifecycle import current_children
 from .models import SyncTasksReport
@@ -193,65 +191,56 @@ class TaskArchiveApplier:
         backups: list[tuple[Path, Path]] = []
         installed: list[Path] = []
         deleted: list[str] = []
-        with ExitStack() as leases:
+        try:
             for relative_path in targets:
-                leases.enter_context(workspace_lock(self.paths.root, relative_path.split("/", 1)[1]))
-            try:
-                for relative_path in targets:
-                    target = self.paths.resolve_deletable(relative_path)
-                    if not target.exists():
-                        continue
-                    if target.is_symlink() or not target.is_dir():
-                        raise ValueError(f"Task target is not a directory: {relative_path}")
-                    status = read_task_metadata(target, relative_path.split("/", 1)[1], strict_io=True)
-                    incoming = (
-                        read_task_metadata(extracted / relative_path, relative_path.split("/", 1)[1])
-                        if relative_path in replacements
-                        else None
-                    )
-                    old = status.replica.snapshot if status is not None and status.replica is not None else None
-                    new = incoming.replica.snapshot if incoming is not None and incoming.replica is not None else None
-                    if old is not None and incoming is not None:
-                        # Completed shared children can later sync independently.
-                        # A new live parent may also reference the same child Run.
-                        if new is None:
-                            conflict = not (
-                                status.run_id == incoming.run_id
-                                and status.state.is_terminal
-                                and incoming.state.is_terminal
-                            )
-                        else:
-                            conflict = new.source_id != old.source_id or new.revision <= old.revision
-                        if conflict:
-                            raise ValueError(f"Stale or conflicting live snapshot: {relative_path}")
-                    if status is not None and status.replica is not None and incoming is not None:
-                        if (
-                            status.run_id == incoming.run_id
-                            and status.state.is_terminal
-                            and not incoming.state.is_terminal
-                        ):
-                            raise ValueError(f"Cannot regress a terminal Run: {relative_path}")
-                    if status is not None and not status.state.is_terminal and (old is None or new is None):
-                        raise ValueError(f"Cannot overwrite active Task: {relative_path}")
-                    backup = backup_root / relative_path
-                    backup.parent.mkdir(parents=True, exist_ok=True)
-                    os.replace(target, backup)
-                    backups.append((target, backup))
-                    if relative_path in deletions:
-                        deleted.append(relative_path)
-                for relative_path in sorted(replacements):
-                    incoming = extracted / relative_path
-                    if not incoming.is_dir():
-                        raise ValueError(f"Sync archive has no files for task: {relative_path}")
-                    target = self.paths.resolve_deletable(relative_path)
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    os.replace(incoming, target)
-                    installed.append(target)
-            except BaseException:
-                for target in reversed(installed):
-                    shutil.rmtree(target, ignore_errors=True)
-                for target, backup in reversed(backups):
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    os.replace(backup, target)
-                raise
+                target = self.paths.resolve_deletable(relative_path)
+                if not target.exists():
+                    continue
+                if target.is_symlink() or not target.is_dir():
+                    raise ValueError(f"Task target is not a directory: {relative_path}")
+                status = read_task_metadata(target, relative_path.split("/", 1)[1], strict_io=True)
+                incoming = (
+                    read_task_metadata(extracted / relative_path, relative_path.split("/", 1)[1])
+                    if relative_path in replacements
+                    else None
+                )
+                old = status.replica.snapshot if status is not None and status.replica is not None else None
+                new = incoming.replica.snapshot if incoming is not None and incoming.replica is not None else None
+                if old is not None and incoming is not None:
+                    # Completed shared children can later sync independently.
+                    # A new live parent may also reference the same child Run.
+                    if new is None:
+                        conflict = not (
+                            status.run_id == incoming.run_id and status.state.is_terminal and incoming.state.is_terminal
+                        )
+                    else:
+                        conflict = new.source_id != old.source_id or new.revision <= old.revision
+                    if conflict:
+                        raise ValueError(f"Stale or conflicting live snapshot: {relative_path}")
+                if status is not None and status.replica is not None and incoming is not None:
+                    if status.run_id == incoming.run_id and status.state.is_terminal and not incoming.state.is_terminal:
+                        raise ValueError(f"Cannot regress a terminal Run: {relative_path}")
+                if status is not None and not status.state.is_terminal and (old is None or new is None):
+                    raise ValueError(f"Cannot overwrite active Task: {relative_path}")
+                backup = backup_root / relative_path
+                backup.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(target, backup)
+                backups.append((target, backup))
+                if relative_path in deletions:
+                    deleted.append(relative_path)
+            for relative_path in sorted(replacements):
+                incoming = extracted / relative_path
+                if not incoming.is_dir():
+                    raise ValueError(f"Sync archive has no files for task: {relative_path}")
+                target = self.paths.resolve_deletable(relative_path)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(incoming, target)
+                installed.append(target)
+        except BaseException:
+            for target in reversed(installed):
+                shutil.rmtree(target, ignore_errors=True)
+            for target, backup in reversed(backups):
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(backup, target)
+            raise
         return deleted

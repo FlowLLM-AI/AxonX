@@ -32,7 +32,7 @@ def test_config_entry_points_can_name_files_in_a_package(tmp_path, monkeypatch):
         }.get(name, "sample_configs.config")
         return [EntryPoint(name=name, value=target, group=group)]
 
-    monkeypatch.setattr("axonx.config.resolver.find_entry_points", entries)
+    monkeypatch.setattr("axonx.config.locator.find_entry_points", entries)
     resolver = ConfigResolver(tmp_path / "builtins")
 
     assert resolver.load("a1") == {"source": "first"}
@@ -41,5 +41,5 @@ def test_config_entry_points_can_name_files_in_a_package(tmp_path, monkeypatch):
         "source": "second",
     }
     assert resolver.load("legacy") == {"source": "first"}
-    with pytest.raises(ValueError, match="did not resolve to a YAML or JSON file"):
+    with pytest.raises(ValueError, match="did not resolve to a supported file"):
         resolver.load("missing")

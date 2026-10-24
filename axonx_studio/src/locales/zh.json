@@ -9,7 +9,6 @@
     "filePreview": "文件预览",
     "dataPreview": "数据预览",
     "apiCall": "接口调用",
-    "configureSubmit": "参数与提交",
     "openSettings": "打开设置",
     "settings": "设置",
     "expandNavigation": "展开导航",
@@ -27,7 +26,7 @@
       "tasks": "全部任务",
       "resources": "机器资源",
       "agent": "智能体",
-      "taskDefs": "提交任务",
+      "taskDefs": "任务定义",
       "apis": "API接口",
       "workspace": "工作区",
       "etl": "ETL",
@@ -37,13 +36,12 @@
       "backtest": "离线回测",
       "compare": "策略对比"
     },
-    "switchLanguageLabel": "EN"
+    "switchLanguageLabel": "EN",
+    "taskDefinitions": "任务定义"
   },
-  "pages": {
-    "submit": "提交任务"
-  },
+  "pages": {},
   "taskTitle": "任务运行中心",
-  "taskLead": "观察每一次计算，从排队到产出。",
+  "taskLead": "查看任务记录、状态、进度与日志。",
   "refresh": "刷新",
   "refreshNow": "立即刷新",
   "autoRefresh": "自动刷新",
@@ -70,11 +68,9 @@
   },
   "details": "详情",
   "cancel": "终止任务",
-  "cancelling": "终止中",
   "copyTaskId": "复制 Task ID",
   "copied": "已复制",
   "selectAll": "选择全部可删除任务",
-  "selectTask": "选择任务 {{taskId}}",
   "enableMultiSelect": "开启多选",
   "finishSelection": "完成多选",
   "selectedCount": "已选 {{count}} 项",
@@ -82,9 +78,8 @@
   "deleteHint": "任务目录、状态、产物及其独占日志会一并删除。",
   "confirmDelete": "确认删除",
   "deleting": "删除中",
-  "deletePartial": "仅删除了 {{deleted}}/{{total}} 条记录，其余任务可能仍在运行或已不存在",
   "noTasks": "暂无运行记录",
-  "noTasksHint": "提交一个 Task 后，状态会自动出现在这里。",
+  "noTasksHint": "使用 axonx exec 执行任务后，可在此查看运行记录。",
   "noMatches": "没有符合筛选条件的任务",
   "requestFailed": "无法读取任务状态",
   "staleHint": "当前显示最近一次成功获取的数据。",
@@ -95,11 +90,7 @@
   "result": "输出结果",
   "error": "错误信息",
   "notStarted": "尚未开始",
-  "cancelConfirm": "确定终止这个运行中的 Task？",
   "confirmCancel": "确认终止",
-  "cancelFailed": "任务终止失败：进程可能已退出或不再由当前服务管理",
-  "submitTitle": "启动一个新任务",
-  "submitLead": "选择已安装的 Task，配置参数，然后交给 AxonX 独立执行。",
   "taskCatalog": "已安装 TASK",
   "tasksAvailable": "{{count}} 个可用",
   "findTask": "搜索已安装 Task",
@@ -111,10 +102,6 @@
   "optional": "选填",
   "choose": "请选择",
   "jsonHint": "请输入合法 JSON",
-  "submit": "提交运行",
-  "submitting": "正在提交",
-  "submitted": "任务已交给 AxonX",
-  "submittedHint": "工作进程启动后，运行状态会自动出现在任务管理页。",
   "viewTasks": "查看任务状态",
   "catalogFailed": "无法读取已安装的 Task",
   "noInstalled": "没有发现已安装的 Task",
@@ -281,12 +268,6 @@
     "inference": "在线推理",
     "backtest": "回测"
   },
-  "submitPage": {
-    "selectTask": "选择一个 Task",
-    "selectTaskHint": "查看说明、配置参数并提交运行",
-    "submitAnother": "再提交一次",
-    "loadingCatalog": "正在加载 Task 目录…"
-  },
   "schemaForm": {
     "sourceTasksPlaceholder": "多个 Task ID 用英文逗号分隔，可留空"
   },
@@ -374,7 +355,6 @@
     "brandAria": "AxonX Agent 原生量化研究 Harness",
     "brandTitle": "让研究问题成为量化代码与可追溯实验",
     "brandLead": "为 Agent 提供统一的量化开发工具与运行环境，支持插件开发、实验执行和结果分析。",
-    "submitTask": "提交",
     "manageTasks": "任务管理",
     "capabilitiesAria": "Harness 框架能力",
     "capabilitiesTitle": "Harness 提供的能力",
@@ -394,7 +374,7 @@
       },
       "experiment": {
         "title": "执行研究实验",
-        "detail": "安装到目标服务，提交并跟踪 Task"
+        "detail": "安装到执行环境，使用 exec 运行并观察 Task"
       },
       "evidence": {
         "title": "检查实验依据",
@@ -415,8 +395,8 @@
         "detail": "CLI、HTTP、MCP 与 Studio 共用 Jobs"
       },
       "task": {
-        "title": "实验任务管理",
-        "detail": "查询定义、提交运行、跟踪日志与取消"
+        "title": "实验任务观察",
+        "detail": "查询定义、任务记录、进度与日志"
       },
       "machine": {
         "title": "本地与远程执行",
@@ -433,7 +413,8 @@
     },
     "openAgent": "打开 Agent",
     "journey": "你定义问题 · Agent 实现 · Harness 管理执行与证据",
-    "agentNote": "支持外部 Agent 与 Studio 内置 Agent"
+    "agentNote": "支持外部 Agent 与 Studio 内置 Agent",
+    "browseTasks": "浏览任务定义"
   },
   "workspace": {
     "folder": "目录",
@@ -806,12 +787,11 @@
     "description": "更新 AxonX 和 Studio，或从磁盘重新启动所选服务。操作期间服务会暂时不可用。",
     "unavailable": "更新与重启不可用。服务需要配置操作和状态查询 Job，并启用 token 认证。",
     "method": "操作方式",
-    "git": "源码仓库 · origin/main",
+    "git": "源码仓库 · 当前 upstream",
     "pip": "发布包 · 最新稳定版本",
-    "gitHint": "需要从 AxonX 源码仓库内启动服务，并安装 Git 和 Node.js。将丢弃源码改动和未跟踪的源码文件；保留忽略文件及运行数据目录。",
+    "gitHint": "使用 git pull --ff-only 快进当前分支，构建 Studio 并更新后端。本地修改冲突时保留修改并报错。",
     "pipHint": "在服务的 Python 环境中更新 axonx 和 axonx-studio。editable 源码安装需要使用源码更新。",
-    "force": "更新或重启前取消正在运行的受管理 Run",
-    "gitConfirm": "我同意丢弃本地源码改动，并重启这台机器的服务。",
+    "gitConfirm": "我同意更新源码并重启这台机器的 service 和 cron worker。",
     "pipConfirm": "我同意更新安装包，并重启这台机器的服务。",
     "start": "更新并重启",
     "reconnecting": "正在更新或重启，等待服务恢复连接…",
@@ -819,7 +799,6 @@
     "phases": {
       "accepted": "已接受更新",
       "fetching": "正在获取 main",
-      "cleaning": "正在替换源码",
       "building": "正在构建 Studio",
       "installing": "正在安装包",
       "verifying": "正在验证安装",
@@ -836,8 +815,7 @@
       "starting": "正在启动服务",
       "succeeded": "重启完成",
       "failed": "重启失败"
-    },
-    "scheduledBlocked": "当前服务的定时 Task 或 Job 正在执行，暂不能更新或重启。"
+    }
   },
   "nightly": {
     "workflowLog": "流程日志",
@@ -1022,46 +1000,12 @@
     "members": "{{count}} 个任务",
     "latest": "最近运行",
     "name": "任务名称",
-    "selectFiltered": "选择全部筛选出的终态任务",
-    "selectGroup": "选择 {{group}} 中筛选出的终态任务",
     "range": "第 {{start}}–{{end}} 条，共 {{count}} 个任务",
     "previous": "上一页任务",
     "next": "下一页任务",
     "matching": "{{count}} / {{total}} 个任务",
     "matchingTotal": "{{groups}} 组 · {{count}} / {{total}} 个任务",
-    "terminalCount": "{{count}} 个匹配的终态任务",
-    "selectMembers": "选择该组终态任务",
-    "deleteMembers": "删除该组终态任务",
     "deleteConfirm": "确定删除该组的 {{count}} 个终态任务？"
-  },
-  "schedules": {
-    "tabs": {
-      "scheduled": "定时任务",
-      "other": "非定时任务"
-    },
-    "sources": {
-      "submit": "主动提交",
-      "exec": "直接执行",
-      "unknown": "来源未知"
-    },
-    "scheduledSource": "定时：{{name}}",
-    "removed": "工作区任务 · 未关联当前调度实例",
-    "nextRun": "下次触发",
-    "lastJob": "最近一次 Job 结果",
-    "policy": "Job 并发策略",
-    "runningJobs": "当前服务执行中的 Job：{{count}}",
-    "policies": {
-      "allow": "允许重叠",
-      "forbid": "跳过重叠",
-      "replace": "替换上次 Job"
-    },
-    "noActiveTasks": "暂无排队或运行中的任务。",
-    "history": "已结束任务 · {{count}}",
-    "arguments": "Job 参数",
-    "emptyTitle": "暂无定时计划",
-    "emptyHint": "在选中服务的配置中添加 schedules，并重启服务加载。",
-    "total": "{{schedules}} 个计划 · {{count}} 个任务",
-    "search": "搜索计划、描述、Task ID、类型或 PID"
   },
   "quality": {
     "filesTab": "文件",
@@ -1174,87 +1118,20 @@
       "bar": "{{time}} 当前行情"
     }
   },
-  "taskOwnership": {
-    "managed": "当前服务管理",
-    "workspace": "工作区记录"
-  },
   "operations": {
-    "historyLimited": "每个调度最多显示最近 {{limit}} 条触发记录，较早的保留记录未列出。",
-    "unsyncedItems": "本轮未同步项目",
-    "jobName": "Job 名称",
-    "triggerId": "执行 ID",
-    "schedulerId": "调度器 ID",
     "dataInterfaces": "数据接口",
     "dataResults": "数据结果",
     "noInterfaces": "暂无接口记录",
-    "activeJobs": "执行中的 Job",
-    "configuration": "调度配置",
-    "configurationShort": "配置",
-    "plan": {
-      "triggerFailed": "最近触发失败",
-      "title": "定时计划",
-      "time": "执行时间",
-      "weekdays": "工作日 {{time}}",
-      "daily": "每天 {{time}}",
-      "custom": "自定义时间",
-      "submissionHistory": "定时提交历史",
-      "conflict": "提交被拒绝：当时发现同名活动任务记录。",
-      "newerTask": "此后已创建当前任务。",
-      "states": {
-        "queued": "等待提交",
-        "running": "提交中",
-        "succeeded": "已提交",
-        "failed": "提交未成功，详见技术详情",
-        "cancelled": "提交已取消"
-      }
-    },
-    "lastSubmission": "最近提交",
-    "lastSubmissionFailed": "最近提交失败",
     "runHistory": "日常运行",
     "loadError": "无法加载业务导航",
     "unavailable": "此服务未配置该页面",
-    "search": "搜索调度或任务",
-    "noTriggers": "尚未触发",
-    "finished": "完成时间",
-    "result": "执行结果",
-    "empty": "暂无匹配的任务",
-    "metrics": {
-      "uploaded": "已上传",
-      "rejected": "已拒绝",
-      "oversized": "超出大小限制",
-      "deferred": "暂未同步",
-      "archives": "传输包数",
-      "rows": "数据行数",
-      "elapsed_seconds": "耗时（秒）",
-      "attempted_count": "处理总数",
-      "created_count": "新增",
-      "changed_count": "更新",
-      "unchanged_count": "无变化",
-      "rejected_count": "处理失败",
-      "empty_count": "空数据",
-      "selected_apis": "数据接口"
-    },
+    "search": "搜索任务",
+    "empty": "没有匹配的条目",
     "taskRun": "Task 运行",
-    "jobRun": "Job 执行",
     "triggered": "触发时间",
     "noResult": "尚无执行结果",
-    "nothingToSync": "本轮无待同步内容",
-    "incompleteResult": "有未完成或被拒绝的项目，请查看下方结果。",
-    "rawResult": "查看原始结果",
-    "items": "项目",
-    "technicalDetails": "技术信息",
     "step": "任务 / 步骤",
     "progress": "完成进度",
-    "fields": {
-      "flow": "更新流程",
-      "start_date": "起始日期",
-      "end_date": "结束日期",
-      "updated": "更新日期",
-      "error": "错误原因",
-      "error_type": "错误类型",
-      "task": "任务类型"
-    },
-    "lastExecution": "最近执行",
     "dataUpdate": "数据更新"
   },
   "onlineWorkbench": {
@@ -1364,5 +1241,17 @@
     "fieldCount": "{{count}} 个字段有差异",
     "noFieldDifferences": "数值及离散字段没有差异，可查看上方结构与样本覆盖情况。",
     "rowsPair": "在线 {{online}} / 离线 {{offline}} 行"
+  },
+  "taskDefinitionsTitle": "任务定义",
+  "taskDefinitionsLead": "查看已安装任务的说明与输入输出结构。",
+  "taskDefinitions": {
+    "selectTask": "选择一个 Task",
+    "selectTaskHint": "查看任务说明及输入输出结构",
+    "loadingCatalog": "正在加载 Task 目录…"
+  },
+  "input": "输入",
+  "taskSources": {
+    "exec": "直接执行",
+    "unknown": "来源未知"
   }
 }

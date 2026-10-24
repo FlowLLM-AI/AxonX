@@ -1,32 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1056" height="373" viewBox="0 0 1056 373" role="img" aria-labelledby="title desc" aria-label="Task acceptance and Task completion">
-  <title id="title">Task acceptance and Task completion</title>
-  <desc id="desc">Save task_id and run_id on acceptance, wait for final Task status, then read successful metadata and artifacts.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
-      <path d="M 0 0 L 7 3 L 0 6 z" fill="#247baf" />
-    </marker>
-  </defs>
-  <rect x="8" y="8" width="1040.0" height="357.0" rx="30" fill="#f4f8fc" stroke="#173653" stroke-width="1.5" stroke-linejoin="round" stroke-opacity="0.35" />
-  <g transform="translate(28 28)" font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" data-diagram-content="true">
-    <g font-family="'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive" fill="#173653">
-      <text text-anchor="start" x="44" y="52" font-size="32" font-weight="700">Task acceptance and Task completion</text>
-      <rect x="50.0" y="100" width="198.75" height="110" rx="20" fill="#e4edfc" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="149.375" y="137" text-anchor="middle" font-size="20">submit</text>
-      <text x="149.375" y="169" text-anchor="middle" font-size="20">TaskHandle</text>
-      <path stroke-linecap="round" stroke-linejoin="round" d="M252.75 155H278.75" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" fill="none" />
-      <rect x="283.75" y="100" width="198.75" height="110" rx="20" fill="#e2f3f0" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="383.125" y="137" text-anchor="middle" font-size="20">Keep both IDs</text>
-      <text x="383.125" y="169" text-anchor="middle" font-size="20">task_id + run_id</text>
-      <path stroke-linecap="round" stroke-linejoin="round" d="M486.5 155H512.5" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" fill="none" />
-      <rect x="517.5" y="100" width="198.75" height="110" rx="20" fill="#e4edfc" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="616.875" y="137" text-anchor="middle" font-size="20">wait_task</text>
-      <text x="616.875" y="169" text-anchor="middle" font-size="20">Terminal status</text>
-      <path stroke-linecap="round" stroke-linejoin="round" d="M720.25 155H746.25" stroke="#247baf" stroke-width="2.2" marker-end="url(#arrow)" fill="none" />
-      <rect x="751.25" y="100" width="198.75" height="110" rx="20" fill="#e2f3f0" stroke="#88b2cc" stroke-width="1.9" stroke-dasharray="7 6" stroke-linecap="round" />
-      <text x="850.625" y="137" text-anchor="middle" font-size="20">Read artifacts</text>
-      <text x="850.625" y="169" text-anchor="middle" font-size="20">metadata.json</text>
-      <text x="500.0" y="260.0" font-size="19" text-anchor="middle">Task ID names the directory; run_id identifies this execution.</text>
-    </g>
-    <path d="M 44 232 H 956" fill="none" stroke="#173653" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="3 7" stroke-linecap="round" />
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="300" viewBox="0 0 1120 300" role="img" aria-labelledby="title desc">
+<title id="title">Task execution and observation</title>
+<desc id="desc">CLI exec owns Task execution and writes metadata. The service reads published records for Studio and API queries.</desc>
+<rect width="1120" height="300" rx="18" fill="#f4f7fb"/>
+<g font-family="Arial,sans-serif" fill="#18324b">
+<text x="36" y="48" font-size="26" font-weight="700">Task execution and observation</text>
+<text x="36" y="80" font-size="17">The execution process owns lifecycle publication and resource cleanup.</text>
+<g fill="#fff" stroke="#b9cede" stroke-width="2"><rect x="36" y="120" width="230" height="100" rx="12"/><rect x="308" y="120" width="230" height="100" rx="12"/><rect x="580" y="120" width="230" height="100" rx="12"/><rect x="852" y="120" width="230" height="100" rx="12"/></g>
+<g font-size="21" font-weight="700" text-anchor="middle"><text x="151" y="158">axonx exec</text><text x="423" y="158">Task files</text><text x="695" y="158">TaskRepository</text><text x="967" y="158">API / Studio</text></g>
+<g font-size="16" text-anchor="middle"><text x="151" y="190">TaskRunner executes</text><text x="423" y="190">metadata, logs, artifacts</text><text x="695" y="190">Poll published metadata</text><text x="967" y="190">Inspect existing records</text></g>
+<g stroke="#52738f" stroke-width="3"><path d="M274 170h24m-7-7 7 7-7 7"/><path d="M546 170h24m-7-7 7 7-7 7"/><path d="M818 170h24m-7-7 7 7-7 7"/></g>
+<text x="36" y="264" font-size="17">Independent local exec continues across observation-service restarts.</text></g></svg>

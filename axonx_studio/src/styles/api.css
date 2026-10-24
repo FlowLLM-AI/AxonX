@@ -334,7 +334,7 @@
   }
   .unified-workspace,
   .studio-workspace .research-layout,
-  .studio-workspace .submit-layout {
+  .studio-workspace .task-definitions-layout {
     display: block;
     overflow: auto;
   }

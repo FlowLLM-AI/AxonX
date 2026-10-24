@@ -50,12 +50,12 @@ async def test_multipart_and_binary_store_identical_file_bytes(endpoint, tmp_pat
     server, _staged = endpoint
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         multipart = await client.post(
-            "/files",
+            "/upload",
             files={"file": ("script.py", payload)},
             data={"directory": "tmp/scripts"},
         )
         binary = await client.post(
-            "/files",
+            "/upload",
             content=payload,
             headers={"x-file-name": "script.py", "x-file-directory": "tmp/scripts"},
         )
@@ -63,10 +63,14 @@ async def test_multipart_and_binary_store_identical_file_bytes(endpoint, tmp_pat
         paths = [response.json()["answer"]["path"] for response in (multipart, binary)]
         assert paths[0] != paths[1]
         for response, path in zip((multipart, binary), paths):
-            assert response.json()["answer"] == {"path": path, "size": len(payload)}
+            assert response.json()["answer"] == {
+                "path": path,
+                "size": len(payload),
+                "location": str((tmp_path / path).resolve()),
+            }
             assert path.startswith("tmp/scripts/") and path.endswith("/script.py")
             assert (tmp_path / path).read_bytes() == payload
-            response = await client.delete("/files", params={"path": path})
+            response = await client.delete("/upload", params={"path": path})
             assert response.status_code == 200
             assert not (tmp_path / path).exists()
 
@@ -83,7 +87,7 @@ async def test_multipart_headers_override_form_metadata_and_close_spool(endpoint
     monkeypatch.setattr(UploadFile, "close", close)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         response = await client.post(
-            "/files",
+            "/upload",
             files={"file": ("script.py", b"hello")},
             data={"directory": "tmp/form"},
             headers={"x-file-name": "renamed.py", "x-file-directory": "tmp/header"},
@@ -100,7 +104,7 @@ async def test_large_multipart_spools_to_disk_and_preserves_bytes(endpoint, tmp_
     payload = b"x" * (1024 * 1024 + 1)
     staged.transfer_budget_bytes = len(payload)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
-        response = await client.post("/files", files={"file": ("large.bin", payload)})
+        response = await client.post("/upload", files={"file": ("large.bin", payload)})
     assert response.status_code == 200
     copied = response.json()["answer"]
     assert copied["size"] == len(payload)
@@ -120,7 +124,7 @@ async def test_multipart_closes_rolled_spool_when_storage_is_cancelled(endpoint,
 
         monkeypatch.setattr(staged, "store_stream", cancelled_store)
         async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
-            await client.post("/files", files={"file": ("large.bin", payload)})
+            await client.post("/upload", files={"file": ("large.bin", payload)})
     assert scope.cancelled_caught
     assert len(closed_spools) == 1
     assert closed_spools[0]._rolled
@@ -136,7 +140,7 @@ async def test_multipart_rejects_oversized_part_headers(endpoint, tmp_path):
     )
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         response = await client.post(
-            "/files",
+            "/upload",
             content=body,
             headers={"content-type": "multipart/form-data; boundary=test"},
         )
@@ -147,7 +151,7 @@ async def test_multipart_rejects_oversized_part_headers(endpoint, tmp_path):
 async def test_duplicate_multipart_field_is_rejected(endpoint, tmp_path):
     server, _staged = endpoint
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
-        response = await client.post("/files", files=[("file", (None, "text")), ("file", ("script.py", b"x"))])
+        response = await client.post("/upload", files=[("file", (None, "text")), ("file", ("script.py", b"x"))])
     assert response.status_code == 422
     assert not list(tmp_path.rglob("*"))
 
@@ -178,7 +182,7 @@ async def test_duplicate_multipart_field_is_rejected(endpoint, tmp_path):
 async def test_invalid_multipart_never_stages_files(endpoint, tmp_path, files, data, headers, status):
     server, _staged = endpoint
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
-        response = await client.post("/files", files=files, data=data, headers=headers)
+        response = await client.post("/upload", files=files, data=data, headers=headers)
     assert response.status_code == status
     assert not list(tmp_path.rglob("*"))
 
@@ -190,7 +194,7 @@ async def test_actual_upload_size_is_bounded_without_accurate_content_length(
 ):
     server, _staged = endpoint
     if multipart:
-        request = httpx.Request("POST", "http://test/files", files={"file": ("script.py", b"x" * 33)})
+        request = httpx.Request("POST", "http://test/upload", files={"file": ("script.py", b"x" * 33)})
         body = request.read()
         headers = {"content-type": request.headers["content-type"]}
     else:
@@ -204,7 +208,7 @@ async def test_actual_upload_size_is_bounded_without_accurate_content_length(
             yield body[offset : offset + 7]
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
-        response = await client.post("/files", content=chunks(), headers=headers)
+        response = await client.post("/upload", content=chunks(), headers=headers)
     assert response.status_code == 413
     assert not list(tmp_path.rglob("*"))
 
@@ -224,7 +228,7 @@ async def test_actual_upload_size_is_bounded_without_accurate_content_length(
 async def test_malformed_or_empty_multipart_is_rejected(endpoint, tmp_path, content_type, body):
     server, _staged = endpoint
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
-        response = await client.post("/files", content=body, headers={"content-type": content_type})
+        response = await client.post("/upload", content=body, headers={"content-type": content_type})
     assert response.status_code in {400, 422}
     assert not list(tmp_path.rglob("*"))
 
@@ -263,7 +267,7 @@ async def test_multipart_request_framing_is_bounded(endpoint, tmp_path):
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         response = await client.post(
-            "/files",
+            "/upload",
             content=chunks(),
             headers={"content-type": "multipart/form-data; boundary=test"},
         )
@@ -276,11 +280,11 @@ async def test_multipart_isolates_repeated_uploads_and_preserves_openapi(endpoin
     copied = staged.store(b"x", "script.py")
     (tmp_path / copied.path).write_bytes(b"tampered")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
-        response = await client.post("/files", files={"file": ("script.py", b"x")})
+        response = await client.post("/upload", files={"file": ("script.py", b"x")})
         schema = (await client.get("/openapi.json")).json()
     assert response.status_code == 200
     assert response.json()["answer"]["path"] != copied.path
     assert (tmp_path / copied.path).read_bytes() == b"tampered"
-    content = schema["paths"]["/files"]["post"]["requestBody"]["content"]
+    content = schema["paths"]["/upload"]["post"]["requestBody"]["content"]
     assert set(content) == {"application/octet-stream", "multipart/form-data"}
     assert content["multipart/form-data"]["schema"]["required"] == ["file"]

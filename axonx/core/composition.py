@@ -10,7 +10,6 @@ from typing import Any
 from ..components.base import BaseComponent
 from ..components.job import BaseJob
 from ..components.registry import ProviderRegistry
-from ..components.scheduler import BaseScheduler
 from ..components.service import BaseService
 from ..config import ApplicationConfig, ComponentConfig, JobConfig
 from ..plugin_kit.runtime import load_plugin_providers
@@ -48,12 +47,6 @@ def compose_application(
     context._set_jobs(
         {name: _instantiate(context, "job", name, spec, BaseJob) for name, spec in app_config.jobs.items()},
     )
-    context._set_schedulers(
-        {
-            name: _instantiate(context, "scheduler", name, spec, BaseScheduler)
-            for name, spec in app_config.schedules.items()
-        },
-    )
     if app_config.service is not None:
         context._set_service(
             _instantiate(
@@ -68,7 +61,6 @@ def compose_application(
     component_names = [f"{category}:{name}" for category, group in context.components.items() for name in group]
     logger.info(f"Components ({len(component_names)}): {', '.join(component_names) or '-'}")
     logger.info(f"Jobs ({len(context.jobs)}): {', '.join(context.jobs) or '-'}")
-    logger.info(f"Schedules ({len(context.schedulers)}): {', '.join(context.schedulers) or '-'}")
     context.finalize()
     return context
 

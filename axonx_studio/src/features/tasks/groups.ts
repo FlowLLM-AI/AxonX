@@ -79,19 +79,3 @@ export function groupTasks(
       a.key.localeCompare(b.key),
   );
 }
-
-/** Control belongs to the supervisor of this exact root Run. */
-export function canCancel(task: {
-  state: TaskState;
-  run_id: string;
-  managed_run_id?: string | null;
-}) {
-  return ACTIVE.has(task.state) && task.managed_run_id === task.run_id;
-}
-
-export function canDelete(task: {
-  state: TaskState;
-  managed_run_id?: string | null;
-}) {
-  return !ACTIVE.has(task.state) && !task.managed_run_id;
-}

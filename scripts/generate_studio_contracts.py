@@ -7,7 +7,6 @@ from pathlib import Path
 from pydantic import TypeAdapter
 
 from axonx.config.models import StudioPage
-from axonx.components.scheduler.history import ScheduleRun
 from axonx.components.agent.contracts import AgentHistoryBlock, AgentMutationResult, AgentSession, AgentSessionInfo
 from axonx.components.job.contracts import JobResponse, JobInfo, JobCatalog
 from axonx.components.job.events import (
@@ -18,7 +17,7 @@ from axonx.components.job.events import (
     ArtifactEvent,
     ResultEvent,
 )
-from axonx.task.query.summary import TaskSummary, TaskView
+from axonx.task.query.summary import TaskSummary
 from axonx.task.query.graph import TaskGraph
 from axonx.task.contracts.compare import PredictionComparison, BasePredictionCompareOutputParams
 from axonx.task.contracts.windows import WindowOutputParams
@@ -43,7 +42,6 @@ from axonx.task.contracts import (
     TrainingCurve,
     WindowResult,
 )
-from axonx.task.contracts.submission import TaskHandle
 from axonx.task.storage.workspace import TaskMetadata
 from axonx.utils.build_info import BuildInfo
 from axonx.workspace.models import (
@@ -62,9 +60,7 @@ from axonx.workspace.models import (
 
 MODELS = [
     StudioPage,
-    ScheduleRun,
     TaskSummary,
-    TaskView,
     TaskGraph,
     JobResponse,
     JobInfo,
@@ -82,7 +78,6 @@ MODELS = [
     BaseInferenceOutputParams,
     StockBacktestOutput,
     StockETLOutput,
-    TaskHandle,
     TaskMetadata,
     TaskDefinition,
     MachineInfo,

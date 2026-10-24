@@ -146,7 +146,7 @@ export function AppShell(props: AppShellProps) {
           : route.section === "apis"
             ? t("shell.apiCall")
             : route.section === "task-defs"
-              ? t("shell.configureSubmit")
+              ? t("shell.taskDefinitions")
               : undefined);
 
   return (

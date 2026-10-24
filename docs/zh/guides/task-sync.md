@@ -37,15 +37,10 @@ components:
       timeout_seconds: 300
 jobs:
   sync_flush:
-    enable_serve: false
+    requires_auth: true
     steps:
       - backend: sync_flush_step
         sync: default
-schedules:
-  workspace_sync:
-    job: sync_flush
-    cron: "* * * * *"
-    concurrency_policy: forbid
 ```
 
 ## 对账、重试与清理
@@ -58,7 +53,7 @@ Repository 事件将终态源任务加入队列；Watcher 漏事件恢复后触�
 
 ## 持续父任务快照
 
-`live_task_ids` 默认为 `[]`。每次 flush 将父任务的 metadata、steps 进度、当前子 Run 和已发布的展示产物捕获为一组，放入同一个归档。直接跟随已有 flush 调度，不另建定时器或 watcher；普通任务保留终态同步。Run 身份变化或子任务缺失时，整组延后到下次重试，不复制未发布的工作文件。
+`live_task_ids` 默认为 `[]`。每次 flush 将父任务的 metadata、steps 进度、当前子 Run 和已发布的展示产物捕获为一组，放入同一个归档。由每次 `sync_flush` 调用驱动，可手动调用或交给外部调度器；普通任务保留终态同步。Run 身份变化或子任务缺失时，整组延后到下次重试，不复制未发布的工作文件。
 
 在线副本排除输入特征、模型权重、源数据/debug 快照以及变化中的事件日志；活动和步骤已包含在 metadata 中。普通副本和在线副本均最多携带自身最近 1 MiB 日志，小预算时进一步缩减，源路径限制在配置的日志目录。`replica.log` 记录保留的原始字节起止位置，`read_task_log` 保持源偏移，所请求的内容已过期时返回 reset。变化的日志尾部作为有界文件重传，未变化的日志和产物按文件版本复用。这是文件级差量同步，不是逐字节追加协议；源端完整日志继续遵循既有保留策略。
 

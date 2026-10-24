@@ -33,7 +33,7 @@ ETL 发布四份独立产物：
 预测 Parquet 的必需列、可选列和 metadata 要求见[预测到股票回测的输入契约](../reference/research-artifacts.md#预测到股票回测的输入契约)。
 
 ```bash
-axonx submit --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
+axonx exec --task qlib_a158_backtest --source-tasks '<Predict Task ID>' \
   --top-ns '[1,5,10,30]' --holding-days 1 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```

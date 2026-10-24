@@ -7,9 +7,8 @@ from zipfile import ZipFile
 import pytest
 
 from axonx import Application
-from axonx.components.client import ClientOptions
 from axonx.components.client.remote import stream_remote_job
-from axonx.components.job import JobResponse, ResultEvent
+from axonx.components.job import ResultEvent
 from axonx.config import ConfigResolver
 from axonx.plugin_kit import PluginArtifact, PluginInfo, index_contributions
 from axonx.plugin_kit.cli import plugin_cli
@@ -20,7 +19,6 @@ from axonx.plugin_kit.identity import (
 )
 from axonx.plugin_kit.installer import install_staged_plugin
 from axonx.plugin_kit.wheel import source_sha256
-from axonx.workspace.models import FileCopy
 from axonx.workspace.staging import StagedFiles
 
 
@@ -246,7 +244,7 @@ def test_plugin_config_resolves_source_paths_relative_to_config(tmp_path):
 def test_plugin_cli_lists_local_environment_by_default(monkeypatch, capsys):
     plugin = PluginInfo(distribution="local-demo", version="1")
     monkeypatch.setattr("axonx.plugin_kit.cli.list_installed_plugins", lambda: [plugin])
-    assert plugin_cli(["list"], ClientOptions()) == 0
+    assert plugin_cli(["list"]) == 0
     assert '"distribution": "local-demo"' in capsys.readouterr().out
 
 
@@ -258,54 +256,8 @@ def test_plugin_cli_installs_locally_by_default(monkeypatch, capsys):
         "axonx.plugin_kit.cli.install_plugin",
         lambda received, **_options: plugin if received is artifact else None,
     )
-    assert plugin_cli(["install", "source"], ClientOptions()) == 0
+    assert plugin_cli(["install", "source"]) == 0
     assert '"distribution": "local-demo"' in capsys.readouterr().out
-
-
-def test_plugin_cli_uses_jobs_when_client_address_is_supplied(monkeypatch, capsys):
-    plugin = PluginInfo(distribution="remote-demo", version="1")
-
-    async def remote(args, options):
-        assert args.command == "list"
-        assert options.target == "http://127.0.0.1:1024"
-        return [plugin]
-
-    monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", remote)
-
-    options = ClientOptions(target="127.0.0.1:1024")
-    assert plugin_cli(["list"], options) == 0
-    assert '"distribution": "remote-demo"' in capsys.readouterr().out
-
-
-def test_remote_install_discards_upload_when_job_fails(monkeypatch, tmp_path):
-    wheel = tmp_path / "demo.whl"
-    wheel.write_bytes(b"wheel")
-    artifact = _artifact(wheel, "a" * 64)
-    discarded: list[str] = []
-
-    class Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_args):
-            return None
-
-        async def copy_file(self, _path):
-            return FileCopy(path="copies/demo.whl", size=5)
-
-        async def run_job(self, _name, _arguments):
-            return JobResponse(answer="pip failed", success=False)
-
-        async def discard_file(self, path):
-            discarded.append(path)
-            return path
-
-    monkeypatch.setattr("axonx.plugin_kit.cli.HttpClient", lambda **_options: Client())
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", lambda *_args: artifact)
-
-    options = ClientOptions(target="127.0.0.1:1024")
-    assert plugin_cli(["install", str(wheel)], options) == 1
-    assert discarded == ["copies/demo.whl"]
 
 
 @pytest.mark.asyncio
@@ -347,33 +299,13 @@ def test_plugin_cli_installs_editable_locally(monkeypatch, tmp_path, flag):
     assert plugin_cli(["install", flag, str(tmp_path)]) == 0
 
 
-@pytest.mark.parametrize(
-    ("extra", "options", "message"),
-    [
-        ([], ClientOptions(target="127.0.0.1:1024"), "--target"),
-        (["--output", "dist"], ClientOptions(), "--output"),
-    ],
-)
-def test_editable_rejects_incompatible_options(extra, options, message, monkeypatch, capsys):
+def test_editable_rejects_output(monkeypatch, capsys):
     def unexpected(*_args):
         pytest.fail("Invalid editable options must fail before building or installing")
 
     monkeypatch.setattr("axonx.plugin_kit.cli.install_plugin", unexpected)
-    monkeypatch.setattr("axonx.plugin_kit.cli._run_remote", unexpected)
-    assert plugin_cli(["install", "-e", "plugins/demo", *extra], options) == 1
-    assert message in capsys.readouterr().err
-
-
-def test_editable_rejects_wheel_before_build(monkeypatch, tmp_path, capsys):
-    wheel = tmp_path / "demo.whl"
-    wheel.write_bytes(b"wheel")
-
-    def unexpected(*_args):
-        pytest.fail("Editable wheels must fail before building or installing")
-
-    monkeypatch.setattr("axonx.plugin_kit.cli._artifact", unexpected)
-    assert plugin_cli(["install", "-e", str(wheel)]) == 1
-    assert "project directory" in capsys.readouterr().err
+    assert plugin_cli(["install", "-e", "plugins/demo", "--output", "dist"]) == 1
+    assert "--output" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("editable", [False, True])

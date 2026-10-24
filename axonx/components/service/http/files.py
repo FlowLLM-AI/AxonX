@@ -12,10 +12,9 @@ from starlette.requests import Request
 from ....constants import (
     PROTOCOL_FILE_DIRECTORY_HEADER,
     PROTOCOL_FILE_NAME_HEADER,
-    PROTOCOL_ROUTE_FILES,
+    PROTOCOL_ROUTE_UPLOAD,
 )
 from ....utils import format_log_arguments
-from ....workspace.models import FileCopy
 from ...job.contracts import JobResponse
 
 # Allow a bounded amount of multipart framing in addition to the file byte limit.
@@ -28,7 +27,7 @@ def create_files_router(service, staged_files) -> APIRouter:
     router = APIRouter()
 
     @router.post(
-        PROTOCOL_ROUTE_FILES,
+        PROTOCOL_ROUTE_UPLOAD,
         openapi_extra={
             "requestBody": {
                 "required": True,
@@ -77,9 +76,9 @@ def create_files_router(service, staged_files) -> APIRouter:
             raise HTTPException(409, str(exc)) from exc
         except (TypeError, ValueError) as exc:
             raise HTTPException(422, str(exc)) from exc
-        return JobResponse(answer=FileCopy(path=copied.path, size=copied.size))
+        return JobResponse(answer=copied)
 
-    @router.delete(PROTOCOL_ROUTE_FILES)
+    @router.delete(PROTOCOL_ROUTE_UPLOAD)
     async def discard_file(path: str):
         """Discard one staged upload; repeated cleanup is intentionally harmless."""
         try:

@@ -1,6 +1,5 @@
 """Sources, invocation snapshots, and persisted Task lifecycle records."""
 
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
@@ -12,19 +11,9 @@ from .protocol import Protocol
 from .replica import DisplayReplica
 
 
-class ScheduleTrigger(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-    name: str = Field(min_length=1)
-    job: str = Field(min_length=1)
-    trigger_id: str = Field(min_length=1)
-    triggered_at: datetime
-    scheduler_id: str | None = None
-
-
 class TaskSource(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
-    kind: Literal["submit", "exec", "unknown"] = "unknown"
-    schedule: ScheduleTrigger | None = None
+    kind: Literal["exec", "unknown"] = "unknown"
 
 
 class TaskStatus(BaseModel):
@@ -74,23 +63,6 @@ class TaskMetadata(Protocol, TaskStatus):
     replica: DisplayReplica | None = None
 
 
-@dataclass(frozen=True, slots=True)
-class TaskHandle:
-    task_id: str
-    run_id: str
-    task: str
-
-
 def current_children(status: TaskMetadata):
     """Named directories contain the latest invocation; earlier attempts stay in metadata."""
     return {child.task_id: child for child in status.children if child.task_id}.values()
-
-
-def same_worker(parent: TaskStatus, child: TaskStatus) -> bool:
-    """Match a worker instance across exact child Runs, including legacy records."""
-    return (
-        parent.pid is not None
-        and parent.pid == child.pid
-        and parent.machine_id == child.machine_id
-        and parent.process_started_at == child.process_started_at
-    )

@@ -24,7 +24,6 @@ export default function RuntimeWorkspace({
   view,
   taskId,
   onNavigate,
-  onSubmit,
   onInterpretTask,
   onOpenResearch,
   onOptionsChange,
@@ -38,7 +37,6 @@ export default function RuntimeWorkspace({
     view: "resources" | "tasks" | "environment" | "task",
     resource?: string,
   ) => void;
-  onSubmit: () => void;
   onInterpretTask: (taskId: string) => void;
   onOpenResearch: (taskType: string, taskId: string) => void;
   onOptionsChange?: (options: ContextOption[]) => void;
@@ -89,7 +87,6 @@ export default function RuntimeWorkspace({
         ) : (
           <TasksPage
             target={target}
-            onSubmit={onSubmit}
             onOpenTask={(id) => onNavigate("task", id)}
             onTasksChange={onOptionsChange}
             onConnection={onConnection}

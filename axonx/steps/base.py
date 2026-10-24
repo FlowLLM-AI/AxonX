@@ -43,11 +43,6 @@ class BaseStep(ComponentBase, ABC):
         return self._component(ComponentEnum.AGENT)
 
     @property
-    def task_manager(self):
-        """Return the task manager this step drives."""
-        return self._component(ComponentEnum.TASK_MANAGER)
-
-    @property
     def sync(self):
         """Return the workspace sync backend this step drives."""
         return self._component(ComponentEnum.SYNC)
