@@ -15,7 +15,7 @@
 | Job              | 用途                                             |
 | ---------------- | ------------------------------------------------ |
 | `help`           | 发现公开 Jobs 并查询实际 schema。                |
-| `diagnose`       | 诊断构建、Python、workspace、资源和已安装插件。  |
+| `diagnose`       | 诊断构建、Python、workspace、资源。              |
 | `version`        | 读取安装包的版本。                               |
 | `list_machines`  | 检查全部配置的 targets 健康。                    |
 | `machine_status` | 采样服务机器资源。                               |
@@ -23,7 +23,7 @@
 
 ## help
 
-用 `{"arguments":{}}` 列出选定服务公开的 Jobs；answer 包含 CLI 语法 `usage` 和名称/描述列表 `jobs`。用 `{"arguments":{"job":"python"}}` 查询一个 Job；answer 包含 `usage` 和 `job`，后者是包含 `name`、`description`、`input_schema` 和 `output_schema` 的 JobInfo。schema 来自运行时目录，包含配置和插件贡献的 Jobs。隐藏 Job，以及未启用认证服务上不可用的受保护 Job，不会列出；未知名称返回 `success=false`。
+用 `{"arguments":{}}` 列出选定服务公开的 Jobs，answer 包含名称/描述列表 `jobs`。用 `{"arguments":{"job":"python"}}` 查询单个 Job，answer 包含 `job`，即 name、description、input_schema、output_schema。目录来自应用配置和显式服务 Provider；未知名称返回 success=false。CLI 使用说明归 CLI，通过 `axonx` 查看。
 
 ```bash
 axonx help --target node-b:1024
@@ -39,11 +39,10 @@ axonx help --job python --target node-b:1024
 - `axonx`、`cpu`、`memory`、`gpus`：与 `machine_status` 相同的构建和资源信息。
 - `python`：解释器 `version` 和 `executable`；`platform` 和 `cwd`：服务操作系统与工作目录。
 - `workspace`：解析后的 `path`、`exists` 和 `disk`（`path`、`total_bytes`、`used_bytes`、`free_bytes`）。workspace 不存在时使用最近已存在的祖先目录统计磁盘，不创建目录。
-- `plugins`：已安装 distribution/version、插件名、可用时的内容与 wheel SHA-256、发现错误。这不保证所有代码都已加载。
 - `service_auth_enabled`：服务是否配置 token。
 - `credentials_configured`：服务进程环境中 `AXONX_SERVICE_TOKEN`、`AXONX_TARGET_TOKEN`、`AXONX_TUSHARE_TOKEN` 是否配置的布尔值。不返回凭据值；已配置不代表凭据有效。
 
-插件发现错误保留在 `plugins` 中，不会将已完成的诊断查询变为 Task 失败。文件系统或资源检查失败时，Job 返回失败，不伪造测量结果。此 Job 不安装包或重启服务。
+文件系统或资源检查失败会返回失败 Job；插件检查通过独立 Plugin CLI 执行。
 
 ```bash
 axonx diagnose --target node-b:1024
@@ -235,6 +234,6 @@ Python 的非零退出与超时都是正常协议返回的业务失败。请求 
 - [CLI 参考](../reference/cli.md)
 - [事件协议](events.md)
 
-实现依据：`axonx/config/default.yaml`、`axonx/app/steps/machine/` 与 `axonx/app/components/service/http/jobs.py`。
+实现依据：`axonx/app/config/default.yaml`、`axonx/app/steps/machine/` 与 `axonx/app/components/service/http/jobs.py`。
 
 带 `--target` 的 CLI 调用使用经过认证的远端 `cli` Job。安装不刷新服务已加载对象，诊断也不追踪待重启状态。

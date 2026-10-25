@@ -1,25 +1,31 @@
-"""Installed Task catalog Steps."""
+"""Read Task definitions through a separate CLI process."""
 
-import asyncio
+import json
 
-from ....plugin.registry import provider
-from ....task.catalog import get_task_definition, list_installed_task_definitions
-from ..base import BaseStep
+from ....common.registry import provider
+from ..common.cli import CliStep
+
+
+class TaskCatalogStep(CliStep):
+    action: str
+
+    async def execute(self):
+        self.context["argv"] = [self.action]
+        for key, value in self.context.items():
+            if key in {"task", "include_schemas"}:
+                self.context["argv"].extend(
+                    ["--" + key.replace("_", "-"), str(value).lower() if isinstance(value, bool) else str(value)]
+                )
+        await super().execute()
+        if self.response.success:
+            self.response.answer = json.loads(self.response.answer["stdout"])
 
 
 @provider("list_installed_task_definitions")
-class ListInstalledTaskDefinitionsStep(BaseStep):
-    """Return definitions for every installed Task."""
-
-    async def execute(self):
-        self.response.answer = await asyncio.to_thread(
-            list_installed_task_definitions, include_schemas=self.context.get("include_schemas", True)
-        )
+class ListInstalledTaskDefinitionsStep(TaskCatalogStep):
+    action = "list_installed_task_definitions"
 
 
 @provider("get_task_definition")
-class GetTaskDefinitionStep(BaseStep):
-    """Return the definition for one registered Task."""
-
-    async def execute(self):
-        self.response.answer = await asyncio.to_thread(get_task_definition, self.context["task"])
+class GetTaskDefinitionStep(TaskCatalogStep):
+    action = "get_task_definition"

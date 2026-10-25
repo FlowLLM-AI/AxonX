@@ -8,18 +8,18 @@ from unittest.mock import Mock
 
 import pytest
 
+from axonx.common.logging import LoggingConfig, configure_logging
 from axonx.common.logs import LogEvent
-from axonx.task.schemas.progress import ProgressEvent
-from axonx.task.enums import TaskState, TaskType
 from axonx.task.builtins import DemoTask
 from axonx.task.core import task_type_from_id
+from axonx.task.enums import TaskState, TaskType
 from axonx.task.query.stream import stream_task
 from axonx.task.runtime.runner import TaskRunner
+from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.schemas.progress import ProgressEvent
 from axonx.task.storage.events import LOG_WINDOW_BYTES, append_event, read_event_lines
 from axonx.task.storage.logs import TaskLogReader
 from axonx.task.storage.workspace import EVENTS_FILE, read_task_metadata, task_path, write_task_metadata
-from axonx.task.schemas.lifecycle import TaskMetadata
-from axonx.common.logging import LoggingConfig, configure_logging
 
 
 def test_success_is_published_with_matching_persisted_output(tmp_path):
@@ -55,6 +55,9 @@ def test_runner_closes_rejected_task_once_without_overwriting_directory(tmp_path
         write_task_metadata(
             task.task_dir,
             TaskMetadata(
+                machine_id="test-machine",
+                pid=99999999,
+                process_started_at="2026-01-01T00:00:00Z",
                 version=1,
                 task_id=task.task_id,
                 run_id="foreign",
@@ -194,6 +197,9 @@ def test_event_reader_restarts_after_journal_replacement(tmp_path):
 
 async def test_stream_reports_task_disappearance_instead_of_success(tmp_path):
     status = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id="analysis#sample#gone",
         run_id="gone",
@@ -231,6 +237,9 @@ async def test_terminal_stream_drains_all_log_windows(tmp_path):
     content = "x" * (LOG_WINDOW_BYTES * 2 + 17)
     log_path.write_text(content, encoding="utf-8")
     status = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id="analysis#sample#done",
         run_id="done",
@@ -267,6 +276,9 @@ async def test_terminal_stream_finishes_while_shared_log_keeps_growing(tmp_path)
     content = "feature completed\n" + "x" * LOG_WINDOW_BYTES
     path.write_text(content)
     status = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id="analysis#sample#done",
         run_id="done",
@@ -299,6 +311,9 @@ async def test_stream_drains_events_written_during_terminal_transition(tmp_path,
     path = tmp_path / "task.log"
     path.write_text("running\n", encoding="utf-8")
     running = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id="analysis#sample#transition",
         run_id="transition",
@@ -366,6 +381,9 @@ def test_terminal_status_is_published_after_final_log(tmp_path, fails):
 
 async def test_terminal_stream_replays_journal_when_log_has_expired(tmp_path):
     status = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id="analysis#sample#expired",
         run_id="expired",
@@ -394,6 +412,9 @@ async def test_terminal_stream_handles_log_truncation(tmp_path, final_content):
     path = tmp_path / "task.log"
     path.write_text("previous content\n", encoding="utf-8")
     running = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id="analysis#sample#truncated",
         run_id="truncated",
@@ -423,11 +444,14 @@ async def test_stream_follows_log_path_created_after_subscription(tmp_path):
     log_path = tmp_path / "task.log"
     log_path.write_text("live log\n", encoding="utf-8")
     queued = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id="analysis#sample#late-log",
         run_id="late-log",
         task_type=TaskType.ANALYSIS,
-        state=TaskState.QUEUED,
+        state=TaskState.RUNNING,
     )
     finished = queued.model_copy(update={"state": TaskState.SUCCEEDED, "log_path": str(log_path)})
     calls = 0
@@ -459,6 +483,9 @@ async def test_stream_follows_log_path_created_after_subscription(tmp_path):
 @pytest.mark.parametrize("link", ["kind", "task", "status"])
 def test_strict_status_read_refuses_symlinks(tmp_path, link):
     status = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id="base#demo#linked",
         run_id="run",

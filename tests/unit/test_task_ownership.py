@@ -3,10 +3,9 @@
 import pytest
 
 from axonx.app.core import Application
-from axonx.task.runtime.process import machine_id
+from axonx.common.process import machine_id
 from axonx.task.schemas.lifecycle import TaskMetadata
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
-from axonx.app.workspace.browser import delete_workspace_entries
 
 
 def application(root, port=1024):
@@ -27,7 +26,13 @@ def application(root, port=1024):
 
 def record(root, name, **kwargs):
     kwargs.setdefault("machine_id", machine_id())
-    status = TaskMetadata(version=1, task_id=f"base#demo#{name}", run_id=name, task_type="base", **kwargs)
+    status = TaskMetadata(
+        version=1,
+        task_id=f"base#demo#{name}",
+        run_id=name,
+        task_type="base",
+        **{**{"machine_id": "test-machine", "pid": 99999999, "process_started_at": "2026-01-01T00:00:00Z"}, **(kwargs)},
+    )
     directory = task_path(root, status.task_id)
     directory.mkdir(parents=True)
     write_task_metadata(directory, status)
@@ -38,7 +43,7 @@ def record(root, name, **kwargs):
 def test_workspace_delete_protects_active_tasks_and_ancestors(tmp_path, path):
     status = record(tmp_path, "active", state="running")
     with pytest.raises(ValueError, match="active Task"):
-        delete_workspace_entries(tmp_path, [path])
+        application(tmp_path).workspace.delete_entries([path])
     assert read_entry(tmp_path, status.task_id) == status
 
 
@@ -46,7 +51,7 @@ def test_old_task_lock_directory_is_no_longer_reserved(tmp_path):
     directory = tmp_path / ".locks"
     directory.mkdir()
     (directory / "workspace").write_text("old lock")
-    assert delete_workspace_entries(tmp_path, [".locks"])[0].deleted == ".locks"
+    assert application(tmp_path).workspace.delete_entries([".locks"])[0]["deleted"] == ".locks"
     assert not directory.exists()
 
 

@@ -81,9 +81,8 @@ export function createPlayground(): Transport {
     for (const [id, started] of running) {
       const task = requiredTask(id);
       const elapsed = Date.now() - started;
-      task.state = elapsed < 600 ? "queued" : "running";
-      task.started_at =
-        elapsed < 600 ? null : new Date(started + 600).toISOString();
+      task.state = "running";
+      task.started_at = new Date(started).toISOString();
       task.steps = task.steps.map((step, i) => ({
         ...step,
         percentage: Math.max(0, Math.min(100, (elapsed - 600 - i * 1800) / 18)),

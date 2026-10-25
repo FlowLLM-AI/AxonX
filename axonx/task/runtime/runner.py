@@ -6,23 +6,23 @@
 from __future__ import annotations
 
 import inspect
+import os
 from collections.abc import Callable
 from contextlib import ExitStack
 from datetime import UTC, datetime
 from time import perf_counter
 from typing import TYPE_CHECKING
 
-from ..schemas.progress import ProgressEvent
-from ..schemas.progress import settle_steps
-from ..enums import TaskState
-from .logging import task_log_scope
-from ..schemas.protocol import PROTOCOL_VERSION
+from ...common.process import machine_id, process_started_at
 from ..core.identity import task_type_from_id
-from ..storage.events import append_event, append_progress_snapshots
-from ..storage.workspace import EVENTS_FILE, read_task_metadata, reset_task_directory, write_task_metadata
-from ..schemas.progress import TaskStepStatus
-from .process import machine_id, process_started_at
+from ..enums import TaskState
 from ..schemas.lifecycle import TaskMetadata
+from ..schemas.progress import ProgressEvent, TaskStepStatus, settle_steps
+from ..schemas.protocol import PROTOCOL_VERSION
+from ..storage.events import append_event, append_progress_snapshots
+from ..storage.records import conflict_message, reconcile_record, record_lock
+from ..storage.workspace import EVENTS_FILE, read_task_metadata, reset_task_directory, write_task_metadata
+from .logging import task_log_scope
 
 if TYPE_CHECKING:
     from ..core.task import BaseTask
@@ -141,11 +141,18 @@ class TaskRunner:
         if task.task_dir.is_symlink():
             raise ValueError(f"Task directory cannot be a symlink: {task.task_dir}")
         if task.task_dir.exists():
-            queued = read_task_metadata(task.task_dir, task.task_id)
-            if queued is not None and queued.replica is not None:
+            previous = read_task_metadata(task.task_dir, task.task_id, strict_io=True)
+            if previous is not None and previous.replica is not None:
                 raise ValueError("Display replicas are read-only; execute on the source service")
-            replaceable = not task.is_generated_name and queued is not None and queued.state.is_terminal
+            if previous is not None:
+                previous = reconcile_record(task.task_dir, previous)
+                if previous.state == TaskState.RUNNING:
+                    raise FileExistsError(conflict_message(task.workspace_path, previous))
+            replaceable = not task.is_generated_name and previous is not None and previous.state.is_terminal
             if replaceable:
+                task.logger.info(
+                    f"Overwrite task_id={task.task_id} run_id={previous.run_id} state={previous.state.value}"
+                )
                 reset_task_directory(task.task_dir)
             else:
                 raise FileExistsError(f"Task directory already exists: {task.task_dir}")
@@ -175,33 +182,33 @@ class TaskRunner:
         started = perf_counter()
         try:
             try:
-                self._prepare_directory(task)
-                self.status = TaskMetadata(
-                    version=PROTOCOL_VERSION,
-                    task_id=task.task_id,
-                    run_id=task.context.run_id,
-                    task_type=task.task_type,
-                    reg_name=task.reg_name,
-                    source=task.context.source,
-                    parent_run_id=task.context.parent_run_id,
-                    report_kind=task.report_kind,
-                    category=task.category,
-                    input_params=task.input_params.model_dump(mode="json"),
-                    pid=task.pid,
-                    machine_id=machine_id(),
-                    process_started_at=process_started_at(task.pid),
-                    created_at=task.created_at,
-                    log_path=task.log_path,
-                )
-                status = self.status
-                task._metadata = status
-                task._persist_metadata = self._publish
-                task._progress = self.progress
-                self._publish()
-                task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
-                status.state = TaskState.RUNNING
-                status.started_at = datetime.now(UTC)
-                self._publish()
+                with record_lock(task.task_dir):
+                    self._prepare_directory(task)
+                    self.status = TaskMetadata(
+                        version=PROTOCOL_VERSION,
+                        task_id=task.task_id,
+                        run_id=task.context.run_id,
+                        task_type=task.task_type,
+                        reg_name=task.reg_name,
+                        source=task.context.source,
+                        parent_run_id=task.context.parent_run_id,
+                        report_kind=task.report_kind,
+                        category=task.category,
+                        input_params=task.input_params.model_dump(mode="json"),
+                        pid=os.getpid(),
+                        machine_id=machine_id(),
+                        process_started_at=process_started_at(),
+                        created_at=task.created_at,
+                        state=TaskState.RUNNING,
+                        started_at=datetime.now(UTC),
+                        log_path=task.log_path,
+                    )
+                    status = self.status
+                    task._metadata = status
+                    task._persist_metadata = self._publish
+                    task._progress = self.progress
+                    task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
+                    self._publish()
                 for step in task.build_task_steps():
                     self._run_step(step)
             except BaseException:

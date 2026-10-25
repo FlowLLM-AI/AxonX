@@ -6,13 +6,15 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
+from ...common.workspace import Workspace
+from ...task.storage.records import RECORDS_DIRECTORY, validate_workspace_deletion
 from ..config import ApplicationConfig
 from .dispatch import JobDispatcher
 
 if TYPE_CHECKING:
+    from ...common.registry import ProviderRegistry
     from ..components.base import BaseComponent
     from ..components.job.base import BaseJob
-    from ...plugin.registry import ProviderRegistry
     from ..components.service.base import BaseService
 
 
@@ -29,6 +31,12 @@ class ApplicationContext:
             raise TypeError("Pass either app_config or configuration values, not both")
         self.registry = registry
         self.app_config = app_config if app_config is not None else ApplicationConfig(**config)
+        self.workspace = Workspace(
+            self.app_config.workspace_dir,
+            transfer_budget_bytes=self.app_config.transfer_budget_bytes,
+            hidden_names=(RECORDS_DIRECTORY,),
+            before_delete=validate_workspace_deletion,
+        )
         self._components: dict[str, Mapping[str, BaseComponent]] = {}
         self._jobs: dict[str, BaseJob] = {}
         self._components_view = MappingProxyType(self._components)

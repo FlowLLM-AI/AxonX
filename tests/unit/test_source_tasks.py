@@ -3,9 +3,9 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from axonx.task.enums import TaskType
-from axonx.task.core import BaseInputParams
 from axonx.cli.parser import parse_command
+from axonx.task.core import BaseInputParams
+from axonx.task.enums import TaskType
 
 ETL = "etl#native#prices"
 TRAIN = "train#native#model"
@@ -60,6 +60,7 @@ def test_cli_and_structured_arguments_use_the_same_string():
 
 def test_prediction_resolves_dataset_from_string_metadata(tmp_path):
     from axonx_qlib_a158.predict import LgbmPredictTask
+
     from axonx.task.storage.workspace import task_path
 
     etl_dir = task_path(tmp_path, ETL)
@@ -76,6 +77,9 @@ def test_prediction_resolves_dataset_from_string_metadata(tmp_path):
                 "version": 1,
                 "task_type": "etl",
                 "state": "succeeded",
+                "machine_id": "test-machine",
+                "pid": 1234,
+                "process_started_at": "2026-01-01T00:00:00Z",
                 "output_params": {
                     "protocol": {"version": 1, "task_type": "etl"},
                     "artifacts": {"dataset": artifact_record(dataset, etl_dir)},

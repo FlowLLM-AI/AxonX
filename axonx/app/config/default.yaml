@@ -5,9 +5,6 @@ transfer_budget_bytes: 536870912
 # =========== Known target services ===========
 targets: []
 
-plugins:
-  sources: []
-
 components:
   updater:
     default:
@@ -127,7 +124,7 @@ jobs:
       - backend: help_step
 
   diagnose:
-    description: Inspect this service's build, Python, workspace disk, resources, installed plugin fingerprints and restart requirement. Credential values are never returned.
+    description: Inspect this service's build, Python, workspace disk, resources and resource usage. Credential values are never returned.
     parameters:
       type: object
       properties: {}
@@ -180,57 +177,6 @@ jobs:
       additionalProperties: false
     steps:
       - backend: get_update_status_step
-
-  # =========== Plugin jobs ===========
-  list_plugins:
-    description: List installed plugins and their contributions.
-    steps:
-      - backend: list_plugins_step
-
-  inspect_plugin:
-    description: Inspect one plugin installed on this service machine.
-    parameters:
-      type: object
-      properties:
-        plugin:
-          type: string
-          minLength: 1
-          description: Distribution or plugin name to inspect.
-      required: [plugin]
-    steps:
-      - backend: inspect_plugin_step
-
-  install_plugin:
-    description: Install a plugin wheel already copied into this workspace.
-    parameters:
-      type: object
-      properties:
-        path:
-          type: string
-          minLength: 1
-          description: Workspace-relative path returned by POST /upload.
-        sha256:
-          type: string
-          pattern: "^[0-9a-fA-F]{64}$"
-          description: SHA-256 returned by POST /upload.
-      required: [path, sha256]
-      additionalProperties: false
-    steps:
-      - backend: install_plugin_step
-
-  uninstall_plugin:
-    description: Uninstall a plugin distribution from this service machine.
-    parameters:
-      type: object
-      properties:
-        plugin:
-          type: string
-          minLength: 1
-          description: Distribution or plugin name to uninstall.
-      required: [plugin]
-      additionalProperties: false
-    steps:
-      - backend: uninstall_plugin_step
 
   # =========== Machine jobs ===========
   list_machines:
@@ -332,7 +278,7 @@ jobs:
           description: Filter complete snapshots by task category before copying outputs.
         state:
           type: string
-          enum: [queued, running, succeeded, failed, cancelled]
+          enum: [running, succeeded, failed, cancelled]
           description: Filter complete snapshots by lifecycle state.
     steps:
       - backend: list_statuses

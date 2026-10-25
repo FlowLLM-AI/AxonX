@@ -52,10 +52,3 @@ class AgentSessionStore(Protocol):
     async def delete(self, key: AgentSessionKey) -> None: ...
 
     async def list_subkeys(self, key: AgentSessionListKey) -> list[str]: ...
-
-
-def json_entry(value: Any) -> AgentSessionEntry:
-    """Narrow one already validated JSON object for static callers."""
-    if not isinstance(value, dict) or not isinstance(value.get("type"), str):
-        raise ValueError("Session entries must be JSON objects with a string type")
-    return value

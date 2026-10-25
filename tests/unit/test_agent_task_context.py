@@ -10,6 +10,9 @@ from axonx.task.storage.workspace import task_path, write_task_metadata
 
 def _status(task_id: str, task_type: TaskType, sources=(), *, log_path=""):
     return TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id=task_id,
         run_id=f"run-{task_id}",

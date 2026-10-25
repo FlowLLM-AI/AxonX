@@ -26,10 +26,10 @@ class TaskStatus(BaseModel):
     parent_run_id: str | None = None
     category: TaskCategory | None = None
     report_kind: str | None = None
-    state: TaskState = TaskState.QUEUED
-    pid: int | None = None
-    machine_id: str | None = Field(default=None, min_length=1)
-    process_started_at: AwareDatetime | None = None
+    state: TaskState = TaskState.RUNNING
+    pid: int = Field(gt=0)
+    machine_id: str = Field(min_length=1)
+    process_started_at: AwareDatetime
     created_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -47,13 +47,13 @@ class ChildTaskRecord(BaseModel):
     task: str
     task_id: str | None = None
     run_id: str
-    state: TaskState = TaskState.QUEUED
+    state: TaskState = TaskState.RUNNING
     exit_code: int = Field(default=0, ge=0, le=255)
     error: str = ""
 
 
 class TaskMetadata(Protocol, TaskStatus):
-    """The complete current lifecycle record, from queued to terminal."""
+    """The complete current lifecycle record, from running to terminal."""
 
     model_config = ConfigDict(extra="forbid")
     input_params: dict[str, Any] = Field(default_factory=dict)

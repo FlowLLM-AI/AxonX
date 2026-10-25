@@ -8,13 +8,14 @@ from contextvars import ContextVar
 from functools import partial
 from pathlib import Path
 
-from ....daemon import update_worker, client as daemon
-from ...core.build_info import PACKAGE_DIR
-from ..types import ComponentEnum
 from ....common.async_work import run_blocking
-from ..base import BaseComponent
-from ....plugin.registry import provider
+from ....common.registry import provider
+from ....daemon import client as daemon
+from ....daemon import update_worker
 from ....daemon.update_worker import versions
+from ...core.build_info import PACKAGE_DIR
+from ..base import BaseComponent
+from ..types import ComponentEnum
 
 # Nested CLI requests share their outer HTTP response's completion boundary.
 RESPONSE_CALLBACKS: ContextVar[list | None] = ContextVar("update_response_callbacks", default=None)

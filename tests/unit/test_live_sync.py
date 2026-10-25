@@ -13,17 +13,17 @@ from axonx.app.components.service import HttpService
 from axonx.app.components.sync import LocalSyncComponent
 from axonx.app.config import ApplicationConfig
 from axonx.app.core import Application
+from axonx.common.fs import atomic_write_json, file_sha256
 from axonx.task.enums import TaskState, TaskType
+from axonx.task.schemas.lifecycle import ChildTaskRecord, TaskMetadata
 from axonx.task.schemas.protocol import fingerprint
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.schemas.lifecycle import ChildTaskRecord, TaskMetadata
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
 from axonx.task.sync import TaskArchiveApplier, build_archive
 from axonx.task.sync.errors import ReplicaBudgetError, SnapshotChangedError
 from axonx.task.sync.index import snapshot_index, verify_replica
 from axonx.task.sync.replica import prepare_group
-from axonx.common.fs import atomic_write_json, file_sha256
 
 PARENT = "composite#a_stock_online#axon2-core"
 CHILD = "inference#a_stock_online_predict#axon-v1-1445"
@@ -40,6 +40,8 @@ def source(root):
         log.write_text("下载中\n", encoding="utf-8")
         (directory / "result.txt").write_text("committed result")
         status = TaskMetadata(
+            machine_id="test-machine",
+            process_started_at="2026-01-01T00:00:00Z",
             version=1,
             task_id=identity,
             task_type=identity.split("#", 1)[0],
@@ -88,7 +90,7 @@ def test_live_delta_heartbeat_completion_and_stale_packet(tmp_path):
     apply.apply(first, [])
     for identity in (PARENT, CHILD):
         status = read_entry(remote, identity)
-        assert status.state == "running" and status.pid is None and status.log_path == ""
+        assert status.state == "running" and status.pid == 12345 and status.log_path == ""
         verify_replica(remote, identity)
         assert logs.read_status(remote, status).content == "下载中\n"
     bases = snapshot_index(remote, frozenset(), frozenset({PARENT}))

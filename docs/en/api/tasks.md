@@ -144,7 +144,9 @@ With `detail=full`, `answer` is a terminal TaskMetadata; success=true only when 
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
-    "pid": null,
+    "pid": 12345,
+    "machine_id": "execution-machine-id",
+    "process_started_at": "2026-10-25T00:00:00Z",
     "exit_code": 0,
     "error": "",
     "steps": [],
@@ -268,11 +270,13 @@ answer is TaskMetadata: identity, input_params, output_params, children, state, 
     "task_id": "base#demo#api-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
     "task_type": "base",
-    "state": "queued",
+    "state": "running",
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
-    "pid": null,
+    "pid": 12345,
+    "machine_id": "execution-machine-id",
+    "process_started_at": "2026-10-25T00:00:00Z",
     "exit_code": 0,
     "error": "",
     "steps": [],
@@ -295,7 +299,7 @@ answer is TaskMetadata: identity, input_params, output_params, children, state, 
 
 **Behavior and failure cases**
 
-A task without valid unified metadata returns a KeyError business failure. queued/running are not terminal states.
+A task without valid unified metadata returns a KeyError business failure. running are not terminal states.
 
 ## read_task_log
 
@@ -381,7 +385,9 @@ For an ordinary call, answer is the terminal TaskMetadata. SSE emits progress/lo
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
-    "pid": null,
+    "pid": 12345,
+    "machine_id": "execution-machine-id",
+    "process_started_at": "2026-10-25T00:00:00Z",
     "exit_code": 0,
     "error": "",
     "steps": [],
@@ -442,7 +448,7 @@ answer contains root_id, selected_id, nodes, and edges; nodes distinguish missin
         "task_name": "demo",
         "created_at": "2026-10-02T00:00:00+00:00",
         "parent_ids": [],
-        "state": "queued",
+        "state": "running",
         "missing": false,
         "provisional": true
       }
@@ -490,11 +496,13 @@ answer contains task_id, status, metadata_exists, metadata_path, log_path, graph
       "task_id": "base#demo#api-demo",
       "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
       "task_type": "base",
-      "state": "queued",
+      "state": "running",
       "created_at": "2026-10-02T00:00:00Z",
       "started_at": null,
       "finished_at": null,
-      "pid": null,
+      "pid": 12345,
+      "machine_id": "execution-machine-id",
+      "process_started_at": "2026-10-25T00:00:00Z",
       "exit_code": 0,
       "error": "",
       "steps": [],
@@ -523,7 +531,7 @@ answer contains task_id, status, metadata_exists, metadata_path, log_path, graph
           "task_name": "demo",
           "created_at": "2026-10-02T00:00:00+00:00",
           "parent_ids": [],
-          "state": "queued",
+          "state": "running",
           "missing": false,
           "provisional": true
         }
@@ -568,7 +576,7 @@ The Available list is generated from the actual installed environment. When wait
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/task/` and `axonx/app/components/service/http/jobs.py`.
+Implementation references: `axonx/app/config/default.yaml`, `axonx/app/steps/task/` and `axonx/app/components/service/http/jobs.py`.
 
 ## Studio query projections
 

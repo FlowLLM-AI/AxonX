@@ -1,6 +1,6 @@
 # Server configuration reference
 
-Service configuration describes an Application's workspace, components, Jobs, schedules, and HTTP service. CLI `start` uses ConfigResolver to resolve YAML/JSON first, then validates it with ApplicationConfig. Constructing an Application directly in Python does not automatically read default.yaml; explicitly call the resolver or supply complete configuration.
+Service configuration describes an Application's workspace, components, Jobs, schedules, and HTTP service. CLI `start` uses the shared ConfigLoader to resolve YAML/JSON first, then validates the service with ApplicationConfig. App models, ConfigResolver and built-in YAML live together in `axonx/app/config/`; `axonx/common/config.py` contains the generic loading engine. Constructing an Application directly in Python does not automatically read default.yaml; explicitly call the resolver or supply complete configuration.
 
 ![Configuration resolution and overrides](../../figures/reference/config-resolution.svg)
 
@@ -38,7 +38,6 @@ The table lists model defaults, which differ from the expanded built-in default.
 | enable_logo           | boolean                                   | true          | CLI start prints the startup logo                                   |
 | log_to_console        | boolean                                   | true          | Console logging                                                     |
 | log_to_file           | boolean                                   | true          | File logging                                                        |
-| plugins               | PluginConfig                              | sources=[]    | Startup plugin sources                                              |
 | targets               | TargetConfig[]                            | []            | Service targets to which the backend may forward                    |
 | environment           | dict[string,string]                       | {}            | Application environment injected into workers and Agents            |
 | components            | dict[category,dict[name,ComponentConfig]] | {}            | Named component groups                                              |
@@ -94,13 +93,15 @@ The built-in `default` configuration (and configurations that inherit it, includ
 
 CLI start first loads .env and merges it into environment. Ordinary clients and exec read the environment with override=false. Python's ConfigResolver does not itself load .env; callers must establish the environment themselves.
 
-Relative plugins.sources paths resolve to absolute paths against the configuration file that declares them. Ordinary paths such as workspace_dir/log_dir do not receive this special conversion; at runtime, they are usually relative to the process working directory and support user-directory expansion. The configuration file's directory is not the base for all paths.
+Independent `axonx exec` and `axonx kill` do not read application YAML. They load `.env` without overriding existing environment values: workspace uses `AXONX_TASK_WORKSPACE_DIR`, then `AXONX_WORKSPACE_DIR`, then `.axonx`; logs use `AXONX_TASK_LOG_DIR` or `logs`; timezone uses `AXONX_TASK_TIMEZONE` or `Asia/Shanghai`. The service CLI gateway and cron pass these Task environment values to preserve the selected workspace, logging and timezone. `kill --workspace-dir` explicitly selects a workspace. The cron worker loads YAML through Common and validates only shared runtime settings, without importing App.
+
+Paths such as workspace_dir/log_dir resolve at runtime against the working directory and support user-directory expansion.
 
 ## ComponentConfig and named components
 
 ComponentConfig requires a nonempty backend and allows extra fields, interpreted or validated by the corresponding implementation constructor.
 
-The local repository reads Task metadata once during startup, then polls only category directories, Task directories, and their `metadata.json` files in a worker thread. It rereads records only when file attributes change; it never recursively watches artifacts or logs. `poll_interval` is the delay in seconds between completed polls (default `1`, finite and positive). Failed scans retain the previous index and retry; invalid records retain their last valid value until repaired or deleted. Closing the repository waits for an in-flight scan. The former `recursive`, `force_polling`, `debounce`, `step`, and `poll_delay_ms` options are removed; replace them with `poll_interval`.
+The local repository reads Task metadata once during startup, then polls only category directories, Task directories, and their `metadata.json` files in a worker thread. It rereads data when file attributes change and checks local active process identities on every poll; it never recursively watches artifacts or logs. `poll_interval` is the delay in seconds between completed polls (default `1`, finite and positive). Failed scans retain the previous index and retry; invalid records retain their last valid value until repaired or deleted. Closing the repository waits for an in-flight scan. The former `recursive`, `force_polling`, `debounce`, `step`, and `poll_delay_ms` options are removed; replace them with `poll_interval`.
 
 ## JobConfig
 
@@ -123,9 +124,9 @@ PipelineJob recursively merges `defaults` → caller arguments → system and de
 
 `cron` selects a named crontab or explicit `.cron` path; `null` disables scheduling. `axonx start --config default --cron research` uses the same file locator as configuration, with the separate `axonx.crons` entry-point group. Cron parses five-field entries and starts only local `axonx exec --task` commands. It reads once at startup, uses the application timezone and leaves started Tasks running on shutdown. See [Scheduling](../guides/scheduling.md).
 
-## PluginConfig and TargetConfig
+## TargetConfig
 
-plugins accepts only sources, an array of nonempty strings defaulting to []. Plugins already installed in the environment are also discovered; sources is not an exclusive enablement allowlist. Startup sources may trigger installation; confirm the source code and dependencies being used first.
+Plugin installation is explicit through `axonx plugin`; application startup does not discover, install or compose research plugins.
 
 TargetConfig strictly prohibits extra fields: address is required and nonempty; token defaults to null or is a nonempty string. Addresses accept host:port or HTTP(S) URLs with explicit ports. User/password credentials, subpaths, query, and fragment are prohibited; normalization removes trailing slashes. See [Client connections](client-configuration.md) for complete usage.
 
@@ -154,4 +155,4 @@ The service has no TLS configuration by default. A missing Studio build is logge
 
 When startup raises ValidationError, first check top-level spelling, strict TargetConfig token types, environment strings, and registered backend names. Missing or conflicting dependencies are composition errors and cannot be resolved by skipping Schema validation.
 
-Implementation references: `axonx/config/models.py`, `resolver.py`, `default.yaml`, `core/composition.py`, `components/service/http/service.py`.
+Implementation references: `axonx/app/config/models.py`, `resolver.py`, `default.yaml`, `core/composition.py`, `components/service/http/service.py`.

@@ -7,12 +7,12 @@ from pathlib import Path
 import polars as pl
 import pytest
 
+from axonx.task.schemas.lifecycle import TaskMetadata
 from axonx.task.storage.artifacts import artifact_record, read_metadata
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.schemas.lifecycle import TaskMetadata
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
 from axonx.task.sync import SnapshotChangedError, TaskArchiveApplier, build_archive, plan_task
-from axonx.task.sync.index import policy_revision, source_revision, snapshot_index, verify_replica
+from axonx.task.sync.index import policy_revision, snapshot_index, source_revision, verify_replica
 from axonx.task.sync.planner import archive_budget
 from axonx.task.sync.replica import prepare_replica
 
@@ -23,6 +23,9 @@ def source_task(root: Path, task_id=TASK_ID):
     directory = task_path(root, task_id)
     directory.mkdir(parents=True)
     metadata = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id=task_id,
         run_id="source-run",

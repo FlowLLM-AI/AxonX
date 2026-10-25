@@ -11,23 +11,23 @@ from urllib.parse import quote
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from ....config.defaults import AXONX_DEFAULT_REQUEST_TIMEOUT
-from ....config.execution import AXONX_CLI_REQUEST_ID
+from ....common.connection import AXONX_CLI_REQUEST_ID
+from ....common.constants import AXONX_DEFAULT_REQUEST_TIMEOUT
+from ....common.workspace.models import StagedFile
 from ...protocol import (
-    PROTOCOL_CLI_REQUEST_HEADER,
     PROTOCOL_AUTH_HEADER,
     PROTOCOL_AUTH_SCHEME,
+    PROTOCOL_CLI_REQUEST_HEADER,
     PROTOCOL_FILE_DIRECTORY_HEADER,
     PROTOCOL_FILE_NAME_HEADER,
-    PROTOCOL_ROUTE_UPLOAD,
     PROTOCOL_ROUTE_HEALTH,
     PROTOCOL_ROUTE_JOB,
     PROTOCOL_ROUTE_JOB_EVENTS,
     PROTOCOL_ROUTE_JOBS,
+    PROTOCOL_ROUTE_UPLOAD,
     PROTOCOL_SSE_DATA_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
-from ...workspace.models import StagedFile
 from ..job.contracts import JobCatalog, JobInfo, JobResponse
 from ..job.events import JOB_EVENT_ADAPTER, JobEvent, ResultEvent
 from .base import BaseClient, RemoteServiceError

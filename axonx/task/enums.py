@@ -6,7 +6,6 @@ from enum import StrEnum
 class TaskState(StrEnum):
     """Represent the durable lifecycle state of a task run."""
 
-    QUEUED = "queued"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
@@ -15,7 +14,7 @@ class TaskState(StrEnum):
     @property
     def is_terminal(self) -> bool:
         """Whether no further execution transition is expected."""
-        return self not in {TaskState.QUEUED, TaskState.RUNNING}
+        return self != TaskState.RUNNING
 
 
 class TaskType(StrEnum):

@@ -172,7 +172,7 @@ Tasks declare `report_kind = "online_pipeline"` or `"compare_pipeline"` to selec
 
 Display replicas carry `replica.snapshot` (source, root Task/Run, capture time and revision) and `replica.log` (path and original byte range) when synchronized as a group. They retain source state, clear the PID and remain read-only. See [Display sync](../guides/task-sync.md).
 
-Task classes may declare `category: TaskCategory | None` (`data_update`, `online_prediction`, `comparison`) independently of `task_type` and `report_kind`. Definitions, queued records, persisted metadata and status summaries expose it. In-process composite children also persist `parent_run_id` so operational indexes can omit nested runs without losing their own category. Missing category/parent fields default to null; old records are not classified by Task name.
+Task classes may declare `category: TaskCategory | None` (`data_update`, `online_prediction`, `comparison`) independently of `task_type` and `report_kind`. Definitions, persisted metadata and status summaries expose it. In-process composite children also persist `parent_run_id` so operational indexes can omit nested runs without losing their own category. Missing category/parent fields default to null; old records are not classified by Task name.
 
 ## Business clocks and event replay
 

@@ -7,7 +7,7 @@
 ```bash
 axonx version
 axonx machine_status
-axonx list_plugins
+axonx plugin list
 axonx list_task_statuses
 ```
 
@@ -44,9 +44,9 @@ axonx read_task_log --task-id '<Task ID>' --offset -1 --limit 65536
 
 ## 进程身份与中断记录
 
-新 Task 记录包含根据操作系统机器标识生成的稳定 `machine_id`，以及进程启动时间 `process_started_at`。机器 ID 不依赖服务端口、工作区或 IP 地址。执行进程发布自身身份，进程内子任务共享同一进程实例。
+每个 Task metadata 必须记录稳定 `machine_id`、正整数 `pid` 和带时区的 `process_started_at`。App 启动与轮询会校验本机原始 running 记录；确认进程退出或 PID 复用后，按同一 Run 写入 failed、框架退出码 1、异常原因和检测时间。外机、副本与无法验证的进程不改写。
 
-若记录一直显示 `running`，检查执行机器、确切进程身份、日志增长和磁盘访问。其他机器的 PID 无法证明本机进程存活。Repository 和查询接口只观察文件，不监督进程，也不改写中断 Task 的状态。exec 进程被强制终止后可能留下非终态 metadata；应检查未完成产物，并使用不同 Task 名称重新执行。恢复记录不会恢复 Python 执行，也不会补放 cron 触发。
+同名 exec 会先做相同校验。存活或无法确认时阻止覆盖，显示精确 kill 命令供用户显式操作；终态覆盖会打印 Overwrite。`axonx kill --task-id ID --run-id RUN` 核对进程身份后发送 SIGTERM，超时不自动升级；`--force true` 显式强制终止。复合子任务共享进程，终止会影响整个执行过程。详见[生命周期](../concepts/task-lifecycle.md)。
 
 ## 文件存在但页面未更新
 

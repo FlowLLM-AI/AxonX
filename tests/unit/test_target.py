@@ -3,7 +3,7 @@
 import pytest
 
 from axonx.app.config import ApplicationConfig
-from axonx.config.target import normalize_target
+from axonx.common.connection import normalize_target
 
 
 @pytest.mark.parametrize(

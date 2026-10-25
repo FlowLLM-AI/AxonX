@@ -73,7 +73,7 @@ axonx status --task-id 'base#demo#cli-demo' --detail full
 axonx list_task_statuses --detail full --state failed
 ```
 
-确认启动时轮询 `status`，核对返回的 Run ID、`queued`/`running` 状态与日志。`wait_task` 等待终态，短客户端超时不用于确认启动，也不会取消 Task。传输失败后保留原 ID，先查询再决定是否重新提交。HTTP 传输错误会标明异常类型、目标、接口和超时配置；HTTP 超时是各操作或无数据等待的限制，不是整个 Task 的截止时间。
+确认启动时轮询 `status`，核对返回的 Run ID、`running` 状态与日志。`wait_task` 等待终态，短客户端超时不用于确认启动，也不会取消 Task。传输失败后保留原 ID，先查询再决定是否重新提交。HTTP 传输错误会标明异常类型、目标、接口和超时配置；HTTP 超时是各操作或无数据等待的限制，不是整个 Task 的截止时间。
 
 ## 参数与值转换
 
@@ -171,10 +171,18 @@ Task 执行与进程控制由 CLI 执行环境负责。服务通过 TaskReposito
 - [插件管理](../plugins/management.md)
 - [现有开发速查](../dev_guide.md)
 
-实现依据：`axonx/cli/parser.py`、`main.py`、`constants.py`、`plugin_kit/cli.py`。
+实现依据：`axonx/cli/parser.py`、`main.py`、`usage.py`、`plugin.py`。
 
 ## 服务自更新
 
 [服务自更新](../guides/self-update.md)
 
 `help` Job 仅返回公开 Job 名称、描述或单个 Job schema；CLI 使用说明由本地可执行入口拥有，运行不带参数的 `axonx` 查看。远程 CLI 子进程在命令入口拒绝启动服务和嵌套 target 转发。
+
+## 精确终止与覆盖
+
+`axonx kill --task-id ID --run-id RUN [--workspace-dir PATH] [--timeout 5] [--force true] [--target HOST:PORT]` 显式终止原执行机器上的进程。正常 SIGTERM 超时只报错，不自动 SIGKILL。子任务可能共享父进程，终止前必须核对影响范围。
+
+固定 Task ID 的 exec 会校验旧 running：本机确认死亡则修正 failed 后重跑；存活、外机或无法确认则打印 kill 命令并非零退出。终态记录打印 Overwrite，保留 persistent/ 后替换。缺身份、损坏记录和展示副本不自动覆盖。检查与首份 running 发布使用短事务锁。详见[生命周期](../concepts/task-lifecycle.md)。
+
+Task 定义 CLI（`get_task_definition`、`list_installed_task_definitions`）默认本地执行，不要求服务。指定 target 时通过远程 CLI 进程查询。

@@ -12,11 +12,11 @@ from typing import Any
 import pandas as pd
 from pydantic import field_validator
 
-from ....plugin.registry import provider
-from ...constants import TUSHARE_TIMEOUT_SECONDS
-from ...enums import TaskType
 from ....common.fs import atomic_write
+from ....common.registry import provider
+from ...constants import TUSHARE_TIMEOUT_SECONDS
 from ...core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
+from ...enums import TaskType
 from .client import TushareClient
 
 HS300 = "000300.SH"

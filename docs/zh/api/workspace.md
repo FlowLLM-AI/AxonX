@@ -194,7 +194,7 @@ answer 是 DeletedEntry 数组，每项 deleted 为相对路径，kind 为 file/
 - [CLI 参考](../reference/cli.md)
 - [事件协议](events.md)
 
-实现依据：`axonx/config/default.yaml`、`axonx/app/steps/workspace/` 与 `axonx/app/components/service/http/jobs.py`。
+实现依据：`axonx/app/config/default.yaml`、`axonx/app/steps/workspace/` 与 `axonx/app/components/service/http/jobs.py`。
 
 ## 文件上传与清理
 

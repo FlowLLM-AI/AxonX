@@ -8,11 +8,11 @@ import pytest
 
 from axonx.app.components.agent import ClaudeAgentComponent
 from axonx.app.components.base import BaseComponent
-from axonx.plugin.registry import ProviderRegistry, provider
+from axonx.app.components.types import ComponentEnum
 from axonx.app.core import Application
 from axonx.app.core.graph import ComponentGraph
-from axonx.app.components.types import ComponentEnum
 from axonx.app.steps.base import BaseStep
+from axonx.common.registry import ProviderRegistry, provider
 
 
 def _config(tmp_path, **values):

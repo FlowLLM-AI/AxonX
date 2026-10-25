@@ -1,4 +1,4 @@
-"""Validated contracts returned by workspace services."""
+"""Validated results of shared workspace operations."""
 
 from typing import Any, Literal
 

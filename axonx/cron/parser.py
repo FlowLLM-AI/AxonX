@@ -7,8 +7,7 @@ from datetime import datetime
 
 from croniter import croniter
 
-from ..config.target import CLIENT_OPTION_NAMES
-from ..common.arguments import parse_arguments
+from ..common.arguments import TRANSPORT_OPTION_NAMES, parse_arguments
 
 _FIELD = re.compile(r"^[0-9*,/\-]+$")
 
@@ -44,7 +43,7 @@ def parse_crontab(text: str) -> tuple[CronEntry, ...]:
             options = parse_arguments(arguments)
             for option in arguments[::2]:
                 name = option[2:].replace("-", "_")
-                if name in CLIENT_OPTION_NAMES:
+                if name in TRANSPORT_OPTION_NAMES:
                     raise ValueError(f"Client option is not supported in cron: {option}")
             if not isinstance(options.get("task"), str) or not options["task"]:
                 raise ValueError("A cron command requires --task NAME")

@@ -3,12 +3,12 @@
 import argparse
 import configparser
 import importlib
-from email.parser import BytesParser
-from importlib import metadata, resources
-from pathlib import Path
 import runpy
 import tarfile
 import tomllib
+from email.parser import BytesParser
+from importlib import metadata, resources
+from pathlib import Path
 from zipfile import ZipFile
 
 from packaging.version import Version
@@ -65,10 +65,14 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
         if plugin:
             required.add(f"{package}/plugin.yaml")
         else:
-            required.update({"axonx/_version.py", "axonx/config/default.yaml", "axonx/config/remote.yaml"})
+            required.update({"axonx/_version.py", "axonx/app/config/default.yaml", "axonx/app/config/remote.yaml"})
         with ZipFile(wheels[0]) as archive:
             names = set(archive.namelist())
             assert required <= names, f"Missing package files: {required - names}"
+            extra_modules = {
+                name for name in names if name.startswith(f"{package}/") and name.endswith(".py")
+            } - source_files.keys()
+            assert not extra_modules, f"Obsolete Python modules in wheel: {extra_modules}"
             for name, content in source_files.items():
                 assert archive.read(name) == content, f"Wheel file differs from source: {name}"
             assert not any(name.startswith(("tests/", "axonx_studio/", "github-pages/")) for name in names)
@@ -93,6 +97,10 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
                 if member.isfile() and "/" in member.name
             }
             names = set(members)
+            extra_modules = {
+                name for name in names if name.startswith(f"{package}/") and name.endswith(".py")
+            } - source_files.keys()
+            assert not extra_modules, f"Obsolete Python modules in sdist: {extra_modules}"
             missing = (required | {"pyproject.toml"}) - names
             assert not missing, f"Missing files in sdist: {missing}"
             for name, content in source_files.items():
@@ -121,14 +129,14 @@ def verify_installation() -> None:
             assert entry.load().__name__ == package
         else:
             assert module.__version__ == distribution.version
-            assert files.joinpath("config/default.yaml").is_file()
-            assert files.joinpath("config/remote.yaml").is_file()
+            assert files.joinpath("app/config/default.yaml").is_file()
+            assert files.joinpath("app/config/remote.yaml").is_file()
             for language in ("en", "zh"):
                 guide = files.joinpath("app/components/agent/guides", f"{language}.md")
                 assert guide.read_bytes() == (source / "docs" / language / "dev_guide.md").read_bytes()
         print(f"Verified installation: {project['name']} {distribution.version}")
 
-    from axonx.config import ConfigResolver  # pylint: disable=import-outside-toplevel
+    from axonx.app.config import ConfigResolver
     from axonx.plugin.discovery import get_installed_plugin  # pylint: disable=import-outside-toplevel
 
     for _, source, _, plugin in PACKAGES[1:]:

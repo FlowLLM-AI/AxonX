@@ -8,19 +8,25 @@ Python 可以在进程内嵌入 Application，或连接已经运行的 HTTP/MCP 
 
 内部模块路径已调整，不保留旧兼容包。顶层公开类仍可导入，并按需加载。请使用以下规范路径；Task 元数据和网络数据模型保持一致。
 
-| 原路径                                          | 规范路径                                                  |
-| ----------------------------------------------- | --------------------------------------------------------- |
-| `axonx.components / axonx.steps / axonx.core`   | `axonx.app.components / axonx.app.steps / axonx.app.core` |
-| `axonx.plugin_kit / axonx.common.registry`      | `axonx.plugin / axonx.plugin.registry`                    |
-| `axonx.enums / axonx.common.enums`              | `axonx.task.enums / axonx.app.components.types`           |
-| `axonx.common.command`                          | `axonx.cli.parser / axonx.config.target`                  |
-| `axonx.config.ApplicationConfig / StudioPage`   | `axonx.app.config`                                        |
-| `axonx.common.utils.env / target`               | `axonx.config.env / target`                               |
-| `axonx.common.utils.build_info / log_retention` | `axonx.app.core.build_info / logging`                     |
-| `axonx.common.utils.logging.task_log_scope`     | `axonx.task.runtime.logging`                              |
-| `axonx.common.utils / fs / async_work`          | `axonx.common.logging / fs / async_work`                  |
-| `axonx.task.artifact / status / source`         | `axonx.task.schemas.artifact / lifecycle`                 |
-| `axonx.task.protocol`                           | `axonx.task.schemas.protocol / model / prediction`        |
+| 原路径                                                  | 规范路径                                                         |
+| ------------------------------------------------------- | ---------------------------------------------------------------- |
+| `axonx.components / axonx.steps / axonx.core`           | `axonx.app.components / axonx.app.steps / axonx.app.core`        |
+| `axonx.plugin_kit`                                      | `axonx.plugin / axonx.common.registry`                           |
+| `axonx.plugin.registry`                                 | `axonx.common.registry`                                          |
+| `axonx.task.runtime.process`                            | `axonx.common.process`                                           |
+| `axonx.enums / axonx.common.enums`                      | `axonx.task.enums / axonx.app.components.types`                  |
+| `axonx.common.command`                                  | `axonx.cli.parser / axonx.cli.options`                           |
+| `axonx.config.ApplicationConfig / StudioPage`           | `axonx.app.config`                                               |
+| `axonx.config.ConfigResolver / resolve_app_config`      | `axonx.app.config`                                               |
+| `axonx.config.resolver` helpers                         | `axonx.common.config`                                            |
+| `axonx.config.target`                                   | `axonx.common.connection / axonx.cli.options / axonx.app.config` |
+| `axonx.config.execution / env / locator / entry_points` | `axonx.common.runtime / env / locator / entry_points`            |
+| `axonx.common.utils.env / target`                       | `axonx.common.env / connection`                                  |
+| `axonx.common.utils.build_info / log_retention`         | `axonx.app.core.build_info / logging`                            |
+| `axonx.common.utils.logging.task_log_scope`             | `axonx.task.runtime.logging`                                     |
+| `axonx.common.utils / fs / async_work`                  | `axonx.common.logging / fs / async_work`                         |
+| `axonx.task.artifact / status / source`                 | `axonx.task.schemas.artifact / lifecycle`                        |
+| `axonx.task.protocol`                                   | `axonx.task.schemas.protocol / model / prediction`               |
 
 Task 执行器直接接收任务名和输入参数，不接收 CLI Command，也不再套一层输出包装：
 
@@ -35,7 +41,7 @@ print(status.output_params)
 
 ```python
 from axonx import Application, BaseStep, provider
-from axonx.config import resolve_app_config
+from axonx.app.config import resolve_app_config
 from axonx.app.components.client import HttpClient, McpClient, RemoteServiceError
 from axonx.app.core import run_remote_job, stream_remote_job
 from axonx.app.components.job import ResultEvent
@@ -48,7 +54,7 @@ Application 从顶层导出；HTTP/MCP 客户端与事件类型从各自子包�
 ```python
 import asyncio
 from axonx import Application
-from axonx.config import resolve_app_config
+from axonx.app.config import resolve_app_config
 
 async def main():
     config = resolve_app_config(log_config=False, config="default")

@@ -58,7 +58,7 @@ provides an exploration prompt. Retain code changes and Task evidence separately
 
 Studio displays text, thinking, and tool blocks, updating them from incremental events. Tool inputs and outputs show what the Agent queried; the final text explains how it interprets the evidence.
 
-- When status is queued/running, the result is incomplete.
+- When status is running, the result is incomplete.
 - Task success does not guarantee that all research conclusions are reliable; continue checking protocols and samples.
 - When a tool fails, the model should identify the data gap explicitly; it must not treat unavailable file contents as facts.
 - Only the final `result` represents the terminal state of this Job turn; a completed connection does not replace the business success field.

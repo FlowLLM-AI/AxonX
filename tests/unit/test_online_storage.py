@@ -267,8 +267,8 @@ def test_frozen_snapshots_store_bounded_groups_and_verify_the_previous_snapshot(
 
 
 def test_frozen_chain_can_extend_a_legacy_full_snapshot(store):
-    from axonx.task.storage.history import HISTORY_BLOCK_SIZE
     from axonx.common.fs import atomic_write_json
+    from axonx.task.storage.history import HISTORY_BLOCK_SIZE
 
     for _ in range(HISTORY_BLOCK_SIZE):
         first, snapshot = publish(store)
@@ -283,8 +283,8 @@ def test_frozen_chain_can_extend_a_legacy_full_snapshot(store):
 
 
 def test_legacy_portable_history_needs_only_its_latest_full_snapshot(store):
-    from axonx.task.storage.history import HISTORY_BLOCK_SIZE
     from axonx.common.fs import atomic_write_json
+    from axonx.task.storage.history import HISTORY_BLOCK_SIZE
 
     for _ in range(HISTORY_BLOCK_SIZE + 1):
         _, snapshot = publish(store)
@@ -315,13 +315,13 @@ def test_frozen_history_rejects_cross_task_references(store):
 def test_history_chain_export_includes_predecessors_without_recursive_planning(
     tmp_path,
 ):
+    from axonx.common.fs import atomic_write_json
     from axonx.task.enums import TaskState, TaskType
+    from axonx.task.schemas.lifecycle import TaskMetadata
     from axonx.task.storage.artifacts import artifact_record
     from axonx.task.storage.history import HistoryNode
-    from axonx.task.schemas.lifecycle import TaskMetadata
     from axonx.task.storage.workspace import task_path, write_task_metadata
     from axonx.task.sync.planner import plan_task
-    from axonx.common.fs import atomic_write_json
 
     task_id = "inference#test#fixed"
     directory = task_path(tmp_path, task_id)
@@ -347,6 +347,9 @@ def test_history_chain_export_includes_predecessors_without_recursive_planning(
     write_task_metadata(
         directory,
         TaskMetadata(
+            machine_id="test-machine",
+            pid=99999999,
+            process_started_at="2026-01-01T00:00:00Z",
             version=1,
             task_id=task_id,
             run_id="run",

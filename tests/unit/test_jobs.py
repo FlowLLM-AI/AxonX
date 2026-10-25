@@ -6,10 +6,10 @@ from typing import ClassVar
 import pytest
 
 from axonx.app.components.job import ArtifactEvent, PipelineJob
-from axonx.plugin.registry import provider
-from axonx.app.protocol import AGENT_DEPTH_ARGUMENT
 from axonx.app.core import Application
+from axonx.app.protocol import AGENT_DEPTH_ARGUMENT
 from axonx.app.steps.base import BaseStep
+from axonx.common.registry import provider
 
 
 def _config(tmp_path, *, jobs):

@@ -147,13 +147,11 @@ The default event buffer holds 64 items. emit waits when it is full, providing b
 
 Exceptions from Steps are converted by the pipeline into failure results. Setting success=false prevents remaining Steps from running. Clients can determine business completion only after the final result; see the [event protocol](../api/events.md).
 
-## Manifest extension boundaries
+## Explicit service extensions
 
-Plugins can contribute BaseComponent classes, JobConfig, and BaseTask. Component categories must match their declarations. Manifests describe backends; application configuration describes named instances.
+Research plugin manifests declare Tasks only. Inject component, Step and Job implementations through `Application(providers=...)`, then configure named instances. Generic registration lives in `axonx.common.registry`; App does not scan research plugins or install sources.
 
-The current plugin loader validates component classes against BaseComponent. BaseStep inherits only ComponentBase and cannot be loaded directly through manifest components.step. Inject custom Steps with `Application(providers=...)`. Plugin Jobs can compose built-in Steps; manifest `components.step` does not support loading BaseStep subclasses directly.
-
-See [plugin manifests](../reference/plugin-manifest.md) for more package protocol details.
+See [plugin manifests](../reference/plugin-manifest.md).
 
 ## Verification scope
 
@@ -161,7 +159,7 @@ Extension verification should cover actual risks: Provider conflicts, missing de
 
 After adding a backend, first verify it with a minimal Application(providers=...), then integrate the real service, plugin environment, and Studio form. A UI that can generate a form does not establish correctness of Task research logic.
 
-Implementation references: `axonx/app/components/base.py`, `axonx/plugin/registry.py`, `axonx/app/core/graph.py`, `axonx/app/core/composition.py`, `axonx/app/steps/base.py`, `axonx/app/components/job/pipeline.py`, and `axonx/app/components/job/context.py`.
+Implementation references: `axonx/app/components/base.py`, `axonx/common/registry.py`, `axonx/app/core/graph.py`, `axonx/app/core/composition.py`, `axonx/app/steps/base.py`, `axonx/app/components/job/pipeline.py`, and `axonx/app/components/job/context.py`.
 
 ## Realtime collection, inference and reconciliation
 
@@ -219,7 +217,7 @@ Stock backtest plugins can pass an optional `events` handler to `run_backtest`. 
 
 ### Shared workspaces and execution ownership
 
-Task execution, metadata publication, repository refresh, deletion, and replica application do not acquire framework Task or workspace locks. Metadata files are still written by atomic replacement. Run ID, process ownership, and observed lifecycle checks remain, but checking and writing are not a transaction. Callers must sequence changes to the same Task directory; concurrent same-name execution, reset, deletion, and synchronization are not coordinated.
+Task initial publication, prior-Run checks and observation share short metadata transactions; computation holds no lock. Callers must still coordinate workspace deletion, replication and package mutations with execution; atomic metadata replacement is not a whole-workspace transaction.
 
 Update records live under `daemon/<instance>/updates/<update-id>/`. The daemon owns update recovery and worker replacement; service Jobs only request operations and read records.
 

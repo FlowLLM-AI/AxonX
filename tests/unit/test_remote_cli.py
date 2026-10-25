@@ -14,9 +14,9 @@ import uvicorn
 from test_plugin_hot_update import wheel
 
 from axonx.app.components.client import HttpClient
-from axonx.common.logs import LogEvent
-from axonx.config import resolve_app_config
+from axonx.app.config import resolve_app_config
 from axonx.app.core import Application
+from axonx.common.logs import LogEvent
 
 cli = importlib.import_module("axonx.cli.main")
 
@@ -202,3 +202,38 @@ async def test_restart_waits_for_outer_cli_response(remote, monkeypatch, capsys)
     assert json.loads(capsys.readouterr().out)["success"] is True
     assert calls == ["prepare_update", "commit_update"]
     assert not app.context.service.server.should_exit
+
+
+async def test_remote_kill_uses_exact_run_and_workspace(remote, capsys):
+    import subprocess
+
+    from axonx.common.process import machine_id, process_started_at
+    from axonx.task.schemas.lifecycle import TaskMetadata
+    from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
+
+    app, target = remote
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        metadata = TaskMetadata(
+            version=1,
+            task_id="base#uninstalled#remote-kill",
+            task_type="base",
+            run_id="remote-kill",
+            machine_id=machine_id(),
+            pid=child.pid,
+            process_started_at=process_started_at(child.pid),
+        )
+        directory = task_path(app.workspace_path, metadata.task_id)
+        directory.mkdir(parents=True)
+        write_task_metadata(directory, metadata)
+        assert await invoke(target, "kill", "--task-id", metadata.task_id, "--run-id", "wrong") != 0
+        assert child.poll() is None
+        capsys.readouterr()
+        assert await invoke(target, "kill", "--task-id", metadata.task_id, "--run-id", metadata.run_id) == 0
+        assert json.loads(capsys.readouterr().out)["run_id"] == metadata.run_id
+        child.wait(timeout=5)
+        assert read_entry(app.workspace_path, metadata.task_id).state == "failed"
+    finally:
+        if child.poll() is None:
+            child.kill()
+        child.wait(timeout=5)

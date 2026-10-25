@@ -4,8 +4,10 @@ import os
 import stat
 from pathlib import Path
 
-from .....task.schemas.lifecycle import TaskMetadata
-from .....task.storage.workspace import METADATA_FILE, kind_directories, parse_task_directory, read_task_metadata
+from ..enums import TaskState
+from ..schemas.lifecycle import TaskMetadata
+from .records import is_local_run, reconcile_task
+from .workspace import METADATA_FILE, kind_directories, parse_task_directory, read_task_metadata
 
 FileVersion = tuple[int, int, int, int]
 
@@ -51,6 +53,10 @@ def scan_metadata(
                             entries[child.name] = previous[child.name]
                             if child.name in versions:
                                 current[child.name] = versions[child.name]
+                        continue
+                if entry.state == TaskState.RUNNING and is_local_run(entry):
+                    entry = reconcile_task(directory, entry.run_id)
+                    if entry is None:
                         continue
                 entries[child.name] = entry
                 current[child.name] = version

@@ -8,10 +8,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
+from ...common.logging import get_logger
+from ...common.registry import component_type_name
+from ...common.workspace import Workspace
 from ..config import ApplicationConfig
 from .types import ComponentEnum
-from ...plugin.registry import component_type_name
-from ...common.logging import get_logger
 
 if TYPE_CHECKING:
     from ..core.context import ApplicationContext
@@ -38,10 +39,14 @@ class ComponentBase:
         self.logger = get_logger(self.name)
 
     @property
-    def workspace_path(self) -> Path:
+    def workspace(self) -> Workspace:
         if self.app_context is None:
-            return Path.cwd()
-        return Path(self.app_config.workspace_dir).expanduser()
+            return Workspace(Path.cwd())
+        return self.app_context.workspace
+
+    @property
+    def workspace_path(self) -> Path:
+        return self.workspace.root
 
     @property
     def app_config(self) -> ApplicationConfig:

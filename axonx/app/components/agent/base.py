@@ -26,7 +26,6 @@ class BaseAgentComponent(BaseComponent, ABC):
         self.dev_guide = ""
 
     async def _start(self) -> None:
-        await super()._start()
         self.dev_guide = ""
         if self.load_dev_guide:
             language = self.app_config.language if self.app_context is not None else "en"

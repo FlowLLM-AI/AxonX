@@ -7,6 +7,6 @@
 <text x="36" y="80" font-size="17">The execution process owns lifecycle publication and resource cleanup.</text>
 <g fill="#fff" stroke="#b9cede" stroke-width="2"><rect x="36" y="120" width="230" height="100" rx="12"/><rect x="308" y="120" width="230" height="100" rx="12"/><rect x="580" y="120" width="230" height="100" rx="12"/><rect x="852" y="120" width="230" height="100" rx="12"/></g>
 <g font-size="21" font-weight="700" text-anchor="middle"><text x="151" y="158">axonx exec</text><text x="423" y="158">Task files</text><text x="695" y="158">TaskRepository</text><text x="967" y="158">API / Studio</text></g>
-<g font-size="16" text-anchor="middle"><text x="151" y="190">TaskRunner executes</text><text x="423" y="190">metadata, logs, artifacts</text><text x="695" y="190">Poll published metadata</text><text x="967" y="190">Inspect existing records</text></g>
+<g font-size="16" text-anchor="middle"><text x="151" y="190">TaskRunner executes</text><text x="423" y="190">metadata, logs, artifacts</text><text x="695" y="190">Poll + check local Runs</text><text x="967" y="190">Inspect existing records</text></g>
 <g stroke="#52738f" stroke-width="3"><path d="M274 170h24m-7-7 7 7-7 7"/><path d="M546 170h24m-7-7 7 7-7 7"/><path d="M818 170h24m-7-7 7 7-7 7"/></g>
 <text x="36" y="264" font-size="17">Independent local exec continues across observation-service restarts.</text></g></svg>

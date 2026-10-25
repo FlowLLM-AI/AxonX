@@ -137,7 +137,6 @@
       "composite": "在线任务"
     },
     "status": {
-      "queued": "排队中",
       "running": "运行中",
       "succeeded": "已完成",
       "failed": "失败",
@@ -251,7 +250,6 @@
   "gpuUtilization": "计算使用率",
   "gpuMemory": "显存使用率",
   "states": {
-    "queued": "排队中",
     "running": "运行中",
     "succeeded": "成功",
     "failed": "失败",

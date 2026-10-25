@@ -8,14 +8,14 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
-from ....config import ComponentConfig
+from ....common.registry import provider
+from ...config import ComponentConfig
 from ...core.context import ApplicationContext
-from ..types import ComponentEnum
 from ...steps.base import BaseStep
-from ....plugin.registry import provider
+from ..types import ComponentEnum
 from .base import BaseJob
-from .events import JobEvent, ResultEvent
 from .context import RuntimeContext
+from .events import JobEvent, ResultEvent
 
 
 @dataclass(frozen=True, slots=True)

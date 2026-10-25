@@ -24,7 +24,7 @@ const schemas: Record<
       task_type: { type: "string" },
       state: {
         type: "string",
-        enum: ["queued", "running", "succeeded", "failed", "cancelled"],
+        enum: ["running", "succeeded", "failed", "cancelled"],
       },
     },
     output: "array",

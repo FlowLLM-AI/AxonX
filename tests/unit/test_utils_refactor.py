@@ -2,30 +2,30 @@
 
 from __future__ import annotations
 
-import os
-import sys
 import json
+import os
 import subprocess
-from importlib import import_module
+import sys
 from datetime import datetime, timezone
+from importlib import import_module
+from pathlib import Path
 from textwrap import dedent
 from types import SimpleNamespace
-from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
 from loguru import _logger
 
-from axonx.cli.parser import Command
-from axonx.plugin.registry import ProviderRegistry
-from axonx.config.execution import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
 from axonx.app.core.composition import compose_application
-from axonx.plugin.loading import load_symbol
-from axonx.config.env import find_env_file, load_env
+from axonx.app.core.logging import LOG_RETENTION_SECONDS, cleanup_log_files
+from axonx.cli.parser import Command
+from axonx.common.env import find_env_file, load_env
 from axonx.common.fs import directory_sha256
 from axonx.common.logging import LoggingConfig, configure_logging, get_log_path, get_logger
+from axonx.common.registry import ProviderRegistry
+from axonx.common.runtime import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
+from axonx.plugin.loading import load_symbol
 from axonx.task.runtime.logging import task_log_scope
-from axonx.app.core.logging import LOG_RETENTION_SECONDS, cleanup_log_files
 
 
 def test_dotenv_does_not_override_process_environment(tmp_path, monkeypatch):
@@ -303,26 +303,19 @@ def test_application_startup_uses_configured_log_timezone(tmp_path, monkeypatch)
         configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
 
 
-@pytest.mark.parametrize("from_environment", [True, False])
-def test_exec_worker_uses_same_timezone_for_tasks_and_logs(tmp_path, monkeypatch, from_environment):
+def test_exec_worker_uses_same_timezone_for_tasks_and_logs(tmp_path, monkeypatch):
     cli = import_module("axonx.cli.main")
     instant = datetime(2026, 10, 12, 7, 47, 25, tzinfo=timezone.utc)
     monkeypatch.setattr(_logger, "aware_now", lambda: instant)
     monkeypatch.setattr(cli, "load_env", lambda **kwargs: None)
     config = {"workspace_dir": str(tmp_path / "workspace"), "log_dir": str(tmp_path), "timezone": "UTC"}
-    if from_environment:
-        for key, field in [
-            (AXONX_TASK_WORKSPACE_DIR, "workspace_dir"),
-            (AXONX_TASK_LOG_DIR, "log_dir"),
-            (AXONX_TASK_TIMEZONE, "timezone"),
-        ]:
-            monkeypatch.setenv(key, config[field])
-        # Workers with a complete handoff must not resolve service configuration.
-        monkeypatch.setattr(cli, "resolve_app_config", lambda **kwargs: pytest.fail("Unexpected config lookup"))
-    else:
-        for key in [AXONX_TASK_WORKSPACE_DIR, AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE]:
-            monkeypatch.delenv(key, raising=False)
-        monkeypatch.setattr(cli, "resolve_app_config", lambda **kwargs: config)
+    for key, field in [
+        (AXONX_TASK_WORKSPACE_DIR, "workspace_dir"),
+        (AXONX_TASK_LOG_DIR, "log_dir"),
+        (AXONX_TASK_TIMEZONE, "timezone"),
+    ]:
+        monkeypatch.setenv(key, config[field])
+    monkeypatch.setattr(cli.ConfigLoader, "resolve", lambda **kwargs: pytest.fail("Unexpected App config lookup"))
 
     class Executor:
         def __init__(self, workspace_dir, *, timezone):

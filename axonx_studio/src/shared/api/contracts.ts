@@ -502,9 +502,9 @@ export type TaskMetadata = {
   category: TaskCategory | null;
   report_kind: string | null;
   state: TaskState;
-  pid: number | null;
-  machine_id: string | null;
-  process_started_at: string | null;
+  pid: number;
+  machine_id: string;
+  process_started_at: string;
   created_at: string | null;
   started_at: string | null;
   finished_at: string | null;
@@ -523,8 +523,7 @@ export type TaskSource = {
   kind: "exec" | "unknown";
 };
 
-export type TaskState =
-  "queued" | "running" | "succeeded" | "failed" | "cancelled";
+export type TaskState = "running" | "succeeded" | "failed" | "cancelled";
 
 export type TaskStepStatus = {
   name: string;
@@ -564,9 +563,9 @@ export type TaskSummary = {
   category: TaskCategory | null;
   report_kind: string | null;
   state: TaskState;
-  pid: number | null;
-  machine_id: string | null;
-  process_started_at: string | null;
+  pid: number;
+  machine_id: string;
+  process_started_at: string;
   created_at: string | null;
   started_at: string | null;
   finished_at: string | null;

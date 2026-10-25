@@ -2,10 +2,10 @@
 
 import pytest
 
-from axonx.cli.main import _load_client_options, _run_plugin, _run_remote_job
-from axonx.cli.parser import parse_command
-from axonx.config.target import ClientOptions
 from axonx.app.components.job import JobResponse
+from axonx.cli.main import _load_client_options, _run_plugin, _run_remote_job
+from axonx.cli.options import ClientOptions
+from axonx.cli.parser import parse_command
 
 
 def test_wait_task_accepts_client_timeout():

@@ -12,9 +12,8 @@ from zipfile import BadZipFile, ZipFile
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
-from ..config import JobConfig
-from .constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
 from ..common.fs import directory_sha256, file_sha256
+from .constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
 from .identity import content_sha256_from_wheel
 from .manifest import parse_plugin_manifest
 from .models import PluginArtifact
@@ -108,8 +107,6 @@ def _read_artifact(path: Path) -> PluginArtifact:
             raise ValueError(f"Wheel does not provide {PLUGIN_ENTRY_POINT_GROUP}")
 
         tasks: dict[str, str] = {}
-        components: dict[str, dict[str, str]] = {}
-        jobs: dict[str, JobConfig] = {}
         plugin_names = []
         plugin_packages = {}
         for plugin_name, package in entries.items(PLUGIN_ENTRY_POINT_GROUP):
@@ -125,21 +122,6 @@ def _read_artifact(path: Path) -> PluginArtifact:
                     f"Duplicate Task names in wheel: {', '.join(sorted(duplicate))}",
                 )
             tasks.update(manifest.tasks)
-            for component_type, backends in manifest.components.items():
-                registered = components.setdefault(component_type, {})
-                duplicate_backends = registered.keys() & backends.keys()
-                if duplicate_backends:
-                    duplicates = ", ".join(sorted(duplicate_backends))
-                    raise ValueError(
-                        f"Duplicate Component backends in wheel for {component_type!r}: {duplicates}",
-                    )
-                registered.update(backends)
-            duplicate_jobs = jobs.keys() & manifest.jobs.keys()
-            if duplicate_jobs:
-                raise ValueError(
-                    f"Duplicate Job names in wheel: {', '.join(sorted(duplicate_jobs))}",
-                )
-            jobs.update(manifest.jobs)
             plugin_names.append(plugin_name)
             plugin_packages[plugin_name] = package
 
@@ -165,8 +147,6 @@ def _read_artifact(path: Path) -> PluginArtifact:
         wheel=path,
         content_sha256=content_sha256,
         sha256=file_sha256(path),
-        components=components,
-        jobs=jobs,
     )
 
 

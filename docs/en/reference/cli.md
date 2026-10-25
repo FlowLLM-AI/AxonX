@@ -73,7 +73,7 @@ axonx status --task-id 'base#demo#cli-demo' --detail full
 axonx list_task_statuses --detail full --state failed
 ```
 
-To confirm startup, poll `status`, match the returned Run ID and check `queued`/`running` plus logs. `wait_task` waits for a terminal state; a short client timeout is not a startup check and does not cancel the Task. On transport errors, keep the original IDs and query before retrying submission. HTTP errors identify the exception type, target, endpoint and configured timeout; the HTTP timeout is a per-operation/inactivity limit, not a total Task deadline.
+To confirm startup, poll `status`, match the returned Run ID and check `running` plus logs. `wait_task` waits for a terminal state; a short client timeout is not a startup check and does not cancel the Task. On transport errors, keep the original IDs and query before retrying submission. HTTP errors identify the exception type, target, endpoint and configured timeout; the HTTP timeout is a per-operation/inactivity limit, not a total Task deadline.
 
 ## Parameter and value conversion
 
@@ -171,10 +171,18 @@ Task execution and process control belong to the CLI execution environment. The 
 - [Plugin management](../plugins/management.md)
 - [Existing development quick reference](../dev_guide.md)
 
-Implementation references: `axonx/cli/parser.py`, `main.py`, `constants.py`, `plugin_kit/cli.py`.
+Implementation references: `axonx/cli/parser.py`, `main.py`, `usage.py`, `plugin.py`.
 
 ## Service self-update
 
 [Service self-update](../guides/self-update.md)
 
 The `help` Job returns only public Job names/descriptions or one Job schema. CLI usage text is owned by the local executable and is printed by running `axonx` without arguments. Remote CLI subprocesses reject service startup and nested targets at the command entry point.
+
+## Exact termination and replacement
+
+`axonx kill --task-id ID --run-id RUN [--workspace-dir PATH] [--timeout 5] [--force true] [--target HOST:PORT]` explicitly stops a process on its original execution machine. SIGTERM timeout reports failure without automatic SIGKILL. Children may share their parent's process; review the scope before termination.
+
+For fixed Task IDs, exec checks prior running records: confirmed dead local Runs are reconciled and replaced; live, foreign or unverifiable records report a kill command and exit nonzero. Terminal replacement logs Overwrite and retains persistent/. Missing identity, malformed records and replicas are not automatically replaced. Checking and initial running publication share a short transaction. See [lifecycle](../concepts/task-lifecycle.md).
+
+Task definition CLI commands (`get_task_definition`, `list_installed_task_definitions`) execute locally without a service by default; target selects a remote CLI process.

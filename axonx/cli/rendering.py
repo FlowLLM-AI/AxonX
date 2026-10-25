@@ -14,7 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..config.defaults import (
+from ..common.constants import (
     AXONX_DEFAULT_BIND_HOST,
     AXONX_DEFAULT_CONNECT_HOST,
     AXONX_DEFAULT_PORT,

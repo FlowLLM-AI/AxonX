@@ -48,9 +48,7 @@ export function dailyModels(parent: TaskMetadata, nodes: ReportNode[]) {
           state:
             record?.state ||
             outcome?.status ||
-            (["queued", "running"].includes(parent.state)
-              ? "pending"
-              : "skipped"),
+            (["running"].includes(parent.state) ? "pending" : "skipped"),
           error:
             record?.error ||
             outcome?.error ||
@@ -105,7 +103,7 @@ export function aggregateState(states: (string | null | undefined)[]) {
   if (values.some((state) => state === "running")) return "running";
   if (
     !values.length ||
-    values.some((state) => ["pending", "waiting", "queued"].includes(state!))
+    values.some((state) => ["pending", "waiting"].includes(state!))
   )
     return "pending";
   if (values.every((state) => state === "skipped")) return "skipped";

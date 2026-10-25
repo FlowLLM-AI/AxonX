@@ -9,12 +9,12 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from ...config.defaults import DEFAULT_TRANSFER_BUDGET_BYTES
-from ...common.fs.paths import ConfinedPaths
+from ...common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
 from ...common.fs import snapshot_file
-from ..storage.workspace import parse_task_directory, read_task_metadata, task_directory, read_entry
-from .index import verify_replica
+from ...common.workspace import Workspace
 from ..schemas.lifecycle import current_children
+from ..storage.workspace import parse_task_directory, read_entry, read_task_metadata, task_directory
+from .index import verify_replica
 from .models import SyncTasksReport
 
 MAX_SYNC_DELETIONS = 200
@@ -29,7 +29,7 @@ class TaskArchiveApplier:
         workspace_path: Path,
         transfer_budget_bytes: int = DEFAULT_TRANSFER_BUDGET_BYTES,
     ) -> None:
-        self.paths = ConfinedPaths(workspace_path)
+        self.workspace = Workspace(workspace_path, transfer_budget_bytes=transfer_budget_bytes)
         self.transfer_budget_bytes = transfer_budget_bytes
 
     def apply(
@@ -41,7 +41,7 @@ class TaskArchiveApplier:
         removed = self._deletions(deletions)
         if archive_path is not None and archive_path.stat().st_size > self.transfer_budget_bytes:
             raise ValueError(f"Sync archive exceeds {self.transfer_budget_bytes} bytes")
-        with tempfile.TemporaryDirectory(prefix=".axonx-sync-", dir=self.paths.root) as temporary:
+        with tempfile.TemporaryDirectory(prefix=".axonx-sync-", dir=self.workspace.root) as temporary:
             staging = Path(temporary)
             extracted = staging / "incoming"
             replacements, files = self._extract(archive_path, extracted)
@@ -109,7 +109,7 @@ class TaskArchiveApplier:
             raise ValueError(f"At most {MAX_SYNC_DELETIONS} task deletions are allowed")
         for relative_path in unique:
             parse_task_directory(relative_path)
-            self.paths.resolve_deletable(relative_path)
+            self.workspace.resolve_deletable(relative_path)
         return unique
 
     def _hydrate(self, root: Path, tasks: set[str]) -> None:
@@ -121,7 +121,7 @@ class TaskArchiveApplier:
             status = read_task_metadata(directory, task_id)
             if status is None or status.replica is None or status.replica.snapshot is None:
                 continue
-            previous = read_task_metadata(self.paths.root / relative_path, task_id)
+            previous = read_task_metadata(self.workspace.root / relative_path, task_id)
             for name, record in status.replica.files.items():
                 path = Path(name)
                 if path.is_absolute() or ".." in path.parts or path.as_posix() != name:
@@ -135,7 +135,7 @@ class TaskArchiveApplier:
                 old = previous.replica if previous is not None and previous.run_id == status.run_id else None
                 if old is None:
                     raise ValueError(f"Missing replica delta base: {task_id}/{name}")
-                source = self.paths.root / relative_path / name
+                source = self.workspace.root / relative_path / name
                 if old.files.get(name) != record or any(p.is_symlink() for p in (source, *source.parents)):
                     raise ValueError(f"Replica delta base differs: {task_id}/{name}")
                 if source.stat().st_size != record.size:
@@ -188,7 +188,7 @@ class TaskArchiveApplier:
         deleted: list[str] = []
         try:
             for relative_path in targets:
-                target = self.paths.resolve_deletable(relative_path)
+                target = self.workspace.resolve_deletable(relative_path)
                 if not target.exists():
                     continue
                 if target.is_symlink() or not target.is_dir():
@@ -227,7 +227,7 @@ class TaskArchiveApplier:
                 incoming = extracted / relative_path
                 if not incoming.is_dir():
                     raise ValueError(f"Sync archive has no files for task: {relative_path}")
-                target = self.paths.resolve_deletable(relative_path)
+                target = self.workspace.resolve_deletable(relative_path)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(incoming, target)
                 installed.append(target)

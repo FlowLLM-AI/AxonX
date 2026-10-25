@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from packaging.utils import canonicalize_name
-
-from .discovery import get_installed_plugin, list_installed_plugins
-from .models import PluginArtifact, PluginInfo, PluginInstallResult, PluginUninstallResult
+from .discovery import get_installed_plugin
+from .models import PluginArtifact, PluginInfo, PluginUninstallResult
 from .wheel import build_wheel, inspect_wheel, install_artifact, source_sha256
 
 
@@ -69,72 +66,6 @@ def install_plugin(artifact: PluginArtifact, *, editable_source: Path | None = N
             f"got {installed.content_sha256 or 'missing'}",
         )
     return installed
-
-
-def install_staged_plugin(
-    path: Path,
-    expected_sha256: str,
-    artifact_directory: Path,
-) -> PluginInstallResult:
-    """Validate a staged wheel, retain it by digest, install it, and report the result."""
-    path = Path(path)
-    if path.suffix != ".whl":
-        raise ValueError(f"Invalid wheel filename: {path.name!r}")
-    artifact = inspect_wheel(path)
-    expected = expected_sha256.lower()
-    if artifact.sha256 != expected:
-        raise ValueError("Wheel SHA-256 mismatch")
-
-    destination = artifact_directory / artifact.sha256 / path.name
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    created = not destination.exists()
-    if created:
-        shutil.copyfile(path, destination)
-    stored = inspect_wheel(destination)
-    if stored.sha256 != artifact.sha256:
-        if created:
-            destination.unlink(missing_ok=True)
-        raise ValueError(f"Stored plugin wheel SHA-256 mismatch: {destination}")
-
-    previous = next(
-        (
-            item
-            for item in list_installed_plugins()
-            if canonicalize_name(item.distribution) == canonicalize_name(stored.distribution)
-        ),
-        None,
-    )
-    if previous is not None and previous.sha256 == stored.sha256 and previous.content_sha256 == stored.content_sha256:
-        installed = previous
-    else:
-        try:
-            installed = install_plugin(stored)
-        except BaseException:
-            if created:
-                destination.unlink(missing_ok=True)
-            raise
-    return PluginInstallResult(**installed.model_dump())
-
-
-def ensure_plugin_sources(sources: list[str], artifact_directory: Path) -> list[PluginInfo]:
-    """Build configured sources and install only artifacts not already active."""
-    for source in sources:
-        artifact = prepare_artifact(source, artifact_directory)
-        installed = next(
-            (
-                item
-                for item in list_installed_plugins()
-                if canonicalize_name(item.distribution) == canonicalize_name(artifact.distribution)
-            ),
-            None,
-        )
-        if (
-            installed is None
-            or installed.sha256 != artifact.sha256
-            or installed.content_sha256 != artifact.content_sha256
-        ):
-            install_plugin(artifact)
-    return list_installed_plugins()
 
 
 def uninstall_plugin(name: str) -> PluginUninstallResult:

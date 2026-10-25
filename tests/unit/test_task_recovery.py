@@ -1,5 +1,6 @@
 """Recover interrupted local Runs without touching another execution machine."""
 
+import os
 import plistlib
 from datetime import UTC, datetime
 from pathlib import Path
@@ -7,8 +8,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from axonx.common import process
 from axonx.task.builtins import DemoTask
-from axonx.task.runtime import process
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.schemas.lifecycle import TaskMetadata
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
@@ -22,7 +23,13 @@ def record(root, name, **kwargs):
         "process_started_at": datetime.now(UTC),
     }
     values.update(kwargs)
-    status = TaskMetadata(version=1, task_id=f"base#demo#{name}", run_id=name, task_type="base", **values)
+    status = TaskMetadata(
+        version=1,
+        task_id=f"base#demo#{name}",
+        run_id=name,
+        task_type="base",
+        **{**{"machine_id": "test-machine", "pid": 99999999, "process_started_at": "2026-01-01T00:00:00Z"}, **(values)},
+    )
     directory = task_path(root, status.task_id)
     directory.mkdir(parents=True)
     write_task_metadata(directory, status)
@@ -74,7 +81,9 @@ def test_machine_id_uses_linux_fallback_and_rejects_missing_identity(monkeypatch
 
 def test_runner_persists_machine_and_process_identity(tmp_path):
     task = DemoTask({"x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo")
+    task.pid = -1  # A prepared definition cannot dictate the executing process identity.
     status = TaskRunner().run(task)
+    assert status.pid == os.getpid()
     assert status.machine_id == process.machine_id()
     assert status.process_started_at == process.process_started_at()
     assert read_entry(tmp_path, task.task_id) == status

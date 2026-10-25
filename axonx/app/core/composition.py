@@ -7,14 +7,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from ...common.logging import LoggingConfig, configure_logging, get_logger
+from ...common.registry import ProviderRegistry
 from ..components.base import BaseComponent
 from ..components.job import BaseJob
-from ...plugin.registry import ProviderRegistry
 from ..components.service import BaseService
-from ..config import ApplicationConfig
-from ...config import ComponentConfig, JobConfig
-from .plugin_runtime import load_plugin_providers
-from ...common.logging import LoggingConfig, configure_logging, get_logger
+from ..config import ApplicationConfig, ComponentConfig
 from .context import ApplicationContext
 
 
@@ -36,8 +34,6 @@ def compose_application(
     logger = get_logger()
     logger.info(f"Initializing {app_config.app_name} Application v{version}")
 
-    plugin_jobs = load_plugin_providers(app_config, registry)
-    app_config = _merge_plugin_jobs(app_config, plugin_jobs)
     context = ApplicationContext(registry, app_config)
     for category, group in app_config.components.items():
         context._set_component_group(
@@ -64,20 +60,6 @@ def compose_application(
     logger.info(f"Jobs ({len(context.jobs)}): {', '.join(context.jobs) or '-'}")
     context.finalize()
     return context
-
-
-def _merge_plugin_jobs(
-    config: ApplicationConfig,
-    plugin_jobs: dict[str, JobConfig],
-) -> ApplicationConfig:
-    conflicts = plugin_jobs.keys() & config.jobs.keys()
-    if conflicts:
-        raise ValueError(
-            "Jobs provided by both application config and plugins: " + ", ".join(sorted(conflicts)),
-        )
-    if not plugin_jobs:
-        return config
-    return config.model_copy(update={"jobs": {**plugin_jobs, **config.jobs}})
 
 
 def _instantiate[ComponentT: BaseComponent](

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC
 
-from ....plugin.registry import provider
+from ....common.registry import provider
 from ...components.agent.contracts import AgentMutationResult
 from ...components.types import ComponentEnum
 from ..base import BaseStep

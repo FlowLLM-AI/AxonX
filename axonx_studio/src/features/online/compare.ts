@@ -60,8 +60,8 @@ export function compareModels(parent: TaskMetadata, nodes: TaskNode[]) {
       )
         state = "failed";
       else if (
-        !["queued", "running"].includes(parent.state) &&
-        ["pending", "waiting", "running", "queued"].includes(state)
+        !["running"].includes(parent.state) &&
+        ["pending", "waiting", "running"].includes(state)
       )
         state = parent.state === "cancelled" ? "cancelled" : "skipped";
       else if (steps.some((step) => step.state === "running"))
@@ -106,7 +106,7 @@ export type CompareModel = ReturnType<typeof compareModels>[number];
 
 export function compareStageState(step: TaskStepStatus, parent: TaskMetadata) {
   const state = step.state || "pending";
-  return !["queued", "running"].includes(parent.state) &&
+  return !["running"].includes(parent.state) &&
     ["pending", "waiting", "running"].includes(state)
     ? parent.state === "cancelled"
       ? "cancelled"

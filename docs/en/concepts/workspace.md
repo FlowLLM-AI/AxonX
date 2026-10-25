@@ -4,6 +4,37 @@ The workspace stores task status, successful results, and research artifacts, pr
 
 ![Workspace file responsibilities](../../figures/concepts/workspace.svg)
 
+## Shared Python Workspace
+
+`axonx.common.workspace.Workspace` is the shared filesystem entry point for App, Task, CLI, Cron, and Task archive application. Constructing it normalizes the root without creating directories. `ApplicationContext` owns one instance, exposed as `app.workspace` and `self.workspace` on application components and Steps. Tasks expose their own instance rooted at the same configured workspace. Existing `workspace_path` properties remain available.
+
+The implementation is grouped under `axonx/common/workspace/`: `core.py` provides file operations, `preview.py` handles file formats, and `models.py` defines shared result schemas. Import `Workspace` from the package; import result schemas explicitly from `axonx.common.workspace.models`. The base import does not load Pydantic or optional format libraries. App owns Job/HTTP adapters; Task retains metadata and execution policies.
+
+```python
+from axonx.common.workspace import Workspace
+
+workspace = Workspace(".axonx", transfer_budget_bytes=512 * 1024 * 1024)
+workspace.ensure()  # Explicit creation; construction itself is read-only.
+listing = workspace.list_entries("", offset=0)
+staged = workspace.stage_bytes(b"hello", "note.txt")
+preview = workspace.preview_file(staged["path"])
+workspace.discard_staged(staged["path"])
+```
+
+| Requirement                                                         | Shared mechanism                                                                          | Caller-owned rules                                                                                                                                          |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Root initialization, subprocess working directories and environment | `root`, `ensure()`                                                                        | App startup and Cron launch configuration                                                                                                                   |
+| Untrusted relative paths                                            | `resolve()`, `resolve_file()`, `resolve_directory()`, `resolve_deletable()`, `relative()` | Refuse absolute paths, parent traversal, symlinks, and root deletion                                                                                        |
+| Configured Agent paths and research inputs                          | `locate()`                                                                                | Confined by default; Task inputs explicitly use `external=True` to retain support for external files                                                        |
+| Directory browsing and Task Run listing                             | `list_entries(path, offset=..., include=...)`                                             | Optional root-level hidden names and a filter applied before pagination                                                                                     |
+| Bounded format previews                                             | `preview_file(path, offset=..., limit=..., max_bytes=...)`                                | App validates the returned data against its response models                                                                                                 |
+| Batch deletion                                                      | `delete_entries(paths)`                                                                   | Validate all selections and deduplicate parent/child paths before mutation; an optional `before_delete(root, targets)` callback protects domain-owned files |
+| Uploads and synchronization input staging                           | `stage_bytes()`, `stage_stream()`, `staged_file()`, `discard_staged()`                    | App supplies its transfer budget and uses the default `tmp/` staging directory                                                                              |
+
+Workspace returns plain dictionaries and lists. It imports neither application schemas nor Task code; format libraries are loaded only when needed. Its optional transfer budget is unlimited when omitted, while the application always supplies its configured budget. The application also supplies `.task-records` visibility and Task deletion protection from `task/storage/records.py`.
+
+Task identity/layout, metadata transactions and reconciliation, event/log readers, artifact validation, persistent storage and display-replica synchronization remain in `task/`. They use the shared filesystem mechanism without moving their lifecycle or schema rules into Common. Standalone daemon workers retain standard-library-only path handling. The old `ConfinedPaths`, `WorkspacePaths`, `StagedFiles`, and application workspace operation functions are removed; Python callers use `Workspace` methods. CLI/HTTP responses and persisted formats are unchanged.
+
 ## Directory Layout
 
 The following illustrates a demo and a research plugin task; plugin filenames depend on actual artifacts:
@@ -41,7 +72,7 @@ The reserved `persistent/` directory holds Task-owned cumulative business data. 
 | `metadata.json` | Acceptance through every terminal state | Identity, Run ID, input/output, state, steps, error, exit code, log path, and child invocations |
 | `events.jsonl`  | Appended as the worker reports progress | Replayable progress events, one JSON object per line                                            |
 
-One atomic metadata snapshot is the authoritative Task record. The Runner owns updates during execution; the manager settles children and the parent after its worker stops. There are no separate status or composition documents, no duplicate result envelopes, and no legacy-format fallback.
+One atomic metadata snapshot is the authoritative Task record. The Runner owns updates during execution; Task record reconciliation settles unfinished records only after confirming the original local process has stopped. There are no separate status or composition documents, no duplicate result envelopes, and no legacy-format fallback.
 
 Child invocations are recorded in `metadata.json.children`; child directories remain under their own type directories, rather than below the parent. Synchronizing or deleting a parent does not include its children automatically.
 

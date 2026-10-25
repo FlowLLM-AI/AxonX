@@ -1,6 +1,6 @@
 """Application-defined Studio navigation."""
 
-from ...plugin.registry import provider
+from ...common.registry import provider
 from .base import BaseStep
 
 

@@ -104,4 +104,4 @@ Agent 的默认 Job 工具列表为空，可选查询名单保留为注释示例
 
 [远程机器](remote-machines.md) · [API 总览](../api/overview.md) · [Agent 配置](../agent/configuration.md) · [HTTP 代理](http-proxy.md)
 
-源码：[鉴权与公开筛选](../../../axonx/app/components/service/http/app.py)、[Job 配置](../../../axonx/config/models.py)、[CLI token 加载](../../../axonx/cli/main.py)。
+源码：[鉴权与公开筛选](../../../axonx/app/components/service/http/app.py)、[Job 配置](../../../axonx/app/config/models.py)、[CLI token 加载](../../../axonx/cli/main.py)。

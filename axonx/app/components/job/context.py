@@ -4,8 +4,8 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
+from ....common.config import deep_merge_config
 from .contracts import JobResponse
-from ....config import deep_merge_config
 
 
 class RuntimeContext(dict[str, Any]):

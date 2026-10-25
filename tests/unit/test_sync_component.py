@@ -13,10 +13,10 @@ from axonx.app.components.sync import LocalSyncComponent
 from axonx.app.components.task_repository import TaskChanges, TaskChangeSubscription
 from axonx.app.config import ApplicationConfig
 from axonx.app.core import Application
-from axonx.task.storage.artifacts import artifact_record
 from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.workspace import task_path, write_task_metadata
-from axonx.task.sync.index import source_revision, snapshot_index
+from axonx.task.sync.index import snapshot_index, source_revision
 
 
 class Repository:
@@ -34,6 +34,9 @@ def task(root, task_id="etl#demo#research-core", state="succeeded", run_id="firs
     write_task_metadata(
         directory,
         TaskMetadata(
+            machine_id="test-machine",
+            pid=99999999,
+            process_started_at="2026-01-01T00:00:00Z",
             version=1,
             task_id=task_id,
             task_type=task_id.split("#", 1)[0],

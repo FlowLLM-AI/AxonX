@@ -1734,8 +1734,7 @@
   font-size: 10px;
   white-space: nowrap;
 }
-.relation-state.running,
-.relation-state.queued {
+.relation-state.running {
   color: var(--blue);
 }
 .relation-state.succeeded {

@@ -4,11 +4,10 @@ import asyncio
 from pathlib import Path
 
 from ....common.logs import LogEvent
+from ....common.registry import provider
 from ....task.enums import TaskState
+from ....task.query.summary import summarize_status, task_sort_key
 from ....task.storage.logs import TaskLogReader
-from ....task.query.summary import task_sort_key
-from ....plugin.registry import provider
-from ....task.query.summary import summarize_status
 from .base import TaskRepositoryStep
 
 

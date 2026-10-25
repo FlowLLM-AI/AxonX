@@ -147,13 +147,11 @@ Step 通过 `await self.emit(...)` 发送 ProgressEvent、LogEvent、ArtifactEve
 
 Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩余 Step 不再执行。客户端看到最终 result 才能确定业务结束，见 [事件协议](../api/events.md)。
 
-## manifest 扩展边界
+## 显式服务扩展
 
-插件可贡献 BaseComponent 类、JobConfig 与 BaseTask。Component 类别必须与声明匹配；manifest 描述 backend，应用配置描述命名实例。
+研究插件 manifest 只声明 Tasks。服务扩展通过 `Application(providers=...)` 注入组件、Step 和 Job 实现，再用应用配置创建命名实例。通用 Provider 注册机制位于 `axonx.common.registry`。App 不扫描研究插件或安装源码。
 
-当前插件 loader 用 BaseComponent 校验组件类；BaseStep 只继承 ComponentBase，不能直接通过 manifest components.step 加载。自定义 Step 使用 `Application(providers=...)` 注入。插件 Job 可以组合内置 Step；manifest 的 `components.step` 不支持直接加载 BaseStep 子类。
-
-更多包协议见 [插件 manifest](../reference/plugin-manifest.md)。
+参见[插件 manifest](../reference/plugin-manifest.md)。
 
 ## 验证范围
 
@@ -161,7 +159,7 @@ Step 抛异常会被 pipeline 转为失败结果；设置 success=false 后剩�
 
 新增 backend 后先用最小 Application(providers=...) 验证，再接真实服务、插件环境和 Studio 表单；不要把 UI 能生成表单等同于 Task 研究逻辑已经正确。
 
-实现依据：`axonx/app/components/base.py`、`axonx/plugin/registry.py`、`axonx/app/core/graph.py`、`axonx/app/core/composition.py`、`axonx/app/steps/base.py`、`axonx/app/components/job/pipeline.py` 与 `axonx/app/components/job/context.py`。
+实现依据：`axonx/app/components/base.py`、`axonx/common/registry.py`、`axonx/app/core/graph.py`、`axonx/app/core/composition.py`、`axonx/app/steps/base.py`、`axonx/app/components/job/pipeline.py` 与 `axonx/app/components/job/context.py`。
 
 ## 实时采集、在线推理与预测比对
 
@@ -219,7 +217,7 @@ cron 是 `axonx/cron/` 下的普通模块，不注册组件后端，也不调度
 
 ### 共享工作区与执行归属
 
-Task 执行、metadata 发布、仓库刷新、删除和副本应用不再获取框架 Task 或工作区锁。metadata 文件仍通过原子替换写入。保留 Run ID、进程归属及已观察生命周期检查，但检查与写入不构成事务。调用方需顺序修改同一 Task 目录；并发同名执行、重置、删除和同步不再协调。
+Task 首份状态发布、旧 Run 校验和观察修正共用短元数据事务；计算期间不持锁。工作区删除、同步和包环境更新仍需由调用方与执行协调，元数据原子替换不代表整个工作区事务。
 
 更新记录位于 `daemon/<instance>/updates/<update-id>/`。daemon 负责中断恢复与 worker 替换，服务 Job 只请求操作并读取记录。
 

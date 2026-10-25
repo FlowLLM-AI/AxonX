@@ -7,7 +7,7 @@ When troubleshooting, first confirm the execution machine, Task ID, and run_id, 
 ```bash
 axonx version
 axonx machine_status
-axonx list_plugins
+axonx plugin list
 axonx list_task_statuses
 ```
 
@@ -44,9 +44,9 @@ Log windows use byte offsets. Read the tail first to find the exception, then ex
 
 ## Process identity and interrupted records
 
-Each new Task record includes a stable `machine_id` derived from the OS machine identity and a `process_started_at` timestamp. The ID does not depend on service ports, workspace paths or IP addresses. The executing process publishes its own identity; in-process children share that process instance.
+Every Task metadata record requires stable `machine_id`, positive `pid` and timezone-aware `process_started_at`. App startup and polling validate original local running records. Confirmed exit or PID reuse writes failed, framework exit code 1, the reason and detection time for that exact Run. Foreign, replica and unverifiable process records are not rewritten.
 
-If a record remains `running`, check the execution machine, exact process identity, growing logs and disk access. A PID from another machine cannot establish liveness. Repository and query interfaces observe files; they do not supervise processes or rewrite interrupted Task states. An abruptly killed exec process can leave nonterminal metadata. Review incomplete outputs and use a distinct Task name for a fresh execution. Restoring records does not resume Python execution or replay cron triggers.
+Same-name exec uses the same check. A live or unverifiable record blocks replacement and reports an exact kill command for explicit action; terminal replacement logs Overwrite. `axonx kill --task-id ID --run-id RUN` checks identity and sends SIGTERM, without automatic timeout escalation; `--force true` explicitly forces termination. Composite children share a process, so termination affects the whole execution. See [lifecycle](../concepts/task-lifecycle.md).
 
 ## Files exist but the page has not updated
 

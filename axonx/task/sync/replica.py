@@ -15,7 +15,7 @@ from ..schemas.lifecycle import TaskMetadata, current_children
 from ..schemas.protocol import fingerprint
 from ..schemas.replica import DisplayReplica, LiveSnapshot, ReplicaFile, ReplicaLog
 from ..storage.logs import TaskLogReader
-from ..storage.workspace import METADATA_FILE, EVENTS_FILE, read_entry, task_path, write_task_metadata
+from ..storage.workspace import EVENTS_FILE, METADATA_FILE, read_entry, task_path, write_task_metadata
 from .errors import ReplicaBudgetError, SnapshotChangedError
 from .index import policy_revision, source_revision
 from .models import TaskPlan
@@ -35,7 +35,6 @@ COMPLETE_FILES = {
 
 def _refresh_snapshot(metadata, snapshot, remote, destination):
     """Refresh only metadata when the complete remote publication is unchanged."""
-    metadata.pid = None
     metadata.log_path = ""
     metadata.replica = DisplayReplica.model_validate({key: value for key, value in remote.items() if key != "run_id"})
     metadata.replica.snapshot = snapshot
@@ -96,7 +95,6 @@ def prepare_replica(
         target.parent.mkdir(parents=True, exist_ok=True)
         snapshot_file(item.path, target)
     metadata.log_path = ""
-    metadata.pid = None
     log = None
     log_revision = ""
     if logs:

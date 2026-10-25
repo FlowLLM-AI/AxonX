@@ -1,6 +1,6 @@
 # Plugin installation and deployment
 
-Plugins are Python packages providing AxonX Tasks, Components, and Jobs. Commands operate on the current Python environment; explicit `--target` forwards the CLI to a child process on that service. Building and installation read plugin code and dependencies.
+Plugins are Python packages providing AxonX Tasks. Commands operate on the current Python environment; explicit `--target` forwards the CLI to a child process on that service. Building and installation read plugin code and dependencies.
 
 ![Plugin deployment workflow](../../figures/guides/plugin-deployment.svg)
 
@@ -69,7 +69,7 @@ axonx plugin install -e ./plugins/qlib_factor
 axonx plugin install -e ./plugins/qlib_strategy
 ```
 
-Editable installation requires a source directory in the selected environment and cannot use `--output`. The execution service must use this Python environment. Python source changes do not require reinstallation, but restart persistent services to reload Tasks, Jobs, and Components; reinstall after dependency or entry-point metadata changes. Editable installation still builds and checks a wheel first.
+Editable installation requires a source directory in the selected environment and cannot use `--output`. The execution service must use this Python environment. Python source changes do not require reinstallation, and new exec/definition subprocesses read the edited source; reinstall after dependency or entry-point metadata changes. Editable installation still builds and checks a wheel first.
 
 For fixed-version experiments or deployment, use ordinary installation to build and install a wheel. Reinstall after source changes and restart any running local service:
 
@@ -77,7 +77,7 @@ For fixed-version experiments or deployment, use ordinary installation to build 
 axonx plugin install ./plugins/qlib_a158
 ```
 
-The service's `plugins.sources` configuration can install sources at startup; see [Configuration reference](../reference/configuration.md) for path resolution. Installed valid plugins are discovered through entry points, rather than an explicit enablement list copied from another project.
+Install explicitly before execution. App does not discover or install research plugins at startup; each new exec or definition-query subprocess uses the installed environment.
 
 ## Deploy remotely
 
@@ -101,7 +101,7 @@ The upload response contains workspace-relative `path`, absolute server-local `l
 
 Wheel inspection and installation retain content and wheel checksums. Installation changes the selected interpreter's environment without refreshing the running service's imported modules or tracking `restart_required`. New CLI processes load the installed environment; already loaded service objects may remain old until restart. Later imports by an existing process may read updated files, so this is not version isolation.
 
-Plugin operations do not coordinate concurrent pip changes or Task launches. Finish installation before executing dependent commands. Task execution, metadata publication, repository refresh, deletion, and replica application do not acquire framework Task or workspace locks. Metadata files are still written by atomic replacement. Run ID, process ownership, and observed lifecycle checks remain, but checking and writing are not a transaction. Callers must sequence changes to the same Task directory; concurrent same-name execution, reset, deletion, and synchronization are not coordinated.
+Plugin package mutations must be serialized by callers. Task initial publication and local reconciliation use short metadata transactions; no lock is held across computation. Coordinate workspace deletion, synchronization and package updates explicitly with executions.
 
 ## Uninstallation and troubleshooting
 

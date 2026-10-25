@@ -8,7 +8,7 @@ axonx exec --task demo --task-name add-01 --x 1 --y 2
 
 The command runs in the foreground, prints Task output and exits with the Task's exit code. Use your terminal or process manager for background execution. Each Task writes its configuration, progress, output and lifecycle state under `<workspace>/<task_type>/<task_id>/metadata.json`; demo's ID here is `base#demo#add-01`.
 
-An observing service must use the same workspace and log directory as the execution process. It polls metadata and exposes read-only Task queries. Starting, restarting or closing the service does not recover, cancel or rewrite independently executed Tasks.
+An observing service must use the same workspace and log directory as the execution process. It polls metadata and exposes read-only Task queries. The service does not restart or cancel independent Tasks. Startup and polling reconcile only confirmed dead original local Runs; live, foreign, replica and permission-unknown records retain their recorded state.
 
 ## Discover definitions
 
@@ -43,7 +43,7 @@ Waiting checks the exact Run ID and reports the terminal outcome. Disconnecting 
 
 ## Failures and reruns
 
-The Runner publishes failures that reach Python cleanup. Abrupt process death can leave the last metadata state at running; the service displays that recorded state without repairing it. Process termination belongs to the execution environment.
+The Runner publishes failures that reach Python cleanup. Abrupt process death can leave metadata at running; startup/polling and the next exec reconcile a confirmed dead original local Run to failed. Use explicit `axonx kill` for process termination; see [Task lifecycle](../concepts/task-lifecycle.md).
 
 A fixed Task name reuses its Task ID and replaces terminal output while retaining Task-owned persistent data. Use a new name to retain a separate experiment. Coordinate same-name execution, deletion and synchronization externally; atomic metadata replacement does not serialize those operations.
 

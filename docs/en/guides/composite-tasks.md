@@ -107,7 +107,7 @@ The default composite output is `BaseOutputParams`. Custom outputs extend it wit
 
 Containment does not create data-lineage edges. Pass `source_tasks` explicitly for actual upstream data dependencies between different Task IDs. Every child, including nested composites, inherits the parent’s resolved `task_name` by default; pass `task_name` to `run_task()` for an explicitly named child instance. The runtime adds no hash, node name, or attempt number to the name. Repeated calls of the same registration use the same Task ID and replace terminal outputs through `TaskRunner`; active and unrecognized directories are rejected. Each invocation gets a new Run ID. A Task cannot use its own Task ID as an upstream source; construction rejects this before either submission or execution can replace any files. Invocation records retain states and errors, while old Run status and artifacts become unavailable after replacement. Parents with the same name share child directories even when their registrations differ. Shared fixed-name pipelines must serialize execution. Replacement does not preserve old Runs or provide failure rollback.
 
-Runner owns normal completion and interrupt cleanup. A forcibly killed exec process may leave nonterminal parent and child records; the read-only Repository does not settle them.
+Runner owns normal completion and interrupt cleanup. After a forcibly killed exec process, observation reconciles confirmed dead local Runs; foreign or unverifiable records remain unchanged.
 
 Inspect execution records on the same target:
 

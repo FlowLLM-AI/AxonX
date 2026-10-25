@@ -6,7 +6,7 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 
-from ..common.constants import AXONX_DEFAULT_ENCODING
+from .constants import AXONX_DEFAULT_ENCODING
 
 
 def find_env_file(

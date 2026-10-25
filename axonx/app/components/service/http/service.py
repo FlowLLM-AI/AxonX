@@ -6,9 +6,8 @@ import signal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .....config.defaults import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
-from ....workspace.staging import StagedFiles
-from .....plugin.registry import provider
+from .....common.constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
+from .....common.registry import provider
 from ..base import BaseService
 
 if TYPE_CHECKING:
@@ -44,7 +43,6 @@ class HttpService(BaseService):
         self._shutdown_deadline = None
         self.web_enabled = web_enabled
         self.token = token
-        self.staged_files: StagedFiles | None = None
         self.server = None
         self.startup_directory = Path.cwd().resolve()
         self.cli_processes: set[int] = set()
@@ -54,7 +52,6 @@ class HttpService(BaseService):
         """Build the ASGI application without starting a server."""
         from .app import create_http_app
 
-        self.staged_files = StagedFiles(app.workspace_path, transfer_budget_bytes=app.app_config.transfer_budget_bytes)
         return create_http_app(app, self)
 
     def run_app(self, app: "Application") -> None:

@@ -10,16 +10,15 @@ from unittest.mock import Mock
 
 import pytest
 
-from axonx.task.enums import TaskState, TaskType
 from axonx.plugin.models import PluginInfo
 from axonx.task import BaseCompositeTask, BaseOutputParams, BaseTask, ChildTaskError
 from axonx.task.builtins.demo import DemoTask, DemoTaskOutputParams
 from axonx.task.catalog import get_task_definition
+from axonx.task.enums import TaskState, TaskType
 from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.runtime.runner import TaskRunner
-from axonx.task.storage.artifacts import artifact_path, artifact_record, read_metadata
-
 from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.storage.artifacts import artifact_path, artifact_record, read_metadata
 from axonx.task.storage.workspace import read_task_metadata, task_path, write_task_metadata
 
 
@@ -238,7 +237,12 @@ def test_child_startup_recovery_preserves_replacement_or_deleted_directory(tmp_p
 
     def change_before_handoff():
         nonlocal changed
-        if task.children and task.children[0].state == TaskState.RUNNING and not changed:
+        if (
+            task.children
+            and task.children[0].task_id is not None
+            and task.children[0].state == TaskState.RUNNING
+            and not changed
+        ):
             changed = True
             child = task.children[0]
             directory = task_path(tmp_path, child.task_id)
@@ -247,11 +251,14 @@ def test_child_startup_recovery_preserves_replacement_or_deleted_directory(tmp_p
                 write_task_metadata(
                     directory,
                     TaskMetadata(
+                        machine_id="test-machine",
+                        pid=99999999,
+                        process_started_at="2026-01-01T00:00:00Z",
                         version=1,
                         task_id=child.task_id,
                         run_id="replacement",
                         task_type=TaskType.BASE,
-                        state=TaskState.QUEUED,
+                        state=TaskState.RUNNING,
                     ),
                 )
             else:
@@ -267,7 +274,7 @@ def test_child_startup_recovery_preserves_replacement_or_deleted_directory(tmp_p
     if change == "replacement":
         status = read_task_metadata(directory, child.task_id)
         assert status.run_id == "replacement"
-        assert status.state == TaskState.QUEUED
+        assert status.state == TaskState.RUNNING
     else:
         assert not directory.exists()
 
@@ -403,8 +410,8 @@ def test_self_source_is_rejected_without_replacing_previous_child(tmp_path, on_e
     assert {path.name: path.read_bytes() for path in directory.glob("*")} == snapshots
 
 
-@pytest.mark.parametrize("state", [TaskState.QUEUED, TaskState.RUNNING])
-def test_reused_child_name_cannot_replace_active_run(tmp_path, state):
+def test_reused_child_name_cannot_replace_active_run(tmp_path):
+    state = TaskState.RUNNING
     results = []
     first = parent(
         tmp_path,
@@ -422,7 +429,7 @@ def test_reused_child_name_cannot_replace_active_run(tmp_path, state):
         lambda owner: owner.run_task("demo", x=3, y=4),
         input_params={"task_name": "research-core"},
     )
-    with pytest.raises(ChildTaskError, match="already exists"):
+    with pytest.raises(ChildTaskError, match="Task is running"):
         TaskRunner().run(task)
     assert read_task_metadata(directory, existing.task_id) == status
     assert (directory / "metadata.json").read_bytes() == before

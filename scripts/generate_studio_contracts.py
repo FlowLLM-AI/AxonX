@@ -6,23 +6,28 @@ from pathlib import Path
 
 from pydantic import TypeAdapter
 
-from axonx.app.config import StudioPage
 from axonx.app.components.agent.contracts import AgentHistoryBlock, AgentMutationResult, AgentSession, AgentSessionInfo
-from axonx.app.components.job.contracts import JobResponse, JobInfo, JobCatalog
+from axonx.app.components.job.contracts import JobCatalog, JobInfo, JobResponse
 from axonx.app.components.job.events import AgentBlockPatch, AgentMessageEvent, ArtifactEvent, ResultEvent
-from axonx.common.logs import LogEvent
-from axonx.task.schemas.progress import ProgressEvent
-from axonx.task.query.summary import TaskSummary
-from axonx.task.query.graph import TaskGraph
-from axonx.task.contracts.compare import PredictionComparison, BasePredictionCompareOutputParams
-from axonx.task.contracts.windows import WindowOutputParams
-from axonx.task.contracts.inference import BaseInferenceOutputParams
+from axonx.app.config import StudioPage
+from axonx.app.core.build_info import BuildInfo
+from axonx.app.steps.machine.contracts import MachineInfo
+from axonx.common.logs import LogChunk, LogEvent
+from axonx.common.workspace.models import (
+    CsvPreview,
+    DeletedEntry,
+    FileCopy,
+    JsonlPreview,
+    MarkdownPreview,
+    ParquetPreview,
+    StagedFile,
+    StructuredPreview,
+    TextPreview,
+    UnsupportedPreview,
+    WorkspaceListing,
+)
 from axonx.task.builtins.stock.backtest import StockBacktestOutput
 from axonx.task.builtins.stock.data import StockETLOutput
-from axonx.common.logs import LogChunk
-from axonx.task.schemas.progress import TaskStepStatus
-from axonx.app.steps.machine.contracts import MachineInfo
-from axonx.task.schemas.artifact import ArtifactRecord
 from axonx.task.catalog.resolver import TaskDefinition
 from axonx.task.contracts import (
     BaseAnalysisOutputParams,
@@ -37,21 +42,14 @@ from axonx.task.contracts import (
     TrainingCurve,
     WindowResult,
 )
+from axonx.task.contracts.compare import BasePredictionCompareOutputParams, PredictionComparison
+from axonx.task.contracts.inference import BaseInferenceOutputParams
+from axonx.task.contracts.windows import WindowOutputParams
+from axonx.task.query.graph import TaskGraph
+from axonx.task.query.summary import TaskSummary
+from axonx.task.schemas.artifact import ArtifactRecord
 from axonx.task.schemas.lifecycle import TaskMetadata
-from axonx.app.core.build_info import BuildInfo
-from axonx.app.workspace.models import (
-    CsvPreview,
-    DeletedEntry,
-    FileCopy,
-    JsonlPreview,
-    MarkdownPreview,
-    ParquetPreview,
-    StagedFile,
-    StructuredPreview,
-    TextPreview,
-    UnsupportedPreview,
-    WorkspaceListing,
-)
+from axonx.task.schemas.progress import ProgressEvent, TaskStepStatus
 
 MODELS = [
     StudioPage,

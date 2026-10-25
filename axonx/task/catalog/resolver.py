@@ -1,15 +1,16 @@
 """Resolve executable Tasks from plugins and AxonX's registry."""
 
+from importlib import import_module
 from inspect import cleandoc
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from ...plugin.registry import ProviderRegistry
-from ..enums import TaskCategory, TaskType
+from ...common.registry import ProviderRegistry
 from ...plugin import index_contributions, list_installed_plugins
 from ...plugin.loading import load_symbol
 from ..core.task import BaseTask
+from ..enums import TaskCategory, TaskType
 
 
 class TaskInfo(BaseModel):
@@ -35,6 +36,8 @@ def _task_catalog(
     name: str | None = None,
 ) -> dict[str, tuple[type[BaseTask], str | None]]:
     """Discover registrations, then load all Tasks or only the requested one."""
+    import_module("axonx.task.builtins")
+
     native = ProviderRegistry.from_builtins().get_all("task", BaseTask)
     plugins = index_contributions(list_installed_plugins())
     duplicates = native.keys() & plugins.tasks.keys()

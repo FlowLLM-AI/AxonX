@@ -1,12 +1,14 @@
 """Executable command parsing; raw argv is separate from business arguments."""
 
 from __future__ import annotations
+
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
-from ..config.target import ClientOptions, CLIENT_OPTION_NAMES
-from ..common.arguments import convert_value, parse_arguments
+
+from ..common.arguments import TRANSPORT_OPTION_NAMES, convert_value, parse_arguments
+from .options import ClientOptions
 
 _ACTION_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
 
@@ -36,7 +38,7 @@ def parse_command(argv: Sequence[str]) -> tuple[Command, ClientOptions]:
 
 def _extract_client_options(tokens: tuple[str, ...]) -> tuple[tuple[str, ...], dict[str, Any]]:
     """Separate connection options without interpreting command arguments."""
-    client_names = CLIENT_OPTION_NAMES
+    client_names = TRANSPORT_OPTION_NAMES
     remaining: list[str] = []
     client: dict[str, Any] = {}
     index = 0

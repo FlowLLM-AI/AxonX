@@ -8,19 +8,25 @@ Python can embed an Application in-process or connect to a running HTTP/MCP serv
 
 Internal module paths changed without compatibility packages. Public top-level class imports remain available and are lazy. Use the canonical paths below; Task metadata and wire schemas are unchanged.
 
-| Previous path                                   | Canonical path                                            |
-| ----------------------------------------------- | --------------------------------------------------------- |
-| `axonx.components / axonx.steps / axonx.core`   | `axonx.app.components / axonx.app.steps / axonx.app.core` |
-| `axonx.plugin_kit / axonx.common.registry`      | `axonx.plugin / axonx.plugin.registry`                    |
-| `axonx.enums / axonx.common.enums`              | `axonx.task.enums / axonx.app.components.types`           |
-| `axonx.common.command`                          | `axonx.cli.parser / axonx.config.target`                  |
-| `axonx.config.ApplicationConfig / StudioPage`   | `axonx.app.config`                                        |
-| `axonx.common.utils.env / target`               | `axonx.config.env / target`                               |
-| `axonx.common.utils.build_info / log_retention` | `axonx.app.core.build_info / logging`                     |
-| `axonx.common.utils.logging.task_log_scope`     | `axonx.task.runtime.logging`                              |
-| `axonx.common.utils / fs / async_work`          | `axonx.common.logging / fs / async_work`                  |
-| `axonx.task.artifact / status / source`         | `axonx.task.schemas.artifact / lifecycle`                 |
-| `axonx.task.protocol`                           | `axonx.task.schemas.protocol / model / prediction`        |
+| Previous path                                           | Canonical path                                                   |
+| ------------------------------------------------------- | ---------------------------------------------------------------- |
+| `axonx.components / axonx.steps / axonx.core`           | `axonx.app.components / axonx.app.steps / axonx.app.core`        |
+| `axonx.plugin_kit`                                      | `axonx.plugin / axonx.common.registry`                           |
+| `axonx.plugin.registry`                                 | `axonx.common.registry`                                          |
+| `axonx.task.runtime.process`                            | `axonx.common.process`                                           |
+| `axonx.enums / axonx.common.enums`                      | `axonx.task.enums / axonx.app.components.types`                  |
+| `axonx.common.command`                                  | `axonx.cli.parser / axonx.cli.options`                           |
+| `axonx.config.ApplicationConfig / StudioPage`           | `axonx.app.config`                                               |
+| `axonx.config.ConfigResolver / resolve_app_config`      | `axonx.app.config`                                               |
+| `axonx.config.resolver` helpers                         | `axonx.common.config`                                            |
+| `axonx.config.target`                                   | `axonx.common.connection / axonx.cli.options / axonx.app.config` |
+| `axonx.config.execution / env / locator / entry_points` | `axonx.common.runtime / env / locator / entry_points`            |
+| `axonx.common.utils.env / target`                       | `axonx.common.env / connection`                                  |
+| `axonx.common.utils.build_info / log_retention`         | `axonx.app.core.build_info / logging`                            |
+| `axonx.common.utils.logging.task_log_scope`             | `axonx.task.runtime.logging`                                     |
+| `axonx.common.utils / fs / async_work`                  | `axonx.common.logging / fs / async_work`                         |
+| `axonx.task.artifact / status / source`                 | `axonx.task.schemas.artifact / lifecycle`                        |
+| `axonx.task.protocol`                                   | `axonx.task.schemas.protocol / model / prediction`               |
 
 Task execution accepts a Task name and input mapping directly; it does not accept a CLI Command or return an output wrapper:
 
@@ -35,7 +41,7 @@ print(status.output_params)
 
 ```python
 from axonx import Application, BaseStep, provider
-from axonx.config import resolve_app_config
+from axonx.app.config import resolve_app_config
 from axonx.app.components.client import HttpClient, McpClient, RemoteServiceError
 from axonx.app.core import run_remote_job, stream_remote_job
 from axonx.app.components.job import ResultEvent
@@ -48,7 +54,7 @@ Application is exported at the top level; HTTP/MCP clients and event types are e
 ```python
 import asyncio
 from axonx import Application
-from axonx.config import resolve_app_config
+from axonx.app.config import resolve_app_config
 
 async def main():
     config = resolve_app_config(log_config=False, config="default")

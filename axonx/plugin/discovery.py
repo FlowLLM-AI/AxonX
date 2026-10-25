@@ -50,8 +50,6 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
         return None
 
     tasks: dict[str, str] = {}
-    components: dict[str, dict[str, str]] = {}
-    jobs = {}
     plugin_names: list[str] = []
     plugin_packages: dict[str, str] = {}
     package_paths: dict[str, Path] = {}
@@ -72,19 +70,6 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
         if duplicate_tasks:
             raise ValueError(f"Duplicate Task names in distribution: {', '.join(sorted(duplicate_tasks))}")
         tasks.update(manifest.tasks)
-        for component_type, backends in manifest.components.items():
-            registered = components.setdefault(component_type, {})
-            duplicates = registered.keys() & backends.keys()
-            if duplicates:
-                raise ValueError(
-                    f"Duplicate Component backends in distribution for {component_type!r}: "
-                    f"{', '.join(sorted(duplicates))}",
-                )
-            registered.update(backends)
-        duplicate_jobs = jobs.keys() & manifest.jobs.keys()
-        if duplicate_jobs:
-            raise ValueError(f"Duplicate Job names in distribution: {', '.join(sorted(duplicate_jobs))}")
-        jobs.update(manifest.jobs)
         plugin_names.append(entry.name)
         plugin_packages[entry.name] = package
 
@@ -98,8 +83,6 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
         version=version,
         plugins=plugin_names,
         tasks=tasks,
-        components=components,
-        jobs=jobs,
         requirements=requirements,
         content_sha256=content_sha256_from_directories(
             distribution=name,

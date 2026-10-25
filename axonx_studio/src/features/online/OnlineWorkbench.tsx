@@ -192,7 +192,7 @@ export function OnlineWorkbench({
       ...activityStates,
       ...historySteps.map((step) => step.state),
     ]);
-    if (state === "pending" && !["queued", "running"].includes(parent.state))
+    if (state === "pending" && !["running"].includes(parent.state))
       return "incomplete";
     if (state === "running" && !activityStates.includes("running"))
       return "preparing";

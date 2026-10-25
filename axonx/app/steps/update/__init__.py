@@ -1,6 +1,6 @@
 """Self-update Job Steps."""
 
-from ....plugin.registry import provider
+from ....common.registry import provider
 from ...components.types import ComponentEnum
 from ..base import BaseStep
 

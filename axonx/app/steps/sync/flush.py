@@ -1,6 +1,6 @@
 """Flush changes queued by a workspace sync component."""
 
-from ....plugin.registry import provider
+from ....common.registry import provider
 from .base import SyncBackendStep
 
 

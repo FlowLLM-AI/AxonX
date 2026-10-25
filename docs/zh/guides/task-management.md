@@ -8,7 +8,7 @@ axonx exec --task demo --task-name add-01 --x 1 --y 2
 
 命令在前台执行，输出 Task 结果，并返回 Task 的退出码。后台运行交给终端或进程管理工具。每个 Task 自行将参数、进度、输出和生命周期写入 `<workspace>/<task_type>/<task_id>/metadata.json`；示例的 Task ID 为 `base#demo#add-01`。
 
-观察服务应与执行进程使用相同的 workspace 和日志目录。服务轮询 metadata，提供 Task 只读查询。服务启动、重启或关闭都不恢复、取消或改写独立执行的 Task。
+观察服务应与执行进程使用相同的 workspace 和日志目录。服务轮询 metadata，提供 Task 只读查询。服务不重新启动或取消独立 Task；启动与轮询只修正已确认死亡的本机原始 Run，存活、外机、副本和权限未知记录保持原状态。
 
 ## 查看定义
 
@@ -43,7 +43,7 @@ axonx stream_task --task-id 'base#demo#add-01' --stream true --client-timeout 60
 
 ## 失败与重跑
 
-Runner 会记录能够进入 Python 清理流程的失败。进程被强制终止时，metadata 可能停留在 running；服务展示最后记录的状态，不自动修复。进程终止由执行环境负责。
+Runner 会记录能够进入 Python 清理流程的失败。进程被强制终止时，metadata 可能停留在 running；启动/轮询及下一次 exec 会将确认已死亡的本机原始 Run 修正为 failed。进程终止使用显式 `axonx kill`，详见 [Task 生命周期](../concepts/task-lifecycle.md)。
 
 固定任务名会复用 Task ID，替换终态输出并保留 Task 自有的 persistent 数据。保留独立实验记录时使用新名称。同名执行、删除和同步需由外部协调；metadata 原子替换不代表这些操作已经串行化。
 

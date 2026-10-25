@@ -1,10 +1,9 @@
 import type { TaskState, TaskSummary } from "./types";
 
-export const ACTIVE = new Set<TaskState>(["queued", "running"]);
+export const ACTIVE = new Set<TaskState>(["running"]);
 export const ATTENTION = new Set<TaskState>(["failed", "cancelled"]);
 export const STATES: TaskState[] = [
   "running",
-  "queued",
   "failed",
   "cancelled",
   "succeeded",

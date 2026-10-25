@@ -6,20 +6,19 @@ AxonX 将能力调用、研究执行和结果存储分开。CLI、Studio 与外�
 
 ## Python 模块边界
 
-Python 包有八个一级模块，`app`、`task` 内已有且有意义的子目录继续保留。
+Python 包有七个一级模块，`app`、`task` 内已有且有意义的子目录继续保留。
 
-| 模块     | 职责                                                                           |
-| -------- | ------------------------------------------------------------------------------ |
-| `app`    | 应用装配、Component、Job/Step、HTTP/MCP、Agent、服务侧 Repository 与工作区操作 |
-| `cli`    | 可执行入口、命令路由、本地命令与输出                                           |
-| `daemon` | 独立守护、本地控制、所属更新子进程                                             |
-| `cron`   | crontab 代码与配置，通过注入回调启动命令                                       |
-| `config` | Provider、运行和连接数据、dotenv、文件定位与合并                               |
-| `task`   | 独立 Task 执行、记录、研究契约、产物与副本处理                                 |
-| `plugin` | Provider 注册、插件声明、发现、打包、安装与符号加载                            |
-| `common` | 通用参数转换、日志数据、取消安全的异步操作、文件与基础日志机制                 |
+| 模块     | 职责                                                                                     |
+| -------- | ---------------------------------------------------------------------------------------- |
+| `app`    | 服务配置、应用装配、Component、Job/Step、HTTP/MCP、Agent、服务侧 Repository 与工作区操作 |
+| `cli`    | 可执行入口、命令路由、本地命令与输出                                                     |
+| `daemon` | 独立守护、本地控制、所属更新子进程                                                       |
+| `cron`   | crontab 代码与配置，通过注入回调启动命令                                                 |
+| `task`   | 独立 Task 执行、记录、研究契约、产物与副本处理                                           |
+| `plugin` | Task manifest、发现、wheel 构建、安装卸载                                                |
+| `common` | 通用配置加载、环境/运行/连接数据、注册、进程身份、文件、日志与异步机制                   |
 
-依赖从调用者指向能力所有者：`app` 使用 `task`、`plugin`，`task` 使用 `plugin` 和运行配置，`plugin` 使用声明式 `config` 模型；`common` 不导入这些子系统。CLI 按命令导入服务代码，cron 不导入 daemon，daemon worker 保持为仅使用标准库的独立程序。参见[重构计划与验证](../development/module-refactor.md)。
+依赖从调用者指向能力所有者：`app` 使用 `task` 数据接口与 `common`，`task` 使用 `plugin` 与 Common 机制，`plugin` 使用 Common 机制；`common` 不导入这些子系统。CLI 在服务及远程调用时导入 App，本地 exec/kill 与 cron worker 不加载 App；服务配置模型和 YAML 归 `app/config/`，通用加载机制归 `common`，cron 不导入 daemon，daemon worker 保持为仅使用标准库的独立程序。参见[重构计划与验证](../development/module-refactor.md)。
 
 ## 各层职责
 
@@ -66,3 +65,5 @@ AxonX 提供量化研究 Harness：Task 契约、执行、记录和产物查询�
 - [框架扩展](../development/framework-extensions.md)：组件与编排扩展。
 
 实现入口：[Application](../../../axonx/app/core/application.py)、[TaskRunner](../../../axonx/task/runtime/runner.py)、[HTTP 装配](../../../axonx/app/components/service/http/app.py)。
+
+App 不导入研究插件，只读取 Task 契约与工作区数据，并触发本机进程校验。Task 定义通过 CLI 子进程查询。通用注册和进程机制归 Common，Task 生命周期策略归 Task。见[模块重构](../development/module-refactor.md)。

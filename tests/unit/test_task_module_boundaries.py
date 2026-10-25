@@ -13,13 +13,12 @@ from axonx.task import schemas
 ROOT = Path(__file__).resolve().parents[2]
 ALLOWED = {
     "common": set(),
-    "config": {"common"},
-    "plugin": {"config", "common"},
-    "task": {"plugin", "config", "common"},
+    "plugin": {"common"},
+    "task": {"plugin", "common"},
     "daemon": set(),
-    "cron": {"config", "common"},
-    "app": {"config", "plugin", "task", "common", "daemon"},
-    "cli": {"app", "config", "plugin", "task", "common", "daemon", "cron"},
+    "cron": {"common"},
+    "app": {"task", "common", "daemon"},
+    "cli": {"app", "plugin", "task", "common", "daemon", "cron"},
 }
 
 
@@ -32,7 +31,7 @@ def imports(path, package):
             yield from (item.name for item in node.names)
 
 
-def test_eight_modules_have_no_reverse_dependencies():
+def test_seven_modules_have_no_reverse_dependencies():
     for path in (ROOT / "axonx").rglob("*.py"):
         relative = path.relative_to(ROOT)
         if len(relative.parts) < 3 or "__pycache__" in relative.parts:
@@ -48,7 +47,23 @@ def test_eight_modules_have_no_reverse_dependencies():
                 assert parts[1] == owner or parts[1] in ALLOWED[owner], (relative, target)
 
 
-@pytest.mark.parametrize("module", ["common.arguments", "config", "plugin", "task", "cron", "daemon", "cli"])
+@pytest.mark.parametrize(
+    "module",
+    [
+        "common.arguments",
+        "common.workspace",
+        "common.workspace.preview",
+        "common.workspace.models",
+        "common.config",
+        "common.runtime",
+        "common.connection",
+        "plugin",
+        "task",
+        "cron",
+        "daemon",
+        "cli",
+    ],
+)
 def test_fresh_import_does_not_load_the_application(module):
     code = f"import importlib, sys; importlib.import_module('axonx.{module}'); " + (
         "assert not any(name == 'axonx.app' or name.startswith('axonx.app.') for name in sys.modules); "
@@ -56,6 +71,11 @@ def test_fresh_import_does_not_load_the_application(module):
     )
     if module != "task":
         code += "; assert not any(name == 'axonx.task' or name.startswith('axonx.task.') for name in sys.modules)"
+    if module in {"common.workspace", "common.workspace.preview"}:
+        code += (
+            "; assert 'pyarrow' not in sys.modules; assert 'yaml' not in sys.modules; "
+            "assert 'pydantic' not in sys.modules"
+        )
     subprocess.run([sys.executable, "-c", code], cwd=ROOT, check=True, timeout=20)
 
 

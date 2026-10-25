@@ -35,7 +35,7 @@ export function ReplicaNotice({
           </time>
           <span
             className={
-              ["queued", "running"].includes(state || "") &&
+              ["running"].includes(state || "") &&
               Date.now() - Date.parse(replica.snapshot.captured_at) > 120_000
                 ? "replica-stale"
                 : ""

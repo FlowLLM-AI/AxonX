@@ -5,8 +5,6 @@ from typing import Annotated
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
-from ..config import JobConfig
-
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
@@ -16,10 +14,6 @@ class PluginManifest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     tasks: dict[NonEmptyString, NonEmptyString] = Field(default_factory=dict)
-    components: dict[NonEmptyString, dict[NonEmptyString, NonEmptyString]] = Field(
-        default_factory=dict,
-    )
-    jobs: dict[NonEmptyString, JobConfig] = Field(default_factory=dict)
 
 
 def parse_plugin_manifest(text: str, plugin_name: str) -> PluginManifest:

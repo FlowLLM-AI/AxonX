@@ -1,15 +1,14 @@
 """Canonical AxonX service target addresses."""
 
-from typing import Literal
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, field_validator
 
-from .defaults import (
-    AXONX_DEFAULT_REQUEST_TIMEOUT,
+from .constants import (
     AXONX_DEFAULT_CONNECT_HOST,
     AXONX_DEFAULT_PORT,
+    AXONX_DEFAULT_REQUEST_TIMEOUT,
     AXONX_DEFAULT_SCHEME,
 )
 
@@ -48,15 +47,13 @@ def default_target() -> str:
     return normalize_target(f"{AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}")
 
 
-class ClientOptions(BaseModel):
+class ConnectionOptions(BaseModel):
     """Validated options for one remote AxonX connection."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
     target: str | None = None
     timeout: PositiveFloat = AXONX_DEFAULT_REQUEST_TIMEOUT
-    stream: bool = False
     token: str | None = Field(default=None, min_length=1, repr=False)
-    stream_format: Literal["blocks", "json"] = "blocks"
 
     @field_validator("target")
     @classmethod
@@ -64,17 +61,4 @@ class ClientOptions(BaseModel):
         return normalize_target(value) if value is not None else None
 
 
-class TargetConfig(BaseModel):
-    """A configured AxonX service target and its credential."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-    address: str = Field(min_length=1)
-    token: str | None = Field(default=None, min_length=1, repr=False)
-
-    @field_validator("address")
-    @classmethod
-    def validate_address(cls, value: str) -> str:
-        return normalize_target(value)
-
-
-CLIENT_OPTION_NAMES = frozenset({"target", "client_timeout", "token", "stream", "stream_format"})
+AXONX_CLI_REQUEST_ID = "AXONX_CLI_REQUEST_ID"

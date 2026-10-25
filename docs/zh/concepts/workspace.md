@@ -4,6 +4,37 @@
 
 ![工作区文件分工](../../figures/concepts/workspace.svg)
 
+## 共享 Python Workspace
+
+`axonx.common.workspace.Workspace` 是 App、Task、CLI、Cron 和 Task 归档应用共同使用的文件操作入口。构造时只规范化根目录，不创建目录。`ApplicationContext` 持有一个实例，应用通过 `app.workspace`、组件和 Step 通过 `self.workspace` 使用；Task 暴露以同一配置工作区为根的独立实例。原有 `workspace_path` 属性继续保留。
+
+实现统一归 `axonx/common/workspace/`：`core.py` 提供文件操作，`preview.py` 处理文件格式，`models.py` 定义共享结果模型。从包入口导入 `Workspace`，从 `axonx.common.workspace.models` 显式导入模型；基础入口不加载 Pydantic 或可选格式库。App 保留 Job/HTTP 适配，Task 保留 metadata 与执行策略。
+
+```python
+from axonx.common.workspace import Workspace
+
+workspace = Workspace(".axonx", transfer_budget_bytes=512 * 1024 * 1024)
+workspace.ensure()  # 显式创建；构造本身只读。
+listing = workspace.list_entries("", offset=0)
+staged = workspace.stage_bytes(b"hello", "note.txt")
+preview = workspace.preview_file(staged["path"])
+workspace.discard_staged(staged["path"])
+```
+
+| 需求                                   | 共享机制                                                                                  | 调用方规则                                                                             |
+| -------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 根目录初始化、子进程工作目录和环境变量 | `root`、`ensure()`                                                                        | App 启动和 Cron 启动配置                                                               |
+| 不可信相对路径                         | `resolve()`、`resolve_file()`、`resolve_directory()`、`resolve_deletable()`、`relative()` | 拒绝绝对路径、父目录穿越、符号链接和根目录删除                                         |
+| Agent 配置路径与研究输入               | `locate()`                                                                                | 默认限制在根目录内；Task 输入显式使用 `external=True`，保留外部文件支持                |
+| 目录浏览和 Task Run 列表               | `list_entries(path, offset=..., include=...)`                                             | 支持根目录隐藏名称及分页前过滤                                                         |
+| 有界格式预览                           | `preview_file(path, offset=..., limit=..., max_bytes=...)`                                | App 用自己的响应模型校验返回数据                                                       |
+| 批量删除                               | `delete_entries(paths)`                                                                   | 修改前校验完整选择并合并父子路径；可选 `before_delete(root, targets)` 回调保护业务文件 |
+| 上传和同步输入暂存                     | `stage_bytes()`、`stage_stream()`、`staged_file()`、`discard_staged()`                    | App 传入自身传输预算，默认使用 `tmp/` 暂存目录                                         |
+
+Workspace 返回普通字典和列表，不导入Workspace 结果模型或 Task 代码，格式依赖按需加载。省略传输预算表示不限制字节数，应用始终传入配置中的预算。应用还接入 `task/storage/records.py` 提供的 `.task-records` 可见性和 Task 删除保护。
+
+Task 身份与目录布局、元数据事务和状态收敛、事件/日志读取、产物校验、持久数据和展示副本同步继续归 `task/`，使用共享文件机制，不把生命周期和模型规则放入 Common。独立 daemon worker 继续只用标准库处理路径。旧 `ConfinedPaths`、`WorkspacePaths`、`StagedFiles` 和应用工作区操作函数已删除，Python 调用方改用 `Workspace` 方法；CLI/HTTP 响应和持久化格式保持不变。
+
 ## 目录布局
 
 下面是包含 demo 和一个研究插件任务的示意布局，插件文件名以实际产物为准：
@@ -41,7 +72,7 @@ logs/                            # 独立日志目录，不一定在工作区内
 | `metadata.json` | 从受理到所有终态      | 身份、Run ID、输入输出、状态、步骤、错误、退出码、日志路径和子调用记录 |
 | `events.jsonl`  | worker 报告进度时追加 | 可回放的进度事件，每行一个 JSON 对象                                   |
 
-一个原子 metadata 快照是唯一 Task 记录。执行期间由 Runner 更新；worker 停止后，由管理器收敛父子任务。不再使用独立状态或组合文件，不重复保存结果封装，也不回退读取旧格式。
+一个原子 metadata 快照是唯一 Task 记录。执行期间由 Runner 更新；确认本机原始进程已停止后，由 Task 记录校验逻辑收敛未完成记录。不再使用独立状态或组合文件，不重复保存结果封装，也不回退读取旧格式。
 
 子调用记录保存在 `metadata.json.children`；子目录仍位于各自类型目录下，不嵌套在父目录内。同步或删除父任务不会自动包含子任务。
 

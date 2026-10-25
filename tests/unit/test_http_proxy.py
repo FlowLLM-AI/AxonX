@@ -5,9 +5,9 @@ import pytest
 
 from axonx.app.components.proxy import HttpProxyComponent
 from axonx.app.components.service import HttpService
-from axonx.config import ConfigResolver
-from axonx.app.core import Application
 from axonx.app.components.types import ComponentEnum
+from axonx.app.config import ConfigResolver
+from axonx.app.core import Application
 
 
 @pytest.mark.asyncio

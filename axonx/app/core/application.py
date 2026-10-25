@@ -8,17 +8,18 @@ from pathlib import Path
 from typing import Any
 
 from ..._version import VERSION
+from ...common.async_work import run_blocking
+from ...common.logging import get_logger
+from ...common.registry import ProviderRegistry
+from ...common.workspace import Workspace
 from ..components.base import BaseComponent
 from ..components.job.contracts import JobResponse
 from ..components.job.events import JobEvent
-from ...plugin.registry import ProviderRegistry
 from ..config import ApplicationConfig
-from ...common.async_work import run_blocking
-from .logging import LOG_CLEANUP_INTERVAL, cleanup_log_files
-from ...common.logging import get_logger
 from .composition import compose_application
 from .context import ApplicationContext
 from .graph import ComponentGraph
+from .logging import LOG_CLEANUP_INTERVAL, cleanup_log_files
 
 
 class Application:
@@ -40,15 +41,19 @@ class Application:
         return self.context.app_config
 
     @property
+    def workspace(self) -> Workspace:
+        return self.context.workspace
+
+    @property
     def workspace_path(self) -> Path:
-        return Path(self.app_config.workspace_dir).expanduser()
+        return self.workspace.root
 
     async def start(self) -> None:
         """Start the complete runtime or roll back every successful start."""
         async with self._lifecycle_lock:
             if self.is_started:
                 return
-            self.workspace_path.mkdir(parents=True, exist_ok=True)
+            self.workspace.ensure()
             self.context.metadata.pop("stopping", None)
             try:
                 for component in self._startup_order:

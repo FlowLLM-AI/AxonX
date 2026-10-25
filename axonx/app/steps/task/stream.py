@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from ....plugin.registry import provider
+from ....common.registry import provider
 from ....task.query.stream import stream_task
 from ....task.storage.logs import TaskLogReader
 from .base import TaskRepositoryStep

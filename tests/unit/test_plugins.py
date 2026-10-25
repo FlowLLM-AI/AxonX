@@ -6,17 +6,13 @@ from zipfile import ZipFile
 
 import pytest
 
-from axonx import Application
 from axonx.app.components.client.remote import stream_remote_job
 from axonx.app.components.job import ResultEvent
-from axonx.config import ConfigResolver
-from axonx.plugin import PluginArtifact, PluginInfo, index_contributions
 from axonx.cli.plugin import plugin_cli
+from axonx.plugin import PluginArtifact, PluginInfo, index_contributions
 from axonx.plugin.discovery import _package_path
 from axonx.plugin.identity import content_sha256_from_directories, content_sha256_from_wheel
-from axonx.plugin.installer import install_staged_plugin
 from axonx.plugin.wheel import source_sha256
-from axonx.app.workspace.staging import StagedFiles
 
 
 def _artifact(path: Path, sha256: str) -> PluginArtifact:
@@ -29,8 +25,6 @@ def _artifact(path: Path, sha256: str) -> PluginArtifact:
         wheel=path,
         content_sha256="content",
         sha256=sha256,
-        components={},
-        jobs={},
     )
 
 
@@ -161,81 +155,12 @@ def test_editable_plugin_package_uses_import_location(monkeypatch, tmp_path):
     assert _package_path(distribution, "demo_plugin") == package.resolve()
 
 
-def test_existing_artifact_cache_is_verified_before_install(monkeypatch, tmp_path):
-    staged = tmp_path / "demo.whl"
-    staged.write_bytes(b"uploaded")
-    expected = "a" * 64
-    destination = tmp_path / "artifacts" / expected / staged.name
-    destination.parent.mkdir(parents=True)
-    destination.write_bytes(b"tampered")
-
-    monkeypatch.setattr(
-        "axonx.plugin.installer.inspect_wheel",
-        lambda path: _artifact(Path(path), expected if Path(path) == staged else "b" * 64),
-    )
-
-    with pytest.raises(ValueError, match="Stored plugin wheel SHA-256 mismatch"):
-        install_staged_plugin(staged, expected, tmp_path / "artifacts")
-
-
-@pytest.mark.asyncio
-async def test_install_job_discards_staged_wheel_when_installation_fails(monkeypatch, tmp_path):
-    staged_files = StagedFiles(tmp_path)
-    copied = staged_files.store(b"wheel", "demo.whl")
-
-    def fail(*_args):
-        raise RuntimeError("pip failed")
-
-    monkeypatch.setattr("axonx.app.steps.plugin.install_plugin.install_staged_plugin", fail)
-    app = Application(
-        workspace_dir=str(tmp_path),
-        enable_logo=False,
-        log_to_console=False,
-        log_to_file=False,
-        jobs={
-            "install_plugin": {
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "path": {"type": "string"},
-                        "sha256": {"type": "string"},
-                    },
-                    "required": ["path", "sha256"],
-                    "additionalProperties": False,
-                },
-                "steps": [{"backend": "install_plugin_step"}],
-            },
-        },
-    )
-
-    async with app:
-        response = await app.run_job(
-            "install_plugin",
-            {"path": copied.path, "sha256": "a" * 64},
-        )
-
-    assert response.success is False
-    with pytest.raises(ValueError, match="does not exist"):
-        staged_files.file(copied.path)
-
-
 def test_contribution_index_rejects_duplicate_public_names():
     one = PluginInfo(distribution="one", version="1", tasks={"shared": "one:Task"})
     two = PluginInfo(distribution="two", version="1", tasks={"shared": "two:Task"})
 
     with pytest.raises(ValueError, match="provided by plugins 'one' and 'two'"):
         index_contributions([one, two])
-
-
-def test_plugin_config_resolves_source_paths_relative_to_config(tmp_path):
-    source = tmp_path / "plugin"
-    source.mkdir()
-    config = tmp_path / "app.yaml"
-    config.write_text("plugins:\n  sources: [plugin]\n", encoding="utf-8")
-
-    loaded = ConfigResolver(tmp_path).load(config)
-
-    assert loaded["plugins"]["sources"] == [str(source.resolve())]
 
 
 def test_plugin_cli_lists_local_environment_by_default(monkeypatch, capsys):
@@ -308,6 +233,7 @@ def test_editable_rejects_output(monkeypatch, capsys):
 @pytest.mark.parametrize("editable", [False, True])
 def test_plugin_install_preserves_axonx_and_installs_dependencies(monkeypatch, tmp_path, editable):
     from dataclasses import replace
+
     from axonx.plugin.wheel import install_artifact
 
     artifact = replace(

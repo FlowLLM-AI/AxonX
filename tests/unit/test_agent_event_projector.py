@@ -1,5 +1,8 @@
 from claude_agent_sdk import (
     AssistantMessage,
+    ServerToolResultBlock,
+    ServerToolUseBlock,
+    SessionMessage,
     StreamEvent,
     TextBlock,
     ToolResultBlock,
@@ -121,7 +124,7 @@ def test_history_blocks_include_message_ownership():
         },
     ]
 
-    blocks = history_blocks(messages)
+    blocks = history_blocks([SessionMessage(**message, session_id="session") for message in messages])
 
     assert [(block["role"], block["message_uuid"]) for block in blocks] == [
         ("user", "user-message"),
@@ -132,11 +135,12 @@ def test_history_blocks_include_message_ownership():
 def test_history_blocks_include_string_user_messages():
     blocks = history_blocks(
         [
-            {
-                "type": "user",
-                "uuid": "user-message",
-                "message": {"role": "user", "content": "original question"},
-            }
+            SessionMessage(
+                type="user",
+                uuid="user-message",
+                session_id="session",
+                message={"role": "user", "content": "original question"},
+            )
         ]
     )
 
@@ -151,3 +155,54 @@ def test_history_blocks_include_string_user_messages():
             "payload": {},
         }
     ]
+
+
+def test_projector_does_not_reuse_indices_from_previous_message():
+    projector = ClaudeMessageProjector()
+    projector.project(
+        StreamEvent(
+            uuid="first",
+            session_id="session",
+            event={"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}},
+        )
+    )
+    projector.project(AssistantMessage(content=[TextBlock("first answer")], model="test", uuid="first"))
+    patches = projector.project(AssistantMessage(content=[TextBlock("next answer")], model="test", uuid="second"))
+    assert {patch.block_id for patch in patches} == {"second:0"}
+    assert [patch.operation for patch in patches] == ["start", "replace", "finish"]
+
+
+def test_projector_preserves_initial_stream_content():
+    patches = ClaudeMessageProjector().project(
+        StreamEvent(
+            uuid="first",
+            session_id="session",
+            event={"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": "hello"}},
+        )
+    )
+    assert [patch.operation for patch in patches] == ["start", "append"]
+    assert patches[1].delta == "hello"
+
+
+def test_projector_preserves_server_tool_results_in_assistant_message():
+    content = {"type": "web_search_tool_result", "results": [{"title": "result"}]}
+    patches = ClaudeMessageProjector().project(
+        AssistantMessage(
+            content=[
+                ServerToolUseBlock(id="search", name="web_search", input={"query": "example"}),
+                ServerToolResultBlock(tool_use_id="search", content=content),
+            ],
+            model="test",
+            uuid="message",
+        )
+    )
+    assert [patch.operation for patch in patches] == ["start", "finish"]
+    assert patches[-1].payload["result"] == content
+
+
+def test_history_block_ids_are_stable_across_pagination():
+    messages = [
+        SessionMessage(type="assistant", uuid=name, session_id="session", message={"content": [{"type": "text", "text": name}]})
+        for name in ("first", "second")
+    ]
+    assert history_blocks(messages)[1] == history_blocks(messages[1:])[0]

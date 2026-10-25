@@ -171,6 +171,6 @@ This page is based on the repository's default configuration and adapter layer; 
 ## Related documentation and implementation
 
 - [Agent usage](usage.md), [Authentication](../guides/authentication.md)
-- [Default configuration](../../../axonx/config/default.yaml)
+- [Default configuration](../../../axonx/app/config/default.yaml)
 - [Claude backend](../../../axonx/app/components/agent/claude/backend.py)
 - [Job tool bridge](../../../axonx/app/components/agent/claude/tools.py)

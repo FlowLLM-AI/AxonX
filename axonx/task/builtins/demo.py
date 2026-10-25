@@ -1,8 +1,8 @@
 """Small built-in Task used to demonstrate synchronous execution."""
 
-from ...plugin.registry import provider
-from ..enums import TaskType
+from ...common.registry import provider
 from ..core import BaseInputParams, BaseOutputParams, BaseTask
+from ..enums import TaskType
 
 
 class DemoTaskInputParams(BaseInputParams):

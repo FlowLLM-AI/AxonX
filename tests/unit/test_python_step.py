@@ -1,17 +1,16 @@
 """Python execution avoids shell quoting and keeps bounded subprocess contracts."""
 
 import asyncio
-from contextlib import suppress
 import json
 import os
 import signal
 import sys
+from contextlib import suppress
 
 import psutil
 import pytest
 
-from axonx.app.config import ApplicationConfig
-from axonx.config import ConfigResolver
+from axonx.app.config import ApplicationConfig, ConfigResolver
 from axonx.app.core import Application
 from axonx.app.steps.machine.python import run_python
 

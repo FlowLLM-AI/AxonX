@@ -2,8 +2,7 @@
 
 import pytest
 
-from axonx.app.config import ApplicationConfig
-from axonx.config import ConfigResolver
+from axonx.app.config import ApplicationConfig, ConfigResolver
 
 
 @pytest.mark.parametrize("source", ["default", "remote"])

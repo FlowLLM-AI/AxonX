@@ -12,6 +12,7 @@ import yaml
 from axonx.app.components.service import HttpService
 from axonx.app.components.task_repository import LocalTaskRepository
 from axonx.app.core import Application
+from axonx.common.workspace import Workspace
 from axonx.task.query.summary import summarize_status
 from axonx.task.schemas.lifecycle import TaskMetadata
 from axonx.task.schemas.progress import TaskStepStatus
@@ -19,6 +20,9 @@ from axonx.task.schemas.progress import TaskStepStatus
 
 def status():
     return TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id="analysis#test#summary",
         run_id="run",
@@ -61,9 +65,7 @@ def test_summary_preserves_progress_and_bounds_large_fields():
 
 async def test_local_summary_avoids_full_snapshot_copy(tmp_path, monkeypatch):
     task = status()
-    repository = LocalTaskRepository(
-        app_context=SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
-    )
+    repository = LocalTaskRepository(app_context=SimpleNamespace(workspace=Workspace(tmp_path)))
     older = task.model_copy(update={"task_id": "analysis#test#older"}, deep=True)
     task.created_at = datetime.now(UTC)
     repository._entries = {older.task_id: older, task.task_id: task}
@@ -88,7 +90,7 @@ async def test_job_defaults_to_summary_and_validates_detail(tmp_path):
             "task_repository": {"default": {"backend": "local"}},
         },
         jobs={
-            name: yaml.safe_load(files("axonx.config").joinpath("default.yaml").read_text())["jobs"][name]
+            name: yaml.safe_load(files("axonx.app.config").joinpath("default.yaml").read_text())["jobs"][name]
             for name in ("list_task_statuses", "status")
         },
     )
@@ -134,9 +136,7 @@ async def test_filtered_index_copies_only_matching_results(tmp_path, monkeypatch
     selected = status()
     selected.state = "succeeded"
     excluded = selected.model_copy(update={"task_id": "train#large#excluded", "task_type": "train"}, deep=True)
-    repository = LocalTaskRepository(
-        app_context=SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
-    )
+    repository = LocalTaskRepository(app_context=SimpleNamespace(workspace=Workspace(tmp_path)))
     repository._entries = {selected.task_id: selected, excluded.task_id: excluded}
     original_copy = TaskMetadata.model_copy
     copied = []
@@ -158,9 +158,7 @@ async def test_filtered_index_copies_only_matching_results(tmp_path, monkeypatch
 
 async def test_graph_projects_indexed_records_without_copying_outputs(tmp_path, monkeypatch):
     task = status()
-    repository = LocalTaskRepository(
-        app_context=SimpleNamespace(app_config=SimpleNamespace(workspace_dir=str(tmp_path)))
-    )
+    repository = LocalTaskRepository(app_context=SimpleNamespace(workspace=Workspace(tmp_path)))
     repository._entries = {task.task_id: task}
 
     def refuse_copy(*_args, **_kwargs):

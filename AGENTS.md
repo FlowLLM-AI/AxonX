@@ -10,14 +10,20 @@ Setup and contribution details: [CONTRIBUTING.md](CONTRIBUTING.md).
 - `axonx/`: framework and runtime; `plugins/`: research Tasks and algorithms;
   `axonx_studio/`: React/TypeScript UI; `tests/`: framework tests;
   `docs/`: bilingual guides; `github-pages/`: site tooling.
-- Python subsystem roots are `app`, `cli`, `daemon`, `cron`, `config`, `task`,
+- Python subsystem roots are `app`, `cli`, `daemon`, `cron`, `task`,
   `plugin`, and `common`. Keep service implementation in `app`; `task` must not
-  import it. `common` must not import another subsystem. Cron receives a launch
+  import it. `common` must not import another subsystem. Standalone exec/kill and cron must not load App. Cron receives a launch
   callback; standalone daemon workers use only the standard library.
 - `common` contains mechanisms and primitive data only. Task enums/log scopes live
   in `task`, component types and Studio schemas in `app`, provider registration
-  in `plugin`, runtime/connection/env settings in `config`, and CLI parsing/help
+  in `common`, service configuration in `app/config`, shared config/runtime/connection/env
+  mechanisms in `common`, and CLI parsing/help
   in `cli`. Cross-module usage does not change domain ownership.
+- Shared workspace operations, previews and result models live in `common/workspace/`;
+  import `Workspace` from the package and schemas from `.models`. App owns Job/HTTP
+  adapters; Task owns metadata and execution policies. The base Workspace import
+  must remain independent of Pydantic and optional file-format libraries.
+- App must not import research plugins or Task builtins/runtime/catalog. Query Task definitions through a CLI subprocess. Local process reconciliation belongs to Task; generic identity/signals belong to Common. Metadata corrections and initial Run publication use short transactions; only confirmed dead original local Runs may be settled.
 - Retain useful internal package structure. New imports use canonical module paths;
   obsolete pre-refactor module paths and compatibility-only facades are removed.
 - Keep research algorithms in plugins; reuse framework extension points.

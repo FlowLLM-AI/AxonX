@@ -5,18 +5,17 @@ import codecs
 import os
 import signal
 import sys
-from pathlib import Path
 from contextlib import suppress
+from pathlib import Path
 from uuid import uuid4
 
-from ...core.build_info import PACKAGE_ROOT
-from ....common.logs import LogEvent
-from ....plugin.registry import provider
-from ....config.execution import AXONX_CLI_REQUEST_ID
-from ...protocol import AXONX_SERVICE_TARGET
-from ....config.execution import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
 from ....common.async_work import complete_on_cancel
-from ....config.target import normalize_target
+from ....common.connection import AXONX_CLI_REQUEST_ID, normalize_target
+from ....common.logs import LogEvent
+from ....common.registry import provider
+from ....common.runtime import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
+from ...core.build_info import PACKAGE_ROOT
+from ...protocol import AXONX_SERVICE_TARGET
 from ..base import BaseStep
 
 OUTPUT_LIMIT = 1024 * 1024
@@ -33,22 +32,29 @@ class CliStep(BaseStep):
         if self.app_context.metadata.get("stopping"):
             raise RuntimeError("Service is stopping")
         service = self.app_context.service
-        workspace = self.workspace_path.resolve()
-        host = "127.0.0.1" if service.host == "0.0.0.0" else service.host
-        host = f"[{host}]" if ":" in host else host
+        workspace = self.workspace.root
         request_id = uuid4().hex
         environment = {
             **os.environ,
             **self.app_config.environment,
-            AXONX_SERVICE_TARGET: normalize_target(f"{host}:{service.port}"),
-            "AXONX_SERVICE_TOKEN": service.token or "",
             AXONX_TASK_WORKSPACE_DIR: str(workspace),
             AXONX_TASK_LOG_DIR: str(Path(self.app_config.log_dir).expanduser().resolve()),
             AXONX_TASK_TIMEZONE: self.app_config.timezone,
             AXONX_CLI_REQUEST_ID: request_id,
         }
+        if service is not None:
+            host = "127.0.0.1" if service.host == "0.0.0.0" else service.host
+            host = f"[{host}]" if ":" in host else host
+            environment.update(
+                {
+                    AXONX_SERVICE_TARGET: normalize_target(f"{host}:{service.port}"),
+                    "AXONX_SERVICE_TOKEN": service.token or "",
+                }
+            )
+        callbacks = service.cli_callbacks if service is not None else {}
+        processes = service.cli_processes if service is not None else set()
         environment["PYTHONPATH"] = os.pathsep.join(filter(None, (str(PACKAGE_ROOT), environment.get("PYTHONPATH"))))
-        service.cli_callbacks[request_id] = RESPONSE_CALLBACKS.get()
+        callbacks[request_id] = RESPONSE_CALLBACKS.get()
         spawn = asyncio.create_task(
             asyncio.create_subprocess_exec(
                 sys.executable,
@@ -67,14 +73,14 @@ class CliStep(BaseStep):
         try:
             process = await complete_on_cancel(spawn)
         except BaseException:
-            service.cli_callbacks.pop(request_id, None)
+            callbacks.pop(request_id, None)
             if not spawn.cancelled() and spawn.exception() is None:
                 process = spawn.result()
                 with suppress(ProcessLookupError):
                     os.killpg(process.pid, signal.SIGKILL)
                 await complete_on_cancel(process.wait())
             raise
-        service.cli_processes.add(process.pid)
+        processes.add(process.pid)
         buffers = {"stdout": bytearray(), "stderr": bytearray()}
         truncated = set()
 
@@ -103,8 +109,8 @@ class CliStep(BaseStep):
                 except ProcessLookupError:
                     pass
                 await process.wait()
-                service.cli_processes.discard(process.pid)
-                service.cli_callbacks.pop(request_id, None)
+                processes.discard(process.pid)
+                callbacks.pop(request_id, None)
 
             await complete_on_cancel(cleanup())
         self.response.success = process.returncode == 0

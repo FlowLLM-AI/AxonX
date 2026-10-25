@@ -1,8 +1,8 @@
 """ASGI application factory for the HTTP service."""
 
-import os
 import asyncio
 import hmac
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,8 +11,10 @@ from fastmcp.utilities.lifespan import combine_lifespans
 from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
 
-from .....config.defaults import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_CONNECT_HOST
-from .....common.constants import AXONX_DEFAULT_ENCODING
+from .....common.connection import normalize_target
+from .....common.constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_ENCODING
+from .....daemon import client as daemon
+from .....daemon.update_worker import versions
 from ....protocol import (
     AXONX_SERVICE_TARGET,
     PROTOCOL_AUTH_HEADER,
@@ -21,15 +23,12 @@ from ....protocol import (
     PROTOCOL_CLI_REQUEST_HEADER,
     PROTOCOL_ROUTE_MCP,
 )
-from .....config.target import normalize_target
 from ...client.base import RemoteServiceError
+from ...updater.manager import RESPONSE_CALLBACKS
 from .files import create_files_router
 from .jobs import create_jobs_router, create_mcp_server
 from .proxy import create_proxy_router
 from .studio import mount_studio, resolve_studio_dir
-from ...updater.manager import RESPONSE_CALLBACKS
-from .....daemon.update_worker import versions
-from .....daemon import client as daemon
 
 
 class _ProtocolAuthMiddleware:
@@ -159,7 +158,7 @@ def create_http_app(app, service) -> FastAPI:
     server.add_middleware(_ProtocolAuthMiddleware, token=service.token)
     server.router.routes.extend(mcp_app.routes)
     server.include_router(create_jobs_router(app, public_jobs))
-    server.include_router(create_files_router(service, service.staged_files))
+    server.include_router(create_files_router(service, app.workspace))
     server.include_router(create_proxy_router(app))
     if service.web_enabled:
         static_dir = resolve_studio_dir()

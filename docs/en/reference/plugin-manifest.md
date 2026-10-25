@@ -1,6 +1,6 @@
 # Plugin packages and contribution contracts
 
-A plugin is a Python distribution with an `axonx.plugins` entry point and a packaged plugin.yaml. Its manifest declares Tasks, managed component backends, and Jobs; installation and runtime composition are separate phases. Inspect package metadata and declarations first, then start the application and verify registered definitions and public Jobs.
+A plugin is a Python distribution with an `axonx.plugins` entry point and a packaged `plugin.yaml` declaring Tasks. Discovery, installation and execution are separate.
 
 ![Plugin discovery and contributions](../../figures/reference/plugin.svg)
 
@@ -60,11 +60,9 @@ components: {}
 jobs: {}
 ```
 
-| Field      | Type                                       | Default | Contract                                                       |
-| ---------- | ------------------------------------------ | ------- | -------------------------------------------------------------- |
-| tasks      | dict[nonempty_name,nonempty_symbol_target] | {}      | Symbols must be BaseTask subclasses                            |
-| components | dict[category,dict[backend,symbol_target]] | {}      | Symbols must be BaseComponent subclasses matching the category |
-| jobs       | dict[nonempty_name,JobConfig]              | {}      | JobConfig uses the same model as service configuration         |
+| Field | Type                                       | Default | Contract                            |
+| ----- | ------------------------------------------ | ------- | ----------------------------------- |
+| tasks | dict[nonempty_name,nonempty_symbol_target] | {}      | Symbols must be BaseTask subclasses |
 
 Extra top-level fields are prohibited, and the root must be a YAML mapping. Names and string targets are stripped of surrounding whitespace and must be nonempty. A `module:Class` target imports the module, then resolves attributes one level at a time. Invalid target format, missing attributes, or a symbol that does not extend the required base class causes failure. Tasks may import helpers from additional packages or standalone modules shipped in the same wheel; service installation refreshes those modules as well as the entry-point package.
 
@@ -76,61 +74,11 @@ All registered Tasks must follow the public authoring contract in
 preserving their parameter fields and validation rules. See [Required authoring contracts](../dev_guide.md#required-authoring-contracts)
 for implementation requirements and the distinction between core and research contracts.
 
-## Job and component contributions
+## Extension boundary
 
-The following Job uses the built-in version_step and requires no new Step:
+`plugin.yaml` accepts only `tasks: {registration: module:Class}`. Component/Job contributions and startup `plugins.sources` are removed. Install explicitly through Plugin CLI; new exec/definition subprocesses load the installed environment. App itself does not load research plugins.
 
-```yaml
-tasks: {}
-components: {}
-jobs:
-  example_version:
-    description: Return version through the plugin job.
-    parameters:
-      type: object
-      properties: {}
-      additionalProperties: false
-    steps:
-      - backend: version_step
-```
-
-See [Configuration reference](configuration.md#jobconfig) for all JobConfig fields. A plugin Job sharing a name with application configuration raises an error; configuration does not automatically override the plugin.
-
-Component contributions declare only backend implementations; instances are still configured through ApplicationConfig.components:
-
-```yaml
-# Declaration excerpt from plugin.yaml
-components:
-  proxy:
-    example_proxy: axonx_example.proxy:ExampleProxy
-```
-
-```yaml
-# Instance excerpt from app.yaml; ExampleProxy must extend BaseProxyComponent
-components:
-  proxy:
-    reports:
-      backend: example_proxy
-```
-
-The current loader constrains components to BaseComponent subclasses. BaseStep extends ComponentBase rather than BaseComponent, so custom BaseStep implementations cannot be placed directly in manifest components.step. Such local extension examples use Application(providers=...); see [Framework extensions](../development/framework-extensions.md). Category names alone do not imply that every Provider can be loaded from a manifest.
-
-## Discovery, installation, and composition
-
-With empty sources, startup inspects plugins already installed in the current environment. With nonempty sources, it first prepares installation/building of those sources, then returns the environment's plugin catalog. sources is neither a simple list of enabled names nor an allowlist restricting loading to those plugins.
-
-```yaml
-extends: default
-plugins:
-  sources:
-    - ./plugins/example
-```
-
-This path resolves against the configuration file that declares it. For remote deployment, use CLI build/install or upload a wheel; a remote service cannot interpret a client's source-directory path.
-
-Application uses a local registry and merges discovered contributions according to ownership. Two plugins with the same Task registration name, Job name, or category/backend are rejected; Task names colliding with built-ins are also rejected. Providers cannot be freely added after the registry is frozen.
-
-Installation changes the selected Python environment without refreshing loaded service modules or tracking restart requirements. New CLI processes load the installed environment. Restart a persistent service when it must reload Task schemas, Components, or Jobs; existing processes are not version-isolated. Plugin environment mutations are not serialized.
+Use `Application(providers=...)` and application configuration for service components and Jobs. Duplicate Task registrations across plugins or built-ins are rejected.
 
 ## Wheels and content fingerprints
 
@@ -149,7 +97,7 @@ axonx plugin install ./plugins/example
 axonx plugin list
 ```
 
-These commands inspect, build, or install using paths in the selected environment. Installation does not refresh loaded service objects. Restart the service when it must reload schemas or contributions. See [Plugin management](../plugins/management.md#checksums-and-service-state).
+These commands inspect, build, or install using paths in the selected environment. Installation does not refresh loaded service objects. New exec/definition processes load current schemas. See [Plugin management](../plugins/management.md#checksums-and-service-state).
 
 ## Named configuration contributions
 
@@ -173,4 +121,4 @@ The repository's qlib_a158 uses the separate distribution axonx-qlib-a158, plugi
 - [Plugin API](../api/plugins-sync.md)
 - [CLI reference](cli.md)
 
-Implementation references: `plugin_kit/manifest.py`, `loading.py`, `contributions.py`, `runtime.py`, `wheel.py`, `config/resolver.py`.
+Implementation references: `axonx/plugin/manifest.py`, `loading.py`, `contributions.py`, `wheel.py`.

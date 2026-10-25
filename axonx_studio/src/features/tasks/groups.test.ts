@@ -21,8 +21,8 @@ const task = (
   source: { kind: "exec" },
   state,
   pid: 1234,
-  machine_id: null,
-  process_started_at: null,
+  machine_id: "playground",
+  process_started_at: "2026-01-01T00:00:00Z",
   created_at: date,
   started_at: date,
   finished_at: null,
@@ -70,7 +70,7 @@ it("filters actual tasks while retaining the whole group count", () => {
 });
 it("handles absent and invalid timestamps deterministically", () => {
   const records = [
-    task("analysis#b#one", "queued", "invalid"),
+    task("analysis#b#one", "running", "invalid"),
     { ...task("analysis#a#one"), started_at: null, created_at: null },
   ];
   expect(groupTasks(records, filters).map((group) => group.key)).toEqual([

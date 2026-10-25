@@ -8,16 +8,15 @@ import pytest
 import yaml
 from fastmcp import Client
 
-from axonx.app.components.service.http.jobs import create_mcp_server
 from axonx.app.components.client import HttpClient
+from axonx.app.components.service.http.jobs import create_mcp_server
 from axonx.app.core import Application
-from axonx.plugin.models import PluginInfo
 
 
 def make_app(tmp_path, *, token="service-secret"):
     from importlib.resources import files
 
-    defaults = yaml.safe_load(files("axonx.config").joinpath("default.yaml").read_text())
+    defaults = yaml.safe_load(files("axonx.app.config").joinpath("default.yaml").read_text())
     return Application(
         workspace_dir=str(tmp_path / "missing" / "workspace"),
         log_to_console=False,
@@ -78,14 +77,10 @@ async def test_help_respects_auth_filter_and_is_available_as_mcp_tool(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_diagnose_reports_fingerprints_and_never_returns_credentials(tmp_path, monkeypatch):
+async def test_diagnose_reports_service_environment_and_never_returns_credentials(tmp_path, monkeypatch):
     monkeypatch.setenv("AXONX_SERVICE_TOKEN", "super-private-token")
     monkeypatch.setenv("AXONX_TUSHARE_TOKEN", "market-secret")
     monkeypatch.delenv("AXONX_TARGET_TOKEN", raising=False)
-    monkeypatch.setattr(
-        "axonx.app.steps.machine.diagnostics.list_installed_plugins",
-        lambda: [PluginInfo(distribution="example", version="1", content_sha256="a" * 64, error="broken plugin")],
-    )
     app = make_app(tmp_path)
     async with app.context.jobs["diagnose"]:
         response = await app.context.dispatcher.run("diagnose")
@@ -95,8 +90,7 @@ async def test_diagnose_reports_fingerprints_and_never_returns_credentials(tmp_p
     assert answer["axonx"]["version"]
     assert answer["service_auth_enabled"] is True
     assert "restart_required" not in answer
-    assert answer["plugins"][0]["content_sha256"] == "a" * 64
-    assert answer["plugins"][0]["error"] == "broken plugin"
+    assert "plugins" not in answer
     assert answer["credentials_configured"] == {
         "AXONX_SERVICE_TOKEN": True,
         "AXONX_TARGET_TOKEN": False,

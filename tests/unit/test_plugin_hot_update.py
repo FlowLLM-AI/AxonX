@@ -20,11 +20,11 @@ PACKAGE = "axonx_hot_update_test"
 CONSUMER = "axonx_hot_update_consumer"
 
 
-def wheel(tmp_path, package, files, tasks, components=None, jobs=None, extra_files=None):
+def wheel(tmp_path, package, files, tasks, extra_files=None):
     directory = tmp_path / package
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{package}-1.0-py3-none-any.whl"
-    manifest = yaml.safe_dump({"tasks": tasks, "components": components or {}, "jobs": jobs or {}})
+    manifest = yaml.safe_dump({"tasks": tasks})
     with ZipFile(path, "w") as archive:
         archive.writestr(f"{package}/__init__.py", "")
         archive.writestr(f"{package}/plugin.yaml", manifest)
@@ -61,7 +61,7 @@ def plugin_environment(tmp_path, monkeypatch):
             json.dumps({"archive_info": {"hashes": {"sha256": artifact.sha256}}}), encoding="utf-8"
         )
 
-    def build(updated=False, components=None, jobs=None):
+    def build(updated=False):
         fields = "    minimum_fee: float = 5\n" if updated else ""
         task_code = (
             "from axonx.task.builtins.demo import DemoTask\n"
@@ -79,8 +79,6 @@ def plugin_environment(tmp_path, monkeypatch):
                 "internal/__init__.py": f"BONUS = {20 if updated else 1}\n",
             },
             {"hot_task": f"{PACKAGE}.task:Task", "added_task" if updated else "removed_task": f"{PACKAGE}.task:Task"},
-            components,
-            jobs,
         )
 
     old = build()

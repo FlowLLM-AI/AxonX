@@ -73,7 +73,7 @@ asyncio.run(main())
 
 ## 文件上传
 
-文件字节通过 HTTP `POST /upload` 传输，独立于 MCP 工具调用。使用二进制或 multipart 上传，或 `HttpClient.copy_file`，请求同一 MCP 连接所使用的服务。将返回的暂存路径（插件安装还须本地 wheel 的 SHA256）传给消费文件的 Job 工具。上传不会自动调用该工具。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
+文件字节通过 HTTP `POST /upload` 传输，独立于 MCP 工具调用。使用二进制或 multipart 上传，或 `HttpClient.copy_file`，请求同一 MCP 连接所使用的服务。将返回的暂存路径传给消费文件的 Job 工具。上传不会自动调用该工具。见[文件上传与清理](../api/workspace.md#文件上传与清理)。
 
 ## MCP 与实时事件
 

@@ -3,8 +3,7 @@
 import asyncio
 from contextlib import suppress
 
-from ....plugin.registry import provider
-from ...workspace.staging import StagedFiles
+from ....common.registry import provider
 from .base import TaskRepositoryStep
 
 
@@ -14,12 +13,8 @@ class SyncTasksStep(TaskRepositoryStep):
 
     async def execute(self):
         path = self.context.get("path") or None
-        staged_files = StagedFiles(
-            self.workspace_path,
-            transfer_budget_bytes=self.app_config.transfer_budget_bytes,
-        )
         try:
-            archive = None if path is None else staged_files.file(path)
+            archive = None if path is None else self.workspace.staged_file(path)
             answer = await self.task_repository.apply_sync(
                 archive,
                 self.context.get("deletions", []),
@@ -32,5 +27,5 @@ class SyncTasksStep(TaskRepositoryStep):
         finally:
             if path is not None:
                 with suppress(OSError, TypeError, ValueError):
-                    await asyncio.to_thread(staged_files.discard, path)
+                    await asyncio.to_thread(self.workspace.discard_staged, path)
         self.response.answer = answer

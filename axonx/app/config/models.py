@@ -1,16 +1,58 @@
-"""Typed application and Studio configuration owned by the service."""
+"""Typed application, component, Job, target and Studio configuration."""
 
 from __future__ import annotations
 
 import re
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..config.models import RuntimeConfig, ComponentConfig, JobConfig, PluginConfig
-from ..config.target import TargetConfig, normalize_target
-from ..config.defaults import AXONX_NAME, DEFAULT_TRANSFER_BUDGET_BYTES
-from ..task.enums import TaskCategory
+from ...common.connection import normalize_target
+from ...common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
+from ...common.runtime import RuntimeSettings
+from ...task.enums import TaskCategory
+
+
+class ComponentConfig(BaseModel):
+    """Select a component backend and retain backend-specific options."""
+
+    model_config = ConfigDict(extra="allow")
+    backend: str = Field(min_length=1)
+
+
+class JobConfig(ComponentConfig):
+    """Configure a Job's public contract and ordered Steps."""
+
+    backend: str = Field(default="pipeline", min_length=1)
+    description: str = ""
+    parameters: dict[str, Any] = Field(default_factory=lambda: {"type": "object", "properties": {}})
+    enable_serve: bool = True
+    enable_stream: bool = True
+    requires_auth: bool = True
+    steps: list[ComponentConfig] = Field(default_factory=list)
+    defaults: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("parameters")
+    @classmethod
+    def validate_parameters(cls, value: dict[str, Any]) -> dict[str, Any]:
+        schema = {**value}
+        schema.setdefault("type", "object")
+        if schema["type"] != "object":
+            raise ValueError("job parameters must describe a JSON object")
+        return schema
+
+
+class TargetConfig(BaseModel):
+    """A configured AxonX service target and its credential."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+    address: str = Field(min_length=1)
+    token: str | None = Field(default=None, min_length=1, repr=False)
+
+    @field_validator("address")
+    @classmethod
+    def validate_address(cls, value: str) -> str:
+        return normalize_target(value)
 
 
 class StudioPageConfig(BaseModel):
@@ -46,17 +88,17 @@ class StudioConfig(BaseModel):
         return pages
 
 
-class ApplicationConfig(RuntimeConfig):
+class ApplicationConfig(RuntimeSettings):
     """Describe one complete AxonX application instance."""
 
     model_config = ConfigDict(extra="forbid")
-    app_name: str = AXONX_NAME
+    cron: str | None = Field(default=None, min_length=1)
+    app_name: str = "AxonX"
     transfer_budget_bytes: int = Field(default=DEFAULT_TRANSFER_BUDGET_BYTES, gt=0, strict=True)
     language: Literal["en", "zh"] = "en"
     enable_logo: bool = True
     log_to_console: bool = True
     log_to_file: bool = True
-    plugins: PluginConfig = Field(default_factory=PluginConfig)
     targets: list[TargetConfig] = Field(default_factory=list)
     components: dict[str, dict[str, ComponentConfig]] = Field(default_factory=dict)
     jobs: dict[str, JobConfig] = Field(default_factory=dict)

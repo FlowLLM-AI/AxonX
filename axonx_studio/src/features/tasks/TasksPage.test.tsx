@@ -42,9 +42,9 @@ function task(
     reg_name: taskId.split("#")[1],
     source: { kind: "exec" },
     state,
-    pid: null,
-    machine_id: null,
-    process_started_at: null,
+    pid: 1234,
+    machine_id: "playground",
+    process_started_at: "2026-01-01T00:00:00Z",
     created_at: null,
     started_at: null,
     finished_at: null,
@@ -131,7 +131,7 @@ describe("grouped task list", () => {
   it("disables group actions for active-only groups and closes on Escape", async () => {
     vi.mocked(listTaskStatuses).mockResolvedValue([
       task("train#demo#running"),
-      task("train#demo#queued", "queued"),
+      task("train#demo#second", "running"),
     ]);
     await render();
     await openGroupMenu();

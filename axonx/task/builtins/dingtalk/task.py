@@ -9,9 +9,9 @@ from typing import Literal
 
 from pydantic import Field
 
-from ....plugin.registry import provider
-from ...enums import TaskType
+from ....common.registry import provider
 from ...core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
+from ...enums import TaskType
 from .client import DingTalkClient
 
 

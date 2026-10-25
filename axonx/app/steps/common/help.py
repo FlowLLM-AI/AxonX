@@ -1,6 +1,6 @@
 """Discover the selected service's public Job contracts."""
 
-from ....plugin.registry import provider
+from ....common.registry import provider
 from ..base import BaseStep
 
 

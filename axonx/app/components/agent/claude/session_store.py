@@ -23,6 +23,8 @@ class ClaudeSessionStoreAdapter:
     async def append(self, key, entries) -> None:
         from claude_agent_sdk import fold_session_summary
 
+        if not entries:
+            return
         agent_key = cast(AgentSessionKey, key)
         agent_entries = cast(list[AgentSessionEntry], entries)
         lock_key = (agent_key["project_key"], agent_key["session_id"])
@@ -31,7 +33,9 @@ class ClaudeSessionStoreAdapter:
             if agent_key.get("subpath") is None:
                 summary_key = cast(AgentSessionListKey, agent_key)
                 previous = await self.store.load_summary(summary_key)
-                summary = fold_session_summary(previous, key, entries)
+                if previous is None:
+                    agent_entries = await self.store.load(agent_key) or []
+                summary = fold_session_summary(previous, key, agent_entries)
                 await self.store.save_summary(summary_key, cast(AgentSessionSummary, summary))
 
     async def load(self, key):
@@ -44,7 +48,8 @@ class ClaudeSessionStoreAdapter:
         return await self.store.list_summaries(project_key)
 
     async def delete(self, key) -> None:
-        await self.store.delete(cast(AgentSessionKey, key))
+        async with self._locks[(key["project_key"], key["session_id"])]:
+            await self.store.delete(cast(AgentSessionKey, key))
 
     async def list_subkeys(self, key):
         return await self.store.list_subkeys(cast(AgentSessionListKey, key))

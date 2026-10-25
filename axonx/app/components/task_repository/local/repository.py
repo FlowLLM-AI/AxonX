@@ -8,16 +8,16 @@ from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
 
+from .....common.async_work import run_blocking
+from .....common.registry import provider
 from .....task.query.graph import TaskGraph, task_graph
 from .....task.query.summary import TaskSummary, summarize_status, task_sort_key
 from .....task.schemas.lifecycle import TaskMetadata
+from .....task.storage.index import FileVersion, scan_metadata
 from .....task.storage.workspace import read_entry
 from .....task.sync import SyncTasksReport, TaskArchiveApplier
-from .....common.async_work import run_blocking
-from .....plugin.registry import provider
 from ..base import BaseTaskRepository
 from ..subscription import TaskChanges, TaskChangeSubscription
-from .index import FileVersion, scan_metadata
 
 
 @provider("local")
@@ -28,7 +28,7 @@ class LocalTaskRepository(BaseTaskRepository):
         super().__init__(**kwargs)
         if not math.isfinite(poll_interval) or poll_interval <= 0:
             raise ValueError("poll_interval must be finite and positive")
-        self.root = self.workspace_path.expanduser().resolve()
+        self.root = self.workspace.root
         self.poll_interval = poll_interval
         self._entries: dict[str, TaskMetadata] = {}
         self._versions: dict[str, FileVersion] = {}

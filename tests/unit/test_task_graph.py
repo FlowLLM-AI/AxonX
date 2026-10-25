@@ -7,6 +7,9 @@ from axonx.task.schemas.lifecycle import TaskMetadata
 
 def status(task_id: str, task_type: TaskType, **config) -> TaskMetadata:
     return TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
         version=1,
         task_id=task_id,
         run_id=task_id,

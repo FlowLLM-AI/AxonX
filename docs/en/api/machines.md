@@ -15,7 +15,7 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 | Job              | Purpose                                                                        |
 | ---------------- | ------------------------------------------------------------------------------ |
 | `help`           | Discover public Jobs and inspect live schemas.                                 |
-| `diagnose`       | Inspect build, Python, workspace, resources, and installed plugins.            |
+| `diagnose`       | Inspect build, Python, workspace and resources.                                |
 | `version`        | Read the installed package version.                                            |
 | `list_machines`  | Check the health of all configured targets.                                    |
 | `machine_status` | Sample service-machine resources.                                              |
@@ -23,7 +23,7 @@ All JSON examples illustrate structure; replace task IDs, session IDs, file path
 
 ## help
 
-List public Jobs on the selected service with `{"arguments":{}}`. The answer contains `usage` (CLI syntax) and `jobs` (name/description summaries). Inspect one Job with `{"arguments":{"job":"python"}}`; the answer contains `usage` and `job`, a JobInfo with `name`, `description`, `input_schema`, and `output_schema`. Schemas come from the runtime Job catalog, including configured and plugin-contributed Jobs. Hidden Jobs and protected Jobs unavailable on a service without authentication are excluded; unknown names return `success=false`.
+List public Jobs on the selected service with `{"arguments":{}}`; the answer contains `jobs` name/description summaries. Inspect one Job with `{"arguments":{"job":"python"}}`; the answer contains `job`, a JobInfo with name, description, input_schema and output_schema. The catalog comes from application configuration and explicit service Providers. Unknown names return success=false. CLI usage belongs to the CLI and is available with `axonx`.
 
 ```bash
 axonx help --target node-b:1024
@@ -39,11 +39,10 @@ No business parameters; use `{"arguments":{}}`. This read-only Job returns:
 - `axonx`, `cpu`, `memory`, `gpus`: the same build identity and resources as `machine_status`.
 - `python`: interpreter `version` and `executable`; `platform` and `cwd`: service operating system and working directory.
 - `workspace`: resolved `path`, `exists`, and `disk` (`path`, `total_bytes`, `used_bytes`, `free_bytes`). Disk statistics use the closest existing ancestor if the workspace does not exist; no directory is created.
-- `plugins`: installed distribution/version, plugin names, content and wheel SHA-256 when available, and discovery error. This does not assert all code is loaded.
 - `service_auth_enabled`: whether the service has a token.
 - `credentials_configured`: presence booleans for `AXONX_SERVICE_TOKEN`, `AXONX_TARGET_TOKEN`, and `AXONX_TUSHARE_TOKEN` in the service process environment. Values are never returned; configuration presence does not establish credential validity.
 
-Plugin discovery errors remain visible in `plugins`; they do not turn a completed diagnostic query into a failed Task result. If filesystem or resource inspection fails, the Job returns a failure rather than fabricating measurements. It neither installs packages nor restarts the service.
+Filesystem or resource inspection failures return a failed Job. Plugin inspection uses the separate Plugin CLI.
 
 ```bash
 axonx diagnose --target node-b:1024
@@ -235,6 +234,6 @@ On timeout, exit_code=null and stderr includes `Command timed out after ... seco
 - [CLI reference](../reference/cli.md)
 - [Event protocol](events.md)
 
-Implementation references: `axonx/config/default.yaml`, `axonx/app/steps/machine/` and `axonx/app/components/service/http/jobs.py`.
+Implementation references: `axonx/app/config/default.yaml`, `axonx/app/steps/machine/` and `axonx/app/components/service/http/jobs.py`.
 
 CLI calls with `--target` use the authenticated remote `cli` Job. Installation does not refresh loaded service objects, and diagnostics do not track restart requirements.

@@ -137,7 +137,6 @@
       "composite": "Online pipelines"
     },
     "status": {
-      "queued": "Queued",
       "running": "Running",
       "succeeded": "Succeeded",
       "failed": "Failed",
@@ -251,7 +250,6 @@
   "gpuUtilization": "Compute usage",
   "gpuMemory": "Memory usage",
   "states": {
-    "queued": "Queued",
     "running": "Running",
     "succeeded": "Succeeded",
     "failed": "Failed",

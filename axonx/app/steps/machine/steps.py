@@ -2,7 +2,7 @@
 
 import asyncio
 
-from ....plugin.registry import provider
+from ....common.registry import provider
 from ..base import BaseStep
 from .diagnostics import collect_diagnostics
 from .health import check_machines

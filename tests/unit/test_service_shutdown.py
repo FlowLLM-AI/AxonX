@@ -1,7 +1,7 @@
 import pytest
 
 from axonx.app.components.service import HttpService
-from axonx.config import ConfigResolver
+from axonx.app.config import ConfigResolver
 
 
 @pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan")])

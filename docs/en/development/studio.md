@@ -135,7 +135,7 @@ studio:
       category: data_update
 ```
 
-Use `view: tasks` for Task progress and recursive child logs, or `pipeline` for online/comparison reports. Task pages require a `TaskCategory`: `data_update`, `online_prediction` or `comparison`. Plugin classes declare `category = TaskCategory.DATA_UPDATE`, for example. Category is independent of `TaskType`, storage identity and `report_kind`; the same composite execution type can belong to different operational pages. Categories are published in installed definitions, queued metadata, running metadata and summaries. Existing records without a category stay in **All tasks**; rerun to produce categorized records. Composite children retain their category and record `parent_run_id`; page indexes show only root invocations. Manual root runs appear alongside scheduled ones.
+Use `view: tasks` for Task progress and recursive child logs, or `pipeline` for online/comparison reports. Task pages require a `TaskCategory`: `data_update`, `online_prediction` or `comparison`. Plugin classes declare `category = TaskCategory.DATA_UPDATE`, for example. Category is independent of `TaskType`, storage identity and `report_kind`; the same composite execution type can belong to different operational pages. Categories are published in installed definitions, running metadata and summaries. Existing records without a category stay in **All tasks**; rerun to produce categorized records. Composite children retain their category and record `parent_run_id`; page indexes show only root invocations. Manual root runs appear alongside scheduled ones.
 
 The operations index lists top-level Task records. Selection and report state survive refresh. Studio uses the shared 60-second refresh timer.
 

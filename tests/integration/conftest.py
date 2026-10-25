@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import httpx
 import pytest
 
-from axonx.config.env import parse_env_file
+from axonx.common.env import parse_env_file
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

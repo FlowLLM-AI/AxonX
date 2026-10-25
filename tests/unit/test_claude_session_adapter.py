@@ -84,3 +84,16 @@ async def test_claude_adapter_supports_sdk_session_lifecycle(tmp_path):
     await delete_session_via_store(store, session_id, directory=directory)
     remaining = await list_sessions_from_store(store, directory=directory)
     assert [item.session_id for item in remaining] == [forked.session_id]
+
+
+async def test_adapter_rebuilds_missing_summary_from_transcript(tmp_path):
+    local = LocalAgentSessionStore(tmp_path)
+    adapter = ClaudeSessionStoreAdapter(local)
+    key = {"project_key": "project", "session_id": "session"}
+    await adapter.append(key, [])
+    assert await local.load(key) is None
+    await local.append(key, [{"type": "custom-title", "customTitle": "Existing title"}])
+    await adapter.append(key, [{"type": "tag", "tag": "research"}])
+    summary = await local.load_summary(key)
+    assert summary["data"]["custom_title"] == "Existing title"
+    assert summary["data"]["tag"] == "research"

@@ -117,8 +117,21 @@ def test_native_plugin_name_conflicts_are_rejected(plugins, query):
             query()
 
 
-async def test_definition_jobs_over_http(tmp_path, plugins):
-    defaults = yaml.safe_load(Path("axonx/config/default.yaml").read_text(encoding="utf-8"))["jobs"]
+async def test_definition_jobs_over_http(tmp_path, plugins, monkeypatch):
+    # Keep the real subprocess/JSON boundary, with a controlled installed catalog.
+    import asyncio
+
+    create = asyncio.create_subprocess_exec
+
+    async def spawn(*argv, **options):
+        code = (
+            "import sys; from axonx.plugin import discovery; discovery.metadata.distributions=lambda: []; "
+            "from axonx.cli import main; raise SystemExit(main(sys.argv[1:]))"
+        )
+        return await create(argv[0], "-u", "-c", code, *argv[4:], **options)
+
+    monkeypatch.setattr("axonx.app.steps.common.cli.asyncio.create_subprocess_exec", spawn)
+    defaults = yaml.safe_load(Path("axonx/app/config/default.yaml").read_text(encoding="utf-8"))["jobs"]
     app = Application(
         workspace_dir=str(tmp_path),
         enable_logo=False,
@@ -131,9 +144,9 @@ async def test_definition_jobs_over_http(tmp_path, plugins):
         server.router.lifespan_context(server),
         HttpClient(token="secret", transport=httpx.ASGITransport(app=server)) as client,
     ):
-        response = await client.run_job("get_task_definition", {"task": "example_task"})
+        response = await client.run_job("get_task_definition", {"task": "demo"})
         assert response.success is True
-        assert response.answer == get_task_definition("example_task").model_dump(mode="json")
+        assert response.answer == get_task_definition("demo").model_dump(mode="json")
         listed = await client.run_job("list_installed_task_definitions")
         assert listed.success is True
         assert response.answer in listed.answer

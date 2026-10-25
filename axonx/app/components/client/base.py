@@ -4,14 +4,12 @@ import os
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 
-
+from ....common.connection import ConnectionOptions, default_target, normalize_target
+from ....common.constants import AXONX_DEFAULT_REQUEST_TIMEOUT
 from ...protocol import AXONX_SERVICE_TARGET
-from ....config.defaults import AXONX_DEFAULT_REQUEST_TIMEOUT
-from ..types import ComponentEnum
-from ....config.target import default_target, normalize_target
-from ....config.target import ClientOptions
 from ..base import BaseComponent
 from ..job.contracts import JobInfo, JobResponse
+from ..types import ComponentEnum
 
 
 class RemoteServiceError(RuntimeError):
@@ -37,7 +35,7 @@ class BaseClient[ClientT](BaseComponent, ABC):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        options = ClientOptions(target=target, timeout=timeout, token=token)
+        options = ConnectionOptions(target=target, timeout=timeout, token=token)
         self.target = self._resolve_target(options)
         self.url = f"{self.target}{self.url_path}"
         self.timeout = options.timeout
@@ -57,7 +55,7 @@ class BaseClient[ClientT](BaseComponent, ABC):
             raise RuntimeError("Client is not started")
         return self._client
 
-    def _resolve_target(self, options: ClientOptions) -> str:
+    def _resolve_target(self, options: ConnectionOptions) -> str:
         if options.target is not None:
             return options.target
         advertised = os.environ.get(AXONX_SERVICE_TARGET)

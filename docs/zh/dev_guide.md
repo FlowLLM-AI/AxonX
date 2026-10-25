@@ -264,7 +264,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 - 使用提交响应中的实际 Task ID 和 Run ID，在同一服务上等待运行、查询状态、读取日志和检查产物。
 - 需要完整详情时，为 CLI `status`、`wait_task` 指定 `--detail full` 并检查 `answer`：核对 `task_id`、`run_id` 和 `state`，并查看
   `output_params`、`error`、`exit_code`、`log_path` 及步骤进度等字段。`status` 的 `success` 表示查询成功，不能据此判断 Task 成功。
-- `state` 为 `queued` 或 `running` 时继续等待；仅在 `succeeded` 时提交下游。`failed` 或 `cancelled` 时先检查错误和日志。
+- `state` 为 `running` 时继续等待；仅在 `succeeded` 时提交下游。`failed` 或 `cancelled` 时先检查错误和日志。
 - `wait_task` 必须传入提交返回的 `task_id`、`run_id`，等待指定运行结束；同一 Task ID 被重新提交后，Run ID 会变化， 不匹配时会报错。可用
   `--poll-interval 1` 设置轮询间隔（秒，必须大于 0，默认 1）。 长任务用 `--client-timeout 86400` 增加客户端请求超时；它不设置
   Task 执行时限。`wait_task` 仅在最终状态为 `succeeded` 时返回 `success: true`。
@@ -291,7 +291,7 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 | --------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------- |
 | `help`    | 列出目标服务公开的 Jobs；传 `--job NAME` 查询实际输入输出 schema。                      | `axonx help`                                            | `--target 192.168.1.10:1024` |
 | `start`   | 未指定配置时加载注册的 `default` 配置，启动本机 HTTP 服务。                             | `axonx start`                                           | —                            |
-| `start`   | 显式加载指定 YAML 文件启动服务；示例路径相对于 AxonX 仓库根目录，可替换为实际配置文件。 | `axonx start --config axonx/config/default.yaml`        | —                            |
+| `start`   | 显式加载指定 YAML 文件启动服务；示例路径相对于 AxonX 仓库根目录，可替换为实际配置文件。 | `axonx start --config axonx/app/config/default.yaml`    | —                            |
 | `exec`    | 列出当前 Python 环境可执行的 Task 注册名及入口类，不执行 Task。                         | `axonx exec`                                            | —                            |
 | `exec`    | 在当前进程执行指定 ETL Task 并输出结果，无需通过 HTTP 服务提交。                        | `axonx exec --task qlib_a158_etl --start-date 20150101` | —                            |
 | `version` | 查询所连接 AxonX 服务的版本信息。                                                       | `axonx version`                                         | `--target 192.168.1.10:1024` |
@@ -366,6 +366,10 @@ Analysis 仅在需要因子诊断时运行。以下命令按需选用。
 
 ## Task 状态与并发访问
 
-Task 执行、metadata 发布、仓库刷新、删除和副本应用不再获取框架 Task 或工作区锁。metadata 文件仍通过原子替换写入。保留 Run ID、进程归属及已观察生命周期检查，但检查与写入不构成事务。调用方需顺序修改同一 Task 目录；并发同名执行、重置、删除和同步不再协调。
+Task 首份状态发布、旧 Run 校验和观察修正共用短元数据事务；计算期间不持锁。工作区删除、同步和包环境更新仍需由调用方与执行协调，元数据原子替换不代表整个工作区事务。
 
 启动及同名提交前，恢复会重新读取并核对同一 Run，只收尾能确认属于本机且进程已退出的记录。子任务保留 Run ID 与 worker 身份检查，成功结果保持不变。缺少机器身份的记录、其他机器记录、展示副本及无法确认的进程实例保持原样。恢复不会接管或发送信号给仍存活的 worker，也不恢复 Python 执行、不重提 Task、不补放 cron 触发。
+
+## 进程冲突与中断
+
+App 观察工作区记录，不加载研究插件。metadata 必须记录 machine_id、pid 与 process_started_at，首份状态为 running，queued 已移除。启动与轮询只收敛确认已退出的本机原始 Run，外机与副本不回写。同名活动冲突会打印精确 `axonx kill --task-id ID --run-id RUN` 命令并退出，由用户显式终止或等待。kill 默认 SIGTERM，`--force true` 显式使用 SIGKILL；复合 Task 共享进程，终止影响其子任务。参见[生命周期](https://flowllm-ai.github.io/AxonX/zh/concepts/task-lifecycle)。

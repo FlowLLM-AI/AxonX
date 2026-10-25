@@ -1,6 +1,6 @@
 """Package-version step."""
 
-from ....plugin.registry import provider
+from ....common.registry import provider
 from ...core.build_info import get_build_info
 from ..base import BaseStep
 

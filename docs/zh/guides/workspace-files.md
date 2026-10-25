@@ -92,6 +92,6 @@ axonx delete_entries --paths '["temporary/report.txt"]'
 
 [工作区概念](../concepts/workspace.md) · [研究产物协议](../reference/research-artifacts.md) · [Workspace API](../api/workspace.md)
 
-源码：[目录操作](../../../axonx/app/workspace/browser.py)、[预览实现](../../../axonx/app/workspace/preview.py)、[路径约束](../../../axonx/common/fs/paths.py)。
+源码：[共享 Workspace 与路径约束](../../../axonx/common/workspace/core.py)、[预览实现](../../../axonx/common/workspace/preview.py)、[Workspace 结果模型](../../../axonx/common/workspace/models.py)。
 
 JSONL 预览保留损坏或未写完的行，通过 `parse_error` 和原始 `content` 展示；有效行提供解析后的 `data`。Studio 独立展示每一行，支持上一页／下一页，并标记受到字节预算限制的页面。

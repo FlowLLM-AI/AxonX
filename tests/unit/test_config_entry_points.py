@@ -4,7 +4,7 @@ from importlib.metadata import EntryPoint
 
 import pytest
 
-from axonx.config import ConfigResolver
+from axonx.app.config import ConfigResolver
 
 
 def test_config_entry_points_can_name_files_in_a_package(tmp_path, monkeypatch):
@@ -32,7 +32,7 @@ def test_config_entry_points_can_name_files_in_a_package(tmp_path, monkeypatch):
         }.get(name, "sample_configs.config")
         return [EntryPoint(name=name, value=target, group=group)]
 
-    monkeypatch.setattr("axonx.config.locator.find_entry_points", entries)
+    monkeypatch.setattr("axonx.common.locator.find_entry_points", entries)
     resolver = ConfigResolver(tmp_path / "builtins")
 
     assert resolver.load("a1") == {"source": "first"}

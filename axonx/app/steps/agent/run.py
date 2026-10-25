@@ -3,10 +3,10 @@
 from contextlib import aclosing
 from typing import ClassVar
 
+from ....common.registry import provider
 from ...components.job.events import ResultEvent
-from ....plugin.registry import provider
-from ...protocol import AGENT_DEPTH_ARGUMENT
 from ...components.types import ComponentEnum
+from ...protocol import AGENT_DEPTH_ARGUMENT
 from ..base import BaseStep
 
 

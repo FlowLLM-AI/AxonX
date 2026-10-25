@@ -6,20 +6,19 @@ AxonX separates capability calls, research execution, and result storage. The CL
 
 ## Python module boundaries
 
-The package has eight subsystem roots. Existing useful subdirectories under `app` and `task` are retained.
+The package has seven subsystem roots. Existing useful subdirectories under `app` and `task` are retained.
 
-| Module   | Responsibility                                                                                                   |
-| -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `app`    | Application composition, Components, Jobs/Steps, HTTP/MCP, Agents, service repositories and workspace operations |
-| `cli`    | Executable entry point, command routing, local commands and presentation                                         |
-| `daemon` | Standalone supervision, local control and owned update subprocesses                                              |
-| `cron`   | Crontab code and configuration; a supplied callback launches commands                                            |
-| `config` | Provider/runtime/connection data, dotenv, file lookup and merging                                                |
-| `task`   | Independent Task execution, records, research contracts, artifacts and replica processing                        |
-| `plugin` | Provider registration, plugin declarations, discovery, packaging, installation and symbol loading                |
-| `common` | Generic argument conversion, log data, cancellation-safe work and filesystem/logging primitives                  |
+| Module   | Responsibility                                                                                                              |
+| -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `app`    | Service configuration, composition, Components, Jobs/Steps, HTTP/MCP, Agents, service repositories and workspace operations |
+| `cli`    | Executable entry point, command routing, local commands and presentation                                                    |
+| `daemon` | Standalone supervision, local control and owned update subprocesses                                                         |
+| `cron`   | Crontab code and configuration; a supplied callback launches commands                                                       |
+| `task`   | Independent Task execution, records, research contracts, artifacts and replica processing                                   |
+| `plugin` | Task manifests, discovery, wheel build, installation and removal                                                            |
+| `common` | Generic config/env/runtime/connection mechanisms, registration, process identity, files, logs and async utilities           |
 
-Dependencies point from callers to capability owners: `app` uses `task` and `plugin`; `task` uses `plugin` and runtime configuration; `plugin` uses declarative `config` schemas. `common` imports none of these subsystems. CLI dispatch imports application code only for service commands. Cron does not import the daemon. Daemon workers remain standalone standard-library programs. See the [refactor plan and verification](../development/module-refactor.md).
+Dependencies point from callers to capability owners: `app` uses Task data interfaces and Common mechanisms; `task` uses `plugin` and Common mechanisms; `plugin` uses Common mechanisms. `common` imports none of these subsystems. CLI imports App for service and remote calls; local exec/kill and the cron worker stay App-free. App configuration models and YAML live in `app/config/`; shared loading mechanisms live in `common`. Cron does not import the daemon. Daemon workers remain standalone standard-library programs. See the [refactor plan and verification](../development/module-refactor.md).
 
 ## Responsibilities by Layer
 
@@ -66,3 +65,5 @@ A remote service is another complete Application with its own plugin environment
 - [Framework Extensions](../development/framework-extensions.md): component and orchestration extensions.
 
 Implementation entry points: [Application](../../../axonx/app/core/application.py), [TaskRunner](../../../axonx/task/runtime/runner.py), [HTTP assembly](../../../axonx/app/components/service/http/app.py).
+
+App does not import research plugins. It reads Task contracts/workspace data and triggers local process reconciliation; definitions use a CLI subprocess. Common owns generic registration/process mechanisms, Task owns lifecycle policy. See [module refactor](../development/module-refactor.md).

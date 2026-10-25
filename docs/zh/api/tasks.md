@@ -144,7 +144,9 @@ answer 是一个 TaskDefinition；Schema 是 JSON Schema，不是任务执行结
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
-    "pid": null,
+    "pid": 12345,
+    "machine_id": "execution-machine-id",
+    "process_started_at": "2026-10-25T00:00:00Z",
     "exit_code": 0,
     "error": "",
     "steps": [],
@@ -268,11 +270,13 @@ answer 是 TaskMetadata：身份、input_params、output_params、children、sta
     "task_id": "base#demo#api-demo",
     "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
     "task_type": "base",
-    "state": "queued",
+    "state": "running",
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
-    "pid": null,
+    "pid": 12345,
+    "machine_id": "execution-machine-id",
+    "process_started_at": "2026-10-25T00:00:00Z",
     "exit_code": 0,
     "error": "",
     "steps": [],
@@ -295,7 +299,7 @@ answer 是 TaskMetadata：身份、input_params、output_params、children、sta
 
 **行为与失败情况**
 
-没有有效统一 metadata 的任务返回 KeyError 业务失败。queued/running 不是终态。
+没有有效统一 metadata 的任务返回 KeyError 业务失败。running 不是终态。
 
 ## read_task_log
 
@@ -381,7 +385,9 @@ offset=-1 读取尾部；offset=0 从头开始。limit 单位字节，不是行�
     "created_at": "2026-10-02T00:00:00Z",
     "started_at": null,
     "finished_at": null,
-    "pid": null,
+    "pid": 12345,
+    "machine_id": "execution-machine-id",
+    "process_started_at": "2026-10-25T00:00:00Z",
     "exit_code": 0,
     "error": "",
     "steps": [],
@@ -442,7 +448,7 @@ answer 含 root_id、selected_id、nodes、edges；节点区分 missing、provis
         "task_name": "demo",
         "created_at": "2026-10-02T00:00:00+00:00",
         "parent_ids": [],
-        "state": "queued",
+        "state": "running",
         "missing": false,
         "provisional": true
       }
@@ -490,11 +496,13 @@ answer 含 task_id、status、metadata_exists、metadata_path、log_path、graph
       "task_id": "base#demo#api-demo",
       "run_id": "f5caee3a7b3c40849d0fb3bdc0f0cd23",
       "task_type": "base",
-      "state": "queued",
+      "state": "running",
       "created_at": "2026-10-02T00:00:00Z",
       "started_at": null,
       "finished_at": null,
-      "pid": null,
+      "pid": 12345,
+      "machine_id": "execution-machine-id",
+      "process_started_at": "2026-10-25T00:00:00Z",
       "exit_code": 0,
       "error": "",
       "steps": [],
@@ -523,7 +531,7 @@ answer 含 task_id、status、metadata_exists、metadata_path、log_path、graph
           "task_name": "demo",
           "created_at": "2026-10-02T00:00:00+00:00",
           "parent_ids": [],
-          "state": "queued",
+          "state": "running",
           "missing": false,
           "provisional": true
         }
@@ -568,7 +576,7 @@ Available 列表由实际安装环境生成。wait_task 返回失败任务状态
 - [CLI 参考](../reference/cli.md)
 - [事件协议](events.md)
 
-实现依据：`axonx/config/default.yaml`、`axonx/app/steps/task/` 与 `axonx/app/components/service/http/jobs.py`。
+实现依据：`axonx/app/config/default.yaml`、`axonx/app/steps/task/` 与 `axonx/app/components/service/http/jobs.py`。
 
 ## Studio 查询投影
 

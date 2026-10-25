@@ -8,13 +8,10 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from ..common.locator import locate_file
 from ..common.logging import get_logger
-from ..config.execution import (
-    AXONX_TASK_LOG_DIR,
-    AXONX_TASK_TIMEZONE,
-    AXONX_TASK_WORKSPACE_DIR,
-)
-from ..config.locator import locate_file
+from ..common.runtime import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
+from ..common.workspace import Workspace
 from .parser import CronEntry, parse_crontab
 
 
@@ -41,7 +38,7 @@ class CronScheduler:
         self.environment = {
             **os.environ,
             **environment,
-            AXONX_TASK_WORKSPACE_DIR: str(Path(workspace_dir).expanduser().resolve()),
+            AXONX_TASK_WORKSPACE_DIR: str(Workspace(workspace_dir).root),
             AXONX_TASK_LOG_DIR: str(Path(log_dir).expanduser().resolve()),
             AXONX_TASK_TIMEZONE: timezone,
         }

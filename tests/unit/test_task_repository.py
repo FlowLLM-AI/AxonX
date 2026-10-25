@@ -9,10 +9,10 @@ from unittest.mock import Mock
 import pytest
 
 from axonx.app.components.task_repository import LocalTaskRepository, TaskChanges, TaskChangeSubscription
-from axonx.app.components.task_repository.local import index
 from axonx.app.core import Application
 from axonx.task.enums import TaskState, TaskType
 from axonx.task.schemas.lifecycle import TaskMetadata
+from axonx.task.storage import index
 from axonx.task.storage.workspace import task_path, write_task_metadata
 
 
@@ -28,7 +28,15 @@ def repository(tmp_path):
 
 
 def persist(root, name="one", run_id="run-one"):
-    metadata = TaskMetadata(version=1, task_id=f"base#demo#{name}", task_type=TaskType.BASE, run_id=run_id)
+    metadata = TaskMetadata(
+        machine_id="test-machine",
+        pid=99999999,
+        process_started_at="2026-01-01T00:00:00Z",
+        version=1,
+        task_id=f"base#demo#{name}",
+        task_type=TaskType.BASE,
+        run_id=run_id,
+    )
     directory = task_path(root, metadata.task_id)
     directory.mkdir(parents=True, exist_ok=True)
     write_task_metadata(directory, metadata)

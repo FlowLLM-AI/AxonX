@@ -1,6 +1,6 @@
 # 插件安装与部署
 
-插件是提供 AxonX Task、Component 和 Job 的 Python 包。命令操作当前 Python 环境；显式 `--target` 将 CLI 转发到目标服务的子进程。构建与安装会读取插件代码和依赖。
+插件是提供 AxonX Task 的 Python 包。命令操作当前 Python 环境；显式 `--target` 将 CLI 转发到目标服务的子进程。构建与安装会读取插件代码和依赖。
 
 ![插件部署流程](../../figures/guides/plugin-deployment.svg)
 
@@ -69,15 +69,15 @@ axonx plugin install -e ./plugins/qlib_factor
 axonx plugin install -e ./plugins/qlib_strategy
 ```
 
-editable 需要选定环境中的源码目录，不能与 `--output` 同用；指定 target 时源码路径属于目标机器。执行服务必须使用当前 Python 环境。修改 Python 源码后无需重新安装，但需重启常驻服务以重新加载 Task、Job 和 Component；依赖、入口点等安装元数据变化后需重新安装。editable 安装仍会先构建并检查 wheel。
+editable 需要选定环境中的源码目录，不能与 `--output` 同用；指定 target 时源码路径属于目标机器。执行服务必须使用当前 Python 环境。修改 Python 源码后无需重新安装，新的 exec 与定义查询子进程会读取修改后的源码；依赖、入口点等安装元数据变化后需重新安装。editable 安装仍会先构建并检查 wheel。
 
-固定版本实验或部署使用普通安装，从源码构建并安装 wheel；源码变化后需重新安装，并重启已运行的本机服务：
+固定版本实验或部署使用普通安装，从源码构建并安装 wheel；源码变化后需重新安装，再启动新的执行：
 
 ```bash
 axonx plugin install ./plugins/qlib_a158
 ```
 
-服务配置的 `plugins.sources` 可在启动时安装来源，路径解析见[配置参考](../reference/configuration.md)。已安装且有效的插件通过入口点发现，不使用一个照搬其他项目的显式启用列表。
+插件应在执行前显式安装；App 启动不发现或安装研究插件。新的 exec 或定义查询子进程使用安装后的环境。
 
 ## 部署到远程
 
@@ -101,7 +101,7 @@ axonx plugin list --target research.example:1024
 
 wheel 检查和安装保留内容与 wheel 校验和。安装只修改选定解释器的环境，不刷新常驻服务的模块，也不追踪 `restart_required`。新的 CLI 进程加载已安装环境；服务中已经加载的对象可以保持旧版本，重启后重新加载。已有进程后续导入模块也可能读取新文件，因此不提供版本隔离。
 
-插件操作不协调并发 pip 修改或 Task 启动。安装完成后再执行依赖它的命令。Task 执行、metadata 发布、仓库刷新、删除和副本应用不再获取框架 Task 或工作区锁。metadata 文件仍通过原子替换写入。保留 Run ID、进程归属及已观察生命周期检查，但检查与写入不构成事务。调用方需顺序修改同一 Task 目录；并发同名执行、重置、删除和同步不再协调。
+插件包环境修改应由调用方串行执行。Task 首份状态发布与本机状态修正使用短元数据事务，计算期间不持锁。工作区删除、同步和包更新仍需与执行显式协调。
 
 ## 卸载与排障
 

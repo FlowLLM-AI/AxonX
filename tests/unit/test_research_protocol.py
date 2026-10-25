@@ -5,15 +5,15 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from axonx.common.fs import atomic_write, file_revision
 from axonx.task.enums import TaskType
+from axonx.task.schemas.lifecycle import TaskMetadata
 from axonx.task.schemas.model import ModelCollection
 from axonx.task.schemas.prediction import PredictionProtocol
-from axonx.task.storage.artifacts import prediction_protocol
 from axonx.task.schemas.protocol import task_protocol, validate_protocol
 from axonx.task.storage import artifact_record
+from axonx.task.storage.artifacts import prediction_protocol
 from axonx.task.storage.models import snapshot_model_collection
-from axonx.task.schemas.lifecycle import TaskMetadata
-from axonx.common.fs import atomic_write, file_revision
 
 
 @pytest.mark.parametrize("version", [None, 2, 3, "1", True, 1.0])
@@ -28,8 +28,22 @@ def test_old_protocols_are_rejected(version):
 def test_task_records_require_the_shared_header():
     record = {"task_id": "etl#etl#test", "run_id": "test", "task_type": TaskType.ETL}
     with pytest.raises(ValidationError):
-        TaskMetadata(**record)
-    assert TaskMetadata(version=1, **record).version == 1
+        TaskMetadata(
+            **{
+                **{"machine_id": "test-machine", "pid": 99999999, "process_started_at": "2026-01-01T00:00:00Z"},
+                **(record),
+            }
+        )
+    assert (
+        TaskMetadata(
+            version=1,
+            **{
+                **{"machine_id": "test-machine", "pid": 99999999, "process_started_at": "2026-01-01T00:00:00Z"},
+                **(record),
+            },
+        ).version
+        == 1
+    )
     with pytest.raises(ValueError):
         validate_protocol(task_protocol(TaskType.ETL), TaskType.TRAIN)
 

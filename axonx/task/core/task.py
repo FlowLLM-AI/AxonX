@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from datetime import datetime
@@ -12,9 +11,10 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from ...common.constants import AXONX_DEFAULT_TIMEZONE
+from ...common.logging import get_log_path, get_logger
+from ...common.workspace import Workspace
 from ..constants import TASK_ID_SEPARATOR
 from ..enums import TaskCategory, TaskType
-from ...common.logging import get_log_path, get_logger
 from ..schemas.lifecycle import TaskMetadata, TaskSource
 from ..storage.workspace import METADATA_FILE, PERSISTENT_DIR, read_task_metadata, task_id_from_path, task_path
 from .clock import WindowClock
@@ -50,7 +50,7 @@ class BaseTask(ABC):
         clock: WindowClock | None = None,
     ):
         self.input_params = self.input_cls.model_validate(input_params)
-        workspace = Path(workspace_path).expanduser().resolve()
+        self.workspace = Workspace(workspace_path)
         if reg_name is None:
             raise ValueError(f"Task {type(self).__name__} requires a registration name")
         registration_name = validate_registration_name(reg_name)
@@ -71,7 +71,7 @@ class BaseTask(ABC):
         if task_id in parse_source_tasks(self.input_params.source_tasks):
             raise ValueError("A Task cannot use its own Task ID as an upstream source")
         self.context = TaskContext(
-            workspace_path=workspace,
+            workspace_path=self.workspace.root,
             registration_name=registration_name,
             task_id=task_id,
             run_id=run_id or uuid4().hex,
@@ -84,7 +84,6 @@ class BaseTask(ABC):
         self.clock = clock if clock is not None else getattr(self, "clock", WindowClock())
         self._output_params: BaseOutputParams | None = None
 
-        self.pid = os.getpid()
         self.log_path = str(get_log_path() or "")
         self._progress: Callable[..., None] | None = None
         self._persist_metadata: Callable[[], None] | None = None
@@ -157,9 +156,8 @@ class BaseTask(ABC):
         return normalized
 
     def resolve_workspace_path(self, path: str | Path) -> Path:
-        path = Path(path).expanduser()
-        resolved = (path if path.is_absolute() else self.workspace_path / path).resolve()
-        owner = task_id_from_path(self.workspace_path.resolve(), str(resolved))
+        resolved = self.workspace.locate(path, external=True)
+        owner = task_id_from_path(self.workspace.root, str(resolved))
         if owner is not None:
             self.source_task_dir(owner)
         return resolved

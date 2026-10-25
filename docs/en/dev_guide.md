@@ -255,25 +255,24 @@ Run Analysis only when factor diagnostics are needed. Select the following comma
   `Alpha158InputParams.start_date`, read through `self.input_params.start_date`; `--input-dir` corresponds to `input_dir`. Undeclared fields are rejected.
 - Task naming: omit `--task-name` by default. Names are generated as `YYYYMMDDHH` plus four random letters or digits, yielding Task IDs such as
   `etl#qlib_a158_etl#<generated name>`. Pass a name only when the user specifies one; **reusing an explicit name replaces artifacts after the previous execution finishes**.
-- Return values: inspect the response's `success` and `answer` in full. Successful submission means only that execution was accepted. `answer` contains `task_id`, `run_id`, and `task`, but not
-  `state`. Record both actual returned IDs to wait for this run. Downstream `source-tasks` uses the successful upstream `task_id`; do not guess IDs.
+- Return values: local exec waits for completion, prints business output and returns the Task exit code. Remote CLI returns stdout, stderr and exit_code. Read the actual Task ID and Run ID from execution logs and workspace metadata; do not interpret process launch or HTTP success as research success.
 - Upstream/downstream linkage: fill `--source-tasks` with Task IDs returned by successful upstream tasks. Separate multiple IDs with commas, such as `'<id1>,<id2>'`; an empty value means no upstream tasks.
   Downstream tasks locate artifacts through upstream `metadata.json`.
 - Execution target: omit `--target` locally; for remote execution, append the arguments in the table and replace the address with the actual target.
 
 #### 6. Track Execution and Inspect Artifacts
 
-- Use the actual Task ID and Run ID from submission to wait, query status, read logs, and inspect artifacts on the same service.
+- Use the actual Task ID and Run ID from metadata to wait, query status, read logs, and inspect artifacts on the same service.
 - When complete details are needed, request `--detail full` for CLI `status`/`wait_task` and inspect `answer`: verify `task_id`, `run_id`, and `state`, and review
   `output_params`, `error`, `exit_code`, `log_path`, step progress, and other fields. `status`'s `success` means the query succeeded, not that the Task succeeded.
-- Continue waiting while `state` is `queued` or `running`; submit downstream tasks only after `succeeded`. For `failed` or `cancelled`, inspect errors and logs first.
+- Continue waiting while `state` is `running`; submit downstream tasks only after `succeeded`. For `failed` or `cancelled`, inspect errors and logs first.
 - `wait_task` requires the `task_id` and `run_id` from metadata to wait for that execution. Resubmitting the same Task ID changes Run ID; a mismatch produces an error. Use
   `--poll-interval 1` to set the polling interval in seconds (must exceed 0; default 1). For long tasks, use `--client-timeout 86400` to increase the client request timeout; it does not set
   a Task execution time limit. `wait_task` returns `success: true` only when the final state is `succeeded`.
 
 | Command name    | Description                                                                             | Command                                                                                    | Remote arguments             |
 | --------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------- |
-| `wait_task`     | Wait for the specific run returned by submission and check final `answer.state`.        | `axonx wait_task --task-id '<etl_task_id>' --run-id '<etl_run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
+| `wait_task`     | Wait for the specific run recorded in metadata and check final `answer.state`.          | `axonx wait_task --task-id '<etl_task_id>' --run-id '<etl_run_id>' --client-timeout 86400` | `--target 192.168.1.10:1024` |
 | `status`        | Query the submitted ETL Task's status to confirm success.                               | `axonx status --task-id '<etl_task_id>'`                                                   | `--target 192.168.1.10:1024` |
 | `read_task_log` | Read recent logs for this ETL Task to inspect output or investigate failures.           | `axonx read_task_log --task-id '<etl_task_id>' --run-id '<etl_run_id>'`                    | `--target 192.168.1.10:1024` |
 | `preview_file`  | Inspect successful ETL metadata to obtain the dataset artifact path for downstream use. | `axonx preview_file --path 'etl/<etl_task_id>/metadata.json'`                              | `--target 192.168.1.10:1024` |
@@ -293,7 +292,7 @@ For other Tasks, use their actual Task IDs and workspace paths for the correspon
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------- |
 | `help`       | List the selected service's public Jobs; use `--job NAME` for its live input/output schemas.                                                                                | `axonx help`                                            | `--target 192.168.1.10:1024` |
 | `start`      | Load the registered `default` configuration when none is specified and start the local HTTP service.                                                                        | `axonx start`                                           | —                            |
-| `start`      | Start the service with an explicitly specified YAML file; the example path is relative to the AxonX repository root and can be replaced with the actual configuration file. | `axonx start --config axonx/config/default.yaml`        | —                            |
+| `start`      | Start the service with an explicitly specified YAML file; the example path is relative to the AxonX repository root and can be replaced with the actual configuration file. | `axonx start --config axonx/app/config/default.yaml`    | —                            |
 | `exec`       | List executable registered Task names and entry classes in the current Python environment without running a Task.                                                           | `axonx exec`                                            | —                            |
 | `exec`       | Execute the specified ETL Task in the current process and output results without HTTP submission.                                                                           | `axonx exec --task qlib_a158_etl --start-date 20150101` | —                            |
 | `version`    | Query version information for the connected AxonX service.                                                                                                                  | `axonx version`                                         | `--target 192.168.1.10:1024` |
@@ -368,6 +367,10 @@ Check `success` and retain `answer.path` and `answer.size`. The path is relative
 
 ## Task state and concurrent access
 
-Task execution, metadata publication, repository refresh, deletion, and replica application do not acquire framework Task or workspace locks. Metadata files are still written by atomic replacement. Run ID and observed lifecycle checks remain, but checking and writing are not a transaction. Callers must sequence changes to the same Task directory; concurrent same-name execution, reset, deletion, and synchronization are not coordinated.
+Task initial publication, prior-Run checks and observation share short metadata transactions; computation holds no lock. Callers must still coordinate workspace deletion, replication and package mutations with execution; atomic metadata replacement is not a whole-workspace transaction.
 
 Service startup and shutdown leave Task records unchanged. Abrupt process death can leave the last recorded state at running. Handle termination and explicit recovery in the execution environment.
+
+## Process conflicts and interruption
+
+App observes workspace records without loading research plugins. Metadata requires machine_id, pid and process_started_at. The first record is running; queued is removed. Startup and polling reconcile only confirmed dead original local Runs. Foreign records and replicas are not rewritten. For a live same-name conflict, exec prints an exact `axonx kill --task-id ID --run-id RUN` command and exits; choose explicit termination or wait. Kill defaults to SIGTERM, `--force true` explicitly uses SIGKILL, and shared composite processes affect all children. See [Task lifecycle](https://flowllm-ai.github.io/AxonX/en/concepts/task-lifecycle).

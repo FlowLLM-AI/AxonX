@@ -58,3 +58,6 @@ def parse_arguments(tokens: Sequence[str]) -> dict:
         current[final] = convert_value(raw_value)
 
     return arguments
+
+
+TRANSPORT_OPTION_NAMES = frozenset({"target", "client_timeout", "token", "stream", "stream_format"})

@@ -6,20 +6,23 @@ import asyncio
 import os
 import signal
 import sys
-from pathlib import Path
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..config.target import ClientOptions
-from .parser import Command, parse_command
-from ..common.logs import LogEvent
-from ..config import RuntimeConfig, ConfigResolver, resolve_app_config
-from ..config.execution import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR, AXONX_CLI_REQUEST_ID
-from .usage import CLI_USAGE
+from ..common.config import ConfigLoader
+from ..common.connection import AXONX_CLI_REQUEST_ID
+from ..common.constants import CONFIG_ENTRY_POINT_GROUP
+from ..common.env import load_env
 from ..common.logging import LoggingConfig, configure_logging
-from ..config.env import load_env
+from ..common.logs import LogEvent
+from ..common.runtime import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR, RuntimeSettings
+from ..common.workspace import Workspace
 from ..daemon import client as daemon
+from .options import ClientOptions
+from .parser import Command, parse_command
 from .rendering import print_event_blocks, print_json, print_logo
+from .usage import CLI_USAGE
 
 if TYPE_CHECKING:
     from ..cron import CronScheduler
@@ -39,11 +42,13 @@ def _run_server(command: Command, startup_arguments: list[str] | None = None) ->
     inherited = dict(os.environ)
     environment = load_env()
     arguments = dict(command.arguments)
-    config = ConfigResolver().resolve(**arguments)
+    config = ConfigLoader(
+        Path(__file__).resolve().parents[1] / "app" / "config", group=CONFIG_ENTRY_POINT_GROUP
+    ).resolve(**arguments)
     config["environment"] = {**environment, **config.get("environment", {})}
     role = os.environ.get(daemon.ROLE)
     if role == "cron":
-        asyncio.run(_run_cron(RuntimeConfig.model_validate(config)))
+        asyncio.run(_run_cron(config["cron"], RuntimeSettings.model_validate(config)))
         return 0
     from ..app.config import ApplicationConfig
 
@@ -62,7 +67,7 @@ def _run_server(command: Command, startup_arguments: list[str] | None = None) ->
     if app_config.service is None:
         raise ValueError("Application configuration does not define a service")
     if app_config.cron is not None:
-        _cron(app_config)  # Validate the complete file before replacing this launcher.
+        _cron(app_config.cron, app_config)  # Validate the complete file before replacing this launcher.
     cwd = Path.cwd().resolve()
     service = app_config.service.model_dump()
     directory = daemon.runtime_directory(
@@ -80,11 +85,11 @@ def _run_server(command: Command, startup_arguments: list[str] | None = None) ->
     return 0
 
 
-def _cron(config: RuntimeConfig) -> CronScheduler:
+def _cron(source: str, config: RuntimeSettings) -> CronScheduler:
     from ..cron import CronScheduler
 
     return CronScheduler(
-        config.cron,
+        source,
         workspace_dir=config.workspace_dir,
         log_dir=config.log_dir,
         timezone=config.timezone,
@@ -93,8 +98,8 @@ def _cron(config: RuntimeConfig) -> CronScheduler:
     )
 
 
-async def _run_cron(config: RuntimeConfig) -> None:
-    scheduler = _cron(config)
+async def _run_cron(source: str, config: RuntimeSettings) -> None:
+    scheduler = _cron(source, config)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for signum in (signal.SIGTERM, signal.SIGINT):
@@ -166,22 +171,59 @@ def _run_remote_job(command: Command, client_options: ClientOptions) -> int:
     return 0 if response.success else 1
 
 
-def _run_exec(command: Command) -> int:
-    from ..task.runtime import TaskExecutor
-    from ..task.catalog.resolver import installed_tasks
-
+def _execution_config() -> RuntimeSettings:
     load_env(override=False)
-    workspace_dir = os.environ.get(AXONX_TASK_WORKSPACE_DIR)
-    log_dir = os.environ.get(AXONX_TASK_LOG_DIR)
-    timezone = os.environ.get(AXONX_TASK_TIMEZONE)
-    if workspace_dir is None or log_dir is None or timezone is None:
-        app_config = RuntimeConfig.model_validate(
-            resolve_app_config(log_config=False),
-        )
-        workspace_dir = workspace_dir or app_config.workspace_dir
-        log_dir = log_dir or app_config.log_dir
-        timezone = timezone or app_config.timezone
-    configure_logging(LoggingConfig(log_dir=log_dir, timezone=timezone))
+    values = {
+        name: os.environ[key]
+        for name, key in {
+            "workspace_dir": AXONX_TASK_WORKSPACE_DIR,
+            "log_dir": AXONX_TASK_LOG_DIR,
+            "timezone": AXONX_TASK_TIMEZONE,
+        }.items()
+        if key in os.environ
+    }
+    if "workspace_dir" not in values and "AXONX_WORKSPACE_DIR" in os.environ:
+        values["workspace_dir"] = os.environ["AXONX_WORKSPACE_DIR"]
+    config = RuntimeSettings(**values)
+    configure_logging(LoggingConfig(log_dir=config.log_dir, timezone=config.timezone))
+    return config
+
+
+def _run_kill(command: Command) -> int:
+    from ..task.storage.records import kill_task
+
+    arguments = dict(command.arguments)
+    config = _execution_config()
+    workspace_dir = arguments.pop("workspace_dir", config.workspace_dir)
+    status = kill_task(Workspace(workspace_dir).root, **arguments)
+    print_json(status.model_dump(mode="json"))
+    return 0
+
+
+def _run_task_catalog(command: Command) -> int:
+    load_env(override=False)
+    from ..task.catalog import get_task_definition, list_installed_task_definitions
+
+    if command.action == "get_task_definition":
+        if set(command.arguments) != {"task"}:
+            raise ValueError("Expected --task NAME")
+        result = get_task_definition(command.arguments["task"])
+    else:
+        result = list_installed_task_definitions(**command.arguments)
+    print_json(
+        [item.model_dump(mode="json") for item in result]
+        if isinstance(result, list)
+        else result.model_dump(mode="json")
+    )
+    return 0
+
+
+def _run_exec(command: Command) -> int:
+    from ..task.catalog.resolver import installed_tasks
+    from ..task.runtime import TaskExecutor
+
+    config = _execution_config()
+    workspace_dir, timezone = config.workspace_dir, config.timezone
     if not command.arguments:
         for name, task_class in sorted(installed_tasks().items()):
             print(f"{name}\t{task_class.__module__}.{task_class.__name__}")
@@ -234,6 +276,9 @@ def _run_remote_cli(command: Command, options: ClientOptions) -> int:
 
 _LOCAL_HANDLERS = {
     "exec": _run_exec,
+    "kill": _run_kill,
+    "list_installed_task_definitions": _run_task_catalog,
+    "get_task_definition": _run_task_catalog,
     "plugin": _run_plugin,
     "start": _run_server,
 }

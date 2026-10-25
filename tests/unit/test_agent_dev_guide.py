@@ -8,10 +8,9 @@ import pytest
 from pydantic import ValidationError
 
 from axonx.app.components.agent.claude.backend import ClaudeAgentComponent
-from axonx.plugin.registry import ProviderRegistry
-from axonx.app.config import ApplicationConfig
-from axonx.config import resolve_app_config
+from axonx.app.config import ApplicationConfig, resolve_app_config
 from axonx.app.core.context import ApplicationContext
+from axonx.common.registry import ProviderRegistry
 
 
 @pytest.fixture
@@ -113,7 +112,7 @@ async def test_enabled_guide_missing_resource_fails_startup(context, monkeypatch
     with pytest.raises(FileNotFoundError, match="Missing guide"):
         await agent.start()
     assert not agent.is_started
-    assert agent._store is None
+    assert agent._sdk_store is None
 
 
 @pytest.mark.asyncio

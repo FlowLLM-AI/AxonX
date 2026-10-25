@@ -6,9 +6,9 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from axonx.config import ConfigResolver
-from axonx.config.locator import locate_file
+from axonx.app.config import ConfigResolver
 from axonx.app.core import Application
+from axonx.common.locator import locate_file
 from axonx.cron.parser import parse_crontab
 from axonx.cron.scheduler import CronScheduler
 
@@ -78,14 +78,14 @@ def test_shared_locator_keeps_names_paths_extension_priority_and_provider_confli
     with pytest.raises(FileNotFoundError, match="Available: research"):
         locate_file("missing", **options)
     monkeypatch.setattr(
-        "axonx.config.locator.find_entry_points",
+        "axonx.common.locator.find_entry_points",
         lambda *_: [EntryPoint(name="research", value="axonx.cron", group="axonx.crons")],
     )
     with pytest.raises(ValueError, match="both AxonX and an installed distribution"):
         locate_file("research", **options)
     (tmp_path / "app.json").write_text('{"value":"json"}')
     (tmp_path / "app.yaml").write_text("value: yaml")
-    monkeypatch.setattr("axonx.config.locator.find_entry_points", lambda *_: [])
+    monkeypatch.setattr("axonx.common.locator.find_entry_points", lambda *_: [])
     assert ConfigResolver(tmp_path).load("app") == {"value": "yaml"}
 
 
@@ -96,7 +96,7 @@ def test_cron_contributions_are_loaded_from_their_own_entry_point_group(tmp_path
         seen.append((group, name))
         return [EntryPoint(name=name, value="axonx.cron:research", group=group)]
 
-    monkeypatch.setattr("axonx.config.locator.find_entry_points", entries)
+    monkeypatch.setattr("axonx.common.locator.find_entry_points", entries)
     path = locate_file("plugin-research", directory=tmp_path, extensions=(".cron",), group="axonx.crons", label="Cron")
     assert path.name == "research.cron"
     assert seen == [("axonx.crons", "plugin-research")]

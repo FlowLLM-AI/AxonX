@@ -1,4 +1,4 @@
-"""Locate, load, inherit, merge, and resolve application configuration."""
+"""Locate, load, inherit, merge, and resolve configuration files."""
 
 import json
 import os
@@ -9,12 +9,10 @@ from typing import Any
 
 import yaml
 
-from ..common.arguments import convert_value
-from ..common.constants import AXONX_DEFAULT_ENCODING
-from .defaults import CONFIG_ENTRY_POINT_GROUP
+from .arguments import convert_value
+from .constants import AXONX_DEFAULT_ENCODING
 from .locator import discover_files, locate_file
 
-_CONFIG_DIR = Path(__file__).parent
 _SUPPORTED_EXTENSIONS = (".yaml", ".yml", ".json")
 _ENV_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?}")
 
@@ -55,15 +53,17 @@ def deep_merge_config(
     return result
 
 
-class ConfigResolver:
+class ConfigLoader:
     """Discover configuration files and resolve inheritance and overrides."""
 
     def __init__(
         self,
-        config_dir: Path | str = _CONFIG_DIR,
+        config_dir: Path | str,
         *,
+        group: str,
         encoding: str = AXONX_DEFAULT_ENCODING,
     ) -> None:
+        self.group = group
         self.config_dir = Path(config_dir)
         self.encoding = encoding
         self.registry = discover_files(self.config_dir, _SUPPORTED_EXTENSIONS)
@@ -77,16 +77,6 @@ class ConfigResolver:
         if not isinstance(config, dict):
             raise ValueError(f"Config root must be a mapping/object: {path}")
         config = expand_env_vars(config)
-        plugins = config.get("plugins")
-        if isinstance(plugins, dict) and isinstance(plugins.get("sources"), list):
-            plugins["sources"] = [
-                (
-                    str((path.parent / plugin).resolve())
-                    if isinstance(plugin, str) and not Path(plugin).expanduser().is_absolute()
-                    else plugin
-                )
-                for plugin in plugins["sources"]
-            ]
         return config
 
     def _load(
@@ -98,7 +88,7 @@ class ConfigResolver:
             name_or_path,
             directory=self.config_dir,
             extensions=_SUPPORTED_EXTENSIONS,
-            group=CONFIG_ENTRY_POINT_GROUP,
+            group=self.group,
             label="Config",
         )
         identity = str(path.resolve())
@@ -130,7 +120,7 @@ class ConfigResolver:
 
     def resolve(self, *, log_config: bool = True, **overrides) -> dict:
         """Resolve a selected/default configuration and apply explicit overrides."""
-        from ..common.logging import get_logger
+        from .logging import get_logger
 
         source = overrides.get("config")
         base: dict = {}
@@ -146,8 +136,3 @@ class ConfigResolver:
                 )
             base = self.load("default")
         return deep_merge_config(base, overrides)
-
-
-def resolve_app_config(*, log_config: bool = True, **kwargs) -> dict:
-    """Resolve application configuration using the built-in config directory."""
-    return ConfigResolver().resolve(log_config=log_config, **kwargs)

@@ -13,7 +13,7 @@ from starlette.datastructures import UploadFile
 from starlette.requests import ClientDisconnect, Request
 
 from axonx.app.components.service.http.files import MULTIPART_OVERHEAD_BYTES, _UploadParser, create_files_router
-from axonx.app.workspace.staging import StagedFiles
+from axonx.common.workspace import Workspace
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +35,7 @@ def closed_spools(monkeypatch):
 @pytest.fixture
 def endpoint(tmp_path):
     """Use an isolated workspace and a small limit without the full service."""
-    staged = StagedFiles(tmp_path, transfer_budget_bytes=32)
+    staged = Workspace(tmp_path, transfer_budget_bytes=32)
     server = FastAPI()
     server.include_router(create_files_router(SimpleNamespace(logger=logger), staged))
     return server, staged
@@ -118,7 +118,7 @@ async def test_multipart_closes_rolled_spool_when_storage_is_cancelled(endpoint,
             scope.cancel()
             await lowlevel.checkpoint()
 
-        monkeypatch.setattr(staged, "store_stream", cancelled_store)
+        monkeypatch.setattr(staged, "stage_stream", cancelled_store)
         async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
             await client.post("/upload", files={"file": ("large.bin", payload)})
     assert scope.cancelled_caught
@@ -273,14 +273,14 @@ async def test_multipart_request_framing_is_bounded(endpoint, tmp_path):
 
 async def test_multipart_isolates_repeated_uploads_and_preserves_openapi(endpoint, tmp_path):
     server, staged = endpoint
-    copied = staged.store(b"x", "script.py")
-    (tmp_path / copied.path).write_bytes(b"tampered")
+    copied = staged.stage_bytes(b"x", "script.py")
+    (tmp_path / copied["path"]).write_bytes(b"tampered")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(server), base_url="http://test") as client:
         response = await client.post("/upload", files={"file": ("script.py", b"x")})
         schema = (await client.get("/openapi.json")).json()
     assert response.status_code == 200
-    assert response.json()["answer"]["path"] != copied.path
-    assert (tmp_path / copied.path).read_bytes() == b"tampered"
+    assert response.json()["answer"]["path"] != copied["path"]
+    assert (tmp_path / copied["path"]).read_bytes() == b"tampered"
     content = schema["paths"]["/upload"]["post"]["requestBody"]["content"]
     assert set(content) == {"application/octet-stream", "multipart/form-data"}
     assert content["multipart/form-data"]["schema"]["required"] == ["file"]

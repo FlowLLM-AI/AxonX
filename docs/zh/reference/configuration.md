@@ -1,6 +1,6 @@
 # 服务端配置参考
 
-服务配置描述一个 Application 的工作区、组件、Job、调度与 HTTP 服务。CLI `start` 使用 ConfigResolver 先解析 YAML/JSON，再以 ApplicationConfig 校验。Python 直接构造 Application 时不会自动读取 default.yaml，需要显式调用 resolver 或传入完整配置。
+服务配置描述一个 Application 的工作区、组件、Job、调度与 HTTP 服务。CLI `start` 使用通用 ConfigLoader 先解析 YAML/JSON，再以 ApplicationConfig 校验服务。App 模型、ConfigResolver 与内置 YAML 统一归 `axonx/app/config/`，通用加载引擎归 `axonx/common/config.py`。Python 直接构造 Application 时不会自动读取 default.yaml，需要显式调用 resolver 或传入完整配置。
 
 ![配置解析与覆盖](../../figures/reference/config-resolution.svg)
 
@@ -38,7 +38,6 @@ extends 不是 ApplicationConfig 的持久字段，由解析器先消除。Pytho
 | enable_logo           | boolean                               | true          | CLI start 打印启动标识                      |
 | log_to_console        | boolean                               | true          | 控制台日志                                  |
 | log_to_file           | boolean                               | true          | 文件日志                                    |
-| plugins               | PluginConfig                          | sources=[]    | 启动插件来源                                |
 | targets               | TargetConfig[]                        | []            | 后端可转发的服务目标                        |
 | environment           | dict[string,string]                   | {}            | 注入 worker、Agent 的应用环境               |
 | components            | dict[类别,dict[名称,ComponentConfig]] | {}            | 命名组件组                                  |
@@ -94,7 +93,9 @@ service:
 
 CLI start 先加载 .env，并合并到 environment；普通客户端与 exec 以 override=false 读取环境。Python 的 ConfigResolver 本身不负责加载 .env，调用者需要自己建立环境。
 
-plugins.sources 的相对路径按声明它的配置文件目录解析成绝对路径。workspace_dir/log_dir 等普通路径没有该特殊转换，运行时通常相对进程工作目录，并支持用户目录展开。不要将 config 文件所在目录误当成全部路径的基准。
+独立 `axonx exec`、`axonx kill` 不读取应用 YAML，加载 `.env` 时不覆盖已有环境：工作区依次取 `AXONX_TASK_WORKSPACE_DIR`、`AXONX_WORKSPACE_DIR`、`.axonx`；日志目录取 `AXONX_TASK_LOG_DIR` 或 `logs`；时区取 `AXONX_TASK_TIMEZONE` 或 `Asia/Shanghai`。服务 CLI 网关与 cron 显式传递这些 Task 环境值，保持配置的工作区、日志和时区；`kill --workspace-dir` 可显式选择工作区。cron worker 经 Common 加载 YAML，只校验共用运行设置，不导入 App。
+
+workspace_dir/log_dir 等路径在运行时相对工作目录解析，并支持用户目录展开。
 
 ## ComponentConfig 与命名组件
 
@@ -123,9 +124,9 @@ PipelineJob 按 `defaults` → caller arguments → system 递归合并，并在
 
 `cron` 指定命名 crontab 或明确的 `.cron` 路径；`null` 禁用调度。`axonx start --config default --cron research` 复用配置文件定位逻辑，使用独立的 `axonx.crons` entry-point 分组。cron 解析五字段条目，只启动本地 `axonx exec --task`，在启动时读取一次并使用应用时区，服务关闭后已启动 Task 继续运行。详见 [定时调度](../guides/scheduling.md)。
 
-## PluginConfig 与 TargetConfig
+## TargetConfig
 
-plugins 只接受 sources 字段，为非空字符串数组，默认 []。已安装环境中的插件也会被发现，sources 不是“唯一启用白名单”。启动来源可能触发安装，应先确认所用源码与依赖。
+插件安装通过 `axonx plugin` 显式执行，应用启动不发现、安装或装配研究插件。
 
 TargetConfig 严格禁止额外字段：address 必填非空，token 默认 null 或非空字符串。地址接受 host:port 或带明确端口的 HTTP(S) URL，禁止用户密码、子路径、query、fragment；规范化后去除尾部斜线。完整用法见 [客户端连接](client-configuration.md)。
 
@@ -154,4 +155,4 @@ TargetConfig 严格禁止额外字段：address 必填非空，token 默认 null
 
 启动出现 ValidationError 时先检查顶层拼写、严格 TargetConfig token 类型、environment 字符串、backend 注册名；依赖缺失与冲突属于装配错误，不能通过跳过 Schema 解决。
 
-实现依据：`axonx/config/models.py`、`resolver.py`、`default.yaml`、`core/composition.py`、`components/service/http/service.py`。
+实现依据：`axonx/app/config/models.py`、`resolver.py`、`default.yaml`、`core/composition.py`、`components/service/http/service.py`。

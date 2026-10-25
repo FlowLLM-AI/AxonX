@@ -10,21 +10,26 @@ from pathlib import Path
 
 import httpx
 
-from ....config import TargetConfig
-from ....config.defaults import DEFAULT_TRANSFER_BUDGET_BYTES
+from ....common.async_work import run_blocking
+from ....common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
+from ....common.registry import provider
+from ....task.schemas.replica import DisplayReplica
+from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import read_task_metadata, scan_entries, task_directory, task_path
 from ....task.sync import SYNC_ARCHIVE_NAME, SyncReport, archive_budget, build_archive, pack_batches
 from ....task.sync.errors import ReplicaBudgetError
-from ....task.sync.index import matches_task_name, policy_revision, source_revision, validate_task_names
-from ....task.sync.replica import prepare_replica, prepare_group
-from ....task.sync.index import validate_live_task_ids
+from ....task.sync.index import (
+    matches_task_name,
+    policy_revision,
+    source_revision,
+    validate_live_task_ids,
+    validate_task_names,
+)
 from ....task.sync.models import TaskPlan
-from ....task.storage.logs import TaskLogReader
-from ....task.schemas.replica import DisplayReplica
-from ....common.async_work import run_blocking
+from ....task.sync.replica import prepare_group, prepare_replica
+from ...config import TargetConfig
 from ..client import HttpClient
 from ..client.base import RemoteServiceError
-from ....plugin.registry import provider
 from ..task_repository import BaseTaskRepository, TaskChangeSubscription
 from .base import BaseSyncComponent
 
@@ -65,7 +70,7 @@ class LocalSyncComponent(BaseSyncComponent):
         self.live_task_ids = validate_live_task_ids(live_task_ids)
         self._remote_index: dict = {}
         self._last_task = ""
-        self.root = self.workspace_path.expanduser().resolve()
+        self.root = self.workspace.root
         self.configured_target: TargetConfig | None = None
         self._pending: set[str] = set()
         self._flush_lock = asyncio.Lock()
