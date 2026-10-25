@@ -8,9 +8,9 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from ..plugin.discovery import get_installed_plugin, list_installed_plugins
-from ..plugin.installer import install_plugin, uninstall_plugin, prepare_artifact
 from .rendering import print_json
+from ..plugin.discovery import get_installed_plugin, list_installed_plugins
+from ..plugin.installer import install_plugin, prepare_artifact, uninstall_plugin
 
 
 def _json_value(value: Any) -> Any:

@@ -10,22 +10,27 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .options import ClientOptions
+from .parser import Command, parse_command
+from .rendering import print_event_blocks, print_json, print_logo
+from .usage import CLI_USAGE
 from ..common.config import ConfigLoader
 from ..common.connection import AXONX_CLI_REQUEST_ID
 from ..common.constants import CONFIG_ENTRY_POINT_GROUP
 from ..common.env import load_env
 from ..common.logging import LoggingConfig, configure_logging
 from ..common.logs import LogEvent
-from ..common.runtime import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR, RuntimeSettings
+from ..common.runtime import (
+    AXONX_TASK_LOG_DIR,
+    AXONX_TASK_TIMEZONE,
+    AXONX_TASK_WORKSPACE_DIR,
+    RuntimeSettings,
+)
 from ..common.workspace import Workspace
 from ..daemon import client as daemon
-from .options import ClientOptions
-from .parser import Command, parse_command
-from .rendering import print_event_blocks, print_json, print_logo
-from .usage import CLI_USAGE
 
 if TYPE_CHECKING:
-    from ..cron import CronScheduler
+    from ..cron.scheduler import CronScheduler
 
 # Defaults affect CLI queries only; callers can explicitly request complete records.
 _QUERY_DEFAULTS = {
@@ -50,11 +55,11 @@ def _run_server(command: Command, startup_arguments: list[str] | None = None) ->
     if role == "cron":
         asyncio.run(_run_cron(config["cron"], RuntimeSettings.model_validate(config)))
         return 0
-    from ..app.config import ApplicationConfig
+    from ..app.config.models import ApplicationConfig
 
     app_config = ApplicationConfig.model_validate(config)
     if role == "service":
-        from ..app import Application
+        from ..app.core.application import Application
 
         app = Application(**config)
         service = app.context.service
@@ -86,7 +91,7 @@ def _run_server(command: Command, startup_arguments: list[str] | None = None) ->
 
 
 def _cron(source: str, config: RuntimeSettings) -> CronScheduler:
-    from ..cron import CronScheduler
+    from ..cron.scheduler import CronScheduler
 
     return CronScheduler(
         source,
@@ -202,7 +207,10 @@ def _run_kill(command: Command) -> int:
 
 def _run_task_catalog(command: Command) -> int:
     load_env(override=False)
-    from ..task.catalog import get_task_definition, list_installed_task_definitions
+    from ..task.catalog.resolver import (
+        get_task_definition,
+        list_installed_task_definitions,
+    )
 
     if command.action == "get_task_definition":
         if set(command.arguments) != {"task"}:
@@ -220,7 +228,7 @@ def _run_task_catalog(command: Command) -> int:
 
 def _run_exec(command: Command) -> int:
     from ..task.catalog.resolver import installed_tasks
-    from ..task.runtime import TaskExecutor
+    from ..task.runtime.executor import TaskExecutor
 
     config = _execution_config()
     workspace_dir, timezone = config.workspace_dir, config.timezone
@@ -307,6 +315,3 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:  # noqa: BLE001 - CLI boundary converts failures to exit codes.
         print(f"Error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2 if isinstance(exc, (FileNotFoundError, KeyError, TypeError, ValueError)) else 1
-
-
-__all__ = ["main"]

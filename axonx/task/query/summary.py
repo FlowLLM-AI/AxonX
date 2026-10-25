@@ -1,24 +1,7 @@
 """Project task status snapshots into bounded list responses."""
 
-from pydantic import BaseModel
-
-from ..schemas.lifecycle import TaskStatus, TaskMetadata
-
-
-class StepProgress(BaseModel):
-    current: int
-    total: int
-    name: str
-    percentage: float | None
-
-
-class TaskSummary(TaskStatus):
-    """Query projection only; never persisted beside the lifecycle record."""
-
-    display_name: str
-    is_online: bool
-    is_replica: bool
-    step_progress: StepProgress | None
+from ..models.lifecycle import TaskMetadata, TaskStatus
+from ..models.query import TaskSummary
 
 
 def task_sort_key(metadata: TaskMetadata) -> tuple[float, str]:

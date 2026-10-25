@@ -10,7 +10,7 @@ import polars as pl
 from .data import KEYS, normalize_keys, validate_keys
 
 if TYPE_CHECKING:
-    from .engine import BacktestConfig
+    from .models import BacktestConfig
 
 
 def daily_output(dates, daily, signals, targets, labels, as_of_date, config):

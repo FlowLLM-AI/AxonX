@@ -7,11 +7,10 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field
 
-from ..enums import TaskType
-from ...common.fs import file_revision
-from ..schemas.artifact import ArtifactRecord
-from ..schemas.online import OnlineCommit, OnlineHistory
-from ..schemas.protocol import Protocol
+from ...common.fs.revision import file_revision
+from ..task_enums import TaskType
+from ..models.artifacts import ArtifactRecord, Protocol
+from ..models.reports import OnlineCommit, OnlineHistory
 
 HISTORY_BLOCK_SIZE = 16
 

@@ -10,10 +10,15 @@ from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from ...common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
-from ...common.fs import snapshot_file
+from ...common.fs.snapshot import snapshot_file
 from ...common.workspace import Workspace
-from ..schemas.lifecycle import current_children
-from ..storage.workspace import parse_task_directory, read_entry, read_task_metadata, task_directory
+from ..models.lifecycle import current_children
+from ..storage.workspace import (
+    parse_task_directory,
+    read_entry,
+    read_task_metadata,
+    task_directory,
+)
 from .index import verify_replica
 from .models import SyncTasksReport
 

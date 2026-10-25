@@ -8,7 +8,12 @@ from pathlib import Path
 
 from .discovery import get_installed_plugin
 from .models import PluginArtifact, PluginInfo, PluginUninstallResult
-from .wheel import build_wheel, inspect_wheel, install_artifact, source_sha256
+from .wheel import (
+    build_wheel,
+    inspect_wheel,
+    install_artifact,
+    source_sha256,
+)
 
 
 def prepare_artifact(

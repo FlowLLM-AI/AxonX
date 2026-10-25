@@ -8,11 +8,11 @@ from typing import Literal
 from uuid import uuid4
 
 from ...common.constants import AXONX_DEFAULT_TIMEZONE
-from ..enums import TaskState, TaskType
-from ..schemas.lifecycle import ChildTaskRecord
-from .identity import validate_registration_name
-from .params import BaseOutputParams
 from .task import BaseTask
+from ..task_enums import TaskState, TaskType
+from ..identity import validate_registration_name
+from ..models.lifecycle import ChildTaskRecord
+from ..models.params import BaseOutputParams
 
 
 @dataclass(frozen=True)

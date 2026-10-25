@@ -12,12 +12,13 @@ from typing import Any
 import pandas as pd
 from pydantic import field_validator
 
-from ....common.fs import atomic_write
+from ....common.fs.atomic import atomic_write
 from ....common.registry import provider
-from ...constants import TUSHARE_TIMEOUT_SECONDS
-from ...core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
-from ...enums import TaskType
 from .client import TushareClient
+from ...constants import TUSHARE_TIMEOUT_SECONDS
+from ...core.task import BaseTask, TaskStep
+from ...task_enums import TaskType
+from ...models.params import BaseInputParams, BaseOutputParams
 
 HS300 = "000300.SH"
 DOWNLOAD_GROUPS = ("static", "stk_limit", "daily", "adj_factor", "index_weight")

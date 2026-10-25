@@ -11,10 +11,10 @@ components:
       backend: local
 
   # =========== Task runtime components ===========
-  task_repository:
+  task_index:
     default:
       backend: local
-      poll_interval: 1
+      poll_interval: 5
 
   # =========== Agent components ===========
   agent:
@@ -75,7 +75,6 @@ components:
   # sync:
   #   default:
   #     backend: local
-  #     task_repository: default
   #     target: ${AXONX_SYNC_TARGET}
   #     task_names: []
   #     live_task_ids: []
@@ -337,7 +336,7 @@ jobs:
       additionalProperties: false
     steps:
       - backend: get_task_context_step
-        task_repository: default
+        task_index: default
 
   stream_task:
     description: Follow one Task, streaming its progress and log until it stops.
@@ -503,7 +502,6 @@ jobs:
       additionalProperties: false
     steps:
       - backend: sync_tasks_step
-        task_repository: default
 
   # =========== Agent jobs ===========
   agent_chat:

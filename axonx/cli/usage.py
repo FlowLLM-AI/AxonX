@@ -1,6 +1,10 @@
 """Usage text for the executable entry point."""
 
-from ..common.constants import AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_PORT, AXONX_DEFAULT_REQUEST_TIMEOUT
+from ..common.constants import (
+    AXONX_DEFAULT_CONNECT_HOST,
+    AXONX_DEFAULT_PORT,
+    AXONX_DEFAULT_REQUEST_TIMEOUT,
+)
 
 CLI_USAGE = f"""Usage:
   axonx

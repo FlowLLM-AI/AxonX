@@ -2,16 +2,16 @@
 
 from abc import ABC, abstractmethod
 
-from ..types import ComponentEnum
-from ....task.sync import SyncReport
 from ..base import BaseComponent
+from ..component_type import ComponentType
+from ....task.sync.models import SyncReport
 
 
 class BaseSyncComponent(BaseComponent, ABC):
     """Define batched, workspace-backed replication to a configured target service."""
 
-    component_type = ComponentEnum.SYNC
+    component_type = ComponentType.SYNC
 
     @abstractmethod
     async def flush(self) -> SyncReport:
-        """Replicate the changes queued since the last flush and report the outcome."""
+        """Replicate locally observed changes after initial target reconciliation."""

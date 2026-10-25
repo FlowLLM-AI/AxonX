@@ -14,13 +14,23 @@ from ...common.constants import AXONX_DEFAULT_TIMEZONE
 from ...common.logging import get_log_path, get_logger
 from ...common.workspace import Workspace
 from ..constants import TASK_ID_SEPARATOR
-from ..enums import TaskCategory, TaskType
-from ..schemas.lifecycle import TaskMetadata, TaskSource
-from ..storage.workspace import METADATA_FILE, PERSISTENT_DIR, read_task_metadata, task_id_from_path, task_path
 from .clock import WindowClock
 from .context import TaskContext
-from .identity import generated_task_name, parse_source_tasks, validate_registration_name
-from .params import BaseInputParams, BaseOutputParams
+from ..task_enums import TaskCategory, TaskType
+from ..identity import (
+    generated_task_name,
+    parse_source_tasks,
+    validate_registration_name,
+)
+from ..models.lifecycle import TaskMetadata, TaskSource
+from ..models.params import BaseInputParams, BaseOutputParams
+from ..storage.workspace import (
+    METADATA_FILE,
+    PERSISTENT_DIR,
+    read_task_metadata,
+    task_id_from_path,
+    task_path,
+)
 
 TaskStep: TypeAlias = Callable[[], None]
 
@@ -141,19 +151,6 @@ class BaseTask(ABC):
         if metadata is not None and metadata.replica is not None:
             raise ValueError("Display replicas cannot be used as research inputs")
         return directory
-
-    @staticmethod
-    def normalize_yyyymmdd(value: object, *, optional: bool = False) -> str | None:
-        if optional and (value is None or isinstance(value, str) and value.lower() in {"", "none"}):
-            return None
-        normalized = str(value)
-        try:
-            parsed = datetime.strptime(normalized, "%Y%m%d")
-        except ValueError as exc:
-            raise ValueError(f"必须是有效 YYYYMMDD: {normalized}") from exc
-        if parsed.strftime("%Y%m%d") != normalized:
-            raise ValueError(f"必须是有效 YYYYMMDD: {normalized}")
-        return normalized
 
     def resolve_workspace_path(self, path: str | Path) -> Path:
         resolved = self.workspace.locate(path, external=True)

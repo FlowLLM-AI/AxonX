@@ -3,8 +3,8 @@
 import psutil
 
 from ...core.build_info import get_build_info
-from .contracts import CpuInfo, MachineInfo, MemoryInfo
 from .gpu import collect_gpus
+from .models import CpuInfo, MachineInfo, MemoryInfo
 
 
 def collect_machine_info(sample_interval: float, logger) -> MachineInfo:

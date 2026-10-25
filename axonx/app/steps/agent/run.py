@@ -3,16 +3,16 @@
 from contextlib import aclosing
 from typing import ClassVar
 
-from ....common.registry import provider
+from ...components.component_type import ComponentType
 from ...components.job.events import ResultEvent
-from ...components.types import ComponentEnum
 from ...protocol import AGENT_DEPTH_ARGUMENT
 from ..base import BaseStep
+from ....common.registry import provider
 
 
 @provider("agent_stream")
 class AgentStreamStep(BaseStep):
-    component_domains = (ComponentEnum.AGENT,)
+    component_domains = (ComponentType.AGENT,)
     injected_parameters: ClassVar = {
         AGENT_DEPTH_ARGUMENT: {
             "type": "integer",

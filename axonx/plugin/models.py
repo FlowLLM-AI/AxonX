@@ -1,9 +1,12 @@
-"""Public plugin artifact and installed-environment models."""
+"""Research Task plugin manifests and installation models."""
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,3 +49,20 @@ class PluginUninstallResult(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     distribution: str
+
+
+NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+class PluginManifest(BaseModel):
+    """Contributions declared by one plugin package."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    tasks: dict[NonEmptyString, NonEmptyString] = Field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class PluginContributions:
+    tasks: dict[str, str]
+    task_owners: dict[str, str]

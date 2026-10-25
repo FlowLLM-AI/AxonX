@@ -6,8 +6,8 @@ from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING, Any
 
 from ..components.client.remote import run_remote_job, stream_remote_job
-from ..components.job.contracts import JobResponse
 from ..components.job.events import JobEvent
+from ..components.job.models import JobResponse
 from .logging import format_log_arguments
 
 if TYPE_CHECKING:

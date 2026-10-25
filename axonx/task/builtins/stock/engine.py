@@ -6,8 +6,15 @@ from typing import Any, Protocol
 
 import polars as pl
 
-from .data import KEYS, MARKET_COLUMNS, SIGNAL_COLUMNS, normalize_calendar, normalize_keys, validate_keys
-
+from .data import (
+    KEYS,
+    MARKET_COLUMNS,
+    SIGNAL_COLUMNS,
+    normalize_calendar,
+    normalize_keys,
+    validate_keys,
+)
+from .models import BacktestConfig
 from .reporting import daily_output, summarize
 
 
@@ -19,18 +26,6 @@ class PortfolioPolicy(Protocol):
 
     def should_exit(self, *, rank: int | None, age: int, n: int) -> bool:
         """Decide using current candidate rank and elapsed market days only."""
-
-
-@dataclass(frozen=True)
-class BacktestConfig:
-    top_ns: tuple[int, ...] = (1, 2, 3, 5, 10, 20, 30)
-    holding_days: int | None = 1
-    annual_risk_free_rate: float = 0.012
-    annualization_days: int = 252
-    minimum_index_weight_coverage: float = 0.98
-    buy_cost_rate: float = 0.0005
-    sell_cost_rate: float = 0.0015
-    missing_market_as_suspension: bool = False
 
 
 @dataclass

@@ -2,9 +2,13 @@
 
 import asyncio
 
-from ....common.registry import provider
-from ....task.sync.index import snapshot_index, validate_live_task_ids, validate_task_names
 from ..base import BaseStep
+from ....common.registry import provider
+from ....task.sync.index import (
+    snapshot_index,
+    validate_live_task_ids,
+    validate_task_names,
+)
 
 
 @provider("task_sync_index_step")

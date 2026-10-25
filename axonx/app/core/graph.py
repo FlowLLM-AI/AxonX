@@ -64,5 +64,6 @@ class ComponentGraph:
         """Validate the graph, inject dependencies, and return startup order."""
         ordered = self.startup_order()
         for component in ordered:
-            component.inject_dependencies(self._nodes)
+            for dependency in component.dependencies:
+                setattr(component, dependency.attribute, self._nodes.get((dependency.component_type, dependency.name)))
         return ordered

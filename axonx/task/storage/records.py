@@ -10,13 +10,24 @@ from time import monotonic
 
 import psutil
 
-from ...common.fs import file_lock
-from ...common.process import machine_id, process_instance, signal_process, wait_processes
-from ..enums import TaskState
-from ..schemas.lifecycle import TaskMetadata
-from ..schemas.progress import settle_steps
+from ...common.fs.locking import file_lock
+from ...common.process import (
+    machine_id,
+    process_instance,
+    signal_process,
+    wait_processes,
+)
+from ..task_enums import TaskState
+from ..models.lifecycle import TaskMetadata
+from ..progress import settle_steps
 from .events import append_progress_snapshots
-from .workspace import KINDS, read_task_metadata, scan_entries, task_path, write_task_metadata
+from .workspace import (
+    KINDS,
+    read_task_metadata,
+    scan_entries,
+    task_path,
+    write_task_metadata,
+)
 
 RECORDS_DIRECTORY = ".task-records"
 

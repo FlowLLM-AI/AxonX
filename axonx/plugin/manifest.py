@@ -1,19 +1,9 @@
 """Read and parse an AxonX plugin manifest."""
 
-from typing import Annotated
-
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
+from pydantic import ValidationError
 
-NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-
-
-class PluginManifest(BaseModel):
-    """Contributions declared by one plugin package."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    tasks: dict[NonEmptyString, NonEmptyString] = Field(default_factory=dict)
+from .models import PluginManifest
 
 
 def parse_plugin_manifest(text: str, plugin_name: str) -> PluginManifest:

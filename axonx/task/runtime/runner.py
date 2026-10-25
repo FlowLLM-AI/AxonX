@@ -14,15 +14,21 @@ from time import perf_counter
 from typing import TYPE_CHECKING
 
 from ...common.process import machine_id, process_started_at
-from ..core.identity import task_type_from_id
-from ..enums import TaskState
-from ..schemas.lifecycle import TaskMetadata
-from ..schemas.progress import ProgressEvent, TaskStepStatus, settle_steps
-from ..schemas.protocol import PROTOCOL_VERSION
+from ..task_enums import TaskState
+from ..events import ProgressEvent
+from ..identity import task_type_from_id
+from ..models.artifacts import PROTOCOL_VERSION
+from ..models.lifecycle import TaskMetadata, TaskStepStatus
+from ..progress import settle_steps
+from .logging import task_log_scope
 from ..storage.events import append_event, append_progress_snapshots
 from ..storage.records import conflict_message, reconcile_record, record_lock
-from ..storage.workspace import EVENTS_FILE, read_task_metadata, reset_task_directory, write_task_metadata
-from .logging import task_log_scope
+from ..storage.workspace import (
+    EVENTS_FILE,
+    read_task_metadata,
+    reset_task_directory,
+    write_task_metadata,
+)
 
 if TYPE_CHECKING:
     from ..core.task import BaseTask

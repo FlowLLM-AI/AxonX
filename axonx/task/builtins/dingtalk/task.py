@@ -10,9 +10,10 @@ from typing import Literal
 from pydantic import Field
 
 from ....common.registry import provider
-from ...core import BaseInputParams, BaseOutputParams, BaseTask, TaskStep
-from ...enums import TaskType
 from .client import DingTalkClient
+from ...core.task import BaseTask, TaskStep
+from ...task_enums import TaskType
+from ...models.params import BaseInputParams, BaseOutputParams
 
 
 class DingTalkInputParams(BaseInputParams):

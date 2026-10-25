@@ -136,8 +136,10 @@ def verify_installation() -> None:
                 assert guide.read_bytes() == (source / "docs" / language / "dev_guide.md").read_bytes()
         print(f"Verified installation: {project['name']} {distribution.version}")
 
-    from axonx.app.config import ConfigResolver
-    from axonx.plugin.discovery import get_installed_plugin  # pylint: disable=import-outside-toplevel
+    from axonx.app.config.resolver import ConfigResolver
+    from axonx.plugin.discovery import (
+        get_installed_plugin,  # pylint: disable=import-outside-toplevel
+    )
 
     for _, source, _, plugin in PACKAGES[1:]:
         info = get_installed_plugin(plugin)

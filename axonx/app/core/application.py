@@ -3,33 +3,29 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Iterable, Mapping
+from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 from typing import Any
 
 from ..._version import VERSION
-from ...common.async_work import run_blocking
-from ...common.logging import get_logger
-from ...common.registry import ProviderRegistry
-from ...common.workspace import Workspace
 from ..components.base import BaseComponent
-from ..components.job.contracts import JobResponse
 from ..components.job.events import JobEvent
-from ..config import ApplicationConfig
+from ..components.job.models import JobResponse
+from ..config.models import ApplicationConfig
 from .composition import compose_application
 from .context import ApplicationContext
 from .graph import ComponentGraph
 from .logging import LOG_CLEANUP_INTERVAL, cleanup_log_files
+from ...common.async_work import run_blocking
+from ...common.logging import get_logger
+from ...common.workspace import Workspace
 
 
 class Application:
     """Own one isolated component graph and expose Job invocation."""
 
-    def __init__(self, *, providers: Iterable[type] = (), **config: Any) -> None:
-        registry = ProviderRegistry.from_builtins()
-        for implementation in providers:
-            registry.add(implementation)
-        self.context: ApplicationContext = compose_application(registry, VERSION, config)
+    def __init__(self, **config: Any) -> None:
+        self.context: ApplicationContext = compose_application(VERSION, config)
         self._startup_order = ComponentGraph(self.context.components).resolve()
         self._started: list[BaseComponent] = []
         self._lifecycle_lock = asyncio.Lock()

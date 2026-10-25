@@ -15,12 +15,12 @@ from ....daemon import update_worker
 from ....daemon.update_worker import versions
 from ...core.build_info import PACKAGE_DIR
 from ..base import BaseComponent
-from ..types import ComponentEnum
+from ..component_type import ComponentType
 
 # Nested CLI requests share their outer HTTP response's completion boundary.
 RESPONSE_CALLBACKS: ContextVar[list | None] = ContextVar("update_response_callbacks", default=None)
 VERIFICATION = (
-    "from axonx.cli import main; from axonx_studio import static_dir; "
+    "from axonx.cli.main import main; from axonx_studio import static_dir; "
     "assert (static_dir() / 'index.html').is_file(), 'Studio assets are missing'"
 )
 
@@ -29,7 +29,7 @@ VERIFICATION = (
 class UpdateManager(BaseComponent):
     """Delegate process ownership to the daemon; never stop the service directly."""
 
-    component_type = ComponentEnum.UPDATER
+    component_type = ComponentType.UPDATER
 
     @property
     def directory(self) -> Path:

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from ...common.connection import normalize_target
 from ...common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
 from ...common.runtime import RuntimeSettings
-from ...task.enums import TaskCategory
+from ...task.task_enums import TaskCategory
 
 
 class ComponentConfig(BaseModel):

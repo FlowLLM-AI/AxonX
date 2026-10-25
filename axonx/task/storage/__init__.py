@@ -1,13 +1,41 @@
-"""Workspace, metadata, artifact, and event persistence."""
+"""Task workspace records and storage operations."""
 
-from .artifacts import artifact_path, artifact_record, read_metadata
-from .logs import TaskLogReader
-from ..schemas.lifecycle import TaskMetadata
+from .workspace import (
+    KINDS,
+    PERSISTENT_DIR,
+    METADATA_FILE,
+    EVENTS_FILE,
+    task_directory,
+    task_path,
+    parse_task_directory,
+    kind_directories,
+    ensure_kind_directories,
+    is_task_directory,
+    reset_task_directory,
+    read_entry,
+    scan_entries,
+    read_task_metadata,
+    write_task_metadata,
+    task_id_from_path,
+    task_record_id_from_path,
+)
 
 __all__ = [
-    "TaskLogReader",
-    "TaskMetadata",
-    "artifact_path",
-    "artifact_record",
-    "read_metadata",
+    "KINDS",
+    "PERSISTENT_DIR",
+    "METADATA_FILE",
+    "EVENTS_FILE",
+    "task_directory",
+    "task_path",
+    "parse_task_directory",
+    "kind_directories",
+    "ensure_kind_directories",
+    "is_task_directory",
+    "reset_task_directory",
+    "read_entry",
+    "scan_entries",
+    "read_task_metadata",
+    "write_task_metadata",
+    "task_id_from_path",
+    "task_record_id_from_path",
 ]

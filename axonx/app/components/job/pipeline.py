@@ -4,23 +4,26 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
+from contextlib import aclosing
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ....common.registry import provider
-from ...config import ComponentConfig
-from ...core.context import ApplicationContext
-from ...steps.base import BaseStep
-from ..types import ComponentEnum
+from ..component_type import ComponentType
 from .base import BaseJob
 from .context import RuntimeContext
 from .events import JobEvent, ResultEvent
+from ...config.models import ComponentConfig
+from ...steps.base import BaseStep
+from ....common.registry import provider
+
+if TYPE_CHECKING:
+    from ...core.context import ApplicationContext
 
 
 @dataclass(frozen=True, slots=True)
 class StepPlan:
-    """Resolved Step implementation and immutable construction options."""
+    """Resolved Step implementation and options copied for each invocation."""
 
     step_class: type[BaseStep]
     options: dict[str, Any]
@@ -32,13 +35,14 @@ class PipelineJob(BaseJob):
 
     def __init__(
         self,
+        *,
+        app_context: ApplicationContext,
         steps: Sequence[ComponentConfig | Mapping[str, Any]] = (),
         defaults: Mapping[str, Any] | None = None,
         event_buffer_size: int = 64,
-        app_context: ApplicationContext | None = None,
         **kwargs,
     ) -> None:
-        if not isinstance(event_buffer_size, int) or event_buffer_size < 1:
+        if isinstance(event_buffer_size, bool) or not isinstance(event_buffer_size, int) or event_buffer_size < 1:
             raise ValueError("event_buffer_size must be a positive integer")
         self._defaults = dict(defaults or {})
         self._event_buffer_size = event_buffer_size
@@ -47,21 +51,14 @@ class PipelineJob(BaseJob):
         self._plans = tuple(self._resolve_plan(app_context, raw) for raw in steps)
         super().__init__(app_context=app_context, **kwargs)
 
-    @classmethod
+    @staticmethod
     def _resolve_plan(
-        cls,
-        app_context: ApplicationContext | None,
+        app_context: ApplicationContext,
         raw: ComponentConfig | Mapping[str, Any],
     ) -> StepPlan:
         config = ComponentConfig.model_validate(raw)
-        if app_context is None:
-            raise RuntimeError(f"{cls.__name__} needs an application context to resolve Steps")
-        step_class = app_context.registry.require(ComponentEnum.STEP, config.backend, BaseStep)
-        options = config.model_dump()
-        # Step instances are fresh per invocation. Construct once while building
-        # the Job so each implementation can validate or retain its own options.
-        step_class(app_context=app_context, **deepcopy(options))
-        return StepPlan(step_class, options)
+        step_class = app_context.registry.require(ComponentType.STEP, config.backend, BaseStep)
+        return StepPlan(step_class, config.model_dump())
 
     def _injected_parameters(self) -> Mapping[str, Any]:
         merged: dict[str, Any] = {}
@@ -92,31 +89,19 @@ class PipelineJob(BaseJob):
         step_task: asyncio.Task[Any],
     ) -> AsyncIterator[JobEvent]:
         """Yield queued events until the Step finishes, without completion races."""
-        while True:
-            if step_task.done() and events.empty():
-                await step_task
-                return
-
+        while not step_task.done() or not events.empty():
             next_event = asyncio.create_task(events.get())
             try:
                 done, _ = await asyncio.wait(
                     (step_task, next_event),
                     return_when=asyncio.FIRST_COMPLETED,
                 )
-            except BaseException:
+                if next_event in done:
+                    yield next_event.result()
+            finally:
                 next_event.cancel()
                 await asyncio.gather(next_event, return_exceptions=True)
-                raise
-            if next_event in done:
-                yield next_event.result()
-                continue
-
-            next_event.cancel()
-            await asyncio.gather(next_event, return_exceptions=True)
-            while not events.empty():
-                yield events.get_nowait()
-            await step_task
-            return
+        await step_task
 
     # Async generators satisfy the base contract returning an AsyncIterator.
     async def stream(  # pylint: disable=invalid-overridden-method
@@ -137,8 +122,9 @@ class PipelineJob(BaseJob):
                 )
                 self._active_steps.add(step_task)
                 try:
-                    async for event in self._drain(events, step_task):
-                        yield event
+                    async with aclosing(self._drain(events, step_task)) as stream:
+                        async for event in stream:
+                            yield event
                 finally:
                     if not step_task.done():
                         step_task.cancel()

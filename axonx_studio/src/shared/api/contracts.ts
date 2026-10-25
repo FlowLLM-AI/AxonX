@@ -177,6 +177,13 @@ export type DeletedEntry = {
   kind: "directory" | "file";
 };
 
+export type DiskInfo = {
+  path: string;
+  total_bytes: number;
+  used_bytes: number;
+  free_bytes: number;
+};
+
 export type DisplayReplica = {
   purpose: "display";
   source_revision: string;
@@ -269,6 +276,19 @@ export type LogEvent = {
   reset: boolean;
   kind: "log";
   channel: string;
+};
+
+export type MachineDiagnostics = {
+  axonx: BuildInfo;
+  cpu: CpuInfo;
+  memory: MemoryInfo;
+  gpus: Array<GpuInfo>;
+  python: PythonRuntimeInfo;
+  platform: string;
+  cwd: string;
+  workspace: WorkspaceDiagnostics;
+  credentials_configured: Record<string, boolean>;
+  service_auth_enabled: boolean;
 };
 
 export type MachineInfo = {
@@ -372,6 +392,11 @@ export type ProgressEvent = {
   kind: "progress";
 };
 
+export type PythonRuntimeInfo = {
+  version: string;
+  executable: string;
+};
+
 export type ReplicaFile = {
   size: number;
   revision: string;
@@ -458,6 +483,16 @@ export type StudioPage = {
 
 export type TaskCategory = "data_update" | "online_prediction" | "comparison";
 
+export type TaskContextSnapshot = {
+  task_id: string;
+  status: TaskMetadata;
+  metadata_exists: boolean;
+  metadata_path: string;
+  log_path: string | null;
+  graph: TaskGraph;
+  relations: TaskRelations;
+};
+
 export type TaskDefinition = {
   name: string;
   source: "native" | "plugin";
@@ -517,6 +552,14 @@ export type TaskMetadata = {
   children: Array<ChildTaskRecord>;
   steps: Array<TaskStepStatus>;
   replica: DisplayReplica | null;
+};
+
+export type TaskRelations = {
+  direct_upstream: Array<string>;
+  ancestors: Array<string>;
+  direct_downstream: Array<string>;
+  missing: Array<string>;
+  provisional: Array<string>;
 };
 
 export type TaskSource = {
@@ -623,6 +666,12 @@ export type WindowResult = {
   coverage: number | null;
   artifacts: Record<string, ArtifactRecord>;
   metrics: Record<string, unknown>;
+};
+
+export type WorkspaceDiagnostics = {
+  path: string;
+  exists: boolean;
+  disk: DiskInfo;
 };
 
 export type WorkspaceEntry = {

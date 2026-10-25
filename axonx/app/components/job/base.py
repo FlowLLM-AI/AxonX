@@ -7,13 +7,14 @@ from collections.abc import AsyncIterator, Mapping
 from copy import deepcopy
 from typing import Any, cast
 
+from jsonschema.exceptions import SchemaError
 from jsonschema.validators import validator_for
 
-from ...protocol import TARGET_ARGUMENT
-from ..types import ComponentEnum
 from ..base import BaseComponent
-from .contracts import JobInfo, JobResponse
+from ..component_type import ComponentType
 from .events import JobEvent, fold_events
+from .models import JobInfo, JobResponse
+from ...protocol import TARGET_ARGUMENT
 
 _RESPONSE_SCHEMA = JobResponse.model_json_schema()
 
@@ -25,7 +26,7 @@ def _object_schema(schema: Mapping[str, Any] | None, *, label: str) -> tuple[dic
     validator_class = cast(Any, validator_for(value))
     try:
         validator_class.check_schema(value)
-    except Exception as exc:
+    except SchemaError as exc:
         raise ValueError(f"Invalid {label} schema: {exc}") from exc
     if value["type"] != "object":
         raise ValueError(f"{label} schema must describe an object")
@@ -36,7 +37,7 @@ def _object_schema(schema: Mapping[str, Any] | None, *, label: str) -> tuple[dic
 class BaseJob(BaseComponent, ABC):
     """Validate arguments and expose one canonical event-stream execution API."""
 
-    component_type = ComponentEnum.JOB
+    component_type = ComponentType.JOB
 
     def __init__(
         self,
@@ -106,9 +107,8 @@ class BaseJob(BaseComponent, ABC):
         self._raise_first_error(self._injected_validator, system, "system arguments")
 
     def _raise_first_error(self, validator: Any, value: Mapping[str, Any], label: str) -> None:
-        try:
-            error = next(validator.iter_errors(dict(value)))
-        except StopIteration:
+        error = next(validator.iter_errors(dict(value)), None)
+        if error is None:
             return
         location = ".".join(map(str, error.absolute_path))
         prefix = f"{location}: " if location else ""

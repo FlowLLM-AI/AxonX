@@ -4,10 +4,10 @@ import asyncio
 
 from pydantic import TypeAdapter
 
+from ..base import BaseStep
 from ....common.registry import provider
 from ....common.workspace.models import DeletedEntry, FilePreview, WorkspaceListing
 from ....common.workspace.preview import PREVIEW_ROWS
-from ..base import BaseStep
 
 FILE_PREVIEW = TypeAdapter(FilePreview)
 

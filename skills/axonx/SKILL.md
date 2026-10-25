@@ -9,7 +9,7 @@ This guide can be read independently or installed as an Agent skill. Documentati
 
 Source paths such as `plugins/qlib_a158/...` are relative to the root of an AxonX source checkout, not to this document or the Agent workspace. Run source development and plugin build commands from that checkout. Workspace paths passed to Jobs such as `preview_file` are relative to the selected service's workspace. Package installation alone does not provide the example plugin sources.
 
-AxonX owns protocol v1 in `axonx.task.schemas.protocol`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file revision (`size:mtime_ns`). Feature contracts, semantic fingerprints and verified model snapshots are shared AxonX helpers. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
+AxonX owns protocol v1 in `axonx.task.models.artifacts`, using the existing `TaskType` as `task_type`. Training exposes `output_params.protocol` and one `models.json` collection; member/checkpoint metadata sidecars are removed. Offline and online predictions share one `model_identity` (`models_sha256`, `features_sha256`), `dates`, `score_columns` and file revision (`size:mtime_ns`). Feature contracts, semantic fingerprints and verified model snapshots are shared AxonX helpers. Missing headers and old formats are rejected; regenerate artifacts. Package versions remain independent.
 
 Online inference publications use `OnlineStore` and role-based `OnlineCommit` artifacts. Final signals and simulated portfolio ledgers are persisted as immutable Parquet revisions under `persistent/online/commits/`; one atomic manifest selects effective history. Publish its frozen snapshot as `signal_history`. Historical revisions retain audit evidence and invalidate later portfolio reports until replay. Consumers use `pin_online_history` to verify and snapshot files. JSONL signal journals and inference ready markers are removed without compatibility readers; regenerate old online Tasks under a fresh name. Collection ready markers remain unchanged.
 
@@ -109,21 +109,22 @@ Every plugin Task must directly or indirectly inherit `BaseTask` and follow the 
 [`axonx/task/core/task.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/task.py). Registration alone does not replace this contract:
 
 - Declare a fixed `task_type`, `input_cls`, and `output_cls`; a detailed class docstring is recommended. Input and output models must
-  inherit `BaseInputParams` and `BaseOutputParams` from [`core/params.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/params.py).
+  inherit `BaseInputParams` and `BaseOutputParams` from [`models/params.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/models/params.py).
 - Implement `build_task_steps()` to yield synchronous callables in execution order, and `build_output_params()` to
   return a validated instance of the declared `output_cls`; returning a plain dictionary does not satisfy the contract.
 - Preserve framework-managed Task identity, context, lifecycle, and metadata persistence. Use `self.task_dir`,
   `source_task_dir()`, and `resolve_workspace_path()` for task artifacts and workspace paths; leave execution and
   status recording to the framework runtime.
 
-[`axonx/task/contracts/`](https://github.com/FlowLLM-AI/AxonX/tree/main/axonx/task/contracts) provides optional standard research Task and parameter classes
-for ETL, Analysis, Train, Predict, and Backtest. For these research stages, prefer the corresponding `Base*Task`,
+[`core/standard.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/core/standard.py) provides optional standard research Task bases;
+[`models/params.py`](https://github.com/FlowLLM-AI/AxonX/blob/main/axonx/task/models/params.py) owns their input/output models.
+For ETL, Analysis, Train, Predict, and Backtest, prefer the corresponding `Base*Task`,
 `Base*InputParams`, and `Base*OutputParams` classes. Once adopted, their required fields, types, and validators are part
 of the plugin's contract: preserve them and declare additional fields in subclasses. A custom Task may inherit
 `BaseTask` directly with its own parameter models, but must still follow the core contract; registration does not
 require every Task to inherit one of the five research base classes.
 
-For a synchronous sequence of installed Tasks, inherit `BaseCompositeTask` from `axonx.task` and call `run_task()` in your steps. Pure composites default to Task type `composite`. Every child, including nested composites, inherits the parent’s resolved `task_name` unless `run_task(..., task_name="instance")` explicitly selects another instance. Repeated calls of the same registration replace terminal outputs in the same directory; node names and attempt numbers only identify invocation records. Consume file artifacts before the next call replaces them, and never use a Task’s own ID as its upstream source. Shared fixed-name pipelines must serialize execution; use distinct parent names to retain run history. Its default output is `BaseOutputParams`; custom outputs contain business fields only. Child invocation snapshots are stored in top-level `metadata.json.children`, including failed and cancelled runs. Process termination belongs to the executing environment. See [Composite Tasks](https://flowllm-ai.github.io/AxonX/en/guides/composite-tasks) for a complete plugin example and failure policies.
+For a synchronous sequence of installed Tasks, inherit `BaseCompositeTask` from `axonx.task.core.composite` and call `run_task()` in your steps. Pure composites default to Task type `composite`. Every child, including nested composites, inherits the parent’s resolved `task_name` unless `run_task(..., task_name="instance")` explicitly selects another instance. Repeated calls of the same registration replace terminal outputs in the same directory; node names and attempt numbers only identify invocation records. Consume file artifacts before the next call replaces them, and never use a Task’s own ID as its upstream source. Shared fixed-name pipelines must serialize execution; use distinct parent names to retain run history. Its default output is `BaseOutputParams`; custom outputs contain business fields only. Child invocation snapshots are stored in top-level `metadata.json.children`, including failed and cancelled runs. Process termination belongs to the executing environment. See [Composite Tasks](https://flowllm-ai.github.io/AxonX/en/guides/composite-tasks) for a complete plugin example and failure policies.
 
 Before implementation, read [Task contracts](https://flowllm-ai.github.io/AxonX/en/reference/task-contracts), [Task lifecycle](https://flowllm-ai.github.io/AxonX/en/concepts/task-lifecycle),
 and [Research artifact contracts](https://flowllm-ai.github.io/AxonX/en/reference/research-artifacts). Standard Python fields alone do not guarantee
@@ -156,7 +157,8 @@ logic that reads input and writes results to `self.state["output"]`.
 ```python
 from pathlib import Path
 
-from axonx.task.contracts import BaseETLInputParams, BaseETLOutputParams, BaseETLTask
+from axonx.task.models.params import BaseETLInputParams, BaseETLOutputParams
+from axonx.task.core.standard import BaseETLTask
 
 class Alpha158InputParams(BaseETLInputParams):
     input_dir: Path = Path("tushare")

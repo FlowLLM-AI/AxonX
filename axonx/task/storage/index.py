@@ -4,10 +4,15 @@ import os
 import stat
 from pathlib import Path
 
-from ..enums import TaskState
-from ..schemas.lifecycle import TaskMetadata
+from ..task_enums import TaskState
+from ..models.lifecycle import TaskMetadata
 from .records import is_local_run, reconcile_task
-from .workspace import METADATA_FILE, kind_directories, parse_task_directory, read_task_metadata
+from .workspace import (
+    METADATA_FILE,
+    kind_directories,
+    parse_task_directory,
+    read_task_metadata,
+)
 
 FileVersion = tuple[int, int, int, int]
 
@@ -16,7 +21,6 @@ def scan_metadata(
     root: Path,
     previous: dict[str, TaskMetadata],
     versions: dict[str, FileVersion],
-    force: bool = False,
 ) -> tuple[dict[str, TaskMetadata], dict[str, FileVersion]]:
     """Reuse unchanged records; propagate I/O errors before replacing the index."""
     entries = {}
@@ -45,7 +49,7 @@ def scan_metadata(
                     continue
                 version = (info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
                 entry = previous.get(child.name)
-                if force or entry is None or versions.get(child.name) != version:
+                if entry is None or versions.get(child.name) != version:
                     entry = read_task_metadata(directory, child.name, strict_io=True)
                     if entry is None:
                         # An incomplete/invalid write is retried, not treated as deletion.

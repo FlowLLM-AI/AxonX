@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from pydantic import TypeAdapter
 
+from ...job.models import JobResponse
 from ....protocol import AGENT_DEPTH_ARGUMENT, TARGET_ARGUMENT
-from ...job.contracts import JobResponse
 
 if TYPE_CHECKING:
+    from ...job.base import BaseJob
     from ....core.context import ApplicationContext
     from ....core.dispatch import JobDispatcher
-    from ...job.base import BaseJob
 
 _ANSWER_ADAPTER = TypeAdapter(Any)
 _SERVER_NAME = "axonx"
@@ -31,24 +30,12 @@ class JobToolServer:
             return None
         if app_context is None:
             raise RuntimeError("job_tools require an application context")
-        if any(not isinstance(name, str) or not name for name in names):
-            raise ValueError("job_tools must contain non-empty Job names")
-        if len(names) != len(set(names)):
-            raise ValueError("job_tools must not contain duplicate names")
-        jobs = []
-        for name in names:
-            job = app_context.jobs.get(name)
-            if job is None:
-                raise KeyError(f"Job {name!r} is not configured")
-            jobs.append(job)
-        return cls(jobs, app_context.dispatcher)
+        return cls([app_context.jobs[name] for name in names], app_context.dispatcher)
 
     def attach(self, options: dict[str, Any], depth: int) -> None:
         from claude_agent_sdk import create_sdk_mcp_server
 
         servers = options.get("mcp_servers") or {}
-        if not isinstance(servers, dict):
-            raise ValueError("job_tools require mcp_servers to be a mapping")
         if _SERVER_NAME in servers:
             raise ValueError(f"mcp_servers contains reserved name {_SERVER_NAME!r}")
         options["mcp_servers"] = {
@@ -59,10 +46,8 @@ class JobToolServer:
             ),
         }
         allowed = options.get("allowed_tools") or []
-        if not isinstance(allowed, list):
-            raise ValueError("job_tools require allowed_tools to be a list")
         options["allowed_tools"] = list(
-            dict.fromkeys([*allowed, *(f"mcp__{_SERVER_NAME}__{job.name}" for job in self._jobs)])
+            dict.fromkeys(allowed + [f"mcp__{_SERVER_NAME}__{job.name}" for job in self._jobs])
         )
 
 
@@ -91,11 +76,14 @@ def _job_tool(job: BaseJob, dispatcher: JobDispatcher, depth: int) -> Any:
 
 
 def _tool_input_schema(job: BaseJob) -> dict:
-    schema = deepcopy(job.parameters)
+    schema = dict(job.parameters)
     if not job.injected_parameters:
-        schema.setdefault("properties", {})[TARGET_ARGUMENT] = {
-            "type": "string",
-            "description": "Optional address of a configured AxonX target service.",
+        schema["properties"] = {
+            **schema.get("properties", {}),
+            TARGET_ARGUMENT: {
+                "type": "string",
+                "description": "Optional address of a configured AxonX target service.",
+            },
         }
     return schema
 

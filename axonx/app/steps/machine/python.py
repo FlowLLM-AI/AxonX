@@ -5,7 +5,7 @@ import os
 import signal
 import sys
 
-from .contracts import PythonOutput
+from .models import PythonOutput
 
 MAX_OUTPUT_BYTES = 1024 * 1024
 

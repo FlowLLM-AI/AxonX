@@ -3,19 +3,22 @@
 import asyncio
 from contextlib import suppress
 
+from ..base import BaseStep
+from ....common.async_work import run_blocking
+from ....task.sync.applier import TaskArchiveApplier
 from ....common.registry import provider
-from .base import TaskRepositoryStep
 
 
 @provider("sync_tasks_step")
-class SyncTasksStep(TaskRepositoryStep):
+class SyncTasksStep(BaseStep):
     """Replace the task directories carried by one uploaded archive."""
 
     async def execute(self):
         path = self.context.get("path") or None
         try:
             archive = None if path is None else self.workspace.staged_file(path)
-            answer = await self.task_repository.apply_sync(
+            answer = await run_blocking(
+                TaskArchiveApplier(self.workspace_path, self.app_config.transfer_budget_bytes).apply,
                 archive,
                 self.context.get("deletions", []),
                 path,

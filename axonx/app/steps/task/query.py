@@ -3,45 +3,45 @@
 import asyncio
 from pathlib import Path
 
+from .base import TaskIndexStep
 from ....common.logs import LogEvent
 from ....common.registry import provider
-from ....task.enums import TaskState
+from ....task.task_enums import TaskState
 from ....task.query.summary import summarize_status, task_sort_key
 from ....task.storage.logs import TaskLogReader
-from .base import TaskRepositoryStep
 
 
 @provider("list_ids")
-class ListTaskIdsStep(TaskRepositoryStep):
+class ListTaskIdsStep(TaskIndexStep):
     async def execute(self):
-        self.response.answer = [item.task_id for item in await self.task_repository.summaries()]
+        self.response.answer = [item.task_id for item in await self.task_index.summaries()]
 
 
 @provider("list_statuses")
-class ListTaskStatusesStep(TaskRepositoryStep):
+class ListTaskStatusesStep(TaskIndexStep):
     async def execute(self):
         detail = self.context.get("detail", "summary")
         if detail not in {"summary", "full"}:
             raise ValueError("detail must be summary or full")
         filters = {key: self.context[key] for key in ("task_type", "state") if self.context.get(key) is not None}
         if detail == "summary":
-            self.response.answer = await self.task_repository.summaries(**filters)
+            self.response.answer = await self.task_index.summaries(**filters)
         else:
-            entries = await self.task_repository.entries(**filters)
+            entries = await self.task_index.entries(**filters)
             self.response.answer = sorted(entries.values(), key=task_sort_key, reverse=True)
 
 
 @provider("get_status")
-class GetTaskStatusStep(TaskRepositoryStep):
+class GetTaskStatusStep(TaskIndexStep):
     async def execute(self):
-        status = await self.task_repository.entry(self.context["task_id"])
+        status = await self.task_index.entry(self.context["task_id"])
         self.response.answer = summarize_status(status) if self.context.get("detail") == "summary" else status
 
 
 @provider("read_log")
-class ReadTaskLogStep(TaskRepositoryStep):
+class ReadTaskLogStep(TaskIndexStep):
     async def execute(self):
-        status = await self.task_repository.entry(self.context["task_id"])
+        status = await self.task_index.entry(self.context["task_id"])
         if (run_id := self.context.get("run_id")) is not None and status.run_id != run_id:
             raise ValueError(f"Task run changed: {status.task_id}")
         logs = TaskLogReader(Path(self.app_config.log_dir).expanduser().resolve())
@@ -59,13 +59,13 @@ class ReadTaskLogStep(TaskRepositoryStep):
 
 
 @provider("get_task_graph_step")
-class GetTaskGraphStep(TaskRepositoryStep):
+class GetTaskGraphStep(TaskIndexStep):
     async def execute(self):
-        self.response.answer = await self.task_repository.graph(self.context["task_id"])
+        self.response.answer = await self.task_index.graph(self.context["task_id"])
 
 
 @provider("wait_task")
-class WaitTaskStep(TaskRepositoryStep):
+class WaitTaskStep(TaskIndexStep):
     """Wait for one exact Run without controlling its execution."""
 
     async def execute(self):
@@ -74,7 +74,7 @@ class WaitTaskStep(TaskRepositoryStep):
         if poll_interval <= 0:
             raise ValueError("poll_interval must be positive")
         while True:
-            status = await self.task_repository.entry(task_id)
+            status = await self.task_index.entry(task_id)
             if status.run_id != run_id:
                 raise ValueError(f"Task run changed: {task_id}")
             if status.state.is_terminal:

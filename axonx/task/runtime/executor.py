@@ -7,7 +7,7 @@ from typing import Any
 from ...common.constants import AXONX_DEFAULT_TIMEZONE
 from ...common.workspace import Workspace
 from ..catalog.resolver import resolve_task
-from ..schemas.lifecycle import TaskMetadata
+from ..models.lifecycle import TaskMetadata
 from .runner import TaskRunner
 
 

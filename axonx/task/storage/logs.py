@@ -7,8 +7,8 @@ from pathlib import Path
 
 from ...common.constants import AXONX_DEFAULT_ENCODING
 from ...common.logs import LogChunk
+from ..models.lifecycle import TaskMetadata
 from .events import LOG_WINDOW_BYTES
-from ..schemas.lifecycle import TaskMetadata
 from .workspace import read_entry, task_path
 
 

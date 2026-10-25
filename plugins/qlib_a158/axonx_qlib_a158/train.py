@@ -11,16 +11,21 @@ import numpy as np
 import polars as pl
 from pydantic import Field, field_validator, model_validator
 
-from axonx.task.enums import TaskType
+from axonx.common.fs.atomic import atomic_write, atomic_write_json
 from axonx.task.builtins.stock.data import transform_labels
 from axonx.task.builtins.stock.protocol import feature_contract
-from axonx.task.contracts import BaseInputParams, BaseTrainOutputParams, BaseTrainTask
-from axonx.task.core import TaskStep
-from axonx.task.schemas.model import ModelCollection
-from axonx.task.schemas.protocol import task_protocol, validate_protocol
-from axonx.task.storage import artifact_record, read_metadata
+from axonx.task.core.standard import BaseTrainTask
+from axonx.task.core.task import TaskStep
+from axonx.task.task_enums import TaskType
+from axonx.task.identity import normalize_yyyymmdd
+from axonx.task.models.artifacts import (
+    ModelCollection,
+    task_protocol,
+    validate_protocol,
+)
+from axonx.task.models.params import BaseInputParams, BaseTrainOutputParams
+from axonx.task.storage.artifacts import artifact_record, read_metadata
 from axonx.task.storage.inputs import pin_source_artifacts
-from axonx.common.fs import atomic_write, atomic_write_json
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix
@@ -118,7 +123,7 @@ class LgbmTrainInputParams(BaseInputParams):
     @field_validator("train_start", "train_end", mode="before")
     @classmethod
     def normalize_date(cls, value: object) -> str:
-        return BaseTrainTask.normalize_yyyymmdd(value)
+        return normalize_yyyymmdd(value)
 
     @field_validator("label_column")
     @classmethod

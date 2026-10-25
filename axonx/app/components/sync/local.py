@@ -4,19 +4,25 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import suppress
 from pathlib import Path
 
-import httpx
-
+from ..client.base import RemoteServiceError
+from ..client.http import HttpClient
+from .base import BaseSyncComponent
+from ..task_index.base import BaseTaskIndex
 from ....common.async_work import run_blocking
-from ....common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
 from ....common.registry import provider
-from ....task.schemas.replica import DisplayReplica
+from ....task.models.lifecycle import DisplayReplica
 from ....task.storage.logs import TaskLogReader
-from ....task.storage.workspace import read_task_metadata, scan_entries, task_directory, task_path
-from ....task.sync import SYNC_ARCHIVE_NAME, SyncReport, archive_budget, build_archive, pack_batches
+from ....task.storage.workspace import (
+    read_task_metadata,
+    scan_entries,
+    task_directory,
+    task_path,
+)
+from ....task.sync.archive import SYNC_ARCHIVE_NAME, build_archive
 from ....task.sync.errors import ReplicaBudgetError
 from ....task.sync.index import (
     matches_task_name,
@@ -25,45 +31,34 @@ from ....task.sync.index import (
     validate_live_task_ids,
     validate_task_names,
 )
-from ....task.sync.models import TaskPlan
+from ....task.sync.models import SyncReport, TaskPlan
+from ....task.sync.planner import archive_budget, pack_batches
 from ....task.sync.replica import prepare_group, prepare_replica
-from ...config import TargetConfig
-from ..client import HttpClient
-from ..client.base import RemoteServiceError
-from ..task_repository import BaseTaskRepository, TaskChangeSubscription
-from .base import BaseSyncComponent
 
 
 @provider("local")
 class LocalSyncComponent(BaseSyncComponent):
-    repository: BaseTaskRepository
+    index: BaseTaskIndex
 
     def __init__(
         self,
         target: str,
-        task_repository: str = "default",
+        task_index: str = "default",
         max_archives_per_flush: int = 4,
         timeout_seconds: float = 300,
         task_names: Sequence[str] | None = None,
         live_task_ids: Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        removed = {
-            "task_ids",
-            "task_id_prefixes",
-            "sync_on_start",
-            "max_file_bytes",
-            "max_archive_bytes",
-        } & kwargs.keys()
-        if removed:
-            raise ValueError(f"Removed sync options: {', '.join(sorted(removed))}")
         super().__init__(**kwargs)
+        if self.kwargs:
+            raise TypeError(f"Unexpected sync options: {', '.join(sorted(self.kwargs))}")
         if not isinstance(target, str) or not target.strip():
             raise ValueError("target must be a non-empty configured service address")
         if max_archives_per_flush <= 0 or timeout_seconds <= 0:
             raise ValueError("max_archives_per_flush and timeout_seconds must be positive")
         self.target = target.strip()
-        self.depend("repository", task_repository, BaseTaskRepository)
+        self.depend("index", task_index, BaseTaskIndex)
         self.max_archives_per_flush = max_archives_per_flush
         self.timeout = timeout_seconds
         self.task_names = validate_task_names(task_names)
@@ -71,21 +66,19 @@ class LocalSyncComponent(BaseSyncComponent):
         self._remote_index: dict = {}
         self._last_task = ""
         self.root = self.workspace.root
-        self.configured_target: TargetConfig | None = None
         self._pending: set[str] = set()
         self._flush_lock = asyncio.Lock()
-        self._changes: TaskChangeSubscription | None = None
-        self._change_consumer: asyncio.Task[None] | None = None
+        self._unsubscribe: Callable[[], None] | None = None
         self._remote_budget: int | None = None
         self._needs_reconcile = True
 
     @property
     def budget(self) -> int:
-        local = self.app_config.transfer_budget_bytes if self.app_context is not None else DEFAULT_TRANSFER_BUDGET_BYTES
+        local = self.app_config.transfer_budget_bytes
         return min(local, self._remote_budget) if self._remote_budget is not None else local
 
     def _client(self) -> HttpClient:
-        configured = self.configured_target or self.app_config.resolve_target(self.target)
+        configured = self.app_config.resolve_target(self.target)
         return HttpClient(target=configured.address, timeout=self.timeout, token=configured.token)
 
     def _missing(self, remote: dict) -> set[str]:
@@ -155,35 +148,24 @@ class LocalSyncComponent(BaseSyncComponent):
         except asyncio.CancelledError:
             self._needs_reconcile = True
             raise
-        except (OSError, ValueError, RemoteServiceError, httpx.HTTPError) as exc:
+        except (OSError, ValueError, RemoteServiceError) as exc:
             self._needs_reconcile = True
             self.logger.warning(f"Display sync reconciliation will retry target={self.target}: {exc}")
 
     async def _start(self) -> None:
-        self.configured_target = self.app_config.resolve_target(self.target)
+        self.app_config.resolve_target(self.target)
         self._pending.clear()
-        self._changes = self.repository.subscribe()
+        self._unsubscribe = self.index.subscribe(self._on_change)
         self._needs_reconcile = True
-        self._change_consumer = asyncio.create_task(self._consume_changes(), name=f"axonx-sync:{self.name}")
 
     async def _close(self) -> None:
-        if self._changes is not None:
-            self._changes.close()
-        if self._change_consumer is not None:
-            self._change_consumer.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._change_consumer
-        self._changes = None
-        self._change_consumer = None
+        if self._unsubscribe is not None:
+            self._unsubscribe()
+            self._unsubscribe = None
         self._pending.clear()
 
-    async def _consume_changes(self) -> None:
-        assert self._changes is not None
-        async for changes in self._changes:
-            if changes.resync:
-                # The next flush owns reconciliation; there is one state mutation path.
-                self._needs_reconcile = True
-            self._pending.update(task_id for task_id in changes.task_ids if self._should_sync(task_id))
+    def _on_change(self, task_ids: frozenset[str]) -> None:
+        self._pending.update(task_id for task_id in task_ids if self._should_sync(task_id))
 
     def _should_sync(self, task_id: str) -> bool:
         return matches_task_name(task_id, self.task_names)
@@ -229,7 +211,7 @@ class LocalSyncComponent(BaseSyncComponent):
                 raise ValueError(f"Remote replica commit failed: {response.answer}")
         finally:
             if staged is not None:
-                with suppress(Exception):
+                with suppress(RemoteServiceError):
                     await client.discard_file(staged)
 
     def _pack(self, groups):
@@ -309,12 +291,7 @@ class LocalSyncComponent(BaseSyncComponent):
                                 raise ReplicaBudgetError("Encoded archive exceeds transfer budget")
                             await self._send(client, archive)
                             report.uploaded.extend(included)
-                        except (
-                            OSError,
-                            ValueError,
-                            RemoteServiceError,
-                            httpx.HTTPError,
-                        ) as exc:
+                        except (OSError, ValueError, RemoteServiceError) as exc:
                             self._pending.update(batch)
                             report.deferred.extend(task_directory(identity) for identity in batch)
                             self.logger.warning(f"Display sync batch will retry target={self.target}: {batch}: {exc}")

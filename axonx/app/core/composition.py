@@ -9,19 +9,99 @@ from typing import Any
 
 from ...common.logging import LoggingConfig, configure_logging, get_logger
 from ...common.registry import ProviderRegistry
+from ..components.agent.claude import ClaudeAgentComponent
 from ..components.base import BaseComponent
-from ..components.job import BaseJob
-from ..components.service import BaseService
-from ..config import ApplicationConfig, ComponentConfig
+from ..components.job.base import BaseJob
+from ..components.job.pipeline import PipelineJob
+from ..components.proxy import HttpProxyComponent
+from ..components.service import HttpService
+from ..components.service.base import BaseService
+from ..components.sync.local import LocalSyncComponent
+from ..components.task_index import LocalTaskIndex
+from ..components.updater import UpdateManager
+from ..config.models import ApplicationConfig, ComponentConfig
+from ..steps.agent import (
+    AgentStreamStep,
+    CancelAgentTurnStep,
+    DeleteAgentSessionStep,
+    ForkAgentSessionStep,
+    GetAgentSessionStep,
+    GetTaskContextStep,
+    ListAgentSessionsStep,
+    RenameAgentSessionStep,
+    TagAgentSessionStep,
+)
+from ..steps.common import CliStep, HelpStep, VersionStep
+from ..steps.machine.steps import DiagnoseStep, ListMachinesStep, MachineStatusStep, PythonStep
+from ..steps.studio import ListStudioPagesStep
+from ..steps.sync import SyncFlushStep, SyncTasksStep, TaskSyncIndexStep
+from ..steps.task import (
+    GetTaskDefinitionStep,
+    GetTaskGraphStep,
+    GetTaskStatusStep,
+    ListInstalledTaskDefinitionsStep,
+    ListTaskIdsStep,
+    ListTaskRunsStep,
+    ListTaskStatusesStep,
+    ReadTaskLogStep,
+    StreamTaskStep,
+    WaitTaskStep,
+)
+from ..steps.update import GetUpdateStatusStep, RestartServiceStep, UpdateFromGitStep, UpdateFromPipStep
+from ..steps.workspace import DeleteEntriesStep, ListEntriesStep, PreviewFileStep
 from .context import ApplicationContext
 
+APP_PROVIDERS = (
+    ClaudeAgentComponent,
+    PipelineJob,
+    HttpProxyComponent,
+    HttpService,
+    LocalSyncComponent,
+    LocalTaskIndex,
+    UpdateManager,
+    AgentStreamStep,
+    CancelAgentTurnStep,
+    DeleteAgentSessionStep,
+    ForkAgentSessionStep,
+    GetAgentSessionStep,
+    GetTaskContextStep,
+    ListAgentSessionsStep,
+    RenameAgentSessionStep,
+    TagAgentSessionStep,
+    CliStep,
+    HelpStep,
+    VersionStep,
+    DiagnoseStep,
+    ListMachinesStep,
+    MachineStatusStep,
+    PythonStep,
+    ListStudioPagesStep,
+    SyncFlushStep,
+    SyncTasksStep,
+    TaskSyncIndexStep,
+    GetTaskDefinitionStep,
+    GetTaskGraphStep,
+    GetTaskStatusStep,
+    ListInstalledTaskDefinitionsStep,
+    ListTaskIdsStep,
+    ListTaskRunsStep,
+    ListTaskStatusesStep,
+    ReadTaskLogStep,
+    StreamTaskStep,
+    WaitTaskStep,
+    GetUpdateStatusStep,
+    RestartServiceStep,
+    UpdateFromGitStep,
+    UpdateFromPipStep,
+    DeleteEntriesStep,
+    ListEntriesStep,
+    PreviewFileStep,
+)
 
-def compose_application(
-    registry: ProviderRegistry,
-    version: str,
-    config: dict[str, Any],
-) -> ApplicationContext:
-    """Discover contributions and return a sealed application context."""
+
+def compose_application(version: str, config: dict[str, Any]) -> ApplicationContext:
+    """Compose built-in providers into an isolated, sealed application context."""
+    registry = ProviderRegistry(APP_PROVIDERS)
     app_config = ApplicationConfig(**config)
     configure_logging(
         LoggingConfig(

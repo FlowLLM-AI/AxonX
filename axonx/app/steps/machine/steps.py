@@ -2,12 +2,12 @@
 
 import asyncio
 
-from ....common.registry import provider
 from ..base import BaseStep
 from .diagnostics import collect_diagnostics
 from .health import check_machines
 from .metrics import collect_machine_info
 from .python import run_python
+from ....common.registry import provider
 
 CPU_SAMPLE_INTERVAL_SECONDS = 0.1
 
@@ -15,8 +15,12 @@ CPU_SAMPLE_INTERVAL_SECONDS = 0.1
 @provider("diagnose_step")
 class DiagnoseStep(BaseStep):
     async def execute(self):
-        self.response.answer = await asyncio.to_thread(collect_diagnostics, self.workspace_path, self.logger)
-        self.response.answer["service_auth_enabled"] = bool(getattr(self.app_context.service, "token", None))
+        self.response.answer = await asyncio.to_thread(
+            collect_diagnostics,
+            self.workspace_path,
+            self.logger,
+            service_auth_enabled=bool(getattr(self.app_context.service, "token", None)),
+        )
 
 
 @provider("machine_status")

@@ -7,12 +7,12 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from ..schemas.progress import TASK_EVENT_ADAPTER, TaskEvent
 from ...common.logs import LogEvent
+from ..events import TASK_EVENT_ADAPTER, TaskEvent
+from ..models.lifecycle import TaskMetadata
 from ..storage.events import LOG_WINDOW_BYTES, read_event_lines
 from ..storage.logs import TaskLogReader
 from ..storage.workspace import EVENTS_FILE, task_path
-from ..schemas.lifecycle import TaskMetadata
 
 StatusReader = Callable[[str], Awaitable[TaskMetadata]]
 

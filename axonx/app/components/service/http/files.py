@@ -9,12 +9,16 @@ from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 from starlette.requests import Request
 
+from ...job.models import JobResponse
+from ....core.logging import format_log_arguments
+from ....protocol import (
+    PROTOCOL_FILE_DIRECTORY_HEADER,
+    PROTOCOL_FILE_NAME_HEADER,
+    PROTOCOL_ROUTE_UPLOAD,
+)
 from .....common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
 from .....common.workspace import Workspace
 from .....common.workspace.models import StagedFile
-from ....core.logging import format_log_arguments
-from ....protocol import PROTOCOL_FILE_DIRECTORY_HEADER, PROTOCOL_FILE_NAME_HEADER, PROTOCOL_ROUTE_UPLOAD
-from ...job.contracts import JobResponse
 
 # Allow a bounded amount of multipart framing in addition to the file byte limit.
 MULTIPART_OVERHEAD_BYTES = 64 * 1024

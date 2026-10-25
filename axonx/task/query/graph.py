@@ -5,38 +5,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from ..core.identity import parse_source_tasks, task_type_from_id
-from ..enums import TaskState, TaskType
+from ..task_enums import TaskState
+from ..identity import parse_source_tasks, task_type_from_id
+from ..models.lifecycle import TaskMetadata
+from ..models.query import TaskGraph, TaskGraphEdge, TaskGraphNode
 from ..storage.workspace import KINDS
-from ..schemas.lifecycle import TaskMetadata
 
 KIND_ORDER = {kind: index for index, kind in enumerate(KINDS)}
-
-
-class TaskGraphNode(BaseModel):
-    task_id: str
-    kind: TaskType
-    task_name: str | None
-    created_at: str | None
-    parent_ids: list[str]
-    state: TaskState | None
-    missing: bool
-    provisional: bool
-
-
-class TaskGraphEdge(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
-    from_: str = Field(alias="from")
-    to: str
-
-
-class TaskGraph(BaseModel):
-    root_id: str
-    selected_id: str
-    nodes: list[TaskGraphNode]
-    edges: list[TaskGraphEdge]
 
 
 def task_graph(entries: Mapping[str, TaskMetadata], task_id: str) -> TaskGraph:

@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
 from types import MappingProxyType
-from typing import Self, TypeVar, cast
+from typing import cast
 
 
 def component_type_name(value: str) -> str:
@@ -15,30 +14,21 @@ def component_type_name(value: str) -> str:
     return str(value)
 
 
-ProviderT = TypeVar("ProviderT", bound=type)
 _PROVIDER_NAME = "__axonx_provider_name__"
-_BUILTIN_PROVIDERS: dict[tuple[str, str], type] = {}
 
 
 def provider(name: str):
-    """Declare and register a built-in provider implementation."""
+    """Declare a provider name without changing any registry."""
     if not isinstance(name, str) or not name:
         raise ValueError("Provider name must be a non-empty string")
 
-    def decorate(cls: ProviderT) -> ProviderT:
+    def decorate[ProviderT: type](cls: ProviderT) -> ProviderT:
         if _PROVIDER_NAME in cls.__dict__:
             raise TypeError(f"{cls.__name__} already declares a provider name")
         setattr(cls, _PROVIDER_NAME, name)
-        if cls.__module__ == "axonx" or cls.__module__.startswith("axonx."):
-            _BUILTIN_PROVIDERS[(cls.__module__, cls.__qualname__)] = cls
         return cls
 
     return decorate
-
-
-def builtin_providers() -> tuple[type, ...]:
-    """Return provider classes registered by imported AxonX modules."""
-    return tuple(_BUILTIN_PROVIDERS.values())
 
 
 def declared_provider_name(cls: type) -> str:
@@ -49,65 +39,33 @@ def declared_provider_name(cls: type) -> str:
     return name
 
 
-@dataclass(frozen=True, slots=True)
-class Provider:
-    """One uniquely owned provider implementation."""
-
-    component_type: str
-    name: str
-    implementation: type
-    owner: str
-
-
 class ProviderRegistry:
     """Application-local mapping from ``(component type, backend)`` to a class."""
 
-    def __init__(self) -> None:
-        self._providers: dict[tuple[str, str], Provider] = {}
+    def __init__(self, implementations: Iterable[type] = ()) -> None:
+        self._providers: dict[tuple[str, str], type] = {}
         self._frozen = False
+        for implementation in implementations:
+            self.add(implementation)
 
-    @classmethod
-    def from_builtins(cls) -> Self:
-        """Build a fresh registry from every imported built-in provider."""
-        registry = cls()
-        for implementation in builtin_providers():
-            registry.add(implementation)
-        return registry
-
-    def add(
-        self,
-        implementation: type,
-        *,
-        name: str | None = None,
-        owner: str | None = None,
-    ) -> None:
-        """Add one provider and reject ambiguous ownership."""
+    def add(self, implementation: type) -> None:
+        """Add one declared provider and reject conflicting implementations."""
         if self._frozen:
             raise RuntimeError("Provider registry is frozen")
         if not isinstance(implementation, type):
             raise TypeError("Provider implementation must be a class")
 
         component_type = component_type_name(getattr(implementation, "component_type", None))
-        provider_name = declared_provider_name(implementation) if name is None else name
-        if not isinstance(provider_name, str) or not provider_name:
-            raise ValueError("Provider name must be a non-empty string")
-
+        provider_name = declared_provider_name(implementation)
         key = (component_type, provider_name)
-        provider_owner = owner or implementation.__module__
         existing = self._providers.get(key)
-        if existing is not None:
-            if existing.implementation is implementation and existing.owner == provider_owner:
-                return
+        if existing is not None and existing is not implementation:
             raise ValueError(
                 f"Provider '{component_type}:{provider_name}' is supplied by both "
-                f"'{existing.owner}' and '{provider_owner}'",
+                f"'{existing.__module__}.{existing.__qualname__}' and "
+                f"'{implementation.__module__}.{implementation.__qualname__}'",
             )
-        self._providers[key] = Provider(
-            component_type=component_type,
-            name=provider_name,
-            implementation=implementation,
-            owner=provider_owner,
-        )
+        self._providers[key] = implementation
 
     def require[T](
         self,
@@ -117,13 +75,12 @@ class ProviderRegistry:
     ) -> type[T]:
         """Resolve and type-check one provider or raise a configuration error."""
         normalized_type = component_type_name(component_type)
-        registered = self._providers.get((normalized_type, name))
-        if registered is None:
+        implementation = self._providers.get((normalized_type, name))
+        if implementation is None:
             raise ValueError(f"Unknown {normalized_type} backend: {name}")
-        implementation = registered.implementation
         if not issubclass(implementation, expected_base):
             raise TypeError(
-                f"Provider {normalized_type}:{name} must subclass " f"{expected_base.__name__}",
+                f"Provider {normalized_type}:{name} must subclass {expected_base.__name__}",
             )
         return cast(type[T], implementation)
 
@@ -134,17 +91,11 @@ class ProviderRegistry:
     ) -> dict[str, type[T]]:
         """Return all type-checked implementations in one component domain."""
         normalized_type = component_type_name(component_type)
-        implementations: dict[str, type[T]] = {}
-        for (provider_type, name), item in self._providers.items():
-            if provider_type != normalized_type:
-                continue
-            implementation = item.implementation
-            if not issubclass(implementation, expected_base):
-                raise TypeError(
-                    f"Provider {provider_type}:{name} must subclass " f"{expected_base.__name__}",
-                )
-            implementations[name] = cast(type[T], implementation)
-        return implementations
+        return {
+            name: self.require(normalized_type, name, expected_base)
+            for provider_type, name in self._providers
+            if provider_type == normalized_type
+        }
 
     def freeze(self) -> None:
         """Prevent further mutation after application composition."""
@@ -155,6 +106,6 @@ class ProviderRegistry:
         return self._frozen
 
     @property
-    def providers(self) -> Mapping[tuple[str, str], Provider]:
+    def providers(self) -> Mapping[tuple[str, str], type]:
         """Expose a read-only provider index for diagnostics."""
         return MappingProxyType(self._providers)

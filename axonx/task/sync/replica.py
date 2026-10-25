@@ -10,12 +10,24 @@ from pathlib import Path
 import polars as pl
 import pyarrow.parquet as pq
 
-from ...common.fs import snapshot_file
-from ..schemas.lifecycle import TaskMetadata, current_children
-from ..schemas.protocol import fingerprint
-from ..schemas.replica import DisplayReplica, LiveSnapshot, ReplicaFile, ReplicaLog
+from ...common.fs.snapshot import snapshot_file
+from ..models.artifacts import fingerprint
+from ..models.lifecycle import (
+    DisplayReplica,
+    LiveSnapshot,
+    ReplicaFile,
+    ReplicaLog,
+    TaskMetadata,
+    current_children,
+)
 from ..storage.logs import TaskLogReader
-from ..storage.workspace import EVENTS_FILE, METADATA_FILE, read_entry, task_path, write_task_metadata
+from ..storage.workspace import (
+    EVENTS_FILE,
+    METADATA_FILE,
+    read_entry,
+    task_path,
+    write_task_metadata,
+)
 from .errors import ReplicaBudgetError, SnapshotChangedError
 from .index import policy_revision, source_revision
 from .models import TaskPlan

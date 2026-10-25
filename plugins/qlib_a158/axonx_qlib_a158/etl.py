@@ -9,11 +9,18 @@ import polars as pl
 from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from axonx.task.builtins.stock.data import StockETLOutput, apply_market_status, fixed_labels, stock_protocol
-from axonx.task.contracts import BaseETLInputParams, BaseETLTask
-from axonx.task.core import TaskStep
-from axonx.task.storage import artifact_record
-from axonx.common.fs import atomic_write
+from axonx.common.fs.atomic import atomic_write
+from axonx.task.builtins.stock.data import (
+    apply_market_status,
+    fixed_labels,
+    stock_protocol,
+)
+from axonx.task.builtins.stock.models import StockETLOutput
+from axonx.task.core.standard import BaseETLTask
+from axonx.task.core.task import TaskStep
+from axonx.task.identity import normalize_yyyymmdd
+from axonx.task.models.params import BaseETLInputParams
+from axonx.task.storage.artifacts import artifact_record
 
 from .internal.etl_pipeline import (
     FEATURES,
@@ -81,7 +88,7 @@ class Alpha158InputParams(BaseETLInputParams):
     @classmethod
     def normalize_date(cls, value: object) -> object:
         """Normalize YYYYMMDD boundaries, including integer dates from YAML."""
-        return BaseETLTask.normalize_yyyymmdd(value, optional=True)
+        return normalize_yyyymmdd(value, optional=True)
 
 
 class Alpha158Task(BaseETLTask):

@@ -1,7 +1,7 @@
 """Stock feature semantics shared by feature producers and model consumers."""
 
-from ...schemas.protocol import fingerprint, task_protocol, validate_protocol
-from ...enums import TaskType
+from ...task_enums import TaskType
+from ...models.artifacts import fingerprint, task_protocol, validate_protocol
 
 FEATURE_IDENTITY_FIELDS = (
     "feature_family",

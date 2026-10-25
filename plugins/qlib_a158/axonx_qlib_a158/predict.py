@@ -10,18 +10,22 @@ import numpy as np
 import polars as pl
 from pydantic import Field, field_validator, model_validator
 
-from axonx.task.enums import TaskType
+from axonx.common.fs.atomic import atomic_write
 from axonx.task.builtins.stock.data import KEYS, validate_keys
 from axonx.task.builtins.stock.protocol import feature_identity
-from axonx.task.contracts import BaseInputParams, BasePredictOutputParams, BasePredictTask
-from axonx.task.core import TaskStep, parse_source_tasks, task_type_from_id
-from axonx.task.schemas.model import ModelCollection
-from axonx.task.schemas.protocol import fingerprint, validate_protocol
-from axonx.task.storage.artifacts import prediction_protocol
-from axonx.task.storage import artifact_record
+from axonx.task.core.standard import BasePredictTask
+from axonx.task.core.task import TaskStep
+from axonx.task.task_enums import TaskType
+from axonx.task.identity import (
+    normalize_yyyymmdd,
+    parse_source_tasks,
+    task_type_from_id,
+)
+from axonx.task.models.artifacts import ModelCollection, fingerprint, validate_protocol
+from axonx.task.models.params import BaseInputParams, BasePredictOutputParams
+from axonx.task.storage.artifacts import artifact_record, prediction_protocol
 from axonx.task.storage.inputs import pin_source_artifacts, source_artifact
-from axonx.task.storage.models import snapshot_model_collection
-from axonx.common.fs import atomic_write
+from axonx.task.storage.model_collections import snapshot_model_collection
 
 from .internal.modeling import feature_matrix
 
@@ -46,7 +50,7 @@ class LgbmPredictInputParams(BaseInputParams):
     @field_validator("pred_start", "pred_end", mode="before")
     @classmethod
     def normalize_date(cls, value: object) -> str | None:
-        return BasePredictTask.normalize_yyyymmdd(value, optional=True)
+        return normalize_yyyymmdd(value, optional=True)
 
     @model_validator(mode="after")
     def validate_period(self) -> Self:

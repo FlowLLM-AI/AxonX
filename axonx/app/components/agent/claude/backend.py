@@ -11,15 +11,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from .....common.registry import provider
-from ...job.contracts import JobResponse
-from ...job.events import AgentMessageEvent, JobEvent, ResultEvent
 from ..base import BaseAgentComponent
-from ..contracts import AgentSession, AgentSessionInfo
-from ..local_session_store import LocalAgentSessionStore
-from .projector import ClaudeMessageProjector, history_blocks
+from .projector import (
+    ClaudeMessageProjector,
+    history_blocks,
+)
 from .session_store import ClaudeSessionStoreAdapter
 from .tools import JobToolServer
+from ..events import AgentMessageEvent
+from ..local_session_store import LocalAgentSessionStore
+from ..models import AgentSession, AgentSessionInfo
+from ...job.events import JobEvent, ResultEvent
+from ...job.models import JobResponse
+from .....common.registry import provider
 
 if TYPE_CHECKING:
     from claude_agent_sdk import (
@@ -62,7 +66,7 @@ class ClaudeAgentComponent(BaseAgentComponent):
         configured = sorted(reserved & self.options.keys())
         if configured:
             raise ValueError("Session lifecycle options are managed by AxonX: " + ", ".join(configured))
-        self.job_tools = tuple(job_tools)
+        self.job_tools = tuple(dict.fromkeys(job_tools))
         self.state_dir = state_dir
         store_config = dict(session_store or {})
         backend = store_config.pop("backend", "local")
@@ -94,7 +98,7 @@ class ClaudeAgentComponent(BaseAgentComponent):
 
     @property
     def subprocess_environment(self) -> dict[str, str]:
-        return dict(self.app_config.environment) if self.app_context is not None else {}
+        return dict(self.app_config.environment)
 
     @property
     def sdk_store(self) -> ClaudeSessionStoreAdapter:

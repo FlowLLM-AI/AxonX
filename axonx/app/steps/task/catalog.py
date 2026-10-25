@@ -2,8 +2,8 @@
 
 import json
 
-from ....common.registry import provider
 from ..common.cli import CliStep
+from ....common.registry import provider
 
 
 class TaskCatalogStep(CliStep):

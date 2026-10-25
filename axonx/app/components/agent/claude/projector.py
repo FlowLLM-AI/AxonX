@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Mapping
 
-from ...job.events import AgentBlockPatch
-
+from ..events import AgentBlockPatch
 
 if TYPE_CHECKING:
     from claude_agent_sdk import ContentBlock, SessionMessage
@@ -27,17 +26,14 @@ class ClaudeMessageProjector:
             "server_tool_use": "tool",
         }.get(block.get("type"))
 
-    @staticmethod
-    def _content(block: Mapping[str, Any], kind: str) -> str:
-        if kind == "text":
-            return str(block.get("text") or "")
-        if kind == "thinking":
-            return str(block.get("thinking") or "")
-        return ""
-
     def _start(self, block_id: str, kind: str, *, payload: dict[str, Any] | None = None) -> AgentBlockPatch:
         self._blocks[block_id] = {"kind": kind, "text": "", "finished": False}
         return AgentBlockPatch(operation="start", block_id=block_id, block_type=kind, payload=payload or {})
+
+    def _finish(self, block_id: str, **payload: Any) -> AgentBlockPatch:
+        state = self._blocks[block_id]
+        state["finished"] = True
+        return AgentBlockPatch(operation="finish", block_id=block_id, block_type=state["kind"], payload=payload)
 
     def project(self, message: Any) -> list[AgentBlockPatch]:
         from claude_agent_sdk import AssistantMessage, StreamEvent, UserMessage
@@ -71,9 +67,7 @@ class ClaudeMessageProjector:
         return []
 
     def _stream_start(self, message_uuid: str, index: int, event: Mapping[str, Any]) -> list[AgentBlockPatch]:
-        block = event.get("content_block")
-        if not isinstance(block, Mapping):
-            return []
+        block = event["content_block"]
         kind = self._kind(block)
         if kind is None:
             return []
@@ -94,7 +88,7 @@ class ClaudeMessageProjector:
             else {}
         )
         patches = [self._start(block_id, kind, payload=payload)]
-        text = self._content(block, kind)
+        text = block.get(kind, "") if kind != "tool" else ""
         if text:
             self._blocks[block_id]["text"] = text
             patches.append(AgentBlockPatch(operation="append", block_id=block_id, block_type=kind, delta=text))
@@ -102,9 +96,7 @@ class ClaudeMessageProjector:
 
     def _stream_delta(self, block_id: str, event: Mapping[str, Any]) -> list[AgentBlockPatch]:
         state = self._blocks[block_id]
-        delta = event.get("delta")
-        if not isinstance(delta, Mapping):
-            return []
+        delta = event["delta"]
         delta_type = delta.get("type")
         text = ""
         payload: dict[str, Any] = {}
@@ -139,8 +131,7 @@ class ClaudeMessageProjector:
                     payload={"status": "running"},
                 )
             ]
-        state["finished"] = True
-        return [AgentBlockPatch(operation="finish", block_id=block_id, block_type=state["kind"])]
+        return [self._finish(block_id)]
 
     def _assistant(self, message_uuid: str, content: list[ContentBlock]) -> list[AgentBlockPatch]:
         from claude_agent_sdk import (
@@ -193,8 +184,7 @@ class ClaudeMessageProjector:
                     )
                 )
             if kind in {"text", "thinking"} and not state["finished"]:
-                state["finished"] = True
-                patches.append(AgentBlockPatch(operation="finish", block_id=block_id, block_type=kind))
+                patches.append(self._finish(block_id))
         return patches
 
     def _tool_results(self, content: list[ContentBlock]) -> list[AgentBlockPatch]:
@@ -207,39 +197,24 @@ class ClaudeMessageProjector:
             block_id = block.tool_use_id
             if block_id not in self._blocks:
                 patches.append(self._start(block_id, "tool"))
-            state = self._blocks[block_id]
-            state["finished"] = True
             is_error = isinstance(block, ToolResultBlock) and bool(block.is_error)
             patches.append(
-                AgentBlockPatch(
-                    operation="finish",
-                    block_id=block_id,
-                    block_type="tool",
-                    payload={
-                        "tool_use_id": block_id,
-                        "result": block.content,
-                        "is_error": is_error,
-                        "status": "failed" if is_error else "succeeded",
-                    },
+                self._finish(
+                    block_id,
+                    tool_use_id=block_id,
+                    result=block.content,
+                    is_error=is_error,
+                    status="failed" if is_error else "succeeded",
                 )
             )
         return patches
 
     def finish_open(self, *, cancelled: bool = False) -> list[AgentBlockPatch]:
-        patches: list[AgentBlockPatch] = []
-        for block_id, state in self._blocks.items():
-            if state["finished"]:
-                continue
-            state["finished"] = True
-            patches.append(
-                AgentBlockPatch(
-                    operation="finish",
-                    block_id=block_id,
-                    block_type=state["kind"],
-                    payload={"status": "cancelled" if cancelled else "completed"},
-                )
-            )
-        return patches
+        return [
+            self._finish(block_id, status="cancelled" if cancelled else "completed")
+            for block_id, state in self._blocks.items()
+            if not state["finished"]
+        ]
 
 
 def history_blocks(messages: list[SessionMessage]) -> list[dict[str, Any]]:

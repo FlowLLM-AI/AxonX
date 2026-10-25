@@ -2,44 +2,37 @@
 
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import polars as pl
-from pydantic import Field, field_validator
 
-from ...enums import TaskType
-from ....common.fs import atomic_write, file_revision
-from ...schemas.reports import BacktestBenchmark, BacktestDimensions, BacktestUniverse, BacktestUniverseReport
-from ...contracts import BaseBacktestOutputParams, BaseBacktestTask, BaseInputParams
-from ...core import TaskStep, parse_source_tasks, task_type_from_id
-from ...schemas.protocol import STOCK_SIGNALS_FORMAT, task_protocol
-from ...schemas.prediction import PredictionProtocol
-from ...storage import artifact_record, read_metadata
-from ...storage.inputs import pin_source_artifacts
+from ....common.fs.atomic import atomic_write
+from ....common.fs.revision import file_revision
 from .data import KEYS
-from .engine import BacktestConfig, PortfolioPolicy, run_backtest
-from .settings import PortfolioSettings
-
-
-class StockPortfolioInput(PortfolioSettings, BaseInputParams):
-    input_file: Path | None = None
-    market_file: Path | None = None
-    calendar_file: Path | None = None
-    labels_file: Path | None = None
-    as_of_date: str | None = None
-
-    @field_validator("as_of_date", mode="before")
-    @classmethod
-    def cutoff(cls, value: object) -> str | None:
-        return BaseBacktestTask.normalize_yyyymmdd(value, optional=True)
-
-
-class StockBacktestInput(StockPortfolioInput):
-    holding_days: int = Field(default=1, ge=1)
-
-
-class StockBacktestOutput(BaseBacktestOutputParams):
-    signals_format: Literal["stock-signals-v1"]
+from .engine import PortfolioPolicy, run_backtest
+from .models import (
+    BacktestConfig,
+    PortfolioSettings,
+    StockBacktestInput,
+    StockBacktestOutput,
+)
+from ...core.standard import BaseBacktestTask
+from ...core.task import TaskStep
+from ...task_enums import TaskType
+from ...identity import parse_source_tasks, task_type_from_id
+from ...models.artifacts import (
+    STOCK_SIGNALS_FORMAT,
+    PredictionProtocol,
+    task_protocol,
+)
+from ...models.reports import (
+    BacktestBenchmark,
+    BacktestDimensions,
+    BacktestUniverse,
+    BacktestUniverseReport,
+)
+from ...storage.artifacts import artifact_record, read_metadata
+from ...storage.inputs import pin_source_artifacts
 
 
 class BaseStockBacktestTask(BaseBacktestTask):

@@ -6,12 +6,18 @@ from pathlib import Path
 
 from pydantic import TypeAdapter
 
-from axonx.app.components.agent.contracts import AgentHistoryBlock, AgentMutationResult, AgentSession, AgentSessionInfo
-from axonx.app.components.job.contracts import JobCatalog, JobInfo, JobResponse
-from axonx.app.components.job.events import AgentBlockPatch, AgentMessageEvent, ArtifactEvent, ResultEvent
-from axonx.app.config import StudioPage
+from axonx.app.components.agent.events import AgentBlockPatch, AgentMessageEvent
+from axonx.app.components.agent.models import (
+    AgentHistoryBlock,
+    AgentMutationResult,
+    AgentSession,
+    AgentSessionInfo,
+)
+from axonx.app.components.job.events import ArtifactEvent, ResultEvent
+from axonx.app.components.job.models import JobCatalog, JobInfo, JobResponse
+from axonx.app.config.models import StudioPage
 from axonx.app.core.build_info import BuildInfo
-from axonx.app.steps.machine.contracts import MachineInfo
+from axonx.app.steps.machine.models import MachineDiagnostics, MachineInfo
 from axonx.common.logs import LogChunk, LogEvent
 from axonx.common.workspace.models import (
     CsvPreview,
@@ -26,32 +32,41 @@ from axonx.common.workspace.models import (
     UnsupportedPreview,
     WorkspaceListing,
 )
-from axonx.task.builtins.stock.backtest import StockBacktestOutput
-from axonx.task.builtins.stock.data import StockETLOutput
-from axonx.task.catalog.resolver import TaskDefinition
-from axonx.task.contracts import (
+from axonx.task.builtins.stock.models import StockBacktestOutput, StockETLOutput
+from axonx.task.events import ProgressEvent
+from axonx.task.models.artifacts import ArtifactRecord
+from axonx.task.models.lifecycle import TaskMetadata, TaskStepStatus
+from axonx.task.models.params import (
     BaseAnalysisOutputParams,
     BaseBacktestOutputParams,
     BaseETLOutputParams,
+    BasePredictionCompareOutputParams,
     BasePredictOutputParams,
     BaseTrainOutputParams,
+    PredictionComparison,
+    TrainingCurve,
+)
+from axonx.task.models.query import (
+    TaskContextSnapshot,
+    TaskDefinition,
+    TaskGraph,
+    TaskSummary,
+)
+from axonx.task.models.reports import (
     OnlineCommit,
     OnlineHistory,
     StockOnlineReport,
     StockReportSettings,
-    TrainingCurve,
+)
+from axonx.task.models.windows import (
+    BaseInferenceOutputParams,
+    WindowOutputParams,
     WindowResult,
 )
-from axonx.task.contracts.compare import BasePredictionCompareOutputParams, PredictionComparison
-from axonx.task.contracts.inference import BaseInferenceOutputParams
-from axonx.task.contracts.windows import WindowOutputParams
-from axonx.task.query.graph import TaskGraph
-from axonx.task.query.summary import TaskSummary
-from axonx.task.schemas.artifact import ArtifactRecord
-from axonx.task.schemas.lifecycle import TaskMetadata
-from axonx.task.schemas.progress import ProgressEvent, TaskStepStatus
 
 MODELS = [
+    TaskContextSnapshot,
+    MachineDiagnostics,
     StudioPage,
     TaskSummary,
     TaskGraph,

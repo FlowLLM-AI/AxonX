@@ -9,13 +9,12 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from ...common.constants import AXONX_DEFAULT_ENCODING
-from ..enums import TaskType
-from ...common.fs import atomic_write_json
-from ..core.identity import task_type_from_id
-from ..schemas.lifecycle import ChildTaskRecord, TaskMetadata, TaskStatus
-from ..schemas.protocol import Protocol
-from ..schemas.replica import DisplayReplica
-from ..schemas.progress import TaskStepStatus
+from ...common.fs.atomic import atomic_write_json
+from ..task_enums import TaskType
+from ..identity import task_type_from_id
+from ..models.lifecycle import (
+    TaskMetadata,
+)
 
 #: One workspace directory per task category holds that category's task directories.
 KINDS = tuple(kind.value for kind in TaskType)
@@ -198,30 +197,3 @@ def task_record_id_from_path(root: Path, raw_path: str) -> str | None:
     elif len(parts) != 2:
         return None
     return task_id_from_path(root, raw_path)
-
-
-__all__ = [
-    "KINDS",
-    "PERSISTENT_DIR",
-    "METADATA_FILE",
-    "EVENTS_FILE",
-    "ChildTaskRecord",
-    "TaskMetadata",
-    "TaskStatus",
-    "Protocol",
-    "DisplayReplica",
-    "TaskStepStatus",
-    "task_directory",
-    "task_path",
-    "parse_task_directory",
-    "kind_directories",
-    "ensure_kind_directories",
-    "is_task_directory",
-    "reset_task_directory",
-    "read_entry",
-    "scan_entries",
-    "read_task_metadata",
-    "write_task_metadata",
-    "task_id_from_path",
-    "task_record_id_from_path",
-]

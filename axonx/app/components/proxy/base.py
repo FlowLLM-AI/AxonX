@@ -7,8 +7,8 @@ from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, S
 from dataclasses import dataclass
 from typing import ClassVar
 
-from ..types import ComponentEnum
 from ..base import BaseComponent
+from ..component_type import ComponentType
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,7 +62,7 @@ class ProxyUpstreamTimeoutError(ProxyUpstreamError):
 class BaseProxyComponent(BaseComponent, ABC):
     """Define the request-forwarding contract for proxy backends."""
 
-    component_type = ComponentEnum.PROXY
+    component_type = ComponentType.PROXY
 
     @abstractmethod
     async def forward(

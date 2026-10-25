@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from abc import ABC
 
-from ....common.registry import provider
-from ...components.agent.contracts import AgentMutationResult
-from ...components.types import ComponentEnum
+from ...components.agent.models import AgentMutationResult
+from ...components.component_type import ComponentType
 from ..base import BaseStep
+from ....common.registry import provider
 
 
 class AgentSessionStep(BaseStep, ABC):
-    component_domains = (ComponentEnum.AGENT,)
+    component_domains = (ComponentType.AGENT,)
 
 
 @provider("list_agent_sessions_step")

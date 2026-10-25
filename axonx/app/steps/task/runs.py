@@ -3,10 +3,10 @@
 import asyncio
 from pathlib import Path
 
+from ..base import BaseStep
 from ....common.registry import provider
 from ....common.workspace.models import WorkspaceListing
 from ....task.storage.workspace import METADATA_FILE
-from ..base import BaseStep
 
 
 def _is_task_run(path: Path, entry: dict) -> bool:

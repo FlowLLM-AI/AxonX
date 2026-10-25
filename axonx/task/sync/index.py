@@ -4,12 +4,12 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 
-from ..constants import TASK_NAME_PATTERN
 from ...common.logging import get_logger
-from ..schemas.protocol import fingerprint
+from ..constants import TASK_NAME_PATTERN
+from ..models.artifacts import fingerprint
 from ..storage.workspace import read_entry, scan_entries, task_path
-from .planner import plan_task
 from .errors import SnapshotChangedError
+from .planner import plan_task
 
 
 def validate_task_names(values: Sequence[str] | None) -> frozenset[str]:
@@ -94,7 +94,7 @@ def snapshot_index(root: Path, task_names: frozenset[str], roots: frozenset[str]
 
 
 def validate_live_task_ids(values) -> frozenset[str]:
-    from ..core.identity import task_type_from_id
+    from ..identity import task_type_from_id
 
     if values is not None and not isinstance(values, (list, tuple, set, frozenset)):
         raise ValueError("live_task_ids must be a list of Task IDs")

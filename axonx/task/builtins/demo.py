@@ -1,8 +1,9 @@
 """Small built-in Task used to demonstrate synchronous execution."""
 
 from ...common.registry import provider
-from ..core import BaseInputParams, BaseOutputParams, BaseTask
-from ..enums import TaskType
+from ..core.task import BaseTask
+from ..task_enums import TaskType
+from ..models.params import BaseInputParams, BaseOutputParams
 
 
 class DemoTaskInputParams(BaseInputParams):

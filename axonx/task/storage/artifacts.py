@@ -5,11 +5,14 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from ...common.constants import AXONX_DEFAULT_ENCODING
-from ..enums import TaskState, TaskType
-from ...common.fs import file_revision
-from ..schemas.protocol import task_protocol, validate_protocol
-from ..schemas.prediction import PredictionProtocol
-from ..schemas.artifact import ArtifactRecord
+from ...common.fs.revision import file_revision
+from ..task_enums import TaskState, TaskType
+from ..models.artifacts import (
+    ArtifactRecord,
+    PredictionProtocol,
+    task_protocol,
+    validate_protocol,
+)
 
 
 def read_metadata(path: Path) -> dict:

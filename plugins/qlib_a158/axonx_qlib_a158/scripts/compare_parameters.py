@@ -6,15 +6,17 @@ import math
 from pathlib import Path
 
 import polars as pl
-from axonx_qlib_a158.backtest import Alpha158BacktestTask
-from axonx_qlib_a158.predict import LgbmPredictTask
-from axonx_qlib_a158.train import LgbmTrainTask
 
-from axonx.task.enums import TaskState
+from axonx.common.fs.atomic import atomic_write
+from axonx.common.fs.revision import file_revision
+from axonx.task.task_enums import TaskState
 from axonx.task.runtime.runner import TaskRunner
-from axonx.task.storage import read_metadata
+from axonx.task.storage.artifacts import read_metadata
 from axonx.task.storage.workspace import task_path
-from axonx.common.fs import atomic_write, file_revision
+
+from ..backtest import Alpha158BacktestTask
+from ..predict import LgbmPredictTask
+from ..train import LgbmTrainTask
 
 
 def run_comparison(options: argparse.Namespace) -> dict:

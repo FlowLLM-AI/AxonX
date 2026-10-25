@@ -20,6 +20,7 @@ from .session_store import (
     AgentSessionListKey,
     AgentSessionSummary,
 )
+from ....common.async_work import run_blocking
 
 _KEY_PART = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -63,12 +64,7 @@ class LocalAgentSessionStore:
     async def _io[T](self, key: AgentSessionListKey, operation: Callable[[], T]) -> T:
         # Keep the session locked until disk work ends, including after caller cancellation.
         async with self._locks[self._session_dir(key["project_key"], key["session_id"])]:
-            pending = asyncio.create_task(asyncio.to_thread(operation))
-            try:
-                return await asyncio.shield(pending)
-            except asyncio.CancelledError:
-                await pending
-                raise
+            return await run_blocking(operation)
 
     @staticmethod
     def _read(path: Path) -> list[AgentSessionEntry] | None:

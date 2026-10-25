@@ -12,7 +12,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
-from .contracts import GpuInfo
+from .models import GpuInfo
 
 NVIDIA_COLUMNS = (
     "index",

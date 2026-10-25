@@ -1,46 +1,18 @@
 """Portable, revision-checked event files and a synchronous replay driver."""
 
+import hashlib
+import tempfile
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
-import hashlib
 from pathlib import Path
-import tempfile
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
-
-from ..common.fs import atomic_write_json, file_revision, snapshot_file
-from .schemas.artifact import ArtifactRecord
+from ..common.fs.atomic import atomic_write_json
+from ..common.fs.revision import file_revision
+from ..common.fs.snapshot import snapshot_file
 from .core.clock import ReplayClock
-
-
-class ReplayFile(ArtifactRecord):
-    """Use the framework's shared relative-path, size and digest contract."""
-
-
-class ReplayEvent(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    key: str = Field(min_length=1)
-    available_at: AwareDatetime
-    files: dict[str, ReplayFile]
-    attributes: dict[str, Any] = Field(default_factory=dict)
-
-
-class ReplayManifest(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    version: Literal[1] = 1
-    kind: Literal["event_stream"] = "event_stream"
-    events: list[ReplayEvent] = Field(min_length=1)
-    context: dict[str, ReplayFile] = Field(default_factory=dict)
-    attributes: dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def ordered(self):
-        times = [event.available_at for event in self.events]
-        if times != sorted(times):
-            raise ValueError("Replay events must be ordered by availability")
-        return self
+from .models.artifacts import ArtifactRecord, ReplayEvent, ReplayManifest
 
 
 @dataclass(frozen=True)
@@ -67,7 +39,7 @@ class ReplayStream:
             for record in event.files.values():
                 self.file(record)
 
-    def file(self, record: ReplayFile) -> Path:
+    def file(self, record: ArtifactRecord) -> Path:
         path = (self.root / record.path).resolve(strict=True)
         if Path(record.path).is_absolute() or not path.is_relative_to(self.root):
             raise ValueError("Replay file escapes stream directory")
@@ -99,7 +71,7 @@ class ReplayStream:
                 counter += 1
                 target = root / "files" / f"{counter:06d}{Path(source).suffix}"
                 snapshot_file(source, target, isolated=True)
-                return ReplayFile(
+                return ArtifactRecord(
                     path=target.relative_to(root).as_posix(),
                     revision=file_revision(target),
                     size=target.stat().st_size,

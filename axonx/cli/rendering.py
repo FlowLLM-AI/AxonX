@@ -23,8 +23,8 @@ from ..common.constants import (
 
 if TYPE_CHECKING:
     from ..app.components.job.events import JobEvent
-    from ..app.components.service import BaseService
-    from ..app.config import ApplicationConfig
+    from ..app.components.service.base import BaseService
+    from ..app.config.models import ApplicationConfig
 
 
 def _version(package_name: str) -> str:
@@ -102,7 +102,7 @@ def print_json(value: object) -> None:
 
 def _event_blocks(event: JobEvent) -> list[tuple[str, object]]:
     """Split one event into labelled blocks without dropping message fields."""
-    from ..app.components.job.events import AgentMessageEvent
+    from ..app.components.agent.events import AgentMessageEvent
 
     if not isinstance(event, AgentMessageEvent):
         return [(type(event).__name__, event.model_dump(mode="json"))]

@@ -2,9 +2,9 @@
 
 import asyncio
 
-from ...components.client import HttpClient
-from ...config import TargetConfig
-from .contracts import MachineHealth
+from ...components.client.http import HttpClient
+from ...config.models import TargetConfig
+from .models import MachineHealth
 
 HEALTH_TIMEOUT_SECONDS = 5.0
 

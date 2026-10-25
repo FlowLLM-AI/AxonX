@@ -1,44 +1,26 @@
 """Resolve executable Tasks from plugins and AxonX's registry."""
 
-from importlib import import_module
 from inspect import cleandoc
-from typing import Any, Literal
-
-from pydantic import BaseModel, ConfigDict
 
 from ...common.registry import ProviderRegistry
-from ...plugin import index_contributions, list_installed_plugins
+from ...plugin.contributions import index_contributions
+from ...plugin.discovery import list_installed_plugins
 from ...plugin.loading import load_symbol
+from ..builtins.demo import DemoTask
+from ..builtins.dingtalk import SendDingTalkTask
+from ..builtins.tushare import DownloadTushareTask
 from ..core.task import BaseTask
-from ..enums import TaskCategory, TaskType
+from ..task_enums import TaskType
+from ..models.query import TaskDefinition, TaskInfo
 
-
-class TaskInfo(BaseModel):
-    """Describe an installed Task without generating parameter schemas."""
-
-    model_config = ConfigDict(frozen=True)
-    name: str
-    source: Literal["native", "plugin"]
-    plugin: str | None = None
-    category: TaskCategory | None = None
-    task_type: TaskType
-    description: str
-
-
-class TaskDefinition(TaskInfo):
-    """An installed Task with its complete input and output schemas."""
-
-    input_schema: dict[str, Any]
-    output_schema: dict[str, Any]
+BUILTIN_TASKS = (DemoTask, SendDingTalkTask, DownloadTushareTask)
 
 
 def _task_catalog(
     name: str | None = None,
 ) -> dict[str, tuple[type[BaseTask], str | None]]:
     """Discover registrations, then load all Tasks or only the requested one."""
-    import_module("axonx.task.builtins")
-
-    native = ProviderRegistry.from_builtins().get_all("task", BaseTask)
+    native = ProviderRegistry(BUILTIN_TASKS).get_all("task", BaseTask)
     plugins = index_contributions(list_installed_plugins())
     duplicates = native.keys() & plugins.tasks.keys()
     if duplicates:

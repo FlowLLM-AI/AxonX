@@ -1,6 +1,17 @@
 """Causal context ETL and feature-selecting Alpha158 training."""
 
-from .etl import Alpha158InputParams, Alpha158Task
+from axonx_qlib_a158.etl import Alpha158InputParams
+from axonx_qlib_a158.train import MODEL_LABELS, LgbmTrainOutputParams
+
+from .etl import Alpha158OutputParams, Alpha158Task
 from .train import LgbmTrainInputParams, LgbmTrainTask
 
-__all__ = ["Alpha158InputParams", "Alpha158Task", "LgbmTrainInputParams", "LgbmTrainTask"]
+__all__ = [
+    "Alpha158InputParams",
+    "Alpha158OutputParams",
+    "Alpha158Task",
+    "LgbmTrainInputParams",
+    "LgbmTrainOutputParams",
+    "LgbmTrainTask",
+    "MODEL_LABELS",
+]

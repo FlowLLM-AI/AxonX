@@ -5,18 +5,17 @@ from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, ClassVar
 
 from ..components.base import ComponentBase
+from ..components.component_type import ComponentType
 from ..components.job.events import JobEvent
-from ..components.types import ComponentEnum
 
 
 class BaseStep(ComponentBase, ABC):
     """Run one asynchronous operation against a per-job context."""
 
-    component_type = ComponentEnum.STEP
+    component_type = ComponentType.STEP
 
-    #: Component-backed steps opt in to exactly the domains they use. Keeping
-    #: this empty makes irrelevant options fail as configuration errors.
-    component_domains: ClassVar[tuple[ComponentEnum, ...]] = ()
+    #: Component-backed steps opt in to exactly the domains they use.
+    component_domains: ClassVar[tuple[ComponentType, ...]] = ()
 
     #: System-owned context fields this Step requires, by name and JSON schema.
     #: PipelineJob validates them separately, so they never enter the caller's
@@ -28,7 +27,7 @@ class BaseStep(ComponentBase, ABC):
         self.context = None
         self._emit: Callable[[JobEvent], Awaitable[None]] | None = None
 
-    def _component(self, component_type: ComponentEnum):
+    def _component(self, component_type: ComponentType):
         """Return the component of one domain this step was configured to drive."""
         name = self._component_names[component_type]
         try:
@@ -40,17 +39,17 @@ class BaseStep(ComponentBase, ABC):
     @property
     def agent_wrapper(self):
         """Return the agent backend this step drives."""
-        return self._component(ComponentEnum.AGENT)
+        return self._component(ComponentType.AGENT)
 
     @property
     def sync(self):
         """Return the workspace sync backend this step drives."""
-        return self._component(ComponentEnum.SYNC)
+        return self._component(ComponentType.SYNC)
 
     @property
-    def task_repository(self):
-        """Return the Task repository this step drives."""
-        return self._component(ComponentEnum.TASK_REPOSITORY)
+    def task_index(self):
+        """Return the Task index this step drives."""
+        return self._component(ComponentType.TASK_INDEX)
 
     @property
     def response(self):
@@ -62,12 +61,7 @@ class BaseStep(ComponentBase, ABC):
         context,
         emit: Callable[[JobEvent], Awaitable[None]] | None = None,
     ):
-        """Run this step, publishing any events it emits to ``emit``.
-
-        ``emit`` is an invocation parameter rather than job configuration, so a
-        step's schema never grows a field for it. A step that writes only to
-        ``self.response`` — which is all of them today — ignores it entirely.
-        """
+        """Run this step with an invocation-scoped event sink."""
         self.context = context
         self._emit = emit
         try:

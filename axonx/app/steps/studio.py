@@ -1,7 +1,7 @@
 """Application-defined Studio navigation."""
 
-from ...common.registry import provider
 from .base import BaseStep
+from ...common.registry import provider
 
 
 @provider("list_studio_pages_step")

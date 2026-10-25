@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
+from .component_type import ComponentType
+from ..config.models import ApplicationConfig
 from ...common.logging import get_logger
 from ...common.registry import component_type_name
 from ...common.workspace import Workspace
-from ..config import ApplicationConfig
-from .types import ComponentEnum
 
 if TYPE_CHECKING:
     from ..core.context import ApplicationContext
@@ -21,8 +20,8 @@ if TYPE_CHECKING:
 class ComponentBase:
     """Common identity, configuration, logging, and application access."""
 
-    component_type = ComponentEnum.BASE
-    component_domains: ClassVar[tuple[ComponentEnum, ...]] = ()
+    component_type = ComponentType.BASE
+    component_domains: ClassVar[tuple[ComponentType, ...]] = ()
 
     def __init__(
         self,
@@ -40,9 +39,7 @@ class ComponentBase:
 
     @property
     def workspace(self) -> Workspace:
-        if self.app_context is None:
-            return Workspace(Path.cwd())
-        return self.app_context.workspace
+        return self._require_context().workspace
 
     @property
     def workspace_path(self) -> Path:
@@ -50,14 +47,15 @@ class ComponentBase:
 
     @property
     def app_config(self) -> ApplicationConfig:
-        if self.app_context is None:
-            raise RuntimeError("Application config requires an application context")
-        return self.app_context.app_config
+        return self._require_context().app_config
 
     def get_component(self, component_type, name: str = "default"):
+        return self._require_context().components[component_type_name(component_type)][name]
+
+    def _require_context(self) -> ApplicationContext:
         if self.app_context is None:
-            raise RuntimeError("Component access requires an application context")
-        return self.app_context.components[component_type_name(component_type)][name]
+            raise RuntimeError(f"{self.name} requires an application context")
+        return self.app_context
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,7 +97,7 @@ class BaseComponent(ComponentBase):
             setattr(self, attribute, None)
             return
         component_type = component_type_name(base_cls.component_type)
-        if component_type == ComponentEnum.BASE.value:
+        if component_type == ComponentType.BASE.value:
             raise TypeError(f"{base_cls.__name__} must declare a non-BASE component_type")
         self._dependencies[attribute] = DependencySpec(
             attribute=attribute,
@@ -112,24 +110,6 @@ class BaseComponent(ComponentBase):
     @property
     def dependencies(self) -> tuple[DependencySpec, ...]:
         return tuple(self._dependencies.values())
-
-    def inject_dependencies(
-        self,
-        components: Mapping[tuple[str, str], BaseComponent],
-    ) -> None:
-        """Bind every declared dependency after graph validation succeeds."""
-        for dependency in self._dependencies.values():
-            target = components.get((dependency.component_type, dependency.name))
-            if target is None and dependency.required:
-                raise RuntimeError(
-                    "Validated dependency disappeared: " f"{dependency.component_type}:{dependency.name}"
-                )
-            if target is not None and not isinstance(target, dependency.expected_type):
-                raise TypeError(
-                    f"Dependency {dependency.component_type}:{dependency.name} must be "
-                    f"a {dependency.expected_type.__name__}"
-                )
-            setattr(self, dependency.attribute, target)
 
     async def start(self) -> None:
         """Start once, preserving both startup and rollback failures."""

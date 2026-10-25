@@ -1,6 +1,9 @@
 """Read-only Task query steps."""
 
-from .catalog import GetTaskDefinitionStep, ListInstalledTaskDefinitionsStep
+from .catalog import (
+    GetTaskDefinitionStep,
+    ListInstalledTaskDefinitionsStep,
+)
 from .query import (
     GetTaskGraphStep,
     GetTaskStatusStep,

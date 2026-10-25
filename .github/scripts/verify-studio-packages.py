@@ -1,11 +1,11 @@
 """Verify Studio versions and identical static assets across distributions."""
 
 import argparse
-from email.parser import BytesParser
 import json
-from pathlib import Path
 import tarfile
 import tomllib
+from email.parser import BytesParser
+from pathlib import Path
 from zipfile import ZipFile
 
 from packaging.version import Version

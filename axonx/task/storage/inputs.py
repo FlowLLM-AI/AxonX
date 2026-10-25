@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
-from ..enums import TaskState
+from ...common.fs.revision import file_revision
+from ...common.fs.snapshot import snapshot_file
+from ..task_enums import TaskState
 from .artifacts import artifact_path, artifact_record
+from .model_collections import snapshot_model_collection
 from .workspace import read_task_metadata
-from ...common.fs import file_revision, snapshot_file
-
-from .models import snapshot_model_collection
 
 
 def artifacts(root: Path, **paths: Path | None) -> dict:

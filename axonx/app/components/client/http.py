@@ -11,9 +11,9 @@ from urllib.parse import quote
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from ....common.connection import AXONX_CLI_REQUEST_ID
-from ....common.constants import AXONX_DEFAULT_REQUEST_TIMEOUT
-from ....common.workspace.models import StagedFile
+from .base import BaseClient, RemoteServiceError
+from ..job.events import JOB_EVENT_ADAPTER, JobEvent, ResultEvent
+from ..job.models import JobCatalog, JobInfo, JobResponse
 from ...protocol import (
     PROTOCOL_AUTH_HEADER,
     PROTOCOL_AUTH_SCHEME,
@@ -28,9 +28,9 @@ from ...protocol import (
     PROTOCOL_SSE_DATA_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
-from ..job.contracts import JobCatalog, JobInfo, JobResponse
-from ..job.events import JOB_EVENT_ADAPTER, JobEvent, ResultEvent
-from .base import BaseClient, RemoteServiceError
+from ....common.connection import AXONX_CLI_REQUEST_ID
+from ....common.constants import AXONX_DEFAULT_REQUEST_TIMEOUT
+from ....common.workspace.models import StagedFile
 
 _UPLOAD_CHUNK_BYTES = 1024 * 1024
 PayloadT = TypeVar("PayloadT", bound=BaseModel)
@@ -64,9 +64,8 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         timeout: float = AXONX_DEFAULT_REQUEST_TIMEOUT,
         token: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(target=target, timeout=timeout, token=token, **kwargs)
+        super().__init__(target=target, timeout=timeout, token=token)
         self._transport = transport
 
     async def _connect(self) -> httpx.AsyncClient:
@@ -96,20 +95,25 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
             response = await self._require_client().request(method, endpoint, **request)
         except httpx.HTTPError as exc:
             raise self._transport_error("request", endpoint, exc) from exc
+        self._check_status(response)
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise RemoteServiceError("Remote service returned an invalid response envelope") from exc
+        return self._parse_response(payload)
+
+    @staticmethod
+    def _check_status(response: httpx.Response) -> None:
         if not response.is_success:
             raise RemoteServiceError(
                 f"Remote request was rejected: {_error_detail(response)}",
                 status_code=response.status_code,
             )
-        try:
-            return JobResponse.model_validate_json(response.content)
-        except ValidationError as exc:
-            raise RemoteServiceError("Remote service returned an invalid response envelope") from exc
 
     @staticmethod
     def _payload(response: JobResponse, model: type[PayloadT]) -> PayloadT:
         try:
-            return model.model_validate(response.answer)
+            return model.model_validate(response.answer, strict=True)
         except ValidationError as exc:
             raise RemoteServiceError(f"Remote service returned an invalid {model.__name__} payload") from exc
 
@@ -136,17 +140,17 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
             ) as response:
                 if not response.is_success:
                     await response.aread()
-                    raise RemoteServiceError(
-                        f"Remote request was rejected: {_error_detail(response)}",
-                        status_code=response.status_code,
-                    )
+                    self._check_status(response)
                 if not response.headers.get("content-type", "").startswith(PROTOCOL_SSE_MEDIA_TYPE):
                     raise RemoteServiceError("Remote service returned a non-event stream response")
                 async for line in response.aiter_lines():
                     if line.startswith(PROTOCOL_SSE_DATA_PREFIX):
                         try:
-                            event = JOB_EVENT_ADAPTER.validate_json(line[len(PROTOCOL_SSE_DATA_PREFIX) :])
-                        except ValidationError as exc:
+                            payload = json.loads(line[len(PROTOCOL_SSE_DATA_PREFIX) :])
+                            event = JOB_EVENT_ADAPTER.validate_python(payload, strict=True)
+                            if isinstance(event, ResultEvent):
+                                self._parse_response(payload)
+                        except ValueError as exc:
                             raise RemoteServiceError("Remote service returned an invalid stream event") from exc
                         yield event
                         if isinstance(event, ResultEvent):
@@ -160,11 +164,12 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         return self._payload(response, JobCatalog).items
 
     async def health(self) -> bool:
+        self._require_client()
         try:
             response = await self._response("GET", PROTOCOL_ROUTE_HEALTH)
         except RemoteServiceError:
             return False
-        return isinstance(response.answer, dict) and response.answer.get("running") is True
+        return response.success and isinstance(response.answer, dict) and response.answer.get("running") is True
 
     async def copy_file(
         self,

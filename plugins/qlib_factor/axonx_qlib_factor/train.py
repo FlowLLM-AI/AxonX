@@ -1,21 +1,10 @@
 """Factor-aware Alpha158 training reuses the baseline model lifecycle."""
 
+from axonx_qlib_a158.train import LgbmTrainInputParams as BaseTrainInput
+from axonx_qlib_a158.train import LgbmTrainTask as BaseTrainTask
 from pydantic import Field, field_validator
-from axonx_qlib_a158.train import (
-    LgbmTrainInputParams as BaseTrainInput,
-    LgbmTrainOutputParams,
-    LgbmTrainTask as BaseTrainTask,
-    MODEL_LABELS,
-)
 
 from .internal.cross_section import CONTEXT_FEATURES, PREFIX, WINDOWS, selected_features
-
-__all__ = [
-    "LgbmTrainInputParams",
-    "LgbmTrainOutputParams",
-    "LgbmTrainTask",
-    "MODEL_LABELS",
-]
 
 
 class LgbmTrainInputParams(BaseTrainInput):

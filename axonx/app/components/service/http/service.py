@@ -6,14 +6,14 @@ import signal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..base import BaseService
 from .....common.constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
 from .....common.registry import provider
-from ..base import BaseService
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
-    from ....core import Application
+    from ....core.application import Application
 
 
 @provider("http")
@@ -58,7 +58,10 @@ class HttpService(BaseService):
         """Serve the application with Uvicorn until shutdown."""
         import uvicorn
 
-        from .shutdown import ShutdownDeadline, ShutdownServer
+        from .shutdown import (
+            ShutdownDeadline,
+            ShutdownServer,
+        )
 
         deadline = ShutdownDeadline(app, self.cleanup_timeout)
         self._shutdown_deadline = deadline

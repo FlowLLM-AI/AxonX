@@ -3,14 +3,14 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from ..types import ComponentEnum
 from ..base import BaseComponent
+from ..component_type import ComponentType
 
 
 class BaseService(BaseComponent, ABC):
     """Define construction and execution of an application service."""
 
-    component_type = ComponentEnum.SERVICE
+    component_type = ComponentType.SERVICE
 
     @abstractmethod
     def build_service(self, app) -> Any:

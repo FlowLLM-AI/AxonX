@@ -1,12 +1,15 @@
 """Flush changes queued by a workspace sync component."""
 
+from ...components.component_type import ComponentType
+from ..base import BaseStep
 from ....common.registry import provider
-from .base import SyncBackendStep
 
 
 @provider("sync_flush_step")
-class SyncFlushStep(SyncBackendStep):
+class SyncFlushStep(BaseStep):
     """Run one bounded sync round; scheduling remains configuration policy."""
+
+    component_domains = (ComponentType.SYNC,)
 
     async def execute(self):
         self.response.answer = await self.sync.flush()

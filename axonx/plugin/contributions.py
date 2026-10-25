@@ -1,14 +1,6 @@
 """Validate Task names contributed by installed plugins."""
 
-from dataclasses import dataclass
-
-from .models import PluginInfo
-
-
-@dataclass(frozen=True, slots=True)
-class PluginContributions:
-    tasks: dict[str, str]
-    task_owners: dict[str, str]
+from .models import PluginContributions, PluginInfo
 
 
 def index_contributions(plugins: list[PluginInfo]) -> PluginContributions:

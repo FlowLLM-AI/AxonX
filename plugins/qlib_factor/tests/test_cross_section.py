@@ -5,8 +5,6 @@ from datetime import date, timedelta
 import numpy as np
 import polars as pl
 import pytest
-from polars.testing import assert_frame_equal
-
 from axonx_qlib_a158.internal.etl_pipeline import FEATURES
 from axonx_qlib_factor.internal.cross_section import (
     CONTEXT_FEATURES,
@@ -16,6 +14,7 @@ from axonx_qlib_factor.internal.cross_section import (
     calculate_context,
     selected_features,
 )
+from polars.testing import assert_frame_equal
 
 
 def panel(days=20):

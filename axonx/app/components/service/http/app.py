@@ -11,10 +11,12 @@ from fastmcp.utilities.lifespan import combine_lifespans
 from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
 
-from .....common.connection import normalize_target
-from .....common.constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_ENCODING
-from .....daemon import client as daemon
-from .....daemon.update_worker import versions
+from ...client.base import RemoteServiceError
+from .files import create_files_router
+from .jobs import create_jobs_router, create_mcp_server
+from .proxy import create_proxy_router
+from .studio import mount_studio, resolve_studio_dir
+from ...updater.manager import RESPONSE_CALLBACKS
 from ....protocol import (
     AXONX_SERVICE_TARGET,
     PROTOCOL_AUTH_HEADER,
@@ -23,12 +25,14 @@ from ....protocol import (
     PROTOCOL_CLI_REQUEST_HEADER,
     PROTOCOL_ROUTE_MCP,
 )
-from ...client.base import RemoteServiceError
-from ...updater.manager import RESPONSE_CALLBACKS
-from .files import create_files_router
-from .jobs import create_jobs_router, create_mcp_server
-from .proxy import create_proxy_router
-from .studio import mount_studio, resolve_studio_dir
+from .....common.connection import normalize_target
+from .....common.constants import (
+    AXONX_DEFAULT_BIND_HOST,
+    AXONX_DEFAULT_CONNECT_HOST,
+    AXONX_DEFAULT_ENCODING,
+)
+from .....daemon import client as daemon
+from .....daemon.update_worker import versions
 
 
 class _ProtocolAuthMiddleware:

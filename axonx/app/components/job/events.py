@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 
-from ..agent.contracts import AgentBlockType
+from ..agent.events import AgentMessageEvent
+from .models import JobResponse
 from ....common.logs import LogEvent
-from ....task.schemas.progress import ProgressEvent
-from .contracts import JobResponse
+from ....task.events import ProgressEvent
 
 
 class ArtifactEvent(BaseModel):
@@ -20,24 +21,6 @@ class ArtifactEvent(BaseModel):
     size: int = 0
     media_type: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
-
-
-class AgentBlockPatch(BaseModel):
-    operation: Literal["start", "append", "replace", "finish"]
-    block_id: str = Field(min_length=1)
-    block_type: AgentBlockType
-    delta: str = ""
-    payload: dict[str, Any] = Field(default_factory=dict)
-
-
-class AgentMessageEvent(BaseModel):
-    kind: Literal["agent_message"] = "agent_message"
-    session_id: str = Field(min_length=1)
-    type_name: str
-    message_uuid: str
-    role: Literal["user", "assistant", "system"]
-    sequence: int = Field(ge=0)
-    presentation: list[AgentBlockPatch] = Field(default_factory=list)
 
 
 class ResultEvent(JobResponse):
@@ -68,10 +51,8 @@ JOB_EVENT_ADAPTER: TypeAdapter[JobEvent] = TypeAdapter(JobEvent)
 
 async def fold_events(events: AsyncIterator[JobEvent]) -> JobResponse:
     """Fold a Job event stream into its final response."""
-    terminal: ResultEvent | None = None
-    async for event in events:
-        if isinstance(event, ResultEvent):
-            terminal = event
-    if terminal is None:
-        return JobResponse(answer="Stream produced no terminal result", success=False)
-    return terminal.response()
+    async with aclosing(events) as stream:
+        async for event in stream:
+            if isinstance(event, ResultEvent):
+                return event.response()
+    return JobResponse(answer="Stream produced no terminal result", success=False)

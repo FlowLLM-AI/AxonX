@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
-from ..schemas.progress import ProgressEvent
 from ...common.constants import AXONX_DEFAULT_ENCODING
-from ..schemas.progress import TaskStepStatus
+from ..events import ProgressEvent
+from ..models.lifecycle import TaskStepStatus
 
 LOG_WINDOW_BYTES = 65_536
 
