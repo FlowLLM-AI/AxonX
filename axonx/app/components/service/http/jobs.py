@@ -11,9 +11,6 @@ from fastmcp.tools import FunctionTool
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.responses import StreamingResponse
 
-from ...client.http import HttpClient
-from ...job.events import JobEvent, ResultEvent
-from ...job.models import JobCatalog, JobResponse
 from ....protocol import (
     PROTOCOL_ROUTE_HEALTH,
     PROTOCOL_ROUTE_JOB,
@@ -23,6 +20,9 @@ from ....protocol import (
     PROTOCOL_SSE_EVENT_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
+from ...client.http import HttpClient
+from ...job.events import JobEvent, ResultEvent
+from ...job.models import JobCatalog, JobResponse
 
 
 class JobInvocation(BaseModel):

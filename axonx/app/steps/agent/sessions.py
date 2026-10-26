@@ -6,8 +6,8 @@ from abc import ABC
 
 from ...components.agent.models import AgentMutationResult
 from ...components.component_type import ComponentType
-from ..base import BaseStep
 from ...registry import provider
+from ..base import BaseStep
 
 
 class AgentSessionStep(BaseStep, ABC):

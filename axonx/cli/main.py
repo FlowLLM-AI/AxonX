@@ -8,15 +8,15 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from ..app.connection import AXONX_CLI_REQUEST_ID
+from ..task.models.events import LogEvent
+from ..task.runtime.settings import ExecutionSettings
+from ..utils.env import load_env
+from ..utils.logging import LoggingConfig, configure_logging
 from .options import ClientOptions
 from .parser import Command, parse_command, validate_cron_command
 from .rendering import print_event_blocks, print_json
 from .usage import CLI_USAGE
-from ..app.connection import AXONX_CLI_REQUEST_ID
-from ..common.env import load_env
-from ..common.logging import LoggingConfig, configure_logging
-from ..task.models.logs import LogEvent
-from ..task.runtime.settings import ExecutionSettings
 
 # Defaults affect CLI queries only; callers can explicitly request complete records.
 _QUERY_DEFAULTS = {
@@ -86,7 +86,7 @@ def _execution_config() -> ExecutionSettings:
 
 
 def _run_kill(command: Command) -> int:
-    from ..task.storage.records import kill_task
+    from ..task.runtime.lifecycle import kill_task
 
     arguments = dict(command.arguments)
     config = _execution_config()

@@ -7,11 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from .component_type import ComponentType
+from ...utils.logging import get_logger
 from ..config.models import ApplicationConfig
-from ...common.logging import get_logger
 from ..registry import component_type_name
 from ..workspace import Workspace
+from .component_type import ComponentType
 
 if TYPE_CHECKING:
     from ..core.context import ApplicationContext

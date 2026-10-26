@@ -3,10 +3,10 @@
 import asyncio
 from contextlib import suppress
 
-from ..base import BaseStep
 from ...async_work import run_blocking
+from ...components.sync.applier import TaskArchiveApplier
 from ...registry import provider
-from ....task.sync.applier import TaskArchiveApplier
+from ..base import BaseStep
 
 
 @provider("sync_tasks_step")

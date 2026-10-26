@@ -8,19 +8,19 @@ from time import monotonic
 
 import psutil
 
-from ...common.logging import get_logger
-from ..process import machine_id, process_instance, signal_process, wait_processes
-from ..task_enums import TaskState
+from ...utils.logging import get_logger
+from ..models.identity import TaskState
 from ..models.lifecycle import TaskMetadata
-from ..progress import settle_steps
-from .events import append_progress_snapshots
-from .workspace import (
+from ..storage.events import append_progress_snapshots
+from ..storage.workspace import (
     EVENTS_FILE,
     read_task_metadata,
     scan_entries,
     task_path,
     write_task_metadata,
 )
+from .process import machine_id, process_instance, signal_process, wait_processes
+from .progress import settle_steps
 
 
 def is_local_task(metadata: TaskMetadata) -> bool:

@@ -9,12 +9,12 @@ from pathlib import Path
 import polars as pl
 from pydantic import Field
 
-from axonx.task.storage.files import atomic_write
 from axonx.task.core.standard import BaseAnalysisTask
 from axonx.task.core.task import TaskStep
-from axonx.task.task_enums import TaskType
+from axonx.task.models.identity import TaskType
 from axonx.task.models.params import BaseAnalysisOutputParams, BaseInputParams
 from axonx.task.storage.artifacts import artifact_record, read_metadata
+from axonx.task.storage.files import atomic_write
 from axonx.task.storage.inputs import pin_source_artifacts
 
 from .internal.analysis import FactorMetricsCalculator

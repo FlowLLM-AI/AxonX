@@ -10,18 +10,17 @@ from pathlib import Path
 import polars as pl
 import pyarrow.parquet as pq
 
-from ..storage.files import snapshot_file
-from ..models.artifacts import fingerprint
-from ..models.lifecycle import (
+from ....task.models.artifacts import fingerprint
+from ....task.models.lifecycle import (
     DisplayReplica,
     LiveSnapshot,
     ReplicaFile,
     ReplicaLog,
     TaskMetadata,
-    current_children,
 )
-from ..storage.logs import TaskLogReader
-from ..storage.workspace import (
+from ....task.storage.files import snapshot_file
+from ....task.storage.logs import TaskLogReader
+from ....task.storage.workspace import (
     EVENTS_FILE,
     METADATA_FILE,
     read_entry,
@@ -280,7 +279,7 @@ def task_group(root: Path, task_id: str) -> dict:
                 raise SnapshotChangedError(f"Conflicting child start times: {identity}")
             return
         result[identity] = status
-        for child in current_children(status):
+        for child in status.current_children():
             if child.task_id and child.started_at is not None:
                 visit(child.task_id, child.started_at)
 

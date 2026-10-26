@@ -8,7 +8,7 @@ from hashlib import sha256
 
 from loguru import logger
 
-from ...common.logging import get_log_path, log_file
+from ...utils.logging import get_log_path, log_file
 
 _TASKS: ContextVar[tuple[str, ...]] = ContextVar("axonx_log_tasks", default=())
 

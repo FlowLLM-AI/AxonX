@@ -8,28 +8,22 @@ from collections.abc import Callable, Sequence
 from contextlib import suppress
 from pathlib import Path
 
-from ..client.base import RemoteServiceError
-from ..client.http import HttpClient
-from .base import BaseSyncComponent
-from ..task_index.base import BaseTaskIndex
-from ...async_work import run_blocking
-from ...registry import provider
+from ....task.models.identity import matches_task_name, validate_task_ids, validate_task_names
 from ....task.models.lifecycle import DisplayReplica
 from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import read_task_metadata, scan_entries, task_directory, task_path
-from ....task.sync.archive import SYNC_ARCHIVE_NAME, build_archive
-from ....task.sync.errors import ReplicaBudgetError
-from ....task.sync.index import (
-    matches_task_name,
-    policy_revision,
-    source_revision,
-    validate_live_task_ids,
-    validate_task_names,
-)
-from ....task.sync.models import SyncReport
-from ....task.sync.models import TaskPlan
-from ....task.sync.planner import archive_budget, pack_batches
-from ....task.sync.replica import prepare_group, prepare_replica
+from ...async_work import run_blocking
+from ...registry import provider
+from ..client.base import RemoteServiceError
+from ..client.http import HttpClient
+from ..task_index.base import BaseTaskIndex
+from .archive import SYNC_ARCHIVE_NAME, build_archive
+from .base import BaseSyncComponent
+from .errors import ReplicaBudgetError
+from .index import policy_revision, source_revision
+from .models import SyncReport, TaskPlan
+from .planner import archive_budget, pack_batches
+from .replica import prepare_group, prepare_replica
 
 
 @provider("local")
@@ -58,7 +52,7 @@ class LocalSyncComponent(BaseSyncComponent):
         self.max_archives_per_flush = max_archives_per_flush
         self.timeout = timeout_seconds
         self.task_names = validate_task_names(task_names)
-        self.live_task_ids = validate_live_task_ids(live_task_ids)
+        self.live_task_ids = validate_task_ids(live_task_ids)
         self._remote_index: dict = {}
         self._last_task = ""
         self.root = self.workspace.root

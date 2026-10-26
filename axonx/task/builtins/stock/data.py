@@ -5,8 +5,8 @@ from typing import Any
 
 import polars as pl
 
-from ...task_enums import TaskType
 from ...models.artifacts import task_protocol
+from ...models.identity import TaskType
 
 KEYS = ("trade_date", "trade_time", "ts_code")
 LABEL_COLUMNS = (

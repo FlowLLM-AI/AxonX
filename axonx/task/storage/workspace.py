@@ -8,12 +8,11 @@ import stat
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from .files import atomic_write_json
-from ..task_enums import TaskType
-from ..identity import task_type_from_id
+from ..models.identity import TaskType, task_type_from_id
 from ..models.lifecycle import (
     TaskMetadata,
 )
+from .files import atomic_write_json
 
 #: One workspace directory per task category holds that category's task directories.
 KINDS = tuple(kind.value for kind in TaskType)

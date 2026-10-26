@@ -1,10 +1,10 @@
-"""Domain execution and shared operations."""
+"""Settle progress records after their execution producers have stopped."""
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from .models.lifecycle import TaskStepStatus
+from ..models.lifecycle import TaskStepStatus
 
 
 def settle_steps(steps: list[TaskStepStatus], *, failed: bool, error: str, now: datetime) -> None:

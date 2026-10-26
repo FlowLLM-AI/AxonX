@@ -1,8 +1,8 @@
 """Agent-oriented Task context Step."""
 
 from ...components.component_type import ComponentType
-from ..base import BaseStep
 from ...registry import provider
+from ..base import BaseStep
 
 
 @provider("get_task_context_step")

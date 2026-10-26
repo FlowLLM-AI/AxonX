@@ -10,20 +10,16 @@ import numpy as np
 import polars as pl
 from pydantic import Field, field_validator, model_validator
 
-from axonx.task.storage.files import atomic_write
 from axonx.task.builtins.stock.data import KEYS, validate_keys
 from axonx.task.builtins.stock.protocol import feature_identity
 from axonx.task.core.standard import BasePredictTask
 from axonx.task.core.task import TaskStep
-from axonx.task.task_enums import TaskType
-from axonx.task.identity import (
-    normalize_yyyymmdd,
-    parse_source_tasks,
-    task_type_from_id,
-)
-from axonx.task.models.artifacts import ModelCollection, fingerprint, validate_protocol
+from axonx.task.models.artifacts import ModelCollection, fingerprint, prediction_protocol, validate_protocol
+from axonx.task.models.base import normalize_yyyymmdd
+from axonx.task.models.identity import TaskType, parse_source_tasks, task_type_from_id
 from axonx.task.models.params import BaseInputParams, BasePredictOutputParams
-from axonx.task.storage.artifacts import artifact_record, prediction_protocol
+from axonx.task.storage.artifacts import artifact_record
+from axonx.task.storage.files import atomic_write, file_revision
 from axonx.task.storage.inputs import pin_source_artifacts, source_artifact
 from axonx.task.storage.model_collections import snapshot_model_collection
 
@@ -301,7 +297,7 @@ class LgbmPredictTask(BasePredictTask):
                     "trade_time": "1500",
                     "return_unit": "decimal",
                 },
-                self.state["predictions_path"],
+                file_revision(self.state["predictions_path"]),
                 frame["trade_date"].unique(),
                 {"model": "pred"},
                 market_source_task=self.state["etl_task_id"],

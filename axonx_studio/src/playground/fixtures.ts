@@ -1,30 +1,9 @@
-import type { StudioPage } from "../shared/api/contracts";
 import type { DailyRow, SummaryRow } from "../features/research/backtest/types";
 import { strategyStats } from "../features/research/compare/model";
 import type { TaskDefinition, TaskMetadata } from "../features/tasks/types";
 import type { WorkspacePreview } from "../features/workspace/types";
 
 export const epoch = "2026-01-05T09:00:00.000Z";
-export const studioPages: StudioPage[] = [
-  {
-    id: "online",
-    title: { en: "Online prediction", zh: "在线预测" },
-    view: "pipeline",
-    category: "online_prediction",
-  },
-  {
-    id: "nightly",
-    title: { en: "Evening comparison", zh: "晚间比对" },
-    view: "pipeline",
-    category: "comparison",
-  },
-  {
-    id: "data",
-    title: { en: "Data updates", zh: "数据更新" },
-    view: "tasks",
-    category: "data_update",
-  },
-];
 
 export const kinds = [
   "etl",

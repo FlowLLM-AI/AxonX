@@ -1,20 +1,31 @@
-"""Explicit process-wide Loguru configuration for AxonX."""
+"""Explicit process logging, file retention and bounded argument formatting."""
 
 from __future__ import annotations
 
+import fcntl
 import os
+import re
+import stat
 import sys
-from contextlib import contextmanager, suppress
 from collections.abc import Callable
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
+from time import time
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+import psutil
 from loguru import logger
 
+LOG_RETENTION_SECONDS = 7 * 24 * 60 * 60
+LOG_CLEANUP_INTERVAL = 60 * 60
+LOG_ARGUMENT_MAX_LENGTH = 1000
+_LOG_NAME = re.compile(
+    r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_(?P<pid>\d+)(?P<task>_[a-f0-9]{64})?(?P<archive>\..+)?\.log(?:\.zip)?"
+)
 _LOG_FORMAT = (
     "{time:%Y-%m-%d %H:%M:%S} {extra[utc_offset]} | {level:<8} | "
     "{extra[name]} | {file}:{line} | {function} | {message}"
@@ -108,3 +119,42 @@ def log_file(path: Path, *, predicate: Callable[[dict], bool]):
     finally:
         with _LOCK, suppress(ValueError):
             logger.remove(sink)
+
+
+def cleanup_log_files(directory: Path) -> None:
+    """Remove expired logs, protecting live process logs and locked Task logs."""
+    cutoff = time() - LOG_RETENTION_SECONDS
+    try:
+        paths = list(directory.glob("*.log*"))
+    except OSError:
+        return
+    for path in paths:
+        match = _LOG_NAME.fullmatch(path.name)
+        if match is None:
+            continue
+        if (
+            match["task"] is None
+            and match["archive"] is None
+            and path.suffix == ".log"
+            and psutil.pid_exists(int(match["pid"]))
+        ):
+            continue
+        try:
+            # Refuse symlinks and avoid blocking on a non-regular file.
+            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(descriptor, "rb") as handle:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                info = os.fstat(handle.fileno())
+                if stat.S_ISREG(info.st_mode) and info.st_mtime < cutoff:
+                    path.unlink()
+        except OSError:
+            # Cleanup failures must not interrupt logging or Task execution.
+            continue
+
+
+def format_log_arguments(arguments: Any) -> str:
+    """Return a bounded representation suitable for invocation logs."""
+    rendered = repr(arguments)
+    if len(rendered) <= LOG_ARGUMENT_MAX_LENGTH:
+        return rendered
+    return f"{rendered[: LOG_ARGUMENT_MAX_LENGTH - 3]}..."

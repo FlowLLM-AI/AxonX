@@ -18,7 +18,8 @@ import { formatMachineAddress } from "../shared/lib/format";
 import type { ContextOption, ThemePreference } from "./types";
 import type { MachineNode } from "../features/machines/types";
 import {
-  configuredNavigation,
+  navigationGroups,
+  navigationItems,
   navigationItemForRoute,
   researchSections,
 } from "./navigation";
@@ -27,12 +28,7 @@ import { EnvironmentSettingsModal } from "../features/runtime/EnvironmentSetting
 import type { AppRoute } from "./routes";
 import type { SidebarState } from "./useStudio";
 
-import type { StudioPage } from "../shared/api/contracts";
-
 interface AppShellProps {
-  operationPages: StudioPage[];
-  operationPagesError: string;
-  reloadOperationPages: () => unknown;
   children: ReactNode;
   route: AppRoute;
   theme: ThemePreference;
@@ -53,9 +49,6 @@ interface AppShellProps {
 export function AppShell(props: AppShellProps) {
   const {
     children,
-    operationPages,
-    operationPagesError,
-    reloadOperationPages,
     route,
     theme,
     setTheme,
@@ -93,9 +86,7 @@ export function AppShell(props: AppShellProps) {
     }
     return {};
   });
-  const navigationGroups = configuredNavigation(operationPages, language);
-  const navigationItems = navigationGroups.flatMap((group) => group.items);
-  const section = navigationItemForRoute(route, navigationItems);
+  const section = navigationItemForRoute(route);
   const activeGroup = navigationGroups.find((group) =>
     group.items.some(
       (item) => item.id === section.id && item.route.section === route.section,
@@ -304,15 +295,6 @@ export function AppShell(props: AppShellProps) {
           className={`primary-rail ${sidebar.mobileOpen ? "mobile-open" : ""}`}
         >
           <nav>
-            {operationPagesError && (
-              <button
-                className="error-state"
-                onClick={() => void reloadOperationPages()}
-                title={operationPagesError}
-              >
-                {t("operations.loadError")} · {t("retry")}
-              </button>
-            )}
             {navigationGroups.map((group) => (
               <div
                 className={`primary-nav-group group-${group.id}`}

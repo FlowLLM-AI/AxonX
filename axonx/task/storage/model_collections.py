@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .files import atomic_write_json
-from .files import file_revision
-from .files import snapshot_file
 from ..models.artifacts import ModelCollection
 from .artifacts import artifact_record
+from .files import atomic_write_json, file_revision, snapshot_file
 
 
 def snapshot_model_collection(manifest_file: Path, destination: Path, *, expected_revision: str | None = None) -> Path:

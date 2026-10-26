@@ -6,9 +6,9 @@ from collections.abc import AsyncIterator, Mapping
 from contextlib import aclosing
 from typing import Any
 
-from .http import HttpClient
 from ..job.events import JobEvent
 from ..job.models import JobResponse
+from .http import HttpClient
 
 
 async def run_remote_job(

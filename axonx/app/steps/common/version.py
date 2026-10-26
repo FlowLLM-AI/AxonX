@@ -1,8 +1,8 @@
 """Package-version step."""
 
 from ...core.build_info import get_build_info
-from ..base import BaseStep
 from ...registry import provider
+from ..base import BaseStep
 
 
 @provider("version_step")

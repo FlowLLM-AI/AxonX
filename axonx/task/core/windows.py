@@ -1,27 +1,31 @@
-"""Domain execution and shared operations."""
+"""Window scheduling, realtime collection and fixed-model inference Tasks."""
 
 from __future__ import annotations
 
 from abc import abstractmethod
+from datetime import UTC
 
-from .clock import DeadlineBudget, WindowClock
-from .task import BaseTask
-from ..models.windows import (
+from pydantic import TypeAdapter
+
+from ..models.identity import TaskType
+from ..models.params import (
+    BaseInferenceOutputParams,
     ExecutionWindow,
     WindowInputParams,
     WindowOutputParams,
-    WindowResult,
 )
+from ..models.reports import WindowResult
+from .clock import DeadlineBudget
+from .task import BaseTask
 
 
-class _WindowTask(BaseTask):
-    """Shared orchestration only; no market calendar, model or data format assumptions."""
+class BaseWindowTask(BaseTask):
+    """Run ordered windows and publish each outcome; the Runner owns cleanup via close()."""
 
     report_kind = "online"
     input_cls = WindowInputParams
     output_cls = WindowOutputParams
     window_results: list[WindowResult]
-    clock: WindowClock
 
     def initialize_run(self) -> None:
         """Resolve fixed inputs and acquire owned resources once."""
@@ -29,89 +33,134 @@ class _WindowTask(BaseTask):
     def validate_run(self) -> None:
         """Validate initialized protocol before any window executes."""
 
-    def close_run(self) -> None:
-        """Drain and close owned resources, including when initialization fails."""
-
     def window_skip_reason(self, _window: ExecutionWindow) -> str | None:
-        """Return a business skip reason before waiting, or None to execute the window."""
+        """Return a business skip reason before waiting, or None to execute."""
         return None
 
     @abstractmethod
     def execute_window(self, window: ExecutionWindow, budget: DeadlineBudget) -> WindowResult:
-        """Execute within the supplied budget; exceptions stop this task."""
+        """Execute within the supplied budget; exceptions stop this Task."""
 
     def build_task_steps(self):
         yield self.run_windows
 
     def run_windows(self) -> None:
-        self.clock = getattr(self, "clock", WindowClock())
-        self.window_results: list[WindowResult] = []
-        try:
-            self.initialize_run()
-            self.validate_run()
-            self.publish_windows()
-            for window in self.input_params.windows:
-                started = self.clock.monotonic()
-                try:
-                    if reason := self.window_skip_reason(window):
-                        result = WindowResult(key=window.key, status="skipped", reason=reason)
-                    else:
-                        budget = DeadlineBudget(self.clock, window.end_at)
-                        while self.clock.now() < window.start_at and budget.remaining_seconds > 0:
-                            budget.sleep(
-                                min(
-                                    self.input_params.poll_interval_seconds,
-                                    (window.start_at - self.clock.now()).total_seconds(),
-                                )
-                            )
-                        if budget.remaining_seconds <= 0:
-                            result = WindowResult(key=window.key, status="skipped", reason="window_missed")
-                        else:
-                            result = self.execute_window(window, budget)
-                            if result.key != window.key:
-                                raise ValueError("Window result key does not match the executing window")
-                            if result.commit_id and (
-                                result.status != "done"
-                                or result.committed_at is None
-                                or not window.start_at <= result.committed_at <= window.end_at
-                            ):
-                                raise ValueError("Invalid committed window result")
-                            if result.status == "done" and not result.commit_id and budget.remaining_seconds <= 0:
-                                result = result.model_copy(
-                                    update={
-                                        "status": "incomplete",
-                                        "reason": "deadline_exceeded",
-                                    }
-                                )
-                except Exception as exc:
-                    self.window_results.append(
-                        WindowResult(
-                            key=window.key,
-                            status="failed",
-                            reason=f"{type(exc).__name__}: {exc}",
-                            elapsed_seconds=self.clock.monotonic() - started,
-                        )
-                    )
-                    self.publish_windows()
-                    raise
-                result.elapsed_seconds = self.clock.monotonic() - started
-                self.window_results.append(result)
-                self.publish_windows()
-        except BaseException:
+        self.window_results = []
+        self.initialize_run()
+        self.validate_run()
+        self.publish_windows()
+        for window in self.input_params.windows:
+            started = self.clock.monotonic()
             try:
-                self.close_run()
-            except Exception:
-                self.logger.exception("Resource cleanup failed after primary failure")
-            raise
-        else:
-            self.close_run()
+                result = self._run_window(window)
+            except Exception as exc:
+                self._record_window(
+                    WindowResult(key=window.key, status="failed", reason=f"{type(exc).__name__}: {exc}"),
+                    started,
+                )
+                raise
+            self._record_window(result, started)
+
+    def _run_window(self, window: ExecutionWindow) -> WindowResult:
+        if reason := self.window_skip_reason(window):
+            return WindowResult(key=window.key, status="skipped", reason=reason)
+        budget = DeadlineBudget(self.clock, window.end_at)
+        start_at = window.start_at.astimezone(UTC)
+        while self.clock.now() < start_at and budget.remaining_seconds > 0:
+            budget.sleep(min(self.input_params.poll_interval_seconds, (start_at - self.clock.now()).total_seconds()))
+        if budget.remaining_seconds <= 0:
+            return WindowResult(key=window.key, status="skipped", reason="window_missed")
+        result = self.execute_window(window, budget)
+        if result.key != window.key:
+            raise ValueError("Window result key does not match the executing window")
+        if result.commit_id and (
+            result.status != "done"
+            or result.committed_at is None
+            or not start_at <= result.committed_at.astimezone(UTC) <= window.end_at.astimezone(UTC)
+        ):
+            raise ValueError("Invalid committed window result")
+        if result.status == "done" and not result.commit_id and budget.remaining_seconds <= 0:
+            return result.model_copy(update={"status": "incomplete", "reason": "deadline_exceeded"})
+        return result
+
+    def _record_window(self, result: WindowResult, started: float) -> None:
+        result.elapsed_seconds = self.clock.monotonic() - started
+        self.window_results.append(result)
+        self.publish_windows()
 
     def publish_windows(self) -> None:
+        """Persist partial business output without changing the Task lifecycle."""
         self.metadata.output_params.update(self.window_output())
         self.persist_metadata()
 
     def window_output(self) -> dict:
+        """Extend this mapping when publishing additional run-level business fields."""
         return {"windows": [result.model_dump(mode="json") for result in self.window_results]}
 
     def build_output_params(self) -> WindowOutputParams:
         return self.output_cls(**self.window_output())
+
+
+class BaseRealtimeApiTask(BaseWindowTask):
+    """Poll a collector within each window until it returns a final result."""
+
+    task_type = TaskType.API
+
+    @abstractmethod
+    def collect(self, window: ExecutionWindow, budget: DeadlineBudget) -> WindowResult | None:
+        """Return a final outcome, or None to poll again; publish only complete data."""
+
+    def execute_window(self, window: ExecutionWindow, budget: DeadlineBudget) -> WindowResult:
+        while budget.remaining_seconds > 0:
+            result = self.collect(window, budget)
+            if result is not None:
+                return result
+            budget.sleep(self.input_params.poll_interval_seconds)
+        return WindowResult(key=window.key, status="incomplete", reason="deadline_exceeded")
+
+
+class BaseInferenceTask(BaseWindowTask):
+    """Wait for inputs and infer with one validated model identity for the whole run."""
+
+    task_type = TaskType.INFERENCE
+    output_cls = BaseInferenceOutputParams
+    model_identity: dict[str, str]
+    _fixed_model_identity: dict[str, str]
+
+    @abstractmethod
+    def initialize_run(self) -> None:
+        """Resolve the model once and set a nonempty model_identity mapping."""
+
+    @abstractmethod
+    def inputs_ready(self, window: ExecutionWindow) -> bool:
+        """Check atomically published inputs; return False while waiting."""
+
+    @abstractmethod
+    def infer(self, window: ExecutionWindow, budget: DeadlineBudget) -> WindowResult:
+        """Validate freshness and quality, then predict with the fixed model."""
+
+    def validate_run(self) -> None:
+        if not isinstance(getattr(self, "model_identity", None), dict) or not self.model_identity:
+            raise ValueError("initialize_run must set a nonempty model_identity")
+        self._fixed_model_identity = TypeAdapter(dict[str, str]).validate_python(self.model_identity)
+
+    def _check_model_identity(self) -> None:
+        if self.model_identity != self._fixed_model_identity:
+            raise ValueError("Model identity changed within an inference run")
+
+    def execute_window(self, window: ExecutionWindow, budget: DeadlineBudget) -> WindowResult:
+        self._check_model_identity()
+        while budget.remaining_seconds > 0:
+            ready = self.inputs_ready(window)
+            self._check_model_identity()
+            if ready:
+                if budget.remaining_seconds <= 0:
+                    break
+                result = self.infer(window, budget)
+                self._check_model_identity()
+                return result
+            budget.sleep(self.input_params.poll_interval_seconds)
+        return WindowResult(key=window.key, status="incomplete", reason="inputs_timeout")
+
+    def window_output(self) -> dict:
+        return {**super().window_output(), "model_identity": self._fixed_model_identity}

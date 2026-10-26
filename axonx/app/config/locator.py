@@ -1,7 +1,6 @@
 """Shared name, path and installed entry-point lookup for configuration files."""
 
-from importlib import import_module
-from importlib import metadata
+from importlib import import_module, metadata
 from pathlib import Path
 
 

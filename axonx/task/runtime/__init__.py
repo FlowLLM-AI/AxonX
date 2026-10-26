@@ -1,5 +1,1 @@
-"""Independent synchronous Task execution."""
-
-from .executor import TaskExecutor
-
-__all__ = ["TaskExecutor"]
+"""Independent synchronous Task execution and lifecycle management."""

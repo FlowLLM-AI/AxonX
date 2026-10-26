@@ -27,26 +27,82 @@
 
 ## 模块边界
 
-| 模块     | 允许的仓库内依赖                                              | 公开边界                                          |
-| -------- | ------------------------------------------------------------- | ------------------------------------------------- |
-| `common` | 无                                                            | 只保留 `logging`、`env`；环境加载必须显式调用     |
-| `task`   | `common.logging`、`common.env`                                | Task 定义、数据契约、执行、存储和同步             |
-| `plugin` | Task 定义、数据契约和内置 Task；按需使用共享日志与环境        | 插件发现、安装与 `plugin.catalog` 解析            |
-| `app`    | Task 模型、观察/存储与同步接口；共享日志与环境                | App 自己维护的常驻组件、Job、传输协议和 Workspace |
-| `daemon` | 启动层依赖 App 和 Task 执行配置；监督器仅依赖标准库          | 守护一个应用服务，创建并回收定时 exec 进程        |
-| `cli`    | 其他模块的公开入口                                            | 参数解析、调用路由、结果展示与退出码              |
+| 模块     | 允许的仓库内依赖                                    | 公开边界                                              |
+| -------- | --------------------------------------------------- | ----------------------------------------------------- |
+| `utils`  | 无                                                  | 提供 `env`、`logging`、`values`；环境加载必须显式调用 |
+| `task`   | `utils.env`、`utils.logging`、`utils.values`        | Task 定义、数据契约、执行、存储和查询                 |
+| `plugin` | Task 定义、数据契约和内置 Task；按需使用共享工具    | 插件发现、安装与 `plugin.catalog` 解析                |
+| `app`    | Task 模型、观察/存储接口；共享工具            | App 自己维护的常驻组件、Job、传输协议和 Workspace     |
+| `daemon` | 启动层依赖 App 和 Task 执行配置；监督器仅依赖标准库 | 守护一个应用服务，创建并回收定时 exec 进程            |
+| `cli`    | 其他模块的公开入口                                  | 参数解析、调用路由、结果展示与退出码                  |
 
-Task 模型和枚举不得导入执行、存储或插件代码。Task 执行不导入 App、Plugin 或 CLI。插件发现归 `axonx.plugin.catalog`；`TaskExecutor` 接收调用方提供的 `resolve_task` 函数，并将其传给复合任务的子任务。
+Task 模型和枚举不得导入执行、存储或插件代码。Task 执行不导入 App、Plugin 或 CLI。插件发现归 `axonx.plugin.catalog`；`TaskExecutor` 接收调用方提供的 `resolve_task` 函数。Runner 负责解析和执行组合任务的子任务，在父任务运行期间绑定执行回调；Task 类不导入 Runner，也不持有解析器。
 
-常驻组件留在 App：`components/task_index` 负责轮询、缓存和订阅，`components/sync` 负责复制传输，`components/updater` 负责应用侧准入和响应完成边界。App 使用 `task.query` 的公开观察接口，以及实际需要的 Task 存储/同步能力，不加载 Task 执行器或研究插件。观察操作不改写 Task 记录；启动检查和显式终止可以收尾已确认本机进程退出的记录。CLI 不实现常驻组件或 Step。
+`axonx/task/` 下只保留 `__init__.py` 和六个能力包：
+
+| 包         | 职责                                                     |
+| ---------- | -------------------------------------------------------- |
+| `models`   | 数据契约、枚举、身份规则和参数校验                       |
+| `core`     | Task 编写基类、任务组合、执行窗口和业务时钟              |
+| `runtime`  | 执行、进度收尾、进程身份与控制、生命周期收尾和回放       |
+| `storage`  | 工作区布局、元数据、事件与日志文件、产物快照、发布和历史 |
+| `query`    | 只读摘要、依赖图、上下文和事件与日志流                   |
+| `builtins` | 具体 Task 和领域实现                                     |
+
+运行时依赖方向为：`runtime` 依赖 `core`/`storage`/`models`，`core` 和 `builtins` 依赖 `storage`/`models`，`query` 依赖 `storage`/`models`；内置任务还使用 `core` 中的编写基类。Storage 在 Task 内只依赖 models；在线存储中的 `DeadlineBudget` 注解是对 `core.clock` 的纯类型依赖。包初始化不加载无关执行能力。枚举和身份规则统一归 `task.models.identity`，公共模型策略和日期校验归 `task.models.base`。终止进程和失效运行记录收尾归 `task.runtime.lifecycle`，storage 只提供所需读写。
+
+`task.models` 内部按数据职责组织：
+
+| 模块        | 职责                                       |
+| ----------- | ------------------------------------------ |
+| `base`      | `TaskModel` 公共策略与日历日期校验         |
+| `identity`  | 任务类型、状态、类别、命名和上游任务 ID    |
+| `params`    | 参数、结果、训练曲线、预测比较和执行窗口   |
+| `artifacts` | 产物引用、协议头、模型集合和回放清单       |
+| `lifecycle` | 任务元数据、步骤状态、子任务和展示副本记录 |
+| `execution` | 不可变调用身份和子任务结果                 |
+| `events`    | 日志片段、进度与日志事件、事件流解析       |
+| `reports`   | 在线发布、历史节点及共享回测报告           |
+| `query`     | 任务目录、摘要、依赖图和上下文投影         |
+
+契约继承 `TaskModel`，拒绝未声明字段；`Protocol` 显式允许插件扩展载荷，`TaskMetadata` 仍拒绝额外字段。跨字段规则由对应模型校验，这些模块不执行存储或任务操作。直接从所属模块导入模型，不保留已删除模块的兼容别名。
+
+Task 内容按行为和领域归属：共享数据契约归 `models`，任务模板归 `core`，执行与回放驱动归 `runtime`，文件访问归 `storage`，业务专属类型和规则归 `builtins`。`models.lifecycle` 管理调用身份和子任务结果；`models.artifacts.ReplaySource` 描述输入，`storage.replay.ReplayStream` 管理文件快照，`runtime.replay` 管理确定性时间和事件投递。冻结历史格式归 `models.reports.HistoryNode`。来源目录和输入路径校验归 `storage.inputs`，Task 保留编写者使用的薄封装；预测协议组装接收调用方提供的文件版本，不进行 I/O。股票报告契约、信号格式常量及股票专属校验归 `builtins.stock`，通用在线提交不再限制股票格式。展示副本准备、采样、归档规划、传输、索引和应用统一归 `app/components/sync`；内部计划、传输结果和归档应用结果归该目录的 `models.py`。Task 保留展示副本数据契约和只读约束。
+
+### Task 编写与扩展
+
+`task/core` 保留六个文件，直接从所属模块导入类：
+
+| 文件           | 能力                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| `task.py`      | `BaseTask` 和同步步骤类型 `TaskStep`；输入校验、身份、工作区路径、结果和运行时回调接口                       |
+| `composite.py` | `BaseCompositeTask`、`ChildTaskError`；同步子任务、调用快照和失败策略                                        |
+| `standard.py`  | ETL、Analysis、Train、Predict、Backtest 基类，以及逐项发布报告的 `BasePredictionCompareTask`                 |
+| `windows.py`   | `BaseWindowTask`、`BaseRealtimeApiTask`、`BaseInferenceTask`；窗口等待、采集轮询、固定模型推理和部分结果发布 |
+| `clock.py`     | 真实业务时钟 `WindowClock` 和单调截止预算 `DeadlineBudget`                                                   |
+| `__init__.py`  | 包说明；按需导入所属模块                                                                                     |
+
+普通任务声明 `input_cls`、`output_cls`，用 `build_task_steps()` 依次 yield 同步方法，用 `build_output_params()` 返回声明的输出模型。步骤生成器是惰性的，后续分支可读取前一步保存的 `self.state`。调用 `report_progress()` 报告进度。`close()` 统一释放资源，包括初始化失败和启动检查被拒绝的情况；清理原始失败时，清理异常不会替换原始异常。`on_failure(error)` 记录业务失败信息，生命周期状态由 Runner 维护。Runner 在清理完成后构建输出，因此 `close()` 应保留构建结果所需的数据。
+
+组合任务在步骤内用 `run_task("registration", **inputs)` 顺序执行子任务，通过 `ChildTaskResult.output_params` 或 `.output` 显式使用结果。条件、循环和重试使用普通 Python。默认失败即停止；`on_error="continue"` 允许继续后续工作，但父任务仍会失败。`children` 返回防御性快照，子任务继承工作区、时区、来源和业务时钟。
+
+窗口输入 `ExecutionWindow`、`WindowInputParams` 归 `models.params`；窗口结果 `WindowResult` 与训练曲线、预测对比明细统一归 `models.reports`。通用窗口任务实现 `execute_window(window, budget)`；采集任务实现 `collect(window, budget)`，返回 `None` 时在预算内继续轮询；推理任务实现 `initialize_run()`、`inputs_ready(window)` 和 `infer(window, budget)`，并在初始化时固定非空 `model_identity`。还可以覆盖 `validate_run()`、`window_skip_reason(window)` 和 `window_output()` 扩展校验、业务跳过和附加输出；资源仍通过统一的 `close()` 释放。
+
+窗口按开始时间执行；业务跳过、错过窗口、输入超时和截止超时分别保留结果。每个窗口完成或失败后发布元数据，异常会保留前面的结果并停止任务。`incomplete` 和 `skipped` 是业务结果，默认不会使 Task 失败。未提交的结果在截止后返回会变成 `incomplete`；已提交结果按其窗口内的提交时间判断。插件应使用 `budget.remaining_seconds` 限制请求超时和重试，使用 `budget.sleep()` 等待，并在发布前调用 `budget.check()`；预算不能强制中断阻塞请求。
+
+从 `task.runtime.replay` 导入 `ReplayClock`，通过构造参数 `clock=ReplayClock(aware_datetime)` 注入回放时钟；默认使用真实时钟。业务等待、窗口和预算使用该时钟，创建时间、生命周期时间和执行性能计时保持真实。只有创建回放时钟的线程可以推进时间。截止预算和窗口排序按 UTC 时刻处理，覆盖夏令时的重复本地时间。
+
+调用身份和子任务结果分别归 `models.lifecycle.TaskContext` 和 `ChildTaskResult`；上下文不携带 logger 或服务实例，logger 由 Task 持有。模块迁移：预测对比从 `core.compare` 移入 `core.standard`；实时采集和推理从 `core.realtime`、`core.inference` 移入 `core.windows`。原内部 `_WindowTask` 成为公开的 `BaseWindowTask`，窗口资源清理从 `close_run()` 统一改为 `close()`，不保留旧路径兼容模块。
+
+常驻组件留在 App：`components/task_index` 负责轮询、缓存和订阅，`components/sync` 负责副本准备、传输、索引和应用，`components/updater` 负责应用侧准入和响应完成边界。App 使用 `task.query` 的公开观察接口，以及实际需要的 Task 存储能力，不加载 Task 执行器或研究插件。观察操作不改写 Task 记录；启动检查和显式终止可以收尾已确认本机进程退出的记录。接收归档和查询副本索引无需配置发送组件或同步目标。CLI 不实现常驻组件或 Step。
 
 App 自己维护配置、注册器、异步工具、Workspace 和启动横幅；Workspace 提供文件操作，不包含 Task 专属的隐藏和删除规则。`command` 命令数组提供外部命令驱动，注入的更新后端负责 prepare/commit/status。`daemon.launcher` 创建一个 Application，并传入明确的 `task.runtime.settings.ExecutionSettings`。`components/cron` 组件在服务启动时读取 `app/crontabs/*.cron` 或 `--cron` 指定的配置，通过异步回调请求启动定时任务。CLI 提供命令校验函数，启动层在启动 Daemon 前校验全部条目。`--config` 和 `--cron` 分别解析；修改定时配置后重启服务生效，停机期间错过的时间点不自动补跑。
 
 Daemon 只自动拉起应用服务。手动 CLI 子进程随服务停止，重启不等待命令执行完成，只保留有上限的清理时间。定时 exec 进程由 Daemon 创建、回收，服务重启时继续运行。更新时拒绝新定时启动请求，先停止服务和手动命令，再执行更新，最后启动新服务并重新读取两份配置。原地更新不会冻结旧任务后续读取的代码和依赖。`daemon.worker` 只使用标准库，接收完整命令、工作目录、环境变量和日志路径，不解释 crontab，也不自动重跑已结束的 Task。
 
-应用 YAML/JSON 加载、继承和环境变量插值归 `app/config`，命令行参数转换归 CLI。Workspace 操作直接返回 `app.workspace.models` 中的模型：`WorkspaceListing`、具体的 `FilePreview` 变体、`DeletedEntry` 和 `StagedFile`；目录过滤回调接收 `WorkspaceEntry` 对象。Job 和 HTTP 适配层直接使用结果，在传输边界序列化。
+应用 YAML/JSON 加载、继承和合并归 `app/config`。环境加载和插值归 `utils/env.py`，标量转换统一使用 `utils/values.py`。日志配置、保留清理与参数格式化归 `utils/logging.py`；App 管理清理调度，Task 管理执行日志作用域和日志读取。Crontab 定位、读取和解析归 `app/crontabs`，与内置 `.cron` 文件放在一起；`components/cron` 只负责调度和生命周期。两类加载逻辑复用 `app/config/locator.py`。命令行选项语法归 CLI。Workspace 操作直接返回 `app.workspace.models` 中的模型：`WorkspaceListing`、具体的 `FilePreview` 变体、`DeletedEntry` 和 `StagedFile`；目录过滤回调接收 `WorkspaceEntry` 对象。Job 和 HTTP 适配层直接使用结果，在传输边界序列化。
 
-删除 `common.fs`。原子写、版本与快照归 `task.storage.files`，在线发布锁归 `task.storage.locking`，精确进程识别归 `task.process`；校验和归 Plugin。App 仅保留上传暂存需要的小型原子写实现。Task metadata 不提供协调锁，同一任务目录的并发变更由调用方串行化。保留在线发布一致性保护和 Daemon 单例锁。模块迁移不提供旧路径兼容导入。
+原子写、版本与快照归 `task.storage.files`，在线发布锁归 `task.storage.locking`，精确进程识别归 `task.runtime.process`；校验和归 Plugin。App 仅保留上传暂存需要的小型原子写实现。Task metadata 不提供协调锁，同一任务目录的并发变更由调用方串行化。保留在线发布一致性保护和 Daemon 单例锁。模块迁移不提供旧路径兼容导入。
 
 ## 一、贡献 AxonX 框架
 
@@ -158,6 +214,8 @@ pytest plugins/qlib_strategy/tests
 ## 两类贡献的共同要求
 
 提交前运行 `pre-commit run --files <changed-files>`，将占位符替换为本次修改的文件路径。文档、PR 和发布要求见下文。
+
+Pre-commit 先用 Ruff 整理 Python 导入，再用 Black 格式化。导入规则统一放在 `pyproject.toml`，仅启用 Ruff 的 `I` 规则。运行 `pre-commit run ruff-check --all-files` 可整理整个仓库的导入。提交前检查并暂存自动修复的内容。
 
 ## 文档贡献
 

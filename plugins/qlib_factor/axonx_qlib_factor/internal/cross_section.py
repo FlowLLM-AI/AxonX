@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import polars as pl
 
-from .stock_context import FEATURE_GROUPS as STOCK_GROUPS, calculate_stock_context
+from .stock_context import FEATURE_GROUPS as STOCK_GROUPS
+from .stock_context import calculate_stock_context
 
 PREFIX = "f_context_"
 WINDOWS = (1, 3, 5, 10)

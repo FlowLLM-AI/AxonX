@@ -5,8 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from ..task_enums import TaskState
-from ..identity import parse_source_tasks, task_type_from_id
+from ..models.identity import TaskState, parse_source_tasks, task_type_from_id
 from ..models.lifecycle import TaskMetadata
 from ..models.query import TaskGraph, TaskGraphEdge, TaskGraphNode
 from ..storage.workspace import KINDS

@@ -1,15 +1,15 @@
 """HTTP service component backed by FastAPI and Uvicorn."""
 
 import math
-from collections.abc import Awaitable, Callable
 import os
 import signal
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..base import BaseService
 from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
 from ....registry import provider
+from ..base import BaseService
 
 if TYPE_CHECKING:
     from fastapi import FastAPI

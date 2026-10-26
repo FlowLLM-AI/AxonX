@@ -11,19 +11,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from ....registry import provider
+from ...job.events import JobEvent, ResultEvent
+from ...job.models import JobResponse
 from ..base import BaseAgentComponent
+from ..events import AgentMessageEvent
+from ..local_session_store import LocalAgentSessionStore
+from ..models import AgentSession, AgentSessionInfo
 from .projector import (
     ClaudeMessageProjector,
     history_blocks,
 )
 from .session_store import ClaudeSessionStoreAdapter
 from .tools import JobToolServer
-from ..events import AgentMessageEvent
-from ..local_session_store import LocalAgentSessionStore
-from ..models import AgentSession, AgentSessionInfo
-from ...job.events import JobEvent, ResultEvent
-from ...job.models import JobResponse
-from ....registry import provider
 
 if TYPE_CHECKING:
     from claude_agent_sdk import (

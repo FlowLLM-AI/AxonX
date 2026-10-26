@@ -9,7 +9,8 @@ import { DataUpdateProgress } from "./DataUpdateProgress";
 import { getTaskStatus } from "../tasks/api";
 import ReportPage from "./ReportPage";
 import { TaskReport } from "./TaskReport";
-import { taskStatus, studioPages } from "../../playground/fixtures";
+import { taskStatus } from "../../playground/fixtures";
+import { operationPages } from "./pages";
 import { parseOnlineReport } from "../online/types";
 
 const translate = (key: string) => key;
@@ -24,7 +25,7 @@ const onOpenTask = vi.fn();
 const onSelected = vi.fn();
 const onOptionsChange = vi.fn();
 const render = async (initialTaskId?: string, pageId = "online") => {
-  const page = studioPages.find((page) => page.id === pageId)!;
+  const page = operationPages.find((page) => page.id === pageId)!;
   await act(async () => {
     root.render(
       <OperationPage
@@ -81,7 +82,7 @@ describe("online pipeline", () => {
     expect(container.querySelector(".task-index-header")).not.toBeNull();
     expect(container.querySelectorAll(".task-index article")).toHaveLength(1);
     expect(container.textContent).not.toContain("Synthetic nightly comparison");
-    await render("composite#playground_compare#demo", "nightly");
+    await render("composite#playground_compare#demo", "comparison");
     expect(container.textContent).toContain("onlinePipeline.nightly");
     await act(async () =>
       container
@@ -176,7 +177,7 @@ it("keeps breadcrumb resources limited to the actual visible entries", async () 
   );
 });
 
-it.each(["online", "nightly", "data"])(
+it.each(["online", "comparison", "data"])(
   "refreshes %s only after 60 seconds and allows manual refresh",
   async (pageId) => {
     vi.useFakeTimers();
@@ -253,7 +254,7 @@ it("uses one page clock and refreshes the index, report and logs together", asyn
   }
 });
 
-it.each(["online", "nightly", "data"])(
+it.each(["online", "comparison", "data"])(
   "shows %s records without redundant source headings or empty groups",
   async (pageId) => {
     await render(undefined, pageId);

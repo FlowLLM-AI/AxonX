@@ -2,12 +2,30 @@
 
 from pathlib import Path
 
-from .files import file_revision
-from .files import snapshot_file
-from ..task_enums import TaskState
+from ..models.identity import TaskState
 from .artifacts import artifact_path, artifact_record
+from .files import file_revision, snapshot_file
 from .model_collections import snapshot_model_collection
-from .workspace import read_task_metadata
+from .workspace import read_task_metadata, task_id_from_path, task_path
+
+
+def source_task_directory(workspace: Path, task_id: str) -> Path:
+    """Resolve an upstream Task, refusing display-only replicas as research inputs."""
+    directory = task_path(workspace, task_id)
+    metadata = read_task_metadata(directory, task_id)
+    if metadata is not None and metadata.replica is not None:
+        raise ValueError("Display replicas cannot be used as research inputs")
+    return directory
+
+
+def resolve_input_path(workspace: Path, path: str | Path) -> Path:
+    """Resolve an input path and apply the same Task source policy to owned paths."""
+    candidate = Path(path).expanduser()
+    resolved = (candidate if candidate.is_absolute() else workspace / candidate).resolve()
+    owner = task_id_from_path(workspace, str(resolved))
+    if owner is not None:
+        source_task_directory(workspace, owner)
+    return resolved
 
 
 def artifacts(root: Path, **paths: Path | None) -> dict:

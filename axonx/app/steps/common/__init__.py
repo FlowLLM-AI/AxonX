@@ -1,7 +1,7 @@
 """General-purpose application Steps."""
 
+from .command import CommandStep
 from .help import HelpStep
 from .version import VersionStep
-from .command import CommandStep
 
 __all__ = ["CommandStep", "HelpStep", "VersionStep"]

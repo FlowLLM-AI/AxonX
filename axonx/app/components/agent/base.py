@@ -6,11 +6,11 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from importlib.resources import files
 
-from .models import AgentSession, AgentSessionInfo
 from ..base import BaseComponent
 from ..component_type import ComponentType
 from ..job.events import JobEvent, fold_events
 from ..job.models import JobResponse
+from .models import AgentSession, AgentSessionInfo
 
 
 class BaseAgentComponent(BaseComponent, ABC):

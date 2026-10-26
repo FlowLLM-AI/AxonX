@@ -7,14 +7,7 @@ import type { JobEvent } from "../shared/api/event";
 import { parseSourceTasks } from "../shared/lib/sourceTasks";
 import { createAgent } from "./agent";
 import { catalog } from "./catalog";
-import {
-  addArtifacts,
-  definitions,
-  epoch,
-  json,
-  studioPages,
-  seed,
-} from "./fixtures";
+import { addArtifacts, definitions, epoch, json, seed } from "./fixtures";
 import { sse } from "./stream";
 
 const envelope = (answer: unknown, success = true, metadata = {}) => ({
@@ -263,8 +256,6 @@ export function createPlayground(): Transport {
                 })
               : definitions,
           );
-        case "list_studio_pages":
-          return response(studioPages);
         case "list_task_statuses":
           return response(
             [...tasks.values()]

@@ -7,8 +7,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from ..models.logs import LogEvent
-from ..models.events import TASK_EVENT_ADAPTER, TaskEvent
+from ..models.events import TASK_EVENT_ADAPTER, LogEvent, TaskEvent
 from ..models.lifecycle import TaskMetadata
 from ..storage.events import LOG_WINDOW_BYTES, read_event_lines
 from ..storage.logs import TaskLogReader

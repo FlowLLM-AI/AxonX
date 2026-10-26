@@ -5,7 +5,7 @@ import threading
 
 import uvicorn
 
-from .....common.logging import get_logger
+from .....utils.logging import get_logger
 
 
 class ShutdownServer(uvicorn.Server):

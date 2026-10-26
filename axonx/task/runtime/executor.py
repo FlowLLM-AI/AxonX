@@ -32,6 +32,5 @@ class TaskExecutor:
             reg_name=name,
             timezone=self.timezone,
             execution_target=self.execution_target,
-            task_resolver=self.resolve_task,
         )
-        return TaskRunner().run(task)
+        return TaskRunner(resolve_task=self.resolve_task).run(task)

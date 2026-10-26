@@ -1,1 +1,1 @@
-"""Task artifact synchronization components."""
+"""Task display-replica preparation, transfer, indexing and application."""

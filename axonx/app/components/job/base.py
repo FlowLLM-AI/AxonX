@@ -10,11 +10,11 @@ from typing import Any, cast
 from jsonschema.exceptions import SchemaError
 from jsonschema.validators import validator_for
 
+from ...protocol import TARGET_ARGUMENT
 from ..base import BaseComponent
 from ..component_type import ComponentType
 from .events import JobEvent, fold_events
 from .models import JobInfo, JobResponse
-from ...protocol import TARGET_ARGUMENT
 
 _RESPONSE_SCHEMA = JobResponse.model_json_schema()
 

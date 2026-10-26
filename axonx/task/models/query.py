@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
-from ..task_enums import TaskCategory, TaskState, TaskType
+from .base import TaskModel
+from .identity import TaskCategory, TaskState, TaskType
 from .lifecycle import TaskMetadata, TaskStatus
 
 
-class TaskInfo(BaseModel):
+class TaskInfo(TaskModel):
     """Describe an installed Task without generating parameter schemas."""
 
     model_config = ConfigDict(frozen=True)
@@ -29,7 +30,7 @@ class TaskDefinition(TaskInfo):
     output_schema: dict[str, Any]
 
 
-class StepProgress(BaseModel):
+class StepProgress(TaskModel):
     current: int
     total: int
     name: str
@@ -45,7 +46,7 @@ class TaskSummary(TaskStatus):
     step_progress: StepProgress | None
 
 
-class TaskGraphNode(BaseModel):
+class TaskGraphNode(TaskModel):
     task_id: str
     kind: TaskType
     task_name: str | None
@@ -56,20 +57,20 @@ class TaskGraphNode(BaseModel):
     provisional: bool
 
 
-class TaskGraphEdge(BaseModel):
+class TaskGraphEdge(TaskModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
     from_: str = Field(alias="from")
     to: str
 
 
-class TaskGraph(BaseModel):
+class TaskGraph(TaskModel):
     root_id: str
     selected_id: str
     nodes: list[TaskGraphNode]
     edges: list[TaskGraphEdge]
 
 
-class TaskRelations(BaseModel):
+class TaskRelations(TaskModel):
     direct_upstream: list[str]
     ancestors: list[str]
     direct_downstream: list[str]
@@ -77,7 +78,7 @@ class TaskRelations(BaseModel):
     provisional: list[str]
 
 
-class TaskContextSnapshot(BaseModel):
+class TaskContextSnapshot(TaskModel):
     """Read-only query data, distinct from the execution-owned TaskContext."""
 
     task_id: str

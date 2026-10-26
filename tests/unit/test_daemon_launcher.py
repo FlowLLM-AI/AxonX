@@ -1,14 +1,14 @@
 """Validate the thin CLI through a real daemon-supervised application."""
 
 import json
-from concurrent.futures import ThreadPoolExecutor
 import os
-from pathlib import Path
 import socket
 import subprocess
 import sys
-from time import monotonic, sleep
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from textwrap import dedent
+from time import monotonic, sleep
 
 import httpx
 import psutil
@@ -16,9 +16,9 @@ import pytest
 import yaml
 
 from axonx.app.config.resolver import resolve_app_config
+from axonx.daemon import client as daemon
 from axonx.daemon.client import runtime_directory
 from axonx.daemon.update import UpdateClient
-from axonx.daemon import client as daemon
 from axonx.task.storage.workspace import task_path
 
 

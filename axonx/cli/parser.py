@@ -7,8 +7,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..utils.values import convert_value
+from .arguments import TRANSPORT_OPTION_NAMES, parse_arguments
 from .options import ClientOptions
-from .arguments import TRANSPORT_OPTION_NAMES, convert_value, parse_arguments
 
 _ACTION_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
 

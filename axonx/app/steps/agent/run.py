@@ -6,8 +6,8 @@ from typing import ClassVar
 from ...components.component_type import ComponentType
 from ...components.job.events import ResultEvent
 from ...protocol import AGENT_DEPTH_ARGUMENT
-from ..base import BaseStep
 from ...registry import provider
+from ..base import BaseStep
 
 
 @provider("agent_stream")

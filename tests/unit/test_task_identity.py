@@ -1,29 +1,29 @@
 """Verify task replacement, observation and replication without a second task key."""
 
-from datetime import UTC, datetime, timedelta
 import json
 import subprocess
 import sys
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
+from axonx.app.components.sync.applier import TaskArchiveApplier
+from axonx.app.components.sync.archive import build_archive
+from axonx.app.components.sync.errors import SnapshotChangedError
+from axonx.app.components.sync.replica import prepare_group, task_group
 from axonx.app.steps.task.query import WaitTaskStep
-from axonx.common.logging import LoggingConfig, configure_logging, get_logger
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.core.composite import BaseCompositeTask
+from axonx.task.models.identity import TaskState
 from axonx.task.query.stream import stream_task
+from axonx.task.runtime import lifecycle
 from axonx.task.runtime.executor import TaskExecutor
-from axonx.task.storage import records
 from axonx.task.storage.index import scan_metadata
 from axonx.task.storage.logs import TaskLogReader
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
-from axonx.task.sync.applier import TaskArchiveApplier
-from axonx.task.sync.archive import build_archive
-from axonx.task.sync.errors import SnapshotChangedError
-from axonx.task.sync.replica import prepare_group, task_group
-from axonx.task.task_enums import TaskState
+from axonx.utils.logging import LoggingConfig, configure_logging, get_logger
 
 
 @pytest.fixture
@@ -104,9 +104,9 @@ def test_explicit_reconciliation_keeps_a_newer_execution_unchanged(executor, tmp
     second.state = TaskState.RUNNING
     directory = task_path(tmp_path, second.task_id)
     write_task_metadata(directory, second)
-    monkeypatch.setattr(records, "process_instance", lambda *_: None)
-    assert records.reconcile_task(directory, first.started_at).state == TaskState.RUNNING
-    assert records.reconcile_task(directory, second.started_at).state == TaskState.FAILED
+    monkeypatch.setattr(lifecycle, "process_instance", lambda *_: None)
+    assert lifecycle.reconcile_task(directory, first.started_at).state == TaskState.RUNNING
+    assert lifecycle.reconcile_task(directory, second.started_at).state == TaskState.FAILED
 
 
 def test_kill_refuses_a_restart_during_termination(executor, tmp_path, monkeypatch):
@@ -115,10 +115,10 @@ def test_kill_refuses_a_restart_during_termination(executor, tmp_path, monkeypat
     directory = task_path(tmp_path, current.task_id)
     write_task_metadata(directory, current)
     replacement = current.model_copy(update={"started_at": current.started_at + timedelta(seconds=1)})
-    monkeypatch.setattr(records, "process_instance", lambda *_: None)
-    monkeypatch.setattr(records, "wait_processes", lambda *_: write_task_metadata(directory, replacement))
+    monkeypatch.setattr(lifecycle, "process_instance", lambda *_: None)
+    monkeypatch.setattr(lifecycle, "wait_processes", lambda *_: write_task_metadata(directory, replacement))
     with pytest.raises(ValueError, match="restarted before termination"):
-        records.kill_task(tmp_path, current.task_id)
+        lifecycle.kill_task(tmp_path, current.task_id)
     assert read_entry(tmp_path, current.task_id).started_at == replacement.started_at
     assert read_entry(tmp_path, current.task_id).state == TaskState.RUNNING
 
@@ -132,16 +132,16 @@ def test_killing_a_finished_child_cannot_stop_a_restarted_parent(executor, tmp_p
         update={"state": TaskState.RUNNING, "started_at": child.started_at + timedelta(seconds=1)}
     )
     write_task_metadata(task_path(tmp_path, parent.task_id), replacement)
-    monkeypatch.setattr(records, "signal_process", lambda *_args, **_kwargs: pytest.fail("Signalled the new parent"))
-    assert records.execution_owner(tmp_path, child).task_id == child.task_id
-    assert records.kill_task(tmp_path, child.task_id).state == TaskState.SUCCEEDED
+    monkeypatch.setattr(lifecycle, "signal_process", lambda *_args, **_kwargs: pytest.fail("Signalled the new parent"))
+    assert lifecycle.execution_owner(tmp_path, child).task_id == child.task_id
+    assert lifecycle.kill_task(tmp_path, child.task_id).state == TaskState.SUCCEEDED
     assert read_entry(tmp_path, parent.task_id).state == TaskState.RUNNING
 
 
 def test_cli_kill_uses_only_the_task_id(tmp_path):
     code = """
 import sys, time
-from axonx.common.logging import LoggingConfig, configure_logging
+from axonx.utils.logging import LoggingConfig, configure_logging
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.runtime.executor import TaskExecutor
 class WaitingTask(DemoTask):

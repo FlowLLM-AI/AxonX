@@ -1,20 +1,25 @@
-"""Task lifecycle, step progress, and display-replica records."""
+"""Invocation context, child results, lifecycle, progress and display-replica records."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, ConfigDict, Field, model_validator
 
-from ..task_enums import TaskCategory, TaskState, TaskType
 from .artifacts import Protocol
+from .base import TaskModel
+from .identity import TaskCategory, TaskState, TaskType
+
+if TYPE_CHECKING:
+    from .params import BaseOutputParams
 
 
-class TaskStepStatus(BaseModel):
+class TaskStepStatus(TaskModel):
     """One step snapshot, shared by persistence and progress events."""
 
-    model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1)
     label: str = ""
     parent: str | None = None
@@ -35,8 +40,7 @@ class TaskStepStatus(BaseModel):
     error: str = ""
 
 
-class ReplicaFile(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class ReplicaFile(TaskModel):
     size: int = Field(ge=0)
     revision: str = Field(min_length=1)
     sampled: bool = False
@@ -53,10 +57,9 @@ class ReplicaFile(BaseModel):
         return value
 
 
-class LiveSnapshot(BaseModel):
+class LiveSnapshot(TaskModel):
     """One ordered, read-only snapshot of a parent Task and its children."""
 
-    model_config = ConfigDict(extra="forbid")
     source_id: str = Field(min_length=1)
     root_task_id: str = Field(min_length=1)
     root_started_at: AwareDatetime
@@ -64,15 +67,13 @@ class LiveSnapshot(BaseModel):
     revision: int = Field(gt=0)
 
 
-class ReplicaLog(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class ReplicaLog(TaskModel):
     path: str
     start: int = Field(ge=0)
     end: int = Field(ge=0)
 
 
-class DisplayReplica(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class DisplayReplica(TaskModel):
     purpose: Literal["display"] = "display"
     source_revision: str = Field(min_length=1)
     policy_revision: str = Field(min_length=1)
@@ -96,13 +97,26 @@ class DisplayReplica(BaseModel):
         return value
 
 
-class TaskSource(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
+class TaskSource(TaskModel):
+    model_config = ConfigDict(frozen=True)
     kind: Literal["exec", "unknown"] = "unknown"
 
 
-class TaskStatus(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+@dataclass(frozen=True)
+class TaskContext:
+    """Immutable invocation identity shared with the Runner and child Tasks."""
+
+    workspace_path: Path
+    registration_name: str
+    task_id: str
+    created_at: datetime
+    timezone: str
+    source: TaskSource
+    parent_task_id: str | None = None
+    execution_target: str | None = None
+
+
+class TaskStatus(TaskModel):
     task_id: str
     task_type: TaskType
     reg_name: str = ""
@@ -124,10 +138,9 @@ class TaskStatus(BaseModel):
     log_path: str = ""
 
 
-class ChildTaskRecord(BaseModel):
+class ChildTaskRecord(TaskModel):
     """Snapshot of one child invocation; invalid inputs may have no Task ID."""
 
-    model_config = ConfigDict(extra="forbid")
     node_name: str
     attempt: int = Field(ge=1)
     task: str
@@ -136,6 +149,30 @@ class ChildTaskRecord(BaseModel):
     state: TaskState = TaskState.RUNNING
     exit_code: int = Field(default=0, ge=0, le=255)
     error: str = ""
+
+
+@dataclass(frozen=True)
+class ChildTaskResult:
+    """An invocation snapshot plus its typed output, when output was built."""
+
+    record: ChildTaskRecord
+    output_params: BaseOutputParams | None = None
+
+    @property
+    def task_id(self) -> str:
+        if self.record.task_id is None:
+            raise RuntimeError("Child Task was not constructed")
+        return self.record.task_id
+
+    @property
+    def success(self) -> bool:
+        return self.record.state == TaskState.SUCCEEDED
+
+    @property
+    def output(self) -> dict:
+        if self.output_params is None:
+            raise RuntimeError("Child Task output is unavailable")
+        return self.output_params.model_dump(mode="json", by_alias=True)
 
 
 class TaskMetadata(Protocol, TaskStatus):
@@ -148,7 +185,6 @@ class TaskMetadata(Protocol, TaskStatus):
     steps: list[TaskStepStatus] = Field(default_factory=list)
     replica: DisplayReplica | None = None
 
-
-def current_children(status: TaskMetadata):
-    """Named directories contain the latest invocation; earlier attempts stay in metadata."""
-    return {child.task_id: child for child in status.children if child.task_id}.values()
+    def current_children(self) -> list[ChildTaskRecord]:
+        """Return the latest invocation per child ID; retain all attempts in metadata."""
+        return list({child.task_id: child for child in self.children if child.task_id}.values())

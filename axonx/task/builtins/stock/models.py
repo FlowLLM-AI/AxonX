@@ -4,17 +4,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .protocol import validate_feature_protocol
-from ...identity import normalize_yyyymmdd
+from ...models.base import TaskModel, normalize_yyyymmdd
 from ...models.params import (
     BaseBacktestOutputParams,
     BaseETLOutputParams,
     BaseInputParams,
 )
+from ...models.reports import BacktestDimensions, OnlineCommit
+from .protocol import validate_feature_protocol
 
 
 class PortfolioSettings(BaseModel):
@@ -91,3 +92,61 @@ class StockETLOutput(BaseETLOutputParams):
     @classmethod
     def validate_etl_protocol(cls, value):
         return validate_feature_protocol(value)
+
+
+class StockReportSettings(TaskModel):
+    """The stock report uses the same portfolio artifact schemas as backtests."""
+
+    signals_format: Literal["stock-signals-v1"]
+    strategy_identity: str = Field(pattern=r"^[0-9a-f]{64}$")
+    dimensions: BacktestDimensions
+    date_range: dict[str, str]
+    portfolio: dict[str, Any]
+    score_selection: dict[str, Any]
+    evaluation_status: Literal["done", "incomplete_market_data"]
+    missing_dates: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_settings(self):
+        start, end = (self.date_range.get(key, "") for key in ("start", "end"))
+        for value in (start, end, *self.missing_dates):
+            normalize_yyyymmdd(value)
+        if start > end or any(not start <= value <= end for value in self.missing_dates):
+            raise ValueError("Invalid online report date range")
+        return self
+
+
+STOCK_REPORT_ARTIFACTS = frozenset(
+    {
+        "predictions",
+        "signal",
+        "market",
+        "signals",
+        "orders",
+        "positions",
+        "trades",
+        "daily",
+        "summary",
+        "prediction_protocol",
+        "calendar",
+        "input_features",
+    }
+)
+
+
+class StockOnlineReport(TaskModel):
+    """A report is one immutable publication; settings live in its protocol."""
+
+    kind: Literal["stock_online"] = "stock_online"
+    commit: OnlineCommit
+
+    @model_validator(mode="after")
+    def validate_report(self):
+        settings = StockReportSettings.model_validate(self.commit.protocol.get("report"))
+        if "targets" in self.commit.artifacts:
+            raise ValueError("Unsupported stock signals format; regenerate online records with a new task_name")
+        if settings.date_range["end"] != self.commit.trade_date:
+            raise ValueError("Online report must end at its committed signal date")
+        if missing := STOCK_REPORT_ARTIFACTS - self.commit.artifacts.keys():
+            raise ValueError(f"Incomplete stock online report: {sorted(missing)}")
+        return self

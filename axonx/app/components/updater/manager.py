@@ -3,11 +3,11 @@
 from functools import partial
 from typing import Protocol
 
-from ..base import BaseComponent
-from ..component_type import ComponentType
 from ...async_work import run_blocking
 from ...core.response import RESPONSE_CALLBACKS
 from ...registry import provider
+from ..base import BaseComponent
+from ..component_type import ComponentType
 
 
 class UpdateBackend(Protocol):

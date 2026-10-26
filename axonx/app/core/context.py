@@ -7,8 +7,8 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from ..config.models import ApplicationConfig
-from .dispatch import JobDispatcher
 from ..workspace import Workspace
+from .dispatch import JobDispatcher
 
 if TYPE_CHECKING:
     from ..components.base import BaseComponent

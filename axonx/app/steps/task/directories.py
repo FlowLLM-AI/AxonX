@@ -3,9 +3,9 @@
 import asyncio
 from pathlib import Path
 
-from ..base import BaseStep
 from ...registry import provider
 from ...workspace.models import WorkspaceEntry
+from ..base import BaseStep
 
 
 def _is_task_directory(path: Path, entry: WorkspaceEntry) -> bool:

@@ -6,11 +6,11 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Any
 
-from ..job.models import JobInfo, JobResponse
-from ...protocol import AXONX_SERVICE_TARGET
 from ...async_work import complete_on_cancel
 from ...connection import ConnectionOptions, default_target
 from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT
+from ...protocol import AXONX_SERVICE_TARGET
+from ..job.models import JobInfo, JobResponse
 
 
 class RemoteServiceError(RuntimeError):

@@ -42,7 +42,7 @@ const defaultViews: Record<SectionId, string> = {
   predict: "runs",
   backtest: "runs",
   compare: "strategies",
-  operations: "",
+  operations: "online",
   report: "task",
 };
 

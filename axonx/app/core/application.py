@@ -8,17 +8,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..._version import __version__
+from ...utils.logging import LOG_CLEANUP_INTERVAL, cleanup_log_files, get_logger
+from ..async_work import run_blocking
 from ..components.base import BaseComponent
 from ..components.job.events import JobEvent
 from ..components.job.models import JobResponse
 from ..config.models import ApplicationConfig
+from ..workspace import Workspace
 from .composition import compose_application
 from .context import ApplicationContext
 from .graph import ComponentGraph
-from .logging import LOG_CLEANUP_INTERVAL, cleanup_log_files
-from ..async_work import run_blocking
-from ...common.logging import get_logger
-from ..workspace import Workspace
 
 if TYPE_CHECKING:
     from ..components.updater.manager import UpdateBackend

@@ -22,7 +22,7 @@ Read JSON responses and check `success`, process exit codes and persisted Task r
 
 Tasks inherit `axonx.task.core.task.BaseTask`, validate inputs with `input_cls`, yield synchronous steps from `build_task_steps()`, and return a typed result from `build_output_params()`. The Runner persists lifecycle and progress and owns cleanup. Composite Tasks use `BaseCompositeTask.run_task()` with explicit child results.
 
-Plugin manifests map registration names to `module:Class` under `tasks`. Discovery belongs to `axonx.plugin.catalog`; execution receives a resolver rather than importing Plugin. Import atomic publication and snapshot helpers from `axonx.task.storage.files`. `common` contains only logging and environment loading.
+Plugin manifests map registration names to `module:Class` under `tasks`. Discovery belongs to `axonx.plugin.catalog`; execution receives a resolver rather than importing Plugin. Import atomic publication and snapshot helpers from `axonx.task.storage.files`. `utils` provides explicit environment loading and interpolation, logging and scalar conversion.
 
 Keep artifacts traceable through output metadata. Preserve atomic metadata writes and online publication consistency. Task metadata has no coordination lock. Show actual validation limits, including unavailable data, models or external services.
 

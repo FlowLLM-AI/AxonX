@@ -1,27 +1,13 @@
 """Source identities and verified replica indexes use the same transfer policy."""
 
-import re
-from collections.abc import Sequence
 from pathlib import Path
 
-from ...common.logging import get_logger
-from ..constants import TASK_NAME_PATTERN
-from ..models.artifacts import fingerprint
-from ..storage.workspace import read_entry, scan_entries, task_path
+from ....task.models.artifacts import fingerprint
+from ....task.models.identity import matches_task_name
+from ....task.storage.workspace import read_entry, scan_entries, task_path
+from ....utils.logging import get_logger
 from .errors import SnapshotChangedError
 from .planner import plan_task
-
-
-def validate_task_names(values: Sequence[str] | None) -> frozenset[str]:
-    if values is not None and not isinstance(values, (list, tuple, set, frozenset)):
-        raise ValueError("task_names must be a list of task names")
-    if any(not isinstance(value, str) or not re.fullmatch(TASK_NAME_PATTERN, value) for value in values or ()):
-        raise ValueError("task_names must contain valid task names")
-    return frozenset(values or ())
-
-
-def matches_task_name(task_id: str, task_names: frozenset[str]) -> bool:
-    return not task_names or task_id.rsplit("#", 1)[-1] in task_names
 
 
 def policy_revision(budget: int) -> str:
@@ -91,13 +77,3 @@ def snapshot_index(root: Path, task_names: frozenset[str], roots: frozenset[str]
         except (OSError, ValueError) as exc:
             get_logger("task-sync-index").warning(f"Skipping invalid display replica {identity}: {exc}")
     return result
-
-
-def validate_live_task_ids(values) -> frozenset[str]:
-    from ..identity import task_type_from_id
-
-    if values is not None and not isinstance(values, (list, tuple, set, frozenset)):
-        raise ValueError("live_task_ids must be a list of Task IDs")
-    for value in values or ():
-        task_type_from_id(value)
-    return frozenset(values or ())

@@ -1,4 +1,4 @@
-"""Domain execution and shared operations."""
+"""Task progress and logs, their query chunks and discriminated stream events."""
 
 from __future__ import annotations
 
@@ -6,8 +6,27 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Field, TypeAdapter
 
-from .logs import LogEvent
+from .base import TaskModel
 from .lifecycle import TaskStepStatus
+
+
+class LogChunk(TaskModel):
+    content: str = ""
+    start_offset: int = 0
+    next_offset: int = 0
+    file_size: int = 0
+    has_more_before: bool = False
+    has_more_after: bool = False
+    reset: bool = False
+
+
+class LogEvent(LogChunk):
+    kind: Literal["log"] = "log"
+    channel: str = "task"
+
+    @classmethod
+    def from_chunk(cls, chunk: Any) -> LogEvent:
+        return cls.model_validate(chunk, from_attributes=True)
 
 
 class ProgressEvent(TaskStepStatus):

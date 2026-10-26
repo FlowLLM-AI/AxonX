@@ -3,10 +3,10 @@
 import math
 from dataclasses import dataclass
 
-from axonx_qlib_a158.backtest import Alpha158BacktestTask as BaseTask
 from pydantic import Field
 
 from axonx.task.builtins.stock.models import StockBacktestOutput, StockPortfolioInput
+from axonx_qlib_a158.backtest import Alpha158BacktestTask as BaseTask
 
 
 @dataclass(frozen=True)

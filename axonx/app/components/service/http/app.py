@@ -11,11 +11,8 @@ from fastmcp.utilities.lifespan import combine_lifespans
 from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
 
-from ...client.base import RemoteServiceError
-from .files import create_files_router
-from .jobs import create_jobs_router, create_mcp_server
-from .proxy import create_proxy_router
-from .studio import mount_studio, resolve_studio_dir
+from ....connection import normalize_target
+from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_ENCODING
 from ....core.response import RESPONSE_CALLBACKS
 from ....protocol import (
     AXONX_SERVICE_TARGET,
@@ -25,8 +22,11 @@ from ....protocol import (
     PROTOCOL_CLI_REQUEST_HEADER,
     PROTOCOL_ROUTE_MCP,
 )
-from ....connection import normalize_target
-from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_ENCODING
+from ...client.base import RemoteServiceError
+from .files import create_files_router
+from .jobs import create_jobs_router, create_mcp_server
+from .proxy import create_proxy_router
+from .studio import mount_studio, resolve_studio_dir
 
 
 class _ProtocolAuthMiddleware:

@@ -3,27 +3,9 @@
 import json
 import re
 from pathlib import Path
-from typing import Literal
 
-from pydantic import ConfigDict, Field
-
+from ..models.reports import HistoryNode, OnlineHistory
 from .files import file_revision
-from ..task_enums import TaskType
-from ..models.artifacts import ArtifactRecord, Protocol
-from ..models.reports import OnlineCommit, OnlineHistory
-
-HISTORY_BLOCK_SIZE = 16
-
-
-class HistoryNode(Protocol):
-    """A bounded revision group referencing the preceding completed group."""
-
-    model_config = ConfigDict(extra="forbid")
-    task_type: Literal[TaskType.INFERENCE] = TaskType.INFERENCE
-    kind: Literal["online_history_node"] = "online_history_node"
-    strategy_identity: str = Field(pattern=r"^[0-9a-f]{64}$")
-    commits: list[OnlineCommit] = Field(min_length=1, max_length=HISTORY_BLOCK_SIZE)
-    previous: ArtifactRecord | None = None
 
 
 def read_online_history(path: Path) -> OnlineHistory:

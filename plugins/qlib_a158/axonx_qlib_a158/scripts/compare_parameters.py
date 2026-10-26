@@ -7,11 +7,10 @@ from pathlib import Path
 
 import polars as pl
 
-from axonx.task.storage.files import atomic_write
-from axonx.task.storage.files import file_revision
-from axonx.task.task_enums import TaskState
+from axonx.task.models.identity import TaskState
 from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.artifacts import read_metadata
+from axonx.task.storage.files import atomic_write, file_revision
 from axonx.task.storage.workspace import task_path
 
 from ..backtest import Alpha158BacktestTask

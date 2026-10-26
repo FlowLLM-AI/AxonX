@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Activity, LoaderCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { StudioPage } from "../../shared/api/contracts";
+import type { OperationPageDefinition } from "./pages";
 import type { TaskSummary } from "../tasks/types";
 import { listTaskStatuses } from "../tasks/api";
 import { formatDate } from "../tasks/format";
@@ -25,7 +25,7 @@ export default function OperationPage({
   onConnection,
   onOpenTask,
 }: {
-  page: StudioPage;
+  page: OperationPageDefinition;
   target?: string;
   initialResource?: string;
   onSelected: (id: string) => void;
@@ -33,7 +33,7 @@ export default function OperationPage({
   onConnection: (online: boolean) => void;
   onOpenTask: (id: string) => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -67,7 +67,6 @@ export default function OperationPage({
   const selected = initialResource
     ? tasks.find((task) => task.task_id === initialResource)
     : visible[0];
-  const title = page.title[i18n?.resolvedLanguage === "zh" ? "zh" : "en"];
   useEffect(() => {
     onOptionsChange(
       tasks.map((task) => ({
@@ -82,7 +81,7 @@ export default function OperationPage({
         <aside className="task-index rail-panel">
           <TaskIndexControls
             eyebrow={t("operations.runHistory")}
-            title={title}
+            title={t(page.titleKey)}
             count={tasks.length}
             loading={loading}
             query={query}

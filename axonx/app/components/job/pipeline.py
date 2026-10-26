@@ -9,13 +9,13 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from ...config.models import ComponentConfig
+from ...registry import provider
+from ...steps.base import BaseStep
 from ..component_type import ComponentType
 from .base import BaseJob
 from .context import RuntimeContext
 from .events import JobEvent, ResultEvent
-from ...config.models import ComponentConfig
-from ...steps.base import BaseStep
-from ...registry import provider
 
 if TYPE_CHECKING:
     from ...core.context import ApplicationContext

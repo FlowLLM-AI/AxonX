@@ -4,23 +4,26 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import (
     AwareDatetime,
-    BaseModel,
     ConfigDict,
     Field,
     field_validator,
     model_validator,
 )
 
-from ..task_enums import TaskType
+from .base import DateString, TaskModel
+from .identity import TaskType
 
 
-class ArtifactRecord(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+class ArtifactRecord(TaskModel):
+    model_config = ConfigDict(frozen=True)
     path: str = Field(min_length=1)
     size: int = Field(ge=0)
     revision: str = Field(pattern=r"^\d+:\d+$")
@@ -36,10 +39,7 @@ class ArtifactRecord(BaseModel):
 PROTOCOL_VERSION = 1
 
 
-STOCK_SIGNALS_FORMAT = "stock-signals-v1"
-
-
-class Protocol(BaseModel):
+class Protocol(TaskModel):
     """Plugins extend the payload; the framework owns version and producer type."""
 
     model_config = ConfigDict(extra="allow")
@@ -65,7 +65,7 @@ def validate_protocol(value: dict, *task_types: TaskType) -> dict:
     return value
 
 
-def fingerprint(value: Mapping) -> str:
+def fingerprint(value: Any) -> str:
     """Hash semantic content deterministically, independent of mapping order."""
     content = json.dumps(
         value,
@@ -77,8 +77,7 @@ def fingerprint(value: Mapping) -> str:
     return hashlib.sha256(content.encode()).hexdigest()
 
 
-class ModelMember(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class ModelMember(TaskModel):
     model_artifact: str = Field(min_length=1)
     model: dict[str, Any]
 
@@ -101,13 +100,13 @@ class ModelCollection(Protocol):
 class PredictionProtocol(Protocol):
     task_type: Literal[TaskType.PREDICT, TaskType.INFERENCE]
     model_identity: dict[str, str] = Field(min_length=1)
-    dates: list[str] = Field(min_length=1)
+    dates: list[DateString] = Field(min_length=1)
     score_columns: dict[str, str] = Field(min_length=1)
     predictions_revision: str = Field(pattern=r"^\d+:\d+$")
 
     @model_validator(mode="after")
     def validate_scope(self):
-        if self.dates != sorted(set(self.dates)) or any(not day for day in self.dates):
+        if self.dates != sorted(set(self.dates)):
             raise ValueError("Prediction dates must be nonempty, sorted and unique")
         if any(not key or not value for key, value in self.score_columns.items()):
             raise ValueError("Prediction member IDs and score columns must be nonempty")
@@ -116,16 +115,16 @@ class PredictionProtocol(Protocol):
         return self
 
 
-class ReplayEvent(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+class ReplayEvent(TaskModel):
+    model_config = ConfigDict(frozen=True)
     key: str = Field(min_length=1)
     available_at: AwareDatetime
     files: dict[str, ArtifactRecord]
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 
-class ReplayManifest(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+class ReplayManifest(TaskModel):
+    model_config = ConfigDict(frozen=True)
     version: Literal[1] = 1
     kind: Literal["event_stream"] = "event_stream"
     events: list[ReplayEvent] = Field(min_length=1)
@@ -138,3 +137,32 @@ class ReplayManifest(BaseModel):
         if times != sorted(times):
             raise ValueError("Replay events must be ordered by availability")
         return self
+
+
+@dataclass(frozen=True)
+class ReplaySource:
+    """An event to snapshot; paths are never retained as live payload references."""
+
+    key: str
+    available_at: datetime
+    files: dict[str, Path]
+    attributes: dict[str, Any] = field(default_factory=dict)
+
+
+def prediction_protocol(
+    task_type: TaskType,
+    identity: dict[str, str],
+    predictions_revision: str,
+    dates: Iterable,
+    score_columns: dict[str, str],
+    **payload,
+) -> dict:
+    return PredictionProtocol(
+        version=PROTOCOL_VERSION,
+        task_type=task_type,
+        model_identity=identity,
+        dates=sorted({str(day) for day in dates}),
+        score_columns=score_columns,
+        predictions_revision=predictions_revision,
+        **payload,
+    ).model_dump(mode="json")

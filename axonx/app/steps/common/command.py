@@ -7,12 +7,12 @@ import signal
 from contextlib import suppress
 from uuid import uuid4
 
-from ...protocol import AXONX_SERVICE_TARGET
-from ..base import BaseStep
+from ....task.models.events import LogEvent
 from ...async_work import complete_on_cancel
 from ...connection import AXONX_CLI_REQUEST_ID, normalize_target
-from ....task.models.logs import LogEvent
+from ...protocol import AXONX_SERVICE_TARGET
 from ...registry import provider
+from ..base import BaseStep
 
 OUTPUT_LIMIT = 1024 * 1024
 

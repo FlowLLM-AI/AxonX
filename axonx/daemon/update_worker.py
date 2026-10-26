@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import signal
+import subprocess
 import sys
 from datetime import UTC, datetime
 from importlib import metadata

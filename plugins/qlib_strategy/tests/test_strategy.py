@@ -2,10 +2,10 @@
 
 import polars as pl
 import pytest
-from axonx_qlib_strategy.backtest import RankRetentionPolicy, StrategyBacktestInput
 
 from axonx.task.builtins.stock.engine import run_backtest
 from axonx.task.builtins.stock.models import BacktestConfig
+from axonx_qlib_strategy.backtest import RankRetentionPolicy, StrategyBacktestInput
 
 
 def fixture():

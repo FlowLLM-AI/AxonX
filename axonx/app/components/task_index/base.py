@@ -3,12 +3,11 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable
 
-from ..base import BaseComponent
-from ..component_type import ComponentType
+from ....task.models.events import LogChunk, TaskEvent
 from ....task.models.lifecycle import TaskMetadata
 from ....task.models.query import TaskContextSnapshot, TaskGraph, TaskSummary
-from ....task.models.events import TaskEvent
-from ....task.models.logs import LogChunk
+from ..base import BaseComponent
+from ..component_type import ComponentType
 
 TaskChangeCallback = Callable[[frozenset[str]], None]
 

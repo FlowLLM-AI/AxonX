@@ -15,35 +15,73 @@ from typing import TYPE_CHECKING
 
 import psutil
 
-from ..process import machine_id, process_started_at
-from ..task_enums import TaskState
-from ..models.events import ProgressEvent
-from ..identity import task_type_from_id
 from ..models.artifacts import PROTOCOL_VERSION
+from ..models.events import ProgressEvent
+from ..models.identity import TaskState, task_type_from_id
 from ..models.lifecycle import TaskMetadata, TaskStepStatus
-from ..progress import settle_steps
-from .logging import task_log_scope
-from .settings import normalize_execution_target
 from ..storage.events import append_event, append_progress_snapshots
-from ..storage.records import conflict_message, reconcile_record
 from ..storage.workspace import (
     EVENTS_FILE,
     load_task_metadata,
     reset_task_directory,
     write_task_metadata,
 )
+from .lifecycle import conflict_message, reconcile_record
+from .logging import task_log_scope
+from .process import machine_id, process_started_at
+from .progress import settle_steps
+from .settings import normalize_execution_target
 
 if TYPE_CHECKING:
     from ..core.task import BaseTask
+    from ..models.lifecycle import ChildTaskRecord
+    from ..models.params import BaseOutputParams
 
 
 class TaskRunner:
-    def __init__(self, on_started: Callable[[datetime], None] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        resolve_task: Callable[[str], type[BaseTask]] | None = None,
+        on_started: Callable[[datetime], None] | None = None,
+    ) -> None:
+        self.resolve_task = resolve_task
         self.on_started = on_started
         self.task: BaseTask | None = None
         self.status: TaskMetadata | None = None
         self.step: TaskStepStatus | None = None
         self._progress_published: dict[tuple[str, str], float] = {}
+
+    def run_child(self, record: ChildTaskRecord, inputs: dict) -> BaseOutputParams:
+        """Execute a child with the parent's environment and the same resolver."""
+        parent = self.task
+        assert parent is not None
+        if self.resolve_task is None:
+            raise RuntimeError("Composite Tasks require a task resolver")
+        child = self.resolve_task(record.task)(
+            {"task_name": parent.input_params.task_name, **inputs},
+            workspace_path=parent.workspace_path,
+            reg_name=record.task,
+            timezone=parent.context.timezone,
+            source=parent.context.source,
+            parent_task_id=parent.task_id,
+            execution_target=parent.context.execution_target,
+            clock=parent.clock,
+        )
+        record.task_id = child.task_id
+        try:
+            self._publish()
+        except BaseException:
+            self._close_after_error(child)
+            raise
+
+        def observe(started_at):
+            record.started_at = started_at
+            self._publish()
+
+        status = TaskRunner(resolve_task=self.resolve_task, on_started=observe).run(child)
+        record.state, record.exit_code, record.error = status.state, status.exit_code, status.error
+        return child.output_params
 
     def _publish(self) -> None:
         task = self.task
@@ -219,6 +257,7 @@ class TaskRunner:
                 task._metadata = status
                 task._persist_metadata = self._publish
                 task._progress = self.progress
+                task._execute_child = self.run_child
                 task.logger.info(f"Task started task_id={task.task_id} task_type={task.task_type.value}")
                 self._publish()
                 if self.on_started is not None:
@@ -266,6 +305,8 @@ class TaskRunner:
         finally:
             task._progress = None
             task._persist_metadata = None
+            task._execute_child = None
             self.task = None
             self.status = None
             self.step = None
+            self._progress_published.clear()

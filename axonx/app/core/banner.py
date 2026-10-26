@@ -37,8 +37,8 @@ def _rgb(hue: float) -> tuple[int, int, int]:
 
 def print_logo(app_config: "ApplicationConfig", service: "BaseService") -> None:
     """Print the AxonX logo and effective service endpoints."""
-    from .build_info import get_build_info
     from ..protocol import PROTOCOL_ROUTE_MCP
+    from .build_info import get_build_info
 
     ascii_art = (
         r" █████╗ ██╗  ██╗ ██████╗ ███╗   ██╗██╗  ██╗",

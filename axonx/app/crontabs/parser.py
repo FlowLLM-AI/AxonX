@@ -9,7 +9,7 @@ from pathlib import Path
 
 from croniter import croniter
 
-from ...config.locator import locate_file
+from ..config.locator import locate_file
 
 _FIELD = re.compile(r"^[0-9*,/\-]+$")
 
@@ -51,7 +51,7 @@ def load_crontab(source: str, validate_command: Callable[[Sequence[str]], None])
     """Resolve a crontab and validate every command before enabling scheduling."""
     path = locate_file(
         source,
-        directory=Path(__file__).resolve().parents[2] / "crontabs",
+        directory=Path(__file__).parent,
         extensions=(".cron",),
         group="axonx.crons",
         label="Crontab",

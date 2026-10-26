@@ -1,8 +1,8 @@
 """Self-update Job Steps."""
 
 from ...components.component_type import ComponentType
-from ..base import BaseStep
 from ...registry import provider
+from ..base import BaseStep
 
 
 class UpdateStep(BaseStep):

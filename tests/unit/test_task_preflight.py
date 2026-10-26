@@ -4,18 +4,18 @@ import json
 import shlex
 from unittest.mock import Mock
 
-from loguru import logger
 import psutil
 import pytest
+from loguru import logger
 
-from axonx.common.logging import LoggingConfig, configure_logging
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.core.composite import BaseCompositeTask
+from axonx.task.models.identity import TaskState
+from axonx.task.runtime import lifecycle
 from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.runtime.settings import AXONX_TASK_EXECUTION_TARGET, ExecutionSettings, normalize_execution_target
-from axonx.task.storage import records
 from axonx.task.storage.workspace import read_task_metadata, task_path, write_task_metadata
-from axonx.task.task_enums import TaskState
+from axonx.utils.logging import LoggingConfig, configure_logging
 
 
 @pytest.fixture
@@ -54,11 +54,11 @@ def test_unknown_local_process_blocks_startup_but_observation_remains_available(
     executor, status, directory = task
     running(status, directory)
     before = (directory / "metadata.json").read_bytes()
-    monkeypatch.setattr(records, "process_instance", Mock(side_effect=psutil.AccessDenied(status.pid)))
+    monkeypatch.setattr(lifecycle, "process_instance", Mock(side_effect=psutil.AccessDenied(status.pid)))
     with pytest.raises(FileExistsError, match="cannot verify the local process") as error:
         restart(executor)
     assert "Task is running:" not in str(error.value)
-    assert records.reconcile_task(directory, status.started_at).state == TaskState.RUNNING
+    assert lifecycle.reconcile_task(directory, status.started_at).state == TaskState.RUNNING
     assert (directory / "metadata.json").read_bytes() == before
 
 
@@ -68,7 +68,7 @@ def test_local_dead_process_logs_repair_before_overwrite(task, monkeypatch):
     persistent = directory / "persistent"
     persistent.mkdir()
     (persistent / "history.txt").write_text("keep")
-    monkeypatch.setattr(records, "process_instance", lambda *_: None)
+    monkeypatch.setattr(lifecycle, "process_instance", lambda *_: None)
     messages = []
     sink = logger.add(lambda message: messages.append(message.record["message"]))
     try:
@@ -89,7 +89,7 @@ def test_foreign_running_task_is_unchanged_and_uses_the_execution_machine_path(t
     executor, status, directory = task
     running(status, directory, machine_id="foreign", execution_target=target, workspace_dir="/source/shared workspace")
     before = (directory / "metadata.json").read_bytes()
-    monkeypatch.setattr(records, "process_instance", lambda *_: pytest.fail("Probed a foreign process"))
+    monkeypatch.setattr(lifecycle, "process_instance", lambda *_: pytest.fail("Probed a foreign process"))
     with pytest.raises(FileExistsError, match="another machine") as error:
         restart(executor)
     expected = shlex.join(
@@ -113,7 +113,7 @@ def test_foreign_terminal_record_can_be_overwritten(task, monkeypatch):
     executor, status, directory = task
     status.machine_id = "foreign"
     write_task_metadata(directory, status)
-    monkeypatch.setattr(records, "process_instance", lambda *_: pytest.fail("Probed a terminal process"))
+    monkeypatch.setattr(lifecycle, "process_instance", lambda *_: pytest.fail("Probed a terminal process"))
     assert restart(executor).state == TaskState.SUCCEEDED
 
 
@@ -122,9 +122,9 @@ def test_orphan_running_child_does_not_route_kill_to_an_already_finished_parent(
     child = executor.execute("demo", {"task_name": "child", "x": 1, "y": 2})
     child.parent_task_id = parent.task_id
     child = running(child, task_path(executor.workspace_path, child.task_id))
-    assert records.execution_owner(executor.workspace_path, child).task_id == child.task_id
-    monkeypatch.setattr(records, "process_instance", lambda *_: None)
-    assert records.kill_task(executor.workspace_path, child.task_id).state == TaskState.FAILED
+    assert lifecycle.execution_owner(executor.workspace_path, child).task_id == child.task_id
+    monkeypatch.setattr(lifecycle, "process_instance", lambda *_: None)
+    assert lifecycle.kill_task(executor.workspace_path, child.task_id).state == TaskState.FAILED
 
 
 @pytest.mark.parametrize("problem", ["missing", "json", "encoding", "schema", "identity", "symlink"])
@@ -176,7 +176,7 @@ def test_execution_location_reaches_nested_tasks_and_root_conflict_hints(tmp_pat
     assert parent.workspace_dir == child.workspace_dir == str(tmp_path.resolve())
     parent = running(parent, task_path(tmp_path, parent.task_id), machine_id="foreign")
     child = running(child, task_path(tmp_path, child.task_id), machine_id="foreign")
-    message = records.conflict_message(tmp_path, child)
+    message = lifecycle.conflict_message(tmp_path, child)
     assert shlex.join(["axonx", "kill", "--task-id", parent.task_id]) in message
     assert "--target http://10.0.0.8:1024" in message
 

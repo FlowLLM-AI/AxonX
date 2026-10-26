@@ -1,17 +1,11 @@
 """Read Task metadata and resolve recorded artifacts safely."""
 
 import json
-from collections.abc import Iterable
 from pathlib import Path
 
+from ..models.artifacts import ArtifactRecord, validate_protocol
+from ..models.identity import TaskState
 from .files import file_revision
-from ..task_enums import TaskState, TaskType
-from ..models.artifacts import (
-    ArtifactRecord,
-    PredictionProtocol,
-    task_protocol,
-    validate_protocol,
-)
 
 
 def read_metadata(path: Path) -> dict:
@@ -48,21 +42,3 @@ def artifact_record(path: Path, root: Path) -> dict:
         size=path.stat().st_size,
         revision=file_revision(path),
     ).model_dump()
-
-
-def prediction_protocol(
-    task_type: TaskType,
-    identity: dict[str, str],
-    path: Path,
-    dates: Iterable,
-    score_columns: dict[str, str],
-    **payload,
-) -> dict:
-    return PredictionProtocol(
-        **task_protocol(task_type),
-        model_identity=identity,
-        dates=sorted({str(day) for day in dates}),
-        score_columns=score_columns,
-        predictions_revision=file_revision(path),
-        **payload,
-    ).model_dump(mode="json")

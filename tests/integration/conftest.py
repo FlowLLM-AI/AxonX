@@ -13,7 +13,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from axonx.common.env import parse_env_file
+from axonx.utils.env import parse_env_file
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

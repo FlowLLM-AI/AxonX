@@ -1,8 +1,8 @@
 """Flush changes queued by a workspace sync component."""
 
 from ...components.component_type import ComponentType
-from ..base import BaseStep
 from ...registry import provider
+from ..base import BaseStep
 
 
 @provider("sync_flush_step")

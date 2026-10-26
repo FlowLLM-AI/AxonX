@@ -1,7 +1,7 @@
 """Stock feature semantics shared by feature producers and model consumers."""
 
-from ...task_enums import TaskType
 from ...models.artifacts import fingerprint, task_protocol, validate_protocol
+from ...models.identity import TaskType
 
 FEATURE_IDENTITY_FIELDS = (
     "feature_family",
@@ -50,3 +50,6 @@ def feature_contract(metadata: dict) -> dict:
         **task_protocol(TaskType.ETL),
         **{key: metadata[key] for key in FEATURE_IDENTITY_FIELDS if key in metadata},
     }
+
+
+STOCK_SIGNALS_FORMAT = "stock-signals-v1"

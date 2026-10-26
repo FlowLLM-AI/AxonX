@@ -5,7 +5,7 @@ from __future__ import annotations
 import codecs
 from pathlib import Path
 
-from ..models.logs import LogChunk
+from ..models.events import LogChunk
 from ..models.lifecycle import TaskMetadata
 from .events import LOG_WINDOW_BYTES
 from .workspace import read_entry, task_path

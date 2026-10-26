@@ -1,25 +1,24 @@
 """One atomic manifest publishes immutable online artifacts and revision history."""
 
+from __future__ import annotations
+
 import json
 import re
 import shutil
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from .files import atomic_write, atomic_write_json
-from .locking import file_lock
-from .files import file_revision
-from .files import snapshot_file
-from ..core.clock import DeadlineBudget
 from ..models.artifacts import PROTOCOL_VERSION
-from ..models.reports import OnlineCommit, OnlineHistory
+from ..models.reports import HISTORY_BLOCK_SIZE, HistoryNode, OnlineCommit, OnlineHistory
 from .artifacts import artifact_path, artifact_record
-from .history import (
-    HISTORY_BLOCK_SIZE,
-    HistoryNode,
-    read_online_history,
-)
+from .files import atomic_write, atomic_write_json, file_revision, snapshot_file
+from .history import read_online_history
+from .locking import file_lock
+
+if TYPE_CHECKING:
+    from ..core.clock import DeadlineBudget
 
 
 def online_artifact(root: Path, commit: OnlineCommit, role: str) -> Path:

@@ -1,7 +1,7 @@
 """Follow one running task as a live event stream."""
 
-from .base import TaskIndexStep
 from ...registry import provider
+from .base import TaskIndexStep
 
 
 @provider("stream_task")

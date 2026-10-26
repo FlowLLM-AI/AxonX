@@ -9,25 +9,24 @@ from pathlib import Path
 from typing import Any, ClassVar, TypeAlias
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from ...common.logging import get_log_path, get_logger
-from ..constants import TASK_ID_SEPARATOR
-from .clock import WindowClock
-from .context import TaskContext
-from ..task_enums import TaskCategory, TaskType
-from ..identity import (
+from ...utils.logging import get_log_path, get_logger
+from ..models.identity import (
+    TASK_ID_SEPARATOR,
+    TaskCategory,
+    TaskType,
     generated_task_name,
     parse_source_tasks,
     validate_registration_name,
 )
-from ..models.lifecycle import TaskMetadata, TaskSource
+from ..models.lifecycle import ChildTaskRecord, TaskContext, TaskMetadata, TaskSource
 from ..models.params import BaseInputParams, BaseOutputParams
+from ..storage.inputs import resolve_input_path, source_task_directory
 from ..storage.workspace import (
     METADATA_FILE,
     PERSISTENT_DIR,
-    read_task_metadata,
-    task_id_from_path,
     task_path,
 )
+from .clock import WindowClock
 
 TaskStep: TypeAlias = Callable[[], None]
 
@@ -54,11 +53,9 @@ class BaseTask(ABC):
         parent_task_id: str | None = None,
         execution_target: str | None = None,
         clock: WindowClock | None = None,
-        task_resolver: Callable[[str], type[BaseTask]] | None = None,
     ):
         self.input_params = self.input_cls.model_validate(input_params)
         workspace_path = Path(workspace_path).expanduser().resolve()
-        self.task_resolver = task_resolver
         if reg_name is None:
             raise ValueError(f"Task {type(self).__name__} requires a registration name")
         registration_name = validate_registration_name(reg_name)
@@ -83,18 +80,20 @@ class BaseTask(ABC):
             registration_name=registration_name,
             task_id=task_id,
             created_at=created_at,
-            logger=get_logger(type(self).__name__),
+            timezone=timezone,
             source=source or TaskSource(kind="exec"),
             parent_task_id=parent_task_id,
             execution_target=execution_target,
         )
+        self._logger = get_logger(type(self).__name__)
         self.state: dict[str, Any] = {}
-        self.clock = clock if clock is not None else getattr(self, "clock", WindowClock())
+        self.clock = clock if clock is not None else WindowClock()
         self._output_params: BaseOutputParams | None = None
 
         self.log_path = str(get_log_path() or "")
         self._progress: Callable[..., None] | None = None
         self._persist_metadata: Callable[[], None] | None = None
+        self._execute_child: Callable[[ChildTaskRecord, dict], BaseOutputParams] | None = None
         self._metadata: TaskMetadata | None = None
 
     @property
@@ -115,7 +114,7 @@ class BaseTask(ABC):
 
     @property
     def logger(self):
-        return self.context.logger
+        return self._logger
 
     @property
     def task_dir(self) -> Path:
@@ -144,19 +143,10 @@ class BaseTask(ABC):
         self._persist_metadata()  # pylint: disable=not-callable
 
     def source_task_dir(self, task_id: str) -> Path:
-        directory = task_path(self.workspace_path, task_id)
-        metadata = read_task_metadata(directory, task_id)
-        if metadata is not None and metadata.replica is not None:
-            raise ValueError("Display replicas cannot be used as research inputs")
-        return directory
+        return source_task_directory(self.workspace_path, task_id)
 
     def resolve_workspace_path(self, path: str | Path) -> Path:
-        candidate = Path(path).expanduser()
-        resolved = (candidate if candidate.is_absolute() else self.workspace_path / candidate).resolve()
-        owner = task_id_from_path(self.workspace_path, str(resolved))
-        if owner is not None:
-            self.source_task_dir(owner)
-        return resolved
+        return resolve_input_path(self.workspace_path, path)
 
     def on_failure(self, error: BaseException) -> None:
         """Record business-specific failure details; the runner owns task status."""

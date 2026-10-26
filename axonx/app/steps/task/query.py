@@ -3,11 +3,11 @@
 import asyncio
 from datetime import datetime
 
-from .base import TaskIndexStep
-from ....task.models.logs import LogEvent
-from ...registry import provider
-from ....task.task_enums import TaskState
+from ....task.models.events import LogEvent
+from ....task.models.identity import TaskState
 from ....task.query import summarize_status, task_sort_key
+from ...registry import provider
+from .base import TaskIndexStep
 
 
 @provider("list_ids")

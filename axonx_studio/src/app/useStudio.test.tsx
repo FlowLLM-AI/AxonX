@@ -10,12 +10,8 @@ import { createPlayground } from "../playground/runtime";
 import { AppShell } from "./AppShell";
 import { defaultRoute } from "./routes";
 import { useStudio } from "./useStudio";
-import { listStudioPages } from "../features/operations/api";
-import { studioPages } from "../playground/fixtures";
+import { operationPages } from "../features/operations/pages";
 
-vi.mock("../features/operations/api", () => ({
-  listStudioPages: vi.fn().mockResolvedValue([]),
-}));
 vi.mock("../features/machines/api", () => ({
   listMachineOptions: vi.fn(),
   machineStatus: vi.fn(),
@@ -58,9 +54,9 @@ function Harness({ operations = false }: { operations?: boolean }) {
   studio = useStudio();
   return (
     <AppShell {...studio}>
-      {operations && studio.operationPages[0] ? (
+      {operations ? (
         <OperationPage
-          page={studio.operationPages.find((page) => page.id === "online")!}
+          page={operationPages.find((page) => page.id === "online")!}
           onOptionsChange={studio.setResourceOptions}
           onSelected={ignoreSelection}
           onConnection={studio.setServiceOnline}
@@ -78,7 +74,6 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.clearAllMocks();
   localStorage.clear();
-  vi.mocked(listStudioPages).mockResolvedValue([]);
   window.history.replaceState(null, "", "#local/home/overview");
   vi.stubGlobal(
     "matchMedia",
@@ -163,7 +158,6 @@ const groupToggle = (id: string) =>
 
 it("remembers group choices and opens the group when entering a page", async () => {
   vi.mocked(machineStatus).mockResolvedValue(info("1.0"));
-  vi.mocked(listStudioPages).mockResolvedValue(studioPages);
   await act(async () => root.render(<Harness />));
   expect(
     [...container.querySelectorAll(".primary-nav-group")].map(
@@ -212,6 +206,19 @@ it("ignores malformed group preferences and expands direct-linked pages", async 
   expect(container.querySelector(".nav-apis.active")).not.toBeNull();
 });
 
+it("keeps operation navigation available when the backend is offline", async () => {
+  vi.mocked(machineStatus).mockRejectedValue(new Error("Offline"));
+  await act(async () => root.render(<Harness />));
+  for (const page of operationPages) {
+    const button = container.querySelector<HTMLButtonElement>(
+      `.nav-operation-${page.id}`,
+    )!;
+    expect(button.textContent).toBe(page.titleKey);
+    await act(async () => button.click());
+    expect(studio.route).toEqual({ section: "operations", view: page.id });
+  }
+});
+
 it("retains breadcrumb options when selecting a resource and clears them on page changes", async () => {
   vi.mocked(machineStatus).mockResolvedValue(info("1.0"));
   await act(async () => root.render(<Harness />));
@@ -227,7 +234,7 @@ it("retains breadcrumb options when selecting a resource and clears them on page
   expect(studio.resourceOptions).toEqual([]);
 });
 
-it("shares one clock across service health, operation reports and logs without reloading navigation", async () => {
+it("shares one clock across service health, operation reports and logs", async () => {
   const clocks = vi.spyOn(globalThis, "setInterval");
   const demo = createPlayground();
   const requests: string[] = [];
@@ -238,7 +245,6 @@ it("shares one clock across service health, operation reports and logs without r
     }, false),
   );
   vi.mocked(machineStatus).mockResolvedValue(info("1.0"));
-  vi.mocked(listStudioPages).mockResolvedValue(studioPages);
   await act(async () => root.render(<Harness operations />));
   expect(clocks).toHaveBeenCalledTimes(1);
   const logTab = () =>
@@ -252,7 +258,6 @@ it("shares one clock across service health, operation reports and logs without r
   expect(machineStatus).toHaveBeenCalledTimes(1);
   await act(async () => vi.advanceTimersByTimeAsync(1_000));
   expect(machineStatus).toHaveBeenCalledTimes(2);
-  expect(listStudioPages).toHaveBeenCalledTimes(1);
   expect(logTab().getAttribute("aria-selected")).toBe("true");
   for (const job of ["list_task_statuses", "read_task_log"])
     expect(
@@ -265,7 +270,6 @@ it("shares one clock across service health, operation reports and logs without r
     container.querySelector<HTMLButtonElement>(".rail-refresh")!.click(),
   );
   expect(machineStatus).toHaveBeenCalledTimes(3);
-  expect(listStudioPages).toHaveBeenCalledTimes(1);
   expect(logTab().getAttribute("aria-selected")).toBe("true");
   clocks.mockRestore();
 });

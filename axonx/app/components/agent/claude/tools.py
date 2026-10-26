@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import TypeAdapter
 
-from ...job.models import JobResponse
 from ....protocol import AGENT_DEPTH_ARGUMENT, TARGET_ARGUMENT
+from ...job.models import JobResponse
 
 if TYPE_CHECKING:
-    from ...job.base import BaseJob
     from ....core.context import ApplicationContext
     from ....core.dispatch import JobDispatcher
+    from ...job.base import BaseJob
 
 _ANSWER_ADAPTER = TypeAdapter(Any)
 _SERVER_NAME = "axonx"

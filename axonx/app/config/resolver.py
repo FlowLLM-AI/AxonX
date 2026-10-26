@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from .loader import ConfigLoader
 from ..constants import CONFIG_ENTRY_POINT_GROUP
+from .loader import ConfigLoader
 
 
 def resolve_app_config(*, log_config: bool = True, **overrides) -> dict:

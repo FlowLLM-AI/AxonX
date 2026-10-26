@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 from ..base import BaseComponent
 from ..component_type import ComponentType
-from ....task.sync.models import SyncReport
+from .models import SyncReport
 
 
 class BaseSyncComponent(BaseComponent, ABC):

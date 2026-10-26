@@ -474,13 +474,6 @@ export type StructuredPreview = {
   truncated: boolean;
 };
 
-export type StudioPage = {
-  title: Record<string, string>;
-  view: "tasks" | "pipeline";
-  category: TaskCategory;
-  id: string;
-};
-
 export type TaskCategory = "data_update" | "online_prediction" | "comparison";
 
 export type TaskContextSnapshot = {

@@ -6,7 +6,7 @@ import type { MachineNode } from "../features/machines/types";
 import { researchSections } from "./navigation";
 import { defaultRoute } from "./routes";
 import type { AppRoute, SectionId } from "./routes";
-import type { StudioPage } from "../shared/api/contracts";
+import { operationPages } from "../features/operations/pages";
 
 const OperationPage = lazy(
   () => import("../features/operations/OperationPage"),
@@ -30,8 +30,6 @@ const TaskDefinitionsPage = lazy(
 const AgentWorkspace = lazy(() => import("../features/agent/AgentWorkspace"));
 
 interface PageOutletProps {
-  operationPages: StudioPage[];
-  operationPagesError: string;
   route: AppRoute;
   machine: MachineNode;
   target?: string;
@@ -42,8 +40,6 @@ interface PageOutletProps {
 }
 
 export function PageOutlet({
-  operationPages,
-  operationPagesError,
   route,
   machine,
   target,
@@ -151,9 +147,7 @@ export function PageOutlet({
       />
     ) : (
       <div className="empty-research">
-        <p role="status">
-          {operationPagesError || t("operations.unavailable")}
-        </p>
+        <p role="status">{t("operations.unavailable")}</p>
       </div>
     );
   } else if (route.section === "report" && route.resource) {

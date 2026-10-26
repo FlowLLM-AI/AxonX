@@ -2,15 +2,15 @@
 
 from inspect import cleandoc
 
-from .contributions import index_contributions
-from .discovery import list_installed_plugins
-from .loading import load_symbol
 from ..task.builtins.demo import DemoTask
 from ..task.builtins.dingtalk import SendDingTalkTask
 from ..task.builtins.tushare import DownloadTushareTask
 from ..task.core.task import BaseTask
-from ..task.task_enums import TaskType
+from ..task.models.identity import TaskType
 from ..task.models.query import TaskDefinition, TaskInfo
+from .contributions import index_contributions
+from .discovery import list_installed_plugins
+from .loading import load_symbol
 
 BUILTIN_TASKS = {"demo": DemoTask, "send_dingtalk_task": SendDingTalkTask, "download_tushare_task": DownloadTushareTask}
 

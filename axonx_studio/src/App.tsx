@@ -9,9 +9,6 @@ export default function App() {
 
   return (
     <AppShell
-      operationPages={studio.operationPages}
-      operationPagesError={studio.operationPagesError}
-      reloadOperationPages={studio.reloadOperationPages}
       route={studio.route}
       theme={studio.theme}
       setTheme={studio.setTheme}
@@ -29,8 +26,6 @@ export default function App() {
     >
       <PageOutlet
         key={`${studio.authRevision}:${studio.selectedMachine.id}`}
-        operationPages={studio.operationPages}
-        operationPagesError={studio.operationPagesError}
         route={studio.route}
         machine={studio.selectedMachine}
         target={studio.target}

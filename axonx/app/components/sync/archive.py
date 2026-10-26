@@ -8,7 +8,7 @@ import tarfile
 from collections.abc import Sequence
 from pathlib import Path
 
-from ..storage.workspace import task_directory
+from ....task.storage.workspace import task_directory
 from .errors import SnapshotChangedError
 from .models import TaskFile, TaskPlan
 from .planner import task_file

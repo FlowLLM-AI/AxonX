@@ -6,8 +6,19 @@ from typing import Any
 
 import polars as pl
 
-from ...storage.files import atomic_write
-from ...storage.files import file_revision
+from ...core.standard import BaseBacktestTask
+from ...core.task import TaskStep
+from ...models.artifacts import PredictionProtocol, task_protocol
+from ...models.identity import TaskType, parse_source_tasks, task_type_from_id
+from ...models.reports import (
+    BacktestBenchmark,
+    BacktestDimensions,
+    BacktestUniverse,
+    BacktestUniverseReport,
+)
+from ...storage.artifacts import artifact_record, read_metadata
+from ...storage.files import atomic_write, file_revision
+from ...storage.inputs import pin_source_artifacts
 from .data import KEYS
 from .engine import PortfolioPolicy, run_backtest
 from .models import (
@@ -16,23 +27,7 @@ from .models import (
     StockBacktestInput,
     StockBacktestOutput,
 )
-from ...core.standard import BaseBacktestTask
-from ...core.task import TaskStep
-from ...task_enums import TaskType
-from ...identity import parse_source_tasks, task_type_from_id
-from ...models.artifacts import (
-    STOCK_SIGNALS_FORMAT,
-    PredictionProtocol,
-    task_protocol,
-)
-from ...models.reports import (
-    BacktestBenchmark,
-    BacktestDimensions,
-    BacktestUniverse,
-    BacktestUniverseReport,
-)
-from ...storage.artifacts import artifact_record, read_metadata
-from ...storage.inputs import pin_source_artifacts
+from .protocol import STOCK_SIGNALS_FORMAT
 
 
 class BaseStockBacktestTask(BaseBacktestTask):

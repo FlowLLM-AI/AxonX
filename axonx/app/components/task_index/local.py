@@ -8,11 +8,9 @@ from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 
-from .base import BaseTaskIndex, TaskChangeCallback
-from ...async_work import run_blocking
-from ...registry import provider
+from ....task.models.events import LogChunk
 from ....task.models.lifecycle import TaskMetadata
-from ....task.models.query import TaskGraph, TaskSummary
+from ....task.models.query import TaskContextSnapshot, TaskGraph, TaskSummary
 from ....task.query import (
     FileVersion,
     TaskLogReader,
@@ -24,8 +22,9 @@ from ....task.query import (
     task_graph,
     task_sort_key,
 )
-from ....task.models.query import TaskContextSnapshot
-from ....task.models.logs import LogChunk
+from ...async_work import run_blocking
+from ...registry import provider
+from .base import BaseTaskIndex, TaskChangeCallback
 
 
 @provider("local")

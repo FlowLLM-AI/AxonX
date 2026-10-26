@@ -1,15 +1,17 @@
 """Exercise application scheduling and daemon-owned one-shot processes."""
 
 import asyncio
-from datetime import datetime, timedelta
 import os
 import sys
+from datetime import datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
 
-from axonx.app.components.cron.parser import load_crontab, parse_crontab
+from axonx.app import crontabs
 from axonx.app.core.application import Application
+from axonx.app.crontabs import load_crontab, parse_crontab
 from axonx.cli.parser import validate_cron_command
 from axonx.daemon.worker import Supervisor
 
@@ -72,7 +74,7 @@ async def test_cron_advances_a_slot_even_when_launch_fails(tmp_path):
 
 def test_bundled_crontab_is_next_to_application_config():
     path, entries = load_crontab("research", validate_cron_command)
-    assert path.parent.name == "crontabs"
+    assert path.parent == Path(crontabs.__file__).resolve().parent
     assert path.parent.parent.name == "app"
     assert not entries
 

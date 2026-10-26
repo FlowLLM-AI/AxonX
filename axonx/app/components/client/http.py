@@ -11,9 +11,8 @@ from urllib.parse import quote
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from .base import BaseClient, RemoteServiceError
-from ..job.events import JOB_EVENT_ADAPTER, JobEvent, ResultEvent
-from ..job.models import JobCatalog, JobInfo, JobResponse
+from ...connection import AXONX_CLI_REQUEST_ID
+from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT
 from ...protocol import (
     PROTOCOL_AUTH_HEADER,
     PROTOCOL_AUTH_SCHEME,
@@ -28,9 +27,10 @@ from ...protocol import (
     PROTOCOL_SSE_DATA_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
-from ...connection import AXONX_CLI_REQUEST_ID
-from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT
 from ...workspace.models import StagedFile
+from ..job.events import JOB_EVENT_ADAPTER, JobEvent, ResultEvent
+from ..job.models import JobCatalog, JobInfo, JobResponse
+from .base import BaseClient, RemoteServiceError
 
 _UPLOAD_CHUNK_BYTES = 1024 * 1024
 PayloadT = TypeVar("PayloadT", bound=BaseModel)

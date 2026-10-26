@@ -161,33 +161,35 @@ describe("application routes", () => {
   });
 });
 
-it("keeps configured operation page IDs distinct in routes and navigation", async () => {
-  const { configuredNavigation, navigationItemForRoute } =
+it("keeps operation page IDs distinct in routes and navigation", async () => {
+  const { navigationGroups, navigationItemForRoute } =
     await import("./navigation");
-  const { studioPages } = await import("../playground/fixtures");
-  const groups = configuredNavigation(studioPages, "zh");
-  expect(groups.map((group) => group.id)).toEqual([
+  const { operationPages } = await import("../features/operations/pages");
+  expect(navigationGroups.map((group) => group.id)).toEqual([
     "system",
     "operations",
     "research",
     "development",
   ]);
-  expect(groups.map((group) => group.items.map((item) => item.id))).toEqual([
+  expect(
+    navigationGroups.map((group) => group.items.map((item) => item.id)),
+  ).toEqual([
     ["tasks", "resources", "environment"],
-    ["operation-online", "operation-nightly", "operation-data"],
+    ["operation-online", "operation-comparison", "operation-data"],
     ["agent", "etl", "factors", "train", "predict", "backtest", "compare"],
     ["task-defs", "workspace", "apis"],
   ]);
-  const items = groups.flatMap((group) => group.items);
-  for (const page of studioPages) {
+  for (const page of operationPages) {
     const route = {
       section: "operations" as const,
       view: page.id,
       resource: "api#download#run",
     };
     expect(parseHash(routeHash("remote:1024", route)).route).toEqual(route);
-    expect(navigationItemForRoute(route, items).id).toBe(
-      `operation-${page.id}`,
-    );
+    expect(navigationItemForRoute(route).id).toBe(`operation-${page.id}`);
   }
+  expect(parseHash("#local/operations").route).toEqual(
+    defaultRoute("operations"),
+  );
+  expect(defaultRoute("operations").view).toBe("online");
 });

@@ -2,12 +2,12 @@
 
 import asyncio
 
+from ...registry import provider
 from ..base import BaseStep
 from .diagnostics import collect_diagnostics
 from .health import check_machines
 from .metrics import collect_machine_info
 from .python import run_python
-from ...registry import provider
 
 CPU_SAMPLE_INTERVAL_SECONDS = 0.1
 

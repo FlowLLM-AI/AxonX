@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import cast
 from uuid import uuid4
 
+from ...async_work import run_blocking
 from .session_store import (
     AgentSessionEntry,
     AgentSessionKey,
@@ -20,7 +21,6 @@ from .session_store import (
     AgentSessionListKey,
     AgentSessionSummary,
 )
-from ...async_work import run_blocking
 
 _KEY_PART = re.compile(r"^[A-Za-z0-9._-]+$")
 

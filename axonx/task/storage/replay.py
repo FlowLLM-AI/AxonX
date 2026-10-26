@@ -1,28 +1,13 @@
-"""Portable, revision-checked event files and a synchronous replay driver."""
+"""Publish and verify portable replay manifests and their file snapshots."""
 
 import hashlib
 import tempfile
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
-from datetime import datetime
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from .storage.files import atomic_write_json
-from .storage.files import file_revision
-from .storage.files import snapshot_file
-from .core.clock import ReplayClock
-from .models.artifacts import ArtifactRecord, ReplayEvent, ReplayManifest
-
-
-@dataclass(frozen=True)
-class ReplaySource:
-    """An event to snapshot; paths are never retained as live payload references."""
-
-    key: str
-    available_at: datetime
-    files: dict[str, Path]
-    attributes: dict[str, Any] = field(default_factory=dict)
+from ..models.artifacts import ArtifactRecord, ReplayEvent, ReplayManifest, ReplaySource
+from .files import atomic_write_json, file_revision, snapshot_file
 
 
 class ReplayStream:
@@ -94,31 +79,3 @@ class ReplayStream:
             atomic_write_json(root / "stream.json", manifest.model_dump(mode="json"))
             root.rename(directory)
         return cls(directory)
-
-
-class ReplayCursor:
-    """Deliver events only when available and strictly before the caller's deadline."""
-
-    def __init__(self, stream: ReplayStream, clock: ReplayClock):
-        self.stream, self.clock, self.position = stream, clock, 0
-
-    def wait(
-        self,
-        deadline: datetime,
-        consume: Callable[[ReplayEvent], None],
-        ready: Callable[[], bool],
-    ) -> bool:
-        while self.clock.now() < deadline:
-            if ready():
-                return True
-            if self.position == len(self.stream.manifest.events):
-                break
-            event = self.stream.manifest.events[self.position]
-            if event.available_at >= deadline:
-                break
-            self.clock.advance_to(max(self.clock.now(), event.available_at))
-            consume(event)
-            self.position += 1
-        if self.clock.now() < deadline:
-            self.clock.advance_to(deadline)
-        return False

@@ -1,7 +1,7 @@
 """Small built-in Task used to demonstrate synchronous execution."""
 
 from ..core.task import BaseTask
-from ..task_enums import TaskType
+from ..models.identity import TaskType
 from ..models.params import BaseInputParams, BaseOutputParams
 
 

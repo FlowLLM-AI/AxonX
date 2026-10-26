@@ -9,13 +9,13 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
-from ...constants import TUSHARE_TIMEOUT_SECONDS
 from ...core.clock import DeadlineBudget
 
 if TYPE_CHECKING:
     import pandas as pd
 
 DEFAULT_BASE_URL = "http://api.waditu.com/dataapi"
+TUSHARE_TIMEOUT_SECONDS = 600
 IP_LIMIT_ERROR = "IP数量超限"
 RATE_LIMIT_ERROR = "频率超限"
 TRANSIENT_ERROR = "查询数据失败，请确认参数"

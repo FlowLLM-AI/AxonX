@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ..models.lifecycle import TaskMetadata
-from ..storage.workspace import (
+from ....task.models.lifecycle import TaskMetadata
+from ....task.storage.workspace import (
     EVENTS_FILE,
     METADATA_FILE,
     read_entry,

@@ -6,10 +6,10 @@ from contextlib import suppress
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from ...crontabs import CronEntry, load_crontab
+from ...registry import provider
 from ..base import BaseComponent
 from ..component_type import ComponentType
-from ...registry import provider
-from .parser import CronEntry, load_crontab
 
 
 @provider("cron")

@@ -1,27 +1,27 @@
 """Verify the HTTP surface with Task observation and an injected update backend."""
 
 import json
+import os
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import monotonic, sleep
-import os
-import sys
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
+from axonx.app.components.sync.archive import build_archive
+from axonx.app.components.sync.replica import prepare_replica
 from axonx.app.config.resolver import resolve_app_config
 from axonx.app.core.application import Application
 from axonx.app.protocol import PROTOCOL_FILE_NAME_HEADER
-from axonx.common.logging import LoggingConfig, configure_logging
 from axonx.task.builtins.demo import DemoTask
+from axonx.task.models.identity import TaskState
 from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.runtime.settings import AXONX_TASK_EXECUTION_TARGET, ExecutionSettings
 from axonx.task.storage.logs import TaskLogReader
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
-from axonx.task.sync.archive import build_archive
-from axonx.task.sync.replica import prepare_replica
-from axonx.task.task_enums import TaskState
+from axonx.utils.logging import LoggingConfig, configure_logging
 
 
 class UpdateOperations:
@@ -205,6 +205,7 @@ def test_workspace_deletion_has_no_task_lifecycle_policy(application):
 
 def test_sync_archive_round_trip_through_the_http_adapters(application, tmp_path):
     app, client = application
+    assert "sync" not in app.context.components
     source = tmp_path / "source"
     configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
     status = TaskExecutor(source, resolve_task=lambda _: DemoTask).execute(

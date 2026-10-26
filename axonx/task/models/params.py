@@ -1,31 +1,27 @@
-"""Validated Task inputs, outputs, training curves and prediction comparisons."""
+"""Task inputs and results, including training, comparison and execution windows."""
 
 from __future__ import annotations
 
-import re
-from math import isfinite
+from datetime import UTC
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AwareDatetime, ConfigDict, Field, field_validator, model_validator
 
-from ..constants import TASK_NAME_PATTERN
-from ..task_enums import TaskType
-from ..identity import parse_source_tasks, task_type_from_id
 from .artifacts import (
     ArtifactRecord,
     PredictionProtocol,
     validate_protocol,
 )
-from .reports import BacktestUniverseReport
+from .base import TaskModel
+from .identity import TaskType, parse_source_tasks, task_type_from_id, validate_task_name
+from .reports import BacktestUniverseReport, PredictionComparison, TrainingCurve, WindowResult
 
-_TASK_NAME = re.compile(TASK_NAME_PATTERN)
 
-
-class BaseInputParams(BaseModel):
+class BaseInputParams(TaskModel):
     """Validated user-supplied parameters for one Task invocation."""
 
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    model_config = ConfigDict(validate_assignment=True)
     task_name: str | None = None
     source_tasks: str = Field(default="", description="Upstream Task IDs separated by ASCII commas.")
 
@@ -34,9 +30,7 @@ class BaseInputParams(BaseModel):
     def validate_task_name(cls, name: Any) -> str | None:
         if name is None or name == "":
             return None
-        if not isinstance(name, str) or not _TASK_NAME.fullmatch(name):
-            raise ValueError("task_name must contain 1-32 letters, digits, or hyphens")
-        return name
+        return validate_task_name(name)
 
     @field_validator("source_tasks")
     @classmethod
@@ -54,10 +48,10 @@ class BaseInputParams(BaseModel):
         raise ValueError(f"Missing source task: {task_type.value}")
 
 
-class BaseOutputParams(BaseModel):
+class BaseOutputParams(TaskModel):
     """Validated Task result, including any produced artifacts."""
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True)
     artifacts: dict[str, ArtifactRecord] = Field(default_factory=dict)
 
 
@@ -108,56 +102,13 @@ class BasePredictOutputParams(BaseOutputParams):
     protocol: dict[str, Any]
     statistics: dict[str, Any] = Field(default_factory=dict)
 
-    @model_validator(mode="after")
-    def validate_prediction_protocol(self):
-        protocol = PredictionProtocol.model_validate(self.protocol)
+    @field_validator("protocol")
+    @classmethod
+    def validate_prediction_protocol(cls, value: dict[str, Any]) -> dict[str, Any]:
+        protocol = PredictionProtocol.model_validate(value)
         if protocol.task_type != TaskType.PREDICT:
             raise ValueError("Prediction output differs from its protocol")
-        return self
-
-
-class TrainingCurve(BaseModel):
-    """Aligned training history for one chart with up to two y-axis ranges.
-
-    Each ``x[i]`` labels the same training point in every series. Producers
-    may use iteration numbers, timestamps, or another ordered string label.
-    ``y_left`` contains series with comparable units and numeric ranges on
-    the primary axis. Use optional ``y_right`` only for a second group that
-    needs an independent scale; do not mix substantially different scales
-    within either group or add a third group.
-
-    Every series has exactly ``len(x)`` finite samples, and names are unique
-    across the two groups. A populated curve requires at least one left-axis
-    series. Empty ``x`` and empty groups mean no curve data is available.
-    """
-
-    x: list[str] = Field(
-        default_factory=list,
-        description="Ordered labels shared by every series, e.g. iterations or timestamps.",
-    )
-    y_left: dict[str, list[float]] = Field(
-        default_factory=dict,
-        description="Named series sharing the primary left y-axis value range.",
-    )
-    y_right: dict[str, list[float]] = Field(
-        default_factory=dict,
-        description="Named series sharing an optional second value range on the right y-axis.",
-    )
-
-    @model_validator(mode="after")
-    def validate_series(self):
-        if not self.x and (self.y_left or self.y_right):
-            raise ValueError("Training curve series require x-axis points")
-        if self.x and not self.y_left:
-            raise ValueError("A populated training curve requires a left-axis series")
-        if self.y_left.keys() & self.y_right.keys():
-            raise ValueError("Training curve series names must be unique across axes")
-        for name, values in (*self.y_left.items(), *self.y_right.items()):
-            if len(values) != len(self.x):
-                raise ValueError(f"Training curve series {name!r} must match the x-axis length")
-            if not all(isfinite(value) for value in values):
-                raise ValueError(f"Training curve series {name!r} must contain finite values")
-        return self
+        return value
 
 
 class BaseTrainOutputParams(BaseOutputParams):
@@ -179,15 +130,6 @@ class BaseTrainOutputParams(BaseOutputParams):
         return self
 
 
-class PredictionComparison(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    key: str
-    status: Literal["consistent", "different", "protocol_mismatch", "missing", "error"]
-    reason: str = ""
-    metrics: dict[str, Any] = Field(default_factory=dict)
-    artifacts: dict[str, ArtifactRecord] = Field(default_factory=dict)
-
-
 class BasePredictionCompareInputParams(BaseInputParams):
     comparison_keys: list[str] = Field(min_length=1)
 
@@ -201,3 +143,37 @@ class BasePredictionCompareInputParams(BaseInputParams):
 
 class BasePredictionCompareOutputParams(BaseOutputParams):
     comparisons: list[PredictionComparison] = Field(default_factory=list)
+
+
+class ExecutionWindow(TaskModel):
+    key: str = Field(min_length=1)
+    start_at: AwareDatetime
+    end_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.end_at.astimezone(UTC) <= self.start_at.astimezone(UTC):
+            raise ValueError("end_at must be after start_at")
+        return self
+
+
+class WindowOutputParams(BaseOutputParams):
+    windows: list[WindowResult] = Field(default_factory=list)
+
+
+class WindowInputParams(BaseInputParams):
+    windows: list[ExecutionWindow] = Field(min_length=1)
+    poll_interval_seconds: float = Field(default=1, gt=0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def validate_windows(self):
+        keys = [window.key for window in self.windows]
+        if len(keys) != len(set(keys)):
+            raise ValueError("window keys must be unique")
+        if self.windows != sorted(self.windows, key=lambda window: window.start_at.astimezone(UTC)):
+            raise ValueError("windows must be ordered by start_at")
+        return self
+
+
+class BaseInferenceOutputParams(WindowOutputParams):
+    model_identity: dict[str, str]

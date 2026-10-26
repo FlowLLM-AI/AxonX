@@ -2,8 +2,8 @@
 
 import json
 
-from ..common.command import CommandStep
 from ...registry import provider
+from ..common.command import CommandStep
 
 
 class TaskCatalogStep(CommandStep):

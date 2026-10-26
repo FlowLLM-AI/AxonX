@@ -15,10 +15,8 @@ from axonx.app.components.agent.models import (
 )
 from axonx.app.components.job.events import ArtifactEvent, ResultEvent
 from axonx.app.components.job.models import JobCatalog, JobInfo, JobResponse
-from axonx.app.config.models import StudioPage
 from axonx.app.core.build_info import BuildInfo
 from axonx.app.steps.machine.models import MachineDiagnostics, MachineInfo
-from axonx.task.models.logs import LogChunk, LogEvent
 from axonx.app.workspace.models import (
     CsvPreview,
     DeletedEntry,
@@ -32,19 +30,19 @@ from axonx.app.workspace.models import (
     UnsupportedPreview,
     WorkspaceListing,
 )
-from axonx.task.builtins.stock.models import StockBacktestOutput, StockETLOutput
-from axonx.task.models.events import ProgressEvent
+from axonx.task.builtins.stock.models import StockBacktestOutput, StockETLOutput, StockOnlineReport, StockReportSettings
 from axonx.task.models.artifacts import ArtifactRecord
+from axonx.task.models.events import LogChunk, LogEvent, ProgressEvent
 from axonx.task.models.lifecycle import TaskMetadata, TaskStepStatus
 from axonx.task.models.params import (
     BaseAnalysisOutputParams,
     BaseBacktestOutputParams,
     BaseETLOutputParams,
+    BaseInferenceOutputParams,
     BasePredictionCompareOutputParams,
     BasePredictOutputParams,
     BaseTrainOutputParams,
-    PredictionComparison,
-    TrainingCurve,
+    WindowOutputParams,
 )
 from axonx.task.models.query import (
     TaskContextSnapshot,
@@ -52,22 +50,11 @@ from axonx.task.models.query import (
     TaskGraph,
     TaskSummary,
 )
-from axonx.task.models.reports import (
-    OnlineCommit,
-    OnlineHistory,
-    StockOnlineReport,
-    StockReportSettings,
-)
-from axonx.task.models.windows import (
-    BaseInferenceOutputParams,
-    WindowOutputParams,
-    WindowResult,
-)
+from axonx.task.models.reports import OnlineCommit, OnlineHistory, PredictionComparison, TrainingCurve, WindowResult
 
 MODELS = [
     TaskContextSnapshot,
     MachineDiagnostics,
-    StudioPage,
     TaskSummary,
     TaskGraph,
     JobResponse,

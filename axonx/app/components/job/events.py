@@ -8,10 +8,9 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 
+from ....task.models.events import LogEvent, ProgressEvent
 from ..agent.events import AgentMessageEvent
 from .models import JobResponse
-from ....task.models.logs import LogEvent
-from ....task.models.events import ProgressEvent
 
 
 class ArtifactEvent(BaseModel):

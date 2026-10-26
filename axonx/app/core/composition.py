@@ -8,10 +8,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from ..workspace import Workspace
-
-from ...common.logging import LoggingConfig, configure_logging, get_logger
-from ..registry import ProviderRegistry
+from ...utils.logging import LoggingConfig, configure_logging, get_logger
 from ..components.agent.claude import ClaudeAgentComponent
 from ..components.base import BaseComponent
 from ..components.cron import CronComponent
@@ -25,6 +22,7 @@ from ..components.task_index import LocalTaskIndex
 from ..components.updater import UpdateManager
 from ..components.updater.manager import UpdateBackend
 from ..config.models import ApplicationConfig, ComponentConfig
+from ..registry import ProviderRegistry
 from ..steps.agent import (
     AgentStreamStep,
     CancelAgentTurnStep,
@@ -38,15 +36,14 @@ from ..steps.agent import (
 )
 from ..steps.common import CommandStep, HelpStep, VersionStep
 from ..steps.machine.steps import DiagnoseStep, ListMachinesStep, MachineStatusStep, PythonStep
-from ..steps.studio import ListStudioPagesStep
 from ..steps.sync import SyncFlushStep, SyncTasksStep, TaskSyncIndexStep
 from ..steps.task import (
     GetTaskDefinitionStep,
-    ListInstalledTaskDefinitionsStep,
     GetTaskGraphStep,
     GetTaskStatusStep,
-    ListTaskIdsStep,
+    ListInstalledTaskDefinitionsStep,
     ListTaskDirectoriesStep,
+    ListTaskIdsStep,
     ListTaskStatusesStep,
     ReadTaskLogStep,
     StreamTaskStep,
@@ -54,6 +51,7 @@ from ..steps.task import (
 )
 from ..steps.update import GetUpdateStatusStep, RestartServiceStep, UpdateFromGitStep, UpdateFromPipStep
 from ..steps.workspace import DeleteEntriesStep, ListEntriesStep, PreviewFileStep
+from ..workspace import Workspace
 from .context import ApplicationContext
 
 APP_PROVIDERS = (
@@ -85,7 +83,6 @@ APP_PROVIDERS = (
     ListMachinesStep,
     MachineStatusStep,
     PythonStep,
-    ListStudioPagesStep,
     SyncFlushStep,
     GetTaskGraphStep,
     GetTaskStatusStep,

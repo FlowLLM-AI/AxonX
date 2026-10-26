@@ -6,9 +6,6 @@ import { defaultRoute, parseHash, routeHash, type AppRoute } from "./routes";
 import { useRefresh } from "../shared/hooks/useRefresh";
 import { AxonXError, axonx } from "../shared/api/client";
 
-import { listStudioPages } from "../features/operations/api";
-import { useAsyncResource } from "../shared/hooks/useAsyncResource";
-
 const LOCAL_MACHINE: MachineNode = {
   id: "local",
   address: "localhost",
@@ -181,15 +178,6 @@ export function useStudio() {
     setAuthRevision((revision) => revision + 1);
   }, []);
   const service = useServiceStatus(machineState.target, authRevision);
-  const loadPages = useCallback(
-    (signal: AbortSignal) => listStudioPages(machineState.target, signal),
-    [machineState.target],
-  );
-  const pages = useAsyncResource(loadPages);
-  const reloadPages = pages.reload;
-  useEffect(() => {
-    if (authRevision) void reloadPages();
-  }, [authRevision, reloadPages]);
   const [resourceOptions, setResourceOptions] = useState<ContextOption[]>([]);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("axonx-sidebar") === "collapsed",
@@ -235,9 +223,6 @@ export function useStudio() {
     ...theme,
     ...machineState,
     ...service,
-    operationPages: pages.data || [],
-    operationPagesError: pages.error,
-    reloadOperationPages: pages.reload,
     authRevision,
     authTokenConfigured: axonx.hasToken(),
     setAuthToken,

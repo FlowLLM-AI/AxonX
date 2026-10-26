@@ -9,13 +9,12 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from ..storage.files import snapshot_file
-from ..models.lifecycle import current_children
-from ..storage.workspace import (
+from ....task.storage.files import snapshot_file
+from ....task.storage.workspace import (
     parse_task_directory,
-    resolve_relative_path,
     read_entry,
     read_task_metadata,
+    resolve_relative_path,
     task_directory,
 )
 from .index import verify_replica
@@ -172,7 +171,7 @@ class TaskArchiveApplier:
                     or parent.replica.snapshot != snapshot
                 ):
                     raise ValueError("Live snapshot parent identity differs")
-                for child in current_children(status):
+                for child in status.current_children():
                     if child.task_id is None or child.started_at is None:
                         continue
                     linked = read_entry(root, child.task_id)

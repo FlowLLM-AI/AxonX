@@ -2,65 +2,17 @@
 
 import json
 import os
-import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from ...utils.env import expand_env_vars
 from ..constants import AXONX_DEFAULT_ENCODING
 from .locator import discover_files, locate_file
 
-_LEADING_ZERO_RE = re.compile(r"^-?0\d")
-
-
-def convert_value(value: str) -> Any:
-    """Convert a textual configuration value to its natural Python value."""
-    value = value.strip()
-    lower = value.lower()
-    if lower in {"none", "null"}:
-        return None
-    if lower in {"true", "false"}:
-        return lower == "true"
-
-    if not _LEADING_ZERO_RE.match(value):
-        for converter in (int, float):
-            try:
-                return converter(value)
-            except ValueError:
-                pass
-
-    try:
-        return json.loads(value)
-    except ValueError:
-        return value
-
-
 _SUPPORTED_EXTENSIONS = (".yaml", ".yml", ".json")
-_ENV_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?}")
-
-
-def expand_env_vars(value: Any, env: Mapping[str, str] | None = None) -> Any:
-    """Recursively expand ``${VAR}`` and ``${VAR:-default}`` placeholders."""
-    source = os.environ if env is None else env
-
-    def replace(match: re.Match[str]) -> str:
-        name, default = match.group(1), match.group(2)
-        if name in source:
-            return source[name]
-        if default is not None:
-            return default
-        raise ValueError(f"Config references undefined env var: {name}")
-
-    if isinstance(value, str):
-        expanded = _ENV_VAR_RE.sub(replace, value)
-        return convert_value(expanded) if expanded != value else value
-    if isinstance(value, dict):
-        return {key: expand_env_vars(item, source) for key, item in value.items()}
-    if isinstance(value, list):
-        return [expand_env_vars(item, source) for item in value]
-    return value
 
 
 def deep_merge_config(
@@ -144,7 +96,7 @@ class ConfigLoader:
 
     def resolve(self, *, log_config: bool = True, **overrides) -> dict:
         """Resolve a selected/default configuration and apply explicit overrides."""
-        from ...common.logging import get_logger
+        from ...utils.logging import get_logger
 
         source = overrides.get("config")
         base: dict = {}
