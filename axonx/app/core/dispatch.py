@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING, Any
 
+from ...client import http as client
+from ...client.events import JobEvent
+from ...client.models import JobResponse
 from ...utils.logging import format_log_arguments
-from ..components.client.remote import run_remote_job, stream_remote_job
-from ..components.job.events import JobEvent
-from ..components.job.models import JobResponse
 
 if TYPE_CHECKING:
     from ..components.job.base import BaseJob
@@ -60,7 +60,7 @@ class JobDispatcher:
             raise ValueError("System arguments cannot be sent to a target service")
         public = dict(arguments or {})
         configured = self._context.app_config.resolve_target(target)
-        return await run_remote_job(
+        return await client.run_remote_job(
             name,
             public,
             target=configured.address,
@@ -81,7 +81,7 @@ class JobDispatcher:
                 raise ValueError("System arguments cannot be sent to a target service")
             public = dict(arguments or {})
             configured = self._context.app_config.resolve_target(target)
-            return stream_remote_job(
+            return client.stream_remote_job(
                 name,
                 public,
                 target=configured.address,

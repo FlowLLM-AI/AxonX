@@ -7,21 +7,20 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from axonx.app.components.job.models import JobResponse
-from axonx.app.workspace import Workspace
+from axonx.app.workspace.core import Workspace
 from axonx.app.workspace.models import (
     CsvPreview,
     DeletedEntry,
     JsonlPreview,
     MarkdownPreview,
     ParquetPreview,
-    StagedFile,
     StructuredPreview,
     TextPreview,
     UnsupportedPreview,
     WorkspaceEntry,
     WorkspaceListing,
 )
+from axonx.client.models import JobResponse, StagedFile
 
 
 def test_listing_filters_typed_entries_before_pagination(tmp_path):

@@ -41,7 +41,7 @@ axonx plugin install -e plugins/qlib_factor
 axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
 # 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
 axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
-axonx get_task_definition --task qlib_factor_train --target http://research.example:1024
+axonx get_task_def --task qlib_factor_train --target http://research.example:1024
 
 axonx exec --task qlib_factor_etl --start-date 20150101 --end-date 20261008 --target http://research.example:1024
 axonx exec --task qlib_factor_train --upstream-task-ids '<etl_task_id>' \

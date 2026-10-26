@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-AgentBlockType = Literal["thinking", "text", "tool", "system", "error"]
+from ....client import events as client_events
 
 
 class AgentSessionInfo(BaseModel):
@@ -25,7 +25,7 @@ class AgentSessionInfo(BaseModel):
 
 class AgentHistoryBlock(BaseModel):
     block_id: str
-    block_type: AgentBlockType
+    block_type: client_events.AgentBlockType
     message_uuid: str
     role: Literal["user", "assistant", "system"]
     status: str

@@ -1,19 +1,20 @@
 """Client for the complete AxonX HTTP protocol."""
 
-import asyncio
 import json
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
+from contextlib import aclosing
 from pathlib import Path
-from typing import TypeVar
+from typing import Any
 from urllib.parse import quote
 
 import httpx
-from pydantic import BaseModel, ValidationError
 
-from ...connection import AXONX_CLI_REQUEST_ID
-from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT
-from ...protocol import (
+from ..utils.async_work import run_blocking
+from .base import BaseClient, RemoteConnectionError, RemoteServiceError
+from .config import (
+    AXONX_CLI_REQUEST_ID,
+    AXONX_DEFAULT_REQUEST_TIMEOUT,
     PROTOCOL_AUTH_HEADER,
     PROTOCOL_AUTH_SCHEME,
     PROTOCOL_CLI_REQUEST_HEADER,
@@ -27,19 +28,16 @@ from ...protocol import (
     PROTOCOL_SSE_DATA_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
-from ...workspace.models import StagedFile
-from ..job.events import JOB_EVENT_ADAPTER, JobEvent, ResultEvent
-from ..job.models import JobCatalog, JobInfo, JobResponse
-from .base import BaseClient, RemoteServiceError
+from .events import JOB_EVENT_ADAPTER, JobEvent, ResultEvent
+from .models import JobCatalog, JobInfo, JobResponse, StagedFile
 
 _UPLOAD_CHUNK_BYTES = 1024 * 1024
-PayloadT = TypeVar("PayloadT", bound=BaseModel)
 
 
 async def _file_chunks(path: Path) -> AsyncIterator[bytes]:
     """Read a file without blocking the event loop or buffering it in memory."""
     with path.open("rb") as stream:
-        while chunk := await asyncio.to_thread(stream.read, _UPLOAD_CHUNK_BYTES):
+        while chunk := await run_blocking(stream.read, _UPLOAD_CHUNK_BYTES):
             yield chunk
 
 
@@ -73,7 +71,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         if request_id := os.environ.get(AXONX_CLI_REQUEST_ID):
             headers[PROTOCOL_CLI_REQUEST_HEADER] = request_id
         return httpx.AsyncClient(
-            base_url=self.url,
+            base_url=self.target,
             timeout=self.timeout,
             transport=self._transport,
             headers=headers,
@@ -85,7 +83,12 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
     def _transport_error(self, operation: str, endpoint: str, exc: httpx.HTTPError) -> RemoteServiceError:
         # Exception messages can be empty (notably ReadTimeout). Never include headers or arguments.
         detail = str(exc) or "no additional detail"
-        return RemoteServiceError(
+        error = (
+            RemoteConnectionError
+            if isinstance(exc, (httpx.NetworkError, httpx.TimeoutException))
+            else RemoteServiceError
+        )
+        return error(
             f"Remote {operation} failed: {type(exc).__name__} "
             f"(target={self.target}, endpoint={endpoint}, timeout={self.timeout:g}s): {detail}"
         )
@@ -100,7 +103,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
             payload = response.json()
         except ValueError as exc:
             raise RemoteServiceError("Remote service returned an invalid response envelope") from exc
-        return self._parse_response(payload)
+        return self._parse_payload(payload, JobResponse)
 
     @staticmethod
     def _check_status(response: httpx.Response) -> None:
@@ -110,14 +113,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
                 status_code=response.status_code,
             )
 
-    @staticmethod
-    def _payload(response: JobResponse, model: type[PayloadT]) -> PayloadT:
-        try:
-            return model.model_validate(response.answer, strict=True)
-        except ValidationError as exc:
-            raise RemoteServiceError(f"Remote service returned an invalid {model.__name__} payload") from exc
-
-    async def run_job(self, name: str, arguments=None) -> JobResponse:
+    async def run_job(self, name: str, arguments: Mapping[str, Any] | None = None) -> JobResponse:
         return await self._response(
             "POST",
             PROTOCOL_ROUTE_JOB.format(name=quote(name, safe="")),
@@ -127,7 +123,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
     async def stream_job(
         self,
         name: str,
-        arguments=None,
+        arguments: Mapping[str, Any] | None = None,
     ) -> AsyncIterator[JobEvent]:
         """Decode one Job's Server-Sent Events without buffering its response."""
         endpoint = PROTOCOL_ROUTE_JOB_EVENTS.format(name=quote(name, safe=""))
@@ -141,7 +137,8 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
                 if not response.is_success:
                     await response.aread()
                     self._check_status(response)
-                if not response.headers.get("content-type", "").startswith(PROTOCOL_SSE_MEDIA_TYPE):
+                media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+                if media_type != PROTOCOL_SSE_MEDIA_TYPE:
                     raise RemoteServiceError("Remote service returned a non-event stream response")
                 async for line in response.aiter_lines():
                     if line.startswith(PROTOCOL_SSE_DATA_PREFIX):
@@ -149,7 +146,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
                             payload = json.loads(line[len(PROTOCOL_SSE_DATA_PREFIX) :])
                             event = JOB_EVENT_ADAPTER.validate_python(payload, strict=True)
                             if isinstance(event, ResultEvent):
-                                self._parse_response(payload)
+                                self._parse_payload(payload, ResultEvent)
                         except ValueError as exc:
                             raise RemoteServiceError("Remote service returned an invalid stream event") from exc
                         yield event
@@ -161,7 +158,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
 
     async def list_jobs(self) -> list[JobInfo]:
         response = await self._response("GET", PROTOCOL_ROUTE_JOBS)
-        return self._payload(response, JobCatalog).items
+        return self._parse_payload(response.answer, JobCatalog).items
 
     async def health(self) -> bool:
         self._require_client()
@@ -188,7 +185,7 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         if directory:
             headers[PROTOCOL_FILE_DIRECTORY_HEADER] = directory
         response = await self._response("POST", PROTOCOL_ROUTE_UPLOAD, content=_file_chunks(path), headers=headers)
-        return self._payload(response, StagedFile)
+        return self._parse_payload(response.answer, StagedFile)
 
     async def discard_file(self, path: str) -> str:
         """Discard one staged remote file, including an already-consumed one."""
@@ -197,3 +194,25 @@ class HttpClient(BaseClient[httpx.AsyncClient]):
         if not isinstance(answer, dict) or not isinstance(answer.get("path"), str):
             raise RemoteServiceError("Remote service returned an invalid file cleanup payload")
         return answer["path"]
+
+
+async def run_remote_job(
+    name: str,
+    arguments: Mapping[str, Any],
+    **client_options,
+) -> JobResponse:
+    """Invoke one Job through a freshly connected HTTP client."""
+    async with HttpClient(**client_options) as client:
+        return await client.run_job(name, arguments)
+
+
+async def stream_remote_job(
+    name: str,
+    arguments: Mapping[str, Any],
+    **client_options,
+) -> AsyncIterator[JobEvent]:
+    """Stream one Job through a freshly connected HTTP client."""
+    async with HttpClient(**client_options) as client:
+        async with aclosing(client.stream_job(name, arguments)) as events:
+            async for event in events:
+                yield event

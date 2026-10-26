@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, ClassVar
 
+from ...client.events import JobEvent
 from ..components.base import ComponentBase
 from ..components.component_type import ComponentType
-from ..components.job.events import JobEvent
 
 
 class BaseStep(ComponentBase, ABC):

@@ -1,31 +1,31 @@
-"""Read Task definitions through a separate CLI process."""
+"""Query Task definitions in the service's installed Python environment."""
 
-import json
-
+from ....utils.async_work import run_blocking
 from ...registry import provider
-from ..common.command import CommandStep
+from ..base import BaseStep
 
 
-class TaskCatalogStep(CommandStep):
-    action: str
+@provider("list_task_defs")
+class ListTaskDefsStep(BaseStep):
+    """List registered Tasks, optionally including their parameter schemas."""
 
     async def execute(self):
-        self.context["argv"] = [self.action]
-        for key, value in self.context.items():
-            if key in {"task", "include_schemas"}:
-                self.context["argv"].extend(
-                    ["--" + key.replace("_", "-"), str(value).lower() if isinstance(value, bool) else str(value)]
-                )
-        await super().execute()
-        if self.response.success:
-            self.response.answer = json.loads(self.response.answer["stdout"])
+        def query():
+            from ....plugin.catalog import TaskCatalog
+
+            return TaskCatalog().definitions(include_schemas=self.context.get("include_schemas", True))
+
+        self.response.answer = await run_blocking(query)
 
 
-@provider("list_installed_task_definitions")
-class ListInstalledTaskDefinitionsStep(TaskCatalogStep):
-    action = "list_installed_task_definitions"
+@provider("get_task_def")
+class GetTaskDefStep(BaseStep):
+    """Describe one registered Task without loading unrelated Tasks."""
 
+    async def execute(self):
+        def query():
+            from ....plugin.catalog import TaskCatalog
 
-@provider("get_task_definition")
-class GetTaskDefinitionStep(TaskCatalogStep):
-    action = "get_task_definition"
+            return TaskCatalog().definition(self.context["task"])
+
+        self.response.answer = await run_blocking(query)

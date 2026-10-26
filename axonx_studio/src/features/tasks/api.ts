@@ -43,15 +43,8 @@ export const readTaskLog = (
     },
     { target, signal },
   );
-export const listInstalledTaskDefinitions = (
-  target?: string,
-  signal?: AbortSignal,
-) =>
-  axonx.invoke<TaskDefinition[]>(
-    "list_installed_task_definitions",
-    {},
-    { target, signal },
-  );
+export const listTaskDefs = (target?: string, signal?: AbortSignal) =>
+  axonx.invoke<TaskDefinition[]>("list_task_defs", {}, { target, signal });
 export const streamTask = (
   taskId: string,
   target: string | undefined,

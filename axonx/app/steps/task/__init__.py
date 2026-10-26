@@ -1,6 +1,14 @@
-"""Read-only Task query steps."""
+"""Read-only Task query Steps.
 
-from .catalog import GetTaskDefinitionStep, ListInstalledTaskDefinitionsStep
+base: Shared Task-index dependency declaration.
+catalog: Built-in and plugin Task definitions queried in the service environment.
+directories: Task directory listings and workspace-relative paths.
+query: Task status, identifiers, lineage, logs and terminal-state waits.
+stream: Progress replay and live Task event delivery.
+"""
+
+from . import base, catalog, directories, query, stream
+from .catalog import GetTaskDefStep, ListTaskDefsStep
 from .directories import ListTaskDirectoriesStep
 from .query import (
     GetTaskGraphStep,
@@ -13,14 +21,19 @@ from .query import (
 from .stream import StreamTaskStep
 
 __all__ = [
-    "GetTaskDefinitionStep",
-    "ListInstalledTaskDefinitionsStep",
+    "GetTaskDefStep",
     "GetTaskGraphStep",
     "GetTaskStatusStep",
-    "ListTaskIdsStep",
+    "ListTaskDefsStep",
     "ListTaskDirectoriesStep",
+    "ListTaskIdsStep",
     "ListTaskStatusesStep",
     "ReadTaskLogStep",
     "StreamTaskStep",
     "WaitTaskStep",
+    "base",
+    "catalog",
+    "directories",
+    "query",
+    "stream",
 ]

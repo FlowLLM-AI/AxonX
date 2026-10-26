@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, ClassVar
 from ...utils.logging import get_logger
 from ..config.models import ApplicationConfig
 from ..registry import component_type_name
-from ..workspace import Workspace
+from ..workspace.core import Workspace
 from .component_type import ComponentType
 
 if TYPE_CHECKING:

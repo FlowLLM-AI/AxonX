@@ -11,8 +11,9 @@ from contextlib import suppress
 from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
-from ..async_work import run_blocking
-from .models import DeletedEntry, FilePreview, StagedFile, WorkspaceEntry, WorkspaceListing
+from ...client.models import StagedFile
+from ...utils.async_work import run_blocking
+from .models import DeletedEntry, FilePreview, WorkspaceEntry, WorkspaceListing
 from .preview import PREVIEW_ROWS, preview_file, preview_kind
 
 MAX_DIRECTORY_ENTRIES = 5_000

@@ -136,7 +136,7 @@ axonx exec --task qlib_a158_backtest --upstream-task-ids '<predict_task_id>' \
 ```bash
 axonx --client-timeout 86400 wait_task \
   --task-id '<task_id>'
-axonx get_task_definition --task qlib_a158_train
+axonx get_task_def --task qlib_a158_train
 ```
 
 远程执行时，上述提交、等待和定义查询命令都加上同一个 `--target`。不要只远程安装插件后又在本机环境执行任务。
@@ -159,7 +159,7 @@ axonx get_task_definition --task qlib_a158_train
 | Backtest `sell_cost_rate`                         | `0.0015`                | 卖出成交金额费用率                 |
 | Backtest `annualization_days`                     | `252`                   | 年化交易日数                       |
 
-完整参数以执行环境中 `get_task_definition` 返回的 Schema 为准。
+完整参数以执行环境中 `get_task_def` 返回的 Schema 为准。
 
 ## 特征、标签与回测口径
 

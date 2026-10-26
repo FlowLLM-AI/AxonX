@@ -2,7 +2,7 @@
 
 import asyncio
 
-from ...components.client.http import HttpClient
+from ....client import http as client
 from ...config.models import TargetConfig
 from .models import MachineHealth
 
@@ -15,12 +15,12 @@ async def check_machines(targets: list[TargetConfig], logger) -> list[MachineHea
 
 async def _check_machine(target: TargetConfig, logger) -> MachineHealth:
     try:
-        async with HttpClient(
+        async with client.HttpClient(
             target=target.address,
             timeout=HEALTH_TIMEOUT_SECONDS,
             token=target.token,
-        ) as client:
-            healthy = await client.health()
+        ) as remote:
+            healthy = await remote.health()
     except Exception as exc:
         logger.warning(f"Machine health check failed for {target.address}: {exc}")
         healthy = False

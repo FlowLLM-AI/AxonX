@@ -29,11 +29,12 @@
 
 | 模块     | 允许的仓库内依赖                                    | 公开边界                                              |
 | -------- | --------------------------------------------------- | ----------------------------------------------------- |
-| `utils`  | 无                                                  | 提供 `env`、`logging`、`values`；环境加载必须显式调用 |
+| `utils`  | 无                                                  | 提供 `async_work`、`env`、`logging`、`values`；环境加载必须显式调用 |
 | `task`   | `utils.env`、`utils.logging`、`utils.values`        | Task 定义、数据契约、执行和存储                       |
 | `plugin` | Task 定义、数据契约和内置 Task；按需使用共享工具    | 插件发现、安装与 `plugin.catalog` 解析                |
-| `app`    | Task 模型和存储接口；共享工具                       | App 自己维护的常驻组件、Job、传输协议和 Workspace     |
-| `daemon` | 启动层依赖 App 和 Task 执行配置；监督器仅依赖标准库 | 守护一个应用服务，创建并回收定时 exec 进程            |
+| `app` | Task 模型和存储接口、`plugin.catalog`、`client`；共享工具 | App 自己维护的常驻组件、Job、传输协议和 Workspace |
+| `client` | Task 事件模型；共享工具 | 公开服务契约与调用方维护的 HTTP/MCP 连接 |
+| `daemon` | 启动层依赖 App、Task 配置和 Client 连接契约；监督器仅依赖标准库 | 守护一个应用服务，创建并回收定时 exec 进程            |
 | `cli`    | 其他模块的公开入口                                  | 参数解析、调用路由、结果展示与退出码                  |
 
 Task 模型和枚举不得导入执行、存储或插件代码。Task 执行不导入 App、Plugin 或 CLI。插件发现归 `axonx.plugin.catalog`；调用方构造根 Task，再调用 `TaskExecutor(resolve_task=resolver).execute(task)`。执行器使用注入的解析器构造和执行子任务，在父任务运行期间绑定执行回调；Task 类不导入执行器，也不持有解析器。
@@ -48,7 +49,7 @@ Task 模型和枚举不得导入执行、存储或插件代码。Task 执行不�
 | `storage`  | 工作区布局、元数据、事件与日志文件、产物快照、发布和历史 |
 | `builtins` | 具体 Task 和领域实现                                     |
 
-运行时依赖方向为：`runtime` 依赖 `core`/`storage`/`models`，`core` 和 `builtins` 依赖 `storage`/`models`；内置任务还使用 `core` 中的编写基类。Storage 在 Task 内只依赖 models；在线存储中的 `DeadlineBudget` 注解是对 `core.clock` 的纯类型依赖。每个 Task 包入口逐一说明直接子模块，显式导入并通过 `__all__` 导出；入口会加载声明的公开能力，具体实现模块仍遵守上述职责依赖方向。枚举和身份规则统一归 `task.models.identity`，公共模型策略和日期校验归 `task.models.base`。终止进程和失效运行记录收尾归 `task.runtime.lifecycle`，storage 只提供所需读写。
+运行时依赖方向为：`runtime` 依赖 `core`/`storage`/`models`，`core` 和 `builtins` 依赖 `storage`/`models`；内置任务还使用 `core` 中的编写基类。Storage 在 Task 内只依赖 models；在线存储中的 `DeadlineBudget` 注解是对 `core.clock` 的纯类型依赖。Task 根包只说明能力包，不执行导入或维护聚合导出；调用方从能力所属模块显式导入。runtime 包入口只加载执行配置，读取配置不会导入执行器；models 包只导出数据契约，不触发执行或存储加载。枚举和身份规则统一归 `task.models.identity`，公共模型策略和日期校验归 `task.models.base`。终止进程和失效运行记录收尾归 `task.runtime.lifecycle`，storage 只提供所需读写。
 
 `task.models` 内部按数据职责组织：
 
@@ -96,13 +97,19 @@ Task 内容按行为和领域归属：共享数据契约归 `models`，任务模
 
 调用身份和子任务结果分别归 `models.lifecycle.TaskContext` 和 `ChildTaskResult`；上下文不携带 logger 或服务实例，logger 由 Task 持有。任务可在步骤中调用 `publish_output()`，通过可重复调用的 `build_output_params()` 持久化有类型的阶段结果；最终输出仍在清理后构建。模块迁移：`core.task` 改为 `core.base`；`core.standard` 和原 `core.compare` 的预测对比统一归 `core.research`；实时采集和推理从 `core.realtime`、`core.inference` 移入 `core.windows`。原内部 `_WindowTask` 成为公开的 `BaseWindowTask`，窗口资源清理从 `close_run()` 统一改为 `close()`，不保留旧路径兼容模块。
 
-常驻组件留在 App：`components/task_index` 负责轮询、缓存、订阅、血缘图、摘要和事件流，`components/sync` 负责副本准备、传输、索引和应用，`components/updater` 负责应用侧准入和响应完成边界。App 基于 Task 模型和存储接口实现这些查询，不加载 Task 执行器或研究插件。观察操作不改写 Task 记录；启动检查和显式终止可以收尾已确认本机进程退出的记录。接收归档和查询副本索引无需配置发送组件或同步目标。CLI 不实现常驻组件或 Step。
+常驻组件留在 App：`components/task_index` 负责轮询、缓存、订阅、血缘图、摘要和事件流，`components/sync` 负责副本准备、传输、索引和应用，`components/updater` 负责应用侧准入和响应完成边界。App 基于 Task 模型和存储接口实现记录查询。Task 定义 Job 在线程中调用 `plugin.catalog.TaskCatalog`，查询时按需加载 Task 类，不再启动 CLI 子进程。插件安装、升级或源码修改后重启服务，重新加载定义。Task 执行仍归 `exec`。观察操作不改写 Task 记录；启动检查和显式终止可以收尾已确认本机进程退出的记录。接收归档和查询副本索引无需配置发送组件或同步目标。CLI 不实现常驻组件或 Step。
 
-App 自己维护配置、注册器、异步工具、Workspace 和启动横幅；Workspace 提供文件操作，不包含 Task 专属的隐藏和删除规则。`command` 命令数组提供外部命令驱动，注入的更新后端负责 prepare/commit/status。`daemon.launcher` 创建一个 Application，并传入明确的 `task.runtime.settings.ExecutionSettings`。`components/cron` 组件在服务启动时读取 `app/crontabs/*.cron` 或 `--cron` 指定的配置，通过异步回调请求启动定时任务。CLI 提供命令校验函数，启动层在启动 Daemon 前校验全部条目。`--config` 和 `--cron` 分别解析；修改定时配置后重启服务生效，停机期间错过的时间点不自动补跑。
+服务客户端与公开通信契约统一放在 `axonx/client`：`connection.py` 管理连接选项和地址规范化；`constants.py` 管理连接默认值和通信约定；`models.py` 管理 Job 响应、目录和暂存文件结果；`events.py` 管理公开事件流和 Agent 消息补丁，并复用 `task.models.events` 的日志与进度契约。`base.py` 管理连接生命周期、`RemoteServiceError` 和 `RemoteConnectionError`；`http.py` 管理 HTTP/SSE、上传及短生命周期调用；`mcp.py` 管理 MCP 调用。包入口只作命名空间，不主动导入或提供根级转导出。实现从所属模块显式导入，例如 `from axonx.client.http import HttpClient`、`from axonx.client.mcp import McpClient`。App 使用这些契约，保留 Job 执行、事件折叠、鉴权策略、会话及文件操作。Client 不导入 App，单独读取契约不会加载 HTTP/MCP 传输实现。Task 模型与产物协议继续留在 Task。
 
-Daemon 只自动拉起应用服务。手动 CLI 子进程随服务停止，重启不等待命令执行完成，只保留有上限的清理时间。定时 exec 进程由 Daemon 创建、回收，服务重启时继续运行。更新时拒绝新定时启动请求，先停止服务和手动命令，再执行更新，最后启动新服务并重新读取两份配置。原地更新不会冻结旧任务后续读取的代码和依赖。`daemon.worker` 只使用标准库，接收完整命令、工作目录、环境变量和日志路径，不解释 crontab，也不自动重跑已结束的 Task。
+MCP 使用 FastMCP >=4.1.4 和 MCP SDK >=2.3.0，直接使用当前 SDK 的 snake_case 字段，不保留兼容分支；健康检查验证工具发现能力。
 
-应用 YAML/JSON 加载、继承和合并归 `app/config`。环境加载和插值归 `utils/env.py`，标量转换统一使用 `utils/values.py`。日志配置、保留清理与参数格式化归 `utils/logging.py`；App 管理清理调度，Task 管理执行日志作用域和日志读取。Crontab 定位、读取和解析归 `app/crontabs`，与内置 `.cron` 文件放在一起；`components/cron` 只负责调度和生命周期。两类加载逻辑复用 `app/config/locator.py`。命令行选项语法归 CLI。Workspace 操作直接返回 `app.workspace.models` 中的模型：`WorkspaceListing`、具体的 `FilePreview` 变体、`DeletedEntry` 和 `StagedFile`；目录过滤回调接收 `WorkspaceEntry` 对象。Job 和 HTTP 适配层直接使用结果，在传输边界序列化。
+本地 CLI 命令为 `app`、`exec`、`kill`、`plugin`；Task 定义查询统一为服务 Job `list_task_defs` 和 `get_task_def`。根帮助（`axonx`、`--help`、`-h`）保持离线。已有 Daemon 保存了启动 argv，CLI 入口迁移后需要重新启动整个 Daemon。普通 Job 直接连接选定服务，显式远程目标也一样；只有远程原生命令经过 `cli` Job。`exec` 和 `kill` 共用执行配置：CLI 显式字段覆盖 `get_config` 返回值，其余使用模型默认值。只有连接失败会回退，认证、协议和 Job 错误继续传播。配置 Job 返回绝对 workspace/log 路径，并剔除 Cron 运行回调。不再通过 Task 专用环境变量传递执行配置。CLI 保留五个实现模块：`parser.py` 管理命令参数、连接选项、插件语法、cron 校验和离线帮助；`commands.py` 适配本地服务、Task 和插件操作；`remote.py` 调用服务 Job 或透传原始 CLI 命令；`rendering.py` 统一序列化结果和流式事件块；`main.py` 负责路由与异常处理。`__init__.py` 导出 Python 入口和解析接口，`__main__.py` 支持 `python -m axonx.cli`。`Command` 保留解析后的参数与原始参数，因为插件子命令和远程目标需要按各自语法解析。插件与其他命令统一退出策略：输入错误返回 2，操作失败返回 1。
+
+App 自己维护配置、注册器、Workspace 和启动横幅；Workspace 提供文件操作，不包含 Task 专属的隐藏和删除规则。`command` 命令数组提供外部命令驱动，注入的更新后端负责 prepare/commit/status。`daemon.launcher` 创建一个 Application，并传入明确的 `task.runtime.settings.ExecutionSettings`。`components/cron` 组件在服务启动时读取 `app/crontabs/*.cron` 或 `--cron` 指定的配置，通过异步回调请求启动定时任务。CLI 提供命令校验函数，启动层在启动 Daemon 前校验全部条目。`--config` 和 `--cron` 分别解析；修改定时配置后重启服务生效，停机期间错过的时间点不自动补跑。
+
+Daemon 只自动拉起应用服务。手动 CLI 子进程随服务停止，重启不等待命令执行完成，只保留有上限的清理时间。定时 exec 进程由 Daemon 创建、回收，服务重启时继续运行。更新时拒绝新定时启动请求，先停止服务和手动命令，再执行更新，最后启动新服务并重新读取两份配置。原地更新不会冻结旧任务后续读取的代码和依赖。`daemon.supervisor` 只使用标准库，接收完整命令、工作目录、环境变量和日志路径，不解释 crontab，也不自动重跑已结束的 Task。
+
+取消安全的异步清理和阻塞工作归 `utils/async_work.py`，由 App、Client 和 Daemon 共用。应用 YAML/JSON 加载、继承和合并归 `app/config`。环境加载和插值归 `utils/env.py`，标量转换统一使用 `utils/values.py`。日志配置、保留清理与参数格式化归 `utils/logging.py`；App 管理清理调度，Task 管理执行日志作用域和日志读取。Crontab 定位、读取和解析归 `app/crontabs`，与内置 `.cron` 文件放在一起；`components/cron` 只负责调度和生命周期。两类加载逻辑复用 `app/config/locator.py`。命令行选项语法归 CLI。Workspace 操作直接返回 `app.workspace.models` 中的模型：`WorkspaceListing`、具体的 `FilePreview` 变体、`DeletedEntry`；上传结果使用 `client.models.StagedFile`；目录过滤回调接收 `WorkspaceEntry` 对象。Job 和 HTTP 适配层直接使用结果，在传输边界序列化。
 
 原子写、版本与快照归 `task.storage.files`，在线发布锁归 `task.storage.files`，精确进程识别归 `task.runtime.process`；校验和归 Plugin。App 仅保留上传暂存需要的小型原子写实现。Task metadata 不提供协调锁，同一任务目录的并发变更由调用方串行化。保留在线发布一致性保护和 Daemon 单例锁。模块迁移不提供旧路径兼容导入。
 

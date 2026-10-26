@@ -6,30 +6,27 @@ from pathlib import Path
 
 from pydantic import TypeAdapter
 
-from axonx.app.components.agent.events import AgentBlockPatch, AgentMessageEvent
 from axonx.app.components.agent.models import (
     AgentHistoryBlock,
     AgentMutationResult,
     AgentSession,
     AgentSessionInfo,
 )
-from axonx.app.components.job.events import ArtifactEvent, ResultEvent
-from axonx.app.components.job.models import JobCatalog, JobInfo, JobResponse
 from axonx.app.core.build_info import BuildInfo
 from axonx.app.steps.machine.models import MachineDiagnostics, MachineInfo
 from axonx.app.workspace.models import (
     CsvPreview,
     DeletedEntry,
-    FileCopy,
     JsonlPreview,
     MarkdownPreview,
     ParquetPreview,
-    StagedFile,
     StructuredPreview,
     TextPreview,
     UnsupportedPreview,
     WorkspaceListing,
 )
+from axonx.client.events import AgentBlockPatch, AgentMessageEvent, ArtifactEvent, ResultEvent
+from axonx.client.models import JobCatalog, JobInfo, JobResponse, StagedFile
 from axonx.task.builtins.stock.models import StockBacktestOutput, StockETLOutput, StockOnlineReport, StockReportSettings
 from axonx.task.models.artifacts import ArtifactRecord
 from axonx.task.models.events import LogChunk, LogEvent, ProgressEvent
@@ -78,7 +75,6 @@ MODELS = [
     MachineInfo,
     WorkspaceListing,
     DeletedEntry,
-    FileCopy,
     StagedFile,
     UnsupportedPreview,
     TextPreview,

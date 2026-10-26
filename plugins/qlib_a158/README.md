@@ -136,7 +136,7 @@ For every wait, provide both identifiers from that submission:
 ```bash
 axonx --client-timeout 86400 wait_task \
   --task-id '<task_id>'
-axonx get_task_definition --task qlib_a158_train
+axonx get_task_def --task qlib_a158_train
 ```
 
 For remote execution, add the same `--target` to all submission, wait, and definition queries. Install and execute against the same service environment.
@@ -159,7 +159,7 @@ For remote execution, add the same `--target` to all submission, wait, and defin
 | Backtest `sell_cost_rate`                         | `0.0015`                | Fee on executed sell notional                                   |
 | Backtest `annualization_days`                     | `252`                   | Trading days used for annualization                             |
 
-Consult `get_task_definition` in the execution environment for the complete parameter Schema.
+Consult `get_task_def` in the execution environment for the complete parameter Schema.
 
 ## Features, labels, and backtest protocol
 

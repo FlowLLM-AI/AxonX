@@ -4,8 +4,7 @@ transfer_budget_bytes: 536870912
 
 # Optional address advertised by Task workers for remote kill commands.
 # Use an address reachable by other machines, with an explicit service port.
-# environment:
-#   AXONX_TASK_EXECUTION_TARGET: http://10.0.0.8:1024
+execution_target: ${AXONX_EXECUTION_TARGET:-null}
 
 # =========== Known target services ===========
 targets: []
@@ -113,6 +112,15 @@ jobs:
       - backend: command_step
 
   # =========== System jobs ===========
+  get_config:
+    description: Return this service's resolved application configuration, including execution defaults and environment. Runtime callbacks are omitted and execution directories are absolute.
+    parameters:
+      type: object
+      properties: {}
+      additionalProperties: false
+    steps:
+      - backend: get_config_step
+
   help:
     description: List public Jobs on this service, or inspect one Job's input and output schemas. CLI connection options such as --target are separate from Job parameters.
     requires_auth: false
@@ -216,18 +224,18 @@ jobs:
       - backend: machine_python
 
   # =========== Task jobs ===========
-  list_installed_task_definitions:
-    description: List installed Tasks; schemas can be omitted for lightweight discovery.
+  list_task_defs:
+    description: List registered Tasks in this service's Python environment; schemas can be omitted for lightweight discovery.
     parameters:
       type: object
       properties:
         include_schemas: { type: boolean, default: true }
       additionalProperties: false
     steps:
-      - backend: list_installed_task_definitions
+      - backend: list_task_defs
 
-  get_task_definition:
-    description: Get one registered Task's description and input/output schemas.
+  get_task_def:
+    description: Get one registered Task's description and input/output schemas from this service's Python environment.
     parameters:
       type: object
       properties:
@@ -238,7 +246,7 @@ jobs:
       required: [task]
       additionalProperties: false
     steps:
-      - backend: get_task_definition
+      - backend: get_task_def
 
   wait_task:
     description: Wait for the current Task to finish; refuse a restart while waiting.

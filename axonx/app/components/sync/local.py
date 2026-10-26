@@ -8,14 +8,14 @@ from collections.abc import Callable, Sequence
 from contextlib import suppress
 from pathlib import Path
 
+from ....client import http as client
+from ....client.base import RemoteServiceError
 from ....task.models.identity import matches_task_name, validate_task_ids, validate_task_names
 from ....task.models.lifecycle import DisplayReplica
 from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import read_task_metadata, scan_entries, task_directory, task_path
-from ...async_work import run_blocking
+from ....utils.async_work import run_blocking
 from ...registry import provider
-from ..client.base import RemoteServiceError
-from ..client.http import HttpClient
 from ..task_index.base import BaseTaskIndex
 from .archive import SYNC_ARCHIVE_NAME, build_archive
 from .base import BaseSyncComponent
@@ -67,9 +67,9 @@ class LocalSyncComponent(BaseSyncComponent):
         local = self.app_config.transfer_budget_bytes
         return min(local, self._remote_budget) if self._remote_budget is not None else local
 
-    def _client(self) -> HttpClient:
+    def _client(self) -> client.HttpClient:
         configured = self.app_config.resolve_target(self.target)
-        return HttpClient(target=configured.address, timeout=self.timeout, token=configured.token)
+        return client.HttpClient(target=configured.address, timeout=self.timeout, token=configured.token)
 
     def _missing(self, remote: dict) -> set[str]:
         policy = policy_revision(self.budget)
@@ -99,8 +99,8 @@ class LocalSyncComponent(BaseSyncComponent):
         if sources:
             self._needs_reconcile = False
         try:
-            async with self._client() as client:
-                response = await client.run_job(
+            async with self._client() as remote:
+                response = await remote.run_job(
                     "task_sync_index",
                     {
                         "task_names": sorted(self.task_names),
@@ -191,20 +191,20 @@ class LocalSyncComponent(BaseSyncComponent):
             )
         ]
 
-    async def _send(self, client: HttpClient, archive: Path) -> None:
+    async def _send(self, remote: client.HttpClient, archive: Path) -> None:
         staged = None
         try:
-            copied = await client.copy_file(archive, filename=SYNC_ARCHIVE_NAME)
+            copied = await remote.copy_file(archive, filename=SYNC_ARCHIVE_NAME)
             staged = copied.path
             if copied.size != archive.stat().st_size:
                 raise ValueError("Uploaded archive size mismatch")
-            response = await client.run_job("sync_tasks", {"path": staged})
+            response = await remote.run_job("sync_tasks", {"path": staged})
             if not response.success:
                 raise ValueError(f"Remote replica commit failed: {response.answer}")
         finally:
             if staged is not None:
                 with suppress(RemoteServiceError):
-                    await client.discard_file(staged)
+                    await remote.discard_file(staged)
 
     def _pack(self, groups):
         sizes = {
@@ -271,7 +271,7 @@ class LocalSyncComponent(BaseSyncComponent):
             report.oversized = [task_directory(identity) for identity in oversized]
             report.deferred.extend(task_directory(identity) for identity in deferred)
             if batches:
-                async with self._client() as client:
+                async with self._client() as remote:
                     for batch in batches:
                         self._last_task = batch[-1]
                         report.archives += 1
@@ -281,7 +281,7 @@ class LocalSyncComponent(BaseSyncComponent):
                             included = await run_blocking(build_archive, plans, list(plans), archive)
                             if archive.stat().st_size > self.budget:
                                 raise ReplicaBudgetError("Encoded archive exceeds transfer budget")
-                            await self._send(client, archive)
+                            await self._send(remote, archive)
                             report.uploaded.extend(included)
                         except (OSError, ValueError, RemoteServiceError) as exc:
                             self._pending.update(batch)

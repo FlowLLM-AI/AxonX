@@ -1,5 +1,9 @@
-"""Workspace Job Steps."""
+"""Workspace Job Steps.
 
+steps: Workspace entry listing, file previews and deletion.
+"""
+
+from . import steps
 from .steps import (
     DeleteEntriesStep,
     ListEntriesStep,
@@ -10,4 +14,5 @@ __all__ = [
     "DeleteEntriesStep",
     "ListEntriesStep",
     "PreviewFileStep",
+    "steps",
 ]

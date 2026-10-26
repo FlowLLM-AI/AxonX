@@ -6,7 +6,7 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..connection import normalize_target
+from ...client.config import normalize_target
 from ..constants import DEFAULT_TRANSFER_BUDGET_BYTES
 
 
@@ -59,6 +59,7 @@ class ApplicationConfig(BaseModel):
     workspace_dir: str = ".axonx"
     log_dir: str = "logs"
     timezone: str = "Asia/Shanghai"
+    execution_target: str | None = None
     environment: dict[str, str] = Field(default_factory=dict)
     command: tuple[str, ...] = ()
     app_name: str = "AxonX"

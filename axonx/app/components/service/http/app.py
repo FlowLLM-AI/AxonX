@@ -11,22 +11,27 @@ from fastmcp.utilities.lifespan import combine_lifespans
 from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
 
-from ....connection import normalize_target
-from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_ENCODING
-from ....core.response import RESPONSE_CALLBACKS
-from ....protocol import (
+from .....client.base import RemoteServiceError
+from .....client.config import (
+    AXONX_DEFAULT_CONNECT_HOST,
     AXONX_SERVICE_TARGET,
     PROTOCOL_AUTH_HEADER,
-    PROTOCOL_AUTH_ROOTS,
     PROTOCOL_AUTH_SCHEME,
     PROTOCOL_CLI_REQUEST_HEADER,
+    PROTOCOL_ROUTE_HEALTH,
+    PROTOCOL_ROUTE_JOBS,
     PROTOCOL_ROUTE_MCP,
+    PROTOCOL_ROUTE_UPLOAD,
+    normalize_target,
 )
-from ...client.base import RemoteServiceError
+from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_ENCODING
+from ....core.response import RESPONSE_CALLBACKS
 from .files import create_files_router
 from .jobs import create_jobs_router, create_mcp_server
 from .proxy import create_proxy_router
 from .studio import mount_studio, resolve_studio_dir
+
+_AUTH_ROOTS = frozenset({PROTOCOL_ROUTE_UPLOAD, PROTOCOL_ROUTE_HEALTH, PROTOCOL_ROUTE_JOBS, PROTOCOL_ROUTE_MCP})
 
 
 class _ProtocolAuthMiddleware:
@@ -40,7 +45,7 @@ class _ProtocolAuthMiddleware:
         if self.expected is not None and scope["type"] == "http":
             method = scope.get("method", "")
             path = scope.get("path", "")
-            protected = path in PROTOCOL_AUTH_ROOTS or any(path.startswith(f"{root}/") for root in PROTOCOL_AUTH_ROOTS)
+            protected = path in _AUTH_ROOTS or any(path.startswith(f"{root}/") for root in _AUTH_ROOTS)
             if method != "OPTIONS" and protected:
                 supplied = Headers(scope=scope).get(PROTOCOL_AUTH_HEADER, "").encode(AXONX_DEFAULT_ENCODING)
                 if not hmac.compare_digest(supplied, self.expected):

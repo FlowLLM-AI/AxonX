@@ -1,10 +1,10 @@
-"""Job catalog, information and response models."""
+"""Public Job response, catalog and staged-file contracts."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class JobResponse(BaseModel):
@@ -34,3 +34,13 @@ class JobCatalog(BaseModel):
 
     items: list[JobInfo] = Field(default_factory=list)
     total: int = 0
+
+
+class StagedFile(BaseModel):
+    """A staged file's workspace path, byte size and server-local location."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    path: str = Field(min_length=1)
+    size: int = Field(ge=0)
+    location: str = Field(min_length=1)

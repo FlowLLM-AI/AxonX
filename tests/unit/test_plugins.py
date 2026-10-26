@@ -9,7 +9,7 @@ from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 import pytest
 
-from axonx.cli.plugin import plugin_cli
+from axonx.cli import main
 from axonx.plugin import catalog, discovery, fingerprint, installer, wheel
 from axonx.plugin.manifest import PluginManifest
 from axonx.plugin.models import PluginInfo
@@ -60,7 +60,7 @@ def test_wheel_and_installed_metadata_agree_without_importing_plugin_code(tmp_pa
     assert info.content_sha256 == artifact.content_sha256
     assert info.sha256 == artifact.sha256
     assert info.tasks == artifact.tasks
-    assert plugin_cli(["inspect", str(path)]) == 0
+    assert main(["plugin", "inspect", str(path)]) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["plugins"] == info.plugins
     assert result["wheel"] == str(path)
@@ -282,5 +282,5 @@ def test_uninstall_allows_broken_plugins_and_reports_pip_failures(monkeypatch):
 def test_invalid_wheels_return_a_cli_error(tmp_path, capsys, contents):
     path = tmp_path / "broken.whl"
     path.write_bytes(contents)
-    assert plugin_cli(["inspect", str(path)]) == 1
+    assert main(["plugin", "inspect", str(path)]) == 2
     assert "Not a readable plugin wheel" in capsys.readouterr().err

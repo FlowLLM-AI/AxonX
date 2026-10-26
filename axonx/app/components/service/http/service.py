@@ -7,7 +7,8 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
+from .....client.config import AXONX_DEFAULT_PORT
+from ....constants import AXONX_DEFAULT_BIND_HOST
 from ....registry import provider
 from ..base import BaseService
 

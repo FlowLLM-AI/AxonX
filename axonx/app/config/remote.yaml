@@ -1,4 +1,4 @@
-# Start with `axonx start --config remote` after setting the target variables.
+# Start with `axonx app --config remote` after setting the target variables.
 extends: default
 
 targets:

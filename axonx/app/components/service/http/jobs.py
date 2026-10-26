@@ -11,7 +11,8 @@ from fastmcp.tools import FunctionTool
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.responses import StreamingResponse
 
-from ....protocol import (
+from .....client import http as client
+from .....client.config import (
     PROTOCOL_ROUTE_HEALTH,
     PROTOCOL_ROUTE_JOB,
     PROTOCOL_ROUTE_JOB_EVENTS,
@@ -20,9 +21,8 @@ from ....protocol import (
     PROTOCOL_SSE_EVENT_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
-from ...client.http import HttpClient
-from ...job.events import JobEvent, ResultEvent
-from ...job.models import JobCatalog, JobResponse
+from .....client.events import JobEvent, ResultEvent
+from .....client.models import JobCatalog, JobResponse
 
 
 class JobInvocation(BaseModel):
@@ -70,8 +70,8 @@ def create_jobs_router(app, public_jobs) -> APIRouter:
                 configured = app.app_config.resolve_target(target)
             except ValueError as exc:
                 raise HTTPException(422, str(exc)) from exc
-            async with HttpClient(target=configured.address, token=configured.token) as client:
-                items = await client.list_jobs()
+            async with client.HttpClient(target=configured.address, token=configured.token) as remote:
+                items = await remote.list_jobs()
         return JobResponse(answer=JobCatalog(items=items, total=len(items)))
 
     @router.post(PROTOCOL_ROUTE_JOB, response_model=JobResponse)

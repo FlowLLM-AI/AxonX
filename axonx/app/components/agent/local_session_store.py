@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import cast
 from uuid import uuid4
 
-from ...async_work import run_blocking
+from ....utils.async_work import run_blocking
 from .session_store import (
     AgentSessionEntry,
     AgentSessionKey,

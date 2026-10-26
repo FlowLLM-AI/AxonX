@@ -9,8 +9,23 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-SHARED = {"axonx.utils.logging", "axonx.utils.env", "axonx.utils.values"}
-OWNERS = {"app", "cli", "utils", "daemon", "plugin", "task"}
+SHARED = {"axonx.utils.async_work", "axonx.utils.logging", "axonx.utils.env", "axonx.utils.values"}
+OWNERS = {"app", "client", "cli", "utils", "daemon", "plugin", "task"}
+CLIENT_RUNTIME_FORBIDDEN = (
+    "axonx.app",
+    "axonx.task.core",
+    "axonx.task.runtime",
+    "axonx.task.storage",
+    "axonx.task.builtins",
+    "axonx.cli",
+    "axonx.daemon",
+    "axonx.plugin",
+    "fastapi",
+    "fastmcp",
+    "claude_agent_sdk",
+    "polars",
+    "pyarrow",
+)
 
 
 def imports(path, *, include_type_checking=True):
@@ -59,20 +74,16 @@ def test_all_task_models_depend_only_on_data_contracts():
 import importlib
 import pkgutil
 import sys
-import axonx.task
-
-baseline = set(sys.modules)
+import axonx.task.models
 
 for module in pkgutil.iter_modules(axonx.task.models.__path__):
     importlib.import_module(f"axonx.task.models.{module.name}")
-# The Task facade explicitly imports its public capabilities. Model modules
-# must not introduce additional business runtimes beyond that package setup.
 forbidden = (
     "axonx.app", "axonx.cli", "axonx.plugin", "axonx.daemon",
-    "axonx.task.core.", "axonx.task.runtime.", "axonx.task.builtins.",
+    "axonx.task.core", "axonx.task.runtime", "axonx.task.storage", "axonx.task.builtins",
     "polars", "pyarrow",
 )
-loaded = [name for name in sys.modules if name not in baseline and name.startswith(forbidden)]
+loaded = [name for name in sys.modules if name.startswith(forbidden)]
 assert not loaded, loaded
 """
     result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)
@@ -93,17 +104,22 @@ def test_cross_module_imports_follow_the_public_contracts():
                 continue
             allowed = owner == "cli" or target in SHARED
             if owner == "app":
+                allowed |= dependency == "client"
                 allowed |= target.startswith("axonx.task.models.")
                 allowed |= target in {
+                    "axonx.plugin.catalog",
                     "axonx.task.storage.files",
                     "axonx.task.storage.logs",
                     "axonx.task.storage.workspace",
                 }
+            if owner == "client":
+                allowed = target == "axonx.task.models.events" or target in SHARED
             if owner == "plugin":
                 allowed |= dependency == "task"
             if owner == "daemon":
                 allowed |= target.startswith("axonx.app.")
                 allowed |= target == "axonx.task.runtime.settings"
+                allowed |= target == "axonx.client.config"
             if owner == "utils":
                 allowed = False
             if not allowed:
@@ -115,6 +131,7 @@ def test_utils_are_flat_and_replace_common():
     assert not (ROOT / "axonx/common").exists()
     assert {path.name for path in (ROOT / "axonx/utils").glob("*.py")} == {
         "__init__.py",
+        "async_work.py",
         "logging.py",
         "env.py",
         "values.py",
@@ -181,10 +198,12 @@ def test_task_capabilities_follow_one_way_runtime_dependencies():
 
 
 def test_daemon_uses_only_standard_library_and_injected_commands():
-    for filename in ("worker.py", "client.py", "update.py", "update_worker.py"):
+    for filename in ("supervisor.py", "client.py", "update.py"):
         path = ROOT / "axonx/daemon" / filename
         assert all(
-            target.split(".")[0] in sys.stdlib_module_names or target.startswith("axonx.daemon")
+            target.split(".")[0] in sys.stdlib_module_names
+            or target.startswith("axonx.daemon")
+            or (filename == "supervisor.py" and target == "update")
             for target in imports(path)
         ), path
         assert "axonx.cli" not in path.read_text(), path
@@ -201,6 +220,49 @@ def test_cli_does_not_implement_resident_components_or_steps():
 @pytest.mark.parametrize(
     ("module", "forbidden"),
     [
+        (
+            "axonx.task",
+            (
+                "axonx.task.models",
+                "axonx.task.core",
+                "axonx.task.runtime",
+                "axonx.task.storage",
+                "axonx.task.builtins",
+            ),
+        ),
+        (
+            "axonx.client",
+            CLIENT_RUNTIME_FORBIDDEN
+            + (
+                "axonx.client.base",
+                "axonx.client.http",
+                "axonx.client.mcp",
+                "axonx.client.models",
+                "axonx.client.events",
+                "axonx.task",
+            ),
+        ),
+        ("axonx.client.base", CLIENT_RUNTIME_FORBIDDEN),
+        ("axonx.client.http", CLIENT_RUNTIME_FORBIDDEN),
+        ("axonx.client.mcp", CLIENT_RUNTIME_FORBIDDEN),
+        (
+            "axonx.client.models",
+            CLIENT_RUNTIME_FORBIDDEN
+            + ("axonx.client.base", "axonx.client.http", "axonx.client.mcp", "axonx.task", "httpx"),
+        ),
+        (
+            "axonx.client.config",
+            CLIENT_RUNTIME_FORBIDDEN
+            + ("axonx.client.base", "axonx.client.http", "axonx.client.mcp", "axonx.task", "httpx"),
+        ),
+        (
+            "axonx.client.events",
+            CLIENT_RUNTIME_FORBIDDEN + ("axonx.client.base", "axonx.client.http", "axonx.client.mcp", "httpx"),
+        ),
+        (
+            "axonx.utils.async_work",
+            ("axonx.app", "axonx.task", "axonx.client", "axonx.cli", "axonx.daemon", "axonx.plugin"),
+        ),
         (
             "axonx.app.core.application",
             (
@@ -222,16 +284,10 @@ def test_cli_does_not_implement_resident_components_or_steps():
         (
             "axonx.app.components.sync.applier",
             (
-                "axonx.app.components.sync.local",
-                "axonx.app.components.client",
                 "axonx.task.core",
                 "axonx.task.runtime",
                 "axonx.plugin",
             ),
-        ),
-        (
-            "axonx.app.components.sync.index",
-            ("axonx.app.components.sync.local", "axonx.app.components.client"),
         ),
         ("axonx.plugin.installer", ("axonx.app", "axonx.cli", "axonx.daemon")),
         (
@@ -248,14 +304,52 @@ def test_cli_does_not_implement_resident_components_or_steps():
     ],
 )
 def test_importing_one_capability_does_not_load_other_runtimes(module, forbidden):
-    # Task exposes its packages eagerly. Check additional loads beyond that
-    # public entry point. Plugin eagerly exposes its catalog, which uses Task.
-    initialize_task = "import axonx.task; " if module.startswith(("axonx.task.", "axonx.app.")) else ""
     code = (
-        f"import sys; {initialize_task}baseline=set(sys.modules); import {module}; forbidden={forbidden!r}; "
-        "loaded=[name for name in sys.modules if name not in baseline "
-        "and any(name == item or name.startswith(item + '.') "
+        f"import sys; import {module}; forbidden={forbidden!r}; "
+        "loaded=[name for name in sys.modules "
+        "if any(name == item or name.startswith(item + '.') "
         "for item in forbidden)]; assert not loaded, loaded"
     )
+    result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("module", ["applier", "index"])
+def test_sync_archive_helpers_do_not_depend_on_transfer_components(module):
+    # The package exposes all namespaces; implementation dependencies stay separate.
+    forbidden = ("axonx.app.components.sync.local", "axonx.client")
+    path = ROOT / "axonx/app/components/sync" / f"{module}.py"
+    assert not [target for target in imports(path) if target.startswith(forbidden)], path
+
+
+@pytest.mark.parametrize("first", ["axonx.client", "axonx.client.http", "axonx.app", "axonx.cli"])
+def test_service_clients_import_independently_of_application_import_order(first):
+    code = f"""
+import {first}
+import importlib.util
+from axonx.app import components
+from axonx.app.components.base import BaseComponent
+from axonx.app.core.application import Application
+from axonx.client.base import BaseClient
+from axonx.client.http import HttpClient
+from axonx.client.mcp import McpClient
+import axonx.client
+from axonx.app.components.job import events as execution_events
+from axonx.app.workspace import models as workspace_models
+
+assert not issubclass(BaseClient, BaseComponent)
+assert issubclass(HttpClient, BaseClient)
+assert issubclass(McpClient, BaseClient)
+assert not hasattr(components, "client")
+assert not hasattr(axonx.client, "HttpClient")
+assert not hasattr(execution_events, "ResultEvent")
+assert not hasattr(workspace_models, "StagedFile")
+assert importlib.util.find_spec("axonx.app.components.client") is None
+assert importlib.util.find_spec("axonx.app.async_work") is None
+assert importlib.util.find_spec("axonx.app.connection") is None
+assert importlib.util.find_spec("axonx.app.protocol") is None
+assert importlib.util.find_spec("axonx.app.components.job.models") is None
+assert importlib.util.find_spec("axonx.app.components.agent.events") is None
+"""
     result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr

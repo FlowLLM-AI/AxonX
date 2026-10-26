@@ -244,7 +244,7 @@ export function createPlayground(): Transport {
             },
             gpus: [],
           });
-        case "list_installed_task_definitions":
+        case "list_task_defs":
           return response(
             args.include_schemas === false
               ? definitions.map(({ input_schema, output_schema, ...info }) => {

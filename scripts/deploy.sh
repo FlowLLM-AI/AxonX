@@ -56,7 +56,7 @@ def fail(message):
 def permission_help():
     return (
         f"请先运行 sudo lsof -nP -iTCP:{PORT} -sTCP:LISTEN，确认旧服务的 PID，"
-        "再运行 sudo kill -TERM <PID>；端口释放后运行 axonx start。\n"
+        "再运行 sudo kill -TERM <PID>；端口释放后运行 axonx app。\n"
         "sudo 会要求输入 Mac/Linux 登录密码（输入时不显示字符）。"
         "不要使用 sudo 运行整个 deploy.sh。"
     )
@@ -157,10 +157,10 @@ if remaining:
     )
 
 if skipped:
-    print(f"已跳过无权停止的进程：{', '.join(map(str, sorted(skipped)))}；继续执行 axonx start")
+    print(f"已跳过无权停止的进程：{', '.join(map(str, sorted(skipped)))}；继续执行 axonx app")
 else:
     print(f"端口 {PORT} 已释放")
 PY
 
 log "启动 AxonX 后端（同时托管前端）"
-exec axonx start "$@"
+exec axonx app "$@"

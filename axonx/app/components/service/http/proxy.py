@@ -3,16 +3,16 @@
 from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import StreamingResponse
 
-from ....protocol import PROTOCOL_ROUTE_PROXY
 from ...component_type import ComponentType
 from ...proxy.base import ProxyError
 
 _PROXY_METHODS = ("DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT")
+_PROXY_ROUTE = "/proxy"
 
 
 def create_proxy_router(app) -> APIRouter:
     """Route ``/proxy/{name}`` to the correspondingly named component."""
-    router = APIRouter(prefix=PROTOCOL_ROUTE_PROXY, include_in_schema=False)
+    router = APIRouter(prefix=_PROXY_ROUTE, include_in_schema=False)
     proxies = app.context.components.get(ComponentType.PROXY, {})
 
     async def dispatch(name: str, path: str, request: Request) -> StreamingResponse:

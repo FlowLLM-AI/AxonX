@@ -12,13 +12,13 @@ from fastapi.testclient import TestClient
 
 from axonx.app.components.sync.archive import build_archive
 from axonx.app.components.sync.replica import prepare_replica
+from axonx.app.config.models import ComponentConfig
 from axonx.app.config.resolver import resolve_app_config
 from axonx.app.core.application import Application
-from axonx.app.protocol import PROTOCOL_FILE_NAME_HEADER
+from axonx.client.config import PROTOCOL_FILE_NAME_HEADER
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.models.identity import TaskState
 from axonx.task.runtime.executor import TaskExecutor
-from axonx.task.runtime.settings import AXONX_TASK_EXECUTION_TARGET, ExecutionSettings
 from axonx.task.storage.logs import TaskLogReader
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
 from axonx.utils.logging import LoggingConfig, configure_logging
@@ -49,7 +49,7 @@ def application(tmp_path, monkeypatch):
     config = resolve_app_config(log_config=False)
     config.update(workspace_dir=str(tmp_path), log_dir=str(tmp_path / "logs"), log_to_console=False, log_to_file=False)
     config["command"] = (sys.executable, "-u", "-m", "axonx.cli")
-    config["environment"] = ExecutionSettings.model_validate(config).task_environment()
+    config["environment"] = {}
     config["environment"]["PYTHONPATH"] = os.pathsep.join(
         filter(None, (str(Path(__file__).resolve().parents[2]), os.environ.get("PYTHONPATH")))
     )
@@ -69,6 +69,27 @@ def invoke(client, name, arguments):
     payload = response.json()
     assert payload["success"], payload
     return payload["answer"]
+
+
+def test_config_job_returns_absolute_paths_and_excludes_runtime_callbacks(application):
+    app, client = application
+    app.app_config.components["cron"] = {
+        "default": ComponentConfig(
+            backend="cron",
+            source="research",
+            launch=lambda _: None,
+            validate_command=lambda _: None,
+        )
+    }
+    config = invoke(client, "get_config", {})
+    assert config["workspace_dir"] == str(app.workspace.root)
+    assert Path(config["log_dir"]).is_absolute()
+    assert config["components"]["cron"]["default"] == {"backend": "cron", "source": "research"}
+    assert config["service"]["token"] == "test-token"
+    assert (
+        client.post("/jobs/get_config", json={"arguments": {}}, headers={"Authorization": "Bearer wrong"}).status_code
+        == 401
+    )
 
 
 @pytest.mark.asyncio
@@ -128,6 +149,10 @@ def test_cli_execution_and_task_observation_share_the_workspace(application):
                 "demo",
                 "--task-name",
                 "http",
+                "--workspace-dir",
+                str(app.workspace.root),
+                "--log-dir",
+                str(app.app_config.log_dir),
                 "--x",
                 "2",
                 "--y",
@@ -166,10 +191,25 @@ def test_cli_execution_and_task_observation_share_the_workspace(application):
 
 
 def test_catalog_adapter_does_not_load_unrelated_plugin_tasks(application):
-    _, client = application
-    definition = invoke(client, "get_task_definition", {"task": "demo"})
+    app, client = application
+    app.app_config.command = ()
+    definition = invoke(client, "get_task_def", {"task": "demo"})
     assert definition["name"] == "demo"
     assert {"x", "y"} <= definition["input_schema"]["properties"].keys()
+
+
+@pytest.mark.parametrize("arguments", [{}, {"include_schemas": False}, {"include_schemas": True}])
+def test_task_definition_listing_runs_without_a_cli_command(application, monkeypatch, arguments):
+    from axonx.plugin import catalog
+
+    app, client = application
+    app.app_config.command = ()
+    monkeypatch.setattr(catalog, "list_installed_plugins", lambda: [])
+    definitions = invoke(client, "list_task_defs", arguments)
+    demo = next(item for item in definitions if item["name"] == "demo")
+    assert demo["source"] == "native"
+    assert ("input_schema" in demo) is arguments.get("include_schemas", True)
+    assert ("output_schema" in demo) is arguments.get("include_schemas", True)
 
 
 def test_upload_preview_and_workspace_deletion(application):
@@ -230,11 +270,30 @@ def test_sync_archive_round_trip_through_the_http_adapters(application, tmp_path
     assert read_entry(app.workspace.root, status.task_id) is None
 
 
-def test_advertised_execution_location_survives_the_remote_cli_environment(application):
+def test_explicit_execution_location_is_recorded_by_remote_cli(application):
     app, client = application
-    app.app_config.environment[AXONX_TASK_EXECUTION_TARGET] = "10.0.0.8:1024"
     result = invoke(
-        client, "cli", {"argv": ["exec", "--task", "demo", "--task-name", "advertised", "--x", "1", "--y", "2"]}
+        client,
+        "cli",
+        {
+            "argv": [
+                "exec",
+                "--task",
+                "demo",
+                "--task-name",
+                "advertised",
+                "--x",
+                "1",
+                "--y",
+                "2",
+                "--execution-target",
+                "10.0.0.8:1024",
+                "--workspace-dir",
+                str(app.workspace.root),
+                "--log-dir",
+                str(app.app_config.log_dir),
+            ]
+        },
     )
     assert result["exit_code"] == 0
     status = invoke(client, "status", {"task_id": "base#demo#advertised"})

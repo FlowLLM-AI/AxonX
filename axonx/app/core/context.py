@@ -7,7 +7,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from ..config.models import ApplicationConfig
-from ..workspace import Workspace
+from ..workspace.core import Workspace
 from .dispatch import JobDispatcher
 
 if TYPE_CHECKING:

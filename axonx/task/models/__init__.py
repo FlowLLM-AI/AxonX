@@ -168,7 +168,6 @@ __all__ = [
     "matches_task_name",
     "normalize_yyyymmdd",
     "params",
-    "validate_upstream_task_ids",
     "prediction_protocol",
     "query",
     "reports",
@@ -179,4 +178,5 @@ __all__ = [
     "validate_task_ids",
     "validate_task_name",
     "validate_task_names",
+    "validate_upstream_task_ids",
 ]

@@ -3,9 +3,9 @@
 from contextlib import aclosing
 from typing import ClassVar
 
+from ....client.events import ResultEvent
 from ...components.component_type import ComponentType
-from ...components.job.events import ResultEvent
-from ...protocol import AGENT_DEPTH_ARGUMENT
+from ...constants import AGENT_DEPTH_ARGUMENT
 from ...registry import provider
 from ..base import BaseStep
 

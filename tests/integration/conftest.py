@@ -76,7 +76,7 @@ def live_agent_service(tmp_path_factory, require_claude_gateway):
     with log_path.open("w+", encoding="utf-8") as log:
         # The fixture owns the process across its yield and shuts it down in finally.
         process = subprocess.Popen(  # pylint: disable=consider-using-with
-            [sys.executable, "-m", "axonx.cli", "start", "--config", str(config_path)],
+            [sys.executable, "-m", "axonx.cli", "app", "--config", str(config_path)],
             cwd=PROJECT_ROOT,
             env=environment,
             stdout=log,

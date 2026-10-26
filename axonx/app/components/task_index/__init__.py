@@ -7,6 +7,7 @@ summary: Bounded list summaries and creation-time ordering.
 stream: Durable progress replay and byte-offset log following.
 """
 
+from . import base, graph, local, stream, summary
 from .base import BaseTaskIndex
 from .graph import TaskGraphQuery
 from .local import LocalTaskIndex
@@ -18,6 +19,11 @@ __all__ = [
     "LocalTaskIndex",
     "TaskEventStream",
     "TaskGraphQuery",
+    "base",
+    "graph",
+    "local",
+    "stream",
     "summarize_status",
+    "summary",
     "task_sort_key",
 ]

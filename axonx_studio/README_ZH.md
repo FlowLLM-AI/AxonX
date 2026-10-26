@@ -30,7 +30,7 @@ AxonX Studio 是 [AxonX](https://github.com/FlowLLM-AI/AxonX/blob/main/README_ZH
 ```bash
 pip install "axonx[studio]"
 export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
-axonx start --service.host 127.0.0.1
+axonx app --service.host 127.0.0.1
 ```
 
 打开 <http://127.0.0.1:1024/>，在 **设置 → 本机服务令牌**（英文界面为 **Settings → Local service token**）输入相同 token 并应用。Studio 将 token 保存在浏览器 local storage 中，通过 Bearer token 验证 API 请求。可在同一设置表单中替换或清除 token。
@@ -91,7 +91,7 @@ npm install @flowllm-ai/axonx-studio
 ```bash
 pip install -e '.[dev]'
 export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
-axonx start --service.host 127.0.0.1
+axonx app --service.host 127.0.0.1
 ```
 
 在另一个终端运行：

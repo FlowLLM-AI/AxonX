@@ -7,10 +7,9 @@ import signal
 from contextlib import suppress
 from uuid import uuid4
 
+from ....client.config import AXONX_CLI_REQUEST_ID, AXONX_SERVICE_TARGET, normalize_target
 from ....task.models.events import LogEvent
-from ...async_work import complete_on_cancel
-from ...connection import AXONX_CLI_REQUEST_ID, normalize_target
-from ...protocol import AXONX_SERVICE_TARGET
+from ....utils.async_work import complete_on_cancel
 from ...registry import provider
 from ..base import BaseStep
 

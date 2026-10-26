@@ -1,16 +1,35 @@
-"""Canonical AxonX service target addresses."""
+"""Shared connection options, service addresses and wire conventions."""
 
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, field_validator
 
-from .constants import (
-    AXONX_DEFAULT_CONNECT_HOST,
-    AXONX_DEFAULT_PORT,
-    AXONX_DEFAULT_REQUEST_TIMEOUT,
-    AXONX_DEFAULT_SCHEME,
-)
+AXONX_DEFAULT_CONNECT_HOST = "127.0.0.1"
+AXONX_DEFAULT_PORT = 1024
+AXONX_DEFAULT_SCHEME = "http"
+AXONX_DEFAULT_REQUEST_TIMEOUT = 60.0
+AXONX_DEFAULT_TARGET = f"{AXONX_DEFAULT_SCHEME}://{AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}"
+
+AXONX_SERVICE_TARGET = "AXONX_SERVICE_TARGET"
+AXONX_CLI_REQUEST_ID = "AXONX_CLI_REQUEST_ID"
+TARGET_ARGUMENT = "target"
+
+PROTOCOL_ROUTE_HEALTH = "/health"
+PROTOCOL_ROUTE_JOBS = "/jobs"
+PROTOCOL_ROUTE_JOB = "/jobs/{name}"
+PROTOCOL_ROUTE_JOB_EVENTS = "/jobs/{name}/events"
+PROTOCOL_ROUTE_UPLOAD = "/upload"
+PROTOCOL_ROUTE_MCP = "/mcp"
+
+PROTOCOL_AUTH_HEADER = "authorization"
+PROTOCOL_AUTH_SCHEME = "Bearer"
+PROTOCOL_CLI_REQUEST_HEADER = "X-AxonX-Cli-Request"
+PROTOCOL_FILE_NAME_HEADER = "x-file-name"
+PROTOCOL_FILE_DIRECTORY_HEADER = "x-file-directory"
+PROTOCOL_SSE_MEDIA_TYPE = "text/event-stream"
+PROTOCOL_SSE_EVENT_PREFIX = "event: "
+PROTOCOL_SSE_DATA_PREFIX = "data: "
 
 
 def normalize_target(value: str) -> str:
@@ -43,12 +62,8 @@ def normalize_target(value: str) -> str:
     return f"{parsed.scheme}://{host}:{port}"
 
 
-def default_target() -> str:
-    return normalize_target(f"{AXONX_DEFAULT_CONNECT_HOST}:{AXONX_DEFAULT_PORT}")
-
-
 class ConnectionOptions(BaseModel):
-    """Validated options for one remote AxonX connection."""
+    """Validated connection options; an omitted target permits service discovery."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
     target: str | None = None
@@ -59,6 +74,3 @@ class ConnectionOptions(BaseModel):
     @classmethod
     def validate_target(cls, value: str | None) -> str | None:
         return normalize_target(value) if value is not None else None
-
-
-AXONX_CLI_REQUEST_ID = "AXONX_CLI_REQUEST_ID"

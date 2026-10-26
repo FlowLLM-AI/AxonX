@@ -8,7 +8,7 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { listInstalledTaskDefinitions } from "../tasks/api";
+import { listTaskDefs } from "../tasks/api";
 import { useTranslation } from "react-i18next";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { RailResizer } from "../../shared/ui/RailResizer";
@@ -40,7 +40,7 @@ export default function TaskDefinitionsPage({
   const load = useCallback(
     async (signal: AbortSignal) => {
       try {
-        const result = await listInstalledTaskDefinitions(target, signal);
+        const result = await listTaskDefs(target, signal);
         signal.throwIfAborted();
         onConnection(true);
         return result;

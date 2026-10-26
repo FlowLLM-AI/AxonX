@@ -3,7 +3,7 @@
 from functools import partial
 from typing import Protocol
 
-from ...async_work import run_blocking
+from ....utils.async_work import run_blocking
 from ...core.response import RESPONSE_CALLBACKS
 from ...registry import provider
 from ..base import BaseComponent

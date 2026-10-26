@@ -3,7 +3,7 @@
 import asyncio
 from contextlib import suppress
 
-from ...async_work import run_blocking
+from ....utils.async_work import run_blocking
 from ...components.sync.applier import TaskArchiveApplier
 from ...registry import provider
 from ..base import BaseStep

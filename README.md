@@ -81,13 +81,13 @@ AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
 ```
 
 ```bash
-axonx start
+axonx app
 ```
 
 The CLI loads `.env` from the current directory or a parent; existing environment variables take precedence.
-Keep the service running and use another terminal for subsequent commands. See [example.env](example.env) for model,
+Keep the service running and use another terminal for subsequent commands. Before execution, `exec` and `kill` request its `get_config` Job: explicit CLI options override service configuration, which overrides built-in defaults. Both accept `--workspace-dir`, `--log-dir`, `--timezone` and `--execution-target`. If the service cannot be reached, execution uses CLI options and defaults; rejected requests or invalid configuration fail. A workspace override affects only that command, while observation Jobs keep using the service workspace. See [example.env](example.env) for model,
 market-data, and remote settings; see [CONTRIBUTING.md](CONTRIBUTING.md) for source development and Studio builds.
-Restart the service after direct pip installation or editable source changes.
+Restart the service after direct pip installation or editable source changes. `list_task_defs` and `get_task_def` query the running service's Python environment; use `--include-schemas false` for lightweight listing.
 
 Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task IDs and start times and stop on installation or verification failures. [development guide](docs/en/dev_guide.md#_2-install-the-plugin)
 
@@ -97,7 +97,9 @@ For remote execution, replace `<host:port>` with the selected service address an
 axonx list_machines
 # Build the wheel and POST /upload first; use its returned absolute location.
 axonx plugin install '<uploaded answer.location>' --target <host:port>
-axonx get_task_definition --task qlib_a158_etl --target <host:port>
+axonx restart_service --target <host:port>
+# Wait until the service is ready again before querying definitions.
+axonx get_task_def --task qlib_a158_etl --target <host:port>
 axonx machine_status --target <host:port>
 axonx exec --task qlib_a158_etl --start-date 20150101 --target <host:port>
 ```
@@ -118,7 +120,7 @@ Within one workspace, `task_id` is the sole Task key. Callers serialize same-nam
 
 TaskIndex only reads persisted records. Observation leaves the last recorded state unchanged even when the execution process has exited.
 
-Startup checking is not a mutex; callers must serialize same-name starts and coordinate workspace deletion or replica replacement with execution. Startup checks live in `TaskExecutor`: a confirmed dead local process is marked failed before an INFO `Overwrite`; a live, inaccessible, or foreign running record blocks replacement. Missing, malformed, or incompatible metadata is reported without changing existing files. To include a usable remote kill command, optionally set `AXONX_TASK_EXECUTION_TARGET=http://worker.example:1024` on the execution machine, or put that variable in the service configuration's `environment` mapping. Workers record the advertised address and their source `workspace_dir`; `machine_id` remains a machine identity, not an address. Use an explicit port and a host reachable by other machines; loopback and wildcard addresses are rejected.
+Startup checking is not a mutex; callers must serialize same-name starts and coordinate workspace deletion or replica replacement with execution. Startup checks live in `TaskExecutor`: a confirmed dead local process is marked failed before an INFO `Overwrite`; a live, inaccessible, or foreign running record blocks replacement. Missing, malformed, or incompatible metadata is reported without changing existing files. To include a usable remote kill command, set `execution_target: http://worker.example:1024` in the service configuration, use `AXONX_EXECUTION_TARGET` with the bundled config, or pass `--execution-target` to exec. Workers record the advertised address and their source `workspace_dir`; `machine_id` remains a machine identity, not an address. Use an explicit port and a host reachable by other machines; loopback and wildcard addresses are rejected.
 
 The persisted metadata and online-history schemas have changed. Older records require migration before reuse; execution does not migrate them automatically.
 
@@ -174,7 +176,7 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 To load the bundled English development guide:
 
 ```bash
-axonx start --language en
+axonx app --language en
 ```
 
 Open **Studio → Agent** and configure `cwd` and SDK file/command tools for the checkout.
@@ -265,7 +267,9 @@ Set the target service's `AXONX_TARGET_TOKEN` and use the same `--target` for in
 axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 # Build the wheel and POST /upload first; use its returned absolute location.
 axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
-axonx get_task_definition --task qlib_factor_train --target 'http://<host>:1024'
+axonx restart_service --target 'http://<host>:1024'
+# Wait until the service is ready again before querying definitions.
+axonx get_task_def --task qlib_factor_train --target 'http://<host>:1024'
 ```
 
 An explicit `--target` uses `AXONX_TARGET_TOKEN` by default; default local calls use `AXONX_SERVICE_TOKEN`.
@@ -273,7 +277,7 @@ Without a target, plugin commands use the current Python environment.
 
 ### Use remote machines in Studio
 
-Set `AXONX_TARGET` and `AXONX_TARGET_TOKEN` in the local service environment, run `axonx start --config remote`,
+Set `AXONX_TARGET` and `AXONX_TARGET_TOKEN` in the local service environment, run `axonx app --config remote`,
 and select the machine in Studio. The target service owns its plugins, data, and workspace;
 see [remote machines](docs/en/guides/remote-machines.md) for multiple-target configuration.
 

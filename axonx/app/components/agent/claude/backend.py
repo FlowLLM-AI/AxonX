@@ -11,11 +11,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from .....client.events import AgentMessageEvent, JobEvent, ResultEvent
+from .....client.models import JobResponse
 from ....registry import provider
-from ...job.events import JobEvent, ResultEvent
-from ...job.models import JobResponse
 from ..base import BaseAgentComponent
-from ..events import AgentMessageEvent
 from ..local_session_store import LocalAgentSessionStore
 from ..models import AgentSession, AgentSessionInfo
 from .projector import (

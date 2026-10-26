@@ -17,8 +17,8 @@ import yaml
 
 from axonx.app.config.resolver import resolve_app_config
 from axonx.daemon import client as daemon
-from axonx.daemon.client import runtime_directory
-from axonx.daemon.update import UpdateClient
+from axonx.daemon.client import DaemonClient
+from axonx.daemon.launcher import runtime_directory
 from axonx.task.storage.workspace import task_path
 
 
@@ -30,7 +30,7 @@ def test_cli_validates_the_complete_crontab_before_launching_workers(tmp_path, m
     monkeypatch.delenv("AXONX_CLI_REQUEST_ID", raising=False)
     monkeypatch.setattr(launcher, "load_env", lambda: {})
     launches = []
-    monkeypatch.setattr(daemon, "launch", lambda *args: launches.append(args))
+    monkeypatch.setattr(launcher, "_launch", lambda *args: launches.append(args))
     config, crontab = tmp_path / "app.yaml", tmp_path / "commands.cron"
     config.write_text(yaml.safe_dump({"workspace_dir": str(tmp_path), "service": {"backend": "http"}}))
     crontab.write_text(
@@ -41,7 +41,7 @@ def test_cli_validates_the_complete_crontab_before_launching_workers(tmp_path, m
             )
         )
     )
-    argv = ["start", "--config", str(config), "--cron", str(crontab)]
+    argv = ["app", "--config", str(config), "--cron", str(crontab)]
     assert main(argv) == 2
     assert not launches
     assert f"{crontab}:2:" in capsys.readouterr().err
@@ -58,8 +58,8 @@ def test_update_client_prepares_and_commits_without_application_objects(tmp_path
         return {"update_id": "a" * 32}
 
     monkeypatch.setenv(daemon.SOCKET, "test-socket")
-    monkeypatch.setattr(daemon, "request", request)
-    updates = UpdateClient(tmp_path, tmp_path, "assert True")
+    monkeypatch.setattr(DaemonClient, "request", staticmethod(request))
+    updates = DaemonClient(tmp_path, tmp_path, "assert True")
     record = updates.prepare("restart")
     updates.commit(record["update_id"])
     assert [action for action, _ in calls] == ["prepare_update", "commit_update"]
@@ -81,7 +81,7 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
         "log_to_file": False,
         "enable_logo": False,
         "components": {name: defaults["components"][name] for name in ("task_index", "updater")},
-        "jobs": {name: defaults["jobs"][name] for name in ("cli", "status", "get_update_status")},
+        "jobs": {name: defaults["jobs"][name] for name in ("cli", "get_config", "status", "get_update_status")},
         "service": {
             "backend": "http",
             "host": "127.0.0.1",
@@ -100,7 +100,7 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
     children = []
     with (tmp_path / "daemon.log").open("w+") as output:
         with subprocess.Popen(
-            [sys.executable, "-m", "axonx.cli", "start", "--config", str(configuration), "--cron", str(crontab)],
+            [sys.executable, "-m", "axonx.cli", "app", "--config", str(configuration), "--cron", str(crontab)],
             cwd=tmp_path,
             env=environment,
             stdout=output,
@@ -182,18 +182,18 @@ def test_invalid_advertised_target_is_rejected_before_launching_workers(tmp_path
     monkeypatch.delenv("AXONX_CLI_REQUEST_ID", raising=False)
     monkeypatch.setattr(launcher, "load_env", lambda: {})
     launches = []
-    monkeypatch.setattr(daemon, "launch", lambda *args: launches.append(args))
+    monkeypatch.setattr(launcher, "_launch", lambda *args: launches.append(args))
     config = tmp_path / "app.yaml"
     config.write_text(
         yaml.safe_dump(
             {
                 "workspace_dir": str(tmp_path),
                 "service": {"backend": "http"},
-                "environment": {"AXONX_TASK_EXECUTION_TARGET": "127.0.0.1:1024"},
+                "execution_target": "127.0.0.1:1024",
             }
         )
     )
-    assert main(["start", "--config", str(config)]) == 2
+    assert main(["app", "--config", str(config)]) == 2
     assert not launches
     assert "execution_target" in capsys.readouterr().err
 
@@ -226,14 +226,14 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
         from axonx.cli.main import main
         from axonx.cli.parser import parse_command, validate_cron_command
         from axonx.daemon.launcher import start
-        from axonx.daemon.update import UpdateClient
-        from axonx.daemon import update_worker
+        from axonx.daemon.client import DaemonClient
+        from axonx.daemon import update
         from axonx.plugin.catalog import BUILTIN_TASKS
         from axonx.task.builtins.demo import DemoTask, DemoTaskInputParams
 
         VERSION = Path(__file__).with_name("version.txt").read_text()
-        UpdateClient._plan = lambda self, mode: {"cwd": str(Path(__file__).parent), "service_pid": os.getpid()}
-        update_worker.__file__ = str(Path(__file__).with_name("updater.py"))
+        DaemonClient._plan = lambda self, mode: {"cwd": str(Path(__file__).parent), "service_pid": os.getpid()}
+        update.__file__ = str(Path(__file__).with_name("updater.py"))
 
         class Inputs(DemoTaskInputParams):
             marker: str
@@ -256,7 +256,7 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
             self._next = dict.fromkeys(self._next, datetime.now(self.timezone))
 
         CronComponent._start = start_cron
-        if sys.argv[1] == "start":
+        if sys.argv[1] == "app":
             command, _ = parse_command(sys.argv[1:])
             code = start(command.arguments, command_prefix=(sys.executable, __file__),
                          startup_arguments=sys.argv[1:], validate_command=validate_cron_command)
@@ -298,7 +298,7 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
         "log_to_file": False,
         "enable_logo": False,
         "components": {"updater": defaults["components"]["updater"]},
-        "jobs": {name: defaults["jobs"][name] for name in ("cli", "restart_service", "update_from_git")},
+        "jobs": {name: defaults["jobs"][name] for name in ("cli", "get_config", "restart_service", "update_from_git")},
         "service": {
             "backend": "http",
             "host": "127.0.0.1",
@@ -322,7 +322,7 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
     with (
         (tmp_path / "daemon.log").open("w+") as output,
         subprocess.Popen(
-            [sys.executable, str(entry), "start", "--config", str(configuration), "--cron", str(crontab)],
+            [sys.executable, str(entry), "app", "--config", str(configuration), "--cron", str(crontab)],
             cwd=tmp_path,
             env=environment,
             stdout=output,

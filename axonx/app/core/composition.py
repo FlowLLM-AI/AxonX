@@ -34,14 +34,14 @@ from ..steps.agent import (
     RenameAgentSessionStep,
     TagAgentSessionStep,
 )
-from ..steps.common import CommandStep, HelpStep, VersionStep
+from ..steps.common import CommandStep, GetConfigStep, HelpStep, VersionStep
 from ..steps.machine.steps import DiagnoseStep, ListMachinesStep, MachineStatusStep, PythonStep
 from ..steps.sync import SyncFlushStep, SyncTasksStep, TaskSyncIndexStep
 from ..steps.task import (
-    GetTaskDefinitionStep,
+    GetTaskDefStep,
     GetTaskGraphStep,
     GetTaskStatusStep,
-    ListInstalledTaskDefinitionsStep,
+    ListTaskDefsStep,
     ListTaskDirectoriesStep,
     ListTaskIdsStep,
     ListTaskStatusesStep,
@@ -51,7 +51,7 @@ from ..steps.task import (
 )
 from ..steps.update import GetUpdateStatusStep, RestartServiceStep, UpdateFromGitStep, UpdateFromPipStep
 from ..steps.workspace import DeleteEntriesStep, ListEntriesStep, PreviewFileStep
-from ..workspace import Workspace
+from ..workspace.core import Workspace
 from .context import ApplicationContext
 
 APP_PROVIDERS = (
@@ -64,8 +64,9 @@ APP_PROVIDERS = (
     LocalTaskIndex,
     UpdateManager,
     CommandStep,
-    GetTaskDefinitionStep,
-    ListInstalledTaskDefinitionsStep,
+    GetConfigStep,
+    GetTaskDefStep,
+    ListTaskDefsStep,
     SyncTasksStep,
     TaskSyncIndexStep,
     AgentStreamStep,

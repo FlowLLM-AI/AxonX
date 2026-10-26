@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Mapping
 
-from ..events import AgentBlockPatch
+from .....client.events import AgentBlockPatch
 
 if TYPE_CHECKING:
     from claude_agent_sdk import ContentBlock, SessionMessage

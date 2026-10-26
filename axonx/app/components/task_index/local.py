@@ -13,7 +13,7 @@ from ....task.models.lifecycle import TaskMetadata
 from ....task.models.query import TaskContextSnapshot, TaskGraph, TaskSummary
 from ....task.storage.logs import TaskLogReader
 from ....task.storage.workspace import FileVersion, read_entry, scan_metadata
-from ...async_work import run_blocking
+from ....utils.async_work import run_blocking
 from ...registry import provider
 from .base import BaseTaskIndex, TaskChangeCallback
 from .graph import TaskGraphQuery

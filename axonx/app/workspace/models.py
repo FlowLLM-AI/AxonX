@@ -9,19 +9,6 @@ class WorkspaceModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-class FileCopy(WorkspaceModel):
-    """Public description of a file staged through the HTTP protocol."""
-
-    path: str = Field(min_length=1)
-    size: int = Field(ge=0)
-
-
-class StagedFile(FileCopy):
-    """A staged copy together with its server-local absolute location."""
-
-    location: str = Field(min_length=1)
-
-
 class WorkspaceEntry(WorkspaceModel):
     name: str
     path: str

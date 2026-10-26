@@ -13,7 +13,7 @@ from axonx.app import crontabs
 from axonx.app.core.application import Application
 from axonx.app.crontabs import load_crontab, parse_crontab
 from axonx.cli.parser import validate_cron_command
-from axonx.daemon.worker import Supervisor
+from axonx.daemon.supervisor import Supervisor
 
 
 def test_cron_parser_preserves_argv_without_executing_a_shell():

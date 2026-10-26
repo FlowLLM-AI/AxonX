@@ -14,7 +14,7 @@ from axonx.task.models.identity import TaskState
 from axonx.task.models.params import BaseOutputParams
 from axonx.task.runtime import lifecycle
 from axonx.task.runtime.executor import TaskExecutor
-from axonx.task.runtime.settings import AXONX_TASK_EXECUTION_TARGET, ExecutionSettings, normalize_execution_target
+from axonx.task.runtime.settings import ExecutionSettings, normalize_execution_target
 from axonx.task.storage.workspace import read_task_metadata, task_path, write_task_metadata
 from axonx.utils.logging import LoggingConfig, configure_logging
 
@@ -192,13 +192,11 @@ def test_execution_location_reaches_nested_tasks_and_root_conflict_hints(tmp_pat
     assert "--target http://10.0.0.8:1024" in message
 
 
-def test_advertised_target_is_loaded_and_forwarded_without_using_the_local_service_address(monkeypatch):
-    monkeypatch.setenv(AXONX_TASK_EXECUTION_TARGET, "10.0.0.8:1024")
+def test_advertised_target_is_explicit_and_independent_of_connection_defaults(monkeypatch):
     monkeypatch.setenv("AXONX_SERVICE_TARGET", "http://127.0.0.1:1024")
-    assert ExecutionSettings.from_environment().execution_target == "http://10.0.0.8:1024"
-    settings = ExecutionSettings(environment={AXONX_TASK_EXECUTION_TARGET: "https://worker.example:8443"})
-    assert settings.task_environment()[AXONX_TASK_EXECUTION_TARGET] == "https://worker.example:8443"
-    assert settings.execution_environment()["AXONX_SERVICE_TARGET"] == "http://127.0.0.1:1024"
+    settings = ExecutionSettings(execution_target="10.0.0.8:1024")
+    assert settings.execution_target == "http://10.0.0.8:1024"
+    assert ExecutionSettings().execution_target is None
 
 
 @pytest.mark.parametrize(

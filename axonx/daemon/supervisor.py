@@ -12,14 +12,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+# Support both package imports and the copied script launched with python -S.
+if __package__:
+    from .update import save, signal_group
+else:
+    from update import save, signal_group
+
 PREFIX = "AXONX_DAEMON_"
-
-
-def save(path: Path, value: dict) -> None:
-    value["updated_at"] = datetime.now(UTC).isoformat()
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
-    temporary.replace(path)
 
 
 class Supervisor:
@@ -54,6 +53,20 @@ class Supervisor:
             },
         )
 
+    @staticmethod
+    def _spawn(command, cwd, environment, log_file: Path) -> subprocess.Popen:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        with log_file.open("ab") as output:
+            return subprocess.Popen(  # pylint: disable=consider-using-with
+                command,
+                cwd=cwd,
+                env=environment,
+                start_new_session=True,
+                stdin=subprocess.DEVNULL,
+                stdout=output,
+                stderr=output,
+            )
+
     def _start(self):
         self.token = uuid4().hex
         environment = {
@@ -63,16 +76,9 @@ class Supervisor:
             PREFIX + "TOKEN": self.token,
         }
         try:
-            with (self.directory / "service.log").open("ab") as output:
-                self.service = subprocess.Popen(  # pylint: disable=consider-using-with
-                    self.plan["command"],
-                    cwd=self.plan["cwd"],
-                    env=environment,
-                    start_new_session=True,
-                    stdin=subprocess.DEVNULL,
-                    stdout=output,
-                    stderr=output,
-                )
+            self.service = self._spawn(
+                self.plan["command"], self.plan["cwd"], environment, self.directory / "service.log"
+            )
         except OSError as exc:
             self.token = None
             self.retry = time.monotonic() + 5
@@ -87,10 +93,7 @@ class Supervisor:
         self.token = None
         self.ready = False
         if self.service is not None:
-            try:
-                os.killpg(self.service.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            signal_group(self.service.pid, signal.SIGTERM)
             self.deadline = time.monotonic() + self.stop_timeout
 
     def _settle(self, error=None):
@@ -113,7 +116,7 @@ class Supervisor:
             raise ValueError("Unknown update mode")
         folder = self.directory / "updates" / uuid4().hex
         folder.mkdir(parents=True, mode=0o700)
-        shutil.copyfile(message["worker"], folder / "worker.py")
+        shutil.copyfile(message["worker"], folder / "update.py")
         save(folder / "plan.json", message["plan"])
         record = {
             "update_id": folder.name,
@@ -144,24 +147,15 @@ class Supervisor:
             or not all(isinstance(value, str) for value in (cwd, log_file))
         ):
             raise ValueError("Invalid exec environment")
-        path = Path(log_file)
-        path.parent.mkdir(parents=True, exist_ok=True)
         environment = {key: value for key, value in environment.items() if not key.startswith(PREFIX)}
-        with path.open("ab") as output:
-            child = subprocess.Popen(  # pylint: disable=consider-using-with
-                command,
-                cwd=cwd,
-                env=environment,
-                start_new_session=True,
-                stdin=subprocess.DEVNULL,
-                stdout=output,
-                stderr=output,
-            )
+        child = self._spawn(command, cwd, environment, Path(log_file))
         self.tasks[child.pid] = child
         self._state()
         return {"pid": child.pid}
 
     def handle(self, message):
+        if not isinstance(message, dict):
+            raise ValueError("Invalid daemon message")
         if self.token is None or self.token != message.get("token"):
             raise ValueError("Expired or invalid service token")
         action = message["action"]
@@ -189,20 +183,14 @@ class Supervisor:
             return None
         raise ValueError(f"Unsupported daemon action: {action}")
 
-    def _poll(self):
-        now = time.monotonic()
-        if self.pending is not None and self.phase == "running" and now > self.commit_deadline:
-            self._settle("Update response did not commit within 60 seconds")
-            self._stop()
+    def _poll_service(self, now):
         if self.service is not None:
             child = self.service
             if child.poll() is None:
                 if now > self.deadline:
-                    try:
-                        os.killpg(child.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
+                    signal_group(child.pid)
             else:
+                signal_group(child.pid)
                 self.service = None
                 self.token = None
                 self.ready = False
@@ -212,35 +200,31 @@ class Supervisor:
                 if self.pending is not None and self.phase in {"starting", "running"}:
                     self._settle(f"Service exited before startup completed (exit {child.returncode}); see service.log")
                 self._state()
-        for pid, child in list(self.tasks.items()):
-            if child.poll() is not None:
-                print(f"Task process exited pid={pid} exit_code={child.returncode}", flush=True)
-                self.tasks.pop(pid)
-                self._state()
-        if self.stopping:
+
+    def _poll_update(self):
+        """Replace the stopped service after an update, or a plain restart."""
+        if self.pending is None:
             return
         if self.phase == "restarting" and self.service is None:
             record = json.loads(self.pending.read_text(encoding="utf-8"))
+            self.phase = "starting"
             if record["mode"] == "restart":
                 record["phase"] = "starting"
                 save(self.pending, record)
-                self.phase = "starting"
             else:
                 try:
-                    self.update = subprocess.Popen(  # pylint: disable=consider-using-with
-                        [self.plan["python"], str(self.pending.with_name("worker.py")), str(self.pending)],
-                        cwd=self.plan["cwd"],
-                        env=self.plan["environment"],
-                        start_new_session=True,
-                        stdin=subprocess.DEVNULL,
+                    self.update = self._spawn(
+                        [self.plan["python"], str(self.pending.with_name("update.py")), str(self.pending)],
+                        self.plan["cwd"],
+                        self.plan["environment"],
+                        self.pending.with_name("update.log"),
                     )
                     self.phase = "updating"
                 except OSError as exc:
                     record.update(phase="failed", error=f"Cannot start updater: {exc}")
                     save(self.pending, record)
-                    self.phase = "starting"
             self._state()
-        if self.phase == "updating" and self.update.poll() is not None:
+        if self.update is not None and self.update.poll() is not None:
             if self.update.returncode:
                 record = json.loads(self.pending.read_text(encoding="utf-8"))
                 if record["phase"] != "failed":
@@ -250,6 +234,21 @@ class Supervisor:
                     save(self.pending, record)
             self.update = None
             self.phase = "starting"
+
+    def _poll(self):
+        now = time.monotonic()
+        if self.pending is not None and self.phase == "running" and now > self.commit_deadline:
+            self._settle("Update response did not commit within 60 seconds")
+            self._stop()
+        self._poll_service(now)
+        for pid, child in list(self.tasks.items()):
+            if child.poll() is not None:
+                print(f"Task process exited pid={pid} exit_code={child.returncode}", flush=True)
+                self.tasks.pop(pid)
+                self._state()
+        if self.stopping:
+            return
+        self._poll_update()
         if self.phase in {"running", "starting"}:
             if self.service is None and (self.phase == "starting" or now >= self.retry):
                 self._start()

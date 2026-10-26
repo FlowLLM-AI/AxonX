@@ -195,11 +195,6 @@ export type DisplayReplica = {
   log: ReplicaLog | null;
 };
 
-export type FileCopy = {
-  path: string;
-  size: number;
-};
-
 export type GpuInfo = {
   vendor: "nvidia" | "amd";
   index: number;

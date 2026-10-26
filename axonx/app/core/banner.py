@@ -11,12 +11,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..constants import (
-    AXONX_DEFAULT_BIND_HOST,
-    AXONX_DEFAULT_CONNECT_HOST,
-    AXONX_DEFAULT_PORT,
-    AXONX_DEFAULT_SCHEME,
-)
+from ...client.config import AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_PORT, AXONX_DEFAULT_SCHEME
+from ..constants import AXONX_DEFAULT_BIND_HOST
 
 if TYPE_CHECKING:
     from ..components.service.base import BaseService
@@ -37,7 +33,7 @@ def _rgb(hue: float) -> tuple[int, int, int]:
 
 def print_logo(app_config: "ApplicationConfig", service: "BaseService") -> None:
     """Print the AxonX logo and effective service endpoints."""
-    from ..protocol import PROTOCOL_ROUTE_MCP
+    from ...client.config import PROTOCOL_ROUTE_MCP
     from .build_info import get_build_info
 
     ascii_art = (

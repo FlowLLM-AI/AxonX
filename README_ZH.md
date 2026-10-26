@@ -79,12 +79,12 @@ AXONX_SERVICE_TOKEN=replace-with-your-local-service-token
 ```
 
 ```bash
-axonx start
+axonx app
 ```
 
-CLI 从当前目录或父目录加载 `.env`，已有环境变量优先。保持服务运行，在另一终端执行后续命令。
+CLI 从当前目录或父目录加载 `.env`，已有环境变量优先。保持服务运行，在另一终端执行后续命令。`exec` 和 `kill` 执行前请求服务的 `get_config` Job，优先级为 CLI 显式参数 > 服务配置 > 内置默认值。两者统一支持 `--workspace-dir`、`--log-dir`、`--timezone`、`--execution-target`。服务无法连接时使用 CLI 参数和默认值；认证失败、请求被拒绝或配置非法时直接报错。workspace 覆盖只影响本次命令，观察 Job 仍使用服务自己的 workspace。
 模型、行情与远程配置见 [example.env](example.env)；源码开发与 Studio 构建见[贡献指南](CONTRIBUTING_ZH.md)。
-直接 pip 安装或 editable 源码改动后需重启服务。
+直接 pip 安装或 editable 源码改动后需重启服务。`list_task_defs` 和 `get_task_def` 查询运行中服务的 Python 环境；列表查询可用 `--include-schemas false` 省略 Schema。
 
 安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task ID 和开始时间，安装或核验失败时停止并报告。[开发指南](docs/zh/dev_guide.md#_2-安装插件)
 
@@ -94,7 +94,9 @@ CLI 从当前目录或父目录加载 `.env`，已有环境变量优先。保持
 axonx list_machines
 # 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
 axonx plugin install '<uploaded answer.location>' --target <host:port>
-axonx get_task_definition --task qlib_a158_etl --target <host:port>
+axonx restart_service --target <host:port>
+# 服务重新就绪后，再执行下面的定义查询。
+axonx get_task_def --task qlib_a158_etl --target <host:port>
 axonx machine_status --target <host:port>
 axonx exec --task qlib_a158_etl --start-date 20150101 --target <host:port>
 ```
@@ -115,7 +117,7 @@ axonx get_task_context --task-id '<returned_task_id>'
 
 TaskIndex 只读取持久化记录。即使执行进程已经退出，观察操作也保留最后记录的状态。
 
-启动检查不提供互斥保障，调用方需要串行启动同名任务，并协调执行期间的目录删除或副本替换。启动检查统一由 `TaskExecutor` 负责：确认本机执行进程已退出时，先将旧记录修正为失败并记录原因，再 INFO 输出 `Overwrite`。进程仍存活、权限不足无法验证或属于异机时，都拒绝覆盖；metadata 缺失、损坏或格式不兼容时，会明确报错并保留已有文件。可选在执行机设置 `AXONX_TASK_EXECUTION_TARGET=http://worker.example:1024`，或在服务配置的 `environment` 中设置同名变量。任务会记录执行地址和源 `workspace_dir`，用于生成远程 kill 命令；`machine_id` 仍只用于机器归属判断。地址必须带端口并能被其他机器访问，不能使用回环地址或通配监听地址。
+启动检查不提供互斥保障，调用方需要串行启动同名任务，并协调执行期间的目录删除或副本替换。启动检查统一由 `TaskExecutor` 负责：确认本机执行进程已退出时，先将旧记录修正为失败并记录原因，再 INFO 输出 `Overwrite`。进程仍存活、权限不足无法验证或属于异机时，都拒绝覆盖；metadata 缺失、损坏或格式不兼容时，会明确报错并保留已有文件。可在服务配置中设置 `execution_target: http://worker.example:1024`，内置配置也可通过 `AXONX_EXECUTION_TARGET` 设置；单次执行可使用 `--execution-target` 覆盖。任务会记录执行地址和源 `workspace_dir`，用于生成远程 kill 命令；`machine_id` 仍只用于机器归属判断。地址必须带端口并能被其他机器访问，不能使用回环地址或通配监听地址。
 
 本次修改调整了 metadata 和在线历史记录的存储格式，旧记录需要迁移后再使用，执行时不会自动迁移。
 
@@ -169,7 +171,7 @@ CLAUDE_CODE_MODEL_NAME=your-model-name
 加载随包提供的中文开发指南：
 
 ```bash
-axonx start --language zh
+axonx app --language zh
 ```
 
 进入 **Studio → Agent**，为源码仓库配置 `cwd` 和 SDK 文件／命令工具。
@@ -253,7 +255,9 @@ axonx start --language zh
 axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 # 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
 axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
-axonx get_task_definition --task qlib_factor_train --target 'http://<host>:1024'
+axonx restart_service --target 'http://<host>:1024'
+# 服务重新就绪后，再执行下面的定义查询。
+axonx get_task_def --task qlib_factor_train --target 'http://<host>:1024'
 ```
 
 显式 `--target` 默认使用 `AXONX_TARGET_TOKEN`；默认本机调用使用 `AXONX_SERVICE_TOKEN`。
@@ -261,7 +265,7 @@ axonx get_task_definition --task qlib_factor_train --target 'http://<host>:1024'
 
 ### 在 Studio 中使用远程机器
 
-在本机服务环境配置 `AXONX_TARGET` 与 `AXONX_TARGET_TOKEN`，运行 `axonx start --config remote`，然后在 Studio 选择机器。
+在本机服务环境配置 `AXONX_TARGET` 与 `AXONX_TARGET_TOKEN`，运行 `axonx app --config remote`，然后在 Studio 选择机器。
 目标服务拥有自己的插件、数据和工作区；多目标配置见[远程机器指南](docs/zh/guides/remote-machines.md)。
 
 <a id="axonx-文档"></a>

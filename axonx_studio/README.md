@@ -30,7 +30,7 @@ Use an activated Python environment with **Python 3.12+**. Local Task execution 
 ```bash
 pip install "axonx[studio]"
 export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
-axonx start --service.host 127.0.0.1
+axonx app --service.host 127.0.0.1
 ```
 
 Open <http://127.0.0.1:1024/>. In **Settings → Local service token**, enter the same token and apply it. Studio saves the token in browser local storage and sends it as a Bearer token on API requests. Use the same settings form to replace or clear it.
@@ -91,7 +91,7 @@ The frontend toolchain requires **Node.js 22.x ≥ 22.13.0, 24.x, or 26+**, as d
 ```bash
 pip install -e '.[dev]'
 export AXONX_SERVICE_TOKEN='replace-with-your-local-service-token'
-axonx start --service.host 127.0.0.1
+axonx app --service.host 127.0.0.1
 ```
 
 In another terminal:

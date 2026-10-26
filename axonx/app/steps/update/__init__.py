@@ -1,5 +1,9 @@
-"""Self-update Job Steps."""
+"""Application self-update Job Steps.
 
+steps: Git/pip update requests, durable status queries and service restart.
+"""
+
+from . import steps
 from .steps import (
     GetUpdateStatusStep,
     RestartServiceStep,
@@ -12,4 +16,5 @@ __all__ = [
     "RestartServiceStep",
     "UpdateFromGitStep",
     "UpdateFromPipStep",
+    "steps",
 ]

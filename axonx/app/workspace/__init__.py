@@ -1,5 +1,14 @@
-"""Shared workspace operations; result models are available in ``.models``."""
+"""Workspace browsing, previews and staged uploads.
 
-from .core import Workspace
+models: Workspace entries, preview results and staged-file contracts.
+preview: Bounded text, image, JSON and tabular previews.
+core: Path resolution, entry management, file staging and cleanup.
 
-__all__ = ["Workspace"]
+Only data models load here. Import Workspace from core.
+"""
+
+from . import models
+
+__all__ = [
+    "models",
+]
