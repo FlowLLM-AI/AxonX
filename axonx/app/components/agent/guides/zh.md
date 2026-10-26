@@ -7,7 +7,7 @@
 - `axonx` 显示本地命令语法；`axonx help` 查询服务的 Job；`axonx help --job NAME` 获取当前参数契约。
 - `axonx get_task_definition --task NAME` 查询单个已注册 Task。插件提供 Task，Job 暴露应用能力。
 - `axonx exec --task NAME ...` 同步执行任务。用户要求验证执行环境时，可使用 `axonx exec --task demo --task-name check --x 1 --y 2`。
-- `axonx start --cron research` 通过 Daemon 启动应用和定时触发；已启动的任务进程独立于应用工作进程。
+- `axonx start --config default --cron research` 通过 Daemon 启动一个应用服务，Cron 是服务内组件。配置放在 `axonx/app/crontabs`，重启服务重新读取。手动 CLI 子进程随服务停止；Daemon 创建的定时 exec 进程继续运行。
 - 远程操作使用 `--target HOST:PORT`。部署插件时先上传 wheel，再使用返回的服务端绝对路径 `location` 在目标环境安装。
 
 ## 观察同一个执行实例

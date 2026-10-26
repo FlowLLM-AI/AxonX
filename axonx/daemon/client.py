@@ -12,7 +12,6 @@ from pathlib import Path
 DIRECTORY = "AXONX_DAEMON_DIRECTORY"
 SOCKET = "AXONX_DAEMON_SOCKET"
 TOKEN = "AXONX_DAEMON_TOKEN"
-ROLE = "AXONX_DAEMON_ROLE"
 
 
 def runtime_directory(workspace: str, host: str, port: int, cwd: Path) -> Path:

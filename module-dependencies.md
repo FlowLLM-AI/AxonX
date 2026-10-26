@@ -1,25 +1,26 @@
 # AxonX 模块依赖明细
 
-核对日期：2026-10-26。本文基于当前工作区代码，包含未提交修改，汇总 `app`、`cli`、`common`、`cron`、`daemon`、`plugin`、`task` 七个包之间的实际依赖。
+核对日期：2026-10-26。本文基于当前工作区代码，包含未提交修改，汇总 `app`、`cli`、`common`、`daemon`、`plugin`、`task` 六个包之间的实际依赖。
 
-依赖方向为“具体调用方 → 被依赖的子模块”。扫描范围共 211 个 Python 文件，存在 14 组跨包直接导入关系，涉及 38 个被依赖子模块；表中另补充 CLI 子进程入口、注入式更新后端两项运行时依赖。模块路径均省略 `axonx.` 前缀，同包内部导入、第三方库和测试代码不计入跨包明细。函数内导入仍计为直接导入，仅用于类型检查的导入单独注明。
+依赖方向为“具体调用方 → 被依赖的子模块”。表中汇总跨包直接导入，以及 CLI 子进程入口、注入式更新后端两项运行时依赖。Cron 已归入 App 组件，不再是独立包或工作进程。模块路径均省略 `axonx.` 前缀，同包内部导入、第三方库和测试代码不计入跨包明细。函数内导入仍计为直接导入，仅用于类型检查的导入单独注明。
 
 | 模块 | 被依赖的子模块 | 具体调用方 | 主要内容 |
 | --- | --- | --- | --- |
+| `app` | [app.async_work](axonx/app/async_work.py) | [daemon.launcher](axonx/daemon/launcher.py) | 使用 `run_blocking` 将 Daemon IPC 放到线程中等待，取消时等待已有请求收尾，避免阻塞服务调度循环。 |
+| `app` | [app.components.cron.parser](axonx/app/components/cron/parser.py) | [daemon.launcher](axonx/daemon/launcher.py) | `load_crontab` 选择 `app/crontabs/*.cron`、插件贡献或显式路径，并使用 CLI 注入的校验函数检查所有命令。CronComponent 跟随 App 启停，只管理后续触发，不持有已启动任务。 |
 | `app` | [app.core.application](axonx/app/core/application.py) | [daemon.launcher](axonx/daemon/launcher.py) | 延迟导入 `Application`，直接创建应用并注入更新后端。Workspace 提供通用文件操作，TaskIndex 只读观察记录。 |
 | `app` | [app.components.agent.events](axonx/app/components/agent/events.py) | [cli.rendering](axonx/cli/rendering.py#L29) | 延迟导入 `AgentMessageEvent`；将 Agent 消息和展示补丁转换为 CLI 输出块。 |
 | `app` | [app.components.client.remote](axonx/app/components/client/remote.py) | [cli.main](axonx/cli/main.py#L40) | 延迟导入 `run_remote_job`、`stream_remote_job`；调用远端 Job、接收流式事件，并转发远端 CLI 请求。 |
 | `app` | [app.components.job.events](axonx/app/components/job/events.py) | [cli.main](axonx/cli/main.py#L42)<br>[cli.rendering](axonx/cli/rendering.py#L10) | `main` 延迟导入 `ResultEvent`，识别 Job 最终结果及退出状态；`rendering` 对 `JobEvent` 的导入仅用于类型检查。 |
-| `app` | [app.config.models](axonx/app/config/models.py) | [daemon.launcher](axonx/daemon/launcher.py#L43) | 延迟导入 `ApplicationConfig`；校验应用配置，取得服务、工作区等启动参数。 |
-| `app` | [app.config.resolver](axonx/app/config/resolver.py) | [daemon.launcher](axonx/daemon/launcher.py#L13) | `resolve_app_config`；解析应用配置来源并合并启动覆盖参数。 |
+| `app` | [app.config.models](axonx/app/config/models.py) | [daemon.launcher](axonx/daemon/launcher.py) | 延迟导入 `ApplicationConfig`；校验应用配置，取得服务、工作区等启动参数。 |
+| `app` | [app.config.resolver](axonx/app/config/resolver.py) | [daemon.launcher](axonx/daemon/launcher.py) | `resolve_app_config`；解析应用配置来源并合并启动覆盖参数。 |
 | `app` | [app.connection](axonx/app/connection.py) | [cli.main](axonx/cli/main.py#L15)<br>[cli.options](axonx/cli/options.py#L5) | `main` 使用 `AXONX_CLI_REQUEST_ID` 标识服务启动的 CLI 子进程；`options` 继承 `ConnectionOptions`，复用目标地址、令牌和超时配置。 |
 | `app` | [app.constants](axonx/app/constants.py) | [cli.usage](axonx/cli/usage.py#L3) | `AXONX_DEFAULT_CONNECT_HOST`、`AXONX_DEFAULT_PORT`、`AXONX_DEFAULT_REQUEST_TIMEOUT`；生成包含默认连接参数的命令帮助。 |
-| `app` | [app.core.banner](axonx/app/core/banner.py) | [daemon.launcher](axonx/daemon/launcher.py#L14) | `print_logo`；在服务启动时显示应用及服务信息。 |
-| `cli` | [cli.main](axonx/cli/main.py) | [app.steps.common.command.CommandStep.execute](axonx/app/steps/common/command.py#L24)<br>[daemon.worker.Supervisor._start](axonx/daemon/worker.py#L58)<br>[daemon.worker.Supervisor._exec](axonx/daemon/worker.py#L138) | **运行时子进程调用，无跨包直接导入。** 默认启动命令由 `daemon.launcher` 配置为 Python CLI 入口；App 的 CommandStep 执行该命令，TaskCatalogStep 复用它查询 Task 定义；Daemon 用启动计划命令创建服务和 Cron 工作进程，并按 Cron 回调请求创建 `exec` 子进程。Cron 经注入回调、Daemon IPC 间接使用 CLI 命令协议。 |
-| `common` | [common.env](axonx/common/env.py) | [cli.main](axonx/cli/main.py#L16)<br>[daemon.launcher](axonx/daemon/launcher.py#L15) | `load_env`；显式发现、解析并应用 `.env`，为 CLI 执行和服务启动准备环境变量。 |
-| `common` | [common.logging](axonx/common/logging.py) | [app.components.base](axonx/app/components/base.py#L12)<br>[app.components.service.http.shutdown](axonx/app/components/service/http/shutdown.py#L8)<br>[app.config.loader](axonx/app/config/loader.py#L147)<br>[app.core.application](axonx/app/core/application.py#L20)<br>[app.core.composition](axonx/app/core/composition.py#L13)<br>[cli.main](axonx/cli/main.py#L17)<br>[cron.scheduler](axonx/cron/scheduler.py#L10)<br>[task.core.task](axonx/task/core/task.py#L13)<br>[task.runtime.logging](axonx/task/runtime/logging.py#L10)<br>[task.sync.index](axonx/task/sync/index.py#L7) | `get_logger` 为 App、Cron、Task 提供日志；`LoggingConfig`、`configure_logging` 由 App 和 CLI 配置进程日志；Task 使用 `get_log_path`、`log_file` 管理执行日志。`app.config.loader` 的日志导入为延迟导入。 |
-| `cron` | [cron.scheduler](axonx/cron/scheduler.py) | [daemon.launcher](axonx/daemon/launcher.py) | 延迟导入 `CronScheduler`；创建调度器，注入将完整命令发送给 Daemon 的 `launch` 回调。Scheduler 内部使用 `parser`、`config`，只解析计划与 argv；CLI 注入 `validate_cron_command`，启动层在启动工作进程前逐条校验命令。Cron 不直接导入 CLI 或 Task，也不复制命令参数解析。 |
-| `daemon` | [daemon.launcher](axonx/daemon/launcher.py) | [cli.main](axonx/cli/main.py#L196) | 延迟导入 `start`；处理 `axonx start`，装配 App/Cron 工作进程配置，再启动或进入相应进程角色。 |
+| `app` | [app.core.banner](axonx/app/core/banner.py) | [daemon.launcher](axonx/daemon/launcher.py) | `print_logo`；在服务启动时显示应用及服务信息。 |
+| `cli` | [cli.main](axonx/cli/main.py) | [app.steps.common.command](axonx/app/steps/common/command.py)<br>[daemon.worker](axonx/daemon/worker.py) | **运行时子进程调用，无跨包直接导入。** App 的 CommandStep 创建随服务停止的 CLI 子进程，TaskCatalogStep 复用它查询 Task 定义。Daemon 只守护一个服务进程，并按服务内 Cron 组件经异步回调发送的 IPC 请求创建独立 exec 进程；这些定时任务跨服务重启继续运行，不自动重跑。 |
+| `common` | [common.env](axonx/common/env.py) | [cli.main](axonx/cli/main.py#L16)<br>[daemon.launcher](axonx/daemon/launcher.py) | `load_env`；显式发现、解析并应用 `.env`，为 CLI 执行和服务启动准备环境变量。 |
+| `common` | [common.logging](axonx/common/logging.py) | [app.components.base](axonx/app/components/base.py#L12)<br>[app.components.service.http.shutdown](axonx/app/components/service/http/shutdown.py#L8)<br>[app.config.loader](axonx/app/config/loader.py#L147)<br>[app.core.application](axonx/app/core/application.py#L20)<br>[app.core.composition](axonx/app/core/composition.py#L13)<br>[cli.main](axonx/cli/main.py#L17)<br>[task.core.task](axonx/task/core/task.py#L13)<br>[task.runtime.logging](axonx/task/runtime/logging.py#L10)<br>[task.sync.index](axonx/task/sync/index.py#L7) | `get_logger` 为 App 和 Task 提供日志；`LoggingConfig`、`configure_logging` 由 App 和 CLI 配置进程日志；Task 使用 `get_log_path`、`log_file` 管理执行日志。`app.config.loader` 的日志导入为延迟导入。 |
+| `daemon` | [daemon.launcher](axonx/daemon/launcher.py) | [cli.main](axonx/cli/main.py) | 延迟导入 `start`；分别解析 `--config` 和 `--cron`。服务内安装 Cron 组件并注入异步启动回调；Daemon 保存原始启动命令，重启后重新读取应用配置与 crontab。 |
 | `daemon` | [daemon.update](axonx/daemon/update.py) | [app.components.updater.manager.UpdateManager.request](axonx/app/components/updater/manager.py#L39)<br>[app.components.updater.manager.UpdateManager.status](axonx/app/components/updater/manager.py#L55) | **运行时接口调用，无 App → Daemon 直接导入。** `daemon.launcher` 将 `UpdateClient` 注入应用；App 通过自身定义的 `UpdateBackend` 协议调用 `prepare`、`commit`、`status`，由后端与 Daemon 通信并读取更新状态。 |
 | `plugin` | [plugin.catalog](axonx/plugin/catalog.py) | [cli.main](axonx/cli/main.py#L99) | 延迟导入 `installed_tasks`、`resolve_task`、`list_installed_task_definitions`、`get_task_definition`；统一内置与插件 Task 的注册、重名校验、类解析和输入输出 Schema 查询。内部使用 `discovery`、`contributions`、`loading`。 |
 | `plugin` | [plugin.discovery](axonx/plugin/discovery.py) | [cli.plugin](axonx/cli/plugin.py#L12) | `get_installed_plugin`、`list_installed_plugins`；读取当前 Python 环境中的插件入口点、清单和安装来源信息。内部使用 `manifest`、`identity`、`models`、`constants`。 |
@@ -47,4 +48,4 @@
 | `task` | [task.sync.replica](axonx/task/sync/replica.py) | [app.components.sync.local](axonx/app/components/sync/local.py#L32) | `prepare_group`、`prepare_replica`；准备单个 Task 或 Task 组的展示副本。 |
 | `task` | [task.task_enums](axonx/task/task_enums.py) | [app.config.models](axonx/app/config/models.py#L12)<br>[app.steps.task.query](axonx/app/steps/task/query.py#L8)<br>[plugin.catalog](axonx/plugin/catalog.py#L12) | App 配置使用 `TaskCategory` 描述 Studio 页面类别；查询 Step 使用 `TaskState`；Plugin 目录使用 `TaskType` 校验和描述 Task 类型。 |
 
-`common` 不依赖另外六个包；`task` 的跨包直接依赖只有 `common.logging`。`app` 不直接导入 `plugin`、`cli` 或 `daemon`，但通过命令子进程和注入后端与它们交互。`daemon` 对 App、Cron、Task 的导入集中在启动装配层，独立监督进程 `daemon.worker` 只导入标准库。上述包级直接导入关系没有环。
+`common` 不依赖另外五个包；`task` 的跨包直接依赖只有 `common.logging`。`app` 不直接导入 `plugin`、`cli` 或 `daemon`，但通过命令子进程和注入后端与它们交互。`daemon` 对 App 和 Task 的导入集中在启动装配层，独立监督进程 `daemon.worker` 只导入标准库。上述包级直接导入关系没有环。

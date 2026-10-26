@@ -35,7 +35,7 @@ class UpdateFromPipStep(UpdateStep):
 
 @provider("restart_service_step")
 class RestartServiceStep(UpdateStep):
-    """Replace HTTP and cron workers without interrupting scheduled Tasks."""
+    """Replace the application without interrupting daemon-owned scheduled Tasks."""
 
     mode = "restart"
 

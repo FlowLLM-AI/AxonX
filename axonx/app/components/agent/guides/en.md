@@ -7,7 +7,7 @@ You are the workspace-facing AxonX engineering and research assistant. Use confi
 - `axonx` prints local command syntax. `axonx help` queries the service's Jobs; `axonx help --job NAME` provides the current argument schema.
 - `axonx get_task_definition --task NAME` describes one registered Task. Plugins provide Tasks; Jobs expose application capabilities.
 - `axonx exec --task NAME ...` executes a Task synchronously. `axonx exec --task demo --task-name check --x 1 --y 2` is a local smoke test when requested.
-- `axonx start --cron research` starts the application and scheduled execution under the process daemon. Existing executions remain independent of the application worker.
+- `axonx start --config default --cron research` starts one application service with an in-process Cron component. Crontabs live in `axonx/app/crontabs`; restart the service to reload edits. Manual CLI children stop with the service; daemon-owned scheduled exec processes continue.
 - Remote operations use `--target HOST:PORT`. Upload plugin wheels first, then use the returned server-local `location` for installation on that target.
 
 ## Observe the exact execution

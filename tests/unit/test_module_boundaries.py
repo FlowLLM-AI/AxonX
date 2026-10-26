@@ -10,7 +10,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 SHARED = {"axonx.common.logging", "axonx.common.env"}
-OWNERS = {"app", "cli", "common", "cron", "daemon", "plugin", "task"}
+OWNERS = {"app", "cli", "common", "daemon", "plugin", "task"}
 
 
 def imports(path):
@@ -54,7 +54,7 @@ def test_cross_module_imports_follow_the_public_contracts():
             if owner == "plugin":
                 allowed |= dependency == "task"
             if owner == "daemon":
-                allowed |= target.startswith("axonx.app.") or target == "axonx.cron.scheduler"
+                allowed |= target.startswith("axonx.app.")
                 allowed |= target == "axonx.task.runtime.settings"
             if owner == "common":
                 allowed = False
@@ -110,14 +110,12 @@ def test_cli_does_not_implement_resident_components_or_steps():
                 "axonx.cli",
                 "axonx.plugin",
                 "axonx.daemon",
-                "axonx.cron",
                 "axonx.task.core",
                 "axonx.task.runtime",
             ),
         ),
-        ("axonx.task.runtime.executor", ("axonx.app", "axonx.cli", "axonx.plugin", "axonx.cron", "axonx.daemon")),
-        ("axonx.cron.scheduler", ("axonx.app", "axonx.cli", "axonx.task", "axonx.plugin", "axonx.daemon")),
-        ("axonx.plugin.installer", ("axonx.app", "axonx.cli", "axonx.task", "axonx.cron", "axonx.daemon")),
+        ("axonx.task.runtime.executor", ("axonx.app", "axonx.cli", "axonx.plugin", "axonx.daemon")),
+        ("axonx.plugin.installer", ("axonx.app", "axonx.cli", "axonx.task", "axonx.daemon")),
         (
             "axonx.task.models.params",
             (

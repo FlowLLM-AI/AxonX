@@ -33,15 +33,16 @@
 | `task`   | `common.logging`、`common.env`                                | Task 定义、数据契约、执行、存储和同步             |
 | `plugin` | Task 定义、数据契约和内置 Task；按需使用共享日志与环境        | 插件发现、安装与 `plugin.catalog` 解析            |
 | `app`    | Task 模型、观察/存储与同步接口；共享日志与环境                | App 自己维护的常驻组件、Job、传输协议和 Workspace |
-| `cron`   | 共享日志与环境                                                | 解析、校验计划文件，调用外部提供的启动回调        |
-| `daemon` | 启动层依赖 App、Cron 和 Task 工作进程配置；监督器仅依赖标准库 | 启动、监督与更新独立工作进程                      |
+| `daemon` | 启动层依赖 App 和 Task 执行配置；监督器仅依赖标准库          | 守护一个应用服务，创建并回收定时 exec 进程        |
 | `cli`    | 其他模块的公开入口                                            | 参数解析、调用路由、结果展示与退出码              |
 
 Task 模型和枚举不得导入执行、存储或插件代码。Task 执行不导入 App、Plugin 或 CLI。插件发现归 `axonx.plugin.catalog`；`TaskExecutor` 接收调用方提供的 `resolve_task` 函数，并将其传给复合任务的子任务。
 
 常驻组件留在 App：`components/task_index` 负责轮询、缓存和订阅，`components/sync` 负责复制传输，`components/updater` 负责应用侧准入和响应完成边界。App 使用 `task.query` 的公开观察接口，以及实际需要的 Task 存储/同步能力，不加载 Task 执行器或研究插件。观察操作不改写 Task 记录；启动检查和显式终止可以收尾已确认本机进程退出的记录。CLI 不实现常驻组件或 Step。
 
-App 自己维护配置、注册器、异步工具、Workspace 和启动横幅；Workspace 提供文件操作，不包含 Task 专属的隐藏和删除规则。`command` 命令数组提供外部命令驱动，注入的更新后端负责 prepare/commit/status。`daemon.launcher` 直接创建 Application，启动 App 和 Cron，并传入明确的 `task.runtime.settings.ExecutionSettings`。Cron 选择计划文件并解析调度表达式与命令数组，不解释命令参数。CLI 提供计划命令校验函数，启动层在启动工作进程前校验全部条目；`daemon.worker` 只使用标准库，接收完整命令数组。
+App 自己维护配置、注册器、异步工具、Workspace 和启动横幅；Workspace 提供文件操作，不包含 Task 专属的隐藏和删除规则。`command` 命令数组提供外部命令驱动，注入的更新后端负责 prepare/commit/status。`daemon.launcher` 创建一个 Application，并传入明确的 `task.runtime.settings.ExecutionSettings`。`components/cron` 组件在服务启动时读取 `app/crontabs/*.cron` 或 `--cron` 指定的配置，通过异步回调请求启动定时任务。CLI 提供命令校验函数，启动层在启动 Daemon 前校验全部条目。`--config` 和 `--cron` 分别解析；修改定时配置后重启服务生效，停机期间错过的时间点不自动补跑。
+
+Daemon 只自动拉起应用服务。手动 CLI 子进程随服务停止，重启不等待命令执行完成，只保留有上限的清理时间。定时 exec 进程由 Daemon 创建、回收，服务重启时继续运行。更新时拒绝新定时启动请求，先停止服务和手动命令，再执行更新，最后启动新服务并重新读取两份配置。原地更新不会冻结旧任务后续读取的代码和依赖。`daemon.worker` 只使用标准库，接收完整命令、工作目录、环境变量和日志路径，不解释 crontab，也不自动重跑已结束的 Task。
 
 应用 YAML/JSON 加载、继承和环境变量插值归 `app/config`，命令行参数转换归 CLI。Workspace 操作直接返回 `app.workspace.models` 中的模型：`WorkspaceListing`、具体的 `FilePreview` 变体、`DeletedEntry` 和 `StagedFile`；目录过滤回调接收 `WorkspaceEntry` 对象。Job 和 HTTP 适配层直接使用结果，在传输边界序列化。
 

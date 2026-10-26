@@ -65,7 +65,14 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
         if plugin:
             required.add(f"{package}/plugin.yaml")
         else:
-            required.update({"axonx/_version.py", "axonx/app/config/default.yaml", "axonx/app/config/remote.yaml"})
+            required.update(
+                {
+                    "axonx/_version.py",
+                    "axonx/app/config/default.yaml",
+                    "axonx/app/config/remote.yaml",
+                    "axonx/app/crontabs/research.cron",
+                }
+            )
         with ZipFile(wheels[0]) as archive:
             names = set(archive.namelist())
             assert required <= names, f"Missing package files: {required - names}"
@@ -131,6 +138,7 @@ def verify_installation() -> None:
             assert module.__version__ == distribution.version
             assert files.joinpath("app/config/default.yaml").is_file()
             assert files.joinpath("app/config/remote.yaml").is_file()
+            assert files.joinpath("app/crontabs/research.cron").is_file()
             for language in ("en", "zh"):
                 guide = files.joinpath("app/components/agent/guides", f"{language}.md")
                 assert (

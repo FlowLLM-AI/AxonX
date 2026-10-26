@@ -2,10 +2,14 @@
 
 import re
 import shlex
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 from croniter import croniter
+
+from ...config.locator import locate_file
 
 _FIELD = re.compile(r"^[0-9*,/\-]+$")
 
@@ -41,3 +45,21 @@ def parse_crontab(text: str) -> tuple[CronEntry, ...]:
         except ValueError as exc:
             raise ValueError(f"Cron line {number}: {exc}") from exc
     return tuple(entries)
+
+
+def load_crontab(source: str, validate_command: Callable[[Sequence[str]], None]) -> tuple[Path, tuple[CronEntry, ...]]:
+    """Resolve a crontab and validate every command before enabling scheduling."""
+    path = locate_file(
+        source,
+        directory=Path(__file__).resolve().parents[2] / "crontabs",
+        extensions=(".cron",),
+        group="axonx.crons",
+        label="Crontab",
+    ).resolve()
+    entries = parse_crontab(path.read_text(encoding="utf-8"))
+    for entry in entries:
+        try:
+            validate_command(entry.command)
+        except ValueError as exc:
+            raise ValueError(f"{path}:{entry.line}: {exc}") from exc
+    return path, entries

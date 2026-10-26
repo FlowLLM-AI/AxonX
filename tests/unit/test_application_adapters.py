@@ -44,7 +44,7 @@ class UpdateOperations:
 
 @pytest.fixture
 def application(tmp_path, monkeypatch):
-    for name in ("SOCKET", "TOKEN", "DIRECTORY", "ROLE"):
+    for name in ("SOCKET", "TOKEN", "DIRECTORY"):
         monkeypatch.delenv("AXONX_DAEMON_" + name, raising=False)
     config = resolve_app_config(log_config=False)
     config.update(workspace_dir=str(tmp_path), log_dir=str(tmp_path / "logs"), log_to_console=False, log_to_file=False)

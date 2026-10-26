@@ -14,6 +14,7 @@ from ...common.logging import LoggingConfig, configure_logging, get_logger
 from ..registry import ProviderRegistry
 from ..components.agent.claude import ClaudeAgentComponent
 from ..components.base import BaseComponent
+from ..components.cron import CronComponent
 from ..components.job.base import BaseJob
 from ..components.job.pipeline import PipelineJob
 from ..components.proxy import HttpProxyComponent
@@ -56,6 +57,7 @@ from ..steps.workspace import DeleteEntriesStep, ListEntriesStep, PreviewFileSte
 from .context import ApplicationContext
 
 APP_PROVIDERS = (
+    CronComponent,
     ClaudeAgentComponent,
     PipelineJob,
     HttpProxyComponent,

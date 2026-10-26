@@ -142,7 +142,7 @@ jobs:
       - backend: version_step
 
   update_from_git:
-    description: Fast-forward the current source branch, build Studio and restart HTTP/cron workers.
+    description: Stop the application, fast-forward the source branch, build Studio and restart.
     requires_auth: true
     parameters:
       type: object
@@ -162,7 +162,7 @@ jobs:
       - backend: update_from_pip_step
 
   restart_service:
-    description: Restart HTTP and cron workers with the original arguments; existing scheduled Tasks continue.
+    description: Restart the application and reload its crontab; stop manual commands and preserve scheduled Tasks.
     requires_auth: true
     parameters:
       type: object

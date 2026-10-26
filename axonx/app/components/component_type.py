@@ -17,3 +17,4 @@ class ComponentType(StrEnum):
     SYNC = "sync"
     PROXY = "proxy"
     UPDATER = "updater"
+    CRON = "cron"

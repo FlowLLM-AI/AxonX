@@ -1,4 +1,5 @@
 # Research schedule template. Uncomment entries after preparing plugins and data.
 # Times use the application's timezone. Commands run in the startup directory.
+# Restart the service to apply edits; missed occurrences are not replayed.
 # 0 16 * * 1-5 axonx exec --task download_tushare_task --days-back 7
 # */10 * * * * axonx exec --task demo --x 1 --y 2
