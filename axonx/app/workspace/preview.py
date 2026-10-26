@@ -11,6 +11,19 @@ from itertools import islice
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .models import (
+    CsvPreview,
+    FilePreview,
+    JsonlPreview,
+    JsonlRow,
+    MarkdownPreview,
+    ParquetColumn,
+    ParquetPreview,
+    StructuredPreview,
+    TextPreview,
+    UnsupportedPreview,
+)
+
 if TYPE_CHECKING:
     from .core import Workspace
 
@@ -43,7 +56,7 @@ def preview_file(
     limit: int = PREVIEW_ROWS,
     *,
     max_bytes: int | None = None,
-) -> dict:
+) -> FilePreview:
     if isinstance(offset, bool) or not isinstance(offset, int):
         raise TypeError("Preview offset must be an integer")
     if offset < 0:
@@ -60,7 +73,7 @@ def preview_file(
     size = path.stat().st_size
     kind = preview_kind(path)
     if kind is None:
-        return {"kind": "unsupported", "size": size}
+        return UnsupportedPreview(size=size)
     if kind == "parquet":
         return _preview_parquet(path, size, offset, limit)
     if kind == "jsonl":
@@ -101,19 +114,20 @@ def _read_text_prefix(path: Path, max_bytes: int) -> tuple[str, bool]:
     return content, truncated
 
 
-def _preview_text(path: Path, size: int, kind: str, *, max_bytes: int = TEXT_PREVIEW_BYTES) -> dict:
+def _preview_text(
+    path: Path, size: int, kind: str, *, max_bytes: int = TEXT_PREVIEW_BYTES
+) -> TextPreview | MarkdownPreview:
     content, truncated = _read_text_prefix(path, max_bytes)
     if kind == "text":
-        return {"kind": "text", "size": size, "content": content, "truncated": truncated}
+        return TextPreview(size=size, content=content, truncated=truncated)
     frontmatter, body, frontmatter_error = _split_frontmatter(content)
-    return {
-        "kind": "markdown",
-        "size": size,
-        "content": body,
-        "frontmatter": frontmatter,
-        "frontmatter_error": frontmatter_error,
-        "truncated": truncated,
-    }
+    return MarkdownPreview(
+        size=size,
+        content=body,
+        frontmatter=frontmatter,
+        frontmatter_error=frontmatter_error,
+        truncated=truncated,
+    )
 
 
 def _split_frontmatter(content: str) -> tuple[Any, str, str | None]:
@@ -133,69 +147,50 @@ def _split_frontmatter(content: str) -> tuple[Any, str, str | None]:
     return metadata, "".join(lines[closing + 1 :]), None
 
 
-def _preview_structured(path: Path, size: int, kind: str, *, max_bytes: int | None = None) -> dict:
+def _preview_structured(path: Path, size: int, kind: str, *, max_bytes: int | None = None) -> StructuredPreview:
     if max_bytes is None and size > MAX_STRUCTURED_BYTES:
-        return {
-            "content": "",
-            "data": None,
-            "kind": kind,
-            "size": size,
-            "truncated": True,
-            "parse_error": f"File exceeds the {MAX_STRUCTURED_BYTES} byte preview limit",
-        }
+        return StructuredPreview(
+            kind=kind,
+            size=size,
+            truncated=True,
+            parse_error=f"File exceeds the {MAX_STRUCTURED_BYTES} byte preview limit",
+        )
     content, truncated = _read_text_prefix(path, max_bytes or MAX_STRUCTURED_BYTES)
     if truncated:
-        return {
-            "data": None,
-            "kind": kind,
-            "size": size,
-            "content": content,
-            "truncated": True,
-            "parse_error": "Partial preview; increase max_bytes to parse the complete file",
-        }
+        return StructuredPreview(
+            kind=kind,
+            size=size,
+            content=content,
+            truncated=True,
+            parse_error="Partial preview; increase max_bytes to parse the complete file",
+        )
     return _preview_json(content, size) if kind == "json" else _preview_yaml(content, size)
 
 
-def _preview_json(content: str, size: int) -> dict:
+def _preview_json(content: str, size: int) -> StructuredPreview:
     try:
         data = json.loads(content)
     except json.JSONDecodeError as exc:
-        return {
-            "data": None,
-            "truncated": False,
-            "kind": "json",
-            "size": size,
-            "content": content,
-            "parse_error": f"Line {exc.lineno}, column {exc.colno}: {exc.msg}",
-        }
-    return {"content": "", "parse_error": None, "truncated": False, "kind": "json", "size": size, "data": data}
+        return StructuredPreview(
+            kind="json",
+            size=size,
+            content=content,
+            parse_error=f"Line {exc.lineno}, column {exc.colno}: {exc.msg}",
+        )
+    return StructuredPreview(kind="json", size=size, data=data)
 
 
-def _preview_yaml(content: str, size: int) -> dict:
+def _preview_yaml(content: str, size: int) -> StructuredPreview:
     import yaml
 
     try:
         parsed = yaml.safe_load(content)
-        return {
-            "content": "",
-            "parse_error": None,
-            "truncated": False,
-            "kind": "yaml",
-            "size": size,
-            "data": _json_compatible(parsed),
-        }
+        return StructuredPreview(kind="yaml", size=size, data=_json_compatible(parsed))
     except yaml.YAMLError as exc:
         mark = getattr(exc, "problem_mark", None)
         problem = getattr(exc, "problem", None) or str(exc)
         error = f"Line {mark.line + 1}, column {mark.column + 1}: {problem}" if mark is not None else problem
-        return {
-            "data": None,
-            "truncated": False,
-            "kind": "yaml",
-            "size": size,
-            "content": content,
-            "parse_error": error,
-        }
+        return StructuredPreview(kind="yaml", size=size, content=content, parse_error=error)
 
 
 def _read_jsonl_line(handle, budget: int) -> tuple[bytes, bool]:
@@ -209,7 +204,7 @@ def _read_jsonl_line(handle, budget: int) -> tuple[bytes, bool]:
     return raw[:budget], oversized
 
 
-def _preview_jsonl(path: Path, size: int, offset: int, limit: int) -> dict:
+def _preview_jsonl(path: Path, size: int, offset: int, limit: int) -> JsonlPreview:
     rows = []
     remaining = TEXT_PREVIEW_BYTES
     truncated = False
@@ -237,27 +232,26 @@ def _preview_jsonl(path: Path, size: int, offset: int, limit: int) -> dict:
                 except (UnicodeDecodeError, json.JSONDecodeError) as exc:
                     error = str(exc)
             rows.append(
-                {
-                    "line": offset + index + 1,
-                    "content": content,
-                    "data": data,
-                    "parse_error": error,
-                    "truncated": oversized,
-                }
+                JsonlRow(
+                    line=offset + index + 1,
+                    content=content,
+                    data=data,
+                    parse_error=error,
+                    truncated=oversized,
+                )
             )
         has_more = bool(handle.read(1))
-    return {
-        "kind": "jsonl",
-        "size": size,
-        "rows": rows,
-        "offset": offset,
-        "limit": limit,
-        "has_more": has_more,
-        "truncated": truncated,
-    }
+    return JsonlPreview(
+        size=size,
+        rows=rows,
+        offset=offset,
+        limit=limit,
+        has_more=has_more,
+        truncated=truncated,
+    )
 
 
-def _preview_csv(path: Path, size: int, offset: int, limit: int) -> dict:
+def _preview_csv(path: Path, size: int, offset: int, limit: int) -> CsvPreview:
     try:
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.reader(handle)
@@ -267,18 +261,17 @@ def _preview_csv(path: Path, size: int, offset: int, limit: int) -> dict:
         raise ValueError("CSV file is not valid UTF-8 text") from exc
     except csv.Error as exc:
         raise ValueError(f"Invalid CSV file: {exc}") from exc
-    return {
-        "kind": "csv",
-        "size": size,
-        "columns": columns,
-        "rows": rows[:limit],
-        "offset": offset,
-        "limit": limit,
-        "has_more": len(rows) > limit,
-    }
+    return CsvPreview(
+        size=size,
+        columns=columns,
+        rows=rows[:limit],
+        offset=offset,
+        limit=limit,
+        has_more=len(rows) > limit,
+    )
 
 
-def _preview_parquet(path: Path, size: int, offset: int, limit: int) -> dict:
+def _preview_parquet(path: Path, size: int, offset: int, limit: int) -> ParquetPreview:
     import pyarrow.parquet as pq
 
     parquet = pq.ParquetFile(path)
@@ -297,17 +290,16 @@ def _preview_parquet(path: Path, size: int, offset: int, limit: int) -> dict:
         if len(records) >= limit:
             break
     row_count = parquet.metadata.num_rows
-    return {
-        "kind": "parquet",
-        "size": size,
-        "row_count": row_count,
-        "row_group_count": parquet.metadata.num_row_groups,
-        "columns": columns,
-        "column_schema": [
-            {"name": field.name, "type": str(field.type), "nullable": field.nullable} for field in fields
+    return ParquetPreview(
+        size=size,
+        row_count=row_count,
+        row_group_count=parquet.metadata.num_row_groups,
+        columns=columns,
+        column_schema=[
+            ParquetColumn(name=field.name, type=str(field.type), nullable=field.nullable) for field in fields
         ],
-        "rows": [[_json_compatible(row.get(column)) for column in columns] for row in records],
-        "offset": offset,
-        "limit": limit,
-        "has_more": offset + len(records) < row_count,
-    }
+        rows=[[_json_compatible(row.get(column)) for column in columns] for row in records],
+        offset=offset,
+        limit=limit,
+        has_more=offset + len(records) < row_count,
+    )

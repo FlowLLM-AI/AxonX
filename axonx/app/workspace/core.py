@@ -1,4 +1,4 @@
-"""Shared workspace filesystem operations without application or Task dependencies."""
+"""Application-owned workspace browsing, preview and upload staging."""
 
 from __future__ import annotations
 
@@ -9,25 +9,22 @@ import tempfile
 from collections.abc import AsyncIterator, Callable, Iterable
 from contextlib import suppress
 from pathlib import Path, PurePosixPath
-from typing import Any
 from uuid import uuid4
 
 from ..async_work import run_blocking
-from ..fs import atomic_write
+from .models import DeletedEntry, FilePreview, StagedFile, WorkspaceEntry, WorkspaceListing
 from .preview import PREVIEW_ROWS, preview_file, preview_kind
 
 MAX_DIRECTORY_ENTRIES = 5_000
 MAX_DELETE_ENTRIES = 200
 MAX_FILENAME_LENGTH = 200
-EntryFilter = Callable[[Path, dict[str, Any]], bool]
-DeleteValidator = Callable[[Path, tuple[Path, ...]], None]
+EntryFilter = Callable[[Path, WorkspaceEntry], bool]
 
 
 class Workspace:
     """Own a normalized root and reusable, bounded file operations.
 
-    Construction never creates files. Results contain plain Python data; callers
-    own their response schemas and inject any domain-specific deletion rules.
+    Construction never creates files. Operations return validated workspace models.
     A transfer budget of None leaves byte limits to the caller.
     """
 
@@ -37,16 +34,12 @@ class Workspace:
         *,
         copy_dir: str = "tmp",
         transfer_budget_bytes: int | None = None,
-        hidden_names: Iterable[str] = (),
-        before_delete: DeleteValidator | None = None,
     ) -> None:
         if transfer_budget_bytes is not None and transfer_budget_bytes <= 0:
             raise ValueError("transfer_budget_bytes must be positive")
         self.root = Path(root).expanduser().resolve()
         self.copy_dir = self._copy_dir_option(copy_dir)
         self.transfer_budget_bytes = transfer_budget_bytes
-        self.hidden_names = frozenset(hidden_names)
-        self.before_delete = before_delete
 
     def ensure(self) -> Path:
         """Create the workspace root only when explicitly requested."""
@@ -112,7 +105,7 @@ class Workspace:
         relative = path.relative_to(self.root).as_posix()
         return "" if relative == "." else relative
 
-    def list_entries(self, path: str = "", *, include: EntryFilter | None = None, offset: int = 0) -> dict:
+    def list_entries(self, path: str = "", *, include: EntryFilter | None = None, offset: int = 0) -> WorkspaceListing:
         """Return a directory-first page, filtering before applying the limit."""
         if offset < 0:
             raise ValueError("Directory offset must be non-negative")
@@ -120,19 +113,17 @@ class Workspace:
         selected = heapq.nsmallest(
             offset + MAX_DIRECTORY_ENTRIES + 1,
             self._entries(directory, include),
-            key=lambda entry: (entry["kind"] != "directory", entry["name"].casefold(), entry["name"]),
+            key=lambda entry: (entry.kind != "directory", entry.name.casefold(), entry.name),
         )
-        return {
-            "path": self.relative(directory),
-            "workspace_root": str(self.root),
-            "entries": selected[offset : offset + MAX_DIRECTORY_ENTRIES],
-            "truncated": len(selected) > offset + MAX_DIRECTORY_ENTRIES,
-        }
+        return WorkspaceListing(
+            path=self.relative(directory),
+            workspace_root=str(self.root),
+            entries=selected[offset : offset + MAX_DIRECTORY_ENTRIES],
+            truncated=len(selected) > offset + MAX_DIRECTORY_ENTRIES,
+        )
 
-    def _entries(self, directory: Path, include: EntryFilter | None) -> Iterable[dict]:
+    def _entries(self, directory: Path, include: EntryFilter | None) -> Iterable[WorkspaceEntry]:
         for child in directory.iterdir():
-            if directory == self.root and child.name in self.hidden_names:
-                continue
             try:
                 if child.is_symlink():
                     kind, stat = "symlink", child.lstat()
@@ -143,25 +134,25 @@ class Workspace:
             except (OSError, RuntimeError):
                 continue
             preview = preview_kind(child) if kind == "file" else None
-            entry = {
-                "name": child.name,
-                "path": self.relative(child),
-                "kind": kind,
-                "preview_kind": preview,
-                "supported": preview is not None,
-                "size": stat.st_size if kind == "file" else None,
-                "modified_at": stat.st_mtime,
-            }
+            entry = WorkspaceEntry(
+                name=child.name,
+                path=self.relative(child),
+                kind=kind,
+                preview_kind=preview,
+                supported=preview is not None,
+                size=stat.st_size if kind == "file" else None,
+                modified_at=stat.st_mtime,
+            )
             if include is None or include(child, entry):
                 yield entry
 
     def preview_file(
         self, path: str, offset: int = 0, limit: int = PREVIEW_ROWS, *, max_bytes: int | None = None
-    ) -> dict:
-        """Read a bounded preview as plain data, loading format libraries on demand."""
+    ) -> FilePreview:
+        """Read a bounded preview, loading format libraries on demand."""
         return preview_file(self, path, offset, limit, max_bytes=max_bytes)
 
-    def delete_entries(self, requested_paths: list[str]) -> list[dict]:
+    def delete_entries(self, requested_paths: list[str]) -> list[DeletedEntry]:
         """Validate the complete selection before deleting its top-level roots."""
         if not requested_paths:
             raise ValueError("At least one workspace entry is required")
@@ -177,9 +168,6 @@ class Workspace:
             selected.append(self.relative(target))
         names = set(selected)
         roots = [path for path in selected if not any(str(parent) in names for parent in PurePosixPath(path).parents)]
-        targets = tuple(self.resolve_deletable(path) for path in roots)
-        if self.before_delete is not None:
-            self.before_delete(self.root, targets)
         deleted = []
         for path in roots:
             target = self.resolve_deletable(path)
@@ -191,7 +179,7 @@ class Workspace:
                 kind = "file"
             else:
                 raise ValueError("Workspace entry is not a regular file or directory")
-            deleted.append({"deleted": path, "kind": kind})
+            deleted.append(DeletedEntry(deleted=path, kind=kind))
         return deleted
 
     @staticmethod
@@ -244,13 +232,19 @@ class Workspace:
             raise ValueError("Staged file does not exist")
         return target
 
-    def stage_bytes(self, data: bytes, filename: str, directory: str | None = None) -> dict:
+    def stage_bytes(self, data: bytes, filename: str, directory: str | None = None) -> StagedFile:
         if not isinstance(data, (bytes, bytearray)):
             raise TypeError("Uploaded content must be bytes")
         self._check_size(len(data))
         target = self._target(self._copy_directory(directory), self._copy_name(filename))
         try:
-            atomic_write(target, lambda temporary: temporary.write_bytes(bytes(data)))
+            descriptor, temporary = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.")
+            os.close(descriptor)
+            try:
+                Path(temporary).write_bytes(bytes(data))
+                os.replace(temporary, target)
+            finally:
+                Path(temporary).unlink(missing_ok=True)
         except BaseException:
             target.parent.rmdir()
             raise
@@ -258,7 +252,7 @@ class Workspace:
 
     async def stage_stream(
         self, chunks: AsyncIterator[bytes], filename: str, directory: str | None = None, size: int | None = None
-    ) -> dict:
+    ) -> StagedFile:
         """Publish a complete stream atomically; remove partial files on failure."""
         if size is not None:
             if size < 0:
@@ -320,5 +314,5 @@ class Workspace:
         directory.mkdir()
         return directory / name
 
-    def _report(self, target: Path, size: int) -> dict:
-        return {"path": self.relative(target), "location": str(target), "size": size}
+    def _report(self, target: Path, size: int) -> StagedFile:
+        return StagedFile(path=self.relative(target), location=str(target), size=size)

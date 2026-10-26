@@ -2,7 +2,7 @@
 
 from ...components.component_type import ComponentType
 from ..base import BaseStep
-from ....common.registry import provider
+from ...registry import provider
 
 
 @provider("sync_flush_step")

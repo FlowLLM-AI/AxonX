@@ -9,7 +9,6 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from ..common.constants import AXONX_DEFAULT_ENCODING
 from .constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
 from .identity import content_sha256_from_directories
 from .manifest import parse_plugin_manifest
@@ -64,7 +63,7 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
         manifest_path = package_path / PLUGIN_MANIFEST
         if not manifest_path.is_file():
             raise ValueError(f"Plugin {entry.name!r} does not contain {PLUGIN_MANIFEST}")
-        manifest = parse_plugin_manifest(manifest_path.read_text(encoding=AXONX_DEFAULT_ENCODING), entry.name)
+        manifest = parse_plugin_manifest(manifest_path.read_text(encoding="utf-8"), entry.name)
 
         duplicate_tasks = tasks.keys() & manifest.tasks.keys()
         if duplicate_tasks:

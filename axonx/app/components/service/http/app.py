@@ -16,7 +16,7 @@ from .files import create_files_router
 from .jobs import create_jobs_router, create_mcp_server
 from .proxy import create_proxy_router
 from .studio import mount_studio, resolve_studio_dir
-from ...updater.manager import RESPONSE_CALLBACKS
+from ....core.response import RESPONSE_CALLBACKS
 from ....protocol import (
     AXONX_SERVICE_TARGET,
     PROTOCOL_AUTH_HEADER,
@@ -25,14 +25,8 @@ from ....protocol import (
     PROTOCOL_CLI_REQUEST_HEADER,
     PROTOCOL_ROUTE_MCP,
 )
-from .....common.connection import normalize_target
-from .....common.constants import (
-    AXONX_DEFAULT_BIND_HOST,
-    AXONX_DEFAULT_CONNECT_HOST,
-    AXONX_DEFAULT_ENCODING,
-)
-from .....daemon import client as daemon
-from .....daemon.update_worker import versions
+from ....connection import normalize_target
+from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_ENCODING
 
 
 class _ProtocolAuthMiddleware:
@@ -112,17 +106,11 @@ def create_http_app(app, service) -> FastAPI:
                 )
 
             async def ready():
-                if service.server is None or not os.environ.get(daemon.SOCKET):
+                if service.server is None or service.on_ready is None:
                     return
                 while not service.server.started:
                     await asyncio.sleep(0.05)
-                await asyncio.to_thread(
-                    daemon.request,
-                    "ready",
-                    cron=app.app_config.cron is not None,
-                    stop_timeout=service.cleanup_timeout + 1,
-                    versions=versions(),
-                )
+                await service.on_ready()
 
             readiness = asyncio.create_task(ready())
             try:

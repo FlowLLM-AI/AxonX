@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ...common.fs.atomic import atomic_write_json
-from ...common.fs.revision import file_revision
-from ...common.fs.snapshot import snapshot_file
+from .files import atomic_write_json
+from .files import file_revision
+from .files import snapshot_file
 from ..models.artifacts import ModelCollection
 from .artifacts import artifact_record
 

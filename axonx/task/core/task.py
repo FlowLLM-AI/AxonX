@@ -7,12 +7,9 @@ from collections.abc import Callable, Iterable
 from datetime import datetime
 from pathlib import Path
 from typing import Any, ClassVar, TypeAlias
-from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from ...common.constants import AXONX_DEFAULT_TIMEZONE
 from ...common.logging import get_log_path, get_logger
-from ...common.workspace import Workspace
 from ..constants import TASK_ID_SEPARATOR
 from .clock import WindowClock
 from .context import TaskContext
@@ -38,7 +35,6 @@ TaskStep: TypeAlias = Callable[[], None]
 class BaseTask(ABC):
     """Execute ordered synchronous steps with typed input and output."""
 
-    component_type = "task"
     task_type: ClassVar[TaskType] = TaskType.BASE
     input_cls: ClassVar[type[BaseInputParams]] = BaseInputParams
     output_cls: ClassVar[type[BaseOutputParams]] = BaseOutputParams
@@ -51,16 +47,18 @@ class BaseTask(ABC):
         *,
         workspace_path: str | Path,
         reg_name: str | None = None,
-        timezone: str = AXONX_DEFAULT_TIMEZONE,
+        timezone: str = "Asia/Shanghai",
         task_id: str | None = None,
-        run_id: str | None = None,
         created_at: datetime | None = None,
         source: TaskSource | None = None,
-        parent_run_id: str | None = None,
+        parent_task_id: str | None = None,
+        execution_target: str | None = None,
         clock: WindowClock | None = None,
+        task_resolver: Callable[[str], type[BaseTask]] | None = None,
     ):
         self.input_params = self.input_cls.model_validate(input_params)
-        self.workspace = Workspace(workspace_path)
+        workspace_path = Path(workspace_path).expanduser().resolve()
+        self.task_resolver = task_resolver
         if reg_name is None:
             raise ValueError(f"Task {type(self).__name__} requires a registration name")
         registration_name = validate_registration_name(reg_name)
@@ -81,14 +79,14 @@ class BaseTask(ABC):
         if task_id in parse_source_tasks(self.input_params.source_tasks):
             raise ValueError("A Task cannot use its own Task ID as an upstream source")
         self.context = TaskContext(
-            workspace_path=self.workspace.root,
+            workspace_path=workspace_path,
             registration_name=registration_name,
             task_id=task_id,
-            run_id=run_id or uuid4().hex,
             created_at=created_at,
             logger=get_logger(type(self).__name__),
             source=source or TaskSource(kind="exec"),
-            parent_run_id=parent_run_id,
+            parent_task_id=parent_task_id,
+            execution_target=execution_target,
         )
         self.state: dict[str, Any] = {}
         self.clock = clock if clock is not None else getattr(self, "clock", WindowClock())
@@ -153,8 +151,9 @@ class BaseTask(ABC):
         return directory
 
     def resolve_workspace_path(self, path: str | Path) -> Path:
-        resolved = self.workspace.locate(path, external=True)
-        owner = task_id_from_path(self.workspace.root, str(resolved))
+        candidate = Path(path).expanduser()
+        resolved = (candidate if candidate.is_absolute() else self.workspace_path / candidate).resolve()
+        owner = task_id_from_path(self.workspace_path, str(resolved))
         if owner is not None:
             self.source_task_dir(owner)
         return resolved

@@ -1,7 +1,7 @@
 """Discover the selected service's public Job contracts."""
 
 from ..base import BaseStep
-from ....common.registry import provider
+from ...registry import provider
 
 
 @provider("help_step")

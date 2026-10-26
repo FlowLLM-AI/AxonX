@@ -33,7 +33,7 @@ export function dailyModels(parent: TaskMetadata, nodes: ReportNode[]) {
         const node = nodes.find(
           (item) =>
             item.record.task_id === record?.task_id &&
-            item.record.run_id === record?.run_id,
+            item.record.started_at === record?.started_at,
         );
         const outcomes = parent.output_params.models as
           Record<string, Record<string, unknown>> | undefined;

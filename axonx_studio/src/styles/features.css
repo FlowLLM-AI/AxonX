@@ -402,7 +402,7 @@
   background: color-mix(in srgb, var(--surface-2) 48%, var(--surface));
 }
 .context-rail,
-.studio-workspace .run-index,
+.studio-workspace .task-index,
 .studio-workspace .catalog-panel,
 .studio-workspace .workspace-tree-panel {
   border-right-color: var(--line);
@@ -916,7 +916,7 @@
 .viz-card > header small {
   color: var(--muted);
 }
-.run-index > div > article.active {
+.task-index > div > article.active {
   border-color: color-mix(in srgb, var(--accent) 25%, var(--line));
   background: var(--accent-soft);
   box-shadow: none;
@@ -1508,32 +1508,32 @@
 .task-config-card .task-config-list dd {
   overflow: visible;
 }
-.task-run-card h3 {
+.task-execution-card h3 {
   margin: 0 0 16px;
   font-size: 13px;
 }
-.task-run-card .task-detail-card-body {
+.task-execution-card .task-detail-card-body {
   padding: 18px 20px 22px;
 }
-.task-run-card .step-item {
+.task-execution-card .step-item {
   align-items: flex-start;
   margin-bottom: 16px;
 }
-.task-run-card .step-item > span svg {
+.task-execution-card .step-item > span svg {
   width: 13px;
 }
-.task-run-card .step-item > div {
+.task-execution-card .step-item > div {
   min-width: 0;
   flex: 1;
   padding-top: 3px;
 }
-.task-run-card .step-item strong {
+.task-execution-card .step-item strong {
   font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.task-run-card .step-item small {
+.task-execution-card .step-item small {
   line-height: 1.45;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -2539,10 +2539,10 @@
   font-size: 11px;
   line-height: 1.45;
 }
-.compare-picker .compare-run-item {
+.compare-picker .compare-task-item {
   grid-template-columns: 34px minmax(0, 1fr) 26px;
 }
-.compare-picker .compare-run-item .rail-item-copy code,
+.compare-picker .compare-task-item .rail-item-copy code,
 .compare-selected strong {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3070,7 +3070,7 @@
 .child-task-link:hover {
   text-decoration: underline;
 }
-.task-run-card .step-item > .status-badge {
+.task-execution-card .step-item > .status-badge {
   flex: none;
   white-space: nowrap;
 }

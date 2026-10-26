@@ -2,11 +2,11 @@
 
 import json
 
-from ..common.cli import CliStep
-from ....common.registry import provider
+from ..common.command import CommandStep
+from ...registry import provider
 
 
-class TaskCatalogStep(CliStep):
+class TaskCatalogStep(CommandStep):
     action: str
 
     async def execute(self):

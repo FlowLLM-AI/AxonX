@@ -6,27 +6,38 @@ import asyncio
 import math
 from collections.abc import Callable
 from contextlib import suppress
+from pathlib import Path
 
 from .base import BaseTaskIndex, TaskChangeCallback
-from ....common.async_work import run_blocking
-from ....common.registry import provider
+from ...async_work import run_blocking
+from ...registry import provider
 from ....task.models.lifecycle import TaskMetadata
 from ....task.models.query import TaskGraph, TaskSummary
-from ....task.query.graph import task_graph
-from ....task.query.summary import summarize_status, task_sort_key
-from ....task.storage.index import FileVersion, scan_metadata
-from ....task.storage.workspace import read_entry
+from ....task.query import (
+    FileVersion,
+    TaskLogReader,
+    read_entry,
+    scan_metadata,
+    stream_task,
+    summarize_status,
+    task_context,
+    task_graph,
+    task_sort_key,
+)
+from ....task.models.query import TaskContextSnapshot
+from ....task.models.logs import LogChunk
 
 
 @provider("local")
 class LocalTaskIndex(BaseTaskIndex):
-    """Index metadata and reconcile dead local Runs without owning execution."""
+    """Observe Task metadata without changing records or owning execution."""
 
     def __init__(self, poll_interval: float = 5, **kwargs) -> None:
         super().__init__(**kwargs)
         if not math.isfinite(poll_interval) or poll_interval <= 0:
             raise ValueError("poll_interval must be finite and positive")
         self.root = self.workspace.root
+        self.logs = TaskLogReader(Path(self.app_config.log_dir).expanduser().resolve())
         self.poll_interval = poll_interval
         self._entries: dict[str, TaskMetadata] = {}
         self._versions: dict[str, FileVersion] = {}
@@ -65,9 +76,6 @@ class LocalTaskIndex(BaseTaskIndex):
         changed = {
             key for key in self._versions.keys() | versions.keys() if self._versions.get(key) != versions.get(key)
         }
-        changed.update(
-            key for key, entry in entries.items() if key in self._entries and entry.state != self._entries[key].state
-        )
         self._entries, self._versions = entries, versions
         if changed:
             for callback in tuple(self._subscribers):
@@ -99,3 +107,12 @@ class LocalTaskIndex(BaseTaskIndex):
     async def graph(self, task_id: str) -> TaskGraph:
         """Build task relationships from indexed records."""
         return task_graph(self._entries, task_id)
+
+    async def context(self, task_id: str) -> TaskContextSnapshot:
+        return task_context(await self.entry(task_id), await self.graph(task_id))
+
+    async def read_log(self, status: TaskMetadata, offset: int, limit: int) -> LogChunk:
+        return await asyncio.to_thread(self.logs.read_status, self.root, status, offset, limit)
+
+    def stream(self, task_id: str, poll_interval: float):
+        return stream_task(self.root, self.logs, self.entry, self.logger, task_id, poll_interval)

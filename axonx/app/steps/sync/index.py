@@ -1,14 +1,10 @@
-"""Expose a terminal Task snapshot index for source startup reconciliation."""
+"""Expose a Task snapshot index for replica reconciliation."""
 
 import asyncio
 
 from ..base import BaseStep
-from ....common.registry import provider
-from ....task.sync.index import (
-    snapshot_index,
-    validate_live_task_ids,
-    validate_task_names,
-)
+from ...registry import provider
+from ....task.sync.index import snapshot_index, validate_live_task_ids, validate_task_names
 
 
 @provider("task_sync_index_step")

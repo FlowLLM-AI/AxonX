@@ -36,7 +36,7 @@ import { formatBytes } from "../../shared/lib/format";
 import { parseSourceTasks } from "../../shared/lib/sourceTasks";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { RailResizer } from "../../shared/ui/RailResizer";
-import { RunIndexControls } from "../../shared/ui/RunIndexControls";
+import { TaskIndexControls } from "../../shared/ui/TaskIndexControls";
 import { deleteWorkspaceEntries } from "../workspace/api";
 import {
   countTrainingMembers,
@@ -261,10 +261,10 @@ export default function ResearchPage({
       {!error && (
         <div className="research-layout">
           <aside
-            className={`run-index rail-panel ${selectionMode ? "selecting" : ""}`}
+            className={`task-index rail-panel ${selectionMode ? "selecting" : ""}`}
           >
-            <RunIndexControls
-              title={t("research.task_versions")}
+            <TaskIndexControls
+              title={t("research.task_list")}
               count={tasks.length}
               loading={loading}
               query={query}
@@ -275,7 +275,7 @@ export default function ResearchPage({
             />
             <div className="rail-scroll">
               {loading && !tasks.length ? (
-                <span className="run-loading">
+                <span className="task-loading">
                   <LoaderCircle className="spin" />
                 </span>
               ) : (
@@ -300,7 +300,7 @@ export default function ResearchPage({
                   >
                     {selectionMode && (
                       <button
-                        className="run-check"
+                        className="task-check"
                         aria-label={`${t("research.select")} ${task.task_id}`}
                         onClick={() => toggleTask(task)}
                       >
@@ -308,7 +308,7 @@ export default function ResearchPage({
                       </button>
                     )}
                     <button
-                      className="run-main rail-list-item"
+                      className="task-main rail-list-item"
                       onClick={() =>
                         selectionMode
                           ? toggleTask(task)
@@ -317,7 +317,7 @@ export default function ResearchPage({
                       }
                     >
                       <span
-                        className={`run-item-avatar rail-avatar run-kind-${kind}`}
+                        className={`task-item-avatar rail-avatar task-kind-${kind}`}
                       >
                         {String(task.reg_name || kind)
                           .trim()
@@ -340,7 +340,7 @@ export default function ResearchPage({
               )}
             </div>
             {selectionMode && (
-              <footer className="run-selection">
+              <footer className="task-selection">
                 <span>
                   <strong>{selectedCount}</strong>
                   {t("research.selected")}
@@ -380,7 +380,7 @@ export default function ResearchPage({
               </div>
             ) : selected ? (
               <SelectedArtifact
-                key={`${target}:${selected.task_id}:${selected.run_id}`}
+                key={`${target}:${selected.task_id}:${selected.started_at}`}
                 kind={kind}
                 taskId={selected.task_id}
                 target={target}
@@ -392,7 +392,7 @@ export default function ResearchPage({
                   <Database />
                   <strong>
                     {tasks.length
-                      ? t("research.select_a_task_version")
+                      ? t("research.select_a_task")
                       : t("research.noKindTasks", { kind })}
                   </strong>
                   <span>
@@ -469,8 +469,8 @@ export default function ResearchPage({
             </div>
             <h2 id="task-version-delete-title">
               {deleteTargets.length > 1
-                ? t("research.delete_selected_task_versions")
-                : t("research.delete_this_task_version")}
+                ? t("research.delete_selected_task_list")
+                : t("research.delete_this_task")}
             </h2>
             <div className="workspace-delete-list">
               {deleteTargets.slice(0, 6).map((task) => (

@@ -13,13 +13,13 @@ export const listWorkspaceEntries = (
     { target, signal },
   );
 
-export const listTaskRuns = (
+export const listTaskDirectories = (
   taskType: string,
   target?: string,
   signal?: AbortSignal,
 ) =>
   axonx.invoke<WorkspaceListing>(
-    "list_task_runs",
+    "list_task_directories",
     { task_type: taskType },
     { target, signal },
   );

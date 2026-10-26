@@ -800,7 +800,7 @@
   border-radius: 0;
   box-shadow: none;
 }
-.studio-workspace .run-index {
+.studio-workspace .task-index {
   width: 280px;
   min-width: 180px;
   max-width: 460px;
@@ -808,7 +808,7 @@
   resize: horizontal;
   overflow: auto;
 }
-.studio-workspace .run-index > div {
+.studio-workspace .task-index > div {
   min-height: 0;
   overflow: auto;
 }
@@ -976,7 +976,7 @@
   width: 16px;
   color: var(--accent);
 }
-.studio-workspace .run-index,
+.studio-workspace .task-index,
 .studio-workspace .catalog-panel,
 .studio-workspace .workspace-explorer {
   resize: none;

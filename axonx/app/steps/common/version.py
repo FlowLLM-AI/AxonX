@@ -2,7 +2,7 @@
 
 from ...core.build_info import get_build_info
 from ..base import BaseStep
-from ....common.registry import provider
+from ...registry import provider
 
 
 @provider("version_step")

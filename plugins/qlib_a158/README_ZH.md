@@ -70,7 +70,7 @@ axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task/Run ID，安装或核验失败时停止并报告。[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)
+安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task ID 和开始时间，安装或核验失败时停止并报告。[插件管理](https://flowllm-ai.github.io/AxonX/zh/plugins/management)
 
 ## 数据准备
 
@@ -82,11 +82,11 @@ axonx exec --task download_tushare_task \
   --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 ```
 
-保存返回的 `task_id` 和 `run_id`，等待下载成功后再提交 ETL：
+保存返回的 `task_id` 和 `started_at`，等待下载成功后再提交 ETL：
 
 ```bash
 axonx --client-timeout 86400 wait_task \
-  --task-id '<download_task_id>' --run-id '<download_run_id>'
+  --task-id '<download_task_id>'
 ```
 
 | 文件                                                             | 用途                                 |
@@ -135,7 +135,7 @@ axonx exec --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
 
 ```bash
 axonx --client-timeout 86400 wait_task \
-  --task-id '<task_id>' --run-id '<run_id>'
+  --task-id '<task_id>'
 axonx get_task_definition --task qlib_a158_train
 ```
 

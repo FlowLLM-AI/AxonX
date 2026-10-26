@@ -231,7 +231,7 @@ it.each(["base", "composite"] as const)(
       node_name: "history",
       task: "history",
       task_id: "composite#history",
-      run_id: "old-run-marker",
+      started_at: "2026-01-13T00:00:00Z",
       attempt: 1,
       state: "failed" as const,
       exit_code: 1,
@@ -241,7 +241,7 @@ it.each(["base", "composite"] as const)(
       child,
       {
         ...child,
-        run_id: "new-run-marker",
+        started_at: "2026-01-14T00:00:00Z",
         attempt: 2,
         state: "succeeded",
         error: "",
@@ -250,7 +250,7 @@ it.each(["base", "composite"] as const)(
         ...child,
         node_name: "invalid",
         task_id: null,
-        run_id: "invalid-run",
+        started_at: "2026-01-15T00:00:00Z",
         error: "invalid inputs",
       },
     ];
@@ -276,19 +276,19 @@ it.each(["base", "composite"] as const)(
             />,
           ),
         );
-        const card = container.querySelector(".task-run-card")!;
+        const card = container.querySelector(".task-execution-card")!;
         expect(card.textContent).not.toContain("raw-output-marker");
         expect(card.textContent).not.toContain("data.csv");
         expect(
           card.querySelector(
-            ".pipeline-step, .task-run-meta, .task-current-step, pre",
+            ".pipeline-step, .task-execution-meta, .task-current-step, pre",
           ),
         ).toBeNull();
         if (kind === "composite") {
           expect(card.textContent).not.toContain("execute");
           expect(card.textContent).not.toContain("Open snapshot");
           expect(card.textContent).not.toContain("old-error-marker");
-          expect(card.textContent).not.toContain("new-run-marker");
+          expect(card.textContent).not.toContain("2026-01-14T00:00:00Z");
           expect(card.textContent).toContain("invalid inputs");
           expect(card.querySelectorAll(".step-item")).toHaveLength(2);
           const links =
@@ -329,9 +329,9 @@ it("shows a child empty state before any children are invoked", async () => {
         />,
       ),
     );
-    expect(container.querySelector(".task-run-card")?.textContent).toContain(
-      "暂无子任务",
-    );
+    expect(
+      container.querySelector(".task-execution-card")?.textContent,
+    ).toContain("暂无子任务");
     expect(container.querySelector(".step-item")).toBeNull();
   } finally {
     await act(async () => root.unmount());

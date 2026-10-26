@@ -279,8 +279,11 @@ export function createPlayground(): Transport {
         case "status":
           return response(taskView(requiredTask(id), args.detail));
         case "read_task_log":
-          if (args.run_id && requiredTask(id).run_id !== args.run_id)
-            throw new Error(`Task run changed: ${id}`);
+          if (
+            args.started_at &&
+            requiredTask(id).started_at !== args.started_at
+          )
+            throw new Error(`Task restarted: ${id}`);
           return response(
             logChunk(id, Number(args.offset ?? -1), Number(args.limit ?? 8192)),
           );
@@ -288,7 +291,7 @@ export function createPlayground(): Transport {
           return response(
             directory(String(args.path || ""), Number(args.offset || 0)),
           );
-        case "list_task_runs": {
+        case "list_task_directories": {
           const dir = directory(String(args.task_type));
           dir.entries = dir.entries.filter(
             (entry) => tasks.get(entry.name)?.task_type === args.task_type,

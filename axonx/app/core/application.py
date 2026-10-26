@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ..._version import VERSION
+from ..._version import __version__
 from ..components.base import BaseComponent
 from ..components.job.events import JobEvent
 from ..components.job.models import JobResponse
@@ -16,16 +16,26 @@ from .composition import compose_application
 from .context import ApplicationContext
 from .graph import ComponentGraph
 from .logging import LOG_CLEANUP_INTERVAL, cleanup_log_files
-from ...common.async_work import run_blocking
+from ..async_work import run_blocking
 from ...common.logging import get_logger
-from ...common.workspace import Workspace
+from ..workspace import Workspace
+
+if TYPE_CHECKING:
+    from ..components.updater.manager import UpdateBackend
 
 
 class Application:
     """Own one isolated component graph and expose Job invocation."""
 
-    def __init__(self, **config: Any) -> None:
-        self.context: ApplicationContext = compose_application(VERSION, config)
+    def __init__(
+        self,
+        *,
+        providers: Iterable[type] = (),
+        workspace: Workspace | None = None,
+        updates: UpdateBackend | None = None,
+        **config: Any,
+    ) -> None:
+        self.context: ApplicationContext = compose_application(__version__, config, providers, workspace, updates)
         self._startup_order = ComponentGraph(self.context.components).resolve()
         self._started: list[BaseComponent] = []
         self._lifecycle_lock = asyncio.Lock()

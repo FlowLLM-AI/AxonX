@@ -115,7 +115,7 @@ it("shows live stages, committed files and the selected inference log on the sel
         (call) =>
           call[0] === child.task_id &&
           call[3] === target &&
-          call[5] === child.run_id,
+          call[5] === child.started_at,
       ),
   ).toBe(true);
   expect(
@@ -123,8 +123,8 @@ it("shows live stages, committed files and the selected inference log on the sel
   ).toBe(true);
 });
 
-it("does not display stages or logs from a child replacement Run", async () => {
-  child.run_id = "replacement-run";
+it("does not display stages or logs from a child replacement task", async () => {
+  child.started_at = "2026-01-09T00:00:00Z";
   await render();
   await clickTab("logs");
   expect(container.querySelector(".pipeline-log-source select")).toBeNull();
@@ -136,9 +136,9 @@ it("does not display stages or logs from a child replacement Run", async () => {
       .mocked(readTaskLog)
       .mock.calls.every((call) => call[0] !== child.task_id),
   ).toBe(true);
-  expect(container.querySelector(".task-run-notice")).not.toBeNull();
+  expect(container.querySelector(".task-execution-notice")).not.toBeNull();
   expect(container.textContent).not.toContain(
-    i18n.t("onlinePipeline.replacedRun"),
+    i18n.t("onlinePipeline.restartedTask"),
   );
   await clickTab("1445");
   await clickTab("preparation");
@@ -158,12 +158,16 @@ it("keeps progress visible when a child has a malformed report", async () => {
 });
 
 it("uses the latest named child attempt without duplicating the model count", async () => {
-  const latest = { ...parent.children[0], attempt: 2, run_id: child.run_id };
+  const latest = {
+    ...parent.children[0],
+    attempt: 2,
+    started_at: child.started_at,
+  };
   parent.children[0] = {
     ...latest,
     attempt: 1,
     state: "succeeded",
-    run_id: "old-run",
+    started_at: "2026-01-01T00:00:00Z",
   };
   parent.children.push(latest);
   await render();
@@ -221,14 +225,14 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
   };
   const history = structuredClone(child);
   history.task_id = "composite#a_stock_history#demo-1445";
-  history.run_id = "history-run";
+  history.started_at = "2026-01-07T00:00:00Z";
   history.reg_name = "a_stock_history";
   history.task_type = "composite";
   history.report_kind = null;
   history.input_params.task_name = "demo-1445";
   const etl = structuredClone(child);
   etl.task_id = "etl#a_stock_etl#demo";
-  etl.run_id = "etl-run";
+  etl.started_at = "2026-01-08T00:00:00Z";
   etl.reg_name = "a_stock_etl";
   etl.report_kind = null;
   etl.task_type = "etl";
@@ -238,7 +242,7 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
       ...parent.children[0],
       task: etl.reg_name,
       task_id: etl.task_id,
-      run_id: etl.run_id,
+      started_at: etl.started_at,
       node_name: "demo-a_stock_etl",
     },
   ];
@@ -247,7 +251,7 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
       ...parent.children[0],
       task: history.reg_name,
       task_id: history.task_id,
-      run_id: history.run_id,
+      started_at: history.started_at,
       node_name: "demo-1445-a_stock_history",
     },
   ];
@@ -304,7 +308,7 @@ it("settles unfinished nightly model summaries after download failure and cancel
   ).toContain(i18n.t("onlinePipeline.status.skipped"));
   parent.state = "cancelled";
   // A new selection reloads the lifecycle snapshot.
-  parent.run_id = "cancelled-run";
+  parent.started_at = "2026-01-10T00:00:00Z";
   await render();
   await clickTab("etl");
   expect(
@@ -474,7 +478,7 @@ it("keeps history failure and exact-run replacement errors in the same card", as
     root.render(
       <HistoryPreparation
         parent={parent}
-        nodes={[{ record, status: null, error: "Run replaced" }]}
+        nodes={[{ record, status: null, error: "Task restarted" }]}
         onOpenTask={vi.fn()}
       />,
     ),
@@ -485,7 +489,7 @@ it("keeps history failure and exact-run replacement errors in the same card", as
   expect(container.querySelector(".step-failed")?.textContent).toContain(
     "Source task failed",
   );
-  expect(container.textContent).toContain("Run replaced");
+  expect(container.textContent).toContain("Task restarted");
   expect(container.querySelector(".history-preparation-stages")).toBeNull();
 });
 

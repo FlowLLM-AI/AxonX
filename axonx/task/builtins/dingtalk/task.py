@@ -9,7 +9,6 @@ from typing import Literal
 
 from pydantic import Field
 
-from ....common.registry import provider
 from .client import DingTalkClient
 from ...core.task import BaseTask, TaskStep
 from ...task_enums import TaskType
@@ -72,7 +71,6 @@ def send_dingtalk_message(
     return client.send(title, text, message_type)
 
 
-@provider("send_dingtalk_task")
 class SendDingTalkTask(BaseTask):
     """Send one text or Markdown message to every configured DingTalk group."""
 

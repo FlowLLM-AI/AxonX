@@ -20,7 +20,7 @@ class OnlineCommit(BaseModel):
     model_config = ConfigDict(extra="forbid")
     commit_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     task_id: str = Field(min_length=1)
-    run_id: str = Field(min_length=1)
+    started_at: AwareDatetime
     trade_date: str = Field(pattern=r"^\d{8}$")
     trade_time: str = Field(pattern=r"^\d{4}$")
     revision: int = Field(ge=1)

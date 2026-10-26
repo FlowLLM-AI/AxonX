@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getTaskStatus } from "../tasks/api";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { PipelineReport } from "../online/PipelineReport";
-import { TaskRunReport } from "./TaskRunReport";
+import { TaskReport } from "./TaskReport";
 
 export default function ReportPage({
   taskId,
@@ -33,14 +33,14 @@ export default function ReportPage({
           data.report_kind || "",
         ) ? (
           <PipelineReport
-            key={data.run_id}
+            key={`${target}:${data.task_id}:${data.started_at}`}
             task={data}
             target={target}
             onOpenTask={onOpenTask}
           />
         ) : (
-          <TaskRunReport
-            key={data.run_id}
+          <TaskReport
+            key={`${target}:${data.task_id}:${data.started_at}`}
             task={data}
             target={target}
             onOpenTask={onOpenTask}

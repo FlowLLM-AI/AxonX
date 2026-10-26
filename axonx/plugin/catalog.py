@@ -2,25 +2,24 @@
 
 from inspect import cleandoc
 
-from ...common.registry import ProviderRegistry
-from ...plugin.contributions import index_contributions
-from ...plugin.discovery import list_installed_plugins
-from ...plugin.loading import load_symbol
-from ..builtins.demo import DemoTask
-from ..builtins.dingtalk import SendDingTalkTask
-from ..builtins.tushare import DownloadTushareTask
-from ..core.task import BaseTask
-from ..task_enums import TaskType
-from ..models.query import TaskDefinition, TaskInfo
+from .contributions import index_contributions
+from .discovery import list_installed_plugins
+from .loading import load_symbol
+from ..task.builtins.demo import DemoTask
+from ..task.builtins.dingtalk import SendDingTalkTask
+from ..task.builtins.tushare import DownloadTushareTask
+from ..task.core.task import BaseTask
+from ..task.task_enums import TaskType
+from ..task.models.query import TaskDefinition, TaskInfo
 
-BUILTIN_TASKS = (DemoTask, SendDingTalkTask, DownloadTushareTask)
+BUILTIN_TASKS = {"demo": DemoTask, "send_dingtalk_task": SendDingTalkTask, "download_tushare_task": DownloadTushareTask}
 
 
 def _task_catalog(
     name: str | None = None,
 ) -> dict[str, tuple[type[BaseTask], str | None]]:
     """Discover registrations, then load all Tasks or only the requested one."""
-    native = ProviderRegistry(BUILTIN_TASKS).get_all("task", BaseTask)
+    native = dict(BUILTIN_TASKS)
     plugins = index_contributions(list_installed_plugins())
     duplicates = native.keys() & plugins.tasks.keys()
     if duplicates:

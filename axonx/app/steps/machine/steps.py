@@ -7,7 +7,7 @@ from .diagnostics import collect_diagnostics
 from .health import check_machines
 from .metrics import collect_machine_info
 from .python import run_python
-from ....common.registry import provider
+from ...registry import provider
 
 CPU_SAMPLE_INTERVAL_SECONDS = 0.1
 

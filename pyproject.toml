@@ -81,7 +81,7 @@ Issues = "https://github.com/FlowLLM-AI/AxonX/issues"
 Source = "https://github.com/FlowLLM-AI/AxonX"
 
 [tool.setuptools.dynamic]
-version = { attr = "axonx._version.VERSION" }
+version = { attr = "axonx._version.__version__" }
 
 [tool.setuptools.packages.find]
 include = ["axonx", "axonx.*"]

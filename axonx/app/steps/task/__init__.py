@@ -1,9 +1,7 @@
 """Read-only Task query steps."""
 
-from .catalog import (
-    GetTaskDefinitionStep,
-    ListInstalledTaskDefinitionsStep,
-)
+from .catalog import GetTaskDefinitionStep, ListInstalledTaskDefinitionsStep
+
 from .query import (
     GetTaskGraphStep,
     GetTaskStatusStep,
@@ -12,16 +10,16 @@ from .query import (
     ReadTaskLogStep,
     WaitTaskStep,
 )
-from .runs import ListTaskRunsStep
+from .directories import ListTaskDirectoriesStep
 from .stream import StreamTaskStep
 
 __all__ = [
     "GetTaskDefinitionStep",
+    "ListInstalledTaskDefinitionsStep",
     "GetTaskGraphStep",
     "GetTaskStatusStep",
-    "ListInstalledTaskDefinitionsStep",
     "ListTaskIdsStep",
-    "ListTaskRunsStep",
+    "ListTaskDirectoriesStep",
     "ListTaskStatusesStep",
     "ReadTaskLogStep",
     "StreamTaskStep",

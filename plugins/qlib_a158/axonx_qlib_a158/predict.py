@@ -10,7 +10,7 @@ import numpy as np
 import polars as pl
 from pydantic import Field, field_validator, model_validator
 
-from axonx.common.fs.atomic import atomic_write
+from axonx.task.storage.files import atomic_write
 from axonx.task.builtins.stock.data import KEYS, validate_keys
 from axonx.task.builtins.stock.protocol import feature_identity
 from axonx.task.core.standard import BasePredictTask

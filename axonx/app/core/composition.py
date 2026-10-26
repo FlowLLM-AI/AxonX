@@ -5,10 +5,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
+from ..workspace import Workspace
+
 from ...common.logging import LoggingConfig, configure_logging, get_logger
-from ...common.registry import ProviderRegistry
+from ..registry import ProviderRegistry
 from ..components.agent.claude import ClaudeAgentComponent
 from ..components.base import BaseComponent
 from ..components.job.base import BaseJob
@@ -19,6 +22,7 @@ from ..components.service.base import BaseService
 from ..components.sync.local import LocalSyncComponent
 from ..components.task_index import LocalTaskIndex
 from ..components.updater import UpdateManager
+from ..components.updater.manager import UpdateBackend
 from ..config.models import ApplicationConfig, ComponentConfig
 from ..steps.agent import (
     AgentStreamStep,
@@ -31,17 +35,17 @@ from ..steps.agent import (
     RenameAgentSessionStep,
     TagAgentSessionStep,
 )
-from ..steps.common import CliStep, HelpStep, VersionStep
+from ..steps.common import CommandStep, HelpStep, VersionStep
 from ..steps.machine.steps import DiagnoseStep, ListMachinesStep, MachineStatusStep, PythonStep
 from ..steps.studio import ListStudioPagesStep
 from ..steps.sync import SyncFlushStep, SyncTasksStep, TaskSyncIndexStep
 from ..steps.task import (
     GetTaskDefinitionStep,
+    ListInstalledTaskDefinitionsStep,
     GetTaskGraphStep,
     GetTaskStatusStep,
-    ListInstalledTaskDefinitionsStep,
     ListTaskIdsStep,
-    ListTaskRunsStep,
+    ListTaskDirectoriesStep,
     ListTaskStatusesStep,
     ReadTaskLogStep,
     StreamTaskStep,
@@ -59,6 +63,11 @@ APP_PROVIDERS = (
     LocalSyncComponent,
     LocalTaskIndex,
     UpdateManager,
+    CommandStep,
+    GetTaskDefinitionStep,
+    ListInstalledTaskDefinitionsStep,
+    SyncTasksStep,
+    TaskSyncIndexStep,
     AgentStreamStep,
     CancelAgentTurnStep,
     DeleteAgentSessionStep,
@@ -68,7 +77,6 @@ APP_PROVIDERS = (
     ListAgentSessionsStep,
     RenameAgentSessionStep,
     TagAgentSessionStep,
-    CliStep,
     HelpStep,
     VersionStep,
     DiagnoseStep,
@@ -77,14 +85,10 @@ APP_PROVIDERS = (
     PythonStep,
     ListStudioPagesStep,
     SyncFlushStep,
-    SyncTasksStep,
-    TaskSyncIndexStep,
-    GetTaskDefinitionStep,
     GetTaskGraphStep,
     GetTaskStatusStep,
-    ListInstalledTaskDefinitionsStep,
     ListTaskIdsStep,
-    ListTaskRunsStep,
+    ListTaskDirectoriesStep,
     ListTaskStatusesStep,
     ReadTaskLogStep,
     StreamTaskStep,
@@ -99,9 +103,15 @@ APP_PROVIDERS = (
 )
 
 
-def compose_application(version: str, config: dict[str, Any]) -> ApplicationContext:
+def compose_application(
+    version: str,
+    config: dict[str, Any],
+    providers: Iterable[type] = (),
+    workspace: Workspace | None = None,
+    updates: UpdateBackend | None = None,
+) -> ApplicationContext:
     """Compose built-in providers into an isolated, sealed application context."""
-    registry = ProviderRegistry(APP_PROVIDERS)
+    registry = ProviderRegistry((*APP_PROVIDERS, *providers))
     app_config = ApplicationConfig(**config)
     configure_logging(
         LoggingConfig(
@@ -114,7 +124,7 @@ def compose_application(version: str, config: dict[str, Any]) -> ApplicationCont
     logger = get_logger()
     logger.info(f"Initializing {app_config.app_name} Application v{version}")
 
-    context = ApplicationContext(registry, app_config)
+    context = ApplicationContext(registry, app_config, workspace, updates)
     for category, group in app_config.components.items():
         context._set_component_group(
             category,

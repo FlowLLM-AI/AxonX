@@ -57,7 +57,9 @@ it("loads the exact preceding byte range without overlapping the existing log", 
     "selected:1024",
   ]);
   expect(
-    vi.mocked(readTaskLog).mock.calls.every((call) => call[5] === task.run_id),
+    vi
+      .mocked(readTaskLog)
+      .mock.calls.every((call) => call[5] === task.started_at),
   ).toBe(true);
 });
 it("drains all remaining pages when the task finishes", async () => {
@@ -69,6 +71,19 @@ it("drains all remaining pages when the task finishes", async () => {
   await render();
   expect(container.querySelector("pre")?.textContent).toBe(source);
   expect(vi.mocked(readTaskLog).mock.calls.length).toBeGreaterThan(2);
+});
+
+it("resets the buffer and byte offset when the same Task restarts", async () => {
+  source = "previous execution";
+  await render();
+  const previousRequest = vi.mocked(readTaskLog).mock.calls[0];
+  source = "new execution with a longer log";
+  task = { ...task, started_at: "2026-10-26T10:00:00Z" };
+  await render();
+  expect(container.querySelector("pre")?.textContent).toBe(source);
+  expect(previousRequest[4]?.aborted).toBe(true);
+  expect(vi.mocked(readTaskLog).mock.lastCall?.[1]).toBe(-1);
+  expect(vi.mocked(readTaskLog).mock.lastCall?.[5]).toBe(task.started_at);
 });
 it("retains a bounded tail and disables invalid history offsets after trimming", async () => {
   source = "initial\n";
@@ -84,11 +99,11 @@ it("retains a bounded tail and disables invalid history offsets after trimming",
     container.querySelector("pre")!.textContent!.length,
   ).toBeLessThanOrEqual(524288);
 });
-it("shows the error without mixing logs when the server rejects a replacement run", async () => {
-  vi.mocked(readTaskLog).mockRejectedValue(new Error("Task run changed"));
+it("shows the error without mixing logs when the server rejects a task restart", async () => {
+  vi.mocked(readTaskLog).mockRejectedValue(new Error("Task restarted"));
   await render();
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-    "Task run changed",
+    "Task restarted",
   );
   expect(container.querySelector("pre")?.textContent).toBe(
     i18n.t("taskDetail.logEmpty"),

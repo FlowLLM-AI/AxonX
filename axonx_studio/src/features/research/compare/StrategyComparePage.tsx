@@ -440,17 +440,17 @@ export default function StrategyComparePage({
         </div>
       </div>
       <div className="compare-layout">
-        <aside className="compare-picker rail-panel run-index">
-          <header className="run-index-header rail-header">
-            <div className="run-index-heading rail-heading">
-              <small>TASK VERSIONS</small>
-              <strong>{t("compare.task_versions")}</strong>
+        <aside className="compare-picker rail-panel task-index">
+          <header className="task-index-header rail-header">
+            <div className="task-index-heading rail-heading">
+              <small>TASKS</small>
+              <strong>{t("compare.task_list")}</strong>
             </div>
-            <div className="run-index-tools">
+            <div className="task-index-tools">
               <em>{tasks.length}</em>
               <button
                 type="button"
-                className="run-index-refresh rail-refresh"
+                className="task-index-refresh rail-refresh"
                 onClick={() => void reloadList()}
                 aria-label={t("compare.refresh_tasks")}
               >
@@ -458,7 +458,7 @@ export default function StrategyComparePage({
               </button>
             </div>
           </header>
-          <label className="run-index-search rail-search">
+          <label className="task-index-search rail-search">
             <Search />
             <input
               value={query}
@@ -468,7 +468,7 @@ export default function StrategyComparePage({
           </label>
           <div className="compare-picker-list rail-scroll">
             <p className="compare-picker-hint">
-              {t("compare.click_two_versions_to_compare")}
+              {t("compare.click_two_tasks_to_compare")}
             </p>
             {listLoading && (
               <p className="compare-state">
@@ -495,12 +495,12 @@ export default function StrategyComparePage({
                 key={task.task_id}
               >
                 <button
-                  className="run-main rail-list-item compare-run-item"
+                  className="task-main rail-list-item compare-task-item"
                   type="button"
                   aria-pressed={idA === task.task_id || idB === task.task_id}
                   onClick={() => toggleTask(task.task_id)}
                 >
-                  <span className="run-item-avatar rail-avatar run-kind-backtest">
+                  <span className="task-item-avatar rail-avatar task-kind-backtest">
                     {task.reg_name.slice(0, 1).toUpperCase()}
                   </span>
                   <span className="rail-item-copy">
@@ -598,7 +598,7 @@ export default function StrategyComparePage({
               <span>
                 {tasks.length === 1
                   ? t("compare.only_one_backtest_is_available")
-                  : t("compare.click_two_task_versions_on")}
+                  : t("compare.click_two_task_list_on")}
               </span>
             </div>
           ) : !commonTopNs.length ? (

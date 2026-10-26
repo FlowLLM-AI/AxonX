@@ -248,10 +248,10 @@ it("never substitutes current signals, stages or logs for an empty historical da
   expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noSignal"));
   expect(panel().textContent).not.toContain("Synthetic 1");
   await clickTab("logs");
-  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noRun"));
+  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noTaskRecord"));
   expect(panel().querySelector(".log-content")).toBeNull();
   await clickTab("preparation");
-  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noRun"));
+  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noTaskRecord"));
 });
 
 it("opens archived signals without attaching today's diagnostics and retains them on refresh failure", async () => {
@@ -282,7 +282,9 @@ it("opens archived signals without attaching today's diagnostics and retains the
     );
     expect(panel().textContent).toContain("Synthetic 1");
     await clickTab("logs");
-    expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noRun"));
+    expect(panel().textContent).toContain(
+      i18n.t("onlineWorkbench.noTaskRecord"),
+    );
   } finally {
     vi.useRealTimers();
   }
@@ -350,7 +352,7 @@ it("loads archived and same-day signals without current inference children", asy
     vi.useRealTimers();
   }
   await clickTab("logs");
-  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noRun"));
+  expect(panel().textContent).toContain(i18n.t("onlineWorkbench.noTaskRecord"));
   await date("2026-01-05");
   expect(panel().querySelector(".log-content")).toBeNull();
   target = "45:1024";
@@ -589,14 +591,14 @@ it("shows only the selected inference log even when nested tasks share its name"
   const inference = nodes[0];
   const child = structuredClone(inference.status!);
   child.task_id = "api#log-source#demo";
-  child.run_id = "nested-log-run";
+  child.started_at = "2026-01-03T00:00:00Z";
   child.task_type = "api";
   child.reg_name = "prepare";
   child.input_params.task_name = inference.status!.input_params.task_name;
   const record = {
     ...inference.record,
     task_id: child.task_id,
-    run_id: child.run_id,
+    started_at: child.started_at,
     task: child.reg_name,
     node_name: "prepare",
   };

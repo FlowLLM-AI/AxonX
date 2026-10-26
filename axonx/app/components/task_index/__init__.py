@@ -1,4 +1,4 @@
-"""Application Task metadata indexes."""
+"""Application Task metadata index contract."""
 
 from .base import BaseTaskIndex
 from .local import LocalTaskIndex

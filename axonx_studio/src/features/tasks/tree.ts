@@ -8,14 +8,14 @@ export interface TaskNode {
   issue?: "replaced" | "snapshot";
 }
 
-/** Follow exact owned Runs, including nested download and ETL chains. */
+/** Follow recorded child Tasks, including nested download and ETL chains. */
 export async function readTaskChildren(
   parent: TaskMetadata,
   target: string | undefined,
   signal: AbortSignal,
   messages: { replaced: string; snapshot: string },
 ): Promise<TaskNode[]> {
-  const visited = new Set([`${parent.task_id}:${parent.run_id}`]);
+  const visited = new Set([`${parent.task_id}:${parent.started_at}`]);
   const requests = new Map<string, Promise<TaskMetadata>>();
   async function visit(owner: TaskMetadata): Promise<TaskNode[]> {
     const records = [
@@ -25,7 +25,9 @@ export async function readTaskChildren(
     ];
     const branches = await Promise.all(
       records.map(async (record): Promise<TaskNode[]> => {
-        const identity = `${record.task_id}:${record.run_id}`;
+        if (record.started_at === null)
+          return [{ record, status: null, error: "" }];
+        const identity = `${record.task_id}:${record.started_at}`;
         if (visited.has(identity)) return [];
         visited.add(identity);
         try {
@@ -35,7 +37,7 @@ export async function readTaskChildren(
               getTaskStatus(record.task_id!, target, signal),
             );
           const status = await requests.get(record.task_id!)!;
-          if (status.run_id !== record.run_id)
+          if (status.started_at !== record.started_at)
             return [
               {
                 record,

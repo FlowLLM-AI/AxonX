@@ -8,9 +8,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from ..common.fs.atomic import atomic_write_json
-from ..common.fs.revision import file_revision
-from ..common.fs.snapshot import snapshot_file
+from .storage.files import atomic_write_json
+from .storage.files import file_revision
+from .storage.files import snapshot_file
 from .core.clock import ReplayClock
 from .models.artifacts import ArtifactRecord, ReplayEvent, ReplayManifest
 

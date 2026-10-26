@@ -25,6 +25,28 @@ For changes to public CLI/API/configuration contracts, persisted task records, o
 
 See the [Task development guide](https://flowllm-ai.github.io/AxonX/en/dev_guide), [framework extensions](https://flowllm-ai.github.io/AxonX/en/development/framework-extensions), and [plugin manifest](https://flowllm-ai.github.io/AxonX/en/reference/plugin-manifest) for implementation contracts.
 
+## Module boundaries
+
+| Module   | Allowed repository dependencies                                                       | Public boundary                                                        |
+| -------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `common` | None                                                                                  | Only `logging` and `env`; environment loading is explicit              |
+| `task`   | `common.logging`, `common.env`                                                        | Task authoring, data contracts, execution, storage and synchronization |
+| `plugin` | Task authoring/data contracts and built-ins; shared logging/environment if needed     | Discovery, installation and `plugin.catalog` resolution                |
+| `app`    | Task models, observation/storage and synchronization APIs; shared logging/environment | App-owned components, Jobs, transports and Workspace                   |
+| `cron`   | Shared logging/environment                                                            | Resolve and validate schedules; invoke a supplied launch callback      |
+| `daemon` | Launcher: App, Cron and Task worker settings; supervisor: standard library only       | Start, supervise and update independent workers                        |
+| `cli`    | Other modules public entry points                                                     | Parse arguments, route calls, render results and return exit codes     |
+
+Task models and enums must not import execution, storage or plugin code. Task execution never imports App, Plugin or CLI. Plugin discovery lives in `axonx.plugin.catalog`; `TaskExecutor` receives a caller-supplied `resolve_task` callable and passes it to composite children.
+
+Resident components stay in App: `components/task_index` owns polling, caching and subscriptions, `components/sync` owns replication transport, and `components/updater` owns application admission and response completion. App uses public `task.query` observation APIs and the Task storage/synchronization capabilities it needs; it never loads Task execution or research plugins. Observation leaves Task records unchanged; startup and explicit termination can settle confirmed exited local processes. CLI contains no resident components or Steps.
+
+App owns configuration, registry, async helpers, Workspace and the startup banner. Workspace provides file operations without Task-specific hiding or deletion policy. The configured `command` vector supplies the external command driver; an injected update backend owns prepare/commit/status. `daemon.launcher` creates Application directly, starts App and Cron, and passes explicit `task.runtime.settings.ExecutionSettings`. Cron selects files and parses schedules into command vectors without interpreting command options. CLI supplies the scheduled-command validator; the launcher validates every entry before starting workers. `daemon.worker` remains standard-library-only and receives complete command vectors.
+
+Application YAML/JSON loading, inheritance and environment interpolation belong to `app/config`; command-line argument conversion belongs to CLI. Workspace operations return their models from `app.workspace.models` directly: `WorkspaceListing`, concrete `FilePreview` variants, `DeletedEntry` and `StagedFile`. Entry filters receive `WorkspaceEntry` objects. Job and HTTP adapters use those results directly and serialize them at the transport boundary.
+
+`common.fs` is removed. Task owns atomic writes, revisions and snapshots in `task.storage.files`, online publication locking in `task.storage.locking`, and exact process inspection in `task.process`. Plugin owns its checksums. App keeps the small atomic write needed for upload staging. Task metadata has no coordination lock; callers serialize competing mutations of the same Task directory. Preserve online publication consistency and Daemon's singleton lock. These module moves have no compatibility imports.
+
 ## 1. Contribute to the AxonX framework
 
 Use this path for the runtime, CLI, HTTP/MCP services, and shared extension points in `axonx/`, plus Studio and framework tests. Follow the Plugin contribution path below for research Tasks and algorithms.
@@ -120,7 +142,7 @@ and experiment execution distinct, and apply the same contribution checks to Age
 
 Use the adapted Qlib Alpha158 plugin as a reference implementation. Separate factor and strategy plugins can reuse compatible upstream code
 and artifacts. For claimed improvements, record the code revision, data snapshot, training/evaluation windows,
-parameters, costs, and Task/Run IDs; follow [experiment design](docs/en/research/experiments.md). Keep raw execution
+parameters, costs, and Task IDs and start times; follow [experiment design](docs/en/research/experiments.md). Keep raw execution
 records in the research environment and publish sanitized evidence and reproduction instructions.
 
 ### Validation

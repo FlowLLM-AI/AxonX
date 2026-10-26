@@ -9,7 +9,7 @@ from pathlib import Path
 import polars as pl
 from pydantic import Field
 
-from axonx.common.fs.atomic import atomic_write
+from axonx.task.storage.files import atomic_write
 from axonx.task.core.standard import BaseAnalysisTask
 from axonx.task.core.task import TaskStep
 from axonx.task.task_enums import TaskType

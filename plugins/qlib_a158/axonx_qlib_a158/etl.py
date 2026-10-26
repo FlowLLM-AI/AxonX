@@ -9,7 +9,7 @@ import polars as pl
 from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from axonx.common.fs.atomic import atomic_write
+from axonx.task.storage.files import atomic_write
 from axonx.task.builtins.stock.data import (
     apply_market_status,
     fixed_labels,

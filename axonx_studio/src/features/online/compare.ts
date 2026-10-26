@@ -6,24 +6,24 @@ import type {
 } from "../tasks/types";
 import type { TaskNode } from "../tasks/tree";
 
-/** Resolve only the latest owned attempt and its exact descendant Runs. */
+/** Resolve only the latest owned attempt and its exact descendant Tasks. */
 export function ownedCompareNodes(
   records: ChildTaskRecord[],
   nodes: TaskNode[],
 ) {
-  const owned = new Set(records.map((r) => `${r.task_id}:${r.run_id}`));
+  const owned = new Set(records.map((r) => `${r.task_id}:${r.started_at}`));
   const result: TaskNode[] = [];
   for (let changed = true; changed;) {
     changed = false;
     for (const node of nodes) {
       if (
-        !owned.has(`${node.record.task_id}:${node.record.run_id}`) ||
+        !owned.has(`${node.record.task_id}:${node.record.started_at}`) ||
         result.includes(node)
       )
         continue;
       result.push(node);
       for (const child of node.status?.children || [])
-        owned.add(`${child.task_id}:${child.run_id}`);
+        owned.add(`${child.task_id}:${child.started_at}`);
       changed = true;
     }
   }

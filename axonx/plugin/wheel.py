@@ -12,7 +12,7 @@ from zipfile import BadZipFile, ZipFile
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
-from ..common.fs.checksum import directory_sha256, file_sha256
+from .checksum import directory_sha256, file_sha256
 from .constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
 from .identity import content_sha256_from_wheel
 from .manifest import parse_plugin_manifest

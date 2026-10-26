@@ -1,1 +1,1 @@
-"""Low-level utilities and pure contracts shared by AxonX modules."""
+"""Shared logging and explicit environment loading."""

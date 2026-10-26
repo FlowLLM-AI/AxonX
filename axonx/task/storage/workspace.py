@@ -8,8 +8,7 @@ import stat
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from ...common.constants import AXONX_DEFAULT_ENCODING
-from ...common.fs.atomic import atomic_write_json
+from .files import atomic_write_json
 from ..task_enums import TaskType
 from ..identity import task_type_from_id
 from ..models.lifecycle import (
@@ -137,13 +136,35 @@ def scan_entries(root: Path) -> dict[str, TaskMetadata]:
     return entries
 
 
-def read_task_metadata(directory: Path, task_id: str, *, strict_io: bool = False) -> TaskMetadata | None:
-    """Read a matching regular record; strict reads propagate transient I/O failures."""
+def load_task_metadata(directory: Path, task_id: str) -> TaskMetadata:
+    """Require a valid record before any existing Task files may be replaced."""
     path = directory / METADATA_FILE
+    if not is_task_directory(directory, strict_io=True):
+        raise ValueError(f"Invalid Task directory: {directory}")
     try:
-        if not is_task_directory(directory, strict_io=strict_io) or not stat.S_ISREG(path.lstat().st_mode):
-            return None
-        metadata = TaskMetadata.model_validate_json(path.read_text(encoding=AXONX_DEFAULT_ENCODING))
+        regular = stat.S_ISREG(path.lstat().st_mode)
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Task metadata is missing: {path}; existing Task files were not overwritten") from exc
+    if not regular:
+        raise ValueError(f"Task metadata must be a regular file: {path}; existing Task files were not overwritten")
+    try:
+        metadata = TaskMetadata.model_validate_json(path.read_text(encoding="utf-8"))
+    except (UnicodeError, ValueError) as exc:
+        raise ValueError(
+            f"Invalid Task metadata: {path}; the format is corrupt or incompatible. "
+            "Inspect or migrate the record before retrying; existing Task files were not overwritten"
+        ) from exc
+    if metadata.task_id != task_id or metadata.task_type != task_type_from_id(task_id):
+        raise ValueError(
+            f"Task metadata identity differs from its directory: {path}; existing files were not overwritten"
+        )
+    return metadata
+
+
+def read_task_metadata(directory: Path, task_id: str, *, strict_io: bool = False) -> TaskMetadata | None:
+    """Observe a matching record, tolerating missing or invalid publications."""
+    try:
+        return load_task_metadata(directory, task_id)
     except FileNotFoundError:
         return None
     except OSError:
@@ -152,7 +173,6 @@ def read_task_metadata(directory: Path, task_id: str, *, strict_io: bool = False
         return None
     except (UnicodeError, ValueError):
         return None
-    return metadata if metadata.task_id == task_id and metadata.task_type == task_type_from_id(task_id) else None
 
 
 def write_task_metadata(directory: Path, metadata: TaskMetadata) -> None:
@@ -197,3 +217,22 @@ def task_record_id_from_path(root: Path, raw_path: str) -> str | None:
     elif len(parts) != 2:
         return None
     return task_id_from_path(root, raw_path)
+
+
+def resolve_relative_path(root: Path, relative_path: str) -> Path:
+    """Resolve a non-root mutation target without traversing symlinks."""
+    if not isinstance(relative_path, str) or not relative_path.strip():
+        raise ValueError("Task path must be a non-empty relative path")
+    candidate = Path(relative_path)
+    if candidate.is_absolute() or ".." in candidate.parts:
+        raise ValueError("Task path must stay inside the workspace")
+    root = root.resolve()
+    current = root
+    for part in candidate.parts:
+        current /= part
+        if current.is_symlink():
+            raise ValueError("Task paths cannot traverse symlinks")
+    target = current.resolve()
+    if target == root or not target.is_relative_to(root):
+        raise ValueError("Task path must stay inside the workspace")
+    return target

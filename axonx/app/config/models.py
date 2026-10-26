@@ -7,9 +7,8 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ...common.connection import normalize_target
-from ...common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
-from ...common.runtime import RuntimeSettings
+from ..connection import normalize_target
+from ..constants import DEFAULT_TRANSFER_BUDGET_BYTES
 from ...task.task_enums import TaskCategory
 
 
@@ -56,7 +55,7 @@ class TargetConfig(BaseModel):
 
 
 class StudioPageConfig(BaseModel):
-    """One service-defined page, grouping root Task runs by category."""
+    """One service-defined page, grouping root Tasks by category."""
 
     model_config = ConfigDict(extra="forbid")
     title: dict[Literal["en", "zh"], str]
@@ -88,11 +87,15 @@ class StudioConfig(BaseModel):
         return pages
 
 
-class ApplicationConfig(RuntimeSettings):
+class ApplicationConfig(BaseModel):
     """Describe one complete AxonX application instance."""
 
     model_config = ConfigDict(extra="forbid")
-    cron: str | None = Field(default=None, min_length=1)
+    workspace_dir: str = ".axonx"
+    log_dir: str = "logs"
+    timezone: str = "Asia/Shanghai"
+    environment: dict[str, str] = Field(default_factory=dict)
+    command: tuple[str, ...] = ()
     app_name: str = "AxonX"
     transfer_budget_bytes: int = Field(default=DEFAULT_TRANSFER_BUDGET_BYTES, gt=0, strict=True)
     language: Literal["en", "zh"] = "en"

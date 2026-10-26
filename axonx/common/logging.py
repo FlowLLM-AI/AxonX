@@ -15,8 +15,6 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from loguru import logger
 
-from .constants import AXONX_DEFAULT_ENCODING, AXONX_DEFAULT_LOG_DIR, AXONX_DEFAULT_TIMEZONE
-
 _LOG_FORMAT = (
     "{time:%Y-%m-%d %H:%M:%S} {extra[utc_offset]} | {level:<8} | "
     "{extra[name]} | {file}:{line} | {function} | {message}"
@@ -35,11 +33,11 @@ def _write_stderr(message: object) -> None:
 class LoggingConfig:
     """Settings applied to the shared Loguru instance."""
 
-    log_dir: Path = Path(AXONX_DEFAULT_LOG_DIR)
+    log_dir: Path = Path("logs")
     level: str = "INFO"
     log_to_console: bool = True
     log_to_file: bool = True
-    timezone: str = AXONX_DEFAULT_TIMEZONE
+    timezone: str = "Asia/Shanghai"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "log_dir", Path(self.log_dir))
@@ -84,7 +82,7 @@ def configure_logging(config: LoggingConfig) -> None:
                 format=_LOG_FORMAT,
                 rotation="00:00",
                 compression="zip",
-                encoding=AXONX_DEFAULT_ENCODING,
+                encoding="utf-8",
             )
 
 
@@ -104,7 +102,7 @@ def get_log_path() -> Path | None:
 def log_file(path: Path, *, predicate: Callable[[dict], bool]):
     """Own a filtered file sink using the current process logging settings."""
     with _LOCK:
-        sink = logger.add(path, level=_LOG_LEVEL, format=_LOG_FORMAT, encoding=AXONX_DEFAULT_ENCODING, filter=predicate)
+        sink = logger.add(path, level=_LOG_LEVEL, format=_LOG_FORMAT, encoding="utf-8", filter=predicate)
     try:
         yield
     finally:

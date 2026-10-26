@@ -1,9 +1,9 @@
 import { RefreshCw, Search } from "lucide-react";
 
 /** Shared task index heading, refresh and search used by research workbenches. */
-export function RunIndexControls({
+export function TaskIndexControls({
   title,
-  eyebrow = "TASK VERSIONS",
+  eyebrow = "TASKS",
   count,
   loading,
   query,
@@ -24,15 +24,15 @@ export function RunIndexControls({
 }) {
   return (
     <>
-      <header className="run-index-header rail-header">
-        <div className="run-index-heading rail-heading">
+      <header className="task-index-header rail-header">
+        <div className="task-index-heading rail-heading">
           <small>{eyebrow}</small>
           <strong>{title}</strong>
         </div>
-        <div className="run-index-tools">
+        <div className="task-index-tools">
           <em>{count}</em>
           <button
-            className="run-index-refresh rail-refresh"
+            className="task-index-refresh rail-refresh"
             aria-label={refreshLabel}
             onClick={onRefresh}
           >
@@ -40,7 +40,7 @@ export function RunIndexControls({
           </button>
         </div>
       </header>
-      <label className="run-index-search rail-search">
+      <label className="task-index-search rail-search">
         <Search />
         <input
           value={query}

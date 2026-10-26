@@ -21,7 +21,7 @@ vi.mock("../tasks/TaskLogPanel", () => ({
   }) => (
     <div>
       {toolbar}
-      <pre data-run={task.run_id} data-target={target}>
+      <pre data-task={task.task_id} data-target={target}>
         {task.task_id}
       </pre>
     </div>
@@ -69,8 +69,8 @@ beforeEach(async () => {
   nodes = [];
   const visit = (task: TaskMetadata) =>
     task.children.forEach((record) => {
-      if (seen.has(record.run_id)) return;
-      seen.add(record.run_id);
+      if (seen.has(`${record.task_id}:${record.started_at}`)) return;
+      seen.add(`${record.task_id}:${record.started_at}`);
       const status = tasks.get(record.task_id!);
       nodes.push({
         record,
@@ -98,7 +98,7 @@ it.each(["en", "zh"])(
     await render();
     expect(container.querySelectorAll('[role="tablist"]')).toHaveLength(1);
     expect(container.querySelectorAll('[role="tab"]')).toHaveLength(5);
-    expect(container.querySelector("pre")?.dataset.run).toBe(parent.run_id);
+    expect(container.querySelector("pre")?.dataset.task).toBe(parent.task_id);
     await click("results");
     expect(container.querySelectorAll(".operation-tab-connector")).toHaveLength(
       0,
@@ -147,8 +147,8 @@ it("shows a failure once, retains skipped stages and opens its exact child log",
   expect(container.textContent).not.toContain("ChildTaskError");
   expect(container.querySelectorAll(".compare-stage-row")).toHaveLength(1);
   expect(container.querySelector(".pipeline-model")).toBeNull();
-  expect(container.querySelector("pre")?.dataset.run).toBe(
-    history.record.run_id,
+  expect(container.querySelector("pre")?.dataset.task).toBe(
+    history.record.task_id,
   );
   expect(container.querySelector("pre")?.dataset.target).toBe(
     "http://selected-machine",
@@ -160,39 +160,39 @@ it("shows a failure once, retains skipped stages and opens its exact child log",
   expect(container.querySelector("pre")).toBeNull();
 });
 
-it("keeps model logs isolated and refuses to substitute a replaced Run", async () => {
+it("keeps model logs isolated and refuses to substitute a restarted task", async () => {
   await render();
   await click("etl");
   expect(container.querySelector(".pipeline-log-source select")).toBeNull();
   expect(container.querySelector(".compare-active-model")).toBeNull();
   const nested = nodes.find((n) => n.record.task_id?.startsWith("etl#"))!;
-  expect(container.querySelector("pre")?.dataset.run).toBe(
-    nested.record.run_id,
+  expect(container.querySelector("pre")?.dataset.task).toBe(
+    nested.record.task_id,
   );
   nested.status = null;
-  nested.error = "Run was replaced";
+  nested.error = "Task restarted";
   await render();
   expect(container.querySelector("pre")).toBeNull();
   expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-    "Run was replaced",
+    "Task restarted",
   );
   await chooseModel("missing");
   expect(container.querySelector("pre")).toBeNull();
   expect(container.querySelectorAll("option")).toHaveLength(0);
   await click("logs");
-  expect(container.querySelector("pre")?.dataset.run).toBe(parent.run_id);
+  expect(container.querySelector("pre")?.dataset.task).toBe(parent.task_id);
 });
 
 it("resolves owned descendants and ignores an earlier attempt and similarly named models", () => {
   const old = structuredClone(
     parent.children.find((r) => r.node_name.includes("history"))!,
   );
-  old.run_id = "old-run";
+  old.started_at = "2026-01-01T00:00:00Z";
   parent.children.unshift(old);
   const unrelated = {
     ...old,
     node_name: "nightly-other-1445-a_stock_history",
-    run_id: "unrelated",
+    started_at: "2026-01-16T00:00:00Z",
   };
   parent.children.push(unrelated);
   nodes.unshift(
@@ -202,7 +202,9 @@ it("resolves owned descendants and ignores an earlier attempt and similarly name
   const model = compareModels(parent, nodes).find((m) => m.name === "nightly")!;
   expect(
     model.children.some((n) =>
-      ["old-run", "unrelated"].includes(n.record.run_id),
+      ["2026-01-01T00:00:00Z", "2026-01-16T00:00:00Z"].includes(
+        n.record.started_at || "",
+      ),
     ),
   ).toBe(false);
   expect(model.children.some((n) => n.record.task_id?.startsWith("etl#"))).toBe(
@@ -211,19 +213,19 @@ it("resolves owned descendants and ignores an earlier attempt and similarly name
   expect(ownedCompareNodes([], nodes)).toHaveLength(0);
 });
 
-it("omits backtests even when an older compare Run contains one", async () => {
+it("omits backtests even when an older comparison task contains one", async () => {
   window.location.hash = "#selected-machine/operations/comparison";
   const template = nodes[0];
   const task = structuredClone(template.status!);
   task.task_id = "backtest#nightly#report";
-  task.run_id = "backtest-report-run";
+  task.started_at = "2026-01-05T00:00:00Z";
   task.task_type = "backtest";
   task.output_params = { universes: { all: {} }, artifacts: {} };
   const record = {
     ...template.record,
     task: "a_stock_backtest",
     task_id: task.task_id,
-    run_id: task.run_id,
+    started_at: task.started_at,
     node_name: "nightly-a_stock_backtest",
   };
   parent.children.push(record);
@@ -239,7 +241,7 @@ it("keeps shared download logs outside model stages", async () => {
   const template = nodes[0];
   const download = structuredClone(template.status!);
   download.task_id = "api#tushare_mins#nightly";
-  download.run_id = "shared-download-run";
+  download.started_at = "2026-01-06T00:00:00Z";
   download.task_type = "api";
   download.children = [];
   const record = {
@@ -247,17 +249,17 @@ it("keeps shared download logs outside model stages", async () => {
     task: "tushare_mins",
     node_name: "tushare_mins",
     task_id: download.task_id,
-    run_id: download.run_id,
+    started_at: download.started_at,
   };
   parent.children.push(record);
   nodes.push({ record, status: download, error: "" });
   await render();
   await click("download");
-  expect(container.querySelector("pre")?.dataset.run).toBe(download.run_id);
+  expect(container.querySelector("pre")?.dataset.task).toBe(download.task_id);
   await chooseModel("missing");
-  expect(container.querySelector("pre")?.dataset.run).toBe(download.run_id);
+  expect(container.querySelector("pre")?.dataset.task).toBe(download.task_id);
   await click("prediction");
   expect(container.querySelector("pre")).toBeNull();
   await click("logs");
-  expect(container.querySelector("pre")?.dataset.run).toBe(parent.run_id);
+  expect(container.querySelector("pre")?.dataset.task).toBe(parent.task_id);
 });

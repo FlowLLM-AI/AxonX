@@ -150,7 +150,7 @@ export type ChildTaskRecord = {
   attempt: number;
   task: string;
   task_id: string | null;
-  run_id: string;
+  started_at: string | null;
   state: TaskState;
   exit_code: number;
   error: string;
@@ -251,7 +251,7 @@ export type JsonlRow = {
 export type LiveSnapshot = {
   source_id: string;
   root_task_id: string;
-  root_run_id: string;
+  root_started_at: string;
   captured_at: string;
   revision: number;
 };
@@ -317,7 +317,7 @@ export type MemoryInfo = {
 export type OnlineCommit = {
   commit_id: string;
   task_id: string;
-  run_id: string;
+  started_at: string;
   trade_date: string;
   trade_time: string;
   revision: number;
@@ -529,19 +529,20 @@ export type TaskGraphNode = {
 
 export type TaskMetadata = {
   task_id: string;
-  run_id: string;
   task_type: TaskType;
   reg_name: string;
   source: TaskSource;
-  parent_run_id: string | null;
+  parent_task_id: string | null;
   category: TaskCategory | null;
   report_kind: string | null;
   state: TaskState;
   pid: number;
   machine_id: string;
+  execution_target: string | null;
+  workspace_dir: string | null;
   process_started_at: string;
   created_at: string | null;
-  started_at: string | null;
+  started_at: string;
   finished_at: string | null;
   error: string;
   exit_code: number;
@@ -598,19 +599,20 @@ export type TaskStepStatus = {
 
 export type TaskSummary = {
   task_id: string;
-  run_id: string;
   task_type: TaskType;
   reg_name: string;
   source: TaskSource;
-  parent_run_id: string | null;
+  parent_task_id: string | null;
   category: TaskCategory | null;
   report_kind: string | null;
   state: TaskState;
   pid: number;
   machine_id: string;
+  execution_target: string | null;
+  workspace_dir: string | null;
   process_started_at: string;
   created_at: string | null;
-  started_at: string | null;
+  started_at: string;
   finished_at: string | null;
   error: string;
   exit_code: number;

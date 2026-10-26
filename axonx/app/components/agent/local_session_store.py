@@ -20,7 +20,7 @@ from .session_store import (
     AgentSessionListKey,
     AgentSessionSummary,
 )
-from ....common.async_work import run_blocking
+from ...async_work import run_blocking
 
 _KEY_PART = re.compile(r"^[A-Za-z0-9._-]+$")
 

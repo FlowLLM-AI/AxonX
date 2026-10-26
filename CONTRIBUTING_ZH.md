@@ -25,6 +25,28 @@
 
 实现契约见 [Task 开发指南](https://flowllm-ai.github.io/AxonX/zh/dev_guide)、[框架扩展](https://flowllm-ai.github.io/AxonX/zh/development/framework-extensions)和[插件协议](https://flowllm-ai.github.io/AxonX/zh/reference/plugin-manifest)。
 
+## 模块边界
+
+| 模块     | 允许的仓库内依赖                                              | 公开边界                                          |
+| -------- | ------------------------------------------------------------- | ------------------------------------------------- |
+| `common` | 无                                                            | 只保留 `logging`、`env`；环境加载必须显式调用     |
+| `task`   | `common.logging`、`common.env`                                | Task 定义、数据契约、执行、存储和同步             |
+| `plugin` | Task 定义、数据契约和内置 Task；按需使用共享日志与环境        | 插件发现、安装与 `plugin.catalog` 解析            |
+| `app`    | Task 模型、观察/存储与同步接口；共享日志与环境                | App 自己维护的常驻组件、Job、传输协议和 Workspace |
+| `cron`   | 共享日志与环境                                                | 解析、校验计划文件，调用外部提供的启动回调        |
+| `daemon` | 启动层依赖 App、Cron 和 Task 工作进程配置；监督器仅依赖标准库 | 启动、监督与更新独立工作进程                      |
+| `cli`    | 其他模块的公开入口                                            | 参数解析、调用路由、结果展示与退出码              |
+
+Task 模型和枚举不得导入执行、存储或插件代码。Task 执行不导入 App、Plugin 或 CLI。插件发现归 `axonx.plugin.catalog`；`TaskExecutor` 接收调用方提供的 `resolve_task` 函数，并将其传给复合任务的子任务。
+
+常驻组件留在 App：`components/task_index` 负责轮询、缓存和订阅，`components/sync` 负责复制传输，`components/updater` 负责应用侧准入和响应完成边界。App 使用 `task.query` 的公开观察接口，以及实际需要的 Task 存储/同步能力，不加载 Task 执行器或研究插件。观察操作不改写 Task 记录；启动检查和显式终止可以收尾已确认本机进程退出的记录。CLI 不实现常驻组件或 Step。
+
+App 自己维护配置、注册器、异步工具、Workspace 和启动横幅；Workspace 提供文件操作，不包含 Task 专属的隐藏和删除规则。`command` 命令数组提供外部命令驱动，注入的更新后端负责 prepare/commit/status。`daemon.launcher` 直接创建 Application，启动 App 和 Cron，并传入明确的 `task.runtime.settings.ExecutionSettings`。Cron 选择计划文件并解析调度表达式与命令数组，不解释命令参数。CLI 提供计划命令校验函数，启动层在启动工作进程前校验全部条目；`daemon.worker` 只使用标准库，接收完整命令数组。
+
+应用 YAML/JSON 加载、继承和环境变量插值归 `app/config`，命令行参数转换归 CLI。Workspace 操作直接返回 `app.workspace.models` 中的模型：`WorkspaceListing`、具体的 `FilePreview` 变体、`DeletedEntry` 和 `StagedFile`；目录过滤回调接收 `WorkspaceEntry` 对象。Job 和 HTTP 适配层直接使用结果，在传输边界序列化。
+
+删除 `common.fs`。原子写、版本与快照归 `task.storage.files`，在线发布锁归 `task.storage.locking`，精确进程识别归 `task.process`；校验和归 Plugin。App 仅保留上传暂存需要的小型原子写实现。Task metadata 不提供协调锁，同一任务目录的并发变更由调用方串行化。保留在线发布一致性保护和 Daemon 单例锁。模块迁移不提供旧路径兼容导入。
+
 ## 一、贡献 AxonX 框架
 
 适用于 `axonx/` 中的运行时、CLI、HTTP/MCP 服务、通用扩展点，以及配套的 Studio 和框架测试。研究 Task 和算法请按下面的 Plugin 贡献流程开发。
@@ -118,7 +140,7 @@ axonx plugin install -e ./plugins/qlib_strategy
 区分插件代码改动、安装与实验执行，Agent 编写的代码遵循相同的贡献检查。
 
 以适配后的 Qlib Alpha158 插件为参考实现，独立的因子和策略插件可以复用兼容的上游代码与产物。
-主张研究改进时，记录代码版本、数据快照、训练／评估窗口、参数、成本和 Task/Run ID，遵循[实验设计](docs/zh/research/experiments.md)。
+主张研究改进时，记录代码版本、数据快照、训练／评估窗口、参数、成本和 Task ID 和开始时间，遵循[实验设计](docs/zh/research/experiments.md)。
 原始执行记录保留在研究环境，公开脱敏后的证据与复现说明。
 
 ### 验证

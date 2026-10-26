@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from ...common.fs.revision import file_revision
-from ...common.fs.snapshot import snapshot_file
+from .files import file_revision
+from .files import snapshot_file
 from ..task_enums import TaskState
 from .artifacts import artifact_path, artifact_record
 from .model_collections import snapshot_model_collection

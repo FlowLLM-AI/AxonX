@@ -21,9 +21,9 @@ export type TaskDefinition = Omit<
   output_schema: JsonSchema;
 };
 
-export interface TaskRunIdentity {
+export interface TaskReference {
   task_id: string;
-  run_id: string;
+  started_at: string;
   reg_name: string;
   display_name?: string;
 }

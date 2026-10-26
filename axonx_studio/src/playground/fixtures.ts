@@ -69,12 +69,11 @@ export function taskStatus(
   name: string,
 ): TaskMetadata {
   return {
-    parent_run_id: null,
+    parent_task_id: null,
     version: 1,
     category: null,
     report_kind: kind === "inference" ? "online" : null,
     task_id: id,
-    run_id: id,
     task_type: kind,
     reg_name: name,
     source: { kind: "exec" },
@@ -82,6 +81,8 @@ export function taskStatus(
     state: "succeeded",
     pid: 1234,
     machine_id: "playground",
+    execution_target: null,
+    workspace_dir: null,
     process_started_at: "2026-01-01T00:00:00Z",
     created_at: epoch,
     started_at: epoch,
@@ -496,7 +497,8 @@ export function seed() {
   for (const parent of tasks.values()) {
     for (const record of parent.children) {
       const child = record.task_id ? tasks.get(record.task_id) : undefined;
-      if (child?.run_id === record.run_id) child.parent_run_id = parent.run_id;
+      if (child?.started_at === record.started_at)
+        child.parent_task_id = parent.task_id;
     }
   }
   const download = taskStatus(
@@ -535,7 +537,7 @@ export function seed() {
   tasks.set(download.task_id, download);
   const scheduled = structuredClone(download);
   scheduled.task_id = "api#playground_download#scheduled";
-  scheduled.run_id = "demo-data-run";
+  scheduled.started_at = "2026-01-06T00:00:00Z";
   scheduled.input_params.task_name = "Scheduled data update";
   tasks.set(scheduled.task_id, scheduled);
   files.set(
@@ -722,7 +724,7 @@ function seedOnline(
       node_name: "model-1445",
       task: child.reg_name,
       task_id: child.task_id,
-      run_id: child.run_id,
+      started_at: child.started_at,
       attempt: 1,
       state: child.state,
       exit_code: 0,
@@ -923,7 +925,7 @@ function seedNightly(
     node_name,
     task: task.task_id.split("#")[1],
     task_id: task.task_id,
-    run_id: task.run_id,
+    started_at: task.started_at,
     attempt: 1,
     state: task.state,
     exit_code: 0,
@@ -1182,7 +1184,7 @@ function seedStockOnline(
     history.commits.push({
       commit_id: commitId,
       task_id: task.task_id,
-      run_id: `demo-run-${i}`,
+      started_at: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T14:45:00+08:00`,
       trade_date: date,
       trade_time: "1445",
       revision: i === allDaily.length ? 2 : 1,
@@ -1193,7 +1195,7 @@ function seedStockOnline(
     });
   }
   const commit = history.commits.at(-1)!;
-  task.run_id = commit.run_id;
+  task.started_at = commit.started_at;
   const historyPath = `persistent/online/commits/${commit.commit_id}/history.json`;
   files.set(`inference/${task.task_id}/${historyPath}`, json(history));
   files.set(

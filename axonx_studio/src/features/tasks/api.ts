@@ -31,11 +31,16 @@ export const readTaskLog = (
   limit = 65_536,
   target?: string,
   signal?: AbortSignal,
-  runId?: string,
+  startedAt?: string,
 ) =>
   axonx.invoke<LogChunk>(
     "read_task_log",
-    { task_id: taskId, offset, limit, ...(runId ? { run_id: runId } : {}) },
+    {
+      task_id: taskId,
+      offset,
+      limit,
+      ...(startedAt ? { started_at: startedAt } : {}),
+    },
     { target, signal },
   );
 export const listInstalledTaskDefinitions = (

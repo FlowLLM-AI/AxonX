@@ -32,8 +32,8 @@ export function useAxonXWebMcp() {
     void Promise.resolve(
       context.registerTool(
         {
-          name: "list_axonx_task_runs",
-          title: "List AxonX task runs",
+          name: "list_axonx_tasks",
+          title: "List AxonX tasks",
           description:
             "Read the current runtime status of every Task managed by this AxonX service.",
           inputSchema: {

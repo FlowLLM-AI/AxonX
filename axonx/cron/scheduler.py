@@ -1,18 +1,15 @@
-"""Start independent exec processes from one named crontab file."""
+"""Trigger caller-supplied commands from one crontab file."""
 
 import asyncio
-import os
 from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from ..common.locator import locate_file
 from ..common.logging import get_logger
-from ..common.runtime import AXONX_TASK_LOG_DIR, AXONX_TASK_TIMEZONE, AXONX_TASK_WORKSPACE_DIR
-from ..common.workspace import Workspace
 from .parser import CronEntry, parse_crontab
+from .config import resolve_cron
 
 
 class CronScheduler:
@@ -22,26 +19,12 @@ class CronScheduler:
         self,
         source: str | Path,
         *,
-        workspace_dir: str,
-        log_dir: str,
         timezone: str,
-        environment: dict[str, str],
         launch: Callable[[CronEntry], None],
     ) -> None:
-        self.path = locate_file(
-            source, directory=Path(__file__).parent, extensions=(".cron",), group="axonx.crons", label="Cron"
-        )
+        self.path = resolve_cron(str(source))
         self.entries = parse_crontab(self.path.read_text(encoding="utf-8"))
         self.timezone = ZoneInfo(timezone)
-        self.log_dir = str(Path(log_dir).expanduser().resolve())
-        self.cwd = Path.cwd().resolve()
-        self.environment = {
-            **os.environ,
-            **environment,
-            AXONX_TASK_WORKSPACE_DIR: str(Workspace(workspace_dir).root),
-            AXONX_TASK_LOG_DIR: str(Path(log_dir).expanduser().resolve()),
-            AXONX_TASK_TIMEZONE: timezone,
-        }
         self.logger = get_logger("CronScheduler")
         self._launch = launch
         self._next: dict[int, datetime] = {}

@@ -17,7 +17,7 @@ import {
 
 export function TopComparison({
   taskId,
-  runId,
+  startedAt,
   artifact,
   target,
   windowKey,
@@ -25,7 +25,7 @@ export function TopComparison({
   reason,
 }: {
   taskId: string;
-  runId: string;
+  startedAt: string;
   artifact?: ArtifactRecord;
   target?: string;
   windowKey: string;
@@ -39,16 +39,16 @@ export function TopComparison({
   const [onlyDifferences, setOnlyDifferences] = useState(false);
   const load = useCallback(
     async (signal: AbortSignal) => {
-      if (!artifact || !taskId || !runId) return null;
+      if (!artifact || !taskId || !startedAt) return null;
       if (!isArtifactRecord(artifact))
         throw new Error(t("topComparison.invalid"));
-      const verifyRun = async () => {
+      const verifyTask = async () => {
         const owner = await getTaskStatus(taskId, target, signal);
         signal.throwIfAborted();
-        if (owner.run_id !== runId)
-          throw new Error(t("onlinePipeline.replacedChildRun"));
+        if (owner.started_at !== startedAt)
+          throw new Error(t("onlinePipeline.replacedChild"));
       };
-      await verifyRun();
+      await verifyTask();
       const preview = await previewWorkspaceFile(
         `${taskDirectory(taskId)}/${artifact.path}`,
         0,
@@ -56,14 +56,14 @@ export function TopComparison({
         target,
         signal,
       );
-      await verifyRun();
+      await verifyTask();
       if (preview.kind !== "json" || preview.parse_error || preview.truncated)
         throw new Error(t("topComparison.invalid"));
       const data = parseTopComparison(preview.data);
       if (data.key !== windowKey) throw new Error(t("topComparison.invalid"));
       return data;
     },
-    [artifact, taskId, runId, target, windowKey, t],
+    [artifact, taskId, startedAt, target, windowKey, t],
   );
   const { data, error, loading, reload } = useAsyncResource(load);
   if (!artifact)

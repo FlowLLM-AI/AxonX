@@ -28,9 +28,9 @@ from ...protocol import (
     PROTOCOL_SSE_DATA_PREFIX,
     PROTOCOL_SSE_MEDIA_TYPE,
 )
-from ....common.connection import AXONX_CLI_REQUEST_ID
-from ....common.constants import AXONX_DEFAULT_REQUEST_TIMEOUT
-from ....common.workspace.models import StagedFile
+from ...connection import AXONX_CLI_REQUEST_ID
+from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT
+from ...workspace.models import StagedFile
 
 _UPLOAD_CHUNK_BYTES = 1024 * 1024
 PayloadT = TypeVar("PayloadT", bound=BaseModel)

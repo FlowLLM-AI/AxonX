@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from ..common.connection import ConnectionOptions
+from ..app.connection import ConnectionOptions
 
 
 class ClientOptions(ConnectionOptions):

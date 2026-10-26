@@ -55,7 +55,7 @@ axonx exec --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```
 
-每次保存返回的 Task ID 和 Run ID，等待 `succeeded` 后再提交下游。`qlib_factor_analysis` 是可选的因子分析分支。安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task/Run ID，安装或核验失败时停止并报告。[Qlib Alpha158](../qlib_a158/README_ZH.md)
+每次保存返回的 Task ID 和开始时间，等待 `succeeded` 后再提交下游。`qlib_factor_analysis` 是可选的因子分析分支。安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task ID 和开始时间，安装或核验失败时停止并报告。[Qlib Alpha158](../qlib_a158/README_ZH.md)
 
 ## 实验记录
 

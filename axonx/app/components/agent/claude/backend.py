@@ -23,7 +23,7 @@ from ..local_session_store import LocalAgentSessionStore
 from ..models import AgentSession, AgentSessionInfo
 from ...job.events import JobEvent, ResultEvent
 from ...job.models import JobResponse
-from .....common.registry import provider
+from ....registry import provider
 
 if TYPE_CHECKING:
     from claude_agent_sdk import (

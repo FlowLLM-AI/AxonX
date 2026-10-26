@@ -4,8 +4,7 @@ import json
 from collections.abc import Iterable
 from pathlib import Path
 
-from ...common.constants import AXONX_DEFAULT_ENCODING
-from ...common.fs.revision import file_revision
+from .files import file_revision
 from ..task_enums import TaskState, TaskType
 from ..models.artifacts import (
     ArtifactRecord,
@@ -17,7 +16,7 @@ from ..models.artifacts import (
 
 def read_metadata(path: Path) -> dict:
     """Read a successful upstream Task's research output."""
-    value = json.loads(path.read_text(encoding=AXONX_DEFAULT_ENCODING))
+    value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise TypeError(f"metadata must be a JSON object: {path}")
     validate_protocol(value)

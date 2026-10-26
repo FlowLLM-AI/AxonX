@@ -1,4 +1,4 @@
-"""Self-update runtime."""
+"""Application update admission and status."""
 
 from .manager import UpdateManager
 

@@ -1,14 +1,13 @@
 """Read-only Task query Steps."""
 
 import asyncio
-from pathlib import Path
+from datetime import datetime
 
 from .base import TaskIndexStep
-from ....common.logs import LogEvent
-from ....common.registry import provider
+from ....task.models.logs import LogEvent
+from ...registry import provider
 from ....task.task_enums import TaskState
-from ....task.query.summary import summarize_status, task_sort_key
-from ....task.storage.logs import TaskLogReader
+from ....task.query import summarize_status, task_sort_key
 
 
 @provider("list_ids")
@@ -42,12 +41,10 @@ class GetTaskStatusStep(TaskIndexStep):
 class ReadTaskLogStep(TaskIndexStep):
     async def execute(self):
         status = await self.task_index.entry(self.context["task_id"])
-        if (run_id := self.context.get("run_id")) is not None and status.run_id != run_id:
-            raise ValueError(f"Task run changed: {status.task_id}")
-        logs = TaskLogReader(Path(self.app_config.log_dir).expanduser().resolve())
-        chunk = await asyncio.to_thread(
-            logs.read_status,
-            self.workspace_path,
+        started_at = self.context.get("started_at")
+        if started_at is not None and status.started_at != datetime.fromisoformat(started_at):
+            raise ValueError(f"Task restarted: {status.task_id}")
+        chunk = await self.task_index.read_log(
             status,
             self.context.get("offset", -1),
             self.context.get("limit", 8192),
@@ -66,19 +63,21 @@ class GetTaskGraphStep(TaskIndexStep):
 
 @provider("wait_task")
 class WaitTaskStep(TaskIndexStep):
-    """Wait for one exact Run without controlling its execution."""
+    """Wait for the current Task, refusing to silently follow a restart."""
 
     async def execute(self):
-        task_id, run_id = self.context["task_id"], self.context["run_id"]
+        task_id = self.context["task_id"]
         poll_interval = self.context.get("poll_interval", 1.0)
         if poll_interval <= 0:
             raise ValueError("poll_interval must be positive")
+        status = await self.task_index.entry(task_id)
+        started_at = status.started_at
         while True:
-            status = await self.task_index.entry(task_id)
-            if status.run_id != run_id:
-                raise ValueError(f"Task run changed: {task_id}")
+            if status.started_at != started_at:
+                raise ValueError(f"Task restarted: {task_id}")
             if status.state.is_terminal:
                 self.response.answer = summarize_status(status) if self.context.get("detail") == "summary" else status
                 self.response.success = status.state == TaskState.SUCCEEDED
                 return
             await asyncio.sleep(poll_interval)
+            status = await self.task_index.entry(task_id)

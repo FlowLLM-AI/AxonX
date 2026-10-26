@@ -4,9 +4,9 @@ import asyncio
 from contextlib import suppress
 
 from ..base import BaseStep
-from ....common.async_work import run_blocking
+from ...async_work import run_blocking
+from ...registry import provider
 from ....task.sync.applier import TaskArchiveApplier
-from ....common.registry import provider
 
 
 @provider("sync_tasks_step")

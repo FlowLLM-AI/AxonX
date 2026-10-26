@@ -1,4 +1,4 @@
-"""Parse five-field crontab entries containing local AxonX exec commands."""
+"""Parse five-field schedules and argument vectors without a shell."""
 
 import re
 import shlex
@@ -7,8 +7,6 @@ from datetime import datetime
 
 from croniter import croniter
 
-from ..common.arguments import TRANSPORT_OPTION_NAMES, parse_arguments
-
 _FIELD = re.compile(r"^[0-9*,/\-]+$")
 
 
@@ -16,7 +14,7 @@ _FIELD = re.compile(r"^[0-9*,/\-]+$")
 class CronEntry:
     line: int
     cron: str
-    arguments: tuple[str, ...]
+    command: tuple[str, ...]
 
     def next_after(self, now: datetime) -> datetime:
         return croniter(self.cron, now).get_next(datetime)
@@ -32,22 +30,14 @@ def parse_crontab(text: str) -> tuple[CronEntry, ...]:
         try:
             fields = line.split(maxsplit=5)
             if len(fields) != 6 or not all(_FIELD.fullmatch(field) for field in fields[:5]):
-                raise ValueError("Expected five numeric cron fields followed by axonx exec --task NAME")
+                raise ValueError("Expected five numeric cron fields followed by a command")
             expression = " ".join(fields[:5])
             if not croniter.is_valid(expression):
                 raise ValueError(f"Invalid cron expression: {expression}")
             argv = shlex.split(fields[5], comments=False)
-            if argv[:2] != ["axonx", "exec"]:
-                raise ValueError("Only axonx exec --task NAME is supported")
-            arguments = argv[2:]
-            options = parse_arguments(arguments)
-            for option in arguments[::2]:
-                name = option[2:].replace("-", "_")
-                if name in TRANSPORT_OPTION_NAMES:
-                    raise ValueError(f"Client option is not supported in cron: {option}")
-            if not isinstance(options.get("task"), str) or not options["task"]:
-                raise ValueError("A cron command requires --task NAME")
-            entries.append(CronEntry(number, expression, tuple(arguments)))
+            if not argv or not argv[0]:
+                raise ValueError("A cron entry requires a command")
+            entries.append(CronEntry(number, expression, tuple(argv)))
         except ValueError as exc:
             raise ValueError(f"Cron line {number}: {exc}") from exc
     return tuple(entries)

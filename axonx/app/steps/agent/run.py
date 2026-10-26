@@ -7,7 +7,7 @@ from ...components.component_type import ComponentType
 from ...components.job.events import ResultEvent
 from ...protocol import AGENT_DEPTH_ARGUMENT
 from ..base import BaseStep
-from ....common.registry import provider
+from ...registry import provider
 
 
 @provider("agent_stream")

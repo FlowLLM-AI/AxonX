@@ -8,9 +8,9 @@ from typing import Any
 
 from ..job.models import JobInfo, JobResponse
 from ...protocol import AXONX_SERVICE_TARGET
-from ....common.async_work import complete_on_cancel
-from ....common.connection import ConnectionOptions, default_target
-from ....common.constants import AXONX_DEFAULT_REQUEST_TIMEOUT
+from ...async_work import complete_on_cancel
+from ...connection import ConnectionOptions, default_target
+from ...constants import AXONX_DEFAULT_REQUEST_TIMEOUT
 
 
 class RemoteServiceError(RuntimeError):

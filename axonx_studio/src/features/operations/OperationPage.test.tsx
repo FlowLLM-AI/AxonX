@@ -8,7 +8,7 @@ import OperationPage from "./OperationPage";
 import { DataUpdateProgress } from "./DataUpdateProgress";
 import { getTaskStatus } from "../tasks/api";
 import ReportPage from "./ReportPage";
-import { TaskRunReport } from "./TaskRunReport";
+import { TaskReport } from "./TaskReport";
 import { taskStatus, studioPages } from "../../playground/fixtures";
 import { parseOnlineReport } from "../online/types";
 
@@ -78,8 +78,8 @@ describe("online pipeline", () => {
     );
     expect(onOpenTask).toHaveBeenCalledWith("composite#playground_online#demo");
     expect(container.querySelector(".online-filters")).toBeNull();
-    expect(container.querySelector(".run-index-header")).not.toBeNull();
-    expect(container.querySelectorAll(".run-index article")).toHaveLength(1);
+    expect(container.querySelector(".task-index-header")).not.toBeNull();
+    expect(container.querySelectorAll(".task-index article")).toHaveLength(1);
     expect(container.textContent).not.toContain("Synthetic nightly comparison");
     await render("composite#playground_compare#demo", "nightly");
     expect(container.textContent).toContain("onlinePipeline.nightly");
@@ -145,18 +145,18 @@ it("keeps categories separate even with a direct link to another category", asyn
   await render("composite#playground_compare#demo", "online");
   expect(container.querySelector(".online-report")).toBeNull();
   expect(container.textContent).toContain("operations.empty");
-  expect(container.querySelectorAll(".run-index article")).toHaveLength(1);
+  expect(container.querySelectorAll(".task-index article")).toHaveLength(1);
 });
 
 it("keeps all actual Tasks visible without submission configuration", async () => {
   await render("api#playground_download#demo", "data");
-  expect(container.querySelectorAll(".run-index article")).toHaveLength(2);
+  expect(container.querySelectorAll(".task-index article")).toHaveLength(2);
   expect(container.querySelector(".online-report")?.textContent).toContain(
     "Synthetic data update",
   );
   const scheduled = [
     ...container.querySelectorAll<HTMLButtonElement>(
-      ".run-index article button",
+      ".task-index article button",
     ),
   ].find((button) => button.textContent?.includes("Scheduled data update"))!;
   await act(async () => scheduled.click());
@@ -262,7 +262,7 @@ it.each(["online", "nightly", "data"])(
     expect(container.querySelector(".operation-manual")).toBeNull();
     expect(container.querySelector(".operation-index-label")).toBeNull();
     expect(
-      container.querySelectorAll(".run-index article").length,
+      container.querySelectorAll(".task-index article").length,
     ).toBeGreaterThan(0);
     expect(container.querySelectorAll(".operation-index-list")).toHaveLength(1);
     expect(container.querySelector(".operation-group")).toBeNull();
@@ -325,7 +325,7 @@ it("omits internal bookkeeping steps but retains counts, coverage and errors", a
   expect(container.querySelectorAll("tbody tr")).toHaveLength(3);
 });
 
-it("switches download results and logs together and refuses a replaced child Run", async () => {
+it("switches download results and logs together and refuses a replaced child Task", async () => {
   const parent = await getTaskStatus("api#playground_download#demo");
   const child = taskStatus(
     "api",
@@ -342,7 +342,7 @@ it("switches download results and logs together and refuses a replaced child Run
       node_name: "download_tushare_static",
       task: "static",
       task_id: child.task_id,
-      run_id: child.run_id,
+      started_at: child.started_at,
       attempt: 1,
       state: child.state,
       exit_code: 0,
@@ -355,15 +355,15 @@ it("switches download results and logs together and refuses a replaced child Run
     ...parent.children[0],
     node_name: "download_tushare_daily",
     task_id: daily.task_id,
-    run_id: daily.run_id,
+    started_at: daily.started_at,
   });
   parent.output_params = { artifacts: {} };
-  const logRuns: string[] = [];
+  const logStartTimes: string[] = [];
   configureClient(
     new AxonXClient(async (url, init) => {
       const args = JSON.parse(String(init?.body)).arguments;
       if (String(url).includes("read_task_log")) {
-        logRuns.push(args.run_id);
+        logStartTimes.push(args.started_at);
         return Response.json({
           success: true,
           answer: {
@@ -389,7 +389,7 @@ it("switches download results and logs together and refuses a replaced child Run
     }, false),
   );
   await act(async () =>
-    root.render(<TaskRunReport task={parent} onOpenTask={onOpenTask} />),
+    root.render(<TaskReport task={parent} onOpenTask={onOpenTask} />),
   );
   // A composite's own output contains no API summary; overview must use both owned children.
   expect(
@@ -425,7 +425,7 @@ it("switches download results and logs together and refuses a replaced child Run
   await act(async () =>
     container.querySelector<HTMLButtonElement>('[id$="-logs-tab"]')!.click(),
   );
-  expect(logRuns).toEqual([child.run_id]);
+  expect(logStartTimes).toEqual([child.started_at]);
   await act(async () =>
     container
       .querySelector<HTMLButtonElement>('[id$="-interfaces-tab"]')!
@@ -440,15 +440,65 @@ it("switches download results and logs together and refuses a replaced child Run
   expect(resultPanel.textContent).not.toContain("stock_basic");
   expect(resultPanel.querySelector("details")).toBeNull();
 
-  child.run_id = "replacement";
+  child.started_at = "2026-01-04T00:00:00Z";
   await act(async () =>
     root.render(
-      <TaskRunReport key="refresh" task={parent} onOpenTask={onOpenTask} />,
+      <TaskReport key="refresh" task={parent} onOpenTask={onOpenTask} />,
     ),
   );
   await chooseStatic();
   expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-    "onlinePipeline.replacedChildRun",
+    "onlinePipeline.replacedChild",
   );
   expect(container.querySelector('[id$="-result-panel"] pre')).toBeNull();
+});
+
+it("selects a shared Task by ID when another branch retains an older start time", async () => {
+  const parent = taskStatus("api", "api#parent#test", "Parent");
+  const first = taskStatus("api", "api#first#test", "First");
+  const second = taskStatus("api", "api#second#test", "Second");
+  const child = taskStatus("api", "api#shared#test", "Shared");
+  child.output_params = { result: 777 };
+  const record = (task: typeof child, name = task.reg_name) => ({
+    task: task.reg_name,
+    task_id: task.task_id,
+    node_name: name,
+    started_at: task.started_at,
+    attempt: 1,
+    state: task.state,
+    exit_code: 0,
+    error: "",
+  });
+  parent.children = [record(first), record(second)];
+  first.children = [
+    { ...record(child, "old-child"), started_at: "2025-01-01T00:00:00Z" },
+  ];
+  second.children = [record(child, "current-child")];
+  const tasks = new Map(
+    [parent, first, second, child].map((task) => [task.task_id, task]),
+  );
+  configureClient(
+    new AxonXClient(async (_url, init) => {
+      const args = JSON.parse(String(init?.body)).arguments;
+      return Response.json({ success: true, answer: tasks.get(args.task_id) });
+    }, false),
+  );
+  await act(async () =>
+    root.render(<TaskReport task={parent} onOpenTask={onOpenTask} />),
+  );
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('[role="combobox"]')!.click(),
+  );
+  const options = [
+    ...document.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+  ];
+  expect(
+    options.filter((option) => option.textContent?.includes("child")),
+  ).toHaveLength(1);
+  await act(async () =>
+    options.find((option) => option.textContent === "current-child")!.click(),
+  );
+  expect(
+    container.querySelector('[id$="-result-panel"]')?.textContent,
+  ).toContain("777");
 });

@@ -1,7 +1,7 @@
-"""Shared and general-purpose steps."""
+"""General-purpose application Steps."""
 
-from .cli import CliStep
 from .help import HelpStep
 from .version import VersionStep
+from .command import CommandStep
 
-__all__ = ["CliStep", "HelpStep", "VersionStep"]
+__all__ = ["CommandStep", "HelpStep", "VersionStep"]

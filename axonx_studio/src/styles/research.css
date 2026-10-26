@@ -12,26 +12,26 @@
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-.run-index {
+.task-index {
   border-right: 1px solid var(--line);
   background: var(--surface-2);
 }
-.run-index > header {
+.task-index > header {
   display: grid;
   gap: 13px;
   padding: 18px;
   border-bottom: 1px solid var(--line);
 }
-.run-index > header > div {
+.task-index > header > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.run-index > header strong {
+.task-index > header strong {
   font-size: 12px;
   letter-spacing: 0.08em;
 }
-.run-index > header span {
+.task-index > header span {
   min-width: 25px;
   padding: 4px 7px;
   border-radius: 7px;
@@ -42,7 +42,7 @@
     monospace;
   text-align: center;
 }
-.run-index label {
+.task-index label {
   height: 36px;
   display: flex;
   align-items: center;
@@ -52,23 +52,23 @@
   border-radius: 9px;
   background: var(--surface);
 }
-.run-index label svg {
+.task-index label svg {
   width: 15px;
   color: var(--faint);
 }
-.run-index input {
+.task-index input {
   min-width: 0;
   border: 0;
   outline: 0;
   color: var(--ink);
   background: transparent;
 }
-.run-index > div {
+.task-index > div {
   max-height: 650px;
   padding: 8px;
   overflow: auto;
 }
-.run-index > div > button {
+.task-index > div > button {
   width: 100%;
   display: grid;
   grid-template-columns: 8px minmax(0, 1fr) 17px;
@@ -82,51 +82,51 @@
   text-align: left;
   cursor: pointer;
 }
-.run-index > div > button:hover,
-.run-index > div > button.active {
+.task-index > div > button:hover,
+.task-index > div > button.active {
   background: var(--surface);
 }
-.run-index > div > button.active {
+.task-index > div > button.active {
   box-shadow: 0 4px 16px rgba(16, 37, 30, 0.06);
 }
-.run-index > div > button > i {
+.task-index > div > button > i {
   width: 7px;
   height: 7px;
   margin-top: 5px;
   border-radius: 50%;
   background: var(--line);
 }
-.run-index > div > button.active > i {
+.task-index > div > button.active > i {
   background: var(--accent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
-.run-index > div > button svg {
+.task-index > div > button svg {
   width: 15px;
   color: var(--faint);
 }
-.run-index > div > button strong,
-.run-index > div > button code,
-.run-index > div > button small {
+.task-index > div > button strong,
+.task-index > div > button code,
+.task-index > div > button small {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.run-index > div > button strong {
+.task-index > div > button strong {
   color: var(--ink);
   font-size: 13px;
 }
-.run-index > div > button code {
+.task-index > div > button code {
   margin-top: 5px;
   color: var(--accent);
   font-size: 10px;
 }
-.run-index > div > button small {
+.task-index > div > button small {
   margin-top: 5px;
   color: var(--faint);
   font-size: 10px;
 }
-.run-loading {
+.task-loading {
   display: grid;
   place-items: center;
   padding: 60px;
@@ -881,11 +881,11 @@
   .research-layout {
     display: block;
   }
-  .run-index {
+  .task-index {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
-  .run-index > div {
+  .task-index > div {
     max-height: 230px;
   }
   .research-canvas {
@@ -934,47 +934,47 @@
 }
 
 /* ETL dataset index and detail */
-.run-index-heading {
+.task-index-heading {
   min-width: 0;
   display: block !important;
 }
-.run-index > header .run-index-heading strong {
+.task-index > header .task-index-heading strong {
   font-size: 18px;
   letter-spacing: -0.02em;
 }
-.run-item-avatar.run-kind-etl {
+.task-item-avatar.task-kind-etl {
   color: #30705f;
   background: #dff2ec;
 }
-.run-item-avatar.run-kind-analysis {
+.task-item-avatar.task-kind-analysis {
   color: #4260bb;
   background: #e8edff;
 }
-.run-item-avatar.run-kind-train {
+.task-item-avatar.task-kind-train {
   color: #7652a8;
   background: #f0e7ff;
 }
-.run-item-avatar.run-kind-predict {
+.task-item-avatar.task-kind-predict {
   color: #147b8d;
   background: #dff3f7;
 }
-.run-item-avatar.run-kind-backtest {
+.task-item-avatar.task-kind-backtest {
   color: #9b6821;
   background: #fff0d8;
 }
-:root[data-theme="dark"] .run-item-avatar {
+:root[data-theme="dark"] .task-item-avatar {
   filter: saturate(0.8) brightness(0.75);
 }
 .research-layout {
   grid-template-columns: 320px minmax(0, 1fr);
 }
-.run-index {
+.task-index {
   position: relative;
   display: flex;
   min-height: 0;
   flex-direction: column;
 }
-.run-index > header.run-index-header {
+.task-index > header.task-index-header {
   min-height: 76px;
   display: flex;
   align-items: center;
@@ -983,29 +983,29 @@
   flex: none;
   padding: 13px 17px;
 }
-.run-index-heading small,
-.run-index-heading strong {
+.task-index-heading small,
+.task-index-heading strong {
   display: block;
 }
-.run-index-heading small {
+.task-index-heading small {
   color: var(--accent);
   font:
     700 11px "JetBrains Mono",
     monospace;
   letter-spacing: 0.1em;
 }
-.run-index-heading strong {
+.task-index-heading strong {
   margin-top: 5px;
   color: var(--ink);
   font-size: 18px;
   letter-spacing: -0.02em;
 }
-.run-index-tools {
+.task-index-tools {
   display: flex !important;
   align-items: center;
   gap: 3px;
 }
-.run-index-tools > em {
+.task-index-tools > em {
   padding: 3px 7px;
   border-radius: 999px;
   color: var(--accent);
@@ -1014,7 +1014,7 @@
     normal 700 11px "JetBrains Mono",
     monospace;
 }
-.run-index-refresh {
+.task-index-refresh {
   width: 34px;
   height: 34px;
   display: grid;
@@ -1026,14 +1026,14 @@
   background: transparent;
   cursor: pointer;
 }
-.run-index-refresh:hover {
+.task-index-refresh:hover {
   color: var(--accent);
   background: var(--accent-soft);
 }
-.run-index-refresh svg {
+.task-index-refresh svg {
   width: 18px;
 }
-.run-index > label.run-index-search {
+.task-index > label.task-index-search {
   height: 40px;
   display: flex;
   align-items: center;
@@ -1045,11 +1045,11 @@
   border-radius: 9px;
   background: var(--surface);
 }
-.run-index-search svg {
+.task-index-search svg {
   width: 16px;
   color: var(--faint);
 }
-.run-index-search input {
+.task-index-search input {
   min-width: 0;
   width: 100%;
   border: 0;
@@ -1058,12 +1058,12 @@
   background: transparent;
   font-size: 14px;
 }
-.run-index > div {
+.task-index > div {
   flex: 1;
   max-height: none;
   padding: 10px;
 }
-.run-index > div > article {
+.task-index > div > article {
   position: relative;
   display: flex;
   min-height: 86px;
@@ -1074,19 +1074,19 @@
   color: var(--muted);
   background: transparent;
 }
-.run-index > div > article:hover {
+.task-index > div > article:hover {
   background: var(--surface);
 }
-.run-index > div > article.active {
+.task-index > div > article.active {
   border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
   color: var(--accent);
   background: var(--surface);
   box-shadow: 0 6px 18px rgba(20, 48, 38, 0.05);
 }
-.run-index > div > article.checked {
+.task-index > div > article.checked {
   background: var(--accent-soft);
 }
-.run-main {
+.task-main {
   min-width: 0;
   width: 100%;
   display: grid;
@@ -1101,40 +1101,40 @@
   text-align: left;
   cursor: pointer;
 }
-.run-index.selecting .run-main {
+.task-index.selecting .task-main {
   grid-template-columns: 34px minmax(0, 1fr);
   padding-left: 5px;
 }
-.run-main > span {
+.task-main > span {
   min-width: 0;
 }
-.run-main strong,
-.run-main code,
-.run-main small {
+.task-main strong,
+.task-main code,
+.task-main small {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.run-main strong {
+.task-main strong {
   color: var(--ink);
   font-size: 14px;
 }
-.run-main code {
+.task-main code {
   margin-top: 6px;
   color: var(--accent);
   font-size: 10px;
 }
-.run-main small {
+.task-main small {
   margin-top: 6px;
   color: var(--faint);
   font-size: 11px;
 }
-.run-main > svg:last-child {
+.task-main > svg:last-child {
   width: 17px;
   color: var(--faint);
 }
-.run-check {
+.task-check {
   width: 22px;
   height: 22px;
   display: grid;
@@ -1149,14 +1149,14 @@
   background: var(--surface);
   cursor: pointer;
 }
-.run-check svg {
+.task-check svg {
   width: 14px;
 }
-.run-index article.checked .run-check {
+.task-index article.checked .task-check {
   border-color: var(--accent);
   background: var(--accent);
 }
-.run-selection {
+.task-selection {
   min-height: 54px;
   display: flex;
   align-items: center;
@@ -1165,17 +1165,17 @@
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
 }
-.run-selection > span {
+.task-selection > span {
   margin-right: auto;
   color: var(--muted);
   font-size: 11px;
 }
-.run-selection > span strong {
+.task-selection > span strong {
   margin-right: 3px;
   color: var(--accent);
   font-family: "JetBrains Mono", monospace;
 }
-.run-selection button {
+.task-selection button {
   height: 32px;
   padding: 0 8px;
   border: 0;
@@ -1186,18 +1186,18 @@
   font-weight: 700;
   cursor: pointer;
 }
-.run-selection button:disabled {
+.task-selection button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-.run-selection button.danger {
+.task-selection button.danger {
   display: flex;
   align-items: center;
   gap: 5px;
   color: var(--danger);
   background: var(--danger-soft);
 }
-.run-selection button.danger svg {
+.task-selection button.danger svg {
   width: 13px;
 }
 .task-version-context-menu {
@@ -1210,7 +1210,7 @@
   }
 }
 @media (max-width: 760px) {
-  .run-index > div {
+  .task-index > div {
     max-height: 260px;
   }
 }

@@ -59,7 +59,7 @@ export function ComparePipeline({
     ? parent.steps.filter((step) => step.group === "download")
     : model?.steps || [];
   const identity = (node: TaskNode) =>
-    `${node.record.task_id}:${node.record.run_id}`;
+    `${node.record.task_id}:${node.record.started_at}`;
   const stageNodes =
     currentStage === "logs"
       ? []
@@ -218,7 +218,7 @@ export function ComparePipeline({
           >
             {logIds[scope] && !source && (
               <option value={logIds[scope]}>
-                {t("onlinePipeline.replacedRun")}
+                {t("onlinePipeline.restartedTask")}
               </option>
             )}
             {stageNodes.map((node) => (
@@ -246,7 +246,7 @@ export function ComparePipeline({
   );
   const logPanel = logs ? (
     <TaskLogPanel
-      key={`${target}:${logs.task_id}:${logs.run_id}`}
+      key={`${target}:${logs.task_id}:${logs.started_at}`}
       task={logs}
       target={target}
       toolbar={logToolbar}
@@ -258,10 +258,10 @@ export function ComparePipeline({
       )}
       {source || logIds[scope] ? (
         <p className="online-warning" role="alert">
-          {source?.error || t("onlinePipeline.replacedRun")}
+          {source?.error || t("onlinePipeline.restartedTask")}
         </p>
       ) : selectedSteps.some((step) => step.state === "skipped") ? null : (
-        <p className="empty-state">{t("nightly.noStageRun")}</p>
+        <p className="empty-state">{t("nightly.noStageTask")}</p>
       )}
     </>
   );

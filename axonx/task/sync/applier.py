@@ -9,12 +9,11 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
-from ...common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
-from ...common.fs.snapshot import snapshot_file
-from ...common.workspace import Workspace
+from ..storage.files import snapshot_file
 from ..models.lifecycle import current_children
 from ..storage.workspace import (
     parse_task_directory,
+    resolve_relative_path,
     read_entry,
     read_task_metadata,
     task_directory,
@@ -32,9 +31,15 @@ class TaskArchiveApplier:
     def __init__(
         self,
         workspace_path: Path,
-        transfer_budget_bytes: int = DEFAULT_TRANSFER_BUDGET_BYTES,
+        transfer_budget_bytes: int = 536870912,
     ) -> None:
-        self.workspace = Workspace(workspace_path, transfer_budget_bytes=transfer_budget_bytes)
+        if (
+            isinstance(transfer_budget_bytes, bool)
+            or not isinstance(transfer_budget_bytes, int)
+            or transfer_budget_bytes <= 0
+        ):
+            raise ValueError("transfer_budget_bytes must be a positive integer")
+        self.root = Path(workspace_path).expanduser().resolve()
         self.transfer_budget_bytes = transfer_budget_bytes
 
     def apply(
@@ -46,7 +51,7 @@ class TaskArchiveApplier:
         removed = self._deletions(deletions)
         if archive_path is not None and archive_path.stat().st_size > self.transfer_budget_bytes:
             raise ValueError(f"Sync archive exceeds {self.transfer_budget_bytes} bytes")
-        with tempfile.TemporaryDirectory(prefix=".axonx-sync-", dir=self.workspace.root) as temporary:
+        with tempfile.TemporaryDirectory(prefix=".axonx-sync-", dir=self.root) as temporary:
             staging = Path(temporary)
             extracted = staging / "incoming"
             replacements, files = self._extract(archive_path, extracted)
@@ -114,11 +119,11 @@ class TaskArchiveApplier:
             raise ValueError(f"At most {MAX_SYNC_DELETIONS} task deletions are allowed")
         for relative_path in unique:
             parse_task_directory(relative_path)
-            self.workspace.resolve_deletable(relative_path)
+            resolve_relative_path(self.root, relative_path)
         return unique
 
     def _hydrate(self, root: Path, tasks: set[str]) -> None:
-        """Reuse only explicitly versioned files from the same existing Run."""
+        """Reuse only explicitly versioned files from the same current Task."""
         expanded = 10240 + sum(512 + ((p.stat().st_size + 511) // 512) * 512 for p in root.rglob("*") if p.is_file())
         for relative_path in tasks:
             directory = root / relative_path
@@ -126,7 +131,7 @@ class TaskArchiveApplier:
             status = read_task_metadata(directory, task_id)
             if status is None or status.replica is None or status.replica.snapshot is None:
                 continue
-            previous = read_task_metadata(self.workspace.root / relative_path, task_id)
+            previous = read_task_metadata(self.root / relative_path, task_id)
             for name, record in status.replica.files.items():
                 path = Path(name)
                 if path.is_absolute() or ".." in path.parts or path.as_posix() != name:
@@ -137,10 +142,10 @@ class TaskArchiveApplier:
                 expanded += 512 + ((record.size + 511) // 512) * 512
                 if expanded > self.transfer_budget_bytes:
                     raise ValueError("Hydrated replica exceeds the transfer budget")
-                old = previous.replica if previous is not None and previous.run_id == status.run_id else None
+                old = previous.replica if previous is not None and previous.started_at == status.started_at else None
                 if old is None:
                     raise ValueError(f"Missing replica delta base: {task_id}/{name}")
-                source = self.workspace.root / relative_path / name
+                source = self.root / relative_path / name
                 if old.files.get(name) != record or any(p.is_symlink() for p in (source, *source.parents)):
                     raise ValueError(f"Replica delta base differs: {task_id}/{name}")
                 if source.stat().st_size != record.size:
@@ -163,17 +168,17 @@ class TaskArchiveApplier:
                 if (
                     parent is None
                     or parent.replica is None
-                    or parent.run_id != snapshot.root_run_id
+                    or parent.started_at != snapshot.root_started_at
                     or parent.replica.snapshot != snapshot
                 ):
                     raise ValueError("Live snapshot parent identity differs")
                 for child in current_children(status):
-                    if child.task_id is None:
+                    if child.task_id is None or child.started_at is None:
                         continue
                     linked = read_entry(root, child.task_id)
                     if (
                         linked is None
-                        or linked.run_id != child.run_id
+                        or linked.started_at != child.started_at
                         or linked.replica is None
                         or linked.replica.snapshot != snapshot
                     ):
@@ -193,7 +198,7 @@ class TaskArchiveApplier:
         deleted: list[str] = []
         try:
             for relative_path in targets:
-                target = self.workspace.resolve_deletable(relative_path)
+                target = resolve_relative_path(self.root, relative_path)
                 if not target.exists():
                     continue
                 if target.is_symlink() or not target.is_dir():
@@ -208,18 +213,24 @@ class TaskArchiveApplier:
                 new = incoming.replica.snapshot if incoming is not None and incoming.replica is not None else None
                 if old is not None and incoming is not None:
                     # Completed shared children can later sync independently.
-                    # A new live parent may also reference the same child Run.
+                    # A new live parent may also reference the same child execution.
                     if new is None:
                         conflict = not (
-                            status.run_id == incoming.run_id and status.state.is_terminal and incoming.state.is_terminal
+                            status.started_at == incoming.started_at
+                            and status.state.is_terminal
+                            and incoming.state.is_terminal
                         )
                     else:
                         conflict = new.source_id != old.source_id or new.revision <= old.revision
                     if conflict:
                         raise ValueError(f"Stale or conflicting live snapshot: {relative_path}")
                 if status is not None and status.replica is not None and incoming is not None:
-                    if status.run_id == incoming.run_id and status.state.is_terminal and not incoming.state.is_terminal:
-                        raise ValueError(f"Cannot regress a terminal Run: {relative_path}")
+                    if (
+                        status.started_at == incoming.started_at
+                        and status.state.is_terminal
+                        and not incoming.state.is_terminal
+                    ):
+                        raise ValueError(f"Cannot regress a terminal Task: {relative_path}")
                 if status is not None and not status.state.is_terminal and (old is None or new is None):
                     raise ValueError(f"Cannot overwrite active Task: {relative_path}")
                 backup = backup_root / relative_path
@@ -232,7 +243,7 @@ class TaskArchiveApplier:
                 incoming = extracted / relative_path
                 if not incoming.is_dir():
                     raise ValueError(f"Sync archive has no files for task: {relative_path}")
-                target = self.workspace.resolve_deletable(relative_path)
+                target = resolve_relative_path(self.root, relative_path)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(incoming, target)
                 installed.append(target)

@@ -8,7 +8,7 @@ import { listTaskStatuses } from "../tasks/api";
 import { useRefresh } from "../../shared/hooks/useRefresh";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { TaskSteps } from "../tasks/TaskSteps";
-import { TaskRunIssues } from "../tasks/TaskRunIssues";
+import { TaskIssues } from "../tasks/TaskIssues";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
 import { Status } from "../tasks/TaskRow";
 import type { TaskMetadata } from "../tasks/types";
@@ -165,7 +165,7 @@ export function OnlineWorkbench({
     (node) =>
       parent.children.some(
         (record) =>
-          record.run_id === node.record.run_id &&
+          record.started_at === node.record.started_at &&
           record.task_id === node.record.task_id,
       ) && node.status?.task_type === "etl",
   );
@@ -247,7 +247,9 @@ export function OnlineWorkbench({
       )}
     </span>
   );
-  const emptyRun = <p className="empty-state">{t("onlineWorkbench.noRun")}</p>;
+  const emptyRun = (
+    <p className="empty-state">{t("onlineWorkbench.noTaskRecord")}</p>
+  );
   const emptyStage = (
     <p className="empty-state">{t("onlinePipeline.pending")}</p>
   );
@@ -380,7 +382,7 @@ export function OnlineWorkbench({
                     <TaskSteps filesOnly target={target} steps={publicSteps} />
                     {publicNodes.map((node) => (
                       <section
-                        key={node.record.run_id}
+                        key={node.record.task_id || node.record.node_name}
                         className="pipeline-step"
                       >
                         <header>
@@ -567,7 +569,7 @@ export function OnlineWorkbench({
           {error || runError}
         </div>
       )}
-      {live && <TaskRunIssues nodes={nodes} />}
+      {live && <TaskIssues nodes={nodes} />}
       <div className="online-day-summary">
         <span>
           {t("onlineWorkbench.submitted")}{" "}
@@ -684,13 +686,13 @@ function DailyLogs({
       ),
     );
   const included = new Set(
-    roots.map((record) => `${record.task_id}:${record.run_id}`),
+    roots.map((record) => `${record.task_id}:${record.started_at}`),
   );
-  // readTaskChildren returns parents before descendants, preserving exact Run ownership.
+  // readTaskChildren returns parents before descendants, preserving recorded child start times.
   for (const node of nodes)
-    if (included.has(`${node.record.task_id}:${node.record.run_id}`))
+    if (included.has(`${node.record.task_id}:${node.record.started_at}`))
       for (const child of node.status?.children || [])
-        included.add(`${child.task_id}:${child.run_id}`);
+        included.add(`${child.task_id}:${child.started_at}`);
   const tasks =
     scope === "data"
       ? [
@@ -698,14 +700,16 @@ function DailyLogs({
           ...nodes
             .filter(
               (node) =>
-                !included.has(`${node.record.task_id}:${node.record.run_id}`),
+                !included.has(
+                  `${node.record.task_id}:${node.record.started_at}`,
+                ),
             )
             .flatMap((node) => (node.status ? [node.status] : [])),
         ]
       : inference.flatMap((model) =>
           model.node?.status ? [model.node.status] : [],
         );
-  const current = tasks.find((task) => task.run_id === selected) || tasks[0];
+  const current = tasks.find((task) => task.task_id === selected) || tasks[0];
   const sourceLabel = (task: TaskMetadata) =>
     task === parent
       ? t("onlinePipeline.chainLog")
@@ -716,16 +720,16 @@ function DailyLogs({
         <label className="pipeline-log-source">
           {t("onlinePipeline.logSource")}
           <Select
-            value={current?.run_id || ""}
+            value={current?.task_id || ""}
             onChange={(event) => setSelected(event.target.value)}
           >
             {tasks.map((task) => (
-              <option key={task.run_id} value={task.run_id}>
+              <option key={task.task_id} value={task.task_id}>
                 {sourceLabel(task)}
                 {tasks.some(
                   (other) =>
                     other !== task && sourceLabel(other) === sourceLabel(task),
-                ) && ` · ${task.reg_name} · ${task.run_id}`}
+                ) && ` · ${task.reg_name} · ${task.started_at}`}
               </option>
             ))}
           </Select>
@@ -750,7 +754,7 @@ function DailyLogs({
   );
   return current ? (
     <TaskLogPanel
-      key={`${target}:${current.task_id}:${current.run_id}`}
+      key={`${target}:${current.task_id}:${current.started_at}`}
       task={current}
       target={target}
       toolbar={toolbar}

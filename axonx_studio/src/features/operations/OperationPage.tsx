@@ -8,9 +8,9 @@ import { formatDate } from "../tasks/format";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { useRefresh } from "../../shared/hooks/useRefresh";
 import { RailResizer } from "../../shared/ui/RailResizer";
-import { RunIndexControls } from "../../shared/ui/RunIndexControls";
+import { TaskIndexControls } from "../../shared/ui/TaskIndexControls";
 import { PipelineReport } from "../online/PipelineReport";
-import { TaskRunReport } from "./TaskRunReport";
+import { TaskReport } from "./TaskReport";
 import { OperationIndex } from "./OperationIndex";
 import type { ContextOption } from "../../app/types";
 
@@ -43,7 +43,7 @@ export default function OperationPage({
         onConnection(true);
         return tasks
           .filter(
-            (task) => task.category === page.category && !task.parent_run_id,
+            (task) => task.category === page.category && !task.parent_task_id,
           )
           .sort((a, b) =>
             (b.created_at || "").localeCompare(a.created_at || ""),
@@ -79,8 +79,8 @@ export default function OperationPage({
   return (
     <section className="workspace-page research-page online-workbench operations-workbench">
       <div className="research-layout">
-        <aside className="run-index rail-panel">
-          <RunIndexControls
+        <aside className="task-index rail-panel">
+          <TaskIndexControls
             eyebrow={t("operations.runHistory")}
             title={title}
             count={tasks.length}
@@ -93,7 +93,7 @@ export default function OperationPage({
           />
           <div className="rail-scroll">
             {loading && !data ? (
-              <span className="run-loading">
+              <span className="task-loading">
                 <LoaderCircle className="spin" />
               </span>
             ) : (
@@ -121,14 +121,14 @@ export default function OperationPage({
           {selected &&
             (page.view === "pipeline" ? (
               <PipelineReport
-                key={`${target}:${selected.task_id}:${selected.run_id}`}
+                key={`${target}:${selected.task_id}:${selected.started_at}`}
                 task={selected}
                 target={target}
                 onOpenTask={onOpenTask}
               />
             ) : (
-              <TaskRunReport
-                key={`${target}:${selected.task_id}:${selected.run_id}`}
+              <TaskReport
+                key={`${target}:${selected.task_id}:${selected.started_at}`}
                 task={selected}
                 target={target}
                 onOpenTask={onOpenTask}

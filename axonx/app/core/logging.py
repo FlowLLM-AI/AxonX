@@ -1,4 +1,4 @@
-"""Seven-day retention for process logs, Run logs, and rotated archives."""
+"""Seven-day retention for process logs, Task logs, and rotated archives."""
 
 from __future__ import annotations
 
@@ -15,14 +15,14 @@ import psutil
 LOG_RETENTION_SECONDS = 7 * 24 * 60 * 60
 LOG_CLEANUP_INTERVAL = 60 * 60
 _LOG_NAME = re.compile(
-    r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_(?P<pid>\d+)" + r"(?P<run>_[a-f0-9]{64})?(?P<archive>\..+)?\.log(?:\.zip)?"
+    r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_(?P<pid>\d+)" + r"(?P<task>_[a-f0-9]{64})?(?P<archive>\..+)?\.log(?:\.zip)?"
 )
 
 
 def cleanup_log_files(directory: Path) -> None:
-    """Remove expired AxonX files, skipping live process logs and locked Runs.
+    """Remove expired AxonX files, skipping live process logs and locked Task logs.
 
-    Run sinks hold an advisory lock for their lifetime, including quiet periods.
+    Task sinks hold an advisory lock for their lifetime, including quiet periods.
     Process logs rotate, so their live owner PID protects the current log instead.
     """
     cutoff = time() - LOG_RETENTION_SECONDS
@@ -35,7 +35,7 @@ def cleanup_log_files(directory: Path) -> None:
         if match is None:
             continue
         if (
-            match["run"] is None
+            match["task"] is None
             and match["archive"] is None
             and path.suffix == ".log"
             and psutil.pid_exists(int(match["pid"]))

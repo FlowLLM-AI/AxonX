@@ -5,7 +5,7 @@ from copy import deepcopy
 from typing import Any
 
 from .models import JobResponse
-from ....common.config import deep_merge_config
+from ...config.loader import deep_merge_config
 
 
 class RuntimeContext(dict[str, Any]):

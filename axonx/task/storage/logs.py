@@ -5,8 +5,7 @@ from __future__ import annotations
 import codecs
 from pathlib import Path
 
-from ...common.constants import AXONX_DEFAULT_ENCODING
-from ...common.logs import LogChunk
+from ..models.logs import LogChunk
 from ..models.lifecycle import TaskMetadata
 from .events import LOG_WINDOW_BYTES
 from .workspace import read_entry, task_path
@@ -49,7 +48,7 @@ class TaskLogReader:
         local = -1 if offset < 0 or reset else offset - log.start
         chunk = TaskLogReader(directory).read(path, local, limit)
         current = read_entry(workspace, status.task_id)
-        if current is None or current.run_id != status.run_id or current.replica != status.replica:
+        if current is None or current.started_at != status.started_at or current.replica != status.replica:
             raise ValueError("Replica changed while reading logs; retry the current snapshot")
         return chunk.model_copy(
             update={
@@ -97,7 +96,7 @@ class TaskLogReader:
         while end < len(data) and data[end] & 0b1100_0000 == 0b1000_0000:
             end += 1
         data = data[:end]
-        decoder = codecs.getincrementaldecoder(AXONX_DEFAULT_ENCODING)(errors="replace")
+        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         content = decoder.decode(data, final=False)
         pending, _ = decoder.getstate()
         consumed = len(data) - len(pending)

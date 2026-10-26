@@ -263,8 +263,8 @@ export function CommitProvenance({ commit }: { commit: OnlineCommit }) {
           <code>{commit.commit_id}</code>
         </span>
         <span>
-          <small>Run ID</small>
-          <code>{commit.run_id}</code>
+          <small>{t("started")}</small>
+          <code>{commit.started_at}</code>
         </span>
         {Object.entries(commit.model_identity).map(([key, value]) => (
           <span key={key}>

@@ -10,7 +10,7 @@ from pathlib import Path
 import polars as pl
 import pyarrow.parquet as pq
 
-from ...common.fs.snapshot import snapshot_file
+from ..storage.files import snapshot_file
 from ..models.artifacts import fingerprint
 from ..models.lifecycle import (
     DisplayReplica,
@@ -48,7 +48,9 @@ COMPLETE_FILES = {
 def _refresh_snapshot(metadata, snapshot, remote, destination):
     """Refresh only metadata when the complete remote publication is unchanged."""
     metadata.log_path = ""
-    metadata.replica = DisplayReplica.model_validate({key: value for key, value in remote.items() if key != "run_id"})
+    metadata.replica = DisplayReplica.model_validate(
+        {key: value for key, value in remote.items() if key != "started_at"}
+    )
     metadata.replica.snapshot = snapshot
     write_task_metadata(destination, metadata)
     item = task_file(destination / METADATA_FILE, METADATA_FILE)
@@ -87,7 +89,7 @@ def prepare_replica(
     if (
         snapshot
         and remote
-        and remote.get("run_id") == metadata.run_id
+        and remote.get("started_at") == metadata.started_at.isoformat()
         and remote.get("source_revision") == identity
         and remote.get("policy_revision") == policy_revision(budget)
     ):
@@ -236,8 +238,8 @@ def prepare_replica(
 
     def check_source():
         current = read_entry(root, task_id)
-        if current is None or current.run_id != metadata.run_id:
-            raise SnapshotChangedError(f"Task Run changed during capture: {task_id}")
+        if current is None or current.started_at != metadata.started_at:
+            raise SnapshotChangedError(f"Task restarted during capture: {task_id}")
         if snapshot is None and before != plan_task(root, task_id):
             raise SnapshotChangedError(f"Task changed during replica verification: {task_id}")
         for item in before.files:
@@ -250,7 +252,7 @@ def prepare_replica(
     prepared = TaskPlan(items, sum(item.archived_bytes for item in items))
     if prepared.size > limit:
         raise ReplicaBudgetError(f"Replica manifest exceeds the transfer budget: {task_id}")
-    if snapshot and remote and remote.get("run_id") == metadata.run_id:
+    if snapshot and remote and remote.get("started_at") == metadata.started_at.isoformat():
         for name, record in metadata.replica.files.items():
             if remote.get("files", {}).get(name) == record.model_dump(mode="json"):
                 (destination / name).unlink()
@@ -265,22 +267,22 @@ def prepare_replica(
 
 
 def task_group(root: Path, task_id: str) -> dict:
-    """Pin children by Run ID; never silently substitute a newer named child."""
+    """Check child start times; never silently substitute a restarted child."""
     result = {}
 
-    def visit(identity, run_id=None):
+    def visit(identity, started_at=None):
         status = read_entry(root, identity)
-        if status is None or status.replica is not None or (run_id is not None and status.run_id != run_id):
-            raise SnapshotChangedError(f"Live source Run is unavailable: {identity}/{run_id}")
+        if status is None or status.replica is not None or (started_at is not None and status.started_at != started_at):
+            raise SnapshotChangedError(f"Live source Task is unavailable: {identity}/{started_at}")
         previous = result.get(identity)
         if previous is not None:
-            if previous.run_id != status.run_id:
-                raise SnapshotChangedError(f"Conflicting child Runs: {identity}")
+            if previous.started_at != status.started_at:
+                raise SnapshotChangedError(f"Conflicting child start times: {identity}")
             return
         result[identity] = status
         for child in current_children(status):
-            if child.task_id:
-                visit(child.task_id, child.run_id)
+            if child.task_id and child.started_at is not None:
+                visit(child.task_id, child.started_at)
 
     visit(task_id)
     return result
@@ -307,7 +309,7 @@ def prepare_group(
     snapshot = LiveSnapshot(
         source_id=fingerprint({"host": socket.gethostname(), "workspace": str(root.resolve())}),
         root_task_id=task_id,
-        root_run_id=group[task_id].run_id,
+        root_started_at=group[task_id].started_at,
         captured_at=datetime.now(UTC),
         revision=time.time_ns(),
     )
@@ -329,6 +331,6 @@ def prepare_group(
         raise ReplicaBudgetError(f"Task group exceeds the transfer budget: {task_id}")
     for identity, status in group.items():
         current = read_entry(root, identity)
-        if current is None or current.run_id != status.run_id:
-            raise SnapshotChangedError(f"Task Run changed during capture: {identity}")
+        if current is None or current.started_at != status.started_at:
+            raise SnapshotChangedError(f"Task restarted during capture: {identity}")
     return plans

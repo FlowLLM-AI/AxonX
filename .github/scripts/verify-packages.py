@@ -27,8 +27,8 @@ def read_project(source: Path) -> dict:
     config = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8"))
     project = config["project"]
     if "version" in project.get("dynamic", []):
-        assert config["tool"]["setuptools"]["dynamic"]["version"]["attr"] == "axonx._version.VERSION"
-        project["version"] = runpy.run_path(str(source / "axonx/_version.py"))["VERSION"]
+        assert config["tool"]["setuptools"]["dynamic"]["version"]["attr"] == "axonx._version.__version__"
+        project["version"] = runpy.run_path(str(source / "axonx/_version.py"))["__version__"]
     return project
 
 
@@ -133,10 +133,12 @@ def verify_installation() -> None:
             assert files.joinpath("app/config/remote.yaml").is_file()
             for language in ("en", "zh"):
                 guide = files.joinpath("app/components/agent/guides", f"{language}.md")
-                assert guide.read_bytes() == (source / "docs" / language / "dev_guide.md").read_bytes()
+                assert (
+                    guide.read_bytes() == (source / "axonx/app/components/agent/guides" / f"{language}.md").read_bytes()
+                )
         print(f"Verified installation: {project['name']} {distribution.version}")
 
-    from axonx.app.config.resolver import ConfigResolver
+    from axonx.app.config.resolver import resolve_app_config
     from axonx.plugin.discovery import (
         get_installed_plugin,  # pylint: disable=import-outside-toplevel
     )
@@ -146,7 +148,7 @@ def verify_installation() -> None:
         assert info.error is None, info.error
         assert info.tasks, f"Plugin {plugin} has no tasks"
         if "axonx.configs" in read_project(source).get("entry-points", {}):
-            assert ConfigResolver().load(plugin), f"Plugin {plugin} config did not load"
+            assert resolve_app_config(config=plugin, log_config=False), f"Plugin {plugin} config did not load"
 
 
 if __name__ == "__main__":

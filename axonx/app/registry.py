@@ -84,19 +84,6 @@ class ProviderRegistry:
             )
         return cast(type[T], implementation)
 
-    def get_all[T](
-        self,
-        component_type: str,
-        expected_base: type[T],
-    ) -> dict[str, type[T]]:
-        """Return all type-checked implementations in one component domain."""
-        normalized_type = component_type_name(component_type)
-        return {
-            name: self.require(normalized_type, name, expected_base)
-            for provider_type, name in self._providers
-            if provider_type == normalized_type
-        }
-
     def freeze(self) -> None:
         """Prevent further mutation after application composition."""
         self._frozen = True

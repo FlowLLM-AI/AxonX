@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 import type { TaskNode } from "./tree";
 
-/** Missing historical Run metadata is distinct from a request failure. */
-export function TaskRunIssues({ nodes }: { nodes: TaskNode[] }) {
+/** Missing overwritten Task metadata is distinct from a request failure. */
+export function TaskIssues({ nodes }: { nodes: TaskNode[] }) {
   const { t } = useTranslation();
   const replaced = nodes.filter((node) => node.issue === "replaced");
   const errors = new Map<string, TaskNode[]>();
@@ -13,7 +13,7 @@ export function TaskRunIssues({ nodes }: { nodes: TaskNode[] }) {
   return (
     <>
       {replaced.length > 0 && (
-        <div className="task-run-notice" role="status">
+        <div className="task-execution-notice" role="status">
           <p>
             {t("onlinePipeline.replacedChildren", { count: replaced.length })}
           </p>

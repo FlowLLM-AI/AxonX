@@ -1,12 +1,10 @@
-"""Incremental metadata scans that never descend into Task artifacts."""
+"""Read-only incremental metadata scans that never descend into Task artifacts."""
 
 import os
 import stat
 from pathlib import Path
 
-from ..task_enums import TaskState
 from ..models.lifecycle import TaskMetadata
-from .records import is_local_run, reconcile_task
 from .workspace import (
     METADATA_FILE,
     kind_directories,
@@ -57,10 +55,6 @@ def scan_metadata(
                             entries[child.name] = previous[child.name]
                             if child.name in versions:
                                 current[child.name] = versions[child.name]
-                        continue
-                if entry.state == TaskState.RUNNING and is_local_run(entry):
-                    entry = reconcile_task(directory, entry.run_id)
-                    if entry is None:
                         continue
                 entries[child.name] = entry
                 current[child.name] = version

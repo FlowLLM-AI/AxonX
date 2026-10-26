@@ -85,8 +85,8 @@ export function parseCommit(value: unknown): OnlineCommit {
     !/^[a-f0-9]{32}$/.test(value.commit_id) ||
     typeof value.task_id !== "string" ||
     !value.task_id ||
-    typeof value.run_id !== "string" ||
-    !value.run_id ||
+    typeof value.started_at !== "string" ||
+    !Number.isFinite(Date.parse(value.started_at)) ||
     !validDate(value.trade_date) ||
     typeof value.trade_time !== "string" ||
     !/^(?:[01]\d|2[0-3])[0-5]\d$/.test(value.trade_time) ||

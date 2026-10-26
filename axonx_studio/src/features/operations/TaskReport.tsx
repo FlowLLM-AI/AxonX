@@ -6,38 +6,38 @@ import { DataUpdateProgress } from "./DataUpdateProgress";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
 import { Status } from "../tasks/TaskRow";
 import { formatDate } from "../tasks/format";
-import { readTaskChildren } from "../tasks/tree";
+import { readTaskChildren, type TaskNode } from "../tasks/tree";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { useRefresh } from "../../shared/hooks/useRefresh";
 import { ReportTabs } from "../../shared/ui/ReportTabs";
 import { ModelPicker } from "../online/ModelPicker";
 
-import type { TaskRunIdentity } from "../tasks/types";
+import type { TaskReference } from "../tasks/types";
 
-export function TaskRunReport({
+export function TaskReport({
   task,
   target,
   onOpenTask,
 }: {
-  task: TaskRunIdentity;
+  task: TaskReference;
   target?: string;
   onOpenTask: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const [selectedRun, setSelectedRun] = useState("");
+  const [selectedTask, setSelectedTask] = useState("");
   const load = useCallback(
     async (signal: AbortSignal) => {
       const parent = await getTaskStatus(task.task_id, target, signal);
-      if (parent.run_id !== task.run_id)
-        throw new Error(t("onlinePipeline.replacedRun"));
+      if (parent.started_at !== task.started_at)
+        throw new Error(t("onlinePipeline.restartedTask"));
       const nodes = await readTaskChildren(parent, target, signal, {
-        replaced: t("onlinePipeline.replacedChildRun"),
+        replaced: t("onlinePipeline.replacedChild"),
         snapshot: t("onlinePipeline.changedSnapshot"),
       });
       return { parent, nodes };
     },
-    [task.task_id, task.run_id, target, t],
+    [task.task_id, task.started_at, target, t],
   );
   const { data, error, loading, reload } = useAsyncResource(load);
   const refreshAll = useRefresh(reload);
@@ -51,17 +51,20 @@ export function TaskRunReport({
       </div>
     );
   const { parent, nodes } = data;
-  const selected = nodes.find(
-    (node) => `${node.record.task_id}:${node.record.run_id}` === selectedRun,
-  );
-  const active = selectedRun ? selected?.status : parent;
-  const activeError = selectedRun
+  const children = new Map<string, TaskNode>();
+  for (const node of nodes) {
+    const id = node.record.task_id!;
+    if (!children.has(id) || node.status) children.set(id, node);
+  }
+  const selected = children.get(selectedTask);
+  const active = selectedTask ? selected?.status : parent;
+  const activeError = selectedTask
     ? selected?.error || selected?.record.error || active?.error
     : "";
   const reportError = [
     error,
     parent.error,
-    ...(selectedRun
+    ...(selectedTask
       ? active
         ? [activeError]
         : []
@@ -73,19 +76,21 @@ export function TaskRunReport({
     .filter((message, index, all) => all.indexOf(message) === index)
     .join(" · ");
   const reports = (
-    selectedRun
+    selectedTask
       ? active
         ? [active]
         : []
       : [parent, ...nodes.flatMap((node) => (node.status ? [node.status] : []))]
   ).filter(
     (report) =>
-      selectedRun ||
+      selectedTask ||
       report.task_id !== parent.task_id ||
       !nodes.length ||
       Object.keys(report.output_params).some(
         (key) =>
-          !["artifacts", "run_id", "task_id", "status", "flow"].includes(key),
+          !["artifacts", "started_at", "task_id", "status", "flow"].includes(
+            key,
+          ),
       ),
   );
   const interfaces = [
@@ -100,7 +105,7 @@ export function TaskRunReport({
   ];
   const unavailable = (
     <p className="error-state" role="alert">
-      {activeError || t("onlinePipeline.replacedChildRun")}
+      {activeError || t("onlinePipeline.replacedChild")}
     </p>
   );
   return (
@@ -113,7 +118,7 @@ export function TaskRunReport({
         <div>
           <p className="eyebrow">{t("operations.dataUpdate")}</p>
           <h2>{task.display_name || task.reg_name}</h2>
-          <p className="operation-run-time">
+          <p className="operation-task-time">
             {t("operations.triggered")} ·{" "}
             {formatDate(parent.started_at || parent.created_at)}
           </p>
@@ -139,25 +144,20 @@ export function TaskRunReport({
             label={t("taskDetail.task")}
             models={[
               "",
-              ...nodes.map(
-                ({ record }) => `${record.task_id}:${record.run_id}`,
-              ),
-              ...(selectedRun && !selected ? [selectedRun] : []),
+              ...children.keys(),
+              ...(selectedTask && !selected ? [selectedTask] : []),
             ]}
             labels={{
               "": t("onlinePipeline.chainLog"),
               ...Object.fromEntries(
-                nodes.map(({ record }) => [
-                  `${record.task_id}:${record.run_id}`,
-                  record.node_name,
-                ]),
+                [...children].map(([id, { record }]) => [id, record.node_name]),
               ),
-              ...(selectedRun && !selected
-                ? { [selectedRun]: t("onlinePipeline.replacedChildRun") }
+              ...(selectedTask && !selected
+                ? { [selectedTask]: t("onlinePipeline.replacedChild") }
                 : {}),
             }}
-            value={selectedRun}
-            onChange={setSelectedRun}
+            value={selectedTask}
+            onChange={setSelectedTask}
           />
         }
         tabs={[
@@ -177,7 +177,7 @@ export function TaskRunReport({
                 )}
                 {reports.map((report) => (
                   <DataUpdateProgress
-                    key={`${report.task_id}:${report.run_id}`}
+                    key={`${report.task_id}:${report.started_at}`}
                     task={report}
                   />
                 ))}
@@ -195,7 +195,7 @@ export function TaskRunReport({
                   reports.map((report) => (
                     <section
                       className="operation-download-result"
-                      key={`${report.task_id}:${report.run_id}`}
+                      key={`${report.task_id}:${report.started_at}`}
                     >
                       {reports.length > 1 && <h3>{report.reg_name}</h3>}
                       <pre className="data-update-json">
@@ -227,7 +227,7 @@ export function TaskRunReport({
             lazy: true,
             content: active ? (
               <TaskLogPanel
-                key={`${target}:${active.task_id}:${active.run_id}`}
+                key={`${target}:${active.task_id}:${active.started_at}`}
                 task={active}
                 target={target}
               />

@@ -138,11 +138,11 @@ class Supervisor:
     def _exec(self, message):
         if self.pending is not None or "cron" not in self.ready:
             raise RuntimeError("Cron is paused")
-        arguments, line = message["arguments"], message["line"]
+        command, line = message["command"], message["line"]
         if (
-            not isinstance(arguments, list)
-            or not all(isinstance(arg, str) for arg in arguments)
-            or "--task" not in arguments
+            not isinstance(command, list)
+            or not command
+            or not all(isinstance(arg, str) for arg in command)
             or not isinstance(line, int)
             or line < 1
         ):
@@ -152,7 +152,7 @@ class Supervisor:
         environment = {key: value for key, value in self.execution["environment"].items() if not key.startswith(PREFIX)}
         with (directory / f"line-{line}.log").open("ab") as output:
             child = subprocess.Popen(  # pylint: disable=consider-using-with
-                [self.plan["python"], "-m", "axonx.cli", "exec", *arguments],
+                command,
                 cwd=self.execution["cwd"],
                 env=environment,
                 start_new_session=True,

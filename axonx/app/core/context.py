@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING, Any
 
 from ..config.models import ApplicationConfig
 from .dispatch import JobDispatcher
-from ...common.workspace import Workspace
-from ...task.storage.records import RECORDS_DIRECTORY, validate_workspace_deletion
+from ..workspace import Workspace
 
 if TYPE_CHECKING:
     from ..components.base import BaseComponent
     from ..components.job.base import BaseJob
     from ..components.service.base import BaseService
-    from ...common.registry import ProviderRegistry
+    from ..components.updater.manager import UpdateBackend
+    from ..registry import ProviderRegistry
 
 
 class ApplicationContext:
@@ -25,14 +25,15 @@ class ApplicationContext:
         self,
         registry: ProviderRegistry,
         app_config: ApplicationConfig,
+        workspace: Workspace | None = None,
+        updates: UpdateBackend | None = None,
     ) -> None:
         self.registry = registry
         self.app_config = app_config
-        self.workspace = Workspace(
+        self.updates = updates
+        self.workspace = workspace or Workspace(
             self.app_config.workspace_dir,
             transfer_budget_bytes=self.app_config.transfer_budget_bytes,
-            hidden_names=(RECORDS_DIRECTORY,),
-            before_delete=validate_workspace_deletion,
         )
         self._components: dict[str, Mapping[str, BaseComponent]] = {}
         self._jobs: dict[str, BaseJob] = {}

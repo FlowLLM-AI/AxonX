@@ -12,16 +12,11 @@ from ..client.base import RemoteServiceError
 from ..client.http import HttpClient
 from .base import BaseSyncComponent
 from ..task_index.base import BaseTaskIndex
-from ....common.async_work import run_blocking
-from ....common.registry import provider
+from ...async_work import run_blocking
+from ...registry import provider
 from ....task.models.lifecycle import DisplayReplica
 from ....task.storage.logs import TaskLogReader
-from ....task.storage.workspace import (
-    read_task_metadata,
-    scan_entries,
-    task_directory,
-    task_path,
-)
+from ....task.storage.workspace import read_task_metadata, scan_entries, task_directory, task_path
 from ....task.sync.archive import SYNC_ARCHIVE_NAME, build_archive
 from ....task.sync.errors import ReplicaBudgetError
 from ....task.sync.index import (
@@ -31,7 +26,8 @@ from ....task.sync.index import (
     validate_live_task_ids,
     validate_task_names,
 )
-from ....task.sync.models import SyncReport, TaskPlan
+from ....task.sync.models import SyncReport
+from ....task.sync.models import TaskPlan
 from ....task.sync.planner import archive_budget, pack_batches
 from ....task.sync.replica import prepare_group, prepare_replica
 
@@ -128,12 +124,14 @@ class LocalSyncComponent(BaseSyncComponent):
                 if (
                     not isinstance(identity, str)
                     or not isinstance(value, dict)
-                    or not isinstance(value.get("run_id"), str)
+                    or not isinstance(value.get("started_at"), str)
                 ):
                     raise ValueError("Invalid remote replica identity")
-                replica = DisplayReplica.model_validate({key: item for key, item in value.items() if key != "run_id"})
+                replica = DisplayReplica.model_validate(
+                    {key: item for key, item in value.items() if key != "started_at"}
+                )
                 index[identity] = {
-                    "run_id": value["run_id"],
+                    "started_at": value["started_at"],
                     **replica.model_dump(mode="json"),
                 }
             remote = index
@@ -171,7 +169,7 @@ class LocalSyncComponent(BaseSyncComponent):
         return matches_task_name(task_id, self.task_names)
 
     def _group_members(self) -> set[str]:
-        """Reserve owned child directories even when their next Run is not created yet."""
+        """Reserve owned child directories even when their next execution has not started yet."""
         pending = list(self.live_task_ids)
         members = set()
         while pending:

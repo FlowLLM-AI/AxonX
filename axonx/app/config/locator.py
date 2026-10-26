@@ -1,9 +1,8 @@
 """Shared name, path and installed entry-point lookup for configuration files."""
 
 from importlib import import_module
+from importlib import metadata
 from pathlib import Path
-
-from .entry_points import find_entry_points, load_entry_point, unique_entry_point
 
 
 def discover_files(directory: Path, extensions: tuple[str, ...]) -> dict[str, Path]:
@@ -28,16 +27,19 @@ def locate_file(
     """Locate a built-in name, installed contribution or explicit file path."""
     name = str(source)
     builtins = discover_files(directory, extensions)
-    entries = find_entry_points(group, name)
+    entries = list(metadata.entry_points().select(group=group, name=name))
     if name in builtins and entries:
         raise ValueError(f"{label} '{name}' is provided by both AxonX and an installed distribution")
     if name in builtins:
         return builtins[name]
-    entry = unique_entry_point(entries, name, label)
+    if len(entries) > 1:
+        raise ValueError(f"{label} {name!r} has multiple installed providers")
+    entry = entries[0] if entries else None
     if entry is not None:
         module = import_module(entry.module)
         if entry.attr and hasattr(module, entry.attr):
-            path = Path(load_entry_point(entry, invoke=True))
+            loaded = entry.load()
+            path = Path(loaded() if callable(loaded) else loaded)
         else:
             locations = list(getattr(module, "__path__", ()))
             if len(locations) != 1:

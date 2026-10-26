@@ -1,12 +1,14 @@
 """Contract for Task metadata queries and local change notifications."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 
 from ..base import BaseComponent
 from ..component_type import ComponentType
 from ....task.models.lifecycle import TaskMetadata
-from ....task.models.query import TaskGraph, TaskSummary
+from ....task.models.query import TaskContextSnapshot, TaskGraph, TaskSummary
+from ....task.models.events import TaskEvent
+from ....task.models.logs import LogChunk
 
 TaskChangeCallback = Callable[[frozenset[str]], None]
 
@@ -35,3 +37,15 @@ class BaseTaskIndex(BaseComponent, ABC):
     @abstractmethod
     async def graph(self, task_id: str) -> TaskGraph:
         """Build task relationships from indexed records."""
+
+    @abstractmethod
+    async def context(self, task_id: str) -> TaskContextSnapshot:
+        """Project one Task's status and relationships for an Agent."""
+
+    @abstractmethod
+    async def read_log(self, status: TaskMetadata, offset: int, limit: int) -> LogChunk:
+        """Read a bounded log chunk for an exact Task snapshot."""
+
+    @abstractmethod
+    def stream(self, task_id: str, poll_interval: float) -> AsyncIterator[TaskEvent]:
+        """Follow Task progress and logs until the execution is terminal."""

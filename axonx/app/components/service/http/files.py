@@ -16,9 +16,9 @@ from ....protocol import (
     PROTOCOL_FILE_NAME_HEADER,
     PROTOCOL_ROUTE_UPLOAD,
 )
-from .....common.constants import DEFAULT_TRANSFER_BUDGET_BYTES
-from .....common.workspace import Workspace
-from .....common.workspace.models import StagedFile
+from ....constants import DEFAULT_TRANSFER_BUDGET_BYTES
+from ....workspace import Workspace
+from ....workspace.models import StagedFile
 
 # Allow a bounded amount of multipart framing in addition to the file byte limit.
 MULTIPART_OVERHEAD_BYTES = 64 * 1024
@@ -81,7 +81,7 @@ def create_files_router(service, workspace: Workspace) -> APIRouter:
             raise HTTPException(409, str(exc)) from exc
         except (TypeError, ValueError) as exc:
             raise HTTPException(422, str(exc)) from exc
-        return JobResponse(answer=StagedFile.model_validate(copied))
+        return JobResponse(answer=copied)
 
     @router.delete(PROTOCOL_ROUTE_UPLOAD)
     async def discard_file(path: str):
@@ -161,7 +161,7 @@ class _UploadParser(MultiPartParser):
             raise
 
 
-async def _copy_multipart(workspace, request: Request, filename: str, directory: str | None):
+async def _copy_multipart(workspace: Workspace, request: Request, filename: str, directory: str | None) -> StagedFile:
     """Parse one file and optional directory, then reuse content-addressed storage."""
     try:
         form = await _UploadParser(request, (workspace.transfer_budget_bytes or DEFAULT_TRANSFER_BUDGET_BYTES)).parse()

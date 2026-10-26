@@ -10,8 +10,8 @@ from pydantic import BaseModel, Field, TypeAdapter
 
 from ..agent.events import AgentMessageEvent
 from .models import JobResponse
-from ....common.logs import LogEvent
-from ....task.events import ProgressEvent
+from ....task.models.logs import LogEvent
+from ....task.models.events import ProgressEvent
 
 
 class ArtifactEvent(BaseModel):

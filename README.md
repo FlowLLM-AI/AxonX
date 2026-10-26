@@ -89,7 +89,7 @@ Keep the service running and use another terminal for subsequent commands. See [
 market-data, and remote settings; see [CONTRIBUTING.md](CONTRIBUTING.md) for source development and Studio builds.
 Restart the service after direct pip installation or editable source changes.
 
-Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task/Run IDs and stop on installation or verification failures. [development guide](docs/en/dev_guide.md#_2-install-the-plugin)
+Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task IDs and start times and stop on installation or verification failures. [development guide](docs/en/dev_guide.md#_2-install-the-plugin)
 
 For remote execution, replace `<host:port>` with the selected service address and configure `AXONX_TARGET_TOKEN`. The plugin and Task below are examples; use the actual source path and registered Task.
 
@@ -110,11 +110,19 @@ The built-in demo requires no market-data or model credentials:
 
 ```bash
 axonx exec --task demo --x 2 --y 3
-axonx wait_task --task-id '<returned_task_id>' --run-id '<returned_run_id>' --client-timeout 120
+axonx wait_task --task-id '<returned_task_id>' --client-timeout 120
 axonx get_task_context --task-id '<returned_task_id>'
 ```
 
-Use `answer.task_id` and `answer.run_id` returned by `exec`, and wait for `succeeded` before reading outputs or
+Within one workspace, `task_id` is the sole Task key. Callers serialize same-name execution and coordinate reruns, deletion, synchronization and explicit recovery for that Task directory; metadata writes are atomic, without a Task coordination lock. Reruns replace metadata, events, and current outputs while retaining `persistent/`. `started_at` records the current start time and detects restarts. Retained business history is explicitly stored under `persistent/`; use distinct Task names to retain separate experiments.
+
+TaskIndex only reads persisted records. Observation leaves the last recorded state unchanged even when the execution process has exited.
+
+Startup checking is not a mutex; callers must serialize same-name starts and coordinate workspace deletion or replica replacement with execution. Startup checks live in `TaskRunner`: a confirmed dead local process is marked failed before an INFO `Overwrite`; a live, inaccessible, or foreign running record blocks replacement. Missing, malformed, or incompatible metadata is reported without changing existing files. To include a usable remote kill command, optionally set `AXONX_TASK_EXECUTION_TARGET=http://worker.example:1024` on the execution machine, or put that variable in the service configuration's `environment` mapping. Workers record the advertised address and their source `workspace_dir`; `machine_id` remains a machine identity, not an address. Use an explicit port and a host reachable by other machines; loopback and wildcard addresses are rejected.
+
+The persisted metadata and online-history schemas have changed. Older records require migration before reuse; execution does not migrate them automatically.
+
+Use the Task ID from execution logs or workspace metadata, and wait for `succeeded` before reading outputs or
 submitting downstream Tasks. `source_tasks` records lineage; it does not automatically run the DAG.
 
 Visit `http://127.0.0.1:1024/` and enter `AXONX_SERVICE_TOKEN` in **Settings → Local service token**.
@@ -180,13 +188,13 @@ Specify the baseline, hypothesis, data, evaluation windows, metrics, and executi
 > residual volatility and downside risk improve Alpha158 ranking. Use only information available at signal time.
 > Keep the data snapshot, labels, training parameters, evaluation windows, and trading costs fixed for factor
 > ablations. Implement and test the quantitative code, register and install the plugin, and run ETL, training,
-> prediction, and backtest Tasks through AxonX. Preserve Task/Run IDs and report RankIC, net returns, drawdown,
+> prediction, and backtest Tasks through AxonX. Preserve Task IDs and start times and report RankIC, net returns, drawdown,
 > turnover, and limitations. Select candidates within the development window and reserve an independent confirmation window.
 
 You can also ask the Agent to optimize an existing plugin's feature calculation, training procedure, or portfolio
 policy. Specify whether the goal is runtime efficiency, signal quality, or trading performance, and how to evaluate it.
 
-Keep code/version, data, windows, parameters, costs, and Task/Run IDs with each experiment so the Agent can compare
+Keep code/version, data, windows, parameters, costs, Task IDs, and start times with each experiment so the Agent can compare
 candidates and iterate on the same evidence. See the [development guide](docs/en/dev_guide.md) for plugin authoring,
 service installation, and Task contracts.
 

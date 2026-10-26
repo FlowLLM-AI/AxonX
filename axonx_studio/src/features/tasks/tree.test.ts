@@ -6,7 +6,7 @@ import type { TaskMetadata } from "./types";
 
 vi.mock("./api", () => ({ getTaskStatus: vi.fn() }));
 
-it("retains the current nested Run when another branch references an older Run of the same Task", async () => {
+it("retains the current nested Task when another branch references an earlier execution of the same Task", async () => {
   const parent = structuredClone(
     seed().tasks.get("composite#playground_online#demo")!,
   );
@@ -14,7 +14,7 @@ it("retains the current nested Run when another branch references an older Run o
   const branch = (id: string): TaskMetadata => ({
     ...structuredClone(parent),
     task_id: id,
-    run_id: id,
+    started_at: "2026-10-26T10:00:00Z",
   });
   const first = branch("composite#test#first"),
     second = branch("composite#test#second");
@@ -23,10 +23,14 @@ it("retains the current nested Run when another branch references an older Run o
   parent.children = [first, second].map((child) => ({
     ...record,
     task_id: child.task_id,
-    run_id: child.run_id,
+    started_at: child.started_at,
   }));
-  first.children = [{ ...record, task_id: leaf.task_id, run_id: "old-run" }];
-  second.children = [{ ...record, task_id: leaf.task_id, run_id: leaf.run_id }];
+  first.children = [
+    { ...record, task_id: leaf.task_id, started_at: "2026-10-25T10:00:00Z" },
+  ];
+  second.children = [
+    { ...record, task_id: leaf.task_id, started_at: leaf.started_at },
+  ];
   const tasks = new Map(
     [first, second, leaf].map((task) => [task.task_id, task]),
   );
@@ -39,16 +43,40 @@ it("retains the current nested Run when another branch references an older Run o
     new AbortController().signal,
     { replaced: "replaced", snapshot: "snapshot" },
   );
-  expect(nodes.find((node) => node.record.run_id === "old-run")?.error).toBe(
-    "replaced",
-  );
-  expect(nodes.find((node) => node.record.run_id === "old-run")?.issue).toBe(
-    "replaced",
-  );
   expect(
-    nodes.find((node) => node.status?.task_id === leaf.task_id)?.status?.run_id,
-  ).toBe(leaf.run_id);
+    nodes.find((node) => node.record.started_at === "2026-10-25T10:00:00Z")
+      ?.error,
+  ).toBe("replaced");
+  expect(
+    nodes.find((node) => node.record.started_at === "2026-10-25T10:00:00Z")
+      ?.issue,
+  ).toBe("replaced");
+  expect(
+    nodes.find((node) => node.status?.task_id === leaf.task_id)?.status
+      ?.started_at,
+  ).toBe(leaf.started_at);
   expect(
     vi.mocked(getTaskStatus).mock.calls.filter(([id]) => id === leaf.task_id),
   ).toHaveLength(1);
+});
+
+it("does not load an older Task while a child has not started", async () => {
+  const parent = structuredClone(
+    seed().tasks.get("composite#playground_online#demo")!,
+  );
+  parent.children = [{ ...parent.children[0], started_at: null }];
+  vi.mocked(getTaskStatus).mockClear();
+  const nodes = await readTaskChildren(
+    parent,
+    undefined,
+    new AbortController().signal,
+    {
+      replaced: "replaced",
+      snapshot: "snapshot",
+    },
+  );
+  expect(getTaskStatus).not.toHaveBeenCalled();
+  expect(nodes).toEqual([
+    { record: parent.children[0], status: null, error: "" },
+  ]);
 });

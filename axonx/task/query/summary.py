@@ -14,7 +14,7 @@ def task_sort_key(metadata: TaskMetadata) -> tuple[float, str]:
 
 def summarize_status(status: TaskMetadata) -> TaskSummary:
     """Keep list metadata and one progress summary, without copying task outputs."""
-    summary = {name: getattr(status, name) for name in TaskStatus.model_fields}
+    summary = {name: getattr(status, name) for name in TaskStatus.model_fields.keys()}
     summary["error"] = status.error[:1000]
     summary["display_name"] = str(status.input_params.get("task_name") or status.reg_name)[:256]
     summary["is_online"] = status.report_kind in {"online", "online_pipeline"}

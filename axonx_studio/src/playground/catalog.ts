@@ -45,7 +45,10 @@ const schemas: Record<
     output: "object",
   },
   get_task_graph: { input: task, output: "object" },
-  list_task_runs: { input: { task_type: text("backtest") }, output: "object" },
+  list_task_directories: {
+    input: { task_type: text("backtest") },
+    output: "object",
+  },
   list_entries: {
     input: {
       path: text(""),

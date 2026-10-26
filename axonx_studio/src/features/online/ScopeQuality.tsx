@@ -32,7 +32,8 @@ export function ScopeQuality({
     ) : (
       <p className="empty-state">{t("onlineWorkbench.noSignal")}</p>
     );
-  if (!live) return <p className="empty-state">{t("onlineWorkbench.noRun")}</p>;
+  if (!live)
+    return <p className="empty-state">{t("onlineWorkbench.noTaskRecord")}</p>;
   const key = source === "snapshot" ? "snapshot" : `${scope}_${source}`;
   const row = Array.isArray(parent.output_params.windows)
     ? parent.output_params.windows.find(

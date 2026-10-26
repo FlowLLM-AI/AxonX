@@ -7,8 +7,8 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from ...common.logs import LogEvent
-from ..events import TASK_EVENT_ADAPTER, TaskEvent
+from ..models.logs import LogEvent
+from ..models.events import TASK_EVENT_ADAPTER, TaskEvent
 from ..models.lifecycle import TaskMetadata
 from ..storage.events import LOG_WINDOW_BYTES, read_event_lines
 from ..storage.logs import TaskLogReader
@@ -33,8 +33,12 @@ async def stream_task(
     log_offset = events_offset = 0
     log_warned = False
     terminal_end = None
+    started_at = None
     while True:
         status = await read_task_metadata(task_id)
+        if started_at is not None and status.started_at != started_at:
+            raise ValueError(f"Task restarted: {task_id}")
+        started_at = status.started_at
         current_log_path = logs.path(status)
         if current_log_path != log_path:
             log_path = current_log_path

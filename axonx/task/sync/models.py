@@ -33,6 +33,14 @@ class TaskPlan:
         return not self.files
 
 
+@dataclass(frozen=True, slots=True)
+class SyncTasksReport:
+    archive: str | None = None
+    applied: list[str] = field(default_factory=list)
+    deleted: list[str] = field(default_factory=list)
+    files: int = 0
+
+
 @dataclass(slots=True)
 class SyncReport:
     uploaded: list[str] = field(default_factory=list)
@@ -40,11 +48,3 @@ class SyncReport:
     oversized: list[str] = field(default_factory=list)
     deferred: list[str] = field(default_factory=list)
     archives: int = 0
-
-
-@dataclass(frozen=True, slots=True)
-class SyncTasksReport:
-    archive: str | None = None
-    applied: list[str] = field(default_factory=list)
-    deleted: list[str] = field(default_factory=list)
-    files: int = 0

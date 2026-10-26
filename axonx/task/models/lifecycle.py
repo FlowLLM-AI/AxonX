@@ -54,12 +54,12 @@ class ReplicaFile(BaseModel):
 
 
 class LiveSnapshot(BaseModel):
-    """One ordered, read-only snapshot of an exact parent Run and its children."""
+    """One ordered, read-only snapshot of a parent Task and its children."""
 
     model_config = ConfigDict(extra="forbid")
     source_id: str = Field(min_length=1)
     root_task_id: str = Field(min_length=1)
-    root_run_id: str = Field(min_length=1)
+    root_started_at: AwareDatetime
     captured_at: AwareDatetime
     revision: int = Field(gt=0)
 
@@ -104,19 +104,20 @@ class TaskSource(BaseModel):
 class TaskStatus(BaseModel):
     model_config = ConfigDict(extra="forbid")
     task_id: str
-    run_id: str = Field(min_length=1)
     task_type: TaskType
     reg_name: str = ""
     source: TaskSource = Field(default_factory=TaskSource)
-    parent_run_id: str | None = None
+    parent_task_id: str | None = None
     category: TaskCategory | None = None
     report_kind: str | None = None
     state: TaskState = TaskState.RUNNING
     pid: int = Field(gt=0)
     machine_id: str = Field(min_length=1)
+    execution_target: str | None = None
+    workspace_dir: str | None = None
     process_started_at: AwareDatetime
     created_at: datetime | None = None
-    started_at: datetime | None = None
+    started_at: AwareDatetime
     finished_at: datetime | None = None
     error: str = ""
     exit_code: int = Field(default=0, ge=0, le=255)
@@ -131,7 +132,7 @@ class ChildTaskRecord(BaseModel):
     attempt: int = Field(ge=1)
     task: str
     task_id: str | None = None
-    run_id: str
+    started_at: AwareDatetime | None = None
     state: TaskState = TaskState.RUNNING
     exit_code: int = Field(default=0, ge=0, le=255)
     error: str = ""

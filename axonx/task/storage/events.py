@@ -5,8 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
-from ...common.constants import AXONX_DEFAULT_ENCODING
-from ..events import ProgressEvent
+from ..models.events import ProgressEvent
 from ..models.lifecycle import TaskStepStatus
 
 LOG_WINDOW_BYTES = 65_536
@@ -14,7 +13,7 @@ LOG_WINDOW_BYTES = 65_536
 
 def append_event(path: Path, event: ProgressEvent) -> None:
     """Append one complete JSON event line."""
-    with path.open("a", encoding=AXONX_DEFAULT_ENCODING) as handle:
+    with path.open("a", encoding="utf-8") as handle:
         handle.write(event.model_dump_json() + "\n")
 
 
@@ -42,5 +41,5 @@ def read_event_lines(path: Path, offset: int) -> tuple[int, list[str]]:
     complete = data.rfind(b"\n")
     if complete < 0:
         return offset, []
-    lines = data[:complete].decode(AXONX_DEFAULT_ENCODING, errors="replace").splitlines()
+    lines = data[:complete].decode("utf-8", errors="replace").splitlines()
     return offset + complete + 1, lines

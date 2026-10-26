@@ -12,8 +12,7 @@ from typing import Any
 import pandas as pd
 from pydantic import field_validator
 
-from ....common.fs.atomic import atomic_write
-from ....common.registry import provider
+from ...storage.files import atomic_write
 from .client import TushareClient
 from ...constants import TUSHARE_TIMEOUT_SECONDS
 from ...core.task import BaseTask, TaskStep
@@ -107,7 +106,6 @@ class TushareDownloadOutputParams(BaseOutputParams):
     rows: dict[str, int]
 
 
-@provider("download_tushare_task")
 class DownloadTushareTask(BaseTask):
     """下载构建最小 A 股量化数据集所需的 Tushare 数据。
 

@@ -6,8 +6,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Field, TypeAdapter
 
-from ..common.logs import LogEvent
-from .models.lifecycle import TaskStepStatus
+from .logs import LogEvent
+from .lifecycle import TaskStepStatus
 
 
 class ProgressEvent(TaskStepStatus):

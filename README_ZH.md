@@ -86,7 +86,7 @@ CLI 从当前目录或父目录加载 `.env`，已有环境变量优先。保持
 模型、行情与远程配置见 [example.env](example.env)；源码开发与 Studio 构建见[贡献指南](CONTRIBUTING_ZH.md)。
 直接 pip 安装或 editable 源码改动后需重启服务。
 
-安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task/Run ID，安装或核验失败时停止并报告。[开发指南](docs/zh/dev_guide.md#_2-安装插件)
+安装只修改选定 Python 环境，不刷新服务已加载对象，也不追踪待重启状态。需要重新加载 schema 或贡献时重启常驻服务。新的 CLI 进程加载已安装环境；记录 Task ID 和开始时间，安装或核验失败时停止并报告。[开发指南](docs/zh/dev_guide.md#_2-安装插件)
 
 远程执行时，将 `<host:port>` 替换为所选服务地址并配置 `AXONX_TARGET_TOKEN`。下方插件与 Task 仅为示例，使用实际源码路径和注册任务名。
 
@@ -107,11 +107,19 @@ axonx exec --task qlib_a158_etl --start-date 20150101 --target <host:port>
 
 ```bash
 axonx exec --task demo --x 2 --y 3
-axonx wait_task --task-id '<returned_task_id>' --run-id '<returned_run_id>' --client-timeout 120
+axonx wait_task --task-id '<returned_task_id>' --client-timeout 120
 axonx get_task_context --task-id '<returned_task_id>'
 ```
 
-使用 `exec` 返回的 `answer.task_id` 与 `answer.run_id`，等待 `succeeded` 后再读取输出或提交下游 Task。
+同一个 workspace 内，`task_id` 是任务唯一主键。调用方负责串行化同名执行，并协调该目录的重跑、删除、同步和显式恢复；metadata 使用原子写入，不提供 Task 协调锁。重跑覆盖 metadata、事件和当前输出，保留 `persistent/`。`started_at` 记录本次开始时间，用于检测重跑；需要保留的业务历史由任务显式写入 `persistent/`，独立实验使用不同任务名。
+
+TaskIndex 只读取持久化记录。即使执行进程已经退出，观察操作也保留最后记录的状态。
+
+启动检查不提供互斥保障，调用方需要串行启动同名任务，并协调执行期间的目录删除或副本替换。启动检查统一由 `TaskRunner` 负责：确认本机执行进程已退出时，先将旧记录修正为失败并记录原因，再 INFO 输出 `Overwrite`。进程仍存活、权限不足无法验证或属于异机时，都拒绝覆盖；metadata 缺失、损坏或格式不兼容时，会明确报错并保留已有文件。可选在执行机设置 `AXONX_TASK_EXECUTION_TARGET=http://worker.example:1024`，或在服务配置的 `environment` 中设置同名变量。任务会记录执行地址和源 `workspace_dir`，用于生成远程 kill 命令；`machine_id` 仍只用于机器归属判断。地址必须带端口并能被其他机器访问，不能使用回环地址或通配监听地址。
+
+本次修改调整了 metadata 和在线历史记录的存储格式，旧记录需要迁移后再使用，执行时不会自动迁移。
+
+使用执行日志或 workspace metadata 中的 `task_id`，等待 `succeeded` 后再读取输出或提交下游 Task。
 `source_tasks` 记录血缘，不会自动执行整张 DAG。
 
 访问 `http://127.0.0.1:1024/`，在 **设置 → 本机服务 token** 中填写 `AXONX_SERVICE_TOKEN`。
@@ -175,12 +183,12 @@ axonx start --language zh
 > 阅读 AxonX Skill 与 qlib_a158 实现，开发独立研究插件，探索残差波动和下行风险能否改进 Alpha158 排序。
 > 只使用信号时点可得的信息；因子消融时固定数据快照、标签、训练参数、评估窗口和交易成本。
 > 实现并测试量化代码，注册、安装插件，通过 AxonX 执行 ETL、训练、预测与回测。
-> 保留 Task/Run ID，报告 RankIC、净收益、回撤、换手与局限。在开发窗口选择候选方案，并预留独立确认窗口。
+> 保留 Task ID 和开始时间，报告 RankIC、净收益、回撤、换手与局限。在开发窗口选择候选方案，并预留独立确认窗口。
 
 也可以让 Agent 优化已有插件的特征计算、训练流程或持仓规则。
 请在 Prompt 中明确目标是执行效率、信号质量还是交易表现，以及如何评估。
 
-每次实验保留代码／版本、数据、窗口、参数、成本和 Task/Run ID，让 Agent 根据同一份证据比较候选方案并迭代。
+每次实验保留代码／版本、数据、窗口、参数、成本、Task ID 和开始时间，让 Agent 根据同一份证据比较候选方案并迭代。
 插件开发、服务安装和 Task 契约详见[开发指南](docs/zh/dev_guide.md)。
 
 开始 Alpha158 研究前，配置 `AXONX_TUSHARE_TOKEN` 并准备足够的历史数据，再按[研究流程](docs/zh/research/workflow.md)

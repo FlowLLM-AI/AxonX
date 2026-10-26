@@ -29,7 +29,7 @@ def policy_revision(budget: int) -> str:
 
 
 def source_revision(root: Path, task_id: str, *, snapshot=None, logs=None) -> str:
-    """Identify publications from Run and file metadata without reading payloads."""
+    """Identify publications from Task start time and file metadata without reading payloads."""
     plan = plan_task(root, task_id, snapshot=snapshot)
     metadata = snapshot or read_entry(root, task_id)
     if metadata is None:
@@ -39,7 +39,7 @@ def source_revision(root: Path, task_id: str, *, snapshot=None, logs=None) -> st
     if log is not None and logs.is_task_log(log) and log.is_file():
         stat = log.stat()
         files.append(("display/log.log", stat.st_size, stat.st_mtime_ns))
-    return fingerprint([metadata.run_id, files])
+    return fingerprint([metadata.started_at.isoformat(), files])
 
 
 def verify_replica(root: Path, task_id: str) -> None:
@@ -85,7 +85,7 @@ def snapshot_index(root: Path, task_names: frozenset[str], roots: frozenset[str]
         try:
             verify_replica(root, identity)
             result[identity] = {
-                "run_id": metadata.run_id,
+                "started_at": metadata.started_at.isoformat(),
                 **replica.model_dump(mode="json"),
             }
         except (OSError, ValueError) as exc:

@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, ClassVar
 from .component_type import ComponentType
 from ..config.models import ApplicationConfig
 from ...common.logging import get_logger
-from ...common.registry import component_type_name
-from ...common.workspace import Workspace
+from ..registry import component_type_name
+from ..workspace import Workspace
 
 if TYPE_CHECKING:
     from ..core.context import ApplicationContext

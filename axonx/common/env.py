@@ -6,8 +6,6 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 
-from .constants import AXONX_DEFAULT_ENCODING
-
 
 def find_env_file(
     start: str | Path | None = None,
@@ -30,7 +28,7 @@ def find_env_file(
 def parse_env_file(path: str | Path) -> dict[str, str]:
     """Parse a simple ``KEY=VALUE`` file without changing the environment."""
     values: dict[str, str] = {}
-    for line in Path(path).read_text(encoding=AXONX_DEFAULT_ENCODING).splitlines():
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue

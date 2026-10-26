@@ -5,9 +5,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 from typing import Literal
-from uuid import uuid4
 
-from ...common.constants import AXONX_DEFAULT_TIMEZONE
 from .task import BaseTask
 from ..task_enums import TaskState, TaskType
 from ..identity import validate_registration_name
@@ -27,10 +25,6 @@ class ChildTaskResult:
         if self.record.task_id is None:
             raise RuntimeError("Child Task was not constructed")
         return self.record.task_id
-
-    @property
-    def run_id(self) -> str:
-        return self.record.run_id
 
     @property
     def success(self) -> bool:
@@ -62,7 +56,7 @@ class BaseCompositeTask(BaseTask, ABC):
     task_type = TaskType.COMPOSITE
     output_cls = BaseOutputParams
 
-    def __init__(self, *args, timezone: str = AXONX_DEFAULT_TIMEZONE, **kwargs):
+    def __init__(self, *args, timezone: str = "Asia/Shanghai", **kwargs):
         super().__init__(*args, timezone=timezone, **kwargs)
         self._child_timezone = timezone
 
@@ -97,7 +91,6 @@ class BaseCompositeTask(BaseTask, ABC):
             node_name=node_name,
             attempt=len(previous) + 1,
             task=task,
-            run_id=uuid4().hex,
         )
         self.metadata.children.append(record)
         self.persist_metadata()
@@ -122,18 +115,19 @@ class BaseCompositeTask(BaseTask, ABC):
         return result
 
     def _run_child(self, record: ChildTaskRecord, inputs: dict) -> BaseOutputParams:
-        # Keep runtime/catalog imports out of the authoring module's import graph.
-        from ..catalog.resolver import resolve_task
+        if self.task_resolver is None:
+            raise RuntimeError("Composite Tasks require a task resolver")
         from ..runtime.runner import TaskRunner
 
-        child = resolve_task(record.task)(
+        child = self.task_resolver(record.task)(
             {"task_name": self.input_params.task_name, **inputs},
             workspace_path=self.workspace_path,
             reg_name=record.task,
             timezone=self._child_timezone,
-            run_id=record.run_id,
             source=self.context.source,
-            parent_run_id=self.context.run_id,
+            parent_task_id=self.task_id,
+            execution_target=self.context.execution_target,
+            task_resolver=self.task_resolver,
         )
         child.clock = self.clock
         record.task_id = child.task_id
@@ -146,7 +140,12 @@ class BaseCompositeTask(BaseTask, ABC):
             except Exception:
                 child.logger.exception("Child Task resource cleanup failed")
             raise
-        status = TaskRunner().run(child)
+
+        def observe(started_at):
+            record.started_at = started_at
+            self.persist_metadata()
+
+        status = TaskRunner(on_started=observe).run(child)
         record.state, record.exit_code, record.error = (
             status.state,
             status.exit_code,
@@ -157,7 +156,7 @@ class BaseCompositeTask(BaseTask, ABC):
     def build_output_params(self) -> BaseOutputParams:
         return self.output_cls()
 
-    # Unlike a leaf's static exit code, composition aggregates owned run records.
+    # Unlike a leaf's static exit code, composition aggregates child outcomes.
     def exit_code(self, _output: dict) -> int:  # pylint: disable=arguments-differ
         return next(
             (child.exit_code or 1 for child in self.metadata.children if child.state != TaskState.SUCCEEDED),

@@ -5,12 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import i18n from "../../../i18n";
 import { table } from "../../../playground/fixtures";
-import { listTaskRuns, previewWorkspaceFile } from "../../workspace/api";
+import { listTaskDirectories, previewWorkspaceFile } from "../../workspace/api";
 import StrategyComparePage from "./StrategyComparePage";
 
 vi.mock("../../../shared/api/client", () => ({ axonx: { invoke: vi.fn() } }));
 vi.mock("../../workspace/api", () => ({
-  listTaskRuns: vi.fn(),
+  listTaskDirectories: vi.fn(),
   previewWorkspaceFile: vi.fn(),
 }));
 vi.mock("../backtest/BacktestChart", () => ({ BacktestChart: () => null }));
@@ -30,7 +30,7 @@ it.each(["en", "zh"])(
   "compares current source and replica signals on the selected machine in %s",
   async (language) => {
     await i18n.changeLanguage(language);
-    vi.mocked(listTaskRuns).mockResolvedValue({
+    vi.mocked(listTaskDirectories).mockResolvedValue({
       path: "backtest",
       workspace_root: null,
       truncated: false,
@@ -120,7 +120,7 @@ it.each(["en", "zh"])(
       ),
     );
     for (const button of container.querySelectorAll<HTMLButtonElement>(
-      ".compare-run-item",
+      ".compare-task-item",
     )) {
       await act(async () => button.click());
     }
@@ -147,7 +147,7 @@ it("loads only selected details and displays detail failures", async () => {
       task_id: `backtest#${name}`,
       reg_name: name,
       display_name: name,
-      run_id: name,
+      started_at: name,
       task_type: "backtest",
       state: "succeeded",
     }));
@@ -159,7 +159,7 @@ it("loads only selected details and displays detail failures", async () => {
     vi.mocked(axonx.invoke).mock.calls.filter(([job]) => job === "status"),
   ).toHaveLength(0);
   await act(async () =>
-    container.querySelector<HTMLButtonElement>(".compare-run-item")!.click(),
+    container.querySelector<HTMLButtonElement>(".compare-task-item")!.click(),
   );
   const detailCalls = vi
     .mocked(axonx.invoke)
@@ -182,7 +182,7 @@ it("does not request old task IDs from a newly selected machine while its list i
         reg_name: "only-a",
         display_name: "only-a",
         task_type: "backtest",
-        run_id: "a",
+        started_at: "a",
         state: "succeeded",
       },
     ];

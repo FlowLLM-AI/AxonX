@@ -8,11 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .options import ClientOptions
-from ..common.arguments import (
-    TRANSPORT_OPTION_NAMES,
-    convert_value,
-    parse_arguments,
-)
+from .arguments import TRANSPORT_OPTION_NAMES, convert_value, parse_arguments
 
 _ACTION_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
 
@@ -38,6 +34,18 @@ def parse_command(argv: Sequence[str]) -> tuple[Command, ClientOptions]:
     client = ClientOptions.model_validate(connection)
     arguments = {} if client.target is not None or action == "plugin" else parse_arguments(raw)
     return Command(action, arguments, raw), client
+
+
+def validate_cron_command(argv: Sequence[str]) -> None:
+    """Validate scheduled local exec commands with the same parser as the CLI."""
+    if tuple(argv[:2]) != ("axonx", "exec"):
+        raise ValueError("Only axonx exec --task NAME is supported")
+    command, client = parse_command(argv[1:])
+    if client.model_fields_set:
+        raise ValueError("Client options are not supported in cron")
+    task = command.arguments.get("task")
+    if not isinstance(task, str) or not task:
+        raise ValueError("A cron command requires --task NAME")
 
 
 def _extract_client_options(tokens: tuple[str, ...]) -> tuple[tuple[str, ...], dict[str, Any]]:

@@ -22,18 +22,18 @@ export function OperationIndex({
           className={selected === task.task_id ? "active" : ""}
         >
           <button
-            className="run-main rail-list-item"
+            className="task-main rail-list-item"
             aria-pressed={selected === task.task_id}
             onClick={() => onSelected(task.task_id)}
           >
-            <span className="run-item-avatar rail-avatar">
+            <span className="task-item-avatar rail-avatar">
               <Play />
             </span>
             <span className="rail-item-copy">
               <strong>{task.display_name || task.reg_name}</strong>
               <small>{formatDate(task.started_at || task.created_at)}</small>
-              <span className="operation-run-footer">
-                <span>{t("operations.taskRun")}</span>
+              <span className="operation-task-footer">
+                <span>{t("operations.taskRecord")}</span>
                 <Status state={task.state} />
               </span>
             </span>

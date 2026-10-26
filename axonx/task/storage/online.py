@@ -7,10 +7,10 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
-from ...common.fs.atomic import atomic_write, atomic_write_json
-from ...common.fs.locking import file_lock
-from ...common.fs.revision import file_revision
-from ...common.fs.snapshot import snapshot_file
+from .files import atomic_write, atomic_write_json
+from .locking import file_lock
+from .files import file_revision
+from .files import snapshot_file
 from ..core.clock import DeadlineBudget
 from ..models.artifacts import PROTOCOL_VERSION
 from ..models.reports import OnlineCommit, OnlineHistory
@@ -98,7 +98,7 @@ class OnlineStore:
             commit = OnlineCommit(
                 commit_id=commit_id,
                 task_id=self.task.task_id,
-                run_id=self.task.context.run_id,
+                started_at=self.task.metadata.started_at,
                 trade_date=trade_date,
                 trade_time=trade_time,
                 revision=1 + sum((c.trade_date, c.trade_time) == (trade_date, trade_time) for c in history.commits),

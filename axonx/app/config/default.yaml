@@ -2,6 +2,11 @@ language: en
 workspace_dir: ${AXONX_WORKSPACE_DIR:-.axonx}
 transfer_budget_bytes: 536870912
 
+# Optional address advertised by Task workers for remote kill commands.
+# Use an address reachable by other machines, with an explicit service port.
+# environment:
+#   AXONX_TASK_EXECUTION_TARGET: http://10.0.0.8:1024
+
 # =========== Known target services ===========
 targets: []
 
@@ -105,7 +110,7 @@ jobs:
       required: [argv]
       additionalProperties: false
     steps:
-      - backend: cli_step
+      - backend: command_step
 
   # =========== System jobs ===========
   help:
@@ -236,15 +241,14 @@ jobs:
       - backend: get_task_definition
 
   wait_task:
-    description: Wait for one exact Task run to finish.
+    description: Wait for the current Task to finish; refuse a restart while waiting.
     parameters:
       type: object
       properties:
         task_id: { type: string, minLength: 1 }
-        run_id: { type: string, minLength: 1 }
         poll_interval: { type: number, exclusiveMinimum: 0, default: 1 }
         detail: { type: string, enum: [summary, full], default: full }
-      required: [task_id, run_id]
+      required: [task_id]
       additionalProperties: false
     steps:
       - backend: wait_task
@@ -304,9 +308,10 @@ jobs:
         task_id:
           type: string
           description: ID of the task whose log is read.
-        run_id:
+        started_at:
           type: string
-          description: Optional exact Run ID; refuse a replacement run before reading its log.
+          format: date-time
+          description: Optional Task start time; refuse a restart before reading its log.
         offset:
           type: integer
           minimum: -1
@@ -359,7 +364,7 @@ jobs:
       - backend: stream_task
 
   get_task_graph:
-    description: Return the dependency graph containing any workspace Task run.
+    description: Return the dependency graph containing any workspace Task.
     parameters:
       type: object
       properties:
@@ -390,8 +395,8 @@ jobs:
     steps:
       - backend: workspace_list
 
-  list_task_runs:
-    description: List task-run directories containing metadata.json.
+  list_task_directories:
+    description: List Task directories containing metadata.json.
     parameters:
       type: object
       properties:
@@ -403,7 +408,7 @@ jobs:
       required: [task_type]
       additionalProperties: false
     steps:
-      - backend: task_runs
+      - backend: task_directories
 
   preview_file:
     description: Preview one supported file inside the configured workspace.

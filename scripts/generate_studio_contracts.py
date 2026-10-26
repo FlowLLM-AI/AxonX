@@ -18,8 +18,8 @@ from axonx.app.components.job.models import JobCatalog, JobInfo, JobResponse
 from axonx.app.config.models import StudioPage
 from axonx.app.core.build_info import BuildInfo
 from axonx.app.steps.machine.models import MachineDiagnostics, MachineInfo
-from axonx.common.logs import LogChunk, LogEvent
-from axonx.common.workspace.models import (
+from axonx.task.models.logs import LogChunk, LogEvent
+from axonx.app.workspace.models import (
     CsvPreview,
     DeletedEntry,
     FileCopy,
@@ -33,7 +33,7 @@ from axonx.common.workspace.models import (
     WorkspaceListing,
 )
 from axonx.task.builtins.stock.models import StockBacktestOutput, StockETLOutput
-from axonx.task.events import ProgressEvent
+from axonx.task.models.events import ProgressEvent
 from axonx.task.models.artifacts import ArtifactRecord
 from axonx.task.models.lifecycle import TaskMetadata, TaskStepStatus
 from axonx.task.models.params import (

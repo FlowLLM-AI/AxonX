@@ -160,7 +160,7 @@ export function BacktestView({
 }) {
   return (
     <UniverseBacktest
-      key={`${target || ""}:${taskDirectory(meta.task_id)}:${meta.run_id}`}
+      key={`${target || ""}:${taskDirectory(meta.task_id)}:${meta.started_at}`}
       meta={meta}
       target={target}
     />

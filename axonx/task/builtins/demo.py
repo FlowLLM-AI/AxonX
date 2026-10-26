@@ -1,6 +1,5 @@
 """Small built-in Task used to demonstrate synchronous execution."""
 
-from ...common.registry import provider
 from ..core.task import BaseTask
 from ..task_enums import TaskType
 from ..models.params import BaseInputParams, BaseOutputParams
@@ -20,7 +19,6 @@ class DemoTaskOutputParams(BaseOutputParams):
     operands: list[str]
 
 
-@provider("demo")
 class DemoTask(BaseTask):
     """Demonstrate synchronous Task execution with a small arithmetic workflow.
 

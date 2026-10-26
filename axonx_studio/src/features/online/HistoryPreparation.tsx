@@ -4,7 +4,7 @@ import { TaskSteps } from "../tasks/TaskSteps";
 import type { TaskMetadata } from "../tasks/types";
 import type { TaskNode } from "../tasks/tree";
 
-/** Join parent progress and its exact child Run into one card per model. */
+/** Join parent progress and its exact child Task into one card per model. */
 export function HistoryPreparation({
   parent,
   nodes,
@@ -66,7 +66,7 @@ export function HistoryPreparation({
             nodes.find(
               (node) =>
                 node.record.task_id === record.task_id &&
-                node.record.run_id === record.run_id,
+                node.record.started_at === record.started_at,
             );
           const child = node?.status;
           const state =

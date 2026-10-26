@@ -47,9 +47,9 @@ def axonx_version() -> str:
     """Return the running AxonX version: its installed metadata, else its source tree."""
     if installed := package_version(PACKAGE_NAME):
         return installed
-    from ..._version import VERSION
+    from ..._version import __version__
 
-    return VERSION
+    return __version__
 
 
 @cache

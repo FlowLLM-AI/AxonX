@@ -26,7 +26,7 @@ export function ComparisonResults({
         (row) => ({
           row,
           taskId: node.status!.task_id,
-          runId: node.status!.run_id,
+          startedAt: node.status!.started_at,
         }),
       ),
     );
@@ -39,7 +39,7 @@ export function ComparisonResults({
               row: parseOnlineReport({ comparisons: [model.finding] })
                 .comparisons![0],
               taskId: "",
-              runId: "",
+              startedAt: "",
             },
           ]
         : [];
@@ -66,7 +66,7 @@ export function ComparisonResults({
       );
     return (
       <div className="compare-results">
-        {results.map(({ row, taskId, runId }) => {
+        {results.map(({ row, taskId, startedAt }) => {
           const stages = isRecord(row.metrics?.stages)
             ? row.metrics.stages
             : {};
@@ -130,7 +130,7 @@ export function ComparisonResults({
               )}
               <TopComparison
                 taskId={taskId}
-                runId={runId}
+                startedAt={startedAt}
                 artifact={row.artifacts?.top_comparison}
                 target={target}
                 windowKey={row.key}

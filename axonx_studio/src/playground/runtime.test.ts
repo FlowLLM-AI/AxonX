@@ -51,9 +51,9 @@ describe("static Playground", () => {
       await expect(
         api.invoke("read_task_log", {
           task_id: summary.task_id,
-          run_id: "replaced-run",
+          started_at: "2026-01-02T00:00:00Z",
         }),
-      ).rejects.toThrow("Task run changed");
+      ).rejects.toThrow("Task restarted");
       expect(summary.step_progress?.current ?? null).toBe(
         taskStepProgress(detail)?.current ?? null,
       );
@@ -82,9 +82,12 @@ describe("static Playground", () => {
         "predict",
         "backtest",
       ]) {
-        const runs = await api.invoke<WorkspaceListing>("list_task_runs", {
-          task_type,
-        });
+        const runs = await api.invoke<WorkspaceListing>(
+          "list_task_directories",
+          {
+            task_type,
+          },
+        );
         expect(runs.entries.length).toBeGreaterThan(0);
         for (const run of runs.entries) {
           const preview = await api.invoke<WorkspacePreview>("preview_file", {

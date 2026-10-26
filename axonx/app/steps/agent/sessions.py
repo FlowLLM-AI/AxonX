@@ -7,7 +7,7 @@ from abc import ABC
 from ...components.agent.models import AgentMutationResult
 from ...components.component_type import ComponentType
 from ..base import BaseStep
-from ....common.registry import provider
+from ...registry import provider
 
 
 class AgentSessionStep(BaseStep, ABC):

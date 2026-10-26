@@ -1,11 +1,7 @@
 """Follow one running task as a live event stream."""
 
-from pathlib import Path
-
 from .base import TaskIndexStep
-from ....common.registry import provider
-from ....task.query.stream import stream_task
-from ....task.storage.logs import TaskLogReader
+from ...registry import provider
 
 
 @provider("stream_task")
@@ -19,15 +15,7 @@ class StreamTaskStep(TaskIndexStep):
 
     async def execute(self):
         task_id = self.context["task_id"]
-        logs = TaskLogReader(Path(self.app_config.log_dir).expanduser().resolve())
-        async for event in stream_task(
-            self.workspace_path,
-            logs,
-            self.task_index.entry,
-            self.logger,
-            task_id,
-            self.context.get("poll_interval", 0.5),
-        ):
+        async for event in self.task_index.stream(task_id, self.context.get("poll_interval", 0.5)):
             await self.emit(event)
         # The stream only ends once the task is terminal, so this is its outcome.
         status = await self.task_index.entry(task_id)

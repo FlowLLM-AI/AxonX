@@ -258,7 +258,8 @@ function RevisionHistory({
             </span>
           </div>
           <small>
-            {new Date(commit.committed_at).toLocaleString()} · {commit.run_id}
+            {new Date(commit.committed_at).toLocaleString()} ·{" "}
+            {commit.started_at}
           </small>
           <code>{commit.model_identity.models_sha256}</code>
           {!reportIsCurrent(history, commit) && (

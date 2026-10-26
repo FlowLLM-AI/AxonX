@@ -17,7 +17,7 @@ vi.mock("../tasks/api", () => ({ getTaskStatus: vi.fn() }));
 beforeEach(() =>
   vi
     .mocked(getTaskStatus)
-    .mockResolvedValue({ run_id: "run-a" } as TaskMetadata),
+    .mockResolvedValue({ started_at: "2026-01-11T00:00:00Z" } as TaskMetadata),
 );
 vi.mock("../workspace/api", () => ({ previewWorkspaceFile: vi.fn() }));
 const stock = (code: string, rank: number, score = 1): TopStock => ({
@@ -99,7 +99,7 @@ it.each(["en", "zh"])(
         root.render(
           <TopComparison
             taskId="analysis#compare#test"
-            runId="run-a"
+            startedAt="2026-01-11T00:00:00Z"
             artifact={artifact}
             target="selected-machine"
             windowKey="20240102/1445"
@@ -167,10 +167,10 @@ it.each([true, false])(
     vi.mocked(getTaskStatus).mockReset();
     if (!before)
       vi.mocked(getTaskStatus).mockResolvedValueOnce({
-        run_id: "run-a",
+        started_at: "2026-01-11T00:00:00Z",
       } as TaskMetadata);
     vi.mocked(getTaskStatus).mockResolvedValue({
-      run_id: "run-b",
+      started_at: "2026-01-12T00:00:00Z",
     } as TaskMetadata);
     vi.mocked(previewWorkspaceFile).mockResolvedValue({
       kind: "json",
@@ -185,14 +185,14 @@ it.each([true, false])(
         root.render(
           <TopComparison
             taskId="analysis#compare#test"
-            runId="run-a"
+            startedAt="2026-01-11T00:00:00Z"
             windowKey="20240102/1445"
             artifact={{ path: "top.json", size: 100, revision: "1:1" }}
           />,
         ),
       );
       expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-        i18n.t("onlinePipeline.replacedChildRun"),
+        i18n.t("onlinePipeline.replacedChild"),
       );
       expect(container.querySelector("table")).toBeNull();
       expect(vi.mocked(previewWorkspaceFile).mock.calls).toHaveLength(

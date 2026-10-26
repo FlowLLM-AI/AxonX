@@ -15,7 +15,7 @@ from .context import RuntimeContext
 from .events import JobEvent, ResultEvent
 from ...config.models import ComponentConfig
 from ...steps.base import BaseStep
-from ....common.registry import provider
+from ...registry import provider
 
 if TYPE_CHECKING:
     from ...core.context import ApplicationContext

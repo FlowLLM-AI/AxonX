@@ -1,14 +1,15 @@
 """HTTP service component backed by FastAPI and Uvicorn."""
 
 import math
+from collections.abc import Awaitable, Callable
 import os
 import signal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ..base import BaseService
-from .....common.constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
-from .....common.registry import provider
+from ....constants import AXONX_DEFAULT_BIND_HOST, AXONX_DEFAULT_PORT
+from ....registry import provider
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -44,6 +45,7 @@ class HttpService(BaseService):
         self.web_enabled = web_enabled
         self.token = token
         self.server = None
+        self.on_ready: Callable[[], Awaitable[None]] | None = None
         self.startup_directory = Path.cwd().resolve()
         self.cli_processes: set[int] = set()
         self.cli_callbacks: dict[str, list | None] = {}

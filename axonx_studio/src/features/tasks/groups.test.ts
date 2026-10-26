@@ -7,7 +7,7 @@ const task = (
   state: TaskState = "succeeded",
   date = "2026-10-13T01:00:00Z",
 ): TaskSummary => ({
-  parent_run_id: null,
+  parent_task_id: null,
   category: null,
   report_kind: null,
   display_name: "test",
@@ -15,13 +15,14 @@ const task = (
   is_online: false,
   step_progress: null,
   task_id: id,
-  run_id: id,
   task_type: id.split("#")[0] as TaskSummary["task_type"],
   reg_name: id.split("#")[1],
   source: { kind: "exec" },
   state,
   pid: 1234,
   machine_id: "playground",
+  execution_target: null,
+  workspace_dir: null,
   process_started_at: "2026-01-01T00:00:00Z",
   created_at: date,
   started_at: date,
@@ -71,7 +72,7 @@ it("filters actual tasks while retaining the whole group count", () => {
 it("handles absent and invalid timestamps deterministically", () => {
   const records = [
     task("analysis#b#one", "running", "invalid"),
-    { ...task("analysis#a#one"), started_at: null, created_at: null },
+    { ...task("analysis#a#one"), started_at: "", created_at: null },
   ];
   expect(groupTasks(records, filters).map((group) => group.key)).toEqual([
     "analysis#b",

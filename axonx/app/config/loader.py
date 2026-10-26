@@ -9,9 +9,33 @@ from typing import Any
 
 import yaml
 
-from .arguments import convert_value
-from .constants import AXONX_DEFAULT_ENCODING
+from ..constants import AXONX_DEFAULT_ENCODING
 from .locator import discover_files, locate_file
+
+_LEADING_ZERO_RE = re.compile(r"^-?0\d")
+
+
+def convert_value(value: str) -> Any:
+    """Convert a textual configuration value to its natural Python value."""
+    value = value.strip()
+    lower = value.lower()
+    if lower in {"none", "null"}:
+        return None
+    if lower in {"true", "false"}:
+        return lower == "true"
+
+    if not _LEADING_ZERO_RE.match(value):
+        for converter in (int, float):
+            try:
+                return converter(value)
+            except ValueError:
+                pass
+
+    try:
+        return json.loads(value)
+    except ValueError:
+        return value
+
 
 _SUPPORTED_EXTENSIONS = (".yaml", ".yml", ".json")
 _ENV_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?}")
@@ -120,7 +144,7 @@ class ConfigLoader:
 
     def resolve(self, *, log_config: bool = True, **overrides) -> dict:
         """Resolve a selected/default configuration and apply explicit overrides."""
-        from .logging import get_logger
+        from ...common.logging import get_logger
 
         source = overrides.get("config")
         base: dict = {}

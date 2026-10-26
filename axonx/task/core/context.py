@@ -17,8 +17,8 @@ class TaskContext:
     workspace_path: Path
     registration_name: str
     task_id: str
-    run_id: str
     created_at: datetime
     logger: Any
     source: TaskSource
-    parent_run_id: str | None = None
+    parent_task_id: str | None = None
+    execution_target: str | None = None

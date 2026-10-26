@@ -278,11 +278,11 @@ export function TaskDetailPage({
                   <span className={`task-orb ${task.state}`}>
                     {task.task_type.slice(0, 1).toUpperCase()}
                   </span>
-                  {labels.runDetails}
+                  {labels.taskDetails}
                 </>
               ),
               content: (
-                <section className="task-detail-card open task-run-card">
+                <section className="task-detail-card open task-execution-card">
                   <div className="task-detail-card-body">
                     {task.error && (
                       <p className="error-state" role="alert">
@@ -297,7 +297,7 @@ export function TaskDetailPage({
                       />
                     ) : (
                       <ExecutionSteps
-                        key={`${target}:${task.run_id}`}
+                        key={`${target}:${task.started_at}`}
                         task={task}
                       />
                     )}
@@ -317,7 +317,7 @@ export function TaskDetailPage({
                 <section className="task-detail-card open task-log-card">
                   <div className="task-detail-card-body">
                     <TaskLogPanel
-                      key={`${target}:${task.task_id}:${task.run_id}`}
+                      key={`${target}:${task.task_id}:${task.started_at}`}
                       task={task}
                       target={target}
                       toolbar={

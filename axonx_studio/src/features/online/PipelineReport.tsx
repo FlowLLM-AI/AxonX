@@ -6,7 +6,7 @@ import { getTaskStatus } from "../tasks/api";
 import { OnlineWorkbench } from "./OnlineWorkbench";
 import { readTaskChildren } from "../tasks/tree";
 import { ComparePipeline } from "./ComparePipeline";
-import type { TaskRunIdentity } from "../tasks/types";
+import type { TaskReference } from "../tasks/types";
 import { TaskSteps } from "../tasks/TaskSteps";
 import { Status } from "../tasks/TaskRow";
 import { TaskLogPanel } from "../tasks/TaskLogPanel";
@@ -22,7 +22,7 @@ export function PipelineReport({
   target,
   onOpenTask,
 }: {
-  task: TaskRunIdentity;
+  task: TaskReference;
   target?: string;
   onOpenTask: (id: string) => void;
 }) {
@@ -31,10 +31,10 @@ export function PipelineReport({
   const load = useCallback(
     async (signal: AbortSignal) => {
       const parent = await getTaskStatus(task.task_id, target, signal);
-      if (parent.run_id !== task.run_id)
-        throw new Error(t("onlinePipeline.replacedRun"));
+      if (parent.started_at !== task.started_at)
+        throw new Error(t("onlinePipeline.restartedTask"));
       const nodes = await readTaskChildren(parent, target, signal, {
-        replaced: t("onlinePipeline.replacedChildRun"),
+        replaced: t("onlinePipeline.replacedChild"),
         snapshot: t("onlinePipeline.changedSnapshot"),
       });
       const children = nodes.map((node) => {
@@ -57,7 +57,7 @@ export function PipelineReport({
         output: parseOnlineReport(parent.output_params),
       };
     },
-    [task.task_id, task.run_id, target, t],
+    [task.task_id, task.started_at, target, t],
   );
   const { data, error, loading, reload } = useAsyncResource(load);
   const refreshAll = useRefresh(reload);
@@ -124,7 +124,7 @@ export function PipelineReport({
         >
           <option value="">{t("onlinePipeline.chainLog")}</option>
           {statuses.map((child) => (
-            <option key={child.run_id} value={child.task_id}>
+            <option key={child.task_id} value={child.task_id}>
               {child.reg_name} · {child.input_params.task_name as string}
             </option>
           ))}
@@ -132,12 +132,12 @@ export function PipelineReport({
       </label>
       {logs ? (
         <TaskLogPanel
-          key={`${target}:${logs.task_id}:${logs.run_id}`}
+          key={`${target}:${logs.task_id}:${logs.started_at}`}
           task={logs}
           target={target}
         />
       ) : (
-        <p>{t("onlinePipeline.replacedRun")}</p>
+        <p>{t("onlinePipeline.restartedTask")}</p>
       )}
     </>
   );
@@ -181,7 +181,7 @@ export function PipelineReport({
                 task.reg_name,
             )}
           </h2>
-          <div className="pipeline-identity" title={parent.run_id}>
+          <div className="pipeline-identity" title={parent.started_at}>
             {parent.task_id}
           </div>
         </div>

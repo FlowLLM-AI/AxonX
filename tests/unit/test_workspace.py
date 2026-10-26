@@ -1,0 +1,146 @@
+"""Workspace models remain usable directly and through JSON transports."""
+
+import json
+from pathlib import Path
+
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pytest
+
+from axonx.app.components.job.models import JobResponse
+from axonx.app.workspace import Workspace
+from axonx.app.workspace.models import (
+    CsvPreview,
+    DeletedEntry,
+    JsonlPreview,
+    MarkdownPreview,
+    ParquetPreview,
+    StagedFile,
+    StructuredPreview,
+    TextPreview,
+    UnsupportedPreview,
+    WorkspaceEntry,
+    WorkspaceListing,
+)
+
+
+def test_listing_filters_typed_entries_before_pagination(tmp_path):
+    (tmp_path / "directory").mkdir()
+    (tmp_path / "unsupported.bin").write_bytes(b"binary")
+    (tmp_path / "a.txt").write_text("hello")
+    (tmp_path / "b.csv").write_text("value\n1\n")
+    workspace = Workspace(tmp_path)
+    seen = []
+
+    def include(path, entry):
+        assert isinstance(entry, WorkspaceEntry)
+        assert path == tmp_path / entry.name
+        seen.append(entry.name)
+        return entry.kind == "directory" or entry.supported
+
+    result = workspace.list_entries(include=include, offset=1)
+    assert isinstance(result, WorkspaceListing)
+    assert set(seen) == {"directory", "a.txt", "b.csv", "unsupported.bin"}
+    assert [entry.name for entry in result.entries] == ["a.txt", "b.csv"]
+    assert result.entries[0].size == 5
+    assert result.model_dump()["entries"][0]["path"] == "a.txt"
+
+
+@pytest.mark.parametrize(
+    "filename,content,model",
+    [
+        ("text.txt", "hello", TextPreview),
+        ("readme.md", "---\ntitle: Example\n---\nhello", MarkdownPreview),
+        ("data.json", '{"value": 1}', StructuredPreview),
+        ("data.yaml", "value: 1\n", StructuredPreview),
+        ("table.csv", "value\n1\n2\n", CsvPreview),
+        ("data.bin", "binary", UnsupportedPreview),
+    ],
+)
+def test_preview_returns_models_with_transport_ready_fields(tmp_path, filename, content, model):
+    (tmp_path / filename).write_text(content)
+    preview = Workspace(tmp_path).preview_file(filename, limit=1)
+    assert isinstance(preview, model)
+    payload = json.loads(JobResponse(answer=preview).model_dump_json())["answer"]
+    assert payload == preview.model_dump(mode="json")
+    assert payload["size"] == len(content.encode())
+    if isinstance(preview, StructuredPreview):
+        assert preview.data == {"value": 1}
+        assert preview.parse_error is None
+    elif isinstance(preview, MarkdownPreview):
+        assert preview.frontmatter == {"title": "Example"}
+        assert preview.content == "hello"
+    elif isinstance(preview, CsvPreview):
+        assert preview.rows == [["1"]]
+        assert preview.has_more
+
+
+@pytest.mark.parametrize("filename,content", [("bad.json", "{"), ("bad.yaml", "value: [")])
+def test_structured_preview_preserves_errors_and_partial_content(tmp_path, filename, content):
+    (tmp_path / filename).write_text(content)
+    workspace = Workspace(tmp_path)
+    preview = workspace.preview_file(filename)
+    assert isinstance(preview, StructuredPreview)
+    assert preview.parse_error and preview.content == content
+    partial = workspace.preview_file(filename, max_bytes=1)
+    assert partial.content == content[:1]
+    if len(content) > 1:
+        assert partial.truncated and partial.data is None
+
+
+def test_jsonl_preview_keeps_typed_rows_and_invalid_record_errors(tmp_path):
+    (tmp_path / "records.jsonl").write_text('{"x": 1}\nbad json\n{"x": 3}\n')
+    preview = Workspace(tmp_path).preview_file("records.jsonl", offset=1, limit=1)
+    assert isinstance(preview, JsonlPreview)
+    assert preview.has_more
+    assert preview.rows[0].line == 2
+    assert preview.rows[0].parse_error
+    assert preview.model_dump()["rows"][0]["content"] == "bad json"
+
+
+def test_parquet_preview_preserves_schema_and_pagination(tmp_path):
+    pq.write_table(pa.table({"value": [1, 2, 3]}), tmp_path / "table.parquet", row_group_size=1)
+    preview = Workspace(tmp_path).preview_file("table.parquet", offset=1, limit=1)
+    assert isinstance(preview, ParquetPreview)
+    assert preview.rows == [[2]]
+    assert preview.row_count == preview.row_group_count == 3
+    assert preview.column_schema[0].name == "value"
+    assert preview.column_schema[0].type == "int64"
+    assert preview.has_more
+
+
+async def test_staging_returns_models_and_cleans_up_incomplete_streams(tmp_path):
+    workspace = Workspace(tmp_path)
+    copied = workspace.stage_bytes(b"hello", "copy.txt")
+    assert isinstance(copied, StagedFile)
+    assert Path(copied.location).read_bytes() == b"hello"
+
+    async def chunks():
+        yield b"one"
+        yield b"two"
+
+    streamed = await workspace.stage_stream(chunks(), "stream.txt", size=6)
+    assert isinstance(streamed, StagedFile)
+    assert workspace.staged_file(streamed.path).read_bytes() == b"onetwo"
+    before = set(tmp_path.rglob("*"))
+    with pytest.raises(ValueError, match="does not match"):
+        await workspace.stage_stream(chunks(), "incomplete.txt", size=7)
+    assert set(tmp_path.rglob("*")) == before
+    assert json.loads(JobResponse(answer=streamed).model_dump_json())["answer"] == {
+        "path": streamed.path,
+        "location": streamed.location,
+        "size": 6,
+    }
+
+
+def test_deletion_validates_the_selection_then_returns_typed_roots(tmp_path):
+    directory = tmp_path / "directory"
+    directory.mkdir()
+    (directory / "file.txt").write_text("hello")
+    workspace = Workspace(tmp_path)
+    with pytest.raises(ValueError, match="cannot contain parent traversal"):
+        workspace.delete_entries(["directory", "../outside"])
+    assert directory.is_dir()
+    deleted = workspace.delete_entries(["directory/file.txt", "directory"])
+    assert deleted == [DeletedEntry(deleted="directory", kind="directory")]
+    assert not directory.exists()

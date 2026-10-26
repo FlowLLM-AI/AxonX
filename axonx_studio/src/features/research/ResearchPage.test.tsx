@@ -5,12 +5,12 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { seed } from "../../playground/fixtures";
-import { listTaskRuns, previewWorkspaceFile } from "../workspace/api";
+import { listTaskDirectories, previewWorkspaceFile } from "../workspace/api";
 import ResearchPage from "./ResearchPage";
 
 vi.mock("../../shared/api/client", () => ({ axonx: { invoke: vi.fn() } }));
 vi.mock("../workspace/api", () => ({
-  listTaskRuns: vi.fn(),
+  listTaskDirectories: vi.fn(),
   previewWorkspaceFile: vi.fn(),
   deleteWorkspaceEntries: vi.fn(),
 }));
@@ -28,7 +28,7 @@ it.each(["en", "zh"])(
         : [tasks.get("backtest#demo")!],
     );
     const path = "backtest/backtest#demo";
-    vi.mocked(listTaskRuns).mockResolvedValue({
+    vi.mocked(listTaskDirectories).mockResolvedValue({
       path: "backtest",
       workspace_root: null,
       truncated: false,

@@ -70,7 +70,7 @@ axonx plugin install '<uploaded answer.location>' --target 'http://<host>:1024'
 axonx plugin list --target 'http://<host>:1024'
 ```
 
-Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task/Run IDs and stop on installation or verification failures. [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management)
+Installation updates the selected Python environment without refreshing loaded service objects or tracking restart requirements. Restart a persistent service when it must reload schemas or contributions. New CLI processes load the installed environment; record Task IDs and start times and stop on installation or verification failures. [plugin management](https://flowllm-ai.github.io/AxonX/en/plugins/management)
 
 ## Prepare data
 
@@ -82,11 +82,11 @@ axonx exec --task download_tushare_task \
   --datasets 'static,stk_limit,daily,adj_factor,index_weight'
 ```
 
-Save the returned `task_id` and `run_id`, and wait for the download to succeed before submitting ETL:
+Save the returned `task_id` and `started_at`, and wait for the download to succeed before submitting ETL:
 
 ```bash
 axonx --client-timeout 86400 wait_task \
-  --task-id '<download_task_id>' --run-id '<download_run_id>'
+  --task-id '<download_task_id>'
 ```
 
 | Files                                                            | Purpose                                                            |
@@ -135,7 +135,7 @@ For every wait, provide both identifiers from that submission:
 
 ```bash
 axonx --client-timeout 86400 wait_task \
-  --task-id '<task_id>' --run-id '<run_id>'
+  --task-id '<task_id>'
 axonx get_task_definition --task qlib_a158_train
 ```
 
