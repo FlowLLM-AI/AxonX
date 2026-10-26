@@ -1,14 +1,52 @@
-"""Read Task logs safely by byte offset."""
+"""Append Task progress journals and read journals and logs by byte offset."""
 
 from __future__ import annotations
 
 import codecs
+import os
+from collections.abc import Iterable
 from pathlib import Path
 
-from ..models.events import LogChunk
-from ..models.lifecycle import TaskMetadata
-from .events import LOG_WINDOW_BYTES
+from ..models.events import LogChunk, ProgressEvent
+from ..models.lifecycle import TaskMetadata, TaskStepStatus
 from .workspace import read_entry, task_path
+
+LOG_WINDOW_BYTES = 65_536
+
+
+class TaskJournal:
+    """Own one append-only JSONL journal; partial trailing lines wait for the next read."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+    def append(self, *events: ProgressEvent) -> None:
+        """Append complete event lines through one file handle."""
+        if events:
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.writelines(event.model_dump_json() + "\n" for event in events)
+
+    def append_snapshots(self, steps: Iterable[TaskStepStatus]) -> None:
+        """Flush all step snapshots before publishing their terminal metadata."""
+        self.append(*(ProgressEvent.from_status(step) for step in steps))
+
+    def read(self, offset: int) -> tuple[int, list[str]]:
+        """Read complete lines after a byte offset, restarting after truncation."""
+        if offset < 0:
+            raise ValueError("Invalid task journal offset")
+        try:
+            with self.path.open("rb") as handle:
+                if offset > os.fstat(handle.fileno()).st_size:
+                    offset = 0
+                handle.seek(offset)
+                data = handle.read()
+        except FileNotFoundError:
+            return offset, []
+        complete = data.rfind(b"\n")
+        if complete < 0:
+            return offset, []
+        lines = data[:complete].decode("utf-8", errors="replace").splitlines()
+        return offset + complete + 1, lines
 
 
 class TaskLogReader:
@@ -67,6 +105,7 @@ class TaskLogReader:
             raise ValueError("Invalid task log range")
         if path is None:
             return LogChunk()
+        path = path.expanduser().resolve()
         if not self.is_task_log(path):
             raise ValueError("Task log path is outside the configured log directory")
         if not path.is_file():

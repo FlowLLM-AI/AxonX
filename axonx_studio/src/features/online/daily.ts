@@ -14,6 +14,24 @@ export type SignalHistory = {
   error: string;
 };
 
+/** History progress identifies the child role independently of its Task type. */
+export function historyTaskRecords(parent: TaskMetadata) {
+  const names = parent.steps
+    .filter((step) => step.group === "history")
+    .map((step) => step.name.replace(/^history:/, ""));
+  return [
+    ...new Map(
+      parent.children
+        .filter((record) =>
+          names.some(
+            (name) => record.node_name === `${name}-${record.reg_name}`,
+          ),
+        )
+        .map((record) => [record.node_name, record]),
+    ).values(),
+  ];
+}
+
 export function dailyModels(parent: TaskMetadata, nodes: ReportNode[]) {
   const plan = (parent.input_params.models || {}) as Record<
     string,
@@ -27,12 +45,12 @@ export function dailyModels(parent: TaskMetadata, nodes: ReportNode[]) {
           .reverse()
           .find(
             (child) =>
-              child.task_id?.startsWith("inference#") &&
-              child.node_name === `${name}-${slot}-${child.task}`,
+              child.child_task_id?.startsWith("inference#") &&
+              child.node_name === `${name}-${slot}-${child.reg_name}`,
           );
         const node = nodes.find(
           (item) =>
-            item.record.task_id === record?.task_id &&
+            item.record.child_task_id === record?.child_task_id &&
             item.record.started_at === record?.started_at,
         );
         const outcomes = parent.output_params.models as
@@ -95,9 +113,7 @@ export function collectionSlot(name: string) {
 export function aggregateState(states: (string | null | undefined)[]) {
   const values = states.filter(Boolean);
   if (
-    values.some((state) =>
-      ["failed", "missed", "incomplete", "cancelled"].includes(state!),
-    )
+    values.some((state) => ["failed", "missed", "incomplete"].includes(state!))
   )
     return "failed";
   if (values.some((state) => state === "running")) return "running";

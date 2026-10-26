@@ -57,7 +57,7 @@ afterEach(async () => {
 
 describe("online pipeline", () => {
   it("shows root pipeline collection, model stages and logs; comparison has its own page", async () => {
-    await render("composite#playground_online#demo");
+    await render("base#playground_online#demo");
     await act(async () =>
       container
         .querySelector<HTMLButtonElement>('[role="tab"][id$="-logs-tab"]')!
@@ -77,12 +77,12 @@ describe("online pipeline", () => {
         )!
         .click(),
     );
-    expect(onOpenTask).toHaveBeenCalledWith("composite#playground_online#demo");
+    expect(onOpenTask).toHaveBeenCalledWith("base#playground_online#demo");
     expect(container.querySelector(".online-filters")).toBeNull();
     expect(container.querySelector(".task-index-header")).not.toBeNull();
     expect(container.querySelectorAll(".task-index article")).toHaveLength(1);
     expect(container.textContent).not.toContain("Synthetic nightly comparison");
-    await render("composite#playground_compare#demo", "comparison");
+    await render("base#playground_compare#demo", "comparison");
     expect(container.textContent).toContain("onlinePipeline.nightly");
     await act(async () =>
       container
@@ -142,10 +142,44 @@ describe("online pipeline", () => {
   });
 });
 
-it("keeps categories separate even with a direct link to another category", async () => {
-  await render("composite#playground_compare#demo", "online");
+it("keeps report kinds separate even with a direct link to another report kind", async () => {
+  await render("base#playground_compare#demo", "online");
   expect(container.querySelector(".online-report")).toBeNull();
   expect(container.textContent).toContain("operations.empty");
+  expect(container.querySelectorAll(".task-index article")).toHaveLength(1);
+});
+
+it("includes standalone inference while excluding comparison reports and child executions", async () => {
+  const inference = taskStatus(
+    "inference",
+    "inference#model#standalone",
+    "model",
+  );
+  const comparison = taskStatus(
+    "analysis",
+    "analysis#compare#standalone",
+    "compare",
+  );
+  comparison.report_kind = "online";
+  const child = {
+    ...inference,
+    task_id: "inference#model#child",
+    parent_task_id: "base#pipeline#parent",
+  };
+  configureClient(
+    new AxonXClient(
+      async () =>
+        Response.json({
+          answer: [inference, comparison, child],
+          success: true,
+        }),
+      false,
+    ),
+  );
+  await render("missing-selection");
+  expect(onOptionsChange).toHaveBeenLastCalledWith([
+    expect.objectContaining({ value: inference.task_id }),
+  ]);
   expect(container.querySelectorAll(".task-index article")).toHaveLength(1);
 });
 
@@ -341,8 +375,8 @@ it("switches download results and logs together and refuses a replaced child Tas
   parent.children = [
     {
       node_name: "download_tushare_static",
-      task: "static",
-      task_id: child.task_id,
+      reg_name: "static",
+      child_task_id: child.task_id,
       started_at: child.started_at,
       attempt: 1,
       state: child.state,
@@ -355,7 +389,7 @@ it("switches download results and logs together and refuses a replaced child Tas
   parent.children.push({
     ...parent.children[0],
     node_name: "download_tushare_daily",
-    task_id: daily.task_id,
+    child_task_id: daily.task_id,
     started_at: daily.started_at,
   });
   parent.output_params = { artifacts: {} };
@@ -392,7 +426,7 @@ it("switches download results and logs together and refuses a replaced child Tas
   await act(async () =>
     root.render(<TaskReport task={parent} onOpenTask={onOpenTask} />),
   );
-  // A composite's own output contains no API summary; overview must use both owned children.
+  // A parent Task's own output contains no API summary; overview must use both owned children.
   expect(
     JSON.parse(
       container.querySelector('[id$="-interfaces-panel"] pre')!.textContent!,
@@ -461,8 +495,8 @@ it("selects a shared Task by ID when another branch retains an older start time"
   const child = taskStatus("api", "api#shared#test", "Shared");
   child.output_params = { result: 777 };
   const record = (task: typeof child, name = task.reg_name) => ({
-    task: task.reg_name,
-    task_id: task.task_id,
+    reg_name: task.reg_name,
+    child_task_id: task.task_id,
     node_name: name,
     started_at: task.started_at,
     attempt: 1,

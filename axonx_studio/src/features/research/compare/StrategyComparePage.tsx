@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsyncResource } from "../../../shared/hooks/useAsyncResource";
 import type { TaskSummary } from "../../tasks/types";
-import { parseSourceTasks } from "../../../shared/lib/sourceTasks";
+import { upstreamTaskIds } from "../../../shared/lib/upstreamTasks";
 import { getResearchTask, listResearchTasks } from "../api";
 import { BacktestChart } from "../backtest/BacktestChart";
 import { loadBacktestDaily } from "../backtest/api";
@@ -370,8 +370,8 @@ export default function StrategyComparePage({
     )
       warnings.push(t("compare.annualization_differs_comparison_uses_252"));
     if (
-      parseSourceTasks(taskA.input_params.source_tasks).join() !==
-      parseSourceTasks(taskB.input_params.source_tasks).join()
+      upstreamTaskIds(taskA.input_params.upstream_task_ids).join() !==
+      upstreamTaskIds(taskB.input_params.upstream_task_ids).join()
     )
       warnings.push(t("compare.prediction_sources_differ"));
     if (dailyA.length !== points.length || dailyB.length !== points.length)

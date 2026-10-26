@@ -111,7 +111,6 @@ export function TaskDetailPage({
       </section>
     );
   const configEntries = Object.entries(task.input_params || {});
-  const composite = task.task_type === "composite";
   const locateCurrentTask = () => {
     setLocateRequest((current) => current + 1);
   };
@@ -130,7 +129,7 @@ export function TaskDetailPage({
           <span className="task-detail-subtitle">
             <Status state={task.state} />
             {t(`types.${task.task_type}`, task.task_type)} · PID{" "}
-            {task.pid || "—"} · {t(`taskSources.${task.source.kind}`)}
+            {task.pid || "—"}
           </span>
         </div>
       </div>
@@ -289,17 +288,19 @@ export function TaskDetailPage({
                         {task.error}
                       </p>
                     )}
-                    <h3>{composite ? labels.children : t("steps")}</h3>
-                    {composite ? (
-                      <TaskChildren
-                        records={task.children}
-                        onOpenTask={onOpenTask}
-                      />
-                    ) : (
-                      <ExecutionSteps
-                        key={`${target}:${task.started_at}`}
-                        task={task}
-                      />
+                    <h3>{t("steps")}</h3>
+                    <ExecutionSteps
+                      key={`${target}:${task.started_at}`}
+                      task={task}
+                    />
+                    {task.children.length > 0 && (
+                      <>
+                        <h3>{labels.children}</h3>
+                        <TaskChildren
+                          records={task.children}
+                          onOpenTask={onOpenTask}
+                        />
+                      </>
                     )}
                   </div>
                 </section>

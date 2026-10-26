@@ -192,8 +192,8 @@ def test_upload_preview_and_workspace_deletion(application):
 
 def test_workspace_deletion_has_no_task_lifecycle_policy(application):
     app, client = application
-    status = TaskExecutor(app.workspace.root, resolve_task=lambda _: DemoTask).execute(
-        "demo", {"task_name": "delete", "x": 1, "y": 2}
+    status = TaskExecutor().execute(
+        DemoTask({"task_name": "delete", "x": 1, "y": 2}, workspace_path=app.workspace.root, reg_name="demo")
     )
     status.state = TaskState.RUNNING
     directory = task_path(app.workspace.root, status.task_id)
@@ -208,8 +208,8 @@ def test_sync_archive_round_trip_through_the_http_adapters(application, tmp_path
     assert "sync" not in app.context.components
     source = tmp_path / "source"
     configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
-    status = TaskExecutor(source, resolve_task=lambda _: DemoTask).execute(
-        "demo", {"task_name": "replica", "x": 3, "y": 4}
+    status = TaskExecutor().execute(
+        DemoTask({"task_name": "replica", "x": 3, "y": 4}, workspace_path=source, reg_name="demo")
     )
     plan = prepare_replica(source, status.task_id, tmp_path / "prepared", 1_000_000, TaskLogReader(tmp_path / "logs"))
     archive = tmp_path / "replica.tar.gz"

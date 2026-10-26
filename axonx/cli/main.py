@@ -98,14 +98,15 @@ def _run_kill(command: Command) -> int:
 
 def _run_task_catalog(command: Command) -> int:
     load_env(override=False)
-    from ..plugin.catalog import get_task_definition, list_installed_task_definitions
+    from ..plugin.catalog import TaskCatalog
 
+    catalog = TaskCatalog()
     if command.action == "get_task_definition":
         if set(command.arguments) != {"task"}:
             raise ValueError("Expected --task NAME")
-        result = get_task_definition(command.arguments["task"])
+        result = catalog.definition(command.arguments["task"])
     else:
-        result = list_installed_task_definitions(**command.arguments)
+        result = catalog.definitions(**command.arguments)
     print_json(
         [item.model_dump(mode="json") for item in result]
         if isinstance(result, list)
@@ -115,13 +116,13 @@ def _run_task_catalog(command: Command) -> int:
 
 
 def _run_exec(command: Command) -> int:
-    from ..plugin.catalog import installed_tasks, resolve_task
+    from ..plugin.catalog import TaskCatalog
     from ..task.runtime.executor import TaskExecutor
 
     config = _execution_config()
-    workspace_dir, timezone = config.workspace_dir, config.timezone
+    catalog = TaskCatalog()
     if not command.arguments:
-        for name, task_class in sorted(installed_tasks().items()):
+        for name, task_class in catalog.tasks().items():
             print(f"{name}\t{task_class.__module__}.{task_class.__name__}")
         return 0
     inputs = dict(command.arguments)
@@ -129,9 +130,17 @@ def _run_exec(command: Command) -> int:
         name = inputs.pop("task")
     except KeyError:
         raise ValueError("Missing required option: --task") from None
-    status = TaskExecutor(
-        workspace_dir, timezone=timezone, execution_target=config.execution_target, resolve_task=resolve_task
-    ).execute(name, inputs)
+    if isinstance(inputs.get("upstream_task_ids"), str):
+        upstream_ids = inputs["upstream_task_ids"]
+        inputs["upstream_task_ids"] = [item.strip() for item in upstream_ids.split(",")] if upstream_ids.strip() else []
+    task = catalog.resolve(name)(
+        inputs,
+        workspace_path=config.workspace_dir,
+        reg_name=name,
+        timezone=config.timezone,
+        execution_target=config.execution_target,
+    )
+    status = TaskExecutor(resolve_task=catalog.resolve).execute(task)
     print_json(status.output_params)
     return status.exit_code
 

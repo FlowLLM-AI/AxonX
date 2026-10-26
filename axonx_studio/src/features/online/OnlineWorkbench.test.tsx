@@ -53,7 +53,7 @@ beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("zh");
   const tasks = seed().tasks;
-  parent = structuredClone(tasks.get("composite#playground_online#demo")!);
+  parent = structuredClone(tasks.get("base#playground_online#demo")!);
   const child = structuredClone(tasks.get("inference#playground_online#demo")!);
   nodes = [
     {
@@ -293,7 +293,7 @@ it("opens archived signals without attaching today's diagnostics and retains the
 it("loads archived and same-day signals without current inference children", async () => {
   vi.useFakeTimers();
   const playground = createPlayground();
-  const taskId = nodes[0].record.task_id;
+  const taskId = nodes[0].record.child_task_id;
   let unavailable = false;
   let target = "46:1024";
   configureClient(
@@ -597,9 +597,9 @@ it("shows only the selected inference log even when nested tasks share its name"
   child.input_params.task_name = inference.status!.input_params.task_name;
   const record = {
     ...inference.record,
-    task_id: child.task_id,
+    child_task_id: child.task_id,
     started_at: child.started_at,
-    task: child.reg_name,
+    reg_name: child.reg_name,
     node_name: "prepare",
   };
   inference.status!.children.push(record);
@@ -719,7 +719,7 @@ it.each(["zh", "en"])(
         second: { status: "pending" },
       },
     };
-    for (const terminal of ["succeeded", "failed", "cancelled"] as const) {
+    for (const terminal of ["succeeded", "failed"] as const) {
       parent.state = terminal;
       await render();
       expect(state().textContent).toBe(

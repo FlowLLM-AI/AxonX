@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, TypeAdapter
 
@@ -25,7 +25,7 @@ class LogEvent(LogChunk):
     channel: str = "task"
 
     @classmethod
-    def from_chunk(cls, chunk: Any) -> LogEvent:
+    def from_chunk(cls, chunk: LogChunk) -> LogEvent:
         return cls.model_validate(chunk, from_attributes=True)
 
 
@@ -33,7 +33,7 @@ class ProgressEvent(TaskStepStatus):
     kind: Literal["progress"] = "progress"
 
     @classmethod
-    def from_status(cls, status: Any) -> ProgressEvent:
+    def from_status(cls, status: TaskStepStatus) -> ProgressEvent:
         return cls.model_validate(status, from_attributes=True)
 
 

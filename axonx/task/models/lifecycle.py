@@ -5,16 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from pydantic import AwareDatetime, ConfigDict, Field, model_validator
 
 from .artifacts import Protocol
 from .base import TaskModel
-from .identity import TaskCategory, TaskState, TaskType
-
-if TYPE_CHECKING:
-    from .params import BaseOutputParams
+from .identity import TaskState, TaskType
+from .params import BaseOutputParams
 
 
 class TaskStepStatus(TaskModel):
@@ -97,22 +95,16 @@ class DisplayReplica(TaskModel):
         return value
 
 
-class TaskSource(TaskModel):
-    model_config = ConfigDict(frozen=True)
-    kind: Literal["exec", "unknown"] = "unknown"
-
-
 @dataclass(frozen=True)
 class TaskContext:
-    """Immutable invocation identity shared with the Runner and child Tasks."""
+    """Immutable invocation identity shared with the executor and child Tasks."""
 
     workspace_path: Path
     registration_name: str
     task_id: str
     created_at: datetime
     timezone: str
-    source: TaskSource
-    parent_task_id: str | None = None
+    parent_task_id: str | None = None  # Calling Task, independent of input dependencies.
     execution_target: str | None = None
 
 
@@ -120,9 +112,7 @@ class TaskStatus(TaskModel):
     task_id: str
     task_type: TaskType
     reg_name: str = ""
-    source: TaskSource = Field(default_factory=TaskSource)
-    parent_task_id: str | None = None
-    category: TaskCategory | None = None
+    parent_task_id: str | None = Field(default=None, description="Task that directly invoked this Task.")
     report_kind: str | None = None
     state: TaskState = TaskState.RUNNING
     pid: int = Field(gt=0)
@@ -143,8 +133,8 @@ class ChildTaskRecord(TaskModel):
 
     node_name: str
     attempt: int = Field(ge=1)
-    task: str
-    task_id: str | None = None
+    reg_name: str = Field(description="Registered name passed to run_task.")
+    child_task_id: str | None = Field(default=None, description="Invoked Task ID, absent if construction failed.")
     started_at: AwareDatetime | None = None
     state: TaskState = TaskState.RUNNING
     exit_code: int = Field(default=0, ge=0, le=255)
@@ -159,10 +149,10 @@ class ChildTaskResult:
     output_params: BaseOutputParams | None = None
 
     @property
-    def task_id(self) -> str:
-        if self.record.task_id is None:
+    def child_task_id(self) -> str:
+        if self.record.child_task_id is None:
             raise RuntimeError("Child Task was not constructed")
-        return self.record.task_id
+        return self.record.child_task_id
 
     @property
     def success(self) -> bool:
@@ -181,10 +171,12 @@ class TaskMetadata(Protocol, TaskStatus):
     model_config = ConfigDict(extra="forbid")
     input_params: dict[str, Any] = Field(default_factory=dict)
     output_params: dict[str, Any] = Field(default_factory=dict)
-    children: list[ChildTaskRecord] = Field(default_factory=list)
+    children: list[ChildTaskRecord] = Field(
+        default_factory=list, description="Direct child invocation records, independent of input dependencies."
+    )
     steps: list[TaskStepStatus] = Field(default_factory=list)
     replica: DisplayReplica | None = None
 
     def current_children(self) -> list[ChildTaskRecord]:
         """Return the latest invocation per child ID; retain all attempts in metadata."""
-        return list({child.task_id: child for child in self.children if child.task_id}.values())
+        return list({child.child_task_id: child for child in self.children if child.child_task_id}.values())

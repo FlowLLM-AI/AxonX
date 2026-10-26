@@ -118,16 +118,16 @@ Factor analysis branches from ETL and is not a prerequisite for training. Submit
 axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 
 # After ETL succeeds
-axonx exec --task qlib_a158_factor --source-tasks '<etl_task_id>'
-axonx exec --task qlib_a158_train --source-tasks '<etl_task_id>' \
+axonx exec --task qlib_a158_factor --upstream-task-ids '<etl_task_id>'
+axonx exec --task qlib_a158_train --upstream-task-ids '<etl_task_id>' \
   --train-start 20150101 --train-end 20230101
 
 # After training succeeds
-axonx exec --task qlib_a158_predict --source-tasks '<train_task_id>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '<train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
 # After prediction succeeds
-axonx exec --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_a158_backtest --upstream-task-ids '<predict_task_id>' \
   --top-ns '[5,10,20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 

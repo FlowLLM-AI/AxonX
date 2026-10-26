@@ -55,12 +55,14 @@ class TrainingCurve(TaskModel):
                 raise ValueError(f"Training curve series {name!r} must contain finite values")
         return self
 
+
 class PredictionComparison(TaskModel):
     key: str
     status: Literal["consistent", "different", "protocol_mismatch", "missing", "error"]
     reason: str = ""
     metrics: dict[str, Any] = Field(default_factory=dict)
     artifacts: dict[str, ArtifactRecord] = Field(default_factory=dict)
+
 
 class WindowResult(TaskModel):
     key: str

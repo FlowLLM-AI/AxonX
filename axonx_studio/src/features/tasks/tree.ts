@@ -20,23 +20,25 @@ export async function readTaskChildren(
   async function visit(owner: TaskMetadata): Promise<TaskNode[]> {
     const records = [
       ...new Map(
-        owner.children.filter((c) => c.task_id).map((c) => [c.task_id!, c]),
+        owner.children
+          .filter((c) => c.child_task_id)
+          .map((c) => [c.child_task_id!, c]),
       ).values(),
     ];
     const branches = await Promise.all(
       records.map(async (record): Promise<TaskNode[]> => {
         if (record.started_at === null)
           return [{ record, status: null, error: "" }];
-        const identity = `${record.task_id}:${record.started_at}`;
+        const identity = `${record.child_task_id}:${record.started_at}`;
         if (visited.has(identity)) return [];
         visited.add(identity);
         try {
-          if (!requests.has(record.task_id!))
+          if (!requests.has(record.child_task_id!))
             requests.set(
-              record.task_id!,
-              getTaskStatus(record.task_id!, target, signal),
+              record.child_task_id!,
+              getTaskStatus(record.child_task_id!, target, signal),
             );
-          const status = await requests.get(record.task_id!)!;
+          const status = await requests.get(record.child_task_id!)!;
           if (status.started_at !== record.started_at)
             return [
               {

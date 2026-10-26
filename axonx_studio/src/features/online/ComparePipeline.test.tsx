@@ -64,14 +64,14 @@ beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("en");
   const tasks = seed().tasks;
-  parent = structuredClone(tasks.get("composite#playground_compare#demo")!);
+  parent = structuredClone(tasks.get("base#playground_compare#demo")!);
   const seen = new Set<string>();
   nodes = [];
   const visit = (task: TaskMetadata) =>
     task.children.forEach((record) => {
-      if (seen.has(`${record.task_id}:${record.started_at}`)) return;
-      seen.add(`${record.task_id}:${record.started_at}`);
-      const status = tasks.get(record.task_id!);
+      if (seen.has(`${record.child_task_id}:${record.started_at}`)) return;
+      seen.add(`${record.child_task_id}:${record.started_at}`);
+      const status = tasks.get(record.child_task_id!);
       nodes.push({
         record,
         status: status ? structuredClone(status) : null,
@@ -136,7 +136,7 @@ it("shows a failure once, retains skipped stages and opens its exact child log",
     nightly: { status: "failed", error: step.error },
     missing: { status: "done" },
   };
-  const history = nodes.find((n) => n.record.task.includes("history"))!;
+  const history = nodes.find((n) => n.record.reg_name.includes("history"))!;
   history.record.state = "failed";
   history.status!.state = "failed";
   history.status!.error = error;
@@ -148,7 +148,7 @@ it("shows a failure once, retains skipped stages and opens its exact child log",
   expect(container.querySelectorAll(".compare-stage-row")).toHaveLength(1);
   expect(container.querySelector(".pipeline-model")).toBeNull();
   expect(container.querySelector("pre")?.dataset.task).toBe(
-    history.record.task_id,
+    history.record.child_task_id,
   );
   expect(container.querySelector("pre")?.dataset.target).toBe(
     "http://selected-machine",
@@ -165,9 +165,9 @@ it("keeps model logs isolated and refuses to substitute a restarted task", async
   await click("etl");
   expect(container.querySelector(".pipeline-log-source select")).toBeNull();
   expect(container.querySelector(".compare-active-model")).toBeNull();
-  const nested = nodes.find((n) => n.record.task_id?.startsWith("etl#"))!;
+  const nested = nodes.find((n) => n.record.child_task_id?.startsWith("etl#"))!;
   expect(container.querySelector("pre")?.dataset.task).toBe(
-    nested.record.task_id,
+    nested.record.child_task_id,
   );
   nested.status = null;
   nested.error = "Task restarted";
@@ -207,9 +207,9 @@ it("resolves owned descendants and ignores an earlier attempt and similarly name
       ),
     ),
   ).toBe(false);
-  expect(model.children.some((n) => n.record.task_id?.startsWith("etl#"))).toBe(
-    true,
-  );
+  expect(
+    model.children.some((n) => n.record.child_task_id?.startsWith("etl#")),
+  ).toBe(true);
   expect(ownedCompareNodes([], nodes)).toHaveLength(0);
 });
 
@@ -223,8 +223,8 @@ it("omits backtests even when an older comparison task contains one", async () =
   task.output_params = { universes: { all: {} }, artifacts: {} };
   const record = {
     ...template.record,
-    task: "a_stock_backtest",
-    task_id: task.task_id,
+    reg_name: "a_stock_backtest",
+    child_task_id: task.task_id,
     started_at: task.started_at,
     node_name: "nightly-a_stock_backtest",
   };
@@ -246,9 +246,9 @@ it("keeps shared download logs outside model stages", async () => {
   download.children = [];
   const record = {
     ...template.record,
-    task: "tushare_mins",
+    reg_name: "tushare_mins",
     node_name: "tushare_mins",
-    task_id: download.task_id,
+    child_task_id: download.task_id,
     started_at: download.started_at,
   };
   parent.children.push(record);

@@ -8,9 +8,9 @@ from pathlib import Path
 import polars as pl
 
 from axonx.task.models.identity import TaskState
-from axonx.task.runtime.runner import TaskRunner
-from axonx.task.storage.artifacts import read_metadata
+from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.storage.files import atomic_write, file_revision
+from axonx.task.storage.inputs import read_upstream_metadata
 from axonx.task.storage.workspace import task_path
 
 from ..backtest import Alpha158BacktestTask
@@ -21,13 +21,13 @@ from ..train import LgbmTrainTask
 def run_comparison(options: argparse.Namespace) -> dict:
     """Run the selected label/preset combinations and save metrics with task provenance."""
     workspace = options.workspace_path.resolve()
-    metadata = read_metadata(task_path(workspace, options.etl_task) / "metadata.json")
+    _, metadata = read_upstream_metadata(workspace, options.etl_task)
     dataset = metadata["output_params"]["artifacts"]["dataset"]
     records, summaries = {}, []
 
     def run(cls, name, **params):
         task = cls(params, workspace_path=workspace, reg_name=name)
-        status = TaskRunner().run(task)
+        status = TaskExecutor().execute(task)
         if status.state != TaskState.SUCCEEDED:
             raise RuntimeError(f"{task.task_id}: {status.error}")
         return task.task_id, status.output_params
@@ -39,7 +39,7 @@ def run_comparison(options: argparse.Namespace) -> dict:
         train_id, train = run(
             LgbmTrainTask,
             "qlib_a158_train",
-            source_tasks=options.etl_task,
+            upstream_task_ids=[options.etl_task],
             parameter_preset=preset,
             label_column=f"label_return_{label}",
             train_start=options.train_start,
@@ -50,14 +50,14 @@ def run_comparison(options: argparse.Namespace) -> dict:
         predict_id, prediction = run(
             LgbmPredictTask,
             "qlib_a158_predict",
-            source_tasks=train_id,
+            upstream_task_ids=[train_id],
             pred_start=options.pred_start,
             pred_end=options.pred_end,
         )
         backtest_id, backtest = run(
             Alpha158BacktestTask,
             "qlib_a158_backtest",
-            source_tasks=predict_id,
+            upstream_task_ids=[predict_id],
             top_ns=options.top_ns,
             as_of_date=prediction["date_range"]["end"],
             buy_cost_rate=options.buy_cost_rate,

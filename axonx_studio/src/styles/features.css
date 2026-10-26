@@ -1740,8 +1740,7 @@
 .relation-state.succeeded {
   color: var(--accent);
 }
-.relation-state.failed,
-.relation-state.cancelled {
+.relation-state.failed {
   color: var(--danger);
 }
 .task-relations-message {

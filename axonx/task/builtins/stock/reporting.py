@@ -15,6 +15,10 @@ if TYPE_CHECKING:
 
 def daily_output(dates, daily, signals, targets, labels, as_of_date, config):
     """Assemble daily metrics and candidate diagnostics after execution."""
+    if labels is not None:
+        labels = normalize_keys(labels)
+        validate_keys(labels)
+        labels = labels.filter(pl.col("label_valid") & (pl.col("label_target_date").cast(pl.String) <= as_of_date))
     daily_long = pl.DataFrame(daily)
     output = pl.DataFrame({"trade_date": dates})
     for n in config.top_ns:
@@ -24,16 +28,12 @@ def daily_output(dates, daily, signals, targets, labels, as_of_date, config):
             on="trade_date",
             validate="1:1",
         )
-    diagnostics, benchmarks = _diagnostics(signals, targets, labels, as_of_date, config)
+    diagnostics, benchmarks = _diagnostics(signals, targets, labels, config)
     output = output.join(diagnostics, on="trade_date", how="left").with_columns(
         pl.col("ic", "rank_ic").cast(pl.Float64)
     )
     if labels is not None:
-        target_labels = (
-            normalize_keys(labels)
-            .filter(pl.col("label_valid") & (pl.col("label_target_date").cast(pl.String) <= as_of_date))
-            .select(*KEYS, pl.col("label_return").alias("_target_return"))
-        )
+        target_labels = labels.select(*KEYS, pl.col("label_return").alias("_target_return"))
         targets = targets.join(target_labels, on=list(KEYS), how="left", validate="1:1")
     else:
         targets = targets.with_columns(pl.lit(None, dtype=pl.Float64).alias("_target_return"))
@@ -58,7 +58,6 @@ def _diagnostics(
     signals: pl.DataFrame,
     candidates: pl.DataFrame,
     labels: pl.DataFrame | None,
-    cutoff: str,
     config: BacktestConfig,
 ) -> tuple[pl.DataFrame, tuple[str, ...]]:
     dates = signals.select("trade_date").unique()
@@ -71,11 +70,7 @@ def _diagnostics(
             ),
             (),
         )
-    labels = normalize_keys(labels)
-    validate_keys(labels)
-    joined = signals.join(labels, on=list(KEYS), how="left", validate="1:1").filter(
-        pl.col("label_valid") & (pl.col("label_target_date").cast(pl.String) <= cutoff)
-    )
+    joined = signals.join(labels, on=list(KEYS), how="inner", validate="1:1")
     matured = candidates.join(joined.select(*KEYS, "label_return"), on=list(KEYS), how="inner", validate="1:1")
     diagnostics = matured.group_by("trade_date").agg(
         pl.corr("pred", "label_return").alias("ic"),

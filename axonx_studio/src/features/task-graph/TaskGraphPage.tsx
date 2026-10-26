@@ -24,35 +24,40 @@ function taskIdentity(node: TaskGraphNode) {
 
 function graphLayout(graph: TaskGraph) {
   const ids = new Set(graph.nodes.map((node) => node.task_id));
-  const parents = new Map<string, string[]>();
-  const children = new Map<string, string[]>();
+  const upstream = new Map<string, string[]>();
+  const downstream = new Map<string, string[]>();
   for (const node of graph.nodes) {
-    parents.set(
+    upstream.set(
       node.task_id,
-      node.parent_ids.filter((parent) => ids.has(parent)),
+      node.upstream_task_ids.filter((upstreamId) => ids.has(upstreamId)),
     );
-    children.set(node.task_id, []);
+    downstream.set(node.task_id, []);
   }
   for (const edge of graph.edges) {
     if (ids.has(edge.from) && ids.has(edge.to))
-      children.get(edge.from)?.push(edge.to);
+      downstream.get(edge.from)?.push(edge.to);
   }
 
   const level = new Map<string, number>();
   const pending = graph.nodes
-    .filter((node) => !(parents.get(node.task_id)?.length || 0))
+    .filter((node) => !(upstream.get(node.task_id)?.length || 0))
     .map((node) => node.task_id);
   pending.forEach((id) => level.set(id, 0));
   while (pending.length) {
     const id = pending.shift()!;
-    for (const child of children.get(id) || []) {
-      const next = Math.max(level.get(child) || 0, (level.get(id) || 0) + 1);
-      level.set(child, next);
+    for (const downstreamId of downstream.get(id) || []) {
+      const next = Math.max(
+        level.get(downstreamId) || 0,
+        (level.get(id) || 0) + 1,
+      );
+      level.set(downstreamId, next);
       if (
-        (parents.get(child) || []).every((parent) => level.has(parent)) &&
-        !pending.includes(child)
+        (upstream.get(downstreamId) || []).every((upstreamId) =>
+          level.has(upstreamId),
+        ) &&
+        !pending.includes(downstreamId)
       )
-        pending.push(child);
+        pending.push(downstreamId);
     }
   }
   const fallback = Math.max(0, ...level.values()) + 1;

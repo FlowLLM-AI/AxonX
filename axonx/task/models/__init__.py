@@ -1,14 +1,182 @@
-"""Task data contracts, organized by responsibility.
+"""Shared Task data contracts and value-validation helpers.
 
-base: Shared validation policy and calendar dates.
-identity: Task types, states, names and dependency IDs.
-artifacts: Artifact references, protocols, model collections and replay manifests.
-lifecycle: Invocation context, child results, progress and persisted metadata.
-params: Task inputs and output envelopes, including execution-window inputs.
-reports: Training curves, comparisons, window outcomes, backtests and history.
-query: Catalog definitions, summaries, graphs and context projections.
-events: Log chunks and discriminated progress/log stream events.
-
-Import each model from its owning module. This package does not load execution,
-storage or business operations.
+base: Shared model policy, calendar-date validation and date value types.
+identity: Task types, states, categories, names and upstream dependency identities.
+artifacts: Artifact references, protocol headers, model collections and replay manifests.
+lifecycle: Invocation context, child results, step progress and persisted metadata.
+params: Task input parameters and typed output envelopes, including window inputs.
+reports: Training curves, comparisons, window outcomes, backtest reports and history nodes.
+query: Catalog definitions, summaries, lineage graphs and context projections.
+events: Log chunks, progress/log events and discriminated event parsing.
 """
+
+from . import artifacts, base, events, identity, lifecycle, params, query, reports
+from .artifacts import (
+    PROTOCOL_VERSION,
+    ArtifactRecord,
+    ModelCollection,
+    ModelMember,
+    PredictionProtocol,
+    Protocol,
+    ReplayEvent,
+    ReplayManifest,
+    ReplaySource,
+    fingerprint,
+    prediction_protocol,
+    task_protocol,
+    validate_protocol,
+)
+from .base import DateString, TaskModel, normalize_yyyymmdd
+from .events import TASK_EVENT_ADAPTER, LogChunk, LogEvent, ProgressEvent, TaskEvent
+from .identity import (
+    TASK_ID_SEPARATOR,
+    TaskState,
+    TaskType,
+    generated_task_name,
+    matches_task_name,
+    task_type_from_id,
+    validate_registration_name,
+    validate_task_ids,
+    validate_task_name,
+    validate_task_names,
+    validate_upstream_task_ids,
+)
+from .lifecycle import (
+    ChildTaskRecord,
+    ChildTaskResult,
+    DisplayReplica,
+    LiveSnapshot,
+    ReplicaFile,
+    ReplicaLog,
+    TaskContext,
+    TaskMetadata,
+    TaskStatus,
+    TaskStepStatus,
+)
+from .params import (
+    BaseAnalysisOutputParams,
+    BaseBacktestOutputParams,
+    BaseETLInputParams,
+    BaseETLOutputParams,
+    BaseInferenceOutputParams,
+    BaseInputParams,
+    BaseOutputParams,
+    BasePredictionCompareInputParams,
+    BasePredictionCompareOutputParams,
+    BasePredictOutputParams,
+    BaseTrainOutputParams,
+    ExecutionWindow,
+    WindowInputParams,
+    WindowOutputParams,
+)
+from .query import (
+    StepProgress,
+    TaskContextSnapshot,
+    TaskDefinition,
+    TaskGraph,
+    TaskGraphEdge,
+    TaskGraphNode,
+    TaskInfo,
+    TaskRelations,
+    TaskSummary,
+)
+from .reports import (
+    HISTORY_BLOCK_SIZE,
+    BacktestBenchmark,
+    BacktestDimensions,
+    BacktestUniverse,
+    BacktestUniverseReport,
+    HistoryNode,
+    OnlineCommit,
+    OnlineHistory,
+    PredictionComparison,
+    TrainingCurve,
+    WindowResult,
+)
+
+__all__ = [
+    "ArtifactRecord",
+    "BacktestBenchmark",
+    "BacktestDimensions",
+    "BacktestUniverse",
+    "BacktestUniverseReport",
+    "BaseAnalysisOutputParams",
+    "BaseBacktestOutputParams",
+    "BaseETLInputParams",
+    "BaseETLOutputParams",
+    "BaseInferenceOutputParams",
+    "BaseInputParams",
+    "BaseOutputParams",
+    "BasePredictOutputParams",
+    "BasePredictionCompareInputParams",
+    "BasePredictionCompareOutputParams",
+    "BaseTrainOutputParams",
+    "ChildTaskRecord",
+    "ChildTaskResult",
+    "DateString",
+    "DisplayReplica",
+    "ExecutionWindow",
+    "HISTORY_BLOCK_SIZE",
+    "HistoryNode",
+    "LiveSnapshot",
+    "LogChunk",
+    "LogEvent",
+    "ModelCollection",
+    "ModelMember",
+    "OnlineCommit",
+    "OnlineHistory",
+    "PROTOCOL_VERSION",
+    "PredictionComparison",
+    "PredictionProtocol",
+    "ProgressEvent",
+    "Protocol",
+    "ReplayEvent",
+    "ReplayManifest",
+    "ReplaySource",
+    "ReplicaFile",
+    "ReplicaLog",
+    "StepProgress",
+    "TASK_EVENT_ADAPTER",
+    "TASK_ID_SEPARATOR",
+    "TaskContext",
+    "TaskContextSnapshot",
+    "TaskDefinition",
+    "TaskEvent",
+    "TaskGraph",
+    "TaskGraphEdge",
+    "TaskGraphNode",
+    "TaskInfo",
+    "TaskMetadata",
+    "TaskModel",
+    "TaskRelations",
+    "TaskState",
+    "TaskStatus",
+    "TaskStepStatus",
+    "TaskSummary",
+    "TaskType",
+    "TrainingCurve",
+    "WindowInputParams",
+    "WindowOutputParams",
+    "WindowResult",
+    "artifacts",
+    "base",
+    "events",
+    "fingerprint",
+    "generated_task_name",
+    "identity",
+    "lifecycle",
+    "matches_task_name",
+    "normalize_yyyymmdd",
+    "params",
+    "validate_upstream_task_ids",
+    "prediction_protocol",
+    "query",
+    "reports",
+    "task_protocol",
+    "task_type_from_id",
+    "validate_protocol",
+    "validate_registration_name",
+    "validate_task_ids",
+    "validate_task_name",
+    "validate_task_names",
+]

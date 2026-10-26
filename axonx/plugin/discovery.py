@@ -5,17 +5,15 @@ from __future__ import annotations
 import json
 from importlib import metadata, util
 from pathlib import Path
-from typing import Any
 
 from packaging.utils import canonicalize_name
 
-from .constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
-from .identity import content_sha256_from_directories
-from .manifest import parse_plugin_manifest
+from .fingerprint import content_sha256_from_directories
+from .manifest import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST, PluginManifest
 from .models import PluginInfo
 
 
-def _wheel_sha256(distribution: Any) -> str | None:
+def _wheel_sha256(distribution: metadata.Distribution) -> str | None:
     """Return the wheel digest recorded by pip's direct-url metadata."""
     direct_url = distribution.read_text("direct_url.json")
     if not direct_url:
@@ -24,14 +22,17 @@ def _wheel_sha256(distribution: Any) -> str | None:
         provenance = json.loads(direct_url)
     except (TypeError, json.JSONDecodeError):
         return None
-    archive = provenance.get("archive_info", {})
-    digest = archive.get("hashes", {}).get("sha256")
+    if not isinstance(provenance, dict):
+        return None
+    archive = provenance.get("archive_info")
+    hashes = archive.get("hashes") if isinstance(archive, dict) else None
+    digest = hashes.get("sha256") if isinstance(hashes, dict) else None
     if isinstance(digest, str) and digest:
         return digest.lower()
     return None
 
 
-def _package_path(distribution: Any, package: str) -> Path:
+def _package_path(distribution: metadata.Distribution, package: str) -> Path:
     """Locate a regular or editable-installed plugin package."""
     installed = Path(distribution.locate_file(package.replace(".", "/"))).resolve()
     if installed.is_dir():
@@ -43,35 +44,15 @@ def _package_path(distribution: Any, package: str) -> Path:
     return Path(locations[0]).resolve()
 
 
-def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None:
-    entries = [entry for entry in distribution.entry_points if entry.group == PLUGIN_ENTRY_POINT_GROUP]
-    if not entries:
-        return None
-
-    tasks: dict[str, str] = {}
-    plugin_names: list[str] = []
-    plugin_packages: dict[str, str] = {}
+def _distribution_info(distribution: metadata.Distribution, packages: dict[str, str]) -> PluginInfo:
     package_paths: dict[str, Path] = {}
-    for entry in entries:
-        package = entry.value
-        if ":" in package:
-            raise ValueError(f"Plugin entry point {entry.name!r} must target a package")
-        package_path = package_paths.get(package)
-        if package_path is None:
-            package_path = _package_path(distribution, package)
-            package_paths[package] = package_path
-        manifest_path = package_path / PLUGIN_MANIFEST
-        if not manifest_path.is_file():
-            raise ValueError(f"Plugin {entry.name!r} does not contain {PLUGIN_MANIFEST}")
-        manifest = parse_plugin_manifest(manifest_path.read_text(encoding="utf-8"), entry.name)
 
-        duplicate_tasks = tasks.keys() & manifest.tasks.keys()
-        if duplicate_tasks:
-            raise ValueError(f"Duplicate Task names in distribution: {', '.join(sorted(duplicate_tasks))}")
-        tasks.update(manifest.tasks)
-        plugin_names.append(entry.name)
-        plugin_packages[entry.name] = package
+    def read_manifest(package: str) -> str:
+        if package not in package_paths:
+            package_paths[package] = _package_path(distribution, package)
+        return (package_paths[package] / PLUGIN_MANIFEST).read_text(encoding="utf-8")
 
+    manifest = PluginManifest.from_packages(packages, read_manifest)
     name = distribution.metadata.get("Name")
     version = distribution.version
     if not name or not version:
@@ -80,14 +61,14 @@ def _distribution_info(distribution: metadata.Distribution) -> PluginInfo | None
     return PluginInfo(
         distribution=name,
         version=version,
-        plugins=plugin_names,
-        tasks=tasks,
+        plugins=list(packages),
+        tasks=manifest.tasks,
         requirements=requirements,
         content_sha256=content_sha256_from_directories(
             distribution=name,
             version=version,
             requirements=requirements,
-            plugins=plugin_packages,
+            plugins=packages,
             package_paths=package_paths,
         ),
         sha256=_wheel_sha256(distribution),
@@ -102,8 +83,11 @@ def list_installed_plugins() -> list[PluginInfo]:
         if not entries:
             continue
         try:
-            info = _distribution_info(distribution)
-        except (OSError, UnicodeDecodeError, ValueError) as exc:
+            packages = {entry.name: entry.value for entry in entries}
+            if len(packages) != len(entries):
+                raise ValueError("Duplicate plugin entry-point names in distribution")
+            info = _distribution_info(distribution, packages)
+        except (ImportError, OSError, UnicodeDecodeError, ValueError) as exc:
             name = distribution.metadata.get("Name") or "unknown"
             info = PluginInfo(
                 distribution=name,
@@ -114,8 +98,6 @@ def list_installed_plugins() -> list[PluginInfo]:
                 sha256=_wheel_sha256(distribution),
                 error=str(exc),
             )
-        if info is None:
-            continue
         key = canonicalize_name(info.distribution)
         # importlib resolves the first matching distribution on sys.path. Keep
         # that same winner when an editable checkout shadows a site-packages

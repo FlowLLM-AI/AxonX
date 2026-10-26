@@ -1,41 +1,56 @@
-"""Task workspace records and storage operations."""
+"""Task persistence, grouped by the resources each module owns.
 
+files: Atomic writes, filesystem revisions, snapshots and publication leases.
+workspace: Task directory layout, lifecycle records and incremental metadata scans.
+artifacts: Published file references and payload size/revision verification.
+inputs: Successful upstream records, artifact bundles and model-collection snapshots.
+logs: Append-only progress journals and byte-offset text-log readers.
+online: Atomic online commits, frozen history chains and pinned histories.
+replay: Portable replay manifests and isolated payload snapshots.
+"""
+
+from . import artifacts, files, inputs, logs, online, replay, workspace
 from .workspace import (
     EVENTS_FILE,
     KINDS,
     METADATA_FILE,
     PERSISTENT_DIR,
-    ensure_kind_directories,
+    FileVersion,
     is_task_directory,
-    kind_directories,
     parse_task_directory,
     read_entry,
     read_task_metadata,
     reset_task_directory,
     scan_entries,
+    scan_metadata,
     task_directory,
     task_id_from_path,
     task_path,
-    task_record_id_from_path,
     write_task_metadata,
 )
 
 __all__ = [
-    "KINDS",
-    "PERSISTENT_DIR",
-    "METADATA_FILE",
     "EVENTS_FILE",
-    "task_directory",
-    "task_path",
-    "parse_task_directory",
-    "kind_directories",
-    "ensure_kind_directories",
+    "FileVersion",
+    "KINDS",
+    "METADATA_FILE",
+    "PERSISTENT_DIR",
+    "artifacts",
+    "files",
+    "inputs",
     "is_task_directory",
-    "reset_task_directory",
+    "logs",
+    "online",
+    "parse_task_directory",
     "read_entry",
-    "scan_entries",
     "read_task_metadata",
-    "write_task_metadata",
+    "replay",
+    "reset_task_directory",
+    "scan_entries",
+    "scan_metadata",
+    "task_directory",
     "task_id_from_path",
-    "task_record_id_from_path",
+    "task_path",
+    "workspace",
+    "write_task_metadata",
 ]

@@ -37,7 +37,7 @@ export function ComparePipeline({
   const preferred =
     models.find(
       (m) =>
-        ["failed", "cancelled"].includes(m.state) ||
+        ["failed"].includes(m.state) ||
         (m.finding &&
           !["consistent", "skipped"].includes(String(m.finding.status))),
     ) || models[0];
@@ -59,19 +59,19 @@ export function ComparePipeline({
     ? parent.steps.filter((step) => step.group === "download")
     : model?.steps || [];
   const identity = (node: TaskNode) =>
-    `${node.record.task_id}:${node.record.started_at}`;
+    `${node.record.child_task_id}:${node.record.started_at}`;
   const stageNodes =
     currentStage === "logs"
       ? []
       : currentNodes.filter((node) => {
           const kind =
-            node.status?.task_type || node.record.task_id?.split("#")[0];
+            node.status?.task_type || node.record.child_task_id?.split("#")[0];
           if (currentStage === "download") return true;
           if (currentStage === "etl")
-            return kind === "etl" || /history/.test(node.record.task);
+            return kind === "etl" || /history/.test(node.record.reg_name);
           if (currentStage === "prediction") return kind === "predict";
           if (currentStage === "results")
-            return /compare/.test(node.record.task);
+            return /compare/.test(node.record.reg_name);
           return false;
         });
   const featureLog =
@@ -80,7 +80,7 @@ export function ComparePipeline({
         node.status?.state === "failed" || node.record.state === "failed",
     ) ||
     stageNodes
-      .filter((node) => node.record.task_id?.startsWith("etl#"))
+      .filter((node) => node.record.child_task_id?.startsWith("etl#"))
       .at(-1) ||
     stageNodes[0];
   const scope = preparation ? currentStage : `${model?.name}:${currentStage}`;
@@ -142,10 +142,10 @@ export function ComparePipeline({
                   </span>
                 )}
                 <div className="compare-stage-actions">
-                  {node?.record.task_id && (
+                  {node?.record.child_task_id && (
                     <button
                       className="compare-text-action"
-                      onClick={() => onOpenTask(node.record.task_id!)}
+                      onClick={() => onOpenTask(node.record.child_task_id!)}
                     >
                       {t("onlinePipeline.openTask")}
                       <ArrowUpRight aria-hidden="true" />

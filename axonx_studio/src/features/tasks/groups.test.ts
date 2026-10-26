@@ -8,16 +8,13 @@ const task = (
   date = "2026-10-13T01:00:00Z",
 ): TaskSummary => ({
   parent_task_id: null,
-  category: null,
   report_kind: null,
   display_name: "test",
   is_replica: false,
-  is_online: false,
   step_progress: null,
   task_id: id,
   task_type: id.split("#")[0] as TaskSummary["task_type"],
   reg_name: id.split("#")[1],
-  source: { kind: "exec" },
   state,
   pid: 1234,
   machine_id: "playground",
@@ -54,7 +51,7 @@ it("filters actual tasks while retaining the whole group count", () => {
   const tasks = [
     task("analysis#sweep#good"),
     task("analysis#sweep#bad", "failed"),
-    task("train#other#bad", "cancelled"),
+    task("train#other#bad", "failed"),
   ];
   const groups = groupTasks(tasks, {
     search: "BAD",

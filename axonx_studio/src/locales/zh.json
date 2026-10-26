@@ -117,7 +117,7 @@
     "refresh": "刷新",
     "demo": "合成数据预览 · 所有数据和结果均为虚构。",
     "search": "搜索运行记录",
-    "empty": "暂无在线任务。运行在线复合任务后在这里查看进展。",
+    "empty": "暂无在线任务。运行在线任务后在这里查看进展。",
     "pending": "尚未发布窗口报告。",
     "openTask": "任务详情",
     "runState": "任务状态",
@@ -134,13 +134,12 @@
       "api": "实时采集",
       "inference": "在线推理",
       "analysis": "预测比对",
-      "composite": "在线任务"
+      "base": "任务"
     },
     "status": {
       "running": "运行中",
       "succeeded": "已完成",
       "failed": "失败",
-      "cancelled": "已取消",
       "done": "完整",
       "skipped": "已跳过",
       "incomplete": "不完整",
@@ -252,12 +251,10 @@
   "states": {
     "running": "运行中",
     "succeeded": "成功",
-    "failed": "失败",
-    "cancelled": "已取消"
+    "failed": "失败"
   },
   "types": {
     "base": "基础",
-    "composite": "复合",
     "api": "API 数据下载",
     "etl": "数据处理",
     "analysis": "分析",
@@ -266,9 +263,7 @@
     "inference": "在线推理",
     "backtest": "回测"
   },
-  "schemaForm": {
-    "sourceTasksPlaceholder": "多个 Task ID 用英文逗号分隔，可留空"
-  },
+  "schemaForm": {},
   "machine": {
     "cpuMemory": "CPU 与内存"
   },
@@ -300,7 +295,7 @@
     "repeatedSteps": "重复 {{count}} 次 · 已完成",
     "noChildren": "暂无子任务",
     "logs": "日志",
-    "relations": "关系",
+    "relations": "上下游依赖",
     "relationsSummary": "查看上下游任务血缘",
     "task": "任务",
     "snapshot": "完整快照"
@@ -746,7 +741,6 @@
     "copy_task_id": "复制任务 ID",
     "kinds": {
       "base": "基础任务",
-      "composite": "复合任务",
       "api": "API",
       "etl": "ETL",
       "analysis": "因子分析",
@@ -755,8 +749,8 @@
       "inference": "在线推理",
       "backtest": "离线回测"
     },
-    "loading_task_relationships": "正在加载任务关系…",
-    "unable_to_load_relationships": "无法读取任务关系",
+    "loading_task_relationships": "正在加载上下游依赖…",
+    "unable_to_load_relationships": "无法读取上下游依赖",
     "locate_current_task": "定位当前任务",
     "some_tasks_use_provisional_relationships": "部分任务尚未成功完成，其血缘关系仍为暂定状态。",
     "open_task": "打开任务"
@@ -1247,9 +1241,5 @@
     "selectTaskHint": "查看任务说明及输入输出结构",
     "loadingCatalog": "正在加载 Task 目录…"
   },
-  "input": "输入",
-  "taskSources": {
-    "exec": "直接执行",
-    "unknown": "来源未知"
-  }
+  "input": "输入"
 }

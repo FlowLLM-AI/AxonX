@@ -19,6 +19,7 @@ import { StockReport } from "./StockReport";
 import { loadHistory } from "./api";
 import {
   dailyModels,
+  historyTaskRecords,
   dailyCommit,
   modelHistory,
   signalDate,
@@ -52,7 +53,7 @@ export function OnlineWorkbench({
     planned.map((model) => ({
       modelId: model.id,
       name: `${model.name}-${model.slot}`,
-      taskId: model.record?.task_id || "",
+      taskId: model.record?.child_task_id || "",
     })),
   );
   const retained = useRef(new Map<string, SignalHistory>());
@@ -166,7 +167,7 @@ export function OnlineWorkbench({
       parent.children.some(
         (record) =>
           record.started_at === node.record.started_at &&
-          record.task_id === node.record.task_id,
+          record.child_task_id === node.record.child_task_id,
       ) && node.status?.task_type === "etl",
   );
   const hasEtl = publicSteps.length > 0 || publicNodes.length > 0;
@@ -382,7 +383,7 @@ export function OnlineWorkbench({
                     <TaskSteps filesOnly target={target} steps={publicSteps} />
                     {publicNodes.map((node) => (
                       <section
-                        key={node.record.task_id || node.record.node_name}
+                        key={node.record.child_task_id || node.record.node_name}
                         className="pipeline-step"
                       >
                         <header>
@@ -679,20 +680,15 @@ function DailyLogs({
   const roots = inference.flatMap((model) =>
     model.record ? [model.record] : [],
   );
-  if (scope === "data")
-    roots.push(
-      ...parent.children.filter((record) =>
-        record.task_id?.startsWith("composite#"),
-      ),
-    );
+  if (scope === "data") roots.push(...historyTaskRecords(parent));
   const included = new Set(
-    roots.map((record) => `${record.task_id}:${record.started_at}`),
+    roots.map((record) => `${record.child_task_id}:${record.started_at}`),
   );
   // readTaskChildren returns parents before descendants, preserving recorded child start times.
   for (const node of nodes)
-    if (included.has(`${node.record.task_id}:${node.record.started_at}`))
+    if (included.has(`${node.record.child_task_id}:${node.record.started_at}`))
       for (const child of node.status?.children || [])
-        included.add(`${child.task_id}:${child.started_at}`);
+        included.add(`${child.child_task_id}:${child.started_at}`);
   const tasks =
     scope === "data"
       ? [
@@ -701,7 +697,7 @@ function DailyLogs({
             .filter(
               (node) =>
                 !included.has(
-                  `${node.record.task_id}:${node.record.started_at}`,
+                  `${node.record.child_task_id}:${node.record.started_at}`,
                 ),
             )
             .flatMap((node) => (node.status ? [node.status] : [])),

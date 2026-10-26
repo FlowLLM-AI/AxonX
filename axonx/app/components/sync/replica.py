@@ -280,8 +280,8 @@ def task_group(root: Path, task_id: str) -> dict:
             return
         result[identity] = status
         for child in status.current_children():
-            if child.task_id and child.started_at is not None:
-                visit(child.task_id, child.started_at)
+            if child.child_task_id and child.started_at is not None:
+                visit(child.child_task_id, child.started_at)
 
     visit(task_id)
     return result

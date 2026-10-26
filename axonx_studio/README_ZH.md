@@ -55,6 +55,8 @@ pip install axonx-studio
 
 将 **Task Name** 留空，可为每次实验生成名称。复用固定名称会替换已结束运行的目录。上游关系用于记录任务血缘，关系图不会自动执行依赖任务。
 
+输入依赖使用 `upstream_task_ids`，填写直接上游 Task ID 数组。依赖图展示 upstream/downstream；任务详情同时展示执行步骤和 `children` 中的 parent/child 调用，父子调用不会自动生成依赖边。
+
 ### 可选的研究与 Agent 配置
 
 - **研究插件：** 在执行服务的 Python 环境安装 `axonx-qlib-a158`、`axonx-qlib-factor` 或 `axonx-qlib-strategy`，然后重启服务。研究视图需要已完成的运行及标准 `metadata.json` 和产物输出。

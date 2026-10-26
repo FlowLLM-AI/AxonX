@@ -16,28 +16,36 @@ from ..models.params import (
     BaseTrainOutputParams,
 )
 from ..models.reports import PredictionComparison
-from .task import BaseTask
+from .base import BaseTask
+
+
+class BaseETLTask(BaseTask, ABC):
+    """Transform source data into a dataset with date and column metadata."""
+
+    task_type = TaskType.ETL
+    input_cls = BaseETLInputParams
+    output_cls = BaseETLOutputParams
 
 
 class BaseAnalysisTask(BaseTask, ABC):
-    """Analyze a completed ETL dataset and save the results.
-
-    The output includes a result file, its row count, and optional scores.
-    """
+    """Analyze a completed dataset and publish row counts and scores."""
 
     task_type = TaskType.ANALYSIS
     output_cls = BaseAnalysisOutputParams
 
 
-class BaseETLTask(BaseTask, ABC):
-    """Transform source data into a dataset for downstream tasks.
+class BaseTrainTask(BaseTask, ABC):
+    """Train a model and publish its artifacts, metrics and learning curves."""
 
-    The output records the saved file, date range, and available columns.
-    """
+    task_type = TaskType.TRAIN
+    output_cls = BaseTrainOutputParams
 
-    task_type = TaskType.ETL
-    input_cls = BaseETLInputParams
-    output_cls = BaseETLOutputParams
+
+class BasePredictTask(BaseTask, ABC):
+    """Generate predictions from a trained model for downstream evaluation."""
+
+    task_type = TaskType.PREDICT
+    output_cls = BasePredictOutputParams
 
 
 class BaseBacktestTask(BaseTask, ABC):
@@ -45,26 +53,6 @@ class BaseBacktestTask(BaseTask, ABC):
 
     task_type = TaskType.BACKTEST
     output_cls = BaseBacktestOutputParams
-
-
-class BasePredictTask(BaseTask, ABC):
-    """Generate predictions from a completed training task.
-
-    The saved predictions include dates and values for downstream evaluation.
-    """
-
-    task_type = TaskType.PREDICT
-    output_cls = BasePredictOutputParams
-
-
-class BaseTrainTask(BaseTask, ABC):
-    """Train a model using a completed ETL dataset.
-
-    The result includes the saved model, training metrics, and optional curves.
-    """
-
-    task_type = TaskType.TRAIN
-    output_cls = BaseTrainOutputParams
 
 
 class BasePredictionCompareTask(BaseAnalysisTask):
@@ -92,8 +80,7 @@ class BasePredictionCompareTask(BaseAnalysisTask):
             except Exception as exc:
                 result = PredictionComparison(key=key, status="error", reason=f"{type(exc).__name__}: {exc}")
             self.comparisons.append(result)
-            self.metadata.output_params["comparisons"] = [item.model_dump(mode="json") for item in self.comparisons]
-            self.persist_metadata()
+            self.publish_output()
 
     def build_output_params(self) -> BasePredictionCompareOutputParams:
         return self.output_cls(comparisons=self.comparisons)

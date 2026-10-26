@@ -53,7 +53,7 @@ export function TaskReport({
   const { parent, nodes } = data;
   const children = new Map<string, TaskNode>();
   for (const node of nodes) {
-    const id = node.record.task_id!;
+    const id = node.record.child_task_id!;
     if (!children.has(id) || node.status) children.set(id, node);
   }
   const selected = children.get(selectedTask);

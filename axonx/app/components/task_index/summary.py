@@ -1,7 +1,7 @@
 """Project task status snapshots into bounded list responses."""
 
-from ..models.lifecycle import TaskMetadata, TaskStatus
-from ..models.query import TaskSummary
+from ....task.models.lifecycle import TaskMetadata, TaskStatus
+from ....task.models.query import StepProgress, TaskSummary
 
 
 def task_sort_key(metadata: TaskMetadata) -> tuple[float, str]:
@@ -14,10 +14,9 @@ def task_sort_key(metadata: TaskMetadata) -> tuple[float, str]:
 
 def summarize_status(status: TaskMetadata) -> TaskSummary:
     """Keep list metadata and one progress summary, without copying task outputs."""
-    summary = {name: getattr(status, name) for name in TaskStatus.model_fields.keys()}
+    summary = {name: getattr(status, name) for name in TaskStatus.model_fields}
     summary["error"] = status.error[:1000]
     summary["display_name"] = str(status.input_params.get("task_name") or status.reg_name)[:256]
-    summary["is_online"] = status.report_kind in {"online", "online_pipeline"}
     summary["is_replica"] = status.replica is not None
     summary["step_progress"] = None
     steps = [step for step in status.steps if step.parent is None]
@@ -27,10 +26,10 @@ def summarize_status(status: TaskMetadata) -> TaskSummary:
             len(steps) - 1,
         )
         step = steps[index]
-        summary["step_progress"] = {
-            "current": index + 1,
-            "total": len(steps),
-            "name": step.name[:256],
-            "percentage": step.percentage,
-        }
+        summary["step_progress"] = StepProgress(
+            current=index + 1,
+            total=len(steps),
+            name=step.name[:256],
+            percentage=step.percentage,
+        )
     return TaskSummary(**summary)

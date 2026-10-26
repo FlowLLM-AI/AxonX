@@ -33,7 +33,7 @@ import type { ContextOption } from "../../app/types";
 import { useAsyncResource } from "../../shared/hooks/useAsyncResource";
 import { useCopyFeedback } from "../../shared/hooks/useCopyFeedback";
 import { formatBytes } from "../../shared/lib/format";
-import { parseSourceTasks } from "../../shared/lib/sourceTasks";
+import { upstreamTaskIds } from "../../shared/lib/upstreamTasks";
 import { ReplicaNotice } from "../../shared/ReplicaNotice";
 import { RailResizer } from "../../shared/ui/RailResizer";
 import { TaskIndexControls } from "../../shared/ui/TaskIndexControls";
@@ -566,7 +566,7 @@ function ArtifactDetail({
     predict: "predict",
     backtest: "backtest",
   };
-  const upstreams = parseSourceTasks(meta.input_params.source_tasks).map(
+  const upstreams = upstreamTaskIds(meta.input_params.upstream_task_ids).map(
     (taskId) => ({
       taskId,
       type: taskId.split("#")[0],

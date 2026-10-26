@@ -16,17 +16,6 @@ from .rendering import print_json
 def _json_value(value: Any) -> Any:
     if hasattr(value, "model_dump"):
         return value.model_dump(mode="json")
-    if hasattr(value, "contributions_dict"):
-        return {
-            "distribution": value.distribution,
-            "version": value.version,
-            "plugins": list(value.plugin_names),
-            **value.contributions_dict(),
-            "requirements": list(value.requirements),
-            "wheel": str(value.wheel),
-            "content_sha256": value.content_sha256,
-            "sha256": value.sha256,
-        }
     if isinstance(value, list):
         return [_json_value(item) for item in value]
     return value

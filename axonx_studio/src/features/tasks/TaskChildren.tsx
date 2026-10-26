@@ -22,15 +22,15 @@ export function TaskChildren({
             <span>{index + 1}</span>
             <div>
               <strong>{record.node_name}</strong>
-              {record.task_id ? (
+              {record.child_task_id ? (
                 <button
                   className="child-task-link"
-                  onClick={() => onOpenTask(record.task_id!)}
+                  onClick={() => onOpenTask(record.child_task_id!)}
                 >
-                  {record.task_id}
+                  {record.child_task_id}
                 </button>
               ) : (
-                <code>{record.task}</code>
+                <code>{record.reg_name}</code>
               )}
               {record.error && (
                 <small className="error-state">{record.error}</small>

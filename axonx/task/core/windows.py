@@ -15,12 +15,12 @@ from ..models.params import (
     WindowOutputParams,
 )
 from ..models.reports import WindowResult
+from .base import BaseTask
 from .clock import DeadlineBudget
-from .task import BaseTask
 
 
 class BaseWindowTask(BaseTask):
-    """Run ordered windows and publish each outcome; the Runner owns cleanup via close()."""
+    """Run ordered windows and publish each outcome; the executor owns cleanup via close()."""
 
     report_kind = "online"
     input_cls = WindowInputParams
@@ -48,7 +48,7 @@ class BaseWindowTask(BaseTask):
         self.window_results = []
         self.initialize_run()
         self.validate_run()
-        self.publish_windows()
+        self.publish_output()
         for window in self.input_params.windows:
             started = self.clock.monotonic()
             try:
@@ -86,19 +86,10 @@ class BaseWindowTask(BaseTask):
     def _record_window(self, result: WindowResult, started: float) -> None:
         result.elapsed_seconds = self.clock.monotonic() - started
         self.window_results.append(result)
-        self.publish_windows()
-
-    def publish_windows(self) -> None:
-        """Persist partial business output without changing the Task lifecycle."""
-        self.metadata.output_params.update(self.window_output())
-        self.persist_metadata()
-
-    def window_output(self) -> dict:
-        """Extend this mapping when publishing additional run-level business fields."""
-        return {"windows": [result.model_dump(mode="json") for result in self.window_results]}
+        self.publish_output()
 
     def build_output_params(self) -> WindowOutputParams:
-        return self.output_cls(**self.window_output())
+        return self.output_cls(windows=self.window_results)
 
 
 class BaseRealtimeApiTask(BaseWindowTask):
@@ -162,5 +153,5 @@ class BaseInferenceTask(BaseWindowTask):
             budget.sleep(self.input_params.poll_interval_seconds)
         return WindowResult(key=window.key, status="incomplete", reason="inputs_timeout")
 
-    def window_output(self) -> dict:
-        return {**super().window_output(), "model_identity": self._fixed_model_identity}
+    def build_output_params(self) -> BaseInferenceOutputParams:
+        return self.output_cls(windows=self.window_results, model_identity=self._fixed_model_identity)

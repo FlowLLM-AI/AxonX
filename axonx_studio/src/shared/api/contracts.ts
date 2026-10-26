@@ -148,8 +148,8 @@ export type BuildInfo = {
 export type ChildTaskRecord = {
   node_name: string;
   attempt: number;
-  task: string;
-  task_id: string | null;
+  reg_name: string;
+  child_task_id: string | null;
   started_at: string | null;
   state: TaskState;
   exit_code: number;
@@ -474,14 +474,10 @@ export type StructuredPreview = {
   truncated: boolean;
 };
 
-export type TaskCategory = "data_update" | "online_prediction" | "comparison";
-
 export type TaskContextSnapshot = {
   task_id: string;
   status: TaskMetadata;
-  metadata_exists: boolean;
   metadata_path: string;
-  log_path: string | null;
   graph: TaskGraph;
   relations: TaskRelations;
 };
@@ -490,7 +486,6 @@ export type TaskDefinition = {
   name: string;
   source: "native" | "plugin";
   plugin: string | null;
-  category: TaskCategory | null;
   task_type: TaskType;
   description: string;
   input_schema: Record<string, unknown>;
@@ -514,7 +509,7 @@ export type TaskGraphNode = {
   kind: TaskType;
   task_name: string | null;
   created_at: string | null;
-  parent_ids: Array<string>;
+  upstream_task_ids: Array<string>;
   state: TaskState | null;
   missing: boolean;
   provisional: boolean;
@@ -524,9 +519,7 @@ export type TaskMetadata = {
   task_id: string;
   task_type: TaskType;
   reg_name: string;
-  source: TaskSource;
   parent_task_id: string | null;
-  category: TaskCategory | null;
   report_kind: string | null;
   state: TaskState;
   pid: number;
@@ -550,17 +543,13 @@ export type TaskMetadata = {
 
 export type TaskRelations = {
   direct_upstream: Array<string>;
-  ancestors: Array<string>;
+  all_upstream: Array<string>;
   direct_downstream: Array<string>;
   missing: Array<string>;
   provisional: Array<string>;
 };
 
-export type TaskSource = {
-  kind: "exec" | "unknown";
-};
-
-export type TaskState = "running" | "succeeded" | "failed" | "cancelled";
+export type TaskState = "running" | "succeeded" | "failed";
 
 export type TaskStepStatus = {
   name: string;
@@ -594,9 +583,7 @@ export type TaskSummary = {
   task_id: string;
   task_type: TaskType;
   reg_name: string;
-  source: TaskSource;
   parent_task_id: string | null;
-  category: TaskCategory | null;
   report_kind: string | null;
   state: TaskState;
   pid: number;
@@ -611,14 +598,12 @@ export type TaskSummary = {
   exit_code: number;
   log_path: string;
   display_name: string;
-  is_online: boolean;
   is_replica: boolean;
   step_progress: StepProgress | null;
 };
 
 export type TaskType =
   | "base"
-  | "composite"
   | "api"
   | "etl"
   | "analysis"

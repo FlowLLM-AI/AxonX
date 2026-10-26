@@ -1,49 +1,16 @@
-"""Build, inspect, and install plugin wheels."""
+"""Build and inspect plugin wheels without importing plugin code."""
 
 import configparser
 import subprocess
 import sys
 from email.parser import Parser
-from importlib import invalidate_caches
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import BadZipFile, ZipFile
 
-from packaging.requirements import Requirement
-from packaging.utils import canonicalize_name
-
-from .checksum import directory_sha256, file_sha256
-from .constants import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST
-from .identity import content_sha256_from_wheel
-from .manifest import parse_plugin_manifest
+from .fingerprint import content_sha256_from_wheel, file_sha256
+from .manifest import PLUGIN_ENTRY_POINT_GROUP, PLUGIN_MANIFEST, PluginManifest
 from .models import PluginArtifact
-
-# Dependency/runtime/tool directories are skipped wherever they appear. Build
-# outputs are skipped only at the root, preserving nested source packages.
-_IGNORED_PARTS = {
-    ".git",
-    ".venv",
-    "__pycache__",
-    "node_modules",
-    ".axonx",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".mypy_cache",
-    ".tox",
-    ".nox",
-    ".DS_Store",
-    "/build",
-    "/dist",
-    "*.egg-info",
-}
-
-
-def source_sha256(path: Path) -> str:
-    """Hash stable source paths and contents, excluding generated files."""
-    root = path.expanduser().resolve()
-    if not (root / "pyproject.toml").is_file():
-        raise FileNotFoundError(f"Plugin pyproject.toml not found: {root}")
-    return directory_sha256(root, ignored_parts=_IGNORED_PARTS)
 
 
 def build_wheel(source: Path, output: Path, *, use_cache: bool = False) -> Path:
@@ -81,11 +48,7 @@ def build_wheel(source: Path, output: Path, *, use_cache: bool = False) -> Path:
 def inspect_wheel(path: Path) -> PluginArtifact:
     """Read distribution, entry points, and manifests without importing code.
 
-    A malformed wheel is a bad artifact, not a service fault, so every way the
-    archive formats can fail is reported as a ``ValueError`` naming the file.
-    ``zipfile`` and ``configparser`` raise types of their own, and letting those
-    through would answer a corrupt upload with a 500 — or, on the CLI, with a
-    traceback — where both callers handle a ``ValueError``.
+    Archive-format errors are reported as ``ValueError`` for CLI callers.
     """
     try:
         return _read_artifact(path)
@@ -102,29 +65,20 @@ def _read_artifact(path: Path) -> PluginArtifact:
             raise ValueError("Wheel must contain one METADATA and entry_points.txt")
         metadata = Parser().parsestr(archive.read(metadata_files[0]).decode())
         entries = configparser.ConfigParser()
+        entries.optionxform = str
         entries.read_string(archive.read(entry_files[0]).decode())
         if not entries.has_section(PLUGIN_ENTRY_POINT_GROUP):
             raise ValueError(f"Wheel does not provide {PLUGIN_ENTRY_POINT_GROUP}")
 
-        tasks: dict[str, str] = {}
-        plugin_names = []
-        plugin_packages = {}
-        for plugin_name, package in entries.items(PLUGIN_ENTRY_POINT_GROUP):
-            if ":" in package:
-                raise ValueError("Plugin entry point must target a package")
+        plugin_packages = dict(entries.items(PLUGIN_ENTRY_POINT_GROUP))
+
+        def read_manifest(package: str) -> str:
             manifest_path = f"{package.replace('.', '/')}/{PLUGIN_MANIFEST}"
             if manifest_path not in names:
                 raise ValueError(f"Wheel does not contain {manifest_path}")
-            manifest = parse_plugin_manifest(archive.read(manifest_path).decode(), plugin_name)
-            duplicate = tasks.keys() & manifest.tasks.keys()
-            if duplicate:
-                raise ValueError(
-                    f"Duplicate Task names in wheel: {', '.join(sorted(duplicate))}",
-                )
-            tasks.update(manifest.tasks)
-            plugin_names.append(plugin_name)
-            plugin_packages[plugin_name] = package
+            return archive.read(manifest_path).decode()
 
+        manifest = PluginManifest.from_packages(plugin_packages, read_manifest)
         distribution = metadata.get("Name")
         version = metadata.get("Version")
         if not distribution or not version:
@@ -141,38 +95,10 @@ def _read_artifact(path: Path) -> PluginArtifact:
     return PluginArtifact(
         distribution=distribution,
         version=version,
-        plugin_names=tuple(plugin_names),
-        tasks=tasks,
-        requirements=requirements,
+        plugins=list(plugin_packages),
+        tasks=manifest.tasks,
+        requirements=list(requirements),
         wheel=path,
         content_sha256=content_sha256,
         sha256=file_sha256(path),
     )
-
-
-def install_artifact(artifact: PluginArtifact, *, editable_source: Path | None = None) -> None:
-    """Install dependencies without replacing AxonX, then its wheel or source."""
-    dependencies = [value for value in artifact.requirements if canonicalize_name(Requirement(value).name) != "axonx"]
-    commands = []
-    if dependencies:
-        commands.append([sys.executable, "-m", "pip", "install", *dependencies])
-    target = ["--editable", str(editable_source)] if editable_source is not None else [str(artifact.wheel)]
-    commands.append(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--upgrade",
-            "--force-reinstall",
-            "--no-deps",
-            *target,
-        ],
-    )
-    for command in commands:
-        result = subprocess.run(command, check=False, capture_output=True, text=True)
-        if result.returncode:
-            raise RuntimeError(
-                f"Plugin installation failed: {(result.stderr or result.stdout).strip()}",
-            )
-    invalidate_caches()

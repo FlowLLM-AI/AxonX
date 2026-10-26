@@ -32,7 +32,7 @@ axonx plugin install '<uploaded answer.location>' --target http://research.examp
 axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
 # 先构建 wheel 并 POST /upload，再使用返回的绝对路径 location。
 axonx plugin install '<uploaded answer.location>' --target http://research.example:1024
-axonx exec --task qlib_strategy_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_strategy_backtest --upstream-task-ids '<predict_task_id>' \
   --top-ns '[20,30]' --as-of-date 20261008 \
   --minimum-holding-days 3 --replacement-fraction 0.2 --rank-buffer 1 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024

@@ -8,7 +8,7 @@ vi.mock("./api", () => ({ getTaskStatus: vi.fn() }));
 
 it("retains the current nested Task when another branch references an earlier execution of the same Task", async () => {
   const parent = structuredClone(
-    seed().tasks.get("composite#playground_online#demo")!,
+    seed().tasks.get("base#playground_online#demo")!,
   );
   const record = parent.children[0];
   const branch = (id: string): TaskMetadata => ({
@@ -16,20 +16,24 @@ it("retains the current nested Task when another branch references an earlier ex
     task_id: id,
     started_at: "2026-10-26T10:00:00Z",
   });
-  const first = branch("composite#test#first"),
-    second = branch("composite#test#second");
+  const first = branch("base#test#first"),
+    second = branch("base#test#second");
   const leaf = branch("etl#test#shared");
   leaf.children = [];
   parent.children = [first, second].map((child) => ({
     ...record,
-    task_id: child.task_id,
+    child_task_id: child.task_id,
     started_at: child.started_at,
   }));
   first.children = [
-    { ...record, task_id: leaf.task_id, started_at: "2026-10-25T10:00:00Z" },
+    {
+      ...record,
+      child_task_id: leaf.task_id,
+      started_at: "2026-10-25T10:00:00Z",
+    },
   ];
   second.children = [
-    { ...record, task_id: leaf.task_id, started_at: leaf.started_at },
+    { ...record, child_task_id: leaf.task_id, started_at: leaf.started_at },
   ];
   const tasks = new Map(
     [first, second, leaf].map((task) => [task.task_id, task]),
@@ -62,7 +66,7 @@ it("retains the current nested Task when another branch references an earlier ex
 
 it("does not load an older Task while a child has not started", async () => {
   const parent = structuredClone(
-    seed().tasks.get("composite#playground_online#demo")!,
+    seed().tasks.get("base#playground_online#demo")!,
   );
   parent.children = [{ ...parent.children[0], started_at: null }];
   vi.mocked(getTaskStatus).mockClear();

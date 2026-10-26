@@ -207,8 +207,8 @@ it("keeps loading after StrictMode aborts the first request, then switches all f
   }
 });
 
-it.each(["base", "composite"] as const)(
-  "shows only the %s runtime view in both languages",
+it.each(["base", "train"] as const)(
+  "shows steps and children together for %s Tasks in both languages",
   async (kind) => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const task = taskStatus(kind, `${kind}#demo`, "demo");
@@ -229,8 +229,8 @@ it.each(["base", "composite"] as const)(
     };
     const child = {
       node_name: "history",
-      task: "history",
-      task_id: "composite#history",
+      reg_name: "history",
+      child_task_id: "base#history",
       started_at: "2026-01-13T00:00:00Z",
       attempt: 1,
       state: "failed" as const,
@@ -249,7 +249,7 @@ it.each(["base", "composite"] as const)(
       {
         ...child,
         node_name: "invalid",
-        task_id: null,
+        child_task_id: null,
         started_at: "2026-01-15T00:00:00Z",
         error: "invalid inputs",
       },
@@ -284,24 +284,17 @@ it.each(["base", "composite"] as const)(
             ".pipeline-step, .task-execution-meta, .task-current-step, pre",
           ),
         ).toBeNull();
-        if (kind === "composite") {
-          expect(card.textContent).not.toContain("execute");
-          expect(card.textContent).not.toContain("Open snapshot");
-          expect(card.textContent).not.toContain("old-error-marker");
-          expect(card.textContent).not.toContain("2026-01-14T00:00:00Z");
-          expect(card.textContent).toContain("invalid inputs");
-          expect(card.querySelectorAll(".step-item")).toHaveLength(2);
-          const links =
-            card.querySelectorAll<HTMLButtonElement>(".child-task-link");
-          expect(links).toHaveLength(1);
-          await act(async () => links[0].click());
-          expect(onOpenTask).toHaveBeenLastCalledWith("composite#history");
-        } else {
-          expect(card.textContent).toContain("execute");
-          expect(card.textContent).toContain("Open snapshot");
-          expect(card.querySelectorAll(".step-substep")).toHaveLength(1);
-          expect(card.querySelector(".child-task-link")).toBeNull();
-        }
+        expect(card.textContent).toContain("execute");
+        expect(card.textContent).toContain("Open snapshot");
+        expect(card.textContent).not.toContain("old-error-marker");
+        expect(card.textContent).toContain("invalid inputs");
+        expect(card.querySelectorAll(".step-item")).toHaveLength(4);
+        expect(card.querySelectorAll(".step-substep")).toHaveLength(1);
+        const links =
+          card.querySelectorAll<HTMLButtonElement>(".child-task-link");
+        expect(links).toHaveLength(1);
+        await act(async () => links[0].click());
+        expect(onOpenTask).toHaveBeenLastCalledWith("base#history");
       }
     } finally {
       await act(async () => root.unmount());
@@ -309,10 +302,11 @@ it.each(["base", "composite"] as const)(
   },
 );
 
-it("shows a child empty state before any children are invoked", async () => {
+it("shows step progress without a child section before any children are invoked", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("zh");
-  const task = taskStatus("composite", "composite#empty", "empty");
+  const task = taskStatus("base", "base#empty", "empty");
+  task.steps = [];
   vi.mocked(getTaskStatus).mockResolvedValue(task);
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -331,7 +325,8 @@ it("shows a child empty state before any children are invoked", async () => {
     );
     expect(
       container.querySelector(".task-execution-card")?.textContent,
-    ).toContain("暂无子任务");
+    ).toContain(i18n.t("notStarted"));
+    expect(container.textContent).not.toContain(i18n.t("taskDetail.children"));
     expect(container.querySelector(".step-item")).toBeNull();
   } finally {
     await act(async () => root.unmount());

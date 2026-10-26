@@ -118,16 +118,16 @@ ETL 从输出起始日前读取最长滚动窗口所需的市场日；更早且�
 axonx exec --task qlib_a158_etl --start-date 20150101 --end-date 20261008
 
 # ETL 成功后
-axonx exec --task qlib_a158_factor --source-tasks '<etl_task_id>'
-axonx exec --task qlib_a158_train --source-tasks '<etl_task_id>' \
+axonx exec --task qlib_a158_factor --upstream-task-ids '<etl_task_id>'
+axonx exec --task qlib_a158_train --upstream-task-ids '<etl_task_id>' \
   --train-start 20150101 --train-end 20230101
 
 # 训练成功后
-axonx exec --task qlib_a158_predict --source-tasks '<train_task_id>' \
+axonx exec --task qlib_a158_predict --upstream-task-ids '<train_task_id>' \
   --pred-start 20230101 --pred-end 20261008
 
 # 预测成功后
-axonx exec --task qlib_a158_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_a158_backtest --upstream-task-ids '<predict_task_id>' \
   --top-ns '[5,10,20,30]' --buy-cost-rate 0.0005 --sell-cost-rate 0.0015
 ```
 

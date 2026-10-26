@@ -1,11 +1,7 @@
 import type { JsonSchema } from "../../shared/schema/types";
 export type { TaskStepStatus } from "../../shared/api/event";
 
-export type {
-  TaskState,
-  ChildTaskRecord,
-  TaskSource,
-} from "../../shared/api/contracts";
+export type { TaskState, ChildTaskRecord } from "../../shared/api/contracts";
 
 export type { TaskMetadata } from "../../shared/api/contracts";
 export type { TaskSummary } from "../../shared/api/contracts";

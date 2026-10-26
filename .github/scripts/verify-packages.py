@@ -149,7 +149,7 @@ def verify_installation() -> None:
     from axonx.app.config.resolver import resolve_app_config
     from axonx.app.crontabs import load_crontab
     from axonx.cli.parser import validate_cron_command
-    from axonx.plugin.catalog import get_task_definition
+    from axonx.plugin.catalog import TaskCatalog
     from axonx.plugin.discovery import (
         get_installed_plugin,  # pylint: disable=import-outside-toplevel
     )
@@ -166,7 +166,8 @@ def verify_installation() -> None:
         if "axonx.configs" in read_project(source).get("entry-points", {}):
             assert resolve_app_config(config=plugin, log_config=False), f"Plugin {plugin} config did not load"
 
-    definitions = [get_task_definition(name) for name in sorted(task_names)]
+    catalog = TaskCatalog()
+    definitions = [catalog.definition(name) for name in sorted(task_names)]
     assert {read_project(source)["name"] for _, source, _, _ in PACKAGES[1:]} <= {
         task.plugin for task in definitions
     }, "Missing Task definitions from a shipped plugin distribution"

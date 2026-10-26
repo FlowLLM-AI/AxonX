@@ -15,7 +15,7 @@ let source: string;
 beforeEach(() => {
   vi.clearAllMocks();
   source = "A".repeat(464) + "B".repeat(65_536);
-  task = structuredClone(seed().tasks.get("composite#playground_online#demo")!);
+  task = structuredClone(seed().tasks.get("base#playground_online#demo")!);
   vi.mocked(readTaskLog).mockImplementation(
     async (_id, offset = -1, limit = 65536) => {
       const start = offset < 0 ? Math.max(0, source.length - limit) : offset;

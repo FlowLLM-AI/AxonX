@@ -56,17 +56,19 @@ describe("JSON schema values", () => {
     expect(result.errors).toEqual({ config: "invalid" });
   });
 
-  it("submits source tasks as a string", () => {
+  it("submits upstream Task IDs as an array", () => {
     const sourceSchema: JsonSchema = {
-      properties: { source_tasks: { type: "string", default: "" } },
+      properties: {
+        upstream_task_ids: { type: "array", items: { type: "string" } },
+      },
     };
-    expect(initialSchemaValues(sourceSchema).source_tasks).toBe("");
+    expect(initialSchemaValues(sourceSchema).upstream_task_ids).toBe("");
     expect(
       parseSchemaValues(
         sourceSchema,
-        { source_tasks: "etl#one#first, etl#two#second" },
+        { upstream_task_ids: '["etl#one#first", "etl#two#second"]' },
         { required: "required", invalidJson: "invalid" },
-      ).data.source_tasks,
-    ).toBe("etl#one#first, etl#two#second");
+      ).data.upstream_task_ids,
+    ).toEqual(["etl#one#first", "etl#two#second"]);
   });
 });

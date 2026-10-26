@@ -44,13 +44,13 @@ axonx plugin install '<uploaded answer.location>' --target http://research.examp
 axonx get_task_definition --task qlib_factor_train --target http://research.example:1024
 
 axonx exec --task qlib_factor_etl --start-date 20150101 --end-date 20261008 --target http://research.example:1024
-axonx exec --task qlib_factor_train --source-tasks '<etl_task_id>' \
+axonx exec --task qlib_factor_train --upstream-task-ids '<etl_task_id>' \
   --train-start 20150101 --train-end 20230101 \
   --label-column label_return_rank --parameter-preset axonx \
   --context-groups risk --feature-fraction 1.0 --target http://research.example:1024
-axonx exec --task qlib_factor_predict --source-tasks '<train_task_id>' \
+axonx exec --task qlib_factor_predict --upstream-task-ids '<train_task_id>' \
   --pred-start 20230101 --pred-end 20261008 --target http://research.example:1024
-axonx exec --task qlib_factor_backtest --source-tasks '<predict_task_id>' \
+axonx exec --task qlib_factor_backtest --upstream-task-ids '<predict_task_id>' \
   --top-ns '[5,10,20,30]' --as-of-date 20261008 \
   --buy-cost-rate 0.0005 --sell-cost-rate 0.0015 --target http://research.example:1024
 ```

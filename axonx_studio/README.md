@@ -55,6 +55,8 @@ Restart the service after installation. AxonX loads `dist/` through the package'
 
 Leave **Task Name** empty to generate a name for each experiment. Reusing a fixed name replaces the directory of a finished run. Upstream relationships record lineage; the graph does not automatically execute dependent Tasks.
 
+Input dependencies use `upstream_task_ids`, an array of direct upstream Task IDs. The dependency graph shows upstream/downstream links. Task details show both execution steps and parent/child invocations from `children`; those calls do not create dependency edges automatically.
+
 ### Optional research and Agent setup
 
 - **Research plugins:** install `axonx-qlib-a158`, `axonx-qlib-factor`, or `axonx-qlib-strategy` in the execution service's Python environment, then restart the service. Research views need completed runs with standard `metadata.json` and artifact outputs.

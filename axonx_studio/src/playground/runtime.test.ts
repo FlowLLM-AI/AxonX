@@ -15,7 +15,7 @@ import type {
 } from "../features/workspace/types";
 import { AxonXClient } from "../shared/api/client";
 import { streamJob } from "../shared/api/event";
-import { parseSourceTasks } from "../shared/lib/sourceTasks";
+import { upstreamTaskIds } from "../shared/lib/upstreamTasks";
 import { createPlayground } from "./runtime";
 
 beforeEach(() => vi.useFakeTimers());
@@ -102,34 +102,36 @@ describe("static Playground", () => {
               artifacts: Record<string, { path: string }>;
               protocol?: Record<string, unknown>;
             };
-            input_params: { source_tasks: string };
+            input_params: { upstream_task_ids: string[] };
           };
           const task = await api.invoke<TaskMetadata>("status", {
             task_id: metadata.task_id,
           });
           if (task.state !== "succeeded") continue;
           expect(metadata.state).toBe("succeeded");
-          const expectedSource: Record<string, string> = {
-            analysis: "etl#demo",
-            train: "etl#demo",
-            predict: "train#demo",
-            backtest: "predict#demo",
+          const expectedSource: Record<string, string[]> = {
+            analysis: ["etl#demo"],
+            train: ["etl#demo"],
+            predict: ["train#demo"],
+            backtest: ["predict#demo"],
           };
           if (
             metadata.task_id === `${task_type}#demo` ||
             metadata.task_id === "backtest#volatile"
           )
-            expect(metadata.input_params.source_tasks).toBe(
-              expectedSource[task_type] || "",
+            expect(metadata.input_params.upstream_task_ids).toEqual(
+              expectedSource[task_type] || [],
             );
-          expect(task.input_params.source_tasks).toBe(
-            metadata.input_params.source_tasks,
+          expect(task.input_params.upstream_task_ids).toEqual(
+            metadata.input_params.upstream_task_ids,
           );
           if (task_type !== "etl")
             expect(
-              parseSourceTasks(metadata.input_params.source_tasks),
+              upstreamTaskIds(metadata.input_params.upstream_task_ids),
             ).toHaveLength(1);
-          for (const id of parseSourceTasks(metadata.input_params.source_tasks))
+          for (const id of upstreamTaskIds(
+            metadata.input_params.upstream_task_ids,
+          ))
             await api.invoke("status", { task_id: id });
           expect(metadata.output_params).not.toHaveProperty("output_file");
           expect(metadata.output_params).not.toHaveProperty("result_file");

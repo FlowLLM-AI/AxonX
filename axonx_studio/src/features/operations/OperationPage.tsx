@@ -43,7 +43,10 @@ export default function OperationPage({
         onConnection(true);
         return tasks
           .filter(
-            (task) => task.category === page.category && !task.parent_task_id,
+            (task) =>
+              page.reportKinds.includes(task.report_kind || "") &&
+              !task.parent_task_id &&
+              (task.report_kind !== "online" || task.task_type === "inference"),
           )
           .sort((a, b) =>
             (b.created_at || "").localeCompare(a.created_at || ""),

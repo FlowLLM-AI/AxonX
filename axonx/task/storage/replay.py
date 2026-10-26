@@ -1,13 +1,13 @@
 """Publish and verify portable replay manifests and their file snapshots."""
 
-import hashlib
 import tempfile
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 from ..models.artifacts import ArtifactRecord, ReplayEvent, ReplayManifest, ReplaySource
-from .files import atomic_write_json, file_revision, snapshot_file
+from .artifacts import artifact_record, verify_artifact
+from .files import atomic_write_json, snapshot_file
 
 
 class ReplayStream:
@@ -16,7 +16,6 @@ class ReplayStream:
     def __init__(self, directory: Path):
         self.root = Path(directory).resolve(strict=True)
         content = (self.root / "stream.json").read_bytes()
-        self.manifest_sha256 = hashlib.sha256(content).hexdigest()
         self.manifest = ReplayManifest.model_validate_json(content)
         for record in self.manifest.context.values():
             self.file(record)
@@ -25,12 +24,8 @@ class ReplayStream:
                 self.file(record)
 
     def file(self, record: ArtifactRecord) -> Path:
-        path = (self.root / record.path).resolve(strict=True)
-        if Path(record.path).is_absolute() or not path.is_relative_to(self.root):
-            raise ValueError("Replay file escapes stream directory")
-        if not path.is_file() or path.stat().st_size != record.size or file_revision(path) != record.revision:
-            raise ValueError(f"Replay file changed: {record.path}")
-        return path
+        """Resolve and verify a payload against the manifest."""
+        return verify_artifact(self.root, record)
 
     @classmethod
     def create(
@@ -56,11 +51,7 @@ class ReplayStream:
                 counter += 1
                 target = root / "files" / f"{counter:06d}{Path(source).suffix}"
                 snapshot_file(source, target, isolated=True)
-                return ArtifactRecord(
-                    path=target.relative_to(root).as_posix(),
-                    revision=file_revision(target),
-                    size=target.stat().st_size,
-                )
+                return artifact_record(target, root)
 
             records = [
                 ReplayEvent(

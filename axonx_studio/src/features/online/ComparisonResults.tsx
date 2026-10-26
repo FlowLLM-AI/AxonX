@@ -60,7 +60,7 @@ export function ComparisonResults({
                 unavailableReason,
               )
             : t(
-                `nightly.${model.state === "failed" || model.state === "skipped" || model.state === "cancelled" ? "blocked" : "noResults"}`,
+                `nightly.${model.state === "failed" || model.state === "skipped" ? "blocked" : "noResults"}`,
               )}
         </p>
       );

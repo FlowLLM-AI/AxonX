@@ -14,7 +14,7 @@ from .artifacts import (
     validate_protocol,
 )
 from .base import TaskModel
-from .identity import TaskType, parse_source_tasks, task_type_from_id, validate_task_name
+from .identity import TaskType, task_type_from_id, validate_task_name, validate_upstream_task_ids
 from .reports import BacktestUniverseReport, PredictionComparison, TrainingCurve, WindowResult
 
 
@@ -23,7 +23,10 @@ class BaseInputParams(TaskModel):
 
     model_config = ConfigDict(validate_assignment=True)
     task_name: str | None = None
-    source_tasks: str = Field(default="", description="Upstream Task IDs separated by ASCII commas.")
+    upstream_task_ids: list[str] = Field(
+        default_factory=list,
+        description="Direct upstream Task IDs for input dependencies; declaring them does not execute Tasks.",
+    )
 
     @field_validator("task_name", mode="before")
     @classmethod
@@ -32,20 +35,19 @@ class BaseInputParams(TaskModel):
             return None
         return validate_task_name(name)
 
-    @field_validator("source_tasks")
+    @field_validator("upstream_task_ids")
     @classmethod
-    def validate_source_tasks(cls, sources: str) -> str:
-        return ",".join(parse_source_tasks(sources))
+    def validate_upstream_task_ids(cls, task_ids: list[str]) -> list[str]:
+        return validate_upstream_task_ids(task_ids)
 
-    def source_task(self, task_type: TaskType) -> str:
-        matches = [
-            task_id for task_id in parse_source_tasks(self.source_tasks) if task_type_from_id(task_id) == task_type
-        ]
+    def upstream_task_id(self, task_type: TaskType) -> str:
+        """Return the single declared upstream Task ID of the requested type."""
+        matches = [task_id for task_id in self.upstream_task_ids if task_type_from_id(task_id) == task_type]
         if len(matches) == 1:
             return matches[0]
         if matches:
-            raise ValueError(f"Multiple source tasks of type: {task_type.value}")
-        raise ValueError(f"Missing source task: {task_type.value}")
+            raise ValueError(f"Multiple upstream tasks of type: {task_type.value}")
+        raise ValueError(f"Missing upstream task: {task_type.value}")
 
 
 class BaseOutputParams(TaskModel):

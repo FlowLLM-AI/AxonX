@@ -1,4 +1,4 @@
-"""Verify authoring extensions through the real Runner and deterministic business time."""
+"""Verify authoring extensions through the real executor and deterministic business time."""
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -7,13 +7,13 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from axonx.task.core.clock import DeadlineBudget, WindowClock
-from axonx.task.core.standard import BasePredictionCompareTask
+from axonx.task.core.research import BasePredictionCompareTask
 from axonx.task.core.windows import BaseInferenceTask, BaseRealtimeApiTask
 from axonx.task.models.identity import TaskState
-from axonx.task.models.params import ExecutionWindow, WindowInputParams
+from axonx.task.models.params import ExecutionWindow, WindowInputParams, WindowOutputParams
 from axonx.task.models.reports import PredictionComparison, WindowResult
+from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.runtime.replay import ReplayClock
-from axonx.task.runtime.runner import TaskRunner
 from axonx.task.storage.workspace import read_entry
 from axonx.utils.logging import LoggingConfig, configure_logging
 
@@ -70,7 +70,7 @@ def test_windows_skip_missed_and_business_exclusions_then_wait_for_start(make_ta
             return "market_closed" if window.key == "closed" else None
 
     task = make_task(Collector, [window("missed", -3, -2), window("closed", -1, 0), window("ready", 2, 5)])
-    status = TaskRunner().run(task)
+    status = TaskExecutor().execute(task)
     results = task.output_params.windows
     assert [result.status for result in results] == ["skipped", "skipped", "done"]
     assert [result.reason for result in results[:2]] == ["window_missed", "market_closed"]
@@ -91,7 +91,7 @@ def test_window_failure_retains_completed_and_failed_results_and_stops(make_task
 
     task = make_task(Collector, [window(), window("second", 5, 10), window("third", 10, 15)])
     with pytest.raises(RuntimeError, match="collection failed"):
-        TaskRunner().run(task)
+        TaskExecutor().execute(task)
     status = read_entry(task.workspace_path, task.task_id)
     assert status.state == TaskState.FAILED
     assert [(result["key"], result["status"]) for result in status.output_params["windows"]] == [
@@ -100,6 +100,28 @@ def test_window_failure_retains_completed_and_failed_results_and_stops(make_task
     ]
     assert task.state["closed"] == 1
     assert task.clock.now() == START + timedelta(seconds=5)
+
+
+def test_window_output_extensions_are_published_with_every_partial_result(make_task):
+    class Output(WindowOutputParams):
+        source: str
+
+    class Collector(CollectorTask):
+        output_cls = Output
+
+        def build_output_params(self):
+            return Output(windows=self.window_results, source="collector")
+
+        def collect(self, window, budget):
+            status = read_entry(self.workspace_path, self.task_id)
+            assert status.output_params["source"] == "collector"
+            assert len(status.output_params["windows"]) == len(self.state["calls"])
+            return super().collect(window, budget)
+
+    task = make_task(Collector, [window(), window("second", 5, 10)])
+    TaskExecutor().execute(task)
+    assert task.output["source"] == "collector"
+    assert len(task.output["windows"]) == 2
 
 
 @pytest.mark.parametrize("stage", ["initialize_run", "validate_run"])
@@ -117,7 +139,7 @@ def test_window_setup_failure_always_cleans_once_and_preserves_primary_error(mak
     setattr(Collector, stage, fail)
     task = make_task(Collector)
     with pytest.raises(ValueError, match="setup failed"):
-        TaskRunner().run(task)
+        TaskExecutor().execute(task)
     assert task.state["closed"] == 1
     assert "setup failed" in read_entry(task.workspace_path, task.task_id).error
 
@@ -130,7 +152,7 @@ def test_window_cleanup_failure_leaves_the_task_failed_with_its_business_output(
 
     task = make_task(Collector)
     with pytest.raises(OSError, match="cleanup failed"):
-        TaskRunner().run(task)
+        TaskExecutor().execute(task)
     status = read_entry(task.workspace_path, task.task_id)
     assert status.state == TaskState.FAILED
     assert status.output_params["windows"][0]["status"] == "done"
@@ -156,10 +178,10 @@ def test_window_result_keys_commits_and_deadlines(make_task, case):
     task = make_task(Collector)
     if case in {"wrong_key", "outside_commit"}:
         with pytest.raises(ValueError):
-            TaskRunner().run(task)
+            TaskExecutor().execute(task)
         assert read_entry(task.workspace_path, task.task_id).output_params["windows"][0]["status"] == "failed"
     else:
-        TaskRunner().run(task)
+        TaskExecutor().execute(task)
         result = task.output_params.windows[0]
         assert result.status == ("incomplete" if case == "late" else "done")
         assert result.elapsed_seconds == 6
@@ -173,7 +195,7 @@ def test_realtime_polling_stops_at_deadline_without_marking_the_task_failed(make
             self.state["calls"].append((window.key, self.clock.now()))
 
     task = make_task(Collector, poll_interval_seconds=2)
-    assert TaskRunner().run(task).state == TaskState.SUCCEEDED
+    assert TaskExecutor().execute(task).state == TaskState.SUCCEEDED
     assert [at for _, at in task.state["calls"]] == [START + timedelta(seconds=n) for n in (0, 2, 4)]
     assert task.clock.now() == window().end_at
     assert task.output_params.windows[0].status == "incomplete"
@@ -193,7 +215,7 @@ def test_inference_waits_for_inputs_and_never_starts_inference_at_deadline(make_
             return super().infer(window, budget)
 
     task = make_task(Inference)
-    TaskRunner().run(task)
+    TaskExecutor().execute(task)
     assert task.output_params.model_identity == {"fingerprint": "fixed"}
     assert task.output_params.windows[0].status == ("done" if ready_at == 2 else "incomplete")
     assert task.state.get("inferred", False) == (ready_at == 2)
@@ -215,7 +237,7 @@ def test_inference_rejects_model_identity_mutation_in_every_extension(make_task,
 
     task = make_task(Inference)
     with pytest.raises(ValueError, match="Model identity changed"):
-        TaskRunner().run(task)
+        TaskExecutor().execute(task)
     status = read_entry(task.workspace_path, task.task_id)
     assert status.output_params["model_identity"] == {"fingerprint": "fixed"}
     assert status.output_params["windows"][0]["status"] == "failed"
@@ -230,7 +252,7 @@ def test_inference_requires_a_valid_model_identity(make_task, identity):
             self.model_identity = identity
 
     with pytest.raises(ValueError):
-        TaskRunner().run(make_task(Inference))
+        TaskExecutor().execute(make_task(Inference))
 
 
 def test_comparison_errors_and_wrong_keys_are_reported_without_losing_other_results(tmp_path):
@@ -241,7 +263,7 @@ def test_comparison_errors_and_wrong_keys_are_reported_without_losing_other_resu
             return PredictionComparison(key="other" if key == "wrong" else key, status="consistent")
 
     task = CompareTask({"comparison_keys": ["ok", "error", "wrong"]}, workspace_path=tmp_path, reg_name="compare")
-    assert TaskRunner().run(task).state == TaskState.SUCCEEDED
+    assert TaskExecutor().execute(task).state == TaskState.SUCCEEDED
     assert [result.status for result in task.output_params.comparisons] == ["consistent", "error", "error"]
     assert "input unavailable" in task.output_params.comparisons[1].reason
     assert task.output == read_entry(tmp_path, task.task_id).output_params

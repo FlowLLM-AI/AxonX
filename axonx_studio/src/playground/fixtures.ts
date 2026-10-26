@@ -13,7 +13,6 @@ export const kinds = [
   "backtest",
 ] as const;
 export const definitions: TaskDefinition[] = kinds.map((kind) => ({
-  category: null,
   name: `playground.${kind}`,
   source: "plugin",
   plugin: "playground",
@@ -50,13 +49,11 @@ export function taskStatus(
   return {
     parent_task_id: null,
     version: 1,
-    category: null,
     report_kind: kind === "inference" ? "online" : null,
     task_id: id,
     task_type: kind,
     reg_name: name,
-    source: { kind: "exec" },
-    input_params: { task_name: name },
+    input_params: { task_name: name, upstream_task_ids: [] },
     state: "succeeded",
     pid: 1234,
     machine_id: "playground",
@@ -176,7 +173,7 @@ export function addArtifacts(
   files: Map<string, WorkspacePreview>,
   task: TaskMetadata,
   strategy = "steady",
-  source: string[] = [],
+  upstreamIds: string[] = [],
 ) {
   const path = `${task.task_type}/${task.task_id}`;
   const daily = dailyRows(strategy);
@@ -356,12 +353,11 @@ export function addArtifacts(
     task_id: task.task_id,
     task_type: task.task_type,
     reg_name: `playground.${task.task_type}`,
-    source: { kind: "exec" },
     created_at: task.created_at,
     input_params: {
       ...task.input_params,
       task_name: task.reg_name,
-      source_tasks: source.join(","),
+      upstream_task_ids: [...upstreamIds],
     },
     output_params: {
       rows: predictions.length,
@@ -456,26 +452,28 @@ export function addArtifacts(
 export function seed() {
   const tasks = new Map<string, TaskMetadata>();
   const files = new Map<string, WorkspacePreview>();
-  let source: string[] = [];
+  let upstreamIds: string[] = [];
   for (const kind of [...kinds, "backtest"] as const) {
     const variant = tasks.has(`${kind}#demo`) ? "volatile" : "steady";
     const id = `${kind}#${variant === "steady" ? "demo" : "volatile"}`;
     const task = taskStatus(kind, id, `Demo ${kind} / ${variant}`);
-    if (kind === "train") source = ["etl#demo"];
-    if (kind === "backtest") source = ["predict#demo"];
-    task.input_params.source_tasks = source.join(",");
+    if (kind === "train") upstreamIds = ["etl#demo"];
+    if (kind === "backtest") upstreamIds = ["predict#demo"];
+    task.input_params.upstream_task_ids = [...upstreamIds];
     tasks.set(id, task);
-    addArtifacts(files, task, variant, source);
-    if (variant === "steady") source = [id];
+    addArtifacts(files, task, variant, upstreamIds);
+    if (variant === "steady") upstreamIds = [id];
   }
   seedOnline(tasks, files);
   seedNightly(tasks, files);
   for (const task of tasks.values()) {
-    if (task.reg_name === "tushare_mins") task.category = "data_update";
+    if (task.reg_name === "tushare_mins") task.report_kind = "data_update";
   }
   for (const parent of tasks.values()) {
     for (const record of parent.children) {
-      const child = record.task_id ? tasks.get(record.task_id) : undefined;
+      const child = record.child_task_id
+        ? tasks.get(record.child_task_id)
+        : undefined;
       if (child?.started_at === record.started_at)
         child.parent_task_id = parent.task_id;
     }
@@ -485,7 +483,7 @@ export function seed() {
     "api#playground_download#demo",
     "Synthetic data update",
   );
-  download.category = "data_update";
+  download.report_kind = "data_update";
   download.steps = [
     {
       parent: null,
@@ -678,22 +676,21 @@ function seedOnline(
       task.input_params.comparison_keys = sample.result.comparisons?.map(
         (item) => item.key,
       );
-    task.input_params.source_tasks =
+    task.input_params.upstream_task_ids =
       sample.kind === "analysis"
-        ? "inference#playground_online#demo"
+        ? ["inference#playground_online#demo"]
         : sample.kind === "inference"
-          ? "api#playground_online#demo"
-          : "";
+          ? ["api#playground_online#demo"]
+          : [];
     task.output_params = { ...sample.result, artifacts: {} };
     if (sample.kind === "inference") seedStockOnline(files, task);
     tasks.set(id, task);
     files.set(`${id.split("#")[0]}/${id}/metadata.json`, json(task));
   }
   const child = tasks.get("inference#playground_online#demo")!;
-  const id = "composite#playground_online#demo";
-  const parent = taskStatus("composite", id, "Synthetic online pipeline");
+  const id = "base#playground_online#demo";
+  const parent = taskStatus("base", id, "Synthetic online pipeline");
   parent.report_kind = "online_pipeline";
-  parent.category = "online_prediction";
   parent.input_params = {
     task_name: "Synthetic online pipeline",
     trade_date: "2026-01-05",
@@ -701,8 +698,8 @@ function seedOnline(
   parent.children = [
     {
       node_name: "model-1445",
-      task: child.reg_name,
-      task_id: child.task_id,
+      reg_name: child.reg_name,
+      child_task_id: child.task_id,
       started_at: child.started_at,
       attempt: 1,
       state: child.state,
@@ -792,8 +789,8 @@ function seedOnline(
   ];
   parent.steps.push(step);
   parent.input_params.models = { "1445": [{ task_name: "demo" }] };
-  parent.children[0].task = child.task_id.split("#")[1];
-  parent.children[0].node_name = `demo-1445-${parent.children[0].task}`;
+  parent.children[0].reg_name = child.task_id.split("#")[1];
+  parent.children[0].node_name = `demo-1445-${parent.children[0].reg_name}`;
   tasks.set(id, parent);
   files.set(`${id.split("#")[0]}/${id}/metadata.json`, json(parent));
 }
@@ -803,12 +800,11 @@ function seedNightly(
   files: Map<string, WorkspacePreview>,
 ) {
   const parent = taskStatus(
-    "composite",
-    "composite#playground_compare#demo",
+    "base",
+    "base#playground_compare#demo",
     "Synthetic nightly comparison",
   );
   parent.report_kind = "compare_pipeline";
-  parent.category = "comparison";
   parent.input_params = {
     task_name: "Synthetic nightly comparison",
     trade_date: "2026-01-05",
@@ -819,7 +815,7 @@ function seedNightly(
     ],
   };
   const template = tasks
-    .get("composite#playground_online#demo")!
+    .get("base#playground_online#demo")!
     .steps.find((step) => step.parent)!;
   const step = (
     name: string,
@@ -842,13 +838,13 @@ function seedNightly(
     deadline: null,
   });
   const download = taskStatus(
-    "composite",
-    "composite#tushare_mins#nightly",
+    "base",
+    "base#tushare_mins#nightly",
     "Synthetic nightly download",
   );
   const history = taskStatus(
-    "composite",
-    "composite#a_stock_history#nightly-1445",
+    "base",
+    "base#a_stock_history#nightly-1445",
     "Synthetic historical inputs",
   );
   const etl = taskStatus(
@@ -862,7 +858,7 @@ function seedNightly(
     "Synthetic comparison",
   );
   comparison.report_kind = "online";
-  comparison.input_params.source_tasks = etl.task_id;
+  comparison.input_params.upstream_task_ids = [etl.task_id];
   comparison.output_params = {
     comparisons: [
       {
@@ -902,8 +898,8 @@ function seedNightly(
   };
   const record = (task: TaskMetadata, node_name: string) => ({
     node_name,
-    task: task.task_id.split("#")[1],
-    task_id: task.task_id,
+    reg_name: task.task_id.split("#")[1],
+    child_task_id: task.task_id,
     started_at: task.started_at,
     attempt: 1,
     state: task.state,

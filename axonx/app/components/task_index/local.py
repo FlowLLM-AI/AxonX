@@ -11,20 +11,14 @@ from pathlib import Path
 from ....task.models.events import LogChunk
 from ....task.models.lifecycle import TaskMetadata
 from ....task.models.query import TaskContextSnapshot, TaskGraph, TaskSummary
-from ....task.query import (
-    FileVersion,
-    TaskLogReader,
-    read_entry,
-    scan_metadata,
-    stream_task,
-    summarize_status,
-    task_context,
-    task_graph,
-    task_sort_key,
-)
+from ....task.storage.logs import TaskLogReader
+from ....task.storage.workspace import FileVersion, read_entry, scan_metadata
 from ...async_work import run_blocking
 from ...registry import provider
 from .base import BaseTaskIndex, TaskChangeCallback
+from .graph import TaskGraphQuery
+from .stream import TaskEventStream
+from .summary import summarize_status, task_sort_key
 
 
 @provider("local")
@@ -105,13 +99,14 @@ class LocalTaskIndex(BaseTaskIndex):
 
     async def graph(self, task_id: str) -> TaskGraph:
         """Build task relationships from indexed records."""
-        return task_graph(self._entries, task_id)
+        return TaskGraphQuery(self._entries).graph(task_id)
 
     async def context(self, task_id: str) -> TaskContextSnapshot:
-        return task_context(await self.entry(task_id), await self.graph(task_id))
+        status = await self.entry(task_id)
+        return TaskGraphQuery(self._entries).context(status)
 
     async def read_log(self, status: TaskMetadata, offset: int, limit: int) -> LogChunk:
         return await asyncio.to_thread(self.logs.read_status, self.root, status, offset, limit)
 
     def stream(self, task_id: str, poll_interval: float):
-        return stream_task(self.root, self.logs, self.entry, self.logger, task_id, poll_interval)
+        return TaskEventStream(self.root, self.logs, self.entry, self.logger).follow(task_id, poll_interval)

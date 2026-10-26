@@ -13,8 +13,8 @@ from pydantic import Field, field_validator, model_validator
 
 from axonx.task.builtins.stock.data import transform_labels
 from axonx.task.builtins.stock.protocol import feature_contract
-from axonx.task.core.standard import BaseTrainTask
-from axonx.task.core.task import TaskStep
+from axonx.task.core.base import TaskStep
+from axonx.task.core.research import BaseTrainTask
 from axonx.task.models.artifacts import (
     ModelCollection,
     task_protocol,
@@ -23,9 +23,9 @@ from axonx.task.models.artifacts import (
 from axonx.task.models.base import normalize_yyyymmdd
 from axonx.task.models.identity import TaskType
 from axonx.task.models.params import BaseInputParams, BaseTrainOutputParams
-from axonx.task.storage.artifacts import artifact_record, read_metadata
+from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.files import atomic_write, atomic_write_json
-from axonx.task.storage.inputs import pin_source_artifacts
+from axonx.task.storage.inputs import pin_upstream_artifacts, read_upstream_metadata
 
 from .internal.etl_pipeline import CSZ_LABELS, LABELS, RANK_LABELS
 from .internal.modeling import feature_matrix
@@ -166,12 +166,11 @@ class LgbmTrainTask(BaseTrainTask):
         return self.input_params.label_column.removesuffix("_rank").removesuffix("_csz")
 
     def resolve_upstream_task(self) -> None:
-        etl_task_id = self.input_params.source_task(TaskType.ETL)
-        source_dir = self.source_task_dir(etl_task_id)
+        etl_task_id = self.input_params.upstream_task_id(TaskType.ETL)
+        source_dir, source_metadata = read_upstream_metadata(self.workspace_path, etl_task_id)
         source_metadata_path = source_dir / "metadata.json"
-        source_metadata = read_metadata(source_metadata_path)
         validate_protocol(source_metadata["output_params"]["protocol"], TaskType.ETL)
-        dataset_path, labels_path = pin_source_artifacts(
+        dataset_path, labels_path = pin_upstream_artifacts(
             self, etl_task_id, "dataset", "labels", metadata=source_metadata
         )
         output_dir = self.task_dir

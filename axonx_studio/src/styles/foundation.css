@@ -362,10 +362,6 @@
   color: var(--danger);
   background: var(--danger-soft);
 }
-.task-orb.cancelled {
-  color: var(--warning);
-  background: var(--warning-soft);
-}
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -397,12 +393,6 @@
 }
 .status-badge.failed i {
   background: var(--danger);
-}
-.status-badge.cancelled {
-  color: var(--warning);
-}
-.status-badge.cancelled i {
-  background: var(--warning);
 }
 .table-wrap .select-column {
   width: 38px;

@@ -47,6 +47,38 @@ def imports(path, *, include_type_checking=True):
             yield from (alias.name for alias in node.names)
 
 
+def test_all_task_models_depend_only_on_data_contracts():
+    violations = [
+        f"{path.name} -> {target}"
+        for path in (ROOT / "axonx/task/models").glob("*.py")
+        for target in imports(path)
+        if target.startswith("axonx.") and not target.startswith("axonx.task.models.")
+    ]
+    assert not violations, "\n".join(violations)
+    code = """
+import importlib
+import pkgutil
+import sys
+import axonx.task
+
+baseline = set(sys.modules)
+
+for module in pkgutil.iter_modules(axonx.task.models.__path__):
+    importlib.import_module(f"axonx.task.models.{module.name}")
+# The Task facade explicitly imports its public capabilities. Model modules
+# must not introduce additional business runtimes beyond that package setup.
+forbidden = (
+    "axonx.app", "axonx.cli", "axonx.plugin", "axonx.daemon",
+    "axonx.task.core.", "axonx.task.runtime.", "axonx.task.builtins.",
+    "polars", "pyarrow",
+)
+loaded = [name for name in sys.modules if name not in baseline and name.startswith(forbidden)]
+assert not loaded, loaded
+"""
+    result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
 def test_cross_module_imports_follow_the_public_contracts():
     violations = []
     for path in (ROOT / "axonx").rglob("*.py"):
@@ -62,7 +94,6 @@ def test_cross_module_imports_follow_the_public_contracts():
             allowed = owner == "cli" or target in SHARED
             if owner == "app":
                 allowed |= target.startswith("axonx.task.models.")
-                allowed |= target == "axonx.task.query" or target.startswith("axonx.task.query.")
                 allowed |= target in {
                     "axonx.task.storage.files",
                     "axonx.task.storage.logs",
@@ -99,7 +130,6 @@ def test_task_data_contracts_do_not_load_business_operations():
         "axonx.task.core",
         "axonx.task.runtime",
         "axonx.task.storage",
-        "axonx.task.query",
         "axonx.task.builtins",
     )
     for path in (ROOT / "axonx/task/models").glob("*.py"):
@@ -123,7 +153,6 @@ def test_task_package_has_only_capability_packages_and_its_initializer():
         "core",
         "runtime",
         "storage",
-        "query",
         "builtins",
     }
 
@@ -134,7 +163,6 @@ def test_task_capabilities_follow_one_way_runtime_dependencies():
         "storage": {"models"},
         "core": {"models", "storage"},
         "runtime": {"models", "storage", "core"},
-        "query": {"models", "storage"},
         "builtins": {"models", "storage", "core"},
     }
     violations = []
@@ -188,9 +216,9 @@ def test_cli_does_not_implement_resident_components_or_steps():
             "axonx.task.runtime.settings",
             ("axonx.app", "axonx.cli", "axonx.plugin", "axonx.task.core", "axonx.task.storage"),
         ),
-        ("axonx.task.core.composite", ("axonx.task.runtime", "axonx.plugin", "axonx.app")),
+        ("axonx.task.core.base", ("axonx.task.runtime", "axonx.plugin", "axonx.app")),
         ("axonx.task.storage.online", ("axonx.task.core", "axonx.task.runtime", "axonx.app")),
-        ("axonx.task.query", ("axonx.task.core", "axonx.task.runtime", "axonx.plugin", "axonx.app")),
+        ("axonx.app.components.task_index", ("axonx.task.core", "axonx.task.runtime", "axonx.plugin")),
         (
             "axonx.app.components.sync.applier",
             (
@@ -205,7 +233,7 @@ def test_cli_does_not_implement_resident_components_or_steps():
             "axonx.app.components.sync.index",
             ("axonx.app.components.sync.local", "axonx.app.components.client"),
         ),
-        ("axonx.plugin.installer", ("axonx.app", "axonx.cli", "axonx.task", "axonx.daemon")),
+        ("axonx.plugin.installer", ("axonx.app", "axonx.cli", "axonx.daemon")),
         (
             "axonx.task.models.params",
             (
@@ -221,7 +249,7 @@ def test_cli_does_not_implement_resident_components_or_steps():
 )
 def test_importing_one_capability_does_not_load_other_runtimes(module, forbidden):
     # Task exposes its packages eagerly. Check additional loads beyond that
-    # public entry point; Plugin installation must still avoid Task entirely.
+    # public entry point. Plugin eagerly exposes its catalog, which uses Task.
     initialize_task = "import axonx.task; " if module.startswith(("axonx.task.", "axonx.app.")) else ""
     code = (
         f"import sys; {initialize_task}baseline=set(sys.modules); import {module}; forbidden={forbidden!r}; "

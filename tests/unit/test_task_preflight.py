@@ -9,8 +9,9 @@ import pytest
 from loguru import logger
 
 from axonx.task.builtins.demo import DemoTask
-from axonx.task.core.composite import BaseCompositeTask
+from axonx.task.core.base import BaseTask
 from axonx.task.models.identity import TaskState
+from axonx.task.models.params import BaseOutputParams
 from axonx.task.runtime import lifecycle
 from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.runtime.settings import AXONX_TASK_EXECUTION_TARGET, ExecutionSettings, normalize_execution_target
@@ -21,9 +22,9 @@ from axonx.utils.logging import LoggingConfig, configure_logging
 @pytest.fixture
 def task(tmp_path):
     configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
-    executor = TaskExecutor(tmp_path, resolve_task=lambda _: DemoTask)
-    status = executor.execute("demo", {"task_name": "same", "x": 1, "y": 2})
-    return executor, status, task_path(tmp_path, status.task_id)
+    original = DemoTask({"task_name": "same", "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo")
+    status = TaskExecutor().execute(original)
+    return original, status, original.task_dir
 
 
 def running(status, directory, **changes):
@@ -32,18 +33,25 @@ def running(status, directory, **changes):
     return status
 
 
-def restart(executor):
-    return executor.execute("demo", {"task_name": "same", "x": 10, "y": 20})
+def restart(original, *, execution_target=None):
+    return TaskExecutor().execute(
+        DemoTask(
+            {"task_name": "same", "x": 10, "y": 20},
+            workspace_path=original.workspace_path,
+            reg_name="demo",
+            execution_target=execution_target,
+        )
+    )
 
 
 def test_confirmed_local_conflict_gives_an_explicit_local_kill_command(task):
-    executor, status, directory = task
+    original, status, directory = task
     running(status, directory)
     before = (directory / "metadata.json").read_bytes()
     with pytest.raises(FileExistsError, match="Task is running:") as error:
-        restart(executor)
+        restart(original)
     command = shlex.join(
-        ["axonx", "kill", "--task-id", status.task_id, "--workspace-dir", str(executor.workspace_path)]
+        ["axonx", "kill", "--task-id", status.task_id, "--workspace-dir", str(original.workspace_path)]
     )
     assert command in str(error.value)
     assert "--target" not in str(error.value)
@@ -51,19 +59,19 @@ def test_confirmed_local_conflict_gives_an_explicit_local_kill_command(task):
 
 
 def test_unknown_local_process_blocks_startup_but_observation_remains_available(task, monkeypatch):
-    executor, status, directory = task
+    original, status, directory = task
     running(status, directory)
     before = (directory / "metadata.json").read_bytes()
     monkeypatch.setattr(lifecycle, "process_instance", Mock(side_effect=psutil.AccessDenied(status.pid)))
     with pytest.raises(FileExistsError, match="cannot verify the local process") as error:
-        restart(executor)
+        restart(original)
     assert "Task is running:" not in str(error.value)
     assert lifecycle.reconcile_task(directory, status.started_at).state == TaskState.RUNNING
     assert (directory / "metadata.json").read_bytes() == before
 
 
 def test_local_dead_process_logs_repair_before_overwrite(task, monkeypatch):
-    executor, status, directory = task
+    original, status, directory = task
     running(status, directory)
     persistent = directory / "persistent"
     persistent.mkdir()
@@ -72,7 +80,7 @@ def test_local_dead_process_logs_repair_before_overwrite(task, monkeypatch):
     messages = []
     sink = logger.add(lambda message: messages.append(message.record["message"]))
     try:
-        result = restart(executor)
+        result = restart(original)
     finally:
         logger.remove(sink)
     repair = next(i for i, text in enumerate(messages) if "Reconciled stale Task" in text)
@@ -86,12 +94,12 @@ def test_local_dead_process_logs_repair_before_overwrite(task, monkeypatch):
 
 @pytest.mark.parametrize("target", [None, "https://10.0.0.8:1024"])
 def test_foreign_running_task_is_unchanged_and_uses_the_execution_machine_path(task, monkeypatch, target):
-    executor, status, directory = task
+    original, status, directory = task
     running(status, directory, machine_id="foreign", execution_target=target, workspace_dir="/source/shared workspace")
     before = (directory / "metadata.json").read_bytes()
     monkeypatch.setattr(lifecycle, "process_instance", lambda *_: pytest.fail("Probed a foreign process"))
     with pytest.raises(FileExistsError, match="another machine") as error:
-        restart(executor)
+        restart(original)
     expected = shlex.join(
         [
             "axonx",
@@ -110,26 +118,28 @@ def test_foreign_running_task_is_unchanged_and_uses_the_execution_machine_path(t
 
 
 def test_foreign_terminal_record_can_be_overwritten(task, monkeypatch):
-    executor, status, directory = task
+    original, status, directory = task
     status.machine_id = "foreign"
     write_task_metadata(directory, status)
     monkeypatch.setattr(lifecycle, "process_instance", lambda *_: pytest.fail("Probed a terminal process"))
-    assert restart(executor).state == TaskState.SUCCEEDED
+    assert restart(original).state == TaskState.SUCCEEDED
 
 
 def test_orphan_running_child_does_not_route_kill_to_an_already_finished_parent(task, monkeypatch):
-    executor, parent, _ = task
-    child = executor.execute("demo", {"task_name": "child", "x": 1, "y": 2})
+    original, parent, _ = task
+    child = TaskExecutor().execute(
+        DemoTask({"task_name": "child", "x": 1, "y": 2}, workspace_path=original.workspace_path, reg_name="demo")
+    )
     child.parent_task_id = parent.task_id
-    child = running(child, task_path(executor.workspace_path, child.task_id))
-    assert lifecycle.execution_owner(executor.workspace_path, child).task_id == child.task_id
+    child = running(child, task_path(original.workspace_path, child.task_id))
+    assert lifecycle.execution_owner(original.workspace_path, child).task_id == child.task_id
     monkeypatch.setattr(lifecycle, "process_instance", lambda *_: None)
-    assert lifecycle.kill_task(executor.workspace_path, child.task_id).state == TaskState.FAILED
+    assert lifecycle.kill_task(original.workspace_path, child.task_id).state == TaskState.FAILED
 
 
 @pytest.mark.parametrize("problem", ["missing", "json", "encoding", "schema", "identity", "symlink"])
 def test_invalid_metadata_is_reported_without_replacing_any_task_files(task, problem):
-    executor, status, directory = task
+    original, status, directory = task
     path = directory / "metadata.json"
     marker = directory / "output.txt"
     marker.write_text("keep")
@@ -150,7 +160,7 @@ def test_invalid_metadata_is_reported_without_replacing_any_task_files(task, pro
         path.symlink_to(external)
     before = path.read_bytes() if path.exists() else None
     with pytest.raises((FileNotFoundError, ValueError)) as error:
-        restart(executor)
+        restart(original)
     assert "metadata" in str(error.value)
     assert "not overwritten" in str(error.value)
     assert (path.read_bytes() if path.exists() else None) == before
@@ -161,17 +171,18 @@ def test_invalid_metadata_is_reported_without_replacing_any_task_files(task, pro
 def test_execution_location_reaches_nested_tasks_and_root_conflict_hints(tmp_path):
     configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
 
-    class Parent(BaseCompositeTask):
+    class Parent(BaseTask):
         def build_task_steps(self):
             yield lambda: self.run_task("demo", x=1, y=2)
 
-    executor = TaskExecutor(
-        tmp_path,
-        resolve_task=lambda name: {"parent": Parent, "demo": DemoTask}[name],
-        execution_target="10.0.0.8:1024",
+        def build_output_params(self):
+            return BaseOutputParams()
+
+    executor = TaskExecutor(resolve_task=lambda _: DemoTask)
+    parent = executor.execute(
+        Parent({"task_name": "same"}, workspace_path=tmp_path, reg_name="parent", execution_target="10.0.0.8:1024")
     )
-    parent = executor.execute("parent", {"task_name": "same"})
-    child = read_task_metadata(task_path(tmp_path, parent.children[0].task_id), parent.children[0].task_id)
+    child = read_task_metadata(task_path(tmp_path, parent.children[0].child_task_id), parent.children[0].child_task_id)
     assert parent.execution_target == child.execution_target == "http://10.0.0.8:1024"
     assert parent.workspace_dir == child.workspace_dir == str(tmp_path.resolve())
     parent = running(parent, task_path(tmp_path, parent.task_id), machine_id="foreign")
@@ -208,11 +219,10 @@ def test_advertised_target_is_loaded_and_forwarded_without_using_the_local_servi
     ],
 )
 def test_invalid_execution_address_is_rejected_before_any_files_are_replaced(task, value):
-    executor, _, directory = task
+    original, _, directory = task
     before = (directory / "metadata.json").read_bytes()
-    executor.execution_target = value
     with pytest.raises(ValueError, match="execution_target"):
-        restart(executor)
+        restart(original, execution_target=value)
     assert (directory / "metadata.json").read_bytes() == before
 
 

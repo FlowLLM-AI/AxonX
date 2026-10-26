@@ -13,33 +13,35 @@ from axonx.app.components.sync.applier import TaskArchiveApplier
 from axonx.app.components.sync.archive import build_archive
 from axonx.app.components.sync.errors import SnapshotChangedError
 from axonx.app.components.sync.replica import prepare_group, task_group
+from axonx.app.components.task_index import TaskEventStream
 from axonx.app.steps.task.query import WaitTaskStep
 from axonx.task.builtins.demo import DemoTask
-from axonx.task.core.composite import BaseCompositeTask
+from axonx.task.core.base import BaseTask
 from axonx.task.models.identity import TaskState
-from axonx.task.query.stream import stream_task
+from axonx.task.models.params import BaseOutputParams
 from axonx.task.runtime import lifecycle
 from axonx.task.runtime.executor import TaskExecutor
-from axonx.task.storage.index import scan_metadata
 from axonx.task.storage.logs import TaskLogReader
-from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
+from axonx.task.storage.workspace import read_entry, scan_metadata, task_path, write_task_metadata
 from axonx.utils.logging import LoggingConfig, configure_logging, get_logger
 
 
 @pytest.fixture
 def executor(tmp_path):
     configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
-    return TaskExecutor(tmp_path, resolve_task=lambda _: DemoTask)
+    return TaskExecutor()
 
 
 def test_rerun_replaces_current_outputs_and_preserves_only_explicit_history(executor, tmp_path):
-    first = executor.execute("demo", {"task_name": "same", "x": 1, "y": 2})
+    first = executor.execute(DemoTask({"task_name": "same", "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo"))
     directory = task_path(tmp_path, first.task_id)
     (directory / "old-output.txt").write_text("old")
     persistent = directory / "persistent"
     persistent.mkdir()
     (persistent / "history.txt").write_text("retained")
-    second = executor.execute("demo", {"task_name": "same", "x": 10, "y": 20})
+    second = executor.execute(
+        DemoTask({"task_name": "same", "x": 10, "y": 20}, workspace_path=tmp_path, reg_name="demo")
+    )
     assert first.task_id == second.task_id
     assert second.started_at > first.started_at
     assert read_entry(tmp_path, first.task_id).output_params["result"] == 30
@@ -57,32 +59,36 @@ def test_same_name_cannot_replace_a_running_task(tmp_path):
         def initialize(self):
             before = self.metadata_path.read_bytes()
             with pytest.raises(FileExistsError, match="Task is running"):
-                TaskExecutor(tmp_path, resolve_task=lambda _: DemoTask).execute("demo", self.input_params.model_dump())
+                TaskExecutor().execute(
+                    DemoTask(self.input_params.model_dump(), workspace_path=tmp_path, reg_name="demo")
+                )
             assert self.metadata_path.read_bytes() == before
             super().initialize()
 
-    result = TaskExecutor(tmp_path, resolve_task=lambda _: ConflictTask).execute(
-        "demo", {"task_name": "same", "x": 1, "y": 2}
+    result = TaskExecutor().execute(
+        ConflictTask({"task_name": "same", "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo")
     )
     assert result.state == TaskState.SUCCEEDED
 
 
 def test_rerun_start_time_stays_distinct_when_the_clock_moves_back(executor, tmp_path, monkeypatch):
-    first = executor.execute("demo", {"task_name": "same", "x": 1, "y": 2})
+    first = executor.execute(DemoTask({"task_name": "same", "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo"))
 
     class EarlierClock(datetime):
         @classmethod
         def now(cls, tz=None):
             return (first.started_at - timedelta(seconds=1)).astimezone(tz or UTC)
 
-    monkeypatch.setattr("axonx.task.runtime.runner.datetime", EarlierClock)
-    second = executor.execute("demo", {"task_name": "same", "x": 3, "y": 4})
+    monkeypatch.setattr("axonx.task.runtime.executor.datetime", EarlierClock)
+    second = executor.execute(DemoTask({"task_name": "same", "x": 3, "y": 4}, workspace_path=tmp_path, reg_name="demo"))
     assert second.started_at > first.started_at
     assert read_entry(tmp_path, second.task_id).started_at == second.started_at
 
 
 def test_metadata_scans_leave_dead_local_tasks_unchanged(executor, tmp_path):
-    status = executor.execute("demo", {"task_name": "observe", "x": 1, "y": 2})
+    status = executor.execute(
+        DemoTask({"task_name": "observe", "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo")
+    )
     status.state = TaskState.RUNNING
     status.pid = 2_147_483_647
     status.finished_at = None
@@ -99,8 +105,8 @@ def test_metadata_scans_leave_dead_local_tasks_unchanged(executor, tmp_path):
 
 
 def test_explicit_reconciliation_keeps_a_newer_execution_unchanged(executor, tmp_path, monkeypatch):
-    first = executor.execute("demo", {"task_name": "same", "x": 1, "y": 2})
-    second = executor.execute("demo", {"task_name": "same", "x": 3, "y": 4})
+    first = executor.execute(DemoTask({"task_name": "same", "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo"))
+    second = executor.execute(DemoTask({"task_name": "same", "x": 3, "y": 4}, workspace_path=tmp_path, reg_name="demo"))
     second.state = TaskState.RUNNING
     directory = task_path(tmp_path, second.task_id)
     write_task_metadata(directory, second)
@@ -110,7 +116,9 @@ def test_explicit_reconciliation_keeps_a_newer_execution_unchanged(executor, tmp
 
 
 def test_kill_refuses_a_restart_during_termination(executor, tmp_path, monkeypatch):
-    current = executor.execute("demo", {"task_name": "same", "x": 1, "y": 2})
+    current = executor.execute(
+        DemoTask({"task_name": "same", "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo")
+    )
     current.state = TaskState.RUNNING
     directory = task_path(tmp_path, current.task_id)
     write_task_metadata(directory, current)
@@ -124,8 +132,10 @@ def test_kill_refuses_a_restart_during_termination(executor, tmp_path, monkeypat
 
 
 def test_killing_a_finished_child_cannot_stop_a_restarted_parent(executor, tmp_path, monkeypatch):
-    parent = executor.execute("demo", {"task_name": "parent", "x": 1, "y": 2})
-    child = executor.execute("demo", {"task_name": "child", "x": 3, "y": 4})
+    parent = executor.execute(
+        DemoTask({"task_name": "parent", "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo")
+    )
+    child = executor.execute(DemoTask({"task_name": "child", "x": 3, "y": 4}, workspace_path=tmp_path, reg_name="demo"))
     child.parent_task_id = parent.task_id
     write_task_metadata(task_path(tmp_path, child.task_id), child)
     replacement = parent.model_copy(
@@ -149,7 +159,8 @@ class WaitingTask(DemoTask):
         print('ready', flush=True)
         time.sleep(30)
 configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
-TaskExecutor(sys.argv[1], resolve_task=lambda _: WaitingTask).execute('demo', {'task_name': 'kill', 'x': 1, 'y': 2})
+task = WaitingTask({'task_name': 'kill', 'x': 1, 'y': 2}, workspace_path=sys.argv[1], reg_name='demo')
+TaskExecutor().execute(task)
 """
     with subprocess.Popen([sys.executable, "-c", code, str(tmp_path)], stdout=subprocess.PIPE, text=True) as child:
         try:
@@ -181,7 +192,7 @@ TaskExecutor(sys.argv[1], resolve_task=lambda _: WaitingTask).execute('demo', {'
 
 @pytest.mark.asyncio
 async def test_wait_and_stream_refuse_to_follow_a_restart(executor, tmp_path):
-    first = executor.execute("demo", {"task_name": "same", "x": 1, "y": 2})
+    first = executor.execute(DemoTask({"task_name": "same", "x": 1, "y": 2}, workspace_path=tmp_path, reg_name="demo"))
     first.state = TaskState.RUNNING
     replacement = first.model_copy(update={"started_at": first.started_at + timedelta(seconds=1)})
     read = AsyncMock(side_effect=[first, replacement])
@@ -195,14 +206,16 @@ async def test_wait_and_stream_refuse_to_follow_a_restart(executor, tmp_path):
     read.reset_mock(side_effect=True)
     read.side_effect = [first, replacement]
     with pytest.raises(ValueError, match="Task restarted"):
-        async for _ in stream_task(tmp_path, TaskLogReader(tmp_path), read, get_logger("test"), first.task_id, 0.001):
+        async for _ in TaskEventStream(tmp_path, TaskLogReader(tmp_path), read, get_logger("test")).follow(
+            first.task_id, 0.001
+        ):
             pass
 
 
 def test_repeated_children_sync_with_their_latest_start_time(tmp_path):
     configure_logging(LoggingConfig(log_to_console=False, log_to_file=False))
 
-    class Parent(BaseCompositeTask):
+    class Parent(BaseTask):
         def build_task_steps(self):
             yield self.repeat
 
@@ -210,19 +223,21 @@ def test_repeated_children_sync_with_their_latest_start_time(tmp_path):
             self.run_task("demo", x=1, y=2)
             self.run_task("demo", x=10, y=20)
 
-    executor = TaskExecutor(tmp_path / "source", resolve_task=lambda name: {"parent": Parent, "demo": DemoTask}[name])
-    parent = executor.execute("parent", {"task_name": "repeat"})
+        def build_output_params(self):
+            return BaseOutputParams()
+
+    workspace = tmp_path / "source"
+    executor = TaskExecutor(resolve_task=lambda _: DemoTask)
+    parent = executor.execute(Parent({"task_name": "repeat"}, workspace_path=workspace, reg_name="parent"))
     first, second = parent.children
-    assert first.task_id == second.task_id
+    assert first.child_task_id == second.child_task_id
     assert first.started_at < second.started_at
-    child = read_entry(executor.workspace_path, second.task_id)
+    child = read_entry(workspace, second.child_task_id)
     assert child.parent_task_id == parent.task_id
     assert child.started_at == second.started_at
-    events = (task_path(executor.workspace_path, child.task_id) / "events.jsonl").read_text().splitlines()
+    events = (task_path(workspace, child.task_id) / "events.jsonl").read_text().splitlines()
     assert any(json.loads(event)["state"] == "running" for event in events)
-    plans = prepare_group(
-        executor.workspace_path, parent.task_id, tmp_path / "staging", 1_000_000, TaskLogReader(tmp_path), {}
-    )
+    plans = prepare_group(workspace, parent.task_id, tmp_path / "staging", 1_000_000, TaskLogReader(tmp_path), {})
     archive = tmp_path / "tasks.tar.gz"
     build_archive(plans, list(plans), archive)
     target = tmp_path / "target"
@@ -231,11 +246,11 @@ def test_repeated_children_sync_with_their_latest_start_time(tmp_path):
     replica = read_entry(target, parent.task_id)
     assert replica.replica.snapshot.root_started_at == parent.started_at
     assert read_entry(target, child.task_id).started_at == second.started_at
-    executor.execute("demo", {"task_name": "repeat", "x": 99, "y": 1})
+    executor.execute(DemoTask({"task_name": "repeat", "x": 99, "y": 1}, workspace_path=workspace, reg_name="demo"))
     with pytest.raises(SnapshotChangedError, match="Live source Task is unavailable"):
-        task_group(executor.workspace_path, parent.task_id)
+        task_group(workspace, parent.task_id)
 
     # A pending child must not pull the previous contents of its named directory.
     parent.children[-1].started_at = None
-    write_task_metadata(task_path(executor.workspace_path, parent.task_id), parent)
-    assert set(task_group(executor.workspace_path, parent.task_id)) == {parent.task_id}
+    write_task_metadata(task_path(workspace, parent.task_id), parent)
+    assert set(task_group(workspace, parent.task_id)) == {parent.task_id}

@@ -22,7 +22,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const tasks = seed().tasks;
-  parent = structuredClone(tasks.get("composite#playground_online#demo")!);
+  parent = structuredClone(tasks.get("base#playground_online#demo")!);
   child = structuredClone(tasks.get("inference#playground_online#demo")!);
   parent.state = "running";
   parent.children[0].state = "running";
@@ -72,7 +72,6 @@ const render = async () => {
             display_name: "online",
             is_replica: false,
             step_progress: null,
-            is_online: true,
           } as TaskSummary
         }
         target={target}
@@ -224,10 +223,10 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
     models: { demo: { status: "done", comparison: { status: "skipped" } } },
   };
   const history = structuredClone(child);
-  history.task_id = "composite#a_stock_history#demo-1445";
+  history.task_id = "base#a_stock_history#demo-1445";
   history.started_at = "2026-01-07T00:00:00Z";
   history.reg_name = "a_stock_history";
-  history.task_type = "composite";
+  history.task_type = "base";
   history.report_kind = null;
   history.input_params.task_name = "demo-1445";
   const etl = structuredClone(child);
@@ -240,8 +239,8 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
   history.children = [
     {
       ...parent.children[0],
-      task: etl.reg_name,
-      task_id: etl.task_id,
+      reg_name: etl.reg_name,
+      child_task_id: etl.task_id,
       started_at: etl.started_at,
       node_name: "demo-a_stock_etl",
     },
@@ -249,8 +248,8 @@ it("shows nightly model plans, skipped comparisons and nested history task logs"
   parent.children = [
     {
       ...parent.children[0],
-      task: history.reg_name,
-      task_id: history.task_id,
+      reg_name: history.reg_name,
+      child_task_id: history.task_id,
       started_at: history.started_at,
       node_name: "demo-1445-a_stock_history",
     },
@@ -283,7 +282,7 @@ it("keeps nightly stages visible when a comparison report is malformed", async (
   child.reg_name = "a_stock_prediction_compare";
   child.report_kind = "online";
   child.output_params = { comparisons: [{ key: "bad", status: "invalid" }] };
-  parent.children[0].task = child.reg_name;
+  parent.children[0].reg_name = child.reg_name;
   parent.children[0].node_name = "demo-a_stock_prediction_compare";
   await render();
   expect(container.textContent).toContain(i18n.t("onlinePipeline.nightly"));
@@ -306,14 +305,6 @@ it("settles unfinished nightly model summaries after download failure and cancel
   expect(
     container.querySelector(".compare-active-model")?.textContent,
   ).toContain(i18n.t("onlinePipeline.status.skipped"));
-  parent.state = "cancelled";
-  // A new selection reloads the lifecycle snapshot.
-  parent.started_at = "2026-01-10T00:00:00Z";
-  await render();
-  await clickTab("etl");
-  expect(
-    container.querySelector(".compare-active-model")?.textContent,
-  ).toContain(i18n.t("onlinePipeline.status.cancelled"));
 });
 
 it("refreshes details and logs every 60 seconds while preserving the selected tab", async () => {
@@ -408,61 +399,66 @@ it("flattens quality into the second navigation row and preserves workspace file
   }
 });
 
-it("joins history parent progress and its child stages into one card per model", async () => {
-  const record = {
-    ...parent.children[0],
-    task: "a_stock_history",
-    node_name: "default-0945-0945-a_stock_history",
-    task_id: "composite#history#demo",
-    state: "succeeded" as const,
-  };
-  const step = {
-    ...child.steps[0],
-    name: "history:default-0945-0945",
-    group: "history",
-    state: "done" as const,
-  };
-  parent.children = [record];
-  parent.steps = [
-    step,
-    { ...step, name: "history:default-1000-1000", state: "pending" },
-  ];
-  child.steps = [
-    { ...child.steps[0], name: "prepare_history", label: "prepare_history" },
-  ];
-  const onOpenTask = vi.fn();
-  await act(async () =>
-    root.render(
-      <HistoryPreparation
-        parent={parent}
-        nodes={[{ record, status: child, error: "" }]}
-        onOpenTask={onOpenTask}
-      />,
-    ),
-  );
-  expect(container.querySelectorAll(".history-preparation-card")).toHaveLength(
-    2,
-  );
-  expect(
-    container.querySelector(".history-preparation-card")?.textContent,
-  ).toContain("prepare_history");
-  expect(
-    container.querySelector(".history-preparation-card")?.textContent,
-  ).not.toContain(record.node_name);
-  await act(async () =>
-    container
-      .querySelector<HTMLButtonElement>(".history-preparation-actions button")!
-      .click(),
-  );
-  expect(onOpenTask).toHaveBeenCalledWith(record.task_id);
-});
+it.each(["base", "etl"] as const)(
+  "joins history progress and %s child stages by their role",
+  async (kind) => {
+    const record = {
+      ...parent.children[0],
+      reg_name: "a_stock_history",
+      node_name: "default-0945-0945-a_stock_history",
+      child_task_id: `${kind}#history#demo`,
+      state: "succeeded" as const,
+    };
+    const step = {
+      ...child.steps[0],
+      name: "history:default-0945-0945",
+      group: "history",
+      state: "done" as const,
+    };
+    parent.children = [record, { ...record, node_name: "unrelated" }];
+    parent.steps = [
+      step,
+      { ...step, name: "history:default-1000-1000", state: "pending" },
+    ];
+    child.steps = [
+      { ...child.steps[0], name: "prepare_history", label: "prepare_history" },
+    ];
+    const onOpenTask = vi.fn();
+    await act(async () =>
+      root.render(
+        <HistoryPreparation
+          parent={parent}
+          nodes={[{ record, status: child, error: "" }]}
+          onOpenTask={onOpenTask}
+        />,
+      ),
+    );
+    expect(
+      container.querySelectorAll(".history-preparation-card"),
+    ).toHaveLength(2);
+    expect(
+      container.querySelector(".history-preparation-card")?.textContent,
+    ).toContain("prepare_history");
+    expect(
+      container.querySelector(".history-preparation-card")?.textContent,
+    ).not.toContain(record.node_name);
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(
+          ".history-preparation-actions button",
+        )!
+        .click(),
+    );
+    expect(onOpenTask).toHaveBeenCalledWith(record.child_task_id);
+  },
+);
 
 it("keeps history failure and exact-run replacement errors in the same card", async () => {
   const record = {
     ...parent.children[0],
-    task: "a_stock_history",
+    reg_name: "a_stock_history",
     node_name: "default-0945-0945-a_stock_history",
-    task_id: "composite#history#demo",
+    child_task_id: "base#history#demo",
   };
   parent.children = [record];
   parent.steps = [
@@ -496,9 +492,9 @@ it("keeps history failure and exact-run replacement errors in the same card", as
 it("summarizes completed history reuse in one row while retaining failed stage details", async () => {
   const record = {
     ...parent.children[0],
-    task: "a_stock_history",
+    reg_name: "a_stock_history",
     node_name: "demo-1445-a_stock_history",
-    task_id: "composite#history#demo",
+    child_task_id: "base#history#demo",
     state: "succeeded" as const,
   };
   parent.children = [record];

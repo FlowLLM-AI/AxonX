@@ -2,64 +2,19 @@
 
 from __future__ import annotations
 
-import os
 from calendar import monthrange
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from pydantic import field_validator
+from pydantic import Field, field_validator
 
-from ...core.task import BaseTask, TaskStep
+from ...core.base import BaseTask, TaskStep
 from ...models.identity import TaskType
 from ...models.params import BaseInputParams, BaseOutputParams
-from ...storage.files import atomic_write
 from .client import TUSHARE_TIMEOUT_SECONDS, TushareClient
-
-HS300 = "000300.SH"
-DOWNLOAD_GROUPS = ("static", "stk_limit", "daily", "adj_factor", "index_weight")
-DEFAULT_DOWNLOAD_GROUPS = DOWNLOAD_GROUPS
-STATIC_DATASETS = ("stock_basic", "namechange", "trade_cal")
-STOCK_LIST_STATUSES = ("L", "D", "P", "G")
-DATASETS = {
-    "stock_basic": (
-        "ts_code",
-        "symbol",
-        "name",
-        "market",
-        "exchange",
-        "list_status",
-        "list_date",
-        "delist_date",
-    ),
-    "namechange": (
-        "ts_code",
-        "name",
-        "start_date",
-        "end_date",
-        "ann_date",
-        "change_reason",
-    ),
-    "trade_cal": ("exchange", "cal_date", "is_open", "pretrade_date"),
-    "stk_limit": ("ts_code", "trade_date", "up_limit", "down_limit"),
-    "daily": (
-        "ts_code",
-        "trade_date",
-        "open",
-        "high",
-        "low",
-        "close",
-        "pre_close",
-        "change",
-        "pct_chg",
-        "vol",
-        "amount",
-    ),
-    "adj_factor": ("ts_code", "trade_date", "adj_factor"),
-    "index_weight": ("index_code", "con_code", "trade_date", "weight"),
-}
+from .data import DATASETS, DOWNLOAD_GROUPS, HS300, STATIC_DATASETS, STOCK_LIST_STATUSES, TushareDatasetStore
 
 
 class TushareDownloadInputParams(BaseInputParams):
@@ -68,8 +23,8 @@ class TushareDownloadInputParams(BaseInputParams):
     start_date: str | None = None
     end_date: str | None = None
     days_back: int = 7
-    timeout: int = TUSHARE_TIMEOUT_SECONDS
-    datasets: str = ",".join(DEFAULT_DOWNLOAD_GROUPS)
+    timeout: int = Field(default=TUSHARE_TIMEOUT_SECONDS, gt=0)
+    datasets: str = ",".join(DOWNLOAD_GROUPS)
 
     @field_validator("start_date", "end_date", mode="before")
     @classmethod
@@ -115,20 +70,21 @@ class DownloadTushareTask(BaseTask):
     """
 
     task_type = TaskType.API
+    report_kind = "data_update"
 
     input_cls = TushareDownloadInputParams
     output_cls = TushareDownloadOutputParams
 
     def close(self) -> None:
-        if client := self.state.get("client"):
+        if (client := self.state.get("client")) is not None:
             client.close()
 
     def build_output_params(self) -> TushareDownloadOutputParams:
         return TushareDownloadOutputParams(
             start_date=self.state["start_date"],
             end_date=self.state["end_date"],
-            files=self.state["files"],
-            rows=self.state["rows"],
+            files=self.state["store"].files,
+            rows=self.state["store"].rows,
         )
 
     input_params: TushareDownloadInputParams
@@ -158,34 +114,30 @@ class DownloadTushareTask(BaseTask):
         start = start or end - timedelta(days=self.input_params.days_back - 1)
         if start > end:
             raise ValueError("start_date 不能晚于 end_date")
-        if self.input_params.timeout <= 0:
-            raise ValueError("timeout 必须大于 0")
 
         days = tuple(start + timedelta(days=offset) for offset in range((end - start).days + 1))
         months = tuple(self._month_bounds(day) for day in days if day.day == 1 or day == start)
         self.state.update(
             client=TushareClient(timeout=self.input_params.timeout, logger=self.logger),
-            root=self.workspace_path / "tushare",
+            store=TushareDatasetStore(self.workspace_path / "tushare"),
             days=days,
             months=months,
             start_date=f"{start:%Y%m%d}",
             end_date=f"{end:%Y%m%d}",
-            files=[],
-            rows=dict.fromkeys(DATASETS, 0),
         )
         self.logger.info(
             f"Tushare download initialized start_date={start:%Y%m%d} "
             f"end_date={end:%Y%m%d} days={len(days)} months={len(months)} "
-            f"output_dir={self.state['root']}",
+            f"output_dir={self.state['store'].root}",
         )
 
     def download_static(self) -> None:
         """Download A-share identity, name history and trading calendar snapshots."""
         frames = [self._query("stock_basic", paginated=True, list_status=status) for status in STOCK_LIST_STATUSES]
-        stock_basic = pd.concat(frames, ignore_index=True).drop_duplicates()
-        self._save_static("stock_basic", stock_basic)
+        stock_basic = pd.concat(frames, ignore_index=True)
+        self.state["store"].save("stock_basic", stock_basic)
         for api_name in STATIC_DATASETS[1:]:
-            self._save_static(api_name, self._query(api_name, paginated=True))
+            self.state["store"].save(api_name, self._query(api_name, paginated=True))
 
     def download_stk_limits(self) -> None:
         """Download official daily upper and lower price limits."""
@@ -206,19 +158,12 @@ class DownloadTushareTask(BaseTask):
         for completed, (start, end) in enumerate(months, start=1):
             self.download_hs300_weight(start, end)
             self._report_batch_progress(completed, len(months))
-        self.logger.info(f"HS300 weight download completed rows={self.state['rows']['index_weight']}")
+        self.logger.info(f"HS300 weight download completed rows={self.state['store'].rows['index_weight']}")
 
     def sort_output_files(self) -> None:
         """Order artifacts by trading date, then by declared dataset order."""
-        dataset_order = {name: index for index, name in enumerate(DATASETS)}
-        self.state["files"].sort(
-            key=lambda value: (
-                os.path.basename(os.path.dirname(value)),
-                dataset_order.get(os.path.splitext(os.path.basename(value))[0], len(dataset_order)),
-                value,
-            ),
-        )
-        self.logger.info(f"Output files sorted files={len(self.state['files'])}")
+        self.state["store"].sort_files()
+        self.logger.info("Output files sorted files={}", len(self.state["store"].files))
 
     def download_hs300_weight(self, start: date, end: date) -> None:
         """Download one date range of HS300 constituent weights."""
@@ -232,16 +177,16 @@ class DownloadTushareTask(BaseTask):
             self.logger.info(f"No HS300 weights start_date={start:%Y%m%d} end_date={end:%Y%m%d}")
             return
         for trade_date, group in frame.groupby("trade_date", sort=True):
-            self._save("index_weight", group, self._parse_date(trade_date))
+            self.state["store"].save("index_weight", group, self._parse_date(trade_date))
 
     def _download_days(self, api_name: str) -> None:
         days = self.state["days"]
         self.logger.info(f"Downloading dataset={api_name} days={len(days)}")
         for completed, day in enumerate(days, start=1):
             trade_date = f"{day:%Y%m%d}"
-            self._save(api_name, self._query(api_name, trade_date=trade_date), day)
+            self.state["store"].save(api_name, self._query(api_name, trade_date=trade_date), day)
             self._report_batch_progress(completed, len(days))
-        self.logger.info(f"Dataset download completed dataset={api_name} rows={self.state['rows'][api_name]}")
+        self.logger.info(f"Dataset download completed dataset={api_name} rows={self.state['store'].rows[api_name]}")
 
     def _query(self, api_name: str, *, paginated: bool = False, **params) -> pd.DataFrame:
         fields = ",".join(DATASETS[api_name])
@@ -253,41 +198,6 @@ class DownloadTushareTask(BaseTask):
             raise RuntimeError(f"{api_name} 缺少字段: {sorted(missing)}")
         self.logger.info(f"Tushare API response api={api_name} rows={len(frame)}")
         return frame
-
-    def _save_static(self, api_name: str, frame: pd.DataFrame) -> None:
-        if frame.empty:
-            return
-        sort_columns = [column for column in DATASETS[api_name] if column in frame.columns]
-        frame = (
-            frame.loc[:, DATASETS[api_name]]
-            .drop_duplicates(ignore_index=True)
-            .sort_values(sort_columns, kind="stable", ignore_index=True)
-        )
-        path = self.state["root"] / f"{api_name}.parquet"
-        self._write_frame(api_name, frame, path)
-
-    def _save(self, api_name: str, frame: pd.DataFrame, day: date) -> None:
-        if frame.empty:
-            return
-        sort_columns = [column for column in DATASETS[api_name] if column in frame.columns]
-        frame = frame.loc[:, DATASETS[api_name]].sort_values(sort_columns, kind="stable", ignore_index=True)
-        path = self.state["root"] / f"{day:%Y}" / f"{day:%Y%m%d}" / f"{api_name}.parquet"
-        self._write_frame(api_name, frame, path)
-
-    def _write_frame(self, api_name: str, frame: pd.DataFrame, path: Path) -> None:
-        """Atomically persist one normalized dataset and record its artifact metadata."""
-        atomic_write(
-            path,
-            lambda temporary: frame.to_parquet(
-                temporary,
-                index=False,
-                compression="zstd",
-                compression_level=6,
-            ),
-        )
-        self.state["files"].append(str(path))
-        self.state["rows"][api_name] += len(frame)
-        self.logger.info(f"Dataset saved dataset={api_name} rows={len(frame)} path={path}")
 
     def _report_batch_progress(self, completed: int, total: int) -> None:
         if completed % 100 == 0 and completed < total:

@@ -11,19 +11,21 @@ export function ownedCompareNodes(
   records: ChildTaskRecord[],
   nodes: TaskNode[],
 ) {
-  const owned = new Set(records.map((r) => `${r.task_id}:${r.started_at}`));
+  const owned = new Set(
+    records.map((r) => `${r.child_task_id}:${r.started_at}`),
+  );
   const result: TaskNode[] = [];
   for (let changed = true; changed;) {
     changed = false;
     for (const node of nodes) {
       if (
-        !owned.has(`${node.record.task_id}:${node.record.started_at}`) ||
+        !owned.has(`${node.record.child_task_id}:${node.record.started_at}`) ||
         result.includes(node)
       )
         continue;
       result.push(node);
       for (const child of node.status?.children || [])
-        owned.add(`${child.task_id}:${child.started_at}`);
+        owned.add(`${child.child_task_id}:${child.started_at}`);
       changed = true;
     }
   }
@@ -47,8 +49,9 @@ export function compareModels(parent: TaskMetadata, nodes: TaskNode[]) {
       const outcome = isRecord(value) ? value : {};
       const roots = records.filter(
         (r) =>
-          r.node_name === `${name}-${r.task}` ||
-          r.node_name === `${name}-${parent.input_params.trade_time}-${r.task}`,
+          r.node_name === `${name}-${r.reg_name}` ||
+          r.node_name ===
+            `${name}-${parent.input_params.trade_time}-${r.reg_name}`,
       );
       const children = ownedCompareNodes(roots, nodes);
       const steps = parent.steps.filter((step) => step.group === name);
@@ -63,7 +66,7 @@ export function compareModels(parent: TaskMetadata, nodes: TaskNode[]) {
         !["running"].includes(parent.state) &&
         ["pending", "waiting", "running"].includes(state)
       )
-        state = parent.state === "cancelled" ? "cancelled" : "skipped";
+        state = "skipped";
       else if (steps.some((step) => step.state === "running"))
         state = "running";
       const comparison = isRecord(outcome.comparison)
@@ -108,9 +111,7 @@ export function compareStageState(step: TaskStepStatus, parent: TaskMetadata) {
   const state = step.state || "pending";
   return !["running"].includes(parent.state) &&
     ["pending", "waiting", "running"].includes(state)
-    ? parent.state === "cancelled"
-      ? "cancelled"
-      : "skipped"
+    ? "skipped"
     : state;
 }
 export function compareError(error: string) {

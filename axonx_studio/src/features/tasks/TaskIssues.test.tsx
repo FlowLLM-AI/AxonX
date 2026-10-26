@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 const issue = (name: string): TaskNode => ({
   record: {
-    ...seed().tasks.get("composite#playground_online#demo")!.children[0],
+    ...seed().tasks.get("base#playground_online#demo")!.children[0],
     node_name: name,
   },
   status: null,

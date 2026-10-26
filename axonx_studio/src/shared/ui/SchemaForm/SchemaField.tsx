@@ -96,11 +96,6 @@ export function SchemaField({
           max={schema.maximum}
           value={String(value)}
           required={required}
-          placeholder={
-            name === "source_tasks"
-              ? t("schemaForm.sourceTasksPlaceholder")
-              : undefined
-          }
           onChange={(event) => onChange(event.target.value)}
         />
       )}

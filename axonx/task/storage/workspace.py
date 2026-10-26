@@ -1,20 +1,20 @@
-"""One atomic lifecycle record and one append-only event journal per Task directory."""
+"""Task directory layout, lifecycle records and read-only metadata scans."""
 
 from __future__ import annotations
 
 import math
+import os
 import shutil
 import stat
+from collections.abc import Iterator
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from ..models.identity import TaskType, task_type_from_id
-from ..models.lifecycle import (
-    TaskMetadata,
-)
+from ..models.lifecycle import TaskMetadata
 from .files import atomic_write_json
 
-#: One workspace directory per task category holds that category's task directories.
+#: One workspace directory per producer type holds that type's task directories.
 KINDS = tuple(kind.value for kind in TaskType)
 
 PERSISTENT_DIR = "persistent"
@@ -22,6 +22,7 @@ METADATA_FILE = "metadata.json"
 #: The append-only log a worker writes its status transitions to, so a manager in
 #: another process can follow a running task event by event.
 EVENTS_FILE = "events.jsonl"
+FileVersion = tuple[int, int, int, int]
 
 
 def task_directory(task_id: str) -> str:
@@ -53,44 +54,23 @@ def parse_task_directory(path: str) -> TaskType:
     return task_type
 
 
-def kind_directories(root: Path) -> tuple[Path, ...]:
-    """Return the per-kind task directories under one workspace root."""
-    return tuple(root / kind for kind in KINDS)
-
-
-def ensure_kind_directories(root: Path) -> tuple[Path, ...]:
-    """Return the per-kind task directories, creating any that are missing.
-
-    A watcher requires its targets to exist, and a kind directory that is a
-    symlink would take the watcher outside the workspace.
-    """
-    directories = kind_directories(root)
-    for directory in directories:
-        if directory.is_symlink():
-            raise ValueError(f"Task directory cannot be a symlink: {directory}")
-        directory.mkdir(parents=True, exist_ok=True)
-    return directories
-
-
-def is_task_directory(directory: Path, *, strict_io: bool = False) -> bool:
+def is_task_directory(directory: Path) -> bool:
     """Whether a path is a task directory this process may read or write.
 
     A directory reached through a symlink is refused twice over: a write through one
     would land outside the workspace, and it would recreate a directory that a
-    concurrent delete had just removed. Strict checks propagate I/O errors other
+    concurrent delete had just removed. Checks propagate I/O errors other
     than missing directories so callers can retry instead of treating them as gone.
     """
-    if strict_io:
-        try:
-            return all(stat.S_ISDIR(parent.lstat().st_mode) for parent in (directory.parent, directory))
-        except FileNotFoundError:
-            return False
-    return not directory.is_symlink() and not directory.parent.is_symlink() and directory.is_dir()
+    try:
+        return all(stat.S_ISDIR(parent.lstat().st_mode) for parent in (directory.parent, directory))
+    except FileNotFoundError:
+        return False
 
 
 def reset_task_directory(directory: Path) -> None:
     """Clear run-owned files while retaining the Task's persistent data."""
-    if not is_task_directory(directory, strict_io=True):
+    if not is_task_directory(directory):
         raise ValueError(f"Invalid Task directory: {directory}")
     persistent = directory / PERSISTENT_DIR
     if persistent.is_symlink() or (persistent.exists() and not persistent.is_dir()):
@@ -111,34 +91,72 @@ def read_entry(root: Path, task_id: str) -> TaskMetadata | None:
     return read_task_metadata(directory, task_id)
 
 
-def scan_entries(root: Path) -> dict[str, TaskMetadata]:
-    """Read every task directory below a workspace root, keyed by task ID."""
-    entries: dict[str, TaskMetadata] = {}
-    for parent in kind_directories(root):
-        if parent.is_symlink() or not parent.is_dir():
-            continue
+def _task_directories(root: Path) -> Iterator[Path]:
+    """Visit only valid type/Task directories, never following symlinks."""
+    for kind in KINDS:
+        parent = root / kind
         try:
-            children = list(parent.iterdir())
+            if not stat.S_ISDIR(parent.lstat().st_mode):
+                continue
+            children = os.scandir(parent)
         except FileNotFoundError:
-            # The kind directory went away between the check and the read, so it
-            # holds no tasks.
             continue
-        for directory in children:
-            if not is_task_directory(directory):
+        with children:
+            for child in children:
+                if not child.is_dir(follow_symlinks=False):
+                    continue
+                try:
+                    parse_task_directory(f"{kind}/{child.name}")
+                except ValueError:
+                    continue
+                yield Path(child.path)
+
+
+def scan_entries(root: Path) -> dict[str, TaskMetadata]:
+    """Read all valid Task records without descending into their artifacts."""
+    return {
+        directory.name: entry
+        for directory in _task_directories(root)
+        if (entry := read_task_metadata(directory, directory.name)) is not None
+    }
+
+
+def scan_metadata(
+    root: Path,
+    previous: dict[str, TaskMetadata],
+    versions: dict[str, FileVersion],
+) -> tuple[dict[str, TaskMetadata], dict[str, FileVersion]]:
+    """Reuse unchanged records; propagate I/O errors before replacing the index."""
+    entries = {}
+    current = {}
+    for directory in _task_directories(root):
+        task_id = directory.name
+        try:
+            info = (directory / METADATA_FILE).lstat()
+        except FileNotFoundError:
+            continue
+        if not stat.S_ISREG(info.st_mode):
+            continue
+        version = (info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+        entry = previous.get(task_id)
+        if entry is None or versions.get(task_id) != version:
+            entry = read_task_metadata(directory, task_id, strict_io=True)
+            if entry is None:
+                # Retry incomplete/invalid publications without dropping the last valid record.
+                if task_id in previous:
+                    entries[task_id] = previous[task_id]
+                    if task_id in versions:
+                        current[task_id] = versions[task_id]
                 continue
-            try:
-                parse_task_directory(f"{parent.name}/{directory.name}")
-            except ValueError:
-                continue
-            if (entry := read_task_metadata(directory, directory.name)) is not None:
-                entries[directory.name] = entry
-    return entries
+        entries[task_id] = entry
+        current[task_id] = version
+    return entries, current
 
 
 def load_task_metadata(directory: Path, task_id: str) -> TaskMetadata:
     """Require a valid record before any existing Task files may be replaced."""
     path = directory / METADATA_FILE
-    if not is_task_directory(directory, strict_io=True):
+    if not is_task_directory(directory):
         raise ValueError(f"Invalid Task directory: {directory}")
     try:
         regular = stat.S_ISREG(path.lstat().st_mode)
@@ -148,7 +166,7 @@ def load_task_metadata(directory: Path, task_id: str) -> TaskMetadata:
         raise ValueError(f"Task metadata must be a regular file: {path}; existing Task files were not overwritten")
     try:
         metadata = TaskMetadata.model_validate_json(path.read_text(encoding="utf-8"))
-    except (UnicodeError, ValueError) as exc:
+    except ValueError as exc:
         raise ValueError(
             f"Invalid Task metadata: {path}; the format is corrupt or incompatible. "
             "Inspect or migrate the record before retrying; existing Task files were not overwritten"
@@ -170,7 +188,7 @@ def read_task_metadata(directory: Path, task_id: str, *, strict_io: bool = False
         if strict_io:
             raise
         return None
-    except (UnicodeError, ValueError):
+    except ValueError:
         return None
 
 
@@ -204,22 +222,8 @@ def task_id_from_path(root: Path, raw_path: str) -> str | None:
     return parts[1]
 
 
-def task_record_id_from_path(root: Path, raw_path: str) -> str | None:
-    """Return the task ID when a change can alter its indexed record."""
-    try:
-        parts = Path(raw_path).relative_to(root).parts
-    except ValueError:
-        return None
-    if len(parts) == 3:
-        if parts[2] != METADATA_FILE:
-            return None
-    elif len(parts) != 2:
-        return None
-    return task_id_from_path(root, raw_path)
-
-
 def resolve_relative_path(root: Path, relative_path: str) -> Path:
-    """Resolve a non-root mutation target without traversing symlinks."""
+    """Resolve a non-root owned path without traversing symlinks."""
     if not isinstance(relative_path, str) or not relative_path.strip():
         raise ValueError("Task path must be a non-empty relative path")
     candidate = Path(relative_path)

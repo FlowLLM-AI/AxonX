@@ -115,12 +115,14 @@ axonx get_task_context --task-id '<returned_task_id>'
 
 TaskIndex 只读取持久化记录。即使执行进程已经退出，观察操作也保留最后记录的状态。
 
-启动检查不提供互斥保障，调用方需要串行启动同名任务，并协调执行期间的目录删除或副本替换。启动检查统一由 `TaskRunner` 负责：确认本机执行进程已退出时，先将旧记录修正为失败并记录原因，再 INFO 输出 `Overwrite`。进程仍存活、权限不足无法验证或属于异机时，都拒绝覆盖；metadata 缺失、损坏或格式不兼容时，会明确报错并保留已有文件。可选在执行机设置 `AXONX_TASK_EXECUTION_TARGET=http://worker.example:1024`，或在服务配置的 `environment` 中设置同名变量。任务会记录执行地址和源 `workspace_dir`，用于生成远程 kill 命令；`machine_id` 仍只用于机器归属判断。地址必须带端口并能被其他机器访问，不能使用回环地址或通配监听地址。
+启动检查不提供互斥保障，调用方需要串行启动同名任务，并协调执行期间的目录删除或副本替换。启动检查统一由 `TaskExecutor` 负责：确认本机执行进程已退出时，先将旧记录修正为失败并记录原因，再 INFO 输出 `Overwrite`。进程仍存活、权限不足无法验证或属于异机时，都拒绝覆盖；metadata 缺失、损坏或格式不兼容时，会明确报错并保留已有文件。可选在执行机设置 `AXONX_TASK_EXECUTION_TARGET=http://worker.example:1024`，或在服务配置的 `environment` 中设置同名变量。任务会记录执行地址和源 `workspace_dir`，用于生成远程 kill 命令；`machine_id` 仍只用于机器归属判断。地址必须带端口并能被其他机器访问，不能使用回环地址或通配监听地址。
 
 本次修改调整了 metadata 和在线历史记录的存储格式，旧记录需要迁移后再使用，执行时不会自动迁移。
 
 使用执行日志或 workspace metadata 中的 `task_id`，等待 `succeeded` 后再读取输出或提交下游 Task。
-`source_tasks` 记录血缘，不会自动执行整张 DAG。
+`upstream_task_ids` 记录血缘，不会自动执行整张 DAG。
+
+直接输入依赖使用 `upstream_task_ids`，CLI 使用 `--upstream-task-ids '<id1>,<id2>'`。`parent_task_id` 和 `children` 记录任务的父子调用。两个子任务也可以存在上下游依赖；调用先后本身不会声明依赖。metadata 只接受当前结构，不转换旧字段。
 
 访问 `http://127.0.0.1:1024/`，在 **设置 → 本机服务 token** 中填写 `AXONX_SERVICE_TOKEN`。
 任务、研究图表与 Agent 工作区的操作见 [Studio 指南](docs/zh/getting-started/studio.md)。

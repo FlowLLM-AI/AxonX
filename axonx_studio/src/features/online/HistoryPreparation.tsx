@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { TaskSteps } from "../tasks/TaskSteps";
 import type { TaskMetadata } from "../tasks/types";
 import type { TaskNode } from "../tasks/tree";
+import { historyTaskRecords } from "./daily";
 
 /** Join parent progress and its exact child Task into one card per model. */
 export function HistoryPreparation({
@@ -21,13 +22,7 @@ export function HistoryPreparation({
   slot?: string;
 }) {
   const { t, i18n } = useTranslation();
-  const records = [
-    ...new Map(
-      parent.children
-        .filter((record) => record.task_id?.startsWith("composite#"))
-        .map((record) => [record.node_name, record]),
-    ).values(),
-  ];
+  const records = historyTaskRecords(parent);
   const steps = parent.steps.filter((step) => step.group === "history");
   const rows = steps.map((step) => {
     const name = step.name.replace(/^history:/, "");
@@ -35,7 +30,7 @@ export function HistoryPreparation({
       name,
       step,
       record: records.find(
-        (record) => record.node_name === `${name}-${record.task}`,
+        (record) => record.node_name === `${name}-${record.reg_name}`,
       ),
     };
   });
@@ -45,8 +40,8 @@ export function HistoryPreparation({
   const entries = [
     ...rows,
     ...unmatched.map((record) => ({
-      name: record.node_name.endsWith(`-${record.task}`)
-        ? record.node_name.slice(0, -(record.task.length + 1))
+      name: record.node_name.endsWith(`-${record.reg_name}`)
+        ? record.node_name.slice(0, -(record.reg_name.length + 1))
         : record.node_name,
       step: undefined,
       record,
@@ -65,7 +60,7 @@ export function HistoryPreparation({
             record &&
             nodes.find(
               (node) =>
-                node.record.task_id === record.task_id &&
+                node.record.child_task_id === record.child_task_id &&
                 node.record.started_at === record.started_at,
             );
           const child = node?.status;
@@ -119,13 +114,13 @@ export function HistoryPreparation({
                 ))}
                 <div className="history-preparation-actions">
                   {!slot && badge}
-                  {record?.task_id && (
+                  {record?.child_task_id && (
                     <button
                       type="button"
                       className="secondary-button"
                       title={t("onlinePipeline.openTask")}
                       aria-label={t("onlinePipeline.openTask")}
-                      onClick={() => onOpenTask(record.task_id!)}
+                      onClick={() => onOpenTask(record.child_task_id!)}
                     >
                       <ArrowUpRight aria-hidden="true" />
                     </button>

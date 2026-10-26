@@ -9,8 +9,8 @@ from axonx.task.builtins.stock.models import STOCK_REPORT_ARTIFACTS, StockOnline
 from axonx.task.models.artifacts import ArtifactRecord, PredictionProtocol, task_protocol
 from axonx.task.models.base import normalize_yyyymmdd
 from axonx.task.models.events import TASK_EVENT_ADAPTER, LogChunk, LogEvent, ProgressEvent
-from axonx.task.models.identity import TaskType, task_type_from_id, validate_task_names
-from axonx.task.models.lifecycle import TaskMetadata, TaskSource, TaskStepStatus
+from axonx.task.models.identity import TaskType, task_type_from_id, validate_task_ids, validate_task_names
+from axonx.task.models.lifecycle import TaskMetadata, TaskStepStatus
 from axonx.task.models.params import BaseInputParams, BasePredictOutputParams
 from axonx.task.models.query import TaskGraphEdge
 from axonx.task.models.reports import BacktestDimensions, OnlineCommit, TrainingCurve, WindowResult
@@ -29,15 +29,47 @@ def test_task_names_share_input_identity_and_sync_rules(name):
         validate_task_names([name])
 
 
-def test_sources_normalize_and_assignment_still_validates():
-    params = BaseInputParams(source_tasks=" etl#dataset#daily, train#model#baseline ")
-    assert params.source_tasks == "etl#dataset#daily,train#model#baseline"
-    assert params.source_task(TaskType.TRAIN) == "train#model#baseline"
+@pytest.mark.parametrize(
+    "task_id",
+    [
+        None,
+        1,
+        "/train#model#daily",
+        "train#../model#daily",
+        "train#model#../daily",
+        "train#model#daily/",
+        "train#model\\other#daily",
+        "train#model#daily#extra",
+        "unknown#model#daily",
+    ],
+)
+def test_task_id_grammar_rejects_paths_and_noncanonical_ids(task_id):
+    with pytest.raises(ValueError):
+        task_type_from_id(task_id)
+
+
+@pytest.mark.parametrize("validate", [validate_task_names, validate_task_ids])
+@pytest.mark.parametrize("value", ["daily", {"daily": True}, 1])
+def test_task_filters_reject_scalars_and_mappings(validate, value):
+    with pytest.raises(ValueError, match="must be a list"):
+        validate(value)
+
+
+def test_upstream_ids_and_assignment_are_validated():
+    params = BaseInputParams(upstream_task_ids=["etl#dataset#daily", "train#model#baseline"])
+    assert params.upstream_task_ids == ["etl#dataset#daily", "train#model#baseline"]
+    assert params.upstream_task_id(TaskType.TRAIN) == "train#model#baseline"
     with pytest.raises(ValidationError, match="duplicate"):
-        params.source_tasks = "etl#dataset#daily,etl#dataset#daily"
+        params.upstream_task_ids = ["etl#dataset#daily", "etl#dataset#daily"]
     with pytest.raises(ValidationError):
         params.task_name = "bad_name"
     assert params.task_name is None
+
+
+@pytest.mark.parametrize("field", ["source_tasks", "parent_task_id", "children"])
+def test_upstream_input_does_not_accept_retired_names_or_invocation_ownership(field):
+    with pytest.raises(ValidationError, match="extra_forbidden"):
+        BaseInputParams(**{field: []})
 
 
 @pytest.mark.parametrize("value", [20240229, "20240229"])
@@ -104,18 +136,15 @@ def test_metadata_is_closed_even_though_its_protocol_is_extensible():
     metadata = TaskMetadata(**values)
     assert TaskMetadata.model_validate_json(metadata.model_dump_json()) == metadata
     attempts = [
-        {"node_name": "child", "attempt": attempt, "task": "model", "task_id": "train#model#child"}
+        {"node_name": "child", "attempt": attempt, "reg_name": "model", "child_task_id": "train#model#child"}
         for attempt in (1, 2)
     ]
-    attempts.append({"node_name": "invalid", "attempt": 1, "task": "model"})
+    attempts.append({"node_name": "invalid", "attempt": 1, "reg_name": "model"})
     metadata = TaskMetadata(**values, children=attempts)
     assert [child.attempt for child in metadata.current_children()] == [2]
     assert len(metadata.children) == 3
     with pytest.raises(ValidationError, match="extra_forbidden"):
         TaskMetadata(**values, plugin_setting=True)
-    source = TaskSource(kind="exec")
-    with pytest.raises(ValidationError, match="frozen_instance"):
-        source.kind = "unknown"
 
 
 def test_events_roundtrip_and_query_aliases_remain_stable():

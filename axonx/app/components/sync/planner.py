@@ -36,7 +36,7 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None)
     def references(value):
         if isinstance(value, dict):
             # Only publication containers own files. Protocol provenance and
-            # composite summaries may contain paths belonging to other Tasks.
+            # parent Task summaries may contain paths belonging to other Tasks.
             for role, record in value.get("artifacts", {}).items():
                 if snapshot is not None and (
                     role

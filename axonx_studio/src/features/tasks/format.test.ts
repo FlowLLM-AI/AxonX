@@ -15,7 +15,6 @@ describe("task summary progress", () => {
       ...metadata,
       display_name: "test",
       is_replica: false,
-      is_online: false,
       step_progress: {
         current: 24000,
         total: 24001,

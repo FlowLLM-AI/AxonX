@@ -20,9 +20,11 @@
 
 ## 开发 Task 与插件
 
-Task 继承 `axonx.task.core.task.BaseTask`，通过 `input_cls` 校验输入，由 `build_task_steps()` 返回同步步骤，再由 `build_output_params()` 返回有类型的结果。Runner 负责生命周期、进度记录和清理；复合任务通过 `BaseCompositeTask.run_task()` 执行子任务并显式使用其结果。
+Task 继承 `axonx.task.core.base.BaseTask`，通过 `input_cls` 校验输入，由 `build_task_steps()` 返回同步步骤，再由 `build_output_params()` 返回有类型的结果。执行器 负责生命周期、进度记录和清理；所有 Task 均可通过 `BaseTask.run_task()` 执行子任务并显式使用其结果。
 
-插件 manifest 在 `tasks` 下声明注册名到 `module:Class` 的映射。发现与加载归 `axonx.plugin.catalog`，Task 执行接收外部 resolver，不反向导入 Plugin。原子发布和快照工具位于 `axonx.task.storage.files`；`utils` 提供显式环境加载与插值、日志和标量转换。
+upstream/downstream 表示 `upstream_task_ids` 声明的输入依赖；parent/child 表示 `parent_task_id` 和 `children` 记录的任务调用。兄弟任务之间可以有上下游依赖，应显式传入上游 ID；父子调用不会自动增加依赖边，也不会继承父任务的上游 ID。
+
+插件 manifest 在 `tasks` 下声明注册名到 `module:Class` 的映射。发现与加载归 `axonx.plugin.catalog.TaskCatalog`；同一目录实例按需加载并缓存 Task 类，Task 执行接收其 `resolve` 方法，不反向导入 Plugin。原子发布和快照工具位于 `axonx.task.storage.files`；`utils` 提供显式环境加载与插值、日志和标量转换。
 
 通过输出元数据保持产物可追溯，保留 metadata 原子写入和在线发布一致性保护。Task metadata 不提供协调锁。报告实际验证范围，明确缺失的数据、模型或外部服务。
 

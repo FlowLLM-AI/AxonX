@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterable
 
 import polars as pl
 
-from axonx.task.core.task import TaskStep
+from axonx.task.core.base import TaskStep
 from axonx.task.models.artifacts import ArtifactRecord
 from axonx.task.storage.artifacts import artifact_record
 from axonx.task.storage.files import atomic_write

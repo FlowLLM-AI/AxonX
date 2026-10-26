@@ -118,12 +118,14 @@ Within one workspace, `task_id` is the sole Task key. Callers serialize same-nam
 
 TaskIndex only reads persisted records. Observation leaves the last recorded state unchanged even when the execution process has exited.
 
-Startup checking is not a mutex; callers must serialize same-name starts and coordinate workspace deletion or replica replacement with execution. Startup checks live in `TaskRunner`: a confirmed dead local process is marked failed before an INFO `Overwrite`; a live, inaccessible, or foreign running record blocks replacement. Missing, malformed, or incompatible metadata is reported without changing existing files. To include a usable remote kill command, optionally set `AXONX_TASK_EXECUTION_TARGET=http://worker.example:1024` on the execution machine, or put that variable in the service configuration's `environment` mapping. Workers record the advertised address and their source `workspace_dir`; `machine_id` remains a machine identity, not an address. Use an explicit port and a host reachable by other machines; loopback and wildcard addresses are rejected.
+Startup checking is not a mutex; callers must serialize same-name starts and coordinate workspace deletion or replica replacement with execution. Startup checks live in `TaskExecutor`: a confirmed dead local process is marked failed before an INFO `Overwrite`; a live, inaccessible, or foreign running record blocks replacement. Missing, malformed, or incompatible metadata is reported without changing existing files. To include a usable remote kill command, optionally set `AXONX_TASK_EXECUTION_TARGET=http://worker.example:1024` on the execution machine, or put that variable in the service configuration's `environment` mapping. Workers record the advertised address and their source `workspace_dir`; `machine_id` remains a machine identity, not an address. Use an explicit port and a host reachable by other machines; loopback and wildcard addresses are rejected.
 
 The persisted metadata and online-history schemas have changed. Older records require migration before reuse; execution does not migrate them automatically.
 
 Use the Task ID from execution logs or workspace metadata, and wait for `succeeded` before reading outputs or
-submitting downstream Tasks. `source_tasks` records lineage; it does not automatically run the DAG.
+submitting downstream Tasks. `upstream_task_ids` records lineage; it does not automatically run the DAG.
+
+Use `upstream_task_ids` for direct input dependencies and `--upstream-task-ids '<id1>,<id2>'` in the CLI. `parent_task_id` and `children` record Task invocations. Two children of one parent can also have an upstream/downstream dependency; invocation order alone does not declare one. Metadata uses the current field names without compatibility normalization.
 
 Visit `http://127.0.0.1:1024/` and enter `AXONX_SERVICE_TOKEN` in **Settings → Local service token**.
 See the [Studio guide](docs/en/getting-started/studio.md) for Tasks, research charts, and the Agent workspace.

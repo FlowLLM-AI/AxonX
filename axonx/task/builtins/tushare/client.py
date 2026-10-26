@@ -218,6 +218,8 @@ class TushareClient:
         for _page in range(max_pages):
             frame, has_more = self._request(api_name, fields, {**params, "offset": offset, "limit": limit}, budget)
             if frame.empty:
+                if has_more:
+                    raise RuntimeError("Tushare pagination made no progress: empty page with has_more=True")
                 break
             if previous is not None and frame.equals(previous):
                 raise RuntimeError("Tushare pagination made no progress")

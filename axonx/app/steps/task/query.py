@@ -5,7 +5,7 @@ from datetime import datetime
 
 from ....task.models.events import LogEvent
 from ....task.models.identity import TaskState
-from ....task.query import summarize_status, task_sort_key
+from ...components.task_index import summarize_status, task_sort_key
 from ...registry import provider
 from .base import TaskIndexStep
 

@@ -15,8 +15,8 @@ from axonx.task.builtins.stock.data import (
     stock_protocol,
 )
 from axonx.task.builtins.stock.models import StockETLOutput
-from axonx.task.core.standard import BaseETLTask
-from axonx.task.core.task import TaskStep
+from axonx.task.core.base import TaskStep
+from axonx.task.core.research import BaseETLTask
 from axonx.task.models.base import normalize_yyyymmdd
 from axonx.task.models.params import BaseETLInputParams
 from axonx.task.storage.artifacts import artifact_record

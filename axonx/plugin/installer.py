@@ -4,16 +4,22 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from importlib import invalidate_caches
 from pathlib import Path
 
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+
 from .discovery import get_installed_plugin
-from .models import PluginArtifact, PluginInfo, PluginUninstallResult
-from .wheel import (
-    build_wheel,
-    inspect_wheel,
-    install_artifact,
-    source_sha256,
-)
+from .fingerprint import source_sha256
+from .models import PluginArtifact, PluginInfo
+from .wheel import build_wheel, inspect_wheel
+
+
+def _pip(action: str, *arguments: str) -> None:
+    result = subprocess.run([sys.executable, "-m", "pip", *arguments], check=False, capture_output=True, text=True)
+    if result.returncode:
+        raise RuntimeError(f"Plugin {action} failed: {(result.stderr or result.stdout).strip()}")
 
 
 def prepare_artifact(
@@ -36,7 +42,12 @@ def prepare_artifact(
 
 def install_plugin(artifact: PluginArtifact, *, editable_source: Path | None = None) -> PluginInfo:
     """Install a wheel or editable source and validate the installed plugin."""
-    install_artifact(artifact, editable_source=editable_source)
+    dependencies = [value for value in artifact.requirements if canonicalize_name(Requirement(value).name) != "axonx"]
+    if dependencies:
+        _pip("installation", "install", *dependencies)
+    target = ["--editable", str(editable_source)] if editable_source is not None else [str(artifact.wheel)]
+    _pip("installation", "install", "--upgrade", "--force-reinstall", "--no-deps", *target)
+    invalidate_caches()
     if editable_source is None:
         installed = get_installed_plugin(artifact.distribution)
     else:
@@ -73,15 +84,9 @@ def install_plugin(artifact: PluginArtifact, *, editable_source: Path | None = N
     return installed
 
 
-def uninstall_plugin(name: str) -> PluginUninstallResult:
+def uninstall_plugin(name: str) -> dict[str, str]:
     """Uninstall one plugin distribution from the active interpreter."""
     plugin = get_installed_plugin(name)
-    result = subprocess.run(
-        [sys.executable, "-m", "pip", "uninstall", "--yes", plugin.distribution],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode:
-        raise RuntimeError(f"Plugin uninstall failed: {(result.stderr or result.stdout).strip()}")
-    return PluginUninstallResult(distribution=plugin.distribution)
+    _pip("uninstall", "uninstall", "--yes", plugin.distribution)
+    invalidate_caches()
+    return {"distribution": plugin.distribution}

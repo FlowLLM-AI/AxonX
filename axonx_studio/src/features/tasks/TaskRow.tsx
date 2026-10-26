@@ -50,9 +50,7 @@ export function TaskRow({
                 )}
               </button>
             </span>
-            <small>
-              PID {task.pid || "—"} · {t(`taskSources.${task.source.kind}`)}
-            </small>
+            <small>PID {task.pid || "—"}</small>
           </div>
         </div>
       </td>

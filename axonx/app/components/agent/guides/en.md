@@ -20,9 +20,11 @@ Read JSON responses and check `success`, process exit codes and persisted Task r
 
 ## Develop Tasks and plugins
 
-Tasks inherit `axonx.task.core.task.BaseTask`, validate inputs with `input_cls`, yield synchronous steps from `build_task_steps()`, and return a typed result from `build_output_params()`. The Runner persists lifecycle and progress and owns cleanup. Composite Tasks use `BaseCompositeTask.run_task()` with explicit child results.
+Tasks inherit `axonx.task.core.base.BaseTask`, validate inputs with `input_cls`, yield synchronous steps from `build_task_steps()`, and return a typed result from `build_output_params()`. The executor persists lifecycle and progress and owns cleanup. Any Task can use `BaseTask.run_task()` with explicit child results.
 
-Plugin manifests map registration names to `module:Class` under `tasks`. Discovery belongs to `axonx.plugin.catalog`; execution receives a resolver rather than importing Plugin. Import atomic publication and snapshot helpers from `axonx.task.storage.files`. `utils` provides explicit environment loading and interpolation, logging and scalar conversion.
+Upstream/downstream denotes input dependencies declared by `upstream_task_ids`; parent/child denotes Task invocations recorded by `parent_task_id` and `children`. A child may consume another child's outputs. Pass those upstream IDs explicitly; a child invocation does not add dependency edges or inherit its parent's upstream IDs.
+
+Plugin manifests map registration names to `module:Class` under `tasks`. Discovery belongs to `axonx.plugin.catalog.TaskCatalog`; each catalog loads and caches Task classes on demand, and execution receives its `resolve` method rather than importing Plugin. Import atomic publication and snapshot helpers from `axonx.task.storage.files`. `utils` provides explicit environment loading and interpolation, logging and scalar conversion.
 
 Keep artifacts traceable through output metadata. Preserve atomic metadata writes and online publication consistency. Task metadata has no coordination lock. Show actual validation limits, including unavailable data, models or external services.
 

@@ -172,9 +172,9 @@ class TaskArchiveApplier:
                 ):
                     raise ValueError("Live snapshot parent identity differs")
                 for child in status.current_children():
-                    if child.task_id is None or child.started_at is None:
+                    if child.child_task_id is None or child.started_at is None:
                         continue
-                    linked = read_entry(root, child.task_id)
+                    linked = read_entry(root, child.child_task_id)
                     if (
                         linked is None
                         or linked.started_at != child.started_at

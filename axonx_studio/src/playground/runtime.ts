@@ -1,10 +1,9 @@
 import type { TaskMetadata, TaskSummary } from "../features/tasks/types";
-import { isOnlineTask } from "../features/online/types";
 import { taskStepProgress } from "../features/tasks/format";
 import type { WorkspaceListing } from "../features/workspace/types";
 import type { Transport } from "../shared/api/client";
 import type { JobEvent } from "../shared/api/event";
-import { parseSourceTasks } from "../shared/lib/sourceTasks";
+import { upstreamTaskIds } from "../shared/lib/upstreamTasks";
 import { createAgent } from "./agent";
 import { catalog } from "./catalog";
 import { addArtifacts, definitions, epoch, json, seed } from "./fixtures";
@@ -48,7 +47,6 @@ function taskView(
     ...summary,
     error: task.error.slice(0, 1000),
     display_name: String(input_params.task_name || task.reg_name).slice(0, 256),
-    is_online: isOnlineTask(task),
     is_replica: replica !== null,
     step_progress: progress
       ? {
@@ -102,7 +100,7 @@ export function createPlayground(): Transport {
             files,
             task,
             String(task.input_params.strategy),
-            parseSourceTasks(task.input_params.source_tasks),
+            upstreamTaskIds(task.input_params.upstream_task_ids),
           );
         }
       }
@@ -362,17 +360,17 @@ export function createPlayground(): Transport {
           const connected = new Set([id]);
           for (const nodeId of connected) {
             const task = tasks.get(nodeId);
-            for (const parent of parseSourceTasks(
-              task?.input_params.source_tasks,
+            for (const upstreamId of upstreamTaskIds(
+              task?.input_params.upstream_task_ids,
             ))
-              connected.add(parent);
-            for (const child of tasks.values())
+              connected.add(upstreamId);
+            for (const downstreamTask of tasks.values())
               if (
-                parseSourceTasks(child.input_params.source_tasks).includes(
-                  nodeId,
-                )
+                upstreamTaskIds(
+                  downstreamTask.input_params.upstream_task_ids,
+                ).includes(nodeId)
               )
-                connected.add(child.task_id);
+                connected.add(downstreamTask.task_id);
           }
           const nodes = [...connected].map((nodeId) => {
             const task = tasks.get(nodeId);
@@ -381,7 +379,9 @@ export function createPlayground(): Transport {
               kind: task?.task_type || nodeId.split("#")[0],
               task_name: task?.reg_name || null,
               created_at: task?.created_at || null,
-              parent_ids: parseSourceTasks(task?.input_params.source_tasks),
+              upstream_task_ids: upstreamTaskIds(
+                task?.input_params.upstream_task_ids,
+              ),
               state: task?.state || null,
               missing: !task,
               provisional: !!task && task.state !== "succeeded",
@@ -389,11 +389,15 @@ export function createPlayground(): Transport {
           });
           return response({
             root_id:
-              nodes.find((node) => !node.parent_ids.length)?.task_id || id,
+              nodes.find((node) => !node.upstream_task_ids.length)?.task_id ||
+              id,
             selected_id: id,
             nodes,
             edges: nodes.flatMap((node) =>
-              node.parent_ids.map((from) => ({ from, to: node.task_id })),
+              node.upstream_task_ids.map((from) => ({
+                from,
+                to: node.task_id,
+              })),
             ),
           });
         }

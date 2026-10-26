@@ -1,13 +1,8 @@
 import type { TaskState, TaskSummary } from "./types";
 
 export const ACTIVE = new Set<TaskState>(["running"]);
-export const ATTENTION = new Set<TaskState>(["failed", "cancelled"]);
-export const STATES: TaskState[] = [
-  "running",
-  "failed",
-  "cancelled",
-  "succeeded",
-];
+export const ATTENTION = new Set<TaskState>(["failed"]);
+export const STATES: TaskState[] = ["running", "failed", "succeeded"];
 export type StateFilter = "" | "active" | "attention" | TaskState;
 export interface TaskGroupData {
   key: string;

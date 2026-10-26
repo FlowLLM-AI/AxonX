@@ -173,7 +173,7 @@ class LocalSyncComponent(BaseSyncComponent):
             members.add(identity)
             status = read_task_metadata(task_path(self.root, identity), identity)
             if status is not None and status.replica is None:
-                pending.extend(child.task_id for child in status.children if child.task_id)
+                pending.extend(child.child_task_id for child in status.children if child.child_task_id)
         return members
 
     def _settled(self, task_ids: Sequence[str]) -> list[str]:
