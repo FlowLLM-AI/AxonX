@@ -1,24 +1,22 @@
-"""Job adapters for Task status, logs, streams, directories and context queries."""
+"""Job adapters for Task definitions, status, logs, streams, directories and context."""
 
 import asyncio
 from abc import ABC
 from datetime import datetime
 from pathlib import Path
 
-from ....task.models.events import LogEvent
-from ....task.models.identity import TaskState
-from ...components.models import ComponentType
-from ...components.registry import provider
-from ...components.task_index.base import BaseTaskIndex
-from ...components.task_index.query import summarize_status, task_sort_key
-from ...workspace.models import WorkspaceEntry
-from ..base import BaseStep
+from ...task.models.events import LogEvent
+from ...task.models.identity import TaskState
+from ...utils.async_work import run_blocking
+from ..components.registry import provider
+from ..components.task_index.base import BaseTaskIndex
+from ..components.task_index.query import summarize_status, task_sort_key
+from ..workspace.models import WorkspaceEntry
+from .base import BaseStep
 
 
 class TaskIndexStep(BaseStep, ABC):
     """A Step that reads one configured Task index."""
-
-    component_domains = (ComponentType.TASK_INDEX,)
 
     @property
     def index(self) -> BaseTaskIndex:
@@ -139,3 +137,22 @@ class GetTaskContextStep(TaskIndexStep):
     async def execute(self):
         task_id = self.context["task_id"]
         self.response.answer = await self.index.context(task_id)
+
+
+@provider("list_task_defs")
+class ListTaskDefsStep(BaseStep):
+    """List registered Tasks, optionally including their parameter schemas."""
+
+    async def execute(self):
+        def query():
+            return self.app_context.task_catalog.definitions(include_schemas=self.context.get("include_schemas", True))
+
+        self.response.answer = await run_blocking(query)
+
+
+@provider("get_task_def")
+class GetTaskDefStep(BaseStep):
+    """Describe one registered Task without loading unrelated Tasks."""
+
+    async def execute(self):
+        self.response.answer = await run_blocking(self.app_context.task_catalog.definition, self.context["task"])

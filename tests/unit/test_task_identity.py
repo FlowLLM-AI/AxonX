@@ -11,10 +11,10 @@ import pytest
 
 from axonx.app.components.sync.applier import TaskArchiveApplier
 from axonx.app.components.sync.archive import build_archive
-from axonx.app.components.sync.errors import SnapshotChangedError
+from axonx.app.components.sync.models import SnapshotChangedError
 from axonx.app.components.sync.replica import prepare_group, task_group
 from axonx.app.components.task_index.stream import TaskEventStream
-from axonx.app.steps.task.query import WaitTaskStep
+from axonx.app.steps.task import WaitTaskStep
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.core.base import BaseTask
 from axonx.task.models.identity import TaskState
@@ -239,7 +239,7 @@ def test_repeated_children_sync_with_their_latest_start_time(tmp_path):
     assert any(json.loads(event)["state"] == "running" for event in events)
     plans = prepare_group(workspace, parent.task_id, tmp_path / "staging", 1_000_000, TaskLogReader(tmp_path), {})
     archive = tmp_path / "tasks.tar.gz"
-    build_archive(plans, list(plans), archive)
+    build_archive(plans, archive)
     target = tmp_path / "target"
     target.mkdir()
     TaskArchiveApplier(target, 1_000_000).apply(archive, [])

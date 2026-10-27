@@ -9,7 +9,7 @@ from pathlib import Path, PurePosixPath
 
 from .models import DeletedEntry, FilePreview, WorkspaceEntry, WorkspaceListing
 from .preview import PREVIEW_ROWS, preview_file, preview_kind
-from .uploads import UploadStore
+from .uploads import DEFAULT_UPLOAD_RETENTION_DAYS, UploadStore
 
 MAX_DIRECTORY_ENTRIES = 5_000
 MAX_DELETE_ENTRIES = 200
@@ -21,6 +21,7 @@ class Workspace:
 
     Construction never creates files. Operations return validated workspace models.
     A transfer budget of None leaves byte limits to the caller.
+    Uploads expire files older than upload_retention_days on each new upload.
     """
 
     def __init__(
@@ -29,9 +30,10 @@ class Workspace:
         *,
         copy_dir: str = "tmp",
         transfer_budget_bytes: int | None = None,
+        upload_retention_days: int = DEFAULT_UPLOAD_RETENTION_DAYS,
     ) -> None:
         self.root = Path(root).expanduser().resolve()
-        self.uploads = UploadStore(self, copy_dir, transfer_budget_bytes)
+        self.uploads = UploadStore(self, copy_dir, transfer_budget_bytes, retention_days=upload_retention_days)
 
     def ensure(self) -> Path:
         """Create the workspace root only when explicitly requested."""

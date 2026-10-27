@@ -5,7 +5,11 @@
 欢迎问题反馈、功能建议、文档改进、研究插件和代码贡献。
 
 
-应用内部按能力组织文件：机器观察与诊断归 `components/machine/inspection.py`，Task 摘要与血缘归 `components/task_index/query.py`，Job 结果折叠与响应完成边界归 `components/job/response.py`。流水线调用上下文是 `pipeline.py` 的私有实现。Workspace 的路径/浏览、预览和上传分别归 `core.py`、`preview.py`、`uploads.py`；上传暂存通过 `workspace.uploads` 访问。通用、同步与 Task 查询 Step 按能力合并，Task 上下文查询归 Task Step。全部 App 文件职责见 `module-dependencies.md`。
+应用内部按能力组织文件：机器观察与诊断归 `components/machine/local.py`，Task 摘要与血缘归 `components/task_index/query.py`，Job 结果折叠与响应完成边界归 `components/job/base.py`。流水线调用上下文是 `pipeline.py` 的私有实现。Workspace 的路径/浏览、预览和上传分别归 `core.py`、`preview.py`、`uploads.py`；上传暂存通过 `workspace.uploads` 访问。通用、同步与 Task 查询 Step 按能力合并，Task 上下文查询归 Task Step。全部 App 文件职责见 `module-dependencies.md`。
+
+每个组件领域都在 `base.py` 定义受管抽象契约，并提供继承该契约的具体实现；Step 通过基类解析组件。Agent 存储记录统一归 `agent/models.py`，本地持久化归 `agent/session_store.py`；HTTP 应用装配归 `service/http/service.py` 的 HttpService；同步规划与归档统一归 `sync/archive.py`，错误和预算核算归 `sync/models.py`；`updater/base.py` 分别定义组件契约和宿主进程操作协议。
+
+机器后端遵循 `BaseComponent → BaseMachineComponent → LocalMachineComponent`。CPU 采样间隔配置在 `components.machine.<name>.cpu_sample_interval`；机器 Step 通过 `machine: <name>` 选择组件，默认名称为 `default`。
 
 ## 开始之前
 
@@ -108,7 +112,7 @@ MCP 使用 FastMCP >=4.1.4 和 MCP SDK >=2.3.0，直接使用当前 SDK 的 snak
 
 本地 CLI 命令为 `app`、`exec`、`kill`、`plugin`；Task 定义查询统一为服务 Job `list_task_defs` 和 `get_task_def`。根帮助（`axonx`、`--help`、`-h`）保持离线。已有 Daemon 保存了启动 argv，CLI 入口迁移后需要重新启动整个 Daemon。普通 Job 直接连接选定服务，显式远程目标也一样；只有远程原生命令经过 `cli` Job。`exec` 和 `kill` 共用执行配置：CLI 显式字段覆盖 `get_config` 返回值，其余使用模型默认值。只有连接失败会回退，认证、协议和 Job 错误继续传播。配置 Job 返回绝对 workspace/log 路径，并剔除 Cron 运行回调。不再通过 Task 专用环境变量传递执行配置。CLI 保留五个实现模块：`parser.py` 管理命令参数、连接选项、插件语法、cron 校验和离线帮助；`commands.py` 适配本地服务、Task 和插件操作；`remote.py` 调用服务 Job 或透传原始 CLI 命令；`rendering.py` 统一序列化结果和流式事件块；`main.py` 负责路由与异常处理。`__init__.py` 导出 Python 入口和解析接口，`__main__.py` 支持 `python -m axonx.cli`。`Command` 保留解析后的参数与原始参数，因为插件子命令和远程目标需要按各自语法解析。插件与其他命令统一退出策略：输入错误返回 2，操作失败返回 1。
 
-`app/` 一级只有 `__init__.py` 和 `components`、`config`、`core`、`steps`、`workspace` 五个能力包。所有包入口只写职责说明，从所属模块显式导入实现或契约。`core` 负责应用装配、启停和调用分发；`components` 持有能力实现和资源；`steps` 将 Job 调用适配到这些能力。机器指标、构建身份和 Python 执行归 `components/machine`；服务拥有的 CLI 子进程和响应完成回调归 `components/job`。领域数据、枚举和纯校验归各自的 `models.py`，导入模型不能加载执行或传输实现。Provider 查找归 `components/registry.py`，组件分类与依赖声明归 `components/models.py`，共享应用默认值归 `config/defaults.py`。
+`app/` 一级只有 `__init__.py` 和 `components`、`config`、`core`、`steps`、`workspace` 五个能力包。五个能力包及其子包按 Plugin 包约定逐项说明、显式导入并通过 `__all__` 导出全部直接子模块与子包；`app/` 根包入口只写职责说明。具体实现与契约从所属模块显式导入。`core` 负责应用装配、启停和调用分发；`components` 持有能力实现和资源；`steps` 将 Job 调用适配到这些能力。机器指标、构建身份和 Python 执行归 `components/machine`；服务拥有的 CLI 子进程和响应完成回调归 `components/job`。领域数据、枚举和纯校验归各自的 `models.py`，模型源码不能导入执行或传输实现。导入实现领域的包入口会加载其导出的子模块；配置包仍独立于运行时实现。Provider 声明、查找和冻结归 `components/registry.py`；共享 `Component` 上下文访问、`Dependency` 依赖声明和受管 `BaseComponent` 生命周期归 `components/base.py`。各组件基类以字符串声明 `component_type`，Step 直接通过基类解析组件，无需独立类型枚举或领域列表。应用默认值是 `config/models.py` 中 `ApplicationConfig` 的可配置字段。`bind_host` 提供默认监听地址，`service.host` 可单独覆盖；`transfer_budget_bytes` 控制上传和同步预算。通过 YAML 或构造应用时设置这些字段，重启后生效。
 
 App 自己维护配置、注册器、Workspace 和启动横幅；Workspace 提供文件操作，不包含 Task 专属的隐藏和删除规则。`command` 命令数组提供外部命令驱动，注入的更新后端负责 prepare/commit/status。`daemon.launcher` 创建一个 Application，并传入明确的 `task.runtime.settings.ExecutionSettings`。顶层 `cron` 列表的每项包含 `expression` 和 `command` 两个字符串，默认 `[]`。定时计划统一使用应用配置的查找、继承、环境变量插值与覆盖规则，继承的列表整体替换。`CronConfig` 校验五字段表达式，并在不调用 shell 的情况下解析 argv。CLI 提供命令校验函数，启动层在启动 Daemon 前检查全部命令，只接受本地 `axonx exec --task NAME`。运行时的 `launch_scheduled` 回调单独传给 `Application`，配置中不包含回调。修改定时配置后重启服务生效，停机期间错过的时间点不自动补跑。
 

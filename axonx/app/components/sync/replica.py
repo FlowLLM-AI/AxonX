@@ -27,11 +27,9 @@ from ....task.storage.workspace import (
     task_path,
     write_task_metadata,
 )
-from .errors import ReplicaBudgetError, SnapshotChangedError
-from .index import policy_revision, source_revision
-from .models import TaskFile, TaskPlan, archived_bytes
-from .planner import archive_budget, plan_task, task_file
-from .sampling import trade_day, write_sample
+from .archive import archive_budget
+from .artifacts import plan_task, policy_revision, source_revision, trade_day, write_sample
+from .models import ReplicaBudgetError, SnapshotChangedError, TaskFile, TaskPlan, archived_bytes
 
 # Full reports, transaction ledgers and reference calendars remain source-complete.
 COMPLETE_FILES = {
@@ -42,21 +40,6 @@ COMPLETE_FILES = {
     "trades.parquet",
     "calendar.parquet",
 }
-
-
-def _refresh_snapshot(metadata, snapshot, remote, destination):
-    """Refresh only metadata when the complete remote publication is unchanged."""
-    metadata.log_path = ""
-    metadata.replica = DisplayReplica.model_validate(
-        {key: value for key, value in remote.items() if key != "started_at"}
-    )
-    metadata.replica.snapshot = snapshot
-    write_task_metadata(destination, metadata)
-    item = task_file(destination / METADATA_FILE, METADATA_FILE)
-    return TaskPlan(
-        (item,),
-        item.archived_bytes + sum(archived_bytes(record.size) for record in metadata.replica.files.values()),
-    )
 
 
 class ReplicaBuilder:
@@ -80,10 +63,10 @@ class ReplicaBuilder:
         self.budget = budget
         self.logs = logs
         self.snapshot = snapshot
-        self.metadata = metadata
+        self.metadata = metadata.model_copy(deep=True) if metadata is not None else None
         self.remote = remote
         self.source = task_path(root, task_id)
-        self.before = TaskPlan((), 0)
+        self.before: TaskPlan | None = None
         self.source_log_path = ""
         self.log_path: Path | None = None
         self.identity = ""
@@ -106,6 +89,7 @@ class ReplicaBuilder:
             self.task_id,
             snapshot=self.metadata if self.snapshot else None,
             logs=self.logs if self.snapshot else None,
+            plan=self.before,
         )
         self.destination.mkdir(parents=True, exist_ok=True)
         if (
@@ -115,7 +99,11 @@ class ReplicaBuilder:
             and (self.remote.get("source_revision") == self.identity)
             and (self.remote.get("policy_revision") == policy_revision(self.budget))
         ):
-            return _refresh_snapshot(self.metadata, self.snapshot, self.remote, self.destination)
+            prepared = self._refresh_snapshot()
+            self._check_source()
+            if prepared.size > archive_budget(self.budget):
+                raise ReplicaBudgetError(f"Replica manifest exceeds the transfer budget: {self.task_id}")
+            return prepared
         self.originals = {
             item.relative: item
             for item in self.before.files
@@ -134,6 +122,38 @@ class ReplicaBuilder:
             target.parent.mkdir(parents=True, exist_ok=True)
             snapshot_file(item.path, target)
         self.metadata.log_path = ""
+        self._capture_log()
+        limit = archive_budget(self.budget)
+        prepared = self._fit_budget(limit)
+        self._check_source()
+        if self.snapshot and self.remote and (self.remote.get("started_at") == self.metadata.started_at.isoformat()):
+            unchanged = {
+                name
+                for name, record in self.metadata.replica.files.items()
+                if self.remote.get("files", {}).get(name) == record.model_dump(mode="json")
+            }
+            for name in unchanged:
+                (self.destination / name).unlink()
+            # Delta archives reserve their hydrated size during batch packing.
+            prepared = TaskPlan(tuple(item for item in prepared.files if item.relative not in unchanged), prepared.size)
+        return prepared
+
+    def _refresh_snapshot(self) -> TaskPlan:
+        """Refresh metadata while reserving the remote publication's hydrated size."""
+        self.metadata.log_path = ""
+        self.metadata.replica = DisplayReplica.model_validate(
+            {key: value for key, value in self.remote.items() if key != "started_at"}
+        )
+        self.metadata.replica.snapshot = self.snapshot
+        write_task_metadata(self.destination, self.metadata)
+        item = TaskFile.capture(self.destination / METADATA_FILE, METADATA_FILE)
+        return TaskPlan(
+            (item,),
+            item.archived_bytes + sum(archived_bytes(record.size) for record in self.metadata.replica.files.values()),
+        )
+
+    def _capture_log(self) -> None:
+        """Capture one bounded tail and retain its exact byte range."""
         if self.logs:
             path = self.log_path
             if path is not None and self.logs.is_task_log(path) and path.is_file():
@@ -148,10 +168,12 @@ class ReplicaBuilder:
                 target = self.destination / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(content)
-                self.originals[name] = task_file(target, name)
+                self.originals[name] = TaskFile.capture(target, name)
                 self.log_revision = f"{start}:{end}:{path.stat().st_mtime_ns}"
                 self.log = ReplicaLog(path=name, start=start, end=end)
-        limit = archive_budget(self.budget)
+
+    def _fit_budget(self, limit: int) -> TaskPlan:
+        """Keep complete trading days, then omit artifacts explicitly if needed."""
         prepared = self._materialize(None)
         if prepared.size > limit:
             for name, item in self.originals.items():
@@ -210,25 +232,6 @@ class ReplicaBuilder:
                 prepared = self._materialize([], omit_data=True)
             if prepared is None or prepared.size > limit:
                 raise ReplicaBudgetError(f"Task metadata exceeds the transfer budget: {self.task_id}")
-        self._check_source()
-        write_task_metadata(self.destination, self.metadata)
-        items = tuple((task_file(self.destination / item.relative, item.relative) for item in prepared.files))
-        prepared = TaskPlan(items, sum((item.archived_bytes for item in items)))
-        if prepared.size > limit:
-            raise ReplicaBudgetError(f"Replica manifest exceeds the transfer budget: {self.task_id}")
-        if self.snapshot and self.remote and (self.remote.get("started_at") == self.metadata.started_at.isoformat()):
-            for name, record in self.metadata.replica.files.items():
-                if self.remote.get("files", {}).get(name) == record.model_dump(mode="json"):
-                    (self.destination / name).unlink()
-            items = tuple(
-                (
-                    task_file(path, path.relative_to(self.destination).as_posix())
-                    for path in sorted(self.destination.rglob("*"))
-                    if path.is_file()
-                )
-            )
-            # Delta archives reserve their hydrated size during batch packing.
-            prepared = TaskPlan(items, prepared.size)
         return prepared
 
     def _materialize(self, dates: list[str] | None, omit_data: bool = False) -> TaskPlan | None:
@@ -280,8 +283,7 @@ class ReplicaBuilder:
             log=self.log,
         )
         write_task_metadata(self.destination, self.metadata)
-        items = tuple((task_file(self.destination / name, name) for name in sorted({METADATA_FILE, *files})))
-        return TaskPlan(items, sum((item.archived_bytes for item in items)))
+        return TaskPlan.capture(self.destination, {METADATA_FILE, *files})
 
     def _check_source(self) -> None:
         """Reject replaced executions or artifacts changed during capture."""
@@ -291,7 +293,7 @@ class ReplicaBuilder:
         if self.snapshot is None and self.before != plan_task(self.root, self.task_id):
             raise SnapshotChangedError(f"Task changed during replica verification: {self.task_id}")
         for item in self.before.files:
-            if item.relative not in {METADATA_FILE, EVENTS_FILE} and task_file(item.path, item.relative) != item:
+            if item.relative not in {METADATA_FILE, EVENTS_FILE} and not item.matches(item.path.stat()):
                 raise SnapshotChangedError(f"Published artifact changed during capture: {item.path}")
 
 

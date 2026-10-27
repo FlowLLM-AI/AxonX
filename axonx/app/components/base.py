@@ -1,24 +1,24 @@
-"""Context-bound objects and managed asynchronous components."""
+"""Shared component context, dependency declarations, and managed lifecycle."""
 
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar, Self
 
 from ...utils.logging import get_logger
-from ..config.models import ApplicationConfig
-from ..workspace.core import Workspace
-from .models import ComponentType, DependencySpec, component_type_name
 
 if TYPE_CHECKING:
+    from ..config.models import ApplicationConfig
     from ..core.context import ApplicationContext
+    from ..workspace.core import Workspace
 
 
-class ComponentBase:
+class Component:
     """Common identity, configuration, logging, and application access."""
 
-    component_type = ComponentType.BASE
+    component_type: ClassVar[str] = ""
 
     def __init__(
         self,
@@ -51,14 +51,29 @@ class ComponentBase:
         return self.app_context
 
 
-class BaseComponent(ComponentBase):
+@dataclass(frozen=True, slots=True)
+class Dependency:
+    """An attribute supplied by a named component of the expected base type."""
+
+    attribute: str
+    name: str | None
+    expected_type: type[BaseComponent]
+    required: bool
+
+    @property
+    def component_type(self) -> str:
+        """Use the expected base type as the single source of the category."""
+        return self.expected_type.component_type
+
+
+class BaseComponent(Component):
     """Provide deterministic dependency injection and asynchronous lifecycle."""
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.is_started = False
         self._lifecycle_lock = asyncio.Lock()
-        self._dependencies: dict[str, DependencySpec[BaseComponent]] = {}
+        self._dependencies: dict[str, Dependency] = {}
 
     def depend(
         self,
@@ -73,24 +88,25 @@ class BaseComponent(ComponentBase):
             raise ValueError(f"Invalid dependency attribute: {attribute!r}")
         if attribute in self._dependencies:
             raise ValueError(f"Dependency attribute already declared: {attribute}")
+        if not isinstance(base_cls, type) or not issubclass(base_cls, BaseComponent):
+            raise TypeError("Dependency base must subclass BaseComponent")
+        if not isinstance(base_cls.component_type, str) or not base_cls.component_type.strip():
+            raise TypeError(f"{base_cls.__name__} must declare a non-empty component_type")
+        if name is not None and (not isinstance(name, str) or not name.strip()):
+            raise ValueError("Dependency name must be a non-empty string or None")
         if not name:
             if required:
                 raise ValueError(f"Dependency {attribute!r} requires a component name")
             setattr(self, attribute, None)
-            return
-        component_type = component_type_name(base_cls.component_type)
-        if component_type == ComponentType.BASE.value:
-            raise TypeError(f"{base_cls.__name__} must declare a non-BASE component_type")
-        self._dependencies[attribute] = DependencySpec(
+        self._dependencies[attribute] = Dependency(
             attribute=attribute,
-            component_type=component_type,
             name=name,
             required=required,
             expected_type=base_cls,
         )
 
     @property
-    def dependencies(self) -> tuple[DependencySpec[BaseComponent], ...]:
+    def dependencies(self) -> tuple[Dependency, ...]:
         return tuple(self._dependencies.values())
 
     async def start(self) -> None:
@@ -127,9 +143,9 @@ class BaseComponent(ComponentBase):
     async def _close(self) -> None:
         pass
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         await self.start()
         return self
 
-    async def __aexit__(self, *_):
+    async def __aexit__(self, *_) -> None:
         await self.close()

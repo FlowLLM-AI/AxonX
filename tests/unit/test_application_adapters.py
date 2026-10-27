@@ -15,6 +15,7 @@ from axonx.app.components.sync.replica import ReplicaBuilder
 from axonx.app.config.loader import ConfigLoader
 from axonx.app.config.models import CronConfig
 from axonx.app.core.application import Application
+from axonx.app.workspace.core import Workspace
 from axonx.client.config import PROTOCOL_FILE_NAME_HEADER
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.models.identity import TaskState
@@ -55,7 +56,7 @@ def application(tmp_path, monkeypatch):
         filter(None, (str(Path(__file__).resolve().parents[2]), os.environ.get("PYTHONPATH")))
     )
     config["components"] = {
-        key: value for key, value in config["components"].items() if key in {"task_index", "updater"}
+        key: value for key, value in config["components"].items() if key in {"machine", "task_index", "updater"}
     }
     config["components"]["task_index"]["default"]["poll_interval"] = 0.01
     config["service"] = {"backend": "http", "token": "test-token", "web_enabled": False}
@@ -85,6 +86,69 @@ def test_config_job_returns_absolute_paths_and_declarative_schedules(application
         client.post("/jobs/get_config", json={"arguments": {}}, headers={"Authorization": "Bearer wrong"}).status_code
         == 401
     )
+
+
+def test_machine_jobs_use_the_configured_component_and_serialize_results(application):
+    app, client = application
+    machine = app.context.components["machine"]["default"]
+    assert machine.is_started
+    status = invoke(client, "machine_status", {})
+    diagnostics = invoke(client, "diagnose", {})
+    assert set(status) == {"axonx", "cpu", "memory", "gpus"}
+    assert diagnostics["axonx"] == status["axonx"]
+    assert diagnostics["workspace"]["path"] == str(app.workspace.root)
+    assert diagnostics["python"]["executable"] == sys.executable
+    assert diagnostics["service_auth_enabled"]
+    assert invoke(client, "list_machines", {}) == []
+    output = invoke(client, "python", {"code": "print('machine')"})
+    assert output["stdout"] == "machine\n" and output["exit_code"] == 0
+    failed = client.post("/jobs/python", json={"arguments": {"code": "raise SystemExit(3)"}}).json()
+    assert not failed["success"] and failed["answer"]["exit_code"] == 3
+
+
+@pytest.mark.parametrize("service_host", [None, "127.0.0.1"])
+def test_application_uses_configured_listener_and_transfer_budget(tmp_path, service_host):
+    config = ConfigLoader().resolve(
+        log_config=False,
+        workspace_dir=str(tmp_path),
+        log_to_console=False,
+        log_to_file=False,
+        bind_host="198.51.100.23",
+        transfer_budget_bytes=8,
+    )
+    config["components"] = {}
+    config["jobs"] = {}
+    if service_host is not None:
+        config["service"]["host"] = service_host
+    app = Application(**config)
+    expected_host = service_host or "198.51.100.23"
+    assert app.context.service.host == expected_host
+    assert app.context.service.local_target == f"http://{expected_host}:1024"
+    assert app.workspace.uploads.limit == 8
+    assert app.app_config.model_dump()["bind_host"] == "198.51.100.23"
+    assert app.app_config.model_dump()["transfer_budget_bytes"] == 8
+
+
+@pytest.mark.parametrize("multipart", [False, True])
+@pytest.mark.parametrize("injected_workspace", [False, True])
+def test_uploads_enforce_the_configured_budget(tmp_path, multipart, injected_workspace):
+    app = Application(
+        workspace=Workspace(tmp_path) if injected_workspace else None,
+        workspace_dir=str(tmp_path),
+        log_to_console=False,
+        log_to_file=False,
+        transfer_budget_bytes=4,
+        service={"backend": "http", "web_enabled": False},
+    )
+    with TestClient(app.context.service.build_service(app)) as client:
+        for content, status in ((b"1234", 200), (b"12345", 413)):
+            options = (
+                {"files": {"file": ("example.txt", content)}}
+                if multipart
+                else {"content": content, "headers": {PROTOCOL_FILE_NAME_HEADER: "example.txt"}}
+            )
+            response = client.post("/upload", **options)
+            assert response.status_code == status, response.text
 
 
 @pytest.mark.asyncio
@@ -265,7 +329,7 @@ def test_sync_archive_round_trip_through_the_http_adapters(application, tmp_path
         source, status.task_id, tmp_path / "prepared", 1_000_000, TaskLogReader(tmp_path / "logs")
     ).prepare()
     archive = tmp_path / "replica.tar.gz"
-    build_archive({status.task_id: plan}, [status.task_id], archive)
+    build_archive({status.task_id: plan}, archive)
     response = client.post("/upload", content=archive.read_bytes(), headers={PROTOCOL_FILE_NAME_HEADER: archive.name})
     assert response.status_code == 200, response.text
     staged = response.json()["answer"]

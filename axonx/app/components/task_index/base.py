@@ -7,7 +7,6 @@ from ....task.models.events import LogChunk, TaskEvent
 from ....task.models.lifecycle import TaskMetadata
 from ....task.models.query import TaskContextSnapshot, TaskGraph, TaskSummary
 from ..base import BaseComponent
-from ..models import ComponentType
 
 TaskChangeCallback = Callable[[frozenset[str]], None]
 
@@ -15,7 +14,7 @@ TaskChangeCallback = Callable[[frozenset[str]], None]
 class BaseTaskIndex(BaseComponent, ABC):
     """Maintain queryable Task snapshots and notify local consumers of changes."""
 
-    component_type = ComponentType.TASK_INDEX
+    component_type = "task_index"
 
     @abstractmethod
     def subscribe(self, callback: TaskChangeCallback) -> Callable[[], None]:
@@ -27,7 +26,7 @@ class BaseTaskIndex(BaseComponent, ABC):
 
     @abstractmethod
     async def entries(self, *, task_type: str | None = None, state: str | None = None) -> dict[str, TaskMetadata]:
-        """Return isolated snapshots of matching indexed records."""
+        """Return isolated snapshots of indexed records matching both filters."""
 
     @abstractmethod
     async def summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
@@ -39,7 +38,7 @@ class BaseTaskIndex(BaseComponent, ABC):
 
     @abstractmethod
     async def context(self, task_id: str) -> TaskContextSnapshot:
-        """Project one Task's status and relationships for an Agent."""
+        """Combine fresh selected metadata with indexed dependencies for an Agent."""
 
     @abstractmethod
     async def read_log(self, status: TaskMetadata, offset: int, limit: int) -> LogChunk:

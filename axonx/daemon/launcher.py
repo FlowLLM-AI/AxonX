@@ -89,7 +89,7 @@ def start(
     cwd = Path.cwd().resolve()
     service = app_config.service.model_dump()
     directory = runtime_directory(
-        app_config.workspace_dir, service.get("host", "0.0.0.0"), service.get("port", 1024), cwd
+        app_config.workspace_dir, service.get("host") or app_config.bind_host, service.get("port", 1024), cwd
     )
     if os.environ.get(SOCKET):
         from ..app.core.application import Application

@@ -57,6 +57,7 @@ def resolve_studio_dir() -> Path | None:
 
 def mount_studio(server, static_root: Path) -> None:
     """Mount assets and the SPA fallback after API and Job routes."""
+    static_root = static_root.resolve()
     assets_dir = static_root / "assets"
     if assets_dir.is_dir():
         server.mount("/assets", _StudioStaticFiles(directory=str(assets_dir)), name="web-assets")

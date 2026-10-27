@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import tempfile
 from collections.abc import Callable, Sequence
 from contextlib import suppress
@@ -26,12 +27,10 @@ from ....task.storage.workspace import (
 from ....utils.async_work import run_blocking
 from ..registry import provider
 from ..task_index.base import BaseTaskIndex
-from .archive import SYNC_ARCHIVE_NAME, build_archive
+from .archive import SYNC_ARCHIVE_NAME, archive_budget, build_archive, pack_batches
+from .artifacts import policy_revision, source_revision
 from .base import BaseSyncComponent
-from .errors import ReplicaBudgetError
-from .index import policy_revision, source_revision
-from .models import SyncReport, TaskPlan
-from .planner import archive_budget, pack_batches
+from .models import ReplicaBudgetError, SyncReport, TaskPlan
 from .replica import ReplicaBuilder, prepare_group
 
 
@@ -54,8 +53,14 @@ class LocalSyncComponent(BaseSyncComponent):
             raise TypeError(f"Unexpected sync options: {', '.join(sorted(self.kwargs))}")
         if not isinstance(target, str) or not target.strip():
             raise ValueError("target must be a non-empty configured service address")
-        if max_archives_per_flush <= 0 or timeout_seconds <= 0:
-            raise ValueError("max_archives_per_flush and timeout_seconds must be positive")
+        if (
+            isinstance(max_archives_per_flush, bool)
+            or not isinstance(max_archives_per_flush, int)
+            or max_archives_per_flush <= 0
+        ):
+            raise ValueError("max_archives_per_flush must be a positive integer")
+        if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be finite and positive")
         self.target = target.strip()
         self.depend("index", task_index, BaseTaskIndex)
         self.max_archives_per_flush = max_archives_per_flush
@@ -215,23 +220,16 @@ class LocalSyncComponent(BaseSyncComponent):
                 with suppress(RemoteServiceError):
                     await remote.discard_file(staged)
 
-    def _pack(self, groups):
-        sizes = {
-            identity: TaskPlan(
-                tuple(f for plan in members.values() for f in plan.files),
-                sum(plan.size for plan in members.values()),
-            )
-            for identity, members in groups.items()
-        }
+    def _pack(self, groups: dict[str, dict[str, TaskPlan]]) -> tuple[list[list[str]], list[str], list[str]]:
         return pack_batches(
-            sizes,
+            groups,
             archive_budget(self.budget),
             self.max_archives_per_flush,
-            members={identity: set(members) for identity, members in groups.items()},
         )
 
     async def _transfer(self, pending: Sequence[str]) -> SyncReport:
         report = SyncReport()
+        logs = TaskLogReader(Path(self.app_config.log_dir).expanduser().resolve())
         ordered = sorted(pending)
         ordered = [i for i in ordered if i > self._last_task] + [i for i in ordered if i <= self._last_task]
         with tempfile.TemporaryDirectory(prefix="axonx-display-", dir=self.root) as temporary:
@@ -247,7 +245,7 @@ class LocalSyncComponent(BaseSyncComponent):
                             task_id,
                             group_root,
                             self.budget,
-                            TaskLogReader(Path(self.app_config.log_dir)),
+                            logs,
                             self._remote_index,
                         )
                     else:
@@ -257,7 +255,7 @@ class LocalSyncComponent(BaseSyncComponent):
                                 task_id,
                                 task_path(group_root, task_id),
                                 self.budget,
-                                TaskLogReader(Path(self.app_config.log_dir)),
+                                logs,
                             ).prepare,
                         )
                         plans = {task_id: plan}
@@ -288,7 +286,7 @@ class LocalSyncComponent(BaseSyncComponent):
                         try:
                             plans = {identity: plan for group in batch for identity, plan in groups[group].items()}
                             archive = staging / SYNC_ARCHIVE_NAME
-                            included = await run_blocking(build_archive, plans, list(plans), archive)
+                            included = await run_blocking(build_archive, plans, archive)
                             if archive.stat().st_size > self.budget:
                                 raise ReplicaBudgetError("Encoded archive exceeds transfer budget")
                             await self._send(remote, archive)

@@ -1,12 +1,14 @@
-"""Workspace-owned upload staging, atomic publication and cancellation cleanup."""
+"""Workspace-owned upload staging, atomic publication and opportunistic cleanup."""
 
 from __future__ import annotations
 
 import os
+import stat
 import tempfile
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from pathlib import Path
+from time import time
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -17,17 +19,28 @@ if TYPE_CHECKING:
     from .core import Workspace
 
 MAX_FILENAME_LENGTH = 200
+DEFAULT_UPLOAD_RETENTION_DAYS = 7
 
 
 class UploadStore:
     """Own staged files beneath one validated workspace-relative directory."""
 
-    def __init__(self, workspace: Workspace, directory: str, limit: int | None) -> None:
+    def __init__(
+        self,
+        workspace: Workspace,
+        directory: str,
+        limit: int | None,
+        *,
+        retention_days: int = DEFAULT_UPLOAD_RETENTION_DAYS,
+    ) -> None:
         if limit is not None and (isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0):
             raise ValueError("transfer_budget_bytes must be a positive integer")
+        if isinstance(retention_days, bool) or not isinstance(retention_days, int) or retention_days <= 0:
+            raise ValueError("retention_days must be a positive integer")
         self.workspace = workspace
         self.directory = self._validate_directory(directory)
         self.limit = limit
+        self.retention_days = retention_days
 
     @staticmethod
     def _validate_directory(copy_dir: str) -> str:
@@ -83,7 +96,10 @@ class UploadStore:
         if not isinstance(data, (bytes, bytearray)):
             raise TypeError("Uploaded content must be bytes")
         self._check_size(len(data))
-        target = self._target(self._directory(directory), self._filename(filename))
+        target_dir = self._directory(directory)
+        name = self._filename(filename)
+        self.cleanup_expired()
+        target = self._target(target_dir, name)
         try:
             descriptor, temporary = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.")
             os.close(descriptor)
@@ -107,6 +123,7 @@ class UploadStore:
             self._check_size(size)
         name = self._filename(filename)
         target_dir = self._directory(directory)
+        await run_blocking(self.cleanup_expired)
         existed = target_dir.is_dir()
         target_dir.mkdir(parents=True, exist_ok=True)
         written = 0
@@ -135,6 +152,24 @@ class UploadStore:
             if not existed:
                 with suppress(OSError):
                     target_dir.rmdir()
+
+    def cleanup_expired(self) -> None:
+        """Best-effort removal of files older than retention_days, triggered by uploads."""
+        cutoff = time() - self.retention_days * 24 * 60 * 60
+        try:
+            root = self.root
+        except (OSError, ValueError):
+            return
+        for directory, _, filenames in os.walk(root, topdown=False, followlinks=False):
+            for filename in filenames:
+                path = Path(directory) / filename
+                try:
+                    info = path.lstat()
+                    if stat.S_ISREG(info.st_mode) and info.st_mtime < cutoff:
+                        self.discard(self.workspace.relative(path))
+                except (OSError, ValueError):
+                    # A concurrent upload or failed cleanup must not interrupt new uploads.
+                    continue
 
     def discard(self, relative_path: str) -> str:
         """Remove a staged copy and empty staging directories; cleanup is idempotent."""

@@ -1,55 +1,39 @@
-"""Adapt the AxonX AgentSessionStore to the Claude SDK contract."""
+"""Local Claude transcripts with incremental summaries in the same session lock."""
 
 from __future__ import annotations
 
-import asyncio
-from collections import defaultdict
-from typing import cast
-
-from ..models import (
-    AgentSessionEntry,
-    AgentSessionKey,
-    AgentSessionListKey,
-    AgentSessionSummary,
-)
-from ..session_store import AgentSessionStore
+from ..models import SessionEntry, SessionKey
+from ..session_store import LocalAgentSessionStore
 
 
-class ClaudeSessionStoreAdapter:
-    def __init__(self, store: AgentSessionStore) -> None:
-        self.store = store
-        self._locks: defaultdict[tuple[str, str], asyncio.Lock] = defaultdict(asyncio.Lock)
+class ClaudeSessionStore(LocalAgentSessionStore):
+    """Implement the SDK store directly, including cancellation-safe summary updates."""
 
-    async def append(self, key, entries) -> None:
+    async def append(self, key: SessionKey, entries: list[SessionEntry]) -> None:
         from claude_agent_sdk import fold_session_summary
 
         if not entries:
             return
-        agent_key = cast(AgentSessionKey, key)
-        agent_entries = cast(list[AgentSessionEntry], entries)
-        lock_key = (agent_key["project_key"], agent_key["session_id"])
-        async with self._locks[lock_key]:
-            await self.store.append(agent_key, agent_entries)
-            if agent_key.get("subpath") is None:
-                summary_key = cast(AgentSessionListKey, agent_key)
-                previous = await self.store.load_summary(summary_key)
+
+        def write() -> None:
+            path = self._path(key)
+            if key.get("subpath") is not None:
+                self._append(path, entries)
+                return
+            summary_path = self._summary_path(key)
+            previous = self._read_summary(summary_path)
+            if previous is not None and (not path.is_file() or previous["mtime"] != int(path.stat().st_mtime * 1000)):
+                previous = None
+            pending = self._append(path, entries)
+            if previous is not None and not pending:
+                return
+            try:
                 if previous is None:
-                    agent_entries = await self.store.load(agent_key) or []
-                summary = fold_session_summary(previous, key, agent_entries)
-                await self.store.save_summary(summary_key, cast(AgentSessionSummary, summary))
+                    pending = self._read(path) or []
+                self._save_summary(key, fold_session_summary(previous, key, pending))
+            except Exception:
+                # The transcript is durable; force a rebuild if summary publication fails.
+                summary_path.unlink(missing_ok=True)
+                raise
 
-    async def load(self, key):
-        return await self.store.load(cast(AgentSessionKey, key))
-
-    async def list_sessions(self, project_key: str):
-        return await self.store.list_sessions(project_key)
-
-    async def list_session_summaries(self, project_key: str):
-        return await self.store.list_summaries(project_key)
-
-    async def delete(self, key) -> None:
-        async with self._locks[(key["project_key"], key["session_id"])]:
-            await self.store.delete(cast(AgentSessionKey, key))
-
-    async def list_subkeys(self, key):
-        return await self.store.list_subkeys(cast(AgentSessionListKey, key))
+        await self._io(key, write)

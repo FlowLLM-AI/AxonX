@@ -1,23 +1,21 @@
 """Self-update Job Steps."""
 
-from ...components.models import ComponentType
-from ...components.registry import provider
-from ...components.updater.manager import UpdateManager
-from ..base import BaseStep
+from ..components.registry import provider
+from ..components.updater.base import BaseUpdaterComponent
+from .base import BaseStep
 
 
 class UpdateStep(BaseStep):
     """Share update admission and configured manager resolution."""
 
-    component_domains = (ComponentType.UPDATER,)
     mode: str
 
     async def execute(self):
         self.response.answer = await self.updater.request(self.mode)
 
     @property
-    def updater(self):
-        return self.component(UpdateManager)
+    def updater(self) -> BaseUpdaterComponent:
+        return self.component(BaseUpdaterComponent)
 
 
 @provider("update_from_git_step")

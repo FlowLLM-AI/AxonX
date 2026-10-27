@@ -1,13 +1,12 @@
 """Identity of the AxonX build this process is running."""
 
-from __future__ import annotations
-
 import os
 import subprocess
 from functools import cache
 from importlib import metadata
 from pathlib import Path
 
+from ...._version import __version__
 from .models import BuildInfo
 
 # Distribution this package is published as, and the source tree holding it.
@@ -36,8 +35,6 @@ def package_version(package: str = PACKAGE_NAME) -> str | None:
 @cache
 def get_build_info() -> BuildInfo:
     """Return one consistent build identity snapshot for this process."""
-    from ...._version import __version__
-
     return BuildInfo(
         version=package_version() or __version__,
         git_commit=os.environ.get(GIT_COMMIT_ENV) or _git("rev-parse", "HEAD"),

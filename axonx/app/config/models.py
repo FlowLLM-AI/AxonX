@@ -11,7 +11,6 @@ from croniter import croniter
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ...client.config import normalize_target
-from .defaults import DEFAULT_TRANSFER_BUDGET_BYTES
 
 _CRON_FIELD = re.compile(r"^[0-9*,/\-]+$")
 
@@ -99,7 +98,8 @@ class ApplicationConfig(BaseModel):
     environment: dict[str, str] = Field(default_factory=dict)
     command: tuple[str, ...] = ()
     app_name: str = "AxonX"
-    transfer_budget_bytes: int = Field(default=DEFAULT_TRANSFER_BUDGET_BYTES, gt=0, strict=True)
+    bind_host: str = Field(default="0.0.0.0", min_length=1)
+    transfer_budget_bytes: int = Field(default=512 * 1024 * 1024, gt=0, strict=True)
     language: Literal["en", "zh"] = "en"
     enable_logo: bool = True
     log_to_console: bool = True

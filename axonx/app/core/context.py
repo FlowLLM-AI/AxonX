@@ -45,7 +45,6 @@ class ApplicationContext:
         self.service: BaseService | None = None
         self.metadata: dict[str, Any] = {}
         self.dispatcher = JobDispatcher(self)
-        self._finalized = False
 
     @property
     def task_catalog(self) -> TaskCatalog:
@@ -62,28 +61,16 @@ class ApplicationContext:
     def jobs(self) -> Mapping[str, BaseJob]:
         return self._jobs_view
 
-    def _require_composing(self) -> None:
-        if self._finalized:
-            raise RuntimeError("Application context is already finalized")
-
-    def _set_component_group(
+    def finalize(
         self,
-        category: str,
-        components: Mapping[str, BaseComponent],
+        components: Mapping[str, Mapping[str, BaseComponent]],
+        jobs: Mapping[str, BaseJob],
+        service: BaseService | None,
     ) -> None:
-        self._require_composing()
-        self._components[category] = MappingProxyType(dict(components))
-
-    def _set_jobs(self, jobs: Mapping[str, BaseJob]) -> None:
-        self._require_composing()
+        """Publish the complete runtime once and seal its provider registry."""
+        if self.registry.frozen:
+            raise RuntimeError("Application context is already finalized")
+        self._components.update({category: MappingProxyType(dict(group)) for category, group in components.items()})
         self._jobs.update(jobs)
-
-    def _set_service(self, service: BaseService) -> None:
-        self._require_composing()
         self.service = service
-
-    def finalize(self) -> None:
-        """Seal the provider registry after composition completes."""
-        self._require_composing()
         self.registry.freeze()
-        self._finalized = True

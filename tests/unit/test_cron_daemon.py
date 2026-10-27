@@ -84,23 +84,113 @@ def test_cron_requires_a_launcher_and_empty_schedules_create_no_component(tmp_pa
     assert not cron_app(tmp_path, None, []).context.components
 
 
-async def test_cron_advances_a_slot_even_when_launch_fails(tmp_path):
+async def test_cron_requires_an_explicit_timezone_when_ticking(tmp_path):
+    async def launch(_index, _entry):
+        pytest.fail("A naive timestamp must be rejected before any launch")
+
+    scheduler = cron_app(tmp_path, launch).context.components["cron"]["default"]
+    with pytest.raises(ValueError, match="timezone-aware"):
+        await scheduler.tick(datetime(2026, 10, 26, 12, 0))
+
+
+@pytest.mark.parametrize("error_type", [OSError, RuntimeError, ValueError, TimeoutError])
+async def test_cron_advances_failed_slots_and_continues_other_launches(tmp_path, error_type):
     launches = []
 
     async def launch(_index, entry):
         launches.append(entry)
-        raise OSError("worker unavailable")
+        raise error_type("worker unavailable")
+
+    entries = [{"expression": "* * * * *", "command": f"worker --value {value}"} for value in (1, 2)]
+    app = cron_app(tmp_path, launch, entries)
+    scheduler = app.context.components["cron"]["default"]
+    now = datetime(2026, 10, 26, 12, 0, tzinfo=ZoneInfo("UTC"))
+    scheduler._next = [now] * len(entries)
+    await scheduler.tick(now)
+    await scheduler.tick(now + timedelta(seconds=1))
+    assert launches == list(scheduler.entries)
+    app.request_shutdown()
+    await scheduler.tick(now + timedelta(minutes=1))
+    assert launches == list(scheduler.entries)
+
+
+@pytest.mark.parametrize(
+    ("expression", "due", "now", "expected"),
+    [
+        ("* * * * *", "2026-10-26T12:00:00+00:00", "2026-10-26T12:10:00+00:00", "2026-10-26T12:11:00+00:00"),
+        ("0 9 * * *", "2026-10-26T09:00:00+00:00", "2026-10-26T17:00:00+08:00", "2026-10-27T09:00:00+00:00"),
+    ],
+)
+async def test_cron_coalesces_missed_slots_in_the_configured_timezone(tmp_path, expression, due, now, expected):
+    launched = []
+
+    async def launch(index, _entry):
+        launched.append(index)
+
+    app = cron_app(tmp_path, launch, [{"expression": expression, "command": "worker"}])
+    scheduler = app.context.components["cron"]["default"]
+    scheduler._next = [datetime.fromisoformat(due)]
+    now = datetime.fromisoformat(now)
+    await scheduler.tick(now)
+    await scheduler.tick(now + timedelta(seconds=1))
+    assert launched == [0]
+    assert scheduler._next == [datetime.fromisoformat(expected)]
+
+
+async def test_cron_snapshots_entries_against_config_list_mutation(tmp_path):
+    launched = []
+
+    async def launch(_index, entry):
+        launched.append(entry)
 
     app = cron_app(tmp_path, launch)
     scheduler = app.context.components["cron"]["default"]
-    now = datetime(2026, 10, 26, 12, 0, tzinfo=ZoneInfo("UTC"))
+    original_entry = app.app_config.cron[0]
+    app.app_config.cron.append(CronConfig(expression="* * * * *", command="other-worker"))
+    async with app:
+        scheduler._next = [datetime.now(scheduler.timezone)]
+        await scheduler.tick(scheduler._next[0])
+    assert launched == [original_entry]
+
+
+async def test_cron_propagates_launch_cancellation_without_replaying_the_slot(tmp_path):
+    launched = []
+
+    async def launch(index, _entry):
+        launched.append(index)
+        raise asyncio.CancelledError
+
+    app = cron_app(tmp_path, launch)
+    scheduler = app.context.components["cron"]["default"]
+    now = datetime.now(scheduler.timezone)
     scheduler._next = [now]
-    await scheduler._tick(now)
-    await scheduler._tick(now + timedelta(seconds=1))
-    assert len(launches) == 1
-    app.request_shutdown()
-    await scheduler._tick(now + timedelta(minutes=1))
-    assert len(launches) == 1
+    with pytest.raises(asyncio.CancelledError):
+        await scheduler.tick(now)
+    await scheduler.tick(now)
+    assert launched == [0]
+
+
+async def test_cron_clears_failed_runner_state_and_can_restart(tmp_path, monkeypatch):
+    async def launch(_index, _entry):
+        pass
+
+    async def fail():
+        raise RuntimeError("scheduler failed")
+
+    app = cron_app(tmp_path, launch)
+    scheduler = app.context.components["cron"]["default"]
+    run = scheduler._run
+    monkeypatch.setattr(scheduler, "_run", fail)
+    await scheduler.start()
+    await asyncio.sleep(0)
+    with pytest.raises(RuntimeError, match="scheduler failed"):
+        await scheduler.close()
+    assert scheduler._runner is None
+    assert scheduler._next == []
+    monkeypatch.setattr(scheduler, "_run", run)
+    async with scheduler:
+        assert scheduler._runner is not None
+        assert scheduler._next
 
 
 @pytest.mark.parametrize("state", ["stopping", "maintenance"])
@@ -117,7 +207,7 @@ async def test_cron_stops_new_launches_during_an_awaited_request(tmp_path, state
     scheduler = app.context.components["cron"]["default"]
     now = datetime.now(ZoneInfo("UTC"))
     scheduler._next = [now] * len(scheduler.entries)
-    tick = asyncio.create_task(scheduler._tick(now))
+    tick = asyncio.create_task(scheduler.tick(now))
     await asyncio.wait_for(entered.wait(), 1)
     app.context.metadata[state] = True
     release.set()
@@ -141,6 +231,7 @@ async def test_application_restart_rereads_config_without_replaying_missed_slots
         assert scheduler._runner is not None
         assert all(value > datetime.now(scheduler.timezone) for value in scheduler._next)
     assert scheduler._runner is None
+    assert scheduler._next == []
     path.write_text(yaml.safe_dump({"cron": [{"expression": "0 * * * *", "command": "axonx exec --task demo --x 2"}]}))
     async with cron_app(tmp_path, launch, ConfigLoader().resolve(config=str(path), log_config=False)["cron"]) as second:
         assert second.context.components["cron"]["default"].entries[0].argv[-1] == "2"

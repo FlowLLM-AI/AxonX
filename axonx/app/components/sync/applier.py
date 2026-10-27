@@ -9,16 +9,18 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
+from ....task.models.identity import matches_task_name
 from ....task.storage.files import snapshot_file
 from ....task.storage.workspace import (
     parse_task_directory,
     read_entry,
     read_task_metadata,
     resolve_relative_path,
+    scan_entries,
     task_directory,
 )
-from ...config.defaults import DEFAULT_TRANSFER_BUDGET_BYTES
-from .index import verify_replica
+from ....utils.logging import get_logger
+from .artifacts import artifact_path, verify_replica
 from .models import TAR_PADDING_BYTES, SyncTasksReport, archived_bytes
 
 MAX_SYNC_DELETIONS = 200
@@ -31,7 +33,7 @@ class TaskArchiveApplier:
     def __init__(
         self,
         workspace_path: Path,
-        transfer_budget_bytes: int = DEFAULT_TRANSFER_BUDGET_BYTES,
+        transfer_budget_bytes: int,
     ) -> None:
         if (
             isinstance(transfer_budget_bytes, bool)
@@ -133,10 +135,7 @@ class TaskArchiveApplier:
                 continue
             previous = read_task_metadata(self.root / relative_path, task_id)
             for name, record in status.replica.files.items():
-                path = Path(name)
-                if path.is_absolute() or ".." in path.parts or path.as_posix() != name:
-                    raise ValueError(f"Invalid replica path: {name}")
-                target = directory / name
+                target = artifact_path(directory, name)
                 if target.is_file():
                     continue
                 expanded += archived_bytes(record.size)
@@ -145,8 +144,8 @@ class TaskArchiveApplier:
                 old = previous.replica if previous is not None and previous.started_at == status.started_at else None
                 if old is None:
                     raise ValueError(f"Missing replica delta base: {task_id}/{name}")
-                source = self.root / relative_path / name
-                if old.files.get(name) != record or any(p.is_symlink() for p in (source, *source.parents)):
+                source = artifact_path(self.root / relative_path, name)
+                if old.files.get(name) != record:
                     raise ValueError(f"Replica delta base differs: {task_id}/{name}")
                 if source.stat().st_size != record.size:
                     raise ValueError(f"Replica delta base is corrupt: {task_id}/{name}")
@@ -183,7 +182,7 @@ class TaskArchiveApplier:
                         or linked.replica.snapshot != snapshot
                     ):
                         raise ValueError("Live snapshot child identity differs")
-            verify_replica(root, task_id)
+            verify_replica(root, task_id, metadata=status)
 
     def _commit(
         self,
@@ -255,3 +254,24 @@ class TaskArchiveApplier:
                 os.replace(backup, target)
             raise
         return deleted
+
+
+def snapshot_index(root: Path, task_names: frozenset[str], roots: frozenset[str] = frozenset()) -> dict:
+    """One verified index for all selected display replicas."""
+    result = {}
+    for identity, metadata in scan_entries(root).items():
+        replica = metadata.replica
+        if replica is None:
+            continue
+        selected = metadata.state.is_terminal and matches_task_name(identity, task_names)
+        if not selected and not (replica.snapshot and replica.snapshot.root_task_id in roots):
+            continue
+        try:
+            verify_replica(root, identity, metadata=metadata)
+            result[identity] = {
+                "started_at": metadata.started_at.isoformat(),
+                **replica.model_dump(mode="json"),
+            }
+        except (OSError, ValueError) as exc:
+            get_logger("task-sync-index").warning(f"Skipping invalid display replica {identity}: {exc}")
+    return result

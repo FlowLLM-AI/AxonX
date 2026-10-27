@@ -1,5 +1,12 @@
 """Proxy contracts and built-in forwarding implementations.
 
-base: Base contract shared by proxy component backends.
-http: Transparent asynchronous HTTP reverse proxy.
+base: Proxy contract, streaming response ownership, and forwarding errors.
+http: HTTP forwarding, upstream connection lifecycle, and URL/header handling.
 """
+
+from . import base, http
+
+__all__ = [
+    "base",
+    "http",
+]

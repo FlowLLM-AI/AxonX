@@ -2,9 +2,9 @@
 
 import asyncio
 
-from ...components.registry import provider
-from ...workspace.preview import PREVIEW_ROWS
-from ..base import BaseStep
+from ..components.registry import provider
+from ..workspace.preview import PREVIEW_ROWS
+from .base import BaseStep
 
 
 @provider("workspace_list")

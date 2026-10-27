@@ -7,7 +7,6 @@ from collections.abc import AsyncIterator, Iterable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..._version import __version__
 from ...client.events import JobEvent
 from ...client.models import JobResponse
 from ...utils.async_work import run_blocking
@@ -16,12 +15,10 @@ from ..components.base import BaseComponent
 from ..config.models import ApplicationConfig
 from ..workspace.core import Workspace
 from .composition import compose_application
-from .context import ApplicationContext
-from .graph import ComponentGraph
 
 if TYPE_CHECKING:
     from ...task.runtime.catalog import TaskCatalog
-    from ..components.cron.scheduler import ScheduledLaunch
+    from ..components.cron.base import ScheduledLaunch
     from ..components.updater.base import UpdateBackend
 
 
@@ -38,16 +35,14 @@ class Application:
         launch_scheduled: ScheduledLaunch | None = None,
         **config: Any,
     ) -> None:
-        self.context: ApplicationContext = compose_application(
-            __version__,
-            config,
-            providers,
-            workspace,
-            updates,
-            task_catalog,
-            launch_scheduled,
+        self.context, self._startup_order = compose_application(
+            ApplicationConfig(**config),
+            providers=providers,
+            workspace=workspace,
+            updates=updates,
+            task_catalog=task_catalog,
+            launch_scheduled=launch_scheduled,
         )
-        self._startup_order = ComponentGraph(self.context.components).resolve()
         self._started: list[BaseComponent] = []
         self._lifecycle_lock = asyncio.Lock()
         self.is_started = False
@@ -73,10 +68,11 @@ class Application:
             self.workspace.ensure()
             self.context.metadata.pop("stopping", None)
             try:
-                for component in (*self._startup_order, *self.context.jobs.values()):
+                for component in self._startup_order:
                     await component.start()
                     self._started.append(component)
             except BaseException as start_error:
+                self.request_shutdown()
                 cleanup_errors = await self._close_started()
                 if cleanup_errors:
                     raise BaseExceptionGroup(
@@ -100,6 +96,7 @@ class Application:
     async def close(self) -> None:
         """Close every started object in reverse order, without short-circuiting."""
         async with self._lifecycle_lock:
+            self.is_started = False
             errors: list[BaseException] = []
             try:
                 self.request_shutdown()
@@ -115,7 +112,6 @@ class Application:
                     errors.append(exc)
                 self._log_cleanup_task = None
             errors.extend(await self._close_started())
-            self.is_started = False
             if errors:
                 raise BaseExceptionGroup("Application cleanup failed", errors)
 
@@ -139,8 +135,7 @@ class Application:
         *,
         target: str | None = None,
     ) -> JobResponse:
-        if not self.is_started:
-            raise RuntimeError("Application is not running")
+        self._require_running()
         return await self.context.dispatcher.run(name, arguments, target=target)
 
     def stream_job(
@@ -150,13 +145,16 @@ class Application:
         *,
         target: str | None = None,
     ) -> AsyncIterator[JobEvent]:
-        if not self.is_started:
-            raise RuntimeError("Application is not running")
+        self._require_running()
         return self.context.dispatcher.stream(name, arguments, target=target)
 
-    async def __aenter__(self):
+    def _require_running(self) -> None:
+        if not self.is_started or self.context.metadata.get("stopping"):
+            raise RuntimeError("Application is not running")
+
+    async def __aenter__(self) -> Application:
         await self.start()
         return self
 
-    async def __aexit__(self, *_):
+    async def __aexit__(self, *_) -> None:
         await self.close()

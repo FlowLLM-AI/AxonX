@@ -17,6 +17,12 @@ cron: []
 #     command: "axonx exec --task demo --x 1 --y 2"
 
 components:
+  machine:
+    default:
+      backend: local
+      # CPU sampling blocks a worker thread for this interval (seconds).
+      cpu_sample_interval: 0.1
+
   updater:
     default:
       backend: local
@@ -95,7 +101,6 @@ components:
 # =========== HTTP service ===========
 service:
   backend: http
-  host: 0.0.0.0
   port: 1024
   shutdown_timeout: ${AXONX_SERVICE_SHUTDOWN_TIMEOUT:-1}
   cleanup_timeout: ${AXONX_SERVICE_CLEANUP_TIMEOUT:-15}
@@ -191,8 +196,6 @@ jobs:
     description: Get local or remote AxonX machine status.
     steps:
       - backend: machine_status
-        # psutil blocks for this long to sample CPU load in a worker thread:
-        # cpu_sample_interval: 0.1
 
   python:
     description: Execute multiline Python code on the selected AxonX machine using the service's interpreter and installed packages in a fresh process.

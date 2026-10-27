@@ -1,17 +1,15 @@
 """Discover GPUs and parse metrics reported by vendor command-line tools."""
 
-from __future__ import annotations
-
 import csv
 import json
 import math
 import platform
 import shutil
 import subprocess
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import Literal
 
-from .models import GpuCollection, GpuInfo
+from .models import GpuInfo
 
 NVIDIA_COLUMNS = (
     "index",
@@ -26,19 +24,18 @@ MIB_BYTES = 1024**2
 TIMEOUT_SECONDS = 5.0
 
 
-def collect_gpus() -> GpuCollection:
+def collect_gpus(warn: Callable[[str], None]) -> list[GpuInfo]:
     """Return every GPU reported by installed vendor tools.
 
     A missing tool simply means that vendor has nothing to report. An installed
-    tool that fails is recorded as a warning and does not hide devices returned
+    tool that fails is logged as a warning and does not hide devices returned
     by another vendor.
     """
     if platform.system() == "Darwin":
-        return GpuCollection()
+        return []
 
     devices: list[GpuInfo] = []
-    warnings: list[str] = []
-    probes: tuple[tuple[str, Sequence[str], Callable[[str], list[GpuInfo]]], ...] = (
+    probes: tuple[tuple[str, tuple[str, ...], Callable[[str], list[GpuInfo]]], ...] = (
         (
             "nvidia-smi",
             (
@@ -64,16 +61,27 @@ def collect_gpus() -> GpuCollection:
         path = shutil.which(executable)
         if path is None:
             continue
-        output, error = _run(path, *arguments)
-        if error is not None:
-            warnings.append(f"Unable to collect GPU metrics with {executable}: {error}")
-            continue
         try:
+            output = subprocess.run(
+                [path, *arguments],
+                capture_output=True,
+                check=True,
+                text=True,
+                timeout=TIMEOUT_SECONDS,
+            ).stdout
             devices.extend(parser(output))
-        except ValueError as exc:
-            warnings.append(f"Unable to parse GPU metrics from {executable}: {exc}")
+        except subprocess.TimeoutExpired:
+            error = f"timed out after {TIMEOUT_SECONDS:g}s"
+        except subprocess.CalledProcessError as exc:
+            detail = " ".join((exc.stderr or "").splitlines())[:300]
+            error = f"exited with status {exc.returncode}" + (f": {detail}" if detail else "")
+        except (OSError, ValueError) as exc:
+            error = str(exc)
+        else:
+            continue
+        warn(f"Unable to collect GPU metrics with {executable}: {error}")
 
-    return GpuCollection(tuple(devices), tuple(warnings))
+    return devices
 
 
 def parse_nvidia_output(output: str) -> list[GpuInfo]:
@@ -114,9 +122,9 @@ def parse_rocm_output(output: str) -> list[GpuInfo]:
 
     devices: list[GpuInfo] = []
     for card, values in cards.items():
-        if not isinstance(card, str) or not isinstance(values, dict):
+        if not card.startswith("card") or not isinstance(values, dict):
             continue
-        index = _card_index(card)
+        index = _non_negative_int(card.removeprefix("card"))
         if index is None:
             continue
         devices.append(
@@ -124,12 +132,14 @@ def parse_rocm_output(output: str) -> list[GpuInfo]:
                 vendor="amd",
                 index=index,
                 uuid=_optional_string(values.get("Unique ID")),
-                name=_optional_string(values.get("Card series") or values.get("Card model")),
+                name=_optional_string(values.get("Card series")) or _optional_string(values.get("Card model")),
                 memory_total_bytes=_byte_count(values.get("VRAM Total Memory (B)")),
                 memory_used_bytes=_byte_count(values.get("VRAM Total Used Memory (B)")),
                 usage_percent=_percent(values.get("GPU use (%)")),
             ),
         )
+    if cards and not devices:
+        raise ValueError("no valid device entries")
     return devices
 
 
@@ -145,19 +155,17 @@ def _gpu(
     memory_available_bytes: int | None = None,
 ) -> GpuInfo:
     """Build one validated GPU payload and derive consistent memory metrics."""
-    if memory_total_bytes is not None and memory_used_bytes is not None and memory_used_bytes > memory_total_bytes:
-        memory_used_bytes = None
-    memory_is_consistent = (
-        memory_total_bytes is not None and memory_used_bytes is not None and memory_used_bytes <= memory_total_bytes
-    )
-    if memory_available_bytes is None and memory_is_consistent:
-        memory_available_bytes = memory_total_bytes - memory_used_bytes
-    if memory_available_bytes is not None and memory_total_bytes is not None:
-        if memory_available_bytes > memory_total_bytes:
+    if memory_total_bytes is not None:
+        if memory_used_bytes is not None and memory_used_bytes > memory_total_bytes:
+            memory_used_bytes = None
+        if memory_available_bytes is not None and memory_available_bytes > memory_total_bytes:
             memory_available_bytes = None
     memory_usage_percent = None
-    if memory_is_consistent and memory_total_bytes:
-        memory_usage_percent = round(memory_used_bytes * 100 / memory_total_bytes, 2)
+    if memory_total_bytes is not None and memory_used_bytes is not None:
+        if memory_available_bytes is None:
+            memory_available_bytes = memory_total_bytes - memory_used_bytes
+        if memory_total_bytes:
+            memory_usage_percent = round(memory_used_bytes * 100 / memory_total_bytes, 2)
 
     return GpuInfo(
         vendor=vendor,
@@ -172,31 +180,13 @@ def _gpu(
     )
 
 
-def _run(*command: str) -> tuple[str, str | None]:
-    """Run a vendor tool and return output plus a concise non-fatal error."""
-    try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            check=True,
-            text=True,
-            timeout=TIMEOUT_SECONDS,
-        )
-    except subprocess.TimeoutExpired:
-        return "", f"timed out after {TIMEOUT_SECONDS:g}s"
-    except subprocess.CalledProcessError as exc:
-        detail = " ".join((exc.stderr or "").splitlines())[:300]
-        return "", f"exited with status {exc.returncode}" + (f": {detail}" if detail else "")
-    except OSError as exc:
-        return "", str(exc)
-    return result.stdout, None
-
-
 def _finite_number(value: object) -> float | None:
     """Parse a finite numeric vendor value."""
+    if isinstance(value, bool):
+        return None
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
     return number if math.isfinite(number) else None
 
@@ -214,7 +204,8 @@ def _byte_count(value: object, scale: int = 1) -> int | None:
     number = _finite_number(value)
     if number is None or number < 0:
         return None
-    return int(number * scale)
+    scaled = number * scale
+    return int(scaled) if math.isfinite(scaled) else None
 
 
 def _percent(value: object) -> float | None:
@@ -223,13 +214,6 @@ def _percent(value: object) -> float | None:
     return number if number is not None and 0 <= number <= 100 else None
 
 
-def _card_index(card: str) -> int | None:
-    """Read the numeric index from a ROCm card key such as ``card0``."""
-    if not card.startswith("card"):
-        return None
-    return _non_negative_int(card.removeprefix("card"))
-
-
 def _optional_string(value: object) -> str | None:
     """Return a non-empty string without coercing unexpected JSON values."""
-    return value if isinstance(value, str) and value else None
+    return value.strip() or None if isinstance(value, str) else None

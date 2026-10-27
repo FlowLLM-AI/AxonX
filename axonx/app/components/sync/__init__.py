@@ -1,13 +1,22 @@
 """Task display-replica planning, transfer and application.
 
-applier: Validate and atomically apply display-replica archives.
-archive: Build deterministic archives from prepared display-replica plans.
+applier: Apply archives atomically and index verified installed replicas.
+archive: Pack complete Task groups and build deterministic bounded archives.
+artifacts: Discover, identify, validate and sample published display artifacts.
 base: Component contract for replicating workspace task directories to a target service.
-errors: Distinguish changing source snapshots from deterministic replica failures.
-index: Source identities and verified replica indexes use the same transfer policy.
 local: Reconcile and transfer bounded display replicas with opt-in live Task groups.
-models: Internal replica plans and results owned by application synchronization.
-planner: Select published task outputs and pack complete display replicas.
+models: Replica plans, transfer results, source-change errors and archive budget accounting.
 replica: Prepare bounded, valid display artifacts without modifying source files.
-sampling: Bounded, whole-day Parquet sampling for read-only display replicas.
 """
+
+from . import applier, archive, artifacts, base, local, models, replica
+
+__all__ = [
+    "applier",
+    "archive",
+    "artifacts",
+    "base",
+    "local",
+    "models",
+    "replica",
+]

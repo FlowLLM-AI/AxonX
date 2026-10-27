@@ -1,8 +1,20 @@
-"""Machine observation, runtime build identity and owned command execution.
+"""Managed machine observation, diagnostics and Python execution.
 
+base: Machine component contract and managed lifecycle.
 build_info: Identity of the AxonX build this process is running.
 gpu: Discover GPUs and parse metrics reported by vendor command-line tools.
-inspection: Local hardware and runtime diagnostics, with configured remote machine health checks.
-models: Machine health, diagnostics and execution result models.
-python: Execute Python source in the service's interpreter without a shell.
+local: Local machine component, runtime diagnostics and target health checks.
+models: Immutable resource, diagnostics, target health and execution payloads.
+python: Bounded Python subprocess execution and cancellation-safe process cleanup.
 """
+
+from . import base, build_info, gpu, local, models, python
+
+__all__ = [
+    "base",
+    "build_info",
+    "gpu",
+    "local",
+    "models",
+    "python",
+]

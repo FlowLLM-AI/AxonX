@@ -140,7 +140,7 @@ def test_utils_are_flat_and_replace_common():
     assert not [path for path in (ROOT / "axonx/utils").iterdir() if path.is_dir() and path.name != "__pycache__"]
 
 
-def test_app_has_only_its_five_capabilities_and_documentation_only_initializers():
+def test_app_has_only_its_five_capabilities_and_complete_module_namespaces():
     root = ROOT / "axonx/app"
     assert {path.name for path in root.iterdir() if path.is_file()} == {"__init__.py"}
     assert {path.name for path in root.iterdir() if path.is_dir() and path.name != "__pycache__"} == {
@@ -152,8 +152,23 @@ def test_app_has_only_its_five_capabilities_and_documentation_only_initializers(
     }
     for path in root.rglob("__init__.py"):
         tree = ast.parse(path.read_text())
-        assert ast.get_docstring(tree), path
-        assert len(tree.body) == 1, f"Package initializer loads or re-exports capabilities: {path}"
+        doc = ast.get_docstring(tree)
+        assert doc, path
+        if path == root / "__init__.py":
+            assert len(tree.body) == 1, f"Package initializer loads or re-exports capabilities: {path}"
+            continue
+        expected = {
+            *(child.stem for child in path.parent.glob("*.py") if child.name != "__init__.py"),
+            *(child.name for child in path.parent.iterdir() if child.is_dir() and (child / "__init__.py").is_file()),
+        }
+        exports = next(
+            ast.literal_eval(node.value)
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(name, ast.Name) and name.id == "__all__" for name in node.targets)
+        )
+        assert sorted(exports) == sorted(expected), path
+        assert all(f"\n{name}:" in doc for name in expected), path
 
 
 def test_app_capabilities_follow_their_runtime_ownership():
@@ -182,23 +197,20 @@ def test_app_capabilities_follow_their_runtime_ownership():
     assert not violations, "\n".join(violations)
 
 
-def test_app_models_do_not_load_or_import_runtime_implementations():
+def test_app_models_keep_data_only_dependencies_and_config_stays_independent():
     paths = sorted((ROOT / "axonx/app").rglob("models.py"))
-    allowed = {"axonx.client.config", "axonx.client.events", "axonx.app.config.defaults"}
+    allowed = {"axonx.client.config", "axonx.client.events"}
     for path in paths:
         assert not [target for target in imports(path) if target.startswith("axonx.") and target not in allowed], path
-    modules = [".".join(path.relative_to(ROOT).with_suffix("").parts) for path in paths]
-    code = f"""
-import importlib
+    code = """
 import sys
-for module in {modules!r}:
-    importlib.import_module(module)
+import axonx.app.config.models
 forbidden = (
     "axonx.app.core", "axonx.app.steps", "axonx.app.components.base",
     "axonx.app.components.registry", "axonx.app.components.machine.build_info",
-    "axonx.app.components.machine.inspection", "axonx.app.components.machine.gpu",
+    "axonx.app.components.machine.base", "axonx.app.components.machine.local", "axonx.app.components.machine.gpu",
     "axonx.app.components.machine.python",
-    "axonx.app.components.agent.claude", "axonx.app.components.service.http.app",
+    "axonx.app.components.agent.claude", "axonx.app.components.service.http.service",
     "axonx.app.components.sync.local", "axonx.app.workspace.core",
     "axonx.client.http", "axonx.client.mcp", "axonx.task.runtime", "axonx.task.storage",
     "fastapi", "fastmcp", "httpx", "claude_agent_sdk", "psutil", "polars", "pyarrow",
@@ -387,7 +399,7 @@ def test_importing_one_capability_does_not_load_other_runtimes(module, forbidden
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.parametrize("module", ["applier", "index"])
+@pytest.mark.parametrize("module", ["applier", "archive", "artifacts"])
 def test_sync_archive_helpers_do_not_depend_on_transfer_components(module):
     # The package exposes all namespaces; implementation dependencies stay separate.
     forbidden = ("axonx.app.components.sync.local", "axonx.client")
@@ -395,7 +407,20 @@ def test_sync_archive_helpers_do_not_depend_on_transfer_components(module):
     assert not [target for target in imports(path) if target.startswith(forbidden)], path
 
 
-@pytest.mark.parametrize("first", ["axonx.client", "axonx.client.http", "axonx.app", "axonx.cli"])
+@pytest.mark.parametrize(
+    "first",
+    [
+        "axonx.client",
+        "axonx.client.http",
+        "axonx.app",
+        "axonx.app.components",
+        "axonx.app.config",
+        "axonx.app.core",
+        "axonx.app.steps",
+        "axonx.app.workspace",
+        "axonx.cli",
+    ],
+)
 def test_service_clients_import_independently_of_application_import_order(first):
     code = f"""
 import {first}

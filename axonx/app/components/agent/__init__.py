@@ -2,7 +2,15 @@
 
 base: Backend-neutral Agent component contract.
 claude: Claude Code Agent implementation and supporting modules.
-local_session_store: Workspace-local JSONL implementation of the Agent session store.
-models: Agent message blocks and session models.
-session_store: Backend-neutral persistence contract for Agent session transcripts.
+models: Agent presentation models and backend-neutral session storage records.
+session_store: Local JSONL transcripts, atomic summaries and per-session disk operations.
 """
+
+from . import base, claude, models, session_store
+
+__all__ = [
+    "base",
+    "claude",
+    "models",
+    "session_store",
+]

@@ -2,8 +2,17 @@
 
 application: Public application facade and composition-root lifecycle.
 banner: Startup banner with AxonX runtime metadata.
-composition: Compose one complete, isolated application runtime.
+composition: Assemble providers, inject dependencies, and order the application lifecycle.
 context: Application-scoped runtime state.
 dispatch: Validate, log, and route Job invocations.
-graph: Dependency graph for application-owned components.
 """
+
+from . import application, banner, composition, context, dispatch
+
+__all__ = [
+    "application",
+    "banner",
+    "composition",
+    "context",
+    "dispatch",
+]

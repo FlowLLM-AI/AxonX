@@ -1,30 +1,43 @@
-"""Execution contract shared by all Jobs."""
+"""Shared Job contract, argument validation, and invocation response handling."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Callable, Mapping
+from contextlib import aclosing
+from contextvars import ContextVar
 from copy import deepcopy
-from typing import Any, cast
+from typing import Any
 
 from jsonschema.exceptions import SchemaError
+from jsonschema.protocols import Validator
 from jsonschema.validators import validator_for
 
 from ....client.config import TARGET_ARGUMENT
-from ....client.events import JobEvent
+from ....client.events import JobEvent, ResultEvent
 from ....client.models import JobInfo, JobResponse
 from ..base import BaseComponent
-from ..models import ComponentType
-from .response import fold_events
 
 _RESPONSE_SCHEMA = JobResponse.model_json_schema()
 
+# None means no transport completion boundary; an empty list is an active boundary.
+RESPONSE_CALLBACKS: ContextVar[list[Callable[[], None]] | None] = ContextVar("response_callbacks", default=None)
 
-def _object_schema(schema: Mapping[str, Any] | None, *, label: str) -> tuple[dict[str, Any], Any]:
+
+async def fold_events(events: AsyncIterator[JobEvent]) -> JobResponse:
+    """Collect the first terminal response and close its source, including on cancellation."""
+    async with aclosing(events) as stream:
+        async for event in stream:
+            if isinstance(event, ResultEvent):
+                return event.response()
+    return JobResponse(answer="Stream produced no terminal result", success=False)
+
+
+def _object_validator(schema: Mapping[str, Any] | None, *, label: str) -> Validator:
     """Validate and compile one JSON object schema."""
     value: dict[str, Any] = deepcopy(dict(schema or {}))
     value.setdefault("type", "object")
-    validator_class = cast(Any, validator_for(value))
+    validator_class = validator_for(value)
     try:
         validator_class.check_schema(value)
     except SchemaError as exc:
@@ -32,13 +45,13 @@ def _object_schema(schema: Mapping[str, Any] | None, *, label: str) -> tuple[dic
     if value["type"] != "object":
         raise ValueError(f"{label} schema must describe an object")
     value.setdefault("properties", {})
-    return value, validator_class(value)
+    return validator_class(value)
 
 
 class BaseJob(BaseComponent, ABC):
     """Validate arguments and expose one canonical event-stream execution API."""
 
-    component_type = ComponentType.JOB
+    component_type = "job"
 
     def __init__(
         self,
@@ -55,21 +68,22 @@ class BaseJob(BaseComponent, ABC):
         self.enable_serve = enable_serve
         self.enable_stream = enable_stream
         self.requires_auth = requires_auth
-        self.parameters, self._argument_validator = _object_schema(parameters, label="Job parameters")
-        if TARGET_ARGUMENT in self.parameters["properties"]:
+        self._argument_validator = _object_validator(parameters, label="Job parameters")
+        properties = self._argument_validator.schema["properties"]
+        if TARGET_ARGUMENT in properties:
             raise ValueError(f"{TARGET_ARGUMENT!r} is reserved for transport targeting")
 
         injected = dict(self._injected_parameters())
-        conflicts = set(self.parameters["properties"]) & injected.keys()
+        conflicts = properties.keys() & injected.keys()
         if conflicts:
             names = ", ".join(sorted(conflicts))
             raise ValueError(f"Job parameters conflict with injected parameters: {names}")
         injected_schema = {
             "type": "object",
-            "properties": deepcopy(injected),
+            "properties": injected,
             "additionalProperties": False,
         }
-        self._injected_schema, self._injected_validator = _object_schema(
+        self._injected_validator = _object_validator(
             injected_schema,
             label="injected Job parameters",
         )
@@ -79,9 +93,14 @@ class BaseJob(BaseComponent, ABC):
         return {}
 
     @property
+    def parameters(self) -> dict[str, Any]:
+        """Return the public schema without exposing the compiled validator's state."""
+        return deepcopy(self._argument_validator.schema)
+
+    @property
     def injected_parameters(self) -> Mapping[str, Any]:
         """Return a defensive copy of system-owned parameter definitions."""
-        return deepcopy(self._injected_schema["properties"])
+        return deepcopy(self._injected_validator.schema["properties"])
 
     def is_public(self, *, authenticated: bool) -> bool:
         """Match the catalog and transport exposure policy for this service."""
@@ -89,7 +108,7 @@ class BaseJob(BaseComponent, ABC):
 
     def validate_arguments(self, arguments: Mapping[str, Any]) -> None:
         """Validate caller-owned business arguments."""
-        conflicts = set(arguments) & self._injected_schema["properties"].keys()
+        conflicts = arguments.keys() & self._injected_validator.schema["properties"].keys()
         if conflicts:
             names = ", ".join(sorted(conflicts))
             raise ValueError(f"System-owned arguments cannot be supplied by callers: {names}")
@@ -99,7 +118,7 @@ class BaseJob(BaseComponent, ABC):
         """Validate framework-owned invocation data."""
         self._raise_first_error(self._injected_validator, system, "system arguments")
 
-    def _raise_first_error(self, validator: Any, value: Mapping[str, Any], label: str) -> None:
+    def _raise_first_error(self, validator: Validator, value: Mapping[str, Any], label: str) -> None:
         error = next(validator.iter_errors(dict(value)), None)
         if error is None:
             return
@@ -114,7 +133,6 @@ class BaseJob(BaseComponent, ABC):
         system: Mapping[str, Any],
     ) -> AsyncIterator[JobEvent]:
         """Execute this Job as an event stream."""
-        raise NotImplementedError
 
     async def run(
         self,
@@ -130,6 +148,6 @@ class BaseJob(BaseComponent, ABC):
         return JobInfo(
             name=self.name,
             description=self.description,
-            input_schema=deepcopy(self.parameters),
+            input_schema=self.parameters,
             output_schema=deepcopy(_RESPONSE_SCHEMA),
         )

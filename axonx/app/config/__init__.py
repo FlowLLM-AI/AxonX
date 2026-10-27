@@ -1,6 +1,12 @@
-"""Application configuration discovery, loading and validation.
+"""Application configuration capabilities and their public module namespaces.
 
-defaults: Shared application defaults for models and runtime components.
-loader: ConfigLoader for file lookup, inheritance, environment expansion and overrides.
-models: Typed application, component, Job, target and Cron configuration.
+loader: File lookup, JSON/YAML loading, inheritance, environment expansion and overrides.
+models: Validated application, component, Job, target and Cron configuration and defaults.
 """
+
+from . import loader, models
+
+__all__ = [
+    "loader",
+    "models",
+]

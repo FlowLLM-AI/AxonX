@@ -14,7 +14,7 @@ from .....client.config import (
     PROTOCOL_ROUTE_MCP,
     PROTOCOL_ROUTE_UPLOAD,
 )
-from ...job.response import RESPONSE_CALLBACKS
+from ...job.base import RESPONSE_CALLBACKS
 
 _AUTH_ROOTS = frozenset(
     {

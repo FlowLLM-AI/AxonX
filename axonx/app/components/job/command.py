@@ -11,19 +11,42 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from ....client.config import (
-    AXONX_CLI_REQUEST_ID,
-    AXONX_SERVICE_TARGET,
-)
-from ....client.events import JobEvent
-from ....task.models.events import LogEvent
+from ....client.config import AXONX_CLI_REQUEST_ID, AXONX_SERVICE_TARGET
+from ....client.events import JobEvent, LogEvent
 from ....utils.async_work import complete_on_cancel
-from .response import RESPONSE_CALLBACKS
+from .base import RESPONSE_CALLBACKS
 
 if TYPE_CHECKING:
     from ...core.context import ApplicationContext
 
 OUTPUT_LIMIT = 1024 * 1024
+
+
+async def _read_output(
+    stream: asyncio.StreamReader,
+    channel: str,
+    emit: Callable[[JobEvent], Awaitable[None]],
+) -> tuple[str, bool]:
+    """Stream all output while retaining only a bounded prefix for the response."""
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+    buffer = bytearray()
+    truncated = False
+    while chunk := await stream.read(8192):
+        remaining = OUTPUT_LIMIT - len(buffer)
+        buffer.extend(chunk[:remaining])
+        truncated |= len(chunk) > remaining
+        if content := decoder.decode(chunk):
+            await emit(LogEvent(channel=channel, content=content))
+    if tail := decoder.decode(b"", final=True):
+        await emit(LogEvent(channel=channel, content=tail))
+    return buffer.decode(errors="replace"), truncated
+
+
+async def _reap_process(process: asyncio.subprocess.Process) -> None:
+    """Terminate the owned process group, including descendants, and reap its leader."""
+    with suppress(ProcessLookupError):
+        os.killpg(process.pid, signal.SIGKILL)
+    await process.wait()
 
 
 async def run_command(
@@ -53,9 +76,7 @@ async def run_command(
                 "AXONX_SERVICE_TOKEN": service.token or "",
             }
         )
-    callbacks = service.cli_callbacks if service is not None else {}
-    processes = service.cli_processes if service is not None else set()
-    callbacks[request_id] = RESPONSE_CALLBACKS.get()
+        service.cli_callbacks[request_id] = RESPONSE_CALLBACKS.get()
     spawn = asyncio.create_task(
         asyncio.create_subprocess_exec(
             *command,
@@ -68,52 +89,31 @@ async def run_command(
             start_new_session=True,
         )
     )
+    process = None
     try:
         process = await complete_on_cancel(spawn)
-    except BaseException:
-        callbacks.pop(request_id, None)
-        if not spawn.cancelled() and spawn.exception() is None:
-            process = spawn.result()
-            with suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
-            await complete_on_cancel(process.wait())
-        raise
-    processes.add(process.pid)
-    buffers = {"stdout": bytearray(), "stderr": bytearray()}
-    truncated = set()
-
-    async def read(channel, stream):
-        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
-        while chunk := await stream.read(8192):
-            remaining = OUTPUT_LIMIT - len(buffers[channel])
-            buffers[channel].extend(chunk[:remaining])
-            if len(chunk) > remaining:
-                truncated.add(channel)
-            await emit(LogEvent(channel=channel, content=decoder.decode(chunk)))
-        tail = decoder.decode(b"", final=True)
-        if tail:
-            await emit(LogEvent(channel=channel, content=tail))
-
-    try:
+        if service is not None:
+            service.cli_processes.add(process.pid)
         async with asyncio.TaskGroup() as group:
-            group.create_task(read("stdout", process.stdout))
-            group.create_task(read("stderr", process.stderr))
+            stdout = group.create_task(_read_output(process.stdout, "stdout", emit))
+            stderr = group.create_task(_read_output(process.stderr, "stderr", emit))
             await process.wait()
     finally:
-
-        async def cleanup():
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            await process.wait()
-            processes.discard(process.pid)
-            callbacks.pop(request_id, None)
-
-        await complete_on_cancel(cleanup())
+        try:
+            if not spawn.cancelled() and spawn.exception() is None:
+                process = spawn.result()
+                await complete_on_cancel(_reap_process(process))
+        finally:
+            if service is not None:
+                service.cli_callbacks.pop(request_id, None)
+                if process is not None:
+                    service.cli_processes.discard(process.pid)
+    stdout_text, stdout_truncated = stdout.result()
+    stderr_text, stderr_truncated = stderr.result()
     return process.returncode == 0, {
-        **{name: value.decode(errors="replace") for name, value in buffers.items()},
+        "stdout": stdout_text,
+        "stderr": stderr_text,
         "exit_code": process.returncode,
-        "stdout_truncated": "stdout" in truncated,
-        "stderr_truncated": "stderr" in truncated,
+        "stdout_truncated": stdout_truncated,
+        "stderr_truncated": stderr_truncated,
     }

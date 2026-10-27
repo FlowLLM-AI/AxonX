@@ -5,15 +5,13 @@ from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, ClassVar
 
 from ...client.events import JobEvent
-from ..components.base import BaseComponent, ComponentBase
-from ..components.models import ComponentType
+from ..components.base import BaseComponent, Component
 
 
-class BaseStep(ComponentBase, ABC):
+class BaseStep(Component, ABC):
     """Run one asynchronous operation against a per-job context."""
 
-    component_type = ComponentType.STEP
-    component_domains: ClassVar[tuple[ComponentType, ...]] = ()
+    component_type = "step"
 
     #: System-owned context fields this Step requires, by name and JSON schema.
     #: PipelineJob validates them separately, so they never enter the caller's
@@ -22,14 +20,13 @@ class BaseStep(ComponentBase, ABC):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._component_names = {domain: self.kwargs.pop(domain.value, "default") for domain in self.component_domains}
         self.context = None
         self._emit: Callable[[JobEvent], Awaitable[None]] | None = None
 
     def component[ComponentT: BaseComponent](self, base_cls: type[ComponentT]) -> ComponentT:
-        """Resolve a declared domain and verify its configured implementation."""
+        """Resolve a named component using its base type's category."""
         domain = base_cls.component_type
-        name = self._component_names[domain]
+        name = self.kwargs.get(domain, "default")
         try:
             component = self._require_context().components[domain][name]
         except KeyError as exc:

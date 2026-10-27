@@ -3,50 +3,34 @@
 from __future__ import annotations
 
 import asyncio
-from collections import defaultdict
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
+from weakref import WeakValueDictionary
 
 from .....client.events import AgentMessageEvent, JobEvent, ResultEvent
-from .....client.models import JobResponse
 from .....utils.async_work import complete_on_cancel
 from ...registry import provider
 from ..base import BaseAgentComponent
-from ..local_session_store import LocalAgentSessionStore
 from ..models import AgentSession, AgentSessionInfo
-from .projector import (
-    ClaudeMessageProjector,
-    history_blocks,
-)
-from .session_store import ClaudeSessionStoreAdapter
+from .projector import ClaudeMessageProjector
+from .session_store import ClaudeSessionStore
 from .tools import JobToolServer
 
 if TYPE_CHECKING:
     from claude_agent_sdk import (
         ClaudeAgentOptions,
         ClaudeSDKClient,
-        ResultMessage,
         SystemPromptPreset,
     )
-
-
-def _to_response(result: ResultMessage) -> JobResponse:
-    payload = asdict(result)
-    success = not result.is_error
-    fallback = result.result or "; ".join(result.errors or ())
-    answer = result.structured_output if success and result.structured_output is not None else fallback
-    return JobResponse(answer=answer, success=success, metadata=payload)
 
 
 @provider("claude")
 class ClaudeAgentComponent(BaseAgentComponent):
     """Expose Claude Code sessions without inventing a second session identity."""
-
-    SDK_PACKAGE = "claude-agent-sdk"
 
     def __init__(
         self,
@@ -61,11 +45,11 @@ class ClaudeAgentComponent(BaseAgentComponent):
         if isinstance(job_tools, str):
             raise TypeError("job_tools must be a sequence of Job names, not a string")
         self.options = dict(self.kwargs)
-        ClaudeAgentOptions(**self.options)
-        reserved = {"resume", "session_id", "continue_conversation", "session_store"}
+        reserved = {"resume", "session_id", "continue_conversation"}
         configured = sorted(reserved & self.options.keys())
         if configured:
             raise ValueError("Session lifecycle options are managed by AxonX: " + ", ".join(configured))
+        ClaudeAgentOptions(**self.options)
         self.job_tools = tuple(dict.fromkeys(job_tools))
         self.state_dir = state_dir
         store_config = dict(session_store or {})
@@ -76,9 +60,9 @@ class ClaudeAgentComponent(BaseAgentComponent):
         if store_config:
             raise ValueError("Unknown Agent session store options: " + ", ".join(sorted(store_config)))
         self._store_path = str(store_path)
-        self._sdk_store: ClaudeSessionStoreAdapter | None = None
+        self._sdk_store: ClaudeSessionStore | None = None
         self._job_tool_server: JobToolServer | None = None
-        self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._locks: WeakValueDictionary[str, asyncio.Lock] = WeakValueDictionary()
         self._active: dict[str, ClaudeSDKClient] = {}
 
     @property
@@ -90,18 +74,17 @@ class ClaudeAgentComponent(BaseAgentComponent):
         return self.workspace.locate(path, external=path.is_absolute())
 
     @property
+    def _environment(self) -> dict[str, str]:
+        return {**self.app_config.environment, **(self.options.get("env") or {})}
+
+    @property
     def config_dir(self) -> Path | None:
-        environment = {**self.subprocess_environment, **(self.options.get("env") or {})}
-        if not self.state_dir or "CLAUDE_CONFIG_DIR" in environment:
+        if not self.state_dir or "CLAUDE_CONFIG_DIR" in self._environment:
             return None
         return self.workspace.locate(Path(self.state_dir) / self.name)
 
     @property
-    def subprocess_environment(self) -> dict[str, str]:
-        return dict(self.app_config.environment)
-
-    @property
-    def sdk_store(self) -> ClaudeSessionStoreAdapter:
+    def sdk_store(self) -> ClaudeSessionStore:
         if self._sdk_store is None:
             raise RuntimeError("Agent session store is not started")
         return self._sdk_store
@@ -113,18 +96,34 @@ class ClaudeAgentComponent(BaseAgentComponent):
         self.cwd.mkdir(parents=True, exist_ok=True)
         if config_dir := self.config_dir:
             config_dir.mkdir(parents=True, exist_ok=True)
-        self._sdk_store = ClaudeSessionStoreAdapter(LocalAgentSessionStore(self.workspace.locate(self._store_path)))
-        self._job_tool_server = JobToolServer.resolve(self.job_tools, self.app_context)
-        self.logger.info(f"Agent backend ready: name={self.name} package={self.SDK_PACKAGE} " f"version={__version__}")
+        self._sdk_store = ClaudeSessionStore(self.workspace.locate(self._store_path))
+        if self.job_tools:
+            context = self._require_context()
+            self._job_tool_server = JobToolServer([context.jobs[name] for name in self.job_tools], context.dispatcher)
+        self.logger.info(f"Agent backend ready: name={self.name} package=claude-agent-sdk version={__version__}")
 
     async def _close(self) -> None:
-        clients = tuple(self._active.values())
-        if clients:
-            await asyncio.gather(*(client.interrupt() for client in clients), return_exceptions=True)
-            await asyncio.gather(*(client.disconnect() for client in clients), return_exceptions=True)
-        self._active.clear()
+        await asyncio.gather(
+            *(self._disconnect(session_id, interrupt=True) for session_id in tuple(self._active)),
+            return_exceptions=True,
+        )
 
-    def _system_prompt_with_guide(self) -> str | SystemPromptPreset:
+    def _lock(self, session_id: str) -> asyncio.Lock:
+        # A running turn or queued waiter keeps its lock alive; idle sessions retain no locks.
+        return self._locks.setdefault(session_id, asyncio.Lock())
+
+    async def _disconnect(self, session_id: str, *, interrupt: bool) -> None:
+        client = self._active.pop(session_id, None)
+        if client is None:
+            return
+        try:
+            if interrupt:
+                with suppress(Exception):
+                    await complete_on_cancel(client.interrupt())
+        finally:
+            await complete_on_cancel(client.disconnect())
+
+    def _system_prompt(self) -> str | SystemPromptPreset:
         prompt = self.options.get("system_prompt")
         if prompt is None:
             prompt = {"type": "preset", "preset": "claude_code"}
@@ -144,30 +143,20 @@ class ClaudeAgentComponent(BaseAgentComponent):
         from claude_agent_sdk import ClaudeAgentOptions
 
         options = dict(self.options)
-        if self.dev_guide:
-            options["system_prompt"] = self._system_prompt_with_guide()
+        if self.dev_guide or options.get("system_prompt") is not None:
+            options["system_prompt"] = self._system_prompt()
         options["cwd"] = str(self.cwd)
         options.setdefault("setting_sources", ["project"])
         options["include_partial_messages"] = True
         options["session_store"] = self.sdk_store
         options["session_id" if not resume else "resume"] = session_id
-        env = {**self.subprocess_environment, **(options.get("env") or {})}
+        env = self._environment
         if config_dir := self.config_dir:
             env.setdefault("CLAUDE_CONFIG_DIR", str(config_dir))
         options["env"] = env
         if self._job_tool_server is not None:
             self._job_tool_server.attach(options, depth)
         return ClaudeAgentOptions(**options)
-
-    async def _session_exists(self, session_id: str) -> bool:
-        from claude_agent_sdk import project_key_for_directory
-
-        return await self.sdk_store.store.exists(
-            {
-                "project_key": project_key_for_directory(self.cwd),
-                "session_id": session_id,
-            }
-        )
 
     # Async generators satisfy the base contract returning an AsyncIterator.
     async def reply_stream(  # pylint: disable=invalid-overridden-method
@@ -177,14 +166,14 @@ class ClaudeAgentComponent(BaseAgentComponent):
         session_id: str | None = None,
         depth: int = 0,
     ) -> AsyncIterator[JobEvent]:
-        from claude_agent_sdk import ClaudeSDKClient, ResultMessage
+        from claude_agent_sdk import ClaudeSDKClient
 
         if not message.strip():
             raise ValueError("Agent message must not be empty")
         resume = session_id is not None
-        current_session = session_id or str(uuid4())
+        current_session = str(uuid4()) if session_id is None else session_id
 
-        async with self._locks[current_session]:
+        async with self._lock(current_session):
             if resume:
                 await self._require_session(current_session)
             options = self._build_options(session_id=current_session, resume=resume, depth=depth)
@@ -192,9 +181,9 @@ class ClaudeAgentComponent(BaseAgentComponent):
             projector = ClaudeMessageProjector()
             sequence = 0
             result_seen = False
+            self._active[current_session] = client
             try:
                 await client.connect()
-                self._active[current_session] = client
                 yield AgentMessageEvent(
                     session_id=current_session,
                     type_name="SessionStart",
@@ -205,46 +194,16 @@ class ClaudeAgentComponent(BaseAgentComponent):
                 sequence += 1
                 await client.query(message, session_id=current_session)
                 async for sdk_message in client.receive_response():
-                    type_name = type(sdk_message).__name__
-                    event_session = getattr(sdk_message, "session_id", None) or current_session
-                    patches = projector.project(sdk_message)
-                    if isinstance(sdk_message, ResultMessage):
-                        patches.extend(
-                            projector.finish_open(
-                                cancelled=sdk_message.terminal_reason in {"aborted_streaming", "aborted_tools"}
-                            )
-                        )
-                    yield AgentMessageEvent(
-                        session_id=event_session,
-                        type_name=type_name,
-                        message_uuid=str(
-                            getattr(sdk_message, "uuid", None)
-                            or getattr(sdk_message, "message_id", None)
-                            or f"{event_session}:{sequence}"
-                        ),
-                        role={
-                            "UserMessage": "user",
-                            "AssistantMessage": "assistant",
-                            "StreamEvent": "assistant",
-                        }.get(type_name, "system"),
-                        sequence=sequence,
-                        presentation=patches,
-                    )
+                    events = projector.events(sdk_message, session_id=current_session, sequence=sequence)
+                    result_seen = isinstance(events[-1], ResultEvent)
+                    for event in events:
+                        yield event
                     sequence += 1
-                    if isinstance(sdk_message, ResultMessage):
-                        result_seen = True
-                        yield ResultEvent.from_response(_to_response(sdk_message))
+                    if result_seen:
                         return
             finally:
-                self._active.pop(current_session, None)
-                try:
-                    if not result_seen:
-                        with suppress(Exception):
-                            await complete_on_cancel(client.interrupt())
-                finally:
-                    await complete_on_cancel(client.disconnect())
-            if not result_seen:
-                raise RuntimeError("Claude SDK produced no ResultMessage")
+                await self._disconnect(current_session, interrupt=not result_seen)
+            raise RuntimeError("Claude SDK produced no ResultMessage")
 
     async def list_sessions(self, *, limit: int | None = None, offset: int = 0) -> list[AgentSessionInfo]:
         from claude_agent_sdk import list_sessions_from_store
@@ -270,7 +229,7 @@ class ClaudeAgentComponent(BaseAgentComponent):
         )
         return AgentSession(
             info=AgentSessionInfo(**asdict(info), backend=self.backend),
-            blocks=history_blocks(messages),
+            blocks=ClaudeMessageProjector.history(messages),
         )
 
     async def rename_session(self, session_id: str, title: str) -> None:
@@ -288,9 +247,10 @@ class ClaudeAgentComponent(BaseAgentComponent):
     async def delete_session(self, session_id: str) -> None:
         from claude_agent_sdk import delete_session_via_store
 
-        if self._locks[session_id].locked():
+        lock = self._lock(session_id)
+        if lock.locked():
             raise RuntimeError("Cannot delete a running Agent session")
-        async with self._locks[session_id]:
+        async with lock:
             await self._require_session(session_id)
             await delete_session_via_store(self.sdk_store, session_id, directory=str(self.cwd))
 
@@ -319,5 +279,9 @@ class ClaudeAgentComponent(BaseAgentComponent):
         await client.interrupt()
 
     async def _require_session(self, session_id: str) -> None:
-        if not await self._session_exists(session_id):
+        from claude_agent_sdk import project_key_for_directory
+
+        if not await self.sdk_store.exists(
+            {"project_key": project_key_for_directory(self.cwd), "session_id": session_id}
+        ):
             raise KeyError(f"Agent session not found: {session_id}")

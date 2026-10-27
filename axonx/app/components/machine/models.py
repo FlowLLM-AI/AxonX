@@ -1,46 +1,48 @@
 """Machine health, diagnostics and execution result models."""
 
-from __future__ import annotations
-
-from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-class BuildInfo(BaseModel):
-    """Version-control identity of the running AxonX build."""
+class _MachineModel(BaseModel):
+    """Shared payload validation and immutability policy."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class BuildInfo(_MachineModel):
+    """Version-control identity of the running AxonX build."""
+
     version: str = Field(min_length=1)
     git_commit: str | None = None
     git_branch: str | None = None
 
 
-class MachineModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+class CpuInfo(_MachineModel):
+    """Logical and physical core counts with sampled CPU utilization."""
 
-
-class CpuInfo(MachineModel):
     total_cores: int | None = Field(default=None, ge=1)
     physical_cores: int | None = Field(default=None, ge=1)
     usage_percent: float = Field(ge=0, le=100)
 
     @model_validator(mode="after")
-    def validate_core_counts(self) -> "CpuInfo":
+    def validate_core_counts(self) -> Self:
         if self.total_cores is not None and self.physical_cores is not None and self.physical_cores > self.total_cores:
             raise ValueError("physical_cores cannot exceed total_cores")
         return self
 
 
-class MemoryInfo(MachineModel):
+class MemoryInfo(_MachineModel):
+    """System memory; available memory can include reclaimable caches."""
+
     total_bytes: int = Field(ge=0)
     used_bytes: int = Field(ge=0)
     available_bytes: int = Field(ge=0)
     usage_percent: float = Field(ge=0, le=100)
 
     @model_validator(mode="after")
-    def validate_capacity(self) -> "MemoryInfo":
+    def validate_capacity(self) -> Self:
         if self.used_bytes > self.total_bytes:
             raise ValueError("used_bytes cannot exceed total_bytes")
         if self.available_bytes > self.total_bytes:
@@ -48,7 +50,9 @@ class MemoryInfo(MachineModel):
         return self
 
 
-class GpuInfo(MachineModel):
+class GpuInfo(_MachineModel):
+    """One vendor device; unavailable metrics remain None instead of zero."""
+
     vendor: Literal["nvidia", "amd"]
     index: int = Field(ge=0)
     uuid: str | None = None
@@ -60,7 +64,7 @@ class GpuInfo(MachineModel):
     usage_percent: float | None = Field(default=None, ge=0, le=100)
 
     @model_validator(mode="after")
-    def validate_memory_capacity(self) -> "GpuInfo":
+    def validate_memory_capacity(self) -> Self:
         if self.memory_total_bytes is None:
             return self
         if self.memory_used_bytes is not None and self.memory_used_bytes > self.memory_total_bytes:
@@ -70,45 +74,42 @@ class GpuInfo(MachineModel):
         return self
 
 
-class MachineInfo(MachineModel):
+class MachineInfo(_MachineModel):
+    """One resource snapshot and the identity of the running AxonX build."""
+
     axonx: BuildInfo
     cpu: CpuInfo
     memory: MemoryInfo
     gpus: list[GpuInfo] = Field(default_factory=list)
 
 
-class MachineHealth(MachineModel):
-    address: str = Field(min_length=1)
-    healthy: bool
+class PythonRuntimeInfo(_MachineModel):
+    """The interpreter serving machine operations."""
 
-
-class PythonOutput(MachineModel):
-    stdout: str = ""
-    stderr: str = ""
-    exit_code: int | None = 0
-    stdout_truncated: bool = False
-    stderr_truncated: bool = False
-
-
-class PythonRuntimeInfo(MachineModel):
     version: str
     executable: str
 
 
-class DiskInfo(MachineModel):
+class DiskInfo(_MachineModel):
+    """Disk capacity at the workspace's nearest existing ancestor."""
+
     path: str
     total_bytes: int = Field(ge=0)
     used_bytes: int = Field(ge=0)
     free_bytes: int = Field(ge=0)
 
 
-class WorkspaceDiagnostics(MachineModel):
+class WorkspaceDiagnostics(_MachineModel):
+    """Workspace existence and disk capacity without creating directories."""
+
     path: str
     exists: bool
     disk: DiskInfo
 
 
 class MachineDiagnostics(MachineInfo):
+    """A resource snapshot extended with runtime and configuration checks."""
+
     python: PythonRuntimeInfo
     platform: str
     cwd: str
@@ -117,9 +118,18 @@ class MachineDiagnostics(MachineInfo):
     service_auth_enabled: bool
 
 
-@dataclass(frozen=True)
-class GpuCollection:
-    """GPU devices plus non-fatal problems encountered while discovering them."""
+class MachineHealth(_MachineModel):
+    """Reachability of one configured target service."""
 
-    devices: tuple[GpuInfo, ...] = ()
-    warnings: tuple[str, ...] = ()
+    address: str = Field(min_length=1)
+    healthy: bool
+
+
+class PythonOutput(_MachineModel):
+    """Bounded child output; a timeout has no normal exit code."""
+
+    stdout: str = ""
+    stderr: str = ""
+    exit_code: int | None = 0
+    stdout_truncated: bool = False
+    stderr_truncated: bool = False

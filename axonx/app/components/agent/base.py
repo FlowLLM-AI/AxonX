@@ -9,15 +9,14 @@ from importlib.resources import files
 from ....client.events import JobEvent
 from ....client.models import JobResponse
 from ..base import BaseComponent
-from ..job.response import fold_events
-from ..models import ComponentType
+from ..job.base import fold_events
 from .models import AgentSession, AgentSessionInfo
 
 
 class BaseAgentComponent(BaseComponent, ABC):
     """Own Agent sessions and expose them through AxonX Job events."""
 
-    component_type = ComponentType.AGENT
+    component_type = "agent"
 
     def __init__(self, load_dev_guide: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)

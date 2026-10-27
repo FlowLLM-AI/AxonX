@@ -2,10 +2,10 @@
 
 from pathlib import Path
 
-from ...components.job.command import run_command
-from ...components.machine.build_info import get_build_info
-from ...components.registry import provider
-from ..base import BaseStep
+from ..components.job.command import run_command
+from ..components.machine.build_info import get_build_info
+from ..components.registry import provider
+from .base import BaseStep
 
 
 @provider("command_step")

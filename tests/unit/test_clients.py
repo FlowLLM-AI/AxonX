@@ -12,7 +12,7 @@ import pytest
 from fastmcp import Client as SDKClient
 from fastmcp import FastMCP
 
-from axonx.app.components.service.http.jobs import create_mcp_server
+from axonx.app.components.service.http.jobs import JobRoutes
 from axonx.app.core.application import Application
 from axonx.client.base import RemoteConnectionError, RemoteServiceError
 from axonx.client.config import (
@@ -356,7 +356,7 @@ async def test_mcp_client_calls_application_jobs_with_the_latest_sdk(tmp_path, m
         log_to_file=False,
         jobs={"get_config": {"steps": [{"backend": "get_config_step"}]}},
     )
-    server = create_mcp_server(app, app.context.jobs)
+    server = JobRoutes(app, authenticated=True).create_mcp_server()
     monkeypatch.setattr(
         "fastmcp.Client",
         lambda url, *, timeout, auth: SDKClient(server, timeout=timeout),

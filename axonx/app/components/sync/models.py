@@ -1,7 +1,18 @@
 """Internal replica plans and results owned by application synchronization."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
+from os import stat_result
 from pathlib import Path
+
+
+class SnapshotChangedError(OSError):
+    """A source changed while its display replica was being prepared."""
+
+
+class ReplicaBudgetError(ValueError):
+    """A replica cannot fit the transfer budget after sampling and omissions."""
+
 
 TAR_BLOCK_BYTES = 512
 TAR_PADDING_BYTES = 10_240
@@ -20,6 +31,14 @@ class TaskFile:
     modified_ns: int
     inode: int
 
+    @classmethod
+    def capture(cls, path: Path, relative: str) -> "TaskFile":
+        stat = path.stat()
+        return cls(path, relative, stat.st_size, stat.st_mtime_ns, stat.st_ino)
+
+    def matches(self, stat: stat_result) -> bool:
+        return (self.size, self.modified_ns, self.inode) == (stat.st_size, stat.st_mtime_ns, stat.st_ino)
+
     @property
     def archived_bytes(self) -> int:
         return archived_bytes(self.size)
@@ -33,9 +52,10 @@ class TaskPlan:
     size: int
     omitted: dict[str, str] = field(default_factory=dict)
 
-    @property
-    def empty(self) -> bool:
-        return not self.files
+    @classmethod
+    def capture(cls, directory: Path, names: Iterable[str], *, omitted: dict[str, str] | None = None) -> "TaskPlan":
+        files = tuple(TaskFile.capture(directory / name, name) for name in sorted(names))
+        return cls(files, sum(item.archived_bytes for item in files), dict(omitted or {}))
 
 
 @dataclass(slots=True)

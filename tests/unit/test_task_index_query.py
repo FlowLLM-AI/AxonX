@@ -6,16 +6,46 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from axonx.app.components.task_index.query import TaskGraphQuery, summarize_status, task_sort_key
+from axonx.app.components.task_index.query import TaskQuery, summarize_status, task_sort_key
 from axonx.app.components.task_index.stream import TaskEventStream
 from axonx.app.core.application import Application
 from axonx.task.models.events import LogEvent, ProgressEvent
 from axonx.task.models.identity import TaskState, task_type_from_id
 from axonx.task.models.lifecycle import DisplayReplica, ReplicaFile, ReplicaLog, TaskMetadata, TaskStepStatus
 from axonx.task.storage.logs import LOG_WINDOW_BYTES, TaskJournal, TaskLogReader
-from axonx.task.storage.workspace import EVENTS_FILE, task_path, write_task_metadata
+from axonx.task.storage.workspace import EVENTS_FILE, METADATA_FILE, task_path, write_task_metadata
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
+
+
+@pytest.fixture
+async def index(tmp_path):
+    app = Application(
+        workspace_dir=str(tmp_path),
+        log_dir=str(tmp_path / "logs"),
+        log_to_console=False,
+        log_to_file=False,
+        components={"task_index": {"default": {"backend": "local"}}},
+    )
+    async with app:
+        yield app.context.components["task_index"]["default"]
+
+
+async def test_index_isolates_subscriber_failures_without_dropping_notifications(tmp_path, index):
+    index.logger = Mock()
+    delivered = []
+
+    def broken(_changes):
+        raise ValueError("subscriber failed")
+
+    index.subscribe(broken)
+    index.subscribe(delivered.append)
+    status = record()
+    write_task_metadata(task_path(tmp_path, status.task_id), status)
+    await index._refresh()
+    assert delivered == [frozenset({status.task_id})]
+    index.logger.exception.assert_called_once()
+    assert status.task_id in await index.entries()
 
 
 def record(task_id="base#demo#query", *, upstream_ids=None, **changes):
@@ -37,31 +67,78 @@ def record(task_id="base#demo#query", *, upstream_ids=None, **changes):
     )
 
 
-@pytest.mark.asyncio
-async def test_index_refresh_updates_lineage_without_exposing_mutable_snapshots(tmp_path):
+async def test_index_refresh_updates_lineage_without_exposing_mutable_snapshots(tmp_path, index):
     status = record()
     write_task_metadata(task_path(tmp_path, status.task_id), status)
-    app = Application(
-        workspace_dir=str(tmp_path),
-        log_dir=str(tmp_path / "logs"),
-        log_to_console=False,
-        log_to_file=False,
-        components={"task_index": {"default": {"backend": "local"}}},
-    )
-    async with app:
-        index = app.context.components["task_index"]["default"]
-        assert len((await index.graph(status.task_id)).nodes) == 1
-        missing = "etl#fetch#missing"
-        status.input_params["upstream_task_ids"] = [missing]
+    await index._refresh()
+    assert len((await index.graph(status.task_id)).nodes) == 1
+    missing = "etl#fetch#missing"
+    status.input_params["upstream_task_ids"] = [missing]
+    write_task_metadata(task_path(tmp_path, status.task_id), status)
+    await index._refresh()
+    graph = await index.graph(status.task_id)
+    assert {node.task_id for node in graph.nodes} == {status.task_id, missing}
+    graph.nodes.clear()
+    assert len((await index.context(status.task_id)).graph.nodes) == 2
+    entries = await index.entries(state="succeeded")
+    entries[status.task_id].input_params.clear()
+    assert (await index.entries())[status.task_id].input_params["upstream_task_ids"] == [missing]
+
+
+@pytest.mark.parametrize("was_indexed", [False, True])
+async def test_context_uses_fresh_selected_dependencies_before_the_next_poll(tmp_path, index, was_indexed):
+    source = record("etl#fetch#source")
+    old_upstream = "etl#fetch#old"
+    status = record(upstream_ids=[old_upstream], state=TaskState.RUNNING)
+    write_task_metadata(task_path(tmp_path, source.task_id), source)
+    if was_indexed:
         write_task_metadata(task_path(tmp_path, status.task_id), status)
-        await index._refresh()
-        graph = await index.graph(status.task_id)
-        assert {node.task_id for node in graph.nodes} == {status.task_id, missing}
-        graph.nodes.clear()
-        assert len((await index.context(status.task_id)).graph.nodes) == 2
-        entries = await index.entries(state="succeeded")
-        entries[status.task_id].input_params.clear()
-        assert (await index.entries())[status.task_id].input_params["upstream_task_ids"] == [missing]
+    await index._refresh()
+    before = await index.entries()
+    delivered = []
+    index.subscribe(delivered.append)
+
+    status.state = TaskState.SUCCEEDED
+    status.input_params["upstream_task_ids"] = [source.task_id]
+    write_task_metadata(task_path(tmp_path, status.task_id), status)
+
+    context = await index.context(status.task_id)
+
+    assert context.status == status
+    assert {node.task_id for node in context.graph.nodes} == {source.task_id, status.task_id}
+    selected = next(node for node in context.graph.nodes if node.task_id == status.task_id)
+    assert selected.state == context.status.state
+    assert context.relations.direct_upstream == context.relations.all_upstream == [source.task_id]
+    assert context.relations.missing == context.relations.provisional == []
+    assert await index.entries() == before
+    assert not delivered
+    await index._refresh()
+    assert delivered == [frozenset({status.task_id})]
+    assert (await index.graph(status.task_id)) == context.graph
+
+
+async def test_index_notifies_once_per_change_and_unsubscribes_idempotently(tmp_path, index):
+    delivered = []
+    unsubscribe = index.subscribe(delivered.append)
+    status = record()
+    metadata = task_path(tmp_path, status.task_id) / METADATA_FILE
+    write_task_metadata(metadata.parent, status)
+    await index._refresh()
+    await index._refresh()
+    assert delivered == [frozenset({status.task_id})]
+
+    metadata.unlink()
+    await index._refresh()
+    assert delivered == [frozenset({status.task_id})] * 2
+    assert await index.entries() == {}
+    with pytest.raises(KeyError):
+        await index.graph(status.task_id)
+
+    unsubscribe()
+    unsubscribe()
+    write_task_metadata(metadata.parent, status)
+    await index._refresh()
+    assert delivered == [frozenset({status.task_id})] * 2
 
 
 async def collect(stream, task_id):
@@ -69,6 +146,37 @@ async def collect(stream, task_id):
         return [event async for event in stream.follow(task_id, 0.001)]
 
     return await asyncio.wait_for(drain(), timeout=2)
+
+
+@pytest.mark.parametrize(
+    ("filters", "expected"),
+    [
+        ({}, ["etl#fetch#source", "base#demo#running", "base#demo#query"]),
+        ({"task_type": "base"}, ["base#demo#running", "base#demo#query"]),
+        ({"state": "succeeded"}, ["etl#fetch#source", "base#demo#query"]),
+        ({"task_type": "base", "state": "running"}, ["base#demo#running"]),
+        ({"task_type": "etl", "state": "running"}, []),
+    ],
+)
+def test_record_and_summary_queries_share_filters_and_sorting(filters, expected):
+    statuses = [record(), record("base#demo#running", state=TaskState.RUNNING), record("etl#fetch#source")]
+    query = TaskQuery({status.task_id: status for status in statuses})
+
+    entries = sorted(query.entries(**filters).values(), key=task_sort_key, reverse=True)
+    summaries = query.summaries(**filters)
+
+    assert [item.task_id for item in entries] == [item.task_id for item in summaries] == expected
+    assert summaries == [summarize_status(item) for item in entries]
+
+
+def test_summary_queries_do_not_copy_task_outputs():
+    output = Mock()
+    output.__deepcopy__ = Mock(side_effect=AssertionError("Full outputs must not be copied for summaries"))
+    status = record(output_params={"large": output})
+    query = TaskQuery({status.task_id: status})
+
+    assert query.summaries() == [summarize_status(status)]
+    output.__deepcopy__.assert_not_called()
 
 
 def test_graph_and_context_include_missing_upstream_but_exclude_unrelated_tasks():
@@ -83,7 +191,7 @@ def test_graph_and_context_include_missing_upstream_but_exclude_unrelated_tasks(
     entries = {item.task_id: item for item in (unrelated, downstream, selected, right, left)}
     before = {task_id: item.model_dump_json() for task_id, item in entries.items()}
 
-    context = TaskGraphQuery(entries).context(selected)
+    context = TaskQuery(entries).context(selected)
 
     assert context.graph.root_id == missing
     assert context.graph.selected_id == selected.task_id
@@ -107,8 +215,8 @@ def test_graph_and_context_include_missing_upstream_but_exclude_unrelated_tasks(
 def test_cycles_and_self_references_have_stable_graphs_and_finite_all_upstream():
     first = record("base#demo#first", upstream_ids=["base#demo#first", "base#demo#second"])
     second = record("base#demo#second", upstream_ids=[first.task_id])
-    forward = TaskGraphQuery({item.task_id: item for item in (first, second)})
-    reverse = TaskGraphQuery({item.task_id: item for item in (second, first)})
+    forward = TaskQuery({item.task_id: item for item in (first, second)})
+    reverse = TaskQuery({item.task_id: item for item in (second, first)})
 
     context = forward.context(first)
 
@@ -122,12 +230,14 @@ def test_cycles_and_self_references_have_stable_graphs_and_finite_all_upstream()
 def test_mutating_one_graph_response_does_not_change_subsequent_queries():
     source = record("etl#fetch#source")
     selected = record(upstream_ids=[source.task_id])
-    query = TaskGraphQuery({item.task_id: item for item in (source, selected)})
+    query = TaskQuery({item.task_id: item for item in (source, selected)})
     original = query.graph(selected.task_id)
     changed = query.graph(selected.task_id)
     for node in changed.nodes:
         node.upstream_task_ids.clear()
         node.task_name = "changed"
+    context = query.context(selected)
+    context.status.input_params.clear()
 
     assert query.graph(selected.task_id) == original
     assert query.context(selected).relations.all_upstream == [source.task_id]
@@ -136,7 +246,7 @@ def test_mutating_one_graph_response_does_not_change_subsequent_queries():
 @pytest.mark.parametrize("upstream_ids", [None, {}, "invalid", ["base#demo#same", "base#demo#same"]])
 def test_invalid_upstream_ids_do_not_break_queries(upstream_ids):
     status = record(upstream_ids=upstream_ids)
-    context = TaskGraphQuery({status.task_id: status}).context(status)
+    context = TaskQuery({status.task_id: status}).context(status)
     assert context.graph.root_id == status.task_id
     assert context.graph.edges == context.relations.all_upstream == []
 
@@ -145,7 +255,7 @@ def test_invalid_upstream_ids_do_not_break_queries(upstream_ids):
 def test_graph_requires_a_persisted_selected_task(task_id):
     status = record(upstream_ids=["etl#fetch#missing"])
     with pytest.raises(KeyError, match=task_id):
-        TaskGraphQuery({status.task_id: status}).graph(task_id)
+        TaskQuery({status.task_id: status}).graph(task_id)
 
 
 def test_child_invocations_and_upstream_dependencies_are_independent():
@@ -159,7 +269,7 @@ def test_child_invocations_and_upstream_dependencies_are_independent():
             for item in (etl, train)
         ],
     )
-    query = TaskGraphQuery({item.task_id: item for item in (parent, etl, train)})
+    query = TaskQuery({item.task_id: item for item in (parent, etl, train)})
 
     parent_graph = query.graph(parent_id)
     assert [node.task_id for node in parent_graph.nodes] == [parent_id]

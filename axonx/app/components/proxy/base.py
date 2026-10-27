@@ -1,15 +1,13 @@
-"""Base contract shared by proxy component backends."""
+"""Proxy component contract, streaming response ownership, and forwarding errors."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import ClassVar
 
 from ....utils.async_work import complete_on_cancel
 from ..base import BaseComponent
-from ..models import ComponentType
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,38 +30,17 @@ class ProxyResponse:
 
 
 class ProxyError(Exception):
-    """A refusal a proxy backend reports to its caller as a status code.
+    """A forwarding failure with the status the HTTP surface should return."""
 
-    The backend knows *what* went wrong and the HTTP surface that mounted it
-    knows how to say so, so the status travels with the error instead of being
-    re-derived from the exception type at every route.
-    """
-
-    status_code: ClassVar[int] = 502
-
-
-class ProxyRequestError(ProxyError):
-    """The request cannot be forwarded as it was sent."""
-
-    status_code = 422
-
-
-class ProxyUpstreamError(ProxyError):
-    """The upstream could not be reached, or failed while answering."""
-
-    status_code = 502
-
-
-class ProxyUpstreamTimeoutError(ProxyUpstreamError):
-    """The upstream did not answer within the configured timeout."""
-
-    status_code = 504
+    def __init__(self, message: str, *, status_code: int = 502) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class BaseProxyComponent(BaseComponent, ABC):
     """Define the request-forwarding contract for proxy backends."""
 
-    component_type = ComponentType.PROXY
+    component_type = "proxy"
 
     @abstractmethod
     async def forward(

@@ -15,19 +15,13 @@ from ...client.config import (
     AXONX_DEFAULT_CONNECT_HOST,
     AXONX_DEFAULT_PORT,
     AXONX_DEFAULT_SCHEME,
+    PROTOCOL_ROUTE_MCP,
 )
-from ..config.defaults import AXONX_DEFAULT_BIND_HOST
+from ..components.machine.build_info import get_build_info, package_version
 
 if TYPE_CHECKING:
     from ..components.service.base import BaseService
     from ..config.models import ApplicationConfig
-
-
-def _version(package_name: str) -> str:
-    """Return one dependency's version for the banner, blank when it is absent."""
-    from ..components.machine.build_info import package_version
-
-    return package_version(package_name) or ""
 
 
 def _rgb(hue: float) -> tuple[int, int, int]:
@@ -35,11 +29,8 @@ def _rgb(hue: float) -> tuple[int, int, int]:
     return int(red * 255), int(green * 255), int(blue * 255)
 
 
-def print_logo(app_config: "ApplicationConfig", service: "BaseService") -> None:
+def print_logo(app_config: ApplicationConfig, service: BaseService) -> None:
     """Print the AxonX logo and effective service endpoints."""
-    from ...client.config import PROTOCOL_ROUTE_MCP
-    from ..components.machine.build_info import get_build_info
-
     ascii_art = (
         r" █████╗ ██╗  ██╗ ██████╗ ███╗   ██╗██╗  ██╗",
         r"██╔══██╗╚██╗██╔╝██╔═══██╗████╗  ██║╚██╗██╔╝",
@@ -57,19 +48,20 @@ def print_logo(app_config: "ApplicationConfig", service: "BaseService") -> None:
             logo.append(character, style=f"bold rgb({red},{green},{blue})")
         logo.append("\n")
 
-    host = getattr(service, "host", AXONX_DEFAULT_BIND_HOST)
+    host = getattr(service, "host", app_config.bind_host)
     port = getattr(service, "port", AXONX_DEFAULT_PORT)
-    display_host = AXONX_DEFAULT_CONNECT_HOST if host == AXONX_DEFAULT_BIND_HOST else host
+    display_host = AXONX_DEFAULT_CONNECT_HOST if host == "0.0.0.0" else host
+    display_host = f"[{display_host}]" if ":" in display_host else display_host
     url = f"{AXONX_DEFAULT_SCHEME}://{display_host}:{port}"
     info = Table.grid(padding=(0, 1))
     info.add_column(style="bold", justify="center")
     info.add_column(style="bold cyan")
     info.add_column(style="white")
-    info.add_row("📦", "Backend:", "http")
+    info.add_row("📦", "Backend:", service.backend)
     info.add_row("🔗", "URL:", url)
     info.add_row("🚌", "MCP:", f"{url}{PROTOCOL_ROUTE_MCP}")
-    info.add_row("📚", "FastAPI:", Text(_version("fastapi"), style="dim"))
-    info.add_row("📚", "FastMCP:", Text(_version("fastmcp"), style="dim"))
+    info.add_row("📚", "FastAPI:", Text(package_version("fastapi") or "", style="dim"))
+    info.add_row("📚", "FastMCP:", Text(package_version("fastmcp") or "", style="dim"))
     info.add_row("🚀", "AxonX:", Text(get_build_info().version, style="dim"))
 
     panel = Panel(

@@ -1,7 +1,9 @@
 """Workspace models remain usable directly and through JSON transports."""
 
 import json
+import os
 from pathlib import Path
+from time import time
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -130,6 +132,109 @@ async def test_staging_returns_models_and_cleans_up_incomplete_streams(tmp_path)
         "location": streamed.location,
         "size": 6,
     }
+
+
+@pytest.mark.parametrize("streamed", [False, True])
+@pytest.mark.parametrize("retention_days", [None, 1, 14])
+async def test_each_upload_expires_old_staging_files_and_preserves_recent_files(
+    tmp_path, monkeypatch, streamed, retention_days
+):
+    now = int(time())
+    monkeypatch.setattr("axonx.app.workspace.uploads.time", lambda: now)
+    cutoff = now - (7 if retention_days is None else retention_days) * 24 * 60 * 60
+    staging = tmp_path / "staging"
+    expired = staging / "batch" / "expired" / "old.txt"
+    partial = staging / ".interrupted.tmp"
+    boundary = staging / "boundary" / "keep.txt"
+    recent = staging / "recent" / "keep.txt"
+    outside = tmp_path / "keep.txt"
+    for path, modified in (
+        (expired, cutoff - 1),
+        (partial, cutoff - 1),
+        (boundary, cutoff),
+        (recent, cutoff + 1),
+        (outside, cutoff - 1),
+    ):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"existing")
+        os.utime(path, (modified, modified))
+    options = {} if retention_days is None else {"upload_retention_days": retention_days}
+    workspace = Workspace(tmp_path, copy_dir="staging", **options)
+    assert expired.exists() and partial.exists()
+
+    async def chunks():
+        yield b"new"
+
+    if streamed:
+        uploaded = await workspace.uploads.stage_stream(chunks(), "new.txt", directory="staging/incoming")
+    else:
+        uploaded = workspace.uploads.stage_bytes(b"new", "new.txt", directory="staging/incoming")
+
+    assert not expired.exists()
+    assert not expired.parent.parent.exists()
+    assert not partial.exists()
+    for path in (boundary, recent, outside):
+        assert path.read_bytes() == b"existing"
+    assert Path(uploaded.location).read_bytes() == b"new"
+
+
+@pytest.mark.parametrize("retention_days", [True, False, 0, -1, 1.5, "7", None])
+def test_upload_retention_requires_a_positive_integer(tmp_path, retention_days):
+    with pytest.raises(ValueError, match="retention_days must be a positive integer"):
+        Workspace(tmp_path, upload_retention_days=retention_days)
+
+
+def test_upload_cleanup_does_not_follow_symlinks(tmp_path):
+    workspace = Workspace(tmp_path / "workspace")
+    workspace.uploads.root.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    old = outside / "old.txt"
+    old.write_bytes(b"keep")
+    expired = time() - 7 * 24 * 60 * 60 - 60
+    os.utime(old, (expired, expired))
+    linked_file = workspace.uploads.root / "linked.txt"
+    linked_directory = workspace.uploads.root / "linked-directory"
+    linked_file.symlink_to(old)
+    linked_directory.symlink_to(outside, target_is_directory=True)
+
+    workspace.uploads.stage_bytes(b"new", "new.txt")
+
+    assert old.read_bytes() == b"keep"
+    assert linked_file.is_symlink()
+    assert linked_directory.is_symlink()
+
+
+@pytest.mark.parametrize("streamed", [False, True])
+async def test_upload_cleanup_continues_after_a_file_cannot_be_deleted(tmp_path, monkeypatch, streamed):
+    workspace = Workspace(tmp_path)
+    blocked = workspace.uploads.root / "blocked" / "old.txt"
+    removable = workspace.uploads.root / "removable" / "old.txt"
+    expired = time() - 7 * 24 * 60 * 60 - 60
+    for path in (blocked, removable):
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"old")
+        os.utime(path, (expired, expired))
+    unlink = Path.unlink
+
+    def fail_blocked(path, *args, **kwargs):
+        if path == blocked:
+            raise PermissionError("Cannot remove staged file")
+        return unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_blocked)
+
+    async def chunks():
+        yield b"new"
+
+    if streamed:
+        uploaded = await workspace.uploads.stage_stream(chunks(), "new.txt")
+    else:
+        uploaded = workspace.uploads.stage_bytes(b"new", "new.txt")
+
+    assert blocked.read_bytes() == b"old"
+    assert not removable.exists()
+    assert Path(uploaded.location).read_bytes() == b"new"
 
 
 def test_deletion_validates_the_selection_then_returns_typed_roots(tmp_path):

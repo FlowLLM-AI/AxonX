@@ -86,6 +86,7 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
     config = {
         "workspace_dir": str(workspace),
         "log_dir": str(tmp_path / "logs"),
+        "bind_host": "127.0.0.1",
         "log_to_console": False,
         "log_to_file": False,
         "enable_logo": False,
@@ -93,7 +94,6 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
         "jobs": {name: defaults["jobs"][name] for name in ("cli", "get_config", "status", "get_update_status")},
         "service": {
             "backend": "http",
-            "host": "127.0.0.1",
             "port": port,
             "token": "test-token",
             "web_enabled": False,

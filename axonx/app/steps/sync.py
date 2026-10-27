@@ -3,14 +3,12 @@
 import asyncio
 from contextlib import suppress
 
-from ....task.models.identity import validate_task_ids, validate_task_names
-from ....utils.async_work import run_blocking
-from ...components.models import ComponentType
-from ...components.registry import provider
-from ...components.sync.applier import TaskArchiveApplier
-from ...components.sync.base import BaseSyncComponent
-from ...components.sync.index import snapshot_index
-from ..base import BaseStep
+from ...task.models.identity import validate_task_ids, validate_task_names
+from ...utils.async_work import run_blocking
+from ..components.registry import provider
+from ..components.sync.applier import TaskArchiveApplier, snapshot_index
+from ..components.sync.base import BaseSyncComponent
+from .base import BaseStep
 
 
 @provider("sync_tasks_step")
@@ -41,8 +39,6 @@ class SyncTasksStep(BaseStep):
 @provider("sync_flush_step")
 class SyncFlushStep(BaseStep):
     """Run one bounded sync round; scheduling remains configuration policy."""
-
-    component_domains = (ComponentType.SYNC,)
 
     async def execute(self):
         self.response.answer = await self.component(BaseSyncComponent).flush()

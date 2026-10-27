@@ -1,5 +1,12 @@
 """Application update admission and status.
 
-base: Update operations supplied by the application host.
-manager: Application update admission and response-completion handoff.
+base: Component-facing update contract and synchronous host backend protocol.
+local: Local update admission and response-completion handoff to the host.
 """
+
+from . import base, local
+
+__all__ = [
+    "base",
+    "local",
+]

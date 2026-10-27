@@ -1,6 +1,7 @@
 """Stage raw binary or multipart file uploads through the same HTTP endpoint."""
 
 from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from anyio import CancelScope
 from fastapi import APIRouter, HTTPException
@@ -16,44 +17,54 @@ from .....client.config import (
 )
 from .....client.models import JobResponse, StagedFile
 from .....utils.logging import format_log_arguments
-from ....config.defaults import DEFAULT_TRANSFER_BUDGET_BYTES
 from ....workspace.uploads import UploadStore
+
+if TYPE_CHECKING:
+    from .service import HttpService
 
 # Allow a bounded amount of multipart framing in addition to the file byte limit.
 MULTIPART_OVERHEAD_BYTES = 64 * 1024
 UPLOAD_CHUNK_BYTES = 64 * 1024
 
 
-def create_files_router(service, uploads: UploadStore) -> APIRouter:
-    """Copy uploaded bytes into the workspace copy directory."""
-    router = APIRouter()
+class FileRoutes(APIRouter):
+    """Stage and discard uploads with one request budget and storage backend."""
 
-    @router.post(
-        PROTOCOL_ROUTE_UPLOAD,
-        openapi_extra={
-            "requestBody": {
-                "required": True,
-                "content": {
-                    "application/octet-stream": {"schema": {"type": "string", "format": "binary"}},
-                    "multipart/form-data": {
-                        "schema": {
-                            "type": "object",
-                            "required": ["file"],
-                            "properties": {
-                                "file": {"type": "string", "format": "binary"},
-                                "directory": {
-                                    "type": "string",
-                                    "description": "Staging directory under tmp.",
+    def __init__(self, service: "HttpService", uploads: UploadStore) -> None:
+        super().__init__()
+        self.service = service
+        self.uploads = uploads
+        self.limit = uploads.limit or service.app_config.transfer_budget_bytes
+        self.add_api_route(
+            PROTOCOL_ROUTE_UPLOAD,
+            self.copy_file,
+            methods=["POST"],
+            openapi_extra={
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/octet-stream": {"schema": {"type": "string", "format": "binary"}},
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["file"],
+                                "properties": {
+                                    "file": {"type": "string", "format": "binary"},
+                                    "directory": {
+                                        "type": "string",
+                                        "description": "Staging directory under tmp.",
+                                    },
                                 },
+                                "additionalProperties": False,
                             },
-                            "additionalProperties": False,
                         },
                     },
                 },
             },
-        },
-    )
-    async def copy_file(request: Request):
+        )
+        self.add_api_route(PROTOCOL_ROUTE_UPLOAD, self.discard_file, methods=["DELETE"])
+
+    async def copy_file(self, request: Request) -> JobResponse:
         """Upload one file; headers override multipart filename and directory."""
         filename = request.headers.get(PROTOCOL_FILE_NAME_HEADER, "")
         directory = request.headers.get(PROTOCOL_FILE_DIRECTORY_HEADER, "").strip() or None
@@ -64,32 +75,60 @@ def create_files_router(service, uploads: UploadStore) -> APIRouter:
                 "content_length": request.headers.get("content-length", ""),
             },
         )
-        service.logger.info(f"File endpoint called: name=copy_file arguments={arguments}")
+        self.service.logger.info(f"File endpoint called: name=copy_file arguments={arguments}")
         content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
         multipart = content_type == "multipart/form-data"
-        body_limit = (uploads.limit or DEFAULT_TRANSFER_BUDGET_BYTES) + (MULTIPART_OVERHEAD_BYTES if multipart else 0)
+        body_limit = self.limit + (MULTIPART_OVERHEAD_BYTES if multipart else 0)
         _check_upload_size(request, body_limit)
         try:
             if multipart:
-                copied = await _copy_multipart(uploads, request, filename, directory)
+                copied = await self._copy_multipart(request, filename, directory)
             else:
-                copied = await uploads.stage_stream(_request_chunks(request, body_limit), filename, directory)
+                copied = await self.uploads.stage_stream(_request_chunks(request, body_limit), filename, directory)
         except FileExistsError as exc:
             raise HTTPException(409, str(exc)) from exc
         except (TypeError, ValueError) as exc:
             raise HTTPException(422, str(exc)) from exc
         return JobResponse(answer=copied)
 
-    @router.delete(PROTOCOL_ROUTE_UPLOAD)
-    async def discard_file(path: str):
+    async def discard_file(self, path: str) -> JobResponse:
         """Discard one staged upload; repeated cleanup is intentionally harmless."""
         try:
-            discarded = uploads.discard(path)
+            discarded = self.uploads.discard(path)
         except (TypeError, ValueError) as exc:
             raise HTTPException(422, str(exc)) from exc
         return JobResponse(answer={"path": discarded})
 
-    return router
+    async def _copy_multipart(self, request: Request, filename: str, directory: str | None) -> StagedFile:
+        """Parse one file and optional directory, then reuse workspace staging."""
+        try:
+            form = await _UploadParser(request, self.limit).parse()
+        except (MultiPartException, MultipartParseError) as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+        try:
+            upload = form.get("file")
+            if not isinstance(upload, UploadFile):
+                raise HTTPException(422, "Multipart upload requires one file field named 'file'")
+            if len(form.multi_items()) != len(form):
+                raise HTTPException(422, "Duplicate multipart fields are not supported")
+            if any(key not in {"file", "directory"} for key in form):
+                raise HTTPException(422, "Only 'file' and 'directory' multipart fields are supported")
+            form_directory = form.get("directory", "")
+
+            async def chunks() -> AsyncIterator[bytes]:
+                while chunk := await upload.read(UPLOAD_CHUNK_BYTES):
+                    yield chunk
+
+            return await self.uploads.stage_stream(
+                chunks(),
+                filename or upload.filename or "",
+                directory or form_directory.strip() or None,
+            )
+        finally:
+            # Rolled spools close in a worker thread, so cleanup must survive cancellation.
+            with CancelScope(shield=True):
+                await form.close()
 
 
 def _check_upload_size(request: Request, limit: int) -> None:
@@ -156,35 +195,3 @@ class _UploadParser(MultiPartParser):
             for temporary in self._files_to_close_on_error:
                 temporary.close()
             raise
-
-
-async def _copy_multipart(uploads: UploadStore, request: Request, filename: str, directory: str | None) -> StagedFile:
-    """Parse one file and optional directory, then reuse content-addressed storage."""
-    try:
-        form = await _UploadParser(request, (uploads.limit or DEFAULT_TRANSFER_BUDGET_BYTES)).parse()
-    except (MultiPartException, MultipartParseError) as exc:
-        raise HTTPException(400, str(exc)) from exc
-
-    try:
-        upload = form.get("file")
-        if not isinstance(upload, UploadFile):
-            raise HTTPException(422, "Multipart upload requires one file field named 'file'")
-        if len(form.multi_items()) != len(form):
-            raise HTTPException(422, "Duplicate multipart fields are not supported")
-        if any(key not in {"file", "directory"} for key in form):
-            raise HTTPException(422, "Only 'file' and 'directory' multipart fields are supported")
-        form_directory = form.get("directory", "")
-
-        async def chunks() -> AsyncIterator[bytes]:
-            while chunk := await upload.read(UPLOAD_CHUNK_BYTES):
-                yield chunk
-
-        return await uploads.stage_stream(
-            chunks(),
-            filename or upload.filename or "",
-            directory or form_directory.strip() or None,
-        )
-    finally:
-        # Rolled spools close in a worker thread, so cleanup must survive cancellation.
-        with CancelScope(shield=True):
-            await form.close()

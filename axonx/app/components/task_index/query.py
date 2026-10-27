@@ -1,8 +1,9 @@
-"""Bounded Task summaries and lineage/context projections from indexed metadata."""
+"""Snapshot queries: filtering, bounded summaries, lineage and Task context."""
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping
+from collections.abc import Iterator
+from functools import cached_property
 
 from ....task.models.identity import TaskState, TaskType, task_type_from_id, validate_upstream_task_ids
 from ....task.models.lifecycle import TaskMetadata, TaskStatus
@@ -52,26 +53,70 @@ def summarize_status(status: TaskMetadata) -> TaskSummary:
 _KIND_ORDER = {kind: index for index, kind in enumerate(TaskType)}
 
 
-class TaskGraphQuery:
-    """Share lineage nodes and adjacency indexes across graph and context queries."""
+class TaskQuery:
+    """Query one metadata snapshot; build lineage only when it is requested.
 
-    def __init__(self, entries: Mapping[str, TaskMetadata]) -> None:
-        self._nodes = {task_id: _node(task_id, entry) for task_id, entry in entries.items()}
-        for node in tuple(self._nodes.values()):
+    Records are owned by the index and stay unchanged for this snapshot's lifetime.
+    Public query results are isolated from the cached records and graph nodes.
+    """
+
+    def __init__(self, records: dict[str, TaskMetadata]) -> None:
+        self.records = records
+
+    def _matching(self, task_type: str | None, state: str | None) -> Iterator[TaskMetadata]:
+        return (
+            metadata
+            for metadata in self.records.values()
+            if (task_type is None or metadata.task_type == task_type) and (state is None or metadata.state == state)
+        )
+
+    def entries(self, *, task_type: str | None = None, state: str | None = None) -> dict[str, TaskMetadata]:
+        """Return independent metadata records matching both filters."""
+        return {metadata.task_id: metadata.model_copy(deep=True) for metadata in self._matching(task_type, state)}
+
+    def summaries(self, *, task_type: str | None = None, state: str | None = None) -> list[TaskSummary]:
+        """Return bounded summaries, newest first, without copying full outputs."""
+        return [
+            summarize_status(metadata)
+            for metadata in sorted(self._matching(task_type, state), key=task_sort_key, reverse=True)
+        ]
+
+    @cached_property
+    def _nodes(self) -> dict[str, TaskGraphNode]:
+        nodes = {task_id: _node(task_id, entry) for task_id, entry in self.records.items()}
+        for node in tuple(nodes.values()):
             for upstream_id in node.upstream_task_ids:
-                if upstream_id not in self._nodes:
-                    self._nodes[upstream_id] = _node(upstream_id, None)
-        self._upstream = {task_id: node.upstream_task_ids for task_id, node in self._nodes.items()}
-        self._downstream: dict[str, set[str]] = {task_id: set() for task_id in self._nodes}
-        for task_id, upstream_ids in self._upstream.items():
-            for upstream_id in upstream_ids:
-                self._downstream[upstream_id].add(task_id)
+                if upstream_id not in nodes:
+                    nodes[upstream_id] = _node(upstream_id, None)
+        return nodes
+
+    @cached_property
+    def _downstream(self) -> dict[str, set[str]]:
+        downstream: dict[str, set[str]] = {task_id: set() for task_id in self._nodes}
+        for task_id, node in self._nodes.items():
+            for upstream_id in node.upstream_task_ids:
+                downstream[upstream_id].add(task_id)
+        return downstream
+
+    def _reachable(self, task_id: str, *, include_downstream: bool = False) -> set[str]:
+        """Walk dependencies safely, including cycles and missing upstream nodes."""
+        visited: set[str] = set()
+        pending = [task_id]
+        while pending:
+            current = pending.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+            pending.extend(self._nodes[current].upstream_task_ids)
+            if include_downstream:
+                pending.extend(self._downstream[current])
+        return visited
 
     def graph(self, task_id: str) -> TaskGraph:
         """Return the connected component of an existing Task, including missing upstream Tasks."""
         if task_id not in self._nodes or self._nodes[task_id].missing:
             raise KeyError(task_id)
-        members = [self._nodes[item] for item in _reachable(task_id, self._upstream, self._downstream)]
+        members = [self._nodes[item] for item in self._reachable(task_id, include_downstream=True)]
         roots = [node for node in members if not node.upstream_task_ids] or members
         return TaskGraph(
             root_id=min(roots, key=lambda node: (node.created_at or "", node.task_id)).task_id,
@@ -91,17 +136,19 @@ class TaskGraphQuery:
         )
 
     def context(self, status: TaskMetadata) -> TaskContextSnapshot:
-        """Combine fresh status with the indexed graph and its upstream relationships."""
+        """Overlay fresh selected metadata while keeping other Tasks at the indexed snapshot."""
         task_id = status.task_id
+        if self._nodes.get(task_id) != _node(task_id, status):
+            return TaskQuery(self.records | {task_id: status}).context(status)
         graph = self.graph(task_id)
         return TaskContextSnapshot(
             task_id=task_id,
-            status=status,
+            status=status.model_copy(deep=True),
             metadata_path=f"{task_directory(task_id)}/{METADATA_FILE}",
             graph=graph,
             relations=TaskRelations(
-                direct_upstream=sorted(self._upstream[task_id]),
-                all_upstream=sorted(_reachable(task_id, self._upstream) - {task_id}),
+                direct_upstream=sorted(self._nodes[task_id].upstream_task_ids),
+                all_upstream=sorted(self._reachable(task_id) - {task_id}),
                 direct_downstream=sorted(self._downstream[task_id]),
                 missing=sorted(node.task_id for node in graph.nodes if node.missing),
                 provisional=sorted(node.task_id for node in graph.nodes if node.provisional),
@@ -124,17 +171,3 @@ def _node(task_id: str, entry: TaskMetadata | None) -> TaskGraphNode:
         missing=entry is None,
         provisional=entry is not None and entry.state != TaskState.SUCCEEDED,
     )
-
-
-def _reachable(task_id: str, *relations: Mapping[str, Collection[str]]) -> set[str]:
-    """Walk any combination of directed relationships, including cycles and missing nodes."""
-    visited: set[str] = set()
-    pending = [task_id]
-    while pending:
-        current = pending.pop()
-        if current in visited:
-            continue
-        visited.add(current)
-        for links in relations:
-            pending.extend(links.get(current, ()))
-    return visited

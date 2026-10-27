@@ -1,24 +1,60 @@
-"""Project Claude SDK messages into stable, UI-oriented block patches."""
+"""Translate Claude messages, results and history into public Agent events and blocks."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Mapping
+from collections.abc import Mapping
+from dataclasses import asdict
+from typing import TYPE_CHECKING, Any, Literal
 
-from .....client.events import AgentBlockPatch
+from .....client.events import AgentBlockPatch, AgentBlockType, AgentMessageEvent, ResultEvent
+from ..models import AgentHistoryBlock
 
 if TYPE_CHECKING:
-    from claude_agent_sdk import ContentBlock, SessionMessage
+    from claude_agent_sdk import SessionMessage
 
 
 class ClaudeMessageProjector:
-    """Stateful projection for one streamed Claude turn."""
+    """Own SDK-to-public conversion and reconcile partial and complete content."""
 
     def __init__(self) -> None:
-        self._blocks: dict[str, dict[str, Any]] = {}
+        self._blocks: dict[str, AgentHistoryBlock] = {}
         self._indices: dict[int, str] = {}
 
+    def events(self, message: Any, *, session_id: str, sequence: int) -> list[AgentMessageEvent | ResultEvent]:
+        """Preserve one message event per SDK message, followed by its final result."""
+        from claude_agent_sdk import ResultMessage
+
+        session_id = getattr(message, "session_id", None) or session_id
+        type_name = type(message).__name__
+        patches = self.project(message)
+        if isinstance(message, ResultMessage):
+            patches.extend(
+                self.finish_open(cancelled=message.terminal_reason in {"aborted_streaming", "aborted_tools"})
+            )
+        events: list[AgentMessageEvent | ResultEvent] = [
+            AgentMessageEvent(
+                session_id=session_id,
+                type_name=type_name,
+                message_uuid=str(
+                    getattr(message, "uuid", None) or getattr(message, "message_id", None) or f"{session_id}:{sequence}"
+                ),
+                role={"UserMessage": "user", "AssistantMessage": "assistant", "StreamEvent": "assistant"}.get(
+                    type_name, "system"
+                ),
+                sequence=sequence,
+                presentation=patches,
+            )
+        ]
+        if isinstance(message, ResultMessage):
+            success = not message.is_error
+            answer = message.result or "; ".join(message.errors or ())
+            if success and message.structured_output is not None:
+                answer = message.structured_output
+            events.append(ResultEvent(answer=answer, success=success, metadata=asdict(message)))
+        return events
+
     @staticmethod
-    def _kind(block: Mapping[str, Any]) -> str | None:
+    def _kind(block: Mapping[str, Any]) -> AgentBlockType | None:
         return {
             "text": "text",
             "thinking": "thinking",
@@ -26,14 +62,58 @@ class ClaudeMessageProjector:
             "server_tool_use": "tool",
         }.get(block.get("type"))
 
-    def _start(self, block_id: str, kind: str, *, payload: dict[str, Any] | None = None) -> AgentBlockPatch:
-        self._blocks[block_id] = {"kind": kind, "text": "", "finished": False}
-        return AgentBlockPatch(operation="start", block_id=block_id, block_type=kind, payload=payload or {})
+    def _patch(
+        self,
+        block_id: str,
+        operation: Literal["start", "append", "replace", "finish"],
+        *,
+        delta: str = "",
+        payload: dict[str, Any] | None = None,
+    ) -> AgentBlockPatch:
+        patch = AgentBlockPatch(
+            operation=operation,
+            block_id=block_id,
+            block_type=self._blocks[block_id].block_type,
+            delta=delta,
+            payload=payload or {},
+        )
+        block = self._blocks[block_id]
+        details = dict(patch.payload)
+        text = details.pop("text", None)
+        status = details.pop("status", None)
+        if operation == "append":
+            block.text += delta
+        elif operation == "replace" and isinstance(text, str):
+            block.text = text
+        if isinstance(status, str):
+            block.status = status
+        elif operation == "finish":
+            block.status = "completed"
+        block.payload.update(details)
+        return patch
 
-    def _finish(self, block_id: str, **payload: Any) -> AgentBlockPatch:
-        state = self._blocks[block_id]
-        state["finished"] = True
-        return AgentBlockPatch(operation="finish", block_id=block_id, block_type=state["kind"], payload=payload)
+    def _start(
+        self,
+        block_id: str,
+        kind: AgentBlockType,
+        message_uuid: str,
+        *,
+        role: Literal["user", "assistant", "system"] = "assistant",
+        payload: dict[str, Any] | None = None,
+    ) -> AgentBlockPatch:
+        self._blocks[block_id] = AgentHistoryBlock(
+            block_id=block_id,
+            block_type=kind,
+            message_uuid=message_uuid,
+            role=role,
+            status="running",
+            text="",
+        )
+        return self._patch(block_id, "start", payload=payload)
+
+    @staticmethod
+    def _tool_input(raw: Mapping[str, Any]) -> dict[str, Any]:
+        return {"name": raw.get("name"), "input": raw.get("input") or {}}
 
     def project(self, message: Any) -> list[AgentBlockPatch]:
         from claude_agent_sdk import AssistantMessage, StreamEvent, UserMessage
@@ -41,11 +121,15 @@ class ClaudeMessageProjector:
         if isinstance(message, StreamEvent):
             return self._stream(message.uuid, message.event)
         if isinstance(message, AssistantMessage):
-            patches = self._assistant(message.uuid or message.message_id or "assistant", message.content)
+            patches = self._content(
+                message.uuid or message.message_id or "assistant",
+                message.content,
+            )
             self._indices.clear()
             return patches
         if isinstance(message, UserMessage) and isinstance(message.content, list):
-            return self._tool_results(message.content)
+            # The caller already displays the user's prompt; only tool results need replaying.
+            return self._content(message.uuid or "user", message.content, role="user", results_only=True)
         return []
 
     def _stream(self, message_uuid: str, event: Mapping[str, Any]) -> list[AgentBlockPatch]:
@@ -56,226 +140,118 @@ class ClaudeMessageProjector:
         if not isinstance(index, int):
             return []
         if event_type == "content_block_start":
-            return self._stream_start(message_uuid, index, event)
+            return self._stream_start(message_uuid, index, event["content_block"])
         block_id = self._indices.get(index)
         if block_id is None:
             return []
         if event_type == "content_block_delta":
-            return self._stream_delta(block_id, event)
+            return self._stream_delta(block_id, event["delta"])
         if event_type == "content_block_stop":
-            return self._stream_stop(block_id)
+            tool = self._blocks[block_id].block_type == "tool"
+            return [
+                self._patch(block_id, "replace" if tool else "finish", payload={"status": "running"} if tool else None)
+            ]
         return []
 
-    def _stream_start(self, message_uuid: str, index: int, event: Mapping[str, Any]) -> list[AgentBlockPatch]:
-        block = event["content_block"]
-        kind = self._kind(block)
+    def _stream_start(self, message_uuid: str, index: int, raw: Mapping[str, Any]) -> list[AgentBlockPatch]:
+        kind = self._kind(raw)
         if kind is None:
             return []
-        tool_id = block.get("id") if kind == "tool" else None
-        block_id = str(tool_id or f"{message_uuid}:{index}")
+        block_id = str(raw.get("id") or f"{message_uuid}:{index}") if kind == "tool" else f"{message_uuid}:{index}"
         self._indices[index] = block_id
-        payload = (
-            {
-                "tool_use_id": tool_id,
-                "name": block.get("name"),
-                "input": block.get("input") or {},
-                "input_text": "",
-                "result": None,
-                "is_error": False,
-                "status": "building_input",
-            }
-            if kind == "tool"
-            else {}
-        )
-        patches = [self._start(block_id, kind, payload=payload)]
-        text = block.get(kind, "") if kind != "tool" else ""
+        payload = {**self._tool_input(raw), "status": "building_input"} if kind == "tool" else None
+        patches = [self._start(block_id, kind, message_uuid, payload=payload)]
+        text = raw.get(kind, "") if kind != "tool" else ""
         if text:
-            self._blocks[block_id]["text"] = text
-            patches.append(AgentBlockPatch(operation="append", block_id=block_id, block_type=kind, delta=text))
+            patches.append(self._patch(block_id, "append", delta=text))
         return patches
 
-    def _stream_delta(self, block_id: str, event: Mapping[str, Any]) -> list[AgentBlockPatch]:
-        state = self._blocks[block_id]
-        delta = event["delta"]
-        delta_type = delta.get("type")
-        text = ""
-        payload: dict[str, Any] = {}
-        if delta_type == "text_delta":
-            text = str(delta.get("text") or "")
-        elif delta_type == "thinking_delta":
-            text = str(delta.get("thinking") or "")
-        elif delta_type == "input_json_delta":
-            text = str(delta.get("partial_json") or "")
-            payload = {"input_text_delta": text}
-        else:
-            return []
-        state["text"] += text
-        return [
-            AgentBlockPatch(
-                operation="append",
-                block_id=block_id,
-                block_type=state["kind"],
-                delta=text,
-                payload=payload,
-            )
-        ]
-
-    def _stream_stop(self, block_id: str) -> list[AgentBlockPatch]:
-        state = self._blocks[block_id]
-        if state["kind"] == "tool":
-            return [
-                AgentBlockPatch(
-                    operation="replace",
-                    block_id=block_id,
-                    block_type="tool",
-                    payload={"status": "running"},
-                )
-            ]
-        return [self._finish(block_id)]
-
-    def _assistant(self, message_uuid: str, content: list[ContentBlock]) -> list[AgentBlockPatch]:
-        from claude_agent_sdk import (
-            ServerToolResultBlock,
-            ServerToolUseBlock,
-            TextBlock,
-            ThinkingBlock,
-            ToolResultBlock,
-            ToolUseBlock,
+    def _stream_delta(self, block_id: str, delta: Mapping[str, Any]) -> list[AgentBlockPatch]:
+        field = {"text_delta": "text", "thinking_delta": "thinking", "input_json_delta": "partial_json"}.get(
+            delta.get("type")
         )
+        if field is None:
+            return []
+        text = str(delta.get(field) or "")
+        return [self._patch(block_id, "append", delta=text)]
 
+    def _content(
+        self,
+        message_uuid: str,
+        content: list[Any],
+        *,
+        role: Literal["user", "assistant", "system"] = "assistant",
+        results_only: bool = False,
+    ) -> list[AgentBlockPatch]:
         patches: list[AgentBlockPatch] = []
-        for index, block in enumerate(content):
-            if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                patches.extend(self._tool_results([block]))
-                continue
-            if isinstance(block, (ToolUseBlock, ServerToolUseBlock)):
-                kind, complete = "tool", ""
-                block_id = block.id
-                payload = {"tool_use_id": block.id, "name": block.name, "input": block.input, "status": "running"}
-            elif isinstance(block, (TextBlock, ThinkingBlock)):
-                kind = "text" if isinstance(block, TextBlock) else "thinking"
-                complete = block.text if isinstance(block, TextBlock) else block.thinking
-                block_id = self._indices.get(index) or f"{message_uuid}:{index}"
-                payload = {}
-            else:
-                continue
-            if block_id not in self._blocks:
-                patches.append(self._start(block_id, kind, payload=payload))
-            elif kind == "tool":
+        for index, raw in enumerate(content):
+            if not isinstance(raw, Mapping):
+                kind = {
+                    "TextBlock": "text",
+                    "ThinkingBlock": "thinking",
+                    "ToolUseBlock": "tool_use",
+                    "ServerToolUseBlock": "server_tool_use",
+                    "ToolResultBlock": "tool_result",
+                    "ServerToolResultBlock": "server_tool_result",
+                }.get(type(raw).__name__)
+                if kind is None:
+                    continue
+                raw = {"type": kind, **asdict(raw)}
+            if raw.get("type") in {"tool_result", "server_tool_result"}:
+                block_id = str(raw.get("tool_use_id"))
+                if block_id not in self._blocks:
+                    patches.append(self._start(block_id, "tool", message_uuid, role=role))
+                is_error = bool(raw.get("is_error"))
                 patches.append(
-                    AgentBlockPatch(
-                        operation="replace",
-                        block_id=block_id,
-                        block_type="tool",
-                        payload={"name": block.name, "input": block.input, "text": ""},
+                    self._patch(
+                        block_id,
+                        "finish",
+                        payload={
+                            "result": raw.get("content"),
+                            "status": "failed" if is_error else "succeeded",
+                        },
                     )
                 )
-            state = self._blocks[block_id]
-            if kind == "tool":
-                state["text"] = ""
-            if kind in {"text", "thinking"} and complete != state["text"]:
-                state["text"] = complete
-                patches.append(
-                    AgentBlockPatch(
-                        operation="replace",
-                        block_id=block_id,
-                        block_type=kind,
-                        payload={"text": complete},
-                    )
-                )
-            if kind in {"text", "thinking"} and not state["finished"]:
-                patches.append(self._finish(block_id))
-        return patches
-
-    def _tool_results(self, content: list[ContentBlock]) -> list[AgentBlockPatch]:
-        from claude_agent_sdk import ServerToolResultBlock, ToolResultBlock
-
-        patches: list[AgentBlockPatch] = []
-        for block in content:
-            if not isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
                 continue
-            block_id = block.tool_use_id
-            if block_id not in self._blocks:
-                patches.append(self._start(block_id, "tool"))
-            is_error = isinstance(block, ToolResultBlock) and bool(block.is_error)
-            patches.append(
-                self._finish(
-                    block_id,
-                    tool_use_id=block_id,
-                    result=block.content,
-                    is_error=is_error,
-                    status="failed" if is_error else "succeeded",
-                )
+            kind = self._kind(raw)
+            if results_only or kind is None:
+                continue
+            block_id = (
+                str(raw.get("id") or f"{message_uuid}:{index}")
+                if kind == "tool"
+                else (self._indices.get(index) or f"{message_uuid}:{index}")
             )
+            payload = self._tool_input(raw) if kind == "tool" else None
+            if block_id not in self._blocks:
+                patches.append(self._start(block_id, kind, message_uuid, role=role, payload=payload))
+            elif kind == "tool":
+                patches.append(self._patch(block_id, "replace", payload={**payload, "text": "", "status": "running"}))
+            if kind != "tool":
+                block = self._blocks[block_id]
+                text = raw.get(kind) or ""
+                if text != block.text:
+                    patches.append(self._patch(block_id, "replace", payload={"text": text}))
+                if block.status == "running":
+                    patches.append(self._patch(block_id, "finish"))
         return patches
 
     def finish_open(self, *, cancelled: bool = False) -> list[AgentBlockPatch]:
         return [
-            self._finish(block_id, status="cancelled" if cancelled else "completed")
-            for block_id, state in self._blocks.items()
-            if not state["finished"]
+            self._patch(block_id, "finish", payload={"status": "cancelled" if cancelled else "completed"})
+            for block_id, block in self._blocks.items()
+            if block.status in {"running", "building_input"}
         ]
 
-
-def history_blocks(messages: list[SessionMessage]) -> list[dict[str, Any]]:
-    """Return complete display blocks from SDK SessionMessage objects."""
-    blocks: list[dict[str, Any]] = []
-    tool_positions: dict[str, int] = {}
-    for item in messages:
-        message = item.message
-        if not isinstance(message, Mapping):
-            continue
-        message_uuid = item.uuid
-        role = item.type
-        content = message.get("content")
-        if isinstance(content, str):
-            content = [{"type": "text", "text": content}]
-        if not isinstance(content, list):
-            continue
-        for index, raw in enumerate(content):
-            if not isinstance(raw, Mapping):
+    @classmethod
+    def history(cls, messages: list[SessionMessage]) -> list[AgentHistoryBlock]:
+        """Fold persisted messages using the same content and tool-result semantics."""
+        projector = cls()
+        for item in messages:
+            if not isinstance(item.message, Mapping):
                 continue
-            block_type = raw.get("type")
-            if block_type in {"text", "thinking"}:
-                blocks.append(
-                    {
-                        "block_id": f"{message_uuid}:{index}",
-                        "block_type": block_type,
-                        "message_uuid": message_uuid,
-                        "role": role,
-                        "status": "completed",
-                        "text": raw.get("text") or raw.get("thinking") or "",
-                        "payload": {},
-                    }
-                )
-            elif block_type in {"tool_use", "server_tool_use"}:
-                tool_id = str(raw.get("id") or f"{message_uuid}:{index}")
-                tool_positions[tool_id] = len(blocks)
-                blocks.append(
-                    {
-                        "block_id": tool_id,
-                        "block_type": "tool",
-                        "message_uuid": message_uuid,
-                        "role": role,
-                        "status": "running",
-                        "text": "",
-                        "payload": {
-                            "tool_use_id": tool_id,
-                            "name": raw.get("name"),
-                            "input": raw.get("input") or {},
-                        },
-                    }
-                )
-            elif block_type in {"tool_result", "server_tool_result"}:
-                tool_id = raw.get("tool_use_id")
-                position = tool_positions.get(str(tool_id))
-                if position is not None:
-                    target = blocks[position]
-                    target["status"] = "failed" if raw.get("is_error") else "completed"
-                    target["payload"].update(
-                        {
-                            "result": raw.get("content"),
-                            "is_error": bool(raw.get("is_error")),
-                        }
-                    )
-    return blocks
+            content = item.message.get("content")
+            if isinstance(content, str):
+                content = [{"type": "text", "text": content}]
+            if isinstance(content, list):
+                projector._content(item.uuid, content, role=item.type)
+        return list(projector._blocks.values())

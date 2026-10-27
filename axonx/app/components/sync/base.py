@@ -3,14 +3,13 @@
 from abc import ABC, abstractmethod
 
 from ..base import BaseComponent
-from ..models import ComponentType
 from .models import SyncReport
 
 
 class BaseSyncComponent(BaseComponent, ABC):
     """Define batched, workspace-backed replication to a configured target service."""
 
-    component_type = ComponentType.SYNC
+    component_type = "sync"
 
     @abstractmethod
     async def flush(self) -> SyncReport:

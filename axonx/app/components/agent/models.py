@@ -1,4 +1,4 @@
-"""Agent message blocks and session models."""
+"""Agent presentation models and backend-neutral session storage records."""
 
 from __future__ import annotations
 
@@ -9,6 +9,29 @@ from pydantic import BaseModel, Field
 from ....client.events import AgentBlockType
 
 AGENT_DEPTH_ARGUMENT = "agent_depth"
+
+
+class SessionKey(TypedDict):
+    project_key: str
+    session_id: str
+    subpath: NotRequired[str]
+
+
+class SessionEntry(TypedDict, total=False):
+    """Opaque backend JSON with the fields needed for validation and deduplication."""
+
+    type: Required[str]
+    uuid: str
+    timestamp: str
+
+
+class SessionRecord(TypedDict):
+    session_id: str
+    mtime: int
+
+
+class SessionSummary(SessionRecord):
+    data: dict[str, Any]
 
 
 class AgentSessionInfo(BaseModel):
@@ -42,32 +65,3 @@ class AgentSession(BaseModel):
 
 class AgentMutationResult(BaseModel):
     session_id: str
-
-
-class AgentSessionKey(TypedDict):
-    project_key: str
-    session_id: str
-    subpath: NotRequired[str]
-
-
-class AgentSessionListKey(TypedDict):
-    project_key: str
-    session_id: str
-
-
-class AgentSessionEntry(TypedDict, total=False):
-    type: Required[str]
-    uuid: str
-    timestamp: str
-    # Backend-owned JSON fields are intentionally allowed.
-
-
-class AgentSessionListEntry(TypedDict):
-    session_id: str
-    mtime: int
-
-
-class AgentSessionSummary(TypedDict):
-    session_id: str
-    mtime: int
-    data: dict[str, Any]

@@ -8,8 +8,6 @@ from typing import Any
 
 import yaml
 
-from ...utils.env import expand_env_vars
-
 _SUPPORTED_EXTENSIONS = (".yaml", ".yml", ".json")
 
 
@@ -76,6 +74,8 @@ class ConfigLoader:
 
     @staticmethod
     def _read(path: Path) -> dict[str, Any]:
+        from ...utils.env import expand_env_vars
+
         with path.open(encoding="utf-8") as file:
             config = json.load(file) if path.suffix == ".json" else yaml.safe_load(file)
         if config is None:
