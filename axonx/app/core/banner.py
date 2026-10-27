@@ -11,8 +11,12 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ...client.config import AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_PORT, AXONX_DEFAULT_SCHEME
-from ..constants import AXONX_DEFAULT_BIND_HOST
+from ...client.config import (
+    AXONX_DEFAULT_CONNECT_HOST,
+    AXONX_DEFAULT_PORT,
+    AXONX_DEFAULT_SCHEME,
+)
+from ..config.defaults import AXONX_DEFAULT_BIND_HOST
 
 if TYPE_CHECKING:
     from ..components.service.base import BaseService
@@ -21,7 +25,7 @@ if TYPE_CHECKING:
 
 def _version(package_name: str) -> str:
     """Return one dependency's version for the banner, blank when it is absent."""
-    from .build_info import package_version
+    from ..components.machine.build_info import package_version
 
     return package_version(package_name) or ""
 
@@ -34,7 +38,7 @@ def _rgb(hue: float) -> tuple[int, int, int]:
 def print_logo(app_config: "ApplicationConfig", service: "BaseService") -> None:
     """Print the AxonX logo and effective service endpoints."""
     from ...client.config import PROTOCOL_ROUTE_MCP
-    from .build_info import get_build_info
+    from ..components.machine.build_info import get_build_info
 
     ascii_art = (
         r" █████╗ ██╗  ██╗ ██████╗ ███╗   ██╗██╗  ██╗",

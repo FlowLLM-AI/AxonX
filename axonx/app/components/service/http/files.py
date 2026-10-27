@@ -9,18 +9,22 @@ from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 from starlette.requests import Request
 
-from .....client.config import PROTOCOL_FILE_DIRECTORY_HEADER, PROTOCOL_FILE_NAME_HEADER, PROTOCOL_ROUTE_UPLOAD
+from .....client.config import (
+    PROTOCOL_FILE_DIRECTORY_HEADER,
+    PROTOCOL_FILE_NAME_HEADER,
+    PROTOCOL_ROUTE_UPLOAD,
+)
 from .....client.models import JobResponse, StagedFile
 from .....utils.logging import format_log_arguments
-from ....constants import DEFAULT_TRANSFER_BUDGET_BYTES
-from ....workspace.core import Workspace
+from ....config.defaults import DEFAULT_TRANSFER_BUDGET_BYTES
+from ....workspace.uploads import UploadStore
 
 # Allow a bounded amount of multipart framing in addition to the file byte limit.
 MULTIPART_OVERHEAD_BYTES = 64 * 1024
 UPLOAD_CHUNK_BYTES = 64 * 1024
 
 
-def create_files_router(service, workspace: Workspace) -> APIRouter:
+def create_files_router(service, uploads: UploadStore) -> APIRouter:
     """Copy uploaded bytes into the workspace copy directory."""
     router = APIRouter()
 
@@ -63,15 +67,13 @@ def create_files_router(service, workspace: Workspace) -> APIRouter:
         service.logger.info(f"File endpoint called: name=copy_file arguments={arguments}")
         content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
         multipart = content_type == "multipart/form-data"
-        body_limit = (workspace.transfer_budget_bytes or DEFAULT_TRANSFER_BUDGET_BYTES) + (
-            MULTIPART_OVERHEAD_BYTES if multipart else 0
-        )
+        body_limit = (uploads.limit or DEFAULT_TRANSFER_BUDGET_BYTES) + (MULTIPART_OVERHEAD_BYTES if multipart else 0)
         _check_upload_size(request, body_limit)
         try:
             if multipart:
-                copied = await _copy_multipart(workspace, request, filename, directory)
+                copied = await _copy_multipart(uploads, request, filename, directory)
             else:
-                copied = await workspace.stage_stream(_request_chunks(request, body_limit), filename, directory)
+                copied = await uploads.stage_stream(_request_chunks(request, body_limit), filename, directory)
         except FileExistsError as exc:
             raise HTTPException(409, str(exc)) from exc
         except (TypeError, ValueError) as exc:
@@ -82,7 +84,7 @@ def create_files_router(service, workspace: Workspace) -> APIRouter:
     async def discard_file(path: str):
         """Discard one staged upload; repeated cleanup is intentionally harmless."""
         try:
-            discarded = workspace.discard_staged(path)
+            discarded = uploads.discard(path)
         except (TypeError, ValueError) as exc:
             raise HTTPException(422, str(exc)) from exc
         return JobResponse(answer={"path": discarded})
@@ -156,10 +158,10 @@ class _UploadParser(MultiPartParser):
             raise
 
 
-async def _copy_multipart(workspace: Workspace, request: Request, filename: str, directory: str | None) -> StagedFile:
+async def _copy_multipart(uploads: UploadStore, request: Request, filename: str, directory: str | None) -> StagedFile:
     """Parse one file and optional directory, then reuse content-addressed storage."""
     try:
-        form = await _UploadParser(request, (workspace.transfer_budget_bytes or DEFAULT_TRANSFER_BUDGET_BYTES)).parse()
+        form = await _UploadParser(request, (uploads.limit or DEFAULT_TRANSFER_BUDGET_BYTES)).parse()
     except (MultiPartException, MultipartParseError) as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -177,7 +179,7 @@ async def _copy_multipart(workspace: Workspace, request: Request, filename: str,
             while chunk := await upload.read(UPLOAD_CHUNK_BYTES):
                 yield chunk
 
-        return await workspace.stage_stream(
+        return await uploads.stage_stream(
             chunks(),
             filename or upload.filename or "",
             directory or form_directory.strip() or None,

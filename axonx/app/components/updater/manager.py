@@ -1,26 +1,13 @@
 """Application update admission and response-completion handoff."""
 
 from functools import partial
-from typing import Protocol
 
 from ....utils.async_work import run_blocking
-from ...core.response import RESPONSE_CALLBACKS
-from ...registry import provider
 from ..base import BaseComponent
-from ..component_type import ComponentType
-
-
-class UpdateBackend(Protocol):
-    """Operations supplied by the process supervisor or an embedding host."""
-
-    def prepare(self, mode: str) -> dict:
-        """Prepare an update without stopping the current response."""
-
-    def commit(self, update_id: str) -> None:
-        """Commit after the response has been sent."""
-
-    def status(self, update_id: str | None = None) -> dict:
-        """Read durable update state."""
+from ..job.response import RESPONSE_CALLBACKS
+from ..models import ComponentType
+from ..registry import provider
+from .base import UpdateBackend
 
 
 @provider("local")

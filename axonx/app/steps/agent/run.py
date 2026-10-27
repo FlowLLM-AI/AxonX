@@ -4,9 +4,10 @@ from contextlib import aclosing
 from typing import ClassVar
 
 from ....client.events import ResultEvent
-from ...components.component_type import ComponentType
-from ...constants import AGENT_DEPTH_ARGUMENT
-from ...registry import provider
+from ...components.agent.base import BaseAgentComponent
+from ...components.agent.models import AGENT_DEPTH_ARGUMENT
+from ...components.models import ComponentType
+from ...components.registry import provider
 from ..base import BaseStep
 
 
@@ -49,7 +50,7 @@ class AgentStreamStep(BaseStep):
             return
 
         result_seen = False
-        stream_source = self.agent_wrapper.reply_stream(
+        stream_source = self.component(BaseAgentComponent).reply_stream(
             self.context["message"],
             session_id=self.context.get("session_id"),
             depth=self.depth,

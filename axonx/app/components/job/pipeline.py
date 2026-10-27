@@ -10,19 +10,34 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ....client.events import JobEvent, ResultEvent
+from ....client.models import JobResponse
+from ...config.loader import deep_merge_config
 from ...config.models import ComponentConfig
-from ...registry import provider
 from ...steps.base import BaseStep
-from ..component_type import ComponentType
+from ..models import ComponentType
+from ..registry import provider
 from .base import BaseJob
-from .context import RuntimeContext
 
 if TYPE_CHECKING:
     from ...core.context import ApplicationContext
 
 
+class _RuntimeContext(dict[str, Any]):
+    """Combine defaults, caller arguments, and system data for Job Steps."""
+
+    def __init__(
+        self,
+        defaults: Mapping[str, Any],
+        arguments: Mapping[str, Any],
+        system: Mapping[str, Any],
+    ) -> None:
+        values = deep_merge_config(defaults, arguments)
+        super().__init__(deepcopy(deep_merge_config(values, system)))
+        self.response = JobResponse()
+
+
 @dataclass(frozen=True, slots=True)
-class StepPlan:
+class _StepPlan:
     """Resolved Step implementation and options copied for each invocation."""
 
     step_class: type[BaseStep]
@@ -55,10 +70,10 @@ class PipelineJob(BaseJob):
     def _resolve_plan(
         app_context: ApplicationContext,
         raw: ComponentConfig | Mapping[str, Any],
-    ) -> StepPlan:
+    ) -> _StepPlan:
         config = ComponentConfig.model_validate(raw)
         step_class = app_context.registry.require(ComponentType.STEP, config.backend, BaseStep)
-        return StepPlan(step_class, config.model_dump())
+        return _StepPlan(step_class, config.model_dump())
 
     def _injected_parameters(self) -> Mapping[str, Any]:
         merged: dict[str, Any] = {}
@@ -112,7 +127,7 @@ class PipelineJob(BaseJob):
         if not self._accepting:
             raise RuntimeError(f"Job {self.name!r} is not running")
 
-        context = RuntimeContext(self._defaults, arguments, system)
+        context = _RuntimeContext(self._defaults, arguments, system)
         try:
             for step in self._build_steps():
                 events: asyncio.Queue[JobEvent] = asyncio.Queue(self._event_buffer_size)

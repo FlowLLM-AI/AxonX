@@ -1,24 +1,12 @@
 """HTTP service implementation and endpoint capabilities.
 
-service: HTTP component configuration and application serving.
-app: ASGI application assembly, authentication and shared lifespan.
-files: Raw and multipart upload staging.
-jobs: Job catalogs, calls, event streams and MCP tools.
-proxy: Routes forwarding requests to configured proxy components.
-shutdown: Process-level shutdown deadlines and Uvicorn integration.
-studio: Optional Studio static assets and frontend routing.
+app: ASGI application factory for the HTTP service.
+files: Stage raw binary or multipart file uploads through the same HTTP endpoint.
+jobs: Expose Jobs as JSON responses, event streams, and MCP tools.
+middleware: HTTP protocol authentication and response-completion policy boundaries.
+models: HTTP request envelopes for the public Job surface.
+proxy: Expose configured proxy components as transparent HTTP routes.
+service: HTTP service component backed by FastAPI and Uvicorn.
+shutdown: Process-level shutdown deadline, independent of asyncio and executor drains.
+studio: Optional Studio static site mounting.
 """
-
-from . import app, files, jobs, proxy, service, shutdown, studio
-from .service import HttpService
-
-__all__ = [
-    "HttpService",
-    "app",
-    "files",
-    "jobs",
-    "proxy",
-    "service",
-    "shutdown",
-    "studio",
-]

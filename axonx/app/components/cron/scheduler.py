@@ -1,18 +1,20 @@
 """Trigger daemon-owned commands while the application is running."""
 
 import asyncio
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from ...crontabs import CronEntry, load_crontab
-from ...registry import provider
+from croniter import croniter
+
+from ...config.models import CronConfig
 from ..base import BaseComponent
-from ..component_type import ComponentType
+from ..models import ComponentType
+
+ScheduledLaunch = Callable[[int, CronConfig], Awaitable[None]]
 
 
-@provider("cron")
 class CronComponent(BaseComponent):
     """Own future triggers; launched processes belong to the daemon."""
 
@@ -20,21 +22,19 @@ class CronComponent(BaseComponent):
 
     def __init__(
         self,
-        source: str,
-        launch: Callable[[CronEntry], Awaitable[None]],
-        validate_command: Callable[[Sequence[str]], None],
+        launch: ScheduledLaunch,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.path, self.entries = load_crontab(source, validate_command)
+        self.entries = self.app_config.cron
         self.timezone = ZoneInfo(self.app_config.timezone)
         self._launch = launch
-        self._next: dict[int, datetime] = {}
+        self._next: list[datetime] = []
         self._runner: asyncio.Task | None = None
 
     async def _start(self) -> None:
         now = datetime.now(self.timezone)
-        self._next = {entry.line: entry.next_after(now) for entry in self.entries}
+        self._next = [croniter(entry.expression, now).get_next(datetime) for entry in self.entries]
         self._runner = asyncio.create_task(self._run(), name="axonx-cron")
 
     async def _close(self) -> None:
@@ -51,14 +51,14 @@ class CronComponent(BaseComponent):
             await asyncio.sleep(0.5)
 
     async def _tick(self, now: datetime) -> None:
-        for entry in self.entries:
+        for index, entry in enumerate(self.entries):
             if self.app_context.metadata.get("stopping") or self.app_context.metadata.get("maintenance"):
                 return
-            if self._next[entry.line].timestamp() > now.timestamp():
+            if self._next[index].timestamp() > now.timestamp():
                 continue
             # Advance before requesting a launch: failed or ambiguous requests are not replayed.
-            self._next[entry.line] = entry.next_after(now)
+            self._next[index] = croniter(entry.expression, now).get_next(datetime)
             try:
-                await self._launch(entry)
+                await self._launch(index, entry)
             except (OSError, RuntimeError):
-                self.logger.exception(f"Cron launch failed: {self.path}:{entry.line}")
+                self.logger.exception(f"Cron launch failed: cron[{index}]")

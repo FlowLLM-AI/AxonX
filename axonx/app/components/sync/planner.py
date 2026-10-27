@@ -13,7 +13,7 @@ from ....task.storage.workspace import (
     task_path,
 )
 from .errors import SnapshotChangedError
-from .models import TaskFile, TaskPlan
+from .models import TAR_PADDING_BYTES, TaskFile, TaskPlan
 
 
 def task_file(path: Path, relative: str) -> TaskFile:
@@ -92,7 +92,7 @@ def plan_task(root: Path, task_id: str, *, snapshot: TaskMetadata | None = None)
 
 def archive_budget(transfer_budget_bytes: int) -> int:
     """Reserve tar padding and worst-case gzip overhead inside the same total budget."""
-    return max(0, transfer_budget_bytes - 10240 - max(4096, transfer_budget_bytes // 1024))
+    return max(0, transfer_budget_bytes - TAR_PADDING_BYTES - max(4096, transfer_budget_bytes // 1024))
 
 
 def pack_batches(

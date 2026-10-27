@@ -4,6 +4,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 TAR_BLOCK_BYTES = 512
+TAR_PADDING_BYTES = 10_240
+
+
+def archived_bytes(size: int) -> int:
+    """Reserve a tar header plus the complete padded payload."""
+    return TAR_BLOCK_BYTES * (1 + (size + TAR_BLOCK_BYTES - 1) // TAR_BLOCK_BYTES)
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,8 +22,7 @@ class TaskFile:
 
     @property
     def archived_bytes(self) -> int:
-        blocks = (self.size + TAR_BLOCK_BYTES - 1) // TAR_BLOCK_BYTES
-        return TAR_BLOCK_BYTES + blocks * TAR_BLOCK_BYTES
+        return archived_bytes(self.size)
 
 
 @dataclass(frozen=True, slots=True)

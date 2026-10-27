@@ -6,42 +6,46 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ...utils.logging import LoggingConfig, configure_logging, get_logger
-from ..components.agent.claude import ClaudeAgentComponent
+from ..components.agent.claude.backend import ClaudeAgentComponent
 from ..components.base import BaseComponent
-from ..components.cron import CronComponent
+from ..components.cron.scheduler import CronComponent, ScheduledLaunch
 from ..components.job.base import BaseJob
 from ..components.job.pipeline import PipelineJob
-from ..components.proxy import HttpProxyComponent
-from ..components.service import HttpService
+from ..components.proxy.http import HttpProxyComponent
+from ..components.registry import ProviderRegistry
 from ..components.service.base import BaseService
+from ..components.service.http.service import HttpService
 from ..components.sync.local import LocalSyncComponent
-from ..components.task_index import LocalTaskIndex
-from ..components.updater import UpdateManager
-from ..components.updater.manager import UpdateBackend
+from ..components.task_index.local import LocalTaskIndex
+from ..components.updater.base import UpdateBackend
+from ..components.updater.manager import UpdateManager
 from ..config.models import ApplicationConfig, ComponentConfig
-from ..registry import ProviderRegistry
-from ..steps.agent import (
-    AgentStreamStep,
+from ..steps.agent.run import AgentStreamStep
+from ..steps.agent.sessions import (
     CancelAgentTurnStep,
     DeleteAgentSessionStep,
     ForkAgentSessionStep,
     GetAgentSessionStep,
-    GetTaskContextStep,
     ListAgentSessionsStep,
     RenameAgentSessionStep,
     TagAgentSessionStep,
 )
-from ..steps.common import CommandStep, GetConfigStep, HelpStep, VersionStep
-from ..steps.machine.steps import DiagnoseStep, ListMachinesStep, MachineStatusStep, PythonStep
-from ..steps.sync import SyncFlushStep, SyncTasksStep, TaskSyncIndexStep
-from ..steps.task import (
-    GetTaskDefStep,
+from ..steps.common.steps import CommandStep, GetConfigStep, HelpStep, VersionStep
+from ..steps.machine.steps import (
+    DiagnoseStep,
+    ListMachinesStep,
+    MachineStatusStep,
+    PythonStep,
+)
+from ..steps.sync.steps import SyncFlushStep, SyncTasksStep, TaskSyncIndexStep
+from ..steps.task.catalog import GetTaskDefStep, ListTaskDefsStep
+from ..steps.task.query import (
+    GetTaskContextStep,
     GetTaskGraphStep,
     GetTaskStatusStep,
-    ListTaskDefsStep,
     ListTaskDirectoriesStep,
     ListTaskIdsStep,
     ListTaskStatusesStep,
@@ -49,13 +53,20 @@ from ..steps.task import (
     StreamTaskStep,
     WaitTaskStep,
 )
-from ..steps.update import GetUpdateStatusStep, RestartServiceStep, UpdateFromGitStep, UpdateFromPipStep
-from ..steps.workspace import DeleteEntriesStep, ListEntriesStep, PreviewFileStep
+from ..steps.update.steps import (
+    GetUpdateStatusStep,
+    RestartServiceStep,
+    UpdateFromGitStep,
+    UpdateFromPipStep,
+)
+from ..steps.workspace.steps import DeleteEntriesStep, ListEntriesStep, PreviewFileStep
 from ..workspace.core import Workspace
 from .context import ApplicationContext
 
+if TYPE_CHECKING:
+    from ...task.runtime.catalog import TaskCatalog
+
 APP_PROVIDERS = (
-    CronComponent,
     ClaudeAgentComponent,
     PipelineJob,
     HttpProxyComponent,
@@ -109,10 +120,14 @@ def compose_application(
     providers: Iterable[type] = (),
     workspace: Workspace | None = None,
     updates: UpdateBackend | None = None,
+    task_catalog: TaskCatalog | None = None,
+    launch_scheduled: ScheduledLaunch | None = None,
 ) -> ApplicationContext:
     """Compose built-in providers into an isolated, sealed application context."""
     registry = ProviderRegistry((*APP_PROVIDERS, *providers))
     app_config = ApplicationConfig(**config)
+    if app_config.cron and launch_scheduled is None:
+        raise ValueError("Cron schedules require a scheduled command launcher")
     configure_logging(
         LoggingConfig(
             log_dir=app_config.log_dir,
@@ -124,11 +139,17 @@ def compose_application(
     logger = get_logger()
     logger.info(f"Initializing {app_config.app_name} Application v{version}")
 
-    context = ApplicationContext(registry, app_config, workspace, updates)
+    context = ApplicationContext(registry, app_config, workspace, updates, task_catalog)
     for category, group in app_config.components.items():
         context._set_component_group(
             category,
             {name: _instantiate(context, category, name, spec, BaseComponent) for name, spec in group.items()},
+        )
+
+    if app_config.cron:
+        context._set_component_group(
+            "cron",
+            {"default": CronComponent(name="cron", app_context=context, launch=launch_scheduled)},
         )
 
     context._set_jobs(

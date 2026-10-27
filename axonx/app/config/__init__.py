@@ -1,16 +1,6 @@
 """Application configuration discovery, loading and validation.
 
-locator: Named resources, filesystem paths and installed entry-point lookup.
-loader: JSON/YAML loading, inheritance, environment expansion and deep merging.
-models: Validated application, component, Job and target configuration.
-resolver: Bundled or installed application configuration resolution.
+defaults: Shared application defaults for models and runtime components.
+loader: ConfigLoader for file lookup, inheritance, environment expansion and overrides.
+models: Typed application, component, Job, target and Cron configuration.
 """
-
-from . import loader, locator, models, resolver
-
-__all__ = [
-    "loader",
-    "locator",
-    "models",
-    "resolver",
-]

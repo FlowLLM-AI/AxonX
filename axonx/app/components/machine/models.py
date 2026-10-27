@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ...core.build_info import BuildInfo
+
+class BuildInfo(BaseModel):
+    """Version-control identity of the running AxonX build."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    version: str = Field(min_length=1)
+    git_commit: str | None = None
+    git_branch: str | None = None
 
 
 class MachineModel(BaseModel):
@@ -107,3 +115,11 @@ class MachineDiagnostics(MachineInfo):
     workspace: WorkspaceDiagnostics
     credentials_configured: dict[str, bool]
     service_auth_enabled: bool
+
+
+@dataclass(frozen=True)
+class GpuCollection:
+    """GPU devices plus non-fatal problems encountered while discovering them."""
+
+    devices: tuple[GpuInfo, ...] = ()
+    warnings: tuple[str, ...] = ()

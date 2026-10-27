@@ -7,8 +7,9 @@ from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, S
 from dataclasses import dataclass
 from typing import ClassVar
 
+from ....utils.async_work import complete_on_cancel
 from ..base import BaseComponent
-from ..component_type import ComponentType
+from ..models import ComponentType
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +28,7 @@ class ProxyResponse:
                 yield chunk
         finally:
             if self.close is not None:
-                await self.close()
+                await complete_on_cancel(self.close())
 
 
 class ProxyError(Exception):

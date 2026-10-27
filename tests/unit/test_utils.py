@@ -42,7 +42,7 @@ def test_cli_and_file_config_share_value_conversion(tmp_path, monkeypatch, raw, 
     monkeypatch.setenv("AXONX_TEST_VALUE", raw)
     path = tmp_path / "values.yaml"
     path.write_text('value: ${AXONX_TEST_VALUE}\nliteral: "true"\n')
-    config = ConfigLoader(tmp_path, group="axonx.configs").load(path)
+    config = ConfigLoader(tmp_path).load(path)
     command, _ = parse_command(("exec", "--value", raw))
     assert config == {"value": expected, "literal": "true"}
     assert command.arguments == {"value": expected}

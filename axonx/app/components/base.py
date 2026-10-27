@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING
 
 from ...utils.logging import get_logger
 from ..config.models import ApplicationConfig
-from ..registry import component_type_name
 from ..workspace.core import Workspace
-from .component_type import ComponentType
+from .models import ComponentType, DependencySpec, component_type_name
 
 if TYPE_CHECKING:
     from ..core.context import ApplicationContext
@@ -21,7 +19,6 @@ class ComponentBase:
     """Common identity, configuration, logging, and application access."""
 
     component_type = ComponentType.BASE
-    component_domains: ClassVar[tuple[ComponentType, ...]] = ()
 
     def __init__(
         self,
@@ -34,7 +31,6 @@ class ComponentBase:
         self.backend = backend
         self.app_context = app_context
         self.kwargs = kwargs
-        self._component_names = {domain: self.kwargs.pop(domain.value, "default") for domain in self.component_domains}
         self.logger = get_logger(self.name)
 
     @property
@@ -49,24 +45,10 @@ class ComponentBase:
     def app_config(self) -> ApplicationConfig:
         return self._require_context().app_config
 
-    def get_component(self, component_type, name: str = "default"):
-        return self._require_context().components[component_type_name(component_type)][name]
-
     def _require_context(self) -> ApplicationContext:
         if self.app_context is None:
             raise RuntimeError(f"{self.name} requires an application context")
         return self.app_context
-
-
-@dataclass(frozen=True, slots=True)
-class DependencySpec:
-    """A component attribute that must be injected before startup."""
-
-    attribute: str
-    component_type: str
-    name: str
-    required: bool
-    expected_type: type[BaseComponent]
 
 
 class BaseComponent(ComponentBase):
@@ -76,7 +58,7 @@ class BaseComponent(ComponentBase):
         super().__init__(**kwargs)
         self.is_started = False
         self._lifecycle_lock = asyncio.Lock()
-        self._dependencies: dict[str, DependencySpec] = {}
+        self._dependencies: dict[str, DependencySpec[BaseComponent]] = {}
 
     def depend(
         self,
@@ -108,7 +90,7 @@ class BaseComponent(ComponentBase):
         )
 
     @property
-    def dependencies(self) -> tuple[DependencySpec, ...]:
+    def dependencies(self) -> tuple[DependencySpec[BaseComponent], ...]:
         return tuple(self._dependencies.values())
 
     async def start(self) -> None:

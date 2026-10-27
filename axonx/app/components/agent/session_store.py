@@ -2,42 +2,23 @@
 
 from __future__ import annotations
 
-from typing import Any, NotRequired, Protocol, Required, TypedDict
+from typing import Protocol
 
-
-class AgentSessionKey(TypedDict):
-    project_key: str
-    session_id: str
-    subpath: NotRequired[str]
-
-
-class AgentSessionListKey(TypedDict):
-    project_key: str
-    session_id: str
-
-
-class AgentSessionEntry(TypedDict, total=False):
-    type: Required[str]
-    uuid: str
-    timestamp: str
-    # Backend-owned JSON fields are intentionally allowed.
-
-
-class AgentSessionListEntry(TypedDict):
-    session_id: str
-    mtime: int
-
-
-class AgentSessionSummary(TypedDict):
-    session_id: str
-    mtime: int
-    data: dict[str, Any]
+from .models import (
+    AgentSessionEntry,
+    AgentSessionKey,
+    AgentSessionListEntry,
+    AgentSessionListKey,
+    AgentSessionSummary,
+)
 
 
 class AgentSessionStore(Protocol):
     """Store opaque transcript entries without interpreting backend fields."""
 
     async def append(self, key: AgentSessionKey, entries: list[AgentSessionEntry]) -> None: ...
+
+    async def exists(self, key: AgentSessionKey) -> bool: ...
 
     async def load(self, key: AgentSessionKey) -> list[AgentSessionEntry] | None: ...
 

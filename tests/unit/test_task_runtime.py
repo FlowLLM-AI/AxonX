@@ -9,8 +9,6 @@ from pathlib import Path
 import pytest
 from pydantic import Field
 
-from axonx.plugin import catalog
-from axonx.plugin.models import PluginInfo
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.core.base import BaseTask, ChildTaskError
 from axonx.task.models.artifacts import ReplaySource
@@ -555,22 +553,6 @@ def test_failed_task_persists_its_terminal_status(tmp_path):
     assert result.state == TaskState.FAILED
     assert result.exit_code != 0
     assert "Demo failure requested" in result.error
-
-
-def test_catalog_only_loads_the_requested_task(monkeypatch):
-    plugin = PluginInfo(distribution="example", version="1", tasks={"unrelated": "missing_package:Task"})
-    monkeypatch.setattr(catalog, "list_installed_plugins", lambda: [plugin])
-    tasks = catalog.TaskCatalog()
-    assert tasks.definition("demo").name == "demo"
-    with pytest.raises(ModuleNotFoundError):
-        tasks.resolve("unrelated")
-
-
-def test_catalog_rejects_plugin_names_that_shadow_builtins(monkeypatch):
-    plugin = PluginInfo(distribution="example", version="1", tasks={"demo": "missing_package:Task"})
-    monkeypatch.setattr(catalog, "list_installed_plugins", lambda: [plugin])
-    with pytest.raises(ValueError, match="conflict"):
-        catalog.TaskCatalog()
 
 
 def test_failed_atomic_publication_keeps_the_previous_file(tmp_path):

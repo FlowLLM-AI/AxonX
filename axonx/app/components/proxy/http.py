@@ -7,7 +7,7 @@ from typing import Final
 
 import httpx
 
-from ...registry import provider
+from ..registry import provider
 from .base import (
     BaseProxyComponent,
     ProxyRequestError,
@@ -33,30 +33,19 @@ _HOP_BY_HOP_HEADERS: Final = frozenset(
 )
 
 
-def _connection_headers(headers: Sequence[tuple[str, str]]) -> set[str]:
-    """Return additional hop-by-hop header names declared by Connection."""
-    return {
+def _forward_headers(headers: Sequence[tuple[str, str]], *, decoded: bool = False) -> list[tuple[str, str]]:
+    """Preserve repeated end-to-end headers and remove connection-owned fields."""
+    excluded = _HOP_BY_HOP_HEADERS | {
         item.strip().lower()
         for key, value in headers
         if key.lower() == "connection"
         for item in value.split(",")
         if item.strip()
     }
-
-
-def _request_headers(headers: Sequence[tuple[str, str]]) -> list[tuple[str, str]]:
-    """Preserve end-to-end request headers and remove transport-owned ones."""
-    excluded = _HOP_BY_HOP_HEADERS | _connection_headers(headers)
+    if decoded:
+        # httpx decodes response bodies, so their encoded size and encoding are obsolete.
+        excluded |= {"content-encoding", "content-length"}
     return [(key, value) for key, value in headers if key.lower() not in excluded]
-
-
-def _response_headers(response: httpx.Response) -> list[tuple[str, str]]:
-    """Preserve end-to-end response headers, including repeated fields."""
-    pairs = response.headers.multi_items()
-    # ``aiter_bytes`` decodes content encodings, so both encoding and the encoded
-    # body's length must be regenerated/omitted downstream.
-    excluded = _HOP_BY_HOP_HEADERS | {"content-encoding", "content-length"} | _connection_headers(pairs)
-    return [(key, value) for key, value in pairs if key.lower() not in excluded]
 
 
 def _validate_path(path: str) -> None:
@@ -124,7 +113,7 @@ class HttpProxyComponent(BaseProxyComponent):
                 method,
                 path,
                 params=query,
-                headers=_request_headers(headers),
+                headers=_forward_headers(headers),
                 content=content,
             )
             response = await client.send(request, stream=True)
@@ -139,6 +128,6 @@ class HttpProxyComponent(BaseProxyComponent):
         return ProxyResponse(
             status_code=response.status_code,
             content=response.aiter_bytes(),
-            headers=_response_headers(response),
+            headers=_forward_headers(response.headers.multi_items(), decoded=True),
             close=response.aclose,
         )

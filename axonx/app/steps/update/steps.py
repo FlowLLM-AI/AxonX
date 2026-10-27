@@ -1,7 +1,8 @@
 """Self-update Job Steps."""
 
-from ...components.component_type import ComponentType
-from ...registry import provider
+from ...components.models import ComponentType
+from ...components.registry import provider
+from ...components.updater.manager import UpdateManager
 from ..base import BaseStep
 
 
@@ -16,7 +17,7 @@ class UpdateStep(BaseStep):
 
     @property
     def updater(self):
-        return self._component(ComponentType.UPDATER)
+        return self.component(UpdateManager)
 
 
 @provider("update_from_git_step")
@@ -45,6 +46,4 @@ class GetUpdateStatusStep(UpdateStep):
     """Read durable update status across service restarts."""
 
     async def execute(self):
-        self.response.answer = {
-            **self.updater.status(self.context.get("update_id")),
-        }
+        self.response.answer = self.updater.status(self.context.get("update_id"))

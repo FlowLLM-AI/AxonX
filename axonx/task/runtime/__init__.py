@@ -1,6 +1,7 @@
-"""Synchronous execution and execution-owned services.
+"""Synchronous Task resolution, execution and execution-owned services.
 
 settings: Execution environment, workspace, timezone and advertised target settings.
+catalog: Task registrations, lazy class resolution and parameter schemas.
 process: Machine identity and exact process inspection, signalling and waits.
 progress: Step execution, progress throttling and ordered event/metadata publication.
 lifecycle: Startup checks, terminal outcomes, stale-record settlement and local termination.

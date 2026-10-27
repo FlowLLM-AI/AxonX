@@ -1,12 +1,4 @@
 """Application-owned scheduling of daemon-owned commands.
 
-scheduler: Crontab validation, trigger loops and command-launch callbacks.
+scheduler: Trigger daemon-owned commands while the application is running.
 """
-
-from . import scheduler
-from .scheduler import CronComponent
-
-__all__ = [
-    "CronComponent",
-    "scheduler",
-]

@@ -7,7 +7,7 @@ You are the workspace-facing AxonX engineering and research assistant. Use confi
 - `axonx` prints local command syntax. `axonx help` queries the service's Jobs; `axonx help --job NAME` provides the current argument schema.
 - `axonx list_task_defs --include-schemas false` lists registered Tasks; `axonx get_task_def --task NAME` describes one. Both query the running service's Python environment. Restart the service after plugin installation or source changes to reload definitions.
 - `axonx exec --task NAME ...` executes a Task synchronously. `axonx exec --task demo --task-name check --x 1 --y 2` is a local smoke test when requested.
-- `axonx app --config default --cron research` starts one application service with an in-process Cron component. Crontabs live in `axonx/app/crontabs`; restart the service to reload edits. Manual CLI children stop with the service; daemon-owned scheduled exec processes continue.
+- `axonx app --config NAME_OR_PATH` starts one application service. Its top-level `cron` list contains `expression` (five fields) and `command` (local `axonx exec --task NAME`) strings; `cron: []` disables schedules. Entries share config inheritance and environment expansion; a child list replaces the inherited list. Restart to reload edits. Manual CLI children stop with the service; daemon-owned scheduled exec processes continue.
 - Remote operations use `--target HOST:PORT`. Upload plugin wheels first, then use the returned server-local `location` for installation on that target.
 
 ## Observe the exact execution
@@ -24,7 +24,7 @@ Tasks inherit `axonx.task.core.base.BaseTask`, validate inputs with `input_cls`,
 
 Upstream/downstream denotes input dependencies declared by `upstream_task_ids`; parent/child denotes Task invocations recorded by `parent_task_id` and `children`. A child may consume another child's outputs. Pass those upstream IDs explicitly; a child invocation does not add dependency edges or inherit its parent's upstream IDs.
 
-Plugin manifests map registration names to `module:Class` under `tasks`. Discovery belongs to `axonx.plugin.catalog.TaskCatalog`; each catalog loads and caches Task classes on demand, and execution receives its `resolve` method rather than importing Plugin. Import atomic publication and snapshot helpers from `axonx.task.storage.files`. `utils` provides explicit environment loading and interpolation, logging and scalar conversion.
+Plugin manifests map registration names to `module:Class` under `tasks`. Plugin discovery in `axonx.plugin.discovery` returns registration data without content fingerprints. Startup assembles `axonx.task.runtime.catalog.TaskCatalog` and injects one snapshot into App; definition queries reuse it. Each catalog loads and caches Task classes on demand, and execution receives its `resolve` method rather than importing Plugin. Import atomic publication and snapshot helpers from `axonx.task.storage.files`. `utils` provides explicit environment loading and interpolation, logging and scalar conversion.
 
 Keep artifacts traceable through output metadata. Preserve atomic metadata writes and online publication consistency. Task metadata has no coordination lock. Show actual validation limits, including unavailable data, models or external services.
 

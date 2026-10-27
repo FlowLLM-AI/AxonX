@@ -6,13 +6,11 @@ fingerprint: Source-cache, wheel-archive and installed-content SHA-256 fingerpri
 discovery: Installed plugin lookup, provenance and broken-installation diagnostics.
 wheel: Cached wheel builds and archive inspection without importing plugin code.
 installer: Artifact preparation, dependency installation, editable installs and removal.
-catalog: Built-in and plugin Task registrations, lazy class resolution and schemas.
 """
 
-from . import catalog, discovery, fingerprint, installer, manifest, models, wheel
+from . import discovery, fingerprint, installer, manifest, models, wheel
 
 __all__ = [
-    "catalog",
     "discovery",
     "fingerprint",
     "installer",

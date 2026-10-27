@@ -110,7 +110,7 @@ def test_parquet_preview_preserves_schema_and_pagination(tmp_path):
 
 async def test_staging_returns_models_and_cleans_up_incomplete_streams(tmp_path):
     workspace = Workspace(tmp_path)
-    copied = workspace.stage_bytes(b"hello", "copy.txt")
+    copied = workspace.uploads.stage_bytes(b"hello", "copy.txt")
     assert isinstance(copied, StagedFile)
     assert Path(copied.location).read_bytes() == b"hello"
 
@@ -118,12 +118,12 @@ async def test_staging_returns_models_and_cleans_up_incomplete_streams(tmp_path)
         yield b"one"
         yield b"two"
 
-    streamed = await workspace.stage_stream(chunks(), "stream.txt", size=6)
+    streamed = await workspace.uploads.stage_stream(chunks(), "stream.txt", size=6)
     assert isinstance(streamed, StagedFile)
-    assert workspace.staged_file(streamed.path).read_bytes() == b"onetwo"
+    assert workspace.uploads.file(streamed.path).read_bytes() == b"onetwo"
     before = set(tmp_path.rglob("*"))
     with pytest.raises(ValueError, match="does not match"):
-        await workspace.stage_stream(chunks(), "incomplete.txt", size=7)
+        await workspace.uploads.stage_stream(chunks(), "incomplete.txt", size=7)
     assert set(tmp_path.rglob("*")) == before
     assert json.loads(JobResponse(answer=streamed).model_dump_json())["answer"] == {
         "path": streamed.path,

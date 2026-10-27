@@ -13,7 +13,8 @@ from uuid import uuid4
 
 from .....client.events import AgentMessageEvent, JobEvent, ResultEvent
 from .....client.models import JobResponse
-from ....registry import provider
+from .....utils.async_work import complete_on_cancel
+from ...registry import provider
 from ..base import BaseAgentComponent
 from ..local_session_store import LocalAgentSessionStore
 from ..models import AgentSession, AgentSessionInfo
@@ -134,7 +135,10 @@ class ClaudeAgentComponent(BaseAgentComponent):
             prompt = path.read_text(encoding="utf-8")
         if isinstance(prompt, str):
             return "\n\n".join(part for part in (prompt, self.dev_guide) if part)
-        return {**prompt, "append": "\n\n".join(part for part in (prompt.get("append", ""), self.dev_guide) if part)}
+        return {
+            **prompt,
+            "append": "\n\n".join(part for part in (prompt.get("append", ""), self.dev_guide) if part),
+        }
 
     def _build_options(self, *, session_id: str, resume: bool, depth: int) -> ClaudeAgentOptions:
         from claude_agent_sdk import ClaudeAgentOptions
@@ -158,13 +162,12 @@ class ClaudeAgentComponent(BaseAgentComponent):
     async def _session_exists(self, session_id: str) -> bool:
         from claude_agent_sdk import project_key_for_directory
 
-        entries = await self.sdk_store.load(
+        return await self.sdk_store.store.exists(
             {
                 "project_key": project_key_for_directory(self.cwd),
                 "session_id": session_id,
             }
         )
-        return entries is not None
 
     # Async generators satisfy the base contract returning an AsyncIterator.
     async def reply_stream(  # pylint: disable=invalid-overridden-method
@@ -219,9 +222,11 @@ class ClaudeAgentComponent(BaseAgentComponent):
                             or getattr(sdk_message, "message_id", None)
                             or f"{event_session}:{sequence}"
                         ),
-                        role={"UserMessage": "user", "AssistantMessage": "assistant", "StreamEvent": "assistant"}.get(
-                            type_name, "system"
-                        ),
+                        role={
+                            "UserMessage": "user",
+                            "AssistantMessage": "assistant",
+                            "StreamEvent": "assistant",
+                        }.get(type_name, "system"),
                         sequence=sequence,
                         presentation=patches,
                     )
@@ -232,10 +237,12 @@ class ClaudeAgentComponent(BaseAgentComponent):
                         return
             finally:
                 self._active.pop(current_session, None)
-                if not result_seen:
-                    with suppress(Exception):
-                        await client.interrupt()
-                await client.disconnect()
+                try:
+                    if not result_seen:
+                        with suppress(Exception):
+                            await complete_on_cancel(client.interrupt())
+                finally:
+                    await complete_on_cancel(client.disconnect())
             if not result_seen:
                 raise RuntimeError("Claude SDK produced no ResultMessage")
 

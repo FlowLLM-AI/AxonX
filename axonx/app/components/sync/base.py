@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 from ..base import BaseComponent
-from ..component_type import ComponentType
+from ..models import ComponentType
 from .models import SyncReport
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from importlib import metadata, util
 from pathlib import Path
 
@@ -44,7 +45,27 @@ def _package_path(distribution: metadata.Distribution, package: str) -> Path:
     return Path(locations[0]).resolve()
 
 
-def _distribution_info(distribution: metadata.Distribution, packages: dict[str, str]) -> PluginInfo:
+def _plugin_distributions() -> Iterator[tuple[metadata.Distribution, list[metadata.EntryPoint]]]:
+    """Keep the first distribution on sys.path, as Python's imports do."""
+    seen: set[str] = set()
+    for distribution in metadata.distributions():
+        entries = [entry for entry in distribution.entry_points if entry.group == PLUGIN_ENTRY_POINT_GROUP]
+        if entries:
+            key = canonicalize_name(distribution.metadata.get("Name") or "unknown")
+            if key not in seen:
+                seen.add(key)
+                yield distribution, entries
+
+
+def _distribution_manifest(
+    distribution: metadata.Distribution,
+    entries: list[metadata.EntryPoint],
+) -> tuple[PluginManifest, dict[str, str], dict[str, Path]]:
+    packages = {entry.name: entry.value for entry in entries}
+    if len(packages) != len(entries):
+        raise ValueError("Duplicate plugin entry-point names in distribution")
+    if not distribution.metadata.get("Name") or not distribution.version:
+        raise ValueError("Installed plugin metadata must contain Name and Version")
     package_paths: dict[str, Path] = {}
 
     def read_manifest(package: str) -> str:
@@ -52,11 +73,29 @@ def _distribution_info(distribution: metadata.Distribution, packages: dict[str, 
             package_paths[package] = _package_path(distribution, package)
         return (package_paths[package] / PLUGIN_MANIFEST).read_text(encoding="utf-8")
 
-    manifest = PluginManifest.from_packages(packages, read_manifest)
+    return PluginManifest.from_packages(packages, read_manifest), packages, package_paths
+
+
+def discover_task_registrations() -> list[tuple[str, str, str]]:
+    """Read (Task name, class target, distribution) entries without fingerprints.
+
+    Invalid manifests do not contribute Tasks. Full installation diagnostics
+    remain available through list_installed_plugins.
+    """
+    registrations = []
+    for distribution, entries in _plugin_distributions():
+        try:
+            manifest, _, _ = _distribution_manifest(distribution, entries)
+        except (ImportError, OSError, UnicodeDecodeError, ValueError):
+            continue
+        registrations.extend((name, target, distribution.metadata["Name"]) for name, target in manifest.tasks.items())
+    return registrations
+
+
+def _distribution_info(distribution: metadata.Distribution, entries: list[metadata.EntryPoint]) -> PluginInfo:
+    manifest, packages, package_paths = _distribution_manifest(distribution, entries)
     name = distribution.metadata.get("Name")
     version = distribution.version
-    if not name or not version:
-        raise ValueError("Installed plugin metadata must contain Name and Version")
     requirements = list(distribution.requires or ())
     return PluginInfo(
         distribution=name,
@@ -77,16 +116,10 @@ def _distribution_info(distribution: metadata.Distribution, packages: dict[str, 
 
 def list_installed_plugins() -> list[PluginInfo]:
     """Return every AxonX plugin distribution, including broken installations."""
-    found: dict[str, PluginInfo] = {}
-    for distribution in metadata.distributions():
-        entries = [entry for entry in distribution.entry_points if entry.group == PLUGIN_ENTRY_POINT_GROUP]
-        if not entries:
-            continue
+    found = []
+    for distribution, entries in _plugin_distributions():
         try:
-            packages = {entry.name: entry.value for entry in entries}
-            if len(packages) != len(entries):
-                raise ValueError("Duplicate plugin entry-point names in distribution")
-            info = _distribution_info(distribution, packages)
+            info = _distribution_info(distribution, entries)
         except (ImportError, OSError, UnicodeDecodeError, ValueError) as exc:
             name = distribution.metadata.get("Name") or "unknown"
             info = PluginInfo(
@@ -98,13 +131,8 @@ def list_installed_plugins() -> list[PluginInfo]:
                 sha256=_wheel_sha256(distribution),
                 error=str(exc),
             )
-        key = canonicalize_name(info.distribution)
-        # importlib resolves the first matching distribution on sys.path. Keep
-        # that same winner when an editable checkout shadows a site-packages
-        # installation, otherwise inspection would describe code Python does
-        # not actually import.
-        found.setdefault(key, info)
-    return sorted(found.values(), key=lambda item: canonicalize_name(item.distribution))
+        found.append(info)
+    return sorted(found, key=lambda item: canonicalize_name(item.distribution))
 
 
 def get_installed_plugin(name: str) -> PluginInfo:

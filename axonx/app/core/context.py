@@ -11,11 +11,12 @@ from ..workspace.core import Workspace
 from .dispatch import JobDispatcher
 
 if TYPE_CHECKING:
+    from ...task.runtime.catalog import TaskCatalog
     from ..components.base import BaseComponent
     from ..components.job.base import BaseJob
+    from ..components.registry import ProviderRegistry
     from ..components.service.base import BaseService
-    from ..components.updater.manager import UpdateBackend
-    from ..registry import ProviderRegistry
+    from ..components.updater.base import UpdateBackend
 
 
 class ApplicationContext:
@@ -27,10 +28,12 @@ class ApplicationContext:
         app_config: ApplicationConfig,
         workspace: Workspace | None = None,
         updates: UpdateBackend | None = None,
+        task_catalog: TaskCatalog | None = None,
     ) -> None:
         self.registry = registry
         self.app_config = app_config
         self.updates = updates
+        self._task_catalog = task_catalog
         self.workspace = workspace or Workspace(
             self.app_config.workspace_dir,
             transfer_budget_bytes=self.app_config.transfer_budget_bytes,
@@ -43,6 +46,13 @@ class ApplicationContext:
         self.metadata: dict[str, Any] = {}
         self.dispatcher = JobDispatcher(self)
         self._finalized = False
+
+    @property
+    def task_catalog(self) -> TaskCatalog:
+        """Return the Task directory supplied by the application host."""
+        if self._task_catalog is None:
+            raise RuntimeError("No Task catalog is configured")
+        return self._task_catalog
 
     @property
     def components(self) -> Mapping[str, Mapping[str, BaseComponent]]:

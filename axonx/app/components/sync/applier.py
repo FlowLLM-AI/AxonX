@@ -17,8 +17,9 @@ from ....task.storage.workspace import (
     resolve_relative_path,
     task_directory,
 )
+from ...config.defaults import DEFAULT_TRANSFER_BUDGET_BYTES
 from .index import verify_replica
-from .models import SyncTasksReport
+from .models import TAR_PADDING_BYTES, SyncTasksReport, archived_bytes
 
 MAX_SYNC_DELETIONS = 200
 MAX_ARCHIVE_MEMBERS = 100_000
@@ -30,7 +31,7 @@ class TaskArchiveApplier:
     def __init__(
         self,
         workspace_path: Path,
-        transfer_budget_bytes: int = 536870912,
+        transfer_budget_bytes: int = DEFAULT_TRANSFER_BUDGET_BYTES,
     ) -> None:
         if (
             isinstance(transfer_budget_bytes, bool)
@@ -89,7 +90,7 @@ class TaskArchiveApplier:
     def _check_bounds(self, members: Sequence[tarfile.TarInfo]) -> None:
         if len(members) > MAX_ARCHIVE_MEMBERS:
             raise ValueError(f"Sync archive exceeds {MAX_ARCHIVE_MEMBERS} members")
-        if 10240 + sum(512 + ((member.size + 511) // 512) * 512 for member in members) > self.transfer_budget_bytes:
+        if TAR_PADDING_BYTES + sum(archived_bytes(member.size) for member in members) > self.transfer_budget_bytes:
             raise ValueError("Sync archive expands beyond the configured limit")
 
     def _member(self, member: tarfile.TarInfo, destination: str) -> tarfile.TarInfo:
@@ -123,7 +124,7 @@ class TaskArchiveApplier:
 
     def _hydrate(self, root: Path, tasks: set[str]) -> None:
         """Reuse only explicitly versioned files from the same current Task."""
-        expanded = 10240 + sum(512 + ((p.stat().st_size + 511) // 512) * 512 for p in root.rglob("*") if p.is_file())
+        expanded = TAR_PADDING_BYTES + sum(archived_bytes(p.stat().st_size) for p in root.rglob("*") if p.is_file())
         for relative_path in tasks:
             directory = root / relative_path
             task_id = relative_path.split("/", 1)[1]
@@ -138,7 +139,7 @@ class TaskArchiveApplier:
                 target = directory / name
                 if target.is_file():
                     continue
-                expanded += 512 + ((record.size + 511) // 512) * 512
+                expanded += archived_bytes(record.size)
                 if expanded > self.transfer_budget_bytes:
                     raise ValueError("Hydrated replica exceeds the transfer budget")
                 old = previous.replica if previous is not None and previous.started_at == status.started_at else None

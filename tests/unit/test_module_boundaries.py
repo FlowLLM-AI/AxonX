@@ -96,6 +96,7 @@ def test_cross_module_imports_follow_the_public_contracts():
         owner = path.relative_to(ROOT / "axonx").parts[0]
         if owner not in OWNERS:
             continue
+        runtime_imports = set(imports(path, include_type_checking=False))
         for target in imports(path):
             if not target.startswith("axonx."):
                 continue
@@ -106,19 +107,19 @@ def test_cross_module_imports_follow_the_public_contracts():
             if owner == "app":
                 allowed |= dependency == "client"
                 allowed |= target.startswith("axonx.task.models.")
+                allowed |= target == "axonx.task.runtime.catalog" and target not in runtime_imports
                 allowed |= target in {
-                    "axonx.plugin.catalog",
                     "axonx.task.storage.files",
                     "axonx.task.storage.logs",
                     "axonx.task.storage.workspace",
                 }
             if owner == "client":
                 allowed = target == "axonx.task.models.events" or target in SHARED
-            if owner == "plugin":
-                allowed |= dependency == "task"
             if owner == "daemon":
                 allowed |= target.startswith("axonx.app.")
                 allowed |= target == "axonx.task.runtime.settings"
+                allowed |= target == "axonx.task.runtime.catalog"
+                allowed |= target == "axonx.plugin.discovery"
                 allowed |= target == "axonx.client.config"
             if owner == "utils":
                 allowed = False
@@ -137,6 +138,76 @@ def test_utils_are_flat_and_replace_common():
         "values.py",
     }
     assert not [path for path in (ROOT / "axonx/utils").iterdir() if path.is_dir() and path.name != "__pycache__"]
+
+
+def test_app_has_only_its_five_capabilities_and_documentation_only_initializers():
+    root = ROOT / "axonx/app"
+    assert {path.name for path in root.iterdir() if path.is_file()} == {"__init__.py"}
+    assert {path.name for path in root.iterdir() if path.is_dir() and path.name != "__pycache__"} == {
+        "components",
+        "config",
+        "core",
+        "steps",
+        "workspace",
+    }
+    for path in root.rglob("__init__.py"):
+        tree = ast.parse(path.read_text())
+        assert ast.get_docstring(tree), path
+        assert len(tree.body) == 1, f"Package initializer loads or re-exports capabilities: {path}"
+
+
+def test_app_capabilities_follow_their_runtime_ownership():
+    dependencies = {
+        "components": {"config", "workspace"},
+        "config": set(),
+        "core": {"components", "config", "steps", "workspace"},
+        "steps": {"components", "config", "workspace"},
+        "workspace": set(),
+    }
+    violations = []
+    for path in (ROOT / "axonx/app").rglob("*.py"):
+        if path.name == "__init__.py":
+            continue
+        owner = path.relative_to(ROOT / "axonx/app").parts[0]
+        for target in imports(path, include_type_checking=False):
+            if not target.startswith("axonx.app."):
+                continue
+            dependency = target.split(".")[2]
+            if dependency == owner or dependency in dependencies[owner]:
+                continue
+            # Pipeline execution consumes the Step interface; composition selects concrete Steps.
+            if path.name == "pipeline.py" and target == "axonx.app.steps.base":
+                continue
+            violations.append(f"{path.relative_to(ROOT)} -> {target}")
+    assert not violations, "\n".join(violations)
+
+
+def test_app_models_do_not_load_or_import_runtime_implementations():
+    paths = sorted((ROOT / "axonx/app").rglob("models.py"))
+    allowed = {"axonx.client.config", "axonx.client.events", "axonx.app.config.defaults"}
+    for path in paths:
+        assert not [target for target in imports(path) if target.startswith("axonx.") and target not in allowed], path
+    modules = [".".join(path.relative_to(ROOT).with_suffix("").parts) for path in paths]
+    code = f"""
+import importlib
+import sys
+for module in {modules!r}:
+    importlib.import_module(module)
+forbidden = (
+    "axonx.app.core", "axonx.app.steps", "axonx.app.components.base",
+    "axonx.app.components.registry", "axonx.app.components.machine.build_info",
+    "axonx.app.components.machine.inspection", "axonx.app.components.machine.gpu",
+    "axonx.app.components.machine.python",
+    "axonx.app.components.agent.claude", "axonx.app.components.service.http.app",
+    "axonx.app.components.sync.local", "axonx.app.workspace.core",
+    "axonx.client.http", "axonx.client.mcp", "axonx.task.runtime", "axonx.task.storage",
+    "fastapi", "fastmcp", "httpx", "claude_agent_sdk", "psutil", "polars", "pyarrow",
+)
+loaded = [name for name in sys.modules if name.startswith(forbidden)]
+assert not loaded, loaded
+"""
+    result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
 
 
 def test_task_data_contracts_do_not_load_business_operations():
@@ -179,7 +250,7 @@ def test_task_capabilities_follow_one_way_runtime_dependencies():
         "models": set(),
         "storage": {"models"},
         "core": {"models", "storage"},
-        "runtime": {"models", "storage", "core"},
+        "runtime": {"models", "storage", "core", "builtins"},
         "builtins": {"models", "storage", "core"},
     }
     violations = []
@@ -274,6 +345,8 @@ def test_cli_does_not_implement_resident_components_or_steps():
             ),
         ),
         ("axonx.task.runtime.executor", ("axonx.app", "axonx.cli", "axonx.plugin", "axonx.daemon")),
+        ("axonx.task.runtime.catalog", ("axonx.app", "axonx.cli", "axonx.plugin", "axonx.daemon")),
+        ("axonx.plugin.discovery", ("axonx.app", "axonx.cli", "axonx.task", "axonx.daemon")),
         (
             "axonx.task.runtime.settings",
             ("axonx.app", "axonx.cli", "axonx.plugin", "axonx.task.core", "axonx.task.storage"),
@@ -334,7 +407,6 @@ from axonx.client.base import BaseClient
 from axonx.client.http import HttpClient
 from axonx.client.mcp import McpClient
 import axonx.client
-from axonx.app.components.job import events as execution_events
 from axonx.app.workspace import models as workspace_models
 
 assert not issubclass(BaseClient, BaseComponent)
@@ -342,7 +414,7 @@ assert issubclass(HttpClient, BaseClient)
 assert issubclass(McpClient, BaseClient)
 assert not hasattr(components, "client")
 assert not hasattr(axonx.client, "HttpClient")
-assert not hasattr(execution_events, "ResultEvent")
+assert importlib.util.find_spec("axonx.app.components.job.events") is None
 assert not hasattr(workspace_models, "StagedFile")
 assert importlib.util.find_spec("axonx.app.components.client") is None
 assert importlib.util.find_spec("axonx.app.async_work") is None

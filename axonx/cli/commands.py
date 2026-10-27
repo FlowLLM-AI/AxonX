@@ -64,12 +64,13 @@ def _run_app(command: Command, _options: ClientOptions) -> int:
 
 
 def _run_exec(command: Command, options: ClientOptions) -> int:
-    from ..plugin.catalog import TaskCatalog
+    from ..plugin.discovery import discover_task_registrations
+    from ..task.runtime.catalog import TaskCatalog
     from ..task.runtime.executor import TaskExecutor
 
     if not command.arguments:
         load_env(override=False)
-        for name, task_class in TaskCatalog().tasks().items():
+        for name, task_class in TaskCatalog(registrations=discover_task_registrations()).tasks().items():
             print(f"{name}\t{task_class.__module__}.{task_class.__name__}")
         return 0
     inputs = dict(command.arguments)
@@ -78,7 +79,7 @@ def _run_exec(command: Command, options: ClientOptions) -> int:
     except KeyError:
         raise ValueError("Missing required option: --task") from None
     config = _execution_config(inputs, options)
-    catalog = TaskCatalog()
+    catalog = TaskCatalog(registrations=discover_task_registrations())
     if isinstance(inputs.get("upstream_task_ids"), str):
         upstream_ids = inputs["upstream_task_ids"]
         inputs["upstream_task_ids"] = [item.strip() for item in upstream_ids.split(",")] if upstream_ids.strip() else []

@@ -14,7 +14,7 @@ from typing import cast
 from uuid import uuid4
 
 from ....utils.async_work import run_blocking
-from .session_store import (
+from .models import (
     AgentSessionEntry,
     AgentSessionKey,
     AgentSessionListEntry,
@@ -122,6 +122,11 @@ class LocalAgentSessionStore:
     async def load(self, key: AgentSessionKey) -> list[AgentSessionEntry] | None:
         path = self._path(key)
         return await self._io(key, lambda: self._read(path))
+
+    async def exists(self, key: AgentSessionKey) -> bool:
+        """Check identity without loading a potentially large transcript."""
+        path = self._path(key)
+        return await self._io(key, path.is_file)
 
     async def list_sessions(self, project_key: str) -> list[AgentSessionListEntry]:
         project = self._inside(self.root / self._part(project_key, "project_key"))

@@ -12,8 +12,11 @@ from axonx.app.components.agent.models import (
     AgentSession,
     AgentSessionInfo,
 )
-from axonx.app.core.build_info import BuildInfo
-from axonx.app.steps.machine.models import MachineDiagnostics, MachineInfo
+from axonx.app.components.machine.models import (
+    BuildInfo,
+    MachineDiagnostics,
+    MachineInfo,
+)
 from axonx.app.workspace.models import (
     CsvPreview,
     DeletedEntry,
@@ -25,9 +28,19 @@ from axonx.app.workspace.models import (
     UnsupportedPreview,
     WorkspaceListing,
 )
-from axonx.client.events import AgentBlockPatch, AgentMessageEvent, ArtifactEvent, ResultEvent
+from axonx.client.events import (
+    AgentBlockPatch,
+    AgentMessageEvent,
+    ArtifactEvent,
+    ResultEvent,
+)
 from axonx.client.models import JobCatalog, JobInfo, JobResponse, StagedFile
-from axonx.task.builtins.stock.models import StockBacktestOutput, StockETLOutput, StockOnlineReport, StockReportSettings
+from axonx.task.builtins.stock.models import (
+    StockBacktestOutput,
+    StockETLOutput,
+    StockOnlineReport,
+    StockReportSettings,
+)
 from axonx.task.models.artifacts import ArtifactRecord
 from axonx.task.models.events import LogChunk, LogEvent, ProgressEvent
 from axonx.task.models.lifecycle import TaskMetadata, TaskStepStatus
@@ -47,7 +60,13 @@ from axonx.task.models.query import (
     TaskGraph,
     TaskSummary,
 )
-from axonx.task.models.reports import OnlineCommit, OnlineHistory, PredictionComparison, TrainingCurve, WindowResult
+from axonx.task.models.reports import (
+    OnlineCommit,
+    OnlineHistory,
+    PredictionComparison,
+    TrainingCurve,
+    WindowResult,
+)
 
 MODELS = [
     TaskContextSnapshot,
@@ -128,9 +147,13 @@ def typescript(schema):
             additional = schema.get("additionalProperties", {})
             result = f"Record<string, {typescript(additional) if isinstance(additional, dict) else 'unknown'}>"
         return result
-    return {"string": "string", "integer": "number", "number": "number", "boolean": "boolean", "null": "null"}.get(
-        kind, "unknown"
-    )
+    return {
+        "string": "string",
+        "integer": "number",
+        "number": "number",
+        "boolean": "boolean",
+        "null": "null",
+    }.get(kind, "unknown")
 
 
 def render():

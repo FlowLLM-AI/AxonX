@@ -14,8 +14,8 @@ from ....client.config import TARGET_ARGUMENT
 from ....client.events import JobEvent
 from ....client.models import JobInfo, JobResponse
 from ..base import BaseComponent
-from ..component_type import ComponentType
-from .events import fold_events
+from ..models import ComponentType
+from .response import fold_events
 
 _RESPONSE_SCHEMA = JobResponse.model_json_schema()
 
@@ -83,17 +83,9 @@ class BaseJob(BaseComponent, ABC):
         """Return a defensive copy of system-owned parameter definitions."""
         return deepcopy(self._injected_schema["properties"])
 
-    @property
-    def is_servable(self) -> bool:
-        return self.enable_serve
-
     def is_public(self, *, authenticated: bool) -> bool:
         """Match the catalog and transport exposure policy for this service."""
-        return self.is_servable and (authenticated or not self.requires_auth)
-
-    @property
-    def is_streamable(self) -> bool:
-        return self.enable_stream
+        return self.enable_serve and (authenticated or not self.requires_auth)
 
     def validate_arguments(self, arguments: Mapping[str, Any]) -> None:
         """Validate caller-owned business arguments."""

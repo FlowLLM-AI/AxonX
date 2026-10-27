@@ -6,13 +6,7 @@ from collections.abc import Iterable, Mapping
 from types import MappingProxyType
 from typing import cast
 
-
-def component_type_name(value: str) -> str:
-    """Normalize a component enum or non-empty string to its string name."""
-    if not isinstance(value, str) or not value:
-        raise ValueError("Component type must be a non-empty string")
-    return str(value)
-
+from .models import component_type_name
 
 _PROVIDER_NAME = "__axonx_provider_name__"
 

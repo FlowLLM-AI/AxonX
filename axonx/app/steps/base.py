@@ -5,16 +5,14 @@ from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, ClassVar
 
 from ...client.events import JobEvent
-from ..components.base import ComponentBase
-from ..components.component_type import ComponentType
+from ..components.base import BaseComponent, ComponentBase
+from ..components.models import ComponentType
 
 
 class BaseStep(ComponentBase, ABC):
     """Run one asynchronous operation against a per-job context."""
 
     component_type = ComponentType.STEP
-
-    #: Component-backed steps opt in to exactly the domains they use.
     component_domains: ClassVar[tuple[ComponentType, ...]] = ()
 
     #: System-owned context fields this Step requires, by name and JSON schema.
@@ -24,32 +22,21 @@ class BaseStep(ComponentBase, ABC):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._component_names = {domain: self.kwargs.pop(domain.value, "default") for domain in self.component_domains}
         self.context = None
         self._emit: Callable[[JobEvent], Awaitable[None]] | None = None
 
-    def _component(self, component_type: ComponentType):
-        """Return the component of one domain this step was configured to drive."""
-        name = self._component_names[component_type]
+    def component[ComponentT: BaseComponent](self, base_cls: type[ComponentT]) -> ComponentT:
+        """Resolve a declared domain and verify its configured implementation."""
+        domain = base_cls.component_type
+        name = self._component_names[domain]
         try:
-            return self.get_component(component_type, name)
+            component = self._require_context().components[domain][name]
         except KeyError as exc:
-            # Named, because the raw lookup reports only the key that missed.
-            raise ValueError(f"Unknown {component_type} component: {name!r}") from exc
-
-    @property
-    def agent_wrapper(self):
-        """Return the agent backend this step drives."""
-        return self._component(ComponentType.AGENT)
-
-    @property
-    def sync(self):
-        """Return the workspace sync backend this step drives."""
-        return self._component(ComponentType.SYNC)
-
-    @property
-    def task_index(self):
-        """Return the Task index this step drives."""
-        return self._component(ComponentType.TASK_INDEX)
+            raise ValueError(f"Unknown {domain} component: {name!r}") from exc
+        if not isinstance(component, base_cls):
+            raise TypeError(f"Component {domain}:{name} must be a {base_cls.__name__}")
+        return component
 
     @property
     def response(self):
@@ -69,6 +56,7 @@ class BaseStep(ComponentBase, ABC):
             return self.response
         finally:
             self._emit = None
+            self.context = None
 
     async def emit(self, event: JobEvent) -> None:
         """Publish one event, waiting when the Job's bounded buffer is full."""

@@ -39,7 +39,7 @@ CLI_USAGE = f"""Usage:
   axonx get_config [--target HOST:PORT]
   axonx exec [--task TASK] [--workspace-dir PATH] [--field value ...] [--target HOST:PORT]
   axonx kill --task-id ID [--workspace-dir PATH] [--timeout SECONDS] [--force true] [--target HOST:PORT]
-  axonx app [--config NAME_OR_PATH] [--cron NAME_OR_PATH]
+  axonx app [--config NAME_OR_PATH]
   axonx plugin list|show|inspect|install|uninstall ... [--target HOST:PORT]
   axonx plugin build SOURCE [--output DIRECTORY] [--target HOST:PORT]
   axonx plugin install -e SOURCE

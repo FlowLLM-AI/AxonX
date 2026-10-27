@@ -10,10 +10,9 @@ from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 import pytest
 
 from axonx.cli import main
-from axonx.plugin import catalog, discovery, fingerprint, installer, wheel
+from axonx.plugin import discovery, fingerprint, installer, wheel
 from axonx.plugin.manifest import PluginManifest
 from axonx.plugin.models import PluginInfo
-from axonx.task.builtins.demo import DemoTask
 
 
 def make_wheel(tmp_path, *, packages=None, compression=ZIP_STORED):
@@ -111,6 +110,7 @@ def test_invalid_manifests_fail_wheel_inspection_and_remain_visible_in_discovery
     info = discovery.get_installed_plugin("example")
     assert info.error
     assert not info.tasks
+    assert discovery.discover_task_registrations() == []
 
 
 def test_manifests_reject_duplicate_tasks_and_invalid_packages_before_reading():
@@ -131,49 +131,21 @@ def test_discovery_keeps_the_first_distribution_on_the_import_path(tmp_path, mon
     plugins = discovery.list_installed_plugins()
     assert len(plugins) == 1
     assert set(plugins[0].tasks) == {"research"}
+    assert discovery.discover_task_registrations() == [
+        ("research", "axonx.task.builtins.demo:DemoTask", "example-plugin")
+    ]
 
 
-def test_catalog_discovers_once_loads_on_demand_and_keeps_plugin_ownership(monkeypatch):
-    scans, imports = [], []
-    plugin = PluginInfo(
-        distribution="example", version="1", tasks={"research": "package:Task", "unrelated": "missing:Task"}
-    )
-    monkeypatch.setattr(catalog, "list_installed_plugins", lambda: scans.append(True) or [plugin])
+def test_task_registration_discovery_does_not_import_plugin_code_or_compute_fingerprints(tmp_path, monkeypatch):
+    distribution = installed_distribution(make_wheel(tmp_path), tmp_path / "installed")
+    monkeypatch.setattr(discovery.metadata, "distributions", lambda: [distribution])
     monkeypatch.setattr(
-        catalog, "import_module", lambda module: imports.append(module) or SimpleNamespace(Task=DemoTask)
+        discovery, "content_sha256_from_directories", lambda **kwargs: pytest.fail("Computed a content fingerprint")
     )
-    tasks = catalog.TaskCatalog()
-    assert not imports
-    assert tasks.resolve("research") is DemoTask
-    assert tasks.resolve("research") is DemoTask
-    assert tasks.definition("research").plugin == "example"
-    assert len(scans) == 1
-    assert imports == ["package"]
-    with pytest.raises(ValueError, match="Unknown Task: absent.*Available:"):
-        tasks.resolve("absent")
-
-
-def test_catalog_omits_schema_generation_when_listing_task_info(monkeypatch):
-    monkeypatch.setattr(catalog, "list_installed_plugins", lambda: [])
-    monkeypatch.setattr(catalog, "BUILTIN_TASKS", {"demo": DemoTask})
-    monkeypatch.setattr(DemoTask.input_cls, "model_json_schema", lambda: pytest.fail("Generated an input schema"))
-    monkeypatch.setattr(DemoTask.output_cls, "model_json_schema", lambda: pytest.fail("Generated an output schema"))
-    assert catalog.TaskCatalog().definitions(include_schemas=False)[0].name == "demo"
-
-
-def test_catalog_rejects_duplicate_plugin_tasks(monkeypatch):
-    plugins = [PluginInfo(distribution=name, version="1", tasks={"same": "missing:Task"}) for name in ("one", "two")]
-    monkeypatch.setattr(catalog, "list_installed_plugins", lambda: plugins)
-    with pytest.raises(ValueError, match="plugins 'one' and 'two'"):
-        catalog.TaskCatalog()
-
-
-@pytest.mark.parametrize("target", ["invalid", ":Task", "package:", "builtins:dict"])
-def test_catalog_rejects_invalid_task_targets(monkeypatch, target):
-    plugin = PluginInfo(distribution="example", version="1", tasks={"research": target})
-    monkeypatch.setattr(catalog, "list_installed_plugins", lambda: [plugin])
-    with pytest.raises((TypeError, ValueError), match="Task target"):
-        catalog.TaskCatalog().resolve("research")
+    monkeypatch.setattr(discovery, "_wheel_sha256", lambda value: pytest.fail("Read wheel provenance"))
+    assert discovery.discover_task_registrations() == [
+        ("research", "axonx.task.builtins.demo:DemoTask", "example-plugin")
+    ]
 
 
 def test_source_cache_ignores_generated_files_but_tracks_nested_source_and_rejects_symlinks(tmp_path):

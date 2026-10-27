@@ -20,7 +20,9 @@ from .context import ApplicationContext
 from .graph import ComponentGraph
 
 if TYPE_CHECKING:
-    from ..components.updater.manager import UpdateBackend
+    from ...task.runtime.catalog import TaskCatalog
+    from ..components.cron.scheduler import ScheduledLaunch
+    from ..components.updater.base import UpdateBackend
 
 
 class Application:
@@ -32,9 +34,19 @@ class Application:
         providers: Iterable[type] = (),
         workspace: Workspace | None = None,
         updates: UpdateBackend | None = None,
+        task_catalog: TaskCatalog | None = None,
+        launch_scheduled: ScheduledLaunch | None = None,
         **config: Any,
     ) -> None:
-        self.context: ApplicationContext = compose_application(__version__, config, providers, workspace, updates)
+        self.context: ApplicationContext = compose_application(
+            __version__,
+            config,
+            providers,
+            workspace,
+            updates,
+            task_catalog,
+            launch_scheduled,
+        )
         self._startup_order = ComponentGraph(self.context.components).resolve()
         self._started: list[BaseComponent] = []
         self._lifecycle_lock = asyncio.Lock()
@@ -61,12 +73,9 @@ class Application:
             self.workspace.ensure()
             self.context.metadata.pop("stopping", None)
             try:
-                for component in self._startup_order:
+                for component in (*self._startup_order, *self.context.jobs.values()):
                     await component.start()
                     self._started.append(component)
-                for job in self.context.jobs.values():
-                    await job.start()
-                    self._started.append(job)
             except BaseException as start_error:
                 cleanup_errors = await self._close_started()
                 if cleanup_errors:

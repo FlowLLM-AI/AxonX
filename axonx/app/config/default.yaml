@@ -1,6 +1,4 @@
-language: en
 workspace_dir: ${AXONX_WORKSPACE_DIR:-.axonx}
-transfer_budget_bytes: 536870912
 
 # Optional address advertised by Task workers for remote kill commands.
 # Use an address reachable by other machines, with an explicit service port.
@@ -8,6 +6,15 @@ execution_target: ${AXONX_EXECUTION_TARGET:-null}
 
 # =========== Known target services ===========
 targets: []
+
+# Schedules use the application timezone and startup directory. Restart to reload;
+# missed occurrences are not replayed. An inherited cron list is replaced as a whole.
+cron: []
+# cron:
+#   - expression: "0 16 * * 1-5"
+#     command: "axonx exec --task download_tushare_task --days-back 7"
+#   - expression: "*/10 * * * *"
+#     command: "axonx exec --task demo --x 1 --y 2"
 
 components:
   updater:
@@ -113,8 +120,8 @@ jobs:
 
   # =========== System jobs ===========
   get_config:
-    description: Return this service's resolved application configuration, including execution defaults and environment. Runtime callbacks are omitted and execution directories are absolute.
-    parameters:
+    description: Return this service's resolved application configuration, including schedules, execution defaults and environment. Execution directories are absolute.
+    parameters: &no_parameters
       type: object
       properties: {}
       additionalProperties: false
@@ -137,10 +144,7 @@ jobs:
 
   diagnose:
     description: Inspect this service's build, Python, workspace disk, resources and resource usage. Credential values are never returned.
-    parameters:
-      type: object
-      properties: {}
-      additionalProperties: false
+    parameters: *no_parameters
     steps:
       - backend: diagnose_step
 
@@ -151,37 +155,24 @@ jobs:
 
   update_from_git:
     description: Stop the application, fast-forward the source branch, build Studio and restart.
-    requires_auth: true
-    parameters:
-      type: object
-      properties: {}
-      additionalProperties: false
+    parameters: *no_parameters
     steps:
       - backend: update_from_git_step
 
   update_from_pip:
     description: Upgrade axonx and axonx-studio from the package index and restart.
-    requires_auth: true
-    parameters:
-      type: object
-      properties: {}
-      additionalProperties: false
+    parameters: *no_parameters
     steps:
       - backend: update_from_pip_step
 
   restart_service:
-    description: Restart the application and reload its crontab; stop manual commands and preserve scheduled Tasks.
-    requires_auth: true
-    parameters:
-      type: object
-      properties: {}
-      additionalProperties: false
+    description: Restart the application and reload its configuration and schedules; stop manual commands and preserve scheduled Tasks.
+    parameters: *no_parameters
     steps:
       - backend: restart_service_step
 
   get_update_status:
     description: Read an update record and log tail; omit update_id for the latest update.
-    requires_auth: true
     parameters:
       type: object
       properties:
@@ -460,10 +451,9 @@ jobs:
       - backend: workspace_delete
 
   # =========== Sync jobs ===========
-  # Enable together with the sync component and workspace_sync schedule.
+  # Enable with the sync component, then schedule "axonx sync_flush" in cron.
   # sync_flush:
   #   description: Flush task changes queued for workspace replication.
-  #   enable_serve: false
   #   steps:
   #     - backend: sync_flush_step
   #       sync: default

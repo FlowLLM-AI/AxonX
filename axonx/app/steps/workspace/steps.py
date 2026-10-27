@@ -2,7 +2,7 @@
 
 import asyncio
 
-from ...registry import provider
+from ...components.registry import provider
 from ...workspace.preview import PREVIEW_ROWS
 from ..base import BaseStep
 

@@ -9,7 +9,7 @@ from pydantic import TypeAdapter
 
 from .....client.config import TARGET_ARGUMENT
 from .....client.models import JobResponse
-from ....constants import AGENT_DEPTH_ARGUMENT
+from ..models import AGENT_DEPTH_ARGUMENT
 
 if TYPE_CHECKING:
     from ....core.context import ApplicationContext

@@ -1,12 +1,15 @@
-"""Fold an execution event stream into its final Job response."""
+"""Job result folding and invocation-scoped response-completion callbacks."""
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import aclosing
+from contextvars import ContextVar
 
 from ....client import events as client_events
 from ....client import models
+
+RESPONSE_CALLBACKS: ContextVar[list[Callable[[], None]] | None] = ContextVar("response_callbacks", default=None)
 
 
 async def fold_events(events: AsyncIterator[client_events.JobEvent]) -> models.JobResponse:

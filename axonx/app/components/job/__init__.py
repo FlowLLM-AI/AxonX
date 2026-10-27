@@ -1,10 +1,7 @@
 """Job execution, response contracts and Step pipelines.
 
-events: Fold public event streams into a terminal Job response.
-base: Job argument validation, invocation and streaming contract.
-context: Mutable state owned by one pipeline invocation.
-pipeline: Ordered Step execution, injected parameters and event delivery.
-
-Import execution classes from base and pipeline. Public Job models and events
-live in axonx.client.models and axonx.client.events.
+base: Execution contract shared by all Jobs.
+command: Execute a service-owned CLI command with streaming output and cancellation cleanup.
+pipeline: Ordered, streaming Step pipeline Job.
+response: Job result folding and invocation-scoped response-completion callbacks.
 """

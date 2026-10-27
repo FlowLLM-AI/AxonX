@@ -1,20 +1,4 @@
 """Job adapters for configured synchronization components.
 
-apply: Incoming replica-archive application.
-flush: Explicit synchronization flush requests.
-index: Replica-index queries for transfer planning.
+steps: Job adapters for replica application, transfer and reconciliation indexes.
 """
-
-from . import apply, flush, index
-from .apply import SyncTasksStep
-from .flush import SyncFlushStep
-from .index import TaskSyncIndexStep
-
-__all__ = [
-    "SyncFlushStep",
-    "SyncTasksStep",
-    "TaskSyncIndexStep",
-    "apply",
-    "flush",
-    "index",
-]

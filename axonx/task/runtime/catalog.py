@@ -1,16 +1,16 @@
-"""Discover, resolve and describe built-in and installed plugin Tasks."""
+"""Resolve and describe a snapshot of built-in and externally registered Tasks."""
 
+from collections.abc import Iterable
 from importlib import import_module, invalidate_caches
 from inspect import cleandoc
 from typing import Any
 
-from ..task.builtins.demo import DemoTask
-from ..task.builtins.dingtalk import SendDingTalkTask
-from ..task.builtins.tushare import DownloadTushareTask
-from ..task.core.base import BaseTask
-from ..task.models.identity import TaskType
-from ..task.models.query import TaskDefinition, TaskInfo
-from .discovery import list_installed_plugins
+from ..builtins.demo import DemoTask
+from ..builtins.dingtalk import SendDingTalkTask
+from ..builtins.tushare import DownloadTushareTask
+from ..core.base import BaseTask
+from ..models.identity import TaskType
+from ..models.query import TaskDefinition, TaskInfo
 
 BUILTIN_TASKS = {"demo": DemoTask, "send_dingtalk_task": SendDingTalkTask, "download_tushare_task": DownloadTushareTask}
 
@@ -18,19 +18,19 @@ BUILTIN_TASKS = {"demo": DemoTask, "send_dingtalk_task": SendDingTalkTask, "down
 class TaskCatalog:
     """A registration snapshot that loads Task classes only when requested."""
 
-    def __init__(self) -> None:
-        registrations: dict[str, tuple[type[BaseTask] | str, str | None]] = {
+    def __init__(self, registrations: Iterable[tuple[str, str, str]] = ()) -> None:
+        """Merge external (name, class target, distribution) entries with built-ins."""
+        tasks: dict[str, tuple[type[BaseTask] | str, str | None]] = {
             name: (task, None) for name, task in BUILTIN_TASKS.items()
         }
-        for plugin in list_installed_plugins():
-            for name, target in plugin.tasks.items():
-                if name in registrations:
-                    owner = registrations[name][1]
-                    if owner is None:
-                        raise ValueError(f"Plugin Task names conflict with built-ins: {name}")
-                    raise ValueError(f"Task {name!r} is provided by plugins {owner!r} and {plugin.distribution!r}")
-                registrations[name] = target, plugin.distribution
-        self._registrations = dict(sorted(registrations.items()))
+        for name, target, distribution in registrations:
+            if name in tasks:
+                owner = tasks[name][1]
+                if owner is None:
+                    raise ValueError(f"Plugin Task names conflict with built-ins: {name}")
+                raise ValueError(f"Task {name!r} is provided by plugins {owner!r} and {distribution!r}")
+            tasks[name] = target, distribution
+        self._registrations = dict(sorted(tasks.items()))
         invalidate_caches()
 
     def resolve(self, name: str) -> type[BaseTask]:

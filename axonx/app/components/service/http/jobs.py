@@ -3,12 +3,10 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import aclosing
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastmcp import FastMCP
 from fastmcp.tools import FunctionTool
-from pydantic import BaseModel, ConfigDict, Field
 from starlette.responses import StreamingResponse
 
 from .....client import http as client
@@ -23,14 +21,7 @@ from .....client.config import (
 )
 from .....client.events import JobEvent, ResultEvent
 from .....client.models import JobCatalog, JobResponse
-
-
-class JobInvocation(BaseModel):
-    """HTTP-only envelope separating Job arguments from transport targeting."""
-
-    model_config = ConfigDict(extra="forbid")
-    arguments: dict[str, Any] = Field(default_factory=dict)
-    target: str | None = None
+from .models import JobInvocation
 
 
 def _event_frame(event: JobEvent) -> str:
@@ -91,7 +82,7 @@ def create_jobs_router(app, public_jobs) -> APIRouter:
     async def stream_job(name: str, invocation: JobInvocation):
         """Stream one job's events as Server-Sent Events."""
         job = public_jobs.get(name)
-        if invocation.target is None and (job is None or not job.is_streamable):
+        if invocation.target is None and (job is None or not job.enable_stream):
             raise HTTPException(404, "Unknown job")
         try:
             # Validate local Jobs and target configuration before starting the body.

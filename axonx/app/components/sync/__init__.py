@@ -1,28 +1,13 @@
 """Task display-replica planning, transfer and application.
 
-models: Replica file plans, transfer batches and synchronization reports.
-errors: Changing snapshots and deterministic replica-budget failures.
-base: Managed synchronization component contract.
-planner: Published-output selection and bounded archive batches.
-sampling: Tabular reduction and trace-preserving display samples.
-replica: Bounded artifacts and live Task-group preparation.
-archive: Deterministic archive creation from prepared replica plans.
-index: Transfer-policy revisions, source identities and verified replica indexes.
-applier: Archive validation and atomic display-replica application.
-local: Reconciliation, transfer scheduling and source-change observation.
+applier: Validate and atomically apply display-replica archives.
+archive: Build deterministic archives from prepared display-replica plans.
+base: Component contract for replicating workspace task directories to a target service.
+errors: Distinguish changing source snapshots from deterministic replica failures.
+index: Source identities and verified replica indexes use the same transfer policy.
+local: Reconcile and transfer bounded display replicas with opt-in live Task groups.
+models: Internal replica plans and results owned by application synchronization.
+planner: Select published task outputs and pack complete display replicas.
+replica: Prepare bounded, valid display artifacts without modifying source files.
+sampling: Bounded, whole-day Parquet sampling for read-only display replicas.
 """
-
-from . import applier, archive, base, errors, index, local, models, planner, replica, sampling
-
-__all__ = [
-    "applier",
-    "archive",
-    "base",
-    "errors",
-    "index",
-    "local",
-    "models",
-    "planner",
-    "replica",
-    "sampling",
-]

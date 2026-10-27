@@ -15,14 +15,22 @@ import psutil
 import pytest
 import yaml
 
-from axonx.app.config.resolver import resolve_app_config
+from axonx.app.config.loader import ConfigLoader
 from axonx.daemon import client as daemon
 from axonx.daemon.client import DaemonClient
 from axonx.daemon.launcher import runtime_directory
 from axonx.task.storage.workspace import task_path
 
 
-def test_cli_validates_the_complete_crontab_before_launching_workers(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize(
+    ("invalid", "error"),
+    [
+        ({"expression": "* * * * *", "command": "axonx exec --task demo --target remote:1024"}, "cron[1].command:"),
+        ({"expression": "0 25 * * *", "command": "axonx exec --task demo"}, "cron.1.expression"),
+        ({"expression": "* * * * *", "command": 'axonx exec --task "demo'}, "cron.1"),
+    ],
+)
+def test_cli_validates_all_schedules_before_launching_workers(tmp_path, monkeypatch, capsys, invalid, error):
     from axonx.cli.main import main
     from axonx.daemon import launcher
 
@@ -31,21 +39,22 @@ def test_cli_validates_the_complete_crontab_before_launching_workers(tmp_path, m
     monkeypatch.setattr(launcher, "load_env", lambda: {})
     launches = []
     monkeypatch.setattr(launcher, "_launch", lambda *args: launches.append(args))
-    config, crontab = tmp_path / "app.yaml", tmp_path / "commands.cron"
-    config.write_text(yaml.safe_dump({"workspace_dir": str(tmp_path), "service": {"backend": "http"}}))
-    crontab.write_text(
-        "\n".join(
-            (
-                "* * * * * axonx exec --task demo --x 1",
-                "* * * * * axonx exec --task demo --target remote:1024",
-            )
-        )
-    )
-    argv = ["app", "--config", str(config), "--cron", str(crontab)]
+    path = tmp_path / "app.yaml"
+    config = {
+        "workspace_dir": str(tmp_path),
+        "service": {"backend": "http"},
+        "cron": [
+            {"expression": "* * * * *", "command": "axonx exec --task demo --x 1"},
+            invalid,
+        ],
+    }
+    path.write_text(yaml.safe_dump(config))
+    argv = ["app", "--config", str(path)]
     assert main(argv) == 2
     assert not launches
-    assert f"{crontab}:2:" in capsys.readouterr().err
-    crontab.write_text("* * * * * axonx exec --task demo --x 1\n")
+    assert error in capsys.readouterr().err
+    config["cron"].pop()
+    path.write_text(yaml.safe_dump(config))
     assert main(argv) == 0
     assert len(launches) == 1
 
@@ -73,7 +82,7 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
     workspace = tmp_path / "workspace"
-    defaults = resolve_app_config(log_config=False)
+    defaults = ConfigLoader().resolve(log_config=False)
     config = {
         "workspace_dir": str(workspace),
         "log_dir": str(tmp_path / "logs"),
@@ -91,16 +100,15 @@ def test_cli_start_supervises_one_app_and_injects_the_command_driver(tmp_path):
             "cleanup_timeout": 2,
         },
     }
-    configuration, crontab = tmp_path / "app.yaml", tmp_path / "empty.cron"
+    configuration = tmp_path / "app.yaml"
     configuration.write_text(yaml.safe_dump(config))
-    crontab.write_text("# Start the in-process Cron component without firing tasks.\n")
     directory = runtime_directory(str(workspace), "127.0.0.1", port, tmp_path)
     environment = {key: value for key, value in os.environ.items() if not key.startswith("AXONX_DAEMON_")}
     environment["PYTHONPATH"] = str(root)
     children = []
     with (tmp_path / "daemon.log").open("w+") as output:
         with subprocess.Popen(
-            [sys.executable, "-m", "axonx.cli", "app", "--config", str(configuration), "--cron", str(crontab)],
+            [sys.executable, "-m", "axonx.cli", "app", "--config", str(configuration)],
             cwd=tmp_path,
             env=environment,
             stdout=output,
@@ -211,7 +219,7 @@ def eventually(read, timeout=20):
 
 
 @pytest.mark.parametrize("mode", ["restart", "git"])
-def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_reloads_crontab(tmp_path, mode):
+def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_reloads_config(tmp_path, mode):
     root = Path(__file__).resolve().parents[2]
     entry = tmp_path / "entry.py"
     # Use the real runtime with a gate-controlled Task; make each startup slot due immediately.
@@ -222,13 +230,13 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
         import time
         from datetime import datetime
         from pathlib import Path
-        from axonx.app.components.cron import CronComponent
+        from axonx.app.components.cron.scheduler import CronComponent
         from axonx.cli.main import main
         from axonx.cli.parser import parse_command, validate_cron_command
         from axonx.daemon.launcher import start
         from axonx.daemon.client import DaemonClient
         from axonx.daemon import update
-        from axonx.plugin.catalog import BUILTIN_TASKS
+        from axonx.task.runtime.catalog import BUILTIN_TASKS
         from axonx.task.builtins.demo import DemoTask, DemoTaskInputParams
 
         VERSION = Path(__file__).with_name("version.txt").read_text()
@@ -253,7 +261,7 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
 
         async def start_cron(self):
             await original_start(self)
-            self._next = dict.fromkeys(self._next, datetime.now(self.timezone))
+            self._next = [datetime.now(self.timezone)] * len(self._next)
 
         CronComponent._start = start_cron
         if sys.argv[1] == "app":
@@ -289,7 +297,7 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
-    defaults = resolve_app_config(log_config=False)
+    defaults = ConfigLoader().resolve(log_config=False)
     workspace = tmp_path / "workspace"
     config = {
         "workspace_dir": str(workspace),
@@ -308,21 +316,24 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
             "cleanup_timeout": 1,
         },
     }
-    configuration, crontab = tmp_path / "app.yaml", tmp_path / "commands.cron"
-    configuration.write_text(yaml.safe_dump(config))
+    configuration = tmp_path / "app.yaml"
     scheduled, manual, fresh = (tmp_path / f"{name}.json" for name in ("scheduled", "manual", "fresh"))
     scheduled_gate, fresh_gate = tmp_path / "release-scheduled", tmp_path / "release-fresh"
-    crontab.write_text(
-        f"* * * * * axonx exec --task waiting --task-name scheduled --x 1 --y 2 "
-        f"--marker {scheduled} --gate {scheduled_gate}\n"
-    )
+    config["cron"] = [
+        {
+            "expression": "* * * * *",
+            "command": f"axonx exec --task waiting --task-name scheduled --x 1 --y 2 "
+            f"--marker {scheduled} --gate {scheduled_gate}",
+        }
+    ]
+    configuration.write_text(yaml.safe_dump(config))
     directory = runtime_directory(str(workspace), "127.0.0.1", port, tmp_path)
     environment = {key: value for key, value in os.environ.items() if not key.startswith("AXONX_DAEMON_")}
     environment["PYTHONPATH"] = str(root)
     with (
         (tmp_path / "daemon.log").open("w+") as output,
         subprocess.Popen(
-            [sys.executable, str(entry), "app", "--config", str(configuration), "--cron", str(crontab)],
+            [sys.executable, str(entry), "app", "--config", str(configuration)],
             cwd=tmp_path,
             env=environment,
             stdout=output,
@@ -376,10 +387,14 @@ def test_service_replacement_cancels_manual_exec_preserves_scheduled_exec_and_re
                 manual_task = eventually(lambda: json.loads(manual.read_text()))
                 manual_process = psutil.Process(manual_task["pid"])
                 assert manual_process.ppid() == first["service"]
-                crontab.write_text(
-                    f"* * * * * axonx exec --task waiting --task-name fresh --x 5 --y 6 "
-                    f"--marker {fresh} --gate {fresh_gate}\n"
-                )
+                config["cron"] = [
+                    {
+                        "expression": "* * * * *",
+                        "command": f"axonx exec --task waiting --task-name fresh --x 5 --y 6 "
+                        f"--marker {fresh} --gate {fresh_gate}",
+                    }
+                ]
+                configuration.write_text(yaml.safe_dump(config))
                 if mode == "restart":
                     (tmp_path / "version.txt").write_text("new")
                 fresh_gate.touch()

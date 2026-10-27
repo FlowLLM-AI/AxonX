@@ -1,7 +1,7 @@
 """Query Task definitions in the service's installed Python environment."""
 
 from ....utils.async_work import run_blocking
-from ...registry import provider
+from ...components.registry import provider
 from ..base import BaseStep
 
 
@@ -11,9 +11,7 @@ class ListTaskDefsStep(BaseStep):
 
     async def execute(self):
         def query():
-            from ....plugin.catalog import TaskCatalog
-
-            return TaskCatalog().definitions(include_schemas=self.context.get("include_schemas", True))
+            return self.app_context.task_catalog.definitions(include_schemas=self.context.get("include_schemas", True))
 
         self.response.answer = await run_blocking(query)
 
@@ -23,9 +21,4 @@ class GetTaskDefStep(BaseStep):
     """Describe one registered Task without loading unrelated Tasks."""
 
     async def execute(self):
-        def query():
-            from ....plugin.catalog import TaskCatalog
-
-            return TaskCatalog().definition(self.context["task"])
-
-        self.response.answer = await run_blocking(query)
+        self.response.answer = await run_blocking(self.app_context.task_catalog.definition, self.context["task"])

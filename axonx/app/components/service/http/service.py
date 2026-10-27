@@ -7,9 +7,9 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .....client.config import AXONX_DEFAULT_PORT
-from ....constants import AXONX_DEFAULT_BIND_HOST
-from ....registry import provider
+from .....client.config import AXONX_DEFAULT_CONNECT_HOST, AXONX_DEFAULT_PORT, normalize_target
+from ....config.defaults import AXONX_DEFAULT_BIND_HOST
+from ...registry import provider
 from ..base import BaseService
 
 if TYPE_CHECKING:
@@ -50,6 +50,13 @@ class HttpService(BaseService):
         self.startup_directory = Path.cwd().resolve()
         self.cli_processes: set[int] = set()
         self.cli_callbacks: dict[str, list | None] = {}
+
+    @property
+    def local_target(self) -> str:
+        """Return the canonical address used by this service's local child processes."""
+        host = AXONX_DEFAULT_CONNECT_HOST if self.host == AXONX_DEFAULT_BIND_HOST else self.host
+        host = f"[{host}]" if ":" in host else host
+        return normalize_target(f"{host}:{self.port}")
 
     def build_service(self, app: "Application") -> "FastAPI":
         """Build the ASGI application without starting a server."""

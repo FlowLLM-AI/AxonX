@@ -7,7 +7,7 @@
 - `axonx` 显示本地命令语法；`axonx help` 查询服务的 Job；`axonx help --job NAME` 获取当前参数契约。
 - `axonx list_task_defs --include-schemas false` 列出已注册 Task；`axonx get_task_def --task NAME` 查询单个定义。两者均查询运行中服务的 Python 环境；插件安装或源码修改后重启服务，重新加载定义。
 - `axonx exec --task NAME ...` 同步执行任务。用户要求验证执行环境时，可使用 `axonx exec --task demo --task-name check --x 1 --y 2`。
-- `axonx app --config default --cron research` 通过 Daemon 启动一个应用服务，Cron 是服务内组件。配置放在 `axonx/app/crontabs`，重启服务重新读取。手动 CLI 子进程随服务停止；Daemon 创建的定时 exec 进程继续运行。
+- `axonx app --config NAME_OR_PATH` 通过 Daemon 启动一个应用服务。配置的顶层 `cron` 列表包含 `expression`（五字段表达式）和 `command`（本地 `axonx exec --task NAME`）两个字符串；`cron: []` 关闭定时计划。条目统一使用配置继承和环境变量插值，子配置整体替换继承的列表，重启服务重新读取。手动 CLI 子进程随服务停止；Daemon 创建的定时 exec 进程继续运行。
 - 远程操作使用 `--target HOST:PORT`。部署插件时先上传 wheel，再使用返回的服务端绝对路径 `location` 在目标环境安装。
 
 ## 观察同一个执行实例
@@ -24,7 +24,7 @@ Task 继承 `axonx.task.core.base.BaseTask`，通过 `input_cls` 校验输入，
 
 upstream/downstream 表示 `upstream_task_ids` 声明的输入依赖；parent/child 表示 `parent_task_id` 和 `children` 记录的任务调用。兄弟任务之间可以有上下游依赖，应显式传入上游 ID；父子调用不会自动增加依赖边，也不会继承父任务的上游 ID。
 
-插件 manifest 在 `tasks` 下声明注册名到 `module:Class` 的映射。发现与加载归 `axonx.plugin.catalog.TaskCatalog`；同一目录实例按需加载并缓存 Task 类，Task 执行接收其 `resolve` 方法，不反向导入 Plugin。原子发布和快照工具位于 `axonx.task.storage.files`；`utils` 提供显式环境加载与插值、日志和标量转换。
+插件 manifest 在 `tasks` 下声明注册名到 `module:Class` 的映射。插件发现归 `axonx.plugin.discovery`，只返回注册信息、不计算内容指纹。启动层装配 `axonx.task.runtime.catalog.TaskCatalog`，向 App 注入一个目录快照供定义查询复用。目录按需加载并缓存 Task 类，Task 执行接收其 `resolve` 方法，不反向导入 Plugin。原子发布和快照工具位于 `axonx.task.storage.files`；`utils` 提供显式环境加载与插值、日志和标量转换。
 
 通过输出元数据保持产物可追溯，保留 metadata 原子写入和在线发布一致性保护。Task metadata 不提供协调锁。报告实际验证范围，明确缺失的数据、模型或外部服务。
 

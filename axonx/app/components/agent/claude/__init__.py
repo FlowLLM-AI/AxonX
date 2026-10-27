@@ -1,18 +1,7 @@
 """Claude Code Agent implementation and supporting modules.
 
-backend: Interactive SDK client lifecycle, reply streams and session operations.
-projector: Stable message blocks and incremental presentation patches.
-session_store: Adaptation of the AxonX transcript store to Claude SDK sessions.
-tools: In-process MCP tools exposing application Jobs.
+backend: Claude Code backend implemented with the interactive Agent SDK client.
+projector: Project Claude SDK messages into stable, UI-oriented block patches.
+session_store: Adapt the AxonX AgentSessionStore to the Claude SDK contract.
+tools: Expose AxonX Jobs to Claude Code as in-process MCP tools.
 """
-
-from . import backend, projector, session_store, tools
-from .backend import ClaudeAgentComponent
-
-__all__ = [
-    "ClaudeAgentComponent",
-    "backend",
-    "projector",
-    "session_store",
-    "tools",
-]

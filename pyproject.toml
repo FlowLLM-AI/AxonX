@@ -99,7 +99,7 @@ markers = [
 ]
 
 [tool.setuptools.package-data]
-axonx = ["app/crontabs/*.cron", "app/config/*.yaml", "app/components/agent/guides/*.md"]
+axonx = ["app/config/*.yaml", "app/components/agent/guides/*.md"]
 
 [tool.ruff]
 target-version = "py312"

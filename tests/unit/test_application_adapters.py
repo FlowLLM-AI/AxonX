@@ -11,13 +11,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from axonx.app.components.sync.archive import build_archive
-from axonx.app.components.sync.replica import prepare_replica
-from axonx.app.config.models import ComponentConfig
-from axonx.app.config.resolver import resolve_app_config
+from axonx.app.components.sync.replica import ReplicaBuilder
+from axonx.app.config.loader import ConfigLoader
+from axonx.app.config.models import CronConfig
 from axonx.app.core.application import Application
 from axonx.client.config import PROTOCOL_FILE_NAME_HEADER
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.models.identity import TaskState
+from axonx.task.runtime.catalog import TaskCatalog
 from axonx.task.runtime.executor import TaskExecutor
 from axonx.task.storage.logs import TaskLogReader
 from axonx.task.storage.workspace import read_entry, task_path, write_task_metadata
@@ -46,7 +47,7 @@ class UpdateOperations:
 def application(tmp_path, monkeypatch):
     for name in ("SOCKET", "TOKEN", "DIRECTORY"):
         monkeypatch.delenv("AXONX_DAEMON_" + name, raising=False)
-    config = resolve_app_config(log_config=False)
+    config = ConfigLoader().resolve(log_config=False)
     config.update(workspace_dir=str(tmp_path), log_dir=str(tmp_path / "logs"), log_to_console=False, log_to_file=False)
     config["command"] = (sys.executable, "-u", "-m", "axonx.cli")
     config["environment"] = {}
@@ -58,7 +59,8 @@ def application(tmp_path, monkeypatch):
     }
     config["components"]["task_index"]["default"]["poll_interval"] = 0.01
     config["service"] = {"backend": "http", "token": "test-token", "web_enabled": False}
-    app = Application(updates=UpdateOperations(), **config)
+    catalog = TaskCatalog([("research", "axonx.task.builtins.demo:DemoTask", "example")])
+    app = Application(updates=UpdateOperations(), task_catalog=catalog, **config)
     with TestClient(app.context.service.build_service(app), headers={"Authorization": "Bearer test-token"}) as client:
         yield app, client
 
@@ -71,20 +73,13 @@ def invoke(client, name, arguments):
     return payload["answer"]
 
 
-def test_config_job_returns_absolute_paths_and_excludes_runtime_callbacks(application):
+def test_config_job_returns_absolute_paths_and_declarative_schedules(application):
     app, client = application
-    app.app_config.components["cron"] = {
-        "default": ComponentConfig(
-            backend="cron",
-            source="research",
-            launch=lambda _: None,
-            validate_command=lambda _: None,
-        )
-    }
+    app.app_config.cron = [CronConfig(expression="0 16 * * 1-5", command="axonx exec --task demo")]
     config = invoke(client, "get_config", {})
     assert config["workspace_dir"] == str(app.workspace.root)
     assert Path(config["log_dir"]).is_absolute()
-    assert config["components"]["cron"]["default"] == {"backend": "cron", "source": "research"}
+    assert config["cron"] == [{"expression": "0 16 * * 1-5", "command": "axonx exec --task demo"}]
     assert config["service"]["token"] == "test-token"
     assert (
         client.post("/jobs/get_config", json={"arguments": {}}, headers={"Authorization": "Bearer wrong"}).status_code
@@ -105,7 +100,7 @@ async def test_application_can_run_without_product_adapters(tmp_path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("language", ["en", "zh"])
 async def test_default_application_starts_with_packaged_agent_guides(tmp_path, language):
-    config = resolve_app_config(log_config=False)
+    config = ConfigLoader().resolve(log_config=False)
     config.update(
         workspace_dir=str(tmp_path),
         log_dir=str(tmp_path / "logs"),
@@ -190,26 +185,41 @@ def test_cli_execution_and_task_observation_share_the_workspace(application):
     assert '"kind": "result"' in events.text
 
 
-def test_catalog_adapter_does_not_load_unrelated_plugin_tasks(application):
+def test_catalog_adapter_uses_injected_catalog(application, monkeypatch):
+    from axonx.plugin import discovery
+
     app, client = application
     app.app_config.command = ()
-    definition = invoke(client, "get_task_def", {"task": "demo"})
-    assert definition["name"] == "demo"
+    monkeypatch.setattr(discovery, "discover_task_registrations", lambda: pytest.fail("Rediscovered plugins"))
+    for _ in range(2):
+        definition = invoke(client, "get_task_def", {"task": "research"})
+        assert definition["name"] == "research"
+        assert definition["source"] == "plugin"
+        assert definition["plugin"] == "example"
     assert {"x", "y"} <= definition["input_schema"]["properties"].keys()
 
 
 @pytest.mark.parametrize("arguments", [{}, {"include_schemas": False}, {"include_schemas": True}])
-def test_task_definition_listing_runs_without_a_cli_command(application, monkeypatch, arguments):
-    from axonx.plugin import catalog
-
+def test_task_definition_listing_runs_without_a_cli_command(application, arguments):
     app, client = application
     app.app_config.command = ()
-    monkeypatch.setattr(catalog, "list_installed_plugins", lambda: [])
     definitions = invoke(client, "list_task_defs", arguments)
     demo = next(item for item in definitions if item["name"] == "demo")
     assert demo["source"] == "native"
     assert ("input_schema" in demo) is arguments.get("include_schemas", True)
     assert ("output_schema" in demo) is arguments.get("include_schemas", True)
+
+
+def test_definition_queries_require_a_catalog_from_the_host(tmp_path):
+    config = ConfigLoader().resolve(log_config=False)
+    config.update(workspace_dir=str(tmp_path), log_to_console=False, log_to_file=False)
+    config["components"] = {}
+    config["service"] = {"backend": "http", "token": "test-token", "web_enabled": False}
+    app = Application(**config)
+    with TestClient(app.context.service.build_service(app), headers={"Authorization": "Bearer test-token"}) as client:
+        response = client.post("/jobs/get_task_def", json={"arguments": {"task": "demo"}}).json()
+    assert not response["success"]
+    assert "No Task catalog is configured" in response["answer"]
 
 
 def test_upload_preview_and_workspace_deletion(application):
@@ -251,7 +261,9 @@ def test_sync_archive_round_trip_through_the_http_adapters(application, tmp_path
     status = TaskExecutor().execute(
         DemoTask({"task_name": "replica", "x": 3, "y": 4}, workspace_path=source, reg_name="demo")
     )
-    plan = prepare_replica(source, status.task_id, tmp_path / "prepared", 1_000_000, TaskLogReader(tmp_path / "logs"))
+    plan = ReplicaBuilder(
+        source, status.task_id, tmp_path / "prepared", 1_000_000, TaskLogReader(tmp_path / "logs")
+    ).prepare()
     archive = tmp_path / "replica.tar.gz"
     build_archive({status.task_id: plan}, [status.task_id], archive)
     response = client.post("/upload", content=archive.read_bytes(), headers={PROTOCOL_FILE_NAME_HEADER: archive.name})

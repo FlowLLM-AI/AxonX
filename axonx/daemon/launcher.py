@@ -15,11 +15,10 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from ..app.config.models import ApplicationConfig
-from ..app.config.resolver import resolve_app_config
+from ..app.config.loader import ConfigLoader
+from ..app.config.models import ApplicationConfig, CronConfig
 from ..app.core.banner import print_logo
-from ..app.crontabs import load_crontab
-from ..client.config import AXONX_SERVICE_TARGET, normalize_target
+from ..client.config import AXONX_SERVICE_TARGET
 from ..task.runtime.settings import ExecutionSettings
 from ..utils.async_work import run_blocking
 from ..utils.env import load_env
@@ -74,12 +73,17 @@ def start(
     inherited = dict(os.environ)
     environment = load_env()
     arguments = dict(arguments)
-    cron = arguments.pop("cron", None)
-    config = resolve_app_config(**arguments)
+    config = ConfigLoader().resolve(**arguments)
     config["environment"] = {**environment, **config.get("environment", {})}
     settings = ExecutionSettings.model_validate(config)
     config["execution_target"] = settings.execution_target
     app_config = ApplicationConfig.model_validate(config)
+    for index, entry in enumerate(app_config.cron):
+        try:
+            validate_command(entry.argv)
+        except ValueError as exc:
+            raise ValueError(f"cron[{index}].command: {exc}") from exc
+    config["cron"] = app_config.cron
     if app_config.service is None:
         raise ValueError("Application configuration does not define a service")
     cwd = Path.cwd().resolve()
@@ -89,6 +93,8 @@ def start(
     )
     if os.environ.get(SOCKET):
         from ..app.core.application import Application
+        from ..plugin.discovery import discover_task_registrations
+        from ..task.runtime.catalog import TaskCatalog
 
         daemon = DaemonClient(directory, cwd, VERIFICATION)
         environment = dict(settings.environment)
@@ -102,27 +108,22 @@ def start(
         config["command"] = (*command_prefix[:1], "-u", *command_prefix[1:])
         ready_to_launch = asyncio.Event()
 
-        async def launch(entry):
+        async def launch(index: int, entry: CronConfig):
             await ready_to_launch.wait()
-            host = "127.0.0.1" if service.host == "0.0.0.0" else service.host
-            host = f"[{host}]" if ":" in host else host
             await run_blocking(
                 daemon.launch,
-                [*command_prefix, *entry.command[1:]],
+                [*command_prefix, *entry.argv[1:]],
                 {
                     **os.environ,
                     **environment,
-                    AXONX_SERVICE_TARGET: normalize_target(f"{host}:{service.port}"),
+                    AXONX_SERVICE_TARGET: service.local_target,
                     "AXONX_SERVICE_TOKEN": service.token or "",
                 },
-                Path(settings.log_dir).expanduser().resolve() / "cron" / f"line-{entry.line}.log",
+                Path(settings.log_dir).expanduser().resolve() / "cron" / f"entry-{index}.log",
             )
 
-        if cron is not None:
-            config.setdefault("components", {})["cron"] = {
-                "default": {"backend": "cron", "source": cron, "launch": launch, "validate_command": validate_command}
-            }
-        app = Application(updates=daemon, **config)
+        catalog = TaskCatalog(registrations=discover_task_registrations())
+        app = Application(updates=daemon, task_catalog=catalog, launch_scheduled=launch, **config)
 
         async def ready():
             await run_blocking(daemon.ready, app.context.service.cleanup_timeout + 1)
@@ -134,8 +135,6 @@ def start(
             print_logo(app.app_config, service)
         service.run_app(app)
         return 0
-    if cron is not None:
-        load_crontab(cron, validate_command)
     plan = {
         "python": sys.executable,
         "cwd": str(cwd),

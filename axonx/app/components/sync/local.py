@@ -10,12 +10,21 @@ from pathlib import Path
 
 from ....client import http as client
 from ....client.base import RemoteServiceError
-from ....task.models.identity import matches_task_name, validate_task_ids, validate_task_names
+from ....task.models.identity import (
+    matches_task_name,
+    validate_task_ids,
+    validate_task_names,
+)
 from ....task.models.lifecycle import DisplayReplica
 from ....task.storage.logs import TaskLogReader
-from ....task.storage.workspace import read_task_metadata, scan_entries, task_directory, task_path
+from ....task.storage.workspace import (
+    read_task_metadata,
+    scan_entries,
+    task_directory,
+    task_path,
+)
 from ....utils.async_work import run_blocking
-from ...registry import provider
+from ..registry import provider
 from ..task_index.base import BaseTaskIndex
 from .archive import SYNC_ARCHIVE_NAME, build_archive
 from .base import BaseSyncComponent
@@ -23,7 +32,7 @@ from .errors import ReplicaBudgetError
 from .index import policy_revision, source_revision
 from .models import SyncReport, TaskPlan
 from .planner import archive_budget, pack_batches
-from .replica import prepare_group, prepare_replica
+from .replica import ReplicaBuilder, prepare_group
 
 
 @provider("local")
@@ -243,12 +252,13 @@ class LocalSyncComponent(BaseSyncComponent):
                         )
                     else:
                         plan = await run_blocking(
-                            prepare_replica,
-                            self.root,
-                            task_id,
-                            task_path(group_root, task_id),
-                            self.budget,
-                            TaskLogReader(Path(self.app_config.log_dir)),
+                            ReplicaBuilder(
+                                self.root,
+                                task_id,
+                                task_path(group_root, task_id),
+                                self.budget,
+                                TaskLogReader(Path(self.app_config.log_dir)),
+                            ).prepare,
                         )
                         plans = {task_id: plan}
                     if plans:

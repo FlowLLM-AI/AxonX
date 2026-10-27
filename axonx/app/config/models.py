@@ -1,13 +1,49 @@
-"""Typed application, component, Job and target configuration."""
+"""Typed application, Cron, component, Job and target configuration."""
 
 from __future__ import annotations
 
+import re
+import shlex
+from functools import cached_property
 from typing import Any, Literal, Self
 
+from croniter import croniter
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ...client.config import normalize_target
-from ..constants import DEFAULT_TRANSFER_BUDGET_BYTES
+from .defaults import DEFAULT_TRANSFER_BUDGET_BYTES
+
+_CRON_FIELD = re.compile(r"^[0-9*,/\-]+$")
+
+
+class CronConfig(BaseModel):
+    """One five-field schedule and a command parsed without a shell."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    expression: str
+    command: str
+
+    @field_validator("expression")
+    @classmethod
+    def validate_expression(cls, value: str) -> str:
+        fields = value.split()
+        if len(fields) != 5 or not all(_CRON_FIELD.fullmatch(field) for field in fields):
+            raise ValueError("Expected five numeric cron fields")
+        expression = " ".join(fields)
+        if not croniter.is_valid(expression):
+            raise ValueError(f"Invalid cron expression: {expression}")
+        return expression
+
+    @cached_property
+    def argv(self) -> tuple[str, ...]:
+        """Retain the original command text and parse its argument vector once."""
+        return tuple(shlex.split(self.command, comments=False))
+
+    @model_validator(mode="after")
+    def validate_command(self) -> Self:
+        if not self.argv or not self.argv[0]:
+            raise ValueError("A cron entry requires a command")
+        return self
 
 
 class ComponentConfig(BaseModel):
@@ -69,6 +105,7 @@ class ApplicationConfig(BaseModel):
     log_to_console: bool = True
     log_to_file: bool = True
     targets: list[TargetConfig] = Field(default_factory=list)
+    cron: list[CronConfig] = Field(default_factory=list)
     components: dict[str, dict[str, ComponentConfig]] = Field(default_factory=dict)
     jobs: dict[str, JobConfig] = Field(default_factory=dict)
     service: ComponentConfig | None = None

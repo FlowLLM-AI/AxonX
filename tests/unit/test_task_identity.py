@@ -13,7 +13,7 @@ from axonx.app.components.sync.applier import TaskArchiveApplier
 from axonx.app.components.sync.archive import build_archive
 from axonx.app.components.sync.errors import SnapshotChangedError
 from axonx.app.components.sync.replica import prepare_group, task_group
-from axonx.app.components.task_index import TaskEventStream
+from axonx.app.components.task_index.stream import TaskEventStream
 from axonx.app.steps.task.query import WaitTaskStep
 from axonx.task.builtins.demo import DemoTask
 from axonx.task.core.base import BaseTask
@@ -198,7 +198,7 @@ async def test_wait_and_stream_refuse_to_follow_a_restart(executor, tmp_path):
     read = AsyncMock(side_effect=[first, replacement])
     step = SimpleNamespace(
         context={"task_id": first.task_id, "poll_interval": 0.001},
-        task_index=SimpleNamespace(entry=read),
+        index=SimpleNamespace(entry=read),
         response=SimpleNamespace(),
     )
     with pytest.raises(ValueError, match="Task restarted"):

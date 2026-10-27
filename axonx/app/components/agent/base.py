@@ -9,8 +9,8 @@ from importlib.resources import files
 from ....client.events import JobEvent
 from ....client.models import JobResponse
 from ..base import BaseComponent
-from ..component_type import ComponentType
-from ..job.events import fold_events
+from ..job.response import fold_events
+from ..models import ComponentType
 from .models import AgentSession, AgentSessionInfo
 
 

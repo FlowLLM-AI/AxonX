@@ -70,7 +70,6 @@ def verify_distributions(dist_dir: Path, expected_version: str | None = None) ->
                     "axonx/_version.py",
                     "axonx/app/config/default.yaml",
                     "axonx/app/config/remote.yaml",
-                    "axonx/app/crontabs/research.cron",
                 }
             )
         with ZipFile(wheels[0]) as archive:
@@ -138,7 +137,6 @@ def verify_installation() -> None:
             assert module.__version__ == distribution.version
             assert files.joinpath("app/config/default.yaml").is_file()
             assert files.joinpath("app/config/remote.yaml").is_file()
-            assert files.joinpath("app/crontabs/research.cron").is_file()
             for language in ("en", "zh"):
                 guide = files.joinpath("app/components/agent/guides", f"{language}.md")
                 assert (
@@ -146,16 +144,15 @@ def verify_installation() -> None:
                 )
         print(f"Verified installation: {project['name']} {distribution.version}")
 
-    from axonx.app.config.resolver import resolve_app_config
-    from axonx.app.crontabs import load_crontab
-    from axonx.cli.parser import validate_cron_command
-    from axonx.plugin.catalog import TaskCatalog
+    from axonx.app.config.loader import ConfigLoader
+    from axonx.app.config.models import ApplicationConfig
     from axonx.plugin.discovery import (
+        discover_task_registrations,
         get_installed_plugin,  # pylint: disable=import-outside-toplevel
     )
+    from axonx.task.runtime.catalog import TaskCatalog
 
-    crontab, _ = load_crontab("research", validate_cron_command)
-    assert not crontab.is_relative_to(ROOT), "Crontab resolved to source checkout"
+    assert ApplicationConfig(**ConfigLoader().resolve(log_config=False)).cron == []
 
     task_names = {"demo", "send_dingtalk_task", "download_tushare_task"}
     for _, source, _, plugin in PACKAGES[1:]:
@@ -164,9 +161,9 @@ def verify_installation() -> None:
         assert info.tasks, f"Plugin {plugin} has no tasks"
         task_names.update(info.tasks)
         if "axonx.configs" in read_project(source).get("entry-points", {}):
-            assert resolve_app_config(config=plugin, log_config=False), f"Plugin {plugin} config did not load"
+            assert ConfigLoader().resolve(config=plugin, log_config=False), f"Plugin {plugin} config did not load"
 
-    catalog = TaskCatalog()
+    catalog = TaskCatalog(registrations=discover_task_registrations())
     definitions = [catalog.definition(name) for name in sorted(task_names)]
     assert {read_project(source)["name"] for _, source, _, _ in PACKAGES[1:]} <= {
         task.plugin for task in definitions

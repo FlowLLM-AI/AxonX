@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from ..base import BaseComponent
-from ..component_type import ComponentType
+from ..models import ComponentType
 
 
 class BaseService(BaseComponent, ABC):

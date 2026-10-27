@@ -88,6 +88,6 @@ class JobDispatcher:
                 token=configured.token,
             )
         job, public, internal = self._resolve(name, arguments, system)
-        if not job.is_streamable:
+        if not job.enable_stream:
             raise ValueError(f"Job {name!r} does not support streaming")
         return job.stream(public, internal)

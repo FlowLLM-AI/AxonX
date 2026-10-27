@@ -6,7 +6,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from axonx.app.components.task_index import TaskEventStream, TaskGraphQuery, summarize_status, task_sort_key
+from axonx.app.components.task_index.query import TaskGraphQuery, summarize_status, task_sort_key
+from axonx.app.components.task_index.stream import TaskEventStream
+from axonx.app.core.application import Application
 from axonx.task.models.events import LogEvent, ProgressEvent
 from axonx.task.models.identity import TaskState, task_type_from_id
 from axonx.task.models.lifecycle import DisplayReplica, ReplicaFile, ReplicaLog, TaskMetadata, TaskStepStatus
@@ -33,6 +35,33 @@ def record(task_id="base#demo#query", *, upstream_ids=None, **changes):
         }
         | changes
     )
+
+
+@pytest.mark.asyncio
+async def test_index_refresh_updates_lineage_without_exposing_mutable_snapshots(tmp_path):
+    status = record()
+    write_task_metadata(task_path(tmp_path, status.task_id), status)
+    app = Application(
+        workspace_dir=str(tmp_path),
+        log_dir=str(tmp_path / "logs"),
+        log_to_console=False,
+        log_to_file=False,
+        components={"task_index": {"default": {"backend": "local"}}},
+    )
+    async with app:
+        index = app.context.components["task_index"]["default"]
+        assert len((await index.graph(status.task_id)).nodes) == 1
+        missing = "etl#fetch#missing"
+        status.input_params["upstream_task_ids"] = [missing]
+        write_task_metadata(task_path(tmp_path, status.task_id), status)
+        await index._refresh()
+        graph = await index.graph(status.task_id)
+        assert {node.task_id for node in graph.nodes} == {status.task_id, missing}
+        graph.nodes.clear()
+        assert len((await index.context(status.task_id)).graph.nodes) == 2
+        entries = await index.entries(state="succeeded")
+        entries[status.task_id].input_params.clear()
+        assert (await index.entries())[status.task_id].input_params["upstream_task_ids"] == [missing]
 
 
 async def collect(stream, task_id):

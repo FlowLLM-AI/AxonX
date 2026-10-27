@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, NotRequired, Required, TypedDict
 
 from pydantic import BaseModel, Field
 
-from ....client import events as client_events
+from ....client.events import AgentBlockType
+
+AGENT_DEPTH_ARGUMENT = "agent_depth"
 
 
 class AgentSessionInfo(BaseModel):
@@ -25,7 +27,7 @@ class AgentSessionInfo(BaseModel):
 
 class AgentHistoryBlock(BaseModel):
     block_id: str
-    block_type: client_events.AgentBlockType
+    block_type: AgentBlockType
     message_uuid: str
     role: Literal["user", "assistant", "system"]
     status: str
@@ -40,3 +42,32 @@ class AgentSession(BaseModel):
 
 class AgentMutationResult(BaseModel):
     session_id: str
+
+
+class AgentSessionKey(TypedDict):
+    project_key: str
+    session_id: str
+    subpath: NotRequired[str]
+
+
+class AgentSessionListKey(TypedDict):
+    project_key: str
+    session_id: str
+
+
+class AgentSessionEntry(TypedDict, total=False):
+    type: Required[str]
+    uuid: str
+    timestamp: str
+    # Backend-owned JSON fields are intentionally allowed.
+
+
+class AgentSessionListEntry(TypedDict):
+    session_id: str
+    mtime: int
+
+
+class AgentSessionSummary(TypedDict):
+    session_id: str
+    mtime: int
+    data: dict[str, Any]

@@ -9,10 +9,9 @@ import platform
 import shutil
 import subprocess
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from typing import Literal
 
-from .models import GpuInfo
+from .models import GpuCollection, GpuInfo
 
 NVIDIA_COLUMNS = (
     "index",
@@ -25,14 +24,6 @@ NVIDIA_COLUMNS = (
 )
 MIB_BYTES = 1024**2
 TIMEOUT_SECONDS = 5.0
-
-
-@dataclass(frozen=True)
-class GpuCollection:
-    """GPU devices plus non-fatal problems encountered while discovering them."""
-
-    devices: tuple[GpuInfo, ...] = ()
-    warnings: tuple[str, ...] = ()
 
 
 def collect_gpus() -> GpuCollection:

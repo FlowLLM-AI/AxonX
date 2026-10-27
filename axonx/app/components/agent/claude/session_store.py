@@ -6,13 +6,13 @@ import asyncio
 from collections import defaultdict
 from typing import cast
 
-from ..session_store import (
+from ..models import (
     AgentSessionEntry,
     AgentSessionKey,
     AgentSessionListKey,
-    AgentSessionStore,
     AgentSessionSummary,
 )
+from ..session_store import AgentSessionStore
 
 
 class ClaudeSessionStoreAdapter:

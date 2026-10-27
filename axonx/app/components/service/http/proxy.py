@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import StreamingResponse
 
-from ...component_type import ComponentType
+from ...models import ComponentType
 from ...proxy.base import ProxyError
 
 _PROXY_METHODS = ("DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT")
