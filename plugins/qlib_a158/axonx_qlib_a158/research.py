@@ -56,7 +56,7 @@ class Alpha158ResearchTask(BaseTask):
     output_cls = ResearchOutputParams
 
     def build_task_steps(self):
-        self.stage_task_ids = {}
+        self.state["stage_task_ids"] = {}
         yield self.prepare_dataset
         if self.input_params.analysis is not None:
             yield self.analyze_factors
@@ -71,29 +71,31 @@ class Alpha158ResearchTask(BaseTask):
             upstream_task_ids=list(upstream),
             **params.model_dump(mode="json", exclude={"task_name", "upstream_task_ids"}),
         )
-        self.stage_task_ids[name] = result.child_task_id
+        self.state["stage_task_ids"][name] = result.child_task_id
         return result
 
     def prepare_dataset(self):
         self.stage("etl", "qlib_a158_etl", self.input_params.etl)
 
     def analyze_factors(self):
-        self.stage("analysis", "qlib_a158_factor", self.input_params.analysis, self.stage_task_ids["etl"])
+        self.stage("analysis", "qlib_a158_factor", self.input_params.analysis, self.state["stage_task_ids"]["etl"])
 
     def train_model(self):
-        self.stage("train", "qlib_a158_train", self.input_params.train, self.stage_task_ids["etl"])
+        self.stage("train", "qlib_a158_train", self.input_params.train, self.state["stage_task_ids"]["etl"])
 
     def predict(self):
         self.stage(
             "predict",
             "qlib_a158_predict",
             self.input_params.predict,
-            self.stage_task_ids["train"],
-            self.stage_task_ids["etl"],
+            self.state["stage_task_ids"]["train"],
+            self.state["stage_task_ids"]["etl"],
         )
 
     def backtest(self):
-        self.stage("backtest", "qlib_a158_backtest", self.input_params.backtest, self.stage_task_ids["predict"])
+        self.stage(
+            "backtest", "qlib_a158_backtest", self.input_params.backtest, self.state["stage_task_ids"]["predict"]
+        )
 
     def build_output_params(self):
-        return self.output_cls(stage_task_ids=self.stage_task_ids)
+        return self.output_cls(stage_task_ids=self.state["stage_task_ids"])
